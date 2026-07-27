@@ -1,0 +1,13 @@
+---
+description: Pelbu Suites project conventions — CMS data, Realtime, RLS, design
+alwaysApply: true
+---
+
+# Pelbu Suites rules
+
+- No hardcoded menus/prices/hours in UI — CMS or seed data only
+- Ops screens use Supabase Realtime (no refresh-to-see-updates)
+- DB changes require migrations + RLS
+- Public site: UX → UI → visual; follow `design/mockups/` and pelbu-design-system skill
+- `template_id` 1 is Pelbu flagship
+- Stack: Vercel, Supabase, Resend, CallMeBot, Cloudinary, PWA

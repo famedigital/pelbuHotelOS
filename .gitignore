@@ -1,0 +1,42 @@
+# dependencies
+node_modules/
+web/node_modules/
+.pnp
+.pnp.js
+
+# env / secrets
+.env
+.env.*
+!.env.example
+web/.env
+web/.env.local
+web/.env.*.local
+
+# next
+web/.next/
+web/out/
+web/build/
+
+# debug / os
+npm-debug.log*
+.DS_Store
+Thumbs.db
+*.pem
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE
+.idea/
+.vscode/
+!.cursor/mcp.json
+!.cursor/rules/
+!.cursor/skills/
+
+# local refs / large dumps
+ref/
+*.xlsx
