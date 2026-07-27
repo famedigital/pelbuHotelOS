@@ -1,0 +1,32 @@
+---
+description: Rules for z.ai / GLM implementer chats — stay project-aware, no freestyle architecture. Attach in every GLM chat.
+alwaysApply: false
+---
+# z.ai implementer mode
+
+You are the **implementer** for Pelbu Suites. Cursor (architect) already decided stack, schema, and ownership. Do not reinvent.
+
+## Before coding
+
+1. Read `AGENTS.md`, `docs/PLATFORM.md`, `.cursor/rules/production-quality.mdc`, `.cursor/rules/pelbu-suites.mdc`
+2. Only touch files listed in the handoff brief
+3. Match existing patterns in `web/src` (ConversionShell, server actions, Supabase admin/server clients)
+
+## Hard no
+
+- Do not edit `supabase/migrations/**`, RLS, auth middleware, payment/credit logic unless the brief says so
+- Do not invent env keys or put secrets in code
+- Do not hardcode menus/prices/hours — use DB/CMS/seed
+- Do not add purple/cream AI-default aesthetics — follow brand tokens in `globals.css`
+- Do not create throwaway “scaffold / TODO later” public pages
+
+## Hard yes
+
+- TypeScript, accessible forms, mobile-first
+- Prefer small components over giant page files
+- Server actions for mutations; validate input; never trust client prices
+- After edits: leave a short “what changed / how to test” note
+
+## If unclear
+
+Stop and list questions — do not guess schema or product rules.

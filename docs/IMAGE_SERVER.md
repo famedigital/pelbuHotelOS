@@ -11,27 +11,12 @@
 
 ## MCP in this project
 
-Configured in [`.cursor/mcp.json`](../.cursor/mcp.json):
+1. Copy [`.cursor/mcp.json.example`](../.cursor/mcp.json.example) → `.cursor/mcp.json`
+2. Replace `API_KEY`, `API_SECRET`, `CLOUD_NAME` with your Cloudinary credentials (from `web/.env.local`)
+3. **Reload Cursor MCP** (Settings → MCP → refresh, or restart Cursor)
+4. Servers: `cloudinary-assets`, `cloudinary-env`
 
-| Server | URL |
-|--------|-----|
-| `cloudinary-assets` | `https://asset-management.mcp.cloudinary.com/mcp` |
-| `cloudinary-env` | `https://environment-config.mcp.cloudinary.com/mcp` |
-
-### Enable in Cursor
-
-1. Create a free Cloudinary account → Console → copy **Cloud name**, **API Key**, **API Secret**
-2. Cursor → **Settings → MCP** → ensure project MCPs load (or Add server if needed)
-3. Authenticate (OAuth prompt) **or** set headers/`CLOUDINARY_URL` for API key auth
-4. Put app secrets in `web/.env.local` (never commit):
-
-```env
-CLOUDINARY_CLOUD_NAME=
-CLOUDINARY_API_KEY=
-CLOUDINARY_API_SECRET=
-NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=
-```
-
+`.cursor/mcp.json` is gitignored (contains secrets). Only the example is committed.
 ## Folder convention (Cloudinary)
 
 ```

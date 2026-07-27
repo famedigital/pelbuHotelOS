@@ -1,0 +1,17 @@
+---
+description: Production-quality code standards for Pelbu OS — no throwaway scaffolds in shipped UI
+alwaysApply: true
+---
+
+# Production from line 1
+
+Every file under `web/src` that users or staff will hit must be **production-quality**:
+
+- Real routes, real copy, real CTAs — no “scaffold / coming soon / mockup path” placeholders on public pages
+- Typed props, accessible markup, mobile-first, spacing scale 4–96
+- No hardcoded secrets; env via `process.env`
+- Menus/prices/hours from CMS/seed data — not invented mid-component forever
+- Prefer small composable components over one giant page file
+- Match `design/mockups/` UX intent; improve gaps, never regress clarity
+
+Phased delivery = **which modules** we build next — not “ship junk then rewrite.”

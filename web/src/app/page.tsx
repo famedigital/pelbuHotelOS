@@ -1,53 +1,40 @@
-export default function Home() {
-  return (
-    <div className="min-h-screen bg-ivory text-espresso">
-      <header className="mx-auto flex max-w-5xl items-center justify-between px-6 py-6">
-        <p className="text-xl tracking-[0.2em]">PELBU SUITES</p>
-        <p className="text-sm text-muted">Olakha · Thimphu · template_id 1</p>
-      </header>
+import { HomeHero } from "@/components/home/HomeHero";
+import { HomeStreams } from "@/components/home/HomeStreams";
+import { SiteFooter } from "@/components/site/SiteFooter";
+import { SiteHeader } from "@/components/site/SiteHeader";
+import Link from "next/link";
 
-      <main className="mx-auto flex max-w-5xl flex-col gap-12 px-6 pb-24 pt-16">
-        <section className="flex flex-col gap-6">
-          <h1 className="max-w-2xl text-4xl leading-tight tracking-tight md:text-5xl">
-            Stay. Dine. Gather.
-            <span className="block text-maroon">Modern Bhutanese hospitality.</span>
-          </h1>
-          <p className="max-w-xl text-lg text-muted">
-            Flagship scaffold is live. Review UX mockups, then we build the full
-            conversion site and hotel OS.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <a
-              href="#streams"
-              className="inline-flex min-h-11 items-center rounded-sm bg-gold px-5 text-sm font-medium text-espresso"
+export default function HomePage() {
+  return (
+    <>
+      <SiteHeader />
+      <main>
+        <HomeHero />
+        <HomeStreams />
+        <section className="bg-white px-6 py-16 md:px-8 md:py-20">
+          <div className="mx-auto flex max-w-[1200px] flex-col gap-6 md:flex-row md:items-end md:justify-between">
+            <div className="max-w-xl">
+              <p className="text-sm tracking-[0.2em] text-maroon uppercase">
+                Location
+              </p>
+              <h2 className="mt-3 text-3xl text-espresso md:text-4xl">
+                Olakha, Thimphu — easy for guests and agents alike.
+              </h2>
+              <p className="mt-4 text-muted">
+                Built for Bhutan travel reality: fast bookings, guide and driver
+                care, and dining that earns a second visit.
+              </p>
+            </div>
+            <Link
+              href="/contact"
+              className="inline-flex min-h-11 items-center text-sm text-maroon hover:underline"
             >
-              Explore streams
-            </a>
-            <span className="inline-flex min-h-11 items-center rounded-sm border border-espresso/20 px-5 text-sm text-muted">
-              Mockups → /design/mockups
-            </span>
+              Get directions →
+            </Link>
           </div>
         </section>
-
-        <section id="streams" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[
-            "Rooms",
-            "Cafe & Pastry",
-            "Restaurant",
-            "Bar",
-            "Spa & Steam",
-            "Meeting",
-          ].map((label) => (
-            <div
-              key={label}
-              className="border border-espresso/10 bg-white/50 px-5 py-8"
-            >
-              <p className="text-sm tracking-wide text-maroon">Stream</p>
-              <p className="mt-2 text-xl">{label}</p>
-            </div>
-          ))}
-        </section>
       </main>
-    </div>
+      <SiteFooter />
+    </>
   );
 }

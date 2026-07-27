@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "cloudinary-assets": {
+      "url": "https://asset-management.mcp.cloudinary.com/mcp",
+      "headers": {
+        "cloudinary-url": "cloudinary://API_KEY:API_SECRET@CLOUD_NAME"
+      }
+    },
+    "cloudinary-env": {
+      "url": "https://environment-config.mcp.cloudinary.com/mcp",
+      "headers": {
+        "cloudinary-url": "cloudinary://API_KEY:API_SECRET@CLOUD_NAME"
+      }
+    }
+  }
+}

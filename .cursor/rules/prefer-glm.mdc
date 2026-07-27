@@ -1,0 +1,31 @@
+---
+description: Prefer GLM-5.2 for implementer work — documents limit that rules cannot switch Cursor models
+alwaysApply: true
+---
+
+# Model routing (Pelbu)
+
+## Truth
+
+Cursor **rules cannot change the chat model**. Model selection is only:
+
+1. Chat / Agent model dropdown → **`GLM-5.2`**
+2. Cursor Settings → Models (custom model + OpenAI Base URL override)
+
+## Intended usage for this repo
+
+| Chat purpose | Select in picker |
+|--------------|------------------|
+| Bulk implement (UI, forms, polish) | **`GLM-5.2`** |
+| Architect / schema / review / hard bugs | Cursor default (Composer / Claude / GPT) — **turn off** OpenAI Base URL override first |
+
+## z.ai setup checklist (must match)
+
+- Custom model name: **`GLM-5.2`** (uppercase)
+- Override OpenAI Base URL: **`https://api.z.ai/api/coding/paas/v4`**
+- API key: Z.AI key (Coding Plan), not OpenRouter
+- After adding: pick **`GLM-5.2`** once in the Agent model menu so new implementer chats stick to it
+
+## Agents / Task tool
+
+Background Task subagents **cannot** use `GLM-5.2` — only Cursor’s allowlisted models. Use a **second chat** with GLM selected instead.
