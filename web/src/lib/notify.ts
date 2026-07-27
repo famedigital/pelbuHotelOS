@@ -309,3 +309,51 @@ export async function notifyNewServiceRequest(
   ]);
 }
 
+export type EnquiryNotifyPayload = {
+  enquiryId: string;
+  topic: string;
+  contactName: string;
+  contactPhone: string;
+  contactEmail: string | null;
+  message: string;
+};
+
+export async function notifyNewEnquiry(
+  payload: EnquiryNotifyPayload,
+): Promise<void> {
+  const shortId = payload.enquiryId.slice(0, 8);
+  const lines = [
+    `New enquiry (${shortId})`,
+    `Topic: ${payload.topic}`,
+    `Guest: ${payload.contactName}`,
+    `Phone: ${payload.contactPhone}`,
+    payload.contactEmail ? `Email: ${payload.contactEmail}` : null,
+    `Message: ${payload.message}`,
+    `Ref: ${payload.enquiryId}`,
+    siteUrl(),
+  ].filter(Boolean) as string[];
+
+  const text = lines.join("\n");
+
+  await Promise.allSettled([
+    sendCallMeBot(text),
+    sendDeskEmail(`[Pelbu] Enquiry · ${payload.topic} · ${payload.contactName}`, text),
+    payload.contactEmail
+      ? sendGuestEmail(
+          payload.contactEmail,
+          "Pelbu Suites — we received your message",
+          [
+            `Kuzuzangpo ${payload.contactName},`,
+            "",
+            "We received your enquiry at Pelbu Suites, Olakha.",
+            `Reference: ${payload.enquiryId}`,
+            "",
+            "Our desk will reply shortly.",
+            "",
+            "Pelbu Suites",
+          ].join("\n"),
+        )
+      : Promise.resolve(),
+  ]);
+}
+
