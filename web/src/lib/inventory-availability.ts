@@ -14,7 +14,7 @@ export async function soldQtyByRoomType(
     .from("bookings")
     .select("id, booking_rooms(qty, room_type_id)")
     .eq("property_id", propertyId)
-    .in("status", ["pending", "confirmed", "checked_in"])
+    .in("status", ["held", "confirmed", "checked_in"])
     .lt("check_in", checkOut)
     .gt("check_out", checkIn);
 
