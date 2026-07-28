@@ -33,6 +33,12 @@ export type FastBookState = {
 
 const SOURCES = new Set(["owner", "reservation", "agent", "mou_agent"]);
 const PAYMENT_MODES = new Set(["prepaid", "partial", "on_credit", "cash"]);
+const GUEST_ORIGINS = new Set([
+  "international",
+  "regional",
+  "official",
+  "local",
+]);
 
 function parseNonNegInt(
   value: FormDataEntryValue | null,
@@ -93,6 +99,11 @@ export async function createFastBooking(
     const notes = optionalTrim(formData.get("notes"));
     const agentId = optionalTrim(formData.get("agent_id"));
 
+    const guestOriginRaw = optionalTrim(formData.get("guest_origin"));
+    const guestOrigin = guestOriginRaw && GUEST_ORIGINS.has(guestOriginRaw)
+      ? guestOriginRaw
+      : "international";
+
     const paymentModeRaw = optionalTrim(formData.get("payment_mode"));
     const paymentMode =
       paymentModeRaw && PAYMENT_MODES.has(paymentModeRaw)
@@ -103,8 +114,12 @@ export async function createFastBooking(
       throw new Error("Select an approved agent for agent bookings.");
     }
 
-    if ((source === "agent" || source === "mou_agent") && !guideNumber) {
-      throw new Error("Guide number is required for agent bookings.");
+    // Guide is required for international tourists (full-package rule).
+    // Regional / official / local guests may legitimately have no guide.
+    if (guestOrigin === "international" && !guideNumber) {
+      throw new Error(
+        "Guide number is required for international tourists. If this guest has no guide, change the origin to regional / official / local.",
+      );
     }
 
     if (paymentMode === "on_credit" && !agentId) {

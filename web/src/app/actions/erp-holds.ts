@@ -85,11 +85,15 @@ export async function confirmBookingToken(
       .insert({
         property_id: pid,
         booking_id: bookingId,
-        amount_btn: amount,
-        method,
+        amount_btn: Math.max(amount, 0.01),
+        method: ["cash", "bank", "card", "agent_credit", "bank_qr", "pay_bt", "deposit"].includes(
+          method,
+        )
+          ? method
+          : "bank",
         kind: "deposit",
         reference: reference ?? null,
-        received_at: now,
+        notes: "Booking token / deposit",
       })
       .select("id")
       .single();
