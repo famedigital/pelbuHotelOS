@@ -7,6 +7,7 @@ import { notifyNewBooking } from "@/lib/notify";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { roundBtn } from "@/lib/pricing";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
+import { resolveActivePropertyId } from "@/lib/property-context";
 import {
   agentRateTier,
   lookupRoomRateBtn,
@@ -127,16 +128,8 @@ export async function createFastBooking(
     }
 
     const admin = createSupabaseAdminClient();
-
-    const { data: property, error: propertyError } = await admin
-      .from("properties")
-      .select("id")
-      .eq("slug", PELBU_PROPERTY_SLUG)
-      .single();
-
-    if (propertyError || !property) {
-      throw new Error("Hotel property is not configured.");
-    }
+    const propertyId = await resolveActivePropertyId(admin);
+    const property = { id: propertyId };
 
     const { data: roomTypes, error: typesError } = await admin
       .from("room_types")
@@ -247,6 +240,8 @@ export async function createFastBooking(
         source: source === "mou_agent" ? "agent" : source,
         booked_by_role: source,
         status: "confirmed",
+        confirmed_at: new Date().toISOString(),
+        confirmed_by: "desk_fast_book",
         check_in: checkIn,
         check_out: checkOut,
         contact_name: contactName,

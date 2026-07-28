@@ -9,7 +9,7 @@ import {
   pushAvailabilityBatch,
 } from "@/lib/channel/channex-client";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { PELBU_PROPERTY_SLUG } from "@/lib/property";
+import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
@@ -29,13 +29,7 @@ async function requireDesk() {
 }
 
 async function propertyId(admin: Admin) {
-  const { data: property, error } = await admin
-    .from("properties")
-    .select("id")
-    .eq("slug", PELBU_PROPERTY_SLUG)
-    .single();
-  if (error || !property) throw new Error("Hotel property is not configured.");
-  return property.id as string;
+  return resolveActivePropertyId(admin);
 }
 
 function revalidateChannel() {
@@ -406,7 +400,7 @@ export async function cancelBooking(
       .eq("property_id", pid)
       .single();
     if (error || !booking) throw new Error("Booking not found.");
-    if (["cancelled", "checked_out", "no_show"].includes(booking.status as string)) {
+    if (["cancelled", "checked_out", "no_show", "expired"].includes(booking.status as string)) {
       throw new Error(`Cannot cancel from status ${booking.status}.`);
     }
 
@@ -460,8 +454,8 @@ export async function markBookingNoShow(
       .eq("property_id", pid)
       .single();
     if (!booking) throw new Error("Booking not found.");
-    if (!["pending", "confirmed"].includes(booking.status as string)) {
-      throw new Error("No-show only from pending/confirmed.");
+    if (!["pending", "held", "confirmed"].includes(booking.status as string)) {
+      throw new Error("No-show only from pending/held/confirmed.");
     }
 
     const { error } = await admin

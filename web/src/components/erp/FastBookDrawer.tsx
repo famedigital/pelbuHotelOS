@@ -115,6 +115,23 @@ export function FastBookDrawer({
               </select>
             </label>
             <label className="block text-sm text-espresso">
+              Guest origin
+              <select
+                name="guest_origin"
+                required
+                defaultValue="international"
+                className={fieldClassName()}
+              >
+                <option value="international">International tourist</option>
+                <option value="regional">Regional (Indian / etc.)</option>
+                <option value="official">Official / diplomatic</option>
+                <option value="local">Local (Bhutanese)</option>
+              </select>
+              <span className="mt-1 block text-[11px] text-muted">
+                Drives whether a guide is required.
+              </span>
+            </label>
+            <label className="block text-sm text-espresso">
               Agent
               <select name="agent_id" className={fieldClassName()} defaultValue="">
                 <option value="">— Walk-in / none —</option>
@@ -131,9 +148,12 @@ export function FastBookDrawer({
               <input
                 type="text"
                 name="guide_number"
-                placeholder="Required for agent bookings"
+                placeholder="Required for international tourists"
                 className={fieldClassName()}
               />
+              <span className="mt-1 block text-[11px] text-muted">
+                Required for international tourists only.
+              </span>
             </label>
             <label className="block text-sm text-espresso">
               Payment
