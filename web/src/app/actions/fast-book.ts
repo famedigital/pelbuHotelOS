@@ -255,6 +255,7 @@ export async function createFastBooking(
         adults,
         rooms: guestRooms,
         guide_number: guideNumber,
+        guest_origin: guestOrigin,
         payment_mode: paymentMode,
         notes,
       })

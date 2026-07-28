@@ -90,7 +90,7 @@ export async function confirmCheckIn(
     await requireDesk();
 
     const bookingId = trimRequired(formData.get("booking_id"), "Booking");
-    const guideNumber = trimRequired(formData.get("guide_number"), "Guide number");
+    const guideNumber = optionalTrim(formData.get("guide_number"));
     const guestName = trimRequired(formData.get("guest_name"), "Guest name");
     const nationality = optionalTrim(formData.get("nationality"));
     const passportOrCid = trimRequired(
@@ -118,7 +118,7 @@ export async function confirmCheckIn(
     const { data: booking, error: bookingError } = await admin
       .from("bookings")
       .select(
-        "id, status, contact_name, check_in, check_out, agent_id, payment_mode, booking_rooms(qty, inventory_kind, room_type_id)",
+        "id, status, contact_name, check_in, check_out, agent_id, payment_mode, guest_origin, booking_rooms(qty, inventory_kind, room_type_id)",
       )
       .eq("id", bookingId)
       .eq("property_id", property_id)
@@ -131,6 +131,15 @@ export async function confirmCheckIn(
     const status = booking.status as string;
     if (!["pending", "confirmed"].includes(status)) {
       throw new Error(`Cannot check in a booking with status ${status}.`);
+    }
+
+    const guestOrigin = (booking.guest_origin as string | null) ?? "international";
+    // Guide is only mandatory for international tourists. Regional / official /
+    // local guests (locals, govt officials, domestic) may legitimately have none.
+    if (guestOrigin === "international" && !guideNumber) {
+      throw new Error(
+        "Guide number is required for international tourists. Change the booking's guest origin if this guest has no guide.",
+      );
     }
 
     const rooms = (booking.booking_rooms as { qty: number; inventory_kind: string; room_type_id: string }[] | null) ?? [];
