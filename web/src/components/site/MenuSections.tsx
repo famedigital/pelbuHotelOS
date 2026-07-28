@@ -6,39 +6,64 @@ type Props = {
   emptyMessage?: string;
 };
 
+function categoryHeadingId(category: string, index: number): string {
+  const slug = category
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return `cat-${slug || index}`;
+}
+
 export function MenuSections({
   byCategory,
   emptyMessage = "Menu temporarily unavailable.",
 }: Props) {
   const entries = [...byCategory.entries()];
   if (entries.length === 0) {
-    return <p className="text-sm text-maroon">{emptyMessage}</p>;
+    return (
+      <p className="rounded-sm border border-espresso/10 bg-espresso/[0.02] px-4 py-6 text-sm text-maroon">
+        {emptyMessage}
+      </p>
+    );
   }
 
   return (
-    <div className="space-y-10">
-      {entries.map(([category, items]) => (
-        <section key={category}>
-          <h2 className="text-sm font-medium tracking-[0.18em] text-gold uppercase">
-            {category}
-          </h2>
-          <ul className="mt-4 divide-y divide-espresso/10 border-y border-espresso/10">
-            {items.map((item) => (
-              <li key={item.id} className="py-4">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <p className="text-base text-espresso">{item.name}</p>
-                  <p className="text-sm text-espresso">
-                    {formatBtn(item.price_btn)}
-                  </p>
-                </div>
-                {item.description ? (
-                  <p className="mt-1 text-sm text-muted">{item.description}</p>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
+    <div className="space-y-12">
+      {entries.map(([category, items], index) => {
+        const headingId = categoryHeadingId(category, index);
+        return (
+          <section key={category} aria-labelledby={headingId}>
+            <div className="flex items-center gap-4">
+              <h2
+                id={headingId}
+                className="text-xs font-semibold tracking-[0.22em] text-gold uppercase"
+              >
+                {category}
+              </h2>
+              <span aria-hidden className="h-px flex-1 bg-espresso/10" />
+            </div>
+            <ul className="mt-5 divide-y divide-espresso/10 border-t border-espresso/10">
+              {items.map((item) => (
+                <li key={item.id} className="group py-4 transition-colors">
+                  <div className="flex items-baseline justify-between gap-4">
+                    <p className="text-base text-espresso transition-colors group-hover:text-maroon">
+                      {item.name}
+                    </p>
+                    <p className="shrink-0 text-sm font-medium text-espresso tabular-nums">
+                      {formatBtn(item.price_btn)}
+                    </p>
+                  </div>
+                  {item.description ? (
+                    <p className="mt-1.5 max-w-prose text-sm leading-relaxed text-muted">
+                      {item.description}
+                    </p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })}
     </div>
   );
 }

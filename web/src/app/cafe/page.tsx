@@ -19,6 +19,7 @@ export default async function CafePage() {
     loadMenuByOutlets(["cafe", "pastry"]),
   ]);
   const byCategory = groupMenuByCategory(items);
+  const hasMenu = items.length > 0;
 
   return (
     <ConversionShell
@@ -29,31 +30,50 @@ export default async function CafePage() {
         "Opens 6:30 AM in summer and 7:30 AM in winter. Breakfast through dinner — order for pickup or taxi delivery across Thimphu."
       }
       aside={
-        <div className="space-y-4 text-sm text-muted">
-          <p className="text-xs tracking-[0.2em] text-gold uppercase">Order</p>
-          <p className="leading-relaxed text-espresso/80">
-            {page?.hours_note ??
-              "GST shown clearly on the bill. Taxi fare is paid to the driver separately."}
-          </p>
-          <a
-            href={page?.primary_cta_href ?? "/order"}
-            className="inline-flex min-h-11 items-center rounded-sm bg-gold px-5 text-sm font-medium text-espresso"
-          >
-            {page?.primary_cta_label ?? "Order now"}
-          </a>
+        <div className="space-y-5 text-sm text-muted">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
+              Order
+            </p>
+            <p className="leading-relaxed text-espresso/80">
+              {page?.hours_note ??
+                "GST shown clearly on the bill. Taxi fare is paid to the driver separately."}
+            </p>
+          </div>
+          <div className="space-y-2 border-t border-espresso/10 pt-5">
+            <a
+              href={page?.primary_cta_href ?? "/order"}
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-sm bg-gold px-5 text-sm font-medium text-espresso transition-opacity hover:opacity-90"
+            >
+              {page?.primary_cta_label ?? "Order now"}
+            </a>
+          </div>
         </div>
       }
     >
-      <div className="space-y-12">
-        <MenuSections byCategory={byCategory} />
-        {items.length > 0 ? (
-          <a
-            href="/order"
-            className="inline-flex min-h-11 items-center rounded-sm bg-espresso px-5 text-sm font-medium text-ivory"
-          >
-            Build your order
-          </a>
-        ) : null}
+      <div className="space-y-14">
+        <section aria-labelledby="menu-heading">
+          <div className="flex items-baseline justify-between gap-4">
+            <h2
+              id="menu-heading"
+              className="text-xs font-semibold tracking-[0.22em] text-gold uppercase"
+            >
+              The menu
+            </h2>
+          </div>
+          <div className="mt-6">
+            <MenuSections byCategory={byCategory} />
+          </div>
+          {hasMenu ? (
+            <a
+              href="/order"
+              className="mt-8 inline-flex min-h-11 items-center rounded-sm bg-espresso px-5 text-sm font-medium text-ivory transition-opacity hover:opacity-90"
+            >
+              Build your order
+            </a>
+          ) : null}
+        </section>
+
         <MediaGallery items={gallery} label="Cafe" />
       </div>
     </ConversionShell>
