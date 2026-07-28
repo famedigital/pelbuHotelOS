@@ -203,10 +203,80 @@ export async function confirmCheckIn(
       }
     }
 
+    // Resolve master-partner rows, upserting when staff typed a new one.
+    const todayIso = new Date().toISOString().slice(0, 10);
+    let resolvedGuideId: string | null = guideIdRaw || null;
+    let resolvedDriverId: string | null = driverIdRaw || null;
+
+    if (!resolvedGuideId && guideNumber) {
+      // New guide typed free-text → insert. (Unique constraint protects dups;
+      // if a concurrent insert wins, fall through to lookup by number.)
+      const { data: newGuide, error: gErr } = await admin
+        .from("guides")
+        .insert({
+          property_id,
+          guide_number: guideNumber,
+          visit_count: 1,
+          last_seen_at: todayIso,
+        })
+        .select("id")
+        .maybeSingle();
+      if (gErr?.code === "23505") {
+        const { data: existing } = await admin
+          .from("guides")
+          .select("id")
+          .eq("property_id", property_id)
+          .eq("guide_number", guideNumber)
+          .maybeSingle();
+        resolvedGuideId = (existing?.id as string | null) ?? null;
+      } else {
+        resolvedGuideId = (newGuide?.id as string | null) ?? null;
+      }
+    }
+
+    if (!resolvedDriverId && (driverPhone || driverName)) {
+      const driverPayload = {
+        property_id,
+        full_name: driverName || null,
+        phone: driverPhone || null,
+        vehicle_no: vehicleNo || null,
+        license_no: licenseNo || null,
+        visit_count: 1,
+        last_seen_at: todayIso,
+      };
+      const { data: newDriver, error: dErr } = await admin
+        .from("drivers")
+        .insert(driverPayload)
+        .select("id")
+        .maybeSingle();
+      if (dErr?.code === "23505" && driverPhone) {
+        const { data: existing } = await admin
+          .from("drivers")
+          .select("id")
+          .eq("property_id", property_id)
+          .eq("phone", driverPhone)
+          .maybeSingle();
+        resolvedDriverId = (existing?.id as string | null) ?? null;
+      } else {
+        resolvedDriverId = (newDriver?.id as string | null) ?? null;
+      }
+    }
+
+    // Bump last_seen_at on the chosen partner. visit_count is derived from
+    // bookings at report time, so no increment needed here.
+    if (resolvedGuideId) {
+      await admin.from("guides").update({ last_seen_at: todayIso }).eq("id", resolvedGuideId);
+    }
+    if (resolvedDriverId) {
+      await admin.from("drivers").update({ last_seen_at: todayIso }).eq("id", resolvedDriverId);
+    }
+
     const { error: bookingPatchError } = await admin
       .from("bookings")
       .update({
         guide_number: guideNumber,
+        guide_id: resolvedGuideId,
+        driver_id: resolvedDriverId,
         payment_mode: paymentMode,
         status: "checked_in",
         checked_in_at: new Date().toISOString(),

@@ -6,7 +6,7 @@ import {
   type CheckInState,
   type CheckOutState,
 } from "@/app/actions/erp-checkin";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 function nightsBetween(checkIn: string, checkOut: string): number {
   if (!checkIn || !checkOut) return 0;
@@ -23,6 +23,14 @@ const ORIGIN_LABELS: Record<string, string> = {
   local: "Local",
 };
 
+export type PartnerOption = {
+  id: string;
+  label: string;
+  sublabel?: string;
+  /** Free-text fields to autofill when this partner is picked. */
+  fill?: Record<string, string>;
+};
+
 export type CheckInBooking = {
   id: string;
   contact_name: string | null;
@@ -32,6 +40,8 @@ export type CheckInBooking = {
   status: string;
   guest_origin: string | null;
   guide_number: string | null;
+  guide_id: string | null;
+  driver_id: string | null;
   payment_mode: string | null;
   adults: number;
   rooms: number;
@@ -58,13 +68,94 @@ function fieldClassName() {
 const checkInInitial: CheckInState = { ok: false };
 const checkOutInitial: CheckOutState = { ok: false };
 
-export function CheckInForm({ booking }: { booking: CheckInBooking }) {
+type PartnerKind = "guide" | "driver";
+
+/**
+ * Compact partner picker. Renders a labelled native <select> of saved partners
+ * plus a hidden id input. When staff pick a saved partner, the related free-text
+ * fields (passed via `fill`) are autofilled. Picking the empty option clears the
+ * hidden id so a new typed entry will upsert on save.
+ *
+ * Intentionally uses a <select>, not a custom combobox — accessible, no deps,
+ * and matches the rest of the desk forms' restraint.
+ */
+function PartnersPicker({
+  kind,
+  partners,
+  selectedId,
+  onPick,
+}: {
+  kind: PartnerKind;
+  partners: PartnerOption[];
+  selectedId: string | null;
+  onPick: (p: PartnerOption | null) => void;
+}) {
+  if (partners.length === 0) return null;
+  const label = kind === "guide" ? "Recent guides" : "Recent drivers";
+
+  return (
+    <label className="block text-sm text-espresso">
+      {label}
+      <select
+        value={selectedId ?? ""}
+        onChange={(e) => {
+          const id = e.target.value;
+          const found = id ? partners.find((p) => p.id === id) ?? null : null;
+          onPick(found);
+        }}
+        className={fieldClassName()}
+      >
+        <option value="">— New / type below —</option>
+        {partners.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.label}
+            {p.sublabel ? ` · ${p.sublabel}` : ""}
+          </option>
+        ))}
+      </select>
+      <span className="mt-1 block text-[11px] text-muted">
+        Pick a returning partner to autofill, or leave on "New" and type below.
+      </span>
+    </label>
+  );
+}
+
+export function CheckInForm({
+  booking,
+  guides = [],
+  drivers = [],
+}: {
+  booking: CheckInBooking;
+  guides?: PartnerOption[];
+  drivers?: PartnerOption[];
+}) {
   const [state, action, pending] = useActionState(confirmCheckIn, checkInInitial);
   const guest = booking.booking_guests[0];
   const driver = booking.booking_drivers[0];
   const hasDriverBeds = booking.booking_rooms.some(
     (r) => r.inventory_kind === "driver_comp" && r.qty > 0,
   );
+
+  // Partner-pick state. Tracks the chosen master id + autofill values for the
+  // free-text fields below. Null = staff is typing a new partner.
+  const [guidePick, setGuidePick] = useState<PartnerOption | null>(
+    booking.guide_id
+      ? guides.find((g) => g.id === booking.guide_id) ?? null
+      : null,
+  );
+  const [guideNumber, setGuideNumber] = useState<string>(booking.guide_number ?? "");
+
+  const [driverPick, setDriverPick] = useState<PartnerOption | null>(
+    booking.driver_id
+      ? drivers.find((d) => d.id === booking.driver_id) ?? null
+      : null,
+  );
+  const [driverFields, setDriverFields] = useState({
+    name: driver?.full_name ?? "",
+    phone: driver?.phone ?? "",
+    vehicle_no: driver?.vehicle_no ?? "",
+    license_no: driver?.license_no ?? "",
+  });
 
   if (state.ok && state.bookingId) {
     return (
@@ -139,12 +230,27 @@ export function CheckInForm({ booking }: { booking: CheckInBooking }) {
         <legend className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
           Guide & settlement
         </legend>
+        <PartnersPicker
+          kind="guide"
+          partners={guides}
+          selectedId={guidePick?.id ?? null}
+          onPick={(p) => {
+            setGuidePick(p);
+            if (p?.fill?.guide_number) setGuideNumber(p.fill.guide_number);
+          }}
+        />
+        <input type="hidden" name="guide_id" value={guidePick?.id ?? ""} />
         <label className="block text-sm text-espresso">
           Guide number
           <input
             type="text"
             name="guide_number"
-            defaultValue={booking.guide_number ?? ""}
+            value={guideNumber}
+            onChange={(e) => {
+              setGuideNumber(e.target.value);
+              // Typing free-text means we are no longer on a saved partner.
+              if (guidePick) setGuidePick(null);
+            }}
             className={fieldClassName()}
             aria-required={(booking.guest_origin ?? "international") === "international"}
           />
@@ -231,6 +337,23 @@ export function CheckInForm({ booking }: { booking: CheckInBooking }) {
         <legend className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
           Driver {hasDriverBeds ? "(required)" : "(optional)"}
         </legend>
+        <PartnersPicker
+          kind="driver"
+          partners={drivers}
+          selectedId={driverPick?.id ?? null}
+          onPick={(p) => {
+            setDriverPick(p);
+            if (p?.fill) {
+              setDriverFields({
+                name: p.fill.driver_name ?? driverFields.name,
+                phone: p.fill.driver_phone ?? driverFields.phone,
+                vehicle_no: p.fill.vehicle_no ?? driverFields.vehicle_no,
+                license_no: p.fill.license_no ?? driverFields.license_no,
+              });
+            }
+          }}
+        />
+        <input type="hidden" name="driver_id" value={driverPick?.id ?? ""} />
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block text-sm text-espresso">
             Driver name
@@ -238,7 +361,11 @@ export function CheckInForm({ booking }: { booking: CheckInBooking }) {
               type="text"
               name="driver_name"
               required={hasDriverBeds}
-              defaultValue={driver?.full_name ?? ""}
+              value={driverFields.name}
+              onChange={(e) => {
+                setDriverFields({ ...driverFields, name: e.target.value });
+                if (driverPick) setDriverPick(null);
+              }}
               className={fieldClassName()}
             />
           </label>
@@ -247,7 +374,11 @@ export function CheckInForm({ booking }: { booking: CheckInBooking }) {
             <input
               type="tel"
               name="driver_phone"
-              defaultValue={driver?.phone ?? ""}
+              value={driverFields.phone}
+              onChange={(e) => {
+                setDriverFields({ ...driverFields, phone: e.target.value });
+                if (driverPick) setDriverPick(null);
+              }}
               className={fieldClassName()}
             />
           </label>
@@ -256,7 +387,11 @@ export function CheckInForm({ booking }: { booking: CheckInBooking }) {
             <input
               type="text"
               name="vehicle_no"
-              defaultValue={driver?.vehicle_no ?? ""}
+              value={driverFields.vehicle_no}
+              onChange={(e) => {
+                setDriverFields({ ...driverFields, vehicle_no: e.target.value });
+                if (driverPick) setDriverPick(null);
+              }}
               className={fieldClassName()}
             />
           </label>
@@ -265,7 +400,11 @@ export function CheckInForm({ booking }: { booking: CheckInBooking }) {
             <input
               type="text"
               name="license_no"
-              defaultValue={driver?.license_no ?? ""}
+              value={driverFields.license_no}
+              onChange={(e) => {
+                setDriverFields({ ...driverFields, license_no: e.target.value });
+                if (driverPick) setDriverPick(null);
+              }}
               className={fieldClassName()}
             />
           </label>

@@ -81,6 +81,12 @@ export function DeskHeader({
             Finance
           </Link>
           <Link
+            href="/erp/partners"
+            className="inline-flex min-h-10 items-center rounded-sm border border-white/20 px-4 text-sm text-white/90 transition-colors hover:border-white/40 hover:bg-white/5"
+          >
+            Partners
+          </Link>
+          <Link
             href="/erp/reports"
             className="inline-flex min-h-10 items-center rounded-sm border border-white/20 px-4 text-sm text-white/90 transition-colors hover:border-white/40 hover:bg-white/5"
           >

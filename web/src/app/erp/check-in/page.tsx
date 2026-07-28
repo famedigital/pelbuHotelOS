@@ -2,6 +2,7 @@ import {
   CheckInForm,
   CheckOutForm,
   type CheckInBooking,
+  type PartnerOption,
 } from "@/components/erp/CheckInForm";
 import { DeskHeader } from "@/components/erp/DeskHeader";
 import { deskPinConfigured, isDeskAuthenticated } from "@/lib/desk-auth";
@@ -53,6 +54,44 @@ export default async function CheckInPage({ searchParams }: Props) {
     ? await loadBooking(admin, property.id as string, id)
     : null;
   const arrivals = await loadArrivals(admin, property.id as string, query);
+
+  // Load partner lists for the autocomplete pickers (only when there's a
+  // selected booking to check in — small bounded query per property).
+  let guideOptions: PartnerOption[] = [];
+  let driverOptions: PartnerOption[] = [];
+  if (selected && ["pending", "confirmed"].includes(selected.status)) {
+    const [{ data: guideRows }, { data: driverRows }] = await Promise.all([
+      admin
+        .from("guides")
+        .select("id, guide_number, full_name, phone, visit_count, last_seen_at")
+        .eq("property_id", property.id as string)
+        .order("visit_count", { ascending: false })
+        .limit(50),
+      admin
+        .from("drivers")
+        .select("id, full_name, phone, vehicle_no, license_no, visit_count, last_seen_at")
+        .eq("property_id", property.id as string)
+        .order("visit_count", { ascending: false })
+        .limit(50),
+    ]);
+    guideOptions = (guideRows ?? []).map((g) => ({
+      id: g.id as string,
+      label: g.full_name ? `${g.full_name} (#${g.guide_number})` : `#${g.guide_number}`,
+      sublabel: g.phone ?? undefined,
+      fill: { guide_number: g.guide_number as string },
+    }));
+    driverOptions = (driverRows ?? []).map((d) => ({
+      id: d.id as string,
+      label: d.full_name ?? d.phone ?? "Unknown driver",
+      sublabel: [d.phone, d.vehicle_no].filter(Boolean).join(" · ") || undefined,
+      fill: {
+        driver_name: (d.full_name as string | null) ?? "",
+        driver_phone: (d.phone as string | null) ?? "",
+        vehicle_no: (d.vehicle_no as string | null) ?? "",
+        license_no: (d.license_no as string | null) ?? "",
+      },
+    }));
+  }
 
   return (
     <div className="min-h-screen bg-ivory">
@@ -143,7 +182,11 @@ export default async function CheckInPage({ searchParams }: Props) {
               <CheckOutForm bookingId={selected.id} />
             </div>
           ) : ["pending", "confirmed"].includes(selected.status) ? (
-            <CheckInForm booking={selected} />
+            <CheckInForm
+              booking={selected}
+              guides={guideOptions}
+              drivers={driverOptions}
+            />
           ) : (
             <p className="text-sm text-muted">
               Booking status is {selected.status}. No check-in action.
@@ -183,7 +226,7 @@ async function loadBooking(
   const { data } = await admin
     .from("bookings")
     .select(
-      `id, contact_name, contact_phone, check_in, check_out, status, guest_origin, guide_number, payment_mode, adults, rooms,
+      `id, contact_name, contact_phone, check_in, check_out, status, guest_origin, guide_number, guide_id, driver_id, payment_mode, adults, rooms,
        booking_rooms(qty, inventory_kind, room_types(name, code)),
        booking_guests(full_name, nationality, passport_or_cid, sdf_ref, sdf_doc_url),
        booking_drivers(full_name, phone, vehicle_no, license_no),
@@ -208,6 +251,8 @@ async function loadBooking(
     status: data.status as string,
     guest_origin: (data.guest_origin as string | null) ?? null,
     guide_number: (data.guide_number as string | null) ?? null,
+    guide_id: (data.guide_id as string | null) ?? null,
+    driver_id: (data.driver_id as string | null) ?? null,
     payment_mode: (data.payment_mode as string | null) ?? null,
     adults: Number(data.adults ?? 1),
     rooms: Number(data.rooms ?? 1),
