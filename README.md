@@ -1,9 +1,7 @@
 # Pelbu Suites
 
 Hotel OS + conversion PWA for **Pelbu Suites** (Olakha, Thimphu).  
-`template_id: 1` = flagship. Stack: Next.js · Vercel · Supabase · Resend · CallMeBot · **Cloudinary (image MCP)**.
-
-Docs live under [`docs/`](docs/) — see especially [`docs/IMAGE_SERVER.md`](docs/IMAGE_SERVER.md).
+`template_id: 1` = flagship. Stack: Next.js · Vercel · Supabase · Resend · CallMeBot · Cloudinary.
 
 ## Quick start
 
@@ -13,17 +11,34 @@ npm install
 npm run dev
 ```
 
+Open http://localhost:3000 — desk at `/erp/login` (`DESK_PIN`).
+
 ## Docs
 
-- [AGENTS.md](AGENTS.md) — Cursor vs Claude ownership
-- [docs/CLAUDE.md](docs/CLAUDE.md) — Claude handoff
-- [design/mockups/](design/mockups/) — UX samples (review first)
-- [supabase/migrations/](supabase/migrations/) — core schema draft
+| Doc | Purpose |
+|-----|---------|
+| [docs/FEATURES.md](docs/FEATURES.md) | **What is shipped vs remaining** |
+| [docs/PLATFORM.md](docs/PLATFORM.md) | Architecture + phased plan |
+| [docs/UAT-CHECKLIST.md](docs/UAT-CHECKLIST.md) | Go-live UAT |
+| [AGENTS.md](AGENTS.md) | Cursor / z.ai / Claude ownership |
+| [scripts/bank-recon/README.md](scripts/bank-recon/README.md) | Bank statement parsers |
+| [design/mockups/](design/mockups/) | UX references |
 
-## Phase status
+## Phase status (2026-07-29)
 
-- [x] UX mockups (5 screens)
-- [x] Skills / rules / AGENTS
-- [x] Next.js scaffold (`web/`)
-- [ ] Supabase project link + MCP auth (you approve in Cursor)
-- [ ] Flagship public site implementation
+| Phase | Status |
+|-------|--------|
+| P0 Setup / mockups | Done |
+| P1 Public PWA + CMS + fast book | Done |
+| P2 Check-in, POS/KOT, folio | Done |
+| P3 Agents + credit + rates | Done |
+| P4 Finance + bank recon | Done |
+| P5 HR / inventory / reports | Done |
+| P6 Channex + extra templates | **Partial** (foundation only) |
+| P7 Night audit, voids, deposits | Done (provider APIs open) |
+
+Not finished: Channex staging certification, live Pay.bt/QR webhooks, offline desk queue, multi-property UI polish. Details in [docs/FEATURES.md](docs/FEATURES.md).
+
+## Desk routes
+
+`/erp` · fast-book · check-in · pos · folios · agents · finance · reports · rooms · inventory · hr · channel · night-audit

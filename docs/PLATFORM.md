@@ -346,17 +346,24 @@ Benchmarked against **Cloudbeds / Mews / Opera-class HMS**, Bhutan **aBit**, and
 
 ## Phased delivery
 
-1. **P0** Skills/rules/MCP + scaffold + **UX mockups review**  
-2. **P1** Flagship PWA (`template_id=1`) + CMS + F&B/spa/meeting + ultra-fast booking + guide/driver beds + Excel field import  
-3. **P2** Check-in/out + POS/KOT + folio + GST + guest services + payments  
-4. **P3** Agents (BT/Jaigaon/IN) + credit + MoU/demo + rates  
-5. **P4** Finance + bank recon  
-6. **P5** HR/inventory depth + audit/reports  
-7. **P6** Channex certification + extra templates  
+| Phase | Scope | Status (2026-07-29) |
+|-------|--------|---------------------|
+| **P0** | Skills/rules/MCP + scaffold + UX mockups | **Done** |
+| **P1** | Flagship PWA + CMS + F&B/spa/meeting + fast book + guide/driver beds | **Done** |
+| **P2** | Check-in/out + POS/KOT + folio + GST + guest services + payments | **Done** |
+| **P3** | Agents (BT/Jaigaon/IN) + credit + MoU/demo + rates | **Done** |
+| **P4** | Finance + bank recon | **Done** |
+| **P5** | HR / inventory / HK / audit / reports | **Done** |
+| **P6** | Channex certification + extra templates | **Partial** — ARI queue + desk channel UI; staging cert + templates open |
+| **P7** | Night audit + voids/comps + deposit links + UAT checklist | **Done** (live Pay.bt/QR provider wiring open) |
 
-## Immediate next step after plan approval
+**Feature inventory (routes + remaining work):** see [FEATURES.md](FEATURES.md).
 
-1. Generate **UX/UI mockups** for the 5 key screens (you review gaps/corners).  
-2. Install Phase 0 skills/rules; auth Supabase/Vercel.  
-3. Scaffold app + schema aligned to Excel + Bhutan check-in fields.  
-4. Build flagship site only after mockup sign-off.
+## Immediate next steps (post P7)
+
+1. Push `main` when ready; finish or stash multi-property switcher WIP.  
+2. Run [UAT-CHECKLIST.md](UAT-CHECKLIST.md) before Excel cutover.  
+3. z.ai fast-book UI brief: `.cursor/commands/zai-handoff-ready.md`.  
+4. Channex staging: `CHANNEX_API_KEY` + room/rate maps + flush/ack.  
+5. Wire live Pay.bt / bank QR webhooks when accounts exist.  
+6. Offline desk PWA queue (book + check-in) when net is flaky.  

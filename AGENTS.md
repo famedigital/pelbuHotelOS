@@ -25,10 +25,13 @@ Multi-agent build (**Cursor architect** + **z.ai/GLM implementer** + optional Cl
 - `supabase/` migrations, RLS
 - `packages/db`, `packages/rates`
 - `scripts/bank-recon/`
-- Auth middleware, Realtime subscriptions
+- Auth middleware, Realtime / desk live refresh
 - Check-in/out, folio, GST, agent credit, POS/KOT logic
-- Channex / payments wiring
+- Finance, HR, inventory, night audit, deposit links
+- Channex ARI queue / payments wiring
 - Writing z.ai briefs and reviewing z.ai PRs/diffs
+
+Feature status for agents: [`docs/FEATURES.md`](docs/FEATURES.md).
 
 ## z.ai owns (when briefed)
 
