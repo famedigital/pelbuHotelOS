@@ -44,65 +44,106 @@ export default async function FolioDetailPage({ params }: Props) {
 
   const posted = lines.filter((line) => line.status === "posted");
   const balance = posted.reduce((sum, line) => sum + Number(line.total_btn), 0);
+  const folioStatus = (folio.status as string) ?? "open";
 
   return (
     <div className="min-h-screen bg-ivory">
       <DeskHeader title="Folio" />
-      <main className="mx-auto grid max-w-[1000px] gap-8 px-6 py-10 md:grid-cols-[minmax(0,1fr)_300px] md:px-8">
-        <section className="space-y-6">
-          <div>
-            <p className="text-xs tracking-[0.22em] text-gold uppercase">Guest folio</p>
-            <h2 className="mt-2 text-2xl text-espresso">{folio.label as string}</h2>
+      <main className="mx-auto max-w-[1100px] px-6 py-10 md:px-8">
+        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold tracking-[0.28em] text-gold uppercase">
+              Guest folio
+            </p>
+            <h2 className="mt-2 truncate text-2xl text-espresso md:text-3xl">
+              {folio.label as string}
+            </h2>
             <p className="mt-1 text-sm text-muted">
-              {(folio.status as string).toUpperCase()} · booking{" "}
-              {(folio.booking_id as string) ?? "—"}
+              <span className="uppercase tracking-wide">{folioStatus}</span> · booking{" "}
+              <span className="font-mono text-espresso/70">
+                {(folio.booking_id as string) ?? "—"}
+              </span>
             </p>
             <p className="mt-1 font-mono text-xs text-espresso/50">{folio.id as string}</p>
           </div>
-
-          <div className="border border-espresso/10 bg-white">
-            <ul className="divide-y divide-espresso/10">
-              {lines.length === 0 ? (
-                <li className="px-4 py-6 text-sm text-muted">No lines yet.</li>
-              ) : (
-                lines.map((line) => (
-                  <li key={line.id} className="px-4 py-3 text-sm">
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <p className="text-espresso">{line.description}</p>
-                      <p className="tabular-nums text-espresso">
-                        {formatBtn(Number(line.total_btn))}
-                      </p>
-                    </div>
-                    <p className="mt-1 text-xs text-muted">
-                      {line.source_type} · {line.status}
-                      {Number(line.gst_btn) > 0
-                        ? ` · GST ${formatBtn(Number(line.gst_btn))}`
-                        : ""}
-                    </p>
-                  </li>
-                ))
-              )}
-            </ul>
-            <div className="flex justify-between border-t border-espresso/10 px-4 py-4 text-sm font-medium text-espresso">
-              <span>Balance</span>
-              <span>{formatBtn(balance)}</span>
-            </div>
+          <div className="rounded-sm border border-espresso/10 bg-white px-5 py-4 text-right">
+            <p className="text-[11px] font-semibold tracking-[0.22em] text-gold uppercase">
+              Balance
+            </p>
+            <p
+              className={`mt-1 text-2xl font-medium tabular-nums ${
+                balance > 0 ? "text-maroon" : "text-espresso"
+              }`}
+            >
+              {formatBtn(balance)}
+            </p>
           </div>
-        </section>
+        </div>
 
-        <aside className="space-y-4">
-          {(folio.status as string) === "open" ? (
-            <FolioPaymentForm folioId={folio.id as string} suggestedAmount={Math.max(balance, 0)} />
-          ) : (
-            <p className="text-sm text-muted">Folio is closed.</p>
-          )}
-          <a
-            href="/erp"
-            className="inline-flex min-h-11 items-center text-sm text-espresso underline-offset-4 hover:underline"
-          >
-            Back to inbox
-          </a>
-        </aside>
+        <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_320px]">
+          <section className="min-w-0">
+            <div className="border border-espresso/10 bg-white">
+              <div className="border-b border-espresso/10 px-5 py-3">
+                <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
+                  Lines ({lines.length})
+                </h3>
+              </div>
+              <ul className="divide-y divide-espresso/10">
+                {lines.length === 0 ? (
+                  <li className="px-5 py-8 text-sm text-muted">
+                    No lines yet. Charges and payments will appear here.
+                  </li>
+                ) : (
+                  lines.map((line) => {
+                    const amount = Number(line.total_btn);
+                    const isPayment = line.source_type === "payment";
+                    return (
+                      <li key={line.id} className="px-5 py-3 text-sm">
+                        <div className="flex flex-wrap items-baseline justify-between gap-2">
+                          <p className="min-w-0 flex-1 text-espresso">{line.description}</p>
+                          <p
+                            className={`tabular-nums ${
+                              isPayment ? "text-espresso/70" : "text-espresso"
+                            }`}
+                          >
+                            {formatBtn(amount)}
+                          </p>
+                        </div>
+                        <p className="mt-1 text-xs text-muted">
+                          <span className="uppercase tracking-wide">{line.source_type}</span>
+                          {" · "}
+                          <span className="uppercase tracking-wide">{line.status}</span>
+                          {Number(line.gst_btn) > 0
+                            ? ` · GST ${formatBtn(Number(line.gst_btn))}`
+                            : ""}
+                        </p>
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
+            </div>
+          </section>
+
+          <aside className="space-y-4">
+            {folioStatus === "open" ? (
+              <FolioPaymentForm
+                folioId={folio.id as string}
+                suggestedAmount={Math.max(balance, 0)}
+              />
+            ) : (
+              <p className="border border-espresso/10 bg-white px-5 py-5 text-sm text-muted">
+                Folio is closed.
+              </p>
+            )}
+            <a
+              href="/erp"
+              className="inline-flex min-h-11 items-center text-sm text-espresso underline-offset-4 hover:underline"
+            >
+              ← Back to inbox
+            </a>
+          </aside>
+        </div>
       </main>
     </div>
   );

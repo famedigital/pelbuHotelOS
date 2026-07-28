@@ -16,7 +16,7 @@ export type DeskBookingOption = {
 const initial: DeskPosState = { ok: false };
 
 function fieldClassName() {
-  return "mt-1.5 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2.5 text-sm text-espresso outline-none focus:border-gold";
+  return "mt-1.5 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2.5 text-sm text-espresso outline-none transition-colors focus:border-gold focus:ring-2 focus:ring-gold/20";
 }
 
 type Props = {
@@ -68,6 +68,8 @@ export function DeskPosForm({ items, bookings }: Props) {
     return [...map.entries()];
   }, [outletItems]);
 
+  const lineCount = cartPayload.reduce((sum, line) => sum + line.qty, 0);
+
   function setQty(id: string, next: number) {
     setCart((prev) => {
       const copy = { ...prev };
@@ -79,24 +81,30 @@ export function DeskPosForm({ items, bookings }: Props) {
 
   if (state.ok && state.orderId) {
     return (
-      <div className="border border-espresso/10 bg-white px-6 py-8" role="status">
-        <p className="text-xs tracking-[0.25em] text-gold uppercase">Ticket saved</p>
-        <h2 className="mt-3 text-2xl text-espresso">Order is on the KOT board</h2>
+      <div
+        className="border border-espresso/10 bg-white px-6 py-10"
+        role="status"
+        aria-live="polite"
+      >
+        <p className="text-[11px] font-semibold tracking-[0.28em] text-gold uppercase">
+          Ticket saved
+        </p>
+        <h2 className="mt-3 text-3xl text-espresso">Order is on the KOT board</h2>
         <p className="mt-2 text-sm text-muted">
           Ref <span className="font-mono text-espresso">{state.orderId}</span>
           {state.totalBtn != null ? ` · ${formatBtn(state.totalBtn)}` : ""}
           {state.folioId ? ` · folio ${state.folioId.slice(0, 8)}` : ""}
         </p>
-        <div className="mt-6 flex flex-wrap gap-3">
+        <div className="mt-8 flex flex-wrap gap-3">
           <a
             href="/erp/pos"
-            className="inline-flex min-h-11 items-center rounded-sm bg-gold px-5 text-sm font-medium text-espresso"
+            className="inline-flex min-h-11 items-center rounded-sm bg-gold px-5 text-sm font-medium text-espresso transition-opacity hover:opacity-90"
           >
             New ticket
           </a>
           <a
             href="/erp"
-            className="inline-flex min-h-11 items-center rounded-sm border border-espresso/20 px-5 text-sm text-espresso"
+            className="inline-flex min-h-11 items-center rounded-sm border border-espresso/20 px-5 text-sm text-espresso transition-colors hover:border-espresso/40 hover:bg-espresso/[0.03]"
           >
             Order board
           </a>
@@ -108,7 +116,10 @@ export function DeskPosForm({ items, bookings }: Props) {
   return (
     <form action={action} className="space-y-8 border border-espresso/10 bg-white px-6 py-8">
       {state.error ? (
-        <p className="border border-maroon/30 bg-maroon/5 px-4 py-3 text-sm text-maroon" role="alert">
+        <p
+          className="border border-maroon/30 bg-maroon/5 px-4 py-3 text-sm text-maroon"
+          role="alert"
+        >
           {state.error}
         </p>
       ) : null}
@@ -153,16 +164,34 @@ export function DeskPosForm({ items, bookings }: Props) {
           </label>
           <label className="block text-sm text-espresso">
             Guest name
-            <input type="text" name="customer_name" required className={fieldClassName()} />
+            <input
+              type="text"
+              name="customer_name"
+              required
+              autoComplete="off"
+              className={fieldClassName()}
+            />
           </label>
           <label className="block text-sm text-espresso">
             Phone
-            <input type="tel" name="phone" required className={fieldClassName()} />
+            <input
+              type="tel"
+              name="phone"
+              required
+              inputMode="tel"
+              autoComplete="off"
+              className={fieldClassName()}
+            />
           </label>
           {settleMode === "room_charge" ? (
             <label className="block text-sm text-espresso sm:col-span-2">
               Booking folio
-              <select name="booking_id" required defaultValue="" className={fieldClassName()}>
+              <select
+                name="booking_id"
+                required
+                defaultValue=""
+                className={fieldClassName()}
+              >
                 <option value="" disabled>
                   Select in-house / confirmed booking
                 </option>
@@ -184,23 +213,35 @@ export function DeskPosForm({ items, bookings }: Props) {
         </div>
       </fieldset>
 
-      <fieldset className="space-y-6">
-        <legend className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-          Menu
-        </legend>
+      <fieldset className="space-y-5">
+        <div className="flex items-baseline justify-between">
+          <legend className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
+            Menu · <span className="capitalize">{outlet}</span>
+          </legend>
+          <p className="text-xs text-muted">
+            {lineCount > 0 ? `${lineCount} in cart` : "Tap + to add"}
+          </p>
+        </div>
         {byCategory.length === 0 ? (
-          <p className="text-sm text-muted">No items for this outlet.</p>
+          <p className="rounded-sm border border-dashed border-espresso/15 px-4 py-6 text-sm text-muted">
+            No items for this outlet.
+          </p>
         ) : (
           byCategory.map(([category, categoryItems]) => (
             <section key={category}>
-              <h3 className="text-sm font-medium tracking-[0.18em] text-gold uppercase">
+              <h3 className="text-xs font-medium tracking-[0.18em] text-muted uppercase">
                 {category}
               </h3>
-              <ul className="mt-3 divide-y divide-espresso/10 border-y border-espresso/10">
+              <ul className="mt-2 divide-y divide-espresso/10 border-y border-espresso/10">
                 {categoryItems.map((item) => {
                   const qty = cart[item.id] ?? 0;
                   return (
-                    <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                    <li
+                      key={item.id}
+                      className={`flex flex-wrap items-center justify-between gap-3 py-3 transition-colors ${
+                        qty > 0 ? "bg-gold/[0.04]" : ""
+                      }`}
+                    >
                       <div className="min-w-0">
                         <p className="text-sm text-espresso">{item.name}</p>
                         <p className="text-xs text-muted">
@@ -211,16 +252,22 @@ export function DeskPosForm({ items, bookings }: Props) {
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-sm border border-espresso/20 text-espresso"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-sm border border-espresso/20 text-lg leading-none text-espresso transition-colors hover:border-espresso/50 hover:bg-espresso/[0.03] disabled:opacity-30"
                           onClick={() => setQty(item.id, qty - 1)}
+                          disabled={qty === 0}
                           aria-label={`Decrease ${item.name}`}
                         >
                           −
                         </button>
-                        <span className="w-8 text-center text-sm tabular-nums">{qty}</span>
+                        <span
+                          className="w-8 text-center text-sm tabular-nums text-espresso"
+                          aria-live="polite"
+                        >
+                          {qty}
+                        </span>
                         <button
                           type="button"
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-sm border border-espresso/20 text-espresso"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-sm border border-espresso/20 text-lg leading-none text-espresso transition-colors hover:border-espresso/50 hover:bg-espresso/[0.03]"
                           onClick={() => setQty(item.id, qty + 1)}
                           aria-label={`Increase ${item.name}`}
                         >
@@ -236,27 +283,27 @@ export function DeskPosForm({ items, bookings }: Props) {
         )}
       </fieldset>
 
-      <div className="border-t border-espresso/10 pt-5 text-sm">
+      <div className="space-y-2 rounded-sm bg-espresso/[0.02] px-4 py-4 text-sm">
         <p className="flex justify-between text-muted">
           <span>Subtotal</span>
-          <span>{formatBtn(totals.subtotalBtn)}</span>
+          <span className="tabular-nums">{formatBtn(totals.subtotalBtn)}</span>
         </p>
-        <p className="mt-1 flex justify-between text-muted">
+        <p className="flex justify-between text-muted">
           <span>GST ({Math.round(BHUTAN_GST_RATE * 100)}%)</span>
-          <span>{formatBtn(totals.gstBtn)}</span>
+          <span className="tabular-nums">{formatBtn(totals.gstBtn)}</span>
         </p>
-        <p className="mt-2 flex justify-between text-base font-medium text-espresso">
+        <p className="mt-1 flex justify-between border-t border-espresso/10 pt-2 text-base font-medium text-espresso">
           <span>Total</span>
-          <span>{formatBtn(totals.totalBtn)}</span>
+          <span className="tabular-nums">{formatBtn(totals.totalBtn)}</span>
         </p>
       </div>
 
       <button
         type="submit"
         disabled={pending || cartPayload.length === 0}
-        className="inline-flex min-h-11 items-center rounded-sm bg-espresso px-6 text-sm font-medium text-ivory disabled:opacity-60"
+        className="inline-flex min-h-11 w-full items-center justify-center rounded-sm bg-espresso px-6 text-sm font-medium text-ivory transition-opacity hover:opacity-90 disabled:opacity-60"
       >
-        {pending ? "Saving…" : "Send to kitchen"}
+        {pending ? "Saving…" : cartPayload.length === 0 ? "Add an item to continue" : "Send to kitchen"}
       </button>
     </form>
   );

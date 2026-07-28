@@ -32,7 +32,7 @@ function todayIso(): string {
 }
 
 function fieldClassName() {
-  return "mt-1.5 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2.5 text-sm text-espresso outline-none focus:border-gold";
+  return "mt-1.5 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2.5 text-sm text-espresso outline-none transition-colors focus:border-gold focus:ring-2 focus:ring-gold/20";
 }
 
 type Props = {
@@ -51,26 +51,28 @@ export function FastBookForm({ roomTypes, agents }: Props) {
   if (state.ok && state.bookingId) {
     return (
       <div
-        className="border border-espresso/10 bg-white px-6 py-8"
+        className="border border-espresso/10 bg-white px-6 py-10"
         role="status"
         aria-live="polite"
       >
-        <p className="text-xs tracking-[0.25em] text-gold uppercase">Saved</p>
-        <h2 className="mt-3 text-2xl text-espresso">Booking confirmed</h2>
+        <p className="text-[11px] font-semibold tracking-[0.28em] text-gold uppercase">
+          Saved
+        </p>
+        <h2 className="mt-3 text-3xl text-espresso">Booking confirmed</h2>
         <p className="mt-2 text-sm text-muted">
           Reference{" "}
           <span className="font-mono text-espresso">{state.bookingId}</span>
         </p>
-        <div className="mt-6 flex flex-wrap gap-3">
+        <div className="mt-8 flex flex-wrap gap-3">
           <a
             href="/erp/fast-book"
-            className="inline-flex min-h-11 items-center rounded-sm bg-gold px-5 text-sm font-medium text-espresso"
+            className="inline-flex min-h-11 items-center rounded-sm bg-gold px-5 text-sm font-medium text-espresso transition-opacity hover:opacity-90"
           >
             Book another
           </a>
           <a
             href="/erp"
-            className="inline-flex min-h-11 items-center rounded-sm border border-espresso/20 px-5 text-sm text-espresso"
+            className="inline-flex min-h-11 items-center rounded-sm border border-espresso/20 px-5 text-sm text-espresso transition-colors hover:border-espresso/40 hover:bg-espresso/[0.03]"
           >
             Back to inbox
           </a>
@@ -82,7 +84,10 @@ export function FastBookForm({ roomTypes, agents }: Props) {
   return (
     <form action={action} className="space-y-8 border border-espresso/10 bg-white px-6 py-8">
       {state.error ? (
-        <p className="border border-maroon/30 bg-maroon/5 px-4 py-3 text-sm text-maroon" role="alert">
+        <p
+          className="border border-maroon/30 bg-maroon/5 px-4 py-3 text-sm text-maroon"
+          role="alert"
+        >
           {state.error}
         </p>
       ) : null}
@@ -122,15 +127,19 @@ export function FastBookForm({ roomTypes, agents }: Props) {
             min={1}
             max={24}
             defaultValue={2}
+            inputMode="numeric"
             className={fieldClassName()}
           />
         </label>
       </fieldset>
 
       <fieldset className="space-y-4">
-        <legend className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-          Guest rooms
-        </legend>
+        <div className="flex items-baseline justify-between">
+          <legend className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
+            Guest rooms
+          </legend>
+          <p className="text-xs text-muted">Quantity per type</p>
+        </div>
         <div className="grid gap-3 sm:grid-cols-3">
           {guestTypes.map((rt) => (
             <label key={rt.id} className="block text-sm text-espresso">
@@ -142,6 +151,7 @@ export function FastBookForm({ roomTypes, agents }: Props) {
                 min={0}
                 max={rt.unit_count}
                 defaultValue={0}
+                inputMode="numeric"
                 className={fieldClassName()}
               />
             </label>
@@ -150,9 +160,12 @@ export function FastBookForm({ roomTypes, agents }: Props) {
       </fieldset>
 
       <fieldset className="space-y-4">
-        <legend className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-          Guide / driver beds
-        </legend>
+        <div className="flex items-baseline justify-between">
+          <legend className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
+            Guide / driver beds
+          </legend>
+          <p className="text-xs text-muted">Complimentary</p>
+        </div>
         <p className="text-xs text-muted">
           Complimentary inventory — does not distort guest ADR.
         </p>
@@ -167,6 +180,7 @@ export function FastBookForm({ roomTypes, agents }: Props) {
                 min={0}
                 max={rt.unit_count}
                 defaultValue={0}
+                inputMode="numeric"
                 className={fieldClassName()}
               />
             </label>
@@ -181,7 +195,12 @@ export function FastBookForm({ roomTypes, agents }: Props) {
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block text-sm text-espresso">
             Role
-            <select name="source" required defaultValue="reservation" className={fieldClassName()}>
+            <select
+              name="source"
+              required
+              defaultValue="reservation"
+              className={fieldClassName()}
+            >
               <option value="owner">Owner</option>
               <option value="reservation">Reservation</option>
               <option value="agent">Agent</option>
@@ -211,7 +230,11 @@ export function FastBookForm({ roomTypes, agents }: Props) {
           </label>
           <label className="block text-sm text-espresso">
             Payment
-            <select name="payment_mode" defaultValue="cash" className={fieldClassName()}>
+            <select
+              name="payment_mode"
+              defaultValue="cash"
+              className={fieldClassName()}
+            >
               <option value="cash">Cash</option>
               <option value="prepaid">Prepaid</option>
               <option value="partial">Partial</option>
@@ -228,15 +251,32 @@ export function FastBookForm({ roomTypes, agents }: Props) {
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block text-sm text-espresso sm:col-span-2">
             Guest / lead name
-            <input type="text" name="contact_name" required className={fieldClassName()} />
+            <input
+              type="text"
+              name="contact_name"
+              required
+              autoComplete="off"
+              className={fieldClassName()}
+            />
           </label>
           <label className="block text-sm text-espresso">
             Phone
-            <input type="tel" name="contact_phone" required className={fieldClassName()} />
+            <input
+              type="tel"
+              name="contact_phone"
+              required
+              inputMode="tel"
+              className={fieldClassName()}
+            />
           </label>
           <label className="block text-sm text-espresso">
             Email
-            <input type="email" name="contact_email" className={fieldClassName()} />
+            <input
+              type="email"
+              name="contact_email"
+              inputMode="email"
+              className={fieldClassName()}
+            />
           </label>
           <label className="block text-sm text-espresso sm:col-span-2">
             Notes
@@ -248,7 +288,7 @@ export function FastBookForm({ roomTypes, agents }: Props) {
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex min-h-11 items-center rounded-sm bg-espresso px-6 text-sm font-medium text-ivory disabled:opacity-60"
+        className="inline-flex min-h-11 w-full items-center justify-center rounded-sm bg-espresso px-6 text-sm font-medium text-ivory transition-opacity hover:opacity-90 disabled:opacity-60"
       >
         {pending ? "Saving…" : "Save booking"}
       </button>

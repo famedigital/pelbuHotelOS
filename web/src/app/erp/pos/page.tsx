@@ -50,30 +50,40 @@ export default async function ErpPosPage() {
   return (
     <div className="min-h-screen bg-ivory">
       <DeskHeader title="POS" />
-      <main className="mx-auto grid max-w-[1100px] gap-8 px-6 py-10 md:grid-cols-[minmax(0,1fr)_320px] md:px-8">
+      <main className="mx-auto max-w-[1200px] px-6 py-10 md:px-8">
         {!deskPinConfigured() ? (
-          <p className="border border-gold/40 bg-gold/5 px-4 py-3 text-sm text-espresso md:col-span-2">
+          <p className="mb-8 border border-gold/40 bg-gold/5 px-4 py-3 text-sm text-espresso">
             Dev mode: desk PIN not set. Add <code className="font-mono">DESK_PIN</code>{" "}
             before production.
           </p>
         ) : null}
 
-        <div className="space-y-4">
-          <p className="text-sm text-muted">
-            Create a kitchen ticket for walk-in cash or charge straight to a guest folio.
+        <div className="mb-8 max-w-2xl">
+          <p className="text-[11px] font-semibold tracking-[0.28em] text-gold uppercase">
+            Point of sale
           </p>
-          <DeskPosForm items={items} bookings={bookingOptions} />
+          <h2 className="mt-2 text-2xl text-espresso md:text-3xl">New ticket</h2>
+          <p className="mt-2 text-sm text-muted">
+            Ring a walk-in cash ticket, or charge an order straight to an in-house
+            guest folio. Guest service charges (taxi / shop) live on the right.
+          </p>
         </div>
 
-        <aside className="space-y-4">
-          <GuestServiceForm bookings={bookingOptions} />
-          <a
-            href="/erp"
-            className="inline-flex min-h-11 items-center text-sm text-espresso underline-offset-4 hover:underline"
-          >
-            Back to order board
-          </a>
-        </aside>
+        <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="min-w-0">
+            <DeskPosForm items={items} bookings={bookingOptions} />
+          </div>
+
+          <aside className="space-y-6">
+            <GuestServiceForm bookings={bookingOptions} />
+            <a
+              href="/erp"
+              className="inline-flex min-h-11 items-center text-sm text-espresso underline-offset-4 hover:underline"
+            >
+              ← Back to order board
+            </a>
+          </aside>
+        </div>
       </main>
     </div>
   );

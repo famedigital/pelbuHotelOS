@@ -16,6 +16,14 @@ export const metadata = {
 
 export const dynamic = "force-dynamic";
 
+const KOT_FLOW = ["new", "preparing", "ready", "served"] as const;
+const KOT_LABEL: Record<string, string> = {
+  new: "New",
+  preparing: "Preparing",
+  ready: "Ready",
+  served: "Served",
+};
+
 function fmtDate(value: string | null | undefined): string {
   if (!value) return "—";
   return value;
@@ -89,7 +97,7 @@ export default async function ErpInboxPage() {
   return (
     <div className="min-h-screen bg-ivory">
       <DeskHeader title="Inbox" />
-      <main className="mx-auto max-w-[1200px] space-y-10 px-6 py-10 md:px-8">
+      <main className="mx-auto max-w-[1200px] space-y-12 px-6 py-10 md:px-8">
         {!deskPinConfigured() ? (
           <p className="border border-gold/40 bg-gold/5 px-4 py-3 text-sm text-espresso">
             Dev mode: desk PIN not set. Add <code className="font-mono">DESK_PIN</code>{" "}
@@ -97,28 +105,20 @@ export default async function ErpInboxPage() {
           </p>
         ) : null}
 
-        <InboxSection title="P2 order board" empty="No orders yet.">
-          <div className="grid gap-6 lg:grid-cols-2">
-            <OrderBoardColumn
-              title="New"
-              orders={orderBuckets.new}
-              openBookings={openBookings}
-            />
-            <OrderBoardColumn
-              title="Preparing"
-              orders={orderBuckets.preparing}
-              openBookings={openBookings}
-            />
-            <OrderBoardColumn
-              title="Ready"
-              orders={orderBuckets.ready}
-              openBookings={openBookings}
-            />
-            <OrderBoardColumn
-              title="Served"
-              orders={orderBuckets.served}
-              openBookings={openBookings}
-            />
+        <InboxSection
+          title="P2 order board"
+          subtitle="Move tickets across the kitchen flow"
+          empty="No orders yet."
+        >
+          <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
+            {KOT_FLOW.map((bucket) => (
+              <OrderBoardColumn
+                key={bucket}
+                title={KOT_LABEL[bucket]}
+                orders={orderBuckets[bucket]}
+                openBookings={openBookings}
+              />
+            ))}
           </div>
         </InboxSection>
 
@@ -128,19 +128,20 @@ export default async function ErpInboxPage() {
               .filter((line) => line.status === "posted")
               .reduce((sum, line) => sum + Number(line.total_btn ?? 0), 0);
             return (
-              <li key={folio.id as string} className="border-b border-espresso/10 py-3 text-sm">
-                <p className="font-medium text-espresso">
-                  {folio.label as string} · <span className="uppercase tracking-wide">{folio.status as string}</span>
-                </p>
-                <p className="text-muted">
+              <li key={folio.id as string} className="border-b border-espresso/10 py-4 text-sm">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="font-medium text-espresso">{folio.label as string}</p>
+                  <StatusPill value={folio.status as string} />
+                </div>
+                <p className="mt-1 text-muted">
                   Balance {formatBtn(balance)} · booking {(folio.booking_id as string) ?? "walk-in"}
                 </p>
                 <p className="mt-1 font-mono text-xs text-espresso/50">{folio.id as string}</p>
                 <a
                   href={`/erp/folios/${folio.id as string}`}
-                  className="mt-2 inline-flex min-h-10 items-center text-xs text-maroon underline-offset-4 hover:underline"
+                  className="mt-2 inline-flex min-h-10 items-center text-xs font-medium text-maroon underline-offset-4 hover:underline"
                 >
-                  Open folio
+                  Open folio →
                 </a>
               </li>
             );
@@ -149,32 +150,46 @@ export default async function ErpInboxPage() {
 
         <InboxSection title="Room bookings" empty="No bookings yet.">
           {(bookings ?? []).map((row) => (
-            <li key={row.id as string} className="border-b border-espresso/10 py-3 text-sm">
-              <p className="font-medium text-espresso">
-                {(row.contact_name as string) ?? "Guest"} · {row.contact_phone as string}
-              </p>
-              <p className="text-muted">
+            <li key={row.id as string} className="border-b border-espresso/10 py-4 text-sm">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <p className="font-medium text-espresso">
+                  {(row.contact_name as string) ?? "Guest"} · {row.contact_phone as string}
+                </p>
+                <StatusPill value={row.status as string} />
+              </div>
+              <p className="mt-1 text-muted">
                 {fmtDate(row.check_in as string)} → {fmtDate(row.check_out as string)} ·{" "}
-                {row.adults as number} adults · {row.rooms as number} rooms ·{" "}
-                <span className="uppercase tracking-wide">{row.status as string}</span>
+                {row.adults as number} adults · {row.rooms as number} rooms
               </p>
               <p className="mt-1 font-mono text-xs text-espresso/50">{row.id as string}</p>
+              {["pending", "confirmed", "checked_in"].includes(row.status as string) ? (
+                <a
+                  href={`/erp/check-in?id=${row.id as string}`}
+                  className="mt-2 inline-flex min-h-10 items-center text-xs font-medium text-maroon underline-offset-4 hover:underline"
+                >
+                  {(row.status as string) === "checked_in"
+                    ? "Manage / check out →"
+                    : "Check in →"}
+                </a>
+              ) : null}
             </li>
           ))}
         </InboxSection>
 
         <InboxSection title="Spa / meeting requests" empty="No service requests yet.">
           {(services ?? []).map((row) => (
-            <li key={row.id as string} className="border-b border-espresso/10 py-3 text-sm">
-              <p className="font-medium text-espresso">
-                {row.kind as string} · {row.contact_name as string} ·{" "}
-                {row.contact_phone as string}
-              </p>
-              <p className="text-muted">
+            <li key={row.id as string} className="border-b border-espresso/10 py-4 text-sm">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <p className="font-medium text-espresso">
+                  {row.kind as string} · {row.contact_name as string} ·{" "}
+                  {row.contact_phone as string}
+                </p>
+                <StatusPill value={row.status as string} />
+              </div>
+              <p className="mt-1 text-muted">
                 {fmtDate(row.preferred_on as string)}
                 {row.preferred_time ? ` · ${row.preferred_time}` : ""} · party{" "}
-                {row.party_size as number} ·{" "}
-                <span className="uppercase tracking-wide">{row.status as string}</span>
+                {row.party_size as number}
               </p>
               <p className="mt-1 font-mono text-xs text-espresso/50">{row.id as string}</p>
             </li>
@@ -183,12 +198,15 @@ export default async function ErpInboxPage() {
 
         <InboxSection title="Enquiries" empty="No enquiries yet.">
           {(enquiries ?? []).map((row) => (
-            <li key={row.id as string} className="border-b border-espresso/10 py-3 text-sm">
-              <p className="font-medium text-espresso">
-                {row.topic as string} · {row.contact_name as string} ·{" "}
-                {row.contact_phone as string}
-              </p>
-              <p className="text-muted line-clamp-2">{row.message as string}</p>
+            <li key={row.id as string} className="border-b border-espresso/10 py-4 text-sm">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <p className="font-medium text-espresso">
+                  {row.topic as string} · {row.contact_name as string} ·{" "}
+                  {row.contact_phone as string}
+                </p>
+                <StatusPill value={row.status as string} />
+              </div>
+              <p className="mt-1 text-muted line-clamp-2">{row.message as string}</p>
               <p className="mt-1 font-mono text-xs text-espresso/50">{row.id as string}</p>
             </li>
           ))}
@@ -196,15 +214,17 @@ export default async function ErpInboxPage() {
 
         <InboxSection title="Agent applications" empty="No agent applications yet.">
           {(agents ?? []).map((row) => (
-            <li key={row.id as string} className="border-b border-espresso/10 py-3 text-sm">
-              <p className="font-medium text-espresso">
-                {row.company_name as string} · {row.market as string}
-              </p>
-              <p className="text-muted">
+            <li key={row.id as string} className="border-b border-espresso/10 py-4 text-sm">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <p className="font-medium text-espresso">
+                  {row.company_name as string} · {row.market as string}
+                </p>
+                <StatusPill value={row.status as string} />
+              </div>
+              <p className="mt-1 text-muted">
                 {(row.contact_name as string) ?? "—"} ·{" "}
                 {(row.contact_phone as string) ?? "—"} · MoU{" "}
-                {row.wants_mou ? "yes" : "no"} ·{" "}
-                <span className="uppercase tracking-wide">{row.status as string}</span>
+                {row.wants_mou ? "yes" : "no"}
               </p>
               <p className="mt-1 font-mono text-xs text-espresso/50">{row.id as string}</p>
             </li>
@@ -217,10 +237,12 @@ export default async function ErpInboxPage() {
 
 function InboxSection({
   title,
+  subtitle,
   empty,
   children,
 }: {
   title: string;
+  subtitle?: string;
   empty: string;
   children: ReactNode;
 }) {
@@ -228,15 +250,40 @@ function InboxSection({
   const list = items.flat().filter(Boolean);
   return (
     <section>
-      <h2 className="text-sm font-medium tracking-[0.18em] text-gold uppercase">
-        {title}
-      </h2>
+      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-espresso/15 pb-2">
+        <div>
+          <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
+            {title}
+          </h2>
+          {subtitle ? <p className="mt-1 text-xs text-muted">{subtitle}</p> : null}
+        </div>
+        {list.length > 0 ? (
+          <p className="text-xs text-muted">{list.length}</p>
+        ) : null}
+      </div>
       {list.length === 0 ? (
-        <p className="mt-3 text-sm text-muted">{empty}</p>
+        <p className="mt-4 text-sm text-muted">{empty}</p>
       ) : (
-        <ul className="mt-3 border-t border-espresso/10">{list}</ul>
+        <ul className="mt-2">{list}</ul>
       )}
     </section>
+  );
+}
+
+function StatusPill({ value }: { value: string }) {
+  if (!value) return null;
+  const tone =
+    value === "checked_in" || value === "approved" || value === "open"
+      ? "border-gold/40 bg-gold/10 text-gold"
+      : value === "confirmed" || value === "ready"
+        ? "border-espresso/20 bg-espresso/[0.05] text-espresso"
+        : "border-espresso/15 text-muted";
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${tone}`}
+    >
+      {value.replace(/_/g, " ")}
+    </span>
   );
 }
 
@@ -250,10 +297,15 @@ function OrderBoardColumn({
   openBookings: Record<string, unknown>[];
 }) {
   return (
-    <section className="border border-espresso/10 bg-white p-4">
-      <h3 className="text-sm font-medium tracking-[0.18em] text-gold uppercase">{title}</h3>
+    <section className="flex flex-col border border-espresso/10 bg-white p-4">
+      <div className="flex items-baseline justify-between">
+        <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
+          {title}
+        </h3>
+        <span className="text-xs text-muted">{orders.length}</span>
+      </div>
       {orders.length === 0 ? (
-        <p className="mt-3 text-sm text-muted">No orders.</p>
+        <p className="mt-4 text-sm text-muted">No orders.</p>
       ) : (
         <ul className="mt-3 space-y-3">
           {orders.map((row) => {
@@ -262,27 +314,30 @@ function OrderBoardColumn({
                 .map((item) => `${item.qty}× ${item.name_snapshot}`)
                 .join(", ") || "Items pending";
             return (
-              <li key={row.id as string} className="border border-espresso/10 p-3 text-sm">
-                <p className="font-medium text-espresso">
-                  {row.customer_name as string} · {formatBtn(Number(row.total_btn))}
+              <li key={row.id as string} className="border border-espresso/10 bg-ivory/40 p-3 text-sm">
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="font-medium text-espresso">{row.customer_name as string}</p>
+                  <p className="tabular-nums text-espresso">{formatBtn(Number(row.total_btn))}</p>
+                </div>
+                <p className="mt-1 text-xs text-muted">
+                  {(row.outlet as string) ?? "order"} ·{" "}
+                  {(row.delivery_type as string) ?? "pickup"}
                 </p>
-                <p className="text-muted">
-                  {(row.outlet as string) ?? "order"} · {(row.delivery_type as string) ?? "pickup"} ·{" "}
-                  {(row.kot_status as string) ?? "new"}
+                <p className="mt-1 text-xs text-muted">{items}</p>
+                <p className="mt-1 font-mono text-[10px] text-espresso/50">
+                  {row.id as string}
                 </p>
-                <p className="mt-1 text-muted">{items}</p>
-                <p className="mt-1 font-mono text-xs text-espresso/50">{row.id as string}</p>
 
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {["new", "preparing", "ready", "served"].map((status) => (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {KOT_FLOW.map((status) => (
                     <form key={status} action={updateOrderKotStatus}>
                       <input type="hidden" name="order_id" value={row.id as string} />
                       <input type="hidden" name="kot_status" value={status} />
                       <button
                         type="submit"
-                        className="inline-flex min-h-10 items-center rounded-sm border border-espresso/20 px-3 text-xs text-espresso"
+                        className="inline-flex min-h-9 items-center rounded-sm border border-espresso/20 px-2.5 text-[11px] text-espresso transition-colors hover:border-espresso/50 hover:bg-espresso/[0.03]"
                       >
-                        {status}
+                        {KOT_LABEL[status]}
                       </button>
                     </form>
                   ))}
@@ -294,20 +349,21 @@ function OrderBoardColumn({
                     <select
                       name="booking_id"
                       defaultValue=""
-                      className="min-h-10 rounded-sm border border-espresso/20 px-3 text-xs text-espresso"
+                      className="min-h-9 flex-1 rounded-sm border border-espresso/20 px-2 text-xs text-espresso outline-none focus:border-gold"
                     >
                       <option value="" disabled>
                         Charge to booking folio
                       </option>
                       {openBookings.map((booking) => (
                         <option key={booking.id as string} value={booking.id as string}>
-                          {((booking.contact_name as string) ?? "Guest")} · {fmtDate(booking.check_in as string)}
+                          {((booking.contact_name as string) ?? "Guest")} ·{" "}
+                          {fmtDate(booking.check_in as string)}
                         </option>
                       ))}
                     </select>
                     <button
                       type="submit"
-                      className="inline-flex min-h-10 items-center rounded-sm bg-gold px-3 text-xs font-medium text-espresso"
+                      className="inline-flex min-h-9 items-center rounded-sm bg-gold px-3 text-xs font-medium text-espresso transition-opacity hover:opacity-90"
                     >
                       Post
                     </button>
