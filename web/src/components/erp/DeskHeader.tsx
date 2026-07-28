@@ -1,16 +1,35 @@
 import { deskLogout } from "@/app/actions/desk";
+import { PropertySwitcher } from "@/components/erp/PropertySwitcher";
+import type { PropertyRow } from "@/lib/property-context";
 import Link from "next/link";
 
-export function DeskHeader({ title }: { title: string }) {
+export function DeskHeader({
+  title,
+  properties,
+  activePropertyId,
+}: {
+  title: string;
+  properties?: PropertyRow[];
+  activePropertyId?: string;
+}) {
+  const active = properties?.find((p) => p.id === activePropertyId);
+  const brand = active?.name ?? "Pelbu desk";
+
   return (
     <header className="border-b border-black/30 bg-espresso text-ivory">
       <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-x-6 gap-y-3 px-6 py-5 md:px-8">
-        <div className="flex items-baseline gap-3">
+        <div className="flex flex-wrap items-baseline gap-3">
           <span className="text-[11px] font-semibold tracking-[0.3em] text-gold uppercase">
-            Pelbu desk
+            {brand}
           </span>
           <span className="h-4 w-px bg-white/20" aria-hidden="true" />
           <h1 className="text-base font-medium tracking-wide text-white">{title}</h1>
+          {properties && properties.length > 0 && activePropertyId ? (
+            <PropertySwitcher
+              properties={properties}
+              activePropertyId={activePropertyId}
+            />
+          ) : null}
         </div>
         <nav className="flex flex-wrap items-center gap-2">
           <Link
@@ -18,6 +37,18 @@ export function DeskHeader({ title }: { title: string }) {
             className="inline-flex min-h-10 items-center rounded-sm border border-white/20 px-4 text-sm text-white/90 transition-colors hover:border-white/40 hover:bg-white/5"
           >
             Inbox
+          </Link>
+          <Link
+            href="/erp/group"
+            className="inline-flex min-h-10 items-center rounded-sm border border-white/20 px-4 text-sm text-white/90 transition-colors hover:border-white/40 hover:bg-white/5"
+          >
+            Group
+          </Link>
+          <Link
+            href="/erp/properties/new"
+            className="inline-flex min-h-10 items-center rounded-sm border border-white/20 px-4 text-sm text-white/90 transition-colors hover:border-white/40 hover:bg-white/5"
+          >
+            Add hotel
           </Link>
           <Link
             href="/erp/check-in"

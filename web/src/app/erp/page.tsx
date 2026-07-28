@@ -7,6 +7,11 @@ import { DeskHeader } from "@/components/erp/DeskHeader";
 import { DeskLiveRefresh } from "@/components/erp/DeskLiveRefresh";
 import { deskPinConfigured, isDeskAuthenticated } from "@/lib/desk-auth";
 import { formatBtn } from "@/lib/pricing";
+import {
+  listProperties,
+  loadProperty,
+  resolveActivePropertyId,
+} from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
@@ -37,6 +42,11 @@ export default async function ErpInboxPage() {
   }
 
   const admin = createSupabaseAdminClient();
+  const propertyId = await resolveActivePropertyId(admin);
+  const [activeProperty, properties] = await Promise.all([
+    loadProperty(admin, propertyId),
+    listProperties(admin),
+  ]);
 
   const [
     { data: bookings },
@@ -49,15 +59,17 @@ export default async function ErpInboxPage() {
     admin
       .from("bookings")
       .select(
-        "id, contact_name, contact_phone, check_in, check_out, adults, rooms, status, created_at",
+        "id, contact_name, contact_phone, check_in, check_out, adults, rooms, status, created_at, hold_expires_at, token_required_btn, token_received_btn",
       )
+      .eq("property_id", propertyId)
       .order("created_at", { ascending: false })
-      .limit(25),
+      .limit(40),
     admin
       .from("orders")
       .select(
         "id, customer_name, phone, outlet, delivery_type, total_btn, status, kot_status, booking_id, folio_id, posted_to_folio_at, created_at, order_items(name_snapshot, qty)",
       )
+      .eq("property_id", propertyId)
       .order("created_at", { ascending: false })
       .limit(25),
     admin
@@ -65,11 +77,13 @@ export default async function ErpInboxPage() {
       .select(
         "id, kind, contact_name, contact_phone, preferred_on, preferred_time, party_size, status, created_at",
       )
+      .eq("property_id", propertyId)
       .order("created_at", { ascending: false })
       .limit(25),
     admin
       .from("enquiries")
       .select("id, topic, contact_name, contact_phone, message, status, created_at")
+      .eq("property_id", propertyId)
       .order("created_at", { ascending: false })
       .limit(25),
     admin
@@ -82,12 +96,16 @@ export default async function ErpInboxPage() {
     admin
       .from("folios")
       .select("id, booking_id, label, status, created_at, folio_lines(total_btn, status)")
+      .eq("property_id", propertyId)
       .order("created_at", { ascending: false })
       .limit(25),
   ]);
 
   const openBookings = (bookings ?? []).filter((row) =>
-    ["pending", "confirmed", "checked_in"].includes(row.status as string),
+    ["pending", "held", "confirmed", "checked_in"].includes(row.status as string),
+  );
+  const heldBookings = (bookings ?? []).filter(
+    (row) => (row.status as string) === "held",
   );
   const orderBuckets = {
     new: (orders ?? []).filter((row) => (row.kot_status as string) === "new"),
@@ -96,9 +114,15 @@ export default async function ErpInboxPage() {
     served: (orders ?? []).filter((row) => (row.kot_status as string) === "served"),
   };
 
+  const setupIncomplete = activeProperty && !activeProperty.setup_completed_at;
+
   return (
     <div className="min-h-screen bg-ivory">
-      <DeskHeader title="Inbox" />
+      <DeskHeader
+        title="Inbox"
+        properties={properties}
+        activePropertyId={propertyId}
+      />
       <main className="mx-auto max-w-[1200px] space-y-12 px-6 py-10 md:px-8">
         {!deskPinConfigured() ? (
           <p className="border border-gold/40 bg-gold/5 px-4 py-3 text-sm text-espresso">
@@ -106,6 +130,48 @@ export default async function ErpInboxPage() {
             before production.
           </p>
         ) : null}
+
+        {setupIncomplete ? (
+          <p className="border border-maroon/30 bg-maroon/5 px-4 py-3 text-sm text-espresso">
+            Setup incomplete for {activeProperty.name}.{" "}
+            <a
+              href={`/erp/properties/${propertyId}/setup`}
+              className="font-medium text-maroon underline-offset-4 hover:underline"
+            >
+              Finish setup →
+            </a>
+          </p>
+        ) : null}
+
+        <InboxSection
+          title="Holds awaiting token"
+          subtitle="Confirm when bank/cash token arrives · unpaid holds expire by season TTL"
+          empty="No open holds."
+        >
+          {heldBookings.map((row) => (
+            <li key={row.id as string} className="border-b border-espresso/10 py-4 text-sm">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <p className="font-medium text-espresso">
+                  {(row.contact_name as string) ?? "Guest"} · {row.contact_phone as string}
+                </p>
+                <StatusPill value="held" />
+              </div>
+              <p className="mt-1 text-muted">
+                {fmtDate(row.check_in as string)} → {fmtDate(row.check_out as string)} ·
+                token {formatBtn(Number(row.token_required_btn ?? 0))}
+                {row.hold_expires_at
+                  ? ` · expires ${new Date(row.hold_expires_at as string).toLocaleString("en-BT", { timeZone: "Asia/Thimphu" })}`
+                  : ""}
+              </p>
+              <p className="mt-1 font-mono text-xs text-espresso/50">{row.id as string}</p>
+              <BookingLifecycleActions
+                bookingId={row.id as string}
+                status="held"
+                tokenRequired={Number(row.token_required_btn ?? 0)}
+              />
+            </li>
+          ))}
+        </InboxSection>
 
         <InboxSection
           title="P2 order board"
@@ -175,10 +241,13 @@ export default async function ErpInboxPage() {
                     : "Check in →"}
                 </a>
               ) : null}
-              <BookingLifecycleActions
-                bookingId={row.id as string}
-                status={row.status as string}
-              />
+              {(row.status as string) !== "held" ? (
+                <BookingLifecycleActions
+                  bookingId={row.id as string}
+                  status={row.status as string}
+                  tokenRequired={Number(row.token_required_btn ?? 0)}
+                />
+              ) : null}
             </li>
           ))}
         </InboxSection>
@@ -289,7 +358,9 @@ function StatusPill({ value }: { value: string }) {
       ? "border-gold/40 bg-gold/10 text-gold"
       : value === "confirmed" || value === "ready"
         ? "border-espresso/20 bg-espresso/[0.05] text-espresso"
-        : "border-espresso/15 text-muted";
+        : value === "held"
+          ? "border-maroon/30 bg-maroon/5 text-maroon"
+          : "border-espresso/15 text-muted";
   return (
     <span
       className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${tone}`}

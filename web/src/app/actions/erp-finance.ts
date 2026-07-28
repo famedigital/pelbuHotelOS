@@ -3,7 +3,7 @@
 import { writeAuditEvent } from "@/lib/audit";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { roundBtn } from "@/lib/pricing";
-import { PELBU_PROPERTY_SLUG } from "@/lib/property";
+import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 import { createHash } from "crypto";
@@ -37,15 +37,7 @@ async function requireDesk() {
 }
 
 async function propertyId(admin: Admin) {
-  const { data: property, error } = await admin
-    .from("properties")
-    .select("id")
-    .eq("slug", PELBU_PROPERTY_SLUG)
-    .single();
-  if (error || !property) {
-    throw new Error("Hotel property is not configured.");
-  }
-  return property.id as string;
+  return resolveActivePropertyId(admin);
 }
 
 function revalidateFinance() {
@@ -304,7 +296,7 @@ export async function matchBankTxn(
     if (paymentId) {
       const { data: pay } = await admin
         .from("payments")
-        .select("id, amount_btn")
+        .select("id, amount_btn, booking_id, kind")
         .eq("id", paymentId)
         .eq("property_id", pid)
         .single();
@@ -342,6 +334,49 @@ export async function matchBankTxn(
     if (uErr) {
       console.error("bank_transactions status update failed", uErr);
       throw new Error("Match saved but status update failed.");
+    }
+
+    if (paymentId) {
+      const { data: pay } = await admin
+        .from("payments")
+        .select("id, amount_btn, booking_id, kind")
+        .eq("id", paymentId)
+        .eq("property_id", pid)
+        .single();
+      if (
+        pay?.booking_id &&
+        (pay.kind === "deposit" || Number(pay.amount_btn) > 0)
+      ) {
+        const { data: booking } = await admin
+          .from("bookings")
+          .select("id, status, token_received_btn")
+          .eq("id", pay.booking_id)
+          .eq("property_id", pid)
+          .maybeSingle();
+        if (booking && ["held", "pending"].includes(booking.status as string)) {
+          const received =
+            Number(booking.token_received_btn ?? 0) + Number(pay.amount_btn);
+          await admin
+            .from("bookings")
+            .update({
+              status: "confirmed",
+              token_received_btn: received,
+              confirmed_at: new Date().toISOString(),
+              confirmed_by: "bank_recon",
+              payment_mode: "partial",
+            })
+            .eq("id", booking.id);
+          await admin
+            .from("payment_links")
+            .update({
+              status: "paid",
+              paid_at: new Date().toISOString(),
+              payment_id: paymentId,
+            })
+            .eq("booking_id", booking.id)
+            .eq("status", "open");
+        }
+      }
     }
 
     await writeAuditEvent(admin, {

@@ -3,7 +3,7 @@
 import { writeAuditEvent } from "@/lib/audit";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { roundBtn } from "@/lib/pricing";
-import { PELBU_PROPERTY_SLUG } from "@/lib/property";
+import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
@@ -60,15 +60,7 @@ async function requireDesk() {
 }
 
 async function propertyId(admin: Admin) {
-  const { data: property, error } = await admin
-    .from("properties")
-    .select("id")
-    .eq("slug", PELBU_PROPERTY_SLUG)
-    .single();
-  if (error || !property) {
-    throw new Error("Hotel property is not configured.");
-  }
-  return property.id as string;
+  return resolveActivePropertyId(admin);
 }
 
 function revalidateOps() {

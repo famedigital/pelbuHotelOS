@@ -183,7 +183,7 @@ async function loadBooking(
   const { data } = await admin
     .from("bookings")
     .select(
-      `id, contact_name, contact_phone, check_in, check_out, status, guide_number, payment_mode, adults, rooms,
+      `id, contact_name, contact_phone, check_in, check_out, status, guest_origin, guide_number, payment_mode, adults, rooms,
        booking_rooms(qty, inventory_kind, room_types(name, code)),
        booking_guests(full_name, nationality, passport_or_cid, sdf_ref, sdf_doc_url),
        booking_drivers(full_name, phone, vehicle_no, license_no),
@@ -206,6 +206,7 @@ async function loadBooking(
     check_in: data.check_in as string,
     check_out: data.check_out as string,
     status: data.status as string,
+    guest_origin: (data.guest_origin as string | null) ?? null,
     guide_number: (data.guide_number as string | null) ?? null,
     payment_mode: (data.payment_mode as string | null) ?? null,
     adults: Number(data.adults ?? 1),

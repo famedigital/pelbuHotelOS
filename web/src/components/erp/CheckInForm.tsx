@@ -16,6 +16,13 @@ function nightsBetween(checkIn: string, checkOut: string): number {
   return Math.round((b - a) / 86_400_000);
 }
 
+const ORIGIN_LABELS: Record<string, string> = {
+  international: "International",
+  regional: "Regional",
+  official: "Official",
+  local: "Local",
+};
+
 export type CheckInBooking = {
   id: string;
   contact_name: string | null;
@@ -23,6 +30,7 @@ export type CheckInBooking = {
   check_in: string;
   check_out: string;
   status: string;
+  guest_origin: string | null;
   guide_number: string | null;
   payment_mode: string | null;
   adults: number;
@@ -113,6 +121,9 @@ export function CheckInForm({ booking }: { booking: CheckInBooking }) {
           <span className="ml-1 inline-flex items-center rounded-full border border-gold/40 bg-gold/5 px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.16em] text-gold">
             {nightsBetween(booking.check_in, booking.check_out)} nights
           </span>{" "}
+          <span className="ml-1 inline-flex items-center rounded-full border border-espresso/20 bg-espresso/[0.04] px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.16em] text-espresso">
+            {ORIGIN_LABELS[booking.guest_origin ?? "international"] ?? "International"}
+          </span>{" "}
           · {booking.adults} adults · {booking.rooms} rooms · {booking.status}
         </p>
         <ul className="mt-2 space-y-1">
@@ -133,10 +144,15 @@ export function CheckInForm({ booking }: { booking: CheckInBooking }) {
           <input
             type="text"
             name="guide_number"
-            required
             defaultValue={booking.guide_number ?? ""}
             className={fieldClassName()}
+            aria-required={(booking.guest_origin ?? "international") === "international"}
           />
+          <span className="mt-1 block text-[11px] text-muted">
+            {(booking.guest_origin ?? "international") === "international"
+              ? "Required for international tourists."
+              : "Optional — this guest origin does not require a guide."}
+          </span>
         </label>
         <label className="block text-sm text-espresso">
           Payment mode

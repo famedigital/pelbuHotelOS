@@ -6,7 +6,6 @@ import { soldQtyByRoomType } from "@/lib/inventory-availability";
 import { notifyNewBooking } from "@/lib/notify";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { roundBtn } from "@/lib/pricing";
-import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import {
   agentRateTier,

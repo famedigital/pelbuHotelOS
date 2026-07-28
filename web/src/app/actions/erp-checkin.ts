@@ -3,7 +3,7 @@
 import { chargeAgentCredit } from "@/app/actions/erp-agents";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { roundBtn } from "@/lib/pricing";
-import { PELBU_PROPERTY_SLUG } from "@/lib/property";
+import { resolveActivePropertyId } from "@/lib/property-context";
 import {
   agentRateTier,
   lookupRoomRateBtn,
@@ -29,15 +29,7 @@ async function requireDesk() {
 }
 
 async function propertyId(admin: Admin) {
-  const { data: property, error } = await admin
-    .from("properties")
-    .select("id")
-    .eq("slug", PELBU_PROPERTY_SLUG)
-    .single();
-  if (error || !property) {
-    throw new Error("Hotel property is not configured.");
-  }
-  return property.id as string;
+  return resolveActivePropertyId(admin);
 }
 
 async function ensureOpenFolio(
@@ -109,6 +101,11 @@ export async function confirmCheckIn(
     const driverPhone = optionalTrim(formData.get("driver_phone"));
     const vehicleNo = optionalTrim(formData.get("vehicle_no"));
     const licenseNo = optionalTrim(formData.get("license_no"));
+
+    // Master-partner ids (from autocomplete pick). If absent but free-text is
+    // provided, the action will upsert a new master row below.
+    const guideIdRaw = optionalTrim(formData.get("guide_id"));
+    const driverIdRaw = optionalTrim(formData.get("driver_id"));
 
     if (driverPhone) assertPhone(driverPhone);
 
