@@ -80,34 +80,45 @@ export async function confirmBookingToken(
     const received =
       Number(booking.token_received_btn ?? 0) + Math.max(0, amount);
 
-    const { data: payment, error: payErr } = await admin
-      .from("payments")
-      .insert({
-        property_id: pid,
-        booking_id: bookingId,
-        amount_btn: Math.max(amount, 0.01),
-        method: ["cash", "bank", "card", "agent_credit", "bank_qr", "pay_bt", "deposit"].includes(
-          method,
-        )
-          ? method
-          : "bank",
-        kind: "deposit",
-        reference: reference ?? null,
-        notes: "Booking token / deposit",
-      })
-      .select("id")
-      .single();
-    if (payErr || !payment) {
-      console.error("confirmBookingToken payment", payErr);
-      throw new Error("Could not record deposit payment.");
+    let paymentId: string | null = null;
+    if (amount > 0) {
+      const payMethod = [
+        "cash",
+        "bank",
+        "card",
+        "agent_credit",
+        "bank_qr",
+        "pay_bt",
+        "deposit",
+      ].includes(method)
+        ? method
+        : "bank";
+      const { data: payment, error: payErr } = await admin
+        .from("payments")
+        .insert({
+          property_id: pid,
+          booking_id: bookingId,
+          amount_btn: amount,
+          method: payMethod,
+          kind: "deposit",
+          reference: reference ?? null,
+          notes: "Booking token / deposit",
+        })
+        .select("id")
+        .single();
+      if (payErr || !payment) {
+        console.error("confirmBookingToken payment", payErr);
+        throw new Error("Could not record deposit payment.");
+      }
+      paymentId = payment.id as string;
     }
 
     await admin
       .from("payment_links")
       .update({
-        status: "paid",
-        paid_at: now,
-        payment_id: payment.id,
+        status: amount > 0 ? "paid" : "cancelled",
+        paid_at: amount > 0 ? now : null,
+        payment_id: paymentId,
       })
       .eq("booking_id", bookingId)
       .eq("property_id", pid)

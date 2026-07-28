@@ -54,8 +54,8 @@ export function BookingForm() {
         role="status"
         aria-live="polite"
       >
-        <p className="text-xs tracking-[0.25em] text-gold uppercase">Request received</p>
-        <h2 className="mt-3 text-2xl text-espresso">We have your stay request.</h2>
+        <p className="text-xs tracking-[0.25em] text-gold uppercase">Rooms held</p>
+        <h2 className="mt-3 text-2xl text-espresso">Pay the token to confirm.</h2>
 
         <ol className="mt-6 space-y-3 text-sm text-muted">
           <li className="flex gap-3">
@@ -66,8 +66,11 @@ export function BookingForm() {
               1
             </span>
             <span>
-              The front desk has been alerted and will confirm availability for
-              your dates.
+              Your dates are held
+              {state.tokenAmount != null
+                ? ` · token ${state.tokenAmount.toLocaleString("en-BT")} BTN`
+                : ""}
+              . Transfer using the pay link below.
             </span>
           </li>
           <li className="flex gap-3">
@@ -78,8 +81,8 @@ export function BookingForm() {
               2
             </span>
             <span>
-              Keep your reference handy — we may ask for it when you arrive or
-              call to confirm.
+              The desk confirms once token money arrives. Quote your reference in
+              bank remarks.
             </span>
           </li>
           <li className="flex gap-3">
@@ -90,7 +93,13 @@ export function BookingForm() {
               3
             </span>
             <span>
-              If you left an email, a short confirmation is on the way.
+              Unpaid holds expire automatically
+              {state.holdExpiresAt
+                ? ` (${new Date(state.holdExpiresAt).toLocaleString("en-BT", {
+                    timeZone: "Asia/Thimphu",
+                  })})`
+                : ""}
+              .
             </span>
           </li>
         </ol>
@@ -103,12 +112,22 @@ export function BookingForm() {
           </div>
         </div>
 
-        <a
-          href="/rooms"
-          className="mt-8 inline-flex min-h-11 items-center rounded-sm bg-espresso px-5 text-sm font-medium text-ivory"
-        >
-          Back to rooms
-        </a>
+        <div className="mt-8 flex flex-wrap gap-3">
+          {state.paymentUrl ? (
+            <a
+              href={state.paymentUrl}
+              className="inline-flex min-h-11 items-center rounded-sm bg-espresso px-5 text-sm font-medium text-ivory"
+            >
+              Pay token
+            </a>
+          ) : null}
+          <a
+            href="/rooms"
+            className="inline-flex min-h-11 items-center rounded-sm border border-espresso/25 px-5 text-sm font-medium text-espresso"
+          >
+            Back to rooms
+          </a>
+        </div>
       </div>
     );
   }
