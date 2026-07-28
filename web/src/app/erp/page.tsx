@@ -136,6 +136,12 @@ export default async function ErpInboxPage() {
                   Balance {formatBtn(balance)} · booking {(folio.booking_id as string) ?? "walk-in"}
                 </p>
                 <p className="mt-1 font-mono text-xs text-espresso/50">{folio.id as string}</p>
+                <a
+                  href={`/erp/folios/${folio.id as string}`}
+                  className="mt-2 inline-flex min-h-10 items-center text-xs text-maroon underline-offset-4 hover:underline"
+                >
+                  Open folio
+                </a>
               </li>
             );
           })}

@@ -17,8 +17,14 @@ export function DeskHeader({ title }: { title: string }) {
             Inbox
           </Link>
           <Link
-            href="/erp/fast-book"
+            href="/erp/pos"
             className="inline-flex min-h-10 items-center rounded-sm bg-gold px-4 text-sm font-medium text-espresso"
+          >
+            POS
+          </Link>
+          <Link
+            href="/erp/fast-book"
+            className="inline-flex min-h-10 items-center rounded-sm border border-white/25 px-4 text-sm text-white"
           >
             Fast book
           </Link>
