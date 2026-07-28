@@ -1,4 +1,5 @@
 import type { MenuItem } from "@/lib/menu";
+import { cloudinaryUrl } from "@/lib/cloudinary";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -16,23 +17,30 @@ export async function loadMenuByOutlets(
   const { data } = await admin
     .from("menu_items")
     .select(
-      "id, outlet, category, name, description, price_btn, gst_applicable, sort_order",
+      "id, outlet, category, name, description, price_btn, gst_applicable, sort_order, image_public_id",
     )
     .eq("property_id", property.id)
     .eq("is_available", true)
     .in("outlet", outlets)
     .order("sort_order");
 
-  return (data ?? []).map((row) => ({
-    id: row.id as string,
-    outlet: row.outlet as string,
-    category: row.category as string,
-    name: row.name as string,
-    description: (row.description as string | null) ?? null,
-    price_btn: Number(row.price_btn),
-    gst_applicable: Boolean(row.gst_applicable),
-    sort_order: Number(row.sort_order),
-  }));
+  return (data ?? []).map((row) => {
+    const imagePublicId = (row.image_public_id as string | null) ?? null;
+    return {
+      id: row.id as string,
+      outlet: row.outlet as string,
+      category: row.category as string,
+      name: row.name as string,
+      description: (row.description as string | null) ?? null,
+      price_btn: Number(row.price_btn),
+      gst_applicable: Boolean(row.gst_applicable),
+      sort_order: Number(row.sort_order),
+      image_public_id: imagePublicId,
+      image_src: imagePublicId
+        ? cloudinaryUrl(imagePublicId, { width: 480, crop: "fill" })
+        : null,
+    };
+  });
 }
 
 export function groupMenuByCategory(

@@ -7,4 +7,6 @@ export type MenuItem = {
   price_btn: number;
   gst_applicable: boolean;
   sort_order: number;
+  image_public_id?: string | null;
+  image_src?: string | null;
 };

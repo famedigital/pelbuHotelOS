@@ -65,8 +65,11 @@ export function FolioPaymentForm({
           Method
           <select name="method" defaultValue="cash" className={fieldClassName()}>
             <option value="cash">Cash</option>
-            <option value="bank">Bank</option>
+            <option value="bank">Bank transfer</option>
+            <option value="bank_qr">Bank QR</option>
+            <option value="pay_bt">Pay.bt</option>
             <option value="card">Card</option>
+            <option value="deposit">Deposit</option>
             <option value="agent_credit">Agent credit</option>
           </select>
         </label>

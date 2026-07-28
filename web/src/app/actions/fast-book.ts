@@ -1,8 +1,19 @@
 "use server";
 
+import { chargeAgentCredit } from "@/app/actions/erp-agents";
+import { enqueueAfterBookingChange } from "@/lib/channel/ari-queue";
+import { soldQtyByRoomType } from "@/lib/inventory-availability";
 import { notifyNewBooking } from "@/lib/notify";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { roundBtn } from "@/lib/pricing";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
+import {
+  agentRateTier,
+  lookupRoomRateBtn,
+  nightsBetween,
+  resolveSeasonKind,
+  type RateTier,
+} from "@/lib/rates";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   assertOptionalEmail,
@@ -12,6 +23,7 @@ import {
   parsePositiveInt,
   trimRequired,
 } from "@/lib/validation";
+import { revalidatePath } from "next/cache";
 
 export type FastBookState = {
   ok: boolean;
@@ -43,6 +55,12 @@ type RoomTypeRow = {
   inventory_kind: string;
   unit_count: number;
 };
+
+function rateTierFromSource(source: string): RateTier {
+  if (source === "mou_agent") return agentRateTier("mou_agents");
+  if (source === "agent") return agentRateTier("agents");
+  return agentRateTier("public");
+}
 
 /** Desk ultra-fast book: dates → rooms → pax → agent → guide → beds → save. */
 export async function createFastBooking(
@@ -89,6 +107,10 @@ export async function createFastBooking(
       throw new Error("Guide number is required for agent bookings.");
     }
 
+    if (paymentMode === "on_credit" && !agentId) {
+      throw new Error("Select an agent to book on credit.");
+    }
+
     const admin = createSupabaseAdminClient();
 
     const { data: property, error: propertyError } = await admin
@@ -112,27 +134,12 @@ export async function createFastBooking(
 
     const types = roomTypes as RoomTypeRow[];
 
-    const { data: overlappingBookings } = await admin
-      .from("bookings")
-      .select("id, check_in, check_out, booking_rooms(qty, room_type_id)")
-      .eq("property_id", property.id)
-      .in("status", ["pending", "confirmed", "checked_in"])
-      .lt("check_in", checkOut)
-      .gt("check_out", checkIn);
-
-    const usedByType = new Map<string, number>();
-    for (const booking of overlappingBookings ?? []) {
-      const roomLines = (booking.booking_rooms ?? []) as {
-        qty: number;
-        room_type_id: string;
-      }[];
-      for (const line of roomLines) {
-        usedByType.set(
-          line.room_type_id,
-          (usedByType.get(line.room_type_id) ?? 0) + Number(line.qty),
-        );
-      }
-    }
+    const usedByType = await soldQtyByRoomType(
+      admin,
+      property.id as string,
+      checkIn,
+      checkOut,
+    );
 
     const lines: { room_type_id: string; qty: number; inventory_kind: string }[] =
       [];
@@ -178,14 +185,42 @@ export async function createFastBooking(
       throw new Error("Add at least one sellable guest room.");
     }
 
+    let tier = rateTierFromSource(source);
     if (agentId) {
       const { data: agent } = await admin
         .from("agents")
-        .select("id, status")
+        .select("id, status, rate_tier")
         .eq("id", agentId)
         .maybeSingle();
       if (!agent || !["approved", "demo"].includes(agent.status as string)) {
         throw new Error("Agent must be approved (or demo) to book.");
+      }
+      tier = agentRateTier(agent.rate_tier as string);
+    }
+
+    let creditChargeBtn = 0;
+    const nights = nightsBetween(checkIn, checkOut);
+    if (paymentMode === "on_credit" && agentId) {
+      const season = await resolveSeasonKind(admin, property.id as string, checkIn);
+      let estimate = 0;
+      for (const line of lines) {
+        if (line.inventory_kind !== "sellable_guest") continue;
+        const rate = await lookupRoomRateBtn(admin, {
+          propertyId: property.id as string,
+          roomTypeId: line.room_type_id,
+          seasonKind: season,
+          rateTier: tier,
+        });
+        if (rate == null) {
+          throw new Error(
+            "No room rate for this season/tier. Set rates before on-credit booking.",
+          );
+        }
+        estimate += rate * line.qty * nights;
+      }
+      creditChargeBtn = roundBtn(estimate);
+      if (creditChargeBtn <= 0) {
+        throw new Error("Could not estimate on-credit amount from rates.");
       }
     }
 
@@ -231,6 +266,21 @@ export async function createFastBooking(
       throw new Error("Could not save room lines. Apply fast-book migration.");
     }
 
+    if (paymentMode === "on_credit" && agentId && creditChargeBtn > 0) {
+      try {
+        await chargeAgentCredit(admin, {
+          agentId,
+          amountBtn: creditChargeBtn,
+          bookingId: booking.id as string,
+          note: `Fast-book on credit · ${nights} night(s)`,
+        });
+      } catch (creditErr) {
+        await admin.from("booking_rooms").delete().eq("booking_id", booking.id);
+        await admin.from("bookings").delete().eq("id", booking.id);
+        throw creditErr;
+      }
+    }
+
     await admin.from("booking_guests").insert({
       booking_id: booking.id,
       full_name: contactName,
@@ -248,6 +298,19 @@ export async function createFastBooking(
       guideNumber,
       notes: notes ? `[FAST-BOOK ${source}] ${notes}` : `[FAST-BOOK ${source}]`,
     });
+
+    await enqueueAfterBookingChange(
+      admin,
+      property.id as string,
+      checkIn,
+      checkOut,
+      "fast_book.create",
+    );
+
+    revalidatePath("/erp");
+    revalidatePath("/erp/agents");
+    revalidatePath("/erp/fast-book");
+    revalidatePath("/erp/channel");
 
     return { ok: true, bookingId: booking.id };
   } catch (err) {

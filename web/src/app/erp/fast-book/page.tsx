@@ -43,7 +43,7 @@ export default async function FastBookPage() {
   return (
     <div className="min-h-screen bg-ivory">
       <DeskHeader title="Fast book" />
-      <main className="mx-auto max-w-[800px] space-y-6 px-6 py-10 md:px-8">
+      <main className="mx-auto max-w-[1200px] space-y-6 px-6 py-10 md:px-8">
         {!deskPinConfigured() ? (
           <p className="border border-gold/40 bg-gold/5 px-4 py-3 text-sm text-espresso">
             Dev mode: desk PIN not set. Add <code className="font-mono">DESK_PIN</code>{" "}

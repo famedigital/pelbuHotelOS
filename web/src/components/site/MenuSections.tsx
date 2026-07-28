@@ -45,19 +45,36 @@ export function MenuSections({
             <ul className="mt-5 divide-y divide-espresso/10 border-t border-espresso/10">
               {items.map((item) => (
                 <li key={item.id} className="group py-4 transition-colors">
-                  <div className="flex items-baseline justify-between gap-4">
-                    <p className="text-base text-espresso transition-colors group-hover:text-maroon">
-                      {item.name}
-                    </p>
-                    <p className="shrink-0 text-sm font-medium text-espresso tabular-nums">
-                      {formatBtn(item.price_btn)}
-                    </p>
+                  <div className="flex gap-4">
+                    {item.image_src ? (
+                      <div className="h-20 w-20 shrink-0 overflow-hidden bg-espresso/5 sm:h-24 sm:w-24">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={item.image_src}
+                          alt=""
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                          width={96}
+                          height={96}
+                        />
+                      </div>
+                    ) : null}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-4">
+                        <p className="text-base text-espresso transition-colors group-hover:text-maroon">
+                          {item.name}
+                        </p>
+                        <p className="shrink-0 text-sm font-medium text-espresso tabular-nums">
+                          {formatBtn(item.price_btn)}
+                        </p>
+                      </div>
+                      {item.description ? (
+                        <p className="mt-1.5 max-w-prose text-sm leading-relaxed text-muted">
+                          {item.description}
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
-                  {item.description ? (
-                    <p className="mt-1.5 max-w-prose text-sm leading-relaxed text-muted">
-                      {item.description}
-                    </p>
-                  ) : null}
                 </li>
               ))}
             </ul>

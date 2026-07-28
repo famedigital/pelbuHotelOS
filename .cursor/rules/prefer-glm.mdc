@@ -1,31 +1,49 @@
 ---
-description: Prefer GLM-5.2 for implementer work — documents limit that rules cannot switch Cursor models
+description: Cost-aware model routing — prefer included Cursor Models + GLM; avoid Other Models overages
 alwaysApply: true
 ---
 
-# Model routing (Pelbu)
+# Model routing (Pelbu) — protect spend
 
 ## Truth
 
-Cursor **rules cannot change the chat model**. Model selection is only:
+Cursor **rules cannot change the chat model**. You must pick the model in the Agent dropdown. This rule only says **which** to pick so we do not burn on-demand.
 
-1. Chat / Agent model dropdown → **`GLM-5.2`**
-2. Cursor Settings → Models (custom model + OpenAI Base URL override)
+Cursor has **two separate monthly pools** ([usage limits](https://cursor.com/help/models-and-usage/usage-limits.md)):
 
-## Intended usage for this repo
+| Pool | Models | When over budget |
+|------|--------|------------------|
+| **Cursor Models** (included, usually still has room) | **Composer** / **Composer 2.5**, **Grok 4.5** | Prefer these |
+| **Other Models** (Claude, GPT, Gemini, listed third-party) | Claude / GPT / Gemini / etc. | **Do not pick** if dashboard shows ≥100% — that is on-demand $ |
 
-| Chat purpose | Select in picker |
-|--------------|------------------|
-| Bulk implement (UI, forms, polish) | **`GLM-5.2`** |
-| Architect / schema / review / hard bugs | Cursor default (Composer / Claude / GPT) — **turn off** OpenAI Base URL override first |
+Check remaining room: [cursor.com/dashboard/usage](https://cursor.com/dashboard/usage) / [Spending](https://cursor.com/dashboard/spending).
 
-## z.ai setup checklist (must match)
+## Default picks (cost-safe)
+
+| Chat purpose | Select in Agent picker | Pool / bill |
+|--------------|------------------------|-------------|
+| Everyday Agent, implement, review in this chat | **Composer** (or Composer 2.5) | Cursor Models — included |
+| Hard architecture / schema / money-path bugs | **Grok 4.5** (still included) or Composer | Cursor Models — included |
+| Bulk UI in a **second** chat (file-scoped brief) | **`GLM-5.2`** (z.ai override on) | z.ai Coding Plan — not Cursor Other Models |
+| Avoid unless Other Models has headroom | Claude / GPT / Gemini / Auto Balance·Intelligence | Other Models — on-demand when over |
+
+**Never** leave the picker on Claude/GPT when Other Models is already over (e.g. 141%). That spends.
+
+If using **Auto**, prefer **Auto → Cost** only. Avoid Balance / Intelligence — they can route into Other Models.
+
+## Cap accidental spend
+
+- Dashboard: disable **on-demand** or set a **spend limit** so Agent stops instead of charging.
+- Unused included quota does **not** roll over; it resets on the billing cycle date.
+
+## z.ai setup (implementer chat only)
 
 - Custom model name: **`GLM-5.2`** (uppercase)
 - Override OpenAI Base URL: **`https://api.z.ai/api/coding/paas/v4`**
 - API key: Z.AI key (Coding Plan), not OpenRouter
-- After adding: pick **`GLM-5.2`** once in the Agent model menu so new implementer chats stick to it
+- After adding: pick **`GLM-5.2`** in the Agent menu for that chat
+- **Turn off** OpenAI Base URL override before switching back to Composer / Grok / other Cursor-native models
 
 ## Agents / Task tool
 
-Background Task subagents **cannot** use `GLM-5.2` — only Cursor’s allowlisted models. Use a **second chat** with GLM selected instead.
+Background Task subagents **cannot** use `GLM-5.2` — only Cursor allowlisted models. Prefer **Composer** for Task/subagents so they stay on the included Cursor Models pool. For GLM work, open a **second chat** with GLM selected instead.

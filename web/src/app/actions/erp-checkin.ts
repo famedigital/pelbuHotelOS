@@ -1,7 +1,15 @@
 "use server";
 
+import { chargeAgentCredit } from "@/app/actions/erp-agents";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { roundBtn } from "@/lib/pricing";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
+import {
+  agentRateTier,
+  lookupRoomRateBtn,
+  nightsBetween,
+  resolveSeasonKind,
+} from "@/lib/rates";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   assertPhone,
@@ -110,7 +118,7 @@ export async function confirmCheckIn(
     const { data: booking, error: bookingError } = await admin
       .from("bookings")
       .select(
-        "id, status, contact_name, check_in, check_out, booking_rooms(qty, inventory_kind)",
+        "id, status, contact_name, check_in, check_out, agent_id, payment_mode, booking_rooms(qty, inventory_kind, room_type_id)",
       )
       .eq("id", bookingId)
       .eq("property_id", property_id)
@@ -125,12 +133,68 @@ export async function confirmCheckIn(
       throw new Error(`Cannot check in a booking with status ${status}.`);
     }
 
-    const rooms = (booking.booking_rooms as { qty: number; inventory_kind: string }[] | null) ?? [];
+    const rooms = (booking.booking_rooms as { qty: number; inventory_kind: string; room_type_id: string }[] | null) ?? [];
     const hasDriverBeds = rooms.some(
       (r) => r.inventory_kind === "driver_comp" && Number(r.qty) > 0,
     );
     if (hasDriverBeds && !driverName) {
       throw new Error("Driver name is required when driver beds are assigned.");
+    }
+
+    if (paymentMode === "on_credit") {
+      const agentId = booking.agent_id as string | null;
+      if (!agentId) {
+        throw new Error("On-credit check-in requires an agent on the booking.");
+      }
+      // Charge only if this booking has not already been charged (fast-book may have)
+      const { data: priorCharge } = await admin
+        .from("agent_credit_ledger")
+        .select("id")
+        .eq("booking_id", bookingId)
+        .eq("entry_type", "charge")
+        .limit(1)
+        .maybeSingle();
+
+      if (!priorCharge) {
+        const { data: agent } = await admin
+          .from("agents")
+          .select("rate_tier")
+          .eq("id", agentId)
+          .single();
+        const tier = agentRateTier(agent?.rate_tier as string | undefined);
+        const nights = nightsBetween(
+          booking.check_in as string,
+          booking.check_out as string,
+        );
+        const season = await resolveSeasonKind(
+          admin,
+          property_id,
+          booking.check_in as string,
+        );
+        let estimate = 0;
+        for (const line of rooms) {
+          if (line.inventory_kind !== "sellable_guest") continue;
+          const rate = await lookupRoomRateBtn(admin, {
+            propertyId: property_id,
+            roomTypeId: line.room_type_id,
+            seasonKind: season,
+            rateTier: tier,
+          });
+          if (rate == null) {
+            throw new Error("Missing room rate for on-credit check-in.");
+          }
+          estimate += rate * Number(line.qty) * nights;
+        }
+        const amount = roundBtn(estimate);
+        if (amount > 0) {
+          await chargeAgentCredit(admin, {
+            agentId,
+            amountBtn: amount,
+            bookingId,
+            note: `Check-in on credit · ${nights} night(s)`,
+          });
+        }
+      }
     }
 
     const { error: bookingPatchError } = await admin
@@ -213,6 +277,7 @@ export async function confirmCheckIn(
 
     revalidatePath("/erp");
     revalidatePath("/erp/check-in");
+    revalidatePath("/erp/agents");
     revalidatePath(`/erp/folios/${folioId}`);
 
     return { ok: true, bookingId, folioId };

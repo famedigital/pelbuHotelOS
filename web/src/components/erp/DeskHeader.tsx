@@ -37,6 +37,54 @@ export function DeskHeader({ title }: { title: string }) {
           >
             Fast book
           </Link>
+          <Link
+            href="/erp/agents"
+            className="inline-flex min-h-10 items-center rounded-sm border border-white/20 px-4 text-sm text-white/90 transition-colors hover:border-white/40 hover:bg-white/5"
+          >
+            Agents
+          </Link>
+          <Link
+            href="/erp/finance"
+            className="inline-flex min-h-10 items-center rounded-sm border border-white/20 px-4 text-sm text-white/90 transition-colors hover:border-white/40 hover:bg-white/5"
+          >
+            Finance
+          </Link>
+          <Link
+            href="/erp/reports"
+            className="inline-flex min-h-10 items-center rounded-sm border border-white/20 px-4 text-sm text-white/90 transition-colors hover:border-white/40 hover:bg-white/5"
+          >
+            Reports
+          </Link>
+          <Link
+            href="/erp/rooms"
+            className="inline-flex min-h-10 items-center rounded-sm border border-white/20 px-4 text-sm text-white/90 transition-colors hover:border-white/40 hover:bg-white/5"
+          >
+            Rooms
+          </Link>
+          <Link
+            href="/erp/inventory"
+            className="inline-flex min-h-10 items-center rounded-sm border border-white/20 px-4 text-sm text-white/90 transition-colors hover:border-white/40 hover:bg-white/5"
+          >
+            Stock
+          </Link>
+          <Link
+            href="/erp/hr"
+            className="inline-flex min-h-10 items-center rounded-sm border border-white/20 px-4 text-sm text-white/90 transition-colors hover:border-white/40 hover:bg-white/5"
+          >
+            HR
+          </Link>
+          <Link
+            href="/erp/channel"
+            className="inline-flex min-h-10 items-center rounded-sm border border-white/20 px-4 text-sm text-white/90 transition-colors hover:border-white/40 hover:bg-white/5"
+          >
+            Channel
+          </Link>
+          <Link
+            href="/erp/night-audit"
+            className="inline-flex min-h-10 items-center rounded-sm border border-white/20 px-4 text-sm text-white/90 transition-colors hover:border-white/40 hover:bg-white/5"
+          >
+            Audit
+          </Link>
           <span className="mx-1 hidden h-6 w-px bg-white/15 sm:block" aria-hidden="true" />
           <form action={deskLogout}>
             <button

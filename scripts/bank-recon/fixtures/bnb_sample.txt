@@ -1,0 +1,8 @@
+Bhutan National Bank
+Account Statement
+Statement Period 01-Jul-2026 to 15-Jul-2026
+
+01-07-2026 Agent credit payment UTR:BNB998877 0.00 32000.00 210000.00
+04-07-2026 Utility BES payment 4500.00 0.00 205500.00
+07-07-2026 Card settlement restaurant 0.00 9800.00 215300.00
+12-07-2026 Cash deposit counter REF:CD441 0.00 5000.00 220300.00

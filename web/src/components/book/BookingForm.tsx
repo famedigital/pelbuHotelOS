@@ -1,6 +1,7 @@
 "use client";
 
 import { createBooking, type BookingActionState } from "@/app/actions/bookings";
+import { StayDatesField } from "@/components/ui/StayDatesField";
 import { useActionState, useMemo, useState } from "react";
 
 const initial: BookingActionState = { ok: false };
@@ -123,32 +124,8 @@ export function BookingForm() {
         </p>
       ) : null}
 
-      <fieldset className="space-y-4">
-        <legend className="text-sm font-medium tracking-wide text-espresso">
-          Stay dates
-        </legend>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm text-muted">
-            Check-in
-            <input
-              type="date"
-              name="check_in"
-              required
-              min={minCheckIn}
-              className={fieldClassName()}
-            />
-          </label>
-          <label className="block text-sm text-muted">
-            Check-out
-            <input
-              type="date"
-              name="check_out"
-              required
-              min={minCheckIn}
-              className={fieldClassName()}
-            />
-          </label>
-        </div>
+      <div className="space-y-4">
+        <StayDatesField minCheckIn={minCheckIn} defaultMode="dates" />
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block text-sm text-muted">
             Adults
@@ -175,7 +152,7 @@ export function BookingForm() {
             />
           </label>
         </div>
-      </fieldset>
+      </div>
 
       <fieldset className="space-y-4">
         <legend className="text-sm font-medium tracking-wide text-espresso">

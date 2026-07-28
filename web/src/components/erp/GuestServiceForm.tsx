@@ -9,6 +9,14 @@ import type { DeskBookingOption } from "@/components/erp/DeskPosForm";
 
 const initial: GuestServiceState = { ok: false };
 
+function nightsBetween(checkIn: string, checkOut: string): number {
+  if (!checkIn || !checkOut) return 0;
+  const a = new Date(`${checkIn}T00:00:00`).getTime();
+  const b = new Date(`${checkOut}T00:00:00`).getTime();
+  if (Number.isNaN(a) || Number.isNaN(b) || b <= a) return 0;
+  return Math.round((b - a) / 86_400_000);
+}
+
 function fieldClassName() {
   return "mt-1.5 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2.5 text-sm text-espresso outline-none transition-colors focus:border-gold focus:ring-2 focus:ring-gold/20";
 }
@@ -72,7 +80,8 @@ export function GuestServiceForm({ bookings }: { bookings: DeskBookingOption[] }
           </option>
           {bookings.map((b) => (
             <option key={b.id} value={b.id}>
-              {(b.contact_name ?? "Guest")} · {b.check_in}
+              {(b.contact_name ?? "Guest")} · {b.check_in} → {b.check_out} ·{" "}
+              {nightsBetween(b.check_in, b.check_out)} nights
             </option>
           ))}
         </select>

@@ -70,6 +70,17 @@ export default function AgentsPage() {
             while your application is reviewed. Once approved, we will connect future
             bookings to your partner account.
           </p>
+
+          <p className="leading-relaxed">
+            Already an approved partner?{" "}
+            <a
+              href="/agents/portal"
+              className="text-gold underline-offset-4 hover:underline font-medium"
+            >
+              Open agent portal
+            </a>
+            .
+          </p>
         </div>
       }
     >

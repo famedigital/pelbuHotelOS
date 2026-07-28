@@ -8,6 +8,14 @@ import {
 } from "@/app/actions/erp-checkin";
 import { useActionState } from "react";
 
+function nightsBetween(checkIn: string, checkOut: string): number {
+  if (!checkIn || !checkOut) return 0;
+  const a = new Date(`${checkIn}T00:00:00`).getTime();
+  const b = new Date(`${checkOut}T00:00:00`).getTime();
+  if (Number.isNaN(a) || Number.isNaN(b) || b <= a) return 0;
+  return Math.round((b - a) / 86_400_000);
+}
+
 export type CheckInBooking = {
   id: string;
   contact_name: string | null;
@@ -101,8 +109,11 @@ export function CheckInForm({ booking }: { booking: CheckInBooking }) {
           {(booking.contact_name ?? "Guest")} · {booking.contact_phone ?? "—"}
         </p>
         <p>
-          {booking.check_in} → {booking.check_out} · {booking.adults} adults ·{" "}
-          {booking.rooms} rooms · {booking.status}
+          {booking.check_in} → {booking.check_out}{" "}
+          <span className="ml-1 inline-flex items-center rounded-full border border-gold/40 bg-gold/5 px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.16em] text-gold">
+            {nightsBetween(booking.check_in, booking.check_out)} nights
+          </span>{" "}
+          · {booking.adults} adults · {booking.rooms} rooms · {booking.status}
         </p>
         <ul className="mt-2 space-y-1">
           {booking.booking_rooms.map((r, i) => (

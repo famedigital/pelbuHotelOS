@@ -2,7 +2,9 @@ import {
   postOrderToBookingFolio,
   updateOrderKotStatus,
 } from "@/app/actions/erp-pos";
+import { BookingLifecycleActions } from "@/components/erp/BookingLifecycleActions";
 import { DeskHeader } from "@/components/erp/DeskHeader";
+import { DeskLiveRefresh } from "@/components/erp/DeskLiveRefresh";
 import { deskPinConfigured, isDeskAuthenticated } from "@/lib/desk-auth";
 import { formatBtn } from "@/lib/pricing";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -109,6 +111,7 @@ export default async function ErpInboxPage() {
           title="P2 order board"
           subtitle="Move tickets across the kitchen flow"
           empty="No orders yet."
+          trailing={<DeskLiveRefresh />}
         >
           <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
             {KOT_FLOW.map((bucket) => (
@@ -172,6 +175,10 @@ export default async function ErpInboxPage() {
                     : "Check in →"}
                 </a>
               ) : null}
+              <BookingLifecycleActions
+                bookingId={row.id as string}
+                status={row.status as string}
+              />
             </li>
           ))}
         </InboxSection>
@@ -240,11 +247,13 @@ function InboxSection({
   subtitle,
   empty,
   children,
+  trailing,
 }: {
   title: string;
   subtitle?: string;
   empty: string;
   children: ReactNode;
+  trailing?: ReactNode;
 }) {
   const items = Array.isArray(children) ? children.filter(Boolean) : [children];
   const list = items.flat().filter(Boolean);
@@ -257,9 +266,12 @@ function InboxSection({
           </h2>
           {subtitle ? <p className="mt-1 text-xs text-muted">{subtitle}</p> : null}
         </div>
-        {list.length > 0 ? (
-          <p className="text-xs text-muted">{list.length}</p>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-3">
+          {trailing}
+          {list.length > 0 ? (
+            <p className="text-xs text-muted">{list.length}</p>
+          ) : null}
+        </div>
       </div>
       {list.length === 0 ? (
         <p className="mt-4 text-sm text-muted">{empty}</p>

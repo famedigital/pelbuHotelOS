@@ -6,9 +6,11 @@ Multi-agent build (**Cursor architect** + **z.ai/GLM implementer** + optional Cl
 
 | Role | Who | Job |
 |------|-----|-----|
-| Architect / reviewer | Cursor (default models) | Spec, schema, RLS, auth, money paths, review diffs, hard bugs |
-| Implementer | z.ai GLM in a **second chat** | Bulk UI/components inside a locked brief |
-| Visual polish (optional) | Claude | Templates, copy, motion on `claude/*` |
+| Architect / reviewer | **Composer** (or Grok 4.5) — Cursor Models pool | Spec, schema, RLS, auth, money paths, review diffs, hard bugs |
+| Implementer | z.ai **GLM-5.2** in a **second chat** | Bulk UI/components inside a locked brief |
+| Visual polish (optional) | Claude on `claude/*` only when Other Models has headroom | Templates, copy, motion |
+
+**Spend guard:** Prefer Composer / Grok / GLM. Avoid Claude/GPT in Agent when [Other Models](https://cursor.com/dashboard/usage) is ≥100% — that is on-demand. See `.cursor/rules/prefer-glm.mdc`.
 
 **Do not** give z.ai unbounded “build everything” prompts — that creates buggy code and burns Cursor tokens fixing it. Always use a file-scoped brief (`/zai-handoff`).
 
@@ -71,5 +73,9 @@ No project `subagents/` folder. Parallel work = **second chat with GLM selected*
 
 ## Model switching (important)
 
-A `.cursor/rules` file **cannot** auto-select `GLM-5.2`. You must pick it in the Agent model dropdown. See `.cursor/rules/prefer-glm.mdc`. When using GLM, Base URL override is on; turn it **off** before switching back to Cursor’s own models.
+A `.cursor/rules` file **cannot** auto-select the model. Pick in the Agent dropdown:
+
+- Default in this repo: **Composer** (included Cursor Models pool)
+- Implementer second chat: **`GLM-5.2`** — see `.cursor/rules/prefer-glm.mdc`
+- When using GLM, Base URL override is on; turn it **off** before switching back to Composer / Grok
 

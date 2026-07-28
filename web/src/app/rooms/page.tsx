@@ -1,4 +1,7 @@
 import { ConversionShell } from "@/components/site/ConversionShell";
+import { MediaGallery } from "@/components/media/MediaGallery";
+import { cloudinaryUrl } from "@/lib/cloudinary";
+import { loadCmsGallery, loadCmsPage } from "@/lib/cms";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -21,25 +24,43 @@ async function loadRooms() {
 
   const { data } = await admin
     .from("room_types")
-    .select("code, name, inventory_kind")
+    .select("code, name, inventory_kind, image_public_id, blurb")
     .eq("property_id", property.id)
     .order("code");
 
-  return data ?? [];
+  return (data ?? []).map((row) => {
+    const imagePublicId = (row.image_public_id as string | null) ?? null;
+    return {
+      code: row.code as string,
+      name: row.name as string,
+      inventory_kind: row.inventory_kind as string,
+      blurb: (row.blurb as string | null) ?? null,
+      image_src: imagePublicId
+        ? cloudinaryUrl(imagePublicId, { width: 720, crop: "fill" })
+        : null,
+    };
+  });
 }
 
 export default async function RoomsPage() {
-  const rooms = await loadRooms();
+  const [page, gallery, rooms] = await Promise.all([
+    loadCmsPage("rooms"),
+    loadCmsGallery("rooms"),
+    loadRooms(),
+  ]);
   const guestRooms = rooms.filter((r) => r.inventory_kind === "sellable_guest");
   const compBeds = rooms.filter((r) =>
-    ["guide_comp", "driver_comp"].includes(r.inventory_kind as string),
+    ["guide_comp", "driver_comp"].includes(r.inventory_kind),
   );
 
   return (
     <ConversionShell
-      eyebrow="Rooms"
-      title="Rest in Olakha."
-      body="Quiet suites for guests traveling Bhutan. Book direct for the public rate, or ask your agent to reserve with guide and driver beds included."
+      eyebrow={page?.eyebrow ?? "Rooms"}
+      title={page?.title ?? "Rest in Olakha."}
+      body={
+        page?.body ??
+        "Quiet suites for guests traveling Bhutan. Book direct for the public rate, or ask your agent to reserve with guide and driver beds included."
+      }
       aside={
         <div className="space-y-4 text-sm text-muted">
           <p className="text-xs tracking-[0.2em] text-gold uppercase">Rates</p>
@@ -57,7 +78,7 @@ export default async function RoomsPage() {
         </div>
       }
     >
-      <div className="space-y-10">
+      <div className="space-y-12">
         <section>
           <h2 className="text-sm font-medium tracking-[0.18em] text-gold uppercase">
             Guest rooms
@@ -65,13 +86,30 @@ export default async function RoomsPage() {
           {guestRooms.length === 0 ? (
             <p className="mt-4 text-sm text-muted">Room types loading — call the desk.</p>
           ) : (
-            <ul className="mt-4 divide-y divide-espresso/10 border-y border-espresso/10">
+            <ul className="mt-5 space-y-5">
               {guestRooms.map((room) => (
-                <li key={room.code as string} className="py-4">
-                  <p className="text-base text-espresso">{room.name as string}</p>
-                  <p className="mt-1 text-sm text-muted">
-                    Code {room.code as string} · sellable guest inventory
-                  </p>
+                <li
+                  key={room.code}
+                  className="overflow-hidden border border-espresso/10 bg-white"
+                >
+                  {room.image_src ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={room.image_src}
+                      alt={room.name}
+                      className="aspect-[16/9] w-full object-cover"
+                      loading="lazy"
+                      width={720}
+                      height={405}
+                    />
+                  ) : null}
+                  <div className="px-5 py-4">
+                    <p className="text-base text-espresso">{room.name}</p>
+                    <p className="mt-1 text-sm text-muted">
+                      {room.blurb ??
+                        `Code ${room.code} · sellable guest inventory`}
+                    </p>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -89,17 +127,19 @@ export default async function RoomsPage() {
           {compBeds.length > 0 ? (
             <ul className="mt-4 divide-y divide-espresso/10 border-y border-espresso/10">
               {compBeds.map((room) => (
-                <li key={room.code as string} className="py-4">
-                  <p className="text-base text-espresso">{room.name as string}</p>
+                <li key={room.code} className="py-4">
+                  <p className="text-base text-espresso">{room.name}</p>
                   <p className="mt-1 text-sm text-muted">
-                    {room.inventory_kind === "guide_comp" ? "Guide" : "Driver"} · rate 0
-                    (comp)
+                    {room.blurb ??
+                      `${room.inventory_kind === "guide_comp" ? "Guide" : "Driver"} · rate 0 (comp)`}
                   </p>
                 </li>
               ))}
             </ul>
           ) : null}
         </section>
+
+        <MediaGallery items={gallery} label="Rooms" />
 
         <a
           href="/book"

@@ -5,6 +5,14 @@ import type { MenuItem } from "@/lib/menu";
 import { BHUTAN_GST_RATE, calculateOrderTotals, formatBtn } from "@/lib/pricing";
 import { useActionState, useMemo, useState } from "react";
 
+function nightsBetween(checkIn: string, checkOut: string): number {
+  if (!checkIn || !checkOut) return 0;
+  const a = new Date(`${checkIn}T00:00:00`).getTime();
+  const b = new Date(`${checkOut}T00:00:00`).getTime();
+  if (Number.isNaN(a) || Number.isNaN(b) || b <= a) return 0;
+  return Math.round((b - a) / 86_400_000);
+}
+
 export type DeskBookingOption = {
   id: string;
   contact_name: string | null;
@@ -197,8 +205,8 @@ export function DeskPosForm({ items, bookings }: Props) {
                 </option>
                 {bookings.map((b) => (
                   <option key={b.id} value={b.id}>
-                    {(b.contact_name ?? "Guest")} · {b.check_in} → {b.check_out} ·{" "}
-                    {b.status}
+                    {(b.contact_name ?? "Guest")} · {b.check_in} → {b.check_out}{" "}
+                    · {nightsBetween(b.check_in, b.check_out)} nights · {b.status}
                   </option>
                 ))}
               </select>

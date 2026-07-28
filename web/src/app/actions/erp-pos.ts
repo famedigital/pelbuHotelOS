@@ -1,5 +1,6 @@
 "use server";
 
+import { writeAuditEvent } from "@/lib/audit";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { calculateOrderTotals, roundBtn } from "@/lib/pricing";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
@@ -13,7 +14,15 @@ import { revalidatePath } from "next/cache";
 
 const KOT_STATUSES = new Set(["new", "preparing", "ready", "served", "cancelled"]);
 const OUTLETS = new Set(["cafe", "pastry", "restaurant", "bar"]);
-const PAY_METHODS = new Set(["cash", "bank", "card", "agent_credit"]);
+const PAY_METHODS = new Set([
+  "cash",
+  "bank",
+  "card",
+  "agent_credit",
+  "bank_qr",
+  "pay_bt",
+  "deposit",
+]);
 const GUEST_SERVICES = new Set(["taxi", "shop", "other"]);
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
@@ -467,7 +476,7 @@ export async function postFolioPayment(
     const folioId = trimRequired(formData.get("folio_id"), "Folio");
     const method = trimRequired(formData.get("method"), "Payment method");
     if (!PAY_METHODS.has(method)) {
-      throw new Error("Choose cash, bank, card, or agent credit.");
+      throw new Error("Choose cash, bank, card, QR, Pay.bt, deposit, or agent credit.");
     }
 
     const amountRaw = trimRequired(formData.get("amount_btn"), "Amount");
@@ -534,8 +543,18 @@ export async function postFolioPayment(
       throw new Error("Could not post payment to folio.");
     }
 
+    await writeAuditEvent(admin, {
+      propertyId: property_id,
+      action: "payment.create",
+      entityType: "payments",
+      entityId: payment.id as string,
+      summary: `Payment ${amountBtn} Nu · ${method}`,
+      meta: { folioId, method, amountBtn },
+    });
+
     revalidatePath("/erp");
     revalidatePath(`/erp/folios/${folioId}`);
+    revalidatePath("/erp/reports");
     return { ok: true, paymentId: payment.id as string };
   } catch (err) {
     return {

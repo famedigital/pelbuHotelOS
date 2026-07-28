@@ -4,7 +4,12 @@ import {
   createFastBooking,
   type FastBookState,
 } from "@/app/actions/fast-book";
-import { useActionState, useMemo } from "react";
+import { useActionState, useMemo, useState } from "react";
+import { FastBookDrawer } from "./FastBookDrawer";
+import { FastBookGrid } from "./FastBookGrid";
+import { FastBookInvoice, type FastBookInvoiceData } from "./FastBookInvoice";
+import { FastBookVoucher, type FastBookVoucherData } from "./FastBookVoucher";
+import { StayDatesField } from "@/components/ui/StayDatesField";
 
 export type FastBookRoomType = {
   id: string;
@@ -35,6 +40,27 @@ function fieldClassName() {
   return "mt-1.5 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2.5 text-sm text-espresso outline-none transition-colors focus:border-gold focus:ring-2 focus:ring-gold/20";
 }
 
+function nightsBetween(checkIn: string, checkOut: string): number {
+  if (!checkIn || !checkOut) return 0;
+  const a = new Date(`${checkIn}T00:00:00`).getTime();
+  const b = new Date(`${checkOut}T00:00:00`).getTime();
+  if (Number.isNaN(a) || Number.isNaN(b) || b <= a) return 0;
+  return Math.round((b - a) / 86_400_000);
+}
+
+type Snapshot = {
+  checkIn: string;
+  checkOut: string;
+  adults: number;
+  contactName: string;
+  contactPhone: string;
+  agentLabel?: string;
+  guideNumber?: string;
+  sourceLabel?: string;
+  paymentLabel?: string;
+  lines: { name: string; code: string; qty: number; kind: string }[];
+};
+
 type Props = {
   roomTypes: FastBookRoomType[];
   agents: FastBookAgent[];
@@ -44,26 +70,193 @@ export function FastBookForm({ roomTypes, agents }: Props) {
   const [state, action, pending] = useActionState(createFastBooking, initial);
   const minCheckIn = useMemo(() => todayIso(), []);
 
-  const guestTypes = roomTypes.filter((r) => r.inventory_kind === "sellable_guest");
-  const guideTypes = roomTypes.filter((r) => r.inventory_kind === "guide_comp");
-  const driverTypes = roomTypes.filter((r) => r.inventory_kind === "driver_comp");
+  const [qtyValues, setQtyValues] = useState<Record<string, number>>({});
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+
+  const hasQty = Object.values(qtyValues).some((v) => v > 0);
+
+  const handleQtyChange = (code: string, value: number) => {
+    setQtyValues((prev) => {
+      const next = { ...prev, [code]: value };
+      const any = Object.values(next).some((v) => v > 0);
+      if (any && !drawerOpen) setDrawerOpen(true);
+      return next;
+    });
+  };
 
   if (state.ok && state.bookingId) {
     return (
-      <div
-        className="border border-espresso/10 bg-white px-6 py-10"
-        role="status"
-        aria-live="polite"
-      >
-        <p className="text-[11px] font-semibold tracking-[0.28em] text-gold uppercase">
-          Saved
+      <SuccessSplit
+        bookingId={state.bookingId}
+        snapshot={snapshot}
+        roomTypes={roomTypes}
+      />
+    );
+  }
+
+  return (
+    <form
+      action={action}
+      onSubmit={(e) => {
+        // Capture what the user is submitting so the success view can render it.
+        const formEl = e.currentTarget;
+        // Allow the native submit to proceed; capture synchronously before clear.
+        try {
+          const fd = new FormData(formEl);
+          setSnapshot(buildSnapshot(fd, roomTypes, agents));
+        } catch {
+          // ignore — form still submits via React action
+        }
+      }}
+      className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_360px]"
+    >
+      {state.error ? (
+        <p
+          className="border border-maroon/30 bg-maroon/5 px-4 py-3 text-sm text-maroon md:col-span-2"
+          role="alert"
+        >
+          {state.error}
         </p>
-        <h2 className="mt-3 text-3xl text-espresso">Booking confirmed</h2>
-        <p className="mt-2 text-sm text-muted">
-          Reference{" "}
-          <span className="font-mono text-espresso">{state.bookingId}</span>
-        </p>
-        <div className="mt-8 flex flex-wrap gap-3">
+      ) : null}
+
+      <div className="space-y-6">
+        <div className="space-y-4 border border-espresso/10 bg-white px-5 py-5">
+          <StayDatesField minCheckIn={minCheckIn} defaultMode="nights" />
+          <label className="block max-w-[180px] text-sm text-espresso">
+            Adults
+            <input
+              type="number"
+              name="adults"
+              required
+              min={1}
+              max={24}
+              defaultValue={2}
+              inputMode="numeric"
+              className={fieldClassName()}
+            />
+          </label>
+        </div>
+
+        <div className="border border-espresso/10 bg-white px-5 py-5">
+          <FastBookGrid
+            roomTypes={roomTypes}
+            qtyValues={qtyValues}
+            onQtyChange={handleQtyChange}
+          />
+        </div>
+      </div>
+
+      <FastBookDrawer
+        agents={agents}
+        pending={pending}
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        hasQty={hasQty}
+      />
+    </form>
+  );
+}
+
+/**
+ * Builds the snapshot of what the user submitted, so the post-save success
+ * split can render the saved booking details (which the server action does not
+ * return — its contract is `{ ok, bookingId, error }`).
+ */
+function buildSnapshot(
+  fd: FormData,
+  roomTypes: FastBookRoomType[],
+  agents: FastBookAgent[],
+): Snapshot {
+  const get = (k: string) => {
+    const v = fd.get(k);
+    return typeof v === "string" ? v : "";
+  };
+
+  const sourceLabel = SOURCE_LABELS[get("source")] ?? get("source");
+  const paymentLabel = PAYMENT_LABELS[get("payment_mode")] ?? get("payment_mode");
+
+  const agentId = get("agent_id");
+  const agent = agents.find((a) => a.id === agentId);
+  const agentLabel = agent
+    ? `${agent.company_name} (${agent.market}${agent.status === "demo" ? ", demo" : ""})`
+    : undefined;
+
+  const lines = roomTypes
+    .map((rt) => ({
+      name: rt.name,
+      code: rt.code,
+      qty: Number(get(`qty_${rt.code}`) || 0),
+      kind: rt.inventory_kind,
+    }))
+    .filter((l) => l.qty > 0);
+
+  return {
+    checkIn: get("check_in"),
+    checkOut: get("check_out"),
+    adults: Number(get("adults") || 0),
+    contactName: get("contact_name"),
+    contactPhone: get("contact_phone"),
+    agentLabel,
+    guideNumber: get("guide_number") || undefined,
+    sourceLabel,
+    paymentLabel,
+    lines,
+  };
+}
+
+function SuccessSplit({
+  bookingId,
+  snapshot,
+  roomTypes,
+}: {
+  bookingId: string;
+  snapshot: Snapshot | null;
+  roomTypes: FastBookRoomType[];
+}) {
+  // Fallback if snapshot is missing (e.g. JS-disabled submit): minimal invoice only.
+  const checkIn = snapshot?.checkIn ?? "";
+  const checkOut = snapshot?.checkOut ?? "";
+  const nights = nightsBetween(checkIn, checkOut);
+  const adults = snapshot?.adults ?? 0;
+
+  const invoiceData: FastBookInvoiceData = {
+    bookingId,
+    checkIn,
+    checkOut,
+    nights,
+    adults,
+    guestName: snapshot?.contactName ?? "",
+    agentLabel: snapshot?.agentLabel,
+    sourceLabel: snapshot?.sourceLabel,
+    paymentLabel: snapshot?.paymentLabel,
+    lines: snapshot?.lines ?? [],
+  };
+
+  const voucherData: FastBookVoucherData = {
+    bookingId,
+    checkIn,
+    checkOut,
+    nights,
+    guestName: snapshot?.contactName ?? "",
+    guestPhone: snapshot?.contactPhone,
+    agentLabel: snapshot?.agentLabel,
+    guideNumber: snapshot?.guideNumber,
+    lines:
+      snapshot?.lines.map((l) => ({ name: l.name, code: l.code, qty: l.qty })) ??
+      roomTypes.map((r) => ({ name: r.name, code: r.code, qty: 0 })),
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-3 print:hidden">
+        <div>
+          <p className="text-[11px] font-semibold tracking-[0.28em] text-gold uppercase">
+            Saved
+          </p>
+          <h2 className="mt-1 text-3xl text-espresso">Booking confirmed</h2>
+        </div>
+        <div className="flex flex-wrap gap-3">
           <a
             href="/erp/fast-book"
             className="inline-flex min-h-11 items-center rounded-sm bg-gold px-5 text-sm font-medium text-espresso transition-opacity hover:opacity-90"
@@ -78,220 +271,25 @@ export function FastBookForm({ roomTypes, agents }: Props) {
           </a>
         </div>
       </div>
-    );
-  }
 
-  return (
-    <form action={action} className="space-y-8 border border-espresso/10 bg-white px-6 py-8">
-      {state.error ? (
-        <p
-          className="border border-maroon/30 bg-maroon/5 px-4 py-3 text-sm text-maroon"
-          role="alert"
-        >
-          {state.error}
-        </p>
-      ) : null}
-
-      <fieldset className="space-y-4">
-        <legend className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-          Stay
-        </legend>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm text-espresso">
-            Check-in
-            <input
-              type="date"
-              name="check_in"
-              required
-              min={minCheckIn}
-              className={fieldClassName()}
-            />
-          </label>
-          <label className="block text-sm text-espresso">
-            Check-out
-            <input
-              type="date"
-              name="check_out"
-              required
-              min={minCheckIn}
-              className={fieldClassName()}
-            />
-          </label>
-        </div>
-        <label className="block text-sm text-espresso">
-          Adults
-          <input
-            type="number"
-            name="adults"
-            required
-            min={1}
-            max={24}
-            defaultValue={2}
-            inputMode="numeric"
-            className={fieldClassName()}
-          />
-        </label>
-      </fieldset>
-
-      <fieldset className="space-y-4">
-        <div className="flex items-baseline justify-between">
-          <legend className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-            Guest rooms
-          </legend>
-          <p className="text-xs text-muted">Quantity per type</p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {guestTypes.map((rt) => (
-            <label key={rt.id} className="block text-sm text-espresso">
-              {rt.name}
-              <span className="ml-1 text-xs text-muted">({rt.unit_count})</span>
-              <input
-                type="number"
-                name={`qty_${rt.code}`}
-                min={0}
-                max={rt.unit_count}
-                defaultValue={0}
-                inputMode="numeric"
-                className={fieldClassName()}
-              />
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
-      <fieldset className="space-y-4">
-        <div className="flex items-baseline justify-between">
-          <legend className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-            Guide / driver beds
-          </legend>
-          <p className="text-xs text-muted">Complimentary</p>
-        </div>
-        <p className="text-xs text-muted">
-          Complimentary inventory — does not distort guest ADR.
-        </p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {[...guideTypes, ...driverTypes].map((rt) => (
-            <label key={rt.id} className="block text-sm text-espresso">
-              {rt.name}
-              <span className="ml-1 text-xs text-muted">({rt.unit_count})</span>
-              <input
-                type="number"
-                name={`qty_${rt.code}`}
-                min={0}
-                max={rt.unit_count}
-                defaultValue={0}
-                inputMode="numeric"
-                className={fieldClassName()}
-              />
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
-      <fieldset className="space-y-4">
-        <legend className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-          Booked by
-        </legend>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm text-espresso">
-            Role
-            <select
-              name="source"
-              required
-              defaultValue="reservation"
-              className={fieldClassName()}
-            >
-              <option value="owner">Owner</option>
-              <option value="reservation">Reservation</option>
-              <option value="agent">Agent</option>
-              <option value="mou_agent">MoU agent</option>
-            </select>
-          </label>
-          <label className="block text-sm text-espresso">
-            Agent
-            <select name="agent_id" className={fieldClassName()} defaultValue="">
-              <option value="">— Walk-in / none —</option>
-              {agents.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.company_name} ({a.market}
-                  {a.status === "demo" ? ", demo" : ""})
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block text-sm text-espresso sm:col-span-2">
-            Guide number
-            <input
-              type="text"
-              name="guide_number"
-              placeholder="Required for agent bookings"
-              className={fieldClassName()}
-            />
-          </label>
-          <label className="block text-sm text-espresso">
-            Payment
-            <select
-              name="payment_mode"
-              defaultValue="cash"
-              className={fieldClassName()}
-            >
-              <option value="cash">Cash</option>
-              <option value="prepaid">Prepaid</option>
-              <option value="partial">Partial</option>
-              <option value="on_credit">On credit</option>
-            </select>
-          </label>
-        </div>
-      </fieldset>
-
-      <fieldset className="space-y-4">
-        <legend className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-          Guest contact
-        </legend>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm text-espresso sm:col-span-2">
-            Guest / lead name
-            <input
-              type="text"
-              name="contact_name"
-              required
-              autoComplete="off"
-              className={fieldClassName()}
-            />
-          </label>
-          <label className="block text-sm text-espresso">
-            Phone
-            <input
-              type="tel"
-              name="contact_phone"
-              required
-              inputMode="tel"
-              className={fieldClassName()}
-            />
-          </label>
-          <label className="block text-sm text-espresso">
-            Email
-            <input
-              type="email"
-              name="contact_email"
-              inputMode="email"
-              className={fieldClassName()}
-            />
-          </label>
-          <label className="block text-sm text-espresso sm:col-span-2">
-            Notes
-            <textarea name="notes" rows={3} className={fieldClassName()} />
-          </label>
-        </div>
-      </fieldset>
-
-      <button
-        type="submit"
-        disabled={pending}
-        className="inline-flex min-h-11 w-full items-center justify-center rounded-sm bg-espresso px-6 text-sm font-medium text-ivory transition-opacity hover:opacity-90 disabled:opacity-60"
-      >
-        {pending ? "Saving…" : "Save booking"}
-      </button>
-    </form>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 print:block">
+        <FastBookInvoice data={invoiceData} />
+        <FastBookVoucher data={voucherData} />
+      </div>
+    </div>
   );
 }
+
+const SOURCE_LABELS: Record<string, string> = {
+  owner: "Owner",
+  reservation: "Reservation",
+  agent: "Agent",
+  mou_agent: "MoU agent",
+};
+
+const PAYMENT_LABELS: Record<string, string> = {
+  cash: "Cash",
+  prepaid: "Prepaid",
+  partial: "Partial",
+  on_credit: "On credit",
+};
