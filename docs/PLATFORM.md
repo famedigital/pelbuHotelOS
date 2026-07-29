@@ -10,8 +10,10 @@
 - **Delivery:** Revenue-first phases (public conversion + bookings first), then POS/KOT, then Finance/HR, then channel/scale.
 - **Scale:** Multi-property ready from day 1 (one ERP, many hotels/sites/templates). Pelbu Olakha is property #1.
 - **Stack:** Next.js (App Router) + TypeScript on **Vercel**; **Supabase** (Auth, Postgres, RLS, Storage, **Realtime**); **Resend** (email); **CallMeBot** (WhatsApp/Telegram alerts); **Cloudinary** (media); PWA (installable, offline shell for staff POS later).
+- **UI kit:** **Tailwind + shadcn/ui** (Radix) + **Framer Motion** — not styled-components (Mews marketing uses that; we ditto craft only).
 - **Live UI:** Supabase Realtime everywhere ops matter (KOT boards, POS tickets, room status, spa queue, bookings) — no manual refresh.
-- **Split work with Claude:** Cursor owns architecture, schema, auth, integrations, ERP modules, reconciliation scripts; Claude owns visual templates, long-form menu/content, marketing copy, and parallel UI polish on isolated branches/files (see work-split below).
+- **UX north stars (2026-07-29):** public `/book` = **Airbnb** funnel; marketing site = **Mews craft + Pelbu-pink**; desk ERP = **Mews Timeline** (ditto then upgrade). See [UX north stars](#ux-north-stars-2026-07-29) below.
+- **Split work with Claude / z.ai:** Cursor owns architecture, schema, auth, integrations, ERP modules, reconciliation scripts; z.ai implements file-scoped UI briefs; Claude owns visual templates / marketing copy on `claude/*` (see work-split below).
 
 ## Phase 0 — Agent setup (skills, rules, MCP)
 
@@ -36,8 +38,9 @@ flowchart TB
     AgentApp[Agent portal pending approval]
   end
   subgraph erp [ERP Admin PWA]
+    Timeline[Mews Timeline calendar primary desk]
     CMS[Website CMS]
-    FastBook[Fast booking desk calendar grid drawer]
+    FastBook[Fast book Sheet from Timeline]
     CheckIn[Checkin Checkout]
     Partners[Guides Drivers master + visit counts]
     Rates[Rate engine]
@@ -94,6 +97,44 @@ flowchart TB
 - That number guides **UX quality, menus, CTAs, imagery, speed, SEO, and funnel design** — not a mandatory ERP “pace vs 40k” dashboard or CallMeBot nag if behind.
 - Normal sales/analytics reports still exist in ERP; they are operational, not a 40k whip.
 
+## UX north stars (2026-07-29)
+
+Canonical UI sprint plan (Cursor): `.cursor/plans/stripe_ace_shadcn_ui_24b7e356.plan.md`.  
+z.ai Round 1 brief: `.cursor/commands/zai-handoff-mews-pink-public.md`.
+
+| Surface | Reference | Meaning |
+|---------|-----------|---------|
+| Public `/book` | **Airbnb** | Dates → room cards → guest → review/confirm + sticky price summary. Keep `previewStayCost` / `createBooking` contracts. |
+| Public marketing | **Mews craft + Pelbu-pink** | Mega-menu, Framer Motion, pill CTA, ~1280px / ~80px rhythm. Accent **Bubblegum `#ff83da`** (+ cotton/blush pinks, warm cream `#fffcf6`, ink). Pelbu logo only — no Mews marks / Soehne fonts. |
+| Desk ERP | **Mews Timeline** | Rooms × days grid, booking bars, click empty → book, click block → Smart Detail. Then **upgrade** clarity/speed/mobile/a11y + Bhutan deltas (agents, guide/driver, GST). |
+| Product backlog | [Mews pricing](https://www.mews.com/en/pricing) catalog | Full Essentials→Enterprise + RMS/POS/services over phases **E–H** after UI sprint A–D — not one release. |
+
+### Pelbu-pink tokens (public + `.erp` accent)
+
+| Role | Hex |
+|------|-----|
+| Primary CTA / accent | `#ff83da` |
+| Soft / blush | `#ffc5ee` / `#f7e1f7` |
+| Ice / lime (sparse) | `#d2f4ff` / `#e8ff5b` |
+| Ink / charcoal | `#000000` / `#333333` |
+| Cream / canvas | `#fffcf6` / `#ffffff` |
+
+Refs: `design/erp-mews/refs/`, `design/marketing-mews/` (when written), `design/book-airbnb/`.  
+**Supersedes** Ink & Brass as the public conversion skin (`design/system-v2/` kept as history).
+
+### ERP chrome (Mews — replaces long `DeskHeader` strip)
+
+Today’s [`DeskHeader`](../web/src/components/erp/DeskHeader.tsx) ~25-link `flex-wrap` is too long / buggy.
+
+**Locked pattern (Mews ditto — not shadcn `Sidebar`):**
+- Top-left: Pelbu mark + **hamburger** → left **`Sheet`** with **grouped** nav (Front desk · Money · Guests & trade · Property · Insights · Admin)
+- Top-center: wide property search
+- Top-right: notifications / avatar / settings
+- Default desk home: **`/erp/calendar` (Timeline)**; Inbox stays in the drawer
+- Timeline page: Today / date / space toolbar only — no duplicate link farm
+- Smart Detail: desktop right pane; mobile bottom `Sheet`
+- Primary detail actions: **solid black**; pink for today column + active tab only
+
 ## Revenue streams (6) + conversion
 
 1. **Rooms** — online booking; rates by season × guest category  
@@ -134,12 +175,12 @@ Anti–AI-slop: Bhutanese-modern, brand-first hero (logo already in repo), expre
 5. **Bar** — weekend menu focus  
 6. **Spa & Steam** — packages, book slots  
 7. **Meeting** — hall up to 25, packages, enquiry/book  
-8. **Book** — rooms / spa / meeting (simple paths)  
+8. **Book** — **Airbnb-shaped** funnel (dates → room cards → guest → confirm/pay link); spa/meeting paths remain  
 9. **Order** — cafe/pastry (+ later restaurant delivery)  
 10. **Agents** — signup (approval), login, fast book  
 11. **About / Contact / Location** — Olakha, Thimphu  
 
-**ERP layout (staff PWA):** dense, fast, mobile-first — Fast book, Arrivals, Check-in, Folio, POS, KOT, Credit, Partners, CMS, Reports.
+**ERP layout (staff PWA):** **Mews Timeline** as primary (`/erp/calendar`) + hamburger `Sheet` nav; Fast book / Arrivals / Check-in / Folio / POS / KOT / Credit / Partners / CMS / Reports reachable from grouped drawer — dense, fast, mobile-first.
 
 ### Content & media ownership (Pelbu = we create everything)
 
@@ -260,19 +301,21 @@ Priority order on every screen: **1) UX (task success)** → **2) UI structure**
 
 ### Design tokens (engineered gaps)
 
-- **Grid:** 12-col desktop, 4-col mobile; content max ~1120–1200px  
-- **Spacing scale:** 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 / 96 (no random padding)  
-- **Section rhythm:** one job per section; 64–96px vertical between major sections on desktop; 40–56px mobile  
+Superseded for **public conversion** by **Pelbu-pink** — see [UX north stars](#ux-north-stars-2026-07-29). Shared engineering rules still apply:
+
+- **Grid:** 12-col desktop, 4-col mobile; marketing max ~1280px  
+- **Spacing scale:** 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 / 80 / 96  
+- **Section rhythm:** one job per section; ~64–80px between major sections  
 - **Touch:** min 44px targets; sticky primary CTA on mobile for Book / Order  
-- **Type:** brand display + one UI sans (not Inter/Roboto default stack); clear H1→body hierarchy  
-- **Motion:** 2–3 purposeful motions (hero settle, CTA affordance, page transition) — not noise  
-- **Anti-slop:** no purple gradients, no card-soup hero, no pill-stat clutter; brand + one CTA + real Pelbu imagery  
+- **Type:** Inter UI (+ optional Fraunces); no Soehne / no Inter-only “AI default” purple themes  
+- **Motion:** Framer Motion — 2–3 purposeful motions per page  
+- **Anti-slop:** no purple gradients, no card-soup hero, no pill-stat clutter; Bubblegum pill CTA + real Pelbu imagery  
 
 ### Public sitemap — section map (every corner)
 
 **Home (conversion hub)**  
-1. Nav: logo | Rooms | Dine | Spa | Meeting | Agents | Book (primary)  
-2. Hero: full-bleed building, brand, one line, one CTA group (Book stay | Order food | Book spa) — nothing else in first viewport  
+1. Nav: logo | mega-menu streams | **Book** (Bubblegum pill CTA)  
+2. Hero: brand-first + one headline + one CTA group — nothing else in first viewport  
 3. Six streams strip (Rooms, Cafe/Pastry, Restaurant, Bar, Spa/Steam, Meeting) — equal weight, deep links  
 4. Social proof / location (Olakha) — short  
 5. Featured menus / today’s pastry — soft upsell  
@@ -284,13 +327,21 @@ Priority order on every screen: **1) UX (task success)** → **2) UI structure**
 **Bar** — weekend menu hero → Reserve  
 **Spa & Steam** — packages → slot picker → Book  
 **Meeting** — capacity 25 → package → Enquire/Book  
-**Book** — 3-step max: dates → room → confirm (guest) OR agent fast path  
+**Book** — Airbnb funnel: dates → room cards (photo + price) → guest → review/confirm + sticky summary (desktop rail / mobile bar); agent fast path stays on desk/portal  
 **Order** — cart sticky; taxi delivery note; GST clear on bill  
 **Agents** — login / apply (license+MoU) / fast book / credit balance  
 
-### ERP (staff) — UX density, not marketing chrome
+### Design tokens (Pelbu-pink — public conversion)
 
-Arrivals today | Fast book | Check-in wizard | Room board (guest vs guide/driver) | Folio | POS | KOT | Agent credit | Partners | CMS | Reports  
+- **Max width:** ~1280px marketing; desk full-bleed Timeline  
+- **Section rhythm:** ~64–80px; cards ~4–8px radius; **pill CTA** `rounded-full` Bubblegum  
+- **Type:** Inter (UI); optional Fraunces display — **not** Soehne/Mews fonts  
+- **Motion:** Framer Motion mega-menu + 2–3 section reveals; respect `prefers-reduced-motion`  
+- **Anti-slop:** no purple gradients; no PowerPoint eyebrow/hairline brochure chrome; no Mews trademarks  
+
+### ERP (staff) — Mews density, not marketing chrome
+
+**Timeline** (home) | hamburger Sheet nav | Smart Detail | Arrivals | Fast book | Check-in | Folio | POS | KOT | Agent credit | Partners | CMS | Reports  
 
 ### Design samples (first deliverable after approval)
 
@@ -383,18 +434,19 @@ Benchmarked against **Cloudbeds / Mews / Opera-class HMS**, Bhutan **aBit**, and
 | **P4** | Finance + bank recon | **Done** |
 | **P5** | HR / inventory / HK / audit / reports | **Done** |
 | **P5.5** | Fast-book UX v2 (calendar/grid/drawer + voucher), StayDatesField, guest_origin, partners master | **Done** (2026-07-29) |
-| **P6** | Channex certification + extra templates | **Partial** — ARI queue + desk channel UI; staging cert + templates open |
+| **P5.6** | UI north stars — Pelbu-pink marketing + Airbnb `/book` + Mews Timeline + hamburger `Sheet` nav | **In progress** — z.ai Round 1 public; Round 2 ERP |
+| **P6** | Channex certification + extra templates (= plan phase **E** channel) | **Partial** — ARI queue + desk channel UI; staging cert + templates open |
 | **P7** | Night audit + voids/comps + deposit links + UAT checklist | **Done** (live Pay.bt/QR provider wiring open) |
+| **P8+** | Mews pricing parity backlog — guest portal/SMS (**F**), BI/RMS (**G**), APIs/Key/kiosk (**H**) | **Planned** — after P5.6 |
 
 **Feature inventory (routes + remaining work):** see [FEATURES.md](FEATURES.md).
 
-## Immediate next steps (post P5.5)
+## Immediate next steps (post P5.5 / into P5.6)
 
-1. Push `main` when ready; finish or stash multi-property switcher WIP.  
-2. Run [UAT-CHECKLIST.md](UAT-CHECKLIST.md) before Excel cutover — add cases for guest_origin conditional guide rule, partner auto-create at check-in, fast-book voucher (no rates).  
-3. z.ai polish briefs (POS density, agents desk cards) — see `.cursor/plans/ui_arch_compact_592f39c6.plan.md`.  
-4. Channex staging: `CHANNEX_API_KEY` + room/rate maps + flush/ack.  
-5. Wire live Pay.bt / bank QR webhooks when accounts exist.  
-6. Offline desk PWA queue (book + check-in) when net is flaky.  
-7. Partner perks: add `discount_pct` to `guides`/`drivers`, surface at POS/spa checkout, auto-apply to folio lines.  
-8. Agent voucher PDF generation + Resend send endpoints (UI shell already exists).  
+1. **P5.6 Round 1 (z.ai):** Pelbu-pink shells + home + Airbnb `/book` — brief `.cursor/commands/zai-handoff-mews-pink-public.md`.  
+2. **P5.6 Round 2 (Cursor/z.ai):** Mews Timeline on `/erp/calendar` + replace `DeskHeader` link farm with hamburger `Sheet` + Smart Detail.  
+3. Push `main` when ready; finish or stash multi-property switcher WIP.  
+4. Run [UAT-CHECKLIST.md](UAT-CHECKLIST.md) before Excel cutover — guest_origin, partners, fast-book voucher, then Timeline/book after P5.6.  
+5. Channex staging + live Pay.bt/QR (= phase **E**).  
+6. Offline desk PWA; partner perks; agent voucher PDF/Resend.  
+7. Later: guest portal / BI / RMS / APIs per Mews pricing matrix in the UI plan.  

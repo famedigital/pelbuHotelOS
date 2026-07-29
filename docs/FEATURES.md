@@ -3,7 +3,22 @@
 Last updated: **2026-07-29**.  
 Property #1: `pelbu-suites-olakha` (`template_id` 1). Desk PIN via `DESK_PIN` (no username).
 
-**Verdict:** Core hotel OS modules through go-live hardening are **built and applied on Supabase**, plus the 2026-07-29 UX v2 round (fast-book grid/drawer, StayDatesField, guest_origin, partners master). Not "100% done" — Channex certification, live Pay.bt/QR APIs, offline desk PWA, partner perks, and multi-property switcher polish remain.
+**Verdict:** Core hotel OS modules through go-live hardening are **built and applied on Supabase**, plus the 2026-07-29 UX v2 round (fast-book grid/drawer, StayDatesField, guest_origin, partners master). **P5.6 in progress:** Pelbu-pink marketing + Airbnb `/book` + Mews Timeline desk (hamburger `Sheet` nav). Not "100% done" — Channex certification, live Pay.bt/QR APIs, offline desk PWA, partner perks, and Mews pricing parity backlog remain.
+
+---
+
+## UX direction (locked 2026-07-29)
+
+| Surface | North star | Notes |
+|---------|------------|-------|
+| `/book` | Airbnb funnel | Sticky summary; same booking actions |
+| Public site | Mews craft + Pelbu-pink (`#ff83da`) | Mega-menu, Framer Motion, pill CTA |
+| `/erp` | Mews Timeline | Default home `/erp/calendar`; Smart Detail |
+| Desk nav | Hamburger → left **Sheet** (grouped) | Replaces long `DeskHeader` wrap; **not** shadcn Sidebar |
+| Kit | Tailwind + shadcn + Framer Motion | |
+
+See [PLATFORM.md — UX north stars](PLATFORM.md#ux-north-stars-2026-07-29).  
+Briefs: `.cursor/commands/zai-handoff-mews-pink-public.md` · plan `stripe_ace_shadcn_ui_24b7e356`.
 
 ---
 
@@ -71,14 +86,27 @@ Property #1: `pelbu-suites-olakha` (`template_id` 1). Desk PIN via `DESK_PIN` (n
 | **Agent voucher PDF/email** | Presentational shell shipped (print view); PDF generation + Resend send endpoints **open** |
 | **Partner visit_count real-time** | Best-effort update on check-in + derived in reports; RPC increment **not** built |
 | **Extra templates** | Only flagship `template_id=1` |
-| **Next z.ai polish briefs** | POS density + agents desk cards — see `.cursor/plans/ui_arch_compact_592f39c6.plan.md` |
+| **Next z.ai polish briefs** | Round 1 Pelbu-pink + Airbnb book — `.cursor/commands/zai-handoff-mews-pink-public.md`; Round 2 Mews Timeline + Sheet nav |
+| **P5.6 UI north stars** | Marketing pink + Airbnb book + Timeline + hamburger Sheet — **in progress** |
+| **Mews pricing parity (P8+)** | Guest portal, SMS, BI/RMS, APIs/Key — after P5.6 |
 | **Push to origin** | Local `main` may be ahead — push when ready |
 
 ---
 
 ## Desk nav map
 
-Inbox · POS · Fast book · Check-in · Agents · Finance · Partners · Reports · Rooms · Stock · HR · Channel · Audit (night)
+**Current (legacy):** Inbox · POS · Fast book · Check-in · … (long `DeskHeader` wrap — being replaced)
+
+**Target (Mews / P5.6):** Top bar hamburger → left **Sheet** groups:
+
+- Front desk: Timeline · Inbox · Arrivals · Check-in · Fast book  
+- Money: POS · Folios · Payments · Finance · GST · Night audit  
+- Guests & trade: Guests · Reservations · Agents · Partners  
+- Property: Rooms/HK · Housekeeping · Maintenance · Inventory · Allotments  
+- Insights: Reports · Channel · HR  
+- Admin: Group / properties  
+
+Default home: **`/erp/calendar`**.
 
 ---
 
@@ -107,7 +135,9 @@ Never commit `.env*`.
 | P4 | Finance + bank recon | Done |
 | P5 | HR, inventory, audit, reports | Done |
 | P5.5 | Fast-book UX v2 + StayDatesField + guest_origin + partners master | **Done (2026-07-29)** |
+| P5.6 | Pelbu-pink + Airbnb book + Mews Timeline + Sheet nav | **In progress** |
 | P6 | Channex + templates | **Foundation only** (cert + extra templates open) |
 | P7 | Night audit, voids/comps, deposits, UAT doc | Done (provider APIs open) |
+| P8+ | Mews pricing parity (guest portal, BI/RMS, APIs) | Planned |
 
 See also: [PLATFORM.md](PLATFORM.md) · [UAT-CHECKLIST.md](UAT-CHECKLIST.md) · [../AGENTS.md](../AGENTS.md)
