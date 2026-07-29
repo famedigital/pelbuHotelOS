@@ -1,59 +1,40 @@
 import { ServiceRequestForm } from "@/components/services/ServiceRequestForm";
 import { ConversionShell } from "@/components/site/ConversionShell";
+import { BRAND_CLOUDINARY } from "@/lib/brand";
+import { cloudinaryUrl } from "@/lib/cloudinary";
 
 export const metadata = {
   title: "Spa & Steam | Pelbu Suites",
   description:
-    "Book a spa treatment or steam session at Pelbu Suites, Olakha Thimphu — open to hotel guests and day visitors. Request a slot online and we confirm with the desk.",
+    "Book a spa treatment or steam session at Pelbu Suites, Olakha Thimphu — open to hotel guests and day visitors.",
 };
 
 export default function SpaPage() {
+  const heroSrc = cloudinaryUrl(BRAND_CLOUDINARY.spaSteam, {
+    width: 1600,
+    crop: "fill",
+  });
+
   return (
     <ConversionShell
-      eyebrow="Spa & Steam"
-      title="Slow down. Restore after the road."
-      body="Massage, bodywork and steam at Pelbu Suites, Olakha. Open to in-house guests and day visitors — tell us your preferred slot and we confirm availability with the therapist. In-house guests can settle at checkout on the room folio."
+      heroSrc={heroSrc}
+      eyebrow="Spa"
+      title="Slow down after the road."
+      body="Massage and steam for guests and day visitors. Tell us your slot — we confirm with the therapist."
       aside={
-        <div className="space-y-6 text-sm text-muted">
-          <div className="space-y-3">
-            <p className="text-xs tracking-[0.2em] text-gold uppercase">
-              Good to know
-            </p>
-            <ul className="space-y-2 text-espresso/80">
-              <li className="flex gap-2.5">
-                <span aria-hidden="true" className="mt-2 h-1 w-3 flex-none bg-gold/70" />
-                Rates are confirmed by the desk — not locked in this form
-              </li>
-              <li className="flex gap-2.5">
-                <span aria-hidden="true" className="mt-2 h-1 w-3 flex-none bg-gold/70" />
-                In-house guests may charge treatments to the room folio
-              </li>
-              <li className="flex gap-2.5">
-                <span aria-hidden="true" className="mt-2 h-1 w-3 flex-none bg-gold/70" />
-                Massage and steam slots depend on therapist availability
-              </li>
-            </ul>
-          </div>
-
-          <div className="border-t border-espresso/10 pt-5">
-            <p className="text-xs tracking-[0.2em] text-gold uppercase">
-              For day visitors
-            </p>
-            <p className="mt-2 leading-relaxed text-espresso/80">
-              Not staying with us? You are welcome — simply leave the room
-              reference blank and settle at the desk on the day.
-            </p>
-          </div>
-
-          <p className="leading-relaxed pt-1">
+        <div className="space-y-4">
+          <p className="font-medium text-ink">Good to know</p>
+          <ul className="list-disc space-y-1 pl-4">
+            <li>Rates confirmed by the desk</li>
+            <li>In-house guests can charge to folio</li>
+            <li>Slots depend on therapist availability</li>
+          </ul>
+          <p>
             Staying overnight?{" "}
-            <a
-              href="/book"
-              className="text-gold underline-offset-4 hover:underline"
-            >
-              Reserve your room
+            <a href="/book" className="underline underline-offset-4">
+              Reserve a room
             </a>{" "}
-            first, then note the reference here.
+            first.
           </p>
         </div>
       }

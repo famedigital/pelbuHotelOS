@@ -53,7 +53,7 @@ export function FolioPaymentForm({
           Record payment
         </p>
         {suggestedAmount > 0 ? (
-          <p className="text-xs text-muted">
+          <p className="text-xs text-muted-foreground">
             Balance{" "}
             <span className="font-medium text-espresso">{formatBtn(suggestedAmount)}</span>
           </p>

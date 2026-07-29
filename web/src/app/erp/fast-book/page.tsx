@@ -51,7 +51,7 @@ export default async function FastBookPage() {
           </p>
         ) : null}
 
-        <p className="text-sm text-muted">
+        <p className="text-sm text-muted-foreground">
           One screen: dates → rooms → pax → agent → guide no → guest / guide /
           driver beds → save.
         </p>

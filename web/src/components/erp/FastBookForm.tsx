@@ -5,6 +5,7 @@ import {
   type FastBookState,
 } from "@/app/actions/fast-book";
 import { useActionState, useMemo, useState } from "react";
+import { useActionToast } from "@/hooks/use-action-toast";
 import { FastBookDrawer } from "./FastBookDrawer";
 import { FastBookGrid } from "./FastBookGrid";
 import { FastBookInvoice, type FastBookInvoiceData } from "./FastBookInvoice";
@@ -68,6 +69,7 @@ type Props = {
 
 export function FastBookForm({ roomTypes, agents }: Props) {
   const [state, action, pending] = useActionState(createFastBooking, initial);
+  useActionToast(state, { successMessage: "Booking saved" });
   const minCheckIn = useMemo(() => todayIso(), []);
 
   const [qtyValues, setQtyValues] = useState<Record<string, number>>({});

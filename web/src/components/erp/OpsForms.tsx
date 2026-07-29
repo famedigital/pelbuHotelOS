@@ -9,13 +9,20 @@ import {
   updateRoomHkStatus,
   type ErpOpsState,
 } from "@/app/actions/erp-ops";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useActionToast } from "@/hooks/use-action-toast";
 import { formatBtn } from "@/lib/pricing";
 import { useActionState } from "react";
 
 const initial: ErpOpsState = { ok: false };
 
-function fieldClass() {
-  return "mt-1.5 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2 text-sm text-espresso outline-none focus:border-gold focus:ring-2 focus:ring-gold/20";
+// Native <select> styled to match shadcn Input — Radix Select would force a
+// controlled-value refactor across every form; the visual + a11y lift from
+// this class is sufficient for now.
+function selectClass() {
+  return "mt-1.5 flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer";
 }
 
 function ActionFlash({ state }: { state: ErpOpsState }) {
@@ -41,19 +48,29 @@ export type InvOption = {
 
 export function StaffMemberForm() {
   const [state, action, pending] = useActionState(createStaffMember, initial);
+  useActionToast(state, { successMessage: "Staff member saved" });
   return (
     <form action={action} className="space-y-3 border border-espresso/10 bg-white p-4">
       <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
         Add staff
       </h3>
-      <label className="block text-xs text-espresso/70">
-        Full name
-        <input name="full_name" required className={fieldClass()} />
-      </label>
+      <div className="space-y-1.5">
+        <Label htmlFor="full_name" className="text-xs text-muted-foreground">
+          Full name
+        </Label>
+        <Input id="full_name" name="full_name" required />
+      </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-xs text-espresso/70">
-          Role
-          <select name="role_label" defaultValue="front_desk" className={fieldClass()}>
+        <div className="space-y-1.5">
+          <Label htmlFor="role_label" className="text-xs text-muted-foreground">
+            Role
+          </Label>
+          <select
+            id="role_label"
+            name="role_label"
+            defaultValue="front_desk"
+            className={selectClass()}
+          >
             <option value="front_desk">Front desk</option>
             <option value="reservation">Reservation</option>
             <option value="fnb">F&amp;B</option>
@@ -65,29 +82,31 @@ export function StaffMemberForm() {
             <option value="manager">Manager</option>
             <option value="other">Other</option>
           </select>
-        </label>
-        <label className="block text-xs text-espresso/70">
-          Hired on
-          <input type="date" name="hired_on" className={fieldClass()} />
-        </label>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="hired_on" className="text-xs text-muted-foreground">
+            Hired on
+          </Label>
+          <Input id="hired_on" type="date" name="hired_on" />
+        </div>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-xs text-espresso/70">
-          Phone
-          <input name="phone" className={fieldClass()} />
-        </label>
-        <label className="block text-xs text-espresso/70">
-          Email
-          <input name="email" type="email" className={fieldClass()} />
-        </label>
+        <div className="space-y-1.5">
+          <Label htmlFor="phone" className="text-xs text-muted-foreground">
+            Phone
+          </Label>
+          <Input id="phone" name="phone" />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="email" className="text-xs text-muted-foreground">
+            Email
+          </Label>
+          <Input id="email" name="email" type="email" />
+        </div>
       </div>
-      <button
-        type="submit"
-        disabled={pending}
-        className="inline-flex min-h-10 items-center rounded-sm bg-gold px-4 text-sm font-medium text-espresso disabled:opacity-60"
-      >
+      <Button type="submit" variant="gold" disabled={pending} className="min-h-10">
         {pending ? "Saving…" : "Save staff"}
-      </button>
+      </Button>
       <ActionFlash state={state} />
     </form>
   );
@@ -95,15 +114,24 @@ export function StaffMemberForm() {
 
 export function StaffShiftForm({ staff }: { staff: StaffOption[] }) {
   const [state, action, pending] = useActionState(createStaffShift, initial);
+  useActionToast(state, { successMessage: "Shift saved" });
   const today = new Date().toISOString().slice(0, 10);
   return (
     <form action={action} className="space-y-3 border border-espresso/10 bg-white p-4">
       <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
         Add shift
       </h3>
-      <label className="block text-xs text-espresso/70">
-        Staff
-        <select name="staff_id" required defaultValue="" className={fieldClass()}>
+      <div className="space-y-1.5">
+        <Label htmlFor="staff_id" className="text-xs text-muted-foreground">
+          Staff
+        </Label>
+        <select
+          id="staff_id"
+          name="staff_id"
+          required
+          defaultValue=""
+          className={selectClass()}
+        >
           <option value="" disabled>
             Select…
           </option>
@@ -113,24 +141,55 @@ export function StaffShiftForm({ staff }: { staff: StaffOption[] }) {
             </option>
           ))}
         </select>
-      </label>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <label className="block text-xs text-espresso/70">
-          Date
-          <input type="date" name="shift_date" defaultValue={today} required className={fieldClass()} />
-        </label>
-        <label className="block text-xs text-espresso/70">
-          Start
-          <input type="time" name="starts_at" defaultValue="08:00" required className={fieldClass()} />
-        </label>
-        <label className="block text-xs text-espresso/70">
-          End
-          <input type="time" name="ends_at" defaultValue="16:00" required className={fieldClass()} />
-        </label>
       </div>
-      <label className="block text-xs text-espresso/70">
-        Outlet
-        <select name="outlet" defaultValue="front_desk" className={fieldClass()}>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="shift_date" className="text-xs text-muted-foreground">
+            Date
+          </Label>
+          <Input
+            id="shift_date"
+            type="date"
+            name="shift_date"
+            defaultValue={today}
+            required
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="starts_at" className="text-xs text-muted-foreground">
+            Start
+          </Label>
+          <Input
+            id="starts_at"
+            type="time"
+            name="starts_at"
+            defaultValue="08:00"
+            required
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="ends_at" className="text-xs text-muted-foreground">
+            End
+          </Label>
+          <Input
+            id="ends_at"
+            type="time"
+            name="ends_at"
+            defaultValue="16:00"
+            required
+          />
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="outlet" className="text-xs text-muted-foreground">
+          Outlet
+        </Label>
+        <select
+          id="outlet"
+          name="outlet"
+          defaultValue="front_desk"
+          className={selectClass()}
+        >
           <option value="front_desk">Front desk</option>
           <option value="cafe">Cafe</option>
           <option value="pastry">Pastry</option>
@@ -140,14 +199,14 @@ export function StaffShiftForm({ staff }: { staff: StaffOption[] }) {
           <option value="housekeeping">Housekeeping</option>
           <option value="other">Other</option>
         </select>
-      </label>
-      <button
+      </div>
+      <Button
         type="submit"
         disabled={pending || staff.length === 0}
-        className="inline-flex min-h-10 items-center rounded-sm bg-espresso px-4 text-sm font-medium text-ivory disabled:opacity-60"
+        className="min-h-10 bg-espresso text-ivory hover:bg-espresso/90"
       >
         {pending ? "Saving…" : "Save shift"}
-      </button>
+      </Button>
       <ActionFlash state={state} />
     </form>
   );
@@ -155,15 +214,24 @@ export function StaffShiftForm({ staff }: { staff: StaffOption[] }) {
 
 export function StaffLeaveForm({ staff }: { staff: StaffOption[] }) {
   const [state, action, pending] = useActionState(createStaffLeave, initial);
+  useActionToast(state, { successMessage: "Leave saved" });
   const today = new Date().toISOString().slice(0, 10);
   return (
     <form action={action} className="space-y-3 border border-espresso/10 bg-white p-4">
       <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
         Record leave
       </h3>
-      <label className="block text-xs text-espresso/70">
-        Staff
-        <select name="staff_id" required defaultValue="" className={fieldClass()}>
+      <div className="space-y-1.5">
+        <Label htmlFor="leave_staff_id" className="text-xs text-muted-foreground">
+          Staff
+        </Label>
+        <select
+          id="leave_staff_id"
+          name="staff_id"
+          required
+          defaultValue=""
+          className={selectClass()}
+        >
           <option value="" disabled>
             Select…
           </option>
@@ -173,33 +241,57 @@ export function StaffLeaveForm({ staff }: { staff: StaffOption[] }) {
             </option>
           ))}
         </select>
-      </label>
+      </div>
       <div className="grid gap-3 sm:grid-cols-3">
-        <label className="block text-xs text-espresso/70">
-          Type
-          <select name="leave_type" defaultValue="annual" className={fieldClass()}>
+        <div className="space-y-1.5">
+          <Label htmlFor="leave_type" className="text-xs text-muted-foreground">
+            Type
+          </Label>
+          <select
+            id="leave_type"
+            name="leave_type"
+            defaultValue="annual"
+            className={selectClass()}
+          >
             <option value="annual">Annual</option>
             <option value="sick">Sick</option>
             <option value="unpaid">Unpaid</option>
             <option value="other">Other</option>
           </select>
-        </label>
-        <label className="block text-xs text-espresso/70">
-          From
-          <input type="date" name="starts_on" defaultValue={today} required className={fieldClass()} />
-        </label>
-        <label className="block text-xs text-espresso/70">
-          To
-          <input type="date" name="ends_on" defaultValue={today} required className={fieldClass()} />
-        </label>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="starts_on" className="text-xs text-muted-foreground">
+            From
+          </Label>
+          <Input
+            id="starts_on"
+            type="date"
+            name="starts_on"
+            defaultValue={today}
+            required
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="ends_on" className="text-xs text-muted-foreground">
+            To
+          </Label>
+          <Input
+            id="ends_on"
+            type="date"
+            name="ends_on"
+            defaultValue={today}
+            required
+          />
+        </div>
       </div>
-      <button
+      <Button
         type="submit"
+        variant="gold"
         disabled={pending || staff.length === 0}
-        className="inline-flex min-h-10 items-center rounded-sm bg-gold px-4 text-sm font-medium text-espresso disabled:opacity-60"
+        className="min-h-10"
       >
         {pending ? "Saving…" : "Save leave"}
-      </button>
+      </Button>
       <ActionFlash state={state} />
     </form>
   );
@@ -207,25 +299,37 @@ export function StaffLeaveForm({ staff }: { staff: StaffOption[] }) {
 
 export function InventoryItemForm() {
   const [state, action, pending] = useActionState(createInventoryItem, initial);
+  useActionToast(state, { successMessage: "Stock item saved" });
   return (
     <form action={action} className="space-y-3 border border-espresso/10 bg-white p-4">
       <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
         New stock item
       </h3>
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-xs text-espresso/70">
-          SKU
-          <input name="sku" required className={fieldClass()} placeholder="DRY-RICE" />
-        </label>
-        <label className="block text-xs text-espresso/70">
-          Name
-          <input name="name" required className={fieldClass()} />
-        </label>
+        <div className="space-y-1.5">
+          <Label htmlFor="sku" className="text-xs text-muted-foreground">
+            SKU
+          </Label>
+          <Input id="sku" name="sku" required placeholder="DRY-RICE" />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="inv_name" className="text-xs text-muted-foreground">
+            Name
+          </Label>
+          <Input id="inv_name" name="name" required />
+        </div>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
-        <label className="block text-xs text-espresso/70">
-          Category
-          <select name="category" defaultValue="dry" className={fieldClass()}>
+        <div className="space-y-1.5">
+          <Label htmlFor="category" className="text-xs text-muted-foreground">
+            Category
+          </Label>
+          <select
+            id="category"
+            name="category"
+            defaultValue="dry"
+            className={selectClass()}
+          >
             <option value="produce">Produce</option>
             <option value="dairy">Dairy</option>
             <option value="meat">Meat</option>
@@ -235,10 +339,12 @@ export function InventoryItemForm() {
             <option value="amenity">Amenity</option>
             <option value="other">Other</option>
           </select>
-        </label>
-        <label className="block text-xs text-espresso/70">
-          Unit
-          <select name="unit" defaultValue="ea" className={fieldClass()}>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="unit" className="text-xs text-muted-foreground">
+            Unit
+          </Label>
+          <select id="unit" name="unit" defaultValue="ea" className={selectClass()}>
             <option value="ea">ea</option>
             <option value="kg">kg</option>
             <option value="g">g</option>
@@ -246,29 +352,52 @@ export function InventoryItemForm() {
             <option value="ml">ml</option>
             <option value="case">case</option>
           </select>
-        </label>
-        <label className="block text-xs text-espresso/70">
-          On hand
-          <input name="qty_on_hand" type="number" step="0.001" min="0" defaultValue="0" className={fieldClass()} />
-        </label>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="qty_on_hand" className="text-xs text-muted-foreground">
+            On hand
+          </Label>
+          <Input
+            id="qty_on_hand"
+            name="qty_on_hand"
+            type="number"
+            step="0.001"
+            min="0"
+            defaultValue="0"
+          />
+        </div>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-xs text-espresso/70">
-          Reorder level
-          <input name="reorder_level" type="number" step="0.001" min="0" defaultValue="0" className={fieldClass()} />
-        </label>
-        <label className="block text-xs text-espresso/70">
-          Unit cost (Nu)
-          <input name="unit_cost_btn" type="number" step="0.01" min="0" defaultValue="0" className={fieldClass()} />
-        </label>
+        <div className="space-y-1.5">
+          <Label htmlFor="reorder_level" className="text-xs text-muted-foreground">
+            Reorder level
+          </Label>
+          <Input
+            id="reorder_level"
+            name="reorder_level"
+            type="number"
+            step="0.001"
+            min="0"
+            defaultValue="0"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="unit_cost_btn" className="text-xs text-muted-foreground">
+            Unit cost (Nu)
+          </Label>
+          <Input
+            id="unit_cost_btn"
+            name="unit_cost_btn"
+            type="number"
+            step="0.01"
+            min="0"
+            defaultValue="0"
+          />
+        </div>
       </div>
-      <button
-        type="submit"
-        disabled={pending}
-        className="inline-flex min-h-10 items-center rounded-sm bg-gold px-4 text-sm font-medium text-espresso disabled:opacity-60"
-      >
+      <Button type="submit" variant="gold" disabled={pending} className="min-h-10">
         {pending ? "Saving…" : "Save item"}
-      </button>
+      </Button>
       <ActionFlash state={state} />
     </form>
   );
@@ -276,14 +405,23 @@ export function InventoryItemForm() {
 
 export function InventoryMoveForm({ items }: { items: InvOption[] }) {
   const [state, action, pending] = useActionState(postInventoryMovement, initial);
+  useActionToast(state, { successMessage: "Movement posted" });
   return (
     <form action={action} className="space-y-3 border border-espresso/10 bg-white p-4">
       <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
         Stock movement
       </h3>
-      <label className="block text-xs text-espresso/70">
-        Item
-        <select name="item_id" required defaultValue="" className={fieldClass()}>
+      <div className="space-y-1.5">
+        <Label htmlFor="item_id" className="text-xs text-muted-foreground">
+          Item
+        </Label>
+        <select
+          id="item_id"
+          name="item_id"
+          required
+          defaultValue=""
+          className={selectClass()}
+        >
           <option value="" disabled>
             Select…
           </option>
@@ -293,34 +431,55 @@ export function InventoryMoveForm({ items }: { items: InvOption[] }) {
             </option>
           ))}
         </select>
-      </label>
+      </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-xs text-espresso/70">
-          Kind
-          <select name="movement_kind" defaultValue="receive" className={fieldClass()}>
+        <div className="space-y-1.5">
+          <Label htmlFor="movement_kind" className="text-xs text-muted-foreground">
+            Kind
+          </Label>
+          <select
+            id="movement_kind"
+            name="movement_kind"
+            defaultValue="receive"
+            className={selectClass()}
+          >
             <option value="receive">Receive (+)</option>
             <option value="issue">Issue (−)</option>
             <option value="waste">Waste (−)</option>
             <option value="adjust">Adjust (±)</option>
             <option value="count">Count (set on-hand)</option>
           </select>
-        </label>
-        <label className="block text-xs text-espresso/70">
-          Qty
-          <input name="qty_delta" type="number" step="0.001" required className={fieldClass()} />
-        </label>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="qty_delta" className="text-xs text-muted-foreground">
+            Qty
+          </Label>
+          <Input
+            id="qty_delta"
+            name="qty_delta"
+            type="number"
+            step="0.001"
+            required
+          />
+        </div>
       </div>
-      <label className="block text-xs text-espresso/70">
-        Reference
-        <input name="reference" className={fieldClass()} placeholder="PO / invoice #" />
-      </label>
-      <button
+      <div className="space-y-1.5">
+        <Label htmlFor="move_reference" className="text-xs text-muted-foreground">
+          Reference
+        </Label>
+        <Input
+          id="move_reference"
+          name="reference"
+          placeholder="PO / invoice #"
+        />
+      </div>
+      <Button
         type="submit"
         disabled={pending || items.length === 0}
-        className="inline-flex min-h-10 items-center rounded-sm bg-espresso px-4 text-sm font-medium text-ivory disabled:opacity-60"
+        className="min-h-10 bg-espresso text-ivory hover:bg-espresso/90"
       >
         {pending ? "Posting…" : "Post movement"}
-      </button>
+      </Button>
       <ActionFlash state={state} />
     </form>
   );
@@ -362,17 +521,15 @@ function HkStatusButton({
     <form action={action}>
       <input type="hidden" name="room_unit_id" value={unitId} />
       <input type="hidden" name="hk_status" value={status} />
-      <button
+      <Button
         type="submit"
+        size="sm"
+        variant={active ? "gold" : "outline"}
         disabled={pending || active}
-        className={`inline-flex min-h-9 items-center rounded-sm border px-2.5 text-[11px] transition-colors disabled:opacity-50 ${
-          active
-            ? "border-gold bg-gold/15 font-medium text-espresso"
-            : "border-espresso/20 text-espresso hover:border-espresso/40"
-        }`}
+        className="min-h-9 px-2.5 text-[11px]"
       >
         {status}
-      </button>
+      </Button>
       {state.error ? (
         <span className="sr-only" role="alert">
           {state.error}
@@ -391,6 +548,6 @@ export function StockValueHint({
 }) {
   if (!unitCost) return null;
   return (
-    <span className="text-xs text-muted"> · {formatBtn(qty * unitCost)}</span>
+    <span className="text-xs text-muted-foreground"> · {formatBtn(qty * unitCost)}</span>
   );
 }

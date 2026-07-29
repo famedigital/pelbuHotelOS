@@ -59,7 +59,7 @@ export default async function ErpNightAuditPage() {
               </h2>
             </div>
             {(audits ?? []).length === 0 ? (
-              <p className="mt-4 text-sm text-muted">No night audits yet.</p>
+              <p className="mt-4 text-sm text-muted-foreground">No night audits yet.</p>
             ) : (
               <ul className="mt-2">
                 {(audits ?? []).map((a) => (
@@ -70,16 +70,16 @@ export default async function ErpNightAuditPage() {
                     <p className="font-medium text-espresso">
                       {a.business_date as string}
                     </p>
-                    <p className="mt-1 text-xs text-muted">
-                      Sellable {a.rooms_occupied as number} · Comp {a.rooms_comp as number}{" "}
-                      · Open folios {a.open_folios as number}
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Sellable {a.rooms_occupied as number} Â· Comp {a.rooms_comp as number}{" "}
+                      Â· Open folios {a.open_folios as number}
                     </p>
                     <p className="mt-1 tabular-nums text-xs text-espresso">
-                      Charges {formatBtn(Number(a.folio_charges_btn))} · Payments{" "}
+                      Charges {formatBtn(Number(a.folio_charges_btn))} Â· Payments{" "}
                       {formatBtn(Number(a.folio_payments_btn))}
                     </p>
                     {a.notes ? (
-                      <p className="mt-1 text-xs text-muted">{a.notes as string}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{a.notes as string}</p>
                     ) : null}
                   </li>
                 ))}

@@ -1,6 +1,7 @@
 import { MediaGallery } from "@/components/media/MediaGallery";
 import { ConversionShell } from "@/components/site/ConversionShell";
-import { loadCmsGallery, loadCmsPage } from "@/lib/cms";
+import { Button } from "@/components/ui/button";
+import { loadCmsGallery, loadCmsPage, pickHeroSrc } from "@/lib/cms";
 
 export const metadata = {
   title: "Dine | Pelbu Suites",
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 const FALLBACK = {
   eyebrow: "Dine",
   title: "Cafe, restaurant, and bar.",
-  body: "Indian, Bhutanese, and multicuisine — pastry and cafe from early morning — weekend bar for evenings.",
+  body: "Indian, Bhutanese, and multicuisine — pastry from early morning — weekend bar for evenings.",
   hours_note: "Cafe 6:30 summer / 7:30 winter. Restaurant and bar hours vary.",
   primary_cta_href: "/restaurant",
   primary_cta_label: "Restaurant",
@@ -24,17 +25,17 @@ const STREAMS = [
   {
     href: "/cafe",
     title: "Cafe & Pastry",
-    body: "Opens early. Coffee, pastry, and breakfast — order for pickup or taxi delivery across Thimphu.",
+    body: "Opens early. Order for pickup or taxi across Thimphu.",
   },
   {
     href: "/restaurant",
     title: "Restaurant",
-    body: "Indian · Bhutanese · Multicuisine. Breakfast, lunch, and dinner served with TACT.",
+    body: "Indian · Bhutanese · Multicuisine — breakfast to dinner.",
   },
   {
     href: "/bar",
     title: "Bar",
-    body: "Weekend pours and classic cocktails. A calm room for guests and locals.",
+    body: "Weekend pours. A calm room for guests and locals.",
   },
 ] as const;
 
@@ -47,70 +48,49 @@ export default async function DinePage() {
 
   return (
     <ConversionShell
+      heroSrc={pickHeroSrc(gallery)}
       eyebrow={copy.eyebrow}
       title={copy.title}
       body={copy.body}
       aside={
-        <div className="space-y-5 text-sm text-muted">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-              Hours
-            </p>
-            <p className="leading-relaxed text-espresso/80">
-              {copy.hours_note ?? "Ask the desk for today’s hours."}
-            </p>
-          </div>
-          <div className="space-y-2 border-t border-espresso/10 pt-5">
-            {copy.primary_cta_href && copy.primary_cta_label ? (
-              <a
-                href={copy.primary_cta_href}
-                className="inline-flex min-h-11 w-full items-center justify-center rounded-sm bg-gold px-5 text-sm font-medium text-espresso transition-opacity hover:opacity-90"
-              >
-                {copy.primary_cta_label}
-              </a>
-            ) : null}
-            {copy.secondary_cta_href && copy.secondary_cta_label ? (
-              <a
-                href={copy.secondary_cta_href}
-                className="inline-flex min-h-11 w-full items-center justify-center text-sm text-espresso underline-offset-4 hover:underline"
-              >
-                {copy.secondary_cta_label}
-              </a>
-            ) : null}
-          </div>
+        <div className="space-y-4">
+          <p className="font-medium text-ink">Hours</p>
+          <p>{copy.hours_note ?? "Ask the desk for today’s hours."}</p>
+          {copy.primary_cta_href && copy.primary_cta_label ? (
+            <Button asChild className="w-full">
+              <a href={copy.primary_cta_href}>{copy.primary_cta_label}</a>
+            </Button>
+          ) : null}
+          {copy.secondary_cta_href && copy.secondary_cta_label ? (
+            <a
+              href={copy.secondary_cta_href}
+              className="block text-center text-sm underline underline-offset-4"
+            >
+              {copy.secondary_cta_label}
+            </a>
+          ) : null}
         </div>
       }
     >
-      <div className="space-y-14">
-        <section aria-labelledby="outlets-heading">
-          <div className="flex items-center gap-4">
-            <h2
-              id="outlets-heading"
-              className="text-xs font-semibold tracking-[0.22em] text-gold uppercase"
-            >
-              Three ways to dine
-            </h2>
-            <span aria-hidden className="h-px flex-1 bg-espresso/10" />
-          </div>
-          <ul className="mt-6 divide-y divide-espresso/10 border-y border-espresso/10">
+      <div className="space-y-12">
+        <section>
+          <h2 className="text-sm font-medium text-ink">Three ways to dine</h2>
+          <ul className="mt-4 divide-y divide-border">
             {STREAMS.map((stream) => (
               <li key={stream.href}>
                 <a
                   href={stream.href}
-                  className="group flex items-center justify-between gap-4 py-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+                  className="group flex items-start justify-between gap-4 py-5"
                 >
-                  <div className="min-w-0">
-                    <p className="text-lg text-espresso group-hover:text-maroon transition-colors">
+                  <div>
+                    <p className="text-[15px] font-medium text-ink group-hover:underline group-hover:underline-offset-4">
                       {stream.title}
                     </p>
-                    <p className="mt-1 max-w-prose text-sm leading-relaxed text-muted">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       {stream.body}
                     </p>
                   </div>
-                  <span
-                    aria-hidden
-                    className="shrink-0 text-gold transition-transform group-hover:translate-x-1"
-                  >
+                  <span aria-hidden className="text-muted-foreground">
                     →
                   </span>
                 </a>
@@ -118,7 +98,6 @@ export default async function DinePage() {
             ))}
           </ul>
         </section>
-
         <MediaGallery items={gallery} label="Dining" />
       </div>
     </ConversionShell>

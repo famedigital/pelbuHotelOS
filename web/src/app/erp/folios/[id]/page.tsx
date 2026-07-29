@@ -75,14 +75,14 @@ export default async function FolioDetailPage({ params }: Props) {
             <h2 className="mt-2 truncate text-2xl text-espresso md:text-3xl">
               {folio.label as string}
             </h2>
-            <p className="mt-1 text-sm text-muted">
-              <span className="uppercase tracking-wide">{folioStatus}</span> · booking{" "}
+            <p className="mt-1 text-sm text-muted-foreground">
+              <span className="uppercase tracking-wide">{folioStatus}</span> Â· booking{" "}
               <span className="font-mono text-espresso/70">
                 {(folio.booking_id as string) ?? "—"}
               </span>
               {folio.master_folio_id ? (
                 <>
-                  {" · master "}
+                  {" Â· master "}
                   <a
                     href={`/erp/folios/${folio.master_folio_id as string}`}
                     className="font-mono underline-offset-4 hover:underline"
@@ -118,7 +118,7 @@ export default async function FolioDetailPage({ params }: Props) {
               </div>
               <ul className="divide-y divide-espresso/10">
                 {lines.length === 0 ? (
-                  <li className="px-5 py-8 text-sm text-muted">
+                  <li className="px-5 py-8 text-sm text-muted-foreground">
                     No lines yet. Charges and payments will appear here.
                   </li>
                 ) : (
@@ -132,7 +132,7 @@ export default async function FolioDetailPage({ params }: Props) {
                         <div className="flex flex-wrap items-baseline justify-between gap-2">
                           <p
                             className={`min-w-0 flex-1 ${
-                              voided ? "text-muted line-through" : "text-espresso"
+                              voided ? "text-muted-foreground line-through" : "text-espresso"
                             }`}
                           >
                             {line.description}
@@ -150,14 +150,14 @@ export default async function FolioDetailPage({ params }: Props) {
                             {formatBtn(amount)}
                           </p>
                         </div>
-                        <p className="mt-1 text-xs text-muted">
+                        <p className="mt-1 text-xs text-muted-foreground">
                           <span className="uppercase tracking-wide">{line.source_type}</span>
-                          {" · "}
+                          {" Â· "}
                           <span className="uppercase tracking-wide">{line.status}</span>
                           {Number(line.gst_btn) > 0
-                            ? ` · GST ${formatBtn(Number(line.gst_btn))}`
+                            ? ` Â· GST ${formatBtn(Number(line.gst_btn))}`
                             : ""}
-                          {line.void_reason ? ` · ${line.void_reason}` : ""}
+                          {line.void_reason ? ` Â· ${line.void_reason}` : ""}
                         </p>
                         {folioStatus === "open" &&
                         !voided &&
@@ -185,7 +185,7 @@ export default async function FolioDetailPage({ params }: Props) {
                     >
                       <div className="flex flex-wrap items-baseline justify-between gap-2">
                         <p className="font-medium text-espresso">
-                          {formatBtn(Number(l.amount_btn))} · {l.status as string}
+                          {formatBtn(Number(l.amount_btn))} Â· {l.status as string}
                         </p>
                         <a
                           href={`/pay/${l.token as string}`}
@@ -195,7 +195,7 @@ export default async function FolioDetailPage({ params }: Props) {
                         </a>
                       </div>
                       {l.payee_name ? (
-                        <p className="mt-1 text-xs text-muted">{l.payee_name as string}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{l.payee_name as string}</p>
                       ) : null}
                       {(l.status as string) === "open" ? (
                         <MarkLinkPaidForm linkId={l.id as string} />
@@ -221,7 +221,7 @@ export default async function FolioDetailPage({ params }: Props) {
                 <CompCreditForm folioId={folio.id as string} />
               </>
             ) : (
-              <p className="border border-espresso/10 bg-white px-5 py-5 text-sm text-muted">
+              <p className="border border-espresso/10 bg-white px-5 py-5 text-sm text-muted-foreground">
                 Folio is closed.
               </p>
             )}

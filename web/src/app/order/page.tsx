@@ -62,16 +62,20 @@ export default async function OrderPage() {
       title="Cafe & pastry to your door."
       body="Breakfast through dinner, plus pastry. Pickup at the cafe or taxi across Thimphu — GST shown clearly before you place the order."
       aside={
-        <div className="space-y-4 text-sm text-muted">
-          <p className="text-xs tracking-[0.2em] text-gold uppercase">Hours</p>
-          <p className="text-espresso/80 leading-relaxed">
-            Opens 6:30 AM in summer and 7:30 AM in winter. Orders after kitchen
-            close are confirmed the next morning.
-          </p>
-          <p className="leading-relaxed">
-            Prices in Ngultrum. GST applies to marked items. Taxi fare is paid to
-            the driver separately.
-          </p>
+        <div className="space-y-5 text-sm text-muted-foreground">
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-ink">Hours</p>
+            <p className="leading-relaxed text-ink/80">
+              Opens 6:30 AM in summer and 7:30 AM in winter. Orders after
+              kitchen close are confirmed the next morning.
+            </p>
+          </div>
+          <div className="space-y-2 border-t border-border pt-5">
+            <p className="leading-relaxed">
+              Prices in Ngultrum. GST applies to marked items. Taxi fare is paid
+              to the driver separately.
+            </p>
+          </div>
         </div>
       }
     >

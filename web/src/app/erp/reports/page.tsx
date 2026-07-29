@@ -222,10 +222,10 @@ export default async function ErpReportsPage() {
     <div className="min-h-screen bg-ivory">
       <DeskHeader title="Reports" />
       <main className="mx-auto max-w-[1200px] space-y-12 px-6 py-10 md:px-8">
-        <p className="text-sm text-muted">
-          Month from {since} · ADR uses sellable rooms only (comp beds excluded).
+        <p className="text-sm text-muted-foreground">
+          Month from {since} Â· ADR uses sellable rooms only (comp beds excluded).
         </p>
-        <p className="text-xs text-muted">
+        <p className="text-xs text-muted-foreground">
           Export CSV:{" "}
           <a
             href={`/api/erp/export?kind=payments&since=${since}`}
@@ -233,14 +233,14 @@ export default async function ErpReportsPage() {
           >
             payments
           </a>
-          {" · "}
+          {" Â· "}
           <a
             href={`/api/erp/export?kind=expenses&since=${since}`}
             className="font-medium text-maroon underline-offset-4 hover:underline"
           >
             expenses
           </a>
-          {" · "}
+          {" Â· "}
           <a
             href={`/api/erp/export?kind=folio_lines&since=${since}`}
             className="font-medium text-maroon underline-offset-4 hover:underline"
@@ -265,11 +265,11 @@ export default async function ErpReportsPage() {
             />
             <Stat label="In-house bookings" value={String(todayInHouse.length)} />
           </div>
-          <p className="mt-3 text-xs text-muted">
+          <p className="mt-3 text-xs text-muted-foreground">
             HK:{" "}
             {Object.entries(hkCounts)
               .map(([k, v]) => `${k} ${v}`)
-              .join(" · ") || "n/a"}
+              .join(" Â· ") || "n/a"}
           </p>
         </section>
 
@@ -298,7 +298,7 @@ export default async function ErpReportsPage() {
               </h2>
             </div>
             {fnbByOutlet.size === 0 ? (
-              <p className="mt-4 text-sm text-muted">No F&amp;B sales this month.</p>
+              <p className="mt-4 text-sm text-muted-foreground">No F&amp;B sales this month.</p>
             ) : (
               <ul className="mt-2">
                 {[...fnbByOutlet.entries()]
@@ -323,7 +323,7 @@ export default async function ErpReportsPage() {
               </h2>
             </div>
             {agentRows.length === 0 ? (
-              <p className="mt-4 text-sm text-muted">No agent bookings this month.</p>
+              <p className="mt-4 text-sm text-muted-foreground">No agent bookings this month.</p>
             ) : (
               <ul className="mt-2">
                 {agentRows.map((a) => (
@@ -332,7 +332,7 @@ export default async function ErpReportsPage() {
                     className="flex justify-between border-b border-espresso/10 py-3 text-sm"
                   >
                     <span className="text-espresso">{a.name}</span>
-                    <span className="tabular-nums text-muted">
+                    <span className="tabular-nums text-muted-foreground">
                       {a.bookings} booking{a.bookings === 1 ? "" : "s"}
                     </span>
                   </li>
@@ -353,7 +353,7 @@ export default async function ErpReportsPage() {
                         className="flex justify-between border-b border-espresso/10 py-2 text-xs"
                       >
                         <span>{a.company_name as string}</span>
-                        <span className="tabular-nums text-muted">
+                        <span className="tabular-nums text-muted-foreground">
                           {formatBtn(Number(a.credit_used))} /{" "}
                           {formatBtn(Number(a.credit_limit))}
                         </span>
@@ -372,7 +372,7 @@ export default async function ErpReportsPage() {
             </h2>
           </div>
           {(auditRes.data ?? []).length === 0 ? (
-            <p className="mt-4 text-sm text-muted">
+            <p className="mt-4 text-sm text-muted-foreground">
               No audit events yet — money/ops actions will appear here.
             </p>
           ) : (
@@ -383,8 +383,8 @@ export default async function ErpReportsPage() {
                   className="border-b border-espresso/10 py-3 text-sm"
                 >
                   <p className="font-medium text-espresso">{e.summary as string}</p>
-                  <p className="mt-0.5 text-xs text-muted">
-                    {e.action as string} · {e.actor as string} ·{" "}
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {e.action as string} Â· {e.actor as string} Â·{" "}
                     {String(e.created_at).slice(0, 16).replace("T", " ")}
                   </p>
                 </li>

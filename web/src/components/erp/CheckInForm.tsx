@@ -7,6 +7,8 @@ import {
   type CheckOutState,
 } from "@/app/actions/erp-checkin";
 import { useActionState, useState } from "react";
+import { Combobox } from "@/components/ui/combobox";
+import { useActionToast } from "@/hooks/use-action-toast";
 
 function nightsBetween(checkIn: string, checkOut: string): number {
   if (!checkIn || !checkOut) return 0;
@@ -71,13 +73,11 @@ const checkOutInitial: CheckOutState = { ok: false };
 type PartnerKind = "guide" | "driver";
 
 /**
- * Compact partner picker. Renders a labelled native <select> of saved partners
- * plus a hidden id input. When staff pick a saved partner, the related free-text
- * fields (passed via `fill`) are autofilled. Picking the empty option clears the
- * hidden id so a new typed entry will upsert on save.
- *
- * Intentionally uses a <select>, not a custom combobox — accessible, no deps,
- * and matches the rest of the desk forms' restraint.
+ * Compact partner picker built on the shadcn Combobox (Radix Popover + cmdk).
+ * Renders a type-to-search list of saved partners and fires `onPick` whenever
+ * staff pick an existing partner (autofill happens in the parent) or clear the
+ * selection to type a new one. The hidden id input lives in the parent so the
+ * server action contract is unchanged.
  */
 function PartnersPicker({
   kind,
@@ -93,30 +93,30 @@ function PartnersPicker({
   if (partners.length === 0) return null;
   const label = kind === "guide" ? "Recent guides" : "Recent drivers";
 
+  const options = partners.map((p) => ({
+    value: p.id,
+    label: p.label,
+    hint: p.sublabel,
+  }));
+
   return (
-    <label className="block text-sm text-espresso">
-      {label}
-      <select
-        value={selectedId ?? ""}
-        onChange={(e) => {
-          const id = e.target.value;
-          const found = id ? partners.find((p) => p.id === id) ?? null : null;
+    <div className="block text-sm text-espresso">
+      <span className="mb-1.5 block font-medium">{label}</span>
+      <Combobox
+        options={options}
+        value={selectedId}
+        onValueChange={(value) => {
+          const found = partners.find((p) => p.id === value) ?? null;
           onPick(found);
         }}
-        className={fieldClassName()}
-      >
-        <option value="">— New / type below —</option>
-        {partners.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.label}
-            {p.sublabel ? ` · ${p.sublabel}` : ""}
-          </option>
-        ))}
-      </select>
-      <span className="mt-1 block text-[11px] text-muted">
-        Pick a returning partner to autofill, or leave on "New" and type below.
+        placeholder="— New / type below —"
+        searchPlaceholder={kind === "guide" ? "Search guides…" : "Search drivers…"}
+        emptyText="No partner matches."
+      />
+      <span className="mt-1 block text-[11px] text-muted-foreground">
+        Pick a returning partner to autofill, or leave on “New” and type below.
       </span>
-    </label>
+    </div>
   );
 }
 
@@ -130,6 +130,7 @@ export function CheckInForm({
   drivers?: PartnerOption[];
 }) {
   const [state, action, pending] = useActionState(confirmCheckIn, checkInInitial);
+  useActionToast(state, { successMessage: "Guest checked in" });
   const guest = booking.booking_guests[0];
   const driver = booking.booking_drivers[0];
   const hasDriverBeds = booking.booking_rooms.some(
@@ -162,11 +163,11 @@ export function CheckInForm({
       <div className="border border-espresso/10 bg-white px-6 py-8" role="status">
         <p className="text-xs tracking-[0.25em] text-gold uppercase">Checked in</p>
         <h2 className="mt-3 text-2xl text-espresso">Guest is in-house</h2>
-        <p className="mt-2 text-sm text-muted">
+        <p className="mt-2 text-sm text-muted-foreground">
           Folio opened
           {state.folioId ? (
             <>
-              {" · "}
+              {" Â· "}
               <a
                 href={`/erp/folios/${state.folioId}`}
                 className="text-maroon underline-offset-4 hover:underline"
@@ -203,9 +204,9 @@ export function CheckInForm({
         </p>
       ) : null}
 
-      <div className="text-sm text-muted">
+      <div className="text-sm text-muted-foreground">
         <p className="font-medium text-espresso">
-          {(booking.contact_name ?? "Guest")} · {booking.contact_phone ?? "—"}
+          {(booking.contact_name ?? "Guest")} Â· {booking.contact_phone ?? "—"}
         </p>
         <p>
           {booking.check_in} → {booking.check_out}{" "}
@@ -215,12 +216,12 @@ export function CheckInForm({
           <span className="ml-1 inline-flex items-center rounded-full border border-espresso/20 bg-espresso/[0.04] px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.16em] text-espresso">
             {ORIGIN_LABELS[booking.guest_origin ?? "international"] ?? "International"}
           </span>{" "}
-          · {booking.adults} adults · {booking.rooms} rooms · {booking.status}
+          Â· {booking.adults} adults Â· {booking.rooms} rooms Â· {booking.status}
         </p>
         <ul className="mt-2 space-y-1">
           {booking.booking_rooms.map((r, i) => (
             <li key={`${r.inventory_kind}-${i}`}>
-              {r.qty}× {r.room_types?.name ?? r.inventory_kind}
+              {r.qty}Ã— {r.room_types?.name ?? r.inventory_kind}
             </li>
           ))}
         </ul>
@@ -254,7 +255,7 @@ export function CheckInForm({
             className={fieldClassName()}
             aria-required={(booking.guest_origin ?? "international") === "international"}
           />
-          <span className="mt-1 block text-[11px] text-muted">
+          <span className="mt-1 block text-[11px] text-muted-foreground">
             {(booking.guest_origin ?? "international") === "international"
               ? "Required for international tourists."
               : "Optional — this guest origin does not require a guide."}
@@ -424,6 +425,7 @@ export function CheckInForm({
 
 export function CheckOutForm({ bookingId }: { bookingId: string }) {
   const [state, action, pending] = useActionState(confirmCheckOut, checkOutInitial);
+  useActionToast(state, { successMessage: "Guest checked out" });
 
   if (state.ok) {
     return (

@@ -1,29 +1,342 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* =========================================================================
+   Pelbu Suites — design tokens (system v2 — "Ink & Brass")
+   Three layers, on purpose:
+   1. Brand names  — the soul (ivory / espresso / maroon / gold / brass).
+   2. Paper scale  — warm neutral ramp for surfaces (Direction B).
+   3. shadcn scale — the contract every copied primitive reads.
+
+   Direction B ("Ink & Brass") leads with espresso ink as the structural
+   surface on conversion-critical bands and uses warm paper everywhere else.
+   Gold shifts toward brass (warmer, more refined) and is used as a thin
+   hairline rule + small-caps eyebrow — never as a flat fill. Maroon stays
+   for destructive/error states only.
+   ========================================================================= */
 
 :root {
-  --background: #f7f3ec;
-  --foreground: #1c1612;
+  /* --- Brand names (anchors) --- */
   --ivory: #f7f3ec;
+  --ivory-soft: #fbf8f2;
+  --ivory-deep: #efe7d8;
   --espresso: #1c1612;
+  --espresso-soft: #2a221c;
+  --espresso-mute: #3a3027;
   --maroon: #7a1f1f;
+  --maroon-soft: #9a3535;
   --gold: #b8892c;
+  --gold-soft: #d4a852;
+
+  /* --- Brass accent (Direction B): slightly warmer + cooler toward brass --- */
+  --brass: #c19548;
+  --brass-soft: #d9b173;
+  --brass-hairline: rgba(193, 149, 72, 0.42);
+
+  /* --- Ink: the structural espresso used on bands, headers, footers --- */
+  --ink: #1c1612;
+  --ink-soft: #2a221c;
+  --ink-rule: rgba(28, 22, 18, 0.12);
+
+  /* --- Warm paper scale (Direction B neutrals) ---
+     A 6-step ramp so cards/sections have hierarchy without shadows. */
+  --paper-0: #fbf8f2; /* lightest — body background        */
+  --paper-1: #f5efe3; /* card surface                       */
+  --paper-2: #ede4d2; /* muted surface / aside              */
+  --paper-3: #e0d4bd; /* strong divider / border            */
+  --paper-4: #c9b89a; /* subdued hover                      */
+  --paper-5: #8c7f6c; /* paper-toned text (eyebrows, etc.)  */
+
   --muted: #6b5e52;
+
+  /* --- shadcn scale mapped to brand + paper --- */
+  --background: var(--paper-0);
+  --foreground: var(--ink);
+
+  --card: #ffffff;
+  --card-foreground: var(--ink);
+
+  --popover: #ffffff;
+  --popover-foreground: var(--ink);
+
+  --primary: var(--ink);
+  --primary-foreground: var(--ivory);
+
+  --secondary: var(--paper-2);
+  --secondary-foreground: var(--ink);
+
+  --muted-shadcn: var(--paper-2);
+  --muted-foreground: var(--muted);
+
+  --accent: var(--brass);
+  --accent-foreground: var(--ink);
+
+  --destructive: var(--maroon);
+  --destructive-foreground: var(--ivory);
+
+  --border: var(--paper-3);
+  --input: var(--paper-3);
+  --ring: var(--brass);
+
+  /* Chart + sidebar tokens expected by some shadcn blocks */
+  --chart-1: var(--ink);
+  --chart-2: var(--brass);
+  --chart-3: var(--maroon);
+  --chart-4: var(--muted);
+  --chart-5: var(--brass-soft);
+
+  --sidebar: var(--ink);
+  --sidebar-foreground: var(--ivory);
+  --sidebar-primary: var(--brass);
+  --sidebar-primary-foreground: var(--ink);
+  --sidebar-accent: var(--ink-soft);
+  --sidebar-accent-foreground: var(--ivory);
+  --sidebar-border: var(--espresso-mute);
+  --sidebar-ring: var(--brass);
+
+  --radius: 0.25rem;
+
+  /* Fonts: Fraunces (display serif) + Inter (UI/body).
+     Variables come from next/font in layout.tsx. */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+.dark {
+  /* Dark theme flips to ink-led, brass accents — heritage evening mode */
+  --background: var(--ink);
+  --foreground: var(--ivory);
+
+  --card: var(--ink-soft);
+  --card-foreground: var(--ivory);
+
+  --popover: var(--ink-soft);
+  --popover-foreground: var(--ivory);
+
+  --primary: var(--ivory);
+  --primary-foreground: var(--ink);
+
+  --secondary: var(--espresso-mute);
+  --secondary-foreground: var(--ivory);
+
+  --muted-shadcn: var(--espresso-mute);
+  --muted-foreground: #a8998a;
+
+  --accent: var(--brass);
+  --accent-foreground: var(--ink);
+
+  --destructive: var(--maroon-soft);
+  --destructive-foreground: var(--ivory);
+
+  --border: var(--espresso-mute);
+  --input: var(--espresso-mute);
+  --ring: var(--brass);
+
+  --chart-1: var(--ivory);
+  --chart-2: var(--brass);
+  --chart-3: var(--maroon-soft);
+  --chart-4: #a8998a;
+  --chart-5: var(--brass-soft);
+
+  --sidebar: var(--ink);
+  --sidebar-foreground: var(--ivory);
+  --sidebar-primary: var(--brass);
+  --sidebar-primary-foreground: var(--ink);
+  --sidebar-accent: var(--espresso-mute);
+  --sidebar-accent-foreground: var(--ivory);
+  --sidebar-border: var(--espresso-mute);
+  --sidebar-ring: var(--brass);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted-shadcn);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Brand names exposed to Tailwind as `bg-ivory`, `text-gold`, etc. */
   --color-ivory: var(--ivory);
+  --color-ivory-soft: var(--ivory-soft);
+  --color-ivory-deep: var(--ivory-deep);
   --color-espresso: var(--espresso);
+  --color-espresso-soft: var(--espresso-soft);
+  --color-espresso-mute: var(--espresso-mute);
   --color-maroon: var(--maroon);
+  --color-maroon-soft: var(--maroon-soft);
   --color-gold: var(--gold);
-  --color-muted: var(--muted);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-gold-soft: var(--gold-soft);
+
+  /* Direction B additions */
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-brass: var(--brass);
+  --color-brass-soft: var(--brass-soft);
+  --color-paper-0: var(--paper-0);
+  --color-paper-1: var(--paper-1);
+  --color-paper-2: var(--paper-2);
+  --color-paper-3: var(--paper-3);
+  --color-paper-4: var(--paper-4);
+  --color-paper-5: var(--paper-5);
+  /* Note: brand brown #6b5e52 is exposed as `text-muted-foreground`
+     (see above). `bg-muted` / `border-muted` resolve to the soft cream
+     per the shadcn contract — do not re-alias --color-muted here. */
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), Georgia, serif;
+@keyframes accordion-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+    outline-color: color-mix(in oklab, var(--ring) 50%, transparent);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  /* Display headings pick up the Fraunces face via the .font-display utility.
+     Use `font-display` on h1/h2 heroes. Everything else inherits Inter. */
+
+  ::selection {
+    background: var(--ink);
+    color: var(--ivory);
+  }
+}
+
+/* Quiet utilities — no brochure chrome (no bar-eyebrows, no brass rules). */
+
+@layer components {
+  /* Soft section label — plain text, not a PPT eyebrow. */
+  .label-quiet {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    font-weight: 500;
+    color: var(--muted);
+  }
+  .label-quiet--on-ink {
+    color: color-mix(in oklab, var(--ivory) 55%, transparent);
+  }
+
+  .font-display {
+    font-family: var(--font-display);
+    font-feature-settings: "ss01";
+  }
+
+  .lede {
+    font-size: clamp(1rem, 0.96rem + 0.15vw, 1.0625rem);
+    line-height: 1.65;
+    color: color-mix(in oklab, var(--ink) 72%, var(--paper-5));
+  }
+}
+
+@layer utilities {
+  .reveal {
+    opacity: 0;
+    transform: translateY(6px);
+    transition:
+      opacity 350ms ease-out,
+      transform 350ms ease-out;
+    will-change: opacity, transform;
+  }
+  .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  .ink-panel {
+    background: var(--ink);
+    color: var(--ivory);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
 }

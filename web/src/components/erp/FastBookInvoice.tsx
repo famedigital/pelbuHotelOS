@@ -51,7 +51,7 @@ export function FastBookInvoice({ data }: { data: FastBookInvoiceData }) {
         <h2 className="text-xs font-semibold tracking-[0.28em] text-gold uppercase">
           Desk invoice
         </h2>
-        <p className="font-mono text-[11px] text-muted">{data.bookingId}</p>
+        <p className="font-mono text-[11px] text-muted-foreground">{data.bookingId}</p>
       </div>
 
       <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm text-espresso sm:grid-cols-4">
@@ -67,7 +67,7 @@ export function FastBookInvoice({ data }: { data: FastBookInvoiceData }) {
 
       <div className="mt-5 overflow-hidden rounded-sm border border-espresso/10">
         <table className="w-full border-collapse text-sm">
-          <thead className="bg-espresso/[0.04] text-[11px] uppercase tracking-[0.18em] text-muted">
+          <thead className="bg-espresso/[0.04] text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
             <tr>
               <th scope="col" className="px-3 py-2 text-left font-semibold">
                 Room / bed
@@ -86,7 +86,7 @@ export function FastBookInvoice({ data }: { data: FastBookInvoiceData }) {
           <tbody>
             {data.lines.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-3 py-3 text-muted">
+                <td colSpan={4} className="px-3 py-3 text-muted-foreground">
                   No room lines.
                 </td>
               </tr>
@@ -94,7 +94,7 @@ export function FastBookInvoice({ data }: { data: FastBookInvoiceData }) {
               data.lines.map((l) => (
                 <tr key={`${l.code}-${l.name}`} className="border-t border-espresso/10">
                   <td className="px-3 py-2 text-espresso">{l.name}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-muted">{l.code}</td>
+                  <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{l.code}</td>
                   <td className="px-3 py-2 text-right font-mono text-espresso">{l.qty}</td>
                   <td className="px-3 py-2 text-right font-mono text-espresso">{data.nights}</td>
                 </tr>
@@ -104,7 +104,7 @@ export function FastBookInvoice({ data }: { data: FastBookInvoiceData }) {
         </table>
       </div>
 
-      <p className="mt-4 border-t border-espresso/10 pt-3 text-xs italic text-muted">
+      <p className="mt-4 border-t border-espresso/10 pt-3 text-xs italic text-muted-foreground">
         Rates applied on save — see folio.
       </p>
     </section>
@@ -114,7 +114,7 @@ export function FastBookInvoice({ data }: { data: FastBookInvoiceData }) {
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-[11px] uppercase tracking-[0.16em] text-muted">{label}</dt>
+      <dt className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{label}</dt>
       <dd className="mt-0.5 text-espresso">{value}</dd>
     </div>
   );

@@ -59,6 +59,15 @@ export async function loadCmsPage(slug: string): Promise<CmsPage | null> {
   };
 }
 
+/** Prefer `kind=hero`, else first item with a resolved URL. */
+export function pickHeroSrc(items: CmsMediaItem[]): string | null {
+  return (
+    items.find((m) => m.kind === "hero" && m.src)?.src ??
+    items.find((m) => m.src)?.src ??
+    null
+  );
+}
+
 export async function loadCmsGallery(
   pageSlug: string,
   width = 960,

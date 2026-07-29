@@ -95,7 +95,7 @@ export default async function ErpChannelPage() {
           <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
             Channex (P6)
           </h2>
-          <p className="mt-2 max-w-2xl text-sm text-muted">
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
             Event-driven ARI outbox + booking revision inbox. Certification needs staging
             credentials, room/rate maps, then flush/ack against Channex — not DIY OTA APIs.
           </p>
@@ -105,7 +105,7 @@ export default async function ErpChannelPage() {
             <Stat label="Pending ARI" value={String(pendingAri)} />
           </div>
           {conn?.notes ? (
-            <p className="mt-3 text-xs text-muted">{conn.notes as string}</p>
+            <p className="mt-3 text-xs text-muted-foreground">{conn.notes as string}</p>
           ) : null}
         </section>
 
@@ -131,7 +131,7 @@ export default async function ErpChannelPage() {
             </h2>
           </div>
           {(maps ?? []).length === 0 ? (
-            <p className="mt-4 text-sm text-muted">No maps yet — sellable guest types only.</p>
+            <p className="mt-4 text-sm text-muted-foreground">No maps yet — sellable guest types only.</p>
           ) : (
             <ul className="mt-2">
               {(maps ?? []).map((m) => (
@@ -142,7 +142,7 @@ export default async function ErpChannelPage() {
                   {(m.room_types as { code?: string } | null)?.code ?? m.room_type_id} →{" "}
                   {m.external_room_type_id as string}
                   {m.external_rate_plan_id
-                    ? ` · rate ${m.external_rate_plan_id as string}`
+                    ? ` Â· rate ${m.external_rate_plan_id as string}`
                     : ""}
                 </li>
               ))}
@@ -158,7 +158,7 @@ export default async function ErpChannelPage() {
               </h2>
             </div>
             {(queue ?? []).length === 0 ? (
-              <p className="mt-4 text-sm text-muted">Queue empty.</p>
+              <p className="mt-4 text-sm text-muted-foreground">Queue empty.</p>
             ) : (
               <ul className="mt-2">
                 {(queue ?? []).map((q) => (
@@ -167,12 +167,12 @@ export default async function ErpChannelPage() {
                     className="border-b border-espresso/10 py-3 text-sm"
                   >
                     <p className="font-medium text-espresso">
-                      {q.kind as string} · {q.status as string}
+                      {q.kind as string} Â· {q.status as string}
                     </p>
-                    <p className="mt-0.5 text-xs text-muted">
-                      {String(q.created_at).slice(0, 16).replace("T", " ")} · attempts{" "}
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {String(q.created_at).slice(0, 16).replace("T", " ")} Â· attempts{" "}
                       {q.attempts as number}
-                      {q.last_error ? ` · ${String(q.last_error).slice(0, 80)}` : ""}
+                      {q.last_error ? ` Â· ${String(q.last_error).slice(0, 80)}` : ""}
                     </p>
                   </li>
                 ))}
@@ -187,7 +187,7 @@ export default async function ErpChannelPage() {
               </h2>
             </div>
             {(revisions ?? []).length === 0 ? (
-              <p className="mt-4 text-sm text-muted">
+              <p className="mt-4 text-sm text-muted-foreground">
                 No revisions — pull feed or POST webhook{" "}
                 <code className="font-mono text-[11px]">/api/channel/channex/webhook</code>.
               </p>
@@ -200,9 +200,9 @@ export default async function ErpChannelPage() {
                   >
                     <div>
                       <p className="font-medium text-espresso">
-                        {r.revision_type as string} · {r.status as string}
+                        {r.revision_type as string} Â· {r.status as string}
                       </p>
-                      <p className="mt-0.5 font-mono text-[11px] text-muted">
+                      <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">
                         {r.external_revision_id as string}
                       </p>
                     </div>

@@ -1,4 +1,5 @@
 import type { PartnerRow } from "@/app/erp/partners/page";
+import { PartnerRowActions } from "./PartnerRowActions";
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
@@ -32,7 +33,7 @@ export function PartnersTable({
 }) {
   if (rows.length === 0) {
     return (
-      <p className="border border-espresso/10 bg-white px-5 py-6 text-sm text-muted">
+      <p className="border border-espresso/10 bg-white px-5 py-6 text-sm text-muted-foreground">
         No {kind === "guide" ? "guides" : "drivers"} recorded yet. They will
         appear here after the first check-in.
       </p>
@@ -45,7 +46,7 @@ export function PartnersTable({
         <caption className="sr-only">
           {kind === "guide" ? "Guides" : "Drivers"} sorted by visit count.
         </caption>
-        <thead className="bg-espresso/[0.04] text-[11px] uppercase tracking-[0.18em] text-muted">
+        <thead className="bg-espresso/[0.04] text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
           <tr>
             <th scope="col" className="px-3 py-2 text-left font-semibold">
               {kind === "guide" ? "Guide" : "Driver"}
@@ -69,6 +70,9 @@ export function PartnersTable({
             <th scope="col" className="px-3 py-2 text-left font-semibold">
               Last seen
             </th>
+            <th scope="col" className="px-3 py-2 text-right font-semibold">
+              <span className="sr-only">Actions</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -82,15 +86,15 @@ export function PartnersTable({
                   </span>
                 </td>
                 {kind === "guide" ? (
-                  <td className="px-3 py-2.5 font-mono text-xs text-muted">
+                  <td className="px-3 py-2.5 font-mono text-xs text-muted-foreground">
                     {r.guide_number ?? "—"}
                   </td>
                 ) : null}
-                <td className="px-3 py-2.5 text-muted">
+                <td className="px-3 py-2.5 text-muted-foreground">
                   {r.phone ?? "—"}
                 </td>
                 {kind === "driver" ? (
-                  <td className="px-3 py-2.5 font-mono text-xs text-muted">
+                  <td className="px-3 py-2.5 font-mono text-xs text-muted-foreground">
                     {r.vehicle_no ?? "—"}
                   </td>
                 ) : null}
@@ -99,9 +103,21 @@ export function PartnersTable({
                     {r.visit_count}
                   </span>
                 </td>
-                <td className="px-3 py-2.5 text-muted">
+                <td className="px-3 py-2.5 text-muted-foreground">
                   <span>{fmtDate(r.last_seen_at)}</span>
-                  {rel ? <span className="ml-1 text-[11px]">· {rel}</span> : null}
+                  {rel ? <span className="ml-1 text-[11px]">Â· {rel}</span> : null}
+                </td>
+                <td className="px-3 py-2.5 text-right">
+                  <PartnerRowActions
+                    kind={kind}
+                    partnerId={r.id}
+                    searchToken={
+                      kind === "guide"
+                        ? r.guide_number ?? r.full_name ?? r.phone ?? ""
+                        : r.full_name ?? r.phone ?? ""
+                    }
+                    phone={r.phone}
+                  />
                 </td>
               </tr>
             );

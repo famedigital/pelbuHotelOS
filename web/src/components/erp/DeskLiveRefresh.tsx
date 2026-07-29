@@ -69,7 +69,7 @@ export function DeskLiveRefresh({
 
   return (
     <p
-      className="text-[10px] font-medium tracking-[0.16em] text-muted uppercase"
+      className="text-[10px] font-medium tracking-[0.16em] text-muted-foreground uppercase"
       aria-live="polite"
       title={
         error

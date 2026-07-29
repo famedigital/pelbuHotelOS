@@ -48,7 +48,7 @@ export default async function PartnersPage({
       <div className="min-h-screen bg-ivory">
         <DeskHeader title="Partners" />
         <main className="mx-auto max-w-[1100px] px-6 py-10">
-          <p className="text-sm text-muted">Property not configured.</p>
+          <p className="text-sm text-muted-foreground">Property not configured.</p>
         </main>
       </div>
     );
@@ -102,7 +102,7 @@ export default async function PartnersPage({
             Repeat partners
           </p>
           <h1 className="text-3xl text-espresso">Guides &amp; drivers</h1>
-          <p className="max-w-prose text-sm text-muted">
+          <p className="max-w-prose text-sm text-muted-foreground">
             Every guide and driver who has brought guests to the property. Visit
             counts help reception recognize returning partners — the foundation
             for future perks and discounts.
@@ -133,7 +133,7 @@ export default async function PartnersPage({
             <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
               Guides
             </h2>
-            <p className="text-xs text-muted">{guides.length} shown</p>
+            <p className="text-xs text-muted-foreground">{guides.length} shown</p>
           </div>
           <PartnersTable rows={guides} kind="guide" />
         </section>
@@ -143,7 +143,7 @@ export default async function PartnersPage({
             <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
               Drivers
             </h2>
-            <p className="text-xs text-muted">{drivers.length} shown</p>
+            <p className="text-xs text-muted-foreground">{drivers.length} shown</p>
           </div>
           <PartnersTable rows={drivers} kind="driver" />
         </section>

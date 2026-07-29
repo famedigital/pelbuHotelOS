@@ -38,7 +38,7 @@ export function FastBookVoucher({ data }: { data: FastBookVoucherData }) {
           <h2 className="mt-1 text-2xl text-espresso print:text-3xl">Agent voucher</h2>
         </div>
         <div className="text-right">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Ref</p>
+          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Ref</p>
           <p className="font-mono text-sm text-espresso">{data.bookingId}</p>
         </div>
       </header>
@@ -55,7 +55,7 @@ export function FastBookVoucher({ data }: { data: FastBookVoucherData }) {
 
       <div className="overflow-hidden rounded-sm border border-espresso/10 print:border-2 print:border-espresso">
         <table className="w-full border-collapse text-sm">
-          <thead className="bg-espresso/[0.04] text-[11px] uppercase tracking-[0.18em] text-muted print:bg-transparent">
+          <thead className="bg-espresso/[0.04] text-[11px] uppercase tracking-[0.18em] text-muted-foreground print:bg-transparent">
             <tr>
               <th scope="col" className="px-3 py-2 text-left font-semibold">
                 Rooms
@@ -68,7 +68,7 @@ export function FastBookVoucher({ data }: { data: FastBookVoucherData }) {
           <tbody>
             {data.lines.length === 0 ? (
               <tr>
-                <td colSpan={2} className="px-3 py-3 text-muted">
+                <td colSpan={2} className="px-3 py-3 text-muted-foreground">
                   No room lines.
                 </td>
               </tr>
@@ -76,7 +76,7 @@ export function FastBookVoucher({ data }: { data: FastBookVoucherData }) {
               data.lines.map((l) => (
                 <tr key={`${l.code}-${l.name}`} className="border-t border-espresso/10 print:border-espresso/30">
                   <td className="px-3 py-2 text-espresso">
-                    <span className="font-medium">{l.qty} × </span>
+                    <span className="font-medium">{l.qty} Ã— </span>
                     {l.name}
                   </td>
                   <td className="px-3 py-2 text-right font-mono text-espresso">{l.qty}</td>
@@ -87,7 +87,7 @@ export function FastBookVoucher({ data }: { data: FastBookVoucherData }) {
         </table>
       </div>
 
-      <p className="text-xs italic text-muted print:text-espresso">
+      <p className="text-xs italic text-muted-foreground print:text-espresso">
         Present this voucher at check-in. Rates and taxes are settled on the folio.
       </p>
 
@@ -109,7 +109,7 @@ export function FastBookVoucher({ data }: { data: FastBookVoucherData }) {
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-[11px] uppercase tracking-[0.16em] text-muted">{label}</dt>
+      <dt className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{label}</dt>
       <dd className="mt-0.5 text-espresso">{value}</dd>
     </div>
   );

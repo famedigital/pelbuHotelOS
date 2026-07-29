@@ -37,13 +37,13 @@ export default async function NewPropertyPage() {
             Step 1 of 5
           </p>
           <h2 className="mt-2 text-2xl text-espresso">Hotel identity</h2>
-          <p className="mt-2 text-sm text-muted">
+          <p className="mt-2 text-sm text-muted-foreground">
             Create the property, then continue through rooms, income streams,
             holds, and bank details.
           </p>
         </div>
         <PropertyWizardForm action={createPropertyIdentity}>
-          <label className="block text-sm text-muted">
+          <label className="block text-sm text-muted-foreground">
             Hotel name
             <input
               name="name"
@@ -51,7 +51,7 @@ export default async function NewPropertyPage() {
               className="mt-1.5 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2.5 text-sm text-espresso outline-none focus:border-gold"
             />
           </label>
-          <label className="block text-sm text-muted">
+          <label className="block text-sm text-muted-foreground">
             Slug (URL key)
             <input
               name="slug"
@@ -59,7 +59,7 @@ export default async function NewPropertyPage() {
               className="mt-1.5 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2.5 text-sm text-espresso outline-none focus:border-gold"
             />
           </label>
-          <label className="block text-sm text-muted">
+          <label className="block text-sm text-muted-foreground">
             Timezone
             <input
               name="timezone"

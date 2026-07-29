@@ -261,7 +261,7 @@ export function AgentDeskCard({
         ? "border-maroon/40 bg-maroon/5 text-maroon"
         : agent.status === "demo"
           ? "border-espresso/30 bg-espresso/[0.06] text-espresso"
-          : "border-espresso/15 text-muted";
+          : "border-espresso/15 text-muted-foreground";
 
   return (
     <article className="border border-espresso/10 bg-white px-5 py-5">
@@ -286,12 +286,18 @@ export function AgentDeskCard({
             {agent.market}
           </p>
           <p className="mt-2 text-sm text-espresso/80">
-            {[agent.contact_name, agent.contact_phone].filter(Boolean).join(" · ") ||
+            {[agent.contact_name, agent.contact_phone].filter(Boolean).join(" Â· ") ||
               "No contact on file"}
           </p>
           {agent.contact_email ? (
             <p className="text-xs text-espresso/55">{agent.contact_email}</p>
           ) : null}
+          <a
+            href={`/erp/agents/${agent.id}/statement`}
+            className="mt-3 inline-flex text-sm text-maroon underline-offset-4 hover:underline"
+          >
+            Statement →
+          </a>
         </div>
         <div className="text-right text-sm text-espresso">
           <p>

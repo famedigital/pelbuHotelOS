@@ -10,18 +10,18 @@
 - **Delivery:** Revenue-first phases (public conversion + bookings first), then POS/KOT, then Finance/HR, then channel/scale.
 - **Scale:** Multi-property ready from day 1 (one ERP, many hotels/sites/templates). Pelbu Olakha is property #1.
 - **Stack:** Next.js (App Router) + TypeScript on **Vercel**; **Supabase** (Auth, Postgres, RLS, Storage, **Realtime**); **Resend** (email); **CallMeBot** (WhatsApp/Telegram alerts); **Cloudinary** (media); PWA (installable, offline shell for staff POS later).
-- **Live UI:** Supabase Realtime everywhere ops matter (KOT boards, POS tickets, room status, spa queue, bookings) â€” no manual refresh.
+- **Live UI:** Supabase Realtime everywhere ops matter (KOT boards, POS tickets, room status, spa queue, bookings) — no manual refresh.
 - **Split work with Claude:** Cursor owns architecture, schema, auth, integrations, ERP modules, reconciliation scripts; Claude owns visual templates, long-form menu/content, marketing copy, and parallel UI polish on isolated branches/files (see work-split below).
 
-## Phase 0 â€” Agent setup (skills, rules, MCP)
+## Phase 0 — Agent setup (skills, rules, MCP)
 
 Before feature code:
 
 - Authenticate existing MCPs: Supabase + Vercel (`mcp_auth`).
 - Project skills in `.cursor/skills/`:
-  - `pelbu-design-system` â€” antiâ€“AI-slop UI, Bhutanese-modern brand, motion rules, template tokens
-  - `pelbu-hotel-ops` â€” Bhutan check-in/out, SDF, guide/driver beds, agent credit, folio, GST, seasons, KOT/POS
-  - `pelbu-claude-handoff` â€” file ownership map so Cursor/Claude do not collide
+  - `pelbu-design-system` — anti–AI-slop UI, Bhutanese-modern brand, motion rules, template tokens
+  - `pelbu-hotel-ops` — Bhutan check-in/out, SDF, guide/driver beds, agent credit, folio, GST, seasons, KOT/POS
+  - `pelbu-claude-handoff` — file ownership map so Cursor/Claude do not collide
 - Rules in `.cursor/rules/`: TypeScript/Next conventions, RLS-required DB changes, no hardcoded rates/menus (CMS/ERP only), Realtime for ops screens.
 - `AGENTS.md` + `docs/CLAUDE.md` with module ownership and branch naming (`cursor/*`, `claude/*`).
 
@@ -37,8 +37,9 @@ flowchart TB
   end
   subgraph erp [ERP Admin PWA]
     CMS[Website CMS]
-    FastBook[Fast booking desk]
+    FastBook[Fast booking desk calendar grid drawer]
     CheckIn[Checkin Checkout]
+    Partners[Guides Drivers master + visit counts]
     Rates[Rate engine]
     Credit[Agent credit ledger]
     POS[POS Cafe Bar Rest Spa]
@@ -69,6 +70,8 @@ flowchart TB
   KOT --> RT
   Folio --> DB
   Fin --> DB
+  Partners --> DB
+  CheckIn --> Partners
   Channel --> DB
   Channel --> OTA
   Resend --> public
@@ -78,80 +81,80 @@ flowchart TB
 
 **App structure (monorepo-ready):**
 
-- `apps/web` â€” public multi-tenant sites by domain/subdomain + template id
-- `apps/erp` â€” staff/admin ERP (same Next app with `/erp` route group is OK for v1)
-- `packages/db` â€” Supabase migrations + typed client
-- `packages/ui` â€” design tokens + shared primitives (not generic shadcn lookalikes)
-- `packages/rates` â€” season + guest-tier price resolver
-- `scripts/bank-recon/` â€” Python PDF â†’ table â†’ match engine (BoB, BNB, TBank, DrukPNB)
+- `apps/web` — public multi-tenant sites by domain/subdomain + template id
+- `apps/erp` — staff/admin ERP (same Next app with `/erp` route group is OK for v1)
+- `packages/db` — Supabase migrations + typed client
+- `packages/ui` — design tokens + shared primitives (not generic shadcn lookalikes)
+- `packages/rates` — season + guest-tier price resolver
+- `scripts/bank-recon/` — Python PDF → table → match engine (BoB, BNB, TBank, DrukPNB)
 
 ## Website conversion ambition (design north star)
 
 - The **public website** (not an ops alert system) must be good enough to help drive on the order of **~Nu 40k/day** from cafe + pastry + bar + restaurant + spa/steam + meeting via online discovery, booking, and orders.
-- That number guides **UX quality, menus, CTAs, imagery, speed, SEO, and funnel design** â€” not a mandatory ERP â€œpace vs 40kâ€ dashboard or CallMeBot nag if behind.
+- That number guides **UX quality, menus, CTAs, imagery, speed, SEO, and funnel design** — not a mandatory ERP “pace vs 40k” dashboard or CallMeBot nag if behind.
 - Normal sales/analytics reports still exist in ERP; they are operational, not a 40k whip.
 
 ## Revenue streams (6) + conversion
 
-1. **Rooms** â€” online booking; rates by season Ã— guest category  
-2. **Cafe + Pastry** â€” summer open 06:30 / winter 07:30; online order + taxi delivery  
-3. **Restaurant** â€” Indian / Bhutanese / multicuisine; breakfast/lunch/dinner menus; TACT (Taste, Aroma, Consistency, Time) + signature items rare in Thimphu  
-4. **Bar** â€” weekend specials menu  
-5. **Spa + Steam** â€” online booking + POS  
-6. **Meeting hall** â€” premium chairs/tables up to 25 pax; online enquiry/book  
+1. **Rooms** — online booking; rates by season × guest category  
+2. **Cafe + Pastry** — summer open 06:30 / winter 07:30; online order + taxi delivery  
+3. **Restaurant** — Indian / Bhutanese / multicuisine; breakfast/lunch/dinner menus; TACT (Taste, Aroma, Consistency, Time) + signature items rare in Thimphu  
+4. **Bar** — weekend specials menu  
+5. **Spa + Steam** — online booking + POS  
+6. **Meeting hall** — premium chairs/tables up to 25 pax; online enquiry/book  
 
-Public site: international look, unique templates, analytics funnels per stream, lead capture, WhatsApp/CallMeBot on high-intent guest actions (booking/order confirmations â€” not revenue-pace alarms).
+Public site: international look, unique templates, analytics funnels per stream, lead capture, WhatsApp/CallMeBot on high-intent guest actions (booking/order confirmations — not revenue-pace alarms).
 
-## Design system â€” where / how / what
+## Design system — where / how / what
 
 ### Where (repo + CMS)
 
 | Location | What lives there |
 |----------|------------------|
-| `packages/ui` + `templates/pelbu-flagship/` | Layout components, tokens, motion â€” **code** |
-| Supabase `cms_*` tables | All copy, menus, prices, hours, SEO â€” **editable in ERP** |
-| Cloudinary | All photos/food/room/spa images â€” **generated + uploadable** |
-| ERP â†’ Website CMS | Owner edits pages without code; live via Realtime/ISR |
+| `packages/ui` + `templates/pelbu-flagship/` | Layout components, tokens, motion — **code** |
+| Supabase `cms_*` tables | All copy, menus, prices, hours, SEO — **editable in ERP** |
+| Cloudinary | All photos/food/room/spa images — **generated + uploadable** |
+| ERP → Website CMS | Owner edits pages without code; live via Realtime/ISR |
 
 ### How (template model)
 
 - Each property has `template_id`.
-- **Pelbu Suites Olakha = `template_id: 1` / slug `pelbu-flagship`** â€” the No.1 reference template (best design, full content, conversion patterns).
-- Other hotels/tenants **clone from template_id 1** (or later 2, 3â€¦) then swap branding, photos, menus in CMS â€” same engine, different look via other template packs.
+- **Pelbu Suites Olakha = `template_id: 1` / slug `pelbu-flagship`** — the No.1 reference template (best design, full content, conversion patterns).
+- Other hotels/tenants **clone from template_id 1** (or later 2, 3…) then swap branding, photos, menus in CMS — same engine, different look via other template packs.
 - Claude may design alternate templates (`heritage-ink`, `alpine-glass`); Cursor owns Pelbu flagship architecture and data wiring.
 
-### What â€” Pelbu public site sitemap (flagship layout)
+### What — Pelbu public site sitemap (flagship layout)
 
-Antiâ€“AI-slop: Bhutanese-modern, brand-first hero (logo already in repo), expressive type, atmospheric imagery of the real Olakha building, motion with purpose â€” not purple gradients / generic Inter dashboards.
+Anti–AI-slop: Bhutanese-modern, brand-first hero (logo already in repo), expressive type, atmospheric imagery of the real Olakha building, motion with purpose — not purple gradients / generic Inter dashboards.
 
-1. **Home** â€” full-bleed building hero + brand + one headline + one CTA (Book / Dine / Spa); below fold: 6 stream cards â†’ deep links  
-2. **Rooms** â€” types, gallery, season rate teaser, book CTA  
-3. **Cafe & Pastry** â€” hours (seasonal open times), menu, order CTA, delivery note  
-4. **Restaurant** â€” Indian / Bhutanese / multicuisine, B/L/D menus, TACT story, reserve table  
-5. **Bar** â€” weekend menu focus  
-6. **Spa & Steam** â€” packages, book slots  
-7. **Meeting** â€” hall up to 25, packages, enquiry/book  
-8. **Book** â€” rooms / spa / meeting (simple paths)  
-9. **Order** â€” cafe/pastry (+ later restaurant delivery)  
-10. **Agents** â€” signup (approval), login, fast book  
-11. **About / Contact / Location** â€” Olakha, Thimphu  
+1. **Home** — full-bleed building hero + brand + one headline + one CTA (Book / Dine / Spa); below fold: 6 stream cards → deep links  
+2. **Rooms** — types, gallery, season rate teaser, book CTA  
+3. **Cafe & Pastry** — hours (seasonal open times), menu, order CTA, delivery note  
+4. **Restaurant** — Indian / Bhutanese / multicuisine, B/L/D menus, TACT story, reserve table  
+5. **Bar** — weekend menu focus  
+6. **Spa & Steam** — packages, book slots  
+7. **Meeting** — hall up to 25, packages, enquiry/book  
+8. **Book** — rooms / spa / meeting (simple paths)  
+9. **Order** — cafe/pastry (+ later restaurant delivery)  
+10. **Agents** — signup (approval), login, fast book  
+11. **About / Contact / Location** — Olakha, Thimphu  
 
-**ERP layout (staff PWA):** dense, fast, mobile-first â€” Fast book, Arrivals, Check-in, Folio, POS, KOT, Credit, CMS, Reports.
+**ERP layout (staff PWA):** dense, fast, mobile-first — Fast book, Arrivals, Check-in, Folio, POS, KOT, Credit, Partners, CMS, Reports.
 
 ### Content & media ownership (Pelbu = we create everything)
 
 For **Pelbu Suites only**, the build includes full seed content (not empty CMS):
 
 - All page copy, SEO, CTAs, menus, and imagery crafted so the **website itself** can convert toward ~40k/day F&B+spa+meeting demand  
-- Full menus: cafe breakfast/lunch/dinner; restaurant B/L/D; pastry; weekend bar; spa packages; meeting packages â€” common + **unique Thimphu-scarce** items, TACT notes  
-- Generated + curated images (rooms, food, spa, meeting, building) â†’ Cloudinary  
+- Full menus: cafe breakfast/lunch/dinner; restaurant B/L/D; pastry; weekend bar; spa packages; meeting packages — common + **unique Thimphu-scarce** items, TACT notes  
+- Generated + curated images (rooms, food, spa, meeting, building) → Cloudinary  
 - Hours, policies, GST notes, delivery rules  
 
 Other tenants start by **copying template_id 1**, then replace their own content/images in CMS.
 
 ## Rate engine (Bhutan)
 
-Price = `base_rate Ã— season_factor Ã— guest_tier_discount` (or absolute tier rates â€” store both; prefer absolute negotiated rates for MOU).
+Price = `base_rate × season_factor × guest_tier_discount` (or absolute tier rates — store both; prefer absolute negotiated rates for MOU).
 
 **Seasons:** peak | lean | off (date ranges per property, editable in ERP).
 
@@ -161,26 +164,38 @@ Rules: only approved agents/MOU see/book their tier; friends/family require staf
 
 ## Ultra-fast booking (owner / reservation / agents / clients)
 
-Designed for Bhutan reality: most volume is **agents from Bhutan, Jaigaon, and India** â€” booking must be **simple and fast**, not a 12-step OTA form.
+Designed for Bhutan reality: most volume is **agents from Bhutan, Jaigaon, and India** — booking must be **simple and fast**, not a 12-step OTA form.
 
-- **One-screen / few-tap booking** on ERP + agent PWA: dates â†’ rooms â†’ pax â†’ agent â†’ guide no â†’ save.
+- **One-screen / few-tap booking** on ERP + agent PWA: dates → rooms → pax → agent → guide no → save.
 - Who can book: `owner`, `reservation` staff, `agent` / `mou_agent`, direct `client` (public web).
-- Defaults from agent profile (rate tier, credit terms, contact); recent guides/drivers autocomplete.
+- Defaults from agent profile (rate tier, credit terms, contact); recent guides/drivers autocomplete via master `guides`/`drivers` tables.
 - Instant inventory hold with Realtime room board (no refresh).
 - Optional: WhatsApp/CallMeBot confirmation to agent + hotel desk.
 
+### Shipped UX (2026-07-29)
+
+- **StayDatesField** shared primitive (`web/src/components/ui/StayDatesField.tsx`): Dates / Nights toggle, persisted per browser via `localStorage`. Default **Nights** on the desk (staff speed), **Dates** on public `/book`. Checkout auto-derived in Nights mode; contract preserved via hidden `check_in`/`check_out` inputs.
+- **Three-zone layout** on `/erp/fast-book`: date strip → Excel-like qty grid (guest rooms first, then guide/driver comp; one stepper per row; `unit_count` max hint) → contextual drawer (right rail on desktop, full-width bottom sheet on mobile, auto-opens on first qty > 0).
+- **Post-save split:** Desk invoice (no Nu — "Rates applied on save — see folio") + print-friendly Agent voucher with **zero rates** (Tailwind `print:` variants, no `globals.css` edit).
+- **Guest origin** field on the drawer drives the guide-required rule (see Check-in below).
+
 ## Check-in / check-out (advanced logic, simple UI)
 
-**Goal:** front desk finishes check-in in under ~60â€“90 seconds when docs are ready; system does the hard validation behind a calm UI.
+**Goal:** front desk finishes check-in in under ~60–90 seconds when docs are ready; system does the hard validation behind a calm UI.
 
 ### Check-in flow
 1. Find booking (QR / phone / agent / guide no / room).
-2. **Mandatory guide number** (license/guide ID) â€” block check-in if missing (owner override with audit).
+2. **Guide number required only for international tourists** (`bookings.guest_origin = 'international'`). Regional / official / local guests (locals, govt officials, domestic) check in without a guide. Owner override still available with audit.
 3. Upload / attach **SDF-approved guest documents** (Cloudinary + metadata: name, passport/CID, SDF ref, nationality, validity).
 4. Capture **driver details** (name, phone, vehicle no, license) when applicable.
-5. Assign **guest rooms** + **guide/driver accommodation** (see inventory below).
-6. Open folio; apply agent rate tier; show credit vs cash due.
-7. Confirm â€” Realtime updates housekeeping + room board.
+5. **Partner pickers** for guide and driver: native `<select>` of saved master rows, autofills free-text fields, hidden `guide_id`/`driver_id` carries the master link. New partners auto-created on save.
+6. Assign **guest rooms** + **guide/driver accommodation** (see inventory below).
+7. Open folio; apply agent rate tier; show credit vs cash due.
+8. Confirm — Realtime updates housekeeping + room board.
+
+### Guest origin (2026-07-29)
+
+`bookings.guest_origin` drives conditional rules. Values: `international` | `regional` | `official` | `local`. Default `international` for new bookings; existing bookings backfilled to `international`. Shown as a badge next to the stay dates so staff see which rule applies at a glance.
 
 ### Check-out flow
 1. One-tap **folio review** (rooms + F&B + spa + guest services + comps).
@@ -188,16 +203,27 @@ Designed for Bhutan reality: most volume is **agents from Bhutan, Jaigaon, and I
 3. Release rooms + guide/driver beds; print/email GST-aware bill.
 4. Mark booking closed; payment posted to agent ledger.
 
-Overrides (late checkout, missing SDF, free upgrade) require role + reason â€” full audit trail.
+Overrides (late checkout, missing SDF, free upgrade) require role + reason — full audit trail.
 
 ## Guide & driver inventory (complimentary beds)
 
-Most guides/drivers stay **in-house free** â€” treat as first-class inventory, not a note field.
+Most guides/drivers stay **in-house free** — treat as first-class inventory, not a note field.
 
 - Room/bed types: `sellable_guest`, `guide_comp`, `driver_comp`, `staff` (optional).
 - Booking lines can include N guest rooms + guide bed(s) + driver bed(s) at **rate 0** (comp) or special staff rate.
 - Occupancy reports separate **revenue rooms** vs **comp guide/driver beds** so ADR is not distorted.
 - Housekeeping sees who is guide/driver vs paying guest.
+
+## Guide & driver partners (repeat partner tracking)
+
+Guides and drivers are repeat partners in Bhutanese hospitality — they bring volume across seasons and deserve recognition. Treated as first-class master entities, not free-text notes.
+
+- **Master tables** `guides` + `drivers` per property: `full_name`, `phone`, `guide_number` (guides) / `vehicle_no` + `license_no` (drivers), `notes`, `visit_count`, `last_seen_at`. RLS enabled (desk-only via service role).
+- **Booking links:** `bookings.guide_id` + `bookings.driver_id`. Legacy free-text (`bookings.guide_number`, `booking_drivers` rows) preserved for backward compatibility.
+- **Backfilled** from existing `bookings.guide_number` and `booking_drivers` rows; drivers de-duped by phone.
+- **Auto-create at check-in:** typing a new guide number or driver name with no master match inserts a new master row; picking from the saved-partner `<select>` autofills fields and carries the master id.
+- **`/erp/partners` page:** both lists sorted by `visit_count desc`, search across name/number/phone/vehicle/license, gold visit-count pill, "X days ago" relative last-seen.
+- **Deferred (data foundation exists):** `discount_pct` field, POS/spa perk application, folio auto-apply, real-time `visit_count` increment via stored procedure, public-facing partner portal.
 
 ## Agent credit + payment history (BT / Jaigaon / India)
 
@@ -212,7 +238,7 @@ Most guides/drivers stay **in-house free** â€” treat as first-class invento
 
 - In-house guests charge cafe/bar/restaurant/spa to **room folio** (or master agent folio).
 - **Bhutan GST** flag per sellable item / charge type (`gst_applicable`, rate %).
-- **Guest services ledger:** taxi, outside shop purchase, errands â€” line items with vendor, GST or non-GST, markup/fee, attach receipt (Cloudinary), post to folio or cash.
+- **Guest services ledger:** taxi, outside shop purchase, errands — line items with vendor, GST or non-GST, markup/fee, attach receipt (Cloudinary), post to folio or cash.
 - Folio settlement: cash / bank / card / agent bill-to; GST reports for DRC-ready summaries.
 
 ## Auth, signup, demo
@@ -224,47 +250,47 @@ Most guides/drivers stay **in-house free** â€” treat as first-class invento
 ## Website CMS + templates
 
 - Entire public content editable from ERP: pages, hero, menus, hours, rooms, spa packages, SEO, CTAs, gallery.
-- **`template_id: 1` = Pelbu flagship** (`pelbu-flagship`) â€” primary product design; tenants clone from it.
-- Later templates (`2`, `3`, â€¦) are alternate skins so sister hotels do not look identical.
+- **`template_id: 1` = Pelbu flagship** (`pelbu-flagship`) — primary product design; tenants clone from it.
+- Later templates (`2`, `3`, …) are alternate skins so sister hotels do not look identical.
 - Cloudinary for all media; Resend for confirmations; CallMeBot for ops alerts (new booking, KOT delay, agent approval needed).
 
 ## UX-first design engineering (business = connect clients)
 
-Priority order on every screen: **1) UX (task success)** â†’ **2) UI structure** â†’ **3) visual polish**. Hotel site exists to connect **clients â†” hotel** (book, order, enquire, return) â€” not to look like a Dribbble shot.
+Priority order on every screen: **1) UX (task success)** → **2) UI structure** → **3) visual polish**. Hotel site exists to connect **clients ↔ hotel** (book, order, enquire, return) — not to look like a Dribbble shot.
 
 ### Design tokens (engineered gaps)
 
-- **Grid:** 12-col desktop, 4-col mobile; content max ~1120â€“1200px  
+- **Grid:** 12-col desktop, 4-col mobile; content max ~1120–1200px  
 - **Spacing scale:** 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 / 96 (no random padding)  
-- **Section rhythm:** one job per section; 64â€“96px vertical between major sections on desktop; 40â€“56px mobile  
+- **Section rhythm:** one job per section; 64–96px vertical between major sections on desktop; 40–56px mobile  
 - **Touch:** min 44px targets; sticky primary CTA on mobile for Book / Order  
-- **Type:** brand display + one UI sans (not Inter/Roboto default stack); clear H1â†’body hierarchy  
-- **Motion:** 2â€“3 purposeful motions (hero settle, CTA affordance, page transition) â€” not noise  
+- **Type:** brand display + one UI sans (not Inter/Roboto default stack); clear H1→body hierarchy  
+- **Motion:** 2–3 purposeful motions (hero settle, CTA affordance, page transition) — not noise  
 - **Anti-slop:** no purple gradients, no card-soup hero, no pill-stat clutter; brand + one CTA + real Pelbu imagery  
 
-### Public sitemap â€” section map (every corner)
+### Public sitemap — section map (every corner)
 
 **Home (conversion hub)**  
 1. Nav: logo | Rooms | Dine | Spa | Meeting | Agents | Book (primary)  
-2. Hero: full-bleed building, brand, one line, one CTA group (Book stay | Order food | Book spa) â€” nothing else in first viewport  
-3. Six streams strip (Rooms, Cafe/Pastry, Restaurant, Bar, Spa/Steam, Meeting) â€” equal weight, deep links  
-4. Social proof / location (Olakha) â€” short  
-5. Featured menus / todayâ€™s pastry â€” soft upsell  
+2. Hero: full-bleed building, brand, one line, one CTA group (Book stay | Order food | Book spa) — nothing else in first viewport  
+3. Six streams strip (Rooms, Cafe/Pastry, Restaurant, Bar, Spa/Steam, Meeting) — equal weight, deep links  
+4. Social proof / location (Olakha) — short  
+5. Featured menus / today’s pastry — soft upsell  
 6. Footer: hours, phone, WhatsApp, map, legal  
 
-**Rooms** â€” gallery â†’ amenities â†’ season rate hint â†’ Book  
-**Cafe & Pastry** â€” hours (summer 6:30 / winter 7:30) â†’ menu tabs â†’ Order / Delivery  
-**Restaurant** â€” cuisine tabs â†’ B/L/D â†’ Reserve table  
-**Bar** â€” weekend menu hero â†’ Reserve  
-**Spa & Steam** â€” packages â†’ slot picker â†’ Book  
-**Meeting** â€” capacity 25 â†’ package â†’ Enquire/Book  
-**Book** â€” 3-step max: dates â†’ room â†’ confirm (guest) OR agent fast path  
-**Order** â€” cart sticky; taxi delivery note; GST clear on bill  
-**Agents** â€” login / apply (license+MoU) / fast book / credit balance  
+**Rooms** — gallery → amenities → season rate hint → Book  
+**Cafe & Pastry** — hours (summer 6:30 / winter 7:30) → menu tabs → Order / Delivery  
+**Restaurant** — cuisine tabs → B/L/D → Reserve table  
+**Bar** — weekend menu hero → Reserve  
+**Spa & Steam** — packages → slot picker → Book  
+**Meeting** — capacity 25 → package → Enquire/Book  
+**Book** — 3-step max: dates → room → confirm (guest) OR agent fast path  
+**Order** — cart sticky; taxi delivery note; GST clear on bill  
+**Agents** — login / apply (license+MoU) / fast book / credit balance  
 
-### ERP (staff) â€” UX density, not marketing chrome
+### ERP (staff) — UX density, not marketing chrome
 
-Arrivals today | Fast book | Check-in wizard | Room board (guest vs guide/driver) | Folio | POS | KOT | Agent credit | CMS | Reports  
+Arrivals today | Fast book | Check-in wizard | Room board (guest vs guide/driver) | Folio | POS | KOT | Agent credit | Partners | CMS | Reports  
 
 ### Design samples (first deliverable after approval)
 
@@ -287,13 +313,13 @@ Benchmarked against **Cloudbeds / Mews / Opera-class HMS**, Bhutan **aBit**, and
 | Scope | Production-ready if we ship phased? |
 |-------|-------------------------------------|
 | Public conversion PWA + CMS + direct book/order | **Yes** after P1 + QA (Pelbu competitive edge vs Excel) |
-| Bhutan ops (fast book, check-in, SDF, guide/driver beds, agent credit) | **Yes** after P2â€“P3 â€” this is where custom beats generic Cloudbeds |
+| Bhutan ops (fast book, check-in, SDF, guide/driver beds, agent credit) | **Yes** after P2–P3 — this is where custom beats generic Cloudbeds |
 | Full POS/KOT/folio/GST | **Yes** after P2 with night audit + voids/comps |
-| Bank PDF recon | **Partialâ†’Yes** after sample PDFs + parser QA per bank |
-| Channel manager (Agoda/Booking/MMT) | **Not day-one** â€” needs Channex staging certification (queues, batch ARI, webhooks, full sync) |
-| Multi-tenant â€œrival world ERPâ€ + HR depth | **Not one sprint** â€” months; schema multi-property-ready from day 1 |
+| Bank PDF recon | **Partial→Yes** after sample PDFs + parser QA per bank |
+| Channel manager (Agoda/Booking/MMT) | **Not day-one** — needs Channex staging certification (queues, batch ARI, webhooks, full sync) |
+| Multi-tenant “rival world ERP” + HR depth | **Not one sprint** — months; schema multi-property-ready from day 1 |
 
-**Bottom line:** The plan can become production-ready **module by module**. It will **not** equal Opera/Mews on day one. It **can** beat Excel + generic OTA websites for Pelbuâ€™s Bhutan agent workflow faster than buying Cloudbeds alone (which wonâ€™t natively model guide/driver comps + Jaigaon credit the way you need).
+**Bottom line:** The plan can become production-ready **module by module**. It will **not** equal Opera/Mews on day one. It **can** beat Excel + generic OTA websites for Pelbu’s Bhutan agent workflow faster than buying Cloudbeds alone (which won’t natively model guide/driver comps + Jaigaon credit the way you need).
 
 ### Gaps to close for real go-live (added to engineering)
 
@@ -305,7 +331,7 @@ Benchmarked against **Cloudbeds / Mews / Opera-class HMS**, Bhutan **aBit**, and
 - **Accounting export** (CSV/Tally-friendly)  
 - **Staging + UAT checklist** before cutover from Excel  
 - **Import** your `2026 boutique 1st season1.xlsx` field map into booking schema  
-- **Channex:** event-driven ARI queue, rate limits, reservation ack â€” not DIY OTA APIs  
+- **Channex:** event-driven ARI queue, rate limits, reservation ack — not DIY OTA APIs  
 
 ### Compared to buying Cloudbeds/aBit
 
@@ -318,7 +344,8 @@ Benchmarked against **Cloudbeds / Mews / Opera-class HMS**, Bhutan **aBit**, and
 - Kitchen **KOT** realtime board  
 - Inventory + recipe/cost (feeds TACT consistency)  
 - Room status / housekeeping (guest vs guide/driver)  
-- HR (staff, shifts, leave) â€” later phase  
+- **Partners master (guides + drivers) with visit counts** — `/erp/partners`  
+- HR (staff, shifts, leave) — later phase  
 - Finance: sales, GST, expenses, **bank reconciliation**  
 - Audit log on money/approval actions  
 - Reports: occupancy, agent production, F&B/spa sales, stream contribution  
@@ -326,7 +353,7 @@ Benchmarked against **Cloudbeds / Mews / Opera-class HMS**, Bhutan **aBit**, and
 ## Bank reconciliation
 
 - Upload statement PDF per bank: **BoB, BNB, TBank, DrukPNB**.
-- Python parsers (`scripts/bank-recon/`) â†’ normalized transactions table.
+- Python parsers (`scripts/bank-recon/`) → normalized transactions table.
 - Auto-match vs payments/folio settlements; manual match UI; exceptions queue.
 - Cursor owns parsers; sample PDFs required per bank for accuracy.
 
@@ -339,8 +366,9 @@ Benchmarked against **Cloudbeds / Mews / Opera-class HMS**, Bhutan **aBit**, and
 | Rate engine, agent credit ledger, folio, GST | Landing page art direction / motion specs |
 | POS/KOT logic, guide/driver bed inventory | Parallel UI pages on `claude/*` branches |
 | Bank PDF parsers, Channex | Image prompt packs for Cloudinary shoots |
+| Partners master tables + visit counters | Check-in UI polish (visual only) |
 | ERP CMS data models | Marketing SEO copy |
-| Vercel/Supabase wiring | Check-in UI polish (visual only) |
+| Vercel/Supabase wiring | |
 
 **Handoff rule:** Claude never edits `supabase/migrations`, `packages/rates`, `scripts/bank-recon`, or auth middleware. Cursor never overwrites Claude-owned `templates/*` without merge note.
 
@@ -354,16 +382,19 @@ Benchmarked against **Cloudbeds / Mews / Opera-class HMS**, Bhutan **aBit**, and
 | **P3** | Agents (BT/Jaigaon/IN) + credit + MoU/demo + rates | **Done** |
 | **P4** | Finance + bank recon | **Done** |
 | **P5** | HR / inventory / HK / audit / reports | **Done** |
+| **P5.5** | Fast-book UX v2 (calendar/grid/drawer + voucher), StayDatesField, guest_origin, partners master | **Done** (2026-07-29) |
 | **P6** | Channex certification + extra templates | **Partial** — ARI queue + desk channel UI; staging cert + templates open |
 | **P7** | Night audit + voids/comps + deposit links + UAT checklist | **Done** (live Pay.bt/QR provider wiring open) |
 
 **Feature inventory (routes + remaining work):** see [FEATURES.md](FEATURES.md).
 
-## Immediate next steps (post P7)
+## Immediate next steps (post P5.5)
 
 1. Push `main` when ready; finish or stash multi-property switcher WIP.  
-2. Run [UAT-CHECKLIST.md](UAT-CHECKLIST.md) before Excel cutover.  
-3. z.ai fast-book UI brief: `.cursor/commands/zai-handoff-ready.md`.  
+2. Run [UAT-CHECKLIST.md](UAT-CHECKLIST.md) before Excel cutover — add cases for guest_origin conditional guide rule, partner auto-create at check-in, fast-book voucher (no rates).  
+3. z.ai polish briefs (POS density, agents desk cards) — see `.cursor/plans/ui_arch_compact_592f39c6.plan.md`.  
 4. Channex staging: `CHANNEX_API_KEY` + room/rate maps + flush/ack.  
 5. Wire live Pay.bt / bank QR webhooks when accounts exist.  
 6. Offline desk PWA queue (book + check-in) when net is flaky.  
+7. Partner perks: add `discount_pct` to `guides`/`drivers`, surface at POS/spa checkout, auto-apply to folio lines.  
+8. Agent voucher PDF generation + Resend send endpoints (UI shell already exists).  

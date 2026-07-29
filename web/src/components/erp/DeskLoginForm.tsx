@@ -1,6 +1,9 @@
 "use client";
 
 import { deskLogin, type DeskLoginState } from "@/app/actions/desk";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useActionState } from "react";
 
 const initial: DeskLoginState = { ok: false };
@@ -10,28 +13,29 @@ export function DeskLoginForm() {
 
   return (
     <form action={action} className="mx-auto max-w-sm space-y-4" noValidate>
-      <label className="block text-sm text-muted">
-        Desk PIN
-        <input
+      <div className="space-y-1.5">
+        <Label htmlFor="pin">Desk PIN</Label>
+        <Input
+          id="pin"
           type="password"
           name="pin"
           required
           autoComplete="current-password"
-          className="mt-1.5 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2.5 text-sm text-espresso outline-none focus:border-gold"
         />
-      </label>
+      </div>
       {state.error ? (
         <p className="text-sm text-maroon" role="alert">
           {state.error}
         </p>
       ) : null}
-      <button
+      <Button
         type="submit"
+        variant="gold"
         disabled={pending}
-        className="inline-flex min-h-11 w-full items-center justify-center rounded-sm bg-gold px-6 text-sm font-medium text-espresso disabled:opacity-60"
+        className="min-h-11 w-full"
       >
         {pending ? "Opening…" : "Open desk"}
-      </button>
+      </Button>
     </form>
   );
 }

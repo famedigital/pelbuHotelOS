@@ -57,7 +57,7 @@ export default async function PayTokenPage({ params }: PageProps) {
         <h1 className="mt-3 text-3xl font-medium tracking-tight">
           {isPaid ? "Token received" : "Pay booking token"}
         </h1>
-        <p className="mt-3 text-sm text-muted">
+        <p className="mt-3 text-sm text-muted-foreground">
           {isPaid
             ? "Your deposit is recorded. The desk will confirm your stay."
             : isOpen
@@ -67,26 +67,26 @@ export default async function PayTokenPage({ params }: PageProps) {
 
         <div className="mt-8 space-y-4 border border-espresso/10 bg-white px-6 py-6">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-muted">Amount</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Amount</p>
             <p className="mt-1 text-2xl font-medium">{formatBtn(amount)}</p>
           </div>
           {booking ? (
             <>
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-muted">
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                   Reference
                 </p>
                 <p className="mt-1 font-mono text-sm break-all">{booking.id}</p>
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-muted">
+                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                     Check-in
                   </p>
                   <p className="mt-1">{booking.check_in as string}</p>
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-muted">
+                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                     Check-out
                   </p>
                   <p className="mt-1">{booking.check_out as string}</p>
@@ -105,7 +105,7 @@ export default async function PayTokenPage({ params }: PageProps) {
           ) : null}
 
           {link.bank_hint ? (
-            <p className="text-sm text-muted">{link.bank_hint as string}</p>
+            <p className="text-sm text-muted-foreground">{link.bank_hint as string}</p>
           ) : null}
 
           {banks.length > 0 ? (
@@ -113,17 +113,17 @@ export default async function PayTokenPage({ params }: PageProps) {
               {banks.map((b, i) => (
                 <li key={i} className="border-t border-espresso/10 pt-2">
                   <p className="font-medium">{b.label ?? "Bank"}</p>
-                  {b.bank ? <p className="text-muted">{b.bank}</p> : null}
+                  {b.bank ? <p className="text-muted-foreground">{b.bank}</p> : null}
                   {b.account ? (
                     <p className="font-mono text-xs">{b.account}</p>
                   ) : null}
-                  {b.hint ? <p className="text-muted">{b.hint}</p> : null}
+                  {b.hint ? <p className="text-muted-foreground">{b.hint}</p> : null}
                 </li>
               ))}
             </ul>
           ) : null}
 
-          <p className="text-xs text-muted">
+          <p className="text-xs text-muted-foreground">
             Status: <span className="capitalize text-espresso">{link.status as string}</span>
           </p>
         </div>

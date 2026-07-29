@@ -34,11 +34,12 @@ Open http://localhost:3000 — desk at `/erp/login` (`DESK_PIN`).
 | P3 Agents + credit + rates | Done |
 | P4 Finance + bank recon | Done |
 | P5 HR / inventory / reports | Done |
+| P5.5 Fast-book UX v2 + StayDatesField + guest_origin + partners | **Done (2026-07-29)** |
 | P6 Channex + extra templates | **Partial** (foundation only) |
 | P7 Night audit, voids, deposits | Done (provider APIs open) |
 
-Not finished: Channex staging certification, live Pay.bt/QR webhooks, offline desk queue, multi-property UI polish. Details in [docs/FEATURES.md](docs/FEATURES.md).
+Not finished: Channex staging certification, live Pay.bt/QR webhooks, offline desk queue, partner perks, agent voucher PDF/email, multi-property UI polish. Details in [docs/FEATURES.md](docs/FEATURES.md).
 
 ## Desk routes
 
-`/erp` · fast-book · check-in · pos · folios · agents · finance · reports · rooms · inventory · hr · channel · night-audit
+`/erp` · fast-book · check-in · pos · folios · agents · finance · partners · reports · rooms · inventory · hr · channel · night-audit

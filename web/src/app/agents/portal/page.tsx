@@ -47,7 +47,7 @@ function notFound() {
           Agent portal
         </p>
         <h1 className="mt-3 text-3xl text-espresso">No partner account found</h1>
-        <p className="mt-3 text-sm leading-relaxed text-muted">
+        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
           This link is missing or has expired. If you have already been approved,
           ask the Pelbu desk to re-issue your portal token.
         </p>
@@ -116,7 +116,7 @@ export default async function AgentPortalPage({
           <h1 className="mt-3 text-3xl text-espresso">
             Account under review
           </h1>
-          <p className="mt-3 text-sm leading-relaxed text-muted">
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
             Your application status is{" "}
             <strong className="text-espresso">{agent.status}</strong>. The Pelbu
             desk will be in touch once it is approved.
@@ -179,8 +179,8 @@ export default async function AgentPortalPage({
               Partner portal
             </p>
             <h1 className="mt-1 text-3xl text-espresso">{agent.company_name}</h1>
-            <p className="mt-1 text-sm text-muted">
-              {(agent as AgentRow).market} · status {agent.status} · tier{" "}
+            <p className="mt-1 text-sm text-muted-foreground">
+              {(agent as AgentRow).market} Â· status {agent.status} Â· tier{" "}
               {agent.rate_tier.replace(/_/g, " ")}
             </p>
           </div>
@@ -203,7 +203,7 @@ export default async function AgentPortalPage({
           <h2 className="text-xs font-semibold uppercase tracking-[0.22em] text-gold">
             Your {agent.rate_tier.replace(/_/g, " ")} rate sheet
           </h2>
-          <p className="mt-1 text-sm text-muted">
+          <p className="mt-1 text-sm text-muted-foreground">
             Per-night Nu rates that apply to your bookings, by season. Public
             rates are shown for comparison.
           </p>
@@ -265,8 +265,8 @@ export default async function AgentPortalPage({
             <h2 className="text-xs font-semibold uppercase tracking-[0.22em] text-gold">
               Credit statement
             </h2>
-            <p className="text-xs text-muted">
-              {ledger.length} most recent entries · generated{" "}
+            <p className="text-xs text-muted-foreground">
+              {ledger.length} most recent entries Â· generated{" "}
               {new Date().toLocaleString("en-BT", { timeZone: "Asia/Thimphu" })}
             </p>
           </div>
@@ -328,7 +328,7 @@ export default async function AgentPortalPage({
           )}
         </section>
 
-        <section className="mt-12 border-t border-espresso/10 pt-6 text-sm text-muted">
+        <section className="mt-12 border-t border-espresso/10 pt-6 text-sm text-muted-foreground">
           <p>
             Question about a charge or rate? Call the desk — your contact is{" "}
             <span className="text-espresso">{agent.contact_name ?? "—"}</span>{" "}

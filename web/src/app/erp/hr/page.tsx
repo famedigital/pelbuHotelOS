@@ -83,7 +83,7 @@ export default async function ErpHrPage() {
             </h2>
           </div>
           {(staffRows ?? []).length === 0 ? (
-            <p className="mt-4 text-sm text-muted">No staff yet — add the first name above.</p>
+            <p className="mt-4 text-sm text-muted-foreground">No staff yet — add the first name above.</p>
           ) : (
             <ul className="mt-2">
               {(staffRows ?? []).map((s) => (
@@ -93,12 +93,12 @@ export default async function ErpHrPage() {
                 >
                   <div>
                     <p className="font-medium text-espresso">{s.full_name as string}</p>
-                    <p className="mt-0.5 text-xs text-muted">
+                    <p className="mt-0.5 text-xs text-muted-foreground">
                       {s.role_label as string}
-                      {s.phone ? ` · ${s.phone as string}` : ""}
+                      {s.phone ? ` Â· ${s.phone as string}` : ""}
                     </p>
                   </div>
-                  <p className="text-xs uppercase tracking-wide text-muted">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
                     {s.status as string}
                   </p>
                 </li>
@@ -115,7 +115,7 @@ export default async function ErpHrPage() {
               </h2>
             </div>
             {(shifts ?? []).length === 0 ? (
-              <p className="mt-4 text-sm text-muted">No shifts scheduled.</p>
+              <p className="mt-4 text-sm text-muted-foreground">No shifts scheduled.</p>
             ) : (
               <ul className="mt-2">
                 {(shifts ?? []).map((row) => {
@@ -127,11 +127,11 @@ export default async function ErpHrPage() {
                       className="border-b border-espresso/10 py-3 text-sm"
                     >
                       <p className="font-medium text-espresso">
-                        {row.shift_date as string} · {name}
+                        {row.shift_date as string} Â· {name}
                       </p>
-                      <p className="mt-0.5 text-xs text-muted">
+                      <p className="mt-0.5 text-xs text-muted-foreground">
                         {String(row.starts_at).slice(0, 5)}–{String(row.ends_at).slice(0, 5)}
-                        {row.outlet ? ` · ${row.outlet as string}` : ""}
+                        {row.outlet ? ` Â· ${row.outlet as string}` : ""}
                       </p>
                     </li>
                   );
@@ -147,7 +147,7 @@ export default async function ErpHrPage() {
               </h2>
             </div>
             {(leave ?? []).length === 0 ? (
-              <p className="mt-4 text-sm text-muted">No leave recorded.</p>
+              <p className="mt-4 text-sm text-muted-foreground">No leave recorded.</p>
             ) : (
               <ul className="mt-2">
                 {(leave ?? []).map((row) => {
@@ -159,10 +159,10 @@ export default async function ErpHrPage() {
                       className="border-b border-espresso/10 py-3 text-sm"
                     >
                       <p className="font-medium text-espresso">
-                        {name} · {row.leave_type as string}
+                        {name} Â· {row.leave_type as string}
                       </p>
-                      <p className="mt-0.5 text-xs text-muted">
-                        {row.starts_on as string} → {row.ends_on as string} ·{" "}
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {row.starts_on as string} → {row.ends_on as string} Â·{" "}
                         {row.status as string}
                       </p>
                     </li>

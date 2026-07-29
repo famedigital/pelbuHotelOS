@@ -33,6 +33,152 @@ function revalidateHolds() {
   revalidatePath("/erp/check-in");
 }
 
+/** Payment methods the system records against a token/deposit. */
+const TOKEN_PAYMENT_METHODS = [
+  "cash",
+  "bank",
+  "card",
+  "agent_credit",
+  "bank_qr",
+  "pay_bt",
+  "deposit",
+] as const;
+type TokenPaymentMethod = (typeof TOKEN_PAYMENT_METHODS)[number];
+
+function normalisePaymentMethod(method: string | null | undefined): TokenPaymentMethod {
+  return (
+    TOKEN_PAYMENT_METHODS as readonly string[]
+  ).includes(method ?? "")
+    ? (method as TokenPaymentMethod)
+    : "bank";
+}
+
+/**
+ * Core booking-confirmation logic — shared by the desk action
+ * (`confirmBookingToken`) and the gateway webhook
+ * (`/api/payments/webhook`). Performs no auth check itself; callers gate it.
+ *
+ * Idempotent in spirit: re-confirming a booking that is already confirmed is
+ * rejected unless `allowOverride` is true.
+ */
+export async function applyBookingConfirmation(args: {
+  admin: ReturnType<typeof createSupabaseAdminClient>;
+  propertyId: string;
+  bookingId: string;
+  amountBtn?: number | null;
+  method?: string | null;
+  reference?: string | null;
+  confirmedBy: string;
+  paymentGateway?: "manual" | "pay_bt" | "bank_qr";
+  allowOverride?: boolean;
+}): Promise<{ bookingId: string; amount: number; paymentId: string | null }> {
+  const {
+    admin,
+    propertyId,
+    bookingId,
+    method,
+    reference,
+    confirmedBy,
+    paymentGateway = "manual",
+    allowOverride = false,
+  } = args;
+
+  const { data: booking, error } = await admin
+    .from("bookings")
+    .select(
+      "id, status, token_required_btn, token_received_btn, check_in, check_out, contact_name",
+    )
+    .eq("id", bookingId)
+    .eq("property_id", propertyId)
+    .single();
+  if (error || !booking) throw new Error("Booking not found.");
+  if (
+    !["held", "pending"].includes(booking.status as string) &&
+    !allowOverride
+  ) {
+    throw new Error(`Cannot confirm token from status ${booking.status}.`);
+  }
+
+  const required = Number(booking.token_required_btn ?? 0);
+  const amount =
+    args.amountBtn != null
+      ? Number(args.amountBtn)
+      : required > 0
+        ? required
+        : 0;
+  if (!allowOverride && amount <= 0) {
+    throw new Error("Token amount required.");
+  }
+  if (!allowOverride && required > 0 && amount + 0.01 < required) {
+    throw new Error(
+      `Token shortfall: need Nu ${required.toFixed(0)}, got Nu ${amount.toFixed(0)}.`,
+    );
+  }
+
+  const now = new Date().toISOString();
+  const received =
+    Number(booking.token_received_btn ?? 0) + Math.max(0, amount);
+
+  let paymentId: string | null = null;
+  if (amount > 0) {
+    const payMethod = normalisePaymentMethod(method);
+    const { data: payment, error: payErr } = await admin
+      .from("payments")
+      .insert({
+        property_id: propertyId,
+        booking_id: bookingId,
+        amount_btn: amount,
+        method: payMethod,
+        kind: "deposit",
+        reference: reference ?? null,
+        notes: "Booking token / deposit",
+      })
+      .select("id")
+      .single();
+    if (payErr || !payment) {
+      console.error("applyBookingConfirmation payment", payErr);
+      throw new Error("Could not record deposit payment.");
+    }
+    paymentId = payment.id as string;
+  }
+
+  await admin
+    .from("payment_links")
+    .update({
+      status: amount > 0 ? "paid" : "cancelled",
+      paid_at: amount > 0 ? now : null,
+      payment_id: paymentId,
+      payment_gateway: amount > 0 ? paymentGateway : "manual",
+    })
+    .eq("booking_id", bookingId)
+    .eq("property_id", propertyId)
+    .eq("status", "open");
+
+  const { error: upd } = await admin
+    .from("bookings")
+    .update({
+      status: "confirmed",
+      token_received_btn: received,
+      confirmed_at: now,
+      confirmed_by: confirmedBy,
+      payment_mode: "partial",
+    })
+    .eq("id", bookingId);
+  if (upd) throw new Error("Could not confirm booking.");
+
+  await writeAuditEvent(admin, {
+    propertyId,
+    action: "booking.token_confirm",
+    entityType: "bookings",
+    entityId: bookingId,
+    summary: allowOverride
+      ? `Owner override confirm · Nu ${amount}`
+      : `Token confirmed · Nu ${amount}`,
+  });
+
+  return { bookingId, amount, paymentId };
+}
+
 /** Mark payment link paid → confirm booking + post deposit payment. */
 export async function confirmBookingToken(
   _prev: HoldActionState,
@@ -48,102 +194,16 @@ export async function confirmBookingToken(
     const reference = optionalTrim(formData.get("reference"));
     const override = optionalTrim(formData.get("owner_override")) === "1";
 
-    const { data: booking, error } = await admin
-      .from("bookings")
-      .select(
-        "id, status, token_required_btn, token_received_btn, check_in, check_out, contact_name",
-      )
-      .eq("id", bookingId)
-      .eq("property_id", pid)
-      .single();
-    if (error || !booking) throw new Error("Booking not found.");
-    if (!["held", "pending"].includes(booking.status as string) && !override) {
-      throw new Error(`Cannot confirm token from status ${booking.status}.`);
-    }
-
-    const required = Number(booking.token_required_btn ?? 0);
-    const amount = amountRaw
-      ? Number(amountRaw)
-      : required > 0
-        ? required
-        : 0;
-    if (!override && amount <= 0) {
-      throw new Error("Token amount required.");
-    }
-    if (!override && required > 0 && amount + 0.01 < required) {
-      throw new Error(
-        `Token shortfall: need Nu ${required.toFixed(0)}, got Nu ${amount.toFixed(0)}.`,
-      );
-    }
-
-    const now = new Date().toISOString();
-    const received =
-      Number(booking.token_received_btn ?? 0) + Math.max(0, amount);
-
-    let paymentId: string | null = null;
-    if (amount > 0) {
-      const payMethod = [
-        "cash",
-        "bank",
-        "card",
-        "agent_credit",
-        "bank_qr",
-        "pay_bt",
-        "deposit",
-      ].includes(method)
-        ? method
-        : "bank";
-      const { data: payment, error: payErr } = await admin
-        .from("payments")
-        .insert({
-          property_id: pid,
-          booking_id: bookingId,
-          amount_btn: amount,
-          method: payMethod,
-          kind: "deposit",
-          reference: reference ?? null,
-          notes: "Booking token / deposit",
-        })
-        .select("id")
-        .single();
-      if (payErr || !payment) {
-        console.error("confirmBookingToken payment", payErr);
-        throw new Error("Could not record deposit payment.");
-      }
-      paymentId = payment.id as string;
-    }
-
-    await admin
-      .from("payment_links")
-      .update({
-        status: amount > 0 ? "paid" : "cancelled",
-        paid_at: amount > 0 ? now : null,
-        payment_id: paymentId,
-      })
-      .eq("booking_id", bookingId)
-      .eq("property_id", pid)
-      .eq("status", "open");
-
-    const { error: upd } = await admin
-      .from("bookings")
-      .update({
-        status: "confirmed",
-        token_received_btn: received,
-        confirmed_at: now,
-        confirmed_by: override ? "owner_override" : "desk_token",
-        payment_mode: "partial",
-      })
-      .eq("id", bookingId);
-    if (upd) throw new Error("Could not confirm booking.");
-
-    await writeAuditEvent(admin, {
+    const { amount } = await applyBookingConfirmation({
+      admin,
       propertyId: pid,
-      action: "booking.token_confirm",
-      entityType: "bookings",
-      entityId: bookingId,
-      summary: override
-        ? `Owner override confirm · Nu ${amount}`
-        : `Token confirmed · Nu ${amount}`,
+      bookingId,
+      amountBtn: amountRaw ? Number(amountRaw) : null,
+      method,
+      reference,
+      confirmedBy: override ? "owner_override" : "desk_token",
+      paymentGateway: "manual",
+      allowOverride: override,
     });
 
     revalidateHolds();

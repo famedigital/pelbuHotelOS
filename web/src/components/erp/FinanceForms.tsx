@@ -8,13 +8,18 @@ import {
   matchBankTxn,
   type ErpFinanceState,
 } from "@/app/actions/erp-finance";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useActionToast } from "@/hooks/use-action-toast";
 import { formatBtn } from "@/lib/pricing";
 import { useActionState } from "react";
 
 const initial: ErpFinanceState = { ok: false };
 
-function fieldClass() {
-  return "mt-1.5 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2 text-sm text-espresso outline-none focus:border-gold focus:ring-2 focus:ring-gold/20";
+function selectClass() {
+  return "mt-1.5 flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer";
 }
 
 function ActionFlash({ state }: { state: ErpFinanceState }) {
@@ -58,6 +63,7 @@ export type UnmatchedBankTxn = {
 
 export function ExpenseForm() {
   const [state, action, pending] = useActionState(createExpense, initial);
+  useActionToast(state, { successMessage: "Expense saved" });
   const today = new Date().toISOString().slice(0, 10);
 
   return (
@@ -66,19 +72,29 @@ export function ExpenseForm() {
         Record expense
       </h3>
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-xs text-espresso/70">
-          Date
-          <input
+        <div className="space-y-1.5">
+          <Label htmlFor="expense_date" className="text-xs text-muted-foreground">
+            Date
+          </Label>
+          <Input
+            id="expense_date"
             type="date"
             name="expense_date"
             defaultValue={today}
             required
-            className={fieldClass()}
           />
-        </label>
-        <label className="block text-xs text-espresso/70">
-          Category
-          <select name="category" defaultValue="supplies" required className={fieldClass()}>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="expense_category" className="text-xs text-muted-foreground">
+            Category
+          </Label>
+          <select
+            id="expense_category"
+            name="category"
+            defaultValue="supplies"
+            required
+            className={selectClass()}
+          >
             <option value="supplies">Supplies</option>
             <option value="utilities">Utilities</option>
             <option value="payroll">Payroll</option>
@@ -88,72 +104,98 @@ export function ExpenseForm() {
             <option value="bank_fee">Bank fee</option>
             <option value="other">Other</option>
           </select>
-        </label>
+        </div>
       </div>
-      <label className="block text-xs text-espresso/70">
-        Description
-        <input name="description" required className={fieldClass()} />
-      </label>
+      <div className="space-y-1.5">
+        <Label htmlFor="expense_description" className="text-xs text-muted-foreground">
+          Description
+        </Label>
+        <Input id="expense_description" name="description" required />
+      </div>
       <div className="grid gap-3 sm:grid-cols-3">
-        <label className="block text-xs text-espresso/70">
-          Amount (Nu)
-          <input
+        <div className="space-y-1.5">
+          <Label htmlFor="amount_btn" className="text-xs text-muted-foreground">
+            Amount (Nu)
+          </Label>
+          <Input
+            id="amount_btn"
             name="amount_btn"
             type="number"
             min="0.01"
             step="0.01"
             required
-            className={fieldClass()}
           />
-        </label>
-        <label className="block text-xs text-espresso/70">
-          GST (Nu)
-          <input name="gst_btn" type="number" min="0" step="0.01" defaultValue="0" className={fieldClass()} />
-        </label>
-        <label className="block text-xs text-espresso/70">
-          Paid via
-          <select name="payment_method" defaultValue="bank" className={fieldClass()}>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="gst_btn" className="text-xs text-muted-foreground">
+            GST (Nu)
+          </Label>
+          <Input
+            id="gst_btn"
+            name="gst_btn"
+            type="number"
+            min="0"
+            step="0.01"
+            defaultValue="0"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="payment_method" className="text-xs text-muted-foreground">
+            Paid via
+          </Label>
+          <select
+            id="payment_method"
+            name="payment_method"
+            defaultValue="bank"
+            className={selectClass()}
+          >
             <option value="bank">Bank</option>
             <option value="cash">Cash</option>
             <option value="card">Card</option>
           </select>
-        </label>
+        </div>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-xs text-espresso/70">
-          Vendor
-          <input name="vendor" className={fieldClass()} />
-        </label>
-        <label className="block text-xs text-espresso/70">
-          Bank / cheque ref
-          <input name="reference" className={fieldClass()} />
-        </label>
+        <div className="space-y-1.5">
+          <Label htmlFor="vendor" className="text-xs text-muted-foreground">
+            Vendor
+          </Label>
+          <Input id="vendor" name="vendor" />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="expense_reference" className="text-xs text-muted-foreground">
+            Bank / cheque ref
+          </Label>
+          <Input id="expense_reference" name="reference" />
+        </div>
       </div>
-      <label className="block text-xs text-espresso/70">
-        Notes
-        <input name="notes" className={fieldClass()} />
-      </label>
-      <button
-        type="submit"
-        disabled={pending}
-        className="inline-flex min-h-10 items-center rounded-sm bg-gold px-4 text-sm font-medium text-espresso disabled:opacity-60"
-      >
+      <div className="space-y-1.5">
+        <Label htmlFor="expense_notes" className="text-xs text-muted-foreground">
+          Notes
+        </Label>
+        <Input id="expense_notes" name="notes" />
+      </div>
+      <Button type="submit" variant="gold" disabled={pending} className="min-h-10">
         {pending ? "Saving…" : "Save expense"}
-      </button>
+      </Button>
       <ActionFlash state={state} />
     </form>
   );
 }
 
 export function ImportStatementForm() {
-  const [state, action, pending] = useActionState(importBankStatementJson, initial);
+  const [state, action, pending] = useActionState(
+    importBankStatementJson,
+    initial,
+  );
+  useActionToast(state, { successMessage: "Statement imported" });
 
   return (
     <form action={action} className="space-y-3 border border-espresso/10 bg-white p-4">
       <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
         Import bank JSON
       </h3>
-      <p className="text-xs text-muted">
+      <p className="text-xs text-muted-foreground">
         Run{" "}
         <code className="font-mono text-[11px]">
           python -m pelbu_bank_recon.cli parse statement.pdf --bank bob -o out.json
@@ -161,41 +203,64 @@ export function ImportStatementForm() {
         then paste the JSON here.
       </p>
       <div className="grid gap-3 sm:grid-cols-3">
-        <label className="block text-xs text-espresso/70">
-          Bank
-          <select name="bank_code" defaultValue="bob" required className={fieldClass()}>
+        <div className="space-y-1.5">
+          <Label htmlFor="bank_code" className="text-xs text-muted-foreground">
+            Bank
+          </Label>
+          <select
+            id="bank_code"
+            name="bank_code"
+            defaultValue="bob"
+            required
+            className={selectClass()}
+          >
             <option value="bob">BoB</option>
             <option value="bnb">BNB</option>
             <option value="tbank">TBank</option>
             <option value="drukpnb">DrukPNB</option>
           </select>
-        </label>
-        <label className="block text-xs text-espresso/70 sm:col-span-2">
-          Account label
-          <input name="account_label" placeholder="BoB current ****4521" className={fieldClass()} />
-        </label>
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label htmlFor="account_label" className="text-xs text-muted-foreground">
+            Account label
+          </Label>
+          <Input
+            id="account_label"
+            name="account_label"
+            placeholder="BoB current ****4521"
+          />
+        </div>
       </div>
-      <label className="block text-xs text-espresso/70">
-        Source filename
-        <input name="source_filename" placeholder="bob-july-2026.pdf" className={fieldClass()} />
-      </label>
-      <label className="block text-xs text-espresso/70">
-        Statement JSON
-        <textarea
+      <div className="space-y-1.5">
+        <Label htmlFor="source_filename" className="text-xs text-muted-foreground">
+          Source filename
+        </Label>
+        <Input
+          id="source_filename"
+          name="source_filename"
+          placeholder="bob-july-2026.pdf"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="statement_json" className="text-xs text-muted-foreground">
+          Statement JSON
+        </Label>
+        <Textarea
+          id="statement_json"
           name="statement_json"
           required
           rows={8}
-          className={`${fieldClass()} font-mono text-xs`}
+          className="font-mono text-xs"
           placeholder='{"bank_code":"bob","transactions":[...]}'
         />
-      </label>
-      <button
+      </div>
+      <Button
         type="submit"
         disabled={pending}
-        className="inline-flex min-h-10 items-center rounded-sm bg-espresso px-4 text-sm font-medium text-ivory disabled:opacity-60"
+        className="min-h-10 bg-espresso text-ivory hover:bg-espresso/90"
       >
         {pending ? "Importing…" : "Import transactions"}
-      </button>
+      </Button>
       <ActionFlash state={state} />
     </form>
   );
@@ -203,16 +268,18 @@ export function ImportStatementForm() {
 
 export function AutoMatchButton() {
   const [state, action, pending] = useActionState(autoMatchBankTxns, initial);
+  useActionToast(state, { successMessage: "Auto-match run complete" });
 
   return (
     <form action={action} className="flex flex-wrap items-center gap-3">
-      <button
+      <Button
         type="submit"
+        variant="outline"
         disabled={pending}
-        className="inline-flex min-h-10 items-center rounded-sm border border-espresso/20 bg-white px-3 text-xs font-medium text-espresso disabled:opacity-60"
+        className="min-h-10 text-xs"
       >
         {pending ? "Matching…" : "Auto-match queue"}
-      </button>
+      </Button>
       <ActionFlash state={state} />
     </form>
   );
@@ -227,8 +294,16 @@ export function UnmatchedTxnRow({
   payments: FinancePaymentOption[];
   expenses: FinanceExpenseOption[];
 }) {
-  const [matchState, matchAction, matchPending] = useActionState(matchBankTxn, initial);
-  const [ignoreState, ignoreAction, ignorePending] = useActionState(ignoreBankTxn, initial);
+  const [matchState, matchAction, matchPending] = useActionState(
+    matchBankTxn,
+    initial,
+  );
+  const [ignoreState, ignoreAction, ignorePending] = useActionState(
+    ignoreBankTxn,
+    initial,
+  );
+  useActionToast(matchState, { successMessage: "Transaction matched" });
+  useActionToast(ignoreState, { successMessage: "Transaction ignored" });
   const isCredit = Number(txn.credit_btn) > 0;
   const amount = isCredit ? Number(txn.credit_btn) : Number(txn.debit_btn);
 
@@ -243,17 +318,27 @@ export function UnmatchedTxnRow({
           {formatBtn(amount)}
         </p>
       </div>
-      <p className="mt-1 text-muted">{txn.description}</p>
+      <p className="mt-1 text-muted-foreground">{txn.description}</p>
       {txn.reference ? (
-        <p className="mt-1 font-mono text-[11px] text-espresso/50">ref {txn.reference}</p>
+        <p className="mt-1 font-mono text-[11px] text-espresso/50">
+          ref {txn.reference}
+        </p>
       ) : null}
 
       <form action={matchAction} className="mt-3 flex flex-wrap items-end gap-2">
         <input type="hidden" name="bank_txn_id" value={txn.id} />
         {isCredit ? (
-          <label className="block min-w-[220px] flex-1 text-xs text-espresso/70">
-            Match payment
-            <select name="payment_id" defaultValue="" required className={fieldClass()}>
+          <div className="block min-w-[220px] flex-1 space-y-1.5">
+            <Label htmlFor={`payment_id_${txn.id}`} className="text-xs text-muted-foreground">
+              Match payment
+            </Label>
+            <select
+              id={`payment_id_${txn.id}`}
+              name="payment_id"
+              defaultValue=""
+              required
+              className={selectClass()}
+            >
               <option value="" disabled>
                 Select payment…
               </option>
@@ -263,11 +348,19 @@ export function UnmatchedTxnRow({
                 </option>
               ))}
             </select>
-          </label>
+          </div>
         ) : (
-          <label className="block min-w-[220px] flex-1 text-xs text-espresso/70">
-            Match expense
-            <select name="expense_id" defaultValue="" required className={fieldClass()}>
+          <div className="block min-w-[220px] flex-1 space-y-1.5">
+            <Label htmlFor={`expense_id_${txn.id}`} className="text-xs text-muted-foreground">
+              Match expense
+            </Label>
+            <select
+              id={`expense_id_${txn.id}`}
+              name="expense_id"
+              defaultValue=""
+              required
+              className={selectClass()}
+            >
               <option value="" disabled>
                 Select expense…
               </option>
@@ -277,27 +370,31 @@ export function UnmatchedTxnRow({
                 </option>
               ))}
             </select>
-          </label>
+          </div>
         )}
-        <button
+        <Button
           type="submit"
+          variant="gold"
+          size="sm"
           disabled={matchPending}
-          className="inline-flex min-h-10 items-center rounded-sm bg-gold px-3 text-xs font-medium text-espresso disabled:opacity-60"
+          className="min-h-10 text-xs"
         >
-          {matchPending ? "…" : "Match"}
-        </button>
+          {matchPending ? "Matching…" : "Match"}
+        </Button>
       </form>
       <ActionFlash state={matchState} />
 
       <form action={ignoreAction} className="mt-2">
         <input type="hidden" name="bank_txn_id" value={txn.id} />
-        <button
+        <Button
           type="submit"
+          variant="ghost"
+          size="sm"
           disabled={ignorePending}
-          className="inline-flex min-h-9 items-center text-xs text-muted underline-offset-4 hover:underline disabled:opacity-60"
+          className="min-h-9 text-xs text-muted-foreground"
         >
           Ignore
-        </button>
+        </Button>
       </form>
       <ActionFlash state={ignoreState} />
     </li>

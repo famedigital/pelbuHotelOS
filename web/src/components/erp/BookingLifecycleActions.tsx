@@ -10,7 +10,21 @@ import {
   extendBookingHold,
   type HoldActionState,
 } from "@/app/actions/erp-holds";
-import { useActionState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useActionToast } from "@/hooks/use-action-toast";
+import { useActionState, useState } from "react";
 
 const channelInitial: ErpChannelState = { ok: false };
 const holdInitial: HoldActionState = { ok: false };
@@ -61,10 +75,11 @@ function ConfirmTokenForm({
     confirmBookingToken,
     holdInitial,
   );
+  useActionToast(state, { successMessage: "Token confirmed" });
   return (
     <form action={action} className="flex flex-wrap items-end gap-2">
       <input type="hidden" name="booking_id" value={bookingId} />
-      <label className="text-xs text-muted">
+      <label className="text-xs text-muted-foreground">
         Token Nu
         <input
           name="amount_btn"
@@ -75,7 +90,7 @@ function ConfirmTokenForm({
           className="mt-0.5 block min-h-9 w-24 rounded-sm border border-espresso/20 px-2 text-xs text-espresso outline-none focus:border-gold"
         />
       </label>
-      <label className="text-xs text-muted">
+      <label className="text-xs text-muted-foreground">
         Method
         <select
           name="method"
@@ -93,14 +108,15 @@ function ConfirmTokenForm({
         placeholder="Txn ref"
         className="min-h-9 rounded-sm border border-espresso/20 px-2 text-xs text-espresso outline-none focus:border-gold"
       />
-      <button
+      <Button
         type="submit"
+        size="sm"
         disabled={pending}
-        className="inline-flex min-h-9 items-center rounded-sm bg-espresso px-3 text-xs font-medium text-ivory disabled:opacity-60"
+        className="bg-espresso text-ivory hover:bg-espresso/90"
       >
-        {pending ? "…" : "Confirm token"}
-      </button>
-      <label className="flex items-center gap-1 text-xs text-muted">
+        {pending ? "Confirming…" : "Confirm token"}
+      </Button>
+      <label className="flex items-center gap-1 text-xs text-muted-foreground">
         <input type="checkbox" name="owner_override" value="1" />
         Owner override
       </label>
@@ -108,7 +124,7 @@ function ConfirmTokenForm({
         <span className="w-full text-xs text-maroon">{state.error}</span>
       ) : null}
       {state.ok ? (
-        <span className="w-full text-xs text-muted">{state.message}</span>
+        <span className="w-full text-xs text-muted-foreground">{state.message}</span>
       ) : null}
     </form>
   );
@@ -119,6 +135,7 @@ function ExtendHoldForm({ bookingId }: { bookingId: string }) {
     extendBookingHold,
     holdInitial,
   );
+  useActionToast(state, { successMessage: "Hold extended" });
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="booking_id" value={bookingId} />
@@ -127,18 +144,20 @@ function ExtendHoldForm({ bookingId }: { bookingId: string }) {
         placeholder="Extend reason"
         className="min-h-9 rounded-sm border border-espresso/20 px-2 text-xs text-espresso outline-none focus:border-gold"
       />
-      <button
+      <Button
         type="submit"
+        variant="ghost"
+        size="sm"
         disabled={pending}
-        className="inline-flex min-h-9 items-center text-xs font-medium text-espresso underline-offset-4 hover:underline disabled:opacity-60"
+        className="text-xs font-medium text-espresso"
       >
-        {pending ? "…" : "Extend hold"}
-      </button>
+        {pending ? "Extending…" : "Extend hold"}
+      </Button>
       {state.error ? (
         <span className="text-xs text-maroon">{state.error}</span>
       ) : null}
       {state.ok ? (
-        <span className="text-xs text-muted">{state.message}</span>
+        <span className="text-xs text-muted-foreground">{state.message}</span>
       ) : null}
     </form>
   );
@@ -146,28 +165,67 @@ function ExtendHoldForm({ bookingId }: { bookingId: string }) {
 
 function CancelForm({ bookingId }: { bookingId: string }) {
   const [state, action, pending] = useActionState(cancelBooking, channelInitial);
+  useActionToast(state, { successMessage: "Booking cancelled" });
+  const [open, setOpen] = useState(false);
   return (
-    <form action={action} className="flex flex-wrap items-center gap-2">
-      <input type="hidden" name="booking_id" value={bookingId} />
-      <input
-        name="cancel_reason"
-        placeholder="Cancel reason"
-        className="min-h-9 rounded-sm border border-espresso/20 px-2 text-xs text-espresso outline-none focus:border-gold"
-      />
-      <button
-        type="submit"
-        disabled={pending}
-        className="inline-flex min-h-9 items-center text-xs font-medium text-maroon underline-offset-4 hover:underline disabled:opacity-60"
-      >
-        {pending ? "…" : "Cancel"}
-      </button>
-      {state.error ? (
-        <span className="text-xs text-maroon">{state.error}</span>
-      ) : null}
-      {state.ok ? (
-        <span className="text-xs text-muted">{state.message}</span>
-      ) : null}
-    </form>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="min-h-9 text-xs font-medium text-maroon hover:bg-maroon/5 hover:text-maroon"
+        >
+          Cancel
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Cancel this booking?</DialogTitle>
+          <DialogDescription>
+            This marks the booking cancelled and frees its held inventory. The
+            action is irreversible — only proceed if the guest is genuinely not
+            coming.
+          </DialogDescription>
+        </DialogHeader>
+        <form action={action} className="space-y-3">
+          <input type="hidden" name="booking_id" value={bookingId} />
+          <div className="space-y-1.5">
+            <Label htmlFor="cancel_reason" className="text-xs text-muted-foreground">
+              Reason
+            </Label>
+            <Input
+              id="cancel_reason"
+              name="cancel_reason"
+              placeholder="Why is this being cancelled?"
+              className="text-sm"
+            />
+          </div>
+          {state.error ? (
+            <p className="text-xs text-maroon">{state.error}</p>
+          ) : null}
+          {state.ok ? (
+            <p className="text-xs text-muted-foreground">{state.message}</p>
+          ) : null}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline" size="sm">
+                Keep booking
+              </Button>
+            </DialogClose>
+            <Button
+              type="submit"
+              variant="destructive"
+              size="sm"
+              disabled={pending}
+              onClick={() => setOpen(false)}
+            >
+              {pending ? "Cancelling…" : "Confirm cancel"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -176,19 +234,51 @@ function NoShowForm({ bookingId }: { bookingId: string }) {
     markBookingNoShow,
     channelInitial,
   );
+  useActionToast(state, { successMessage: "Marked as no-show" });
+  const [open, setOpen] = useState(false);
   return (
-    <form action={action}>
-      <input type="hidden" name="booking_id" value={bookingId} />
-      <button
-        type="submit"
-        disabled={pending}
-        className="inline-flex min-h-9 items-center text-xs text-muted underline-offset-4 hover:underline disabled:opacity-60"
-      >
-        {pending ? "…" : "No-show"}
-      </button>
-      {state.error ? (
-        <span className="ml-2 text-xs text-maroon">{state.error}</span>
-      ) : null}
-    </form>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="min-h-9 text-xs font-medium text-muted-foreground"
+        >
+          No-show
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Mark as no-show?</DialogTitle>
+          <DialogDescription>
+            The booking will be marked as a no-show and its inventory released.
+            This cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <form action={action}>
+          <input type="hidden" name="booking_id" value={bookingId} />
+          {state.error ? (
+            <p className="text-xs text-maroon">{state.error}</p>
+          ) : null}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline" size="sm">
+                Keep booking
+              </Button>
+            </DialogClose>
+            <Button
+              type="submit"
+              variant="destructive"
+              size="sm"
+              disabled={pending}
+              onClick={() => setOpen(false)}
+            >
+              {pending ? "Marking…" : "Confirm no-show"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

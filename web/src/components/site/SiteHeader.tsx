@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BRAND_ICONS } from "@/lib/brand";
 
 const nav = [
   { href: "/rooms", label: "Rooms" },
@@ -8,30 +9,64 @@ const nav = [
   { href: "/agents", label: "Agents" },
 ] as const;
 
-export function SiteHeader() {
+type Variant = "ink" | "bare";
+
+/** Quiet sticky-feel header — wordmark, nav, one Book control. No brass rules. */
+export function SiteHeader({
+  logoSrc,
+  variant = "ink",
+}: {
+  logoSrc?: string | null;
+  variant?: Variant;
+}) {
+  const logo = logoSrc || BRAND_ICONS.mark;
+  const onInk = variant === "ink";
+
   return (
     <header className="absolute inset-x-0 top-0 z-20">
-      <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-6 px-6 py-6 md:px-8">
+      <div className="mx-auto flex max-w-[1120px] items-center justify-between gap-4 px-5 py-5 md:px-8 md:py-6">
         <Link
           href="/"
-          className="text-sm font-medium tracking-[0.28em] text-white drop-shadow"
+          className={`flex items-center gap-2.5 text-[13px] font-medium ${
+            onInk ? "text-ivory" : "text-ink"
+          }`}
         >
-          PELBU SUITES
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={logo}
+            alt="Pelbu Suites"
+            className="h-8 w-8 object-contain"
+            width={32}
+            height={32}
+          />
+          <span>Pelbu Suites</span>
         </Link>
-        <nav className="hidden items-center gap-8 text-sm text-white/90 md:flex">
+
+        <nav
+          className={`hidden items-center gap-6 text-[13px] md:flex ${
+            onInk ? "text-ivory/75" : "text-ink/70"
+          }`}
+        >
           {nav.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="transition hover:text-white"
+              className={
+                onInk ? "transition-colors hover:text-ivory" : "hover:text-ink"
+              }
             >
               {item.label}
             </Link>
           ))}
         </nav>
+
         <Link
           href="/book"
-          className="inline-flex min-h-11 items-center rounded-sm bg-gold px-5 text-sm font-medium text-espresso"
+          className={`inline-flex h-9 items-center rounded-md px-3.5 text-[13px] font-medium transition-colors ${
+            onInk
+              ? "bg-ivory text-ink hover:bg-ivory/90"
+              : "bg-ink text-ivory hover:bg-ink-soft"
+          }`}
         >
           Book
         </Link>

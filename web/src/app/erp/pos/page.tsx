@@ -63,7 +63,7 @@ export default async function ErpPosPage() {
             Point of sale
           </p>
           <h2 className="mt-2 text-2xl text-espresso md:text-3xl">New ticket</h2>
-          <p className="mt-2 text-sm text-muted">
+          <p className="mt-2 text-sm text-muted-foreground">
             Ring a walk-in cash ticket, or charge an order straight to an in-house
             guest folio. Guest service charges (taxi / shop) live on the right.
           </p>

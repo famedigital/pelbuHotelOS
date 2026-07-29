@@ -1,38 +1,31 @@
+import { HomeCtaBand } from "@/components/home/HomeCtaBand";
 import { HomeHero } from "@/components/home/HomeHero";
 import { HomeStreams } from "@/components/home/HomeStreams";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
-import Link from "next/link";
+import { BRAND_ICONS, HOME_HERO_SLIDES } from "@/lib/brand";
+import { cloudinaryUrl } from "@/lib/cloudinary";
+
+export const dynamic = "force-dynamic";
 
 export default function HomePage() {
+  const slides = HOME_HERO_SLIDES.map((slide) => ({
+    ...slide,
+    src:
+      cloudinaryUrl(slide.publicId, {
+        width: 1920,
+        height: 1080,
+        crop: "fill",
+      }) ?? "",
+  })).filter((s) => s.src);
+
   return (
     <>
-      <SiteHeader />
+      <SiteHeader logoSrc={BRAND_ICONS.mark} variant="ink" />
       <main>
-        <HomeHero />
+        <HomeHero slides={slides} />
         <HomeStreams />
-        <section className="bg-white px-6 py-16 md:px-8 md:py-20">
-          <div className="mx-auto flex max-w-[1200px] flex-col gap-6 md:flex-row md:items-end md:justify-between">
-            <div className="max-w-xl">
-              <p className="text-sm tracking-[0.2em] text-maroon uppercase">
-                Location
-              </p>
-              <h2 className="mt-3 text-3xl text-espresso md:text-4xl">
-                Olakha, Thimphu — easy for guests and agents alike.
-              </h2>
-              <p className="mt-4 text-muted">
-                Built for Bhutan travel reality: fast bookings, guide and driver
-                care, and dining that earns a second visit.
-              </p>
-            </div>
-            <Link
-              href="/contact"
-              className="inline-flex min-h-11 items-center text-sm text-maroon hover:underline"
-            >
-              Get directions →
-            </Link>
-          </div>
-        </section>
+        <HomeCtaBand />
       </main>
       <SiteFooter />
     </>

@@ -6,9 +6,17 @@ import {
   holdExpiresAtFromNow,
   resolveHoldTtlHours,
 } from "@/lib/holds";
+import { availabilityByRoomType } from "@/lib/inventory-availability";
 import { soldQtyByRoomType } from "@/lib/inventory-availability";
 import { notifyNewBooking } from "@/lib/notify";
+import { roundBtn } from "@/lib/pricing";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
+import {
+  lookupRoomRateBtn,
+  nightsBetween,
+  resolveSeasonKind,
+  type SeasonKind,
+} from "@/lib/rates";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   assertOptionalEmail,
@@ -27,6 +35,125 @@ export type BookingActionState = {
   holdExpiresAt?: string;
   error?: string;
 };
+
+/** A room type with its live availability and public-tier rate for a stay window. */
+export type RoomOption = {
+  roomTypeId: string;
+  code: string;
+  name: string;
+  capacity: number;
+  remaining: number;
+  perNightBtn: number | null;
+  totalBtn: number | null;
+  available: boolean;
+};
+
+/** Result of a read-only rate/availability preview (no DB writes). */
+export type StayPreview = {
+  ok: true;
+  checkIn: string;
+  checkOut: string;
+  nights: number;
+  season: SeasonKind;
+  currency: "BTN";
+  rooms: number;
+  options: RoomOption[];
+};
+
+/** Plain-object input for preview — kept loose so it can be called from client state without FormData. */
+export type StayPreviewInput = {
+  checkIn: string;
+  checkOut: string;
+  rooms: number;
+};
+
+/**
+ * Read-only preview of public-tier rates and availability for a stay window.
+ * Used by the public /book wizard to show live prices before the guest submits.
+ * Never writes to the DB.
+ */
+export async function previewStayCost(
+  input: StayPreviewInput,
+): Promise<{ ok: true; preview: StayPreview } | { ok: false; error: string }> {
+  try {
+    const { checkIn, checkOut } = input;
+    const rooms = Math.max(1, Math.min(6, Math.floor(input.rooms)));
+    assertStayDates(checkIn, checkOut);
+
+    const admin = createSupabaseAdminClient();
+    const { data: property, error: propertyError } = await admin
+      .from("properties")
+      .select("id")
+      .eq("slug", PELBU_PROPERTY_SLUG)
+      .single();
+
+    if (propertyError || !property) {
+      return { ok: false, error: "Hotel property is not configured." };
+    }
+
+    const propertyId = property.id as string;
+    const season = await resolveSeasonKind(admin, propertyId, checkIn);
+    const nights = nightsBetween(checkIn, checkOut);
+
+    const { data: roomTypes } = await admin
+      .from("room_types")
+      .select("id, code, name, unit_count")
+      .eq("property_id", propertyId)
+      .eq("inventory_kind", "sellable_guest")
+      .order("code");
+
+    const availability = await availabilityByRoomType(
+      admin,
+      propertyId,
+      checkIn,
+      checkOut,
+    );
+    const remainingByTypeId = new Map(
+      availability.map((a) => [a.roomTypeId, a.remaining]),
+    );
+
+    const options: RoomOption[] = [];
+    for (const rt of roomTypes ?? []) {
+      const roomTypeId = rt.id as string;
+      const capacity = Number(rt.unit_count ?? 0);
+      const remaining = remainingByTypeId.get(roomTypeId) ?? 0;
+      const rate = await lookupRoomRateBtn(admin, {
+        propertyId,
+        roomTypeId,
+        seasonKind: season,
+        rateTier: "public",
+      });
+      options.push({
+        roomTypeId,
+        code: rt.code as string,
+        name: (rt.name as string) || (rt.code as string),
+        capacity,
+        remaining,
+        perNightBtn: rate,
+        totalBtn: rate == null ? null : roundBtn(rate * nights * rooms),
+        available: remaining >= rooms,
+      });
+    }
+
+    return {
+      ok: true,
+      preview: {
+        ok: true,
+        checkIn,
+        checkOut,
+        nights,
+        season,
+        currency: "BTN",
+        rooms,
+        options,
+      },
+    };
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Could not preview rates.";
+    return { ok: false, error: message };
+  }
+}
 
 export async function createBooking(
   _prev: BookingActionState,
@@ -48,6 +175,17 @@ export async function createBooking(
     const rooms = parsePositiveInt(formData.get("rooms"), "Rooms", 6);
     const guideNumber = optionalTrim(formData.get("guide_number"));
     const notes = optionalTrim(formData.get("notes"));
+    // Optional: guest-picked room type from the wizard step 2. If absent or
+    // unavailable, the action falls back to first-available auto-assignment
+    // so the legacy single-form path still works.
+    const requestedRoomTypeCode = optionalTrim(formData.get("room_type_code"));
+    // Optional: snapshot of the price the guest saw in the wizard preview,
+    // so the quoted total survives later rate changes.
+    const quotedTotalRaw = formData.get("quoted_total_btn");
+    const quotedTotalBtn =
+      typeof quotedTotalRaw === "string" && quotedTotalRaw.trim()
+        ? Number(quotedTotalRaw)
+        : null;
 
     const admin = createSupabaseAdminClient();
 
@@ -75,13 +213,34 @@ export async function createBooking(
     }
 
     const sold = await soldQtyByRoomType(admin, propertyId, checkIn, checkOut);
+
+    // If the guest picked a specific room type, honour it when there is room.
+    // Otherwise fall back to first-available (legacy behaviour).
     let assignedTypeId: string | null = null;
-    for (const rt of roomTypes) {
-      const capacity = Number(rt.unit_count ?? 0);
-      const used = sold.get(rt.id as string) ?? 0;
-      if (capacity - used >= rooms) {
-        assignedTypeId = rt.id as string;
-        break;
+    if (requestedRoomTypeCode) {
+      const match = roomTypes.find(
+        (rt) => (rt.code as string) === requestedRoomTypeCode,
+      );
+      if (match) {
+        const capacity = Number(match.unit_count ?? 0);
+        const used = sold.get(match.id as string) ?? 0;
+        if (capacity - used >= rooms) {
+          assignedTypeId = match.id as string;
+        } else {
+          throw new Error(
+            "The room type you picked is fully booked for those dates. Please pick another type or change dates.",
+          );
+        }
+      }
+    }
+    if (!assignedTypeId) {
+      for (const rt of roomTypes) {
+        const capacity = Number(rt.unit_count ?? 0);
+        const used = sold.get(rt.id as string) ?? 0;
+        if (capacity - used >= rooms) {
+          assignedTypeId = rt.id as string;
+          break;
+        }
       }
     }
     if (!assignedTypeId) {
@@ -121,6 +280,7 @@ export async function createBooking(
         hold_expires_at: holdExpiresAt,
         token_required_btn: tokenRequired,
         payment_mode: "partial",
+        quoted_total_btn: quotedTotalBtn,
       })
       .select("id")
       .single();

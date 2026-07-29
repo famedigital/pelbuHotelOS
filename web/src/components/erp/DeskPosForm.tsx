@@ -1,8 +1,11 @@
 "use client";
 
 import { createDeskOrder, type DeskPosState } from "@/app/actions/erp-pos";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { MenuItem } from "@/lib/menu";
 import { BHUTAN_GST_RATE, calculateOrderTotals, formatBtn } from "@/lib/pricing";
+import { useActionToast } from "@/hooks/use-action-toast";
 import { useActionState, useMemo, useState } from "react";
 
 function nightsBetween(checkIn: string, checkOut: string): number {
@@ -37,6 +40,7 @@ export function DeskPosForm({ items, bookings }: Props) {
   const [outlet, setOutlet] = useState("cafe");
   const [settleMode, setSettleMode] = useState<"cash" | "room_charge">("cash");
   const [state, action, pending] = useActionState(createDeskOrder, initial);
+  useActionToast(state, { successMessage: "Ticket sent to kitchen" });
 
   const outletItems = useMemo(
     () => items.filter((item) => item.outlet === outlet),
@@ -98,10 +102,10 @@ export function DeskPosForm({ items, bookings }: Props) {
           Ticket saved
         </p>
         <h2 className="mt-3 text-3xl text-espresso">Order is on the KOT board</h2>
-        <p className="mt-2 text-sm text-muted">
+        <p className="mt-2 text-sm text-muted-foreground">
           Ref <span className="font-mono text-espresso">{state.orderId}</span>
-          {state.totalBtn != null ? ` · ${formatBtn(state.totalBtn)}` : ""}
-          {state.folioId ? ` · folio ${state.folioId.slice(0, 8)}` : ""}
+          {state.totalBtn != null ? ` Â· ${formatBtn(state.totalBtn)}` : ""}
+          {state.folioId ? ` Â· folio ${state.folioId.slice(0, 8)}` : ""}
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <a
@@ -133,29 +137,32 @@ export function DeskPosForm({ items, bookings }: Props) {
       ) : null}
 
       <input type="hidden" name="cart" value={JSON.stringify(cartPayload)} />
+      <input type="hidden" name="outlet" value={outlet} />
 
       <fieldset className="space-y-4">
         <legend className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
           Ticket
         </legend>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm text-espresso">
+        <div>
+          <span className="mb-1.5 block text-sm font-medium text-espresso">
             Outlet
-            <select
-              name="outlet"
-              value={outlet}
-              onChange={(e) => {
-                setOutlet(e.target.value);
-                setCart({});
-              }}
-              className={fieldClassName()}
-            >
-              <option value="cafe">Cafe</option>
-              <option value="pastry">Pastry</option>
-              <option value="restaurant">Restaurant</option>
-              <option value="bar">Bar</option>
-            </select>
-          </label>
+          </span>
+          <Tabs
+            value={outlet}
+            onValueChange={(v) => {
+              setOutlet(v);
+              setCart({});
+            }}
+          >
+            <TabsList>
+              <TabsTrigger value="cafe">Cafe</TabsTrigger>
+              <TabsTrigger value="pastry">Pastry</TabsTrigger>
+              <TabsTrigger value="restaurant">Restaurant</TabsTrigger>
+              <TabsTrigger value="bar">Bar</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
           <label className="block text-sm text-espresso">
             Settle
             <select
@@ -205,8 +212,8 @@ export function DeskPosForm({ items, bookings }: Props) {
                 </option>
                 {bookings.map((b) => (
                   <option key={b.id} value={b.id}>
-                    {(b.contact_name ?? "Guest")} · {b.check_in} → {b.check_out}{" "}
-                    · {nightsBetween(b.check_in, b.check_out)} nights · {b.status}
+                    {(b.contact_name ?? "Guest")} Â· {b.check_in} → {b.check_out}{" "}
+                    Â· {nightsBetween(b.check_in, b.check_out)} nights Â· {b.status}
                   </option>
                 ))}
               </select>
@@ -224,20 +231,20 @@ export function DeskPosForm({ items, bookings }: Props) {
       <fieldset className="space-y-5">
         <div className="flex items-baseline justify-between">
           <legend className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-            Menu · <span className="capitalize">{outlet}</span>
+            Menu Â· <span className="capitalize">{outlet}</span>
           </legend>
-          <p className="text-xs text-muted">
+          <p className="text-xs text-muted-foreground">
             {lineCount > 0 ? `${lineCount} in cart` : "Tap + to add"}
           </p>
         </div>
         {byCategory.length === 0 ? (
-          <p className="rounded-sm border border-dashed border-espresso/15 px-4 py-6 text-sm text-muted">
+          <p className="rounded-sm border border-dashed border-espresso/15 px-4 py-6 text-sm text-muted-foreground">
             No items for this outlet.
           </p>
         ) : (
           byCategory.map(([category, categoryItems]) => (
             <section key={category}>
-              <h3 className="text-xs font-medium tracking-[0.18em] text-muted uppercase">
+              <h3 className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
                 {category}
               </h3>
               <ul className="mt-2 divide-y divide-espresso/10 border-y border-espresso/10">
@@ -252,9 +259,9 @@ export function DeskPosForm({ items, bookings }: Props) {
                     >
                       <div className="min-w-0">
                         <p className="text-sm text-espresso">{item.name}</p>
-                        <p className="text-xs text-muted">
+                        <p className="text-xs text-muted-foreground">
                           {formatBtn(item.price_btn)}
-                          {item.gst_applicable ? " · GST" : ""}
+                          {item.gst_applicable ? " Â· GST" : ""}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -292,11 +299,11 @@ export function DeskPosForm({ items, bookings }: Props) {
       </fieldset>
 
       <div className="space-y-2 rounded-sm bg-espresso/[0.02] px-4 py-4 text-sm">
-        <p className="flex justify-between text-muted">
+        <p className="flex justify-between text-muted-foreground">
           <span>Subtotal</span>
           <span className="tabular-nums">{formatBtn(totals.subtotalBtn)}</span>
         </p>
-        <p className="flex justify-between text-muted">
+        <p className="flex justify-between text-muted-foreground">
           <span>GST ({Math.round(BHUTAN_GST_RATE * 100)}%)</span>
           <span className="tabular-nums">{formatBtn(totals.gstBtn)}</span>
         </p>
@@ -306,13 +313,13 @@ export function DeskPosForm({ items, bookings }: Props) {
         </p>
       </div>
 
-      <button
+      <Button
         type="submit"
         disabled={pending || cartPayload.length === 0}
-        className="inline-flex min-h-11 w-full items-center justify-center rounded-sm bg-espresso px-6 text-sm font-medium text-ivory transition-opacity hover:opacity-90 disabled:opacity-60"
+        className="min-h-11 w-full bg-espresso text-ivory hover:bg-espresso/90 disabled:opacity-60"
       >
         {pending ? "Saving…" : cartPayload.length === 0 ? "Add an item to continue" : "Send to kitchen"}
-      </button>
+      </Button>
     </form>
   );
 }

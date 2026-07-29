@@ -128,8 +128,8 @@ export default async function ErpFinancePage() {
     method: p.method as string,
     reference: (p.reference as string | null) ?? null,
     created_at: p.created_at as string,
-    label: `${String(p.created_at).slice(0, 10)} · ${formatBtn(Number(p.amount_btn))} · ${p.method}${
-      p.reference ? ` · ${p.reference}` : ""
+    label: `${String(p.created_at).slice(0, 10)} Â· ${formatBtn(Number(p.amount_btn))} Â· ${p.method}${
+      p.reference ? ` Â· ${p.reference}` : ""
     }`,
   }));
 
@@ -162,7 +162,7 @@ export default async function ErpFinancePage() {
             <Stat label="GST on folio lines" value={formatBtn(gstCollected)} />
             <Stat label="Expenses" value={formatBtn(expensesTotal)} />
           </div>
-          <p className="mt-3 text-xs text-muted">
+          <p className="mt-3 text-xs text-muted-foreground">
             Unmatched bank lines: {unmatched.length}
           </p>
         </section>
@@ -178,12 +178,12 @@ export default async function ErpFinancePage() {
               Unmatched bank transactions
             </h2>
             <div className="flex flex-wrap items-center gap-3">
-              <p className="text-xs text-muted">{unmatched.length}</p>
+              <p className="text-xs text-muted-foreground">{unmatched.length}</p>
               {unmatched.length > 0 ? <AutoMatchButton /> : null}
             </div>
           </div>
           {unmatched.length === 0 ? (
-            <p className="mt-4 text-sm text-muted">
+            <p className="mt-4 text-sm text-muted-foreground">
               Queue empty — import a statement JSON from{" "}
               <code className="font-mono text-xs">scripts/bank-recon</code>.
             </p>
@@ -208,7 +208,7 @@ export default async function ErpFinancePage() {
             </h2>
           </div>
           {expenses.length === 0 ? (
-            <p className="mt-4 text-sm text-muted">No expenses yet.</p>
+            <p className="mt-4 text-sm text-muted-foreground">No expenses yet.</p>
           ) : (
             <ul className="mt-2">
               {expenses.map((e) => (
@@ -218,11 +218,11 @@ export default async function ErpFinancePage() {
                 >
                   <div>
                     <p className="font-medium text-espresso">
-                      {e.expense_date as string} · {e.description as string}
+                      {e.expense_date as string} Â· {e.description as string}
                     </p>
-                    <p className="mt-0.5 text-xs text-muted">
+                    <p className="mt-0.5 text-xs text-muted-foreground">
                       {e.category as string}
-                      {e.vendor ? ` · ${e.vendor as string}` : ""} ·{" "}
+                      {e.vendor ? ` Â· ${e.vendor as string}` : ""} Â·{" "}
                       {e.payment_method as string}
                     </p>
                   </div>
@@ -242,7 +242,7 @@ export default async function ErpFinancePage() {
             </h2>
           </div>
           {statements.length === 0 ? (
-            <p className="mt-4 text-sm text-muted">No statements imported yet.</p>
+            <p className="mt-4 text-sm text-muted-foreground">No statements imported yet.</p>
           ) : (
             <ul className="mt-2">
               {statements.map((s) => (
@@ -251,11 +251,11 @@ export default async function ErpFinancePage() {
                   className="border-b border-espresso/10 py-3 text-sm"
                 >
                   <p className="font-medium text-espresso">
-                    {(s.bank_code as string).toUpperCase()} ·{" "}
+                    {(s.bank_code as string).toUpperCase()} Â·{" "}
                     {(s.source_filename as string) ?? "statement"}
                   </p>
-                  <p className="mt-0.5 text-xs text-muted">
-                    {(s.account_label as string) ?? "—"} · {s.status as string} ·{" "}
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {(s.account_label as string) ?? "—"} Â· {s.status as string} Â·{" "}
                     {s.period_start ? `${s.period_start} → ${s.period_end}` : "period n/a"}
                   </p>
                 </li>

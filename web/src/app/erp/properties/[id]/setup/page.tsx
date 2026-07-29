@@ -65,7 +65,7 @@ export default async function PropertySetupPage({
   return (
     <div className="min-h-screen bg-ivory">
       <DeskHeader
-        title={`Setup · ${property.name}`}
+        title={`Setup Â· ${property.name}`}
         properties={properties}
         activePropertyId={activeId}
       />
@@ -91,7 +91,7 @@ export default async function PropertySetupPage({
                 className={
                   s === step
                     ? "font-medium text-espresso"
-                    : "text-muted underline-offset-4 hover:underline"
+                    : "text-muted-foreground underline-offset-4 hover:underline"
                 }
               >
                 {s}
@@ -102,13 +102,13 @@ export default async function PropertySetupPage({
 
         {step === 2 ? (
           <div className="space-y-6">
-            <ul className="space-y-2 text-sm text-muted">
+            <ul className="space-y-2 text-sm text-muted-foreground">
               {(roomTypes.data ?? []).map((r) => (
                 <li key={r.id as string}>
                   <span className="font-medium text-espresso">
                     {r.code as string}
                   </span>{" "}
-                  · {r.name as string} · {Number(r.unit_count ?? 0)} units
+                  Â· {r.name as string} Â· {Number(r.unit_count ?? 0)} units
                 </li>
               ))}
               {(roomTypes.data ?? []).length === 0 ? (
@@ -117,7 +117,7 @@ export default async function PropertySetupPage({
             </ul>
             <PropertyWizardForm action={savePropertyRoomsStep}>
               <input type="hidden" name="property_id" value={id} />
-              <label className="block text-sm text-muted">
+              <label className="block text-sm text-muted-foreground">
                 Code
                 <input
                   name="code"
@@ -126,7 +126,7 @@ export default async function PropertySetupPage({
                   className="mt-1.5 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2.5 text-sm"
                 />
               </label>
-              <label className="block text-sm text-muted">
+              <label className="block text-sm text-muted-foreground">
                 Name
                 <input
                   name="name"
@@ -135,7 +135,7 @@ export default async function PropertySetupPage({
                   className="mt-1.5 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2.5 text-sm"
                 />
               </label>
-              <label className="block text-sm text-muted">
+              <label className="block text-sm text-muted-foreground">
                 Units
                 <input
                   name="unit_count"
@@ -236,7 +236,7 @@ export default async function PropertySetupPage({
         {step === 4 ? (
           <PropertyWizardForm action={savePropertyDepositRules}>
             <input type="hidden" name="property_id" value={id} />
-            <label className="block text-sm text-muted">
+            <label className="block text-sm text-muted-foreground">
               Token mode
               <select
                 name="mode"
@@ -248,7 +248,7 @@ export default async function PropertySetupPage({
                 <option value="percent">Percent of stay</option>
               </select>
             </label>
-            <label className="block text-sm text-muted">
+            <label className="block text-sm text-muted-foreground">
               Floor BTN
               <input
                 name="floor_btn"
@@ -258,7 +258,7 @@ export default async function PropertySetupPage({
                 className="mt-1.5 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2.5 text-sm"
               />
             </label>
-            <label className="block text-sm text-muted">
+            <label className="block text-sm text-muted-foreground">
               Percent (if percent mode)
               <input
                 name="percent"
@@ -277,7 +277,7 @@ export default async function PropertySetupPage({
               Web client TTL (hours)
             </p>
             {(["peak", "lean", "off"] as const).map((s) => (
-              <label key={s} className="block text-sm text-muted capitalize">
+              <label key={s} className="block text-sm text-muted-foreground capitalize">
                 {s}
                 <input
                   name={`ttl_client_${s}`}
@@ -288,7 +288,7 @@ export default async function PropertySetupPage({
                 />
               </label>
             ))}
-            <label className="block text-sm text-muted">
+            <label className="block text-sm text-muted-foreground">
               Bank hint on pay link
               <textarea
                 name="bank_hint"
@@ -309,7 +309,7 @@ export default async function PropertySetupPage({
         {step === 5 ? (
           <PropertyWizardForm action={savePropertyBanksAndComplete}>
             <input type="hidden" name="property_id" value={id} />
-            <label className="block text-sm text-muted">
+            <label className="block text-sm text-muted-foreground">
               Account label
               <input
                 name="bank_label"
@@ -318,7 +318,7 @@ export default async function PropertySetupPage({
                 className="mt-1.5 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2.5 text-sm"
               />
             </label>
-            <label className="block text-sm text-muted">
+            <label className="block text-sm text-muted-foreground">
               Bank
               <input
                 name="bank_name"
@@ -326,7 +326,7 @@ export default async function PropertySetupPage({
                 className="mt-1.5 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2.5 text-sm"
               />
             </label>
-            <label className="block text-sm text-muted">
+            <label className="block text-sm text-muted-foreground">
               Account number
               <input
                 name="bank_account"
@@ -334,7 +334,7 @@ export default async function PropertySetupPage({
                 className="mt-1.5 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2.5 text-sm"
               />
             </label>
-            <label className="block text-sm text-muted">
+            <label className="block text-sm text-muted-foreground">
               Guest-facing hint
               <textarea
                 name="bank_hint"

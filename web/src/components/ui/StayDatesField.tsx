@@ -152,7 +152,7 @@ export function StayDatesField({
                 "min-h-8 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] transition-colors",
                 active
                   ? "bg-espresso text-ivory"
-                  : "text-muted hover:text-espresso",
+                  : "text-muted-foreground hover:text-espresso",
               ].join(" ")}
             >
               {m === "dates" ? "Dates" : "Nights"}
@@ -201,7 +201,7 @@ export function StayDatesField({
               className={fieldClassName()}
             />
             {nightsPreview ? (
-              <span className="mt-1 block text-xs text-muted">
+              <span className="mt-1 block text-xs text-muted-foreground">
                 → {nightsPreview}
               </span>
             ) : null}

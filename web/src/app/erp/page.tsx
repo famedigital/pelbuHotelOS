@@ -145,22 +145,22 @@ export default async function ErpInboxPage() {
 
         <InboxSection
           title="Holds awaiting token"
-          subtitle="Confirm when bank/cash token arrives · unpaid holds expire by season TTL"
+          subtitle="Confirm when bank/cash token arrives Â· unpaid holds expire by season TTL"
           empty="No open holds."
         >
           {heldBookings.map((row) => (
             <li key={row.id as string} className="border-b border-espresso/10 py-4 text-sm">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="font-medium text-espresso">
-                  {(row.contact_name as string) ?? "Guest"} · {row.contact_phone as string}
+                  {(row.contact_name as string) ?? "Guest"} Â· {row.contact_phone as string}
                 </p>
                 <StatusPill value="held" />
               </div>
-              <p className="mt-1 text-muted">
-                {fmtDate(row.check_in as string)} → {fmtDate(row.check_out as string)} ·
+              <p className="mt-1 text-muted-foreground">
+                {fmtDate(row.check_in as string)} → {fmtDate(row.check_out as string)} Â·
                 token {formatBtn(Number(row.token_required_btn ?? 0))}
                 {row.hold_expires_at
-                  ? ` · expires ${new Date(row.hold_expires_at as string).toLocaleString("en-BT", { timeZone: "Asia/Thimphu" })}`
+                  ? ` Â· expires ${new Date(row.hold_expires_at as string).toLocaleString("en-BT", { timeZone: "Asia/Thimphu" })}`
                   : ""}
               </p>
               <p className="mt-1 font-mono text-xs text-espresso/50">{row.id as string}</p>
@@ -202,8 +202,8 @@ export default async function ErpInboxPage() {
                   <p className="font-medium text-espresso">{folio.label as string}</p>
                   <StatusPill value={folio.status as string} />
                 </div>
-                <p className="mt-1 text-muted">
-                  Balance {formatBtn(balance)} · booking {(folio.booking_id as string) ?? "walk-in"}
+                <p className="mt-1 text-muted-foreground">
+                  Balance {formatBtn(balance)} Â· booking {(folio.booking_id as string) ?? "walk-in"}
                 </p>
                 <p className="mt-1 font-mono text-xs text-espresso/50">{folio.id as string}</p>
                 <a
@@ -222,13 +222,13 @@ export default async function ErpInboxPage() {
             <li key={row.id as string} className="border-b border-espresso/10 py-4 text-sm">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="font-medium text-espresso">
-                  {(row.contact_name as string) ?? "Guest"} · {row.contact_phone as string}
+                  {(row.contact_name as string) ?? "Guest"} Â· {row.contact_phone as string}
                 </p>
                 <StatusPill value={row.status as string} />
               </div>
-              <p className="mt-1 text-muted">
-                {fmtDate(row.check_in as string)} → {fmtDate(row.check_out as string)} ·{" "}
-                {row.adults as number} adults · {row.rooms as number} rooms
+              <p className="mt-1 text-muted-foreground">
+                {fmtDate(row.check_in as string)} → {fmtDate(row.check_out as string)} Â·{" "}
+                {row.adults as number} adults Â· {row.rooms as number} rooms
               </p>
               <p className="mt-1 font-mono text-xs text-espresso/50">{row.id as string}</p>
               {["pending", "confirmed", "checked_in"].includes(row.status as string) ? (
@@ -257,14 +257,14 @@ export default async function ErpInboxPage() {
             <li key={row.id as string} className="border-b border-espresso/10 py-4 text-sm">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="font-medium text-espresso">
-                  {row.kind as string} · {row.contact_name as string} ·{" "}
+                  {row.kind as string} Â· {row.contact_name as string} Â·{" "}
                   {row.contact_phone as string}
                 </p>
                 <StatusPill value={row.status as string} />
               </div>
-              <p className="mt-1 text-muted">
+              <p className="mt-1 text-muted-foreground">
                 {fmtDate(row.preferred_on as string)}
-                {row.preferred_time ? ` · ${row.preferred_time}` : ""} · party{" "}
+                {row.preferred_time ? ` Â· ${row.preferred_time}` : ""} Â· party{" "}
                 {row.party_size as number}
               </p>
               <p className="mt-1 font-mono text-xs text-espresso/50">{row.id as string}</p>
@@ -277,12 +277,12 @@ export default async function ErpInboxPage() {
             <li key={row.id as string} className="border-b border-espresso/10 py-4 text-sm">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="font-medium text-espresso">
-                  {row.topic as string} · {row.contact_name as string} ·{" "}
+                  {row.topic as string} Â· {row.contact_name as string} Â·{" "}
                   {row.contact_phone as string}
                 </p>
                 <StatusPill value={row.status as string} />
               </div>
-              <p className="mt-1 text-muted line-clamp-2">{row.message as string}</p>
+              <p className="mt-1 text-muted-foreground line-clamp-2">{row.message as string}</p>
               <p className="mt-1 font-mono text-xs text-espresso/50">{row.id as string}</p>
             </li>
           ))}
@@ -293,13 +293,13 @@ export default async function ErpInboxPage() {
             <li key={row.id as string} className="border-b border-espresso/10 py-4 text-sm">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="font-medium text-espresso">
-                  {row.company_name as string} · {row.market as string}
+                  {row.company_name as string} Â· {row.market as string}
                 </p>
                 <StatusPill value={row.status as string} />
               </div>
-              <p className="mt-1 text-muted">
-                {(row.contact_name as string) ?? "—"} ·{" "}
-                {(row.contact_phone as string) ?? "—"} · MoU{" "}
+              <p className="mt-1 text-muted-foreground">
+                {(row.contact_name as string) ?? "—"} Â·{" "}
+                {(row.contact_phone as string) ?? "—"} Â· MoU{" "}
                 {row.wants_mou ? "yes" : "no"}
               </p>
               <p className="mt-1 font-mono text-xs text-espresso/50">{row.id as string}</p>
@@ -333,17 +333,17 @@ function InboxSection({
           <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
             {title}
           </h2>
-          {subtitle ? <p className="mt-1 text-xs text-muted">{subtitle}</p> : null}
+          {subtitle ? <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p> : null}
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {trailing}
           {list.length > 0 ? (
-            <p className="text-xs text-muted">{list.length}</p>
+            <p className="text-xs text-muted-foreground">{list.length}</p>
           ) : null}
         </div>
       </div>
       {list.length === 0 ? (
-        <p className="mt-4 text-sm text-muted">{empty}</p>
+        <p className="mt-4 text-sm text-muted-foreground">{empty}</p>
       ) : (
         <ul className="mt-2">{list}</ul>
       )}
@@ -360,7 +360,7 @@ function StatusPill({ value }: { value: string }) {
         ? "border-espresso/20 bg-espresso/[0.05] text-espresso"
         : value === "held"
           ? "border-maroon/30 bg-maroon/5 text-maroon"
-          : "border-espresso/15 text-muted";
+          : "border-espresso/15 text-muted-foreground";
   return (
     <span
       className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${tone}`}
@@ -385,16 +385,16 @@ function OrderBoardColumn({
         <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
           {title}
         </h3>
-        <span className="text-xs text-muted">{orders.length}</span>
+        <span className="text-xs text-muted-foreground">{orders.length}</span>
       </div>
       {orders.length === 0 ? (
-        <p className="mt-4 text-sm text-muted">No orders.</p>
+        <p className="mt-4 text-sm text-muted-foreground">No orders.</p>
       ) : (
         <ul className="mt-3 space-y-3">
           {orders.map((row) => {
             const items =
               ((row.order_items as { name_snapshot: string; qty: number }[] | null) ?? [])
-                .map((item) => `${item.qty}× ${item.name_snapshot}`)
+                .map((item) => `${item.qty}Ã— ${item.name_snapshot}`)
                 .join(", ") || "Items pending";
             return (
               <li key={row.id as string} className="border border-espresso/10 bg-ivory/40 p-3 text-sm">
@@ -402,11 +402,11 @@ function OrderBoardColumn({
                   <p className="font-medium text-espresso">{row.customer_name as string}</p>
                   <p className="tabular-nums text-espresso">{formatBtn(Number(row.total_btn))}</p>
                 </div>
-                <p className="mt-1 text-xs text-muted">
-                  {(row.outlet as string) ?? "order"} ·{" "}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {(row.outlet as string) ?? "order"} Â·{" "}
                   {(row.delivery_type as string) ?? "pickup"}
                 </p>
-                <p className="mt-1 text-xs text-muted">{items}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{items}</p>
                 <p className="mt-1 font-mono text-[10px] text-espresso/50">
                   {row.id as string}
                 </p>
@@ -439,7 +439,7 @@ function OrderBoardColumn({
                       </option>
                       {openBookings.map((booking) => (
                         <option key={booking.id as string} value={booking.id as string}>
-                          {((booking.contact_name as string) ?? "Guest")} ·{" "}
+                          {((booking.contact_name as string) ?? "Guest")} Â·{" "}
                           {fmtDate(booking.check_in as string)}
                         </option>
                       ))}
@@ -452,7 +452,7 @@ function OrderBoardColumn({
                     </button>
                   </form>
                 ) : row.posted_to_folio_at ? (
-                  <p className="mt-3 text-xs text-muted">
+                  <p className="mt-3 text-xs text-muted-foreground">
                     Posted to folio {(row.folio_id as string) ?? "—"}
                   </p>
                 ) : null}

@@ -103,7 +103,7 @@ export default async function ErpInventoryPage() {
             </h2>
           </div>
           {(items ?? []).length === 0 ? (
-            <p className="mt-4 text-sm text-muted">No items.</p>
+            <p className="mt-4 text-sm text-muted-foreground">No items.</p>
           ) : (
             <ul className="mt-2">
               {(items ?? []).map((i) => {
@@ -121,11 +121,11 @@ export default async function ErpInventoryPage() {
                         </span>{" "}
                         {i.name as string}
                       </p>
-                      <p className="mt-0.5 text-xs text-muted">
-                        {i.category as string} · reorder {Number(i.reorder_level)}{" "}
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {i.category as string} Â· reorder {Number(i.reorder_level)}{" "}
                         {i.unit as string}
                         {warn ? (
-                          <span className="text-maroon"> · low</span>
+                          <span className="text-maroon"> Â· low</span>
                         ) : null}
                       </p>
                     </div>
@@ -147,7 +147,7 @@ export default async function ErpInventoryPage() {
             </h2>
           </div>
           {(moves ?? []).length === 0 ? (
-            <p className="mt-4 text-sm text-muted">No movements yet.</p>
+            <p className="mt-4 text-sm text-muted-foreground">No movements yet.</p>
           ) : (
             <ul className="mt-2">
               {(moves ?? []).map((m) => {
@@ -161,15 +161,15 @@ export default async function ErpInventoryPage() {
                     className="border-b border-espresso/10 py-3 text-sm"
                   >
                     <p className="font-medium text-espresso">
-                      {m.movement_kind as string} · {item?.sku ?? "—"}{" "}
+                      {m.movement_kind as string} Â· {item?.sku ?? "—"}{" "}
                       <span className="tabular-nums">
                         {Number(m.qty_delta) > 0 ? "+" : ""}
                         {Number(m.qty_delta)}
                       </span>
                     </p>
-                    <p className="mt-0.5 text-xs text-muted">
+                    <p className="mt-0.5 text-xs text-muted-foreground">
                       {String(m.created_at).slice(0, 16).replace("T", " ")}
-                      {m.reference ? ` · ${m.reference as string}` : ""}
+                      {m.reference ? ` Â· ${m.reference as string}` : ""}
                     </p>
                   </li>
                 );

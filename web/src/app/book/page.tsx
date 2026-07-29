@@ -1,10 +1,10 @@
-import { BookingForm } from "@/components/book/BookingForm";
+import { BookingWizard } from "@/components/book/BookingWizard";
 import { ConversionShell } from "@/components/site/ConversionShell";
 
 export const metadata = {
   title: "Book | Pelbu Suites",
   description:
-    "Request a room stay at Pelbu Suites Olakha, Thimphu — direct guest booking.",
+    "Reserve a room stay at Pelbu Suites Olakha, Thimphu — live rates, pick your room, hold instantly.",
 };
 
 export default function BookPage() {
@@ -12,23 +12,26 @@ export default function BookPage() {
     <ConversionShell
       eyebrow="Book"
       title="Reserve your stay."
-      body="Tell us your dates and we confirm availability. Agents use the partner desk for guide number, SDF, and credit terms."
+      body="See live rates, pick your room type, and we hold the rooms instantly. A token confirms the booking once your bank transfer arrives."
       aside={
-        <div className="space-y-4 text-sm text-muted">
-          <p className="text-xs tracking-[0.2em] text-gold uppercase">How it works</p>
-          <ol className="list-decimal space-y-3 pl-4 text-espresso/80">
-            <li>Send dates, guests, and a phone we can reach.</li>
-            <li>Desk confirms rate and room type.</li>
-            <li>Pay on arrival or by bank transfer when confirmed.</li>
+        <div className="space-y-5 text-sm text-muted-foreground">
+          <p className="text-sm font-medium text-ink">How it works</p>
+          <ol className="list-decimal space-y-3 pl-4 text-ink/80">
+            <li>Pick dates and party — see live public rates per room type.</li>
+            <li>Choose a room type and enter your contact.</li>
+            <li>
+              We hold the rooms and email you a pay link. Desk confirms once the
+              token money arrives.
+            </li>
           </ol>
-          <p className="pt-2 leading-relaxed">
+          <p className="border-t border-border pt-5 leading-relaxed">
             Guide and driver complimentary beds are arranged at check-in when
             traveling with a licensed Bhutanese guide.
           </p>
         </div>
       }
     >
-      <BookingForm />
+      <BookingWizard />
     </ConversionShell>
   );
 }

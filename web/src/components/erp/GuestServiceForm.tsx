@@ -69,7 +69,7 @@ export function GuestServiceForm({ bookings }: { bookings: DeskBookingOption[] }
         <p className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
           Guest service
         </p>
-        <p className="mt-1 text-xs text-muted">Taxi, shop, or other charge to a folio.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Taxi, shop, or other charge to a folio.</p>
       </div>
 
       <label className="block text-sm text-espresso">
@@ -80,7 +80,7 @@ export function GuestServiceForm({ bookings }: { bookings: DeskBookingOption[] }
           </option>
           {bookings.map((b) => (
             <option key={b.id} value={b.id}>
-              {(b.contact_name ?? "Guest")} · {b.check_in} → {b.check_out} ·{" "}
+              {(b.contact_name ?? "Guest")} Â· {b.check_in} → {b.check_out} Â·{" "}
               {nightsBetween(b.check_in, b.check_out)} nights
             </option>
           ))}

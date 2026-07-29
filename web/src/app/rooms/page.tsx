@@ -1,7 +1,14 @@
 import { ConversionShell } from "@/components/site/ConversionShell";
 import { MediaGallery } from "@/components/media/MediaGallery";
+import { Button } from "@/components/ui/button";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { cloudinaryUrl } from "@/lib/cloudinary";
-import { loadCmsGallery, loadCmsPage } from "@/lib/cms";
+import { loadCmsGallery, loadCmsPage, pickHeroSrc } from "@/lib/cms";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -36,7 +43,7 @@ async function loadRooms() {
       inventory_kind: row.inventory_kind as string,
       blurb: (row.blurb as string | null) ?? null,
       image_src: imagePublicId
-        ? cloudinaryUrl(imagePublicId, { width: 720, crop: "fill" })
+        ? cloudinaryUrl(imagePublicId, { width: 1000, crop: "fill" })
         : null,
     };
   });
@@ -55,98 +62,100 @@ export default async function RoomsPage() {
 
   return (
     <ConversionShell
+      heroSrc={pickHeroSrc(gallery)}
       eyebrow={page?.eyebrow ?? "Rooms"}
       title={page?.title ?? "Rest in Olakha."}
       body={
         page?.body ??
-        "Quiet suites for guests traveling Bhutan. Book direct for the public rate, or ask your agent to reserve with guide and driver beds included."
+        "Quiet suites for guests traveling Bhutan. Book direct, or ask your agent to reserve with guide and driver beds."
       }
       aside={
-        <div className="space-y-4 text-sm text-muted">
-          <p className="text-xs tracking-[0.2em] text-gold uppercase">Rates</p>
-          <p className="leading-relaxed text-espresso/80">
-            Peak, lean, and off-season rates are confirmed by the desk. Friends,
-            family, and MoU agent tiers are assigned in-house — public web shows
-            the walk-in path.
+        <div className="space-y-4">
+          <p className="font-medium text-ink">Rates</p>
+          <p className="leading-relaxed">
+            Peak and lean rates are confirmed by the desk. Public web shows the
+            walk-in path.
           </p>
-          <a
-            href="/book"
-            className="inline-flex min-h-11 items-center rounded-sm bg-gold px-5 text-sm font-medium text-espresso"
-          >
-            Check availability
-          </a>
+          <Button asChild className="w-full">
+            <a href="/book">Check availability</a>
+          </Button>
         </div>
       }
     >
       <div className="space-y-12">
         <section>
-          <h2 className="text-sm font-medium tracking-[0.18em] text-gold uppercase">
-            Guest rooms
-          </h2>
+          <h2 className="text-sm font-medium text-ink">Guest rooms</h2>
           {guestRooms.length === 0 ? (
-            <p className="mt-4 text-sm text-muted">Room types loading — call the desk.</p>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Room types loading — call the desk.
+            </p>
           ) : (
-            <ul className="mt-5 space-y-5">
+            <ul className="mt-5 space-y-8">
               {guestRooms.map((room) => (
-                <li
-                  key={room.code}
-                  className="overflow-hidden border border-espresso/10 bg-white"
-                >
+                <li key={room.code}>
                   {room.image_src ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={room.image_src}
                       alt={room.name}
-                      className="aspect-[16/9] w-full object-cover"
+                      className="aspect-[16/10] w-full object-cover"
                       loading="lazy"
-                      width={720}
-                      height={405}
+                      width={1000}
+                      height={625}
                     />
                   ) : null}
-                  <div className="px-5 py-4">
-                    <p className="text-base text-espresso">{room.name}</p>
-                    <p className="mt-1 text-sm text-muted">
-                      {room.blurb ??
-                        `Code ${room.code} · sellable guest inventory`}
-                    </p>
-                  </div>
+                  <p className="mt-3 font-display text-xl text-ink">
+                    {room.name}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {room.blurb ?? `Code ${room.code}`}
+                  </p>
+                  <Accordion type="single" collapsible className="mt-2">
+                    <AccordionItem value="details" className="border-0">
+                      <AccordionTrigger className="py-2 text-sm text-muted-foreground hover:no-underline">
+                        Details
+                      </AccordionTrigger>
+                      <AccordionContent className="text-sm text-muted-foreground">
+                        Rate confirmed at booking. Guide and driver beds
+                        arranged at check-in for agent groups.
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
                 </li>
               ))}
             </ul>
           )}
         </section>
 
-        <section>
-          <h2 className="text-sm font-medium tracking-[0.18em] text-gold uppercase">
-            Guide & driver beds
-          </h2>
-          <p className="mt-2 text-sm text-muted leading-relaxed">
-            Complimentary beds for licensed guides and drivers — first-class
-            inventory so ADR stays clean. Arranged at check-in for agent groups.
-          </p>
-          {compBeds.length > 0 ? (
-            <ul className="mt-4 divide-y divide-espresso/10 border-y border-espresso/10">
+        {compBeds.length > 0 ? (
+          <section>
+            <h2 className="text-sm font-medium text-ink">
+              Guide &amp; driver beds
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Complimentary for licensed guides and drivers on agent groups.
+            </p>
+            <ul className="mt-4 space-y-3">
               {compBeds.map((room) => (
-                <li key={room.code} className="py-4">
-                  <p className="text-base text-espresso">{room.name}</p>
-                  <p className="mt-1 text-sm text-muted">
+                <li key={room.code}>
+                  <p className="text-[15px] text-ink">{room.name}</p>
+                  <p className="text-sm text-muted-foreground">
                     {room.blurb ??
-                      `${room.inventory_kind === "guide_comp" ? "Guide" : "Driver"} · rate 0 (comp)`}
+                      (room.inventory_kind === "guide_comp"
+                        ? "Guide · complementary"
+                        : "Driver · complementary")}
                   </p>
                 </li>
               ))}
             </ul>
-          ) : null}
-        </section>
+          </section>
+        ) : null}
 
         <MediaGallery items={gallery} label="Rooms" />
 
-        <a
-          href="/book"
-          className="inline-flex min-h-11 items-center rounded-sm bg-espresso px-5 text-sm font-medium text-ivory"
-        >
-          Request a stay
-        </a>
+        <Button asChild size="lg">
+          <a href="/book">Request a stay</a>
+        </Button>
       </div>
     </ConversionShell>
   );

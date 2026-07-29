@@ -62,7 +62,7 @@ export default async function ErpRoomsPage() {
           <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
             Housekeeping board
           </h2>
-          <p className="mt-2 text-sm text-muted">
+          <p className="mt-2 text-sm text-muted-foreground">
             Physical units from room inventory — guest vs guide/driver stay separate for ADR.
           </p>
           <div className="mt-4 flex flex-wrap gap-3 text-xs text-espresso">
@@ -97,9 +97,9 @@ export default async function ErpRoomsPage() {
                     {u.hk_status as string}
                   </span>
                 </div>
-                <p className="mt-1 text-xs text-muted">
+                <p className="mt-1 text-xs text-muted-foreground">
                   {rt?.name ?? rt?.code ?? "Room"}
-                  {isComp ? " · comp" : ""}
+                  {isComp ? " Â· comp" : ""}
                 </p>
                 <RoomHkButtons
                   unitId={u.id as string}
@@ -111,7 +111,7 @@ export default async function ErpRoomsPage() {
         </section>
 
         {(units ?? []).length === 0 ? (
-          <p className="text-sm text-muted">No room units seeded yet.</p>
+          <p className="text-sm text-muted-foreground">No room units seeded yet.</p>
         ) : null}
       </main>
     </div>

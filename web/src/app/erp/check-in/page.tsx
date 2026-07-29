@@ -83,7 +83,7 @@ export default async function CheckInPage({ searchParams }: Props) {
     driverOptions = (driverRows ?? []).map((d) => ({
       id: d.id as string,
       label: d.full_name ?? d.phone ?? "Unknown driver",
-      sublabel: [d.phone, d.vehicle_no].filter(Boolean).join(" · ") || undefined,
+      sublabel: [d.phone, d.vehicle_no].filter(Boolean).join(" Â· ") || undefined,
       fill: {
         driver_name: (d.full_name as string | null) ?? "",
         driver_phone: (d.phone as string | null) ?? "",
@@ -129,7 +129,7 @@ export default async function CheckInPage({ searchParams }: Props) {
             </h2>
             <ul className="divide-y divide-espresso/10">
               {arrivals.length === 0 ? (
-                <li className="px-4 py-4 text-sm text-muted">No matches.</li>
+                <li className="px-4 py-4 text-sm text-muted-foreground">No matches.</li>
               ) : (
                 arrivals.map((row) => (
                   <li key={row.id as string}>
@@ -138,11 +138,11 @@ export default async function CheckInPage({ searchParams }: Props) {
                       className="block px-4 py-3 text-sm hover:bg-espresso/[0.02]"
                     >
                       <p className="font-medium text-espresso">
-                        {(row.contact_name as string) ?? "Guest"} ·{" "}
+                        {(row.contact_name as string) ?? "Guest"} Â·{" "}
                         {(row.contact_phone as string) ?? "—"}
                       </p>
-                      <p className="text-muted">
-                        {row.check_in as string} → {row.check_out as string} ·{" "}
+                      <p className="text-muted-foreground">
+                        {row.check_in as string} → {row.check_out as string} Â·{" "}
                         <span className="uppercase tracking-wide">
                           {row.status as string}
                         </span>
@@ -157,7 +157,7 @@ export default async function CheckInPage({ searchParams }: Props) {
 
         <div className="space-y-6">
           {!selected ? (
-            <p className="text-sm text-muted">
+            <p className="text-sm text-muted-foreground">
               Select a booking to check in or check out.
             </p>
           ) : selected.status === "checked_in" ? (
@@ -167,8 +167,8 @@ export default async function CheckInPage({ searchParams }: Props) {
                 <p className="mt-2 font-medium text-espresso">
                   {selected.contact_name ?? "Guest"}
                 </p>
-                <p className="text-muted">
-                  Guide {selected.guide_number ?? "—"} · {selected.payment_mode ?? "—"}
+                <p className="text-muted-foreground">
+                  Guide {selected.guide_number ?? "—"} Â· {selected.payment_mode ?? "—"}
                 </p>
                 {selected.open_folio_id ? (
                   <a
@@ -188,7 +188,7 @@ export default async function CheckInPage({ searchParams }: Props) {
               drivers={driverOptions}
             />
           ) : (
-            <p className="text-sm text-muted">
+            <p className="text-sm text-muted-foreground">
               Booking status is {selected.status}. No check-in action.
             </p>
           )}

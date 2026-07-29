@@ -1,17 +1,19 @@
 "use client";
 
 import { createEnquiry, type EnquiryState } from "@/app/actions/enquiries";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useActionState, useState } from "react";
 
 const initial: EnquiryState = { ok: false };
 
-function fieldClassName() {
-  return "mt-1.5 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2.5 text-sm text-espresso outline-none focus:border-gold";
-}
+const selectClass =
+  "flex h-10 w-full rounded-md border border-border bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/25";
 
 function CopyReference({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
-
   async function onCopy() {
     try {
       await navigator.clipboard.writeText(value);
@@ -21,214 +23,127 @@ function CopyReference({ value }: { value: string }) {
       setCopied(false);
     }
   }
-
   return (
-    <button
-      type="button"
-      onClick={onCopy}
-      className="inline-flex min-h-11 items-center rounded-sm border border-espresso/25 px-4 text-sm font-medium text-espresso transition-colors hover:border-gold"
-      aria-label={copied ? "Reference copied" : "Copy reference"}
-    >
+    <Button type="button" variant="outline" size="sm" onClick={onCopy}>
       {copied ? "Copied" : "Copy"}
-    </button>
+    </Button>
   );
 }
 
 export function ContactForm() {
   const [state, action, pending] = useActionState(createEnquiry, initial);
-  const [topic, setTopic] = useState<string>("general");
+  const [topic, setTopic] = useState("general");
 
   if (state.ok && state.enquiryId) {
     return (
-      <div
-        className="border border-espresso/10 bg-white px-6 py-8 sm:px-8"
-        role="status"
-        aria-live="polite"
-      >
-        <p className="text-xs tracking-[0.25em] text-gold uppercase">Message sent</p>
-        <h2 className="mt-3 text-2xl text-espresso">The desk has your enquiry.</h2>
-        <p className="mt-2 text-sm text-muted leading-relaxed">
-          We reply by phone, WhatsApp, or email — usually within desk hours. Keep
-          this reference handy when you follow up.
+      <div role="status" aria-live="polite" className="space-y-4">
+        <h2 className="font-display text-2xl text-ink">Message sent</h2>
+        <p className="text-sm text-muted-foreground">
+          We reply during desk hours. Reference:{" "}
+          <span className="font-mono text-ink">{state.enquiryId}</span>{" "}
+          <CopyReference value={state.enquiryId} />
         </p>
-
-        <ol className="mt-6 space-y-3 text-sm text-muted">
-          <li className="flex gap-3">
-            <span
-              aria-hidden="true"
-              className="mt-0.5 inline-flex h-6 w-6 flex-none items-center justify-center rounded-full border border-espresso/20 text-xs text-espresso"
-            >
-              1
-            </span>
-            <span>A front-desk agent reviews your message and topic.</span>
-          </li>
-          <li className="flex gap-3">
-            <span
-              aria-hidden="true"
-              className="mt-0.5 inline-flex h-6 w-6 flex-none items-center justify-center rounded-full border border-espresso/20 text-xs text-espresso"
-            >
-              2
-            </span>
-            <span>
-              We reach back on the phone or email you gave — pick up if a Bhutan
-              number rings.
-            </span>
-          </li>
-          <li className="flex gap-3">
-            <span
-              aria-hidden="true"
-              className="mt-0.5 inline-flex h-6 w-6 flex-none items-center justify-center rounded-full border border-espresso/20 text-xs text-espresso"
-            >
-              3
-            </span>
-            <span>Quote this reference if you call or write again about the same matter.</span>
-          </li>
-        </ol>
-
-        <div className="mt-6 space-y-1">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted">Reference</p>
-          <div className="flex flex-wrap items-center gap-3">
-            <p className="font-mono text-sm text-espresso break-all">{state.enquiryId}</p>
-            <CopyReference value={state.enquiryId} />
-          </div>
-        </div>
-
-        <div className="mt-8 flex flex-wrap gap-3">
-          <a
-            href="/book"
-            className="inline-flex min-h-11 items-center rounded-sm bg-espresso px-5 text-sm font-medium text-ivory"
-          >
-            Book a stay
-          </a>
-          <a
-            href="/order"
-            className="inline-flex min-h-11 items-center rounded-sm border border-espresso/25 px-5 text-sm font-medium text-espresso"
-          >
-            Order food
-          </a>
+        <div className="flex gap-3">
+          <Button asChild>
+            <a href="/book">Book a stay</a>
+          </Button>
+          <Button asChild variant="outline">
+            <a href="/order">Order food</a>
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <form action={action} className="space-y-6" noValidate>
+    <form action={action} className="max-w-lg space-y-5" noValidate>
       {state.error ? (
-        <p
-          className="border border-maroon/30 bg-maroon/5 px-4 py-3 text-sm text-maroon"
-          role="alert"
-        >
+        <p className="text-sm text-maroon" role="alert">
           {state.error}
         </p>
       ) : null}
 
-      <label className="block text-sm text-muted">
-        Topic
+      <div className="grid gap-2">
+        <Label htmlFor="topic">Topic</Label>
         <select
+          id="topic"
           name="topic"
           required
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
-          className={fieldClassName()}
+          className={selectClass}
         >
           <option value="general">General</option>
           <option value="rooms">Rooms / stay</option>
           <option value="dining">Cafe / dining</option>
           <option value="spa">Spa &amp; steam</option>
           <option value="meeting">Meeting hall</option>
-          <option value="agents">Agent / trade partnership</option>
+          <option value="agents">Agent / trade</option>
           <option value="other">Other</option>
         </select>
-      </label>
+      </div>
 
       {topic === "agents" ? (
-        <p className="border border-gold/40 bg-gold/5 px-4 py-3 text-sm text-espresso">
-          For license review, rate tiers, and credit terms, apply directly at{" "}
-          <a
-            href="/agents"
-            className="font-medium text-gold underline-offset-4 hover:underline"
-          >
+        <p className="text-sm text-muted-foreground">
+          For partnership rates, apply at{" "}
+          <a href="/agents" className="underline underline-offset-4">
             /agents
-          </a>{" "}
-          — it is faster than a general message. Use this form only if your
-          question is not covered there.
+          </a>
+          .
         </p>
       ) : null}
 
-      <div className="space-y-4">
-        <label className="block text-sm text-muted">
-          Full name
-          <input
-            type="text"
-            name="contact_name"
-            required
-            maxLength={120}
-            autoComplete="name"
-            className={fieldClassName()}
-          />
-        </label>
+      <div className="grid gap-2">
+        <Label htmlFor="contact-name">Full name</Label>
+        <Input
+          id="contact-name"
+          name="contact_name"
+          required
+          maxLength={120}
+          autoComplete="name"
+        />
+      </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm text-muted">
-            Phone
-            <span className="block text-espresso/40">
-              We call or WhatsApp this number.
-            </span>
-            <input
-              type="tel"
-              name="contact_phone"
-              required
-              autoComplete="tel"
-              placeholder="+975 …"
-              maxLength={24}
-              className={fieldClassName()}
-            />
-          </label>
-          <label className="block text-sm text-muted">
-            Email <span className="text-espresso/40">(optional)</span>
-            <input
-              type="email"
-              name="contact_email"
-              autoComplete="email"
-              maxLength={160}
-              className={fieldClassName()}
-            />
-          </label>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-2">
+          <Label htmlFor="contact-phone">Phone</Label>
+          <Input
+            id="contact-phone"
+            type="tel"
+            name="contact_phone"
+            required
+            autoComplete="tel"
+            placeholder="+975 …"
+            maxLength={24}
+          />
         </div>
-
-        <label className="block text-sm text-muted">
-          Message
-          <textarea
-            name="message"
-            required
-            rows={5}
-            maxLength={2000}
-            minLength={10}
-            placeholder="Tell us dates, number of guests, or what you need help with…"
-            className={fieldClassName()}
+        <div className="grid gap-2">
+          <Label htmlFor="contact-email">Email (optional)</Label>
+          <Input
+            id="contact-email"
+            type="email"
+            name="contact_email"
+            autoComplete="email"
+            maxLength={160}
           />
-        </label>
+        </div>
       </div>
 
-      <div className="space-y-3">
-        <button
-          type="submit"
-          disabled={pending}
-          className="inline-flex min-h-11 w-full items-center justify-center rounded-sm bg-gold px-6 text-sm font-medium text-espresso disabled:opacity-60 sm:w-auto"
-        >
-          {pending ? "Sending…" : "Send message"}
-        </button>
-        <p className="text-xs text-muted leading-relaxed">
-          The desk replies during opening hours. For a booking today, use{" "}
-          <a
-            href="/book"
-            className="text-gold underline-offset-4 hover:underline"
-          >
-            /book
-          </a>{" "}
-          instead.
-        </p>
+      <div className="grid gap-2">
+        <Label htmlFor="message">Message</Label>
+        <Textarea
+          id="message"
+          name="message"
+          required
+          rows={5}
+          maxLength={2000}
+          minLength={10}
+        />
       </div>
+
+      <Button type="submit" disabled={pending}>
+        {pending ? "Sending…" : "Send message"}
+      </Button>
     </form>
   );
 }

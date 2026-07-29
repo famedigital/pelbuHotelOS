@@ -24,13 +24,13 @@ function QtyRow({
     <tr className="border-t border-espresso/10">
       <th scope="row" className="px-3 py-2.5 text-left align-middle text-espresso">
         <span className="block text-sm font-medium">{rt.name}</span>
-        <span className="block font-mono text-[11px] uppercase tracking-[0.14em] text-muted">
+        <span className="block font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
           {rt.code}
         </span>
       </th>
-      <td className="px-3 py-2.5 text-right align-middle font-mono text-xs text-muted">
+      <td className="px-3 py-2.5 text-right align-middle font-mono text-xs text-muted-foreground">
         {rt.unit_count}
-        {remaining === 0 ? <span className="ml-1 text-maroon">·full</span> : null}
+        {remaining === 0 ? <span className="ml-1 text-maroon">Â·full</span> : null}
       </td>
       <td className="px-3 py-2.5 align-middle">
         <div className="flex items-center justify-end gap-1.5">
@@ -102,7 +102,7 @@ function GroupHeader({ label }: { label: string }) {
       <th
         colSpan={3}
         scope="colgroup"
-        className="px-3 py-1.5 text-left text-[11px] font-semibold uppercase tracking-[0.22em] text-muted"
+        className="px-3 py-1.5 text-left text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground"
       >
         {label}
       </th>
@@ -130,7 +130,7 @@ export function FastBookGrid({ roomTypes, qtyValues, onQtyChange }: Props) {
         <legend className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
           Rooms &amp; beds
         </legend>
-        <p className="text-xs text-muted">Enter quantity per row</p>
+        <p className="text-xs text-muted-foreground">Enter quantity per row</p>
       </div>
 
       <div className="overflow-hidden rounded-sm border border-espresso/10 bg-white">
@@ -138,7 +138,7 @@ export function FastBookGrid({ roomTypes, qtyValues, onQtyChange }: Props) {
           <caption className="sr-only">
             Quantity per room type. Available units shown as a maximum hint.
           </caption>
-          <thead className="text-[11px] uppercase tracking-[0.18em] text-muted">
+          <thead className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
             <tr className="border-b border-espresso/10">
               <th scope="col" className="px-3 py-2 text-left font-semibold">
                 Type
