@@ -32,7 +32,7 @@ import {
 } from "@/lib/pos-tables";
 import { TriangleAlertIcon } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
-import { POS_OUTLETS, type OutletCode } from "./types";
+import type { OutletCode } from "./types";
 
 const initial: DiningTableState = { ok: false };
 
@@ -48,11 +48,13 @@ export function DiningTableForm({
   target,
   onOpenChange,
   defaultOutlet,
+  outlets,
   existingNames,
 }: {
   target: TableFormTarget;
   onOpenChange: (open: boolean) => void;
   defaultOutlet: OutletCode;
+  outlets: { value: string; label: string }[];
   existingNames: string[];
 }) {
   const open = target !== null;
@@ -206,7 +208,7 @@ export function DiningTableForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {POS_OUTLETS.map((o) => (
+                  {outlets.map((o) => (
                     <SelectItem key={o.value} value={o.value}>
                       {o.label}
                     </SelectItem>

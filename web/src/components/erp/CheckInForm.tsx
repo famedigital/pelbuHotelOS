@@ -19,6 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
   idLabel,
@@ -31,9 +39,19 @@ import type {
   CheckInAssignmentSlot,
   CheckInRoomUnit,
 } from "@/lib/room-assignments";
-import { TriangleAlertIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Trash2Icon, TriangleAlertIcon } from "lucide-react";
 import Link from "next/link";
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useMemo, useState, type KeyboardEvent } from "react";
+
+/** Dense inputs inside the guest docs table — keep Tab order left→right. */
+const CELL_INPUT =
+  "h-9 min-w-[7rem] rounded-md border-border/70 bg-background px-2 text-sm shadow-none";
+
+/** Enter in a guest cell must not submit check-in mid-typing. */
+function blockEnterSubmit(e: KeyboardEvent<HTMLElement>) {
+  if (e.key === "Enter") e.preventDefault();
+}
 
 function nightsBetween(checkIn: string, checkOut: string): number {
   if (!checkIn || !checkOut) return 0;
@@ -394,6 +412,212 @@ export function CheckInForm({
         </Label>
       </fieldset>
 
+      <fieldset className="space-y-3">
+        <legend className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+          Guest documents ({guests.length})
+        </legend>
+        <div className="overflow-x-auto rounded-md border border-border/70">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-10 px-2 text-center">#</TableHead>
+                <TableHead className="sticky left-0 z-10 min-w-[10rem] bg-card px-2">
+                  Full name
+                </TableHead>
+                <TableHead className="min-w-[7rem] px-2">Nationality</TableHead>
+                <TableHead className="min-w-[8rem] px-2">
+                  {idLabel(origin)}
+                </TableHead>
+                <TableHead className="min-w-[7rem] px-2">
+                  SDF ref
+                  {sdfRequired(origin) ? (
+                    <span className="text-destructive"> *</span>
+                  ) : null}
+                </TableHead>
+                <TableHead className="min-w-[9rem] px-2">SDF doc URL</TableHead>
+                <TableHead className="min-w-[8rem] px-2">Sleeps in</TableHead>
+                <TableHead className="w-10 px-1">
+                  <span className="sr-only">Remove</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {guests.map((guest, index) => (
+                <TableRow key={`guest-${index}`}>
+                  <TableCell className="px-2 text-center text-xs text-muted-foreground">
+                    {index + 1}
+                  </TableCell>
+                  <TableCell className="sticky left-0 z-10 bg-card px-1.5">
+                    <Label className="sr-only" htmlFor={`guest_name_${index}`}>
+                      Full name
+                    </Label>
+                    <Input
+                      id={`guest_name_${index}`}
+                      name="guest_name"
+                      required
+                      value={guest.fullName}
+                      onKeyDown={blockEnterSubmit}
+                      onChange={(e) => {
+                        const next = [...guests];
+                        next[index] = { ...guest, fullName: e.target.value };
+                        setGuests(next);
+                      }}
+                      className={cn(CELL_INPUT, "min-w-[9rem]")}
+                    />
+                  </TableCell>
+                  <TableCell className="px-1.5">
+                    <Label className="sr-only" htmlFor={`guest_nat_${index}`}>
+                      Nationality
+                    </Label>
+                    <Input
+                      id={`guest_nat_${index}`}
+                      name="guest_nationality"
+                      value={guest.nationality}
+                      onKeyDown={blockEnterSubmit}
+                      onChange={(e) => {
+                        const next = [...guests];
+                        next[index] = { ...guest, nationality: e.target.value };
+                        setGuests(next);
+                      }}
+                      className={CELL_INPUT}
+                    />
+                  </TableCell>
+                  <TableCell className="px-1.5">
+                    <Label className="sr-only" htmlFor={`guest_id_${index}`}>
+                      {idLabel(origin)}
+                    </Label>
+                    <Input
+                      id={`guest_id_${index}`}
+                      name="guest_passport_or_cid"
+                      required
+                      value={guest.passportOrCid}
+                      onKeyDown={blockEnterSubmit}
+                      onChange={(e) => {
+                        const next = [...guests];
+                        next[index] = {
+                          ...guest,
+                          passportOrCid: e.target.value,
+                        };
+                        setGuests(next);
+                      }}
+                      className={CELL_INPUT}
+                    />
+                  </TableCell>
+                  <TableCell className="px-1.5">
+                    <Label className="sr-only" htmlFor={`guest_sdf_${index}`}>
+                      SDF reference
+                    </Label>
+                    <Input
+                      id={`guest_sdf_${index}`}
+                      name="guest_sdf_ref"
+                      required={sdfRequired(origin)}
+                      value={guest.sdfRef}
+                      onKeyDown={blockEnterSubmit}
+                      onChange={(e) => {
+                        const next = [...guests];
+                        next[index] = { ...guest, sdfRef: e.target.value };
+                        setGuests(next);
+                      }}
+                      className={CELL_INPUT}
+                    />
+                  </TableCell>
+                  <TableCell className="px-1.5">
+                    <Label className="sr-only" htmlFor={`guest_doc_${index}`}>
+                      SDF doc URL
+                    </Label>
+                    <Input
+                      id={`guest_doc_${index}`}
+                      name="guest_sdf_doc_url"
+                      type="url"
+                      value={guest.sdfDocUrl}
+                      onKeyDown={blockEnterSubmit}
+                      onChange={(e) => {
+                        const next = [...guests];
+                        next[index] = { ...guest, sdfDocUrl: e.target.value };
+                        setGuests(next);
+                      }}
+                      placeholder="https://…"
+                      className={cn(CELL_INPUT, "min-w-[10rem]")}
+                    />
+                  </TableCell>
+                  <TableCell className="px-1.5">
+                    <Label className="sr-only" htmlFor={`guest_room_${index}`}>
+                      Sleeps in room
+                    </Label>
+                    <select
+                      id={`guest_room_${index}`}
+                      name="guest_room_unit_id"
+                      value={guest.roomUnitId}
+                      onKeyDown={blockEnterSubmit}
+                      onChange={(e) => {
+                        const next = [...guests];
+                        next[index] = { ...guest, roomUnitId: e.target.value };
+                        setGuests(next);
+                      }}
+                      className={cn(
+                        CELL_INPUT,
+                        "flex w-full min-w-[7.5rem] border border-input",
+                      )}
+                    >
+                      <option value="">Auto</option>
+                      {selectedUnitIds.map((id) => {
+                        const unit = units.find((u) => u.id === id);
+                        if (!unit || unit.inventoryKind !== "sellable_guest") {
+                          return null;
+                        }
+                        return (
+                          <option key={id} value={id}>
+                            {unit.label}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </TableCell>
+                  <TableCell className="px-1">
+                    {guests.length > 1 ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 text-muted-foreground hover:text-destructive"
+                        aria-label={`Remove guest ${index + 1}`}
+                        onClick={() =>
+                          setGuests((prev) =>
+                            prev.filter((_, i) => i !== index),
+                          )
+                        }
+                      >
+                        <Trash2Icon className="size-4" />
+                      </Button>
+                    ) : null}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            setGuests((prev) => [
+              ...prev,
+              {
+                fullName: "",
+                nationality: "",
+                passportOrCid: "",
+                sdfRef: "",
+                sdfDocUrl: "",
+                roomUnitId: "",
+              },
+            ])
+          }
+        >
+          Add guest
+        </Button>
+      </fieldset>
+
       <fieldset className="space-y-4">
         <legend className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
           Guide &amp; settlement
@@ -449,137 +673,6 @@ export function CheckInForm({
             </p>
           ) : null}
         </div>
-      </fieldset>
-
-      <fieldset className="space-y-4">
-        <legend className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-          Guest documents ({guests.length})
-        </legend>
-        {guests.map((guest, index) => (
-          <div
-            key={`guest-${index}`}
-            className="space-y-3 rounded-md border border-border/70 p-4"
-          >
-            <p className="text-sm font-medium">Guest {index + 1}</p>
-            <div className="space-y-1.5">
-              <Label htmlFor={`guest_name_${index}`}>Full name</Label>
-              <Input
-                id={`guest_name_${index}`}
-                name="guest_name"
-                required
-                value={guest.fullName}
-                onChange={(e) => {
-                  const next = [...guests];
-                  next[index] = { ...guest, fullName: e.target.value };
-                  setGuests(next);
-                }}
-              />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor={`guest_nat_${index}`}>Nationality</Label>
-                <Input
-                  id={`guest_nat_${index}`}
-                  name="guest_nationality"
-                  value={guest.nationality}
-                  onChange={(e) => {
-                    const next = [...guests];
-                    next[index] = { ...guest, nationality: e.target.value };
-                    setGuests(next);
-                  }}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor={`guest_id_${index}`}>{idLabel(origin)}</Label>
-                <Input
-                  id={`guest_id_${index}`}
-                  name="guest_passport_or_cid"
-                  required
-                  value={guest.passportOrCid}
-                  onChange={(e) => {
-                    const next = [...guests];
-                    next[index] = { ...guest, passportOrCid: e.target.value };
-                    setGuests(next);
-                  }}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor={`guest_sdf_${index}`}>SDF reference</Label>
-                <Input
-                  id={`guest_sdf_${index}`}
-                  name="guest_sdf_ref"
-                  required={sdfRequired(origin)}
-                  value={guest.sdfRef}
-                  onChange={(e) => {
-                    const next = [...guests];
-                    next[index] = { ...guest, sdfRef: e.target.value };
-                    setGuests(next);
-                  }}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor={`guest_doc_${index}`}>SDF doc URL</Label>
-                <Input
-                  id={`guest_doc_${index}`}
-                  name="guest_sdf_doc_url"
-                  type="url"
-                  value={guest.sdfDocUrl}
-                  onChange={(e) => {
-                    const next = [...guests];
-                    next[index] = { ...guest, sdfDocUrl: e.target.value };
-                    setGuests(next);
-                  }}
-                  placeholder="https://…"
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor={`guest_room_${index}`}>Sleeps in room</Label>
-              <select
-                id={`guest_room_${index}`}
-                name="guest_room_unit_id"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={guest.roomUnitId}
-                onChange={(e) => {
-                  const next = [...guests];
-                  next[index] = { ...guest, roomUnitId: e.target.value };
-                  setGuests(next);
-                }}
-              >
-                <option value="">Auto / first guest room</option>
-                {selectedUnitIds.map((id) => {
-                  const unit = units.find((u) => u.id === id);
-                  if (!unit || unit.inventoryKind !== "sellable_guest") return null;
-                  return (
-                    <option key={id} value={id}>
-                      {unit.label}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-          </div>
-        ))}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            setGuests((prev) => [
-              ...prev,
-              {
-                fullName: "",
-                nationality: "",
-                passportOrCid: "",
-                sdfRef: "",
-                sdfDocUrl: "",
-                roomUnitId: "",
-              },
-            ])
-          }
-        >
-          Add guest
-        </Button>
       </fieldset>
 
       <fieldset className="space-y-4">

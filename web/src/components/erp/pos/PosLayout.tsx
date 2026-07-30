@@ -13,7 +13,9 @@ import { ModifierDialog } from "@/components/erp/pos/ModifierDialog";
 import { OpenTicketsDrawer } from "@/components/erp/pos/OpenTicketsDrawer";
 import { PosFloorPlan } from "@/components/erp/pos/PosFloorPlan";
 import { PosFullscreenToggle } from "@/components/erp/pos/PosFullscreenToggle";
+import { PosClosingPanel } from "@/components/erp/pos/PosClosingPanel";
 import { PosSearch } from "@/components/erp/pos/PosSearch";
+import { PosStockPanel } from "@/components/erp/pos/PosStockPanel";
 import { SettlePanel } from "@/components/erp/pos/SettlePanel";
 import { TicketHeader } from "@/components/erp/pos/TicketHeader";
 import { VoidReasonDialog } from "@/components/erp/pos/VoidReasonDialog";
@@ -31,13 +33,14 @@ import {
 import { calculateOrderTotals, formatBtn } from "@/lib/pricing";
 import {
   ConciergeBellIcon,
+  BoxesIcon,
   KeyboardIcon,
   ListOrderedIcon,
+  LockKeyholeIcon,
   TriangleAlertIcon,
 } from "lucide-react";
 import { useActionState, useCallback, useMemo, useState } from "react";
 import {
-  POS_OUTLETS,
   type CartLine,
   type PosLayoutProps,
   type PosSection,
@@ -71,11 +74,13 @@ function lineKey(args: {
 
 export function PosLayout({
   items,
+  outlets,
   modifierGroups,
   tables,
   staff,
   openTickets,
   bookings,
+  shift,
   gstRate,
   serviceChargeRate,
   serviceChargeDefaultOn,
@@ -83,6 +88,11 @@ export function PosLayout({
   guestServiceSlot,
 }: PosLayoutProps) {
   const [menuOutlet, setMenuOutlet] = useState<string>("all");
+  const posOutlets = useMemo(
+    () => outlets.map((o) => ({ value: o.code, label: o.name })),
+    [outlets],
+  );
+  const defaultOutletCode = posOutlets[0]?.value ?? "cafe";
   const [section, setSection] = useState<PosSection>("menu");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [settleMode, setSettleMode] = useState<"cash" | "room_charge">("cash");
@@ -102,6 +112,8 @@ export function PosLayout({
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [bookingId, setBookingId] = useState("");
+  const [roomUnitId, setRoomUnitId] = useState("");
+  const [bookingGuestId, setBookingGuestId] = useState("");
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string>("all");
@@ -143,8 +155,20 @@ export function PosLayout({
       },
       {
         key: "3",
-        label: "Go to Guest service tab",
+        label: "Go to Stock tab",
         display: "3",
+        handler: () => setSection("stock"),
+      },
+      {
+        key: "4",
+        label: "Go to Closing tab",
+        display: "4",
+        handler: () => setSection("closing"),
+      },
+      {
+        key: "5",
+        label: "Go to Guest service tab",
+        display: "5",
         handler: () => setSection("service"),
       },
       {
@@ -318,6 +342,37 @@ export function PosLayout({
     setSection("menu");
   }
 
+  function selectRoom(nextRoomUnitId: string) {
+    setRoomUnitId(nextRoomUnitId);
+    if (!nextRoomUnitId) {
+      setBookingId("");
+      setBookingGuestId("");
+      return;
+    }
+    const booking = bookings.find((candidate) =>
+      candidate.rooms.some((room) => room.id === nextRoomUnitId),
+    );
+    if (!booking) return;
+    setBookingId(booking.id);
+    setBookingGuestId("");
+    setCustomerName(booking.contact_name ?? "In-house guest");
+    setPhone(booking.contact_phone ?? "");
+    // Room selection identifies the guest but never changes who pays.
+    // Cash/guest payment remains selected until the cashier explicitly taps Room.
+  }
+
+  function selectBookingGuest(nextGuestId: string) {
+    setBookingGuestId(nextGuestId);
+    const booking = bookings.find((candidate) => candidate.id === bookingId);
+    if (!booking) return;
+    const guest = nextGuestId
+      ? booking.guests.find((candidate) => candidate.id === nextGuestId)
+      : booking.guests[0];
+    if (!guest) return;
+    setCustomerName(guest.full_name);
+    setPhone(guest.phone ?? booking.contact_phone ?? "");
+  }
+
   const cartPayload = useMemo(
     () =>
       cart.map((l) => ({
@@ -396,8 +451,10 @@ export function PosLayout({
         target={tableFormTarget}
         onOpenChange={(open) => !open && setTableFormTarget(null)}
         defaultOutlet={
-          (POS_OUTLETS.find((o) => o.value === menuOutlet)?.value ?? "cafe")
+          posOutlets.find((o) => o.value === menuOutlet)?.value ??
+          defaultOutletCode
         }
+        outlets={posOutlets}
         existingNames={tables.map((t) => t.name)}
       />
     </>
@@ -493,7 +550,7 @@ export function PosLayout({
         onValueChange={(v) => setSection(v as PosSection)}
         className="gap-4"
       >
-        <TabsList className="h-10 w-full justify-start sm:w-fit">
+        <TabsList className="h-auto min-h-10 w-full flex-wrap justify-start sm:w-fit">
           <TabsTrigger value="menu" className="px-4">
             Menu
           </TabsTrigger>
@@ -505,6 +562,17 @@ export function PosLayout({
               </span>
             ) : null}
           </TabsTrigger>
+          <TabsTrigger value="stock" className="px-4">
+            <BoxesIcon className="size-4" />
+            Stock
+          </TabsTrigger>
+          <TabsTrigger value="closing" className="px-4">
+            <LockKeyholeIcon className="size-4" />
+            Closing
+            {shift ? (
+              <span className="ml-1 size-2 rounded-full bg-emerald-500" />
+            ) : null}
+          </TabsTrigger>
           <TabsTrigger value="service" className="px-4">
             <ConciergeBellIcon className="size-4" />
             Guest service
@@ -513,7 +581,13 @@ export function PosLayout({
 
         {/* Menu + floor plan share the ticket form, so both panels stay mounted
             (forceMount + CSS hide) to preserve cart and field state on switch. */}
-        <div className={section === "service" ? "hidden" : "space-y-4"}>
+        <div
+          className={
+            section === "menu" || section === "floor"
+              ? "space-y-4"
+              : "hidden"
+          }
+        >
           <TicketHeader
             customerName={customerName}
             onCustomerNameChange={setCustomerName}
@@ -522,7 +596,10 @@ export function PosLayout({
             settleMode={settleMode}
             onSettleModeChange={setSettleMode}
             bookingId={bookingId}
-            onBookingIdChange={setBookingId}
+            roomUnitId={roomUnitId}
+            onRoomUnitIdChange={selectRoom}
+            bookingGuestId={bookingGuestId}
+            onBookingGuestIdChange={selectBookingGuest}
             bookings={bookings}
             notes={notes}
             onNotesChange={setNotes}
@@ -550,7 +627,13 @@ export function PosLayout({
             <input
               type="hidden"
               name="booking_id"
-              value={settleMode === "room_charge" ? bookingId : ""}
+              value={bookingId}
+            />
+            <input type="hidden" name="room_unit_id" value={roomUnitId} />
+            <input
+              type="hidden"
+              name="booking_guest_id"
+              value={bookingGuestId}
             />
             <input type="hidden" name="table_id" value={tableId} />
             <input type="hidden" name="covers" value={covers} />
@@ -578,7 +661,7 @@ export function PosLayout({
               </Alert>
             ) : null}
 
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_clamp(320px,30vw,440px)]">
               <div className="min-w-0">
                 <TabsContent
                   value="menu"
@@ -621,7 +704,7 @@ export function PosLayout({
                             onClick={() => setMenuOutletFilter("all")}
                             label="All"
                           />
-                          {POS_OUTLETS.map((o) => (
+                          {posOutlets.map((o) => (
                             <OutletChip
                               key={o.value}
                               active={menuOutlet === o.value}
@@ -653,7 +736,7 @@ export function PosLayout({
                           onClick={() => setMenuOutletFilter("all")}
                           label="All outlets"
                         />
-                        {POS_OUTLETS.map((o) => (
+                        {posOutlets.map((o) => (
                           <OutletChip
                             key={o.value}
                             active={menuOutlet === o.value}
@@ -694,7 +777,7 @@ export function PosLayout({
                 </TabsContent>
               </div>
 
-              <aside className="hidden lg:block">
+              <aside className="hidden lg:sticky lg:top-3 lg:block lg:self-start">
                 <CartPanel
                   cart={cart}
                   totals={totals}
@@ -704,6 +787,7 @@ export function PosLayout({
                   servicePercent={servicePercent}
                   serviceReason={serviceReason}
                   applyServiceCharge={applyServiceCharge}
+                  serviceChargeDefaultOn={serviceChargeDefaultOn}
                   onApplyServiceChargeChange={setApplyServiceCharge}
                   onServicePercentChange={setServicePercent}
                   onServiceReasonChange={setServiceReason}
@@ -745,7 +829,7 @@ export function PosLayout({
                   <SheetHeader className="sr-only">
                     <SheetTitle>Ticket</SheetTitle>
                   </SheetHeader>
-                  <div className="max-h-[85vh] overflow-y-auto p-4">
+                  <div className="max-h-[85dvh] overflow-hidden p-4">
                     <CartPanel
                       cart={cart}
                       totals={totals}
@@ -755,6 +839,7 @@ export function PosLayout({
                       servicePercent={servicePercent}
                       serviceReason={serviceReason}
                       applyServiceCharge={applyServiceCharge}
+                      serviceChargeDefaultOn={serviceChargeDefaultOn}
                       onApplyServiceChargeChange={setApplyServiceCharge}
                       onServicePercentChange={setServicePercent}
                       onServiceReasonChange={setServiceReason}
@@ -772,6 +857,12 @@ export function PosLayout({
           </form>
         </div>
 
+        <TabsContent value="stock">
+          <PosStockPanel items={items} />
+        </TabsContent>
+        <TabsContent value="closing">
+          <PosClosingPanel shift={shift} />
+        </TabsContent>
         <TabsContent value="service">{guestServiceSlot}</TabsContent>
       </Tabs>
 

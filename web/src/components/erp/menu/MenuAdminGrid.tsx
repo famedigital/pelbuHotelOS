@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import type { MenuItem } from "@/lib/menu";
+import type { PropertyOutlet } from "@/lib/outlets";
 import {
   ImageIcon,
   PencilIcon,
@@ -14,14 +15,7 @@ import {
 } from "lucide-react";
 import { startTransition, useMemo, useState } from "react";
 import { MenuItemForm, type MenuItemFormTarget } from "./MenuItemForm";
-
-const OUTLET_TABS = [
-  { value: "all", label: "All" },
-  { value: "cafe", label: "Cafe" },
-  { value: "pastry", label: "Pastry" },
-  { value: "restaurant", label: "Restaurant" },
-  { value: "bar", label: "Bar" },
-] as const;
+import { MenuOutletManager } from "./MenuOutletManager";
 
 const PREP_LABELS: Record<string, string> = {
   kitchen: "Kitchen",
@@ -35,10 +29,42 @@ function formatBtn(n: number): string {
   return `${n.toLocaleString("en-BT", { maximumFractionDigits: 2 })} Nu`;
 }
 
-export function MenuAdminGrid({ items }: { items: MenuItem[] }) {
+export function MenuAdminGrid({
+  items,
+  outlets,
+}: {
+  items: MenuItem[];
+  outlets: PropertyOutlet[];
+}) {
+  const activeOutlets = useMemo(
+    () => outlets.filter((o) => o.is_active),
+    [outlets],
+  );
+  const outletByCode = useMemo(() => {
+    const map = new Map<string, PropertyOutlet>();
+    for (const o of outlets) map.set(o.code, o);
+    return map;
+  }, [outlets]);
+
+  const defaultCreateOutlet = activeOutlets[0]?.code ?? "cafe";
   const [outlet, setOutlet] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [target, setTarget] = useState<MenuItemFormTarget>(null);
+
+  const tabs = useMemo(
+    () => [
+      { value: "all", label: "All" },
+      ...activeOutlets.map((o) => ({ value: o.code, label: o.name })),
+      // Include archived outlets that still have items so staff can find them.
+      ...outlets
+        .filter(
+          (o) =>
+            !o.is_active && items.some((item) => item.outlet === o.code),
+        )
+        .map((o) => ({ value: o.code, label: `${o.name} (archived)` })),
+    ],
+    [activeOutlets, outlets, items],
+  );
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -73,7 +99,7 @@ export function MenuAdminGrid({ items }: { items: MenuItem[] }) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-1.5">
-          {OUTLET_TABS.map((tab) => {
+          {tabs.map((tab) => {
             const count =
               tab.value === "all"
                 ? counts.total
@@ -98,7 +124,7 @@ export function MenuAdminGrid({ items }: { items: MenuItem[] }) {
           })}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -109,15 +135,20 @@ export function MenuAdminGrid({ items }: { items: MenuItem[] }) {
               className="h-9 w-56 pl-8"
             />
           </div>
+          <MenuOutletManager outlets={outlets} />
           <Button
             type="button"
             variant="citrus"
             size="sm"
             className="h-9"
+            disabled={activeOutlets.length === 0}
             onClick={() =>
               setTarget({
                 mode: "create",
-                defaultOutlet: outlet === "all" ? "cafe" : outlet,
+                defaultOutlet:
+                  outlet === "all" || !outletByCode.get(outlet)?.is_active
+                    ? defaultCreateOutlet
+                    : outlet,
               })
             }
           >
@@ -151,10 +182,11 @@ export function MenuAdminGrid({ items }: { items: MenuItem[] }) {
               type="button"
               variant="citrus"
               className="mt-6 h-11"
+              disabled={activeOutlets.length === 0}
               onClick={() =>
                 setTarget({
                   mode: "create",
-                  defaultOutlet: outlet === "all" ? "cafe" : outlet,
+                  defaultOutlet: defaultCreateOutlet,
                 })
               }
             >
@@ -177,87 +209,104 @@ export function MenuAdminGrid({ items }: { items: MenuItem[] }) {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {rows.map((item) => (
-                <tr key={item.id} className="align-middle">
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-secondary">
-                        {item.image_public_id ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={cloudinaryUrl(item.image_public_id, {
-                              width: 72,
-                              crop: "fill",
-                            }) ?? undefined}
-                            alt=""
-                            className="size-full object-cover"
-                          />
-                        ) : (
-                          <ImageIcon className="size-4 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <p className="truncate font-medium text-foreground">
-                            {item.name}
-                          </p>
-                          {item.is_popular ? (
-                            <Badge variant="gold" className="text-[9px]">
-                              Popular
-                            </Badge>
-                          ) : null}
+              {rows.map((item) => {
+                const outletMeta = outletByCode.get(item.outlet);
+                const archived = outletMeta ? !outletMeta.is_active : false;
+                return (
+                  <tr key={item.id} className="align-middle">
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-secondary">
+                          {item.image_public_id ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={
+                                cloudinaryUrl(item.image_public_id, {
+                                  width: 72,
+                                  crop: "fill",
+                                }) ?? undefined
+                              }
+                              alt=""
+                              className="size-full object-cover"
+                            />
+                          ) : (
+                            <ImageIcon className="size-4 text-muted-foreground" />
+                          )}
                         </div>
-                        <p className="truncate text-[11px] text-muted-foreground">
-                          {item.category}
-                          {item.gst_applicable ? " · +GST" : ""}
-                        </p>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="truncate font-medium text-foreground">
+                              {item.name}
+                            </p>
+                            {item.is_popular ? (
+                              <Badge variant="gold" className="text-[9px]">
+                                Popular
+                              </Badge>
+                            ) : null}
+                          </div>
+                          <p className="truncate text-[11px] text-muted-foreground">
+                            {item.category}
+                            {item.gst_applicable ? " · +GST" : ""}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-3 py-2 capitalize text-muted-foreground">
-                    {item.outlet}
-                  </td>
-                  <td className="px-3 py-2 text-muted-foreground">
-                    {PREP_LABELS[item.prep_station ?? "kitchen"] ?? "Kitchen"}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-foreground">
-                    {formatBtn(item.price_btn)}
-                  </td>
-                  <td className="px-3 py-2">
-                    <button
-                      type="button"
-                      onClick={() => toggle(item, !item.is_available)}
-                      aria-pressed={item.is_available}
-                      aria-label={`Toggle availability for ${item.name}`}
-                      className={`inline-flex h-6 items-center gap-1 rounded-full border px-2 text-[10px] font-semibold uppercase tracking-wide transition-colors ${
-                        item.is_available
-                          ? "border-accent/40 bg-accent/10 text-accent"
-                          : "border-border bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {item.is_available ? "Available" : "Hidden"}
-                    </button>
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-9"
-                      onClick={() => setTarget({ mode: "edit", item })}
-                    >
-                      <PencilIcon className="size-4" />
-                      <span className="sr-only">Edit {item.name}</span>
-                    </Button>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      <span className="inline-flex items-center gap-1.5">
+                        {outletMeta?.name ?? item.outlet}
+                        {archived ? (
+                          <Badge variant="secondary" className="text-[9px]">
+                            Archived
+                          </Badge>
+                        ) : null}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {PREP_LABELS[item.prep_station ?? "kitchen"] ?? "Kitchen"}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-foreground">
+                      {formatBtn(item.price_btn)}
+                    </td>
+                    <td className="px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => toggle(item, !item.is_available)}
+                        aria-pressed={item.is_available}
+                        aria-label={`Toggle availability for ${item.name}`}
+                        className={`inline-flex h-6 items-center gap-1 rounded-full border px-2 text-[10px] font-semibold uppercase tracking-wide transition-colors ${
+                          item.is_available
+                            ? "border-accent/40 bg-accent/10 text-accent"
+                            : "border-border bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {item.is_available ? "Available" : "Hidden"}
+                      </button>
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-9"
+                        onClick={() => setTarget({ mode: "edit", item })}
+                      >
+                        <PencilIcon className="size-4" />
+                        <span className="sr-only">Edit {item.name}</span>
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
 
-      <MenuItemForm target={target} onOpenChange={(o) => !o && setTarget(null)} />
+      <MenuItemForm
+        target={target}
+        outlets={outlets}
+        onOpenChange={(o) => !o && setTarget(null)}
+      />
     </div>
   );
 }

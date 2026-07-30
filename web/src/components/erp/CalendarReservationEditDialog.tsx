@@ -8,6 +8,7 @@ import {
 import type {
   CalendarAgent,
 } from "@/components/erp/CalendarReservationDialog";
+import { AgentPicker } from "@/components/erp/AgentPicker";
 import type { RackStay, RackUnit } from "@/components/erp/RoomRackGrid";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -216,21 +217,12 @@ export function CalendarReservationEditDialog({
                 </select>
               </Field>
               <Field label="Agent" id="edit_agent">
-                <select
-                  id="edit_agent"
+                <AgentPicker
+                  agents={agents}
                   value={draft.agentId}
-                  onChange={(event) =>
-                    updateDraft("agentId", event.target.value)
-                  }
-                  className={selectClass}
-                >
-                  <option value="">—</option>
-                  {agents.map((agent) => (
-                    <option key={agent.id} value={agent.id}>
-                      {agent.company_name} ({agent.market})
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={(next) => updateDraft("agentId", next)}
+                  className="bg-background"
+                />
               </Field>
               <div className="sm:col-span-2">
                 <Field label="Notes" id="edit_notes">

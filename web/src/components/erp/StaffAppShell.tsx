@@ -26,6 +26,9 @@ export function StaffAppShell({
               <Link href="/staff">Home</Link>
             </Button>
             <Button asChild variant="ghost" size="sm">
+              <Link href="/staff/laundry">Laundry</Link>
+            </Button>
+            <Button asChild variant="ghost" size="sm">
               <Link href="/staff/leave">Leave</Link>
             </Button>
             <Button asChild variant="ghost" size="sm">

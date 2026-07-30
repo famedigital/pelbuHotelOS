@@ -115,8 +115,6 @@ export default async function HomePage() {
             page?.body ??
             "Rooms, a cafe that opens before the city does, a multicuisine restaurant, fresh pastry, and an online kitchen that delivers across Thimphu."
           }
-          primaryHref={page?.primary_cta_href ?? "/book"}
-          primaryLabel={page?.primary_cta_label ?? "Check rooms & rates"}
           secondaryHref={page?.secondary_cta_href ?? "/menu"}
           secondaryLabel={page?.secondary_cta_label ?? "Order food online"}
           products={HERO_PRODUCTS}

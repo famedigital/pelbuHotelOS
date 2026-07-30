@@ -4,7 +4,7 @@ import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { optionalTrim, trimRequired } from "@/lib/validation";
+import { optionalTrim, trimRequired, assertOptionalEmail, assertPhone } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
 
 const STATUSES = new Set(["pending", "approved", "rejected", "demo"]);
@@ -16,6 +16,7 @@ const RATE_TIERS = new Set([
   "agents",
   "mou_agents",
 ]);
+const MARKETS = new Set(["bhutan", "jaigaon", "india"]);
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
 
@@ -23,6 +24,18 @@ export type ErpAgentState = {
   ok: boolean;
   error?: string;
   message?: string;
+};
+
+export type CreateDeskAgentState = {
+  ok: boolean;
+  agentId?: string;
+  agent?: {
+    id: string;
+    company_name: string;
+    market: string;
+    status: string;
+  };
+  error?: string;
 };
 
 export type AgentDocumentRow = {
@@ -66,6 +79,81 @@ function revalidateAgents() {
   revalidatePath("/erp/agents");
   revalidatePath("/erp");
   revalidatePath("/erp/fast-book");
+  revalidatePath("/erp/calendar");
+}
+
+/**
+ * Desk-created trade partner, immediately bookable (approved or demo).
+ * Used from reservation pickers so staff do not leave Fast Book / Calendar.
+ */
+export async function createDeskAgent(
+  _prev: CreateDeskAgentState,
+  formData: FormData,
+): Promise<CreateDeskAgentState> {
+  try {
+    await requireDesk();
+    const admin = createSupabaseAdminClient();
+
+    const companyName = trimRequired(formData.get("company_name"), "Company name");
+    const market = trimRequired(formData.get("market"), "Market").toLowerCase();
+    if (!MARKETS.has(market)) {
+      throw new Error("Choose Bhutan, Jaigaon, or India as the market.");
+    }
+
+    const contactName = trimRequired(formData.get("contact_name"), "Contact name");
+    const contactPhone = trimRequired(formData.get("contact_phone"), "Phone");
+    assertPhone(contactPhone);
+
+    const contactEmail = optionalTrim(formData.get("contact_email"));
+    assertOptionalEmail(contactEmail);
+    const notes = optionalTrim(formData.get("notes"));
+
+    const statusRaw = (optionalTrim(formData.get("status")) ?? "approved").toLowerCase();
+    if (statusRaw !== "approved" && statusRaw !== "demo") {
+      throw new Error("Desk agents must be approved or demo.");
+    }
+
+    const { data: agent, error } = await admin
+      .from("agents")
+      .insert({
+        company_name: companyName,
+        market,
+        contact_name: contactName,
+        contact_phone: contactPhone,
+        contact_email: contactEmail,
+        notes,
+        wants_mou: formData.get("wants_mou") === "on",
+        status: statusRaw,
+        rate_tier: "agents",
+        credit_limit: 0,
+        credit_used: 0,
+        approved_at: statusRaw === "approved" ? new Date().toISOString() : null,
+      })
+      .select("id, company_name, market, status")
+      .single();
+
+    if (error || !agent) {
+      console.error("createDeskAgent insert failed", error);
+      throw new Error("Could not create agent. Please try again.");
+    }
+
+    revalidateAgents();
+    return {
+      ok: true,
+      agentId: agent.id as string,
+      agent: {
+        id: agent.id as string,
+        company_name: agent.company_name as string,
+        market: agent.market as string,
+        status: agent.status as string,
+      },
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Could not create agent.",
+    };
+  }
 }
 
 async function appendLedger(

@@ -17,6 +17,7 @@ import {
   ScrollTextIcon,
   SettingsIcon,
   ShoppingCartIcon,
+  ShirtIcon,
   SoupIcon,
   SparklesIcon,
   TruckIcon,
@@ -63,6 +64,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { title: "Fast book", href: "/erp/fast-book", icon: SparklesIcon },
       { title: "Rooms", href: "/erp/rooms", icon: HotelIcon },
       { title: "Housekeeping", href: "/erp/housekeeping", icon: SparklesIcon },
+      { title: "Laundry", href: "/erp/laundry", icon: ShirtIcon },
       // Lookup / less frequent during the shift
       { title: "Reservations", href: "/erp/reservations", icon: ReceiptTextIcon },
       { title: "Guests", href: "/erp/guests", icon: UsersIcon },
@@ -74,6 +76,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { title: "Payments", href: "/erp/payments", icon: CreditCardIcon },
       { title: "POS / Folio board", href: "/erp/pos", icon: ShoppingCartIcon },
+      { title: "Menu", href: "/erp/menu", icon: SoupIcon },
       { title: "Kitchen TV", href: "/erp/kds", icon: MonitorIcon },
       { title: "Invoices", href: "/erp/invoices", icon: ReceiptTextIcon },
       { title: "Night audit", href: "/erp/night-audit", icon: ScrollTextIcon },
@@ -99,7 +102,6 @@ export const NAV_SECTIONS: NavSection[] = [
         href: "/erp/front-public/media/upload",
         icon: SmartphoneIcon,
       },
-      { title: "Menus & prices", href: "/erp/menu", icon: SoupIcon },
     ],
   },
   {

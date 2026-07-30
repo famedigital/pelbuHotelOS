@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { AgentPicker, type BookableAgent } from "@/components/erp/AgentPicker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -21,10 +21,9 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import type { FastBookAgent } from "./FastBookForm";
 
 type Props = {
-  agents: FastBookAgent[];
+  agents: BookableAgent[];
   pending: boolean;
   open: boolean;
   onClose: () => void;
@@ -38,20 +37,12 @@ function DrawerBody({
   agentId,
   setAgentId,
 }: {
-  agents: FastBookAgent[];
+  agents: BookableAgent[];
   pending: boolean;
   hasQty: boolean;
   agentId: string;
   setAgentId: (v: string) => void;
 }) {
-  const agentOptions = agents.map((a) => ({
-    value: a.id,
-    label: a.company_name,
-    hint: [a.market, a.status === "demo" ? "demo" : null]
-      .filter(Boolean)
-      .join(" · "),
-  }));
-
   return (
     <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
       {!hasQty ? (
@@ -143,14 +134,11 @@ function DrawerBody({
           </div>
           <div className="space-y-1.5">
             <Label>Agent</Label>
-            <input type="hidden" name="agent_id" value={agentId} />
-            <Combobox
-              options={agentOptions}
-              value={agentId || null}
+            <AgentPicker
+              name="agent_id"
+              agents={agents}
+              value={agentId}
               onValueChange={setAgentId}
-              placeholder="— Walk-in / none —"
-              searchPlaceholder="Search agents…"
-              emptyText="No agent matches."
               className="bg-background"
             />
           </div>

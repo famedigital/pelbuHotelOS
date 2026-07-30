@@ -5,7 +5,7 @@ import {
   type PartnerOption,
 } from "@/components/erp/CheckInForm";
 import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
-import { Alert, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -48,7 +48,9 @@ export default async function CheckInPage({ searchParams }: Props) {
   const admin = createSupabaseAdminClient();
   const propertyId = await resolveActivePropertyId(admin);
 
-  const selected = id ? await loadBooking(admin, propertyId, id) : null;
+  const loaded = id ? await loadBooking(admin, propertyId, id) : null;
+  const selected = loaded?.booking ?? null;
+  const loadError = loaded?.error ?? null;
   const arrivals = await loadArrivals(admin, propertyId, query);
 
   let guideOptions: PartnerOption[] = [];
@@ -220,10 +222,16 @@ export default async function CheckInPage({ searchParams }: Props) {
       </aside>
 
       <div className="space-y-6">
-        {!selected ? (
+        {loadError ? (
+          <Alert variant="destructive">
+            <AlertTitle>Could not load this booking.</AlertTitle>
+            <AlertDescription>{loadError}</AlertDescription>
+          </Alert>
+        ) : !selected ? (
           <p className="text-sm text-muted-foreground">
-            Select a booking to check in or check out. Assign physical rooms —
-            including guide and driver beds — before confirming.
+            {id
+              ? "That booking is not at this property, or it no longer exists."
+              : "Select a booking to check in or check out. Assign physical rooms — including guide and driver beds — before confirming."}
           </p>
         ) : selected.status === "checked_in" ? (
           <div className="space-y-4">
@@ -311,16 +319,23 @@ async function loadArrivals(admin: Admin, propertyId: string, query: string) {
   });
 }
 
+type LoadedBooking = CheckInBooking & { open_folio_id: string | null };
+
+/**
+ * `error` is returned rather than swallowed. A bad column or embed makes
+ * PostgREST fail the whole select, and discarding that left the desk staring
+ * at the "select a booking" placeholder with no clue the query had failed.
+ */
 async function loadBooking(
   admin: Admin,
   propertyId: string,
   bookingId: string,
-): Promise<(CheckInBooking & { open_folio_id: string | null }) | null> {
-  const { data } = await admin
+): Promise<{ booking: LoadedBooking | null; error: string | null }> {
+  const { data, error } = await admin
     .from("bookings")
     .select(
       `id, contact_name, contact_phone, check_in, check_out, status, guest_origin, guide_number, guide_id, driver_id, payment_mode, adults, rooms, agent_id,
-       agents(company_name, credit_limit_btn),
+       agents(company_name, credit_limit),
        booking_rooms(qty, inventory_kind, room_type_id, room_types(name, code)),
        booking_guests(full_name, nationality, passport_or_cid, sdf_ref, sdf_doc_url, sort_order),
        booking_drivers(full_name, phone, vehicle_no, license_no),
@@ -330,15 +345,16 @@ async function loadBooking(
     .eq("property_id", propertyId)
     .maybeSingle();
 
-  if (!data) return null;
+  if (error) return { booking: null, error: error.message };
+  if (!data) return { booking: null, error: null };
 
   const openFolio = (
     (data.folios as { id: string; status: string }[] | null) ?? []
   ).find((f) => f.status === "open");
 
   const agentRaw = data.agents as
-    | { company_name?: string; credit_limit_btn?: number }
-    | { company_name?: string; credit_limit_btn?: number }[]
+    | { company_name?: string; credit_limit?: number }
+    | { company_name?: string; credit_limit?: number }[]
     | null;
   const agent = Array.isArray(agentRaw) ? agentRaw[0] : agentRaw;
 
@@ -354,7 +370,7 @@ async function loadBooking(
       const amt = Number(row.amount_btn ?? 0);
       return row.entry_type === "charge" ? sum + amt : sum - amt;
     }, 0);
-    const limit = Number(agent?.credit_limit_btn ?? 0);
+    const limit = Number(agent?.credit_limit ?? 0);
     creditAvailable = roundBtn(Math.max(0, limit - balance));
 
     const rooms =
@@ -399,7 +415,7 @@ async function loadBooking(
     return ao - bo;
   });
 
-  return {
+  const booking: LoadedBooking = {
     id: data.id as string,
     contact_name: (data.contact_name as string | null) ?? null,
     contact_phone: (data.contact_phone as string | null) ?? null,
@@ -445,4 +461,6 @@ async function loadBooking(
       (data.booking_drivers as CheckInBooking["booking_drivers"] | null) ?? [],
     open_folio_id: openFolio?.id ?? null,
   };
+
+  return { booking, error: null };
 }

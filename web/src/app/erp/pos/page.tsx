@@ -2,11 +2,17 @@ import { GuestServiceForm } from "@/components/erp/GuestServiceForm";
 import { PosLayout } from "@/components/erp/pos/PosLayout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { deskPinConfigured, isDeskAuthenticated } from "@/lib/desk-auth";
+import { thimphuToday } from "@/lib/erp-lists";
 import { loadMenuByOutlets } from "@/lib/menu-loader";
+import {
+  loadActiveOutletCodes,
+  loadPropertyOutlets,
+} from "@/lib/outlets";
 import {
   loadDiningTables,
   loadModifierGroupsForItems,
   loadOpenPosTickets,
+  loadOpenPosShift,
   loadPosStaff,
   POS_TENDER_METHODS,
   POS_VOID_REASON_CODES,
@@ -31,22 +37,36 @@ export default async function ErpPosPage() {
   const admin = createSupabaseAdminClient();
   const propertyId = await resolveActivePropertyId(admin);
   const property = await loadProperty(admin, propertyId);
+  const today = thimphuToday();
+  const activeOutletCodes = await loadActiveOutletCodes(admin, propertyId);
+  const outlets = await loadPropertyOutlets(admin, propertyId, {
+    activeOnly: true,
+  });
 
-  const [items, { data: bookings }, tables, openTickets, staff] =
+  const [items, { data: bookings }, tables, openTickets, staff, shift] =
     await Promise.all([
-      loadMenuByOutlets(["cafe", "pastry", "restaurant", "bar"]),
+      loadMenuByOutlets(
+        activeOutletCodes.length > 0
+          ? activeOutletCodes
+          : ["cafe", "pastry", "restaurant", "bar"],
+      ),
       property
         ? admin
             .from("bookings")
-            .select("id, contact_name, check_in, check_out, status")
+            .select(
+              "id, contact_name, contact_phone, check_in, check_out, status, source, agents(company_name), booking_guests(id, full_name, sort_order), room_assignments(room_unit_id, room_units(id, label))",
+            )
             .eq("property_id", property.id)
-            .in("status", ["pending", "confirmed", "checked_in"])
-            .order("check_in", { ascending: false })
-            .limit(40)
+            .lte("check_in", today)
+            .gt("check_out", today)
+            .in("status", ["confirmed", "checked_in"])
+            .order("check_out")
+            .limit(80)
         : Promise.resolve({ data: [] }),
       loadDiningTables(admin),
       loadOpenPosTickets(admin),
       loadPosStaff(admin),
+      loadOpenPosShift(admin),
     ]);
 
   const modifierGroups = await loadModifierGroupsForItems(
@@ -57,9 +77,58 @@ export default async function ErpPosPage() {
   const bookingOptions = (bookings ?? []).map((b) => ({
     id: b.id as string,
     contact_name: (b.contact_name as string | null) ?? null,
+    contact_phone: (b.contact_phone as string | null) ?? null,
     check_in: b.check_in as string,
     check_out: b.check_out as string,
     status: b.status as string,
+    source: (b.source as string | null) ?? null,
+    agent_name:
+      (
+        (Array.isArray(b.agents) ? b.agents[0] : b.agents) as
+          | { company_name?: string | null }
+          | null
+      )?.company_name ?? null,
+    rooms: (
+      (b.room_assignments as
+        | {
+            room_unit_id: string;
+            room_units:
+              | { id: string; label: string }
+              | { id: string; label: string }[]
+              | null;
+          }[]
+        | null) ?? []
+    ).flatMap((assignment) => {
+      const unit = Array.isArray(assignment.room_units)
+        ? assignment.room_units[0]
+        : assignment.room_units;
+      return unit
+        ? [{ id: unit.id ?? assignment.room_unit_id, label: unit.label }]
+        : [];
+    }),
+    guests: [
+      {
+        id: null,
+        full_name: (b.contact_name as string | null) ?? "Booking guest",
+        phone: (b.contact_phone as string | null) ?? null,
+      },
+      ...(
+        (b.booking_guests as
+          | { id: string; full_name: string; sort_order: number }[]
+          | null) ?? []
+      )
+        .filter(
+          (guest) =>
+            guest.full_name &&
+            guest.full_name !== (b.contact_name as string | null),
+        )
+        .sort((a, c) => Number(a.sort_order) - Number(c.sort_order))
+        .map((guest) => ({
+          id: guest.id,
+          full_name: guest.full_name,
+          phone: (b.contact_phone as string | null) ?? null,
+        })),
+    ],
   }));
 
   return (
@@ -76,11 +145,13 @@ export default async function ErpPosPage() {
 
       <PosLayout
         items={items}
+        outlets={outlets.map((o) => ({ code: o.code, name: o.name }))}
         modifierGroups={modifierGroups}
         tables={tables}
         staff={staff}
         openTickets={openTickets}
         bookings={bookingOptions}
+        shift={shift}
         gstRate={property?.gst_rate ?? 0.07}
         serviceChargeRate={property?.service_charge_rate ?? 0}
         serviceChargeDefaultOn={property?.service_charge_default_on ?? false}

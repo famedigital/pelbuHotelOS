@@ -29,17 +29,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import type { MenuItem } from "@/lib/menu";
+import type { PropertyOutlet } from "@/lib/outlets";
 import { ImageIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 
 const initial: MenuAdminState = { ok: false };
-
-const OUTLET_LABELS: Record<string, string> = {
-  cafe: "Cafe",
-  pastry: "Pastry",
-  restaurant: "Restaurant",
-  bar: "Bar",
-};
 
 const PREP_STATION_LABELS: Record<string, string> = {
   kitchen: "Kitchen (hot)",
@@ -49,8 +43,6 @@ const PREP_STATION_LABELS: Record<string, string> = {
   cold: "Cold / pantry",
 };
 
-const NONE_IMAGE = "__none__";
-
 export type MenuItemFormTarget =
   | { mode: "create"; defaultOutlet: string }
   | { mode: "edit"; item: MenuItem }
@@ -58,13 +50,28 @@ export type MenuItemFormTarget =
 
 export function MenuItemForm({
   target,
+  outlets,
   onOpenChange,
 }: {
   target: MenuItemFormTarget;
+  outlets: PropertyOutlet[];
   onOpenChange: (open: boolean) => void;
 }) {
   const open = target !== null;
   const editing = target?.mode === "edit" ? target.item : null;
+
+  const activeOutlets = useMemo(
+    () => outlets.filter((o) => o.is_active),
+    [outlets],
+  );
+  const outletOptions = useMemo(() => {
+    if (!editing) return activeOutlets;
+    const current = outlets.find((o) => o.code === editing.outlet);
+    if (current && !current.is_active) {
+      return [current, ...activeOutlets];
+    }
+    return activeOutlets;
+  }, [activeOutlets, outlets, editing]);
 
   const [saveState, saveAction, savePending] = useActionState(
     saveMenuItem,
@@ -109,7 +116,7 @@ export function MenuItemForm({
       setSortOrder(String(editing.sort_order ?? 0));
     } else if (target?.mode === "create") {
       setName("");
-      setOutlet(target.defaultOutlet ?? "cafe");
+      setOutlet(target.defaultOutlet ?? activeOutlets[0]?.code ?? "cafe");
       setCategory("");
       setDescription("");
       setPriceBtn("");
@@ -120,7 +127,7 @@ export function MenuItemForm({
       setIsPopular(false);
       setSortOrder("0");
     }
-  }, [open, editing, target]);
+  }, [open, editing, target, activeOutlets]);
 
   useEffect(() => {
     if (saveState.ok || deleteState.ok) onOpenChange(false);
@@ -131,6 +138,8 @@ export function MenuItemForm({
   const previewSrc = imagePublicId
     ? cloudinaryUrl(imagePublicId, { width: 160, crop: "fill" })
     : null;
+  const selectedOutlet = outlets.find((o) => o.code === outlet);
+  const selectedArchived = selectedOutlet ? !selectedOutlet.is_active : false;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -154,6 +163,15 @@ export function MenuItemForm({
           <Alert variant="destructive">
             <TriangleAlertIcon />
             <AlertDescription>{deleteState.error}</AlertDescription>
+          </Alert>
+        ) : null}
+        {selectedArchived ? (
+          <Alert variant="warning">
+            <TriangleAlertIcon />
+            <AlertDescription>
+              This item is on an archived outlet. Restore the outlet to sell it
+              again, or move the item to an active outlet.
+            </AlertDescription>
           </Alert>
         ) : null}
 
@@ -196,9 +214,10 @@ export function MenuItemForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(OUTLET_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
+                  {outletOptions.map((o) => (
+                    <SelectItem key={o.code} value={o.code}>
+                      {o.name}
+                      {!o.is_active ? " (archived)" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>

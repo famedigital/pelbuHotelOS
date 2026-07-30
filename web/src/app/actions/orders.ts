@@ -2,6 +2,7 @@
 
 import { isValidThimphuArea } from "@/lib/delivery-areas";
 import { notifyNewOrder } from "@/lib/notify";
+import { loadMenuStockMap } from "@/lib/menu-stock";
 import { calculateOrderTotals } from "@/lib/pricing";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -126,6 +127,23 @@ export async function createOrder(
 
     if (menuRows.length !== ids.length) {
       throw new Error("One or more items are no longer available. Refresh the menu.");
+    }
+
+    const stock = await loadMenuStockMap(admin, property.id as string, ids);
+    for (const id of ids) {
+      const required = cart
+        .filter((line) => line.menuItemId === id)
+        .reduce((sum, line) => sum + line.qty, 0);
+      const snapshot = stock.get(id);
+      if (
+        snapshot &&
+        snapshot.mode !== "untracked" &&
+        snapshot.autoDisable &&
+        (snapshot.availableSales ?? 0) < required
+      ) {
+        const row = menuRows.find((item) => item.id === id);
+        throw new Error(`${String(row?.name ?? "Item")} is sold out.`);
+      }
     }
 
     const byId = new Map(menuRows.map((row) => [row.id as string, row]));

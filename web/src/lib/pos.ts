@@ -26,6 +26,15 @@ export type PosStaffOption = {
   role_label: string;
 };
 
+export type PosShift = {
+  id: string;
+  business_date: string;
+  status: "open" | "closed";
+  opening_float_btn: number;
+  opened_by_name: string;
+  opened_at: string;
+};
+
 export type ModifierOption = {
   id: string;
   name: string;
@@ -108,6 +117,28 @@ export const POS_TENDER_METHODS = [
 export type PosTenderMethod = (typeof POS_TENDER_METHODS)[number];
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
+
+export async function loadOpenPosShift(admin?: Admin): Promise<PosShift | null> {
+  const client = admin ?? createSupabaseAdminClient();
+  const propertyId = await resolveActivePropertyId(client);
+  const { data } = await client
+    .from("pos_shifts")
+    .select(
+      "id, business_date, status, opening_float_btn, opened_by_name, opened_at",
+    )
+    .eq("property_id", propertyId)
+    .eq("status", "open")
+    .maybeSingle();
+  if (!data) return null;
+  return {
+    id: data.id as string,
+    business_date: data.business_date as string,
+    status: data.status as "open",
+    opening_float_btn: Number(data.opening_float_btn),
+    opened_by_name: data.opened_by_name as string,
+    opened_at: data.opened_at as string,
+  };
+}
 
 export async function loadDiningTables(
   admin?: Admin,

@@ -3,6 +3,7 @@
 import type { MealPlanOption } from "@/app/actions/bookings";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { addDaysIso } from "@/lib/stay-dates";
 import { useMemo } from "react";
 
 type Props = {
@@ -20,17 +21,6 @@ type Props = {
   mealPlanCode: string;
   onMealPlan: (code: string) => void;
 };
-
-function addDaysIso(iso: string, days: number): string {
-  if (!iso) return "";
-  const d = new Date(`${iso}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return "";
-  d.setDate(d.getDate() + days);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
 
 export function BookingStepStay({
   checkIn,

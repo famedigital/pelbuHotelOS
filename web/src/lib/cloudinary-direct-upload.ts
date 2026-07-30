@@ -79,12 +79,16 @@ export function assertUploadable(file: File): CloudinaryResourceType {
   return resourceType;
 }
 
-async function fetchTicket(folder: string): Promise<CloudinaryUploadTicket> {
-  const response = await fetch("/api/erp/cloudinary/sign-upload", {
+async function fetchTicket(
+  folder: string,
+  signEndpoint: string,
+  context?: Record<string, string>,
+): Promise<CloudinaryUploadTicket> {
+  const response = await fetch(signEndpoint, {
     method: "POST",
     credentials: "same-origin",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ folder }),
+    body: JSON.stringify({ folder, ...context }),
   });
   const ticket = (await response.json()) as CloudinaryUploadTicket & {
     error?: string;
@@ -253,10 +257,20 @@ export async function uploadToCloudinary(
   options: {
     folder: string;
     onProgress?: (progress: UploadProgress) => void;
+    signEndpoint?: string;
+    signContext?: Record<string, string>;
+    imageOnly?: boolean;
   },
 ): Promise<CloudinaryUploadResult> {
   const resourceType = assertUploadable(file);
-  const ticket = await fetchTicket(options.folder);
+  if (options.imageOnly && resourceType !== "image") {
+    throw new Error("Choose a photo file.");
+  }
+  const ticket = await fetchTicket(
+    options.folder,
+    options.signEndpoint ?? "/api/erp/cloudinary/sign-upload",
+    options.signContext,
+  );
   if (file.size > CHUNK_SIZE) {
     return uploadChunked(file, ticket, resourceType, options.onProgress);
   }

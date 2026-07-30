@@ -12,6 +12,12 @@ import { BookingStepRoom } from "@/components/book/BookingStepRoom";
 import { BookingStepStay } from "@/components/book/BookingStepStay";
 import { BookingSummary } from "@/components/book/BookingSummary";
 import { Button } from "@/components/ui/button";
+import {
+  nightsBetween,
+  parseStaySearch,
+  todayIso,
+  type StaySearchParams,
+} from "@/lib/stay-dates";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 
 const initial: BookingActionState = { ok: false };
@@ -19,33 +25,6 @@ const initial: BookingActionState = { ok: false };
 type Step = 1 | 2 | 3;
 
 const STEP_LABELS = ["Dates", "Room", "Contact"] as const;
-
-function todayIso(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function addDaysIso(iso: string, days: number): string {
-  if (!iso) return "";
-  const d = new Date(`${iso}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return "";
-  d.setDate(d.getDate() + days);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function nightsBetween(checkIn: string, checkOut: string): number {
-  if (!checkIn || !checkOut) return 0;
-  const a = new Date(`${checkIn}T00:00:00`).getTime();
-  const b = new Date(`${checkOut}T00:00:00`).getTime();
-  if (Number.isNaN(a) || Number.isNaN(b) || b <= a) return 0;
-  return Math.round((b - a) / 86_400_000);
-}
 
 function CopyReference({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
@@ -70,17 +49,36 @@ function CopyReference({ value }: { value: string }) {
   );
 }
 
-export function BookingWizard() {
+export function BookingWizard({
+  initialStay,
+}: {
+  initialStay?: Partial<StaySearchParams> | null;
+} = {}) {
   const [state, action, pending] = useActionState(createBooking, initial);
+  const stay = useMemo(
+    () =>
+      parseStaySearch({
+        checkIn: initialStay?.checkIn,
+        checkOut: initialStay?.checkOut,
+        adults: initialStay?.adults,
+        rooms: initialStay?.rooms,
+      }),
+    [
+      initialStay?.checkIn,
+      initialStay?.checkOut,
+      initialStay?.adults,
+      initialStay?.rooms,
+    ],
+  );
   const minCheckIn = useMemo(() => todayIso(), []);
 
   const [step, setStep] = useState<Step>(1);
 
   // Stay state lifted so we can drive the room-step preview.
-  const [checkIn, setCheckIn] = useState<string>(todayIso());
-  const [checkOut, setCheckOut] = useState<string>(addDaysIso(todayIso(), 1));
-  const [adults, setAdults] = useState<number>(2);
-  const [rooms, setRooms] = useState<number>(1);
+  const [checkIn, setCheckIn] = useState<string>(stay.checkIn);
+  const [checkOut, setCheckOut] = useState<string>(stay.checkOut);
+  const [adults, setAdults] = useState<number>(stay.adults);
+  const [rooms, setRooms] = useState<number>(stay.rooms);
   const [mealPlanCode, setMealPlanCode] = useState<string>("EP");
 
   // Preview + selection.

@@ -1,6 +1,7 @@
 import { BookingWizard } from "@/components/book/BookingWizard";
 import { EngineShell } from "@/components/site/EngineShell";
 import { Button } from "@/components/ui/button";
+import { parseStaySearch } from "@/lib/stay-dates";
 
 export const metadata = {
   title: "Book | Pelbu Suites",
@@ -9,7 +10,31 @@ export const metadata = {
   alternates: { canonical: "/book" },
 };
 
-export default function BookPage() {
+type BookSearchParams = {
+  checkIn?: string | string[];
+  checkOut?: string | string[];
+  adults?: string | string[];
+  rooms?: string | string[];
+};
+
+function first(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
+
+export default async function BookPage({
+  searchParams,
+}: {
+  searchParams: Promise<BookSearchParams>;
+}) {
+  const params = await searchParams;
+  const initialStay = parseStaySearch({
+    checkIn: first(params.checkIn),
+    checkOut: first(params.checkOut),
+    adults: first(params.adults),
+    rooms: first(params.rooms),
+  });
+
   return (
     <EngineShell
       eyebrow="Direct booking"
@@ -21,7 +46,7 @@ export default function BookPage() {
         </Button>
       }
     >
-      <BookingWizard />
+      <BookingWizard initialStay={initialStay} />
     </EngineShell>
   );
 }

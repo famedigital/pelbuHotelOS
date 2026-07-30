@@ -34,6 +34,9 @@ export function useKeyboardShortcuts(
 ) {
   const onKey = useCallback(
     (event: KeyboardEvent) => {
+      // Autofill and IME composition dispatch keydown events with no `key`.
+      if (typeof event.key !== "string") return;
+
       const target = event.target as HTMLElement | null;
       const typing =
         target instanceof HTMLInputElement ||
@@ -41,14 +44,21 @@ export function useKeyboardShortcuts(
         target instanceof HTMLSelectElement ||
         target?.isContentEditable === true;
 
+      const hasMod = event.ctrlKey || event.metaKey;
+
       for (const b of bindings) {
         const keyMatches =
           b.key === "Escape"
             ? event.key === "Escape"
             : event.key.toLowerCase() === b.key;
         if (!keyMatches) continue;
-        if (event.ctrlKey !== !!b.mod && event.metaKey !== !!b.mod) continue;
-        if (event.shiftKey !== !!b.shift) continue;
+        if (hasMod !== Boolean(b.mod)) continue;
+        // Punctuation like "?" already encodes Shift in `event.key`, so only
+        // letters need an explicit unshifted check.
+        const shiftMismatch = b.shift
+          ? !event.shiftKey
+          : /^[a-z]$/.test(b.key) && event.shiftKey;
+        if (shiftMismatch) continue;
         if (typing && b.key !== "Escape") continue;
         event.preventDefault();
         b.handler(event);

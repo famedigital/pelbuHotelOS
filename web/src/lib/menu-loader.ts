@@ -2,6 +2,7 @@ import type { MenuItem } from "@/lib/menu";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { loadMenuStockMap } from "@/lib/menu-stock";
 
 export async function loadMenuByOutlets(
   outlets: string[],
@@ -19,8 +20,16 @@ export async function loadMenuByOutlets(
     .in("outlet", outlets)
     .order("sort_order");
 
-  return (data ?? []).map((row) => {
+  const rows = data ?? [];
+  const stock = await loadMenuStockMap(
+    admin,
+    propertyId,
+    rows.map((row) => row.id as string),
+  );
+
+  return rows.map((row) => {
     const imagePublicId = (row.image_public_id as string | null) ?? null;
+    const itemStock = stock.get(row.id as string);
     return {
       id: row.id as string,
       outlet: row.outlet as string,
@@ -36,6 +45,12 @@ export async function loadMenuByOutlets(
         : null,
       is_popular: Boolean(row.is_popular),
       prep_station: (row.prep_station as MenuItem["prep_station"]) ?? "kitchen",
+      stock_mode: itemStock?.mode ?? "untracked",
+      stock_on_hand: itemStock?.availableSales ?? null,
+      stock_unit: itemStock?.unit ?? null,
+      sold_out: itemStock?.soldOut ?? false,
+      stock_inventory_item_id: itemStock?.inventoryItemId ?? null,
+      stock_qty_per_sale: itemStock?.qtyPerSale ?? 1,
     };
   });
 }

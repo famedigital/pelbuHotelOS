@@ -13,4 +13,10 @@ export type MenuItem = {
   prep_station?: "kitchen" | "bar" | "pastry" | "grill" | "cold";
   /** Admin only — never returned by the public loader. */
   is_available?: boolean;
+  stock_mode?: "untracked" | "finished_good" | "recipe";
+  stock_on_hand?: number | null;
+  stock_unit?: string | null;
+  sold_out?: boolean;
+  stock_inventory_item_id?: string | null;
+  stock_qty_per_sale?: number;
 };

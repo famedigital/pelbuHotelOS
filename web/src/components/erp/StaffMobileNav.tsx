@@ -14,6 +14,7 @@ import {
   CalendarHeartIcon,
   EllipsisIcon,
   HomeIcon,
+  ShirtIcon,
   ReceiptTextIcon,
   UsersIcon,
 } from "lucide-react";
@@ -22,6 +23,7 @@ import { usePathname } from "next/navigation";
 
 const ITEMS = [
   { title: "Home", href: "/staff", icon: HomeIcon },
+  { title: "Laundry", href: "/staff/laundry", icon: ShirtIcon },
   { title: "Leave", href: "/staff/leave", icon: CalendarHeartIcon },
   { title: "Payslips", href: "/staff/payslips", icon: ReceiptTextIcon },
 ] as const;
@@ -39,7 +41,7 @@ export function StaffMobileNav({ canViewTeam }: { canViewTeam: boolean }) {
       aria-label="Staff navigation"
       className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
     >
-      <div className="mx-auto grid h-16 max-w-md grid-cols-4">
+      <div className="mx-auto grid h-16 max-w-md grid-cols-5">
         {ITEMS.map((item) => {
           const active = activePath(pathname, item.href);
           const Icon = item.icon;

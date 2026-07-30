@@ -5,6 +5,7 @@ import {
   createCalendarReservation,
   type CalendarBookState,
 } from "@/app/actions/erp-calendar";
+import { AgentPicker, type BookableAgent } from "@/components/erp/AgentPicker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,11 +21,7 @@ import { useActionToast } from "@/hooks/use-action-toast";
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-export type CalendarAgent = {
-  id: string;
-  company_name: string;
-  market: string;
-};
+export type CalendarAgent = BookableAgent;
 
 export type CalendarSelectedUnit = {
   id: string;
@@ -368,20 +365,13 @@ export function CalendarReservationDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="agent_id">Agent</Label>
-              <select
-                id="agent_id"
+              <AgentPicker
                 name="agent_id"
+                agents={agents}
                 value={draft.agentId}
-                onChange={(event) => updateDraft("agentId", event.target.value)}
-                className={fieldClass}
-              >
-                <option value="">—</option>
-                {agents.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.company_name} ({a.market})
-                  </option>
-                ))}
-              </select>
+                onValueChange={(next) => updateDraft("agentId", next)}
+                className="bg-background"
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="payment_mode">Payment</Label>

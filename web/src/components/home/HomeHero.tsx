@@ -1,5 +1,6 @@
 "use client";
 
+import { HeroBookingSearch } from "@/components/home/HeroBookingSearch";
 import { CloudinaryMedia } from "@/components/media/CloudinaryMedia";
 import { type HeroSlide } from "@/lib/brand";
 import type { CloudinaryResourceType } from "@/lib/cloudinary";
@@ -25,22 +26,18 @@ type Props = {
   eyebrow: string;
   title: string;
   description: string;
-  primaryHref: string;
-  primaryLabel: string;
   secondaryHref: string;
   secondaryLabel: string;
   products: HeroProduct[];
   intervalMs?: number;
 };
 
-/** Cinematic homepage hero — azure scrim over live photography/video, citrus CTA. */
+/** Cinematic homepage hero with Airbnb-style stay search on the conversion side. */
 export function HomeHero({
   slides,
   eyebrow,
   title,
   description,
-  primaryHref,
-  primaryLabel,
   secondaryHref,
   secondaryLabel,
   products,
@@ -132,105 +129,100 @@ export function HomeHero({
       />
 
       <div className="relative mx-auto flex min-h-svh max-w-[1200px] flex-col justify-end px-5 pb-14 pt-24 md:px-8 md:pb-20 md:pt-32">
-        <motion.p
-          className="text-xs font-semibold uppercase tracking-[0.24em] text-citrus-soft"
-          {...settle}
-          transition={{ duration: 0.45, ease: "easeOut" }}
-        >
-          {eyebrow}
-        </motion.p>
-
-        <motion.h1
-          className="mt-4 max-w-3xl font-display text-4xl leading-[1.05] text-white md:text-6xl"
-          {...settle}
-          transition={{ duration: 0.5, ease: "easeOut", delay: 0.05 }}
-        >
-          {title}
-        </motion.h1>
-
-        <motion.p
-          className="mt-5 max-w-xl text-[15px] leading-relaxed text-white/80 md:text-base"
-          {...settle}
-          transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
-        >
-          {description}
-        </motion.p>
-
-        <motion.div
-          className="mt-8 flex flex-wrap items-center gap-3"
-          {...settle}
-          transition={{ duration: 0.5, ease: "easeOut", delay: 0.15 }}
-        >
-          <Link
-            href={primaryHref}
-            className="inline-flex h-12 items-center rounded-xl bg-gradient-to-r from-citrus-soft to-citrus px-6 text-sm font-semibold text-sky-ink shadow-[0_16px_40px_-16px_rgba(245,158,11,0.9)] transition-transform motion-safe:hover:-translate-y-0.5"
+        <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)] lg:items-end lg:gap-12">
+          <motion.div
+            className="min-w-0"
+            {...settle}
+            transition={{ duration: 0.5, ease: "easeOut" }}
           >
-            {primaryLabel}
-          </Link>
-          <Link
-            href={secondaryHref}
-            className="inline-flex h-12 items-center rounded-xl border border-white/30 bg-white/10 px-6 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/20"
-          >
-            {secondaryLabel}
-          </Link>
-        </motion.div>
-
-        <motion.ul
-          className="mt-10 flex flex-wrap gap-x-5 gap-y-2"
-          {...settle}
-          transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
-        >
-          {products.map((product) => (
-            <li key={product.href + product.label}>
-              <Link
-                href={product.href}
-                className="group inline-flex items-baseline gap-2 py-1 text-sm text-white transition-colors hover:text-citrus-soft"
-              >
-                <span className="font-semibold underline-offset-4 group-hover:underline">
-                  {product.label}
-                </span>
-                <span className="text-xs text-white/55 group-hover:text-white/75">
-                  {product.hint}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </motion.ul>
-
-        {slideCount > 1 ? (
-          <div className="mt-10 flex items-center gap-4">
-            <div
-              className="flex gap-1.5"
-              role="tablist"
-              aria-label="Hero media"
-              onMouseEnter={() => setPaused(true)}
-              onMouseLeave={() => setPaused(false)}
-            >
-              {safeSlides.map((slide, i) => (
-                <button
-                  key={`${slide.publicId}-dot-${i}`}
-                  type="button"
-                  role="tab"
-                  aria-selected={i === index}
-                  aria-label={slide.label}
-                  onClick={() => setIndex(i)}
-                  className={cn(
-                    "h-1.5 rounded-full transition-all duration-300",
-                    i === index
-                      ? "w-10 bg-gradient-to-r from-citrus-soft to-citrus"
-                      : "w-5 bg-white/30 hover:bg-white/50",
-                  )}
-                />
-              ))}
-            </div>
-            <p
-              className="text-xs font-medium tracking-wide text-white/70"
-              aria-live="polite"
-            >
-              {safeSlides[index]?.label}
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-citrus-soft">
+              {eyebrow}
             </p>
-          </div>
-        ) : null}
+
+            <h1 className="mt-4 max-w-3xl font-display text-4xl leading-[1.05] text-white md:text-6xl">
+              {title}
+            </h1>
+
+            <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-white/80 md:text-base">
+              {description}
+            </p>
+          </motion.div>
+
+          {/* Single widget: under copy on mobile, right column on desktop. */}
+          <motion.div
+            className="w-full lg:row-span-2 lg:self-end"
+            {...settle}
+            transition={{ duration: 0.55, ease: "easeOut", delay: 0.12 }}
+          >
+            <HeroBookingSearch />
+          </motion.div>
+
+          <motion.div
+            className="min-w-0 lg:col-start-1"
+            {...settle}
+            transition={{ duration: 0.5, ease: "easeOut", delay: 0.18 }}
+          >
+            <Link
+              href={secondaryHref}
+              className="inline-flex h-11 items-center rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/20"
+            >
+              {secondaryLabel}
+            </Link>
+
+            <ul className="mt-8 flex flex-wrap gap-x-5 gap-y-2">
+              {products.map((product) => (
+                <li key={product.href + product.label}>
+                  <Link
+                    href={product.href}
+                    className="group inline-flex items-baseline gap-2 py-1 text-sm text-white transition-colors hover:text-citrus-soft"
+                  >
+                    <span className="font-semibold underline-offset-4 group-hover:underline">
+                      {product.label}
+                    </span>
+                    <span className="text-xs text-white/55 group-hover:text-white/75">
+                      {product.hint}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+
+            {slideCount > 1 ? (
+              <div className="mt-8 flex items-center gap-4">
+                <div
+                  className="flex gap-1.5"
+                  role="tablist"
+                  aria-label="Hero media"
+                  onMouseEnter={() => setPaused(true)}
+                  onMouseLeave={() => setPaused(false)}
+                >
+                  {safeSlides.map((slide, i) => (
+                    <button
+                      key={`${slide.publicId}-dot-${i}`}
+                      type="button"
+                      role="tab"
+                      aria-selected={i === index}
+                      aria-label={slide.label}
+                      onClick={() => setIndex(i)}
+                      className={cn(
+                        "h-1.5 rounded-full transition-all duration-300",
+                        i === index
+                          ? "w-10 bg-gradient-to-r from-citrus-soft to-citrus"
+                          : "w-5 bg-white/30 hover:bg-white/50",
+                      )}
+                    />
+                  ))}
+                </div>
+                <p
+                  className="text-xs font-medium tracking-wide text-white/70"
+                  aria-live="polite"
+                >
+                  {safeSlides[index]?.label}
+                </p>
+              </div>
+            ) : null}
+          </motion.div>
+        </div>
       </div>
     </section>
   );

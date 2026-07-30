@@ -27,13 +27,19 @@ export function MenuTile({
 }) {
   const letter = firstLetter(item.name);
   const bg = monogramColor(item.id || item.name);
+  const soldOut = Boolean(item.sold_out);
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group flex h-full flex-col overflow-hidden rounded-lg border bg-card text-left transition-all hover:border-accent/50 hover:shadow-sm focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
-      aria-label={`Add ${item.name}, ${formatBtn(item.price_btn)}`}
+      disabled={soldOut}
+      className="group flex h-full flex-col overflow-hidden rounded-lg border bg-card text-left transition-all hover:border-accent/50 hover:shadow-sm focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-55"
+      aria-label={
+        soldOut
+          ? `${item.name}, sold out`
+          : `Add ${item.name}, ${formatBtn(item.price_btn)}`
+      }
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-secondary">
         {item.image_src ? (
@@ -56,6 +62,16 @@ export function MenuTile({
         {item.is_popular ? (
           <span className="absolute left-2 top-2 rounded-full bg-citrus px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-espresso">
             Popular
+          </span>
+        ) : null}
+        {soldOut ? (
+          <span className="absolute inset-x-2 bottom-2 rounded-md bg-background/95 px-2 py-1 text-center text-[10px] font-bold uppercase tracking-wide text-destructive shadow-sm">
+            Sold out
+          </span>
+        ) : item.stock_mode !== "untracked" &&
+          item.stock_on_hand != null ? (
+          <span className="absolute bottom-2 right-2 rounded-full bg-background/90 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-foreground shadow-sm">
+            {item.stock_on_hand} left
           </span>
         ) : null}
       </div>

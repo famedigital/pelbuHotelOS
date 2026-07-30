@@ -3,8 +3,11 @@ import { Fraunces, Geist_Mono, Manrope } from "next/font/google";
 import { BRAND_CLOUDINARY, BRAND_ICONS } from "@/lib/brand";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
+import { BrandSplash } from "@/components/pwa/BrandSplash";
+import { FaviconAnimator } from "@/components/pwa/FaviconAnimator";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { PwaRegistrar } from "@/components/pwa/PwaRegistrar";
+import { SplashController } from "@/components/pwa/SplashController";
 import { PublicMobileNav } from "@/components/site/PublicMobileNav";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -97,6 +100,7 @@ export default function RootLayout({
       <body
         className={`${fontSans.variable} ${fontDisplay.variable} ${fontMono.variable} antialiased`}
       >
+        <BrandSplash />
         <ThemeProvider
           attribute="class"
           defaultTheme="light"
@@ -106,6 +110,8 @@ export default function RootLayout({
           {children}
           <PublicMobileNav />
           <PwaRegistrar />
+          <FaviconAnimator />
+          <SplashController />
           <InstallPrompt />
           <Toaster position="top-right" richColors closeButton />
         </ThemeProvider>

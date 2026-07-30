@@ -59,7 +59,7 @@ function ticketOf(item: MenuItem): Ticket {
 }
 
 function isOrderable(item: MenuItem): boolean {
-  return item.outlet !== "bar";
+  return item.outlet !== "bar" && !item.sold_out;
 }
 
 export function MenuOrderBoard({
@@ -427,7 +427,11 @@ function MenuTile({
               <span className="text-[13px] font-semibold tabular-nums text-sky-700">
                 {formatBtn(item.price_btn)}
               </span>
-              {!orderable ? (
+              {item.sold_out ? (
+                <span className="rounded-lg border border-destructive/30 bg-destructive/5 px-2 py-1 text-[11px] font-semibold text-destructive">
+                  Sold out
+                </span>
+              ) : !orderable ? (
                 <Link
                   href="/contact"
                   className="rounded-lg border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"

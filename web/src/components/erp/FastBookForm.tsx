@@ -27,12 +27,9 @@ export type FastBookRoomType = {
   unit_count: number;
 };
 
-export type FastBookAgent = {
-  id: string;
-  company_name: string;
-  market: string;
-  status: string;
-};
+import type { BookableAgent } from "@/components/erp/AgentPicker";
+
+export type FastBookAgent = BookableAgent;
 
 const initial: FastBookState = { ok: false };
 

@@ -3,6 +3,7 @@
 import { writeAuditEvent } from "@/lib/audit";
 import { postFolioLine, postPayment } from "@/lib/accounting/posting";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { thimphuToday } from "@/lib/erp-lists";
 import {
   POS_TENDER_METHODS,
   POS_VOID_REASON_CODES,
@@ -14,6 +15,7 @@ import {
 import { DEFAULT_GST_RATE, percentToRate } from "@/lib/property-settings";
 import { calculateOrderTotals, roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
+import { assertPropertyOutlet } from "@/lib/outlets";
 import { getStaffSession } from "@/lib/staff-auth";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
@@ -24,7 +26,6 @@ import {
 import { revalidatePath } from "next/cache";
 
 const KOT_STATUSES = new Set(["new", "preparing", "ready", "served", "cancelled"]);
-const OUTLETS = new Set(["cafe", "pastry", "restaurant", "bar"]);
 const PAY_METHODS = new Set([
   "cash",
   "bank",
@@ -49,6 +50,16 @@ async function requireDesk() {
 
 async function propertyId(admin: Admin) {
   return resolveActivePropertyId(admin);
+}
+
+async function openShiftId(admin: Admin, propertyId: string) {
+  const { data } = await admin
+    .from("pos_shifts")
+    .select("id")
+    .eq("property_id", propertyId)
+    .eq("status", "open")
+    .maybeSingle();
+  return (data?.id as string | undefined) ?? null;
 }
 
 async function loadPropertyPricing(admin: Admin): Promise<{
@@ -368,6 +379,8 @@ export async function createDeskOrder(
     }
 
     const bookingId = optionalTrim(formData.get("booking_id"));
+    const roomUnitId = optionalTrim(formData.get("room_unit_id"));
+    const bookingGuestId = optionalTrim(formData.get("booking_guest_id"));
     if (settleMode === "room_charge" && !bookingId) {
       throw new Error("Select a booking for room charge.");
     }
@@ -398,12 +411,41 @@ export async function createDeskOrder(
     const admin = createSupabaseAdminClient();
     const property = await loadPropertyPricing(admin);
     const property_id = property.propertyId;
+    const posShiftId = await openShiftId(admin, property_id);
     const serviceChargeApplied = formData.get("service_charge_applied") === "1";
     const serviceChargeRateRaw = optionalTrim(formData.get("service_charge_rate"));
     const serviceChargeRate = serviceChargeRateRaw
       ? percentToRate(serviceChargeRateRaw)
       : property.serviceChargeRate;
     const serviceChargeReason = optionalTrim(formData.get("service_charge_reason"));
+
+    if (bookingId) {
+      const { data: booking } = await admin
+        .from("bookings")
+        .select("id")
+        .eq("id", bookingId)
+        .eq("property_id", property_id)
+        .maybeSingle();
+      if (!booking) throw new Error("Selected stay was not found.");
+    }
+    if (roomUnitId) {
+      const { data: assignment } = await admin
+        .from("room_assignments")
+        .select("id")
+        .eq("booking_id", bookingId)
+        .eq("room_unit_id", roomUnitId)
+        .maybeSingle();
+      if (!assignment) throw new Error("Room does not belong to this stay.");
+    }
+    if (bookingGuestId) {
+      const { data: guest } = await admin
+        .from("booking_guests")
+        .select("id")
+        .eq("id", bookingGuestId)
+        .eq("booking_id", bookingId)
+        .maybeSingle();
+      if (!guest) throw new Error("Guest does not belong to this stay.");
+    }
 
     let tableOutlet: string | null = null;
     if (tableId) {
@@ -440,20 +482,12 @@ export async function createDeskOrder(
     }
 
     // Derive a primary outlet for the order row (KOT label only — the cart can
-    // mix outlets). Priority: table's outlet if set, else cafe > pastry >
-    // restaurant > bar from the cart.
-    const cartOutlets = new Set(menuRows.map((row) => row.outlet as string));
-    const outlet =
-      tableOutlet ??
-      (cartOutlets.has("cafe")
-        ? "cafe"
-        : cartOutlets.has("pastry")
-          ? "pastry"
-          : cartOutlets.has("restaurant")
-            ? "restaurant"
-            : cartOutlets.has("bar")
-              ? "bar"
-              : "cafe");
+    // mix outlets). Prefer the table's outlet, else the first cart item's outlet.
+    const cartOutlets = menuRows.map((row) => row.outlet as string);
+    const outlet = tableOutlet ?? cartOutlets[0];
+    if (!outlet) {
+      throw new Error("Could not determine outlet for this ticket.");
+    }
 
     const modifiersByLine = await resolveModifiers(admin, property_id, cart);
     const byId = new Map(menuRows.map((row) => [row.id as string, row]));
@@ -510,7 +544,10 @@ export async function createDeskOrder(
         status: parkOnCreate ? "received" : "received",
         kot_status: parkOnCreate ? "new" : "new",
         order_source: settleMode === "room_charge" ? "room_charge" : "desk",
+        pos_shift_id: posShiftId,
         booking_id: bookingId,
+        room_unit_id: roomUnitId,
+        booking_guest_id: bookingGuestId,
         folio_id: folioId,
         table_id: tableId,
         covers,
@@ -527,6 +564,7 @@ export async function createDeskOrder(
         total_btn: totalBtn,
         posted_to_folio_at:
           settleMode === "room_charge" ? nowIso : null,
+        settled_at: settleMode === "room_charge" ? nowIso : null,
       })
       .select("id")
       .single();
@@ -554,6 +592,21 @@ export async function createDeskOrder(
     if (itemsError) {
       await admin.from("orders").delete().eq("id", order.id);
       throw new Error("Could not save order items.");
+    }
+
+    if (!parkOnCreate) {
+      const { error: stockError } = await admin.rpc("pos_apply_order_stock", {
+        p_order_id: order.id,
+        p_reverse: false,
+      });
+      if (stockError) {
+        await admin.from("orders").delete().eq("id", order.id);
+        throw new Error(
+          stockError.message.includes("Insufficient stock")
+            ? stockError.message
+            : "Could not issue menu stock.",
+        );
+      }
     }
 
     if (settleMode === "room_charge" && folioId && bookingId) {
@@ -659,10 +712,6 @@ export async function updateOrderKotStatus(formData: FormData): Promise<void> {
           ? "cancelled"
           : "preparing",
   };
-  if (nextStatus === "served") {
-    patch.settled_at = new Date().toISOString();
-  }
-
   const { error } = await admin.from("orders").update(patch).eq("id", orderId);
   if (error) {
     throw new Error("Could not update order status.");
@@ -1035,6 +1084,18 @@ export async function unparkOrder(
     if (error || !order) throw new Error("Order not found.");
     if (order.voided_at) throw new Error("Cannot unpark a voided order.");
 
+    const { error: stockError } = await admin.rpc("pos_apply_order_stock", {
+      p_order_id: orderId,
+      p_reverse: false,
+    });
+    if (stockError) {
+      throw new Error(
+        stockError.message.includes("Insufficient stock")
+          ? stockError.message
+          : "Could not issue menu stock.",
+      );
+    }
+
     const { error: patchError } = await admin
       .from("orders")
       .update({ is_parked: false, parked_at: null })
@@ -1088,6 +1149,12 @@ export async function voidOrder(
 
     const amountBtn = Number(order.total_btn);
     requireVoidManagerPin(amountBtn, reasonCode, formData);
+
+    const { error: stockError } = await admin.rpc("pos_apply_order_stock", {
+      p_order_id: orderId,
+      p_reverse: true,
+    });
+    if (stockError) throw new Error("Could not restore order stock.");
 
     const nowIso = new Date().toISOString();
     const { error: patchError } = await admin
@@ -1204,6 +1271,15 @@ export async function voidOrderItem(
     ).subtotalBtn;
 
     requireVoidManagerPin(lineAmount, reasonCode, formData);
+
+    const { error: stockError } = await admin.rpc(
+      "pos_apply_order_item_stock",
+      {
+        p_order_item_id: itemId,
+        p_reverse: true,
+      },
+    );
+    if (stockError) throw new Error("Could not restore item stock.");
 
     const nowIso = new Date().toISOString();
     const { error: patchItemError } = await admin
@@ -1355,11 +1431,19 @@ export async function splitSettle(
 
     const admin = createSupabaseAdminClient();
     const property_id = await propertyId(admin);
+    const posShiftId = await openShiftId(admin, property_id);
+    const needsDrawer = tenders.some(
+      (tender) =>
+        tender.method !== "room_charge" && tender.method !== "agent_credit",
+    );
+    if (needsDrawer && !posShiftId) {
+      throw new Error("Open a POS shift before taking guest payment.");
+    }
 
     const { data: order, error } = await admin
       .from("orders")
       .select(
-        "id, total_btn, voided_at, settled_at, customer_name, outlet, table_id, folio_id, booking_id, posted_to_folio_at, subtotal_btn, service_charge_rate, service_charge_btn, service_charge_applied, service_charge_reason, gst_btn",
+        "id, total_btn, voided_at, settled_at, customer_name, outlet, table_id, folio_id, booking_id, pos_shift_id, posted_to_folio_at, subtotal_btn, service_charge_rate, service_charge_btn, service_charge_applied, service_charge_reason, gst_btn",
       )
       .eq("id", orderId)
       .eq("property_id", property_id)
@@ -1496,6 +1580,7 @@ export async function splitSettle(
           ? ((order.posted_to_folio_at as string | null) ?? nowIso)
           : order.posted_to_folio_at,
         status: "completed",
+        pos_shift_id: posShiftId ?? order.pos_shift_id,
       })
       .eq("id", orderId);
 
@@ -1602,9 +1687,6 @@ export async function saveDiningTable(
     }
     const area = optionalTrim(formData.get("area")) || "main";
     const outlet = optionalTrim(formData.get("outlet"));
-    if (outlet && !OUTLETS.has(outlet)) {
-      throw new Error("Choose cafe, pastry, restaurant, or bar.");
-    }
 
     const seatsRaw = trimRequired(formData.get("seats"), "Seats");
     const seats = Number(seatsRaw);
@@ -1625,6 +1707,9 @@ export async function saveDiningTable(
 
     const admin = createSupabaseAdminClient();
     const property_id = await propertyId(admin);
+    if (outlet) {
+      await assertPropertyOutlet(admin, property_id, outlet);
+    }
 
     const payload = {
       property_id,
@@ -1919,6 +2004,174 @@ export async function confirmPublicOrderAction(formData: FormData): Promise<void
   await confirmPublicOrder({ ok: false }, formData);
 }
 
+export type PosShiftState = {
+  ok: boolean;
+  shiftId?: string;
+  message?: string;
+  error?: string;
+};
+
+export async function openPosShift(
+  _prev: PosShiftState,
+  formData: FormData,
+): Promise<PosShiftState> {
+  try {
+    await requireDesk();
+    const openingFloat = Number(formData.get("opening_float_btn") ?? 0);
+    if (!Number.isFinite(openingFloat) || openingFloat < 0) {
+      throw new Error("Opening float cannot be negative.");
+    }
+    const admin = createSupabaseAdminClient();
+    const property_id = await propertyId(admin);
+    const existing = await openShiftId(admin, property_id);
+    if (existing) throw new Error("A POS shift is already open.");
+    const staff = await getStaffSession();
+    const { data, error } = await admin
+      .from("pos_shifts")
+      .insert({
+        property_id,
+        business_date: thimphuToday(),
+        opening_float_btn: roundBtn(openingFloat),
+        opened_by: staff?.staffId ?? null,
+        opened_by_name: staff?.fullName ?? "desk",
+      })
+      .select("id")
+      .single();
+    if (error || !data) throw new Error("Could not open POS shift.");
+    await writeAuditEvent(admin, {
+      propertyId: property_id,
+      action: "pos.shift.open",
+      entityType: "pos_shifts",
+      entityId: data.id as string,
+      summary: `Opened POS shift with Nu ${openingFloat.toFixed(2)} float`,
+      actor: staff?.fullName ?? "desk",
+    });
+    revalidatePath("/erp/pos");
+    return { ok: true, shiftId: data.id as string, message: "Shift opened." };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Could not open shift.",
+    };
+  }
+}
+
+export async function closePosShift(
+  _prev: PosShiftState,
+  formData: FormData,
+): Promise<PosShiftState> {
+  try {
+    await requireDesk();
+    const shiftId = trimRequired(formData.get("shift_id"), "Shift");
+    const countedCash = Number(formData.get("counted_cash_btn"));
+    if (!Number.isFinite(countedCash) || countedCash < 0) {
+      throw new Error("Counted cash cannot be negative.");
+    }
+    const pin = trimRequired(formData.get("manager_pin"), "Manager PIN");
+    if (!verifyPosManagerPin(pin)) throw new Error("Manager PIN is incorrect.");
+    const notes = optionalTrim(formData.get("notes"));
+
+    const admin = createSupabaseAdminClient();
+    const property_id = await propertyId(admin);
+    const staff = await getStaffSession();
+    const { data: shift } = await admin
+      .from("pos_shifts")
+      .select("id, opening_float_btn, status")
+      .eq("id", shiftId)
+      .eq("property_id", property_id)
+      .maybeSingle();
+    if (!shift || shift.status !== "open") throw new Error("Open shift not found.");
+
+    const { data: shiftOrders } = await admin
+      .from("orders")
+      .select("id, settled_at, voided_at")
+      .eq("pos_shift_id", shiftId);
+    const openOrders = (shiftOrders ?? []).filter(
+      (order) => !order.voided_at && !order.settled_at,
+    );
+    if (openOrders.length > 0) {
+      throw new Error(
+        `Settle or void ${openOrders.length} open ticket(s) before closing.`,
+      );
+    }
+    const orderIds = (shiftOrders ?? []).map((order) => order.id as string);
+    const { data: tenders } =
+      orderIds.length > 0
+        ? await admin
+            .from("order_tenders")
+            .select("method, amount_btn")
+            .in("order_id", orderIds)
+        : { data: [] };
+    const totals: Record<string, number> = {};
+    for (const tender of tenders ?? []) {
+      const method = tender.method as string;
+      totals[method] = roundBtn(
+        (totals[method] ?? 0) + Number(tender.amount_btn),
+      );
+    }
+    const voidedIds = (shiftOrders ?? [])
+      .filter((order) => Boolean(order.voided_at))
+      .map((order) => order.id as string);
+    const { data: voids } =
+      voidedIds.length > 0
+        ? await admin
+            .from("pos_voids")
+            .select("amount_btn")
+            .in("order_id", voidedIds)
+        : { data: [] };
+    const voidTotal = roundBtn(
+      (voids ?? []).reduce(
+        (sum, row) => sum + Number(row.amount_btn ?? 0),
+        0,
+      ),
+    );
+    const expectedCash = roundBtn(
+      Number(shift.opening_float_btn) + (totals.cash ?? 0),
+    );
+    const variance = roundBtn(countedCash - expectedCash);
+    const nowIso = new Date().toISOString();
+    const { error } = await admin
+      .from("pos_shifts")
+      .update({
+        status: "closed",
+        expected_cash_btn: expectedCash,
+        counted_cash_btn: roundBtn(countedCash),
+        variance_btn: variance,
+        tender_totals: totals,
+        void_total_btn: voidTotal,
+        closed_by: staff?.staffId ?? null,
+        closed_by_name: staff?.fullName ?? "desk",
+        manager_approved_by: staff?.staffId ?? null,
+        closed_at: nowIso,
+        notes,
+      })
+      .eq("id", shiftId)
+      .eq("status", "open");
+    if (error) throw new Error("Could not close POS shift.");
+    await writeAuditEvent(admin, {
+      propertyId: property_id,
+      action: "pos.shift.close",
+      entityType: "pos_shifts",
+      entityId: shiftId,
+      summary: `Closed POS shift · variance Nu ${variance.toFixed(2)}`,
+      meta: { totals, expectedCash, countedCash, variance, voidTotal },
+      actor: staff?.fullName ?? "desk",
+    });
+    revalidatePath("/erp/pos");
+    revalidatePath("/erp/night-audit");
+    return {
+      ok: true,
+      shiftId,
+      message: `Shift closed. Variance: Nu ${variance.toFixed(2)}.`,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Could not close shift.",
+    };
+  }
+}
+
 const ONLINE_PAY_METHODS = new Set([
   "mbob",
   "bnb_mpay",
@@ -1980,6 +2233,18 @@ export async function recordOnlineOrderPayment(
     }
     if (order.payment_recorded_at) {
       return { ok: true, orderId };
+    }
+
+    const { error: stockError } = await admin.rpc("pos_apply_order_stock", {
+      p_order_id: orderId,
+      p_reverse: false,
+    });
+    if (stockError) {
+      throw new Error(
+        stockError.message.includes("Insufficient stock")
+          ? stockError.message
+          : "Could not issue menu stock.",
+      );
     }
 
     const { error: patchError } = await admin

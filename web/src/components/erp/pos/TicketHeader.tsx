@@ -19,14 +19,6 @@ import type { PosBookingOption } from "./types";
 
 const NONE = "__none__";
 
-function nightsBetween(checkIn: string, checkOut: string): number {
-  if (!checkIn || !checkOut) return 0;
-  const a = new Date(`${checkIn}T00:00:00`).getTime();
-  const b = new Date(`${checkOut}T00:00:00`).getTime();
-  if (Number.isNaN(a) || Number.isNaN(b) || b <= a) return 0;
-  return Math.round((b - a) / 86_400_000);
-}
-
 function roleLabel(value: string): string {
   return value.replace(/_/g, " ");
 }
@@ -39,7 +31,10 @@ type Props = {
   settleMode: "cash" | "room_charge";
   onSettleModeChange: (v: "cash" | "room_charge") => void;
   bookingId: string;
-  onBookingIdChange: (v: string) => void;
+  roomUnitId: string;
+  onRoomUnitIdChange: (v: string) => void;
+  bookingGuestId: string;
+  onBookingGuestIdChange: (v: string) => void;
   bookings: PosBookingOption[];
   notes: string;
   onNotesChange: (v: string) => void;
@@ -63,7 +58,10 @@ export function TicketHeader({
   settleMode,
   onSettleModeChange,
   bookingId,
-  onBookingIdChange,
+  roomUnitId,
+  onRoomUnitIdChange,
+  bookingGuestId,
+  onBookingGuestIdChange,
   bookings,
   notes,
   onNotesChange,
@@ -82,6 +80,11 @@ export function TicketHeader({
 
   const outletTables = tables;
   const selectedTable = outletTables.find((t) => t.id === tableId) ?? null;
+  const roomOptions = bookings.flatMap((booking) =>
+    booking.rooms.map((room) => ({ booking, room })),
+  );
+  const selectedBooking =
+    bookings.find((booking) => booking.id === bookingId) ?? null;
 
   const tableGroups = useMemo(() => {
     const map = new Map<string | null, DiningTable[]>();
@@ -100,7 +103,7 @@ export function TicketHeader({
 
   return (
     <div className="erp rounded-xl border bg-card">
-      <div className="grid gap-3 px-4 py-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 px-4 py-3 sm:grid-cols-2 xl:grid-cols-5">
         <div className="space-y-1.5">
           <Label htmlFor="th_customer_name" className="text-xs text-muted-foreground">
             Guest name
@@ -148,33 +151,62 @@ export function TicketHeader({
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="th_booking_id" className="text-xs text-muted-foreground">
-            {settleMode === "room_charge" ? "Booking folio" : "Booking (n/a)"}
+          <Label htmlFor="th_room_unit_id" className="text-xs text-muted-foreground">
+            In-house room
           </Label>
           <Select
-            value={bookingId || NONE}
-            onValueChange={(v) => onBookingIdChange(v === NONE ? "" : v)}
-            disabled={settleMode !== "room_charge"}
+            value={roomUnitId || NONE}
+            onValueChange={(value) =>
+              onRoomUnitIdChange(value === NONE ? "" : value)
+            }
           >
-            <SelectTrigger id="th_booking_id" className="w-full">
-              <SelectValue
-                placeholder={
-                  settleMode === "room_charge" ? "Select booking" : "—"
-                }
-              />
+            <SelectTrigger id="th_room_unit_id" className="w-full">
+              <SelectValue placeholder="Walk-in / select room" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={NONE}>
-                {settleMode === "room_charge" ? "Select booking" : "—"}
-              </SelectItem>
-              {bookings.map((b) => (
-                <SelectItem key={b.id} value={b.id}>
-                  {(b.contact_name ?? "Guest")} · {b.check_in} ·{" "}
-                  {nightsBetween(b.check_in, b.check_out)}n · {b.status}
+              <SelectItem value={NONE}>Walk-in / no room</SelectItem>
+              {roomOptions.map(({ booking, room }) => (
+                <SelectItem key={`${booking.id}-${room.id}`} value={room.id}>
+                  {room.label} · {booking.contact_name ?? "Guest"}
+                  {booking.agent_name ? ` · ${booking.agent_name}` : ""}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="th_guest_id" className="text-xs text-muted-foreground">
+            Guest
+          </Label>
+          <Select
+            value={bookingGuestId || NONE}
+            onValueChange={(value) =>
+              onBookingGuestIdChange(value === NONE ? "" : value)
+            }
+            disabled={!selectedBooking}
+          >
+            <SelectTrigger id="th_guest_id" className="w-full">
+              <SelectValue placeholder="Select room first" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE}>
+                {selectedBooking?.contact_name ?? "Primary guest"}
+              </SelectItem>
+              {selectedBooking?.guests
+                .filter((guest) => guest.id)
+                .map((guest) => (
+                  <SelectItem key={guest.id} value={guest.id as string}>
+                    {guest.full_name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+          {selectedBooking?.source === "agent" ? (
+            <p className="text-[10px] text-muted-foreground">
+              Stay by agent; POS remains guest-paid unless Room is selected.
+            </p>
+          ) : null}
         </div>
       </div>
 

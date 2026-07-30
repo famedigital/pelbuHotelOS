@@ -1,6 +1,6 @@
 # Pelbu Suites — Feature status
 
-Last updated: **2026-07-30**.
+Last updated: **2026-07-31**.
 Property #1: `pelbu-suites-olakha` (`template_id` 1). Work login supports staff Auth with desk access; `DESK_PIN` remains a temporary fallback.
 
 **Verdict:** Core hotel OS modules and the flagship public conversion rebuild are **built**. The public PWA now has task-first room, food, spa, meeting, and agent engines; the Work PWA routes staff, desk, and approved agents to isolated workspaces. Not "100% done" — live Channex certification, live Pay.bt/QR merchant APIs, offline desk money queues, and partner auto-discounts remain externally or product-blocked.
@@ -50,6 +50,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Answer content | `/faq`, `/stay/olakha-thimphu`, and CMS `cms_posts` guides |
 | Deposit pay page | `/pay/{token}` — guest sees amount; desk marks paid |
 | Agent voucher email | Fast-book print + Resend email to agent contact (no rates on voucher) |
+| Guest laundry | `/laundry` — room + name validation (in-house only, no guest list), photo intake, request tracking |
 
 ### Desk ERP shell (`/erp/*`)
 
@@ -72,7 +73,8 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Check-in / out | `/erp/check-in` | Physical room allocation (guest + guide/driver); HK readiness; multi-guest rooming; origin-aware SDF/guide; checkout → dirty |
 | Arrivals / in-house / departures | `/erp/arrivals` etc. | P8 list boards |
 | Reservations / guests | `/erp/reservations`, `/erp/guests` | P8 lists |
-| POS | `/erp/pos` | Cafe/bar/restaurant cashier → folio |
+| POS | `/erp/pos` | Cafe/bar/restaurant cashier → folio; floor plan; stock & shifts |
+| **Laundry** | `/erp/laundry` (+ `/qr`, `/orders/[id]/labels`) · guest `/laundry` · staff `/staff/laundry` (+ bag scan/labels) | Guest QR room+name intake · reception photo intake · maid mobile board · **Amazon-style bag QR labels** (1–N bags, per-bag garments, staff-secured scan) · maid-confirmed counts → atomic folio post · printable room + bag stickers |
 | Folio | `/erp/folios/[id]` (+ `/receipt`) | Payments, void, comp, deposit links |
 | Invoices / payments | `/erp/invoices`, `/erp/payments` | P8 |
 | Agents | `/erp/agents` | Approve, credit, rates matrix, documents, statements |

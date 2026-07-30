@@ -4,6 +4,7 @@ import type {
   ModifierGroup,
   OpenPosTicket,
   PosStaffOption,
+  PosShift,
   PosTenderMethod,
   PosVoidReasonCode,
 } from "@/lib/pos";
@@ -11,9 +12,14 @@ import type {
 export type PosBookingOption = {
   id: string;
   contact_name: string | null;
+  contact_phone: string | null;
   check_in: string;
   check_out: string;
   status: string;
+  source: string | null;
+  agent_name: string | null;
+  rooms: { id: string; label: string }[];
+  guests: { id: string | null; full_name: string; phone: string | null }[];
 };
 
 /** Legacy alias kept so older imports of `DeskBookingOption` still resolve. */
@@ -71,11 +77,14 @@ export type TenderDraft = {
 
 export type PosLayoutProps = {
   items: MenuItem[];
+  /** Active property outlets for filters and table forms. */
+  outlets: { code: string; name: string }[];
   modifierGroups: ModifierGroup[];
   tables: DiningTable[];
   staff: PosStaffOption[];
   openTickets: OpenPosTicket[];
   bookings: PosBookingOption[];
+  shift: PosShift | null;
   gstRate: number;
   serviceChargeRate: number;
   serviceChargeDefaultOn: boolean;
@@ -84,8 +93,10 @@ export type PosLayoutProps = {
   guestServiceSlot?: React.ReactNode;
 };
 
-export type OutletCode = "cafe" | "pastry" | "restaurant" | "bar";
+/** Outlet code is property-scoped text (cafe, rooftop, …). */
+export type OutletCode = string;
 
+/** @deprecated Prefer outlets loaded from property_outlets. */
 export const POS_OUTLETS: { value: OutletCode; label: string }[] = [
   { value: "cafe", label: "Cafe" },
   { value: "pastry", label: "Pastry" },
@@ -94,9 +105,9 @@ export const POS_OUTLETS: { value: OutletCode; label: string }[] = [
 ];
 
 /** Sub-tabs shown inside every outlet. */
-export type PosSection = "menu" | "floor" | "service";
+export type PosSection = "menu" | "floor" | "stock" | "closing" | "service";
 
-/** Outlets that seat guests at tables — floor plan is primary for these. */
+/** Outlets that typically seat guests at tables (legacy pastry is counter-only). */
 export const TABLE_SERVICE_OUTLETS: OutletCode[] = ["cafe", "restaurant", "bar"];
 
 /**

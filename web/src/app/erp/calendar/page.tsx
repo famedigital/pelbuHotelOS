@@ -79,10 +79,9 @@ export default async function CalendarPage({ searchParams }: Props) {
         .limit(5000),
       admin
         .from("agents")
-        .select("id, company_name, market")
+        .select("id, company_name, market, status")
         .in("status", ["approved", "demo"])
-        .order("company_name")
-        .limit(80),
+        .order("company_name"),
       admin
         .from("bookings")
         .select(
@@ -278,6 +277,7 @@ export default async function CalendarPage({ searchParams }: Props) {
     id: a.id as string,
     company_name: a.company_name as string,
     market: a.market as string,
+    status: (a.status as string) ?? "approved",
   }));
 
   const blocks: RoomBlock[] = (blockRows ?? []).map((block) => ({

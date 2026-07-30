@@ -38,7 +38,11 @@ export function MenuGrid({ items, category, search, onAdd }: Props) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
       {filtered.map((item) => (
-        <MenuTile key={item.id} item={item} onClick={() => onAdd(item.id)} />
+        <MenuTile
+          key={item.id}
+          item={item}
+          onClick={() => onAdd(item.id)}
+        />
       ))}
     </div>
   );
