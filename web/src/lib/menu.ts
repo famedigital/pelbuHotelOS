@@ -9,4 +9,8 @@ export type MenuItem = {
   sort_order: number;
   image_public_id?: string | null;
   image_src?: string | null;
+  is_popular?: boolean;
+  prep_station?: "kitchen" | "bar" | "pastry" | "grill" | "cold";
+  /** Admin only — never returned by the public loader. */
+  is_available?: boolean;
 };
