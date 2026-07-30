@@ -1,3 +1,4 @@
+import { HoldCountdown } from "@/components/book/HoldCountdown";
 import { formatBtn } from "@/lib/pricing";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { notFound } from "next/navigation";
@@ -93,13 +94,12 @@ export default async function PayTokenPage({ params }: PageProps) {
                 </div>
               </div>
               {booking.hold_expires_at && isOpen ? (
-                <p className="text-sm text-maroon">
-                  Hold expires{" "}
-                  {new Date(booking.hold_expires_at as string).toLocaleString(
-                    "en-BT",
-                    { timeZone: "Asia/Thimphu" },
-                  )}
-                </p>
+                <HoldCountdown
+                  expiresAt={booking.hold_expires_at as string}
+                  formattedExpiry={new Date(
+                    booking.hold_expires_at as string,
+                  ).toLocaleString("en-BT", { timeZone: "Asia/Thimphu" })}
+                />
               ) : null}
             </>
           ) : null}

@@ -11,6 +11,17 @@ export function thimphuToday(): string {
   }).format(new Date());
 }
 
+/**
+ * Add (or subtract) days from a YYYY-MM-DD date string, returning a new
+ * YYYY-MM-DD. Uses noon to avoid DST edge cases (Thimphu has none today, but
+ * the convention keeps the helper portable across timezones).
+ */
+export function thimphuDateOffset(yyyymmdd: string, days: number): string {
+  const base = new Date(`${yyyymmdd.slice(0, 10)}T12:00:00Z`);
+  base.setUTCDate(base.getUTCDate() + days);
+  return base.toISOString().slice(0, 10);
+}
+
 export function fmtDate(iso: string | null | undefined): string {
   if (!iso) return "—";
   const d = new Date(`${iso.slice(0, 10)}T12:00:00`);
