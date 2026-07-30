@@ -1,14 +1,16 @@
 import { MediaGallery } from "@/components/media/MediaGallery";
-import { ConversionShell } from "@/components/site/ConversionShell";
+import { CmsContentSections } from "@/components/site/CmsContentSections";
+import { EngineShell } from "@/components/site/EngineShell";
 import { MenuSections } from "@/components/site/MenuSections";
 import { Button } from "@/components/ui/button";
-import { loadCmsGallery, loadCmsPage, pickHeroSrc } from "@/lib/cms";
+import { loadCmsGallery, loadCmsPage } from "@/lib/cms";
 import { groupMenuByCategory, loadMenuByOutlets } from "@/lib/menu-loader";
 
 export const metadata = {
   title: "Cafe & Pastry | Pelbu Suites",
   description:
-    "Cafe and pastry at Pelbu Suites — opens 6:30 summer / 7:30 winter. Order for taxi delivery in Thimphu.",
+    "Cafe and pastry at Pelbu Suites — order from the live menu for pickup or taxi delivery in Thimphu.",
+  alternates: { canonical: "/cafe" },
 };
 
 export const dynamic = "force-dynamic";
@@ -23,50 +25,48 @@ export default async function CafePage() {
   const hasMenu = items.length > 0;
 
   return (
-    <ConversionShell
-      heroSrc={pickHeroSrc(gallery)}
+    <EngineShell
       eyebrow={page?.eyebrow ?? "Cafe & Pastry"}
       title={page?.title ?? "Morning light, warm pastry."}
-      body={
+      description={
         page?.body ??
-        "Opens 6:30 AM in summer and 7:30 AM in winter. Breakfast through dinner — order for pickup or taxi delivery across Thimphu."
+        "Breakfast, coffee, and pastry from the live menu — order for pickup or taxi delivery across Thimphu."
       }
-      aside={
-        <div className="space-y-5 text-sm text-muted-foreground">
-          <div className="space-y-3">
-            <p className="text-sm font-medium text-ink">Order</p>
-            <p className="leading-relaxed text-ink/80">
-              {page?.hours_note ??
-                "GST shown clearly on the bill. Taxi fare is paid to the driver separately."}
-            </p>
-          </div>
-          <div className="space-y-2 border-t border-border pt-5">
-            <Button asChild variant="default" className="w-full">
-              <a href={page?.primary_cta_href ?? "/order"}>
-                {page?.primary_cta_label ?? "Order now"}
-              </a>
-            </Button>
-          </div>
-        </div>
+      actions={
+        <>
+          <Button asChild variant="citrus">
+            <a href={page?.primary_cta_href ?? "/menu?outlet=cafe"}>
+              {page?.primary_cta_label ?? "Order now"}
+            </a>
+          </Button>
+          <Button asChild variant="outline">
+            <a href="/menu">Full menu</a>
+          </Button>
+        </>
       }
     >
-      <div className="space-y-12">
+      <div className="space-y-10">
+        <CmsContentSections sections={page?.sections_json} />
+        {page?.hours_note ? (
+          <p className="rounded-2xl border border-border bg-mint-100/50 px-4 py-3 text-sm text-mint-600">
+            {page.hours_note}
+          </p>
+        ) : null}
         <section>
-          <h2 className="text-sm font-medium text-ink">The menu</h2>
-          <div className="mt-4">
-            <MenuSections byCategory={byCategory} />
-          </div>
+          <MenuSections
+            byCategory={byCategory}
+            orderBaseHref={hasMenu ? "/menu" : undefined}
+          />
           {hasMenu ? (
             <div className="mt-8">
-              <Button asChild>
-                <a href="/order">Build your order</a>
+              <Button asChild variant="citrus">
+                <a href="/menu?outlet=cafe">Build your order</a>
               </Button>
             </div>
           ) : null}
         </section>
-
         <MediaGallery items={gallery} label="Cafe" />
       </div>
-    </ConversionShell>
+    </EngineShell>
   );
 }

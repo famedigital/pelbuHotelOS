@@ -18,9 +18,6 @@ import { useActionState } from "react";
 
 const initial: ErpOpsState = { ok: false };
 
-// Native <select> styled to match shadcn Input — Radix Select would force a
-// controlled-value refactor across every form; the visual + a11y lift from
-// this class is sufficient for now.
 function selectClass() {
   return "mt-1.5 flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer";
 }
@@ -29,7 +26,7 @@ function ActionFlash({ state }: { state: ErpOpsState }) {
   if (!state.ok && !state.error) return null;
   return (
     <p
-      className={`mt-2 text-sm ${state.ok ? "text-espresso" : "text-maroon"}`}
+      className={`erp mt-2 text-sm ${state.ok ? "text-foreground" : "text-destructive"}`}
       role="status"
     >
       {state.ok ? state.message : state.error}
@@ -50,8 +47,8 @@ export function StaffMemberForm() {
   const [state, action, pending] = useActionState(createStaffMember, initial);
   useActionToast(state, { successMessage: "Staff member saved" });
   return (
-    <form action={action} className="space-y-3 border border-espresso/10 bg-white p-4">
-      <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
+    <form action={action} className="erp space-y-3 rounded-lg border bg-card p-4">
+      <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
         Add staff
       </h3>
       <div className="space-y-1.5">
@@ -104,7 +101,7 @@ export function StaffMemberForm() {
           <Input id="email" name="email" type="email" />
         </div>
       </div>
-      <Button type="submit" variant="gold" disabled={pending} className="min-h-10">
+      <Button type="submit" variant="citrus" disabled={pending} className="h-10 w-full">
         {pending ? "Saving…" : "Save staff"}
       </Button>
       <ActionFlash state={state} />
@@ -117,8 +114,8 @@ export function StaffShiftForm({ staff }: { staff: StaffOption[] }) {
   useActionToast(state, { successMessage: "Shift saved" });
   const today = new Date().toISOString().slice(0, 10);
   return (
-    <form action={action} className="space-y-3 border border-espresso/10 bg-white p-4">
-      <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
+    <form action={action} className="erp space-y-3 rounded-lg border bg-card p-4">
+      <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
         Add shift
       </h3>
       <div className="space-y-1.5">
@@ -203,7 +200,7 @@ export function StaffShiftForm({ staff }: { staff: StaffOption[] }) {
       <Button
         type="submit"
         disabled={pending || staff.length === 0}
-        className="min-h-10 bg-espresso text-ivory hover:bg-espresso/90"
+        className="h-10 w-full"
       >
         {pending ? "Saving…" : "Save shift"}
       </Button>
@@ -217,8 +214,8 @@ export function StaffLeaveForm({ staff }: { staff: StaffOption[] }) {
   useActionToast(state, { successMessage: "Leave saved" });
   const today = new Date().toISOString().slice(0, 10);
   return (
-    <form action={action} className="space-y-3 border border-espresso/10 bg-white p-4">
-      <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
+    <form action={action} className="erp space-y-3 rounded-lg border bg-card p-4">
+      <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
         Record leave
       </h3>
       <div className="space-y-1.5">
@@ -286,9 +283,9 @@ export function StaffLeaveForm({ staff }: { staff: StaffOption[] }) {
       </div>
       <Button
         type="submit"
-        variant="gold"
+        variant="citrus"
         disabled={pending || staff.length === 0}
-        className="min-h-10"
+        className="h-10 w-full"
       >
         {pending ? "Saving…" : "Save leave"}
       </Button>
@@ -301,8 +298,8 @@ export function InventoryItemForm() {
   const [state, action, pending] = useActionState(createInventoryItem, initial);
   useActionToast(state, { successMessage: "Stock item saved" });
   return (
-    <form action={action} className="space-y-3 border border-espresso/10 bg-white p-4">
-      <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
+    <form action={action} className="erp space-y-3 rounded-lg border bg-card p-4">
+      <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
         New stock item
       </h3>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -395,7 +392,7 @@ export function InventoryItemForm() {
           />
         </div>
       </div>
-      <Button type="submit" variant="gold" disabled={pending} className="min-h-10">
+      <Button type="submit" variant="citrus" disabled={pending} className="h-10 w-full">
         {pending ? "Saving…" : "Save item"}
       </Button>
       <ActionFlash state={state} />
@@ -407,8 +404,8 @@ export function InventoryMoveForm({ items }: { items: InvOption[] }) {
   const [state, action, pending] = useActionState(postInventoryMovement, initial);
   useActionToast(state, { successMessage: "Movement posted" });
   return (
-    <form action={action} className="space-y-3 border border-espresso/10 bg-white p-4">
-      <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
+    <form action={action} className="erp space-y-3 rounded-lg border bg-card p-4">
+      <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
         Stock movement
       </h3>
       <div className="space-y-1.5">
@@ -476,7 +473,7 @@ export function InventoryMoveForm({ items }: { items: InvOption[] }) {
       <Button
         type="submit"
         disabled={pending || items.length === 0}
-        className="min-h-10 bg-espresso text-ivory hover:bg-espresso/90"
+        className="h-10 w-full"
       >
         {pending ? "Posting…" : "Post movement"}
       </Button>
@@ -494,7 +491,7 @@ export function RoomHkButtons({
 }) {
   const statuses = ["clean", "dirty", "inspect", "occupied", "ooo"] as const;
   return (
-    <div className="mt-2 flex flex-wrap gap-1.5">
+    <div className="erp mt-2 flex flex-wrap gap-1.5">
       {statuses.map((status) => (
         <HkStatusButton
           key={status}
@@ -524,9 +521,9 @@ function HkStatusButton({
       <Button
         type="submit"
         size="sm"
-        variant={active ? "gold" : "outline"}
+        variant={active ? "citrus" : "outline"}
         disabled={pending || active}
-        className="min-h-9 px-2.5 text-[11px]"
+        className="h-9 px-2.5 text-[11px]"
       >
         {status}
       </Button>

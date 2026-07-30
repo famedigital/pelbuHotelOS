@@ -81,6 +81,7 @@ export function BookingWizard() {
   const [checkOut, setCheckOut] = useState<string>(addDaysIso(todayIso(), 1));
   const [adults, setAdults] = useState<number>(2);
   const [rooms, setRooms] = useState<number>(1);
+  const [mealPlanCode, setMealPlanCode] = useState<string>("EP");
 
   // Preview + selection.
   const [preview, setPreview] = useState<StayPreview | null>(null);
@@ -100,11 +101,15 @@ export function BookingWizard() {
   // Re-fetch the rate/availability preview whenever the stay window changes.
   useEffect(() => {
     if (!datesValid) {
-      setPreview(null);
-      setPreviewError(null);
-      return;
+      const clearTimer = window.setTimeout(() => {
+        setPreview(null);
+        setPreviewError(null);
+      }, 0);
+      return () => window.clearTimeout(clearTimer);
     }
     let cancelled = false;
+    // Async stay preview; loading flags are intentional external sync.
+    /* eslint-disable react-hooks/set-state-in-effect -- fetch lifecycle */
     setPreviewLoading(true);
     setPreviewError(null);
     previewStayCost({ checkIn, checkOut, rooms })
@@ -112,6 +117,14 @@ export function BookingWizard() {
         if (cancelled) return;
         if (res.ok) {
           setPreview(res.preview);
+          const plans = res.preview.mealPlans;
+          if (plans.length) {
+            setMealPlanCode((current) =>
+              plans.some((p) => p.code === current)
+                ? current
+                : (plans[0]?.code ?? "EP"),
+            );
+          }
           // If the previously selected room is no longer available, clear it.
           if (
             selectedCode &&
@@ -134,6 +147,7 @@ export function BookingWizard() {
       .finally(() => {
         if (!cancelled) setPreviewLoading(false);
       });
+    /* eslint-enable react-hooks/set-state-in-effect */
     return () => {
       cancelled = true;
     };
@@ -198,6 +212,7 @@ export function BookingWizard() {
       <input type="hidden" name="check_out" value={checkOut} />
       <input type="hidden" name="adults" value={adults} />
       <input type="hidden" name="rooms" value={rooms} />
+      <input type="hidden" name="meal_plan_code" value={mealPlanCode} />
       <input type="hidden" name="quoted_total_btn" value={selectedTotal ?? ""} />
       {/* Step 2 also renders its own room_type_code hidden input. */}
 
@@ -226,6 +241,9 @@ export function BookingWizard() {
               onAdults={setAdults}
               rooms={rooms}
               onRooms={setRooms}
+              mealPlans={preview?.mealPlans ?? []}
+              mealPlanCode={mealPlanCode}
+              onMealPlan={setMealPlanCode}
             />
           ) : null}
 

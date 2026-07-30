@@ -1,6 +1,8 @@
-import { DeskHeader } from "@/components/erp/DeskHeader";
+import { DeskListShell } from "@/components/erp/DeskListShell";
 import { PartnersTable } from "@/components/erp/PartnersTable";
-import { deskPinConfigured, isDeskAuthenticated } from "@/lib/desk-auth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
@@ -45,12 +47,9 @@ export default async function PartnersPage({
 
   if (!property) {
     return (
-      <div className="min-h-screen bg-ivory">
-        <DeskHeader title="Partners" />
-        <main className="mx-auto max-w-[1100px] px-6 py-10">
-          <p className="text-sm text-muted-foreground">Property not configured.</p>
-        </main>
-      </div>
+      <DeskListShell eyebrow="Directory" heading="Guides & drivers">
+        <p className="text-sm text-muted-foreground">Property not configured.</p>
+      </DeskListShell>
     );
   }
 
@@ -88,66 +87,54 @@ export default async function PartnersPage({
   const drivers = ((driverRows as PartnerRow[] | null) ?? []).filter(filterFn);
 
   return (
-    <div className="min-h-screen bg-ivory">
-      <DeskHeader title="Partners" />
-      <main className="mx-auto max-w-[1100px] space-y-8 px-6 py-10 md:px-8">
-        {!deskPinConfigured() ? (
-          <p className="border border-gold/40 bg-gold/5 px-4 py-3 text-sm text-espresso">
-            Dev mode: desk PIN not set.
-          </p>
-        ) : null}
-
-        <header className="space-y-2">
-          <p className="text-[11px] font-semibold tracking-[0.28em] text-gold uppercase">
-            Repeat partners
-          </p>
-          <h1 className="text-3xl text-espresso">Guides &amp; drivers</h1>
-          <p className="max-w-prose text-sm text-muted-foreground">
-            Every guide and driver who has brought guests to the property. Visit
-            counts help reception recognize returning partners — the foundation
-            for future perks and discounts.
-          </p>
-        </header>
-
-        <form className="flex items-center gap-2" action="/erp/partners" method="get">
-          <label className="block flex-1 text-sm text-espresso">
-            <span className="sr-only">Search partners</span>
-            <input
+    <DeskListShell
+      eyebrow="Repeat partners"
+      heading="Guides & drivers"
+      blurb="Every guide and driver who has brought guests to the property. Visit counts help reception recognize returning partners — the foundation for future perks and discounts."
+      filters={
+        <form
+          className="flex items-center gap-2"
+          action="/erp/partners"
+          method="get"
+        >
+          <div className="min-w-[220px] flex-1 space-y-1.5">
+            <label htmlFor="q" className="sr-only">
+              Search partners
+            </label>
+            <Input
+              id="q"
               type="search"
               name="q"
               defaultValue={q ?? ""}
               placeholder="Search by name, number, phone, vehicle…"
-              className="mt-0 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2.5 text-sm text-espresso outline-none transition-colors focus:border-gold focus:ring-2 focus:ring-gold/20"
+              className="h-10"
             />
-          </label>
-          <button
-            type="submit"
-            className="inline-flex min-h-11 items-center rounded-sm border border-espresso/20 px-4 text-sm text-espresso transition-colors hover:border-espresso/40 hover:bg-espresso/[0.03]"
-          >
+          </div>
+          <Button type="submit" variant="outline" className="h-10">
             Search
-          </button>
+          </Button>
         </form>
+      }
+    >
+      <section className="space-y-3">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+            Guides
+          </h2>
+          <p className="text-xs text-muted-foreground">{guides.length} shown</p>
+        </div>
+        <PartnersTable rows={guides} kind="guide" />
+      </section>
 
-        <section className="space-y-3">
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-              Guides
-            </h2>
-            <p className="text-xs text-muted-foreground">{guides.length} shown</p>
-          </div>
-          <PartnersTable rows={guides} kind="guide" />
-        </section>
-
-        <section className="space-y-3">
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-              Drivers
-            </h2>
-            <p className="text-xs text-muted-foreground">{drivers.length} shown</p>
-          </div>
-          <PartnersTable rows={drivers} kind="driver" />
-        </section>
-      </main>
-    </div>
+      <section className="space-y-3">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+            Drivers
+          </h2>
+          <p className="text-xs text-muted-foreground">{drivers.length} shown</p>
+        </div>
+        <PartnersTable rows={drivers} kind="driver" />
+      </section>
+    </DeskListShell>
   );
 }

@@ -21,16 +21,21 @@ function QtyRow({
   const over = value > rt.unit_count;
 
   return (
-    <tr className="border-t border-espresso/10">
-      <th scope="row" className="px-3 py-2.5 text-left align-middle text-espresso">
+    <tr className="border-t transition-colors hover:bg-muted/40">
+      <th
+        scope="row"
+        className="px-3 py-2.5 text-left align-middle text-foreground"
+      >
         <span className="block text-sm font-medium">{rt.name}</span>
-        <span className="block font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+        <span className="block font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
           {rt.code}
         </span>
       </th>
       <td className="px-3 py-2.5 text-right align-middle font-mono text-xs text-muted-foreground">
         {rt.unit_count}
-        {remaining === 0 ? <span className="ml-1 text-maroon">Â·full</span> : null}
+        {remaining === 0 ? (
+          <span className="ml-1 text-destructive">· full</span>
+        ) : null}
       </td>
       <td className="px-3 py-2.5 align-middle">
         <div className="flex items-center justify-end gap-1.5">
@@ -53,10 +58,10 @@ function QtyRow({
               const n = Number(e.target.value || 0);
               onQtyChange(rt.code, Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0);
             }}
-            className={`w-14 rounded-sm border bg-white px-2 py-1.5 text-center text-sm text-espresso outline-none transition-colors focus:ring-2 focus:ring-gold/20 ${
+            className={`h-8 w-14 rounded-md border bg-background px-2 text-center text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] ${
               over
-                ? "border-maroon/60 text-maroon focus:border-maroon"
-                : "border-espresso/15 focus:border-gold"
+                ? "border-destructive text-destructive"
+                : "border-input"
             }`}
           />
           <StepperButton
@@ -89,7 +94,7 @@ function StepperButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      className="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-espresso/15 bg-white text-base text-espresso transition-colors hover:border-espresso/40 hover:bg-espresso/[0.04] disabled:cursor-not-allowed disabled:opacity-40"
+      className="inline-flex size-8 items-center justify-center rounded-md border border-input bg-background text-base text-foreground transition-colors hover:bg-muted focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-40"
     >
       {children}
     </button>
@@ -98,11 +103,11 @@ function StepperButton({
 
 function GroupHeader({ label }: { label: string }) {
   return (
-    <tr className="bg-espresso/[0.04]">
+    <tr className="bg-muted/40">
       <th
         colSpan={3}
         scope="colgroup"
-        className="px-3 py-1.5 text-left text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground"
+        className="px-3 py-1.5 text-left text-[11px] font-semibold tracking-[0.2em] text-muted-foreground uppercase"
       >
         {label}
       </th>
@@ -118,7 +123,7 @@ export function FastBookGrid({ roomTypes, qtyValues, onQtyChange }: Props) {
 
   if (guestTypes.length === 0 && compTypes.length === 0) {
     return (
-      <p className="border border-maroon/30 bg-maroon/5 px-4 py-3 text-sm text-maroon">
+      <p className="border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
         No room types configured for this property.
       </p>
     );
@@ -127,19 +132,19 @@ export function FastBookGrid({ roomTypes, qtyValues, onQtyChange }: Props) {
   return (
     <fieldset className="space-y-3">
       <div className="flex items-baseline justify-between">
-        <legend className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
+        <legend className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
           Rooms &amp; beds
         </legend>
         <p className="text-xs text-muted-foreground">Enter quantity per row</p>
       </div>
 
-      <div className="overflow-hidden rounded-sm border border-espresso/10 bg-white">
-        <table className="w-full border-collapse">
+      <div className="overflow-hidden rounded-lg border bg-card">
+        <table className="w-full border-collapse text-sm">
           <caption className="sr-only">
             Quantity per room type. Available units shown as a maximum hint.
           </caption>
-          <thead className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-            <tr className="border-b border-espresso/10">
+          <thead>
+            <tr className="border-b bg-muted/40 text-[11px] tracking-[0.18em] text-muted-foreground uppercase">
               <th scope="col" className="px-3 py-2 text-left font-semibold">
                 Type
               </th>

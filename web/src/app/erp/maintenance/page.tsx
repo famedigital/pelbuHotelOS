@@ -89,13 +89,13 @@ export default async function MaintenancePage() {
             const roomLabel = Array.isArray(room) ? room[0]?.label : room?.label;
             const staffName = Array.isArray(st) ? st[0]?.full_name : st?.full_name;
             return (
-              <tr key={o.id as string} className="border-t border-espresso/10">
+              <tr key={o.id as string} className="border-t">
                 <td className="px-3 py-2.5">
-                  <p className="font-medium text-espresso">{o.title as string}</p>
+                  <p className="font-medium text-foreground">{o.title as string}</p>
                   <p className="text-xs text-muted-foreground">
                     {fmtDateTime(o.created_at as string)}
                     {(o.description as string)
-                      ? ` Â· ${(o.description as string).slice(0, 80)}`
+                      ? ` · ${(o.description as string).slice(0, 80)}`
                       : ""}
                   </p>
                 </td>

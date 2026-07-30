@@ -1,6 +1,11 @@
 "use server";
 
 import { chargeAgentCredit } from "@/app/actions/erp-agents";
+import { writeAuditEvent } from "@/lib/audit";
+import {
+  normalizeGuestOrigin,
+  validateCheckInDocs,
+} from "@/lib/checkin-rules";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
@@ -30,6 +35,18 @@ async function requireDesk() {
 
 async function propertyId(admin: Admin) {
   return resolveActivePropertyId(admin);
+}
+
+function revalidateCheckIn(folioId?: string) {
+  revalidatePath("/erp");
+  revalidatePath("/erp/check-in");
+  revalidatePath("/erp/arrivals");
+  revalidatePath("/erp/in-house");
+  revalidatePath("/erp/departures");
+  revalidatePath("/erp/calendar");
+  revalidatePath("/erp/rooms");
+  revalidatePath("/erp/agents");
+  if (folioId) revalidatePath(`/erp/folios/${folioId}`);
 }
 
 async function ensureOpenFolio(
@@ -67,6 +84,49 @@ async function ensureOpenFolio(
   return folio.id as string;
 }
 
+function parseGuestRows(formData: FormData): Array<{
+  fullName: string;
+  nationality: string;
+  passportOrCid: string;
+  sdfRef: string;
+  sdfDocUrl: string;
+  roomUnitId: string | null;
+}> {
+  const names = formData.getAll("guest_name").map((v) => String(v ?? ""));
+  const nationalities = formData
+    .getAll("guest_nationality")
+    .map((v) => String(v ?? ""));
+  const ids = formData.getAll("guest_passport_or_cid").map((v) => String(v ?? ""));
+  const sdfRefs = formData.getAll("guest_sdf_ref").map((v) => String(v ?? ""));
+  const sdfUrls = formData.getAll("guest_sdf_doc_url").map((v) => String(v ?? ""));
+  const roomUnits = formData
+    .getAll("guest_room_unit_id")
+    .map((v) => String(v ?? "").trim() || null);
+
+  // Backward-compatible single-guest field names from older form.
+  if (names.length === 0 && formData.get("guest_name")) {
+    return [
+      {
+        fullName: String(formData.get("guest_name") ?? ""),
+        nationality: String(formData.get("nationality") ?? ""),
+        passportOrCid: String(formData.get("passport_or_cid") ?? ""),
+        sdfRef: String(formData.get("sdf_ref") ?? ""),
+        sdfDocUrl: String(formData.get("sdf_doc_url") ?? ""),
+        roomUnitId: optionalTrim(formData.get("guest_room_unit_id")),
+      },
+    ];
+  }
+
+  return names.map((fullName, i) => ({
+    fullName,
+    nationality: nationalities[i] ?? "",
+    passportOrCid: ids[i] ?? "",
+    sdfRef: sdfRefs[i] ?? "",
+    sdfDocUrl: sdfUrls[i] ?? "",
+    roomUnitId: roomUnits[i] ?? null,
+  }));
+}
+
 export type CheckInState = {
   ok: boolean;
   bookingId?: string;
@@ -83,15 +143,6 @@ export async function confirmCheckIn(
 
     const bookingId = trimRequired(formData.get("booking_id"), "Booking");
     const guideNumber = optionalTrim(formData.get("guide_number"));
-    const guestName = trimRequired(formData.get("guest_name"), "Guest name");
-    const nationality = optionalTrim(formData.get("nationality"));
-    const passportOrCid = trimRequired(
-      formData.get("passport_or_cid"),
-      "Passport / CID",
-    );
-    const sdfRef = trimRequired(formData.get("sdf_ref"), "SDF reference");
-    const sdfDocUrl = optionalTrim(formData.get("sdf_doc_url"));
-
     const paymentMode = trimRequired(formData.get("payment_mode"), "Payment mode");
     if (!PAYMENT_MODES.has(paymentMode)) {
       throw new Error("Choose prepaid, partial, on credit, or cash.");
@@ -101,13 +152,18 @@ export async function confirmCheckIn(
     const driverPhone = optionalTrim(formData.get("driver_phone"));
     const vehicleNo = optionalTrim(formData.get("vehicle_no"));
     const licenseNo = optionalTrim(formData.get("license_no"));
-
-    // Master-partner ids (from autocomplete pick). If absent but free-text is
-    // provided, the action will upsert a new master row below.
     const guideIdRaw = optionalTrim(formData.get("guide_id"));
     const driverIdRaw = optionalTrim(formData.get("driver_id"));
+    const requireClean = formData.get("allow_dirty_rooms") !== "on";
+
+    const roomUnitIds = formData
+      .getAll("room_unit_id")
+      .map((v) => String(v ?? "").trim())
+      .filter(Boolean);
 
     if (driverPhone) assertPhone(driverPhone);
+
+    const guests = parseGuestRows(formData);
 
     const admin = createSupabaseAdminClient();
     const property_id = await propertyId(admin);
@@ -130,21 +186,35 @@ export async function confirmCheckIn(
       throw new Error(`Cannot check in a booking with status ${status}.`);
     }
 
-    const guestOrigin = (booking.guest_origin as string | null) ?? "international";
-    // Guide is only mandatory for international tourists. Regional / official /
-    // local guests (locals, govt officials, domestic) may legitimately have none.
-    if (guestOrigin === "international" && !guideNumber) {
-      throw new Error(
-        "Guide number is required for international tourists. Change the booking's guest origin if this guest has no guide.",
-      );
-    }
-
-    const rooms = (booking.booking_rooms as { qty: number; inventory_kind: string; room_type_id: string }[] | null) ?? [];
+    const guestOrigin = normalizeGuestOrigin(
+      (booking.guest_origin as string | null) ?? "international",
+    );
+    const rooms =
+      (booking.booking_rooms as
+        | { qty: number; inventory_kind: string; room_type_id: string }[]
+        | null) ?? [];
     const hasDriverBeds = rooms.some(
       (r) => r.inventory_kind === "driver_comp" && Number(r.qty) > 0,
     );
-    if (hasDriverBeds && !driverName) {
-      throw new Error("Driver name is required when driver beds are assigned.");
+
+    const docsError = validateCheckInDocs({
+      origin: guestOrigin,
+      guideNumber,
+      guests: guests.map((g) => ({
+        fullName: g.fullName,
+        passportOrCid: g.passportOrCid,
+        sdfRef: g.sdfRef,
+      })),
+      hasDriverBeds,
+      driverName,
+    });
+    if (docsError) throw new Error(docsError);
+
+    if (roomUnitIds.length === 0) {
+      throw new Error("Assign physical rooms before confirming check-in.");
+    }
+    if (new Set(roomUnitIds).size !== roomUnitIds.length) {
+      throw new Error("Each physical room can only be assigned once.");
     }
 
     if (paymentMode === "on_credit") {
@@ -152,7 +222,6 @@ export async function confirmCheckIn(
       if (!agentId) {
         throw new Error("On-credit check-in requires an agent on the booking.");
       }
-      // Charge only if this booking has not already been charged (fast-book may have)
       const { data: priorCharge } = await admin
         .from("agent_credit_ledger")
         .select("id")
@@ -203,14 +272,62 @@ export async function confirmCheckIn(
       }
     }
 
-    // Resolve master-partner rows, upserting when staff typed a new one.
+    const { error: roomsError } = await admin.rpc("desk_apply_check_in_rooms", {
+      p_property_id: property_id,
+      p_booking_id: bookingId,
+      p_unit_ids: roomUnitIds,
+      p_require_clean: requireClean,
+    });
+    if (roomsError) {
+      throw new Error(roomsError.message || "Could not assign rooms.");
+    }
+
+    const { data: assignments } = await admin
+      .from("room_assignments")
+      .select(
+        "id, room_unit_id, room_units(room_types(inventory_kind))",
+      )
+      .eq("booking_id", bookingId);
+
+    const assignmentByUnit = new Map<string, string>();
+    const guestAssignments: string[] = [];
+    let guideAssignmentId: string | null = null;
+    let driverAssignmentId: string | null = null;
+    for (const row of assignments ?? []) {
+      assignmentByUnit.set(row.room_unit_id as string, row.id as string);
+      const unitRaw = row.room_units as
+        | {
+            room_types?:
+              | { inventory_kind?: string }
+              | { inventory_kind?: string }[]
+              | null;
+          }
+        | {
+            room_types?:
+              | { inventory_kind?: string }
+              | { inventory_kind?: string }[]
+              | null;
+          }[]
+        | null;
+      const unit = Array.isArray(unitRaw) ? unitRaw[0] : unitRaw;
+      const rt = unit?.room_types;
+      const kind = (
+        Array.isArray(rt) ? rt[0]?.inventory_kind : rt?.inventory_kind
+      ) as string | undefined;
+      if (kind === "sellable_guest") guestAssignments.push(row.id as string);
+      if (kind === "guide_comp" && !guideAssignmentId) {
+        guideAssignmentId = row.id as string;
+      }
+      if (kind === "driver_comp" && !driverAssignmentId) {
+        driverAssignmentId = row.id as string;
+      }
+    }
+
     const todayIso = new Date().toISOString().slice(0, 10);
     let resolvedGuideId: string | null = guideIdRaw || null;
     let resolvedDriverId: string | null = driverIdRaw || null;
 
     if (!resolvedGuideId && guideNumber) {
-      // New guide typed free-text → insert. (Unique constraint protects dups;
-      // if a concurrent insert wins, fall through to lookup by number.)
       const { data: newGuide, error: gErr } = await admin
         .from("guides")
         .insert({
@@ -235,18 +352,17 @@ export async function confirmCheckIn(
     }
 
     if (!resolvedDriverId && (driverPhone || driverName)) {
-      const driverPayload = {
-        property_id,
-        full_name: driverName || null,
-        phone: driverPhone || null,
-        vehicle_no: vehicleNo || null,
-        license_no: licenseNo || null,
-        visit_count: 1,
-        last_seen_at: todayIso,
-      };
       const { data: newDriver, error: dErr } = await admin
         .from("drivers")
-        .insert(driverPayload)
+        .insert({
+          property_id,
+          full_name: driverName || null,
+          phone: driverPhone || null,
+          vehicle_no: vehicleNo || null,
+          license_no: licenseNo || null,
+          visit_count: 1,
+          last_seen_at: todayIso,
+        })
         .select("id")
         .maybeSingle();
       if (dErr?.code === "23505" && driverPhone) {
@@ -262,15 +378,36 @@ export async function confirmCheckIn(
       }
     }
 
-    // Bump last_seen_at on the chosen partner. visit_count is derived from
-    // bookings at report time, so no increment needed here.
     if (resolvedGuideId) {
-      await admin.from("guides").update({ last_seen_at: todayIso }).eq("id", resolvedGuideId);
+      const { data: guideRow } = await admin
+        .from("guides")
+        .select("visit_count")
+        .eq("id", resolvedGuideId)
+        .maybeSingle();
+      await admin
+        .from("guides")
+        .update({
+          last_seen_at: todayIso,
+          visit_count: Number(guideRow?.visit_count ?? 0) + 1,
+        })
+        .eq("id", resolvedGuideId);
     }
     if (resolvedDriverId) {
-      await admin.from("drivers").update({ last_seen_at: todayIso }).eq("id", resolvedDriverId);
+      const { data: driverRow } = await admin
+        .from("drivers")
+        .select("visit_count")
+        .eq("id", resolvedDriverId)
+        .maybeSingle();
+      await admin
+        .from("drivers")
+        .update({
+          last_seen_at: todayIso,
+          visit_count: Number(driverRow?.visit_count ?? 0) + 1,
+        })
+        .eq("id", resolvedDriverId);
     }
 
+    const primaryGuest = guests[0];
     const { error: bookingPatchError } = await admin
       .from("bookings")
       .update({
@@ -280,82 +417,112 @@ export async function confirmCheckIn(
         payment_mode: paymentMode,
         status: "checked_in",
         checked_in_at: new Date().toISOString(),
-        contact_name: guestName,
+        contact_name: primaryGuest.fullName.trim(),
       })
       .eq("id", bookingId);
-
     if (bookingPatchError) {
       throw new Error("Could not update booking status.");
     }
 
-    const { data: existingGuests } = await admin
-      .from("booking_guests")
-      .select("id")
-      .eq("booking_id", bookingId)
-      .limit(1);
+    await admin.from("booking_guests").delete().eq("booking_id", bookingId);
+    await admin.from("room_assignment_occupants").delete().eq("booking_id", bookingId);
 
-    if (existingGuests && existingGuests.length > 0) {
-      await admin
-        .from("booking_guests")
-        .update({
-          full_name: guestName,
-          nationality,
-          passport_or_cid: passportOrCid,
-          sdf_ref: sdfRef,
-          sdf_doc_url: sdfDocUrl,
-        })
-        .eq("id", existingGuests[0].id);
-    } else {
-      await admin.from("booking_guests").insert({
+    const guestRows = guests.map((g, i) => {
+      const unitId = g.roomUnitId;
+      const assignmentId =
+        (unitId ? assignmentByUnit.get(unitId) : null) ??
+        guestAssignments[Math.min(i, guestAssignments.length - 1)] ??
+        null;
+      return {
         booking_id: bookingId,
-        full_name: guestName,
-        nationality,
-        passport_or_cid: passportOrCid,
-        sdf_ref: sdfRef,
-        sdf_doc_url: sdfDocUrl,
+        full_name: g.fullName.trim(),
+        nationality: g.nationality.trim() || null,
+        passport_or_cid: g.passportOrCid.trim(),
+        sdf_ref: g.sdfRef.trim() || null,
+        sdf_doc_url: g.sdfDocUrl.trim() || null,
+        room_assignment_id: assignmentId,
+        sort_order: i,
+      };
+    });
+
+    const { data: insertedGuests, error: guestError } = await admin
+      .from("booking_guests")
+      .insert(guestRows)
+      .select("id, full_name, room_assignment_id");
+    if (guestError || !insertedGuests) {
+      console.error("booking_guests insert failed", guestError);
+      throw new Error("Could not save guest documents.");
+    }
+
+    const occupantRows: Array<Record<string, unknown>> = [];
+    for (const g of insertedGuests) {
+      if (!g.room_assignment_id) continue;
+      occupantRows.push({
+        property_id,
+        assignment_id: g.room_assignment_id,
+        booking_id: bookingId,
+        occupant_kind: "guest",
+        booking_guest_id: g.id,
+        display_name: g.full_name,
       });
+    }
+    if (guideAssignmentId && (guideNumber || primaryGuest.fullName)) {
+      occupantRows.push({
+        property_id,
+        assignment_id: guideAssignmentId,
+        booking_id: bookingId,
+        occupant_kind: "guide",
+        display_name: guideNumber
+          ? `Guide #${guideNumber}`
+          : "Guide",
+      });
+    }
+    if (driverAssignmentId && driverName) {
+      occupantRows.push({
+        property_id,
+        assignment_id: driverAssignmentId,
+        booking_id: bookingId,
+        occupant_kind: "driver",
+        display_name: driverName,
+      });
+    }
+    if (occupantRows.length) {
+      await admin.from("room_assignment_occupants").insert(occupantRows);
     }
 
     if (driverName) {
-      const { data: existingDrivers } = await admin
-        .from("booking_drivers")
-        .select("id")
-        .eq("booking_id", bookingId)
-        .limit(1);
-
-      if (existingDrivers && existingDrivers.length > 0) {
-        await admin
-          .from("booking_drivers")
-          .update({
-            full_name: driverName,
-            phone: driverPhone,
-            vehicle_no: vehicleNo,
-            license_no: licenseNo,
-          })
-          .eq("id", existingDrivers[0].id);
-      } else {
-        await admin.from("booking_drivers").insert({
-          booking_id: bookingId,
-          full_name: driverName,
-          phone: driverPhone,
-          vehicle_no: vehicleNo,
-          license_no: licenseNo,
-        });
-      }
+      await admin.from("booking_drivers").delete().eq("booking_id", bookingId);
+      await admin.from("booking_drivers").insert({
+        booking_id: bookingId,
+        full_name: driverName,
+        phone: driverPhone,
+        vehicle_no: vehicleNo,
+        license_no: licenseNo,
+      });
     }
 
     const folioId = await ensureOpenFolio(
       admin,
       property_id,
       bookingId,
-      `${guestName} · ${booking.check_in as string}`,
+      `${primaryGuest.fullName.trim()} · ${booking.check_in as string}`,
     );
 
-    revalidatePath("/erp");
-    revalidatePath("/erp/check-in");
-    revalidatePath("/erp/agents");
-    revalidatePath(`/erp/folios/${folioId}`);
+    await writeAuditEvent(admin, {
+      propertyId: property_id,
+      action: "booking.check_in",
+      entityType: "bookings",
+      entityId: bookingId,
+      summary: `Checked in ${primaryGuest.fullName.trim()} · ${roomUnitIds.length} room(s)`,
+      meta: {
+        paymentMode,
+        guestCount: guests.length,
+        roomUnitIds,
+        folioId,
+      },
+    });
 
+    revalidateCheckIn(folioId);
     return { ok: true, bookingId, folioId };
   } catch (err) {
     return {
@@ -386,7 +553,7 @@ export async function confirmCheckOut(
 
     const { data: booking, error: bookingError } = await admin
       .from("bookings")
-      .select("id, status")
+      .select("id, status, contact_name")
       .eq("id", bookingId)
       .eq("property_id", property_id)
       .single();
@@ -407,8 +574,9 @@ export async function confirmCheckOut(
       .limit(1)
       .maybeSingle();
 
+    let balance = 0;
     if (folio) {
-      const balance = ((folio.folio_lines as { total_btn: number; status: string }[] | null) ?? [])
+      balance = ((folio.folio_lines as { total_btn: number; status: string }[] | null) ?? [])
         .filter((l) => l.status === "posted")
         .reduce((sum, l) => sum + Number(l.total_btn), 0);
 
@@ -427,6 +595,18 @@ export async function confirmCheckOut(
         .eq("id", folio.id);
     }
 
+    const { error: releaseError } = await admin.rpc(
+      "desk_release_check_out_rooms",
+      {
+        p_property_id: property_id,
+        p_booking_id: bookingId,
+      },
+    );
+    if (releaseError) {
+      console.error("desk_release_check_out_rooms failed", releaseError);
+      throw new Error("Could not release rooms for housekeeping.");
+    }
+
     const { error: patchError } = await admin
       .from("bookings")
       .update({
@@ -439,10 +619,16 @@ export async function confirmCheckOut(
       throw new Error("Could not check out booking.");
     }
 
-    revalidatePath("/erp");
-    revalidatePath("/erp/check-in");
-    if (folio?.id) revalidatePath(`/erp/folios/${folio.id}`);
+    await writeAuditEvent(admin, {
+      propertyId: property_id,
+      action: "booking.check_out",
+      entityType: "bookings",
+      entityId: bookingId,
+      summary: `Checked out ${(booking.contact_name as string) ?? "guest"}`,
+      meta: { folioBalance: balance, allowBalance },
+    });
 
+    revalidateCheckIn(folio?.id as string | undefined);
     return { ok: true, bookingId };
   } catch (err) {
     return {

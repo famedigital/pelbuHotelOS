@@ -1,14 +1,16 @@
 "use client";
 
 import { postFolioPayment, type PaymentState } from "@/app/actions/erp-pos";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { TriangleAlertIcon } from "lucide-react";
 import { formatBtn } from "@/lib/pricing";
 import { useActionState } from "react";
 
 const initial: PaymentState = { ok: false };
-
-function fieldClassName() {
-  return "mt-1.5 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2.5 text-sm text-espresso outline-none transition-colors focus:border-gold focus:ring-2 focus:ring-gold/20";
-}
 
 export function FolioPaymentForm({
   folioId,
@@ -22,14 +24,14 @@ export function FolioPaymentForm({
   if (state.ok) {
     return (
       <div
-        className="border border-espresso/10 bg-white px-5 py-5"
+        className="erp rounded-lg border bg-card p-5"
         role="status"
         aria-live="polite"
       >
-        <p className="text-[11px] font-semibold tracking-[0.22em] text-gold uppercase">
+        <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
           Recorded
         </p>
-        <p className="mt-2 text-sm text-espresso">
+        <p className="mt-2 text-sm text-foreground">
           Payment posted to this folio. Refresh in a moment to see the new balance.
         </p>
       </div>
@@ -37,33 +39,41 @@ export function FolioPaymentForm({
   }
 
   return (
-    <form action={action} className="space-y-5 border border-espresso/10 bg-white px-5 py-6">
+    <form
+      action={action}
+      className="erp space-y-5 rounded-lg border bg-card p-6"
+    >
       {state.error ? (
-        <p
-          className="border border-maroon/30 bg-maroon/5 px-4 py-3 text-sm text-maroon"
-          role="alert"
-        >
-          {state.error}
-        </p>
+        <Alert variant="destructive">
+          <TriangleAlertIcon />
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
       ) : null}
       <input type="hidden" name="folio_id" value={folioId} />
 
-      <div className="flex items-baseline justify-between gap-3 border-b border-espresso/10 pb-3">
-        <p className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
+      <div className="flex items-baseline justify-between gap-3 border-b pb-3">
+        <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
           Record payment
         </p>
         {suggestedAmount > 0 ? (
           <p className="text-xs text-muted-foreground">
             Balance{" "}
-            <span className="font-medium text-espresso">{formatBtn(suggestedAmount)}</span>
+            <span className="font-medium text-foreground">
+              {formatBtn(suggestedAmount)}
+            </span>
           </p>
         ) : null}
       </div>
 
       <div className="grid gap-4">
-        <label className="block text-sm text-espresso">
-          Method
-          <select name="method" defaultValue="cash" className={fieldClassName()}>
+        <div className="space-y-1.5">
+          <Label htmlFor="method">Method</Label>
+          <select
+            id="method"
+            name="method"
+            defaultValue="cash"
+            className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+          >
             <option value="cash">Cash</option>
             <option value="bank">Bank transfer</option>
             <option value="bank_qr">Bank QR</option>
@@ -72,10 +82,11 @@ export function FolioPaymentForm({
             <option value="deposit">Deposit</option>
             <option value="agent_credit">Agent credit</option>
           </select>
-        </label>
-        <label className="block text-sm text-espresso">
-          Amount (Nu)
-          <input
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="amount_btn">Amount (Nu)</Label>
+          <Input
+            id="amount_btn"
             type="number"
             name="amount_btn"
             required
@@ -83,31 +94,31 @@ export function FolioPaymentForm({
             step="0.01"
             inputMode="decimal"
             defaultValue={suggestedAmount > 0 ? suggestedAmount : undefined}
-            className={fieldClassName()}
           />
-        </label>
-        <label className="block text-sm text-espresso">
-          Reference
-          <input
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="reference">Reference</Label>
+          <Input
+            id="reference"
             type="text"
             name="reference"
             placeholder="Txn / slip no"
-            className={fieldClassName()}
           />
-        </label>
-        <label className="block text-sm text-espresso">
-          Notes
-          <input type="text" name="notes" className={fieldClassName()} />
-        </label>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="notes">Notes</Label>
+          <Textarea id="notes" name="notes" rows={2} />
+        </div>
       </div>
 
-      <button
+      <Button
         type="submit"
+        variant="citrus"
         disabled={pending}
-        className="inline-flex min-h-11 w-full items-center justify-center rounded-sm bg-gold px-5 text-sm font-medium text-espresso transition-opacity hover:opacity-90 disabled:opacity-60"
+        className="h-11 w-full"
       >
         {pending ? "Saving…" : "Post payment"}
-      </button>
+      </Button>
     </form>
   );
 }

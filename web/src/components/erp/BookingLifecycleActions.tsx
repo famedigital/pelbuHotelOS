@@ -29,6 +29,11 @@ import { useActionState, useState } from "react";
 const channelInitial: ErpChannelState = { ok: false };
 const holdInitial: HoldActionState = { ok: false };
 
+const fieldXs =
+  "min-h-9 rounded-md border border-input bg-transparent px-2 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
+const selectXs =
+  "min-h-9 rounded-md border border-input bg-transparent px-2 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer";
+
 export function BookingLifecycleActions({
   bookingId,
   status,
@@ -48,7 +53,7 @@ export function BookingLifecycleActions({
   if (!canCancel && !canNoShow && !canConfirmToken) return null;
 
   return (
-    <div className="mt-2 flex flex-col gap-2">
+    <div className="erp mt-2 flex flex-col gap-2">
       {canConfirmToken ? (
         <ConfirmTokenForm
           bookingId={bookingId}
@@ -87,7 +92,7 @@ function ConfirmTokenForm({
           min={0}
           step="1"
           defaultValue={tokenRequired > 0 ? String(tokenRequired) : ""}
-          className="mt-0.5 block min-h-9 w-24 rounded-sm border border-espresso/20 px-2 text-xs text-espresso outline-none focus:border-gold"
+          className={`mt-0.5 block w-24 ${fieldXs}`}
         />
       </label>
       <label className="text-xs text-muted-foreground">
@@ -95,7 +100,7 @@ function ConfirmTokenForm({
         <select
           name="method"
           defaultValue="bank"
-          className="mt-0.5 block min-h-9 rounded-sm border border-espresso/20 px-2 text-xs text-espresso outline-none focus:border-gold"
+          className={`mt-0.5 block ${selectXs}`}
         >
           <option value="bank">Bank</option>
           <option value="cash">Cash</option>
@@ -106,13 +111,12 @@ function ConfirmTokenForm({
       <input
         name="reference"
         placeholder="Txn ref"
-        className="min-h-9 rounded-sm border border-espresso/20 px-2 text-xs text-espresso outline-none focus:border-gold"
+        className={fieldXs}
       />
       <Button
         type="submit"
         size="sm"
         disabled={pending}
-        className="bg-espresso text-ivory hover:bg-espresso/90"
       >
         {pending ? "Confirming…" : "Confirm token"}
       </Button>
@@ -121,10 +125,12 @@ function ConfirmTokenForm({
         Owner override
       </label>
       {state.error ? (
-        <span className="w-full text-xs text-maroon">{state.error}</span>
+        <span className="w-full text-xs text-destructive">{state.error}</span>
       ) : null}
       {state.ok ? (
-        <span className="w-full text-xs text-muted-foreground">{state.message}</span>
+        <span className="w-full text-xs text-muted-foreground">
+          {state.message}
+        </span>
       ) : null}
     </form>
   );
@@ -142,19 +148,19 @@ function ExtendHoldForm({ bookingId }: { bookingId: string }) {
       <input
         name="reason"
         placeholder="Extend reason"
-        className="min-h-9 rounded-sm border border-espresso/20 px-2 text-xs text-espresso outline-none focus:border-gold"
+        className={fieldXs}
       />
       <Button
         type="submit"
         variant="ghost"
         size="sm"
         disabled={pending}
-        className="text-xs font-medium text-espresso"
+        className="text-xs font-medium text-foreground"
       >
         {pending ? "Extending…" : "Extend hold"}
       </Button>
       {state.error ? (
-        <span className="text-xs text-maroon">{state.error}</span>
+        <span className="text-xs text-destructive">{state.error}</span>
       ) : null}
       {state.ok ? (
         <span className="text-xs text-muted-foreground">{state.message}</span>
@@ -174,7 +180,7 @@ function CancelForm({ bookingId }: { bookingId: string }) {
           type="button"
           variant="ghost"
           size="sm"
-          className="min-h-9 text-xs font-medium text-maroon hover:bg-maroon/5 hover:text-maroon"
+          className="min-h-9 text-xs font-medium text-destructive hover:bg-destructive/5 hover:text-destructive"
         >
           Cancel
         </Button>
@@ -202,7 +208,7 @@ function CancelForm({ bookingId }: { bookingId: string }) {
             />
           </div>
           {state.error ? (
-            <p className="text-xs text-maroon">{state.error}</p>
+            <p className="text-xs text-destructive">{state.error}</p>
           ) : null}
           {state.ok ? (
             <p className="text-xs text-muted-foreground">{state.message}</p>
@@ -259,7 +265,7 @@ function NoShowForm({ bookingId }: { bookingId: string }) {
         <form action={action}>
           <input type="hidden" name="booking_id" value={bookingId} />
           {state.error ? (
-            <p className="text-xs text-maroon">{state.error}</p>
+            <p className="text-xs text-destructive">{state.error}</p>
           ) : null}
           <DialogFooter>
             <DialogClose asChild>

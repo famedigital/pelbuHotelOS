@@ -63,6 +63,23 @@ async function propertyId(admin: Admin) {
   return resolveActivePropertyId(admin);
 }
 
+async function assertActiveStaffInProperty(
+  admin: Admin,
+  propertyId: string,
+  staffId: string,
+): Promise<void> {
+  const { data } = await admin
+    .from("staff_members")
+    .select("id")
+    .eq("id", staffId)
+    .eq("property_id", propertyId)
+    .in("status", ["active", "on_leave"])
+    .maybeSingle();
+  if (!data) {
+    throw new Error("Staff member not found for this property.");
+  }
+}
+
 function revalidateOps() {
   revalidatePath("/erp/hr");
   revalidatePath("/erp/inventory");
@@ -91,11 +108,15 @@ export async function createStaffMember(
     const pid = await propertyId(admin);
     const role = trimRequired(formData.get("role_label"), "Role").toLowerCase();
     if (!STAFF_ROLES.has(role)) throw new Error("Invalid staff role.");
+    const employeeCode =
+      optionalTrim(formData.get("employee_code"))?.toUpperCase().replace(/\s+/g, "-") ??
+      `EMP-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
 
     const { data, error } = await admin
       .from("staff_members")
       .insert({
         property_id: pid,
+        employee_code: employeeCode,
         full_name: trimRequired(formData.get("full_name"), "Name"),
         role_label: role,
         phone: optionalTrim(formData.get("phone")),
@@ -139,19 +160,35 @@ export async function createStaffShift(
       throw new Error("Invalid shift outlet.");
     }
 
-    const { error } = await admin.from("staff_shifts").insert({
-      property_id: pid,
-      staff_id: trimRequired(formData.get("staff_id"), "Staff"),
-      shift_date: trimRequired(formData.get("shift_date"), "Date"),
-      starts_at: trimRequired(formData.get("starts_at"), "Start"),
-      ends_at: trimRequired(formData.get("ends_at"), "End"),
-      outlet: outletRaw ?? null,
-      notes: optionalTrim(formData.get("notes")),
-    });
-    if (error) {
+    const staffId = trimRequired(formData.get("staff_id"), "Staff");
+    await assertActiveStaffInProperty(admin, pid, staffId);
+    const { data, error } = await admin
+      .from("staff_shifts")
+      .insert({
+        property_id: pid,
+        staff_id: staffId,
+        shift_date: trimRequired(formData.get("shift_date"), "Date"),
+        starts_at: trimRequired(formData.get("starts_at"), "Start"),
+        ends_at: trimRequired(formData.get("ends_at"), "End"),
+        outlet: outletRaw ?? null,
+        notes: optionalTrim(formData.get("notes")),
+        status: "draft",
+      })
+      .select("id")
+      .single();
+    if (error || !data) {
       console.error("staff_shifts insert failed", error);
       throw new Error("Could not save shift.");
     }
+
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "shift.create",
+      entityType: "staff_shifts",
+      entityId: data.id as string,
+      summary: "Created draft staff shift",
+      meta: { staffId },
+    });
 
     revalidateOps();
     return { ok: true, message: "Shift saved." };
@@ -175,22 +212,37 @@ export async function createStaffLeave(
     const ends = trimRequired(formData.get("ends_on"), "End date");
     if (ends < starts) throw new Error("End date must be on or after start.");
 
-    const { error } = await admin.from("staff_leave").insert({
-      property_id: pid,
-      staff_id: trimRequired(formData.get("staff_id"), "Staff"),
-      leave_type: leaveType,
-      starts_on: starts,
-      ends_on: ends,
-      status: "approved",
-      notes: optionalTrim(formData.get("notes")),
-    });
-    if (error) {
+    const staffId = trimRequired(formData.get("staff_id"), "Staff");
+    await assertActiveStaffInProperty(admin, pid, staffId);
+    const { data, error } = await admin
+      .from("staff_leave")
+      .insert({
+        property_id: pid,
+        staff_id: staffId,
+        leave_type: leaveType,
+        starts_on: starts,
+        ends_on: ends,
+        status: "requested",
+        notes: optionalTrim(formData.get("notes")),
+      })
+      .select("id")
+      .single();
+    if (error || !data) {
       console.error("staff_leave insert failed", error);
       throw new Error("Could not save leave.");
     }
 
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "leave.request",
+      entityType: "staff_leave",
+      entityId: data.id as string,
+      summary: "Recorded staff leave request",
+      meta: { staffId, leaveType, starts, ends },
+    });
+
     revalidateOps();
-    return { ok: true, message: "Leave recorded." };
+    return { ok: true, message: "Leave request recorded." };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
   }

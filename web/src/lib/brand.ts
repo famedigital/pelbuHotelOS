@@ -18,22 +18,51 @@ export const BRAND_ICONS = {
 export const BRAND_LOGO_MARK = BRAND_ICONS.mark;
 export const BRAND_FAVICON = BRAND_ICONS.favicon;
 
-/** Cloudinary public_ids — logos + curated photography. */
+/** Cloudinary public_ids — logos + curated high-resolution photography. */
 export const BRAND_CLOUDINARY = {
   logoPrimary: "pelbu/brand/logo-primary",
   logoFlat: "pelbu/brand/logo-flat",
   logoWordmark: "pelbu/brand/logo-wordmark",
-  /** Prefer room/cafe/spa for heroes — `hotel/exterior` is a mislabeled dining shot. */
-  roomsDeluxe: "pelbu/rooms/deluxe",
-  roomsSuperior: "pelbu/rooms/superior",
-  roomsTwin: "pelbu/rooms/twin",
-  roomsSuiteAlt: "pelbu/rooms/suite-alt",
+  roomsDeluxe: "pelbu/seven-suites/official-img6149",
+  roomsSuperior: "pelbu/seven-suites/official-img6194",
+  roomsTwin: "pelbu/seven-suites/official-img6256",
+  roomsSuiteAlt: "pelbu/seven-suites/official-dsc08154",
+  roomsSuiteView: "pelbu/seven-suites/official-room",
+  roomsLiving: "pelbu/seven-suites/official-img6236",
   cafePastry: "pelbu/cafe/morning-pastry",
+  pastryKhabzay: "pelbu/menu/cafe-suja-khabzay",
   restaurantPlate: "pelbu/restaurant/signature-plate",
+  diningRoom: "pelbu/restaurant/dining-room",
   spaSteam: "pelbu/spa/steam",
   spaJacuzzi: "pelbu/spa/jacuzzi",
   barPour: "pelbu/bar/evening-pour",
-  diningRoom: "pelbu/restaurant/dining-room",
+  galleryExt: "pelbu/gallery/ta2",
+} as const;
+
+/** Known-good Cloudinary IDs for homepage outlet slideshows.
+ *  Restaurant / pastry menu public_ids in the DB are not uploaded yet —
+ *  only cafe dish assets and brand photography exist on the CDN. */
+export const OUTLET_SHOWCASE_PHOTOS = {
+  restaurant: [
+    { publicId: "pelbu/restaurant/dining-room", alt: "Pelbu Suites dining room" },
+    { publicId: "pelbu/restaurant/signature-plate", alt: "Signature restaurant plate" },
+    { publicId: "pelbu/menu/cafe-ema-datshi-rice-bowl", alt: "Ema datshi rice bowl" },
+    { publicId: "pelbu/menu/cafe-grilled-chicken-plate", alt: "Grilled chicken plate" },
+    { publicId: "pelbu/menu/cafe-chicken-momos", alt: "Chicken momos" },
+  ],
+  cafe: [
+    { publicId: "pelbu/cafe/morning-pastry", alt: "Morning coffee and pastry" },
+    { publicId: "pelbu/menu/cafe-suja-khabzay", alt: "Suja and khabzay" },
+    { publicId: "pelbu/menu/cafe-himalayan-oats-bowl", alt: "Himalayan oats bowl" },
+    { publicId: "pelbu/menu/cafe-egg-cheese-paratha", alt: "Egg and cheese paratha" },
+    { publicId: "pelbu/menu/cafe-olakha-club-sandwich", alt: "Olakha club sandwich" },
+  ],
+  pastry: [
+    { publicId: "pelbu/cafe/morning-pastry", alt: "Fresh morning pastry" },
+    { publicId: "pelbu/restaurant/signature-plate", alt: "In-house bake plate" },
+    { publicId: "pelbu/menu/cafe-himalayan-oats-bowl", alt: "Breakfast bake bowl" },
+    { publicId: "pelbu/menu/cafe-egg-cheese-paratha", alt: "Warm bakery plate" },
+  ],
 } as const;
 
 export type HeroSlide = {
@@ -43,8 +72,7 @@ export type HeroSlide = {
 };
 
 /**
- * Homepage hero carousel — high-res interiors only.
- * Do not use `pelbu/hotel/exterior` (wrong asset / weak hero).
+ * Homepage hero carousel — prefer official 5K interiors.
  */
 export const HOME_HERO_SLIDES: readonly HeroSlide[] = [
   {
@@ -84,12 +112,34 @@ export const HOME_HERO_SLIDES: readonly HeroSlide[] = [
   },
 ] as const;
 
-/** Public stream tiles on the home page (one image per outlet). */
-export const HOME_STREAM_IMAGES = [
-  { href: "/rooms", title: "Rooms", blurb: "Rest well in Olakha — book direct for the best rate.", publicId: BRAND_CLOUDINARY.roomsDeluxe },
-  { href: "/cafe", title: "Cafe & Pastry", blurb: "Opens 6:30 summer / 7:30 winter. Order for taxi delivery.", publicId: BRAND_CLOUDINARY.cafePastry },
-  { href: "/restaurant", title: "Restaurant", blurb: "Indian, Bhutanese, and multicuisine — breakfast to dinner.", publicId: BRAND_CLOUDINARY.restaurantPlate },
-  { href: "/bar", title: "Bar", blurb: "Weekend menu and a calm evening pour.", publicId: BRAND_CLOUDINARY.barPour },
-  { href: "/spa", title: "Spa & Steam", blurb: "Book treatments and steam — restore after the road.", publicId: BRAND_CLOUDINARY.spaSteam },
-  { href: "/meeting", title: "Meeting", blurb: "Premium hall for up to 25 — chairs, table, focus.", publicId: BRAND_CLOUDINARY.roomsSuperior },
-] as const;
+/** Room detail mosaic tiles keyed by room code slug. */
+export const ROOM_GALLERY_BY_CODE: Record<string, readonly string[]> = {
+  deluxe: [
+    BRAND_CLOUDINARY.roomsDeluxe,
+    BRAND_CLOUDINARY.roomsSuiteView,
+    BRAND_CLOUDINARY.roomsLiving,
+    BRAND_CLOUDINARY.roomsSuiteAlt,
+    "pelbu/seven-suites/official-img6170",
+  ],
+  superior: [
+    BRAND_CLOUDINARY.roomsSuperior,
+    BRAND_CLOUDINARY.roomsLiving,
+    BRAND_CLOUDINARY.roomsSuiteView,
+    "pelbu/seven-suites/official-img6254",
+    BRAND_CLOUDINARY.roomsDeluxe,
+  ],
+  twin: [
+    BRAND_CLOUDINARY.roomsTwin,
+    BRAND_CLOUDINARY.roomsSuperior,
+    BRAND_CLOUDINARY.roomsSuiteAlt,
+    BRAND_CLOUDINARY.roomsLiving,
+    BRAND_CLOUDINARY.roomsDeluxe,
+  ],
+  "deluxe-suite": [
+    BRAND_CLOUDINARY.roomsSuiteAlt,
+    BRAND_CLOUDINARY.roomsDeluxe,
+    BRAND_CLOUDINARY.roomsSuiteView,
+    BRAND_CLOUDINARY.roomsLiving,
+    BRAND_CLOUDINARY.roomsSuperior,
+  ],
+};

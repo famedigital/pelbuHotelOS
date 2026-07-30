@@ -9,12 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { formatBtn } from "@/lib/pricing";
+import type { ServiceOffering } from "@/lib/service-offerings";
+import { Clock3Icon, UsersRoundIcon } from "lucide-react";
 import { useActionState, useMemo, useState } from "react";
 
 const initial: ServiceRequestState = { ok: false };
-
-const selectClass =
-  "flex h-10 w-full rounded-md border border-border bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/25";
 
 function todayIso(): string {
   const d = new Date();
@@ -39,18 +39,22 @@ function CopyReference({ value }: { value: string }) {
   );
 }
 
-const SPA_PACKAGES = [
-  "Massage 60 min",
-  "Massage 90 min",
-  "Steam session",
-  "Treatment package — desk will advise",
-] as const;
-
-export function ServiceRequestForm({ kind }: { kind: ServiceKind }) {
+export function ServiceRequestForm({
+  kind,
+  offerings,
+}: {
+  kind: ServiceKind;
+  offerings: ServiceOffering[];
+}) {
   const [state, action, pending] = useActionState(createServiceRequest, initial);
   const [chargeToRoom, setChargeToRoom] = useState(false);
+  const [selectedOfferingId, setSelectedOfferingId] = useState(
+    offerings[0]?.id ?? "",
+  );
   const minDate = useMemo(() => todayIso(), []);
   const isMeeting = kind === "meeting";
+  const selectedOffering =
+    offerings.find((offering) => offering.id === selectedOfferingId) ?? null;
 
   if (state.ok && state.requestId) {
     return (
@@ -71,14 +75,105 @@ export function ServiceRequestForm({ kind }: { kind: ServiceKind }) {
   }
 
   return (
-    <form action={action} className="max-w-lg space-y-6" noValidate>
-      <input type="hidden" name="kind" value={kind} />
+    <form action={action} className="max-w-3xl space-y-8" noValidate>
+      <input
+        type="hidden"
+        name="kind"
+        value={selectedOffering?.kind ?? kind}
+      />
+      <input
+        type="hidden"
+        name="package_name"
+        value={selectedOffering?.name ?? ""}
+      />
+      <input
+        type="hidden"
+        name="offering_id"
+        value={selectedOffering?.id ?? ""}
+      />
 
       {state.error ? (
         <p className="text-sm text-maroon" role="alert">
           {state.error}
         </p>
       ) : null}
+
+      {offerings.length > 0 ? (
+        <fieldset className="space-y-3">
+          <legend className="text-sm font-medium text-ink">
+            {isMeeting ? "Choose a room layout" : "Choose an experience"}
+          </legend>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {offerings.map((offering) => {
+              const selected = offering.id === selectedOfferingId;
+              return (
+                <label
+                  key={offering.id}
+                  className={[
+                    "relative cursor-pointer overflow-hidden rounded-2xl border bg-card transition-colors",
+                    selected
+                      ? "border-primary ring-2 ring-primary/15"
+                      : "border-border hover:border-primary/40",
+                  ].join(" ")}
+                >
+                  <input
+                    type="radio"
+                    name="offering"
+                    value={offering.id}
+                    checked={selected}
+                    onChange={() => setSelectedOfferingId(offering.id)}
+                    className="sr-only"
+                  />
+                  {offering.imageSrc ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={offering.imageSrc}
+                      alt=""
+                      width={480}
+                      height={260}
+                      className="aspect-[16/9] w-full object-cover"
+                    />
+                  ) : null}
+                  <span className="block p-4">
+                    <span className="block text-sm font-semibold">
+                      {offering.name}
+                    </span>
+                    {offering.description ? (
+                      <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                        {offering.description}
+                      </span>
+                    ) : null}
+                    <span className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                      {offering.durationMinutes ? (
+                        <span className="inline-flex items-center gap-1">
+                          <Clock3Icon className="size-3.5" />
+                          {offering.durationMinutes} min
+                        </span>
+                      ) : null}
+                      {offering.capacity ? (
+                        <span className="inline-flex items-center gap-1">
+                          <UsersRoundIcon className="size-3.5" />
+                          Up to {offering.capacity}
+                        </span>
+                      ) : null}
+                      <span>
+                        {offering.priceBtn == null
+                          ? "Rate confirmed before booking"
+                          : formatBtn(offering.priceBtn)}
+                      </span>
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+      ) : (
+        <p className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+          Choose your preferred date and describe the treatment or layout in
+          notes. The desk will confirm available options.
+        </p>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
@@ -100,14 +195,19 @@ export function ServiceRequestForm({ kind }: { kind: ServiceKind }) {
       {isMeeting ? (
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-2">
-            <Label htmlFor="party-size">Attendees (max 25)</Label>
+            <Label htmlFor="party-size">
+              Attendees
+              {selectedOffering?.capacity
+                ? ` (max ${selectedOffering.capacity})`
+                : ""}
+            </Label>
             <Input
               id="party-size"
               type="number"
               name="party_size"
               required
               min={1}
-              max={25}
+              max={selectedOffering?.capacity ?? 40}
               defaultValue={8}
             />
           </div>
@@ -135,25 +235,9 @@ export function ServiceRequestForm({ kind }: { kind: ServiceKind }) {
               name="party_size"
               required
               min={1}
-              max={6}
+              max={selectedOffering?.capacity ?? 6}
               defaultValue={1}
             />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="package-name">Package</Label>
-            <select
-              id="package-name"
-              name="package_name"
-              className={selectClass}
-              defaultValue=""
-            >
-              <option value="">Select — rates confirmed by desk</option>
-              {SPA_PACKAGES.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
           </div>
           <label className="flex items-start gap-2 text-sm">
             <input
@@ -163,16 +247,23 @@ export function ServiceRequestForm({ kind }: { kind: ServiceKind }) {
               checked={chargeToRoom}
               onChange={(e) => setChargeToRoom(e.target.checked)}
             />
-            <span>Charge to my room folio</span>
+            <span>
+              Charge to my in-house room folio
+              <span className="mt-1 block text-xs text-muted-foreground">
+                Requires your current room number or booking reference and the
+                phone used for the stay. The desk still confirms before posting.
+              </span>
+            </span>
           </label>
           {chargeToRoom ? (
             <div className="grid gap-2">
-              <Label htmlFor="room-ref">Room / booking reference</Label>
+              <Label htmlFor="room-ref">Room number or booking reference</Label>
               <Input
                 id="room-ref"
                 name="room_or_booking_ref"
                 required
                 maxLength={120}
+                placeholder="e.g. 204 or booking code"
               />
             </div>
           ) : (

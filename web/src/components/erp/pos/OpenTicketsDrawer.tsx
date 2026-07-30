@@ -10,6 +10,8 @@ import {
   type PosActionState,
 } from "@/app/actions/erp-pos";
 import { DeskLiveRefresh } from "@/components/erp/DeskLiveRefresh";
+import { RecordOrderPaymentForm } from "@/components/erp/RecordOrderPaymentForm";
+import { orderRef } from "@/lib/order-ref";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +24,14 @@ import {
 import { useActionToast } from "@/hooks/use-action-toast";
 import type { DiningTable, OpenPosTicket } from "@/lib/pos";
 import { useRouter } from "next/navigation";
-import { startTransition, useActionState, useTransition, useState } from "react";
+import {
+  startTransition,
+  useActionState,
+  useEffect,
+  useRef,
+  useTransition,
+  useState,
+} from "react";
 
 const initialPark: PosActionState = { ok: false };
 const initialUnpark: PosActionState = { ok: false };
@@ -144,14 +153,31 @@ export function OpenTicketsDrawer({
   useActionToast(parkState, { successMessage: "Ticket parked" });
   useActionToast(unparkState, { successMessage: "Ticket unparked" });
   useActionToast(recallState, { successMessage: "Ticket recalled" });
-  useActionToast(confirmState, { successMessage: "Order confirmed — WhatsApp sent to guest" });
+  useActionToast(confirmState, {
+    successMessage: "Order confirmed — open the slip and send it to the guest",
+  });
 
+  // Land the cashier on the confirmation slip as soon as a confirm succeeds,
+  // so they can screenshot it without hunting for the ticket again.
+  const openedSlipFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!confirmState.ok || !confirmState.orderId) return;
+    if (openedSlipFor.current === confirmState.orderId) return;
+    openedSlipFor.current = confirmState.orderId;
+    router.push(`/erp/orders/${confirmState.orderId}/slip`);
+  }, [confirmState, router]);
+
+  const isOnline = (t: OpenPosTicket) => t.order_source === "public";
   const pendingConfirm = tickets.filter(
-    (t) => t.order_source === "public" && !t.confirmed_at && !t.is_parked,
+    (t) => isOnline(t) && !t.confirmed_at && !t.is_parked,
+  );
+  const awaitingPayment = tickets.filter(
+    (t) => isOnline(t) && t.confirmed_at && !t.payment_recorded_at && !t.is_parked,
   );
   const parked = tickets.filter((t) => t.is_parked);
   const active = tickets.filter(
-    (t) => !t.is_parked && !(t.order_source === "public" && !t.confirmed_at),
+    (t) =>
+      !t.is_parked && !(isOnline(t) && (!t.confirmed_at || !t.payment_recorded_at)),
   );
   const busy = parkPending || unparkPending || recallPending || kotPending || confirmPending;
 
@@ -208,9 +234,41 @@ export function OpenTicketsDrawer({
                         className="h-9"
                         disabled={busy}
                       >
-                        Confirm · send WhatsApp
+                        Confirm · open slip
                       </Button>
                     </form>
+                  )}
+                />
+              ) : null}
+              {awaitingPayment.length > 0 ? (
+                <TicketGroup
+                  title="Awaiting payment"
+                  tickets={awaitingPayment}
+                  tables={tables}
+                  busy={busy}
+                  onSettle={onSettle}
+                  onVoid={onVoid}
+                  highlight
+                  footer={(t) => (
+                    <div className="mt-3 space-y-2 border-t border-border/60 pt-3">
+                      <p className="text-[11px] text-muted-foreground">
+                        Send slip {orderRef(t.id)} to {t.phone}, then enter the
+                        journal number the guest sends back.
+                      </p>
+                      <RecordOrderPaymentForm orderId={t.id} compact />
+                    </div>
+                  )}
+                  actions={(t) => (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9"
+                      disabled={busy}
+                      onClick={() => router.push(`/erp/orders/${t.id}/slip`)}
+                    >
+                      Open slip
+                    </Button>
                   )}
                 />
               ) : null}
@@ -314,6 +372,7 @@ function TicketGroup({
   onSettle,
   onVoid,
   actions,
+  footer,
   highlight = false,
 }: {
   title: string;
@@ -323,6 +382,7 @@ function TicketGroup({
   onSettle: (orderId: string) => void;
   onVoid: (orderId: string) => void;
   actions: (t: OpenPosTicket) => React.ReactNode;
+  footer?: (t: OpenPosTicket) => React.ReactNode;
   highlight?: boolean;
 }) {
   if (tickets.length === 0) return null;
@@ -365,11 +425,13 @@ function TicketGroup({
                     : t.order_source === "public"
                       ? " · pickup"
                       : ""}
-                  {t.order_source === "public" && t.confirmed_at
-                    ? ` · confirmed ${timeLabel(t.confirmed_at)}`
-                    : t.order_source === "public"
+                  {t.order_source !== "public"
+                    ? ""
+                    : !t.confirmed_at
                       ? " · pending confirm"
-                      : ""}
+                      : !t.payment_recorded_at
+                        ? ` · confirmed ${timeLabel(t.confirmed_at)} · unpaid`
+                        : ` · paid ${t.payment_journal_no ?? ""}`.trimEnd()}
                   {` · ${timeLabel(t.created_at)}`}
                 </p>
               </div>
@@ -447,6 +509,7 @@ function TicketGroup({
               </div>
               {actions(t)}
             </div>
+            {footer ? footer(t) : null}
           </li>
         ))}
       </ul>

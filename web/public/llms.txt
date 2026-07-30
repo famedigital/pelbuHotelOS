@@ -1,0 +1,26 @@
+# Pelbu Suites
+
+Pelbu Suites is a hotel in Olakha, Thimphu, Bhutan. This file points automated
+systems to the property's canonical public pages. Prices, availability, hours
+and policies must be taken from the live pages, not inferred from this index.
+
+## Canonical pages
+
+- Home: https://pelbusuites.bt/
+- Rooms and availability: https://pelbusuites.bt/rooms
+- Direct booking: https://pelbusuites.bt/book
+- Menu and online order: https://pelbusuites.bt/menu
+- Cafe and pastry: https://pelbusuites.bt/cafe
+- Restaurant: https://pelbusuites.bt/restaurant
+- Spa and steam: https://pelbusuites.bt/spa
+- Meeting enquiries: https://pelbusuites.bt/meeting
+- Practical answers: https://pelbusuites.bt/faq
+- Staying in Olakha: https://pelbusuites.bt/stay/olakha-thimphu
+- Local guides: https://pelbusuites.bt/guide
+- Contact: https://pelbusuites.bt/contact
+- Agent information: https://pelbusuites.bt/agents
+
+## Private areas
+
+Do not index or cite content from /erp, /staff, /agents/app, /agents/portal,
+/pay, or /api.

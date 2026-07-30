@@ -1,43 +1,32 @@
 import { AgentApplyForm } from "@/components/agents/AgentApplyForm";
-import { ConversionShell } from "@/components/site/ConversionShell";
+import { EngineShell } from "@/components/site/EngineShell";
+import { Button } from "@/components/ui/button";
 
 export const metadata = {
   title: "Travel Agent Partners | Pelbu Suites",
   description:
     "Apply as a Bhutan, Jaigaon, or India travel trade partner — agent rates, MoU credit, and complimentary guide and driver beds.",
+  alternates: { canonical: "/agents" },
 };
 
 export default function AgentsPage() {
   return (
-    <ConversionShell
+    <EngineShell
       eyebrow="Agents"
       title="Built for the Bhutan travel trade."
-      body="Apply once. We review your license, set your rate tier, and open an account-based booking desk."
-      aside={
-        <div className="space-y-6">
-          <div>
-            <p className="font-medium text-ink">You get</p>
-            <ul className="mt-2 list-disc space-y-1 pl-4">
-              <li>Agent and MoU rate tiers</li>
-              <li>Complimentary guide / driver beds</li>
-              <li>Credit ledger with settlements</li>
-            </ul>
-          </div>
-          <p>
-            Need a room today?{" "}
-            <a href="/book" className="underline underline-offset-4">
-              Book direct
-            </a>
-            . Already approved?{" "}
-            <a href="/agents/portal" className="underline underline-offset-4">
-              Agent portal
-            </a>
-            .
-          </p>
-        </div>
+      description="Apply once. We review your license, set the appropriate rate tier, and enable a private booking workspace with isolated availability."
+      actions={
+        <>
+          <Button asChild>
+            <a href="/agents/login">Agent sign in</a>
+          </Button>
+          <Button asChild variant="outline">
+            <a href="/book">Book direct</a>
+          </Button>
+        </>
       }
     >
       <AgentApplyForm />
-    </ConversionShell>
+    </EngineShell>
   );
 }

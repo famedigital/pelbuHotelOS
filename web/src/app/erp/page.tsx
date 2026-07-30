@@ -15,7 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { deskPinConfigured } from "@/lib/desk-auth";
+import { deskPinConfigured, isDeskAuthenticated } from "@/lib/desk-auth";
 import { thimphuToday } from "@/lib/erp-lists";
 import { KOT_FLOW, KOT_LABEL } from "@/lib/kot";
 import { formatBtn } from "@/lib/pricing";
@@ -34,6 +34,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 export const metadata = {
@@ -49,6 +50,7 @@ function fmtDate(value: string | null | undefined): string {
 }
 
 export default async function ErpDashboardPage() {
+  if (!(await isDeskAuthenticated())) redirect("/erp/login");
   const admin = createSupabaseAdminClient();
   const propertyId = await resolveActivePropertyId(admin);
   const activeProperty = await loadProperty(admin, propertyId);
@@ -72,7 +74,7 @@ export default async function ErpDashboardPage() {
     admin
       .from("orders")
       .select(
-        "id, customer_name, phone, outlet, delivery_type, delivery_area, order_source, total_btn, status, kot_status, booking_id, folio_id, posted_to_folio_at, confirmed_at, confirmed_by, created_at, order_items(name_snapshot, qty)",
+        "id, customer_name, phone, outlet, delivery_type, delivery_area, order_source, total_btn, status, kot_status, booking_id, folio_id, posted_to_folio_at, confirmed_at, confirmed_by, payment_recorded_at, payment_journal_no, created_at, order_items(name_snapshot, qty)",
       )
       .eq("property_id", propertyId)
       .order("created_at", { ascending: false })
@@ -534,13 +536,24 @@ function OrderBoardColumn({
                       size="sm"
                       className="h-7 px-2 text-[11px]"
                     >
-                      Confirm · send WhatsApp
+                      Confirm order
                     </Button>
                   </form>
-                ) : row.order_source === "public" && row.confirmed_at ? (
+                ) : row.order_source === "public" && !row.payment_recorded_at ? (
+                  <div className="mt-2 space-y-1.5">
+                    <p className="text-[11px] text-muted-foreground">
+                      Confirmed — awaiting payment.
+                    </p>
+                    <Link
+                      href={`/erp/orders/${row.id as string}/slip`}
+                      className="inline-flex h-7 items-center rounded-md border px-2 text-[11px] text-foreground hover:bg-muted"
+                    >
+                      Open slip · take payment
+                    </Link>
+                  </div>
+                ) : row.order_source === "public" ? (
                   <p className="mt-2 text-[11px] text-muted-foreground">
-                    Confirmed {new Date(row.confirmed_at as string).toLocaleTimeString("en-BT", { hour: "2-digit", minute: "2-digit" })}
-                    {row.confirmed_by ? ` · by staff` : ""}
+                    Paid · journal {row.payment_journal_no as string}
                   </p>
                 ) : null}
 

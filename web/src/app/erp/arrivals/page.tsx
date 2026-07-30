@@ -46,6 +46,7 @@ export default async function ArrivalsPage() {
 
   return (
     <DeskListShell
+      title="Arrivals"
       eyebrow="Arrivals"
       heading={`Arrivals · ${fmtDate(today)} → ${fmtDate(horizon)}`}
       blurb="Today's check-ins first, then the next 7 days. Assign physical rooms, confirm HK readiness, collect SDF/guide docs, then check in."

@@ -1,13 +1,15 @@
 import { MediaGallery } from "@/components/media/MediaGallery";
-import { ConversionShell } from "@/components/site/ConversionShell";
+import { CmsContentSections } from "@/components/site/CmsContentSections";
+import { EngineShell } from "@/components/site/EngineShell";
 import { MenuSections } from "@/components/site/MenuSections";
 import { Button } from "@/components/ui/button";
-import { loadCmsGallery, loadCmsPage, pickHeroSrc } from "@/lib/cms";
+import { loadCmsGallery, loadCmsPage } from "@/lib/cms";
 import { groupMenuByCategory, loadMenuByOutlets } from "@/lib/menu-loader";
 
 export const metadata = {
   title: "Bar | Pelbu Suites",
   description: "Weekend bar menu at Pelbu Suites, Thimphu.",
+  alternates: { canonical: "/bar" },
 };
 
 export const dynamic = "force-dynamic";
@@ -17,8 +19,8 @@ const FALLBACK = {
   title: "Weekend pours.",
   body: "A calm bar for guests and locals — weekend specials and classic pours.",
   hours_note: "Weekend evenings; weekday hours at the desk.",
-  primary_cta_href: "/dine",
-  primary_cta_label: "All dining",
+  primary_cta_href: "/menu",
+  primary_cta_label: "Full menu",
 };
 
 export default async function BarPage() {
@@ -31,32 +33,35 @@ export default async function BarPage() {
   const byCategory = groupMenuByCategory(items);
 
   return (
-    <ConversionShell
-      heroSrc={pickHeroSrc(gallery)}
+    <EngineShell
       eyebrow={copy.eyebrow}
       title={copy.title}
-      body={copy.body}
-      aside={
-        <div className="space-y-4">
-          <p className="font-medium text-ink">Hours</p>
-          <p>{copy.hours_note ?? "Ask the desk for bar hours."}</p>
-          {copy.primary_cta_href && copy.primary_cta_label ? (
-            <Button asChild className="w-full">
-              <a href={copy.primary_cta_href}>{copy.primary_cta_label}</a>
-            </Button>
-          ) : null}
-        </div>
+      description={copy.body}
+      actions={
+        <>
+          <Button asChild variant="citrus">
+            <a href={copy.primary_cta_href ?? "/menu"}>
+              {copy.primary_cta_label ?? "Full menu"}
+            </a>
+          </Button>
+          <Button asChild variant="outline">
+            <a href="/contact">Ask the desk</a>
+          </Button>
+        </>
       }
     >
-      <div className="space-y-12">
+      <div className="space-y-10">
+        <CmsContentSections sections={page?.sections_json} />
+        {copy.hours_note ? (
+          <p className="rounded-2xl border border-border bg-sky-100/60 px-4 py-3 text-sm text-sky-700">
+            {copy.hours_note}
+          </p>
+        ) : null}
         <section>
-          <h2 className="text-sm font-medium text-ink">The pours</h2>
-          <div className="mt-4">
-            <MenuSections byCategory={byCategory} />
-          </div>
+          <MenuSections byCategory={byCategory} />
         </section>
         <MediaGallery items={gallery} label="Bar" />
       </div>
-    </ConversionShell>
+    </EngineShell>
   );
 }

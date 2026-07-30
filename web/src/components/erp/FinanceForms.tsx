@@ -26,7 +26,7 @@ function ActionFlash({ state }: { state: ErpFinanceState }) {
   if (!state.ok && !state.error) return null;
   return (
     <p
-      className={`mt-2 text-sm ${state.ok ? "text-espresso" : "text-maroon"}`}
+      className={`erp mt-2 text-sm ${state.ok ? "text-foreground" : "text-destructive"}`}
       role="status"
     >
       {state.ok ? state.message : state.error}
@@ -67,8 +67,8 @@ export function ExpenseForm() {
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <form action={action} className="space-y-3 border border-espresso/10 bg-white p-4">
-      <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
+    <form action={action} className="erp space-y-3 rounded-lg border bg-card p-4">
+      <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
         Record expense
       </h3>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -175,7 +175,7 @@ export function ExpenseForm() {
         </Label>
         <Input id="expense_notes" name="notes" />
       </div>
-      <Button type="submit" variant="gold" disabled={pending} className="min-h-10">
+      <Button type="submit" variant="citrus" disabled={pending} className="h-10 w-full">
         {pending ? "Saving…" : "Save expense"}
       </Button>
       <ActionFlash state={state} />
@@ -191,8 +191,8 @@ export function ImportStatementForm() {
   useActionToast(state, { successMessage: "Statement imported" });
 
   return (
-    <form action={action} className="space-y-3 border border-espresso/10 bg-white p-4">
-      <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
+    <form action={action} className="erp space-y-3 rounded-lg border bg-card p-4">
+      <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
         Import bank JSON
       </h3>
       <p className="text-xs text-muted-foreground">
@@ -257,7 +257,7 @@ export function ImportStatementForm() {
       <Button
         type="submit"
         disabled={pending}
-        className="min-h-10 bg-espresso text-ivory hover:bg-espresso/90"
+        className="h-10 w-full"
       >
         {pending ? "Importing…" : "Import transactions"}
       </Button>
@@ -271,12 +271,12 @@ export function AutoMatchButton() {
   useActionToast(state, { successMessage: "Auto-match run complete" });
 
   return (
-    <form action={action} className="flex flex-wrap items-center gap-3">
+    <form action={action} className="erp flex flex-wrap items-center gap-3">
       <Button
         type="submit"
         variant="outline"
         disabled={pending}
-        className="min-h-10 text-xs"
+        className="h-10 text-xs"
       >
         {pending ? "Matching…" : "Auto-match queue"}
       </Button>
@@ -308,19 +308,19 @@ export function UnmatchedTxnRow({
   const amount = isCredit ? Number(txn.credit_btn) : Number(txn.debit_btn);
 
   return (
-    <li className="border-b border-espresso/10 py-4 text-sm">
+    <li className="erp py-4 text-sm">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="font-medium text-espresso">
+        <p className="font-medium text-foreground">
           {txn.bank_code.toUpperCase()} · {txn.txn_date}
         </p>
-        <p className="tabular-nums text-espresso">
+        <p className="tabular-nums text-foreground">
           {isCredit ? "+" : "−"}
           {formatBtn(amount)}
         </p>
       </div>
       <p className="mt-1 text-muted-foreground">{txn.description}</p>
       {txn.reference ? (
-        <p className="mt-1 font-mono text-[11px] text-espresso/50">
+        <p className="mt-1 font-mono text-[11px] text-muted-foreground">
           ref {txn.reference}
         </p>
       ) : null}
@@ -374,10 +374,10 @@ export function UnmatchedTxnRow({
         )}
         <Button
           type="submit"
-          variant="gold"
+          variant="citrus"
           size="sm"
           disabled={matchPending}
-          className="min-h-10 text-xs"
+          className="h-10 text-xs"
         >
           {matchPending ? "Matching…" : "Match"}
         </Button>
@@ -391,7 +391,7 @@ export function UnmatchedTxnRow({
           variant="ghost"
           size="sm"
           disabled={ignorePending}
-          className="min-h-9 text-xs text-muted-foreground"
+          className="h-9 text-xs text-muted-foreground"
         >
           Ignore
         </Button>

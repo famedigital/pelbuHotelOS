@@ -48,7 +48,7 @@ export function ContactForm() {
             <a href="/book">Book a stay</a>
           </Button>
           <Button asChild variant="outline">
-            <a href="/order">Order food</a>
+            <a href="/menu">Order food</a>
           </Button>
         </div>
       </div>

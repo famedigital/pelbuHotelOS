@@ -1,6 +1,12 @@
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { cloudinaryUrl } from "@/lib/cloudinary";
+import { cloudinaryMediaThumbUrl } from "@/lib/cloudinary";
+
+export type CmsContentSection = {
+  heading: string;
+  paragraphs: string[];
+  items: string[];
+};
 
 export type CmsPage = {
   slug: string;
@@ -13,6 +19,11 @@ export type CmsPage = {
   secondary_cta_href: string | null;
   secondary_cta_label: string | null;
   meta_description: string | null;
+  seo_title: string | null;
+  canonical_path: string | null;
+  summary: string | null;
+  faq_json: Array<{ question: string; answer: string }>;
+  sections_json: CmsContentSection[];
 };
 
 export type CmsMediaItem = {
@@ -21,9 +32,35 @@ export type CmsMediaItem = {
   alt: string;
   kind: string;
   sort_order: number;
-  /** Resolved Cloudinary URL, or null if cloud env missing */
+  resource_type: "image" | "video";
+  poster_public_id: string | null;
+  /** Resolved Cloudinary image URL / video poster, or null if cloud env missing */
   src: string | null;
 };
+
+function contentSections(value: unknown): CmsContentSection[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const record = item as Record<string, unknown>;
+    const heading =
+      typeof record.heading === "string" ? record.heading.trim() : "";
+    if (!heading) return [];
+    const paragraphs = Array.isArray(record.paragraphs)
+      ? record.paragraphs.filter(
+          (paragraph): paragraph is string =>
+            typeof paragraph === "string" && Boolean(paragraph.trim()),
+        )
+      : [];
+    const items = Array.isArray(record.items)
+      ? record.items.filter(
+          (listItem): listItem is string =>
+            typeof listItem === "string" && Boolean(listItem.trim()),
+        )
+      : [];
+    return [{ heading, paragraphs, items }];
+  });
+}
 
 export async function loadCmsPage(slug: string): Promise<CmsPage | null> {
   const admin = createSupabaseAdminClient();
@@ -37,7 +74,7 @@ export async function loadCmsPage(slug: string): Promise<CmsPage | null> {
   const { data } = await admin
     .from("cms_pages")
     .select(
-      "slug, eyebrow, title, body, hours_note, primary_cta_href, primary_cta_label, secondary_cta_href, secondary_cta_label, meta_description",
+      "slug, eyebrow, title, body, hours_note, primary_cta_href, primary_cta_label, secondary_cta_href, secondary_cta_label, meta_description, seo_title, canonical_path, summary, faq_json, sections_json",
     )
     .eq("property_id", property.id)
     .eq("slug", slug)
@@ -56,6 +93,13 @@ export async function loadCmsPage(slug: string): Promise<CmsPage | null> {
     secondary_cta_href: (data.secondary_cta_href as string | null) ?? null,
     secondary_cta_label: (data.secondary_cta_label as string | null) ?? null,
     meta_description: (data.meta_description as string | null) ?? null,
+    seo_title: (data.seo_title as string | null) ?? null,
+    canonical_path: (data.canonical_path as string | null) ?? null,
+    summary: (data.summary as string | null) ?? null,
+    faq_json: Array.isArray(data.faq_json)
+      ? (data.faq_json as Array<{ question: string; answer: string }>)
+      : [],
+    sections_json: contentSections(data.sections_json),
   };
 }
 
@@ -82,7 +126,9 @@ export async function loadCmsGallery(
 
   const { data } = await admin
     .from("cms_media")
-    .select("id, public_id, alt, kind, sort_order")
+    .select(
+      "id, public_id, alt, kind, sort_order, resource_type, poster_public_id",
+    )
     .eq("property_id", property.id)
     .eq("page_slug", pageSlug)
     .eq("is_published", true)
@@ -90,13 +136,23 @@ export async function loadCmsGallery(
 
   return (data ?? []).map((row) => {
     const publicId = row.public_id as string;
+    const resourceType =
+      row.resource_type === "video" ? ("video" as const) : ("image" as const);
+    const poster = (row.poster_public_id as string | null) ?? null;
     return {
       id: row.id as string,
       public_id: publicId,
       alt: (row.alt as string) || "",
       kind: row.kind as string,
       sort_order: Number(row.sort_order),
-      src: cloudinaryUrl(publicId, { width, crop: "fill" }),
+      resource_type: resourceType,
+      poster_public_id: poster,
+      // Poster frames are images; fall back to a video still from the clip.
+      src: cloudinaryMediaThumbUrl(
+        poster || publicId,
+        poster ? "image" : resourceType,
+        { width, crop: "fill" },
+      ),
     };
   });
 }

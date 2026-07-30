@@ -13,15 +13,29 @@ type Props = {
   currency: "BTN";
 };
 
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;
+
+/** Locale-independent so server and client render identical markup. */
 function fmtHuman(iso: string): string {
   if (!iso) return "—";
-  const d = new Date(`${iso}T00:00:00`);
+  const d = new Date(`${iso}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString(undefined, {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-  });
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${WEEKDAYS[d.getUTCDay()]} ${day} ${MONTHS[d.getUTCMonth()]}`;
 }
 
 export function BookingSummary({

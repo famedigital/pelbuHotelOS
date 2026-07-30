@@ -5,19 +5,23 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 /**
- * Optional inbound webhook from Channex (or relay).
- * Protect with CHANNEXT_WEBHOOK_SECRET header `x-channex-secret` when set.
+ * Inbound webhook from Channex (or relay).
+ * Requires CHANNEXT_WEBHOOK_SECRET and header `x-channex-secret`.
  * Revisions are stored; desk/cron imports + acks.
  */
 export async function POST(request: Request) {
   const expected =
     process.env.CHANNEX_WEBHOOK_SECRET?.trim() ||
     process.env.CHANNEXT_WEBHOOK_SECRET?.trim();
-  if (expected) {
-    const got = request.headers.get("x-channex-secret")?.trim();
-    if (got !== expected) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!expected) {
+    return NextResponse.json(
+      { error: "Channex webhooks not configured." },
+      { status: 503 },
+    );
+  }
+  const got = request.headers.get("x-channex-secret")?.trim();
+  if (got !== expected) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   let body: unknown;

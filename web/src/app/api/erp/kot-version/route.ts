@@ -26,7 +26,7 @@ export async function GET() {
       admin
         .from("orders")
         .select(
-          "id, kot_status, status, order_source, created_at, posted_to_folio_at, is_parked, parked_at, voided_at, settled_at, table_id, total_btn",
+          "id, kot_status, status, order_source, created_at, confirmed_at, payment_recorded_at, posted_to_folio_at, is_parked, parked_at, voided_at, settled_at, table_id, total_btn",
         )
         .eq("property_id", propertyId)
         .order("created_at", { ascending: false })

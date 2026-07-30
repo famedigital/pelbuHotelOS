@@ -35,7 +35,8 @@ export default async function ErpLayout({
   // When unauthenticated we render children raw. The login page is the only
   // public ERP route; every other ERP page performs its own redirect to
   // /erp/login at the top of the page handler. This keeps the login UI free
-  // of the sidebar shell, and avoids a layout redirect-loop.
+  // of the sidebar shell, and avoids a layout redirect-loop. Middleware gates
+  // /erp on credential presence as a backstop for a page missing that guard.
   if (!authed) {
     return (
       <>

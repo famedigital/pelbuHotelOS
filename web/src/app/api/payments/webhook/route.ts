@@ -111,6 +111,21 @@ export async function POST(request: Request): Promise<Response> {
     return json(400, { error: "Invalid amount." });
   }
 
+  const { data: claim, error: claimError } = await admin
+    .from("payment_links")
+    .update({ status: "processing" })
+    .eq("id", link.id as string)
+    .eq("status", "open")
+    .select("id")
+    .maybeSingle();
+  if (claimError) {
+    console.error("payments webhook claim", claimError);
+    return json(500, { error: "Could not claim payment." });
+  }
+  if (!claim) {
+    return json(409, { error: "Link is already being processed or settled." });
+  }
+
   try {
     await applyBookingConfirmation({
       admin,
@@ -126,6 +141,11 @@ export async function POST(request: Request): Promise<Response> {
   } catch (e) {
     const message = e instanceof Error ? e.message : "Confirm failed.";
     console.error("payments webhook", message);
+    await admin
+      .from("payment_links")
+      .update({ status: "open" })
+      .eq("id", link.id as string)
+      .eq("status", "processing");
     return json(500, { error: message });
   }
 }

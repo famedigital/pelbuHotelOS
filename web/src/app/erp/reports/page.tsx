@@ -1,4 +1,9 @@
-import { DeskHeader } from "@/components/erp/DeskHeader";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { formatBtn } from "@/lib/pricing";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
@@ -34,11 +39,8 @@ export default async function ErpReportsPage() {
   const propertyId = property?.id as string | undefined;
   if (!propertyId) {
     return (
-      <div className="min-h-screen bg-ivory">
-        <DeskHeader title="Reports" />
-        <main className="mx-auto max-w-[1200px] px-6 py-10">
-          <p className="text-sm text-maroon">Property not configured.</p>
-        </main>
+      <div className="erp mx-auto w-full max-w-[1200px] p-6">
+        <p className="text-sm text-destructive">Property not configured.</p>
       </div>
     );
   }
@@ -219,119 +221,133 @@ export default async function ErpReportsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-ivory">
-      <DeskHeader title="Reports" />
-      <main className="mx-auto max-w-[1200px] space-y-12 px-6 py-10 md:px-8">
+    <div className="erp mx-auto w-full max-w-[1200px] space-y-10 p-4 md:p-6">
+      <header className="space-y-1.5">
+        <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+          Reports
+        </p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Month-to-date
+        </h1>
         <p className="text-sm text-muted-foreground">
-          Month from {since} Â· ADR uses sellable rooms only (comp beds excluded).
+          Month from {since} · ADR uses sellable rooms only (comp beds excluded).
         </p>
+      </header>
+
+      <p className="text-xs text-muted-foreground">
+        Export CSV:{" "}
+        <a
+          href={`/api/erp/export?kind=payments&since=${since}`}
+          className="font-medium text-accent underline-offset-4 hover:underline"
+        >
+          payments
+        </a>
+        {" · "}
+        <a
+          href={`/api/erp/export?kind=expenses&since=${since}`}
+          className="font-medium text-accent underline-offset-4 hover:underline"
+        >
+          expenses
+        </a>
+        {" · "}
+        <a
+          href={`/api/erp/export?kind=folio_lines&since=${since}`}
+          className="font-medium text-accent underline-offset-4 hover:underline"
+        >
+          folio lines
+        </a>
+      </p>
+
+      <section className="space-y-3">
+        <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+          Occupancy today
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Stat label="Sellable occ %" value={`${occPct}%`} />
+          <Stat
+            label="Sellable rooms used"
+            value={`${sellableOcc} / ${sellableCapacity}`}
+          />
+          <Stat
+            label="Comp beds used"
+            value={`${compOcc} / ${compCapacity}`}
+          />
+          <Stat label="In-house bookings" value={String(todayInHouse.length)} />
+        </div>
         <p className="text-xs text-muted-foreground">
-          Export CSV:{" "}
-          <a
-            href={`/api/erp/export?kind=payments&since=${since}`}
-            className="font-medium text-maroon underline-offset-4 hover:underline"
-          >
-            payments
-          </a>
-          {" Â· "}
-          <a
-            href={`/api/erp/export?kind=expenses&since=${since}`}
-            className="font-medium text-maroon underline-offset-4 hover:underline"
-          >
-            expenses
-          </a>
-          {" Â· "}
-          <a
-            href={`/api/erp/export?kind=folio_lines&since=${since}`}
-            className="font-medium text-maroon underline-offset-4 hover:underline"
-          >
-            folio lines
-          </a>
+          HK:{" "}
+          {Object.entries(hkCounts)
+            .map(([k, v]) => `${k} ${v}`)
+            .join(" · ") || "n/a"}
         </p>
+      </section>
 
-        <section>
-          <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-            Occupancy today
-          </h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Stat label="Sellable occ %" value={`${occPct}%`} />
-            <Stat
-              label="Sellable rooms used"
-              value={`${sellableOcc} / ${sellableCapacity}`}
-            />
-            <Stat
-              label="Comp beds used"
-              value={`${compOcc} / ${compCapacity}`}
-            />
-            <Stat label="In-house bookings" value={String(todayInHouse.length)} />
-          </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            HK:{" "}
-            {Object.entries(hkCounts)
-              .map(([k, v]) => `${k} ${v}`)
-              .join(" Â· ") || "n/a"}
-          </p>
-        </section>
+      <section className="space-y-3">
+        <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+          This month — money
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Stat label="Payments in" value={formatBtn(paymentsIn)} />
+          <Stat label="Expenses" value={formatBtn(expensesOut)} />
+          <Stat label="Room folio" value={formatBtn(roomFolio)} />
+          <Stat label="GST on folio" value={formatBtn(gstCollected)} />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Stat label="F&amp;B order sales" value={formatBtn(fnbSales)} />
+          <Stat label="F&amp;B GST" value={formatBtn(fnbGst)} />
+          <Stat label="Guest services folio" value={formatBtn(serviceFolio)} />
+        </div>
+      </section>
 
-        <section>
-          <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-            This month — money
-          </h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Stat label="Payments in" value={formatBtn(paymentsIn)} />
-            <Stat label="Expenses" value={formatBtn(expensesOut)} />
-            <Stat label="Room folio" value={formatBtn(roomFolio)} />
-            <Stat label="GST on folio" value={formatBtn(gstCollected)} />
-          </div>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Stat label="F&B order sales" value={formatBtn(fnbSales)} />
-            <Stat label="F&B GST" value={formatBtn(fnbGst)} />
-            <Stat label="Guest services folio" value={formatBtn(serviceFolio)} />
-          </div>
-        </section>
-
-        <div className="grid gap-10 lg:grid-cols-2">
-          <section>
-            <div className="border-b border-espresso/15 pb-2">
-              <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-                F&amp;B by outlet
-              </h2>
-            </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+              F&amp;B by outlet
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             {fnbByOutlet.size === 0 ? (
-              <p className="mt-4 text-sm text-muted-foreground">No F&amp;B sales this month.</p>
+              <p className="text-sm text-muted-foreground">
+                No F&amp;B sales this month.
+              </p>
             ) : (
-              <ul className="mt-2">
+              <ul>
                 {[...fnbByOutlet.entries()]
                   .sort((a, b) => b[1] - a[1])
                   .map(([outlet, total]) => (
                     <li
                       key={outlet}
-                      className="flex justify-between border-b border-espresso/10 py-3 text-sm"
+                      className="flex justify-between border-b py-3 text-sm last:border-0"
                     >
-                      <span className="text-espresso">{outlet}</span>
+                      <span className="text-foreground">{outlet}</span>
                       <span className="tabular-nums">{formatBtn(total)}</span>
                     </li>
                   ))}
               </ul>
             )}
-          </section>
+          </CardContent>
+        </Card>
 
-          <section>
-            <div className="border-b border-espresso/15 pb-2">
-              <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-                Agent production
-              </h2>
-            </div>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+              Agent production
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             {agentRows.length === 0 ? (
-              <p className="mt-4 text-sm text-muted-foreground">No agent bookings this month.</p>
+              <p className="text-sm text-muted-foreground">
+                No agent bookings this month.
+              </p>
             ) : (
-              <ul className="mt-2">
+              <ul>
                 {agentRows.map((a) => (
                   <li
                     key={a.name}
-                    className="flex justify-between border-b border-espresso/10 py-3 text-sm"
+                    className="flex justify-between border-b py-3 text-sm last:border-0"
                   >
-                    <span className="text-espresso">{a.name}</span>
+                    <span className="text-foreground">{a.name}</span>
                     <span className="tabular-nums text-muted-foreground">
                       {a.bookings} booking{a.bookings === 1 ? "" : "s"}
                     </span>
@@ -340,8 +356,8 @@ export default async function ErpReportsPage() {
               </ul>
             )}
             {(agentsRes.data ?? []).length > 0 ? (
-              <div className="mt-6 border-t border-espresso/10 pt-4">
-                <p className="text-[10px] font-semibold tracking-[0.16em] text-gold uppercase">
+              <div className="mt-6 border-t pt-4">
+                <p className="text-[10px] font-semibold tracking-[0.16em] text-accent uppercase">
                   Credit snapshot
                 </p>
                 <ul className="mt-2">
@@ -350,7 +366,7 @@ export default async function ErpReportsPage() {
                     .map((a) => (
                       <li
                         key={a.id as string}
-                        className="flex justify-between border-b border-espresso/10 py-2 text-xs"
+                        className="flex justify-between border-b py-2 text-xs last:border-0"
                       >
                         <span>{a.company_name as string}</span>
                         <span className="tabular-nums text-muted-foreground">
@@ -362,48 +378,53 @@ export default async function ErpReportsPage() {
                 </ul>
               </div>
             ) : null}
-          </section>
-        </div>
+          </CardContent>
+        </Card>
+      </div>
 
-        <section>
-          <div className="border-b border-espresso/15 pb-2">
-            <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-              Audit trail
-            </h2>
-          </div>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+            Audit trail
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           {(auditRes.data ?? []).length === 0 ? (
-            <p className="mt-4 text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               No audit events yet — money/ops actions will appear here.
             </p>
           ) : (
-            <ul className="mt-2">
+            <ul>
               {(auditRes.data ?? []).map((e) => (
-                <li
-                  key={e.id as string}
-                  className="border-b border-espresso/10 py-3 text-sm"
-                >
-                  <p className="font-medium text-espresso">{e.summary as string}</p>
+                <li key={e.id as string} className="border-b py-3 text-sm last:border-0">
+                  <p className="font-medium text-foreground">
+                    {e.summary as string}
+                  </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {e.action as string} Â· {e.actor as string} Â·{" "}
+                    {e.action as string} · {e.actor as string} ·{" "}
                     {String(e.created_at).slice(0, 16).replace("T", " ")}
                   </p>
                 </li>
               ))}
             </ul>
           )}
-        </section>
-      </main>
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border border-espresso/10 bg-white px-4 py-4">
-      <p className="text-[10px] font-semibold tracking-[0.18em] text-gold uppercase">
-        {label}
-      </p>
-      <p className="mt-2 text-lg tabular-nums text-espresso">{value}</p>
-    </div>
+    <Card className="gap-2 py-4">
+      <CardContent>
+        <p className="text-[10px] font-semibold tracking-[0.18em] text-accent uppercase">
+          {label}
+        </p>
+        <p className="mt-2 text-lg font-semibold tabular-nums text-foreground">
+          {value}
+        </p>
+      </CardContent>
+    </Card>
   );
 }

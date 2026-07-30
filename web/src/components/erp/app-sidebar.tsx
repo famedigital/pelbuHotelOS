@@ -7,9 +7,12 @@ import {
   CalendarClockIcon,
   ClipboardListIcon,
   CreditCardIcon,
+  Globe2Icon,
   HotelIcon,
+  ImageIcon,
   LayoutDashboardIcon,
   MonitorIcon,
+  SmartphoneIcon,
   ReceiptTextIcon,
   ScrollTextIcon,
   SettingsIcon,
@@ -71,12 +74,32 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { title: "Payments", href: "/erp/payments", icon: CreditCardIcon },
       { title: "POS / Folio board", href: "/erp/pos", icon: ShoppingCartIcon },
-      { title: "Menu", href: "/erp/menu", icon: SoupIcon },
       { title: "Kitchen TV", href: "/erp/kds", icon: MonitorIcon },
       { title: "Invoices", href: "/erp/invoices", icon: ReceiptTextIcon },
       { title: "Night audit", href: "/erp/night-audit", icon: ScrollTextIcon },
       { title: "Finance", href: "/erp/finance", icon: ReceiptTextIcon },
       { title: "GST", href: "/erp/gst", icon: ScrollTextIcon },
+    ],
+  },
+  {
+    label: "FRONT PUBLIC",
+    items: [
+      {
+        title: "Website CMS",
+        href: "/erp/front-public",
+        icon: Globe2Icon,
+      },
+      {
+        title: "Media library",
+        href: "/erp/front-public/media",
+        icon: ImageIcon,
+      },
+      {
+        title: "Phone upload",
+        href: "/erp/front-public/media/upload",
+        icon: SmartphoneIcon,
+      },
+      { title: "Menus & prices", href: "/erp/menu", icon: SoupIcon },
     ],
   },
   {

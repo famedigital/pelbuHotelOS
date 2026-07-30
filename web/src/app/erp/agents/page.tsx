@@ -1,6 +1,14 @@
 import { AgentDeskCard } from "@/components/erp/AgentDeskCard";
-import { DeskHeader } from "@/components/erp/DeskHeader";
+import { AgentPinProvisionForm } from "@/components/erp/AgentAuthForms";
 import { RateMatrixEditor } from "@/components/erp/RateMatrixEditor";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { deskPinConfigured, isDeskAuthenticated } from "@/lib/desk-auth";
 import { formatBtn } from "@/lib/pricing";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
@@ -152,7 +160,6 @@ export default async function ErpAgentsPage() {
     portal_token: row.portal_token ?? null,
   }));
 
-  // Documents for the visible agents (one query, group client-side)
   const agentIds = agents.map((a) => a.id);
   let docRows: AgentDocRaw[] = [];
   if (agentIds.length) {
@@ -205,131 +212,168 @@ export default async function ErpAgentsPage() {
     .reduce((sum, a) => sum + a.credit_used, 0);
 
   return (
-    <div className="min-h-screen bg-ivory">
-      <DeskHeader title="Agents & rates" />
-      <main className="mx-auto max-w-[1200px] px-6 py-10 md:px-8">
-        {!deskPinConfigured() ? (
-          <p className="mb-8 border border-gold/40 bg-gold/5 px-4 py-3 text-sm text-espresso">
-            Dev mode: desk PIN not set. Add <code className="font-mono">DESK_PIN</code>{" "}
+    <div className="erp mx-auto w-full max-w-[1200px] space-y-10 p-4 md:p-6">
+      {!deskPinConfigured() ? (
+        <Alert variant="warning">
+          <AlertTitle>Dev mode</AlertTitle>
+          <AlertDescription>
+            Desk PIN not set. Add <code className="font-mono">DESK_PIN</code>{" "}
             before production.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      <section className="grid gap-3 sm:grid-cols-3">
+        <SummaryCard label="Pending applications" value={String(pendingCount)} />
+        <SummaryCard
+          label="Approved credit"
+          value={formatBtn(totalApprovedCredit)}
+        />
+        <SummaryCard
+          label="Outstanding used"
+          value={formatBtn(totalUsedCredit)}
+          tone="destructive"
+        />
+      </section>
+
+      <section className="space-y-4">
+        <header className="space-y-1.5">
+          <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+            Trade partners
           </p>
-        ) : null}
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            Approve applications, set MoU/demo status, credit limits, and record
+            credit payments. Markets: Bhutan, Jaigaon, India.
+          </p>
+        </header>
 
-        <section className="grid gap-3 sm:grid-cols-3">
-          <SummaryCard label="Pending applications" value={String(pendingCount)} />
-          <SummaryCard
-            label="Approved credit"
-            value={formatBtn(totalApprovedCredit)}
-          />
-          <SummaryCard
-            label="Outstanding used"
-            value={formatBtn(totalUsedCredit)}
-            tone="maroon"
-          />
-        </section>
-
-        <section className="mt-12 space-y-4">
-          <header>
-            <h2 className="text-[11px] font-semibold tracking-[0.22em] text-gold uppercase">
-              Trade partners
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm text-espresso/70">
-              Approve applications, set MoU/demo status, credit limits, and record
-              credit payments. Markets: Bhutan, Jaigaon, India.
-            </p>
-          </header>
-
-          {agents.length === 0 ? (
-            <p className="border border-espresso/10 bg-white px-5 py-6 text-sm text-espresso/70">
+        {agents.length === 0 ? (
+          <Card>
+            <CardContent className="py-6 text-sm text-muted-foreground">
               No agent applications yet.
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {agents.map((row) => (
-                <AgentDeskCard
-                  key={row.id}
-                  agent={row}
-                  documents={(docsByAgent.get(row.id) ?? []).map((d) => ({
-                    id: d.id,
-                    agent_id: d.agent_id,
-                    kind: d.kind,
-                    doc_url: d.doc_url,
-                    doc_name: d.doc_name,
-                    notes: d.notes,
-                    uploaded_by: d.uploaded_by,
-                    created_at: d.created_at,
-                  }))}
-                />
-              ))}
-            </div>
-          )}
-        </section>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {agents.map((row) => (
+              <AgentDeskCard
+                key={row.id}
+                agent={row}
+                documents={(docsByAgent.get(row.id) ?? []).map((d) => ({
+                  id: d.id,
+                  agent_id: d.agent_id,
+                  kind: d.kind,
+                  doc_url: d.doc_url,
+                  doc_name: d.doc_name,
+                  notes: d.notes,
+                  uploaded_by: d.uploaded_by,
+                  created_at: d.created_at,
+                }))}
+              />
+            ))}
+          </div>
+        )}
+      </section>
 
-        <section className="mt-14">
-          <header>
-            <h2 className="text-[11px] font-semibold tracking-[0.22em] text-gold uppercase">
-              Rate matrix
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm text-espresso/70">
-              Edit per-night Nu rates by season × tier. Changes apply immediately to
-              fast-book, check-in on-credit estimates, and the public agent portal.
-            </p>
-          </header>
-          <RateMatrixEditor rows={rateMatrixRows} roomTypes={roomTypeLites} />
-        </section>
+      <section className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Agent app login</CardTitle>
+            <CardDescription>
+              Issue an agent code + PIN so an approved partner can sign into the
+              installable Work app at{" "}
+              <code className="font-mono text-xs">/agents/app</code> to book on
+              their rate and see their own bookings. PINs are stored only in
+              Supabase Auth.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AgentPinProvisionForm
+              agents={agents
+                .filter((a) => a.status === "approved" || a.status === "demo")
+                .map((a) => ({
+                  id: a.id,
+                  label: `${a.company_name} · ${a.market}`,
+                }))}
+            />
+          </CardContent>
+        </Card>
+      </section>
 
-        <section className="mt-14">
-          <header>
-            <h2 className="text-[11px] font-semibold tracking-[0.22em] text-gold uppercase">
-              Credit ledger
-            </h2>
-            <p className="mt-2 text-sm text-espresso/70">Recent charges and payments.</p>
-          </header>
-          <ul className="mt-4 divide-y divide-espresso/8 border border-espresso/10 bg-white">
-            {(ledger ?? []).length === 0 ? (
-              <li className="px-4 py-5 text-sm text-espresso/60">No ledger entries yet.</li>
-            ) : (
-              (ledger ?? []).map((row) => {
-                const agent = row.agents as
-                  | { company_name: string }
-                  | { company_name: string }[]
-                  | null;
-                const company = Array.isArray(agent)
-                  ? agent[0]?.company_name
-                  : agent?.company_name;
-                return (
-                  <li
-                    key={row.id as string}
-                    className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-3 text-sm"
-                  >
-                    <div>
-                      <span className="font-medium text-espresso">
-                        {company ?? "Agent"}
-                      </span>
-                      <span className="ml-2 text-espresso/55">
-                        {row.entry_type as string}
-                      </span>
-                      {row.note ? (
-                        <span className="mt-0.5 block text-xs text-espresso/50">
-                          {row.note as string}
+      <section className="space-y-4">
+        <header className="space-y-1.5">
+          <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+            Rate matrix
+          </p>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            Edit per-night Nu rates by season × tier. Changes apply immediately to
+            fast-book, check-in on-credit estimates, and the public agent portal.
+          </p>
+        </header>
+        <RateMatrixEditor rows={rateMatrixRows} roomTypes={roomTypeLites} />
+      </section>
+
+      <section className="space-y-3">
+        <header className="space-y-1.5">
+          <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+            Credit ledger
+          </p>
+          <p className="text-sm text-muted-foreground">Recent charges and payments.</p>
+        </header>
+        <Card>
+          <CardHeader className="sr-only">
+            <CardTitle>Credit ledger</CardTitle>
+            <CardDescription>Recent agent credit movements</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ul className="divide-y">
+              {(ledger ?? []).length === 0 ? (
+                <li className="px-4 py-5 text-sm text-muted-foreground">
+                  No ledger entries yet.
+                </li>
+              ) : (
+                (ledger ?? []).map((row) => {
+                  const agent = row.agents as
+                    | { company_name: string }
+                    | { company_name: string }[]
+                    | null;
+                  const company = Array.isArray(agent)
+                    ? agent[0]?.company_name
+                    : agent?.company_name;
+                  return (
+                    <li
+                      key={row.id as string}
+                      className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-3 text-sm"
+                    >
+                      <div>
+                        <span className="font-medium text-foreground">
+                          {company ?? "Agent"}
                         </span>
-                      ) : null}
-                    </div>
-                    <div className="text-right">
-                      <p className="text-espresso">
-                        {formatBtn(Number(row.amount_btn))}
-                      </p>
-                      <p className="text-xs text-espresso/50">
-                        bal {formatBtn(Number(row.balance_after_btn))}
-                      </p>
-                    </div>
-                  </li>
-                );
-              })
-            )}
-          </ul>
-        </section>
-      </main>
+                        <span className="ml-2 text-muted-foreground">
+                          {row.entry_type as string}
+                        </span>
+                        {row.note ? (
+                          <span className="mt-0.5 block text-xs text-muted-foreground">
+                            {row.note as string}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-foreground">
+                          {formatBtn(Number(row.amount_btn))}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          bal {formatBtn(Number(row.balance_after_btn))}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+          </CardContent>
+        </Card>
+      </section>
     </div>
   );
 }
@@ -337,22 +381,26 @@ export default async function ErpAgentsPage() {
 function SummaryCard({
   label,
   value,
-  tone = "espresso",
+  tone = "default",
 }: {
   label: string;
   value: string;
-  tone?: "espresso" | "maroon";
+  tone?: "default" | "destructive";
 }) {
   return (
-    <div className="border border-espresso/10 bg-white px-5 py-4">
-      <p className="text-[11px] uppercase tracking-[0.18em] text-espresso/55">
-        {label}
-      </p>
-      <p
-        className={`mt-1.5 text-2xl ${tone === "maroon" ? "text-maroon" : "text-espresso"}`}
-      >
-        {value}
-      </p>
-    </div>
+    <Card className="gap-2 py-5">
+      <CardContent>
+        <p className="text-[11px] tracking-[0.18em] text-muted-foreground uppercase">
+          {label}
+        </p>
+        <p
+          className={`mt-1.5 text-2xl font-semibold tracking-tight ${
+            tone === "destructive" ? "text-destructive" : "text-foreground"
+          }`}
+        >
+          {value}
+        </p>
+      </CardContent>
+    </Card>
   );
 }

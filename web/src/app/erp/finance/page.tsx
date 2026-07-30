@@ -7,12 +7,24 @@ import {
   type FinancePaymentOption,
   type UnmatchedBankTxn,
 } from "@/components/erp/FinanceForms";
-import { DeskHeader } from "@/components/erp/DeskHeader";
+import {
+  ExportButtons,
+  FinanceKpi,
+  FinanceShell,
+} from "@/components/erp/finance/FinanceShell";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { deskPinConfigured, isDeskAuthenticated } from "@/lib/desk-auth";
 import { formatBtn } from "@/lib/pricing";
-import { PELBU_PROPERTY_SLUG } from "@/lib/property";
+import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  buildGstReport,
+  buildProfitAndLoss,
+} from "@/lib/accounting/reports";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
@@ -27,38 +39,25 @@ function monthStartIso(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
-export default async function ErpFinancePage() {
-  if (!(await isDeskAuthenticated())) {
-    redirect("/erp/login");
-  }
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export default async function ErpFinanceOverviewPage() {
+  if (!(await isDeskAuthenticated())) redirect("/erp/login");
 
   const admin = createSupabaseAdminClient();
-  const { data: property } = await admin
-    .from("properties")
-    .select("id")
-    .eq("slug", PELBU_PROPERTY_SLUG)
-    .single();
-  const propertyId = property?.id as string | undefined;
-
-  if (!propertyId) {
-    return (
-      <div className="min-h-screen bg-ivory">
-        <DeskHeader title="Finance" />
-        <main className="mx-auto max-w-[1200px] px-6 py-10">
-          <p className="text-sm text-maroon">Property not configured.</p>
-        </main>
-      </div>
-    );
-  }
-
+  const propertyId = await resolveActivePropertyId(admin);
   const since = monthStartIso();
+  const to = todayIso();
 
   const [
     paymentsRes,
     expensesRes,
-    folioGstRes,
     unmatchedRes,
-    statementsRes,
+    postingErrorsRes,
+    openingRes,
+    periodRes,
   ] = await Promise.all([
     admin
       .from("payments")
@@ -76,11 +75,6 @@ export default async function ErpFinancePage() {
       .order("expense_date", { ascending: false })
       .limit(50),
     admin
-      .from("folios")
-      .select("id, folio_lines(gst_btn, total_btn, status, created_at)")
-      .eq("property_id", propertyId)
-      .limit(200),
-    admin
       .from("bank_transactions")
       .select(
         "id, bank_code, txn_date, description, debit_btn, credit_btn, reference, match_status",
@@ -88,30 +82,34 @@ export default async function ErpFinancePage() {
       .eq("property_id", propertyId)
       .eq("match_status", "unmatched")
       .order("txn_date", { ascending: false })
-      .limit(50),
+      .limit(20),
     admin
-      .from("bank_statements")
-      .select("id, bank_code, account_label, period_start, period_end, source_filename, status, created_at")
+      .from("accounting_posting_events")
+      .select("id", { count: "exact", head: true })
       .eq("property_id", propertyId)
-      .order("created_at", { ascending: false })
-      .limit(15),
+      .eq("status", "error"),
+    admin
+      .from("accounting_opening_balances")
+      .select("status, effective_date")
+      .eq("property_id", propertyId)
+      .maybeSingle(),
+    admin
+      .from("accounting_periods")
+      .select("id, label, status")
+      .eq("property_id", propertyId)
+      .lte("starts_on", to)
+      .gte("ends_on", to)
+      .maybeSingle(),
+  ]);
+
+  const [pnl, gst] = await Promise.all([
+    buildProfitAndLoss(admin, propertyId, since, to),
+    buildGstReport(admin, propertyId, since, to),
   ]);
 
   const monthPayments = paymentsRes.data ?? [];
   const expenses = expensesRes.data ?? [];
   const unmatched = (unmatchedRes.data ?? []) as UnmatchedBankTxn[];
-  const statements = statementsRes.data ?? [];
-
-  const folioLines = (folioGstRes.data ?? []).flatMap((folio) => {
-    const lines =
-      (folio.folio_lines as
-        | { gst_btn: number; total_btn: number; status: string; created_at: string }[]
-        | null) ?? [];
-    return lines.filter(
-      (l) => l.status === "posted" && String(l.created_at) >= since,
-    );
-  });
-
   const paymentsTotal = monthPayments.reduce(
     (s, p) => s + Number(p.amount_btn ?? 0),
     0,
@@ -119,8 +117,6 @@ export default async function ErpFinancePage() {
   const expensesTotal = expenses
     .filter((e) => String(e.expense_date) >= since)
     .reduce((s, e) => s + Number(e.amount_btn ?? 0), 0);
-  const gstCollected = folioLines.reduce((s, l) => s + Number(l.gst_btn ?? 0), 0);
-  const salesPosted = folioLines.reduce((s, l) => s + Number(l.total_btn ?? 0), 0);
 
   const paymentOptions: FinancePaymentOption[] = monthPayments.map((p) => ({
     id: p.id as string,
@@ -128,11 +124,8 @@ export default async function ErpFinancePage() {
     method: p.method as string,
     reference: (p.reference as string | null) ?? null,
     created_at: p.created_at as string,
-    label: `${String(p.created_at).slice(0, 10)} Â· ${formatBtn(Number(p.amount_btn))} Â· ${p.method}${
-      p.reference ? ` Â· ${p.reference}` : ""
-    }`,
+    label: `${String(p.created_at).slice(0, 10)} · ${formatBtn(Number(p.amount_btn))} · ${p.method}`,
   }));
-
   const expenseOptions: FinanceExpenseOption[] = expenses.map((e) => ({
     id: e.id as string,
     amount_btn: Number(e.amount_btn),
@@ -142,53 +135,101 @@ export default async function ErpFinancePage() {
   }));
 
   return (
-    <div className="min-h-screen bg-ivory">
-      <DeskHeader title="Finance" />
-      <main className="mx-auto max-w-[1200px] space-y-12 px-6 py-10 md:px-8">
-        {!deskPinConfigured() ? (
-          <p className="border border-gold/40 bg-gold/5 px-4 py-3 text-sm text-espresso">
-            Dev mode: desk PIN not set. Add <code className="font-mono">DESK_PIN</code>{" "}
+    <FinanceShell
+      title="Finance overview"
+      description="Double-entry hotel ledger with income, expenses, bank recon, GST, and downloadable statements."
+      actions={
+        <>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/erp/finance/setup">Opening balances</Link>
+          </Button>
+          <Button asChild size="sm">
+            <Link href="/erp/finance/reports">Statements</Link>
+          </Button>
+        </>
+      }
+    >
+      {!deskPinConfigured() ? (
+        <Alert variant="warning">
+          <AlertTitle>Dev mode</AlertTitle>
+          <AlertDescription>
+            Desk PIN not set. Add <code className="font-mono">DESK_PIN</code>{" "}
             before production.
-          </p>
-        ) : null}
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
-        <section>
-          <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-            This month
-          </h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Stat label="Payments in" value={formatBtn(paymentsTotal)} />
-            <Stat label="Folio sales posted" value={formatBtn(salesPosted)} />
-            <Stat label="GST on folio lines" value={formatBtn(gstCollected)} />
-            <Stat label="Expenses" value={formatBtn(expensesTotal)} />
-          </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Unmatched bank lines: {unmatched.length}
-          </p>
-        </section>
+      {openingRes.data?.status !== "posted" ? (
+        <Alert>
+          <AlertTitle>Opening balances required</AlertTitle>
+          <AlertDescription>
+            Set and post opening balances as of a go-live date before relying on
+            trial balance and balance sheet.{" "}
+            <Link href="/erp/finance/setup" className="underline">
+              Open setup
+            </Link>
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
-        <div className="grid gap-8 lg:grid-cols-2">
-          <ExpenseForm />
-          <ImportStatementForm />
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <FinanceKpi
+          label="Net income (MTD)"
+          value={formatBtn(pnl.netIncome)}
+          note="From posted ledger"
+        />
+        <FinanceKpi label="Cash & receipts (MTD)" value={formatBtn(paymentsTotal)} />
+        <FinanceKpi label="Expenses (MTD)" value={formatBtn(expensesTotal)} />
+        <FinanceKpi
+          label="GST net payable"
+          value={formatBtn(gst.netPayable)}
+          note={`Output ${formatBtn(gst.output)} − input ${formatBtn(gst.input)}`}
+        />
+      </section>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3">
+        <div className="text-sm text-muted-foreground">
+          Period: <span className="text-foreground">{periodRes.data?.label ?? "—"}</span>
+          {" · "}
+          Status:{" "}
+          <span className="text-foreground">
+            {periodRes.data?.status ?? "n/a"}
+          </span>
+          {" · "}
+          Posting errors: {postingErrorsRes.count ?? 0}
+          {" · "}
+          Unmatched bank: {unmatched.length}
         </div>
+        <ExportButtons report="month_pack" from={since} to={to} />
+      </div>
 
-        <section>
-          <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-espresso/15 pb-2">
-            <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-              Unmatched bank transactions
-            </h2>
-            <div className="flex flex-wrap items-center gap-3">
-              <p className="text-xs text-muted-foreground">{unmatched.length}</p>
-              {unmatched.length > 0 ? <AutoMatchButton /> : null}
-            </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ExpenseForm />
+        <ImportStatementForm />
+      </div>
+
+      <Card>
+        <CardHeader className="flex-row items-baseline justify-between space-y-0 pb-3">
+          <CardTitle className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+            Unmatched bank transactions
+          </CardTitle>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/erp/finance/banking"
+              className="text-xs text-muted-foreground underline"
+            >
+              Full banking
+            </Link>
+            {unmatched.length > 0 ? <AutoMatchButton /> : null}
           </div>
+        </CardHeader>
+        <CardContent>
           {unmatched.length === 0 ? (
-            <p className="mt-4 text-sm text-muted-foreground">
-              Queue empty — import a statement JSON from{" "}
-              <code className="font-mono text-xs">scripts/bank-recon</code>.
+            <p className="text-sm text-muted-foreground">
+              Queue empty — import a statement on Banking.
             </p>
           ) : (
-            <ul className="mt-2">
+            <ul className="divide-y">
               {unmatched.map((txn) => (
                 <UnmatchedTxnRow
                   key={txn.id}
@@ -199,82 +240,37 @@ export default async function ErpFinancePage() {
               ))}
             </ul>
           )}
-        </section>
+        </CardContent>
+      </Card>
 
-        <section>
-          <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-espresso/15 pb-2">
-            <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-              Recent expenses
-            </h2>
-          </div>
-          {expenses.length === 0 ? (
-            <p className="mt-4 text-sm text-muted-foreground">No expenses yet.</p>
-          ) : (
-            <ul className="mt-2">
-              {expenses.map((e) => (
-                <li
-                  key={e.id as string}
-                  className="flex flex-wrap items-baseline justify-between gap-2 border-b border-espresso/10 py-3 text-sm"
-                >
-                  <div>
-                    <p className="font-medium text-espresso">
-                      {e.expense_date as string} Â· {e.description as string}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {e.category as string}
-                      {e.vendor ? ` Â· ${e.vendor as string}` : ""} Â·{" "}
-                      {e.payment_method as string}
-                    </p>
-                  </div>
-                  <p className="tabular-nums text-espresso">
-                    {formatBtn(Number(e.amount_btn))}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section>
-          <div className="border-b border-espresso/15 pb-2">
-            <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-              Imported statements
-            </h2>
-          </div>
-          {statements.length === 0 ? (
-            <p className="mt-4 text-sm text-muted-foreground">No statements imported yet.</p>
-          ) : (
-            <ul className="mt-2">
-              {statements.map((s) => (
-                <li
-                  key={s.id as string}
-                  className="border-b border-espresso/10 py-3 text-sm"
-                >
-                  <p className="font-medium text-espresso">
-                    {(s.bank_code as string).toUpperCase()} Â·{" "}
-                    {(s.source_filename as string) ?? "statement"}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {(s.account_label as string) ?? "—"} Â· {s.status as string} Â·{" "}
-                    {s.period_start ? `${s.period_start} → ${s.period_end}` : "period n/a"}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </main>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border border-espresso/10 bg-white px-4 py-4">
-      <p className="text-[10px] font-semibold tracking-[0.18em] text-gold uppercase">
-        {label}
-      </p>
-      <p className="mt-2 text-lg tabular-nums text-espresso">{value}</p>
-    </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        {[
+          {
+            href: "/erp/finance/reports?report=pnl",
+            title: "Profit & loss",
+            body: "Departmental income statement with Excel download.",
+          },
+          {
+            href: "/erp/finance/reports?report=trial",
+            title: "Trial balance",
+            body: "Opening, period movement, and closing balances.",
+          },
+          {
+            href: "/erp/finance/reports?report=balance",
+            title: "Balance sheet",
+            body: "Assets, liabilities, and equity as of today.",
+          },
+        ].map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="rounded-xl border bg-card p-5 transition-colors hover:border-accent/50"
+          >
+            <p className="font-medium text-foreground">{item.title}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{item.body}</p>
+          </Link>
+        ))}
+      </div>
+    </FinanceShell>
   );
 }

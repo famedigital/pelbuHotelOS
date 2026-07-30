@@ -1,89 +1,159 @@
 "use client";
 
+import { CloudinaryMedia } from "@/components/media/CloudinaryMedia";
+import { type HeroSlide } from "@/lib/brand";
+import type { CloudinaryResourceType } from "@/lib/cloudinary";
+import { cn } from "@/lib/utils";
 import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
-import { type HeroSlide } from "@/lib/brand";
 import { useEffect, useState } from "react";
 
-export type HomeHeroSlide = HeroSlide & { src: string };
+export type HomeHeroSlide = HeroSlide & {
+  src?: string;
+  resourceType?: CloudinaryResourceType;
+  posterPublicId?: string | null;
+};
+
+export type HeroProduct = {
+  href: string;
+  label: string;
+  hint: string;
+};
 
 type Props = {
   slides: HomeHeroSlide[];
-  logoSrc?: string | null;
+  eyebrow: string;
+  title: string;
+  description: string;
+  primaryHref: string;
+  primaryLabel: string;
+  secondaryHref: string;
+  secondaryLabel: string;
+  products: HeroProduct[];
   intervalMs?: number;
 };
 
-/** Full-bleed hero: brand signal, one line, one CTA. No logo stack, no brass chrome. */
-export function HomeHero({ slides, intervalMs = 7000 }: Props) {
-  const safeSlides = slides.filter((s) => s.src);
+/** Cinematic homepage hero — azure scrim over live photography/video, citrus CTA. */
+export function HomeHero({
+  slides,
+  eyebrow,
+  title,
+  description,
+  primaryHref,
+  primaryLabel,
+  secondaryHref,
+  secondaryLabel,
+  products,
+  intervalMs = 6500,
+}: Props) {
+  const safeSlides = slides.filter((slide) => slide.src || slide.publicId);
   const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
   const reduceMotion = useReducedMotion();
+  const slideCount = safeSlides.length;
+  const active = safeSlides[index];
+  const activeIsVideo = active?.resourceType === "video";
 
   useEffect(() => {
-    if (safeSlides.length < 2) return;
+    // Hold on video slides so the clip can play; photos keep rotating.
+    if (slideCount < 2 || paused || activeIsVideo || reduceMotion) return;
     const id = window.setInterval(() => {
-      setIndex((i) => (i + 1) % safeSlides.length);
+      setIndex((current) => (current + 1) % slideCount);
     }, intervalMs);
     return () => window.clearInterval(id);
-  }, [safeSlides.length, intervalMs]);
+  }, [slideCount, intervalMs, paused, activeIsVideo, reduceMotion]);
+
+  // Browsers throttle timers in background tabs, which leaves the hero frozen
+  // on one frame when the guest comes back. Restart the rotation on return.
+  useEffect(() => {
+    const onVisibility = () => setPaused(document.visibilityState === "hidden");
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
 
   const settle = reduceMotion
     ? { initial: false as const, animate: { opacity: 1 } }
-    : {
-        initial: { opacity: 0, y: 10 },
-        animate: { opacity: 1, y: 0 },
-      };
+    : { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 } };
 
+  // `svh` rather than `vh`: on mobile Safari and Chrome, `100vh` is the
+  // viewport with the browser chrome retracted, so a full-height hero gets
+  // clipped behind the address bar until you scroll.
   return (
-    <section className="relative min-h-[92svh] overflow-hidden bg-ink">
-      {safeSlides.length > 0 ? (
-        <div className="absolute inset-0" aria-hidden>
-          {safeSlides.map((slide, i) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={slide.publicId}
-              src={slide.src}
-              alt={slide.alt}
-              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-1000 ${
-                i === index ? "opacity-100" : "opacity-0"
-              }`}
-              width={1920}
-              height={1080}
-              fetchPriority={i === 0 ? "high" : "low"}
-            />
-          ))}
-        </div>
-      ) : null}
+    <section className="relative isolate min-h-svh overflow-hidden bg-sky-900">
+      <div className="absolute inset-0" aria-hidden>
+        {safeSlides.map((slide, i) => {
+          const isVideo = slide.resourceType === "video";
+          return (
+            <div
+              key={`${slide.publicId}-${i}`}
+              className={cn(
+                "absolute inset-0 transition-opacity duration-[1400ms] ease-out",
+                i === index ? "opacity-100" : "opacity-0",
+              )}
+            >
+              <CloudinaryMedia
+                publicId={slide.publicId}
+                src={slide.src}
+                alt=""
+                resourceType={slide.resourceType ?? "image"}
+                posterPublicId={slide.posterPublicId}
+                fill
+                priority={i === 0}
+                sizes="100vw"
+                cinematic={isVideo}
+                active={i === index}
+                imgClassName={cn(
+                  "object-cover",
+                  // Slow drift on photo frames only — video already moves.
+                  !isVideo &&
+                    !reduceMotion &&
+                    "transition-transform duration-[9000ms] ease-linear",
+                  !isVideo &&
+                    !reduceMotion &&
+                    (i === index ? "scale-110" : "scale-100"),
+                )}
+              />
+            </div>
+          );
+        })}
+      </div>
 
+      {/* Dark at the very top, fully clear by the midpoint: the glass nav sits
+          on the dark end so it stays legible, and the photograph is untouched
+          through the middle of the frame. From the midpoint down it ramps back
+          into ink so the eyebrow, headline and buttons keep contrast on bright
+          slides. The top half is mint-ink so the glass chrome reads green
+          rather than fighting a blue scrim underneath it; the bottom half stays
+          sky-ink. The two never blend — they meet at 50% at zero alpha, which
+          is also why there is no visible band where they join. */}
       <div
-        className="absolute inset-0 bg-gradient-to-t from-ink via-ink/55 to-ink/25"
+        className="absolute inset-0 bg-gradient-to-b from-mint-ink/75 via-transparent via-50% to-sky-ink/90"
         aria-hidden
       />
 
-      <div className="relative mx-auto flex min-h-[92svh] max-w-[1120px] flex-col justify-end px-5 pb-16 pt-28 md:px-8 md:pb-20">
+      <div className="relative mx-auto flex min-h-svh max-w-[1200px] flex-col justify-end px-5 pb-14 pt-24 md:px-8 md:pb-20 md:pt-32">
         <motion.p
-          className="text-[13px] text-ivory/55"
+          className="text-xs font-semibold uppercase tracking-[0.24em] text-citrus-soft"
           {...settle}
           transition={{ duration: 0.45, ease: "easeOut" }}
         >
-          Olakha, Thimphu
+          {eyebrow}
         </motion.p>
 
         <motion.h1
-          className="mt-3 max-w-xl font-display text-4xl leading-[1.1] text-ivory md:text-5xl lg:text-[3.5rem]"
+          className="mt-4 max-w-3xl font-display text-4xl leading-[1.05] text-white md:text-6xl"
           {...settle}
           transition={{ duration: 0.5, ease: "easeOut", delay: 0.05 }}
         >
-          Stay. Dine. Gather.
+          {title}
         </motion.h1>
 
         <motion.p
-          className="mt-4 max-w-md text-[15px] leading-relaxed text-ivory/70"
+          className="mt-5 max-w-xl text-[15px] leading-relaxed text-white/80 md:text-base"
           {...settle}
           transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
         >
-          A modern 3-star hotel — rooms, cafe, restaurant, spa, and meeting under
-          one roof.
+          {description}
         </motion.p>
 
         <motion.div
@@ -92,38 +162,73 @@ export function HomeHero({ slides, intervalMs = 7000 }: Props) {
           transition={{ duration: 0.5, ease: "easeOut", delay: 0.15 }}
         >
           <Link
-            href="/book"
-            className="inline-flex h-11 items-center rounded-md bg-ivory px-5 text-sm font-medium text-ink hover:bg-ivory/90"
+            href={primaryHref}
+            className="inline-flex h-12 items-center rounded-xl bg-gradient-to-r from-citrus-soft to-citrus px-6 text-sm font-semibold text-sky-ink shadow-[0_16px_40px_-16px_rgba(245,158,11,0.9)] transition-transform motion-safe:hover:-translate-y-0.5"
           >
-            Book a stay
+            {primaryLabel}
           </Link>
           <Link
-            href="/rooms"
-            className="inline-flex h-11 items-center px-2 text-sm text-ivory/70 hover:text-ivory"
+            href={secondaryHref}
+            className="inline-flex h-12 items-center rounded-xl border border-white/30 bg-white/10 px-6 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/20"
           >
-            View rooms
+            {secondaryLabel}
           </Link>
         </motion.div>
 
-        {safeSlides.length > 1 ? (
-          <div
-            className="mt-10 flex gap-1.5"
-            role="tablist"
-            aria-label="Hero photos"
-          >
-            {safeSlides.map((slide, i) => (
-              <button
-                key={slide.publicId}
-                type="button"
-                role="tab"
-                aria-selected={i === index}
-                aria-label={slide.label}
-                onClick={() => setIndex(i)}
-                className={`h-1 w-6 rounded-full transition-colors ${
-                  i === index ? "bg-ivory" : "bg-ivory/25 hover:bg-ivory/45"
-                }`}
-              />
-            ))}
+        <motion.ul
+          className="mt-10 flex flex-wrap gap-x-5 gap-y-2"
+          {...settle}
+          transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
+        >
+          {products.map((product) => (
+            <li key={product.href + product.label}>
+              <Link
+                href={product.href}
+                className="group inline-flex items-baseline gap-2 py-1 text-sm text-white transition-colors hover:text-citrus-soft"
+              >
+                <span className="font-semibold underline-offset-4 group-hover:underline">
+                  {product.label}
+                </span>
+                <span className="text-xs text-white/55 group-hover:text-white/75">
+                  {product.hint}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </motion.ul>
+
+        {slideCount > 1 ? (
+          <div className="mt-10 flex items-center gap-4">
+            <div
+              className="flex gap-1.5"
+              role="tablist"
+              aria-label="Hero media"
+              onMouseEnter={() => setPaused(true)}
+              onMouseLeave={() => setPaused(false)}
+            >
+              {safeSlides.map((slide, i) => (
+                <button
+                  key={`${slide.publicId}-dot-${i}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={i === index}
+                  aria-label={slide.label}
+                  onClick={() => setIndex(i)}
+                  className={cn(
+                    "h-1.5 rounded-full transition-all duration-300",
+                    i === index
+                      ? "w-10 bg-gradient-to-r from-citrus-soft to-citrus"
+                      : "w-5 bg-white/30 hover:bg-white/50",
+                  )}
+                />
+              ))}
+            </div>
+            <p
+              className="text-xs font-medium tracking-wide text-white/70"
+              aria-live="polite"
+            >
+              {safeSlides[index]?.label}
+            </p>
           </div>
         ) : null}
       </div>

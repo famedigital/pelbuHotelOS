@@ -354,12 +354,21 @@ export async function ackChannelRevision(
       .eq("property_id", pid)
       .single();
     if (!row) throw new Error("Revision not found.");
+    if ((row.status as string) !== "imported") {
+      throw new Error(
+        "Import this revision into a local booking before acknowledging it at Channex.",
+      );
+    }
 
-    if (getChannexConfig()) {
-      const ack = await ackBookingRevision(row.external_revision_id as string);
-      if (!ack.ok) {
-        throw new Error(`Ack failed: ${JSON.stringify(ack.body).slice(0, 200)}`);
-      }
+    if (!getChannexConfig()) {
+      throw new Error(
+        "Set CHANNEX_API_KEY before acknowledging revisions. Local-only ack is disabled.",
+      );
+    }
+
+    const ack = await ackBookingRevision(row.external_revision_id as string);
+    if (!ack.ok) {
+      throw new Error(`Ack failed: ${JSON.stringify(ack.body).slice(0, 200)}`);
     }
 
     await admin
@@ -373,9 +382,7 @@ export async function ackChannelRevision(
     revalidateChannel();
     return {
       ok: true,
-      message: getChannexConfig()
-        ? "Revision acknowledged at Channex."
-        : "Marked acked locally (no API key — Channex not notified).",
+      message: "Revision acknowledged at Channex.",
     };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
@@ -413,6 +420,9 @@ export async function cancelBooking(
       })
       .eq("id", bookingId);
     if (upd) throw new Error("Could not cancel booking.");
+
+    // Free physical inventory immediately so the rack and ARI stay aligned.
+    await admin.from("room_assignments").delete().eq("booking_id", bookingId);
 
     await writeAuditEvent(admin, {
       propertyId: pid,
@@ -467,6 +477,8 @@ export async function markBookingNoShow(
       })
       .eq("id", bookingId);
     if (error) throw new Error("Could not mark no-show.");
+
+    await admin.from("room_assignments").delete().eq("booking_id", bookingId);
 
     await writeAuditEvent(admin, {
       propertyId: pid,

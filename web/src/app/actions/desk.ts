@@ -44,5 +44,15 @@ export async function deskLogin(
 export async function deskLogout(): Promise<void> {
   const jar = await cookies();
   jar.delete(DESK_COOKIE_NAME);
-  redirect("/erp/login");
+
+  // Dual-auth: desk-capable staff may be on /erp via Supabase Auth without a PIN cookie.
+  try {
+    const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+    const supabase = await createSupabaseServerClient();
+    await supabase.auth.signOut();
+  } catch {
+    // Ignore Auth sign-out failures; PIN cookie is already cleared.
+  }
+
+  redirect("/login");
 }

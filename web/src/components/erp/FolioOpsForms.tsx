@@ -23,7 +23,7 @@ function Flash({ state }: { state: ErpFolioOpsState }) {
   if (!state.ok && !state.error) return null;
   return (
     <p
-      className={`mt-2 text-sm ${state.ok ? "text-espresso" : "text-maroon"}`}
+      className={`erp mt-2 text-sm ${state.ok ? "text-foreground" : "text-destructive"}`}
       role="status"
     >
       {state.ok ? state.message : state.error}
@@ -32,7 +32,7 @@ function Flash({ state }: { state: ErpFolioOpsState }) {
           {" "}
           <a
             href={`/pay/${state.token}`}
-            className="font-mono text-xs underline-offset-4 hover:underline"
+            className="font-mono text-xs text-accent underline-offset-4 hover:underline"
           >
             /pay/{state.token}
           </a>
@@ -46,7 +46,7 @@ export function VoidLineButton({ lineId }: { lineId: string }) {
   const [state, action, pending] = useActionState(voidFolioLine, initial);
   useActionToast(state, { successMessage: "Folio line voided" });
   return (
-    <form action={action} className="mt-2 flex flex-wrap items-center gap-2">
+    <form action={action} className="erp mt-2 flex flex-wrap items-center gap-2">
       <input type="hidden" name="line_id" value={lineId} />
       <Input
         name="void_reason"
@@ -59,7 +59,7 @@ export function VoidLineButton({ lineId }: { lineId: string }) {
         variant="ghost"
         size="sm"
         disabled={pending}
-        className="text-xs font-medium text-maroon hover:bg-maroon/5 hover:text-maroon"
+        className="text-xs font-medium text-destructive hover:bg-destructive/5 hover:text-destructive"
       >
         {pending ? "Voiding…" : "Void"}
       </Button>
@@ -74,9 +74,9 @@ export function CompCreditForm({ folioId }: { folioId: string }) {
   return (
     <form
       action={action}
-      className="space-y-3 border border-espresso/10 bg-white px-4 py-4"
+      className="erp space-y-3 rounded-lg border bg-card p-4"
     >
-      <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
+      <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
         Comp / courtesy
       </h3>
       <input type="hidden" name="folio_id" value={folioId} />
@@ -103,7 +103,7 @@ export function CompCreditForm({ folioId }: { folioId: string }) {
         type="submit"
         variant="outline"
         disabled={pending}
-        className="min-h-10 w-full"
+        className="h-10 w-full"
       >
         {pending ? "Posting…" : "Post comp credit"}
       </Button>
@@ -124,9 +124,9 @@ export function DepositLinkForm({
   return (
     <form
       action={action}
-      className="space-y-3 border border-espresso/10 bg-white px-4 py-4"
+      className="erp space-y-3 rounded-lg border bg-card p-4"
     >
-      <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
+      <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
         Deposit / QR link
       </h3>
       <p className="text-xs text-muted-foreground">
@@ -164,7 +164,7 @@ export function DepositLinkForm({
       <Button
         type="submit"
         disabled={pending}
-        className="min-h-10 w-full bg-espresso text-ivory hover:bg-espresso/90"
+        className="h-10 w-full"
       >
         {pending ? "Creating…" : "Create deposit link"}
       </Button>
@@ -177,7 +177,7 @@ export function MarkLinkPaidForm({ linkId }: { linkId: string }) {
   const [state, action, pending] = useActionState(markDepositLinkPaid, initial);
   useActionToast(state, { successMessage: "Link marked paid" });
   return (
-    <form action={action} className="mt-2 flex flex-wrap items-end gap-2">
+    <form action={action} className="erp mt-2 flex flex-wrap items-end gap-2">
       <input type="hidden" name="link_id" value={linkId} />
       <div className="block space-y-1.5">
         <Label htmlFor="link_method" className="text-[11px] text-muted-foreground">
@@ -204,10 +204,10 @@ export function MarkLinkPaidForm({ linkId }: { linkId: string }) {
       </div>
       <Button
         type="submit"
-        variant="gold"
+        variant="citrus"
         size="sm"
         disabled={pending}
-        className="min-h-10 text-xs"
+        className="h-10 text-xs"
       >
         {pending ? "Marking…" : "Mark paid"}
       </Button>

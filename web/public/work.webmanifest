@@ -1,0 +1,45 @@
+{
+  "name": "Pelbu Work",
+  "short_name": "Pelbu Work",
+  "description": "Front desk and hotel operations for Pelbu Suites.",
+  "id": "/erp",
+  "start_url": "/erp",
+  "scope": "/erp/",
+  "display": "standalone",
+  "background_color": "#f4f0e8",
+  "theme_color": "#0b1020",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Calendar",
+      "url": "/erp/calendar"
+    },
+    {
+      "name": "Fast book",
+      "url": "/erp/fast-book"
+    },
+    {
+      "name": "POS",
+      "url": "/erp/pos"
+    },
+    {
+      "name": "Phone media",
+      "url": "/erp/front-public/media/upload",
+      "description": "Capture photos and video for the website"
+    }
+  ]
+}

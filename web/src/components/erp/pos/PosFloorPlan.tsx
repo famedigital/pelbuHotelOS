@@ -100,6 +100,17 @@ export function PosFloorPlan({
     };
   }, [outletTables]);
 
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  // Optimistic positions keyed by table id. When a drag ends we record the
+  // dropped spot here so the chip stays put through the re-render that happens
+  // before the server action revalidates props (otherwise it snaps back to the
+  // old position for a beat, then jumps). Cleared per-table once incoming props
+  // match the optimistic value (server confirmed).
+  const [optimistic, setOptimistic] = useState<
+    Record<string, { x: number; y: number }>
+  >({});
+
   /**
    * Spread out tables that have no recorded position. We hash the table name
    * so the default position is deterministic per table (no jitter on every
@@ -107,6 +118,10 @@ export function PosFloorPlan({
    */
   const positioned = useMemo(() => {
     return outletTables.map((table, i) => {
+      const opt = optimistic[table.id];
+      if (opt) {
+        return { ...table, x: opt.x, y: opt.y };
+      }
       if (table.pos_x != null && table.pos_y != null) {
         return { ...table, x: table.pos_x, y: table.pos_y };
       }
@@ -118,67 +133,170 @@ export function PosFloorPlan({
         y: 18 + row * 24,
       };
     });
+  }, [outletTables, optimistic]);
+
+  // Drop optimistic overrides that the server has now confirmed, so a later
+  // real reposition from elsewhere isn't masked by a stale local value.
+  useEffect(() => {
+    setOptimistic((prev) => {
+      if (Object.keys(prev).length === 0) return prev;
+      let changed = false;
+      const next: Record<string, { x: number; y: number }> = {};
+      for (const table of outletTables) {
+        const opt = prev[table.id];
+        if (!opt) continue;
+        const confirmed =
+          table.pos_x != null &&
+          table.pos_y != null &&
+          Math.abs(table.pos_x - opt.x) < 0.5 &&
+          Math.abs(table.pos_y - opt.y) < 0.5;
+        if (confirmed) {
+          changed = true;
+        } else {
+          next[table.id] = opt;
+        }
+      }
+      return changed ? next : prev;
+    });
   }, [outletTables]);
 
-  const canvasRef = useRef<HTMLDivElement | null>(null);
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [livePos, setLivePos] = useState<{ id: string; x: number; y: number } | null>(
-    null,
-  );
+  // Live position is held in a ref + applied directly to the dragged node via
+  // transform; we never call setState during the drag. That keeps each pointer
+  // move to a single DOM write on the compositor thread (no React reconciliation
+  // for the whole floor plan on every frame), which is what makes the drag feel
+  // instant instead of janky.
+  const livePosRef = useRef<{ id: string; x: number; y: number } | null>(null);
+  const draggedNodeRef = useRef<HTMLDivElement | null>(null);
+  // Track the pointer-down origin + whether it actually moved past the drag
+  // threshold. A pointer down→up without movement is a *click* (select the
+  // table); movement past ~4px is a *drag* (reposition). Without this the
+  // pointer capture in beginDrag swallows the inner button's onClick.
+  const downRef = useRef<{ x: number; y: number } | null>(null);
+  const movedRef = useRef(false);
+  // rAF handle for the next compositor-frame flush of the dragged transform.
+  const rafRef = useRef<number | null>(null);
+
+  const flushDragTransform = useCallback(() => {
+    rafRef.current = null;
+    const node = draggedNodeRef.current;
+    const pos = livePosRef.current;
+    if (!node || !pos) return;
+    // Direct DOM write on the dragged node only. Bypassing React state here
+    // means no reconciliation of the floor plan on every pointermove — only
+    // this single node repaints, on the compositor frame.
+    node.style.left = `${pos.x}%`;
+    node.style.top = `${pos.y}%`;
+  }, []);
 
   const beginDrag = useCallback(
-    (e: React.PointerEvent, tableId: string) => {
-      // Ignore drags that start from the kebab menu or a button inside the card
-      // (those have their own behaviour).
+    (e: React.PointerEvent, tableId: string, node: HTMLDivElement) => {
+      // Ignore interactions that start from the kebab menu or a button inside
+      // the card (those have their own behaviour and must not start a drag).
       const target = e.target as HTMLElement;
       if (target.closest("[data-no-drag]")) return;
       const row = positioned.find((t) => t.id === tableId);
       if (!row) return;
-      e.preventDefault();
+      // Capture so we get the pointermove/up even if the cursor leaves the
+      // card, but do NOT preventDefault — that's what killed the click.
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      downRef.current = { x: e.clientX, y: e.clientY };
+      movedRef.current = false;
+      draggedNodeRef.current = node;
+      livePosRef.current = { id: tableId, x: row.x, y: row.y };
       setDragId(tableId);
-      setLivePos({ id: tableId, x: row.x, y: row.y });
+      // Promote the dragged node to its own compositor layer so transforms
+      // don't trigger paint of the surrounding canvas.
+      node.style.willChange = "left, top";
     },
     [positioned],
   );
 
   const moveDrag = useCallback(
     (e: React.PointerEvent) => {
-      if (!dragId || !canvasRef.current) return;
+      const id = livePosRef.current?.id;
+      if (!id || !canvasRef.current) return;
+      // Mark as moved once the pointer travels past a small threshold so a
+      // tiny jitter on click doesn't get mistaken for a drag.
+      if (downRef.current && !movedRef.current) {
+        const dx = e.clientX - downRef.current.x;
+        const dy = e.clientY - downRef.current.y;
+        if (dx * dx + dy * dy > 16) movedRef.current = true;
+      }
+      if (!movedRef.current) return;
       const rect = canvasRef.current.getBoundingClientRect();
       const x = ((e.clientX - rect.left) / rect.width) * 100;
       const y = ((e.clientY - rect.top) / rect.height) * 100;
-      setLivePos({
-        id: dragId,
+      livePosRef.current = {
+        id,
         x: Math.max(0, Math.min(96, x)),
         y: Math.max(0, Math.min(94, y)),
-      });
+      };
+      // Coalesce to one DOM write per animation frame.
+      if (rafRef.current == null) {
+        rafRef.current = requestAnimationFrame(flushDragTransform);
+      }
     },
-    [dragId],
+    [flushDragTransform],
   );
 
-  const endDrag = useCallback(() => {
-    if (!dragId || !livePos) {
-      setDragId(null);
-      setLivePos(null);
-      return;
-    }
-    const fd = new FormData();
-    fd.set("table_id", dragId);
-    fd.set("pos_x", String(Math.round(livePos.x * 100) / 100));
-    fd.set("pos_y", String(Math.round(livePos.y * 100) / 100));
-    startTransition(() => {
-      void saveTablePosition(fd);
-    });
-    setDragId(null);
-    setLivePos(null);
-  }, [dragId, livePos]);
+  const endDrag = useCallback(
+    (tableId: string, covers: number) => {
+      // Click (no movement) → select the table.
+      const node = draggedNodeRef.current;
+      const pos = livePosRef.current;
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      if (node) node.style.willChange = "auto";
 
-  // Safety: drop the drag state if the user tabs away mid-drag.
+      if (!movedRef.current) {
+        downRef.current = null;
+        movedRef.current = false;
+        draggedNodeRef.current = null;
+        livePosRef.current = null;
+        setDragId(null);
+        onSelectTable(tableId, covers);
+        return;
+      }
+      // Drag → persist the new position.
+      if (pos) {
+        // Hold the dropped spot locally so the chip doesn't snap back during
+        // the re-render before the server action revalidates.
+        setOptimistic((prev) => ({ ...prev, [tableId]: { x: pos.x, y: pos.y } }));
+        const fd = new FormData();
+        fd.set("table_id", tableId);
+        fd.set("pos_x", String(Math.round(pos.x * 100) / 100));
+        fd.set("pos_y", String(Math.round(pos.y * 100) / 100));
+        startTransition(() => {
+          void saveTablePosition(fd);
+        });
+      }
+      downRef.current = null;
+      movedRef.current = false;
+      draggedNodeRef.current = null;
+      livePosRef.current = null;
+      setDragId(null);
+    },
+    [onSelectTable],
+  );
+
+  // Safety: drop the drag state if the user tabs away mid-drag. We cancel
+  // (no select, no persist) because the pointer-up likely happened off-canvas.
   useEffect(() => {
     if (!dragId) return;
     function onUp() {
-      endDrag();
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      const node = draggedNodeRef.current;
+      if (node) node.style.willChange = "auto";
+      downRef.current = null;
+      movedRef.current = false;
+      draggedNodeRef.current = null;
+      livePosRef.current = null;
+      setDragId(null);
     }
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);
@@ -186,7 +304,7 @@ export function PosFloorPlan({
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
     };
-  }, [dragId, endDrag]);
+  }, [dragId]);
 
   function setStatus(tableId: string, next: TableStatus) {
     const fd = new FormData();
@@ -243,29 +361,25 @@ export function PosFloorPlan({
         <div
           ref={canvasRef}
           className="relative aspect-[16/10] w-full touch-none overflow-hidden rounded-xl border bg-[radial-gradient(circle_at_1px_1px,_hsl(var(--border))_1px,_transparent_0)] [background-size:22px_22px]"
-          onPointerMove={moveDrag}
         >
           {positioned.map((table) => {
-            const live = livePos?.id === table.id ? livePos : null;
-            const x = live?.x ?? table.x;
-            const y = live?.y ?? table.y;
             return (
               <TableChip
                 key={table.id}
                 table={table}
-                x={x}
-                y={y}
+                x={table.x}
+                y={table.y}
                 dragging={dragId === table.id}
                 showOutlet={outlet === null}
                 ticket={ticketByTable.get(table.id) ?? null}
                 selected={selectedTableId === table.id}
                 busy={statusPending}
-                onSelect={() => onSelectTable(table.id, table.seats)}
                 onEdit={() => onEditTable(table)}
                 onStatus={(next) => setStatus(table.id, next)}
                 onOpenTicket={onOpenTicket}
-                onPointerDown={(e) => beginDrag(e, table.id)}
-                onPointerUp={endDrag}
+                onPointerDown={(e, node) => beginDrag(e, table.id, node)}
+                onPointerMove={moveDrag}
+                onPointerUp={() => endDrag(table.id, table.seats)}
               />
             );
           })}
@@ -291,11 +405,11 @@ function TableChip({
   ticket,
   selected,
   busy,
-  onSelect,
   onEdit,
   onStatus,
   onOpenTicket,
   onPointerDown,
+  onPointerMove,
   onPointerUp,
 }: {
   table: DiningTable;
@@ -306,23 +420,34 @@ function TableChip({
   ticket: OpenPosTicket | null;
   selected: boolean;
   busy: boolean;
-  onSelect: () => void;
   onEdit: () => void;
   onStatus: (next: TableStatus) => void;
   onOpenTicket: (orderId: string) => void;
-  onPointerDown: (e: React.PointerEvent) => void;
-  onPointerUp: (e: React.PointerEvent) => void;
+  onPointerDown: (e: React.PointerEvent, node: HTMLDivElement) => void;
+  onPointerMove: (e: React.PointerEvent) => void;
+  onPointerUp: () => void;
 }) {
+  // Only the dragged chip's transform is mutated imperatively during a drag,
+  // so a normal ref is fine here — we read it on pointer down before capture.
+  const rootRef = useRef<HTMLDivElement | null>(null);
   return (
     <div
-      className={`absolute flex w-[14%] min-w-[88px] max-w-[140px] flex-col rounded-xl border shadow-sm transition-shadow ${
+      ref={rootRef}
+      className={`absolute flex w-[14%] min-w-[88px] max-w-[140px] flex-col rounded-xl border shadow-sm ${
         STATUS_STYLES[table.status]
       } ${selected ? "ring-[3px] ring-ring/40" : ""} ${
         dragging ? "z-20 cursor-grabbing shadow-lg" : "cursor-grab"
       }`}
       style={{ left: `${x}%`, top: `${y}%` }}
-      onPointerDown={onPointerDown}
+      onPointerDown={(e) => {
+        if (rootRef.current) onPointerDown(e, rootRef.current);
+      }}
+      onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      aria-label={`Select ${table.name}, seats ${table.seats}, ${TABLE_STATUS_LABELS[table.status]}`}
     >
       <div
         className="flex items-center justify-between gap-1 rounded-t-xl px-2 py-1"
@@ -373,13 +498,7 @@ function TableChip({
         </DropdownMenu>
       </div>
 
-      <button
-        type="button"
-        onClick={onSelect}
-        className="flex flex-1 flex-col items-start gap-1 rounded-b-xl px-2 pb-2 pt-0.5 text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
-        aria-pressed={selected}
-        aria-label={`Select ${table.name}, seats ${table.seats}, ${TABLE_STATUS_LABELS[table.status]}`}
-      >
+      <div className="flex flex-1 flex-col items-start gap-1 rounded-b-xl px-2 pb-2 pt-0.5 text-left">
         <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
           <UsersIcon className="size-3" />
           {table.seats}
@@ -404,7 +523,7 @@ function TableChip({
             Nu
           </span>
         ) : null}
-      </button>
+      </div>
     </div>
   );
 }

@@ -1,14 +1,25 @@
 "use client";
 
 import { useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { FastBookAgent } from "./FastBookForm";
 
@@ -19,10 +30,6 @@ type Props = {
   onClose: () => void;
   hasQty: boolean;
 };
-
-function fieldClassName() {
-  return "mt-1.5 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2.5 text-sm text-espresso outline-none transition-colors focus:border-gold focus:ring-2 focus:ring-gold/20";
-}
 
 function DrawerBody({
   agents,
@@ -48,90 +55,94 @@ function DrawerBody({
   return (
     <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
       {!hasQty ? (
-        <p className="border border-gold/40 bg-gold/5 px-3 py-2 text-xs text-espresso">
-          Pick a room above to enable saving.
-        </p>
+        <Alert variant="warning">
+          <AlertDescription>
+            Pick a room above to enable saving.
+          </AlertDescription>
+        </Alert>
       ) : null}
 
       <fieldset className="space-y-3" disabled={pending}>
-        <legend className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
+        <legend className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
           Guest contact
         </legend>
-        <label className="block text-sm text-espresso">
-          Guest / lead name
-          <input
+        <div className="space-y-1.5">
+          <Label htmlFor="contact_name">Guest / lead name</Label>
+          <Input
+            id="contact_name"
             type="text"
             name="contact_name"
             required
             autoComplete="off"
-            className={fieldClassName()}
           />
-        </label>
+        </div>
         <div className="grid grid-cols-1 gap-3">
-          <label className="block text-sm text-espresso">
-            Phone
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="contact_phone">Phone</Label>
+            <Input
+              id="contact_phone"
               type="tel"
               name="contact_phone"
               required
               inputMode="tel"
-              className={fieldClassName()}
             />
-          </label>
-          <label className="block text-sm text-espresso">
-            Email
-            <input
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="contact_email">Email</Label>
+            <Input
+              id="contact_email"
               type="email"
               name="contact_email"
               inputMode="email"
-              className={fieldClassName()}
             />
-          </label>
+          </div>
         </div>
-        <label className="block text-sm text-espresso">
-          Notes
-          <textarea name="notes" rows={2} className={fieldClassName()} />
-        </label>
+        <div className="space-y-1.5">
+          <Label htmlFor="notes">Notes</Label>
+          <Textarea id="notes" name="notes" rows={2} />
+        </div>
       </fieldset>
 
       <fieldset className="space-y-3" disabled={pending}>
-        <legend className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
+        <legend className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
           Booked by
         </legend>
         <div className="grid grid-cols-1 gap-3">
-          <label className="block text-sm text-espresso">
-            Role
-            <select
-              name="source"
-              required
-              defaultValue="reservation"
-              className={fieldClassName()}
-            >
-              <option value="owner">Owner</option>
-              <option value="reservation">Reservation</option>
-              <option value="agent">Agent</option>
-              <option value="mou_agent">MoU agent</option>
-            </select>
-          </label>
-          <label className="block text-sm text-espresso">
-            Guest origin
-            <select
-              name="guest_origin"
-              required
-              defaultValue="international"
-              className={fieldClassName()}
-            >
-              <option value="international">International tourist</option>
-              <option value="regional">Regional (Indian / etc.)</option>
-              <option value="official">Official / diplomatic</option>
-              <option value="local">Local (Bhutanese)</option>
-            </select>
-            <span className="mt-1 block text-[11px] text-muted-foreground">
+          <div className="space-y-1.5">
+            <Label htmlFor="source">Role</Label>
+            <Select name="source" defaultValue="reservation" required>
+              <SelectTrigger id="source">
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="owner">Owner</SelectItem>
+                <SelectItem value="reservation">Reservation</SelectItem>
+                <SelectItem value="agent">Agent</SelectItem>
+                <SelectItem value="mou_agent">MoU agent</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="guest_origin">Guest origin</Label>
+            <Select name="guest_origin" defaultValue="international" required>
+              <SelectTrigger id="guest_origin">
+                <SelectValue placeholder="Select origin" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="international">
+                  International tourist
+                </SelectItem>
+                <SelectItem value="regional">Regional (Indian / etc.)</SelectItem>
+                <SelectItem value="official">Official / diplomatic</SelectItem>
+                <SelectItem value="local">Local (Bhutanese)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground">
               Drives whether a guide is required.
-            </span>
-          </label>
-          <div className="block text-sm text-espresso">
-            <span className="mb-1.5 block font-medium">Agent</span>
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Agent</Label>
             <input type="hidden" name="agent_id" value={agentId} />
             <Combobox
               options={agentOptions}
@@ -140,37 +151,43 @@ function DrawerBody({
               placeholder="— Walk-in / none —"
               searchPlaceholder="Search agents…"
               emptyText="No agent matches."
-              className="bg-white"
+              className="bg-background"
             />
           </div>
-          <label className="block text-sm text-espresso">
-            Guide number
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="guide_number">Guide number</Label>
+            <Input
+              id="guide_number"
               type="text"
               name="guide_number"
               placeholder="Required for international tourists"
-              className={fieldClassName()}
             />
-            <span className="mt-1 block text-[11px] text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground">
               Required for international tourists only.
-            </span>
-          </label>
-          <label className="block text-sm text-espresso">
-            Payment
-            <select name="payment_mode" defaultValue="cash" className={fieldClassName()}>
-              <option value="cash">Cash</option>
-              <option value="prepaid">Prepaid</option>
-              <option value="partial">Partial</option>
-              <option value="on_credit">On credit</option>
-            </select>
-          </label>
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="payment_mode">Payment</Label>
+            <Select name="payment_mode" defaultValue="cash">
+              <SelectTrigger id="payment_mode">
+                <SelectValue placeholder="Select payment" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cash">Cash</SelectItem>
+                <SelectItem value="prepaid">Prepaid</SelectItem>
+                <SelectItem value="partial">Partial</SelectItem>
+                <SelectItem value="on_credit">On credit</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </fieldset>
 
       <Button
         type="submit"
+        variant="citrus"
         disabled={pending || !hasQty}
-        className="min-h-11 w-full bg-espresso text-ivory hover:bg-espresso/90"
+        className="h-11 w-full"
       >
         {pending ? "Saving…" : "Save booking"}
       </Button>
@@ -198,7 +215,7 @@ export function FastBookDrawer({
     return (
       <aside
         aria-label="Booking details"
-        className="md:w-[360px] md:flex-shrink-0 md:self-start md:rounded-sm md:border md:border-espresso/10 md:bg-white"
+        className="erp md:w-[360px] md:flex-shrink-0 md:self-start md:rounded-lg md:border md:bg-card"
       >
         <DrawerBody
           agents={agents}
@@ -218,10 +235,10 @@ export function FastBookDrawer({
       <SheetContent
         side="bottom"
         portal={false}
-        className="md:hidden max-h-[85vh] overflow-y-auto p-0"
+        className="erp max-h-[85vh] overflow-y-auto p-0 md:hidden"
       >
-        <SheetHeader className="border-b border-espresso/10">
-          <SheetTitle className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
+        <SheetHeader className="border-b">
+          <SheetTitle className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
             Booking details
           </SheetTitle>
         </SheetHeader>

@@ -1,12 +1,5 @@
-import {
-  HkAssignForm,
-  HkStatusForm,
-} from "@/components/erp/P9OpsForms";
-import {
-  DeskListShell,
-  DeskTable,
-  StatusPill,
-} from "@/components/erp/DeskListShell";
+import { HkAssignForm, HkStatusForm } from "@/components/erp/P9OpsForms";
+import { DeskListShell } from "@/components/erp/DeskListShell";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { fmtDate, requireDeskPropertyId, thimphuToday } from "@/lib/erp-lists";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -53,9 +46,8 @@ export default async function HousekeepingPage() {
 
   return (
     <DeskListShell
-      title="HK"
       eyebrow="Housekeeping"
-      heading={`Assignments Â· ${fmtDate(today)}`}
+      heading={`Assignments · ${fmtDate(today)}`}
       blurb="Assign dirty rooms to housekeeping staff. Room status board remains on Rooms."
     >
       <HkAssignForm
@@ -70,46 +62,76 @@ export default async function HousekeepingPage() {
         }))}
       />
 
-      <DeskTable
-        caption="Today's assignments"
-        headers={["Room", "Staff", "Status", "Notes", ""]}
-      >
-        {(assignments ?? []).length === 0 ? (
-          <tr>
-            <td colSpan={5} className="px-3 py-6 text-muted-foreground">
-              No assignments for today.
-            </td>
-          </tr>
-        ) : (
-          (assignments ?? []).map((a) => {
-            const room = a.room_units as
-              | { label?: string }
-              | { label?: string }[]
-              | null;
-            const st = a.staff_members as
-              | { full_name?: string }
-              | { full_name?: string }[]
-              | null;
-            const roomLabel = Array.isArray(room) ? room[0]?.label : room?.label;
-            const staffName = Array.isArray(st) ? st[0]?.full_name : st?.full_name;
-            return (
-              <tr key={a.id as string} className="border-t border-espresso/10">
-                <td className="px-3 py-2.5 font-medium">{roomLabel ?? "—"}</td>
-                <td className="px-3 py-2.5">{staffName ?? "—"}</td>
-                <td className="px-3 py-2.5">
-                  <StatusPill value={a.status as string} />
-                </td>
-                <td className="px-3 py-2.5 text-sm text-muted-foreground">
-                  {(a.notes as string) ?? "—"}
-                </td>
-                <td className="px-3 py-2.5">
-                  <HkStatusForm id={a.id as string} status={a.status as string} />
+      <div className="overflow-hidden rounded-lg border bg-card">
+        <table className="min-w-[640px] w-full text-sm">
+          <caption className="sr-only">Today&apos;s assignments</caption>
+          <thead className="bg-muted/40">
+            <tr className="hover:bg-transparent">
+              {["Room", "Staff", "Status", "Notes", ""].map((h) => (
+                <th
+                  key={h}
+                  scope="col"
+                  className="h-10 px-3 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {(assignments ?? []).length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-3 py-6 text-muted-foreground">
+                  No assignments for today.
                 </td>
               </tr>
-            );
-          })
-        )}
-      </DeskTable>
+            ) : (
+              (assignments ?? []).map((a) => {
+                const room = a.room_units as
+                  | { label?: string }
+                  | { label?: string }[]
+                  | null;
+                const st = a.staff_members as
+                  | { full_name?: string }
+                  | { full_name?: string }[]
+                  | null;
+                const roomLabel = Array.isArray(room) ? room[0]?.label : room?.label;
+                const staffName = Array.isArray(st) ? st[0]?.full_name : st?.full_name;
+                const statusValue = a.status as string;
+                const tone =
+                  statusValue === "done"
+                    ? "border-citrus/40 bg-citrus-tint/60 text-citrus"
+                    : statusValue === "pending" || statusValue === "new"
+                      ? "border-destructive/30 bg-destructive/5 text-destructive"
+                      : "border-border bg-muted text-muted-foreground";
+                return (
+                  <tr key={a.id as string} className="border-t">
+                    <td className="px-3 py-2.5 font-medium text-foreground">
+                      {roomLabel ?? "—"}
+                    </td>
+                    <td className="px-3 py-2.5 text-foreground">
+                      {staffName ?? "—"}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide whitespace-nowrap ${tone}`}
+                      >
+                        {statusValue}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-sm text-muted-foreground">
+                      {(a.notes as string) ?? "—"}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <HkStatusForm id={a.id as string} status={statusValue} />
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
     </DeskListShell>
   );
 }

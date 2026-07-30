@@ -1,5 +1,5 @@
 import { SiteFooter } from "@/components/site/SiteFooter";
-import { SiteHeader } from "@/components/site/SiteHeader";
+import { PublicSiteHeader } from "@/components/site/PublicSiteHeader";
 import { formatBtn } from "@/lib/pricing";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -41,7 +41,7 @@ type AgentRow = {
 function notFound() {
   return (
     <div className="min-h-screen bg-ivory">
-      <SiteHeader />
+      <PublicSiteHeader />
       <main className="mx-auto max-w-2xl px-6 py-20 md:px-8">
         <p className="text-xs uppercase tracking-[0.22em] text-gold">
           Agent portal
@@ -108,7 +108,7 @@ export default async function AgentPortalPage({
   if (agent.status !== "approved" && agent.status !== "demo") {
     return (
       <div className="min-h-screen bg-ivory">
-        <SiteHeader />
+        <PublicSiteHeader />
         <main className="mx-auto max-w-2xl px-6 py-20 md:px-8">
           <p className="text-xs uppercase tracking-[0.22em] text-gold">
             Agent portal
@@ -171,7 +171,7 @@ export default async function AgentPortalPage({
 
   return (
     <div className="min-h-screen bg-ivory">
-      <SiteHeader />
+      <PublicSiteHeader />
       <main className="mx-auto max-w-[1100px] px-6 py-12 md:px-8 md:py-16">
         <header className="flex flex-wrap items-baseline justify-between gap-3 border-b border-espresso/15 pb-4 print:hidden">
           <div>

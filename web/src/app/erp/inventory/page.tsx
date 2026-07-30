@@ -4,7 +4,7 @@ import {
   StockValueHint,
   type InvOption,
 } from "@/components/erp/OpsForms";
-import { DeskHeader } from "@/components/erp/DeskHeader";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { formatBtn } from "@/lib/pricing";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
@@ -31,11 +31,8 @@ export default async function ErpInventoryPage() {
   const propertyId = property?.id as string | undefined;
   if (!propertyId) {
     return (
-      <div className="min-h-screen bg-ivory">
-        <DeskHeader title="Inventory" />
-        <main className="mx-auto max-w-[1200px] px-6 py-10">
-          <p className="text-sm text-maroon">Property not configured.</p>
-        </main>
+      <div className="erp mx-auto w-full max-w-[1200px] p-6">
+        <p className="text-sm text-destructive">Property not configured.</p>
       </div>
     );
   }
@@ -77,59 +74,56 @@ export default async function ErpInventoryPage() {
   );
 
   return (
-    <div className="min-h-screen bg-ivory">
-      <DeskHeader title="Inventory" />
-      <main className="mx-auto max-w-[1200px] space-y-12 px-6 py-10 md:px-8">
-        <section>
-          <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-            Stock snapshot
-          </h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-3">
-            <Stat label="SKUs" value={String((items ?? []).length)} />
-            <Stat label="Below reorder" value={String(low.length)} />
-            <Stat label="Est. stock value" value={formatBtn(stockValue)} />
-          </div>
-        </section>
-
-        <div className="grid gap-8 lg:grid-cols-2">
-          <InventoryItemForm />
-          <InventoryMoveForm items={options} />
+    <div className="erp mx-auto w-full max-w-[1200px] space-y-10 p-4 md:p-6">
+      <section className="space-y-3">
+        <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+          Stock snapshot
+        </p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Stat label="SKUs" value={String((items ?? []).length)} />
+          <Stat label="Below reorder" value={String(low.length)} />
+          <Stat label="Est. stock value" value={formatBtn(stockValue)} />
         </div>
+      </section>
 
-        <section>
-          <div className="border-b border-espresso/15 pb-2">
-            <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-              On hand
-            </h2>
-          </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <InventoryItemForm />
+        <InventoryMoveForm items={options} />
+      </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+            On hand
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           {(items ?? []).length === 0 ? (
-            <p className="mt-4 text-sm text-muted-foreground">No items.</p>
+            <p className="text-sm text-muted-foreground">No items.</p>
           ) : (
-            <ul className="mt-2">
+            <ul className="divide-y">
               {(items ?? []).map((i) => {
                 const qty = Number(i.qty_on_hand);
                 const warn = qty <= Number(i.reorder_level);
                 return (
                   <li
                     key={i.id as string}
-                    className="flex flex-wrap items-baseline justify-between gap-2 border-b border-espresso/10 py-3 text-sm"
+                    className="flex flex-wrap items-baseline justify-between gap-2 py-3 text-sm"
                   >
                     <div>
-                      <p className="font-medium text-espresso">
-                        <span className="font-mono text-xs text-espresso/50">
+                      <p className="font-medium text-foreground">
+                        <span className="font-mono text-xs text-muted-foreground">
                           {i.sku as string}
                         </span>{" "}
                         {i.name as string}
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        {i.category as string} Â· reorder {Number(i.reorder_level)}{" "}
+                        {i.category as string} · reorder {Number(i.reorder_level)}{" "}
                         {i.unit as string}
-                        {warn ? (
-                          <span className="text-maroon"> Â· low</span>
-                        ) : null}
+                        {warn ? <span className="text-destructive"> · low</span> : null}
                       </p>
                     </div>
-                    <p className="tabular-nums text-espresso">
+                    <p className="tabular-nums text-foreground">
                       {qty} {i.unit as string}
                       <StockValueHint qty={qty} unitCost={Number(i.unit_cost_btn)} />
                     </p>
@@ -138,30 +132,29 @@ export default async function ErpInventoryPage() {
               })}
             </ul>
           )}
-        </section>
+        </CardContent>
+      </Card>
 
-        <section>
-          <div className="border-b border-espresso/15 pb-2">
-            <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-              Recent movements
-            </h2>
-          </div>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+            Recent movements
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           {(moves ?? []).length === 0 ? (
-            <p className="mt-4 text-sm text-muted-foreground">No movements yet.</p>
+            <p className="text-sm text-muted-foreground">No movements yet.</p>
           ) : (
-            <ul className="mt-2">
+            <ul className="divide-y">
               {(moves ?? []).map((m) => {
                 const item = m.inventory_items as {
                   sku?: string;
                   name?: string;
                 } | null;
                 return (
-                  <li
-                    key={m.id as string}
-                    className="border-b border-espresso/10 py-3 text-sm"
-                  >
-                    <p className="font-medium text-espresso">
-                      {m.movement_kind as string} Â· {item?.sku ?? "—"}{" "}
+                  <li key={m.id as string} className="py-3 text-sm">
+                    <p className="font-medium text-foreground">
+                      {m.movement_kind as string} · {item?.sku ?? "—"}{" "}
                       <span className="tabular-nums">
                         {Number(m.qty_delta) > 0 ? "+" : ""}
                         {Number(m.qty_delta)}
@@ -169,26 +162,30 @@ export default async function ErpInventoryPage() {
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {String(m.created_at).slice(0, 16).replace("T", " ")}
-                      {m.reference ? ` Â· ${m.reference as string}` : ""}
+                      {m.reference ? ` · ${m.reference as string}` : ""}
                     </p>
                   </li>
                 );
               })}
             </ul>
           )}
-        </section>
-      </main>
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border border-espresso/10 bg-white px-4 py-4">
-      <p className="text-[10px] font-semibold tracking-[0.18em] text-gold uppercase">
-        {label}
-      </p>
-      <p className="mt-2 text-lg tabular-nums text-espresso">{value}</p>
-    </div>
+    <Card className="gap-2 py-4">
+      <CardContent>
+        <p className="text-[10px] font-semibold tracking-[0.18em] text-accent uppercase">
+          {label}
+        </p>
+        <p className="mt-2 text-lg font-semibold tabular-nums text-foreground">
+          {value}
+        </p>
+      </CardContent>
+    </Card>
   );
 }

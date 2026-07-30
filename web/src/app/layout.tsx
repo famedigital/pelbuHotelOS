@@ -1,12 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Fraunces, Geist_Mono } from "next/font/google";
-import { BRAND_ICONS } from "@/lib/brand";
+import { Fraunces, Geist_Mono, Manrope } from "next/font/google";
+import { BRAND_CLOUDINARY, BRAND_ICONS } from "@/lib/brand";
+import { cloudinaryUrl } from "@/lib/cloudinary";
+import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { PwaRegistrar } from "@/components/pwa/PwaRegistrar";
+import { PublicMobileNav } from "@/components/site/PublicMobileNav";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-const fontSans = Inter({
-  variable: "--font-inter",
+const fontSans = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin"],
   display: "swap",
 });
@@ -25,10 +30,36 @@ const fontMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pelbu Suites | Olakha, Thimphu",
-  description:
-    "Modern 3-star hotel in Olakha, Thimphu — rooms, cafe, pastry, restaurant, spa, meeting.",
+  metadataBase: getSiteUrl(),
+  title: "Pelbu Suites | Hotel in Olakha, Thimphu",
+  description: SITE_DESCRIPTION,
   manifest: "/manifest.webmanifest",
+  openGraph: {
+    type: "website",
+    locale: "en_BT",
+    siteName: SITE_NAME,
+    title: "Pelbu Suites | Hotel in Olakha, Thimphu",
+    description: SITE_DESCRIPTION,
+    url: "/",
+    images: [
+      {
+        url:
+          cloudinaryUrl(BRAND_CLOUDINARY.roomsSuiteAlt, {
+            width: 1200,
+            height: 630,
+            crop: "fill",
+          }) ?? BRAND_ICONS.markLg,
+        width: 1200,
+        height: 630,
+        alt: "Suite at Pelbu Suites in Olakha, Thimphu",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Pelbu Suites | Hotel in Olakha, Thimphu",
+    description: SITE_DESCRIPTION,
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -53,7 +84,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1c1612",
+  themeColor: "#0b1020",
 };
 
 export default function RootLayout({
@@ -73,6 +104,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
+          <PublicMobileNav />
+          <PwaRegistrar />
+          <InstallPrompt />
           <Toaster position="top-right" richColors closeButton />
         </ThemeProvider>
       </body>

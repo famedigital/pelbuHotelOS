@@ -51,7 +51,7 @@ function EditorCell({
   const dirty = Number(draft) !== (lastSaved ?? 0) && draft !== "";
 
   return (
-    <td className="border-b border-espresso/5 px-2 py-1.5 align-top">
+    <td className="border-b px-2 py-1.5 align-top">
       <form action={action} className="flex flex-col gap-1">
         <input type="hidden" name="room_type_id" value={row.room_type_id} />
         <input type="hidden" name="season_kind" value={row.season_kind} />
@@ -60,7 +60,7 @@ function EditorCell({
           {label}
         </label>
         <div className="flex items-stretch">
-          <span className="inline-flex items-center rounded-l-sm border border-r-0 border-espresso/20 bg-ivory/60 px-2 text-xs text-espresso/55">
+          <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-2 text-xs text-muted-foreground">
             Nu
           </span>
           <input
@@ -73,22 +73,22 @@ function EditorCell({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="—"
-            className="w-24 rounded-r-sm border border-espresso/20 bg-white px-2 py-1.5 text-sm text-espresso outline-none focus:border-gold focus:ring-2 focus:ring-gold/15"
+            className="w-24 rounded-r-md border border-input bg-background px-2 py-1.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
           />
         </div>
         <button
           type="submit"
           disabled={pending || !dirty}
-          className="self-start rounded-sm border border-espresso/15 px-2 py-1 text-[11px] tracking-wide text-espresso transition-colors hover:border-gold hover:bg-gold/5 disabled:cursor-not-allowed disabled:opacity-40"
+          className="self-start rounded-md border border-input px-2 py-1 text-[11px] tracking-wide text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
         >
           {pending ? "Saving…" : dirty ? "Save" : lastSaved ? "Saved" : "Add"}
         </button>
         {state?.ok && dirty === false ? (
-          <span className="text-[10px] text-espresso/55">{state.message}</span>
+          <span className="text-[10px] text-muted-foreground">{state.message}</span>
         ) : state?.error ? (
-          <span className="text-[10px] text-maroon">{state.error}</span>
+          <span className="text-[10px] text-destructive">{state.error}</span>
         ) : lastSaved ? (
-          <span className="text-[10px] text-espresso/45">
+          <span className="text-[10px] text-muted-foreground">
             now {formatBtn(lastSaved)}
           </span>
         ) : null}
@@ -108,16 +108,16 @@ export function RateMatrixEditor({
 
   if (guestRooms.length === 0) {
     return (
-      <p className="border border-espresso/10 bg-white px-5 py-6 text-sm text-espresso/70">
+      <p className="erp rounded-lg border bg-card px-5 py-6 text-sm text-muted-foreground">
         No sellable guest room types configured. Seed room types first.
       </p>
     );
   }
 
   return (
-    <div className="mt-4 overflow-x-auto border border-espresso/10 bg-white">
+    <div className="erp mt-4 overflow-x-auto rounded-lg border bg-card">
       <table className="min-w-full text-left text-sm">
-        <thead className="border-b border-espresso/10 text-xs tracking-wide text-espresso/55 uppercase">
+        <thead className="border-b text-xs tracking-wide text-muted-foreground uppercase">
           <tr>
             <th className="px-4 py-3 font-medium">Room</th>
             <th className="px-3 py-3 font-medium">Season</th>
@@ -131,19 +131,16 @@ export function RateMatrixEditor({
         <tbody>
           {guestRooms.map((rt) =>
             SEASONS.map((season) => (
-              <tr
-                key={`${rt.id}-${season}`}
-                className="border-b border-espresso/5 last:border-0"
-              >
-                <td className="px-4 py-2.5 align-top text-espresso">
+              <tr key={`${rt.id}-${season}`} className="border-b last:border-0">
+                <td className="px-4 py-2.5 align-top text-foreground">
                   {season === SEASONS[0] ? (
                     <span className="font-medium">{rt.name}</span>
                   ) : (
-                    <span className="text-espresso/40">↳</span>
+                    <span className="text-muted-foreground">↳</span>
                   )}
                 </td>
-                <td className="px-3 py-2.5 align-top text-espresso/80">
-                  <span className="inline-flex items-center rounded-full border border-espresso/15 px-2 py-0.5 text-[10px] uppercase tracking-wide">
+                <td className="px-3 py-2.5 align-top text-foreground/80">
+                  <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] tracking-wide">
                     {season}
                   </span>
                 </td>

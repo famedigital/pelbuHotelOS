@@ -1,8 +1,14 @@
 import { NightAuditForm } from "@/components/erp/NightAuditForm";
-import { DeskHeader } from "@/components/erp/DeskHeader";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { thimphuToday } from "@/lib/erp-lists";
 import { formatBtn } from "@/lib/pricing";
-import { PELBU_PROPERTY_SLUG } from "@/lib/property";
+import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
@@ -18,24 +24,8 @@ export default async function ErpNightAuditPage() {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
 
   const admin = createSupabaseAdminClient();
-  const { data: property } = await admin
-    .from("properties")
-    .select("id")
-    .eq("slug", PELBU_PROPERTY_SLUG)
-    .single();
-  const propertyId = property?.id as string | undefined;
-  if (!propertyId) {
-    return (
-      <div className="min-h-screen bg-ivory">
-        <DeskHeader title="Night audit" />
-        <main className="mx-auto max-w-[1200px] px-6 py-10">
-          <p className="text-sm text-maroon">Property not configured.</p>
-        </main>
-      </div>
-    );
-  }
-
-  const today = new Date().toISOString().slice(0, 10);
+  const propertyId = await resolveActivePropertyId(admin);
+  const today = thimphuToday();
   const { data: audits } = await admin
     .from("night_audits")
     .select(
@@ -46,48 +36,48 @@ export default async function ErpNightAuditPage() {
     .limit(30);
 
   return (
-    <div className="min-h-screen bg-ivory">
-      <DeskHeader title="Night audit" />
-      <main className="mx-auto max-w-[1200px] space-y-12 px-6 py-10 md:px-8">
-        <div className="grid gap-8 lg:grid-cols-[360px_1fr]">
-          <NightAuditForm defaultDate={today} />
+    <div className="erp mx-auto w-full max-w-[1200px] space-y-10 p-4 md:p-6">
+      <div className="grid gap-8 lg:grid-cols-[360px_1fr]">
+        <NightAuditForm defaultDate={today} />
 
-          <section>
-            <div className="border-b border-espresso/15 pb-2">
-              <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-                History
-              </h2>
-            </div>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+              History
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             {(audits ?? []).length === 0 ? (
-              <p className="mt-4 text-sm text-muted-foreground">No night audits yet.</p>
+              <p className="text-sm text-muted-foreground">
+                No night audits yet.
+              </p>
             ) : (
-              <ul className="mt-2">
+              <ul className="divide-y">
                 {(audits ?? []).map((a) => (
-                  <li
-                    key={a.id as string}
-                    className="border-b border-espresso/10 py-4 text-sm"
-                  >
-                    <p className="font-medium text-espresso">
+                  <li key={a.id as string} className="py-4 text-sm">
+                    <p className="font-medium text-foreground">
                       {a.business_date as string}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Sellable {a.rooms_occupied as number} Â· Comp {a.rooms_comp as number}{" "}
-                      Â· Open folios {a.open_folios as number}
+                      Sellable {a.rooms_occupied as number} · Comp {a.rooms_comp as number}{" "}
+                      · Open folios {a.open_folios as number}
                     </p>
-                    <p className="mt-1 tabular-nums text-xs text-espresso">
-                      Charges {formatBtn(Number(a.folio_charges_btn))} Â· Payments{" "}
+                    <p className="mt-1 text-xs tabular-nums text-foreground">
+                      Charges {formatBtn(Number(a.folio_charges_btn))} · Payments{" "}
                       {formatBtn(Number(a.folio_payments_btn))}
                     </p>
                     {a.notes ? (
-                      <p className="mt-1 text-xs text-muted-foreground">{a.notes as string}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {a.notes as string}
+                      </p>
                     ) : null}
                   </li>
                 ))}
               </ul>
             )}
-          </section>
-        </div>
-      </main>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -5,7 +5,7 @@ import {
   VoidLineButton,
 } from "@/components/erp/FolioOpsForms";
 import { FolioPaymentForm } from "@/components/erp/FolioPaymentForm";
-import { DeskHeader } from "@/components/erp/DeskHeader";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { formatBtn } from "@/lib/pricing";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -31,7 +31,7 @@ export default async function FolioDetailPage({ params }: Props) {
   const { data: folio } = await admin
     .from("folios")
     .select(
-      "id, label, status, booking_id, master_folio_id, folio_type, created_at, folio_lines(id, description, total_btn, gst_btn, source_type, status, is_comp, void_reason, created_at)",
+      "id, label, status, booking_id, master_folio_id, folio_type, created_at, folio_lines(id, description, total_btn, gst_btn, service_charge_btn, service_charge_applied, source_type, status, is_comp, void_reason, created_at)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -50,6 +50,8 @@ export default async function FolioDetailPage({ params }: Props) {
     description: string;
     total_btn: number;
     gst_btn: number;
+    service_charge_btn?: number;
+    service_charge_applied?: boolean;
     source_type: string;
     status: string;
     is_comp?: boolean;
@@ -64,59 +66,62 @@ export default async function FolioDetailPage({ params }: Props) {
   const folioStatus = (folio.status as string) ?? "open";
 
   return (
-    <div className="min-h-screen bg-ivory">
-      <DeskHeader title="Folio" />
-      <main className="mx-auto max-w-[1100px] px-6 py-10 md:px-8">
-        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold tracking-[0.28em] text-gold uppercase">
-              {(folio.folio_type as string) === "master" ? "Master folio" : "Guest folio"}
-            </p>
-            <h2 className="mt-2 truncate text-2xl text-espresso md:text-3xl">
-              {folio.label as string}
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              <span className="uppercase tracking-wide">{folioStatus}</span> Â· booking{" "}
-              <span className="font-mono text-espresso/70">
-                {(folio.booking_id as string) ?? "—"}
-              </span>
-              {folio.master_folio_id ? (
-                <>
-                  {" Â· master "}
-                  <a
-                    href={`/erp/folios/${folio.master_folio_id as string}`}
-                    className="font-mono underline-offset-4 hover:underline"
-                  >
-                    {(folio.master_folio_id as string).slice(0, 8)}
-                  </a>
-                </>
-              ) : null}
-            </p>
-            <p className="mt-1 font-mono text-xs text-espresso/50">{folio.id as string}</p>
-          </div>
-          <div className="rounded-sm border border-espresso/10 bg-white px-5 py-4 text-right">
-            <p className="text-[11px] font-semibold tracking-[0.22em] text-gold uppercase">
+    <div className="erp mx-auto w-full max-w-[1100px] p-4 md:p-6">
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+            {(folio.folio_type as string) === "master" ? "Master folio" : "Guest folio"}
+          </p>
+          <h2 className="mt-2 truncate text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+            {folio.label as string}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            <span className="tracking-wide uppercase">{folioStatus}</span> · booking{" "}
+            <span className="font-mono text-foreground/70">
+              {(folio.booking_id as string) ?? "—"}
+            </span>
+            {folio.master_folio_id ? (
+              <>
+                {" · master "}
+                <a
+                  href={`/erp/folios/${folio.master_folio_id as string}`}
+                  className="font-mono text-accent underline-offset-4 hover:underline"
+                >
+                  {(folio.master_folio_id as string).slice(0, 8)}
+                </a>
+              </>
+            ) : null}
+          </p>
+          <p className="mt-1 font-mono text-xs text-muted-foreground">
+            {folio.id as string}
+          </p>
+        </div>
+        <Card className="gap-1 py-4">
+          <CardContent className="text-right">
+            <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
               Balance
             </p>
             <p
               className={`mt-1 text-2xl font-medium tabular-nums ${
-                balance > 0 ? "text-maroon" : "text-espresso"
+                balance > 0 ? "text-destructive" : "text-foreground"
               }`}
             >
               {formatBtn(balance)}
             </p>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
+      </div>
 
-        <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_320px]">
-          <section className="min-w-0 space-y-8">
-            <div className="border border-espresso/10 bg-white">
-              <div className="border-b border-espresso/10 px-5 py-3">
-                <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
-                  Lines ({lines.length})
-                </h3>
-              </div>
-              <ul className="divide-y divide-espresso/10">
+      <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_320px]">
+        <section className="min-w-0 space-y-8">
+          <Card className="gap-0 p-0">
+            <CardHeader className="border-b px-5 py-3">
+              <CardTitle className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+                Lines ({lines.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ul className="divide-y">
                 {lines.length === 0 ? (
                   <li className="px-5 py-8 text-sm text-muted-foreground">
                     No lines yet. Charges and payments will appear here.
@@ -132,32 +137,36 @@ export default async function FolioDetailPage({ params }: Props) {
                         <div className="flex flex-wrap items-baseline justify-between gap-2">
                           <p
                             className={`min-w-0 flex-1 ${
-                              voided ? "text-muted-foreground line-through" : "text-espresso"
+                              voided ? "text-muted-foreground line-through" : "text-foreground"
                             }`}
                           >
                             {line.description}
                             {line.is_comp ? (
-                              <span className="ml-2 text-[10px] font-semibold tracking-wide text-gold uppercase">
+                              <span className="ml-2 text-[10px] font-semibold tracking-wide text-accent uppercase">
                                 comp
                               </span>
                             ) : null}
                           </p>
                           <p
                             className={`tabular-nums ${
-                              isPayment ? "text-espresso/70" : "text-espresso"
-                            } ${voided ? "line-through opacity-50" : ""}`}
+                              isPayment ? "text-foreground/70" : "text-foreground"
+                            } ${voided ? "opacity-50 line-through" : ""}`}
                           >
                             {formatBtn(amount)}
                           </p>
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          <span className="uppercase tracking-wide">{line.source_type}</span>
-                          {" Â· "}
-                          <span className="uppercase tracking-wide">{line.status}</span>
-                          {Number(line.gst_btn) > 0
-                            ? ` Â· GST ${formatBtn(Number(line.gst_btn))}`
+                          <span className="tracking-wide uppercase">{line.source_type}</span>
+                          {" · "}
+                          <span className="tracking-wide uppercase">{line.status}</span>
+                          {line.service_charge_applied &&
+                          Number(line.service_charge_btn ?? 0) > 0
+                            ? ` · SC ${formatBtn(Number(line.service_charge_btn ?? 0))}`
                             : ""}
-                          {line.void_reason ? ` Â· ${line.void_reason}` : ""}
+                          {Number(line.gst_btn) > 0
+                            ? ` · GST ${formatBtn(Number(line.gst_btn))}`
+                            : ""}
+                          {line.void_reason ? ` · ${line.void_reason}` : ""}
                         </p>
                         {folioStatus === "open" &&
                         !voided &&
@@ -170,70 +179,81 @@ export default async function FolioDetailPage({ params }: Props) {
                   })
                 )}
               </ul>
-            </div>
+            </CardContent>
+          </Card>
 
-            {(links ?? []).length > 0 ? (
-              <section>
-                <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
-                  Deposit links
-                </h3>
-                <ul className="mt-3 border border-espresso/10 bg-white">
-                  {(links ?? []).map((l) => (
-                    <li
-                      key={l.id as string}
-                      className="border-b border-espresso/10 px-4 py-3 text-sm last:border-0"
-                    >
-                      <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <p className="font-medium text-espresso">
-                          {formatBtn(Number(l.amount_btn))} Â· {l.status as string}
-                        </p>
-                        <a
-                          href={`/pay/${l.token as string}`}
-                          className="font-mono text-xs text-maroon underline-offset-4 hover:underline"
-                        >
-                          /pay/{(l.token as string).slice(0, 8)}…
-                        </a>
-                      </div>
-                      {l.payee_name ? (
-                        <p className="mt-1 text-xs text-muted-foreground">{l.payee_name as string}</p>
-                      ) : null}
-                      {(l.status as string) === "open" ? (
-                        <MarkLinkPaidForm linkId={l.id as string} />
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-          </section>
+          {(links ?? []).length > 0 ? (
+            <section>
+              <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+                Deposit links
+              </h3>
+              <Card className="mt-3 gap-0 p-0">
+                <CardContent className="p-0">
+                  <ul className="divide-y">
+                    {(links ?? []).map((l) => (
+                      <li key={l.id as string} className="px-4 py-3 text-sm">
+                        <div className="flex flex-wrap items-baseline justify-between gap-2">
+                          <p className="font-medium text-foreground">
+                            {formatBtn(Number(l.amount_btn))} · {l.status as string}
+                          </p>
+                          <a
+                            href={`/pay/${l.token as string}`}
+                            className="font-mono text-xs text-accent underline-offset-4 hover:underline"
+                          >
+                            /pay/{(l.token as string).slice(0, 8)}…
+                          </a>
+                        </div>
+                        {l.payee_name ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {l.payee_name as string}
+                          </p>
+                        ) : null}
+                        {(l.status as string) === "open" ? (
+                          <MarkLinkPaidForm linkId={l.id as string} />
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            </section>
+          ) : null}
+        </section>
 
-          <aside className="space-y-4">
-            {folioStatus === "open" ? (
-              <>
-                <FolioPaymentForm
-                  folioId={folio.id as string}
-                  suggestedAmount={Math.max(balance, 0)}
-                />
-                <DepositLinkForm
-                  folioId={folio.id as string}
-                  bookingId={(folio.booking_id as string | null) ?? null}
-                />
-                <CompCreditForm folioId={folio.id as string} />
-              </>
-            ) : (
-              <p className="border border-espresso/10 bg-white px-5 py-5 text-sm text-muted-foreground">
+        <aside className="space-y-4">
+          {folioStatus === "open" ? (
+            <>
+              <FolioPaymentForm
+                folioId={folio.id as string}
+                suggestedAmount={Math.max(balance, 0)}
+              />
+              <DepositLinkForm
+                folioId={folio.id as string}
+                bookingId={(folio.booking_id as string | null) ?? null}
+              />
+              <CompCreditForm folioId={folio.id as string} />
+            </>
+          ) : (
+            <Card>
+              <CardContent className="py-5 text-sm text-muted-foreground">
                 Folio is closed.
-              </p>
-            )}
-            <a
-              href="/erp"
-              className="inline-flex min-h-11 items-center text-sm text-espresso underline-offset-4 hover:underline"
-            >
-              ← Back to inbox
-            </a>
-          </aside>
-        </div>
-      </main>
+              </CardContent>
+            </Card>
+          )}
+          <a
+            href={`/erp/folios/${folio.id as string}/receipt`}
+            className="inline-flex h-11 w-full items-center justify-center rounded-md border text-sm font-medium text-foreground hover:bg-muted"
+          >
+            Print receipt
+          </a>
+          <a
+            href="/erp"
+            className="inline-flex h-11 items-center text-sm text-foreground underline-offset-4 hover:underline"
+          >
+            ← Back to dashboard
+          </a>
+        </aside>
+      </div>
     </div>
   );
 }

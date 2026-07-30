@@ -13,8 +13,8 @@ export function NightAuditForm({ defaultDate }: { defaultDate: string }) {
   const [state, action, pending] = useActionState(runNightAudit, initial);
   useActionToast(state, { successMessage: "Night audit complete" });
   return (
-    <form action={action} className="space-y-3 border border-espresso/10 bg-white p-4">
-      <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
+    <form action={action} className="erp space-y-3 rounded-lg border bg-card p-4">
+      <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
         Run night audit
       </h3>
       <p className="text-xs text-muted-foreground">
@@ -39,12 +39,12 @@ export function NightAuditForm({ defaultDate }: { defaultDate: string }) {
         </Label>
         <Input id="notes" name="notes" />
       </div>
-      <Button type="submit" variant="gold" disabled={pending} className="min-h-10">
+      <Button type="submit" variant="citrus" disabled={pending} className="h-10 w-full">
         {pending ? "Running…" : "Complete night audit"}
       </Button>
       {state.ok || state.error ? (
         <p
-          className={`text-sm ${state.ok ? "text-espresso" : "text-maroon"}`}
+          className={`text-sm ${state.ok ? "text-foreground" : "text-destructive"}`}
           role="status"
         >
           {state.ok ? state.message : state.error}

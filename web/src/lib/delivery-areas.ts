@@ -1,5 +1,5 @@
 /**
- * Thimphu delivery zones offered on the public /order page.
+ * Thimphu delivery zones offered on the public /menu order flow.
  *
  * The list is intentionally short and human — Pelbu only runs taxi delivery
  * inside Thimphu, so we reject any taxi order whose area is not on this list.

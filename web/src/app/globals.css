@@ -4,21 +4,15 @@
 @custom-variant dark (&:is(.dark *));
 
 /* =========================================================================
-   Pelbu Suites — design tokens (system v2 — "Ink & Brass")
-   Three layers, on purpose:
-   1. Brand names  — the soul (ivory / espresso / maroon / gold / brass).
-   2. Paper scale  — warm neutral ramp for surfaces (Direction B).
-   3. shadcn scale — the contract every copied primitive reads.
-
-   Direction B ("Ink & Brass") leads with espresso ink as the structural
-   surface on conversion-critical bands and uses warm paper everywhere else.
-   Gold shifts toward brass (warmer, more refined) and is used as a thin
-   hairline rule + small-caps eyebrow — never as a flat fill. Maroon stays
-   for destructive/error states only.
+   Pelbu Suites — public design tokens ("Sky, Citrus, Mint")
+   Legacy brand anchors (ivory / espresso / brass / paper) stay defined so
+   ERP utilities that still reference them continue to resolve. Public
+   shadcn semantics map onto the sky/citrus/mint ramp. Desk `.erp` below
+   overrides every semantic token and is unaffected by this public remap.
    ========================================================================= */
 
 :root {
-  /* --- Brand names (anchors) --- */
+  /* --- Legacy brand anchors (kept for ERP / portal utility classes) --- */
   --ivory: #f7f3ec;
   --ivory-soft: #fbf8f2;
   --ivory-deep: #efe7d8;
@@ -29,132 +23,142 @@
   --maroon-soft: #9a3535;
   --gold: #b8892c;
   --gold-soft: #d4a852;
-
-  /* --- Brass accent (Direction B): slightly warmer + cooler toward brass --- */
   --brass: #c19548;
   --brass-soft: #d9b173;
   --brass-hairline: rgba(193, 149, 72, 0.42);
+  --ink: #082f49;
+  --ink-soft: #0c4a6e;
+  --ink-rule: rgba(8, 47, 73, 0.12);
+  --paper-0: #f7fbfd;
+  --paper-1: #f0f7fb;
+  --paper-2: #eef4f8;
+  --paper-3: #d9e5ee;
+  --paper-4: #b8cddc;
+  --paper-5: #64748b;
 
-  /* --- Ink: the structural espresso used on bands, headers, footers --- */
-  --ink: #1c1612;
-  --ink-soft: #2a221c;
-  --ink-rule: rgba(28, 22, 18, 0.12);
+  /* --- Sky / Citrus / Mint premium ramp --- */
+  --sky-ink: #082f49;
+  --sky-900: #0c4a6e;
+  --sky-800: #075985;
+  --sky-700: #0369a1;
+  --sky-600: #0284c7;
+  --sky-500: #0ea5e9;
+  --sky-100: #e0f2fe;
+  --citrus-600: #d97706;
+  --citrus-500: #f59e0b;
+  --citrus-100: #fef3c7;
+  /* Deep evergreen anchor for the mint ramp. Dark enough to carry white body
+     text at glass opacities, where mint-600 is far too light. */
+  --mint-ink: #053b2f;
+  --mint-600: #059669;
+  --mint-500: #10b981;
+  --mint-100: #d1fae5;
+  --frost-0: #f7fbfd;
+  --frost-1: #f0f7fb;
+  --frost-2: #eef4f8;
+  --frost-3: #d9e5ee;
 
-  /* --- Warm paper scale (Direction B neutrals) ---
-     A 6-step ramp so cards/sections have hierarchy without shadows. */
-  --paper-0: #fbf8f2; /* lightest — body background        */
-  --paper-1: #f5efe3; /* card surface                       */
-  --paper-2: #ede4d2; /* muted surface / aside              */
-  --paper-3: #e0d4bd; /* strong divider / border            */
-  --paper-4: #c9b89a; /* subdued hover                      */
-  --paper-5: #8c7f6c; /* paper-toned text (eyebrows, etc.)  */
+  --muted: #475569;
 
-  --muted: #6b5e52;
-
-  /* --- Citrus (amber) accent for ERP success/money callouts.
-     Defaults to amber-500 here; ERP overrides via .erp scope below. --- */
   --citrus: #f59e0b;
   --citrus-soft: #fbbf24;
   --citrus-tint: #fef3c7;
 
-  /* --- shadcn scale mapped to brand + paper --- */
-  --background: var(--paper-0);
-  --foreground: var(--ink);
+  /* --- shadcn scale mapped to Sky / Citrus / Mint --- */
+  --background: var(--frost-0);
+  --foreground: var(--sky-ink);
 
   --card: #ffffff;
-  --card-foreground: var(--ink);
+  --card-foreground: var(--sky-ink);
 
   --popover: #ffffff;
-  --popover-foreground: var(--ink);
+  --popover-foreground: var(--sky-ink);
 
-  --primary: var(--ink);
-  --primary-foreground: var(--ivory);
+  --primary: var(--sky-600);
+  --primary-foreground: #ffffff;
 
-  --secondary: var(--paper-2);
-  --secondary-foreground: var(--ink);
+  --secondary: var(--frost-2);
+  --secondary-foreground: var(--sky-ink);
 
-  --muted-shadcn: var(--paper-2);
+  --muted-shadcn: var(--frost-2);
   --muted-foreground: var(--muted);
 
-  --accent: var(--brass);
-  --accent-foreground: var(--ink);
+  --accent: var(--citrus-500);
+  --accent-foreground: var(--sky-ink);
 
   --destructive: var(--maroon);
-  --destructive-foreground: var(--ivory);
+  --destructive-foreground: #ffffff;
 
-  --border: var(--paper-3);
-  --input: var(--paper-3);
-  --ring: var(--brass);
+  --border: var(--frost-3);
+  --input: var(--frost-3);
+  --ring: var(--sky-600);
 
-  /* Chart + sidebar tokens expected by some shadcn blocks */
-  --chart-1: var(--ink);
-  --chart-2: var(--brass);
-  --chart-3: var(--maroon);
-  --chart-4: var(--muted);
-  --chart-5: var(--brass-soft);
+  --chart-1: var(--sky-600);
+  --chart-2: var(--citrus-500);
+  --chart-3: var(--mint-500);
+  --chart-4: var(--sky-800);
+  --chart-5: var(--mint-600);
 
-  --sidebar: var(--ink);
-  --sidebar-foreground: var(--ivory);
-  --sidebar-primary: var(--brass);
-  --sidebar-primary-foreground: var(--ink);
-  --sidebar-accent: var(--ink-soft);
-  --sidebar-accent-foreground: var(--ivory);
-  --sidebar-border: var(--espresso-mute);
-  --sidebar-ring: var(--brass);
+  --sidebar: var(--sky-ink);
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: var(--sky-500);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--sky-800);
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: var(--sky-800);
+  --sidebar-ring: var(--sky-500);
 
-  --radius: 0.25rem;
+  --radius: 0.875rem;
 
-  /* Fonts: Fraunces (display serif) + Inter (UI/body).
-     Variables come from next/font in layout.tsx. */
   --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
 .dark {
-  /* Dark theme flips to ink-led, brass accents — heritage evening mode */
-  --background: var(--ink);
-  --foreground: var(--ivory);
+  /* Public evening mode — sky ink surfaces, citrus / mint accents */
+  --background: var(--sky-ink);
+  --foreground: #f8fafc;
 
-  --card: var(--ink-soft);
-  --card-foreground: var(--ivory);
+  --card: #0c4a6e;
+  --card-foreground: #f8fafc;
 
-  --popover: var(--ink-soft);
-  --popover-foreground: var(--ivory);
+  --popover: #0c4a6e;
+  --popover-foreground: #f8fafc;
 
-  --primary: var(--ivory);
-  --primary-foreground: var(--ink);
+  --primary: var(--sky-500);
+  --primary-foreground: #ffffff;
 
-  --secondary: var(--espresso-mute);
-  --secondary-foreground: var(--ivory);
+  --secondary: #0c4a6e;
+  --secondary-foreground: #f8fafc;
 
-  --muted-shadcn: var(--espresso-mute);
-  --muted-foreground: #a8998a;
+  --muted-shadcn: #0c4a6e;
+  --muted-foreground: #94a3b8;
 
-  --accent: var(--brass);
-  --accent-foreground: var(--ink);
+  --accent: var(--citrus-500);
+  --accent-foreground: var(--sky-ink);
 
   --destructive: var(--maroon-soft);
-  --destructive-foreground: var(--ivory);
+  --destructive-foreground: #ffffff;
 
-  --border: var(--espresso-mute);
-  --input: var(--espresso-mute);
-  --ring: var(--brass);
+  --border: #075985;
+  --input: #075985;
+  --ring: var(--sky-500);
 
-  --chart-1: var(--ivory);
-  --chart-2: var(--brass);
-  --chart-3: var(--maroon-soft);
-  --chart-4: #a8998a;
-  --chart-5: var(--brass-soft);
+  --chart-1: var(--sky-500);
+  --chart-2: var(--citrus-500);
+  --chart-3: var(--mint-500);
+  --chart-4: #94a3b8;
+  --chart-5: var(--mint-100);
 
-  --sidebar: var(--ink);
-  --sidebar-foreground: var(--ivory);
-  --sidebar-primary: var(--brass);
-  --sidebar-primary-foreground: var(--ink);
-  --sidebar-accent: var(--espresso-mute);
-  --sidebar-accent-foreground: var(--ivory);
-  --sidebar-border: var(--espresso-mute);
-  --sidebar-ring: var(--brass);
+  --sidebar: #051f33;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: var(--sky-500);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #0c4a6e;
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: #0c4a6e;
+  --sidebar-ring: var(--sky-500);
 }
 
 /* =========================================================================
@@ -255,7 +259,7 @@
   }
 
   .erp table thead th:first-child {
-    background: var(--muted);
+    background: var(--muted-shadcn);
   }
 }
 
@@ -299,6 +303,25 @@
   --color-citrus: var(--citrus);
   --color-citrus-soft: var(--citrus-soft);
   --color-citrus-tint: var(--citrus-tint);
+  --color-citrus-500: var(--citrus-500);
+  --color-citrus-600: var(--citrus-600);
+
+  /* Public Sky / Mint ramp */
+  --color-sky-ink: var(--sky-ink);
+  --color-sky-900: var(--sky-900);
+  --color-sky-800: var(--sky-800);
+  --color-sky-700: var(--sky-700);
+  --color-sky-600: var(--sky-600);
+  --color-sky-500: var(--sky-500);
+  --color-sky-100: var(--sky-100);
+  --color-mint-ink: var(--mint-ink);
+  --color-mint-600: var(--mint-600);
+  --color-mint-500: var(--mint-500);
+  --color-mint-100: var(--mint-100);
+  --color-frost-0: var(--frost-0);
+  --color-frost-1: var(--frost-1);
+  --color-frost-2: var(--frost-2);
+  --color-frost-3: var(--frost-3);
 
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
@@ -389,8 +412,8 @@
      Use `font-display` on h1/h2 heroes. Everything else inherits Inter. */
 
   ::selection {
-    background: var(--ink);
-    color: var(--ivory);
+    background: var(--sky-600);
+    color: #ffffff;
   }
 }
 
@@ -416,7 +439,33 @@
   .lede {
     font-size: clamp(1rem, 0.96rem + 0.15vw, 1.0625rem);
     line-height: 1.65;
-    color: color-mix(in oklab, var(--ink) 72%, var(--paper-5));
+    color: color-mix(in oklab, var(--sky-ink) 72%, var(--muted));
+  }
+
+  .media-card {
+    overflow: hidden;
+    border-radius: 1rem;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--card-foreground);
+    transition:
+      box-shadow 300ms ease,
+      transform 300ms ease,
+      border-color 300ms ease;
+  }
+  .media-card:hover {
+    border-color: color-mix(in oklab, var(--sky-600) 35%, var(--border));
+    box-shadow:
+      0 18px 40px -24px rgba(8, 47, 73, 0.35),
+      0 8px 16px -12px rgba(8, 47, 73, 0.18);
+  }
+  .media-card img {
+    transition: transform 400ms ease;
+  }
+  @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .media-card:hover img {
+      transform: scale(1.05);
+    }
   }
 }
 
@@ -452,13 +501,30 @@
 body.pos-fs {
   overflow: hidden;
 }
+/* Hide desk chrome inside fullscreen — the sidebar rail, its trigger, the
+   desk header bar, and the mobile bottom nav. The `sidebar-inset` is the
+   POS content's <main> wrapper, so we must NOT hide it; we only let it
+   stretch to fill the now-hidden sidebar's space. */
 body.pos-fs .erp [data-sidebar="sidebar"],
-body.pos-fs .erp [data-sidebar="sidebar-inset"],
-body.pos-fs .erp [data-slot="sidebar-inset"],
+body.pos-fs .erp [data-sidebar="rail"],
+body.pos-fs .erp [data-slot="sidebar"],
+body.pos-fs .erp [data-slot="sidebar-trigger"],
+body.pos-fs .erp [data-slot="sidebar-rail"],
 body.pos-fs .erp [data-slot="sidebar-inset"] > header,
 body.pos-fs .erp [data-slot="desk-mobile-nav"],
 body.pos-fs .erp [data-slot="desk-nav-trigger"] {
   display: none !important;
+}
+/* The inset normally reserves space beside the sidebar; with the sidebar
+   gone it should fill the viewport. The shadcn SidebarProvider sets a CSS
+   var for sidebar width on the wrapper — overriding it to 0 collapses the
+   gap so the POS gets the full width. */
+body.pos-fs .erp [data-slot="sidebar-wrapper"] {
+  --sidebar-width: 0px !important;
+  --sidebar-width-mobile: 0px !important;
+}
+body.pos-fs .erp [data-slot="sidebar-inset"] {
+  width: 100% !important;
 }
 .pos-fs-shell {
   position: fixed;

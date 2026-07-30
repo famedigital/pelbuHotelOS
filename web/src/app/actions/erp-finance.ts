@@ -1,6 +1,7 @@
 "use server";
 
 import { writeAuditEvent } from "@/lib/audit";
+import { postExpense } from "@/lib/accounting/posting";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
@@ -112,8 +113,29 @@ export async function createExpense(
       meta: { category, amountBtn },
     });
 
+    const posting = await postExpense(admin, pid, {
+      id: expense.id as string,
+      category,
+      description,
+      amount_btn: amountBtn,
+      gst_btn: gstBtn,
+      expense_date: trimRequired(formData.get("expense_date"), "Date"),
+      payment_method: paymentMethod,
+    });
+    if (posting.ok && posting.journalId) {
+      await admin
+        .from("expenses")
+        .update({ journal_id: posting.journalId })
+        .eq("id", expense.id);
+    }
+
     revalidateFinance();
-    return { ok: true, message: "Expense recorded." };
+    return {
+      ok: true,
+      message: posting.ok
+        ? "Expense recorded and posted to ledger."
+        : `Expense saved; ledger posting pending: ${posting.error}`,
+    };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
   }

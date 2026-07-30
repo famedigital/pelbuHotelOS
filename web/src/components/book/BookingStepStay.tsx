@@ -1,5 +1,6 @@
 "use client";
 
+import type { MealPlanOption } from "@/app/actions/bookings";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMemo } from "react";
@@ -15,6 +16,9 @@ type Props = {
   onAdults: (n: number) => void;
   rooms: number;
   onRooms: (n: number) => void;
+  mealPlans: MealPlanOption[];
+  mealPlanCode: string;
+  onMealPlan: (code: string) => void;
 };
 
 function addDaysIso(iso: string, days: number): string {
@@ -39,6 +43,9 @@ export function BookingStepStay({
   onAdults,
   rooms,
   onRooms,
+  mealPlans,
+  mealPlanCode,
+  onMealPlan,
 }: Props) {
   const minCheckout = useMemo(
     () => (checkIn ? addDaysIso(checkIn, 1) : minCheckIn),
@@ -93,6 +100,51 @@ export function BookingStepStay({
           onChange={onRooms}
         />
       </div>
+
+      {mealPlans.length > 0 ? (
+        <div className="space-y-3">
+          <Label>Meal plan</Label>
+          <p className="text-xs text-muted-foreground">
+            Room rate stays as shown. Meal add-ons are confirmed by the desk
+            before any charge.
+          </p>
+          <div
+            className="grid grid-cols-1 gap-2 sm:grid-cols-2"
+            role="radiogroup"
+            aria-label="Meal plan"
+          >
+            {mealPlans.map((plan) => {
+              const selected = mealPlanCode === plan.code;
+              return (
+                <label
+                  key={plan.code}
+                  className={[
+                    "cursor-pointer rounded-sm border px-4 py-3 text-sm transition-colors",
+                    selected
+                      ? "border-ink shadow-[inset_0_0_0_1px_var(--ink)]"
+                      : "border-paper-3 hover:border-ink/40",
+                  ].join(" ")}
+                >
+                  <input
+                    type="radio"
+                    name="meal_plan_code_ui"
+                    value={plan.code}
+                    checked={selected}
+                    onChange={() => onMealPlan(plan.code)}
+                    className="sr-only"
+                  />
+                  <span className="font-medium text-ink">{plan.name}</span>
+                  {plan.blurb ? (
+                    <span className="mt-1 block text-xs text-muted-foreground">
+                      {plan.blurb}
+                    </span>
+                  ) : null}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
     </fieldset>
   );
 }

@@ -1,5 +1,5 @@
 import { SiteFooter } from "@/components/site/SiteFooter";
-import { SiteHeader } from "@/components/site/SiteHeader";
+import { PublicSiteHeader } from "@/components/site/PublicSiteHeader";
 import Link from "next/link";
 
 type Props = {
@@ -25,7 +25,7 @@ export function StreamPage({
   return (
     <>
       <div className="relative bg-espresso">
-        <SiteHeader />
+        <PublicSiteHeader />
         <div className="mx-auto max-w-[1200px] px-6 pb-16 pt-28 md:px-8 md:pt-32">
           <p className="text-xs tracking-[0.3em] text-gold uppercase">
             {eyebrow}

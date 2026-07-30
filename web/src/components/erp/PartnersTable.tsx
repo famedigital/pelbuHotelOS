@@ -1,3 +1,8 @@
+"use client";
+
+import type { ColumnDef } from "@tanstack/react-table";
+
+import { DataTable } from "@/components/ui/data-table";
 import type { PartnerRow } from "@/app/erp/partners/page";
 import { PartnerRowActions } from "./PartnerRowActions";
 
@@ -24,6 +29,111 @@ function relativeDays(iso: string | null): string {
   return `${Math.round(diff / 365)} yr ago`;
 }
 
+function buildColumns(
+  kind: "guide" | "driver",
+): ColumnDef<PartnerRow>[] {
+  const cols: ColumnDef<PartnerRow>[] = [
+    {
+      accessorKey: "full_name",
+      header: kind === "guide" ? "Guide" : "Driver",
+      cell: ({ row }) => (
+        <span className="font-medium text-foreground">
+          {row.original.full_name ?? "—"}
+        </span>
+      ),
+      meta: { className: "px-3" },
+    },
+  ];
+
+  if (kind === "guide") {
+    cols.push({
+      accessorKey: "guide_number",
+      header: "Number",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {row.original.guide_number ?? "—"}
+        </span>
+      ),
+      meta: { className: "px-3" },
+    });
+  }
+
+  cols.push(
+    {
+      accessorKey: "phone",
+      header: "Phone",
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">
+          {row.original.phone ?? "—"}
+        </span>
+      ),
+      meta: { className: "px-3" },
+    },
+  );
+
+  if (kind === "driver") {
+    cols.push({
+      accessorKey: "vehicle_no",
+      header: "Vehicle",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {row.original.vehicle_no ?? "—"}
+        </span>
+      ),
+      meta: { className: "px-3" },
+    });
+  }
+
+  cols.push(
+    {
+      accessorKey: "visit_count",
+      header: "Visits",
+      cell: ({ row }) => (
+        <span className="inline-flex items-center rounded-full border border-citrus/40 bg-citrus-tint/60 px-2 py-0.5 text-[11px] font-medium text-citrus">
+          {row.original.visit_count}
+        </span>
+      ),
+      meta: { className: "px-3 text-right" },
+    },
+    {
+      accessorKey: "last_seen_at",
+      header: "Last seen",
+      cell: ({ row }) => {
+        const rel = relativeDays(row.original.last_seen_at);
+        return (
+          <span className="text-muted-foreground">
+            {fmtDate(row.original.last_seen_at)}
+            {rel ? <span className="ml-1 text-[11px]">· {rel}</span> : null}
+          </span>
+        );
+      },
+      meta: { className: "px-3" },
+    },
+    {
+      id: "actions",
+      header: () => <span className="sr-only">Actions</span>,
+      cell: ({ row }) => (
+        <div className="flex justify-end">
+          <PartnerRowActions
+            kind={kind}
+            partnerId={row.original.id}
+            searchToken={
+              kind === "guide"
+                ? row.original.guide_number ?? row.original.full_name ?? row.original.phone ?? ""
+                : row.original.full_name ?? row.original.phone ?? ""
+            }
+            phone={row.original.phone}
+          />
+        </div>
+      ),
+      enableSorting: false,
+      meta: { className: "px-3" },
+    },
+  );
+
+  return cols;
+}
+
 export function PartnersTable({
   rows,
   kind,
@@ -33,7 +143,7 @@ export function PartnersTable({
 }) {
   if (rows.length === 0) {
     return (
-      <p className="border border-espresso/10 bg-white px-5 py-6 text-sm text-muted-foreground">
+      <p className="erp rounded-lg border bg-card px-5 py-6 text-sm text-muted-foreground">
         No {kind === "guide" ? "guides" : "drivers"} recorded yet. They will
         appear here after the first check-in.
       </p>
@@ -41,89 +151,14 @@ export function PartnersTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-sm border border-espresso/10 bg-white">
-      <table className="w-full border-collapse text-sm">
-        <caption className="sr-only">
-          {kind === "guide" ? "Guides" : "Drivers"} sorted by visit count.
-        </caption>
-        <thead className="bg-espresso/[0.04] text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-          <tr>
-            <th scope="col" className="px-3 py-2 text-left font-semibold">
-              {kind === "guide" ? "Guide" : "Driver"}
-            </th>
-            {kind === "guide" ? (
-              <th scope="col" className="px-3 py-2 text-left font-semibold">
-                Number
-              </th>
-            ) : null}
-            <th scope="col" className="px-3 py-2 text-left font-semibold">
-              Phone
-            </th>
-            {kind === "driver" ? (
-              <th scope="col" className="px-3 py-2 text-left font-semibold">
-                Vehicle
-              </th>
-            ) : null}
-            <th scope="col" className="px-3 py-2 text-right font-semibold">
-              Visits
-            </th>
-            <th scope="col" className="px-3 py-2 text-left font-semibold">
-              Last seen
-            </th>
-            <th scope="col" className="px-3 py-2 text-right font-semibold">
-              <span className="sr-only">Actions</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => {
-            const rel = relativeDays(r.last_seen_at);
-            return (
-              <tr key={r.id} className="border-t border-espresso/10">
-                <td className="px-3 py-2.5 text-espresso">
-                  <span className="font-medium">
-                    {r.full_name ?? "—"}
-                  </span>
-                </td>
-                {kind === "guide" ? (
-                  <td className="px-3 py-2.5 font-mono text-xs text-muted-foreground">
-                    {r.guide_number ?? "—"}
-                  </td>
-                ) : null}
-                <td className="px-3 py-2.5 text-muted-foreground">
-                  {r.phone ?? "—"}
-                </td>
-                {kind === "driver" ? (
-                  <td className="px-3 py-2.5 font-mono text-xs text-muted-foreground">
-                    {r.vehicle_no ?? "—"}
-                  </td>
-                ) : null}
-                <td className="px-3 py-2.5 text-right">
-                  <span className="inline-flex items-center rounded-full border border-gold/40 bg-gold/5 px-2 py-0.5 text-[11px] font-medium text-gold">
-                    {r.visit_count}
-                  </span>
-                </td>
-                <td className="px-3 py-2.5 text-muted-foreground">
-                  <span>{fmtDate(r.last_seen_at)}</span>
-                  {rel ? <span className="ml-1 text-[11px]">Â· {rel}</span> : null}
-                </td>
-                <td className="px-3 py-2.5 text-right">
-                  <PartnerRowActions
-                    kind={kind}
-                    partnerId={r.id}
-                    searchToken={
-                      kind === "guide"
-                        ? r.guide_number ?? r.full_name ?? r.phone ?? ""
-                        : r.full_name ?? r.phone ?? ""
-                    }
-                    phone={r.phone}
-                  />
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <DataTable
+      columns={buildColumns(kind)}
+      data={rows}
+      caption={`${kind === "guide" ? "Guides" : "Drivers"} sorted by visit count.`}
+      emptyMessage={`No ${kind === "guide" ? "guides" : "drivers"} match.`}
+      searchPlaceholder="Search by name, number, phone…"
+      className="erp"
+      searchable={false}
+    />
   );
 }

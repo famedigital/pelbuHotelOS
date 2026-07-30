@@ -1,5 +1,9 @@
 import { cookies } from "next/headers";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
+import {
+  mapPropertySettings,
+  type PropertySettings,
+} from "@/lib/property-settings";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
@@ -16,7 +20,7 @@ export type PropertyRow = {
   setup_completed_at: string | null;
   income_streams: IncomeStreams;
   bank_accounts: BankAccount[];
-};
+} & PropertySettings;
 
 export type IncomeStreams = {
   rooms: boolean;
@@ -80,7 +84,7 @@ export async function loadProperty(
   const { data } = await admin
     .from("properties")
     .select(
-      "id, slug, name, template_id, timezone, setup_step, setup_completed_at, income_streams, bank_accounts",
+      "id, slug, name, template_id, timezone, setup_step, setup_completed_at, income_streams, bank_accounts, logo_public_id, legal_name, address, phone, email, tax_id, gst_rate, service_charge_rate, service_charge_default_on, doc_invoice, doc_receipt, doc_voucher",
     )
     .eq("id", id)
     .maybeSingle();
@@ -92,7 +96,7 @@ export async function listProperties(admin: Admin): Promise<PropertyRow[]> {
   const { data } = await admin
     .from("properties")
     .select(
-      "id, slug, name, template_id, timezone, setup_step, setup_completed_at, income_streams, bank_accounts",
+      "id, slug, name, template_id, timezone, setup_step, setup_completed_at, income_streams, bank_accounts, logo_public_id, legal_name, address, phone, email, tax_id, gst_rate, service_charge_rate, service_charge_default_on, doc_invoice, doc_receipt, doc_voucher",
     )
     .order("name");
   return (data ?? []).map(mapProperty);
@@ -101,6 +105,7 @@ export async function listProperties(admin: Admin): Promise<PropertyRow[]> {
 function mapProperty(row: Record<string, unknown>): PropertyRow {
   const streams = (row.income_streams ?? DEFAULT_INCOME_STREAMS) as IncomeStreams;
   const banks = (row.bank_accounts ?? []) as BankAccount[];
+  const settings = mapPropertySettings(row);
   return {
     id: row.id as string,
     slug: row.slug as string,
@@ -119,6 +124,7 @@ function mapProperty(row: Record<string, unknown>): PropertyRow {
       channel: Boolean(streams.channel),
     },
     bank_accounts: Array.isArray(banks) ? banks : [],
+    ...settings,
   };
 }
 

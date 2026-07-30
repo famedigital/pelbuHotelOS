@@ -1,5 +1,5 @@
 import { SiteFooter } from "@/components/site/SiteFooter";
-import { SiteHeader } from "@/components/site/SiteHeader";
+import { PublicSiteHeader } from "@/components/site/PublicSiteHeader";
 import type { ReactNode } from "react";
 
 type Props = {
@@ -49,7 +49,7 @@ export function ConversionShell({
         />
 
         <div className="relative">
-          <SiteHeader logoSrc={logoSrc} variant="ink" />
+          <PublicSiteHeader logoSrc={logoSrc} variant="solid" />
 
           <div className="mx-auto max-w-[1120px] px-5 pb-14 pt-28 md:px-8 md:pb-16 md:pt-32">
             <p className="label-quiet label-quiet--on-ink">{eyebrow}</p>

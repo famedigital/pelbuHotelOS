@@ -1,5 +1,7 @@
 import { BookingBoardTable } from "@/components/erp/BookingBoardTable";
+import { BoardTabs } from "@/components/erp/BoardTabs";
 import { DeskListShell } from "@/components/erp/DeskListShell";
+import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { fmtDate, requireDeskPropertyId, thimphuToday } from "@/lib/erp-lists";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -21,7 +23,14 @@ export default async function InHousePage() {
   const { data: rows } = await admin
     .from("bookings")
     .select(
-      "id, contact_name, contact_phone, check_in, check_out, status, adults, rooms, agents(company_name)",
+      `id, contact_name, contact_phone, check_in, check_out, status, adults, rooms,
+       source, guest_origin, guide_number, payment_mode,
+       token_required_btn, token_received_btn,
+       agents(company_name),
+       room_assignments(
+         room_units(label, hk_status, room_types(inventory_kind))
+       ),
+       folios(status, folio_lines(total_btn, status))`,
     )
     .eq("property_id", propertyId)
     .lte("check_in", today)
@@ -32,31 +41,26 @@ export default async function InHousePage() {
 
   return (
     <DeskListShell
-      title="In-house"
       eyebrow="Today"
       heading={`In-house · ${fmtDate(today)}`}
-      blurb="Guests currently staying — for breakfast count, fire list, and folio charges."
+      blurb="Guests currently staying — room numbers, folio balance, and checkout handoff."
       filters={
-        <nav className="flex flex-wrap gap-2 text-sm">
-          <Link
-            href="/erp/arrivals"
-            className="rounded-sm border border-espresso/20 px-3 py-2 text-espresso"
-          >
-            Arrivals
-          </Link>
-          <Link href="/erp/in-house" className="rounded-sm bg-espresso px-3 py-2 text-ivory">
-            In-house
-          </Link>
-          <Link
-            href="/erp/departures"
-            className="rounded-sm border border-espresso/20 px-3 py-2 text-espresso"
-          >
-            Departures
-          </Link>
-        </nav>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <BoardTabs />
+          <div className="flex items-center gap-3">
+            <FrontDeskLiveRefresh />
+            <Link
+              href={`/erp/calendar/day-sheet?date=${today}`}
+              className="text-sm text-accent underline-offset-4 hover:underline"
+            >
+              Day sheet
+            </Link>
+          </div>
+        </div>
       }
     >
-      <BookingBoardTable rows={rows ?? []} />
+      <p className="text-xs text-muted-foreground">{rows?.length ?? 0} shown</p>
+      <BookingBoardTable rows={(rows as Record<string, unknown>[]) ?? []} />
     </DeskListShell>
   );
 }

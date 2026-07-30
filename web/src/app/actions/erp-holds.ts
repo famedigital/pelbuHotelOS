@@ -152,7 +152,7 @@ export async function applyBookingConfirmation(args: {
     })
     .eq("booking_id", bookingId)
     .eq("property_id", propertyId)
-    .eq("status", "open");
+    .in("status", ["open", "processing"]);
 
   const { error: upd } = await admin
     .from("bookings")

@@ -1,11 +1,7 @@
-import {
-  DeskListShell,
-  DeskSearchForm,
-  DeskTable,
-  StatusPill,
-} from "@/components/erp/DeskListShell";
+import { DeskListShell, DeskSearchForm } from "@/components/erp/DeskListShell";
+import { GuestsTable, type GuestStay } from "@/components/erp/GuestsTable";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { fmtDate, matchesQuery, requireDeskPropertyId } from "@/lib/erp-lists";
+import { matchesQuery, requireDeskPropertyId } from "@/lib/erp-lists";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 
@@ -14,21 +10,6 @@ export const metadata = {
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";
-
-type GuestStay = {
-  guestId: string;
-  full_name: string;
-  nationality: string | null;
-  passport_or_cid: string | null;
-  sdf_ref: string | null;
-  sdf_doc_url: string | null;
-  booking_id: string;
-  contact_phone: string | null;
-  check_in: string;
-  check_out: string;
-  status: string;
-  guest_origin: string | null;
-};
 
 export default async function GuestsPage({
   searchParams,
@@ -75,6 +56,7 @@ export default async function GuestsPage({
         check_out: b.check_out as string,
         status: b.status as string,
         guest_origin: (b.guest_origin as string | null) ?? null,
+        stay_count: 1,
       });
       continue;
     }
@@ -92,6 +74,7 @@ export default async function GuestsPage({
         check_out: b.check_out as string,
         status: b.status as string,
         guest_origin: (b.guest_origin as string | null) ?? null,
+        stay_count: 1,
       });
     }
   }
@@ -103,16 +86,18 @@ export default async function GuestsPage({
     ),
   );
 
-  // Aggregate stay counts by passport/name key for repeat recognition
   const stayCount = new Map<string, number>();
   for (const s of stays) {
     const key = (s.passport_or_cid || s.full_name).toLowerCase();
     stayCount.set(key, (stayCount.get(key) ?? 0) + 1);
   }
+  for (const s of filtered) {
+    const key = (s.passport_or_cid || s.full_name).toLowerCase();
+    s.stay_count = stayCount.get(key) ?? 1;
+  }
 
   return (
     <DeskListShell
-      title="Guests"
       eyebrow="Directory"
       heading="Guest list"
       blurb="Derived from booking guests and contacts. Search by name, passport/CID, SDF, or phone."
@@ -125,68 +110,7 @@ export default async function GuestsPage({
       }
     >
       <p className="text-xs text-muted-foreground">{filtered.length} shown</p>
-      <DeskTable
-        caption="Guests"
-        headers={["Guest", "Nationality", "ID / SDF", "Stay", "Stays", "Status", ""]}
-      >
-        {filtered.length === 0 ? (
-          <tr>
-            <td colSpan={7} className="px-3 py-6 text-muted-foreground">
-              No guests match.
-            </td>
-          </tr>
-        ) : (
-          filtered.map((s) => {
-            const key = (s.passport_or_cid || s.full_name).toLowerCase();
-            const n = stayCount.get(key) ?? 1;
-            return (
-              <tr key={`${s.guestId}-${s.booking_id}`} className="border-t border-espresso/10">
-                <td className="px-3 py-2.5">
-                  <p className="font-medium text-espresso">{s.full_name}</p>
-                  <p className="text-xs text-muted-foreground">{s.contact_phone ?? "—"}</p>
-                </td>
-                <td className="px-3 py-2.5 text-muted-foreground">
-                  {s.nationality ?? "—"}
-                  {s.guest_origin ? (
-                    <span className="mt-0.5 block text-[10px] uppercase tracking-wide text-gold">
-                      {s.guest_origin}
-                    </span>
-                  ) : null}
-                </td>
-                <td className="px-3 py-2.5 font-mono text-xs text-espresso/70">
-                  <div>{s.passport_or_cid ?? "—"}</div>
-                  <div className="text-muted-foreground">SDF {s.sdf_ref ?? "—"}</div>
-                  {s.sdf_doc_url ? (
-                    <a
-                      href={s.sdf_doc_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-maroon underline-offset-2 hover:underline"
-                    >
-                      Doc
-                    </a>
-                  ) : null}
-                </td>
-                <td className="px-3 py-2.5 text-sm text-espresso">
-                  {fmtDate(s.check_in)} → {fmtDate(s.check_out)}
-                </td>
-                <td className="px-3 py-2.5 tabular-nums text-espresso">{n}</td>
-                <td className="px-3 py-2.5">
-                  <StatusPill value={s.status} />
-                </td>
-                <td className="px-3 py-2.5 text-right">
-                  <a
-                    href={`/erp/check-in?booking=${s.booking_id}`}
-                    className="text-sm text-maroon underline-offset-4 hover:underline"
-                  >
-                    Open →
-                  </a>
-                </td>
-              </tr>
-            );
-          })
-        )}
-      </DeskTable>
+      <GuestsTable data={filtered} />
     </DeskListShell>
   );
 }

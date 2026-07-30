@@ -14,8 +14,7 @@ import {
 import { DEFAULT_GST_RATE, percentToRate } from "@/lib/property-settings";
 import { calculateOrderTotals, roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
-import { requireStaffSession } from "@/lib/staff-auth";
-import { sendCallMeBotTo } from "@/lib/notify";
+import { getStaffSession } from "@/lib/staff-auth";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   assertPhone,
@@ -1830,18 +1829,18 @@ export type ConfirmOrderState = {
 };
 
 /**
- * Two-step online order confirmation.
+ * Step 1 of the online order flow — desk acknowledges the order.
  *
  * Public orders land as `status='received'`, `kot_status='new'`,
- * `confirmed_at=null`. Desk reviews, collects payment (QR / screenshot),
- * then calls this action. We:
- *   1. mark `confirmed_at` / `confirmed_by`,
- *   2. advance `kot_status` to 'preparing' so the kitchen picks it up,
- *   3. send a WhatsApp confirmation back to the guest's number,
- *   4. audit-log the staff member who acknowledged.
+ * `confirmed_at=null`. Confirming stamps `confirmed_at` / `confirmed_by` and
+ * nothing else: the kitchen must not fire yet, because the guest has not paid.
+ * The desk opens the confirmation slip (`/erp/orders/[id]/slip`), sends the
+ * screenshot to the guest from their own WhatsApp, and waits for the transfer.
+ * Payment is captured in `recordOnlineOrderPayment`, which is what releases
+ * the KOT. No messaging API is involved anywhere in this path.
  *
- * If the order is already confirmed we no-op and return ok=true so the UI
- * is idempotent across live refresh.
+ * Already-confirmed orders no-op so the action stays idempotent across the
+ * desk's live refresh.
  */
 export async function confirmPublicOrder(
   _prev: ConfirmOrderState,
@@ -1849,7 +1848,9 @@ export async function confirmPublicOrder(
 ): Promise<ConfirmOrderState> {
   try {
     await requireDesk();
-    const staff = await requireStaffSession();
+    // POS runs on the shared desk PIN; a personal staff session is a bonus we
+    // stamp when present, never a requirement.
+    const staff = await getStaffSession();
     const orderId = trimRequired(formData.get("order_id"), "Order");
 
     const admin = createSupabaseAdminClient();
@@ -1874,72 +1875,33 @@ export async function confirmPublicOrder(
       return { ok: true, orderId };
     }
 
-    const nowIso = new Date().toISOString();
     const { error: patchError } = await admin
       .from("orders")
       .update({
-        confirmed_at: nowIso,
-        confirmed_by: staff.staffId,
-        kot_status: "preparing",
-        status: "preparing",
+        confirmed_at: new Date().toISOString(),
+        confirmed_by: staff?.staffId ?? null,
       })
       .eq("id", orderId)
-      .eq("confirmed_at", null);
+      .is("confirmed_at", null);
     if (patchError) throw new Error("Could not confirm order.");
-
-    // Fetch the items for the WhatsApp confirmation text. Best-effort —
-    // never blocks the audit or the revalidation if it fails.
-    const { data: items } = await admin
-      .from("order_items")
-      .select("name, qty")
-      .eq("order_id", orderId);
-
-    const itemSummary = (items ?? [])
-      .map(
-        (it) =>
-          `${String(it.qty)}× ${String(it.name)}`.trim(),
-      )
-      .join(", ")
-      .slice(0, 240);
-
-    const total = Number(order.total_btn ?? 0);
-    const delivery =
-      (order.delivery_type as string) === "taxi"
-        ? `Taxi to ${order.delivery_area ?? "Thimphu"}`
-        : "Pickup at Pelbu cafe";
-
-    const guestText = [
-      `Kuzuzangpo ${order.customer_name ?? ""},`.trim(),
-      `Your Pelbu order ${orderId.slice(0, 8)} is confirmed.`,
-      `${delivery}`,
-      itemSummary ? `Items: ${itemSummary}` : null,
-      `Total: Nu ${total.toFixed(2)} (paid).`,
-      `Confirmed by ${staff.fullName}.`,
-      "Pelbu Suites",
-    ]
-      .filter(Boolean)
-      .join("\n");
-
-    await Promise.allSettled([
-      sendCallMeBotTo(String(order.phone ?? ""), guestText),
-    ]);
 
     await writeAuditEvent(admin, {
       propertyId: property_id,
       action: "pos.order.confirm",
       entityType: "orders",
       entityId: orderId,
-      summary: `Confirmed public order ${orderId.slice(0, 8)} (${order.customer_name ?? "guest"})`,
+      summary: `Confirmed public order ${orderId.slice(0, 8)} (${order.customer_name ?? "guest"}) — awaiting payment`,
       meta: {
-        staffId: staff.staffId,
-        staffName: staff.fullName,
-        totalBtn: total,
+        staffId: staff?.staffId ?? null,
+        staffName: staff?.fullName ?? null,
+        totalBtn: Number(order.total_btn ?? 0),
       },
-      actor: staff.fullName,
+      actor: staff?.fullName ?? "desk",
     });
 
     revalidatePath("/erp");
     revalidatePath("/erp/pos");
+    revalidatePath(`/erp/orders/${orderId}/slip`);
     return { ok: true, orderId };
   } catch (err) {
     return {
@@ -1955,4 +1917,117 @@ export async function confirmPublicOrder(
  */
 export async function confirmPublicOrderAction(formData: FormData): Promise<void> {
   await confirmPublicOrder({ ok: false }, formData);
+}
+
+const ONLINE_PAY_METHODS = new Set([
+  "mbob",
+  "bnb_mpay",
+  "bank_transfer",
+  "cash",
+  "card",
+  "other",
+]);
+
+/**
+ * Step 2 of the online order flow — desk records the guest's transfer.
+ *
+ * The guest pays by mobile banking and WhatsApps the journal number to the
+ * desk. Recording it here stamps the payment columns and only then advances
+ * `kot_status` to 'preparing', which is the moment the ticket appears on the
+ * kitchen display. Idempotent: a second submit on an already-paid order
+ * returns ok without overwriting the original journal number.
+ */
+export async function recordOnlineOrderPayment(
+  _prev: ConfirmOrderState,
+  formData: FormData,
+): Promise<ConfirmOrderState> {
+  try {
+    await requireDesk();
+    const staff = await getStaffSession();
+    const orderId = trimRequired(formData.get("order_id"), "Order");
+    const journalNo = trimRequired(
+      formData.get("payment_journal_no"),
+      "Journal number",
+    );
+    if (journalNo.length < 4 || journalNo.length > 64) {
+      throw new Error("Journal number looks wrong. Copy it from the transfer.");
+    }
+    const method = optionalTrim(formData.get("payment_method")) ?? "mbob";
+    if (!ONLINE_PAY_METHODS.has(method)) {
+      throw new Error("Unknown payment method.");
+    }
+
+    const admin = createSupabaseAdminClient();
+    const property_id = await propertyId(admin);
+
+    const { data: order, error } = await admin
+      .from("orders")
+      .select(
+        "id, property_id, order_source, voided_at, confirmed_at, payment_recorded_at, customer_name, total_btn, outlet",
+      )
+      .eq("id", orderId)
+      .maybeSingle();
+    if (error || !order) throw new Error("Order not found.");
+    if (order.property_id !== property_id) {
+      throw new Error("Order belongs to a different property.");
+    }
+    if (order.voided_at) throw new Error("Order was cancelled.");
+    if ((order.order_source as string) !== "public") {
+      throw new Error("Only public online orders are paid this way.");
+    }
+    if (!order.confirmed_at) {
+      throw new Error("Confirm the order before recording payment.");
+    }
+    if (order.payment_recorded_at) {
+      return { ok: true, orderId };
+    }
+
+    const { error: patchError } = await admin
+      .from("orders")
+      .update({
+        payment_journal_no: journalNo,
+        payment_method: method,
+        payment_recorded_at: new Date().toISOString(),
+        payment_recorded_by: staff?.staffId ?? null,
+        kot_status: "preparing",
+        status: "preparing",
+      })
+      .eq("id", orderId)
+      .is("payment_recorded_at", null);
+    if (patchError) throw new Error("Could not record payment.");
+
+    await writeAuditEvent(admin, {
+      propertyId: property_id,
+      action: "pos.order.payment",
+      entityType: "orders",
+      entityId: orderId,
+      summary: `Payment recorded for online order ${orderId.slice(0, 8)} — journal ${journalNo}, sent to kitchen`,
+      meta: {
+        staffId: staff?.staffId ?? null,
+        staffName: staff?.fullName ?? null,
+        journalNo,
+        method,
+        totalBtn: Number(order.total_btn ?? 0),
+      },
+      actor: staff?.fullName ?? "desk",
+    });
+
+    revalidatePath("/erp");
+    revalidatePath("/erp/pos");
+    revalidatePath("/erp/kds");
+    revalidatePath(`/erp/orders/${orderId}/slip`);
+    return { ok: true, orderId };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Something went wrong.",
+    };
+  }
+}
+
+/** Plain-form-action wrapper for the desk dashboard. */
+export async function recordOnlineOrderPaymentAction(
+  formData: FormData,
+): Promise<void> {
+  await recordOnlineOrderPayment({ ok: false }, formData);
 }

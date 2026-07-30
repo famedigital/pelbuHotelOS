@@ -1,11 +1,9 @@
-import {
-  DeskListShell,
-  DeskSearchForm,
-  DeskTable,
-  StatusPill,
-} from "@/components/erp/DeskListShell";
+import { BookingsTable, type BookingRow } from "@/components/erp/BookingsTable";
+import { DeskListShell } from "@/components/erp/DeskListShell";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { fmtDate, matchesQuery, requireDeskPropertyId } from "@/lib/erp-lists";
+import { matchesQuery, requireDeskPropertyId } from "@/lib/erp-lists";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 
@@ -16,7 +14,6 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 const STATUSES = [
-  "",
   "held",
   "pending",
   "confirmed",
@@ -51,118 +48,101 @@ export default async function ReservationsPage({
 
   const { data: rows } = await req;
 
-  const filtered = (rows ?? []).filter((r) => {
-    const agent = r.agents as { company_name?: string } | { company_name?: string }[] | null;
+  const data: BookingRow[] = (rows ?? []).map((r) => {
+    const agent = r.agents as
+      | { company_name?: string }
+      | { company_name?: string }[]
+      | null;
     const agentName = Array.isArray(agent)
-      ? agent[0]?.company_name
-      : agent?.company_name;
-    return matchesQuery(
-      [
-        r.contact_name as string,
-        r.contact_phone as string,
-        r.id as string,
-        r.source as string,
-        agentName,
-      ],
-      query,
-    );
+      ? agent[0]?.company_name ?? null
+      : agent?.company_name ?? null;
+    return {
+      id: r.id as string,
+      contact_name: (r.contact_name as string) ?? null,
+      contact_phone: (r.contact_phone as string) ?? null,
+      check_in: (r.check_in as string) ?? null,
+      check_out: (r.check_out as string) ?? null,
+      source: (r.source as string) ?? null,
+      agent_name: agentName,
+      adults: (r.adults as number) ?? null,
+      rooms: (r.rooms as number) ?? null,
+      status: (r.status as string) ?? null,
+    };
   });
+
+  const filtered = data.filter((r) =>
+    matchesQuery(
+      [r.contact_name, r.contact_phone, r.id, r.source, r.agent_name],
+      query,
+    ),
+  );
 
   return (
     <DeskListShell
-      title="Reservations"
       eyebrow="Bookings"
       heading="All reservations"
-      blurb="Filter by status and source. Open a row to check in or view the folio from Inbox."
+      blurb="Filter by status and source. Open a row to check in or view the folio from the dashboard."
       filters={
-        <DeskSearchForm
+        <form
+          className="flex flex-wrap items-end gap-2"
           action="/erp/reservations"
-          q={q}
-          placeholder="Guest, phone, agent, booking id…"
+          method="get"
         >
-          <label className="block text-sm text-espresso">
-            <span className="sr-only">Status</span>
+          <div className="min-w-[220px] flex-1 space-y-1.5">
+            <label htmlFor="q" className="sr-only">
+              Search
+            </label>
+            <Input
+              id="q"
+              type="search"
+              name="q"
+              defaultValue={q ?? ""}
+              placeholder="Guest, phone, agent, booking id…"
+              className="h-10"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="status" className="sr-only">
+              Status
+            </label>
             <select
+              id="status"
               name="status"
               defaultValue={status ?? ""}
-              className="min-h-11 rounded-sm border border-espresso/15 bg-white px-3 text-sm"
+              className="h-10 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
             >
               <option value="">All statuses</option>
-              {STATUSES.filter(Boolean).map((s) => (
+              {STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {s}
+                  {s.replace(/_/g, " ")}
                 </option>
               ))}
             </select>
-          </label>
-          <label className="block text-sm text-espresso">
-            <span className="sr-only">Source</span>
-            <input
+          </div>
+          <div className="w-32 space-y-1.5">
+            <label htmlFor="source" className="sr-only">
+              Source
+            </label>
+            <Input
+              id="source"
               name="source"
               defaultValue={source ?? ""}
               placeholder="Source"
-              className="min-h-11 w-32 rounded-sm border border-espresso/15 bg-white px-3 text-sm"
+              className="h-10"
             />
-          </label>
-        </DeskSearchForm>
+          </div>
+          <Button type="submit" variant="outline" className="h-10">
+            Search
+          </Button>
+        </form>
       }
     >
       <p className="text-xs text-muted-foreground">{filtered.length} shown</p>
-      <DeskTable
+      <BookingsTable
+        data={filtered}
         caption="Reservations"
-        headers={["Guest", "Dates", "Source / agent", "Rooms", "Status", ""]}
-      >
-        {filtered.length === 0 ? (
-          <tr>
-            <td colSpan={6} className="px-3 py-6 text-muted-foreground">
-              No reservations match.
-            </td>
-          </tr>
-        ) : (
-          filtered.map((r) => {
-            const agent = r.agents as
-              | { company_name?: string }
-              | { company_name?: string }[]
-              | null;
-            const agentName = Array.isArray(agent)
-              ? agent[0]?.company_name
-              : agent?.company_name;
-            return (
-              <tr key={r.id as string} className="border-t border-espresso/10">
-                <td className="px-3 py-2.5">
-                  <p className="font-medium text-espresso">
-                    {(r.contact_name as string) ?? "Guest"}
-                  </p>
-                  <p className="font-mono text-xs text-muted-foreground">
-                    {(r.id as string).slice(0, 8)} Â· {r.contact_phone as string}
-                  </p>
-                </td>
-                <td className="px-3 py-2.5 text-sm">
-                  {fmtDate(r.check_in as string)} → {fmtDate(r.check_out as string)}
-                </td>
-                <td className="px-3 py-2.5 text-sm text-muted-foreground">
-                  <span className="text-espresso">{(r.source as string) ?? "—"}</span>
-                  {agentName ? <span className="block">{agentName}</span> : null}
-                </td>
-                <td className="px-3 py-2.5 tabular-nums">
-                  {Number(r.rooms ?? 0)} / {Number(r.adults ?? 0)} pax
-                </td>
-                <td className="px-3 py-2.5">
-                  <StatusPill value={r.status as string} />
-                </td>
-                <td className="px-3 py-2.5 text-right">
-                  <a
-                    href={`/erp/check-in?booking=${r.id as string}`}
-                    className="text-sm text-maroon underline-offset-4 hover:underline"
-                  >
-                    Open →
-                  </a>
-                </td>
-              </tr>
-            );
-          })
-        )}
-      </DeskTable>
+        emptyMessage="No reservations match."
+      />
     </DeskListShell>
   );
 }

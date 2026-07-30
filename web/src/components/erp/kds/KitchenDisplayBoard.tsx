@@ -20,7 +20,7 @@ import {
   VolumeXIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { startTransition, useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 
 /**
  * Kitchen Display System (KDS) board — runs fullscreen on a wall TV wired to
@@ -54,6 +54,19 @@ export function KitchenDisplayBoard({
 
   const [fs, setFs] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const firstVersionChange = useRef(true);
+
+  // The notifier polls the version endpoint and updates `lastChangedAt` when
+  // any ticket changes. Refresh the server-component payload so the board
+  // receives the new ticket rows; previously it only played the chime while
+  // continuing to render the stale `tickets` prop.
+  useEffect(() => {
+    if (firstVersionChange.current) {
+      firstVersionChange.current = false;
+      return;
+    }
+    startTransition(() => router.refresh());
+  }, [lastChangedAt, router]);
 
   // Tick "Xm ago" labels every 15s — cheap, no re-render storms.
   useEffect(() => {
@@ -98,8 +111,11 @@ export function KitchenDisplayBoard({
       ready: [],
     };
     for (const t of tickets) {
-      // Skip pending-confirm public orders — kitchen shouldn't fire on those.
-      if (t.order_source === "public" && !t.confirmed_at) continue;
+      // Online orders only reach the kitchen once the desk has recorded the
+      // guest's payment — unconfirmed or unpaid tickets stay on POS.
+      if (t.order_source === "public" && (!t.confirmed_at || !t.payment_recorded_at)) {
+        continue;
+      }
       if (t.kot_status in map) {
         map[t.kot_status].push(t);
       }

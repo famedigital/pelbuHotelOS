@@ -2,8 +2,7 @@ import {
   AddToGroupForm,
   BookingGroupCreateForm,
 } from "@/components/erp/P9OpsForms";
-import { DeskHeader } from "@/components/erp/DeskHeader";
-import { StatusPill } from "@/components/erp/DeskListShell";
+import { Card, CardContent } from "@/components/ui/card";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { fmtDate, requireDeskPropertyId } from "@/lib/erp-lists";
 import { formatBtn } from "@/lib/pricing";
@@ -20,11 +19,28 @@ export const metadata = {
 };
 export const dynamic = "force-dynamic";
 
+function StatusPill({ value }: { value: string }) {
+  if (!value) return null;
+  const tone =
+    value === "open" || value === "checked_in"
+      ? "border-citrus/40 bg-citrus-tint/60 text-citrus"
+      : value === "tentative" || value === "pending"
+        ? "border-destructive/30 bg-destructive/5 text-destructive"
+        : "border-border bg-muted text-muted-foreground";
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide whitespace-nowrap ${tone}`}
+    >
+      {value.replace(/_/g, " ")}
+    </span>
+  );
+}
+
 export default async function GroupDeskPage() {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
 
   const admin = createSupabaseAdminClient();
-  const [activeId, properties, propertyId] = await Promise.all([
+  const [, properties, propertyId] = await Promise.all([
     resolveActivePropertyId(admin),
     listProperties(admin),
     requireDeskPropertyId(),
@@ -80,137 +96,133 @@ export default async function GroupDeskPage() {
 
   const bookingOpts = (bookings ?? []).map((b) => ({
     id: b.id as string,
-    label: `${(b.contact_name as string) ?? "Guest"} Â· ${b.check_in as string} Â· ${(b.id as string).slice(0, 6)}`,
+    label: `${(b.contact_name as string) ?? "Guest"} · ${b.check_in as string} · ${(b.id as string).slice(0, 6)}`,
   }));
 
   return (
-    <div className="min-h-screen bg-ivory">
-      <DeskHeader
-        title="Groups"
-        properties={properties}
-        activePropertyId={activeId}
+    <div className="erp mx-auto w-full max-w-[1200px] space-y-10 p-4 md:p-6">
+      <header className="space-y-1.5">
+        <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+          Blocks
+        </p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Group / block bookings
+        </h1>
+        <p className="max-w-prose text-sm text-muted-foreground">
+          Create a group master and attach reservations for a shared rooming
+          list. Multi-property month payments:{" "}
+          {formatBtn(
+            [...payByProp.values()].reduce((a, b) => a + b, 0),
+          )}{" "}
+          MTD.
+        </p>
+      </header>
+
+      <BookingGroupCreateForm
+        agents={(agents ?? []).map((a) => ({
+          id: a.id as string,
+          company_name: a.company_name as string,
+        }))}
+        bookings={bookingOpts}
       />
-      <main className="mx-auto max-w-[1200px] space-y-10 px-6 py-10 md:px-8">
-        <header className="space-y-2">
-          <p className="text-[11px] font-semibold tracking-[0.28em] text-gold uppercase">
-            Blocks
-          </p>
-          <h1 className="text-3xl text-espresso">Group / block bookings</h1>
-          <p className="max-w-prose text-sm text-muted-foreground">
-            Create a group master and attach reservations for a shared rooming
-            list. Multi-property month payments:{" "}
-            {formatBtn(
-              [...payByProp.values()].reduce((a, b) => a + b, 0),
-            )}{" "}
-            MTD.
-          </p>
-        </header>
 
-        <BookingGroupCreateForm
-          agents={(agents ?? []).map((a) => ({
-            id: a.id as string,
-            company_name: a.company_name as string,
-          }))}
-          bookings={bookingOpts}
-        />
-
-        <section className="space-y-4">
-          <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-            Groups
-          </h2>
-          {(groups ?? []).length === 0 ? (
-            <p className="border border-espresso/10 bg-white px-5 py-6 text-sm text-muted-foreground">
+      <section className="space-y-4">
+        <h2 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+          Groups
+        </h2>
+        {(groups ?? []).length === 0 ? (
+          <Card>
+            <CardContent className="py-6 text-sm text-muted-foreground">
               No groups yet — create one above.
-            </p>
-          ) : (
-            (groups ?? []).map((g) => {
-              const agent = g.agents as
-                | { company_name?: string }
-                | { company_name?: string }[]
+            </CardContent>
+          </Card>
+        ) : (
+          (groups ?? []).map((g) => {
+            const agent = g.agents as
+              | { company_name?: string }
+              | { company_name?: string }[]
+              | null;
+            const agentName = Array.isArray(agent)
+              ? agent[0]?.company_name
+              : agent?.company_name;
+            const members = (g.booking_group_members as {
+              booking_id: string;
+              bookings:
+                | {
+                    id: string;
+                    contact_name: string | null;
+                    status: string;
+                    check_in: string;
+                    check_out: string;
+                  }
+                | {
+                    id: string;
+                    contact_name: string | null;
+                    status: string;
+                    check_in: string;
+                    check_out: string;
+                  }[]
                 | null;
-              const agentName = Array.isArray(agent)
-                ? agent[0]?.company_name
-                : agent?.company_name;
-              const members = (g.booking_group_members as {
-                booking_id: string;
-                bookings:
-                  | {
-                      id: string;
-                      contact_name: string | null;
-                      status: string;
-                      check_in: string;
-                      check_out: string;
-                    }
-                  | {
-                      id: string;
-                      contact_name: string | null;
-                      status: string;
-                      check_in: string;
-                      check_out: string;
-                    }[]
-                  | null;
-              }[] | null) ?? [];
+            }[] | null) ?? [];
 
-              return (
-                <article
-                  key={g.id as string}
-                  className="border border-espresso/10 bg-white p-5"
-                >
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <div>
-                      <h3 className="text-lg font-medium text-espresso">
-                        {g.name as string}
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        {agentName ?? "No agent"} Â·{" "}
-                        {fmtDate(g.check_in as string | null)} →{" "}
-                        {fmtDate(g.check_out as string | null)}
-                      </p>
-                    </div>
-                    <StatusPill value={g.status as string} />
+            return (
+              <Card key={g.id as string} className="gap-0 p-5">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <div>
+                    <h3 className="text-lg font-medium text-foreground">
+                      {g.name as string}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      {agentName ?? "No agent"} ·{" "}
+                      {fmtDate(g.check_in as string | null)} →{" "}
+                      {fmtDate(g.check_out as string | null)}
+                    </p>
                   </div>
-                  <ul className="mt-4 divide-y divide-espresso/10 border-t border-espresso/10">
-                    {members.length === 0 ? (
-                      <li className="py-3 text-sm text-muted-foreground">No rooming list yet.</li>
-                    ) : (
-                      members.map((m) => {
-                        const b = Array.isArray(m.bookings)
-                          ? m.bookings[0]
-                          : m.bookings;
-                        if (!b) return null;
-                        return (
-                          <li
-                            key={m.booking_id}
-                            className="flex flex-wrap items-baseline justify-between gap-2 py-3 text-sm"
+                  <StatusPill value={g.status as string} />
+                </div>
+                <ul className="mt-4 divide-y border-t">
+                  {members.length === 0 ? (
+                    <li className="py-3 text-sm text-muted-foreground">
+                      No rooming list yet.
+                    </li>
+                  ) : (
+                    members.map((m) => {
+                      const b = Array.isArray(m.bookings)
+                        ? m.bookings[0]
+                        : m.bookings;
+                      if (!b) return null;
+                      return (
+                        <li
+                          key={m.booking_id}
+                          className="flex flex-wrap items-baseline justify-between gap-2 py-3 text-sm"
+                        >
+                          <span className="font-medium text-foreground">
+                            {b.contact_name ?? "Guest"}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {fmtDate(b.check_in)} → {fmtDate(b.check_out)} ·{" "}
+                            {b.status}
+                          </span>
+                          <a
+                            href={`/erp/check-in?id=${b.id}`}
+                            className="text-accent underline-offset-4 hover:underline"
                           >
-                            <span className="font-medium text-espresso">
-                              {b.contact_name ?? "Guest"}
-                            </span>
-                            <span className="text-muted-foreground">
-                              {fmtDate(b.check_in)} → {fmtDate(b.check_out)} Â·{" "}
-                              {b.status}
-                            </span>
-                            <a
-                              href={`/erp/check-in?booking=${b.id}`}
-                              className="text-maroon underline-offset-4 hover:underline"
-                            >
-                              Open →
-                            </a>
-                          </li>
-                        );
-                      })
-                    )}
-                  </ul>
-                  <AddToGroupForm
-                    groupId={g.id as string}
-                    bookings={bookingOpts}
-                  />
-                </article>
-              );
-            })
-          )}
-        </section>
-      </main>
+                            Open →
+                          </a>
+                        </li>
+                      );
+                    })
+                  )}
+                </ul>
+                <AddToGroupForm
+                  groupId={g.id as string}
+                  bookings={bookingOpts}
+                />
+              </Card>
+            );
+          })
+        )}
+      </section>
     </div>
   );
 }

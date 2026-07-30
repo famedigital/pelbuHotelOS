@@ -12,7 +12,8 @@ export function verifyDeskPin(pin: string): boolean {
   return pin.trim() === expected;
 }
 
-export async function isDeskAuthenticated(): Promise<boolean> {
+/** Shared DESK_PIN cookie only (not staff Auth). */
+export async function hasDeskPinSession(): Promise<boolean> {
   if (!deskPinConfigured()) {
     // Dev-friendly: allow inbox when pin not set (local only warning in UI).
     return process.env.NODE_ENV !== "production";
@@ -21,6 +22,22 @@ export async function isDeskAuthenticated(): Promise<boolean> {
   const token = jar.get(COOKIE)?.value;
   const expected = process.env.DESK_PIN?.trim();
   return Boolean(token && expected && token === `ok:${expected}`);
+}
+
+/**
+ * Desk / Work access: shared DESK_PIN session OR staff Auth with
+ * `staff_members.can_access_desk`. Call sites keep using this helper.
+ */
+export async function isDeskAuthenticated(): Promise<boolean> {
+  if (await hasDeskPinSession()) return true;
+
+  try {
+    const { getStaffSession } = await import("@/lib/staff-auth");
+    const staff = await getStaffSession();
+    return Boolean(staff?.canAccessDesk);
+  } catch {
+    return false;
+  }
 }
 
 export function deskCookieValue(pin: string): string {

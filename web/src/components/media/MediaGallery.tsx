@@ -1,3 +1,6 @@
+"use client";
+
+import { CloudinaryMedia } from "@/components/media/CloudinaryMedia";
 import type { CmsMediaItem } from "@/lib/cms";
 
 type Props = {
@@ -6,7 +9,9 @@ type Props = {
 };
 
 export function MediaGallery({ items, label = "Gallery" }: Props) {
-  const visible = items.filter((item) => item.src);
+  const visible = items.filter(
+    (item) => item.src || item.public_id,
+  );
   if (visible.length === 0) return null;
 
   const leadIndex = visible.findIndex((item) => item.kind === "gallery");
@@ -20,16 +25,18 @@ export function MediaGallery({ items, label = "Gallery" }: Props) {
     <section aria-label={label} className="space-y-4">
       <h2 className="text-sm font-medium text-ink">{label}</h2>
 
-      {lead?.src ? (
+      {lead ? (
         <div className="overflow-hidden bg-secondary">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <CloudinaryMedia
+            publicId={lead.public_id}
             src={lead.src}
             alt={lead.alt || ""}
-            className="aspect-[16/9] w-full object-cover"
-            loading="eager"
-            width={960}
-            height={540}
+            resourceType={lead.resource_type}
+            posterPublicId={lead.poster_public_id}
+            ratio="16/9"
+            cinematic={lead.resource_type === "video"}
+            priority
+            sizes="100vw"
           />
         </div>
       ) : null}
@@ -37,14 +44,16 @@ export function MediaGallery({ items, label = "Gallery" }: Props) {
       <ul className="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-3">
         {gridItems.map((item) => (
           <li key={item.id} className="overflow-hidden bg-secondary">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={item.src!}
+            <CloudinaryMedia
+              publicId={item.public_id}
+              src={item.src}
               alt={item.alt || ""}
-              className="aspect-[4/3] w-full object-cover"
-              loading="lazy"
-              width={480}
-              height={360}
+              resourceType={item.resource_type}
+              posterPublicId={item.poster_public_id}
+              ratio="4/3"
+              cinematic={false}
+              controls={item.resource_type === "video"}
+              sizes="(max-width: 768px) 50vw, 33vw"
             />
           </li>
         ))}

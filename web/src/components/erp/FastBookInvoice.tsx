@@ -1,5 +1,8 @@
 "use client";
 
+import { cloudinaryUrl } from "@/lib/cloudinary";
+import type { PropertyDocumentDesign } from "@/lib/property-settings";
+
 export type FastBookInvoiceData = {
   bookingId: string;
   checkIn: string;
@@ -11,6 +14,16 @@ export type FastBookInvoiceData = {
   sourceLabel?: string;
   paymentLabel?: string;
   lines: { name: string; code: string; qty: number; kind: string }[];
+};
+
+type InvoiceProperty = {
+  name: string;
+  legal_name?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  tax_id?: string | null;
+  logo_public_id?: string | null;
 };
 
 function fmtIso(iso: string): string {
@@ -38,23 +51,83 @@ const PAYMENT_LABELS: Record<string, string> = {
   on_credit: "On credit",
 };
 
-export function FastBookInvoice({ data }: { data: FastBookInvoiceData }) {
+export function FastBookInvoice({
+  data,
+  property,
+  design,
+}: {
+  data: FastBookInvoiceData;
+  property?: InvoiceProperty;
+  design?: PropertyDocumentDesign;
+}) {
   const sourceLabel = data.sourceLabel ?? SOURCE_LABELS[data.sourceLabel ?? ""] ?? data.sourceLabel;
   const paymentLabel = data.paymentLabel ?? PAYMENT_LABELS[data.paymentLabel ?? ""] ?? data.paymentLabel;
+  const brandName = property?.name ?? "Pelbu Suites";
+  const legalName = property?.legal_name ?? brandName;
+  const logoSrc = property?.logo_public_id
+    ? cloudinaryUrl(property.logo_public_id, { width: 180, crop: "fit" })
+    : null;
+  const brandColor = design?.brand_color ?? "#7b1e3a";
+  const accentColor = design?.accent_color ?? "#d46f92";
+  const headerText = design?.header_text ?? "Direct billing summary.";
+  const footerText = design?.footer_text ?? "Rates applied on save — see folio.";
+  const showAddress = design?.show_address ?? true;
+  const showPhone = design?.show_phone ?? true;
+  const showEmail = design?.show_email ?? true;
+  const showTaxId = design?.show_tax_id ?? true;
 
   return (
     <section
-      className="border border-espresso/10 bg-white px-6 py-6 print:hidden"
+      className="erp rounded-lg border bg-card px-6 py-6 print:hidden"
       aria-label="Desk invoice"
+      style={{
+        borderColor: accentColor,
+        background:
+          design?.preset === "branded"
+            ? `linear-gradient(180deg, ${accentColor}12, transparent 30%)`
+            : undefined,
+      }}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-xs font-semibold tracking-[0.28em] text-gold uppercase">
-          Desk invoice
-        </h2>
+        <div>
+          <p
+            className="text-[11px] font-semibold tracking-[0.2em] uppercase"
+            style={{ color: brandColor }}
+          >
+            {brandName}
+          </p>
+          <h2 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+            Desk invoice
+          </h2>
+        </div>
         <p className="font-mono text-[11px] text-muted-foreground">{data.bookingId}</p>
       </div>
 
-      <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm text-espresso sm:grid-cols-4">
+      {(logoSrc || showAddress || showPhone || showEmail || showTaxId) && (
+        <div
+          className="mt-3 flex flex-wrap items-start justify-between gap-4 border-b pb-4"
+          style={{ borderColor: brandColor }}
+        >
+          <div className="space-y-1 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">{legalName}</p>
+            <p>{headerText}</p>
+            {showAddress && property?.address ? <p>{property.address}</p> : null}
+            {showPhone && property?.phone ? <p>{property.phone}</p> : null}
+            {showEmail && property?.email ? <p>{property.email}</p> : null}
+            {showTaxId && property?.tax_id ? <p>GST/TAX: {property.tax_id}</p> : null}
+          </div>
+          {logoSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoSrc}
+              alt={`${brandName} logo`}
+              className="h-14 w-auto object-contain"
+            />
+          ) : null}
+        </div>
+      )}
+
+      <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm text-foreground sm:grid-cols-4">
         <Field label="Check-in" value={fmtIso(data.checkIn)} />
         <Field label="Check-out" value={fmtIso(data.checkOut)} />
         <Field label="Nights" value={String(data.nights)} />
@@ -65,9 +138,9 @@ export function FastBookInvoice({ data }: { data: FastBookInvoiceData }) {
         {paymentLabel ? <Field label="Payment" value={paymentLabel} /> : null}
       </dl>
 
-      <div className="mt-5 overflow-hidden rounded-sm border border-espresso/10">
+      <div className="mt-5 overflow-hidden rounded-lg border">
         <table className="w-full border-collapse text-sm">
-          <thead className="bg-espresso/[0.04] text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          <thead className="bg-muted/40 text-[11px] tracking-[0.18em] text-muted-foreground uppercase">
             <tr>
               <th scope="col" className="px-3 py-2 text-left font-semibold">
                 Room / bed
@@ -92,11 +165,11 @@ export function FastBookInvoice({ data }: { data: FastBookInvoiceData }) {
               </tr>
             ) : (
               data.lines.map((l) => (
-                <tr key={`${l.code}-${l.name}`} className="border-t border-espresso/10">
-                  <td className="px-3 py-2 text-espresso">{l.name}</td>
+                <tr key={`${l.code}-${l.name}`} className="border-t">
+                  <td className="px-3 py-2 text-foreground">{l.name}</td>
                   <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{l.code}</td>
-                  <td className="px-3 py-2 text-right font-mono text-espresso">{l.qty}</td>
-                  <td className="px-3 py-2 text-right font-mono text-espresso">{data.nights}</td>
+                  <td className="px-3 py-2 text-right font-mono text-foreground">{l.qty}</td>
+                  <td className="px-3 py-2 text-right font-mono text-foreground">{data.nights}</td>
                 </tr>
               ))
             )}
@@ -104,8 +177,8 @@ export function FastBookInvoice({ data }: { data: FastBookInvoiceData }) {
         </table>
       </div>
 
-      <p className="mt-4 border-t border-espresso/10 pt-3 text-xs italic text-muted-foreground">
-        Rates applied on save — see folio.
+      <p className="mt-4 border-t pt-3 text-xs italic text-muted-foreground">
+        {footerText}
       </p>
     </section>
   );
@@ -114,8 +187,8 @@ export function FastBookInvoice({ data }: { data: FastBookInvoiceData }) {
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 text-espresso">{value}</dd>
+      <dt className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">{label}</dt>
+      <dd className="mt-0.5 text-foreground">{value}</dd>
     </div>
   );
 }

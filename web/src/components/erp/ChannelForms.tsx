@@ -25,7 +25,7 @@ function Flash({ state }: { state: ErpChannelState }) {
   if (!state.ok && !state.error) return null;
   return (
     <p
-      className={`mt-2 text-sm ${state.ok ? "text-espresso" : "text-maroon"}`}
+      className={`erp mt-2 text-sm ${state.ok ? "text-foreground" : "text-destructive"}`}
       role="status"
     >
       {state.ok ? state.message : state.error}
@@ -39,8 +39,8 @@ export function ChannelMapForm({ roomTypes }: { roomTypes: RoomTypeOpt[] }) {
   const [state, action, pending] = useActionState(saveChannelRoomMap, initial);
   useActionToast(state, { successMessage: "Room mapping saved" });
   return (
-    <form action={action} className="space-y-3 border border-espresso/10 bg-white p-4">
-      <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
+    <form action={action} className="erp space-y-3 rounded-lg border bg-card p-4">
+      <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
         Map room type
       </h3>
       <div className="space-y-1.5">
@@ -86,7 +86,7 @@ export function ChannelMapForm({ roomTypes }: { roomTypes: RoomTypeOpt[] }) {
         </Label>
         <Input id="external_rate_plan_id" name="external_rate_plan_id" />
       </div>
-      <Button type="submit" variant="gold" disabled={pending} className="min-h-10">
+      <Button type="submit" variant="citrus" disabled={pending} className="h-10 w-full">
         {pending ? "Saving…" : "Save map"}
       </Button>
       <Flash state={state} />
@@ -104,8 +104,8 @@ export function ChannelStatusForm({
   const [state, action, pending] = useActionState(setChannelStatus, initial);
   useActionToast(state, { successMessage: "Connection updated" });
   return (
-    <form action={action} className="space-y-3 border border-espresso/10 bg-white p-4">
-      <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
+    <form action={action} className="erp space-y-3 rounded-lg border bg-card p-4">
+      <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
         Connection
       </h3>
       <div className="space-y-1.5">
@@ -141,7 +141,7 @@ export function ChannelStatusForm({
       <Button
         type="submit"
         disabled={pending}
-        className="min-h-10 bg-espresso text-ivory hover:bg-espresso/90"
+        className="h-10 w-full"
       >
         {pending ? "Saving…" : "Update connection"}
       </Button>
@@ -168,8 +168,8 @@ export function ChannelQueueActions() {
   useActionToast(pullState, { successMessage: "Bookings pulled" });
 
   return (
-    <div className="space-y-4 border border-espresso/10 bg-white p-4">
-      <h3 className="text-xs font-semibold tracking-[0.18em] text-gold uppercase">
+    <div className="erp space-y-4 rounded-lg border bg-card p-4">
+      <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
         ARI / bookings
       </h3>
       <p className="text-xs text-muted-foreground">
@@ -183,7 +183,7 @@ export function ChannelQueueActions() {
             variant="outline"
             size="sm"
             disabled={syncPending}
-            className="min-h-10 text-xs"
+            className="h-10 text-xs"
           >
             {syncPending ? "Queuing…" : "Queue 90d ARI"}
           </Button>
@@ -191,10 +191,10 @@ export function ChannelQueueActions() {
         <form action={flushAction}>
           <Button
             type="submit"
-            variant="gold"
+            variant="citrus"
             size="sm"
             disabled={flushPending}
-            className="min-h-10 text-xs"
+            className="h-10 text-xs"
           >
             {flushPending ? "Flushing…" : "Flush ARI queue"}
           </Button>
@@ -204,7 +204,7 @@ export function ChannelQueueActions() {
             type="submit"
             size="sm"
             disabled={pullPending}
-            className="min-h-10 bg-espresso text-ivory hover:bg-espresso/90 text-xs"
+            className="h-10 text-xs"
           >
             {pullPending ? "Pulling…" : "Pull booking feed"}
           </Button>
@@ -221,14 +221,14 @@ export function AckRevisionButton({ revisionId }: { revisionId: string }) {
   const [state, action, pending] = useActionState(ackChannelRevision, initial);
   useActionToast(state, { successMessage: "Revision acknowledged" });
   return (
-    <form action={action} className="inline">
+    <form action={action} className="erp inline">
       <input type="hidden" name="revision_id" value={revisionId} />
       <Button
         type="submit"
         variant="ghost"
         size="sm"
         disabled={pending}
-        className="text-xs font-medium text-maroon"
+        className="text-xs font-medium text-accent"
       >
         {pending ? "Acking…" : "Ack"}
       </Button>

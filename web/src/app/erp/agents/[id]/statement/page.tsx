@@ -77,7 +77,7 @@ export default async function AgentStatementPage({ params }: Props) {
       title="Statement"
       eyebrow="Agent"
       heading={(agent.company_name as string) ?? "Agent"}
-      blurb={`${agent.market as string} Â· ${agent.contact_name ?? ""} Â· ${agent.contact_phone ?? ""} — print this page for aging / collection.`}
+      blurb={`${agent.market as string} · ${agent.contact_name ?? ""} · ${agent.contact_phone ?? ""} — print this page for aging / collection.`}
     >
       <div className="grid gap-3 sm:grid-cols-4 print:grid-cols-4">
         {[
@@ -86,11 +86,11 @@ export default async function AgentStatementPage({ params }: Props) {
           ["Folio charges", formatBtn(folioTotal)],
           ["Outstanding", formatBtn(outstanding)],
         ].map(([label, val]) => (
-          <div key={label} className="border border-espresso/10 bg-white px-4 py-4">
-            <p className="text-[11px] font-semibold tracking-[0.18em] text-gold uppercase">
+          <div key={label} className="rounded-lg border bg-card px-4 py-4">
+            <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
               {label}
             </p>
-            <p className="mt-2 text-xl tabular-nums text-espresso">{val}</p>
+            <p className="mt-2 text-xl tabular-nums text-foreground">{val}</p>
           </div>
         ))}
       </div>
@@ -98,7 +98,7 @@ export default async function AgentStatementPage({ params }: Props) {
       <div className="flex gap-2 print:hidden">
         <a
           href="/erp/agents"
-          className="inline-flex min-h-10 items-center border border-espresso/20 px-4 text-sm"
+          className="inline-flex min-h-10 items-center rounded-md border px-4 text-sm"
         >
           ← Agents
         </a>
@@ -120,7 +120,7 @@ export default async function AgentStatementPage({ params }: Props) {
             const folios = (b.folios as { id: string; label: string }[] | null) ?? [];
             const folio = folios[0];
             return (
-              <tr key={b.id as string} className="border-t border-espresso/10">
+              <tr key={b.id as string} className="border-t">
                 <td className="px-3 py-2.5 font-medium">
                   {(b.contact_name as string) ?? "Guest"}
                 </td>
@@ -137,7 +137,7 @@ export default async function AgentStatementPage({ params }: Props) {
                   {folio ? (
                     <a
                       href={`/erp/folios/${folio.id}`}
-                      className="text-maroon underline-offset-4 hover:underline"
+                      className="text-accent underline-offset-4 hover:underline"
                     >
                       Folio →
                     </a>
@@ -153,7 +153,7 @@ export default async function AgentStatementPage({ params }: Props) {
 
       <DeskTable caption="Payments" headers={["When", "Amount", "Method", "Ref"]}>
         {(payments ?? []).map((p) => (
-          <tr key={p.id as string} className="border-t border-espresso/10">
+          <tr key={p.id as string} className="border-t">
             <td className="px-3 py-2.5 text-sm">
               {new Date(p.created_at as string).toLocaleDateString("en-BT")}
             </td>

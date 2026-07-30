@@ -4,7 +4,7 @@ import {
   ChannelQueueActions,
   ChannelStatusForm,
 } from "@/components/erp/ChannelForms";
-import { DeskHeader } from "@/components/erp/DeskHeader";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getChannexConfig } from "@/lib/channel/channex-client";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
@@ -31,11 +31,8 @@ export default async function ErpChannelPage() {
   const propertyId = property?.id as string | undefined;
   if (!propertyId) {
     return (
-      <div className="min-h-screen bg-ivory">
-        <DeskHeader title="Channel" />
-        <main className="mx-auto max-w-[1200px] px-6 py-10">
-          <p className="text-sm text-maroon">Property not configured.</p>
-        </main>
+      <div className="erp mx-auto w-full max-w-[1200px] p-6">
+        <p className="text-sm text-destructive">Property not configured.</p>
       </div>
     );
   }
@@ -88,119 +85,123 @@ export default async function ErpChannelPage() {
   const pendingAri = (queue ?? []).filter((q) => q.status === "pending").length;
 
   return (
-    <div className="min-h-screen bg-ivory">
-      <DeskHeader title="Channel" />
-      <main className="mx-auto max-w-[1200px] space-y-12 px-6 py-10 md:px-8">
-        <section>
-          <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
+    <div className="erp mx-auto w-full max-w-[1200px] space-y-10 p-4 md:p-6">
+      <section className="space-y-3">
+        <div className="space-y-1">
+          <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
             Channex (P6)
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+          </p>
+          <p className="max-w-2xl text-sm text-muted-foreground">
             Event-driven ARI outbox + booking revision inbox. Certification needs staging
             credentials, room/rate maps, then flush/ack against Channex — not DIY OTA APIs.
           </p>
-          <div className="mt-4 grid gap-4 sm:grid-cols-3">
-            <Stat label="Connection" value={(conn?.status as string) ?? "missing"} />
-            <Stat label="API key" value={apiReady ? "set" : "missing"} />
-            <Stat label="Pending ARI" value={String(pendingAri)} />
-          </div>
-          {conn?.notes ? (
-            <p className="mt-3 text-xs text-muted-foreground">{conn.notes as string}</p>
-          ) : null}
-        </section>
-
-        <div className="grid gap-8 lg:grid-cols-3">
-          <ChannelStatusForm
-            status={(conn?.status as string) ?? "draft"}
-            externalPropertyId={(conn?.external_property_id as string | null) ?? null}
-          />
-          <ChannelMapForm
-            roomTypes={(roomTypes ?? []).map((r) => ({
-              id: r.id as string,
-              code: r.code as string,
-              name: r.name as string,
-            }))}
-          />
-          <ChannelQueueActions />
         </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Stat label="Connection" value={(conn?.status as string) ?? "missing"} />
+          <Stat label="API key" value={apiReady ? "set" : "missing"} />
+          <Stat label="Pending ARI" value={String(pendingAri)} />
+        </div>
+        {conn?.notes ? (
+          <p className="text-xs text-muted-foreground">{conn.notes as string}</p>
+        ) : null}
+      </section>
 
-        <section>
-          <div className="border-b border-espresso/15 pb-2">
-            <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-              Room maps
-            </h2>
-          </div>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <ChannelStatusForm
+          status={(conn?.status as string) ?? "draft"}
+          externalPropertyId={(conn?.external_property_id as string | null) ?? null}
+        />
+        <ChannelMapForm
+          roomTypes={(roomTypes ?? []).map((r) => ({
+            id: r.id as string,
+            code: r.code as string,
+            name: r.name as string,
+          }))}
+        />
+        <ChannelQueueActions />
+      </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+            Room maps
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           {(maps ?? []).length === 0 ? (
-            <p className="mt-4 text-sm text-muted-foreground">No maps yet — sellable guest types only.</p>
+            <p className="text-sm text-muted-foreground">
+              No maps yet — sellable guest types only.
+            </p>
           ) : (
-            <ul className="mt-2">
+            <ul className="divide-y">
               {(maps ?? []).map((m) => (
                 <li
                   key={m.id as string}
-                  className="border-b border-espresso/10 py-3 font-mono text-xs text-espresso"
+                  className="py-3 font-mono text-xs text-foreground"
                 >
                   {(m.room_types as { code?: string } | null)?.code ?? m.room_type_id} →{" "}
                   {m.external_room_type_id as string}
                   {m.external_rate_plan_id
-                    ? ` Â· rate ${m.external_rate_plan_id as string}`
+                    ? ` · rate ${m.external_rate_plan_id as string}`
                     : ""}
                 </li>
               ))}
             </ul>
           )}
-        </section>
+        </CardContent>
+      </Card>
 
-        <div className="grid gap-10 lg:grid-cols-2">
-          <section>
-            <div className="border-b border-espresso/15 pb-2">
-              <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-                ARI queue
-              </h2>
-            </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+              ARI queue
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             {(queue ?? []).length === 0 ? (
-              <p className="mt-4 text-sm text-muted-foreground">Queue empty.</p>
+              <p className="text-sm text-muted-foreground">Queue empty.</p>
             ) : (
-              <ul className="mt-2">
+              <ul className="divide-y">
                 {(queue ?? []).map((q) => (
-                  <li
-                    key={q.id as string}
-                    className="border-b border-espresso/10 py-3 text-sm"
-                  >
-                    <p className="font-medium text-espresso">
-                      {q.kind as string} Â· {q.status as string}
+                  <li key={q.id as string} className="py-3 text-sm">
+                    <p className="font-medium text-foreground">
+                      {q.kind as string} · {q.status as string}
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      {String(q.created_at).slice(0, 16).replace("T", " ")} Â· attempts{" "}
+                      {String(q.created_at).slice(0, 16).replace("T", " ")} · attempts{" "}
                       {q.attempts as number}
-                      {q.last_error ? ` Â· ${String(q.last_error).slice(0, 80)}` : ""}
+                      {q.last_error ? ` · ${String(q.last_error).slice(0, 80)}` : ""}
                     </p>
                   </li>
                 ))}
               </ul>
             )}
-          </section>
+          </CardContent>
+        </Card>
 
-          <section>
-            <div className="border-b border-espresso/15 pb-2">
-              <h2 className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
-                Booking revisions
-              </h2>
-            </div>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+              Booking revisions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             {(revisions ?? []).length === 0 ? (
-              <p className="mt-4 text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 No revisions — pull feed or POST webhook{" "}
                 <code className="font-mono text-[11px]">/api/channel/channex/webhook</code>.
               </p>
             ) : (
-              <ul className="mt-2">
+              <ul className="divide-y">
                 {(revisions ?? []).map((r) => (
                   <li
                     key={r.id as string}
-                    className="flex flex-wrap items-baseline justify-between gap-2 border-b border-espresso/10 py-3 text-sm"
+                    className="flex flex-wrap items-baseline justify-between gap-2 py-3 text-sm"
                   >
                     <div>
-                      <p className="font-medium text-espresso">
-                        {r.revision_type as string} Â· {r.status as string}
+                      <p className="font-medium text-foreground">
+                        {r.revision_type as string} · {r.status as string}
                       </p>
                       <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">
                         {r.external_revision_id as string}
@@ -213,20 +214,22 @@ export default async function ErpChannelPage() {
                 ))}
               </ul>
             )}
-          </section>
-        </div>
-      </main>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border border-espresso/10 bg-white px-4 py-4">
-      <p className="text-[10px] font-semibold tracking-[0.18em] text-gold uppercase">
-        {label}
-      </p>
-      <p className="mt-2 text-lg text-espresso">{value}</p>
-    </div>
+    <Card className="gap-2 py-4">
+      <CardContent>
+        <p className="text-[10px] font-semibold tracking-[0.18em] text-accent uppercase">
+          {label}
+        </p>
+        <p className="mt-2 text-lg font-semibold text-foreground">{value}</p>
+      </CardContent>
+    </Card>
   );
 }

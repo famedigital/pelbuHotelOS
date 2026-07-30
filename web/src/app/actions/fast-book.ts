@@ -276,6 +276,22 @@ export async function createFastBooking(
       throw new Error("Could not save room lines. Apply fast-book migration.");
     }
 
+    try {
+      const { assignRoomsForBooking } = await import("@/lib/room-assignments");
+      const preferredUnitId = optionalTrim(formData.get("room_unit_id"));
+      await assignRoomsForBooking(admin, {
+        propertyId: property.id as string,
+        bookingId: booking.id as string,
+        checkIn,
+        checkOut,
+        lines,
+        preferredUnitId,
+      });
+    } catch (assignErr) {
+      console.error("createFastBooking assign failed", assignErr);
+      // Booking stays; rack may show unassigned until ensureAssignments runs.
+    }
+
     if (paymentMode === "on_credit" && agentId && creditChargeBtn > 0) {
       try {
         await chargeAgentCredit(admin, {
@@ -321,6 +337,7 @@ export async function createFastBooking(
     revalidatePath("/erp/agents");
     revalidatePath("/erp/fast-book");
     revalidatePath("/erp/channel");
+    revalidatePath("/erp/calendar");
 
     return { ok: true, bookingId: booking.id };
   } catch (err) {

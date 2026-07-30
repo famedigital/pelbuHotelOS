@@ -3,17 +3,52 @@
 Use before cutting over from Excel. Desk PIN: `DESK_PIN`. Property slug: `pelbu-suites-olakha`.
 
 ## Public site
-- [ ] Home / rooms / dine / spa / meeting / agents / contact load on mobile
-- [ ] Book request creates `pending` booking
+- [ ] Home / rooms / dine / spa / meeting / FAQ / Olakha guide / agents / contact load at 375px and 1440px
+- [ ] Only the homepage has a cinematic hero; task routes open directly on their engine
+- [ ] Book dates/nights, room, and meal plan produce the correct live quote
+- [ ] Book request creates a live `held` booking with the configured hold expiry
 - [ ] Cafe/restaurant order creates KOT ticket on `/erp`
+- [ ] Order search/category filters, mobile cart, pickup, and Thimphu taxi fields work
+- [ ] Order totals are recomputed from live DB prices; altered client totals are ignored
+- [ ] Spa and meeting choices come from active `service_offerings`
+- [ ] Spa/meeting request respects offering capacity and creates a pending request
 - [ ] Menu images + room blurbs resolve (Cloudinary)
+- [ ] Public PWA installs; offline fallback loads; footer nav does not overlap cart/actions
+- [ ] `/sitemap.xml`, `/robots.txt`, `/llms.txt`, FAQ/room/restaurant JSON-LD validate
 
 ## Desk — rooms
 - [ ] `/erp/fast-book` overbooking guard (qty vs overlapping confirmed/checked_in)
-- [ ] Guide number required for agent bookings
-- [ ] Check-in requires guide; assigns guest + guide/driver beds
-- [ ] Cancel / no-show frees inventory; ARI queued if channel mapped
-- [ ] `/erp/rooms` HK status toggles
+- [ ] Guide number required for **international** `guest_origin` only; regional/official/local can skip
+- [ ] Check-in assigns guest + guide/driver beds; partner pickers link master rows
+- [ ] Check-in **Room allocation** shows physical units + HK readiness; blocks dirty/OOO guest rooms unless override
+- [ ] Multi-guest rooming list maps each guest to an assigned room; guide/driver occupants saved
+- [ ] Arrivals board: Check in CTA + badges (rooms / HK / guide / SDF / deposit / credit)
+- [ ] Checkout shows folio balance + rooms; vacated units become `dirty` for HK
+- [ ] Day sheet prints room numbers, occupants, guide/driver, payment, arrival blockers
+- [ ] Cancel / no-show frees inventory (`room_assignments`); ARI queued if channel mapped
+- [ ] `/erp/rooms` HK status toggles (active property, live refresh)
+- [ ] `/erp/settings` Rooms tab: add category + rename unit labels
+
+## Desk — calendar (`/erp/calendar`)
+- [ ] Full-bleed rack: scroll rooms + dates; sticky room column + day header
+- [ ] Drag-select multi-room × multi-night (e.g. rooms 4–6 × Aug 2–4) opens reservation modal
+- [ ] Single-row selection → one booking; multi-row → group + children
+- [ ] Mixed category selection shows badges + requires acknowledgement
+- [ ] Occupied / blocked cells refuse selection with clear conflict
+- [ ] HoverCard on stay bar; click opens edit modal (save details, resize dates, split, lock)
+- [ ] Same-type drag-move + 60s undo; cross-type move prompts Continue / Override
+- [ ] Unassigned pool → click compatible empty cell to assign
+- [ ] Room label click → create OOO/OOS/hold block; release from UI
+- [ ] Search guest/phone/guide → scroll + flash; Arrivals / In-house / Departures filters
+- [ ] Monthly occupancy cards + Today rooms update; Live badge refreshes on change
+- [ ] Day sheet print: `/erp/calendar/day-sheet`
+
+## Desk — shell / settings
+- [ ] Sidebar groups navigate; property switcher changes active hotel
+- [ ] Mobile footer tabs: Calendar / Book / Stay / POS / More; no top hamburger
+- [ ] More sheet reaches every ERP module and sign-out
+- [ ] Legacy wide tables scroll with a sticky first column on mobile
+- [ ] `/erp/settings` identity + logo, GST/service defaults, document presets + preview
 
 ## Desk — money
 - [ ] POS order → KOT board live refresh
@@ -25,9 +60,23 @@ Use before cutting over from Excel. Desk PIN: `DESK_PIN`. Property slug: `pelbu-
 - [ ] Night audit one run per business date
 - [ ] `/erp/finance` expense + bank JSON import + match
 - [ ] Reports CSV export (payments / expenses / folio lines)
+- [ ] Finance workspace: Overview KPIs, Income, Expenses, Banking, Accounting journals
+- [ ] Opening balances draft → approve & post
+- [ ] Period close checklist → lock period
+- [ ] Expenses workbench: spreadsheet edit, camera/upload receipt, Save & post
+- [ ] Receipt PDF import → staged review → commit (GST not invented from TPN)
+- [ ] Banking PDF import with approved parser → commit → unmatched queue
+- [ ] Settings → Finance imports: upload/test/approve parser; Gemini status without key
+- [ ] Finance Excel exports: P&L, trial balance, balance sheet, GST, month-end pack
+- [ ] Manual journal posts and appears on trial balance
 
 ## Agents
-- [ ] Apply → approve → portal token
+- [ ] Apply → approve → issue agent code/PIN → `/agents/login`
+- [ ] Agent lands on `/agents/app` with Book / Calendar / Account footer tabs
+- [ ] Agent sees only own bookings plus anonymous room availability
+- [ ] Agent booking uses own `agent_id` and rate tier; desk confirms credit
+- [ ] Invalid, disabled, pending, or suspended agent cannot open the app
+- [ ] Legacy portal token still works during migration
 - [ ] Credit limit blocks over-limit on-credit book
 - [ ] Agent voucher has **no** rates
 

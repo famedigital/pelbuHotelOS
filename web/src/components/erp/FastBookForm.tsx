@@ -11,6 +11,13 @@ import { FastBookGrid } from "./FastBookGrid";
 import { FastBookInvoice, type FastBookInvoiceData } from "./FastBookInvoice";
 import { FastBookVoucher, type FastBookVoucherData } from "./FastBookVoucher";
 import { StayDatesField } from "@/components/ui/StayDatesField";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { TriangleAlertIcon } from "lucide-react";
+import type { PropertyDocumentDesign } from "@/lib/property-settings";
 
 export type FastBookRoomType = {
   id: string;
@@ -37,10 +44,6 @@ function todayIso(): string {
   return `${y}-${m}-${day}`;
 }
 
-function fieldClassName() {
-  return "mt-1.5 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2.5 text-sm text-espresso outline-none transition-colors focus:border-gold focus:ring-2 focus:ring-gold/20";
-}
-
 function nightsBetween(checkIn: string, checkOut: string): number {
   if (!checkIn || !checkOut) return 0;
   const a = new Date(`${checkIn}T00:00:00`).getTime();
@@ -55,6 +58,7 @@ type Snapshot = {
   adults: number;
   contactName: string;
   contactPhone: string;
+  agentId?: string;
   agentLabel?: string;
   guideNumber?: string;
   sourceLabel?: string;
@@ -65,18 +69,61 @@ type Snapshot = {
 type Props = {
   roomTypes: FastBookRoomType[];
   agents: FastBookAgent[];
+  property?: {
+    name: string;
+    legal_name?: string | null;
+    address?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    tax_id?: string | null;
+    logo_public_id?: string | null;
+  };
+  invoiceDesign?: PropertyDocumentDesign;
+  voucherDesign?: PropertyDocumentDesign;
+  defaults?: {
+    checkIn?: string;
+    checkOut?: string;
+    roomUnitId?: string;
+    qtyByCode?: Record<string, number>;
+  };
 };
 
-export function FastBookForm({ roomTypes, agents }: Props) {
+export function FastBookForm({
+  roomTypes,
+  agents,
+  property,
+  invoiceDesign,
+  voucherDesign,
+  defaults,
+}: Props) {
   const [state, action, pending] = useActionState(createFastBooking, initial);
   useActionToast(state, { successMessage: "Booking saved" });
   const minCheckIn = useMemo(() => todayIso(), []);
 
-  const [qtyValues, setQtyValues] = useState<Record<string, number>>({});
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [qtyValues, setQtyValues] = useState<Record<string, number>>(
+    () => defaults?.qtyByCode ?? {},
+  );
+  const [drawerOpen, setDrawerOpen] = useState(
+    () => Object.values(defaults?.qtyByCode ?? {}).some((v) => v > 0),
+  );
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
 
   const hasQty = Object.values(qtyValues).some((v) => v > 0);
+  const selectedGuestCategories = useMemo(
+    () =>
+      roomTypes
+        .filter(
+          (roomType) =>
+            roomType.inventory_kind === "sellable_guest" &&
+            (qtyValues[roomType.code] ?? 0) > 0,
+        )
+        .map((roomType) => ({
+          ...roomType,
+          qty: qtyValues[roomType.code] ?? 0,
+        })),
+    [qtyValues, roomTypes],
+  );
+  const hasMixedGuestCategories = selectedGuestCategories.length > 1;
 
   const handleQtyChange = (code: string, value: number) => {
     setQtyValues((prev) => {
@@ -93,6 +140,9 @@ export function FastBookForm({ roomTypes, agents }: Props) {
         bookingId={state.bookingId}
         snapshot={snapshot}
         roomTypes={roomTypes}
+        property={property}
+        invoiceDesign={invoiceDesign}
+        voucherDesign={voucherDesign}
       />
     );
   }
@@ -111,23 +161,31 @@ export function FastBookForm({ roomTypes, agents }: Props) {
           // ignore — form still submits via React action
         }
       }}
-      className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_360px]"
+      className="erp grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_360px]"
     >
+      {defaults?.roomUnitId ? (
+        <input type="hidden" name="room_unit_id" value={defaults.roomUnitId} />
+      ) : null}
       {state.error ? (
-        <p
-          className="border border-maroon/30 bg-maroon/5 px-4 py-3 text-sm text-maroon md:col-span-2"
-          role="alert"
-        >
-          {state.error}
-        </p>
+        <Alert variant="destructive" className="md:col-span-2">
+          <TriangleAlertIcon />
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
       ) : null}
 
       <div className="space-y-6">
-        <div className="space-y-4 border border-espresso/10 bg-white px-5 py-5">
-          <StayDatesField minCheckIn={minCheckIn} defaultMode="nights" />
-          <label className="block max-w-[180px] text-sm text-espresso">
-            Adults
-            <input
+        <div className="space-y-4 rounded-lg border bg-card p-5">
+          <StayDatesField
+            minCheckIn={minCheckIn}
+            defaultMode="nights"
+            defaultCheckIn={defaults?.checkIn}
+            defaultCheckOut={defaults?.checkOut}
+            showNightsAlways
+          />
+          <div className="max-w-[200px] space-y-1.5">
+            <Label htmlFor="adults">Adults</Label>
+            <Input
+              id="adults"
               type="number"
               name="adults"
               required
@@ -135,12 +193,47 @@ export function FastBookForm({ roomTypes, agents }: Props) {
               max={24}
               defaultValue={2}
               inputMode="numeric"
-              className={fieldClassName()}
             />
-          </label>
+          </div>
         </div>
 
-        <div className="border border-espresso/10 bg-white px-5 py-5">
+        <div className="rounded-lg border bg-card p-5">
+          {selectedGuestCategories.length > 0 ? (
+            <div
+              className={`mb-4 rounded-md border p-3 ${
+                hasMixedGuestCategories
+                  ? "border-amber-300 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-950/20"
+                  : "bg-muted/30"
+              }`}
+            >
+              <p className="text-[11px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+                Selected room categories
+              </p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {selectedGuestCategories.map((category) => (
+                  <Badge
+                    key={category.id}
+                    variant={hasMixedGuestCategories ? "maroon" : "secondary"}
+                  >
+                    {category.qty}× {category.name} ({category.code})
+                  </Badge>
+                ))}
+              </div>
+              {hasMixedGuestCategories ? (
+                <label className="mt-3 flex items-start gap-2 text-sm text-amber-900 dark:text-amber-200">
+                  <input
+                    type="checkbox"
+                    required
+                    className="mt-0.5 size-4 accent-amber-600"
+                  />
+                  <span>
+                    I reviewed this mixed-category booking. Rates may differ by
+                    category.
+                  </span>
+                </label>
+              ) : null}
+            </div>
+          ) : null}
           <FastBookGrid
             roomTypes={roomTypes}
             qtyValues={qtyValues}
@@ -199,6 +292,7 @@ function buildSnapshot(
     adults: Number(get("adults") || 0),
     contactName: get("contact_name"),
     contactPhone: get("contact_phone"),
+    agentId: agent?.id,
     agentLabel,
     guideNumber: get("guide_number") || undefined,
     sourceLabel,
@@ -211,10 +305,16 @@ function SuccessSplit({
   bookingId,
   snapshot,
   roomTypes,
+  property,
+  invoiceDesign,
+  voucherDesign,
 }: {
   bookingId: string;
   snapshot: Snapshot | null;
   roomTypes: FastBookRoomType[];
+  property?: Props["property"];
+  invoiceDesign?: PropertyDocumentDesign;
+  voucherDesign?: PropertyDocumentDesign;
 }) {
   // Fallback if snapshot is missing (e.g. JS-disabled submit): minimal invoice only.
   const checkIn = snapshot?.checkIn ?? "";
@@ -242,6 +342,7 @@ function SuccessSplit({
     nights,
     guestName: snapshot?.contactName ?? "",
     guestPhone: snapshot?.contactPhone,
+    agentId: snapshot?.agentId,
     agentLabel: snapshot?.agentLabel,
     guideNumber: snapshot?.guideNumber,
     lines:
@@ -250,33 +351,29 @@ function SuccessSplit({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="erp space-y-4">
       <div className="flex flex-wrap items-baseline justify-between gap-3 print:hidden">
         <div>
-          <p className="text-[11px] font-semibold tracking-[0.28em] text-gold uppercase">
+          <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
             Saved
           </p>
-          <h2 className="mt-1 text-3xl text-espresso">Booking confirmed</h2>
+          <h2 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
+            Booking confirmed
+          </h2>
         </div>
-        <div className="flex flex-wrap gap-3">
-          <a
-            href="/erp/fast-book"
-            className="inline-flex min-h-11 items-center rounded-sm bg-gold px-5 text-sm font-medium text-espresso transition-opacity hover:opacity-90"
-          >
-            Book another
-          </a>
-          <a
-            href="/erp"
-            className="inline-flex min-h-11 items-center rounded-sm border border-espresso/20 px-5 text-sm text-espresso transition-colors hover:border-espresso/40 hover:bg-espresso/[0.03]"
-          >
-            Back to inbox
-          </a>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="citrus" className="h-11">
+            <a href="/erp/fast-book">Book another</a>
+          </Button>
+          <Button asChild variant="outline" className="h-11">
+            <a href="/erp">Back to inbox</a>
+          </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 print:block">
-        <FastBookInvoice data={invoiceData} />
-        <FastBookVoucher data={voucherData} />
+        <FastBookInvoice data={invoiceData} property={property} design={invoiceDesign} />
+        <FastBookVoucher data={voucherData} property={property} design={voucherDesign} />
       </div>
     </div>
   );

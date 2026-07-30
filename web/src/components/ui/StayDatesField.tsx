@@ -8,13 +8,16 @@ type Props = {
   minCheckIn: string;
   defaultMode?: Mode;
   className?: string;
+  defaultCheckIn?: string;
+  defaultCheckOut?: string;
+  showNightsAlways?: boolean;
 };
 
 const LS_KEY = "pelbu.staydates.mode";
-const MAX_NIGHTS = 14;
+const MAX_NIGHTS = 60;
 
 function fieldClassName() {
-  return "mt-1.5 w-full rounded-sm border border-espresso/15 bg-white px-3 py-2.5 text-sm text-espresso outline-none transition-colors focus:border-gold focus:ring-2 focus:ring-gold/20";
+  return "mt-1.5 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/20";
 }
 
 function todayIso(): string {
@@ -57,7 +60,7 @@ function fmtHuman(iso: string): string {
 
 function stepperBtnClassName(disabled?: boolean) {
   return [
-    "inline-flex h-8 w-8 items-center justify-center rounded-sm border border-espresso/15 bg-white text-base text-espresso transition-colors hover:border-espresso/40 hover:bg-espresso/[0.04]",
+    "inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-base text-foreground transition-colors hover:border-primary/40 hover:bg-secondary",
     disabled ? "cursor-not-allowed opacity-40" : "",
   ].join(" ");
 }
@@ -76,13 +79,26 @@ export function StayDatesField({
   minCheckIn,
   defaultMode = "dates",
   className,
+  defaultCheckIn,
+  defaultCheckOut,
+  showNightsAlways = false,
 }: Props) {
   const [mode, setMode] = useState<Mode>(defaultMode);
   const [mounted, setMounted] = useState(false);
 
-  const [checkIn, setCheckIn] = useState<string>(todayIso());
-  const [checkOut, setCheckOut] = useState<string>(addDaysIso(todayIso(), 1));
-  const [nights, setNights] = useState<number>(1);
+  const initialIn = defaultCheckIn && /^\d{4}-\d{2}-\d{2}$/.test(defaultCheckIn)
+    ? defaultCheckIn
+    : todayIso();
+  const initialOut =
+    defaultCheckOut && /^\d{4}-\d{2}-\d{2}$/.test(defaultCheckOut) && defaultCheckOut > initialIn
+      ? defaultCheckOut
+      : addDaysIso(initialIn, 1);
+
+  const [checkIn, setCheckIn] = useState<string>(initialIn);
+  const [checkOut, setCheckOut] = useState<string>(initialOut);
+  const [nights, setNights] = useState<number>(
+    Math.max(1, nightsBetween(initialIn, initialOut) || 1),
+  );
 
   // Load persisted mode once on mount (avoid SSR/hydration mismatch).
   useEffect(() => {
@@ -130,14 +146,14 @@ export function StayDatesField({
 
   return (
     <fieldset className={`space-y-3 ${className ?? ""}`}>
-      <legend className="text-xs font-semibold tracking-[0.22em] text-gold uppercase">
+      <legend className="text-xs font-semibold tracking-[0.22em] text-primary uppercase">
         Stay
       </legend>
 
       <div
         role="tablist"
         aria-label="Stay entry mode"
-        className="inline-flex items-center rounded-full border border-espresso/15 bg-white p-0.5"
+        className="inline-flex items-center rounded-full border border-border bg-card p-0.5"
       >
         {(["dates", "nights"] as const).map((m) => {
           const active = mounted && mode === m;
@@ -151,8 +167,8 @@ export function StayDatesField({
               className={[
                 "min-h-8 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] transition-colors",
                 active
-                  ? "bg-espresso text-ivory"
-                  : "text-muted-foreground hover:text-espresso",
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground",
               ].join(" ")}
             >
               {m === "dates" ? "Dates" : "Nights"}
@@ -165,8 +181,12 @@ export function StayDatesField({
           The hidden inputs below keep SSR form submission valid. */}
       {mounted ? (
         mode === "dates" ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="block text-sm text-espresso">
+        <div
+          className={`grid grid-cols-1 gap-3 ${
+            showNightsAlways ? "sm:grid-cols-3" : "sm:grid-cols-2"
+          }`}
+        >
+          <label className="block text-sm text-foreground">
             Check-in
             <input
               type="date"
@@ -176,7 +196,7 @@ export function StayDatesField({
               className={fieldClassName()}
             />
           </label>
-          <label className="block text-sm text-espresso">
+          <label className="block text-sm text-foreground">
             Check-out
             <input
               type="date"
@@ -184,14 +204,35 @@ export function StayDatesField({
               min={minCheckout}
               onChange={(e) => setCheckOut(e.target.value || "")}
               className={`${fieldClassName()} ${
-                invalid ? "border-maroon/60 text-maroon focus:border-maroon" : ""
+                invalid ? "border-destructive/60 text-destructive focus:border-destructive" : ""
               }`}
             />
           </label>
+          {showNightsAlways ? (
+            <label className="block text-sm text-foreground">
+              No. of nights
+              <input
+                type="number"
+                min={1}
+                max={MAX_NIGHTS}
+                value={nights}
+                inputMode="numeric"
+                onChange={(event) => {
+                  const next = Math.min(
+                    MAX_NIGHTS,
+                    Math.max(1, Math.floor(Number(event.target.value) || 1)),
+                  );
+                  setNights(next);
+                  setCheckOut(addDaysIso(checkIn, next));
+                }}
+                className={fieldClassName()}
+              />
+            </label>
+          ) : null}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-          <label className="block text-sm text-espresso">
+          <label className="block text-sm text-foreground">
             Check-in
             <input
               type="date"
@@ -206,7 +247,7 @@ export function StayDatesField({
               </span>
             ) : null}
           </label>
-          <label className="block text-sm text-espresso">
+          <label className="block text-sm text-foreground">
             Nights
             <div className="mt-1.5 flex items-center gap-1.5">
               <button
@@ -233,7 +274,7 @@ export function StayDatesField({
                       : 1,
                   );
                 }}
-                className="w-16 rounded-sm border border-espresso/15 bg-white px-2 py-2.5 text-center text-sm text-espresso outline-none transition-colors focus:border-gold focus:ring-2 focus:ring-gold/20"
+                className="w-16 rounded-xl border border-border bg-card px-2 py-2.5 text-center text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/20"
               />
               <button
                 type="button"
@@ -251,7 +292,7 @@ export function StayDatesField({
       ) : null}
 
       {invalid && mounted ? (
-        <p className="text-xs text-maroon">Check-out must be after check-in.</p>
+        <p className="text-xs text-destructive">Check-out must be after check-in.</p>
       ) : null}
 
       {/* Hidden inputs preserve the existing server action contract. */}

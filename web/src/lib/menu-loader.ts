@@ -1,25 +1,20 @@
 import type { MenuItem } from "@/lib/menu";
 import { cloudinaryUrl } from "@/lib/cloudinary";
-import { PELBU_PROPERTY_SLUG } from "@/lib/property";
+import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export async function loadMenuByOutlets(
   outlets: string[],
 ): Promise<MenuItem[]> {
   const admin = createSupabaseAdminClient();
-  const { data: property } = await admin
-    .from("properties")
-    .select("id")
-    .eq("slug", PELBU_PROPERTY_SLUG)
-    .single();
-  if (!property) return [];
+  const propertyId = await resolveActivePropertyId(admin);
 
   const { data } = await admin
     .from("menu_items")
     .select(
-      "id, outlet, category, name, description, price_btn, gst_applicable, sort_order, image_public_id",
+      "id, outlet, category, name, description, price_btn, gst_applicable, sort_order, image_public_id, is_popular, prep_station",
     )
-    .eq("property_id", property.id)
+    .eq("property_id", propertyId)
     .eq("is_available", true)
     .in("outlet", outlets)
     .order("sort_order");
@@ -37,8 +32,10 @@ export async function loadMenuByOutlets(
       sort_order: Number(row.sort_order),
       image_public_id: imagePublicId,
       image_src: imagePublicId
-        ? cloudinaryUrl(imagePublicId, { width: 480, crop: "fill" })
+        ? cloudinaryUrl(imagePublicId, { width: 900, crop: "fill" })
         : null,
+      is_popular: Boolean(row.is_popular),
+      prep_station: (row.prep_station as MenuItem["prep_station"]) ?? "kitchen",
     };
   });
 }

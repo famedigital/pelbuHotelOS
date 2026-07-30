@@ -16,6 +16,7 @@ export function KitchenTicketStrip({ openTickets, onOpenTickets }: Props) {
     let parked = 0;
     let online = 0;
     let pendingConfirm = 0;
+    let awaitingPayment = 0;
     const byStation = new Map<string, number>();
     for (const t of openTickets) {
       byStatus.set(t.kot_status, (byStatus.get(t.kot_status) ?? 0) + 1);
@@ -23,9 +24,14 @@ export function KitchenTicketStrip({ openTickets, onOpenTickets }: Props) {
       if (t.order_source === "public") {
         online += 1;
         if (!t.confirmed_at) pendingConfirm += 1;
+        else if (!t.payment_recorded_at) awaitingPayment += 1;
       }
-      // Only count active (non-parked, confirmed-or-desk) lines per station.
-      const skip = t.is_parked || (t.order_source === "public" && !t.confirmed_at);
+      // Station load counts only tickets the kitchen can actually fire:
+      // desk tickets, plus online orders that are confirmed *and* paid.
+      const skip =
+        t.is_parked ||
+        (t.order_source === "public" &&
+          (!t.confirmed_at || !t.payment_recorded_at));
       if (!skip) {
         for (const item of t.order_items) {
           const station = item.prep_station || "kitchen";
@@ -40,6 +46,7 @@ export function KitchenTicketStrip({ openTickets, onOpenTickets }: Props) {
       parked,
       online,
       pendingConfirm,
+      awaitingPayment,
       byStation,
     };
   }, [openTickets]);
@@ -68,6 +75,11 @@ export function KitchenTicketStrip({ openTickets, onOpenTickets }: Props) {
         <div className="flex flex-wrap items-center gap-1.5">
           {counts.pendingConfirm > 0 ? (
             <Badge variant="gold">Pending confirm · {counts.pendingConfirm}</Badge>
+          ) : null}
+          {counts.awaitingPayment > 0 ? (
+            <Badge variant="gold">
+              Awaiting payment · {counts.awaitingPayment}
+            </Badge>
           ) : null}
           {counts.new > 0 ? (
             <Badge variant="secondary">New · {counts.new}</Badge>

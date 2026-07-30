@@ -1,0 +1,128 @@
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+
+const INSTALL_PATHS = new Set(["/", "/book", "/menu", "/spa", "/meeting"]);
+
+/** Mirrors DESK_COOKIE_NAME in lib/desk-auth (that module imports next/headers). */
+const DESK_COOKIE = "pelbu_desk_session";
+
+function hasSupabaseAuthCookie(request: NextRequest): boolean {
+  return request.cookies
+    .getAll()
+    .some((c) => c.name.startsWith("sb-") && c.name.includes("-auth-token"));
+}
+
+function hasValidDeskPinCookie(request: NextRequest): boolean {
+  const pin = process.env.DESK_PIN?.trim();
+  if (!pin) return false;
+  return request.cookies.get(DESK_COOKIE)?.value === `ok:${pin}`;
+}
+
+/**
+ * Presence-only credential check for /erp. Authorisation still happens in each
+ * page via isDeskAuthenticated() — desk-capable staff need a `can_access_desk`
+ * lookup that is too expensive to run here. This gate exists so a page that
+ * forgets its own guard fails closed instead of rendering to anonymous callers.
+ */
+function erpCredentialsPresent(request: NextRequest): boolean {
+  // Matches hasDeskPinSession(): no PIN configured means open access off prod.
+  if (!process.env.DESK_PIN?.trim()) {
+    return process.env.NODE_ENV !== "production";
+  }
+  return hasValidDeskPinCookie(request) || hasSupabaseAuthCookie(request);
+}
+
+/**
+ * Gate /erp, refresh staff Auth cookies, and emit a short-lived install hint
+ * for eligible public mobile visits. The browser still decides whether
+ * installation is possible; middleware cannot invoke the native install prompt.
+ */
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const isErp = pathname === "/erp" || pathname.startsWith("/erp/");
+
+  if (isErp && pathname !== "/erp/login" && !erpCredentialsPresent(request)) {
+    return NextResponse.redirect(new URL("/erp/login", request.url));
+  }
+
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
+
+  const needsAuthRefresh =
+    pathname.startsWith("/staff") ||
+    pathname.startsWith("/agents/app") ||
+    pathname.startsWith("/agents/login") ||
+    // Desk-capable staff reach /erp on Supabase Auth rather than the shared
+    // PIN, so refresh only for them and let PIN sessions skip the round trip.
+    (isErp && !hasValidDeskPinCookie(request) && hasSupabaseAuthCookie(request));
+
+  if (needsAuthRefresh) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+
+    if (url && anon) {
+      const supabase = createServerClient(url, anon, {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) => {
+              request.cookies.set(name, value);
+            });
+            response = NextResponse.next({
+              request: {
+                headers: request.headers,
+              },
+            });
+            cookiesToSet.forEach(({ name, value, options }) => {
+              response.cookies.set(name, value, options);
+            });
+          },
+        },
+      });
+
+      await supabase.auth.getUser();
+    }
+  }
+
+  const userAgent = request.headers.get("user-agent") ?? "";
+  const mobile = /android|iphone|ipad|ipod|mobile/i.test(userAgent);
+  const shouldHint =
+    mobile &&
+    INSTALL_PATHS.has(pathname) &&
+    !request.cookies.has("pelbu_pwa") &&
+    !request.cookies.has("pelbu_pwa_dismiss");
+
+  if (shouldHint) {
+    response.cookies.set("pelbu_install_hint", "1", {
+      path: "/",
+      maxAge: 60 * 60,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+    response.headers.set("x-pelbu-install", "1");
+  } else {
+    response.cookies.delete("pelbu_install_hint");
+  }
+
+  return response;
+}
+
+export const config = {
+  matcher: [
+    "/",
+    "/book",
+    "/menu",
+    "/spa",
+    "/meeting",
+    "/erp",
+    "/erp/:path*",
+    "/staff/:path*",
+    "/agents/app/:path*",
+    "/agents/login",
+  ],
+};

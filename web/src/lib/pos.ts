@@ -70,6 +70,9 @@ export type OpenPosTicket = {
   /** Null when a public order is still pending desk confirmation. */
   confirmed_at: string | null;
   confirmed_by_staff: string | null;
+  /** Null until the desk records the guest's transfer — KOT fires from this. */
+  payment_recorded_at: string | null;
+  payment_journal_no: string | null;
   order_items: {
     name_snapshot: string;
     qty: number;
@@ -211,7 +214,7 @@ export async function loadOpenPosTickets(
   const { data } = await client
     .from("orders")
     .select(
-      "id, customer_name, phone, outlet, total_btn, kot_status, is_parked, table_id, covers, created_at, order_source, delivery_type, delivery_area, confirmed_at, confirmed_by, order_items(name_snapshot, qty, course_no, menu_items(prep_station))",
+      "id, customer_name, phone, outlet, total_btn, kot_status, is_parked, table_id, covers, created_at, order_source, delivery_type, delivery_area, confirmed_at, confirmed_by, payment_recorded_at, payment_journal_no, order_items(name_snapshot, qty, course_no, menu_items(prep_station))",
     )
     .eq("property_id", propertyId)
     .is("voided_at", null)
@@ -235,6 +238,8 @@ export async function loadOpenPosTickets(
     delivery_area: (row.delivery_area as string | null) ?? null,
     confirmed_at: (row.confirmed_at as string | null) ?? null,
     confirmed_by_staff: (row.confirmed_by as string | null) ?? null,
+    payment_recorded_at: (row.payment_recorded_at as string | null) ?? null,
+    payment_journal_no: (row.payment_journal_no as string | null) ?? null,
     order_items: (
       (row.order_items as
         | {

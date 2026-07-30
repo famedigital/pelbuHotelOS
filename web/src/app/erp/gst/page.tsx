@@ -1,8 +1,8 @@
-import {
-  DeskListShell,
-  DeskSearchForm,
-  DeskTable,
-} from "@/components/erp/DeskListShell";
+import { DeskListShell } from "@/components/erp/DeskListShell";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/erp-lists";
 import { formatBtn } from "@/lib/pricing";
@@ -59,7 +59,6 @@ export default async function GstReturnsPage({
     else exempt += amt;
   }
 
-  // Bhutan rooms GST often 10%; F&B may differ — bucket by implied rate
   const byRate = new Map<string, { base: number; gst: number; lines: number }>();
   for (const l of lines ?? []) {
     if (!l.gst_applicable) continue;
@@ -76,22 +75,31 @@ export default async function GstReturnsPage({
 
   return (
     <DeskListShell
-      title="GST"
       eyebrow="Compliance"
-      heading={`GST returns Â· ${ym}`}
+      heading={`GST returns · ${ym}`}
       blurb="DRC-oriented monthly summary from posted folio lines. Export via /api/erp/export?kind=folio_lines for the same window."
       filters={
-        <DeskSearchForm action="/erp/gst" q="" placeholder="">
-          <label className="block text-sm text-espresso">
-            Month
-            <input
+        <form
+          className="flex flex-wrap items-end gap-2"
+          action="/erp/gst"
+          method="get"
+        >
+          <div className="space-y-1.5">
+            <Label htmlFor="month" className="text-xs text-muted-foreground">
+              Month
+            </Label>
+            <Input
+              id="month"
               type="month"
               name="month"
               defaultValue={ym}
-              className="mt-1 block min-h-11 rounded-sm border border-espresso/15 bg-white px-3 text-sm"
+              className="h-10 w-44"
             />
-          </label>
-        </DeskSearchForm>
+          </div>
+          <Button type="submit" variant="outline" className="h-10">
+            Apply
+          </Button>
+        </form>
       }
     >
       <div className="grid gap-3 sm:grid-cols-4">
@@ -101,33 +109,87 @@ export default async function GstReturnsPage({
           ["GST collected", formatBtn(gst)],
           ["Gross", formatBtn(gross)],
         ].map(([label, val]) => (
-          <div key={label} className="border border-espresso/10 bg-white px-4 py-4">
-            <p className="text-[11px] font-semibold tracking-[0.18em] text-gold uppercase">
-              {label}
-            </p>
-            <p className="mt-2 text-xl tabular-nums text-espresso">{val}</p>
-          </div>
+          <Card key={label} className="gap-2 py-4">
+            <CardContent>
+              <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
+                {label}
+              </p>
+              <p className="mt-2 text-xl font-semibold tabular-nums text-foreground">
+                {val}
+              </p>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
-      <DeskTable caption="By GST rate" headers={["Rate", "Lines", "Base", "GST"]}>
+      <div className="space-y-3 md:hidden">
         {[...byRate.entries()].length === 0 ? (
-          <tr>
-            <td colSpan={4} className="px-3 py-6 text-muted-foreground">
-              No taxable lines this month.
-            </td>
-          </tr>
+          <p className="rounded-xl border bg-card px-4 py-6 text-sm text-muted-foreground">
+            No taxable lines this month.
+          </p>
         ) : (
-          [...byRate.entries()].map(([rate, v]) => (
-            <tr key={rate} className="border-t border-espresso/10">
-              <td className="px-3 py-2.5 font-medium">{rate}</td>
-              <td className="px-3 py-2.5 tabular-nums">{v.lines}</td>
-              <td className="px-3 py-2.5 tabular-nums">{formatBtn(v.base)}</td>
-              <td className="px-3 py-2.5 tabular-nums">{formatBtn(v.gst)}</td>
-            </tr>
+          [...byRate.entries()].map(([rate, value]) => (
+            <article key={rate} className="rounded-xl border bg-card p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-semibold text-foreground">{rate} GST</p>
+                <span className="text-xs text-muted-foreground">
+                  {value.lines} {value.lines === 1 ? "line" : "lines"}
+                </span>
+              </div>
+              <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <dt className="text-xs text-muted-foreground">Taxable base</dt>
+                  <dd className="mt-1 font-medium tabular-nums">
+                    {formatBtn(value.base)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">GST</dt>
+                  <dd className="mt-1 font-medium tabular-nums">
+                    {formatBtn(value.gst)}
+                  </dd>
+                </div>
+              </dl>
+            </article>
           ))
         )}
-      </DeskTable>
+      </div>
+      <div className="hidden overflow-hidden rounded-lg border bg-card md:block">
+        <table className="min-w-[480px] w-full text-sm">
+          <caption className="sr-only">By GST rate</caption>
+          <thead className="bg-muted/40">
+            <tr className="hover:bg-transparent">
+              {["Rate", "Lines", "Base", "GST"].map((h) => (
+                <th
+                  key={h}
+                  scope="col"
+                  className="h-10 px-3 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {[...byRate.entries()].length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-3 py-6 text-muted-foreground">
+                  No taxable lines this month.
+                </td>
+              </tr>
+            ) : (
+              [...byRate.entries()].map(([rate, v]) => (
+                <tr key={rate} className="border-t">
+                  <td className="px-3 py-2.5 font-medium text-foreground">{rate}</td>
+                  <td className="px-3 py-2.5 tabular-nums">{v.lines}</td>
+                  <td className="px-3 py-2.5 tabular-nums">{formatBtn(v.base)}</td>
+                  <td className="px-3 py-2.5 tabular-nums">{formatBtn(v.gst)}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </DeskListShell>
   );
 }

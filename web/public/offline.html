@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0b1020" />
+    <title>Offline | Pelbu Suites</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        background: #0b1020;
+        color: #f4f0e8;
+      }
+      body {
+        min-height: 100dvh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      main {
+        width: min(100%, 420px);
+      }
+      img {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+      }
+      h1 {
+        margin: 24px 0 8px;
+        font-size: 2rem;
+      }
+      p {
+        color: #c6c9d2;
+        line-height: 1.6;
+      }
+      button {
+        min-height: 48px;
+        width: 100%;
+        margin-top: 20px;
+        border: 0;
+        border-radius: 14px;
+        background: #ff6b2c;
+        color: white;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/icons/icon-192.png" alt="" />
+      <h1>You’re offline.</h1>
+      <p>
+        Reconnect to check live rooms, prices, orders or booking status. Pelbu
+        never records a booking or payment while you are offline.
+      </p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+  </body>
+</html>

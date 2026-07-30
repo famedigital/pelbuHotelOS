@@ -1,0 +1,740 @@
+import { FinanceImportsSettings } from "@/components/erp/finance/FinanceImportsSettings";
+import {
+  saveRoomTypeSettings,
+  updatePropertyDocumentDesign,
+  updatePropertyIdentity,
+  updatePropertyTaxSettings,
+} from "@/app/actions/erp-settings";
+import { PropertyWizardForm } from "@/components/erp/PropertyWizardForms";
+import { DeskPageTitle } from "@/components/erp/DeskShell";
+import { FastBookInvoice, type FastBookInvoiceData } from "@/components/erp/FastBookInvoice";
+import { FastBookVoucher, type FastBookVoucherData } from "@/components/erp/FastBookVoucher";
+import { LogoUploadForm } from "@/components/erp/LogoUploadForm";
+import {
+  ROOMS_VIEW_COOKIE,
+  RoomSettingsPanel,
+  type RoomTypeOption,
+  type RoomUnitRow,
+  type RoomsView,
+} from "@/components/erp/RoomSettingsPanel";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { requireDeskPropertyId } from "@/lib/erp-lists";
+import { loadProperty } from "@/lib/property-context";
+import { rateToPercent, type PropertyDocumentDesign } from "@/lib/property-settings";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { cookies } from "next/headers";
+import { notFound, redirect } from "next/navigation";
+import type { CSSProperties } from "react";
+
+export const metadata = {
+  title: "Settings | Pelbu OS",
+  robots: { index: false, follow: false },
+};
+
+export const dynamic = "force-dynamic";
+
+const fieldClass =
+  "mt-1.5 w-full rounded-md border border-input bg-transparent px-3 py-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
+
+const demoInvoice: FastBookInvoiceData = {
+  bookingId: "INV-DEMO-001",
+  checkIn: "2026-08-12",
+  checkOut: "2026-08-15",
+  nights: 3,
+  adults: 2,
+  guestName: "Tshering Wangdi",
+  agentLabel: "Direct guest",
+  sourceLabel: "Owner",
+  paymentLabel: "Cash",
+  lines: [
+    { name: "Deluxe room", code: "deluxe", qty: 1, kind: "sellable_guest" },
+    { name: "Breakfast", code: "breakfast", qty: 2, kind: "service" },
+  ],
+};
+
+const demoVoucher: FastBookVoucherData = {
+  bookingId: "VCH-DEMO-001",
+  checkIn: "2026-08-12",
+  checkOut: "2026-08-15",
+  nights: 3,
+  guestName: "Pema Choden",
+  guestPhone: "+975 17 11 22 33",
+  agentLabel: "Pelbu friends rate",
+  guideNumber: "GUIDE-2881",
+  lines: [{ name: "Superior room", code: "sup", qty: 1 }],
+};
+
+export default async function ErpSettingsPage() {
+  if (!(await isDeskAuthenticated())) redirect("/erp/login");
+
+  const admin = createSupabaseAdminClient();
+  const propertyId = await requireDeskPropertyId();
+  const [property, roomTypesResult, roomUnitsResult] = await Promise.all([
+    loadProperty(admin, propertyId),
+    admin
+      .from("room_types")
+      .select("id, code, name, inventory_kind, unit_count")
+      .eq("property_id", propertyId)
+      .order("code"),
+    admin
+      .from("room_units")
+      .select("id, room_type_id, label, floor_label, notes, hk_status, sort_order")
+      .eq("property_id", propertyId)
+      .order("sort_order")
+      .order("label"),
+  ]);
+
+  if (!property) notFound();
+
+  const roomTypes = ((roomTypesResult.data ?? []) as RoomTypeOption[]).map(
+    (type) => ({ ...type, unit_count: Number(type.unit_count ?? 0) }),
+  );
+  const roomUnits = ((roomUnitsResult.data ?? []) as RoomUnitRow[]).map(
+    (unit) => ({ ...unit, sort_order: Number(unit.sort_order ?? 0) }),
+  );
+  const inventoryKindByType = new Map(
+    roomTypes.map((type) => [type.id, type.inventory_kind]),
+  );
+  const roomInventoryTotals = roomUnits.reduce(
+    (totals, unit) => {
+      const kind = inventoryKindByType.get(unit.room_type_id);
+      if (kind === "sellable_guest") totals.sellable += 1;
+      if (kind === "guide_comp") totals.guide += 1;
+      if (kind === "driver_comp") totals.driver += 1;
+      return totals;
+    },
+    { sellable: 0, guide: 0, driver: 0 },
+  );
+
+  const roomsView: RoomsView =
+    (await cookies()).get(ROOMS_VIEW_COOKIE)?.value === "cards"
+      ? "cards"
+      : "table";
+
+  return (
+    <div className="erp space-y-8 p-4 md:p-6">
+      <DeskPageTitle
+        eyebrow="Admin"
+        title="Settings"
+        description="Edit the active hotel’s identity, tax defaults, document styling, and physical room setup."
+        actions={
+          <>
+            <a
+              href={`/erp/properties/${property.id}/setup`}
+              className="inline-flex h-10 items-center rounded-md border px-4 text-sm text-foreground hover:bg-muted"
+            >
+              Setup wizard
+            </a>
+            <a
+              href="/erp/agents"
+              className="inline-flex h-10 items-center rounded-md border px-4 text-sm text-foreground hover:bg-muted"
+            >
+              Rates matrix
+            </a>
+          </>
+        }
+      />
+
+      <Tabs defaultValue="identity" className="space-y-6">
+        <TabsList className="h-auto flex-wrap justify-start">
+          <TabsTrigger value="identity">Identity</TabsTrigger>
+          <TabsTrigger value="tax">Tax & service</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="rooms">Rooms</TabsTrigger>
+          <TabsTrigger value="finance-imports">Finance imports</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="identity" className="space-y-6">
+          <section className="rounded-xl border bg-card p-5 md:p-6">
+            <div className="mb-5 space-y-1">
+              <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+                Logo
+              </p>
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                Hotel logo
+              </h2>
+              <p className="max-w-2xl text-sm text-muted-foreground">
+                Pick the logo used on the desk header and printed documents
+                straight from the Cloudinary media gallery, or upload a new one.
+              </p>
+            </div>
+
+            <LogoUploadForm
+              propertyId={property.id}
+              currentLogoPublicId={property.logo_public_id}
+            />
+          </section>
+
+          <section className="rounded-xl border bg-card p-5 md:p-6">
+            <div className="mb-5 space-y-1">
+              <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+                Identity
+              </p>
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                Hotel brand and legal details
+              </h2>
+              <p className="max-w-2xl text-sm text-muted-foreground">
+                These details power the ERP header and document printouts. Use a
+                Cloudinary public ID for the current hotel logo.
+              </p>
+            </div>
+
+            <PropertyWizardForm action={updatePropertyIdentity}>
+              <input type="hidden" name="property_id" value={property.id} />
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="name">Property name</Label>
+                  <Input id="name" name="name" defaultValue={property.name} required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="legal_name">Legal name</Label>
+                  <Input
+                    id="legal_name"
+                    name="legal_name"
+                    defaultValue={property.legal_name ?? property.name}
+                  />
+                </div>
+                <div className="space-y-1.5 md:col-span-2">
+                  <Label htmlFor="logo_public_id">Logo public ID</Label>
+                  <Input
+                    id="logo_public_id"
+                    name="logo_public_id"
+                    defaultValue={property.logo_public_id ?? ""}
+                    placeholder="pelbu/brand/logo-primary"
+                  />
+                </div>
+                <div className="space-y-1.5 md:col-span-2">
+                  <Label htmlFor="address">Address</Label>
+                  <Textarea
+                    id="address"
+                    name="address"
+                    rows={3}
+                    defaultValue={property.address ?? ""}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input id="phone" name="phone" defaultValue={property.phone ?? ""} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" name="email" defaultValue={property.email ?? ""} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="tax_id">GST / tax ID</Label>
+                  <Input id="tax_id" name="tax_id" defaultValue={property.tax_id ?? ""} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="timezone">Timezone</Label>
+                  <Input id="timezone" value={property.timezone} disabled />
+                </div>
+              </div>
+              <Button type="submit" className="h-11">
+                Save identity
+              </Button>
+            </PropertyWizardForm>
+          </section>
+        </TabsContent>
+
+        <TabsContent value="tax" className="space-y-6">
+          <section className="rounded-xl border bg-card p-5 md:p-6">
+            <div className="mb-5 space-y-1">
+              <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+                Tax and billing
+              </p>
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                GST and service charge defaults
+              </h2>
+              <p className="max-w-2xl text-sm text-muted-foreground">
+                Staff can still switch service charge off per bill for friends,
+                house use, and one-off exceptions.
+              </p>
+            </div>
+
+            <PropertyWizardForm action={updatePropertyTaxSettings}>
+              <input type="hidden" name="property_id" value={property.id} />
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="gst_rate">GST rate (%)</Label>
+                  <Input
+                    id="gst_rate"
+                    name="gst_rate"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.01"
+                    defaultValue={rateToPercent(property.gst_rate)}
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="service_charge_rate">Service charge (%)</Label>
+                  <Input
+                    id="service_charge_rate"
+                    name="service_charge_rate"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.01"
+                    defaultValue={rateToPercent(property.service_charge_rate)}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="flex min-h-11 items-center gap-3 rounded-lg border px-4 py-3">
+                <Checkbox
+                  id="service_charge_default_on"
+                  name="service_charge_default_on"
+                  value="1"
+                  defaultChecked={property.service_charge_default_on}
+                />
+                <Label
+                  htmlFor="service_charge_default_on"
+                  className="text-sm text-foreground"
+                >
+                  Apply service charge by default on new POS and folio service bills
+                </Label>
+              </div>
+              <Button type="submit" className="h-11">
+                Save tax defaults
+              </Button>
+            </PropertyWizardForm>
+          </section>
+        </TabsContent>
+
+        <TabsContent value="documents" className="space-y-6">
+          <DocumentSection
+            propertyId={property.id}
+            title="Invoice"
+            docKind="invoice"
+            design={property.doc_invoice}
+          />
+          <div className="rounded-xl border bg-card p-5 md:p-6">
+            <FastBookInvoice
+              data={demoInvoice}
+              property={{
+                name: property.name,
+                legal_name: property.legal_name,
+                address: property.address,
+                phone: property.phone,
+                email: property.email,
+                tax_id: property.tax_id,
+                logo_public_id: property.logo_public_id,
+              }}
+              design={property.doc_invoice}
+            />
+          </div>
+
+          <DocumentSection
+            propertyId={property.id}
+            title="Receipt"
+            docKind="receipt"
+            design={property.doc_receipt}
+          />
+          <div className="rounded-xl border bg-card p-5 md:p-6">
+            <ReceiptPreview
+              property={property}
+              design={property.doc_receipt}
+              bookingId="RCT-DEMO-004"
+              guestName="Sonam Lhamo"
+              postedAt="29 Jul 2026, 15:40"
+              subtotal="Nu 2,100"
+              serviceCharge="Nu 210"
+              gst="Nu 162.7"
+              total="Nu 2,472.7"
+            />
+          </div>
+
+          <DocumentSection
+            propertyId={property.id}
+            title="Voucher"
+            docKind="voucher"
+            design={property.doc_voucher}
+          />
+          <div className="rounded-xl border bg-card p-5 md:p-6">
+            <FastBookVoucher
+              data={demoVoucher}
+              property={{
+                name: property.name,
+                legal_name: property.legal_name,
+                address: property.address,
+                phone: property.phone,
+                email: property.email,
+                tax_id: property.tax_id,
+                logo_public_id: property.logo_public_id,
+              }}
+              design={property.doc_voucher}
+            />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="rooms" className="space-y-6">
+          <section aria-label="Room inventory totals">
+            <dl className="grid gap-3 sm:grid-cols-3">
+              {[
+                {
+                  label: "Total sellable rooms",
+                  value: roomInventoryTotals.sellable,
+                  note: "Guest inventory",
+                },
+                {
+                  label: "Total guide beds",
+                  value: roomInventoryTotals.guide,
+                  note: "Complimentary inventory",
+                },
+                {
+                  label: "Total driver beds",
+                  value: roomInventoryTotals.driver,
+                  note: "Complimentary inventory",
+                },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-xl border bg-card px-5 py-4"
+                >
+                  <dt className="text-xs font-medium text-muted-foreground">
+                    {item.label}
+                  </dt>
+                  <dd className="mt-1 text-3xl font-semibold tracking-tight text-foreground tabular-nums">
+                    {item.value}
+                  </dd>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {item.note}
+                  </p>
+                </div>
+              ))}
+            </dl>
+          </section>
+
+          <section className="rounded-xl border bg-card p-5 md:p-6">
+            <div className="mb-5 space-y-1">
+              <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+                New category
+              </p>
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                Add a room category
+              </h2>
+              <p className="max-w-2xl text-sm text-muted-foreground">
+                The count auto-creates physical rooms. Rename them to the exact
+                room numbers you use on property in the tables below.
+              </p>
+            </div>
+
+            <PropertyWizardForm action={saveRoomTypeSettings}>
+              <input type="hidden" name="property_id" value={property.id} />
+              <div className="grid gap-4 md:grid-cols-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="code">Code</Label>
+                  <Input id="code" name="code" placeholder="deluxe" required />
+                </div>
+                <div className="space-y-1.5 md:col-span-2">
+                  <Label htmlFor="room_name">Room category</Label>
+                  <Input id="room_name" name="name" placeholder="Deluxe room" required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="unit_count">No. of rooms</Label>
+                  <Input
+                    id="unit_count"
+                    name="unit_count"
+                    type="number"
+                    min={0}
+                    max={500}
+                    step="1"
+                    defaultValue={1}
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5 md:col-span-2">
+                  <Label htmlFor="inventory_kind">Inventory kind</Label>
+                  <select id="inventory_kind" name="inventory_kind" className={fieldClass}>
+                    <option value="sellable_guest">Sellable guest</option>
+                    <option value="guide_comp">Guide complimentary</option>
+                    <option value="driver_comp">Driver complimentary</option>
+                    <option value="staff">Staff</option>
+                  </select>
+                </div>
+              </div>
+              <Button type="submit" className="h-11">
+                Add room category
+              </Button>
+            </PropertyWizardForm>
+          </section>
+
+          <RoomSettingsPanel
+            propertyId={property.id}
+            roomTypes={roomTypes}
+            units={roomUnits}
+            initialView={roomsView}
+          />
+        </TabsContent>
+
+        <TabsContent value="finance-imports" className="space-y-6">
+          <section className="rounded-xl border bg-card p-5 md:p-6">
+            <div className="mb-5 space-y-1">
+              <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+                Finance imports
+              </p>
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                Receipt and bank statement parsers
+              </h2>
+              <p className="max-w-2xl text-sm text-muted-foreground">
+                Upload, test, approve, and version Python parsers. Approved
+                versions run only in the isolated finance-parser-worker — never
+                inside Next.js. Gemini keys stay in server/worker environment
+                variables.
+              </p>
+            </div>
+            <FinanceImportsSettings />
+          </section>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function DocumentSection({
+  propertyId,
+  title,
+  docKind,
+  design,
+}: {
+  propertyId: string;
+  title: string;
+  docKind: "invoice" | "receipt" | "voucher";
+  design: PropertyDocumentDesign;
+}) {
+  return (
+    <section className="rounded-xl border bg-card p-5 md:p-6">
+      <div className="mb-5 space-y-1">
+        <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+          {title}
+        </p>
+        <h2 className="text-xl font-semibold tracking-tight text-foreground">
+          {title} design
+        </h2>
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          Choose a preset, then tweak colors, header/footer, visible fields, and
+          paper size without breaking print reliability.
+        </p>
+      </div>
+
+      <PropertyWizardForm action={updatePropertyDocumentDesign}>
+        <input type="hidden" name="property_id" value={propertyId} />
+        <input type="hidden" name="doc_kind" value={docKind} />
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor={`${docKind}-preset`}>Preset</Label>
+            <select
+              id={`${docKind}-preset`}
+              name="preset"
+              defaultValue={design.preset}
+              className={fieldClass}
+            >
+              <option value="classic">Classic</option>
+              <option value="compact">Compact</option>
+              <option value="branded">Branded</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`${docKind}-paper`}>Paper size</Label>
+            <select
+              id={`${docKind}-paper`}
+              name="paper_size"
+              defaultValue={design.paper_size}
+              className={fieldClass}
+            >
+              <option value="a4">A4</option>
+              <option value="thermal">Thermal / narrow</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`${docKind}-brand`}>Brand color</Label>
+            <Input id={`${docKind}-brand`} name="brand_color" defaultValue={design.brand_color} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`${docKind}-accent`}>Accent color</Label>
+            <Input
+              id={`${docKind}-accent`}
+              name="accent_color"
+              defaultValue={design.accent_color}
+            />
+          </div>
+          <div className="space-y-1.5 md:col-span-2">
+            <Label htmlFor={`${docKind}-header`}>Header text</Label>
+            <Input
+              id={`${docKind}-header`}
+              name="header_text"
+              defaultValue={design.header_text}
+            />
+          </div>
+          <div className="space-y-1.5 md:col-span-2">
+            <Label htmlFor={`${docKind}-footer`}>Footer text</Label>
+            <Textarea
+              id={`${docKind}-footer`}
+              name="footer_text"
+              rows={2}
+              defaultValue={design.footer_text}
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <FieldToggle
+            id={`${docKind}-show-phone`}
+            name="show_phone"
+            label="Show phone"
+            defaultChecked={design.show_phone}
+          />
+          <FieldToggle
+            id={`${docKind}-show-email`}
+            name="show_email"
+            label="Show email"
+            defaultChecked={design.show_email}
+          />
+          <FieldToggle
+            id={`${docKind}-show-tax`}
+            name="show_tax_id"
+            label="Show GST / tax ID"
+            defaultChecked={design.show_tax_id}
+          />
+          <FieldToggle
+            id={`${docKind}-show-address`}
+            name="show_address"
+            label="Show address"
+            defaultChecked={design.show_address}
+          />
+        </div>
+        <Button type="submit" className="h-11">
+          Save {title.toLowerCase()} design
+        </Button>
+      </PropertyWizardForm>
+    </section>
+  );
+}
+
+function FieldToggle({
+  id,
+  name,
+  label,
+  defaultChecked,
+}: {
+  id: string;
+  name: string;
+  label: string;
+  defaultChecked: boolean;
+}) {
+  return (
+    <div className="flex min-h-11 items-center gap-3 rounded-lg border px-4 py-3">
+      <Checkbox id={id} name={name} value="1" defaultChecked={defaultChecked} />
+      <Label htmlFor={id} className="text-sm text-foreground">
+        {label}
+      </Label>
+    </div>
+  );
+}
+
+function ReceiptPreview({
+  property,
+  design,
+  bookingId,
+  guestName,
+  postedAt,
+  subtotal,
+  serviceCharge,
+  gst,
+  total,
+}: {
+  property: {
+    name: string;
+    legal_name: string | null;
+    address: string | null;
+    phone: string | null;
+    email: string | null;
+    tax_id: string | null;
+  };
+  design: PropertyDocumentDesign;
+  bookingId: string;
+  guestName: string;
+  postedAt: string;
+  subtotal: string;
+  serviceCharge: string;
+  gst: string;
+  total: string;
+}) {
+  return (
+    <section
+      className="rounded-lg border px-5 py-5"
+      style={
+        {
+          borderColor: design.accent_color,
+          background:
+            design.preset === "branded"
+              ? `linear-gradient(180deg, ${design.accent_color}12, transparent 28%)`
+              : undefined,
+        } as CSSProperties
+      }
+    >
+      <div
+        className="border-b pb-3"
+        style={{ borderColor: design.brand_color }}
+      >
+        <p
+          className="text-[11px] font-semibold tracking-[0.2em] uppercase"
+          style={{ color: design.brand_color }}
+        >
+          {property.name}
+        </p>
+        <h3 className="mt-1 text-xl font-semibold text-foreground">Receipt preview</h3>
+        <p className="mt-1 text-sm text-muted-foreground">{design.header_text}</p>
+      </div>
+      <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+        <PreviewField label="Guest" value={guestName} />
+        <PreviewField label="Ref" value={bookingId} />
+        <PreviewField label="Posted" value={postedAt} />
+        <PreviewField label="Paper" value={design.paper_size} />
+      </dl>
+      <div className="mt-4 space-y-2 rounded-lg border px-4 py-4 text-sm">
+        <PreviewMoney label="Subtotal" value={subtotal} />
+        <PreviewMoney label="Service charge" value={serviceCharge} />
+        <PreviewMoney label="GST" value={gst} />
+        <div className="flex justify-between border-t pt-2 font-medium text-foreground">
+          <span>Total</span>
+          <span>{total}</span>
+        </div>
+      </div>
+      <div className="mt-4 text-xs text-muted-foreground">
+        {design.show_address && property.address ? <p>{property.address}</p> : null}
+        {design.show_phone && property.phone ? <p>{property.phone}</p> : null}
+        {design.show_email && property.email ? <p>{property.email}</p> : null}
+        {design.show_tax_id && property.tax_id ? <p>GST/TAX: {property.tax_id}</p> : null}
+        <p className="mt-2">{design.footer_text}</p>
+      </div>
+    </section>
+  );
+}
+
+function PreviewField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+        {label}
+      </dt>
+      <dd className="mt-0.5 text-foreground">{value}</dd>
+    </div>
+  );
+}
+
+function PreviewMoney({ label, value }: { label: string; value: string }) {
+  return (
+    <p className="flex justify-between text-muted-foreground">
+      <span>{label}</span>
+      <span className="tabular-nums">{value}</span>
+    </p>
+  );
+}

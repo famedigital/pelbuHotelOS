@@ -88,7 +88,7 @@ export default async function AllotmentsPage() {
               : agent?.company_name;
             const room = Array.isArray(rt) ? rt[0] : rt;
             return (
-              <tr key={r.id as string} className="border-t border-espresso/10">
+              <tr key={r.id as string} className="border-t">
                 <td className="px-3 py-2.5 font-medium">{agentName ?? "—"}</td>
                 <td className="px-3 py-2.5 text-sm">
                   {room?.name ?? room?.code ?? "—"}

@@ -1,4 +1,5 @@
 import { MediaGallery } from "@/components/media/MediaGallery";
+import { CmsContentSections } from "@/components/site/CmsContentSections";
 import { EngineShell } from "@/components/site/EngineShell";
 import { MenuSections } from "@/components/site/MenuSections";
 import { Button } from "@/components/ui/button";
@@ -24,10 +25,10 @@ const FALLBACK = {
   title: "Indian · Bhutanese · Multicuisine",
   body: "Breakfast, lunch, and dinner with TACT — taste, aroma, consistency, and time.",
   hours_note: "Lunch and dinner; breakfast when posted.",
-  primary_cta_href: "/contact",
-  primary_cta_label: "Ask about a table",
+  primary_cta_href: "/menu?outlet=restaurant",
+  primary_cta_label: "Order restaurant food",
   secondary_cta_href: "/contact",
-  secondary_cta_label: "Ask the desk",
+  secondary_cta_label: "Ask about a table",
 };
 
 export default async function RestaurantPage() {
@@ -60,35 +61,49 @@ export default async function RestaurantPage() {
         }}
       />
       <EngineShell
-      eyebrow={copy.eyebrow}
-      title={copy.title}
-      description={copy.body}
-      actions={
-        copy.primary_cta_href && copy.primary_cta_label ? (
-          <Button asChild>
-            <a href={copy.primary_cta_href}>{copy.primary_cta_label}</a>
-          </Button>
-        ) : null
-      }
-    >
-      <div className="space-y-10">
-        {copy.hours_note ? (
-          <p className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-            {copy.hours_note}
-          </p>
-        ) : null}
-        <section>
-          <MenuSections byCategory={byCategory} />
-          {hasMenu ? (
-            <div className="mt-8">
-              <Button asChild variant="outline">
-                <a href="/contact">Ask about a table</a>
-              </Button>
-            </div>
+        eyebrow={copy.eyebrow}
+        title={copy.title}
+        description={copy.body}
+        actions={
+          <>
+            <Button asChild variant="citrus">
+              <a href={copy.primary_cta_href ?? "/menu?outlet=restaurant"}>
+                {copy.primary_cta_label ?? "Order restaurant food"}
+              </a>
+            </Button>
+            <Button asChild variant="outline">
+              <a href={copy.secondary_cta_href ?? "/contact"}>
+                {copy.secondary_cta_label ?? "Ask about a table"}
+              </a>
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-10">
+          <CmsContentSections sections={page?.sections_json} />
+          {copy.hours_note ? (
+            <p className="rounded-2xl border border-border bg-mint-100/50 px-4 py-3 text-sm text-mint-600">
+              {copy.hours_note}
+            </p>
           ) : null}
-        </section>
-        <MediaGallery items={gallery} label="Restaurant" />
-      </div>
+          <section>
+            <MenuSections
+              byCategory={byCategory}
+              orderBaseHref={hasMenu ? "/menu" : undefined}
+            />
+            {hasMenu ? (
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Button asChild variant="citrus">
+                  <a href="/menu?outlet=restaurant">Order restaurant food</a>
+                </Button>
+                <Button asChild variant="outline">
+                  <a href="/menu">Browse full menu</a>
+                </Button>
+              </div>
+            ) : null}
+          </section>
+          <MediaGallery items={gallery} label="Restaurant" />
+        </div>
       </EngineShell>
     </>
   );

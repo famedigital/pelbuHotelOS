@@ -1,35 +1,391 @@
-import Link from "next/link";
+"use client";
+
+import { CloudinaryImage } from "@/components/media/CloudinaryImage";
+import { buttonVariants } from "@/components/ui/button";
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from "@/components/ui/navigation-menu";
 import { BRAND_ICONS } from "@/lib/brand";
+import type { MegaLink, MegaMenu } from "@/lib/mega-menu";
+import { cn } from "@/lib/utils";
+import { ArrowRightIcon, ChevronRightIcon } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 
-const nav = [
-  { href: "/rooms", label: "Rooms" },
-  { href: "/dine", label: "Dine" },
-  { href: "/spa", label: "Spa" },
-  { href: "/meeting", label: "Meeting" },
-  { href: "/agents", label: "Agents" },
-] as const;
+type Variant = "hero" | "solid";
 
-type Variant = "ink" | "bare";
+/**
+ * Trigger styling while the header floats over the hero photo. Keep the
+ * labels plain (no frosted pill) — the top veil + text shadow carry contrast.
+ */
+const HERO_TRIGGER =
+  "bg-transparent text-white [text-shadow:0_1px_3px_rgb(5_59_47/0.55)] hover:bg-transparent hover:text-citrus-soft focus:bg-transparent focus:text-white data-[state=open]:bg-transparent data-[state=open]:text-citrus-soft";
 
-/** Quiet sticky-feel header — wordmark, nav, one Book control. No brass rules. */
+type Tone = "hero" | "solid";
+
+/**
+ * Bar glass. This lives on a layer *inside* the header rather than on the
+ * `<header>` itself: the dropdown is a descendant, and an ancestor carrying
+ * `backdrop-filter` makes its own backdrop-filter sample an empty backdrop, so
+ * the panel would come out unblurred. As a sibling layer it blurs the page and
+ * leaves the panel free to blur it too.
+ */
+const BAR_SURFACE: Record<Tone, string> = {
+  hero: "border-b border-white/15 bg-mint-ink/55 shadow-[inset_0_1px_0_0_rgb(255_255_255/0.18)] backdrop-blur-2xl backdrop-saturate-[1.8]",
+  solid:
+    "border-b border-border/70 bg-background/90 shadow-sm backdrop-blur-xl",
+};
+
+/**
+ * Dropdown surface, matched to the bar it drops out of. These must set a
+ * background *colour*: the shadcn viewport ships an opaque `bg-popover`, and a
+ * `bg-gradient-*` only paints an image over it, so the panel would stay opaque
+ * and read as a card floating apart from the hero.
+ */
+const PANEL_SURFACE: Record<Tone, string> = {
+  hero: "border-white/15 bg-mint-ink/80 text-white backdrop-blur-3xl backdrop-saturate-[1.8] shadow-[inset_0_1px_0_0_rgb(255_255_255/0.16),0_30px_70px_-35px_rgb(5_59_47/0.9)]",
+  solid:
+    "border-sky-100 bg-white/92 text-foreground backdrop-blur-3xl shadow-[0_30px_80px_-45px_rgb(8_47_73/0.45)]",
+};
+
+/**
+ * Shared card surface for the feature tile and the list rows. The hover state
+ * has to set a background *colour* — the primitive ships `hover:bg-secondary`,
+ * and a gradient alone would let that light default bleed through on hero tone.
+ */
+const PANEL_CARD: Record<Tone, string> = {
+  hero: "border-white/10 bg-white/[0.06] hover:border-white/30 hover:bg-white/[0.13] focus:bg-white/[0.16]",
+  solid:
+    "border-border/50 bg-white/60 hover:border-sky-100 hover:bg-white focus:bg-white",
+};
+
+/**
+ * Brand hairline on the solid bar. Over the hero it softens to a light catch
+ * on the glass edge — the full sky → citrus → mint ramp there draws a hard line
+ * that reads as the top of a separate card.
+ */
+const PANEL_EDGE: Record<Tone, string> = {
+  hero: "bg-gradient-to-r from-transparent via-white/30 to-transparent",
+  solid: "bg-gradient-to-r from-sky-500 via-citrus to-mint-500",
+};
+
+const PANEL_TITLE: Record<Tone, string> = {
+  hero: "text-white group-hover/link:text-citrus-soft",
+  solid: "text-foreground group-hover/link:text-sky-700",
+};
+
+const PANEL_DESC: Record<Tone, string> = {
+  hero: "text-white/70",
+  solid: "text-muted-foreground",
+};
+
+const PANEL_CUE: Record<Tone, string> = {
+  hero: "text-citrus-soft",
+  solid: "text-sky-700",
+};
+
+const PANEL_HEADING: Record<Tone, string> = {
+  hero: "text-white/55",
+  solid: "text-muted-foreground",
+};
+
+/** Sidebar tiles. Flat surfaces — they are containers, not link targets. */
+const PANEL_TILE: Record<Tone, string> = {
+  hero: "border-white/10 bg-white/[0.07]",
+  solid: "border-border/60 bg-sky-50/70",
+};
+
+/**
+ * `NavigationMenuLink` ships `flex flex-col gap-1 p-3` for stacked nav items.
+ * When it carries button styling instead, `flex-col` puts the arrow on a line
+ * under the label and the vertical padding fights the fixed button height —
+ * neither of which `buttonVariants` overrides, since it sets no flex-direction
+ * and only a horizontal padding. Undo both explicitly.
+ */
+const CTA_RESET = "flex-row py-0";
+
+const PANEL_CTA: Record<Tone, string> = {
+  hero: "border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white",
+  solid: "",
+};
+
+function GroupHeading({
+  children,
+  tone,
+}: {
+  children: React.ReactNode;
+  tone: Tone;
+}) {
+  return (
+    <h3
+      className={cn(
+        "mb-2 text-[11px] font-semibold uppercase tracking-[0.16em]",
+        PANEL_HEADING[tone],
+      )}
+    >
+      {children}
+    </h3>
+  );
+}
+
+/**
+ * Wide-column row: thumbnail, then title over a full sentence. The sentence
+ * names the entity and place, so the nav gives search and answer engines real
+ * context instead of bare labels.
+ */
+function MegaRow({ item, tone }: { item: MegaLink; tone: Tone }) {
+  return (
+    <li>
+      {/* Styling lives on the link primitive so `cn` can resolve the tone
+          overrides — `asChild` only concatenates child classes. */}
+      <NavigationMenuLink
+        asChild
+        className={cn(
+          "group/link flex flex-row items-center gap-3 rounded-xl border p-2",
+          PANEL_CARD[tone],
+        )}
+      >
+        <Link href={item.href}>
+          {item.publicId ? (
+            <CloudinaryImage
+              publicId={item.publicId}
+              alt=""
+              ratio="1/1"
+              sizes="48px"
+              className="size-12 shrink-0 rounded-lg"
+              imgClassName="transition-transform duration-500 motion-safe:group-hover/link:scale-[1.06]"
+            />
+          ) : null}
+
+          <span className="min-w-0 flex-1">
+            <span
+              className={cn("block text-sm font-semibold", PANEL_TITLE[tone])}
+            >
+              {item.title}
+            </span>
+            {item.description ? (
+              <span
+                className={cn(
+                  "mt-0.5 block text-xs leading-5",
+                  PANEL_DESC[tone],
+                )}
+              >
+                {item.description}
+              </span>
+            ) : null}
+          </span>
+
+          <ChevronRightIcon
+            className={cn(
+              "mr-1 size-4 shrink-0 transition-all duration-300 motion-safe:-translate-x-1 motion-safe:opacity-0 motion-safe:group-hover/link:translate-x-0 motion-safe:group-hover/link:opacity-100",
+              PANEL_CUE[tone],
+            )}
+            aria-hidden
+          />
+        </Link>
+      </NavigationMenuLink>
+    </li>
+  );
+}
+
+/** Narrow-column shortcut: label only, no thumbnail or sentence. */
+function MegaShortcut({ item, tone }: { item: MegaLink; tone: Tone }) {
+  return (
+    <li>
+      <NavigationMenuLink
+        asChild
+        className={cn(
+          "group/link flex flex-row items-center gap-2 rounded-lg px-2 py-1.5",
+          PANEL_CARD[tone],
+          "border-transparent bg-transparent",
+        )}
+      >
+        <Link href={item.href}>
+          <span
+            className={cn("min-w-0 flex-1 text-sm font-medium", PANEL_TITLE[tone])}
+          >
+            {item.title}
+          </span>
+          <ChevronRightIcon
+            className={cn(
+              "size-3.5 shrink-0 transition-all duration-300 motion-safe:-translate-x-1 motion-safe:opacity-0 motion-safe:group-hover/link:translate-x-0 motion-safe:group-hover/link:opacity-100",
+              PANEL_CUE[tone],
+            )}
+            aria-hidden
+          />
+        </Link>
+      </NavigationMenuLink>
+    </li>
+  );
+}
+
+/**
+ * Three columns: detailed offerings, quick shortcuts, then a promo rail. The
+ * promo cards are plain containers with the CTA as the only focusable target —
+ * wrapping the whole tile in a link would nest a button inside an anchor.
+ */
+function MegaPanel({ menu, tone }: { menu: MegaMenu; tone: Tone }) {
+  if (menu.primary.length === 0) return null;
+
+  return (
+    <div className="relative w-[min(92vw,58rem)] p-5">
+      <span
+        className={cn("absolute inset-x-0 top-0 h-px", PANEL_EDGE[tone])}
+        aria-hidden
+      />
+
+      <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,0.85fr)_minmax(0,1.1fr)] gap-6">
+        <div className="space-y-4">
+          {menu.primary.map((group) => (
+            <div key={group.heading}>
+              <GroupHeading tone={tone}>{group.heading}</GroupHeading>
+              <ul className="space-y-1">
+                {group.items.map((item) => (
+                  <MegaRow key={item.href} item={item} tone={tone} />
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-4">
+          {menu.secondary.map((group) => (
+            <div key={group.heading}>
+              <GroupHeading tone={tone}>{group.heading}</GroupHeading>
+              <ul className="space-y-0.5">
+                {group.items.map((item) => (
+                  <MegaShortcut key={item.href} item={item} tone={tone} />
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-3">
+          <div className={cn("rounded-xl border p-3", PANEL_TILE[tone])}>
+            {menu.feature.publicId ? (
+              <CloudinaryImage
+                publicId={menu.feature.publicId}
+                alt=""
+                ratio="16/9"
+                sizes="260px"
+                className="rounded-lg"
+              />
+            ) : null}
+            <h3
+              className={cn(
+                "mt-3 text-sm font-semibold",
+                tone === "hero" ? "text-white" : "text-foreground",
+              )}
+            >
+              {menu.feature.title}
+            </h3>
+            <p className={cn("mt-1 text-xs leading-5", PANEL_DESC[tone])}>
+              {menu.feature.description}
+            </p>
+            <NavigationMenuLink
+              asChild
+              className={cn(
+                buttonVariants({ variant: "citrus", size: "sm" }),
+                CTA_RESET,
+                "mt-3 w-full",
+              )}
+            >
+              <Link href={menu.feature.href}>
+                {menu.feature.ctaLabel}
+                <ArrowRightIcon aria-hidden />
+              </Link>
+            </NavigationMenuLink>
+          </div>
+
+          <div className={cn("rounded-xl border p-3", PANEL_TILE[tone])}>
+            <h3
+              className={cn(
+                "text-sm font-semibold",
+                tone === "hero" ? "text-white" : "text-foreground",
+              )}
+            >
+              {menu.contact.title}
+            </h3>
+            <p className={cn("mt-1 text-xs leading-5", PANEL_DESC[tone])}>
+              {menu.contact.description}
+            </p>
+            <NavigationMenuLink
+              asChild
+              className={cn(
+                buttonVariants({ variant: "outline", size: "sm" }),
+                CTA_RESET,
+                "mt-3 w-full",
+                PANEL_CTA[tone],
+              )}
+            >
+              <Link href={menu.contact.href}>{menu.contact.ctaLabel}</Link>
+            </NavigationMenuLink>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Sticky frosted mega menu. Transparent only over the homepage hero. */
 export function SiteHeader({
   logoSrc,
-  variant = "ink",
+  variant = "solid",
+  menus,
 }: {
   logoSrc?: string | null;
   variant?: Variant;
+  menus: MegaMenu[];
 }) {
   const logo = logoSrc || BRAND_ICONS.mark;
-  const onInk = variant === "ink";
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const overHero = variant === "hero" && !scrolled;
+  const tone: Tone = overHero ? "hero" : "solid";
 
   return (
-    <header className="absolute inset-x-0 top-0 z-20">
-      <div className="mx-auto flex max-w-[1120px] items-center justify-between gap-4 px-5 py-5 md:px-8 md:py-6">
+    <header
+      className={cn(
+        "z-40",
+        // Fixed on the homepage so the hero runs to the very top of the page
+        // and the bar floats over the photograph. Position is keyed to
+        // `variant`, not `overHero`, so it does not change on scroll.
+        variant === "hero" ? "fixed inset-x-0 top-0" : "sticky top-0",
+        overHero ? "text-white" : "text-foreground",
+      )}
+    >
+      {/* Liquid-glass material: mint-ink tint, heavy blur and a saturation lift
+          so the photograph refracts through in colour instead of going grey,
+          finished with a specular highlight along the top edge. */}
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-0 transition-colors duration-300",
+          BAR_SURFACE[tone],
+        )}
+        aria-hidden
+      />
+      <div className="relative mx-auto flex max-w-[1200px] items-center justify-between gap-4 px-5 py-3 md:px-8">
         <Link
           href="/"
-          className={`flex items-center gap-2.5 text-[13px] font-medium ${
-            onInk ? "text-ivory" : "text-ink"
-          }`}
+          className={cn(
+            "flex items-center gap-2.5 text-[13px] font-semibold",
+            overHero
+              ? "text-white [text-shadow:0_1px_3px_rgb(5_59_47/0.55)]"
+              : "text-foreground",
+          )}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -42,31 +398,35 @@ export function SiteHeader({
           <span>Pelbu Suites</span>
         </Link>
 
-        <nav
-          className={`hidden items-center gap-6 text-[13px] md:flex ${
-            onInk ? "text-ivory/75" : "text-ink/70"
-          }`}
+        <NavigationMenu
+          className="hidden lg:flex"
+          viewport
+          viewportClassName={PANEL_SURFACE[tone]}
         >
-          {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={
-                onInk ? "transition-colors hover:text-ivory" : "hover:text-ink"
-              }
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+          <NavigationMenuList>
+            {menus.map((menu) => (
+              <NavigationMenuItem key={menu.label}>
+                <NavigationMenuTrigger
+                  className={overHero ? HERO_TRIGGER : undefined}
+                >
+                  {menu.label}
+                </NavigationMenuTrigger>
+                <NavigationMenuContent>
+                  <MegaPanel menu={menu} tone={tone} />
+                </NavigationMenuContent>
+              </NavigationMenuItem>
+            ))}
+          </NavigationMenuList>
+        </NavigationMenu>
 
         <Link
           href="/book"
-          className={`inline-flex h-9 items-center rounded-md px-3.5 text-[13px] font-medium transition-colors ${
-            onInk
-              ? "bg-ivory text-ink hover:bg-ivory/90"
-              : "bg-ink text-ivory hover:bg-ink-soft"
-          }`}
+          className={cn(
+            "inline-flex h-10 items-center rounded-xl px-4 text-[13px] font-semibold transition-colors",
+            overHero
+              ? "bg-citrus text-sky-ink hover:bg-citrus-soft"
+              : "bg-primary text-primary-foreground hover:bg-primary/90",
+          )}
         >
           Book
         </Link>

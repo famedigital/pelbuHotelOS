@@ -1,37 +1,52 @@
 import { ServiceRequestForm } from "@/components/services/ServiceRequestForm";
-import { ConversionShell } from "@/components/site/ConversionShell";
+import { CmsContentSections } from "@/components/site/CmsContentSections";
+import { EngineShell } from "@/components/site/EngineShell";
+import { Button } from "@/components/ui/button";
+import { loadCmsPage } from "@/lib/cms";
+import { loadServiceOfferings } from "@/lib/service-offerings";
 
 export const metadata = {
   title: "Meeting Hall | Pelbu Suites",
   description:
     "A focused meeting hall for up to 25 people at Pelbu Suites, Olakha Thimphu — with cafe catering on request.",
+  alternates: { canonical: "/meeting" },
 };
 
-export default function MeetingPage() {
+export const dynamic = "force-dynamic";
+
+export default async function MeetingPage() {
+  const [offerings, page] = await Promise.all([
+    loadServiceOfferings(["meeting"]),
+    loadCmsPage("meeting"),
+  ]);
+  const maxCapacity = Math.max(
+    0,
+    ...offerings.map((offering) => offering.capacity ?? 0),
+  );
+
   return (
-    <ConversionShell
-      eyebrow="Meeting"
-      title="Up to 25 guests. Focused and well set."
-      body="Board and briefing layouts, with the cafe next door for tea breaks. Send a date — we confirm within business hours."
-      aside={
-        <div className="space-y-4">
-          <p className="font-medium text-ink">The hall</p>
-          <ul className="list-disc space-y-1 pl-4">
-            <li>Capacity up to 25</li>
-            <li>Board, classroom, or briefing layout</li>
-            <li>Catering via the cafe</li>
-          </ul>
-          <p>
-            Need rooms?{" "}
-            <a href="/book" className="underline underline-offset-4">
-              Reserve stays
-            </a>
-            .
-          </p>
-        </div>
+    <EngineShell
+      eyebrow={page?.eyebrow ?? "Meet at Pelbu"}
+      title={
+        page?.title ??
+        (maxCapacity > 0
+          ? `A focused room for up to ${maxCapacity}.`
+          : "A focused room, set for your session.")
+      }
+      description={
+        page?.body ??
+        "Choose a layout, date, duration, and group size. Add catering or room requirements in one enquiry; the team confirms the complete setup."
+      }
+      actions={
+        <Button asChild variant="outline">
+          <a href="/book">Rooms for delegates</a>
+        </Button>
       }
     >
-      <ServiceRequestForm kind="meeting" />
-    </ConversionShell>
+      <div className="space-y-8">
+        <CmsContentSections sections={page?.sections_json} />
+        <ServiceRequestForm kind="meeting" offerings={offerings} />
+      </div>
+    </EngineShell>
   );
 }

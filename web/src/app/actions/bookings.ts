@@ -48,6 +48,15 @@ export type RoomOption = {
   available: boolean;
 };
 
+/** Active meal plan shown for selection. Amounts are never added to token/quote in P0. */
+export type MealPlanOption = {
+  code: string;
+  name: string;
+  blurb: string | null;
+  /** Presentational only until desk prices are confirmed into money paths. */
+  priced: boolean;
+};
+
 /** Result of a read-only rate/availability preview (no DB writes). */
 export type StayPreview = {
   ok: true;
@@ -58,6 +67,7 @@ export type StayPreview = {
   currency: "BTN";
   rooms: number;
   options: RoomOption[];
+  mealPlans: MealPlanOption[];
 };
 
 /** Plain-object input for preview — kept loose so it can be called from client state without FormData. */
@@ -135,6 +145,21 @@ export async function previewStayCost(
       });
     }
 
+    const { data: mealPlanRows } = await admin
+      .from("meal_plans")
+      .select("code, name, blurb, amount_btn_per_adult_night")
+      .eq("property_id", propertyId)
+      .eq("is_active", true)
+      .order("sort_order");
+
+    const mealPlans: MealPlanOption[] = (mealPlanRows ?? []).map((row) => ({
+      code: row.code as string,
+      name: row.name as string,
+      blurb: (row.blurb as string | null) ?? null,
+      // P0: never treat meal-plan amounts as bookable money.
+      priced: false,
+    }));
+
     return {
       ok: true,
       preview: {
@@ -146,6 +171,7 @@ export async function previewStayCost(
         currency: "BTN",
         rooms,
         options,
+        mealPlans,
       },
     };
   } catch (err) {
@@ -179,6 +205,10 @@ export async function createBooking(
     // unavailable, the action falls back to first-available auto-assignment
     // so the legacy single-form path still works.
     const requestedRoomTypeCode = optionalTrim(formData.get("room_type_code"));
+    // Meal plan is preference metadata in P0 — never folded into token or
+    // quoted_total_btn until desk-priced meal math ships.
+    const requestedMealPlanCode =
+      optionalTrim(formData.get("meal_plan_code")) ?? "EP";
     // Optional: snapshot of the price the guest saw in the wizard preview,
     // so the quoted total survives later rate changes.
     const quotedTotalRaw = formData.get("quoted_total_btn");
@@ -200,6 +230,15 @@ export async function createBooking(
     }
 
     const propertyId = property.id as string;
+
+    const { data: mealPlan } = await admin
+      .from("meal_plans")
+      .select("code")
+      .eq("property_id", propertyId)
+      .eq("code", requestedMealPlanCode)
+      .eq("is_active", true)
+      .maybeSingle();
+    const mealPlanCode = (mealPlan?.code as string | undefined) ?? "EP";
 
     const { data: roomTypes } = await admin
       .from("room_types")
@@ -281,6 +320,8 @@ export async function createBooking(
         token_required_btn: tokenRequired,
         payment_mode: "partial",
         quoted_total_btn: quotedTotalBtn,
+        meal_plan_code: mealPlanCode,
+        meal_plan_amount_btn: 0,
       })
       .select("id")
       .single();

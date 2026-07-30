@@ -142,11 +142,12 @@ export async function saveMenuItem(
       });
       revalidatePath("/erp/menu");
       revalidatePath("/erp/pos");
-      revalidatePath("/order");
+      revalidatePath("/menu");
       revalidatePath("/cafe");
       revalidatePath("/restaurant");
       revalidatePath("/bar");
       revalidatePath("/dine");
+      revalidatePath("/order");
       return { ok: true, itemId };
     }
 
@@ -172,11 +173,12 @@ export async function saveMenuItem(
     });
     revalidatePath("/erp/menu");
     revalidatePath("/erp/pos");
-    revalidatePath("/order");
+    revalidatePath("/menu");
     revalidatePath("/cafe");
     revalidatePath("/restaurant");
     revalidatePath("/bar");
     revalidatePath("/dine");
+    revalidatePath("/order");
     return { ok: true, itemId: created.id as string };
   } catch (err) {
     return {
@@ -221,11 +223,12 @@ export async function deleteMenuItem(
     });
     revalidatePath("/erp/menu");
     revalidatePath("/erp/pos");
-    revalidatePath("/order");
+    revalidatePath("/menu");
     revalidatePath("/cafe");
     revalidatePath("/restaurant");
     revalidatePath("/bar");
     revalidatePath("/dine");
+    revalidatePath("/order");
     return { ok: true };
   } catch (err) {
     return {
@@ -273,11 +276,12 @@ export async function toggleMenuItemAvailable(
     });
     revalidatePath("/erp/menu");
     revalidatePath("/erp/pos");
-    revalidatePath("/order");
+    revalidatePath("/menu");
     revalidatePath("/cafe");
     revalidatePath("/restaurant");
     revalidatePath("/bar");
     revalidatePath("/dine");
+    revalidatePath("/order");
   } catch (err) {
     console.error("toggleMenuItemAvailable failed", err);
   }
