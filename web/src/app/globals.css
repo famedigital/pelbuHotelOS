@@ -51,6 +51,12 @@
 
   --muted: #6b5e52;
 
+  /* --- Citrus (amber) accent for ERP success/money callouts.
+     Defaults to amber-500 here; ERP overrides via .erp scope below. --- */
+  --citrus: #f59e0b;
+  --citrus-soft: #fbbf24;
+  --citrus-tint: #fef3c7;
+
   /* --- shadcn scale mapped to brand + paper --- */
   --background: var(--paper-0);
   --foreground: var(--ink);
@@ -100,7 +106,7 @@
 
   /* Fonts: Fraunces (display serif) + Inter (UI/body).
      Variables come from next/font in layout.tsx. */
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
@@ -151,6 +157,108 @@
   --sidebar-ring: var(--brass);
 }
 
+/* =========================================================================
+   ERP scope — "Sky & Citrus" (Tailwind sky + amber defaults).
+   Applied on any element carrying the `.erp` class (and inherited by
+   descendants). The public site palette is untouched. Only shadcn semantic
+   tokens are repointed here so every primitive re-themes automatically.
+   ========================================================================= */
+.erp {
+  --background: #f8fafc;            /* slate-50 */
+  --foreground: #0c1726;            /* deep ink (slate-950-ish) */
+
+  --card: #ffffff;
+  --card-foreground: #0c1726;
+
+  --popover: #ffffff;
+  --popover-foreground: #0c1726;
+
+  --primary: #0c1726;               /* deep ink */
+  --primary-foreground: #f8fafc;
+
+  --secondary: #e2e8f0;             /* slate-200 */
+  --secondary-foreground: #0c1726;
+
+  --muted-shadcn: #f1f5f9;          /* slate-100 */
+  --muted-foreground: #475569;      /* slate-600 */
+
+  --accent: #0ea5e9;                /* sky-500 */
+  --accent-foreground: #ffffff;
+
+  --destructive: #dc2626;           /* red-600, replaces maroon */
+  --destructive-foreground: #ffffff;
+
+  --border: #e2e8f0;                /* slate-200 */
+  --input: #e2e8f0;
+  --ring: #0ea5e9;                  /* sky-500 */
+
+  --chart-1: #0ea5e9;               /* sky-500 */
+  --chart-2: #f59e0b;               /* amber-500 */
+  --chart-3: #10b981;               /* emerald-500 */
+  --chart-4: #6366f1;               /* indigo-500 */
+  --chart-5: #ec4899;               /* pink-500 */
+
+  --sidebar: #0c1726;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: #0ea5e9;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1e293b;        /* slate-800 */
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: #1e293b;
+  --sidebar-ring: #0ea5e9;
+
+  /* Citrus (amber) — ERP-only success / money callout color */
+  --citrus: #f59e0b;                /* amber-500 */
+  --citrus-soft: #fbbf24;           /* amber-400 */
+  --citrus-tint: #fef3c7;           /* amber-100 */
+
+  /* Shadcn default radius — rounded edges everywhere in ERP.
+     Public site keeps the tight 4px --radius from :root. */
+  --radius: 0.625rem;               /* shadcn default style */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ERP mobile ergonomics: every legacy data table remains usable while modules
+   are progressively promoted to card views. :has is supported by the PWA
+   browser targets and turns old overflow-hidden table shells into scroll rails. */
+@media (max-width: 767px) {
+  .erp input,
+  .erp select,
+  .erp textarea {
+    font-size: 16px;
+  }
+
+  .erp :is(button, a)[class*="h-9"],
+  .erp :is(button, a)[class*="h-10"] {
+    min-height: 44px;
+  }
+
+  .erp .overflow-hidden:has(> table) {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .erp .overflow-hidden:has(> table) > table {
+    min-width: 680px;
+  }
+
+  .erp table th:first-child,
+  .erp table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--card);
+  }
+
+  .erp table thead th:first-child {
+    background: var(--muted);
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -185,6 +293,12 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+
+  /* Citrus (amber) — success/money callouts. Bg/text/tint utilities:
+     bg-citrus, text-citrus, bg-citrus-tint, border-citrus, etc. */
+  --color-citrus: var(--citrus);
+  --color-citrus-soft: var(--citrus-soft);
+  --color-citrus-tint: var(--citrus-tint);
 
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
@@ -227,7 +341,7 @@
   --radius-lg: calc(var(--radius) + 2px);
   --radius-xl: calc(var(--radius) + 6px);
 
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-fraunces), Georgia, serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 
@@ -324,6 +438,57 @@
     background: var(--ink);
     color: var(--ivory);
   }
+}
+
+/* =========================================================================
+   POS / KDS fullscreen.
+   The fullscreen toggle calls the native Fullscreen API on documentElement
+   (true browser fullscreen). We *also* add `body.pos-fs` so the desk
+   sidebar / header / mobile nav hide while in fullscreen — the native API
+   promotes the page but doesn't remove those elements from the DOM.
+   .pos-fs-shell switches the surface to `fixed inset-0` for the CSS-only
+   fallback (iOS Safari before 16.4 / locked webviews).
+   ========================================================================= */
+body.pos-fs {
+  overflow: hidden;
+}
+body.pos-fs .erp [data-sidebar="sidebar"],
+body.pos-fs .erp [data-sidebar="sidebar-inset"],
+body.pos-fs .erp [data-slot="sidebar-inset"],
+body.pos-fs .erp [data-slot="sidebar-inset"] > header,
+body.pos-fs .erp [data-slot="desk-mobile-nav"],
+body.pos-fs .erp [data-slot="desk-nav-trigger"] {
+  display: none !important;
+}
+.pos-fs-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow-y: auto;
+  background: var(--background);
+  color: var(--foreground);
+  padding: 0.75rem;
+}
+.pos-fs-shell > * {
+  min-width: 0;
+}
+
+/* Keyboard shortcut chip — used in the help overlay and inline hints. */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid hsl(var(--border));
+  border-bottom-width: 2px;
+  border-radius: 0.35rem;
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 @media (prefers-reduced-motion: reduce) {

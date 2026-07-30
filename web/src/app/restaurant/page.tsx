@@ -1,14 +1,20 @@
 import { MediaGallery } from "@/components/media/MediaGallery";
-import { ConversionShell } from "@/components/site/ConversionShell";
+import { EngineShell } from "@/components/site/EngineShell";
 import { MenuSections } from "@/components/site/MenuSections";
 import { Button } from "@/components/ui/button";
-import { loadCmsGallery, loadCmsPage, pickHeroSrc } from "@/lib/cms";
+import { loadCmsGallery, loadCmsPage } from "@/lib/cms";
 import { groupMenuByCategory, loadMenuByOutlets } from "@/lib/menu-loader";
+import {
+  breadcrumbJsonLd,
+  restaurantJsonLd,
+  serializeJsonLd,
+} from "@/lib/structured-data";
 
 export const metadata = {
   title: "Restaurant | Pelbu Suites",
   description:
     "Indian, Bhutanese, and multicuisine restaurant at Pelbu Suites, Olakha Thimphu.",
+  alternates: { canonical: "/restaurant" },
 };
 
 export const dynamic = "force-dynamic";
@@ -18,10 +24,10 @@ const FALLBACK = {
   title: "Indian · Bhutanese · Multicuisine",
   body: "Breakfast, lunch, and dinner with TACT — taste, aroma, consistency, and time.",
   hours_note: "Lunch and dinner; breakfast when posted.",
-  primary_cta_href: "/order",
-  primary_cta_label: "Order delivery",
-  secondary_cta_href: "/book",
-  secondary_cta_label: "Reserve a table",
+  primary_cta_href: "/contact",
+  primary_cta_label: "Ask about a table",
+  secondary_cta_href: "/contact",
+  secondary_cta_label: "Ask the desk",
 };
 
 export default async function RestaurantPage() {
@@ -35,39 +41,55 @@ export default async function RestaurantPage() {
   const hasMenu = items.length > 0;
 
   return (
-    <ConversionShell
-      heroSrc={pickHeroSrc(gallery)}
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: serializeJsonLd([
+            breadcrumbJsonLd([
+              { name: "Home", path: "/" },
+              { name: "Restaurant", path: "/restaurant" },
+            ]),
+            restaurantJsonLd({
+              name: "Pelbu Suites Restaurant",
+              path: "/restaurant",
+              image: gallery.find((item) => item.src)?.src,
+              servesCuisine: ["Bhutanese", "Indian", "Multi-cuisine"],
+            }),
+          ]),
+        }}
+      />
+      <EngineShell
       eyebrow={copy.eyebrow}
       title={copy.title}
-      body={copy.body}
-      aside={
-        <div className="space-y-4">
-          <p className="font-medium text-ink">Hours</p>
-          <p>{copy.hours_note ?? "Ask the desk for today’s service times."}</p>
-          {copy.primary_cta_href && copy.primary_cta_label ? (
-            <Button asChild className="w-full">
-              <a href={copy.primary_cta_href}>{copy.primary_cta_label}</a>
-            </Button>
-          ) : null}
-        </div>
+      description={copy.body}
+      actions={
+        copy.primary_cta_href && copy.primary_cta_label ? (
+          <Button asChild>
+            <a href={copy.primary_cta_href}>{copy.primary_cta_label}</a>
+          </Button>
+        ) : null
       }
     >
-      <div className="space-y-12">
+      <div className="space-y-10">
+        {copy.hours_note ? (
+          <p className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+            {copy.hours_note}
+          </p>
+        ) : null}
         <section>
-          <h2 className="text-sm font-medium text-ink">The menu</h2>
-          <div className="mt-4">
-            <MenuSections byCategory={byCategory} />
-          </div>
+          <MenuSections byCategory={byCategory} />
           {hasMenu ? (
             <div className="mt-8">
-              <Button asChild>
-                <a href="/order">Build your order</a>
+              <Button asChild variant="outline">
+                <a href="/contact">Ask about a table</a>
               </Button>
             </div>
           ) : null}
         </section>
         <MediaGallery items={gallery} label="Restaurant" />
       </div>
-    </ConversionShell>
+      </EngineShell>
+    </>
   );
 }

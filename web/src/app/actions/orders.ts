@@ -1,5 +1,6 @@
 "use server";
 
+import { isValidThimphuArea } from "@/lib/delivery-areas";
 import { notifyNewOrder } from "@/lib/notify";
 import { calculateOrderTotals } from "@/lib/pricing";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
@@ -82,9 +83,17 @@ export async function createOrder(
       throw new Error("Choose pickup or taxi delivery.");
     }
 
+    const deliveryArea = optionalTrim(formData.get("delivery_area"));
     const deliveryAddress = optionalTrim(formData.get("delivery_address"));
-    if (deliveryTypeRaw === "taxi" && !deliveryAddress) {
-      throw new Error("Taxi delivery needs an address or landmark in Thimphu.");
+    if (deliveryTypeRaw === "taxi") {
+      if (!isValidThimphuArea(deliveryArea)) {
+        throw new Error(
+          "Taxi delivery is Thimphu only. Choose a Thimphu area first.",
+        );
+      }
+      if (!deliveryAddress) {
+        throw new Error("Add a landmark or detail address for taxi delivery.");
+      }
     }
 
     const notes = optionalTrim(formData.get("notes"));
@@ -121,12 +130,23 @@ export async function createOrder(
 
     const byId = new Map(menuRows.map((row) => [row.id as string, row]));
     const outlets = new Set(menuRows.map((row) => row.outlet as string));
-    // Cafe + pastry share one public order flow; pick primary outlet for KOT routing.
-    const outlet = outlets.has("cafe")
-      ? "cafe"
-      : outlets.has("pastry")
-        ? "pastry"
-        : (menuRows[0].outlet as string);
+    const allowedOutlets = new Set(["cafe", "pastry", "restaurant"]);
+    if ([...outlets].some((outlet) => !allowedOutlets.has(outlet))) {
+      throw new Error("One or more items cannot be ordered online.");
+    }
+    const hasRestaurant = outlets.has("restaurant");
+    const hasCafe = outlets.has("cafe") || outlets.has("pastry");
+    if (hasRestaurant && hasCafe) {
+      throw new Error(
+        "Restaurant and cafe items use separate kitchen tickets. Place them as separate orders.",
+      );
+    }
+    // Cafe + pastry share a public ticket; restaurant routes to its own KOT.
+    const outlet = hasRestaurant
+      ? "restaurant"
+      : outlets.has("cafe")
+        ? "cafe"
+        : "pastry";
 
     const priced = cart.map((line) => {
       const item = byId.get(line.menuItemId);
@@ -158,6 +178,7 @@ export async function createOrder(
         customer_name: customerName,
         phone,
         delivery_type: deliveryTypeRaw,
+        delivery_area: deliveryTypeRaw === "taxi" ? deliveryArea : null,
         delivery_address: deliveryTypeRaw === "taxi" ? deliveryAddress : null,
         notes,
         status: "received",
@@ -199,6 +220,7 @@ export async function createOrder(
       customerName,
       phone,
       deliveryType: deliveryTypeRaw,
+      deliveryArea: deliveryTypeRaw === "taxi" ? deliveryArea : null,
       deliveryAddress,
       outlet,
       totalBtn,

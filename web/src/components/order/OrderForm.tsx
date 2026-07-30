@@ -5,13 +5,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { THIMPHU_DELIVERY_AREAS } from "@/lib/delivery-areas";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { MenuItem } from "@/lib/menu";
 import { BHUTAN_GST_RATE, calculateOrderTotals, formatBtn } from "@/lib/pricing";
+import {
+  MinusIcon,
+  PlusIcon,
+  SearchIcon,
+  ShoppingBagIcon,
+} from "lucide-react";
 import { useActionState, useMemo, useState } from "react";
 
 const initial: OrderActionState = { ok: false };
 type CartMap = Record<string, number>;
+type MenuGroup = "cafe" | "restaurant";
+
+function menuGroup(item: MenuItem): MenuGroup {
+  return item.outlet === "restaurant" ? "restaurant" : "cafe";
+}
 
 function CopyReference({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
@@ -32,10 +44,16 @@ function CopyReference({ value }: { value: string }) {
 }
 
 export function OrderForm({ items }: { items: MenuItem[] }) {
-  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [cart, setCart] = useState<CartMap>({});
   const [deliveryType, setDeliveryType] = useState<"pickup" | "taxi">("pickup");
+  const [deliveryArea, setDeliveryArea] = useState<string>("");
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState("all");
+  const [activeMenu, setActiveMenu] = useState<MenuGroup>(() =>
+    items.some((item) => menuGroup(item) === "cafe") ? "cafe" : "restaurant",
+  );
   const [state, action, pending] = useActionState(createOrder, initial);
 
   const cartPayload = useMemo(
@@ -63,14 +81,54 @@ export function OrderForm({ items }: { items: MenuItem[] }) {
 
   const byCategory = useMemo(() => {
     const map = new Map<string, MenuItem[]>();
-    for (const item of items) {
+    const normalizedQuery = query.trim().toLowerCase();
+    const visibleItems = items.filter((item) => {
+      if (menuGroup(item) !== activeMenu) return false;
+      if (
+        normalizedQuery &&
+        !`${item.name} ${item.description ?? ""} ${item.category}`
+          .toLowerCase()
+          .includes(normalizedQuery)
+      ) {
+        return false;
+      }
+      return activeCategory === "all" || item.category === activeCategory;
+    });
+    for (const item of visibleItems) {
       const key = `${item.outlet} · ${item.category}`;
       const list = map.get(key) ?? [];
       list.push(item);
       map.set(key, list);
     }
     return [...map.entries()];
-  }, [items]);
+  }, [activeCategory, activeMenu, items, query]);
+
+  const categories = useMemo(
+    () => [
+      ...new Set(
+        items
+          .filter((item) => menuGroup(item) === activeMenu)
+          .map((item) => item.category),
+      ),
+    ],
+    [activeMenu, items],
+  );
+
+  const availableMenus = useMemo(
+    () => new Set(items.map((item) => menuGroup(item))),
+    [items],
+  );
+
+  function switchMenu(next: MenuGroup) {
+    if (next === activeMenu) return;
+    setActiveMenu(next);
+    setActiveCategory("all");
+    setQuery("");
+    if (Object.keys(cart).length > 0) {
+      setCart({});
+      setMobileCartOpen(false);
+    }
+  }
 
   function setQty(id: string, next: number) {
     setCart((prev) => {
@@ -101,27 +159,100 @@ export function OrderForm({ items }: { items: MenuItem[] }) {
   const showStickyBar = !isDesktop && cartLineCount > 0;
 
   return (
-    <div className="grid gap-10 md:grid-cols-[minmax(0,1fr)_300px]">
-      <section className="space-y-10" aria-label="Menu">
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <section className="min-w-0 space-y-8" aria-label="Menu">
+        <div className="sticky top-16 z-10 -mx-5 space-y-3 border-b border-border bg-background/95 px-5 pb-4 pt-1 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:px-0 md:pb-0">
+          {availableMenus.size > 1 ? (
+            <div className="grid grid-cols-2 gap-2">
+              <CategoryButton
+                active={activeMenu === "cafe"}
+                onClick={() => switchMenu("cafe")}
+              >
+                Cafe & pastry
+              </CategoryButton>
+              <CategoryButton
+                active={activeMenu === "restaurant"}
+                onClick={() => switchMenu("restaurant")}
+              >
+                Restaurant
+              </CategoryButton>
+            </div>
+          ) : null}
+          {Object.keys(cart).length > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Cafe and restaurant produce separate kitchen tickets. Changing
+              menus clears this cart.
+            </p>
+          ) : null}
+          <div className="relative">
+            <SearchIcon
+              aria-hidden
+              className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search today’s menu"
+              aria-label="Search menu"
+              className="h-11 pl-10"
+            />
+          </div>
+          <div
+            className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1"
+            aria-label="Menu categories"
+          >
+            <CategoryButton
+              active={activeCategory === "all"}
+              onClick={() => setActiveCategory("all")}
+            >
+              All
+            </CategoryButton>
+            {categories.map((category) => (
+              <CategoryButton
+                key={category}
+                active={activeCategory === category}
+                onClick={() => setActiveCategory(category)}
+              >
+                {category}
+              </CategoryButton>
+            ))}
+          </div>
+        </div>
+
+        {byCategory.length === 0 ? (
+          <p className="rounded-xl border border-border px-4 py-8 text-center text-sm text-muted-foreground">
+            No menu items match that search.
+          </p>
+        ) : null}
         {byCategory.map(([category, categoryItems]) => (
           <div key={category}>
-            <h2 className="text-sm font-medium text-ink">{category}</h2>
-            <ul className="mt-3 divide-y divide-border">
+            <h2 className="text-lg font-semibold text-ink">{category}</h2>
+            <ul className="mt-3 grid gap-3 sm:grid-cols-2">
               {categoryItems.map((item) => {
                 const qty = cart[item.id] ?? 0;
                 return (
                   <li
                     key={item.id}
-                    className="flex flex-col gap-3 py-4 sm:flex-row sm:items-start sm:justify-between"
+                    className="relative flex min-h-40 overflow-hidden rounded-2xl border border-border bg-card"
                   >
-                    <div className="max-w-xl">
-                      <p className="text-[15px] text-ink">{item.name}</p>
+                    <div className="flex min-w-0 flex-1 flex-col p-4">
+                      <div className="flex items-start gap-2">
+                        <p className="text-[15px] font-medium text-ink">
+                          {item.name}
+                        </p>
+                        {item.is_popular ? (
+                          <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
+                            Popular
+                          </span>
+                        ) : null}
+                      </div>
                       {item.description ? (
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
                           {item.description}
                         </p>
                       ) : null}
-                      <p className="mt-1.5 text-sm tabular-nums text-ink">
+                      <p className="mt-auto pt-3 text-sm font-medium tabular-nums text-ink">
                         {formatBtn(item.price_btn)}
                         {item.gst_applicable ? (
                           <span className="ml-2 text-xs text-muted-foreground">
@@ -129,29 +260,40 @@ export function OrderForm({ items }: { items: MenuItem[] }) {
                           </span>
                         ) : null}
                       </p>
-                    </div>
-                    <div className="flex items-center gap-2">
+                      <div className="mt-3 flex items-center gap-2">
                       <button
                         type="button"
                         aria-label={`Decrease ${item.name}`}
                         disabled={qty === 0}
                         onClick={() => setQty(item.id, qty - 1)}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border text-ink disabled:opacity-40"
+                          className="inline-flex size-11 items-center justify-center rounded-xl border border-border text-ink disabled:opacity-40"
                       >
-                        −
+                          <MinusIcon className="size-4" />
                       </button>
-                      <span className="w-7 text-center font-mono text-sm tabular-nums">
+                        <span className="w-8 text-center font-mono text-sm tabular-nums">
                         {qty}
                       </span>
                       <button
                         type="button"
                         aria-label={`Increase ${item.name}`}
                         onClick={() => setQty(item.id, qty + 1)}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border text-ink"
+                          className="inline-flex size-11 items-center justify-center rounded-xl border border-border bg-primary text-primary-foreground"
                       >
-                        +
+                          <PlusIcon className="size-4" />
                       </button>
+                      </div>
                     </div>
+                    {item.image_src ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={item.image_src}
+                        alt=""
+                        width={180}
+                        height={180}
+                        loading="lazy"
+                        className="h-full w-28 shrink-0 object-cover sm:w-32"
+                      />
+                    ) : null}
                   </li>
                 );
               })}
@@ -161,13 +303,15 @@ export function OrderForm({ items }: { items: MenuItem[] }) {
       </section>
 
       {isDesktop ? (
-        <aside className="md:sticky md:top-6 md:self-start">
+        <aside className="lg:sticky lg:top-24 lg:self-start">
           <CartPanel
             cartPayload={cartPayload}
             items={items}
             totals={totals}
             deliveryType={deliveryType}
             onDeliveryType={setDeliveryType}
+            deliveryArea={deliveryArea}
+            onDeliveryArea={setDeliveryArea}
             state={state}
             action={action}
             pending={pending}
@@ -176,14 +320,15 @@ export function OrderForm({ items }: { items: MenuItem[] }) {
       ) : null}
 
       {showStickyBar ? (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background md:hidden">
+        <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-border bg-background shadow-[0_-8px_30px_rgba(0,0,0,0.08)] lg:hidden">
           <button
             type="button"
             onClick={() => setMobileCartOpen((v) => !v)}
-            className="flex w-full items-center justify-between px-5 py-4 text-left"
+            className="flex min-h-14 w-full items-center justify-between px-5 py-3 text-left"
             aria-expanded={mobileCartOpen}
           >
-            <span className="text-sm text-ink">
+            <span className="flex items-center gap-2 text-sm font-medium text-ink">
+              <ShoppingBagIcon className="size-4" />
               {cartLineCount} item{cartLineCount === 1 ? "" : "s"} ·{" "}
               {formatBtn(totals.totalBtn)}
             </span>
@@ -199,6 +344,8 @@ export function OrderForm({ items }: { items: MenuItem[] }) {
                 totals={totals}
                 deliveryType={deliveryType}
                 onDeliveryType={setDeliveryType}
+                deliveryArea={deliveryArea}
+                onDeliveryArea={setDeliveryArea}
                 state={state}
                 action={action}
                 pending={pending}
@@ -211,12 +358,40 @@ export function OrderForm({ items }: { items: MenuItem[] }) {
   );
 }
 
+function CategoryButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={[
+        "min-h-11 shrink-0 rounded-xl border px-4 text-sm font-medium transition-colors",
+        active
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border bg-background text-ink hover:border-primary/40",
+      ].join(" ")}
+    >
+      {children}
+    </button>
+  );
+}
+
 function CartPanel({
   cartPayload,
   items,
   totals,
   deliveryType,
   onDeliveryType,
+  deliveryArea,
+  onDeliveryArea,
   state,
   action,
   pending,
@@ -226,6 +401,8 @@ function CartPanel({
   totals: ReturnType<typeof calculateOrderTotals>;
   deliveryType: "pickup" | "taxi";
   onDeliveryType: (v: "pickup" | "taxi") => void;
+  deliveryArea: string;
+  onDeliveryArea: (v: string) => void;
   state: OrderActionState;
   action: (payload: FormData) => void;
   pending: boolean;
@@ -332,18 +509,46 @@ function CartPanel({
           </label>
         </div>
         {deliveryType === "taxi" ? (
-          <div className="grid gap-2">
-            <Label htmlFor="delivery-address">Address</Label>
-            <Textarea
-              id="delivery-address"
-              name="delivery_address"
-              required
-              rows={2}
-              maxLength={400}
-            />
-          </div>
+          <>
+            <div className="grid gap-2">
+              <Label htmlFor="delivery-area">Thimphu area</Label>
+              <select
+                id="delivery-area"
+                name="delivery_area"
+                required
+                value={deliveryArea}
+                onChange={(e) => onDeliveryArea(e.target.value)}
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm text-ink outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              >
+                <option value="">Choose area…</option>
+                {THIMPHU_DELIVERY_AREAS.map((area) => (
+                  <option key={area} value={area}>
+                    {area}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Taxi delivery is Thimphu only. Pickup is free — collect at the
+                cafe counter.
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="delivery-address">Landmark / detail address</Label>
+              <Textarea
+                id="delivery-address"
+                name="delivery_address"
+                required
+                rows={2}
+                maxLength={400}
+                placeholder="Building colour, floor, what3words, gate detail…"
+              />
+            </div>
+          </>
         ) : (
-          <input type="hidden" name="delivery_address" value="" />
+          <>
+            <input type="hidden" name="delivery_area" value="" />
+            <input type="hidden" name="delivery_address" value="" />
+          </>
         )}
         <div className="grid gap-2">
           <Label htmlFor="notes">Notes</Label>

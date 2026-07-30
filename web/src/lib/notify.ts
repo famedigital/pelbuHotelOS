@@ -23,6 +23,7 @@ export type OrderNotifyPayload = {
   customerName: string;
   phone: string;
   deliveryType: "pickup" | "taxi";
+  deliveryArea: string | null;
   deliveryAddress: string | null;
   outlet: string;
   totalBtn: number;
@@ -114,6 +115,41 @@ async function sendCallMeBot(text: string): Promise<void> {
   }
 }
 
+/**
+ * Send a WhatsApp message to an arbitrary phone (the guest), not the desk.
+ * Used to push order confirmations back to the customer once the desk has
+ * verified payment. Phone must include the country code (e.g. "97517112345").
+ *
+ * CallMeBot requires the guest number to be a previously-approved WhatsApp
+ * sender under the same API key — for unapproved numbers the request is
+ * logged and dropped silently (no exception into the money path).
+ */
+export async function sendCallMeBotTo(phone: string, text: string): Promise<void> {
+  const apikey = process.env.CALLMEBOT_API_KEY?.trim();
+  const cleaned = phone.replace(/[^\d]/g, "");
+  if (!apikey || !cleaned) {
+    return;
+  }
+
+  const url = new URL("https://api.callmebot.com/whatsapp.php");
+  url.searchParams.set("phone", cleaned);
+  url.searchParams.set("text", text);
+  url.searchParams.set("apikey", apikey);
+  url.searchParams.set("source", "pelbu-os");
+
+  try {
+    const res = await fetch(url.toString(), {
+      method: "GET",
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      console.error("CallMeBot (guest) failed", res.status, await res.text());
+    }
+  } catch (err) {
+    console.error("CallMeBot (guest) request error", err);
+  }
+}
+
 export async function notifyNewBooking(
   payload: BookingNotifyPayload,
 ): Promise<void> {
@@ -160,7 +196,7 @@ export async function notifyNewOrder(payload: OrderNotifyPayload): Promise<void>
   const shortId = payload.orderId.slice(0, 8);
   const delivery =
     payload.deliveryType === "taxi"
-      ? `Taxi · ${payload.deliveryAddress ?? "address TBD"}`
+      ? `Taxi · ${payload.deliveryArea ?? "Thimphu"} · ${payload.deliveryAddress ?? "address TBD"}`
       : "Pickup at cafe";
 
   const lines = [

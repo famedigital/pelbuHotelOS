@@ -1,9 +1,18 @@
-import { DeskHeader } from "@/components/erp/DeskHeader";
-import { DeskPosForm } from "@/components/erp/DeskPosForm";
 import { GuestServiceForm } from "@/components/erp/GuestServiceForm";
+import { PosLayout } from "@/components/erp/pos/PosLayout";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { deskPinConfigured, isDeskAuthenticated } from "@/lib/desk-auth";
 import { loadMenuByOutlets } from "@/lib/menu-loader";
-import { PELBU_PROPERTY_SLUG } from "@/lib/property";
+import {
+  loadDiningTables,
+  loadModifierGroupsForItems,
+  loadOpenPosTickets,
+  loadPosStaff,
+  POS_TENDER_METHODS,
+  POS_VOID_REASON_CODES,
+  voidManagerThresholdBtn,
+} from "@/lib/pos";
+import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 
@@ -20,24 +29,30 @@ export default async function ErpPosPage() {
   }
 
   const admin = createSupabaseAdminClient();
-  const { data: property } = await admin
-    .from("properties")
-    .select("id")
-    .eq("slug", PELBU_PROPERTY_SLUG)
-    .single();
+  const propertyId = await resolveActivePropertyId(admin);
+  const property = await loadProperty(admin, propertyId);
 
-  const [items, { data: bookings }] = await Promise.all([
-    loadMenuByOutlets(["cafe", "pastry", "restaurant", "bar"]),
-    property
-      ? admin
-          .from("bookings")
-          .select("id, contact_name, check_in, check_out, status")
-          .eq("property_id", property.id)
-          .in("status", ["pending", "confirmed", "checked_in"])
-          .order("check_in", { ascending: false })
-          .limit(40)
-      : Promise.resolve({ data: [] }),
-  ]);
+  const [items, { data: bookings }, tables, openTickets, staff] =
+    await Promise.all([
+      loadMenuByOutlets(["cafe", "pastry", "restaurant", "bar"]),
+      property
+        ? admin
+            .from("bookings")
+            .select("id, contact_name, check_in, check_out, status")
+            .eq("property_id", property.id)
+            .in("status", ["pending", "confirmed", "checked_in"])
+            .order("check_in", { ascending: false })
+            .limit(40)
+        : Promise.resolve({ data: [] }),
+      loadDiningTables(admin),
+      loadOpenPosTickets(admin),
+      loadPosStaff(admin),
+    ]);
+
+  const modifierGroups = await loadModifierGroupsForItems(
+    items.map((i) => i.id),
+    admin,
+  );
 
   const bookingOptions = (bookings ?? []).map((b) => ({
     id: b.id as string,
@@ -48,43 +63,54 @@ export default async function ErpPosPage() {
   }));
 
   return (
-    <div className="min-h-screen bg-ivory">
-      <DeskHeader title="POS" />
-      <main className="mx-auto max-w-[1200px] px-6 py-10 md:px-8">
-        {!deskPinConfigured() ? (
-          <p className="mb-8 border border-gold/40 bg-gold/5 px-4 py-3 text-sm text-espresso">
-            Dev mode: desk PIN not set. Add <code className="font-mono">DESK_PIN</code>{" "}
+    <div className="erp mx-auto w-full max-w-[1280px] space-y-6 p-4 md:p-6">
+      {!deskPinConfigured() ? (
+        <Alert variant="warning">
+          <AlertTitle>Dev mode</AlertTitle>
+          <AlertDescription>
+            Desk PIN not set. Add <code className="font-mono">DESK_PIN</code>{" "}
             before production.
-          </p>
-        ) : null}
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
-        <div className="mb-8 max-w-2xl">
-          <p className="text-[11px] font-semibold tracking-[0.28em] text-gold uppercase">
-            Point of sale
-          </p>
-          <h2 className="mt-2 text-2xl text-espresso md:text-3xl">New ticket</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Ring a walk-in cash ticket, or charge an order straight to an in-house
-            guest folio. Guest service charges (taxi / shop) live on the right.
-          </p>
-        </div>
-
-        <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_340px]">
-          <div className="min-w-0">
-            <DeskPosForm items={items} bookings={bookingOptions} />
+      <PosLayout
+        items={items}
+        modifierGroups={modifierGroups}
+        tables={tables}
+        staff={staff}
+        openTickets={openTickets}
+        bookings={bookingOptions}
+        gstRate={property?.gst_rate ?? 0.07}
+        serviceChargeRate={property?.service_charge_rate ?? 0}
+        serviceChargeDefaultOn={property?.service_charge_default_on ?? false}
+        runtimeConfig={{
+          voidReasonCodes: POS_VOID_REASON_CODES,
+          tenderMethods: POS_TENDER_METHODS,
+          voidManagerThresholdBtn: voidManagerThresholdBtn(),
+        }}
+        guestServiceSlot={
+          <div className="rounded-xl border bg-card p-4">
+            <div className="mb-4 space-y-0.5">
+              <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+                Guest service
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Post taxi, shop, laundry, and other non-menu charges straight to
+                a guest folio.
+              </p>
+            </div>
+            <GuestServiceForm
+              bookings={bookingOptions}
+              gstRate={property?.gst_rate ?? 0.07}
+              serviceChargeRate={property?.service_charge_rate ?? 0}
+              serviceChargeDefaultOn={
+                property?.service_charge_default_on ?? false
+              }
+            />
           </div>
-
-          <aside className="space-y-6">
-            <GuestServiceForm bookings={bookingOptions} />
-            <a
-              href="/erp"
-              className="inline-flex min-h-11 items-center text-sm text-espresso underline-offset-4 hover:underline"
-            >
-              ← Back to order board
-            </a>
-          </aside>
-        </div>
-      </main>
+        }
+      />
     </div>
   );
 }
