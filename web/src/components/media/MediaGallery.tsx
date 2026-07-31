@@ -22,11 +22,14 @@ export function MediaGallery({ items, label = "Gallery" }: Props) {
     : visible;
 
   return (
-    <section aria-label={label} className="space-y-4">
-      <h2 className="text-sm font-medium text-ink">{label}</h2>
+    <section aria-label={label} className="space-y-5">
+      <div>
+        <p className="text-sm font-medium text-sky-700">Gallery</p>
+        <h2 className="mt-1 font-display text-2xl text-foreground">{label}</h2>
+      </div>
 
       {lead ? (
-        <div className="overflow-hidden bg-secondary">
+        <div className="overflow-hidden rounded-2xl bg-secondary shadow-[0_24px_50px_-30px_rgba(8,47,73,0.45)]">
           <CloudinaryMedia
             publicId={lead.public_id}
             src={lead.src}
@@ -41,9 +44,12 @@ export function MediaGallery({ items, label = "Gallery" }: Props) {
         </div>
       ) : null}
 
-      <ul className="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-3">
+      <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
         {gridItems.map((item) => (
-          <li key={item.id} className="overflow-hidden bg-secondary">
+          <li
+            key={item.id}
+            className="overflow-hidden rounded-xl bg-secondary"
+          >
             <CloudinaryMedia
               publicId={item.public_id}
               src={item.src}

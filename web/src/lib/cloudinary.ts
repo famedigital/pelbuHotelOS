@@ -52,6 +52,18 @@ export function cloudinaryUrl(
   return `https://res.cloudinary.com/${cloud}/image/upload/${buildTransform(transform)}/${cleanPublicId(publicId)}`;
 }
 
+/** Original file delivery, used when a PDF must remain a multi-page PDF. */
+export function cloudinaryOriginalUrl(
+  publicId: string,
+  format?: string | null,
+): string | null {
+  const cloud = getCloudinaryCloudName();
+  if (!cloud || !publicId) return null;
+  const clean = cleanPublicId(publicId).replace(/\.pdf$/i, "");
+  const extension = format?.toLowerCase() === "pdf" ? ".pdf" : "";
+  return `https://res.cloudinary.com/${cloud}/image/upload/${clean}${extension}`;
+}
+
 /**
  * Adaptive HLS delivery. Cloudinary picks bitrate/renditions on the fly with
  * `sp_auto`, so guests on slow mobile networks get a lighter stream.

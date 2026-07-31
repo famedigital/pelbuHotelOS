@@ -1,13 +1,12 @@
-import {
-  confirmPublicOrderAction,
-  postOrderToBookingFolio,
-  updateOrderKotStatus,
-} from "@/app/actions/erp-pos";
 import { BookingLifecycleActions } from "@/components/erp/BookingLifecycleActions";
 import { DeskLiveRefresh } from "@/components/erp/DeskLiveRefresh";
+import { OrderBoard } from "@/components/erp/order-board/OrderBoard";
+import type {
+  OrderBoardBooking,
+  OrderTicket,
+} from "@/components/erp/order-board/types";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -17,7 +16,7 @@ import {
 } from "@/components/ui/card";
 import { deskPinConfigured, isDeskAuthenticated } from "@/lib/desk-auth";
 import { thimphuToday } from "@/lib/erp-lists";
-import { KOT_FLOW, KOT_LABEL } from "@/lib/kot";
+import type { KotStatus } from "@/lib/kot";
 import { formatBtn } from "@/lib/pricing";
 import {
   loadProperty,
@@ -74,11 +73,13 @@ export default async function ErpDashboardPage() {
     admin
       .from("orders")
       .select(
-        "id, customer_name, phone, outlet, delivery_type, delivery_area, order_source, total_btn, status, kot_status, booking_id, folio_id, posted_to_folio_at, confirmed_at, confirmed_by, payment_recorded_at, payment_journal_no, created_at, order_items(name_snapshot, qty)",
+        "id, customer_name, phone, outlet, delivery_type, delivery_area, order_source, total_btn, status, kot_status, booking_id, folio_id, posted_to_folio_at, confirmed_at, confirmed_by, payment_recorded_at, payment_journal_no, created_at, voided_at, order_items(name_snapshot, qty)",
       )
       .eq("property_id", propertyId)
+      .in("kot_status", ["new", "preparing", "ready"])
+      .is("voided_at", null)
       .order("created_at", { ascending: false })
-      .limit(25),
+      .limit(40),
     admin
       .from("service_requests")
       .select(
@@ -117,7 +118,36 @@ export default async function ErpDashboardPage() {
       ["pending", "confirmed"].includes(b.status as string),
   );
   const inHouse = allBookings.filter((b) => b.status === "checked_in");
-  const openOrders = orders ?? [];
+  const openTickets: OrderTicket[] = (orders ?? []).map((row) => ({
+    id: row.id as string,
+    customerName: (row.customer_name as string | null) ?? "Walk-in",
+    phone: (row.phone as string | null) ?? null,
+    outlet: (row.outlet as string | null) ?? "kitchen",
+    deliveryType: (row.delivery_type as string | null) ?? null,
+    deliveryArea: (row.delivery_area as string | null) ?? null,
+    orderSource: (row.order_source as string | null) ?? null,
+    totalBtn: Number(row.total_btn ?? 0),
+    kotStatus: row.kot_status as KotStatus,
+    bookingId: (row.booking_id as string | null) ?? null,
+    folioId: (row.folio_id as string | null) ?? null,
+    postedToFolioAt: (row.posted_to_folio_at as string | null) ?? null,
+    confirmedAt: (row.confirmed_at as string | null) ?? null,
+    confirmedBy: (row.confirmed_by as string | null) ?? null,
+    paymentRecordedAt: (row.payment_recorded_at as string | null) ?? null,
+    paymentJournalNo: (row.payment_journal_no as string | null) ?? null,
+    createdAt: row.created_at as string,
+    items: (
+      (row.order_items as { name_snapshot: string; qty: number }[] | null) ?? []
+    ).map((item) => ({
+      name: item.name_snapshot,
+      qty: Number(item.qty),
+    })),
+  }));
+  const openBookings: OrderBoardBooking[] = inHouse.map((booking) => ({
+    id: booking.id as string,
+    contactName: (booking.contact_name as string | null) ?? "Guest",
+    checkIn: booking.check_in as string,
+  }));
 
   const folioBalance = (folios ?? []).reduce((sum, f) => {
     const bal = ((f.folio_lines as { total_btn: number; status: string }[] | null) ?? [])
@@ -125,13 +155,6 @@ export default async function ErpDashboardPage() {
       .reduce((s, l) => s + Number(l.total_btn ?? 0), 0);
     return sum + bal;
   }, 0);
-
-  const orderBuckets = {
-    new: openOrders.filter((o) => o.kot_status === "new"),
-    preparing: openOrders.filter((o) => o.kot_status === "preparing"),
-    ready: openOrders.filter((o) => o.kot_status === "ready"),
-    served: openOrders.filter((o) => o.kot_status === "served"),
-  };
 
   const setupIncomplete = activeProperty && !activeProperty.setup_completed_at;
 
@@ -198,9 +221,9 @@ export default async function ErpDashboardPage() {
         />
       </div>
 
-      {/* Holds + KOT board */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card>
+      {/* Holds + KOT triage board */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+        <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CalendarClockIcon className="size-4 text-destructive" />
@@ -245,28 +268,21 @@ export default async function ErpDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="lg:col-span-3">
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <div>
               <CardTitle className="flex items-center gap-2">
                 <ShoppingCartIcon className="size-4 text-accent" />
                 Order board
               </CardTitle>
-              <CardDescription>Move tickets across the kitchen flow</CardDescription>
+              <CardDescription>
+                Triage open kitchen tickets · tap a card for full actions
+              </CardDescription>
             </div>
             <DeskLiveRefresh />
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {KOT_FLOW.map((bucket) => (
-                <OrderBoardColumn
-                  key={bucket}
-                  title={KOT_LABEL[bucket]}
-                  orders={orderBuckets[bucket]}
-                  openBookings={inHouse}
-                />
-              ))}
-            </div>
+            <OrderBoard tickets={openTickets} openBookings={openBookings} />
           </CardContent>
         </Card>
       </div>
@@ -453,141 +469,5 @@ function StatusBadge({ value }: { value: string }) {
     >
       {value.replace(/_/g, " ")}
     </span>
-  );
-}
-
-function OrderBoardColumn({
-  title,
-  orders,
-  openBookings,
-}: {
-  title: string;
-  orders: Record<string, unknown>[];
-  openBookings: Record<string, unknown>[];
-}) {
-  return (
-    <div className="rounded-lg border bg-muted/30 p-3">
-      <div className="flex items-baseline justify-between">
-        <h3 className="text-[11px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-          {title}
-        </h3>
-        <span className="text-xs text-muted-foreground">{orders.length}</span>
-      </div>
-      {orders.length === 0 ? (
-        <p className="mt-3 text-xs text-muted-foreground">No orders.</p>
-      ) : (
-        <ul className="mt-3 space-y-2">
-          {orders.map((row) => {
-            const items =
-              ((row.order_items as { name_snapshot: string; qty: number }[] | null) ?? [])
-                .map((i) => `${i.qty}× ${i.name_snapshot}`)
-                .join(", ") || "Items pending";
-            return (
-              <li
-                key={row.id as string}
-                className="rounded-md border bg-card p-2 text-xs"
-              >
-                <div className="flex items-baseline justify-between gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <p className="font-medium text-foreground">
-                      {row.customer_name as string}
-                    </p>
-                    {row.order_source === "public" ? (
-                      <span className="rounded bg-gold/15 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-gold">
-                        Online
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="tabular-nums text-foreground">
-                    {formatBtn(Number(row.total_btn))}
-                  </p>
-                </div>
-                <p className="mt-0.5 text-muted-foreground">{items}</p>
-                <p className="mt-0.5 text-[10px] text-muted-foreground">
-                  {row.outlet as string}
-                  {row.delivery_type === "taxi"
-                    ? ` · taxi · ${row.delivery_area ?? "Thimphu"}`
-                    : " · pickup"}
-                </p>
-
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {KOT_FLOW.map((status) => (
-                    <form key={status} action={updateOrderKotStatus}>
-                      <input type="hidden" name="order_id" value={row.id as string} />
-                      <input type="hidden" name="kot_status" value={status} />
-                      <Button
-                        type="submit"
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-2 text-[11px]"
-                      >
-                        {KOT_LABEL[status]}
-                      </Button>
-                    </form>
-                  ))}
-                </div>
-
-                {row.order_source === "public" && !row.confirmed_at ? (
-                  <form action={confirmPublicOrderAction} className="mt-2">
-                    <input type="hidden" name="order_id" value={row.id as string} />
-                    <Button
-                      type="submit"
-                      variant="citrus"
-                      size="sm"
-                      className="h-7 px-2 text-[11px]"
-                    >
-                      Confirm order
-                    </Button>
-                  </form>
-                ) : row.order_source === "public" && !row.payment_recorded_at ? (
-                  <div className="mt-2 space-y-1.5">
-                    <p className="text-[11px] text-muted-foreground">
-                      Confirmed — awaiting payment.
-                    </p>
-                    <Link
-                      href={`/erp/orders/${row.id as string}/slip`}
-                      className="inline-flex h-7 items-center rounded-md border px-2 text-[11px] text-foreground hover:bg-muted"
-                    >
-                      Open slip · take payment
-                    </Link>
-                  </div>
-                ) : row.order_source === "public" ? (
-                  <p className="mt-2 text-[11px] text-muted-foreground">
-                    Paid · journal {row.payment_journal_no as string}
-                  </p>
-                ) : null}
-
-                {!row.posted_to_folio_at && openBookings.length > 0 ? (
-                  <form action={postOrderToBookingFolio} className="mt-2 flex flex-wrap gap-1.5">
-                    <input type="hidden" name="order_id" value={row.id as string} />
-                    <select
-                      name="booking_id"
-                      defaultValue=""
-                      className="h-7 flex-1 rounded-md border border-input bg-transparent px-1.5 text-[11px] text-foreground outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                    >
-                      <option value="" disabled>
-                        Charge to folio
-                      </option>
-                      {openBookings.map((b) => (
-                        <option key={b.id as string} value={b.id as string}>
-                          {(b.contact_name as string) ?? "Guest"} · {fmtDate(b.check_in as string)}
-                        </option>
-                      ))}
-                    </select>
-                    <Button type="submit" variant="citrus" size="sm" className="h-7 px-2 text-[11px]">
-                      Post
-                    </Button>
-                  </form>
-                ) : row.posted_to_folio_at ? (
-                  <p className="mt-2 text-[11px] text-muted-foreground">
-                    Posted to {row.folio_id as string}
-                  </p>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
   );
 }

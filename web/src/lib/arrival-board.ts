@@ -95,8 +95,22 @@ export function computeArrivalBadges(row: ArrivalBoardInput): ArrivalBadge[] {
   return badges;
 }
 
+/**
+ * Statuses the check-in screen can actually act on. Anything else routed there
+ * lands on a dead end, so it belongs on the booking detail page instead.
+ */
+const CHECKIN_STATUSES = new Set(["pending", "confirmed", "checked_in"]);
+
 export function boardActionLabel(status: string | null): string {
   if (status === "checked_in") return "Check out";
   if (status === "pending" || status === "confirmed") return "Check in";
-  return "Open";
+  if (status === "held") return "Confirm token";
+  return "View";
+}
+
+export function boardActionHref(status: string | null, id: string): string {
+  if (status === "checked_in") return `/erp/check-out?id=${id}`;
+  return CHECKIN_STATUSES.has(status ?? "")
+    ? `/erp/check-in?id=${id}`
+    : `/erp/bookings/${id}`;
 }

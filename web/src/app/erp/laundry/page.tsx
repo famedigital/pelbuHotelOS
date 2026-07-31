@@ -22,8 +22,12 @@ export default async function ErpLaundryPage() {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
   const admin = createSupabaseAdminClient();
   const propertyId = await resolveActivePropertyId(admin);
-  const [{ data: catalog }, { data: orders }, { data: bookings }, { data: staff }] =
-    await Promise.all([
+  const [
+    { data: catalog },
+    { data: orders },
+    { data: bookings, error: bookingsError },
+    { data: staff },
+  ] = await Promise.all([
       admin
         .from("laundry_catalog_items")
         .select(
@@ -144,6 +148,7 @@ export default async function ErpLaundryPage() {
         orders={orderRows}
         bagsByOrder={bagsByOrder}
         bookings={bookingOptions}
+        bookingsError={bookingsError?.message ?? null}
         staff={laundryStaff}
       />
     </div>

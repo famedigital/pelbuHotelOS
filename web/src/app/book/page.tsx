@@ -1,6 +1,6 @@
+import { BookingCheckoutShell } from "@/components/book/BookingCheckoutShell";
 import { BookingWizard } from "@/components/book/BookingWizard";
-import { EngineShell } from "@/components/site/EngineShell";
-import { Button } from "@/components/ui/button";
+import { loadPublicPropertyProfile } from "@/lib/public-property";
 import { parseStaySearch } from "@/lib/stay-dates";
 
 export const metadata = {
@@ -8,6 +8,7 @@ export const metadata = {
   description:
     "Reserve a room stay at Pelbu Suites Olakha, Thimphu — live rates, pick your room, hold instantly.",
   alternates: { canonical: "/book" },
+  robots: { index: false, follow: true },
 };
 
 type BookSearchParams = {
@@ -27,7 +28,11 @@ export default async function BookPage({
 }: {
   searchParams: Promise<BookSearchParams>;
 }) {
-  const params = await searchParams;
+  const [params, property] = await Promise.all([
+    searchParams,
+    loadPublicPropertyProfile(),
+  ]);
+
   const initialStay = parseStaySearch({
     checkIn: first(params.checkIn),
     checkOut: first(params.checkOut),
@@ -36,17 +41,8 @@ export default async function BookPage({
   });
 
   return (
-    <EngineShell
-      eyebrow="Direct booking"
-      title="Choose your stay."
-      description="Set dates or nights, compare live room rates, and choose an available meal plan. Your rooms are held while the desk confirms payment."
-      actions={
-        <Button asChild variant="outline">
-          <a href="/rooms">Compare rooms</a>
-        </Button>
-      }
-    >
+    <BookingCheckoutShell phone={property?.phone}>
       <BookingWizard initialStay={initialStay} />
-    </EngineShell>
+    </BookingCheckoutShell>
   );
 }

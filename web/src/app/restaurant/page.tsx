@@ -1,8 +1,5 @@
-import { MediaGallery } from "@/components/media/MediaGallery";
-import { CmsContentSections } from "@/components/site/CmsContentSections";
-import { EngineShell } from "@/components/site/EngineShell";
-import { MenuSections } from "@/components/site/MenuSections";
-import { Button } from "@/components/ui/button";
+import { OutletPageShell } from "@/components/site/OutletPageShell";
+import { BRAND_CLOUDINARY, OUTLET_SHOWCASE_PHOTOS } from "@/lib/brand";
 import { loadCmsGallery, loadCmsPage } from "@/lib/cms";
 import { groupMenuByCategory, loadMenuByOutlets } from "@/lib/menu-loader";
 import {
@@ -14,7 +11,7 @@ import {
 export const metadata = {
   title: "Restaurant | Pelbu Suites",
   description:
-    "Indian, Bhutanese, and multicuisine restaurant at Pelbu Suites, Olakha Thimphu.",
+    "Indian, Bhutanese, and multicuisine restaurant at Pelbu Suites, Olakha Thimphu — order for the table, pickup, or taxi delivery.",
   alternates: { canonical: "/restaurant" },
 };
 
@@ -23,13 +20,35 @@ export const dynamic = "force-dynamic";
 const FALLBACK = {
   eyebrow: "Restaurant",
   title: "Indian · Bhutanese · Multicuisine",
-  body: "Breakfast, lunch, and dinner with TACT — taste, aroma, consistency, and time.",
+  body: "Breakfast, lunch, and dinner with TACT — taste, aroma, consistency, and time. Signature plates you will not find on every Thimphu corner.",
   hours_note: "Lunch and dinner; breakfast when posted.",
   primary_cta_href: "/menu?outlet=restaurant",
   primary_cta_label: "Order restaurant food",
   secondary_cta_href: "/contact",
   secondary_cta_label: "Ask about a table",
 };
+
+function heroPhotos(
+  gallery: Awaited<ReturnType<typeof loadCmsGallery>>,
+) {
+  const fromCms = gallery
+    .filter((item) => item.public_id || item.src)
+    .slice(0, 5)
+    .map((item) => ({
+      publicId: item.public_id,
+      src: item.src,
+      alt: item.alt || "Pelbu Suites restaurant",
+      resourceType: item.resource_type,
+      posterPublicId: item.poster_public_id,
+    }));
+
+  if (fromCms.length >= 2) return fromCms;
+
+  return OUTLET_SHOWCASE_PHOTOS.restaurant.map((photo) => ({
+    publicId: photo.publicId,
+    alt: photo.alt,
+  }));
+}
 
 export default async function RestaurantPage() {
   const [page, gallery, items] = await Promise.all([
@@ -40,6 +59,7 @@ export default async function RestaurantPage() {
   const copy = page ?? FALLBACK;
   const byCategory = groupMenuByCategory(items);
   const hasMenu = items.length > 0;
+  const photos = heroPhotos(gallery);
 
   return (
     <>
@@ -60,51 +80,47 @@ export default async function RestaurantPage() {
           ]),
         }}
       />
-      <EngineShell
+      <OutletPageShell
         eyebrow={copy.eyebrow}
         title={copy.title}
         description={copy.body}
-        actions={
-          <>
-            <Button asChild variant="citrus">
-              <a href={copy.primary_cta_href ?? "/menu?outlet=restaurant"}>
-                {copy.primary_cta_label ?? "Order restaurant food"}
-              </a>
-            </Button>
-            <Button asChild variant="outline">
-              <a href={copy.secondary_cta_href ?? "/contact"}>
-                {copy.secondary_cta_label ?? "Ask about a table"}
-              </a>
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-10">
-          <CmsContentSections sections={page?.sections_json} />
-          {copy.hours_note ? (
-            <p className="rounded-2xl border border-border bg-mint-100/50 px-4 py-3 text-sm text-mint-600">
-              {copy.hours_note}
-            </p>
-          ) : null}
-          <section>
-            <MenuSections
-              byCategory={byCategory}
-              orderBaseHref={hasMenu ? "/menu" : undefined}
-            />
-            {hasMenu ? (
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Button asChild variant="citrus">
-                  <a href="/menu?outlet=restaurant">Order restaurant food</a>
-                </Button>
-                <Button asChild variant="outline">
-                  <a href="/menu">Browse full menu</a>
-                </Button>
-              </div>
-            ) : null}
-          </section>
-          <MediaGallery items={gallery} label="Restaurant" />
-        </div>
-      </EngineShell>
+        hoursNote={copy.hours_note}
+        primaryCta={{
+          href: copy.primary_cta_href ?? "/menu?outlet=restaurant",
+          label: copy.primary_cta_label ?? "Order restaurant food",
+        }}
+        secondaryCta={{
+          href: copy.secondary_cta_href ?? "/contact",
+          label: copy.secondary_cta_label ?? "Ask about a table",
+        }}
+        heroPhotos={photos}
+        sections={page?.sections_json}
+        byCategory={byCategory}
+        orderBaseHref={hasMenu ? "/menu" : undefined}
+        gallery={gallery}
+        galleryLabel="Restaurant"
+        accent="sky"
+        sisters={[
+          {
+            href: "/cafe",
+            title: "Cafe",
+            description: "Espresso, breakfast and all-day plates from early morning.",
+            publicId: BRAND_CLOUDINARY.cafePastry,
+          },
+          {
+            href: "/menu?outlet=pastry",
+            title: "Pastry",
+            description: "Croissants, cakes and Bhutanese bakes made each morning.",
+            publicId: BRAND_CLOUDINARY.pastryKhabzay,
+          },
+          {
+            href: "/bar",
+            title: "Bar",
+            description: "Evening pours and calm weekend nights at the hotel bar.",
+            publicId: BRAND_CLOUDINARY.barPour,
+          },
+        ]}
+      />
     </>
   );
 }

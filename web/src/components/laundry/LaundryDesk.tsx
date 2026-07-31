@@ -53,12 +53,14 @@ export function LaundryDesk({
   orders,
   bagsByOrder,
   bookings,
+  bookingsError,
   staff,
 }: {
   catalog: LaundryCatalogItem[];
   orders: LaundryOrder[];
   bagsByOrder: Record<string, LaundryBag[]>;
   bookings: LaundryBookingOption[];
+  bookingsError?: string | null;
   staff: StaffOption[];
 }) {
   return (
@@ -80,7 +82,11 @@ export function LaundryDesk({
         <DeskBoard orders={orders} bagsByOrder={bagsByOrder} staff={staff} />
       </TabsContent>
       <TabsContent value="intake">
-        <ReceptionIntake catalog={catalog} bookings={bookings} />
+        <ReceptionIntake
+          catalog={catalog}
+          bookings={bookings}
+          bookingsError={bookingsError}
+        />
       </TabsContent>
       <TabsContent value="pricing">
         <CatalogManager catalog={catalog} />
@@ -286,9 +292,11 @@ function AssignmentForm({
 function ReceptionIntake({
   catalog,
   bookings,
+  bookingsError,
 }: {
   catalog: LaundryCatalogItem[];
   bookings: LaundryBookingOption[];
+  bookingsError?: string | null;
 }) {
   const [state, action, pending] = useActionState(
     createDeskLaundryOrder,
@@ -297,6 +305,7 @@ function ReceptionIntake({
   const roomOptions = bookings.flatMap((booking) =>
     booking.rooms.map((room) => ({ booking, room })),
   );
+  const unassigned = bookings.filter((booking) => booking.rooms.length === 0);
   const [roomKey, setRoomKey] = useState("");
   const selected = roomOptions.find(
     ({ booking, room }) => `${booking.id}|${room.id}` === roomKey,
@@ -322,6 +331,13 @@ function ReceptionIntake({
         Use this when the guest hands laundry to reception. Select the room,
         count garments, take the intake photo, and submit.
       </p>
+
+      <InHouseStatus
+        error={bookingsError}
+        roomCount={roomOptions.length}
+        unassigned={unassigned}
+      />
+
       <form action={action} className="mt-5 space-y-5">
         <input
           type="hidden"
@@ -343,9 +359,19 @@ function ReceptionIntake({
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Checked-in room</Label>
-            <Select value={roomKey} onValueChange={chooseRoom}>
+            <Select
+              value={roomKey}
+              onValueChange={chooseRoom}
+              disabled={roomOptions.length === 0}
+            >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select room and guest" />
+                <SelectValue
+                  placeholder={
+                    roomOptions.length === 0
+                      ? "No rooms in house"
+                      : "Select room and guest"
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
                 {roomOptions.map(({ booking, room }) => (
@@ -358,15 +384,29 @@ function ReceptionIntake({
                 ))}
               </SelectContent>
             </Select>
+            {roomOptions.length > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                {roomOptions.length} room
+                {roomOptions.length === 1 ? "" : "s"} in house
+              </p>
+            ) : null}
           </div>
           <div className="space-y-1.5">
             <Label>Guest name</Label>
-            <Select value={guestName} onValueChange={setGuestName} disabled={!selected}>
+            <Select
+              value={guestName}
+              onValueChange={setGuestName}
+              disabled={!selected}
+            >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select guest" />
+                <SelectValue
+                  placeholder={
+                    selected ? "Select guest" : "Pick a room first"
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
-                {selected?.booking.guests.map((name) => (
+                {(selected?.booking.guests ?? []).map((name) => (
                   <SelectItem key={name} value={name}>
                     {name}
                   </SelectItem>
@@ -468,6 +508,76 @@ function ReceptionIntake({
       </form>
     </div>
   );
+}
+
+/**
+ * The room picker is only as good as the in-house list behind it. An empty
+ * dropdown used to look identical whether nobody was checked in or the query
+ * had failed, so say which it is.
+ */
+function InHouseStatus({
+  error,
+  roomCount,
+  unassigned,
+}: {
+  error?: string | null;
+  roomCount: number;
+  unassigned: LaundryBookingOption[];
+}) {
+  if (error) {
+    return (
+      <Alert variant="destructive" className="mt-4">
+        <AlertDescription>
+          Could not load in-house rooms: {error}. Reception intake needs a
+          checked-in room — retry, or take the order via the guest room QR.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (roomCount === 0) {
+    return (
+      <Alert className="mt-4">
+        <AlertDescription>
+          {unassigned.length > 0 ? (
+            <>
+              {unassigned.length} guest
+              {unassigned.length === 1 ? " is" : "s are"} checked in but have no
+              room assigned yet, so there is nothing to pick here. Assign a room
+              on{" "}
+              <Link href="/erp/check-in" className="underline underline-offset-4">
+                check-in
+              </Link>{" "}
+              first.
+            </>
+          ) : (
+            <>
+              No guests are checked in right now, so there is no room to take
+              laundry against. Check a guest in from{" "}
+              <Link href="/erp/check-in" className="underline underline-offset-4">
+                check-in
+              </Link>
+              , or let the guest submit from the room QR.
+            </>
+          )}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (unassigned.length > 0) {
+    return (
+      <Alert className="mt-4">
+        <AlertDescription>
+          {unassigned.length} in-house guest
+          {unassigned.length === 1 ? "" : "s"} not shown below — no room
+          assigned yet.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  return null;
 }
 
 function CatalogManager({ catalog }: { catalog: LaundryCatalogItem[] }) {

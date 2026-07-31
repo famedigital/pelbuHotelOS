@@ -46,35 +46,43 @@ export function BookingStepStay({
     <fieldset className="space-y-6">
       <legend className="sr-only">Stay dates and party</legend>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="grid gap-2">
-          <Label htmlFor="check-in">Check-in</Label>
-          <Input
-            id="check-in"
-            type="date"
-            value={checkIn}
-            min={minCheckIn}
-            onChange={(e) => onCheckIn(e.target.value || "")}
-          />
+      {/* items-start keeps both columns content-height so the two date inputs
+          share a baseline; the nights hint sits below the row (with reserved
+          height) so showing/hiding it never shifts or offsets the fields. */}
+      <div className="space-y-2">
+        <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
+          <div className="grid gap-2">
+            <Label htmlFor="check-in">Check-in</Label>
+            <Input
+              id="check-in"
+              type="date"
+              value={checkIn}
+              min={minCheckIn}
+              onChange={(e) => onCheckIn(e.target.value || "")}
+              className="h-10"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="check-out">Check-out</Label>
+            <Input
+              id="check-out"
+              type="date"
+              value={checkOut}
+              min={minCheckout}
+              onChange={(e) => onCheckOut(e.target.value || "")}
+              className="h-10"
+            />
+          </div>
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor="check-out">Check-out</Label>
-          <Input
-            id="check-out"
-            type="date"
-            value={checkOut}
-            min={minCheckout}
-            onChange={(e) => onCheckOut(e.target.value || "")}
-          />
-          {nightsLabel ? (
-            <span className="text-xs text-muted-foreground">
-              {nightsLabel}
-            </span>
-          ) : null}
-        </div>
+        <p
+          className="min-h-4 text-xs text-muted-foreground"
+          aria-live="polite"
+        >
+          {nightsLabel}
+        </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 items-start gap-4">
         <Stepper
           label="Adults"
           value={adults}

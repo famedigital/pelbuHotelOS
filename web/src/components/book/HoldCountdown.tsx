@@ -44,14 +44,12 @@ function pad(n: number): string {
  * server's read-time filter in `soldQtyByRoomType`, not on this clock.
  */
 export function HoldCountdown({ expiresAt, formattedExpiry }: Props) {
-  // Null on first render so SSR and the first client paint match.
+  // Null on first render so SSR and the first client paint match; the effect
+  // below is what first supplies a real value, so it doubles as the mount flag.
   const [remaining, setRemaining] = useState<Remaining | null>(null);
-  const [mounted, setMounted] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    setMounted(true);
-
     const tick = () => {
       const next = computeRemaining(expiresAt, Date.now());
       setRemaining(next);
@@ -72,7 +70,7 @@ export function HoldCountdown({ expiresAt, formattedExpiry }: Props) {
     };
   }, [expiresAt]);
 
-  if (!mounted || !remaining) {
+  if (!remaining) {
     return formattedExpiry ? (
       <p className="text-sm text-maroon">
         Hold expires {formattedExpiry}

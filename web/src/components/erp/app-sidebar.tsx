@@ -3,29 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  CalendarClockIcon,
-  ClipboardListIcon,
-  CreditCardIcon,
-  Globe2Icon,
-  HotelIcon,
-  ImageIcon,
-  LayoutDashboardIcon,
-  MonitorIcon,
-  SmartphoneIcon,
-  ReceiptTextIcon,
-  ScrollTextIcon,
-  SettingsIcon,
-  ShoppingCartIcon,
-  ShirtIcon,
-  SoupIcon,
-  SparklesIcon,
-  TruckIcon,
-  WalletIcon,
-  UsersIcon,
-  WrenchIcon,
-  type LucideIcon,
-} from "lucide-react";
+import { SettingsIcon } from "lucide-react";
 
 import {
   Sidebar,
@@ -41,104 +19,10 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { BRAND_ICONS } from "@/lib/brand";
+import { ERP_MODULES, resolveModule } from "@/lib/erp-nav";
 import { cn } from "@/lib/utils";
 
-type NavLeaf = {
-  title: string;
-  href: string;
-  icon: LucideIcon;
-};
-type NavSection = { label: string; items: NavLeaf[] };
-
-export const NAV_SECTIONS: NavSection[] = [
-  {
-    label: "Front desk",
-    items: [
-      // Daily shift path — keep the top of this list tight.
-      { title: "Dashboard", href: "/erp", icon: LayoutDashboardIcon },
-      { title: "Calendar", href: "/erp/calendar", icon: CalendarClockIcon },
-      { title: "Check-in", href: "/erp/check-in", icon: UsersIcon },
-      { title: "Arrivals", href: "/erp/arrivals", icon: ClipboardListIcon },
-      { title: "In-house", href: "/erp/in-house", icon: HotelIcon },
-      { title: "Departures", href: "/erp/departures", icon: ScrollTextIcon },
-      { title: "Fast book", href: "/erp/fast-book", icon: SparklesIcon },
-      { title: "Rooms", href: "/erp/rooms", icon: HotelIcon },
-      { title: "Housekeeping", href: "/erp/housekeeping", icon: SparklesIcon },
-      { title: "Laundry", href: "/erp/laundry", icon: ShirtIcon },
-      // Lookup / less frequent during the shift
-      { title: "Reservations", href: "/erp/reservations", icon: ReceiptTextIcon },
-      { title: "Guests", href: "/erp/guests", icon: UsersIcon },
-      { title: "Maintenance", href: "/erp/maintenance", icon: WrenchIcon },
-    ],
-  },
-  {
-    label: "Money",
-    items: [
-      { title: "Payments", href: "/erp/payments", icon: CreditCardIcon },
-      { title: "POS / Folio board", href: "/erp/pos", icon: ShoppingCartIcon },
-      { title: "Menu", href: "/erp/menu", icon: SoupIcon },
-      { title: "Kitchen TV", href: "/erp/kds", icon: MonitorIcon },
-      { title: "Invoices", href: "/erp/invoices", icon: ReceiptTextIcon },
-      { title: "Night audit", href: "/erp/night-audit", icon: ScrollTextIcon },
-      { title: "Finance", href: "/erp/finance", icon: ReceiptTextIcon },
-      { title: "GST", href: "/erp/gst", icon: ScrollTextIcon },
-    ],
-  },
-  {
-    label: "FRONT PUBLIC",
-    items: [
-      {
-        title: "Website CMS",
-        href: "/erp/front-public",
-        icon: Globe2Icon,
-      },
-      {
-        title: "Media library",
-        href: "/erp/front-public/media",
-        icon: ImageIcon,
-      },
-      {
-        title: "Phone upload",
-        href: "/erp/front-public/media/upload",
-        icon: SmartphoneIcon,
-      },
-    ],
-  },
-  {
-    label: "Channels",
-    items: [
-      { title: "Agents", href: "/erp/agents", icon: UsersIcon },
-      { title: "Partners", href: "/erp/partners", icon: UsersIcon },
-      { title: "Allotments", href: "/erp/allotments", icon: ClipboardListIcon },
-      { title: "Channel", href: "/erp/channel", icon: TruckIcon },
-    ],
-  },
-  {
-    label: "Inventory & people",
-    items: [
-      { title: "Stock", href: "/erp/inventory", icon: ShoppingCartIcon },
-      { title: "HR", href: "/erp/hr", icon: UsersIcon },
-      { title: "Rota", href: "/erp/hr/rota", icon: CalendarClockIcon },
-      { title: "Attendance", href: "/erp/hr/attendance", icon: ClipboardListIcon },
-      { title: "Leave", href: "/erp/hr/leave", icon: ScrollTextIcon },
-      { title: "Payroll", href: "/erp/hr/payroll", icon: WalletIcon },
-    ],
-  },
-  {
-    label: "Group",
-    items: [
-      { title: "Group overview", href: "/erp/group", icon: HotelIcon },
-      { title: "Add hotel", href: "/erp/properties/new", icon: HotelIcon },
-      { title: "Reports", href: "/erp/reports", icon: ScrollTextIcon },
-    ],
-  },
-];
-
-function isActive(pathname: string | null, href: string): boolean {
-  if (!pathname) return false;
-  if (href === "/erp") return pathname === "/erp";
-  return pathname === href || pathname.startsWith(href + "/");
-}
+export { NAV_SECTIONS } from "@/lib/erp-nav";
 
 export function AppSidebar({
   brandName = "Pelbu desk",
@@ -150,6 +34,7 @@ export function AppSidebar({
   logoSrc?: string | null;
 } = {}) {
   const pathname = usePathname();
+  const activeModule = resolveModule(pathname);
 
   return (
     <Sidebar collapsible="icon" className="erp">
@@ -184,33 +69,33 @@ export function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent>
-        {NAV_SECTIONS.map((section) => (
-          <SidebarGroup key={section.label}>
-            <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {section.items.map((item) => {
-                  const active = isActive(pathname, item.href);
-                  const Icon = item.icon;
-                  return (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={active}
-                        tooltip={item.title}
-                      >
-                        <Link href={item.href}>
-                          <Icon />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
+        <SidebarGroup>
+          <SidebarGroupLabel>Modules</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {ERP_MODULES.map((module) => {
+                const active =
+                  activeModule?.module.key === module.key &&
+                  module.key !== "dashboard";
+                const Icon = module.icon;
+                return (
+                  <SidebarMenuItem key={module.key}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={active}
+                      tooltip={module.title}
+                    >
+                      <Link href={module.href}>
+                        <Icon />
+                        <span>{module.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter>

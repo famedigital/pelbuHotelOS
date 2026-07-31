@@ -55,7 +55,10 @@ export function HeroBookingSearch({ className }: { className?: string }) {
         Live rates — no OTA markup.
       </p>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      {/* items-start keeps both columns content-height so the two date inputs
+          share a baseline; the nights hint lives below the row, not inside a
+          column, so it can never offset one field against the other. */}
+      <div className="mt-4 grid items-start gap-3 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="hero-check-in" className="text-xs text-sky-ink/80">
             Check-in
@@ -85,15 +88,16 @@ export function HeroBookingSearch({ className }: { className?: string }) {
             onChange={(event) => setCheckOut(event.target.value)}
             className="h-11 rounded-xl border-sky-200 bg-white text-base sm:text-sm"
           />
-          <p className="text-xs text-sky-ink/55" aria-live="polite">
-            {datesValid
-              ? `${nights} night${nights === 1 ? "" : "s"}`
-              : "Choose a later check-out"}
-          </p>
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-3">
+      <p className="mt-2 text-xs text-sky-ink/55" aria-live="polite">
+        {datesValid
+          ? `${nights} night${nights === 1 ? "" : "s"}`
+          : "Choose a later check-out"}
+      </p>
+
+      <div className="mt-3 grid grid-cols-2 items-start gap-3">
         <div className="grid gap-1.5">
           <Label htmlFor="hero-adults" className="text-xs text-sky-ink/80">
             Guests

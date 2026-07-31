@@ -40,8 +40,8 @@ export const BRAND_CLOUDINARY = {
 } as const;
 
 /** Known-good Cloudinary IDs for homepage outlet slideshows.
- *  Restaurant / pastry menu public_ids in the DB are not uploaded yet —
- *  only cafe dish assets and brand photography exist on the CDN. */
+ *  Restaurant/pastry dish seed IDs that never landed on the CDN are remapped
+ *  in `20260731000006_remap_broken_menu_images.sql` and `menu-loader.ts`. */
 export const OUTLET_SHOWCASE_PHOTOS = {
   restaurant: [
     { publicId: "pelbu/restaurant/dining-room", alt: "Pelbu Suites dining room" },

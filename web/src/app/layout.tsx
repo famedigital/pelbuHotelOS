@@ -8,6 +8,7 @@ import { FaviconAnimator } from "@/components/pwa/FaviconAnimator";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { PwaRegistrar } from "@/components/pwa/PwaRegistrar";
 import { SplashController } from "@/components/pwa/SplashController";
+import { BackToTop } from "@/components/site/BackToTop";
 import { PublicMobileNav } from "@/components/site/PublicMobileNav";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -109,6 +110,7 @@ export default function RootLayout({
         >
           {children}
           <PublicMobileNav />
+          <BackToTop />
           <PwaRegistrar />
           <FaviconAnimator />
           <SplashController />

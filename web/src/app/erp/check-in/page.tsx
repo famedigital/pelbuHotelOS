@@ -1,6 +1,5 @@
 import {
   CheckInForm,
-  CheckOutForm,
   type CheckInBooking,
   type PartnerOption,
 } from "@/components/erp/CheckInForm";
@@ -30,6 +29,9 @@ export const metadata = {
 
 export const dynamic = "force-dynamic";
 
+/** Statuses this screen can actually act on — everything else has no form. */
+const CHECKIN_STATUSES = ["pending", "confirmed"];
+
 type Props = {
   searchParams: Promise<{ q?: string; id?: string; booking?: string }>;
 };
@@ -51,6 +53,19 @@ export default async function CheckInPage({ searchParams }: Props) {
   const loaded = id ? await loadBooking(admin, propertyId, id) : null;
   const selected = loaded?.booking ?? null;
   const loadError = loaded?.error ?? null;
+
+  // Settlement lives on its own screen so the desk gets folio lines and payment
+  // in one place instead of a stub form bolted onto arrivals.
+  if (selected?.status === "checked_in") {
+    redirect(`/erp/check-out?id=${selected.id}`);
+  }
+
+  // Holds, cancellations and closed stays have no form here. Send them to the
+  // booking detail page rather than stranding the desk on a dead end.
+  if (selected && !CHECKIN_STATUSES.includes(selected.status)) {
+    redirect(`/erp/bookings/${selected.id}`);
+  }
+
   const arrivals = await loadArrivals(admin, propertyId, query);
 
   let guideOptions: PartnerOption[] = [];
@@ -59,10 +74,8 @@ export default async function CheckInPage({ searchParams }: Props) {
     [];
   let roomUnits: Awaited<ReturnType<typeof loadCheckInRoomOptions>>["units"] =
     [];
-  let checkoutRooms: string[] = [];
-  let folioBalance = 0;
 
-  if (selected && ["pending", "confirmed"].includes(selected.status)) {
+  if (selected && CHECKIN_STATUSES.includes(selected.status)) {
     const [{ data: guideRows }, { data: driverRows }, roomOpts] =
       await Promise.all([
         admin
@@ -116,46 +129,15 @@ export default async function CheckInPage({ searchParams }: Props) {
     roomUnits = roomOpts.units;
   }
 
-  if (selected?.status === "checked_in") {
-    const [{ data: assigns }, { data: folio }] = await Promise.all([
-      admin
-        .from("room_assignments")
-        .select("room_units(label)")
-        .eq("booking_id", selected.id),
-      admin
-        .from("folios")
-        .select("id, folio_lines(total_btn, status)")
-        .eq("booking_id", selected.id)
-        .eq("status", "open")
-        .order("created_at")
-        .limit(1)
-        .maybeSingle(),
-    ]);
-    checkoutRooms = (assigns ?? [])
-      .map((row) => {
-        const unit = Array.isArray(row.room_units)
-          ? row.room_units[0]
-          : row.room_units;
-        return (unit as { label?: string } | null)?.label ?? null;
-      })
-      .filter((label): label is string => Boolean(label));
-    folioBalance = (
-      (folio?.folio_lines as { total_btn: number; status: string }[] | null) ??
-      []
-    )
-      .filter((l) => l.status === "posted")
-      .reduce((sum, l) => sum + Number(l.total_btn), 0);
-  }
-
   return (
-    <div className="erp mx-auto grid w-full max-w-[1100px] gap-6 p-4 md:grid-cols-[320px_minmax(0,1fr)] md:p-6">
+    <div className="erp mx-auto grid w-full max-w-[1500px] gap-6 p-4 md:grid-cols-[300px_minmax(0,1fr)] md:p-6">
       {!deskPinConfigured() ? (
         <Alert variant="warning" className="md:col-span-2">
           <AlertTitle>Dev mode: desk PIN not set.</AlertTitle>
         </Alert>
       ) : null}
 
-      <aside className="space-y-4">
+      <aside className="min-w-0 space-y-4">
         <div className="flex items-center justify-between px-1">
           <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
             Check-in
@@ -221,7 +203,7 @@ export default async function CheckInPage({ searchParams }: Props) {
         </Card>
       </aside>
 
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6">
         {loadError ? (
           <Alert variant="destructive">
             <AlertTitle>Could not load this booking.</AlertTitle>
@@ -231,40 +213,9 @@ export default async function CheckInPage({ searchParams }: Props) {
           <p className="text-sm text-muted-foreground">
             {id
               ? "That booking is not at this property, or it no longer exists."
-              : "Select a booking to check in or check out. Assign physical rooms — including guide and driver beds — before confirming."}
+              : "Select an arrival to check in. Assign physical rooms — including guide and driver beds — before confirming."}
           </p>
-        ) : selected.status === "checked_in" ? (
-          <div className="space-y-4">
-            <Card className="gap-0 p-6 text-sm">
-              <p className="text-xs tracking-[0.2em] text-accent uppercase">
-                In-house
-              </p>
-              <p className="mt-2 font-medium text-foreground">
-                {selected.contact_name ?? "Guest"}
-              </p>
-              <p className="text-muted-foreground">
-                Guide {selected.guide_number ?? "—"} ·{" "}
-                {selected.payment_mode ?? "—"}
-                {checkoutRooms.length
-                  ? ` · ${checkoutRooms.join(", ")}`
-                  : ""}
-              </p>
-              {selected.open_folio_id ? (
-                <Link
-                  href={`/erp/folios/${selected.open_folio_id}`}
-                  className="mt-3 inline-flex min-h-10 items-center text-sm text-accent underline-offset-4 hover:underline"
-                >
-                  Open folio
-                </Link>
-              ) : null}
-            </Card>
-            <CheckOutForm
-              bookingId={selected.id}
-              rooms={checkoutRooms}
-              folioBalance={folioBalance}
-            />
-          </div>
-        ) : ["pending", "confirmed"].includes(selected.status) ? (
+        ) : CHECKIN_STATUSES.includes(selected.status) ? (
           <CheckInForm
             booking={selected}
             guides={guideOptions}
@@ -273,9 +224,12 @@ export default async function CheckInPage({ searchParams }: Props) {
             units={roomUnits}
           />
         ) : (
-          <p className="text-sm text-muted-foreground">
-            Booking status is {selected.status}. No check-in action.
-          </p>
+          <Link
+            href={`/erp/bookings/${selected.id}`}
+            className="text-sm text-accent underline-offset-4 hover:underline"
+          >
+            Booking status is {selected.status} — open booking detail
+          </Link>
         )}
       </div>
     </div>

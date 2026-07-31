@@ -97,13 +97,18 @@ export function FolioPaymentForm({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="reference">Reference</Label>
+          <Label htmlFor="reference">Bank / card reference</Label>
           <Input
             id="reference"
             type="text"
             name="reference"
-            placeholder="Txn / slip no"
+            placeholder="Slip no, Pay.bt txn, or card auth"
+            aria-describedby="reference-hint"
           />
+          <p id="reference-hint" className="text-xs text-muted-foreground">
+            Optional for cash. For bank transfer, QR, Pay.bt, or card, enter the
+            slip or transaction number so night audit can match the bank.
+          </p>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="notes">Notes</Label>

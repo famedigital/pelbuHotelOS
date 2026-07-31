@@ -4,6 +4,10 @@ All Pelbu OS docs live in this folder (`C:\GitHub\pelbusuites\docs`).
 
 | Doc | Purpose |
 |-----|---------|
+| [WHITEBOARD.md](WHITEBOARD.md) | **Live system map** — surfaces, 9 ERP modules, hosting, known gaps |
+| [ERP-AUDIT.md](ERP-AUDIT.md) | **International PMS fault register** + Phase A–C correction roadmap |
+| [MULTI-TENANT-WHITELABEL.md](MULTI-TENANT-WHITELABEL.md) | SaaS white-label, DNS/CNAME, Host → property routing |
+| [BTCL-ADAPTATION.md](BTCL-ADAPTATION.md) | Multi-hotel chain adaptation (BTCL) |
 | [FEATURES.md](FEATURES.md) | **Shipped vs remaining** — ERP calendar, Sidebar shell, settings, phases |
 | [PLATFORM.md](PLATFORM.md) | Full Pelbu OS plan (architecture, UX north stars, phases) |
 | [PLANS.md](PLANS.md) | **Cursor plans mirror** — status of every file in `C:\Users\rajiv\.cursor\plans\` |
@@ -16,8 +20,12 @@ All Pelbu OS docs live in this folder (`C:\GitHub\pelbusuites\docs`).
 | [../design/mockups/README.md](../design/mockups/README.md) | UX mockup index |
 | [../scripts/bank-recon/README.md](../scripts/bank-recon/README.md) | Bhutan bank PDF → JSON recon |
 
-## Latest product truth (2026-07-30)
+## Latest product truth (2026-07-31)
 
+- Desk IA: **9 modules** + `ModuleTabs` (Front desk includes dedicated **Check-out**)
+- Check-in guest docs: dense **table** hybrid again
+- POS open tickets: tap row → ticket detail panel
+- Audit docs: WHITEBOARD, ERP-AUDIT, MULTI-TENANT-WHITELABEL, BTCL-ADAPTATION
 - Public: Himalayan Dusk conversion rebuild; homepage hero only; room/food/spa/meeting/agent engines
 - Search: sitemap, robots, canonicals, structured data, FAQ, Olakha guide, `llms.txt`
 - Work PWA: unified login with desk/staff/agent routing and mobile footer tabs

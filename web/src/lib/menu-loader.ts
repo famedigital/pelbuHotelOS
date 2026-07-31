@@ -4,6 +4,38 @@ import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { loadMenuStockMap } from "@/lib/menu-stock";
 
+/**
+ * Seed IDs that were never uploaded to Cloudinary. Keep in sync with
+ * `supabase/migrations/20260731000006_remap_broken_menu_images.sql` so a
+ * stale row can never paint a broken URL on a public page.
+ */
+const MENU_IMAGE_REMAP: Record<string, string> = {
+  "pelbu/menu/restaurant-butter-chicken-naan":
+    "pelbu/menu/cafe-grilled-chicken-plate",
+  "pelbu/menu/restaurant-chicken-thukpa": "pelbu/menu/cafe-thukpa-cup",
+  "pelbu/menu/restaurant-mutton-curry-thali":
+    "pelbu/restaurant/signature-plate",
+  "pelbu/menu/restaurant-paneer-lababdar":
+    "pelbu/menu/cafe-ema-datshi-rice-bowl",
+  "pelbu/menu/restaurant-paratha-platter":
+    "pelbu/menu/cafe-egg-cheese-paratha",
+  "pelbu/menu/restaurant-red-rice-ema-datshi":
+    "pelbu/menu/cafe-ema-datshi-rice-bowl",
+  "pelbu/menu/restaurant-river-trout": "pelbu/restaurant/signature-plate",
+  "pelbu/menu/restaurant-shakam-ema-datshi":
+    "pelbu/menu/cafe-ema-datshi-rice-bowl",
+  "pelbu/menu/pastry-apple-crumble-slice": "pelbu/cafe/morning-pastry",
+  "pelbu/menu/pastry-butter-croissant": "pelbu/cafe/morning-pastry",
+  "pelbu/menu/pastry-cardamom-bun": "pelbu/menu/cafe-suja-khabzay",
+  "pelbu/menu/pastry-dark-chocolate-brownie":
+    "pelbu/restaurant/signature-plate",
+};
+
+function resolveMenuImageId(publicId: string | null): string | null {
+  if (!publicId) return null;
+  return MENU_IMAGE_REMAP[publicId] ?? publicId;
+}
+
 export async function loadMenuByOutlets(
   outlets: string[],
 ): Promise<MenuItem[]> {
@@ -28,7 +60,9 @@ export async function loadMenuByOutlets(
   );
 
   return rows.map((row) => {
-    const imagePublicId = (row.image_public_id as string | null) ?? null;
+    const imagePublicId = resolveMenuImageId(
+      (row.image_public_id as string | null) ?? null,
+    );
     const itemStock = stock.get(row.id as string);
     return {
       id: row.id as string,

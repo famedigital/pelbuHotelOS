@@ -2,6 +2,21 @@ import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { cloudinaryMediaThumbUrl } from "@/lib/cloudinary";
 
+/** Same remap as menu-loader — keep gallery thumbs off broken seed IDs. */
+const CMS_MEDIA_REMAP: Record<string, string> = {
+  "pelbu/menu/restaurant-butter-chicken-naan":
+    "pelbu/menu/cafe-grilled-chicken-plate",
+  "pelbu/menu/restaurant-river-trout": "pelbu/restaurant/signature-plate",
+  "pelbu/menu/restaurant-red-rice-ema-datshi":
+    "pelbu/menu/cafe-ema-datshi-rice-bowl",
+  "pelbu/menu/pastry-butter-croissant": "pelbu/cafe/morning-pastry",
+  "pelbu/menu/pastry-cardamom-bun": "pelbu/menu/cafe-suja-khabzay",
+};
+
+function resolveCmsPublicId(publicId: string): string {
+  return CMS_MEDIA_REMAP[publicId] ?? publicId;
+}
+
 export type CmsContentSection = {
   heading: string;
   paragraphs: string[];
@@ -135,7 +150,7 @@ export async function loadCmsGallery(
     .order("sort_order");
 
   return (data ?? []).map((row) => {
-    const publicId = row.public_id as string;
+    const publicId = resolveCmsPublicId(row.public_id as string);
     const resourceType =
       row.resource_type === "video" ? ("video" as const) : ("image" as const);
     const poster = (row.poster_public_id as string | null) ?? null;

@@ -4,7 +4,11 @@ import type { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 
 import { DataTable } from "@/components/ui/data-table";
-import type { ArrivalBadge } from "@/lib/arrival-board";
+import {
+  boardActionHref,
+  boardActionLabel,
+  type ArrivalBadge,
+} from "@/lib/arrival-board";
 
 export type BookingRow = {
   id: string;
@@ -154,10 +158,10 @@ const columns: ColumnDef<BookingRow>[] = [
     cell: ({ row }) => (
       <div className="text-right">
         <Link
-          href={`/erp/check-in?id=${row.original.id}`}
+          href={boardActionHref(row.original.status, row.original.id)}
           className="inline-flex min-h-9 items-center rounded-md border border-accent/30 bg-accent/10 px-3 text-sm font-medium text-accent hover:bg-accent/15"
         >
-          {row.original.action_label ?? "Open"} →
+          {row.original.action_label ?? boardActionLabel(row.original.status)} →
         </Link>
       </div>
     ),
@@ -218,10 +222,10 @@ export function BookingsTable({
                 </div>
               ) : null}
               <Link
-                href={`/erp/check-in?id=${row.id}`}
+                href={boardActionHref(row.status, row.id)}
                 className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-accent/30 bg-accent/10 px-4 text-sm font-medium text-accent"
               >
-                {row.action_label ?? "Open"} →
+                {row.action_label ?? boardActionLabel(row.status)} →
               </Link>
             </article>
           ))

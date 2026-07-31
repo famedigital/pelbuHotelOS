@@ -1,5 +1,4 @@
 import { BookingBoardTable } from "@/components/erp/BookingBoardTable";
-import { BoardTabs } from "@/components/erp/BoardTabs";
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
@@ -44,8 +43,7 @@ export default async function DeparturesPage() {
       heading={`Departures · ${fmtDate(today)}`}
       blurb="Due out today — review folio balance and assigned rooms, then check out (rooms go dirty for HK)."
       filters={
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <BoardTabs />
+        <div className="flex flex-wrap items-center justify-end gap-3">
           <div className="flex items-center gap-3">
             <FrontDeskLiveRefresh />
             <Link

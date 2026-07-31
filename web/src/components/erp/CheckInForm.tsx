@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
+import { CloudinaryDocField } from "@/components/erp/CloudinaryDocField";
+import { CloudinaryPicker } from "@/components/erp/CloudinaryPicker";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -19,14 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
   idLabel,
@@ -34,6 +28,7 @@ import {
   sdfRequired,
   type GuestOrigin,
 } from "@/lib/checkin-rules";
+import { cloudinaryOriginalUrl, cloudinaryUrl } from "@/lib/cloudinary";
 import { formatBtn } from "@/lib/pricing";
 import type {
   CheckInAssignmentSlot,
@@ -44,9 +39,21 @@ import { Trash2Icon, TriangleAlertIcon } from "lucide-react";
 import Link from "next/link";
 import { useActionState, useMemo, useState, type KeyboardEvent } from "react";
 
-/** Dense inputs inside the guest docs table — keep Tab order left→right. */
+/** Dense inputs inside the guest docs grid — must shrink, never force scroll. */
 const CELL_INPUT =
-  "h-9 min-w-[7rem] rounded-md border-border/70 bg-background px-2 text-sm shadow-none";
+  "h-9 w-full min-w-0 rounded-md border-border/70 bg-background px-2 text-sm shadow-none";
+
+/**
+ * Shared column template for the guest docs grid so the header and rows stay
+ * in sync. Below `xl` rows stack into a compact labelled card; from `xl` they
+ * read as table columns. One set of inputs either way — a CSS-hidden duplicate
+ * layout would post every guest field twice.
+ */
+const GUEST_GRID =
+  "xl:grid-cols-[2.25rem_minmax(8rem,1.4fr)_minmax(6.5rem,1fr)_minmax(7.5rem,1.1fr)_minmax(6.5rem,1fr)_minmax(9rem,1.3fr)_minmax(5.5rem,0.9fr)_2.25rem]";
+
+/** Stacked label that collapses to the column header from `xl` up. */
+const CELL_LABEL = "text-xs font-normal text-muted-foreground xl:sr-only";
 
 /** Enter in a guest cell must not submit check-in mid-typing. */
 function blockEnterSubmit(e: KeyboardEvent<HTMLElement>) {
@@ -238,6 +245,23 @@ export function CheckInForm({
     return rows;
   });
 
+  /** Which guest row the shared Cloudinary picker is currently editing. */
+  const [docPickerIndex, setDocPickerIndex] = useState<number | null>(null);
+  const [docPickerIntent, setDocPickerIntent] = useState<
+    "camera" | "file" | null
+  >(null);
+
+  function openDocPicker(index: number, intent: "camera" | "file") {
+    setDocPickerIntent(intent);
+    setDocPickerIndex(index);
+  }
+
+  function updateGuest(index: number, patch: Partial<GuestDraft>) {
+    setGuests((prev) =>
+      prev.map((row, i) => (i === index ? { ...row, ...patch } : row)),
+    );
+  }
+
   const selectedUnitIds = useMemo(
     () => Object.values(slotUnits).filter(Boolean),
     [slotUnits],
@@ -293,7 +317,10 @@ export function CheckInForm({
   }
 
   return (
-    <form action={action} className="erp space-y-8 rounded-lg border bg-card p-6">
+    <form
+      action={action}
+      className="erp space-y-8 rounded-lg border bg-card p-4 sm:p-6"
+    >
       <input type="hidden" name="booking_id" value={booking.id} />
       <input type="hidden" name="payment_mode" value={paymentMode} />
       <input type="hidden" name="allow_dirty_rooms" value={allowDirty ? "on" : "off"} />
@@ -331,7 +358,7 @@ export function CheckInForm({
         ) : null}
       </div>
 
-      <fieldset className="space-y-4">
+      <fieldset className="min-w-0 space-y-4">
         <legend className="flex flex-wrap items-center gap-3 text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
           Room allocation
           <Link
@@ -412,189 +439,219 @@ export function CheckInForm({
         </Label>
       </fieldset>
 
-      <fieldset className="space-y-3">
+      <fieldset className="min-w-0 space-y-3">
         <legend className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
           Guest documents ({guests.length})
         </legend>
-        <div className="overflow-x-auto rounded-md border border-border/70">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="w-10 px-2 text-center">#</TableHead>
-                <TableHead className="sticky left-0 z-10 min-w-[10rem] bg-card px-2">
-                  Full name
-                </TableHead>
-                <TableHead className="min-w-[7rem] px-2">Nationality</TableHead>
-                <TableHead className="min-w-[8rem] px-2">
-                  {idLabel(origin)}
-                </TableHead>
-                <TableHead className="min-w-[7rem] px-2">
-                  SDF ref
-                  {sdfRequired(origin) ? (
-                    <span className="text-destructive"> *</span>
-                  ) : null}
-                </TableHead>
-                <TableHead className="min-w-[9rem] px-2">SDF doc URL</TableHead>
-                <TableHead className="min-w-[8rem] px-2">Sleeps in</TableHead>
-                <TableHead className="w-10 px-1">
-                  <span className="sr-only">Remove</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {guests.map((guest, index) => (
-                <TableRow key={`guest-${index}`}>
-                  <TableCell className="px-2 text-center text-xs text-muted-foreground">
-                    {index + 1}
-                  </TableCell>
-                  <TableCell className="sticky left-0 z-10 bg-card px-1.5">
-                    <Label className="sr-only" htmlFor={`guest_name_${index}`}>
-                      Full name
-                    </Label>
-                    <Input
-                      id={`guest_name_${index}`}
-                      name="guest_name"
-                      required
-                      value={guest.fullName}
-                      onKeyDown={blockEnterSubmit}
-                      onChange={(e) => {
-                        const next = [...guests];
-                        next[index] = { ...guest, fullName: e.target.value };
-                        setGuests(next);
-                      }}
-                      className={cn(CELL_INPUT, "min-w-[9rem]")}
-                    />
-                  </TableCell>
-                  <TableCell className="px-1.5">
-                    <Label className="sr-only" htmlFor={`guest_nat_${index}`}>
-                      Nationality
-                    </Label>
-                    <Input
-                      id={`guest_nat_${index}`}
-                      name="guest_nationality"
-                      value={guest.nationality}
-                      onKeyDown={blockEnterSubmit}
-                      onChange={(e) => {
-                        const next = [...guests];
-                        next[index] = { ...guest, nationality: e.target.value };
-                        setGuests(next);
-                      }}
-                      className={CELL_INPUT}
-                    />
-                  </TableCell>
-                  <TableCell className="px-1.5">
-                    <Label className="sr-only" htmlFor={`guest_id_${index}`}>
-                      {idLabel(origin)}
-                    </Label>
-                    <Input
-                      id={`guest_id_${index}`}
-                      name="guest_passport_or_cid"
-                      required
-                      value={guest.passportOrCid}
-                      onKeyDown={blockEnterSubmit}
-                      onChange={(e) => {
-                        const next = [...guests];
-                        next[index] = {
-                          ...guest,
-                          passportOrCid: e.target.value,
-                        };
-                        setGuests(next);
-                      }}
-                      className={CELL_INPUT}
-                    />
-                  </TableCell>
-                  <TableCell className="px-1.5">
-                    <Label className="sr-only" htmlFor={`guest_sdf_${index}`}>
-                      SDF reference
-                    </Label>
-                    <Input
-                      id={`guest_sdf_${index}`}
-                      name="guest_sdf_ref"
-                      required={sdfRequired(origin)}
-                      value={guest.sdfRef}
-                      onKeyDown={blockEnterSubmit}
-                      onChange={(e) => {
-                        const next = [...guests];
-                        next[index] = { ...guest, sdfRef: e.target.value };
-                        setGuests(next);
-                      }}
-                      className={CELL_INPUT}
-                    />
-                  </TableCell>
-                  <TableCell className="px-1.5">
-                    <Label className="sr-only" htmlFor={`guest_doc_${index}`}>
-                      SDF doc URL
-                    </Label>
-                    <Input
-                      id={`guest_doc_${index}`}
-                      name="guest_sdf_doc_url"
-                      type="url"
-                      value={guest.sdfDocUrl}
-                      onKeyDown={blockEnterSubmit}
-                      onChange={(e) => {
-                        const next = [...guests];
-                        next[index] = { ...guest, sdfDocUrl: e.target.value };
-                        setGuests(next);
-                      }}
-                      placeholder="https://…"
-                      className={cn(CELL_INPUT, "min-w-[10rem]")}
-                    />
-                  </TableCell>
-                  <TableCell className="px-1.5">
-                    <Label className="sr-only" htmlFor={`guest_room_${index}`}>
-                      Sleeps in room
-                    </Label>
-                    <select
-                      id={`guest_room_${index}`}
-                      name="guest_room_unit_id"
-                      value={guest.roomUnitId}
-                      onKeyDown={blockEnterSubmit}
-                      onChange={(e) => {
-                        const next = [...guests];
-                        next[index] = { ...guest, roomUnitId: e.target.value };
-                        setGuests(next);
-                      }}
-                      className={cn(
-                        CELL_INPUT,
-                        "flex w-full min-w-[7.5rem] border border-input",
-                      )}
+        <div className="min-w-0 overflow-x-auto rounded-md border border-border/70">
+          <div
+            className={cn(
+              "hidden bg-muted/40 px-2 py-2 text-xs font-medium text-muted-foreground xl:grid xl:items-center xl:gap-2",
+              GUEST_GRID,
+            )}
+            aria-hidden
+          >
+            <span className="text-center">#</span>
+            <span>
+              Full name <span className="text-destructive">*</span>
+            </span>
+            <span>Nationality</span>
+            <span>
+              {idLabel(origin)} <span className="text-destructive">*</span>
+            </span>
+            <span>
+              SDF ref
+              {sdfRequired(origin) ? (
+                <span className="text-destructive"> *</span>
+              ) : null}
+            </span>
+            <span>SDF document</span>
+            <span>Sleeps in</span>
+            <span />
+          </div>
+
+          <ul className="divide-y divide-border/70">
+            {guests.map((guest, index) => (
+              <li
+                key={`guest-${index}`}
+                className={cn(
+                  "grid gap-3 p-3 sm:grid-cols-2 xl:items-center xl:gap-2 xl:p-2",
+                  GUEST_GRID,
+                )}
+              >
+                {/* Stacked view row header — the `#` and remove cells below
+                    take over once the grid goes columnar. */}
+                <div className="flex items-center justify-between gap-2 sm:col-span-2 xl:hidden">
+                  <span className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+                    Guest {index + 1}
+                  </span>
+                  {guests.length > 1 ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="-mr-1 h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+                      onClick={() =>
+                        setGuests((prev) => prev.filter((_, i) => i !== index))
+                      }
                     >
-                      <option value="">Auto</option>
-                      {selectedUnitIds.map((id) => {
-                        const unit = units.find((u) => u.id === id);
-                        if (!unit || unit.inventoryKind !== "sellable_guest") {
-                          return null;
-                        }
-                        return (
-                          <option key={id} value={id}>
-                            {unit.label}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </TableCell>
-                  <TableCell className="px-1">
-                    {guests.length > 1 ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 text-muted-foreground hover:text-destructive"
-                        aria-label={`Remove guest ${index + 1}`}
-                        onClick={() =>
-                          setGuests((prev) =>
-                            prev.filter((_, i) => i !== index),
-                          )
-                        }
-                      >
-                        <Trash2Icon className="size-4" />
-                      </Button>
+                      <Trash2Icon className="size-3.5" />
+                      Remove
+                    </Button>
+                  ) : null}
+                </div>
+
+                <span className="hidden text-center text-xs text-muted-foreground tabular-nums xl:block">
+                  {index + 1}
+                </span>
+
+                <div className="min-w-0 space-y-1.5 xl:space-y-0">
+                  <Label className={CELL_LABEL} htmlFor={`guest_name_${index}`}>
+                    Full name <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id={`guest_name_${index}`}
+                    name="guest_name"
+                    required
+                    value={guest.fullName}
+                    onKeyDown={blockEnterSubmit}
+                    onChange={(e) =>
+                      updateGuest(index, { fullName: e.target.value })
+                    }
+                    className={CELL_INPUT}
+                  />
+                </div>
+
+                <div className="min-w-0 space-y-1.5 xl:space-y-0">
+                  <Label className={CELL_LABEL} htmlFor={`guest_nat_${index}`}>
+                    Nationality
+                  </Label>
+                  <Input
+                    id={`guest_nat_${index}`}
+                    name="guest_nationality"
+                    value={guest.nationality}
+                    onKeyDown={blockEnterSubmit}
+                    onChange={(e) =>
+                      updateGuest(index, { nationality: e.target.value })
+                    }
+                    className={CELL_INPUT}
+                  />
+                </div>
+
+                <div className="min-w-0 space-y-1.5 xl:space-y-0">
+                  <Label className={CELL_LABEL} htmlFor={`guest_id_${index}`}>
+                    {idLabel(origin)} <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id={`guest_id_${index}`}
+                    name="guest_passport_or_cid"
+                    required
+                    inputMode={origin === "local" ? "numeric" : undefined}
+                    pattern={origin === "local" ? "[0-9]{11}" : undefined}
+                    minLength={origin === "local" ? 11 : undefined}
+                    maxLength={origin === "local" ? 11 : undefined}
+                    value={guest.passportOrCid}
+                    onKeyDown={blockEnterSubmit}
+                    onChange={(e) => {
+                      const value =
+                        origin === "local"
+                          ? e.target.value.replace(/\D/g, "").slice(0, 11)
+                          : e.target.value;
+                      updateGuest(index, { passportOrCid: value });
+                    }}
+                    className={CELL_INPUT}
+                    title={
+                      origin === "local"
+                        ? "Bhutan CID must be exactly 11 digits"
+                        : undefined
+                    }
+                  />
+                </div>
+
+                <div className="min-w-0 space-y-1.5 xl:space-y-0">
+                  <Label className={CELL_LABEL} htmlFor={`guest_sdf_${index}`}>
+                    SDF ref
+                    {sdfRequired(origin) ? (
+                      <span className="text-destructive"> *</span>
                     ) : null}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </Label>
+                  <Input
+                    id={`guest_sdf_${index}`}
+                    name="guest_sdf_ref"
+                    required={sdfRequired(origin)}
+                    value={guest.sdfRef}
+                    onKeyDown={blockEnterSubmit}
+                    onChange={(e) =>
+                      updateGuest(index, { sdfRef: e.target.value })
+                    }
+                    className={CELL_INPUT}
+                  />
+                </div>
+
+                <div className="min-w-0 space-y-1.5 xl:space-y-0">
+                  <span
+                    id={`guest_doc_label_${index}`}
+                    className={CELL_LABEL}
+                  >
+                    SDF document
+                  </span>
+                  <CloudinaryDocField
+                    name="guest_sdf_doc_url"
+                    value={guest.sdfDocUrl}
+                    describedBy={`guest_doc_label_${index}`}
+                    onPick={(intent) => openDocPicker(index, intent)}
+                    onClear={() => updateGuest(index, { sdfDocUrl: "" })}
+                  />
+                </div>
+
+                <div className="min-w-0 space-y-1.5 xl:space-y-0">
+                  <Label className={CELL_LABEL} htmlFor={`guest_room_${index}`}>
+                    Sleeps in
+                  </Label>
+                  <select
+                    id={`guest_room_${index}`}
+                    name="guest_room_unit_id"
+                    value={guest.roomUnitId}
+                    onKeyDown={blockEnterSubmit}
+                    onChange={(e) =>
+                      updateGuest(index, { roomUnitId: e.target.value })
+                    }
+                    className={cn(CELL_INPUT, "flex border border-input")}
+                  >
+                    <option value="">Auto</option>
+                    {selectedUnitIds.map((id) => {
+                      const unit = units.find((u) => u.id === id);
+                      if (!unit || unit.inventoryKind !== "sellable_guest") {
+                        return null;
+                      }
+                      return (
+                        <option key={id} value={id}>
+                          {unit.label}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                <div className="hidden xl:block">
+                  {guests.length > 1 ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 text-muted-foreground hover:text-destructive"
+                      aria-label={`Remove guest ${index + 1}`}
+                      onClick={() =>
+                        setGuests((prev) => prev.filter((_, i) => i !== index))
+                      }
+                    >
+                      <Trash2Icon className="size-4" />
+                    </Button>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
         <Button
           type="button"
@@ -618,7 +675,7 @@ export function CheckInForm({
         </Button>
       </fieldset>
 
-      <fieldset className="space-y-4">
+      <fieldset className="min-w-0 space-y-4">
         <legend className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
           Guide &amp; settlement
         </legend>
@@ -675,7 +732,7 @@ export function CheckInForm({
         </div>
       </fieldset>
 
-      <fieldset className="space-y-4">
+      <fieldset className="min-w-0 space-y-4">
         <legend className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
           Driver {hasDriverBeds ? "(required)" : "(optional)"}
         </legend>
@@ -753,6 +810,47 @@ export function CheckInForm({
       <Button type="submit" variant="citrus" disabled={pending} className="h-11 px-6">
         {pending ? "Checking in…" : "Confirm check-in"}
       </Button>
+
+      <CloudinaryPicker
+        open={docPickerIndex !== null}
+        onOpenChange={(next) => {
+          if (!next) {
+            setDocPickerIndex(null);
+            setDocPickerIntent(null);
+          }
+        }}
+        onSelect={(publicId, meta) => {
+          if (docPickerIndex === null) return;
+          // Keep PDFs as PDFs; image transforms would flatten them to page 1.
+          const url =
+            meta?.format.toLowerCase() === "pdf"
+              ? cloudinaryOriginalUrl(publicId, "pdf")
+              : cloudinaryUrl(publicId, {
+                  quality: "auto",
+                  format: "auto",
+                });
+          if (url) updateGuest(docPickerIndex, { sdfDocUrl: url });
+          setDocPickerIndex(null);
+          setDocPickerIntent(null);
+        }}
+        uploadFolder="pelbu/sdf"
+        acceptVideo={false}
+        acceptPdf
+        initialTab="upload"
+        uploadIntent={docPickerIntent}
+        title={
+          docPickerIndex === null
+            ? "SDF document"
+            : `SDF document · guest ${docPickerIndex + 1}`
+        }
+        description={
+          docPickerIntent === "camera"
+            ? "Take a photo of the SDF permit with the camera."
+            : docPickerIntent === "file"
+              ? "Attach a scanned PDF or a photo from files — you can scan later and upload here."
+              : "Camera for a quick desk photo, or PDF / file for a scanned permit."
+        }
+      />
     </form>
   );
 }

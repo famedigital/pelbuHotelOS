@@ -1,6 +1,7 @@
 import { deskLogout } from "@/app/actions/desk";
 import { AppSidebar } from "@/components/erp/app-sidebar";
 import { DeskMobileNav } from "@/components/erp/DeskMobileNav";
+import { ModuleTabs } from "@/components/erp/ModuleTabs";
 import { PropertySwitcher } from "@/components/erp/PropertySwitcher";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -67,6 +68,7 @@ export function DeskShell({
               </form>
             </div>
           </header>
+          <ModuleTabs />
           <div className="flex flex-1 flex-col pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
             {children}
           </div>

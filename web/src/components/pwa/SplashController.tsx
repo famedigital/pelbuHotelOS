@@ -3,39 +3,30 @@
 import { useEffect } from "react";
 
 /**
- * Fades out and removes the SSR `BrandSplash` once the window has loaded.
- * The splash node is static server HTML, so removing it from the DOM here is
- * safe — React never re-renders it.
+ * Fades out the SSR `BrandSplash` once the window has loaded by flipping
+ * `data-splash` on `<html>`. Never mutates or removes the splash node itself
+ * — React owns that DOM and removing it causes insertBefore/removeChild
+ * NotFoundError cascades.
  */
 
 const MIN_VISIBLE_MS = 650; // avoid a jarring flash on fast loads
-const FADE_MS = 500; // must match the CSS transition on #pelbu-splash
 
 export function SplashController() {
   useEffect(() => {
-    const el = document.getElementById("pelbu-splash");
-    if (!el) return;
-
-    if (el.getAttribute("data-state") === "off") {
-      el.remove();
-      return;
-    }
+    const root = document.documentElement;
+    if (root.getAttribute("data-splash") !== "on") return;
 
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
     const minVisible = reduceMotion ? 0 : MIN_VISIBLE_MS;
     const shownAt = performance.now();
-    let removeTimer = 0;
+    let fadeTimer = 0;
 
     const dismiss = () => {
       const wait = Math.max(0, minVisible - (performance.now() - shownAt));
-      window.setTimeout(() => {
-        el.setAttribute("data-state", "hide");
-        removeTimer = window.setTimeout(
-          () => el.remove(),
-          reduceMotion ? 0 : FADE_MS,
-        );
+      fadeTimer = window.setTimeout(() => {
+        root.setAttribute("data-splash", "done");
       }, wait);
     };
 
@@ -47,7 +38,7 @@ export function SplashController() {
 
     return () => {
       window.removeEventListener("load", dismiss);
-      window.clearTimeout(removeTimer);
+      window.clearTimeout(fadeTimer);
     };
   }, []);
 

@@ -27,7 +27,8 @@ export function sdfRequired(origin: GuestOrigin): boolean {
 
 /** Passport preferred for international; CID acceptable for local/official. */
 export function idLabel(origin: GuestOrigin): string {
-  if (origin === "local" || origin === "official") return "CID / ID";
+  if (origin === "local") return "CID";
+  if (origin === "official") return "CID / ID";
   if (origin === "regional") return "Passport / CID";
   return "Passport";
 }
@@ -58,6 +59,12 @@ export function validateCheckInDocs(args: {
     }
     if (!guest.passportOrCid.trim()) {
       return `Guest ${i + 1}: ${idLabel(args.origin)} is required.`;
+    }
+    if (
+      args.origin === "local" &&
+      !/^\d{11}$/.test(guest.passportOrCid.trim())
+    ) {
+      return `Guest ${i + 1}: CID must be exactly 11 digits.`;
     }
     if (sdfRequired(args.origin) && !guest.sdfRef.trim()) {
       return `Guest ${i + 1}: SDF reference is required.`;

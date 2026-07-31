@@ -35,11 +35,24 @@ test("local guest can skip SDF and guide", () => {
   const err = validateCheckInDocs({
     origin: "local",
     guideNumber: null,
-    guests: [{ fullName: "Tashi", passportOrCid: "CID-1", sdfRef: "" }],
+    guests: [{ fullName: "Tashi", passportOrCid: "10705001234", sdfRef: "" }],
     hasDriverBeds: false,
     driverName: null,
   });
   assert.equal(err, null);
+});
+
+test("local CID must contain exactly 11 digits", () => {
+  for (const cid of ["1070500123", "107050012345", "10705A01234"]) {
+    const err = validateCheckInDocs({
+      origin: "local",
+      guideNumber: null,
+      guests: [{ fullName: "Tashi", passportOrCid: cid, sdfRef: "" }],
+      hasDriverBeds: false,
+      driverName: null,
+    });
+    assert.match(err ?? "", /exactly 11 digits/);
+  }
 });
 
 test("normalizeGuestOrigin falls back to international", () => {
@@ -51,7 +64,7 @@ test("driver beds require driver name", () => {
   const err = validateCheckInDocs({
     origin: "local",
     guideNumber: null,
-    guests: [{ fullName: "Tashi", passportOrCid: "CID-1", sdfRef: "" }],
+    guests: [{ fullName: "Tashi", passportOrCid: "10705001234", sdfRef: "" }],
     hasDriverBeds: true,
     driverName: "",
   });

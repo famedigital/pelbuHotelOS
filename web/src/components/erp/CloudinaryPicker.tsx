@@ -10,7 +10,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   cloudinaryMediaThumbUrl,
@@ -23,13 +22,17 @@ import {
 } from "@/lib/cloudinary-direct-upload";
 import { cn } from "@/lib/utils";
 import {
+  CameraIcon,
   CheckIcon,
+  FileTextIcon,
   ImageIcon,
   UploadCloudIcon,
   VideoIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+
+export type CloudinaryUploadIntent = "camera" | "file";
 
 export type CloudinaryAssetSummary = {
   publicId: string;
@@ -79,6 +82,9 @@ export function CloudinaryPicker({
   title = "Cloudinary media",
   description = "Pick an existing asset or upload a new photo/video. Only the Cloudinary public ID is saved.",
   acceptVideo = true,
+  acceptPdf = false,
+  initialTab = "library",
+  uploadIntent = null,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -87,8 +93,16 @@ export function CloudinaryPicker({
   title?: string;
   description?: string;
   acceptVideo?: boolean;
+  acceptPdf?: boolean;
+  /** Documents are nearly always a fresh scan, so they open on "upload". */
+  initialTab?: "library" | "upload";
+  /**
+   * When set (and the dialog opens on the upload tab), auto-triggers the
+   * matching file input — camera for phone capture, file for PDF/gallery.
+   */
+  uploadIntent?: CloudinaryUploadIntent | null;
 }) {
-  const [tab, setTab] = useState("library");
+  const [tab, setTab] = useState<string>(initialTab);
   const [folders, setFolders] = useState<string[]>([]);
   const [folder, setFolder] = useState("");
   const [query, setQuery] = useState("");
@@ -105,6 +119,9 @@ export function CloudinaryPicker({
   const [uploadPercent, setUploadPercent] = useState(0);
   const [dragging, setDragging] = useState(false);
   const requestId = useRef(0);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const intentFiredRef = useRef(false);
 
   const load = useCallback(
     async (nextCursor?: string) => {
@@ -141,10 +158,15 @@ export function CloudinaryPicker({
         if (!response.ok) {
           throw new Error(body.error ?? "Could not load Cloudinary media.");
         }
-        const page = (body.assets ?? []).map((asset) => ({
-          ...asset,
-          resourceType: asset.resourceType ?? "image",
-        }));
+        const page = (body.assets ?? [])
+          .map((asset) => ({
+            ...asset,
+            resourceType: asset.resourceType ?? ("image" as const),
+          }))
+          .filter(
+            (asset) =>
+              acceptPdf || asset.format.toLowerCase() !== "pdf",
+          );
         setAssets((prev) => (nextCursor ? [...prev, ...page] : page));
         setCursor(body.nextCursor ?? null);
         setTotal(body.total ?? page.length);
@@ -158,7 +180,7 @@ export function CloudinaryPicker({
         if (id === requestId.current) setLoading(false);
       }
     },
-    [folder, query, typeFilter, acceptVideo],
+    [folder, query, typeFilter, acceptVideo, acceptPdf],
   );
 
   useEffect(() => {
@@ -167,12 +189,36 @@ export function CloudinaryPicker({
     return () => clearTimeout(timer);
   }, [open, load, query]);
 
+  // Reset tab + intent latch whenever the dialog opens.
+  useEffect(() => {
+    if (!open) {
+      intentFiredRef.current = false;
+      return;
+    }
+    setTab(uploadIntent ? "upload" : initialTab);
+  }, [open, uploadIntent, initialTab]);
+
+  // Auto-open the native camera or file chooser once the upload tab is mounted.
+  useEffect(() => {
+    if (!open || !uploadIntent || intentFiredRef.current) return;
+    const timer = window.setTimeout(() => {
+      intentFiredRef.current = true;
+      if (uploadIntent === "camera") {
+        cameraInputRef.current?.click();
+      } else {
+        fileInputRef.current?.click();
+      }
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [open, uploadIntent]);
+
   function handleOpenChange(next: boolean) {
     if (!next) {
       setSelected(null);
       setQuery("");
-      setTab("library");
+      setTab(initialTab);
       setUploadPercent(0);
+      intentFiredRef.current = false;
     }
     onOpenChange(next);
   }
@@ -198,6 +244,7 @@ export function CloudinaryPicker({
     try {
       const uploaded = await uploadToCloudinary(file, {
         folder: uploadFolder,
+        allowPdf: acceptPdf,
         onProgress: (progress) => setUploadPercent(progress.percent),
       });
       if (!acceptVideo && uploaded.resourceType === "video") {
@@ -219,8 +266,23 @@ export function CloudinaryPicker({
         ...prev.filter((row) => row.publicId !== asset.publicId),
       ]);
       setSelected(asset);
-      setTab("library");
       toast.success(`Uploaded ${assetName(asset.publicId)}`);
+      // Document fields (SDF etc.) should land straight back on the form —
+      // no extra "Use this media" click after a successful camera/PDF upload.
+      if (acceptPdf && !acceptVideo) {
+        onSelect(asset.publicId, {
+          publicId: asset.publicId,
+          resourceType: asset.resourceType,
+          format: asset.format,
+          bytes: asset.bytes,
+          width: asset.width,
+          height: asset.height,
+          durationSec: asset.durationSec ?? null,
+        });
+        handleOpenChange(false);
+      } else {
+        setTab("library");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Upload failed.");
     } finally {
@@ -426,7 +488,7 @@ export function CloudinaryPicker({
                 if (file) void uploadFile(file);
               }}
               className={cn(
-                "flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center",
+                "flex flex-col items-center gap-4 rounded-lg border border-dashed px-6 py-8 text-center",
                 dragging ? "border-accent bg-accent/5" : "bg-muted/20",
               )}
             >
@@ -437,37 +499,94 @@ export function CloudinaryPicker({
                     ? `Uploading… ${uploadPercent}%`
                     : acceptVideo
                       ? "Drop a photo or video here"
-                      : "Drop an image here"}
+                      : acceptPdf
+                        ? "Camera photo, PDF scan, or drop a file"
+                        : "Drop an image here"}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Photos to {formatBytes(MAX_IMAGE_BYTES)}
                   {acceptVideo
                     ? ` · videos to ${formatBytes(MAX_VIDEO_BYTES)}`
-                    : ""}{" "}
+                    : ""}
+                  {acceptPdf ? " · PDF accepted" : ""}{" "}
                   — saved to <span className="font-mono">{uploadFolder}</span>
                 </p>
               </div>
-              <div className="flex flex-wrap justify-center gap-2">
-                <Label htmlFor="cloudinary-upload-file" className="sr-only">
-                  Choose media to upload
-                </Label>
-                <input
-                  id="cloudinary-upload-file"
-                  type="file"
-                  accept={acceptVideo ? "image/*,video/*" : "image/*"}
+
+              <div className="flex w-full max-w-sm flex-col gap-2 sm:flex-row sm:justify-center">
+                <Button
+                  type="button"
+                  variant="citrus"
+                  className="h-11 flex-1"
                   disabled={uploading}
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    event.target.value = "";
-                    if (file) void uploadFile(file);
-                  }}
-                  className="block max-w-full text-sm text-foreground file:mr-3 file:rounded-md file:border file:border-input file:bg-transparent file:px-3 file:py-2 file:text-sm file:text-foreground hover:file:bg-muted"
-                />
+                  onClick={() => cameraInputRef.current?.click()}
+                >
+                  <CameraIcon className="size-4" />
+                  Camera
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 flex-1"
+                  disabled={uploading}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {acceptPdf ? (
+                    <FileTextIcon className="size-4" />
+                  ) : (
+                    <ImageIcon className="size-4" />
+                  )}
+                  {acceptPdf ? "PDF / file" : "Choose file"}
+                </Button>
               </div>
+
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                disabled={uploading}
+                className="sr-only"
+                aria-label="Take a photo with the camera"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (file) void uploadFile(file);
+                }}
+              />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={[
+                  "image/*",
+                  acceptVideo ? "video/*" : "",
+                  acceptPdf ? "application/pdf,.pdf" : "",
+                ]
+                  .filter(Boolean)
+                  .join(",")}
+                disabled={uploading}
+                className="sr-only"
+                aria-label={
+                  acceptPdf
+                    ? "Choose a PDF or photo from files"
+                    : "Choose a file to upload"
+                }
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (file) void uploadFile(file);
+                }}
+              />
+
               {acceptVideo ? (
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <VideoIcon className="size-3.5" aria-hidden />
                   Large phone videos upload in chunks directly to Cloudinary.
+                </p>
+              ) : acceptPdf ? (
+                <p className="text-xs text-muted-foreground">
+                  Use Camera for a quick desk photo, or PDF / file for a scanned
+                  permit attached later.
                 </p>
               ) : null}
             </div>

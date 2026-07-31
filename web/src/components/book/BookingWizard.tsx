@@ -12,12 +12,16 @@ import { BookingStepRoom } from "@/components/book/BookingStepRoom";
 import { BookingStepStay } from "@/components/book/BookingStepStay";
 import { BookingSummary } from "@/components/book/BookingSummary";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { formatBtn } from "@/lib/pricing";
 import {
   nightsBetween,
   parseStaySearch,
   todayIso,
   type StaySearchParams,
 } from "@/lib/stay-dates";
+import { CheckIcon } from "lucide-react";
+import Link from "next/link";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 
 const initial: BookingActionState = { ok: false };
@@ -25,6 +29,21 @@ const initial: BookingActionState = { ok: false };
 type Step = 1 | 2 | 3;
 
 const STEP_LABELS = ["Dates", "Room", "Contact"] as const;
+
+const STEP_COPY: Record<Step, { title: string; hint: string }> = {
+  1: {
+    title: "When are you staying?",
+    hint: "Set your dates and party size to load live availability.",
+  },
+  2: {
+    title: "Choose your room",
+    hint: "Live public rates for the dates you selected.",
+  },
+  3: {
+    title: "Who is the stay for?",
+    hint: "The desk uses these details to confirm and send your token link.",
+  },
+};
 
 function CopyReference({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
@@ -157,53 +176,65 @@ export function BookingWizard({
 
   if (state.ok && state.bookingId) {
     return (
-      <div role="status" aria-live="polite" className="max-w-lg space-y-4">
-        <h2 className="font-display text-2xl text-ink">Rooms held</h2>
-        <p className="text-sm text-muted-foreground">
-          Pay the token to confirm
-          {state.tokenAmount != null
-            ? ` (${state.tokenAmount.toLocaleString("en-BT")} BTN)`
-            : ""}
-          . Quote your reference in bank remarks.
-          {state.holdExpiresAt
-            ? ` Hold expires ${new Date(state.holdExpiresAt).toLocaleString(
-                "en-BT",
-                { timeZone: "Asia/Thimphu" },
-              )}.`
-            : ""}
-        </p>
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="font-mono text-sm break-all text-ink">
-            {state.bookingId}
-          </span>
-          <CopyReference value={state.bookingId} />
-        </div>
-        <div className="flex flex-wrap gap-3 pt-2">
-          {state.paymentUrl ? (
-            <Button asChild>
-              <a href={state.paymentUrl}>Pay token</a>
-            </Button>
-          ) : null}
-          <Button asChild variant="outline">
-            <a href="/rooms">Back to rooms</a>
-          </Button>
-        </div>
+      <div className="mx-auto max-w-xl">
+        <Card className="gap-0 overflow-hidden py-0" role="status">
+          <div className="flex items-center gap-3 border-b border-border bg-mint-100 px-6 py-5">
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-mint-500 text-white">
+              <CheckIcon className="size-5" aria-hidden />
+            </span>
+            <div>
+              <h2 className="font-display text-xl text-foreground">
+                Rooms held
+              </h2>
+              <p className="text-sm text-mint-600">
+                Your reference is ready below.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-4 px-6 py-5" aria-live="polite">
+            <p className="text-sm text-muted-foreground">
+              Pay the token to confirm
+              {state.tokenAmount != null
+                ? ` (${state.tokenAmount.toLocaleString("en-BT")} BTN)`
+                : ""}
+              . Quote your reference in bank remarks.
+              {state.holdExpiresAt
+                ? ` Hold expires ${new Date(state.holdExpiresAt).toLocaleString(
+                    "en-BT",
+                    { timeZone: "Asia/Thimphu" },
+                  )}.`
+                : ""}
+            </p>
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-frost-1 px-4 py-3">
+              <span className="font-mono text-sm break-all text-foreground">
+                {state.bookingId}
+              </span>
+              <CopyReference value={state.bookingId} />
+            </div>
+            <div className="flex flex-wrap gap-3 pt-1">
+              {state.paymentUrl ? (
+                <Button asChild variant="citrus" size="lg">
+                  <a href={state.paymentUrl}>Pay token</a>
+                </Button>
+              ) : null}
+              <Button asChild variant="outline" size="lg">
+                <Link href="/rooms">Back to rooms</Link>
+              </Button>
+            </div>
+          </div>
+        </Card>
       </div>
     );
   }
 
   const canNext =
-    step === 1
-      ? datesValid
-      : step === 2
-        ? Boolean(selectedCode)
-        : true;
+    step === 1 ? datesValid : step === 2 ? Boolean(selectedCode) : true;
 
   return (
     <form
       ref={formRef}
       action={action}
-      className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]"
+      className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_352px] lg:gap-8"
     >
       {/* Hidden fields posted on submit regardless of which step is visible. */}
       <input type="hidden" name="check_in" value={checkIn} />
@@ -214,81 +245,62 @@ export function BookingWizard({
       <input type="hidden" name="quoted_total_btn" value={selectedTotal ?? ""} />
       {/* Step 2 also renders its own room_type_code hidden input. */}
 
-      <div className="space-y-6">
+      <div className="space-y-5">
         <Stepper step={step} />
 
         {state.error ? (
           <p
-            className="border border-maroon/30 bg-maroon/5 px-4 py-3 text-sm text-maroon"
+            className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
             role="alert"
           >
             {state.error}
           </p>
         ) : null}
 
-        <div className="space-y-1">
-          {step === 1 ? (
-            <BookingStepStay
-              checkIn={checkIn}
-              checkOut={checkOut}
-              minCheckIn={minCheckIn}
-              nightsLabel={nightsLabel}
-              onCheckIn={setCheckIn}
-              onCheckOut={setCheckOut}
-              adults={adults}
-              onAdults={setAdults}
-              rooms={rooms}
-              onRooms={setRooms}
-              mealPlans={preview?.mealPlans ?? []}
-              mealPlanCode={mealPlanCode}
-              onMealPlan={setMealPlanCode}
-            />
-          ) : null}
+        <Card className="gap-0 overflow-hidden py-0">
+          <div className="border-b border-border px-5 py-4 md:px-6">
+            <h2 className="text-base font-semibold text-foreground">
+              {STEP_COPY[step].title}
+            </h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {STEP_COPY[step].hint}
+            </p>
+          </div>
 
-          {step === 2 ? (
-            <BookingStepRoom
-              options={options}
-              selectedCode={selectedCode}
-              onSelect={setSelectedCode}
-              loading={previewLoading}
-              error={previewError}
-              nights={nights}
-              rooms={rooms}
-            />
-          ) : null}
+          <div className="px-5 py-5 md:px-6">
+            {step === 1 ? (
+              <BookingStepStay
+                checkIn={checkIn}
+                checkOut={checkOut}
+                minCheckIn={minCheckIn}
+                nightsLabel={nightsLabel}
+                onCheckIn={setCheckIn}
+                onCheckOut={setCheckOut}
+                adults={adults}
+                onAdults={setAdults}
+                rooms={rooms}
+                onRooms={setRooms}
+                mealPlans={preview?.mealPlans ?? []}
+                mealPlanCode={mealPlanCode}
+                onMealPlan={setMealPlanCode}
+              />
+            ) : null}
 
-          {step === 3 ? <BookingStepContact /> : null}
-        </div>
+            {step === 2 ? (
+              <BookingStepRoom
+                options={options}
+                selectedCode={selectedCode}
+                onSelect={setSelectedCode}
+                loading={previewLoading}
+                error={previewError}
+                nights={nights}
+                rooms={rooms}
+              />
+            ) : null}
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {step > 1 ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setStep((s) => Math.max(1, s - 1) as Step)}
-            >
-              Back
-            </Button>
-          ) : (
-            <span />
-          )}
-
-          {step < 3 ? (
-            <Button
-              type="button"
-              onClick={() => {
-                if (canNext) setStep((s) => Math.min(3, s + 1) as Step);
-              }}
-              disabled={!canNext}
-            >
-              Continue
-            </Button>
-          ) : (
-            <Button type="submit" disabled={pending}>
-              {pending ? "Holding rooms…" : "Request booking"}
-            </Button>
-          )}
-        </div>
+            {step === 3 ? <BookingStepContact /> : null}
+          </div>
+        </Card>
       </div>
 
       <BookingSummary
@@ -298,37 +310,120 @@ export function BookingWizard({
         adults={adults}
         rooms={rooms}
         selectedName={selectedOption?.name ?? null}
+        perNightBtn={selectedOption?.perNightBtn ?? null}
         totalBtn={selectedTotal}
         currency="BTN"
       />
+
+      {/* Keeps content clear of the fixed mobile action bar. */}
+      <div className="col-span-full h-16 lg:hidden" aria-hidden />
+
+      {/* One action row: fixed bottom bar on mobile, inline on desktop. */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur lg:static lg:col-start-1 lg:row-start-2 lg:border-0 lg:bg-transparent lg:p-0">
+        <div className="mx-auto flex max-w-[1160px] items-center gap-3 lg:max-w-none">
+          <div className="lg:hidden">
+            <p className="text-[11px] leading-none text-muted-foreground">
+              {selectedTotal == null ? "Total" : "Estimated total"}
+            </p>
+            <p className="mt-1 text-sm font-semibold leading-none tabular-nums text-foreground">
+              {selectedTotal == null ? "—" : formatBtn(selectedTotal)}
+            </p>
+          </div>
+
+          <div className="ml-auto flex items-center gap-2">
+            {step > 1 ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={() => setStep((s) => Math.max(1, s - 1) as Step)}
+              >
+                Back
+              </Button>
+            ) : null}
+
+            {step < 3 ? (
+              <Button
+                type="button"
+                variant="citrus"
+                size="lg"
+                onClick={() => {
+                  if (canNext) setStep((s) => Math.min(3, s + 1) as Step);
+                }}
+                disabled={!canNext}
+              >
+                Continue
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                variant="citrus"
+                size="lg"
+                disabled={pending}
+              >
+                {pending ? "Holding rooms…" : "Request booking"}
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
     </form>
   );
 }
 
 function Stepper({ step }: { step: Step }) {
   return (
-    <ol className="flex items-center gap-4 text-sm">
-      {STEP_LABELS.map((label, i) => {
-        const n = (i + 1) as Step;
-        const active = step === n;
-        const done = step > n;
-        return (
-          <li key={label}>
-            <span
-              className={
-                active
-                  ? "font-medium text-ink"
-                  : done
-                    ? "text-ink/60"
-                    : "text-muted-foreground"
-              }
-              aria-current={active ? "step" : undefined}
+    <div>
+      <p className="text-xs font-medium text-muted-foreground">
+        Step {step} of {STEP_LABELS.length}
+      </p>
+      <ol className="mt-2 flex items-center gap-2" aria-label="Booking steps">
+        {STEP_LABELS.map((label, i) => {
+          const n = (i + 1) as Step;
+          const active = step === n;
+          const done = step > n;
+          const isLast = i === STEP_LABELS.length - 1;
+          return (
+            <li
+              key={label}
+              className={isLast ? "flex items-center gap-2" : "flex flex-1 items-center gap-2"}
             >
-              {n}. {label}
-            </span>
-          </li>
-        );
-      })}
-    </ol>
+              <span
+                aria-current={active ? "step" : undefined}
+                className={[
+                  "grid size-7 shrink-0 place-items-center rounded-full text-xs font-semibold transition-colors",
+                  done
+                    ? "bg-mint-500 text-white"
+                    : active
+                      ? "bg-sky-700 text-white"
+                      : "bg-secondary text-muted-foreground",
+                ].join(" ")}
+              >
+                {done ? <CheckIcon className="size-3.5" aria-hidden /> : n}
+              </span>
+              <span
+                className={[
+                  "text-xs font-medium whitespace-nowrap",
+                  active
+                    ? "text-foreground"
+                    : "hidden text-muted-foreground sm:inline",
+                ].join(" ")}
+              >
+                {label}
+              </span>
+              {!isLast ? (
+                <span
+                  aria-hidden
+                  className={[
+                    "h-px flex-1 rounded-full",
+                    done ? "bg-mint-500/50" : "bg-border",
+                  ].join(" ")}
+                />
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }

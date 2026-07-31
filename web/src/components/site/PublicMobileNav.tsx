@@ -1,5 +1,6 @@
 "use client";
 
+import { hidesPublicChrome } from "@/lib/public-chrome";
 import { cn } from "@/lib/utils";
 import {
   CalendarDaysIcon,
@@ -19,16 +20,6 @@ const ITEMS = [
   { href: "/spa", label: "Spa", icon: SparklesIcon, match: "prefix" as const },
 ] as const;
 
-const HIDDEN_PREFIXES = [
-  "/erp",
-  "/staff",
-  "/login",
-  "/agents/portal",
-  "/agents/app",
-  "/agents/login",
-  "/pay",
-];
-
 function isActive(pathname: string, href: string, match: "exact" | "prefix") {
   if (match === "exact") return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -37,9 +28,7 @@ function isActive(pathname: string, href: string, match: "exact" | "prefix") {
 /** App-like public footer tabs — mobile only; desktop keeps SiteHeader nav. */
 export function PublicMobileNav() {
   const pathname = usePathname();
-  if (HIDDEN_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
-    return null;
-  }
+  if (hidesPublicChrome(pathname)) return null;
 
   return (
     <>

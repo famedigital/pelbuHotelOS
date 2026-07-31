@@ -31,6 +31,8 @@ function revalidateHolds() {
   revalidatePath("/erp");
   revalidatePath("/erp/group");
   revalidatePath("/erp/check-in");
+  revalidatePath("/erp/reservations");
+  revalidatePath("/erp/bookings/[id]", "page");
 }
 
 /** Payment methods the system records against a token/deposit. */

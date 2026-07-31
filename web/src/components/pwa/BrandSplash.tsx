@@ -1,53 +1,57 @@
-import Image from "next/image";
-
 import { BRAND_ICONS } from "@/lib/brand";
 
 /**
  * First-paint branded loading splash. Server-rendered so it appears in the
- * initial HTML (before hydration). A tiny inline gate script hides it on
- * private/staff routes and on repeat visits within a session; `SplashController`
- * fades it out once the window has loaded. Motion respects reduced-motion via
- * the global rule in globals.css.
+ * initial HTML (before hydration). A tiny inline gate script sets
+ * `data-splash` on `<html>` (never mutating the splash node itself) to hide
+ * it on private/staff routes and on repeat visits within a session;
+ * `SplashController` flips that attribute to `done` once the window has
+ * loaded. Motion respects reduced-motion via the global rule in globals.css.
+ *
+ * Never call `remove()` / mutate attributes on `#pelbu-splash` — React owns
+ * that node and doing so causes insertBefore/removeChild NotFoundError.
  */
 
 // Kept in sync with PwaRegistrar / InstallPrompt — public site only.
 const SPLASH_GATE = `(function(){try{
-var el=document.getElementById('pelbu-splash');if(!el)return;
-var p=location.pathname;
+var d=document.documentElement,p=location.pathname;
 var priv=['/erp','/staff','/agents/app','/agents/portal','/login','/pay'];
-var isPriv=priv.some(function(x){return p===x||p.indexOf(x+'/')===0;});
-var seen=false;try{seen=!!sessionStorage.getItem('pelbu-splash-seen');}catch(e){}
-if(isPriv||seen){el.setAttribute('data-state','off');}
-else{try{sessionStorage.setItem('pelbu-splash-seen','1');}catch(e){}}
-}catch(e){}})();`;
+var off=priv.some(function(x){return p===x||p.indexOf(x+'/')===0;});
+if(!off){try{if(sessionStorage.getItem('pelbu-splash-seen'))off=true;
+else sessionStorage.setItem('pelbu-splash-seen','1');}catch(e){}}
+d.setAttribute('data-splash',off?'off':'on');
+}catch(e){document.documentElement.setAttribute('data-splash','off');}})();`;
 
 export function BrandSplash() {
   return (
     <>
+      <script
+        // Pre-hydration gate: runs at parse time (before the splash div) so
+        // data-splash is set before the overlay paints — zero flash on ERP.
+        dangerouslySetInnerHTML={{ __html: SPLASH_GATE }}
+      />
+      <noscript>
+        <style>{`#pelbu-splash{display:none}`}</style>
+      </noscript>
       <div
         id="pelbu-splash"
-        data-state="show"
         role="status"
         aria-label="Loading Pelbu Suites"
       >
         <div className="pelbu-splash__stage">
           <span className="pelbu-splash__ring" aria-hidden="true" />
-          <Image
-            src={BRAND_ICONS.markLg}
+          {/* Local public icon — plain img; next/image uses Cloudinary loader. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={BRAND_ICONS.mark}
             alt=""
             width={96}
             height={96}
-            priority
             className="pelbu-splash__mark"
           />
         </div>
         <p className="pelbu-splash__word">Pelbu Suites</p>
       </div>
-      <script
-        // Pre-hydration gate: runs at parse time to avoid a splash flash on
-        // staff/POS routes and repeat navigations.
-        dangerouslySetInnerHTML={{ __html: SPLASH_GATE }}
-      />
     </>
   );
 }

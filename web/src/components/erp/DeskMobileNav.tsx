@@ -1,7 +1,7 @@
 "use client";
 
 import { deskLogout } from "@/app/actions/desk";
-import { NAV_SECTIONS } from "@/components/erp/app-sidebar";
+import { NAV_SECTIONS } from "@/lib/erp-nav";
 import {
   Sheet,
   SheetClose,

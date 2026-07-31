@@ -571,14 +571,20 @@ body.pos-fs .erp [data-slot="sidebar-inset"] {
   gap: 24px;
   background: var(--ivory-soft);
   opacity: 1;
+  visibility: visible;
   transition: opacity 500ms ease;
 }
-#pelbu-splash[data-state="hide"] {
-  opacity: 0;
-  pointer-events: none;
-}
-#pelbu-splash[data-state="off"] {
+/* Driven by data-splash on <html> — never mutate #pelbu-splash itself. */
+html[data-splash="off"] #pelbu-splash {
   display: none;
+}
+html[data-splash="done"] #pelbu-splash {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 500ms ease,
+    visibility 0s linear 500ms;
 }
 
 .pelbu-splash__stage {

@@ -54,6 +54,12 @@ export const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
 /** High-res phone video ceiling for desk uploads. */
 export const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
 
+export function isPdfFile(file: File): boolean {
+  return (
+    file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
+  );
+}
+
 export function detectResourceType(file: File): CloudinaryResourceType {
   if (VIDEO_TYPES.has(file.type) || file.type.startsWith("video/")) {
     return "video";
@@ -61,11 +67,13 @@ export function detectResourceType(file: File): CloudinaryResourceType {
   if (IMAGE_TYPES.has(file.type) || file.type.startsWith("image/")) {
     return "image";
   }
+  // Cloudinary uploads PDFs through its `image` resource endpoint.
+  if (isPdfFile(file)) return "image";
   // iOS sometimes omits MIME; fall back to extension.
   const name = file.name.toLowerCase();
   if (/\.(mp4|mov|m4v|webm|3gp)$/.test(name)) return "video";
   if (/\.(jpe?g|png|webp|heic|heif|gif|svg)$/.test(name)) return "image";
-  throw new Error("Choose a photo or video file.");
+  throw new Error("Choose a photo, PDF, or video file.");
 }
 
 export function assertUploadable(file: File): CloudinaryResourceType {
@@ -260,8 +268,12 @@ export async function uploadToCloudinary(
     signEndpoint?: string;
     signContext?: Record<string, string>;
     imageOnly?: boolean;
+    allowPdf?: boolean;
   },
 ): Promise<CloudinaryUploadResult> {
+  if (isPdfFile(file) && !options.allowPdf) {
+    throw new Error("PDF files are not accepted by this field.");
+  }
   const resourceType = assertUploadable(file);
   if (options.imageOnly && resourceType !== "image") {
     throw new Error("Choose a photo file.");

@@ -38,6 +38,8 @@ function revalidateChannel() {
   revalidatePath("/erp/reports");
   revalidatePath("/erp/check-in");
   revalidatePath("/erp/fast-book");
+  revalidatePath("/erp/reservations");
+  revalidatePath("/erp/bookings/[id]", "page");
 }
 
 export async function saveChannelRoomMap(
