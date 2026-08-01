@@ -9,6 +9,7 @@ import {
 import { availabilityByRoomType } from "@/lib/inventory-availability";
 import { soldQtyByRoomType } from "@/lib/inventory-availability";
 import { notifyNewBooking } from "@/lib/notify";
+import { applyDiscountPct } from "@/lib/partners/discount";
 import { roundBtn } from "@/lib/pricing";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 import {
@@ -17,6 +18,7 @@ import {
   resolveSeasonKind,
   type SeasonKind,
 } from "@/lib/rates";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   assertOptionalEmail,
@@ -26,7 +28,7 @@ import {
   parsePositiveInt,
   trimRequired,
 } from "@/lib/validation";
-
+import { headers } from "next/headers";
 export type BookingActionState = {
   ok: boolean;
   bookingId?: string;
@@ -186,6 +188,13 @@ export async function createBooking(
   formData: FormData,
 ): Promise<BookingActionState> {
   try {
+    const h = await headers();
+    const ip = clientIp(h);
+    const rl = await rateLimit(`book:${ip}`, { limit: 30, windowMs: 60 * 60_000 });
+    if (!rl.ok) {
+      return { ok: false, error: "Too many booking attempts. Please try again later." };
+    }
+
     const contactName = trimRequired(formData.get("contact_name"), "Full name");
     const contactPhone = trimRequired(formData.get("contact_phone"), "Phone");
     assertPhone(contactPhone);
@@ -212,7 +221,7 @@ export async function createBooking(
     // Optional: snapshot of the price the guest saw in the wizard preview,
     // so the quoted total survives later rate changes.
     const quotedTotalRaw = formData.get("quoted_total_btn");
-    const quotedTotalBtn =
+    let quotedTotalBtn =
       typeof quotedTotalRaw === "string" && quotedTotalRaw.trim()
         ? Number(quotedTotalRaw)
         : null;
@@ -301,6 +310,27 @@ export async function createBooking(
       roomLines: [{ roomTypeId: assignedTypeId, qty: rooms }],
     });
 
+    let resolvedGuideId: string | null = null;
+    if (guideNumber) {
+      const { data: guide } = await admin
+        .from("guides")
+        .select("id, discount_pct")
+        .eq("property_id", propertyId)
+        .eq("guide_number", guideNumber)
+        .maybeSingle();
+      if (guide) {
+        resolvedGuideId = guide.id as string;
+        const pct = Number(guide.discount_pct ?? 0);
+        if (
+          pct > 0 &&
+          quotedTotalBtn != null &&
+          Number.isFinite(quotedTotalBtn)
+        ) {
+          quotedTotalBtn = roundBtn(applyDiscountPct(quotedTotalBtn, pct));
+        }
+      }
+    }
+
     const { data: booking, error: bookingError } = await admin
       .from("bookings")
       .insert({
@@ -315,6 +345,7 @@ export async function createBooking(
         adults,
         rooms,
         guide_number: guideNumber,
+        guide_id: resolvedGuideId,
         notes,
         hold_expires_at: holdExpiresAt,
         token_required_btn: tokenRequired,

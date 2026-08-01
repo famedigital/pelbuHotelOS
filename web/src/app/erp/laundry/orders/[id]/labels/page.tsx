@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LaundryBagLabelPrinter } from "@/components/laundry/LaundryBagLabelPrinter";
+import { LaundryLabelBagActions } from "@/components/laundry/LaundryLabelBagActions";
 import { Button } from "@/components/ui/button";
+import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -27,9 +29,8 @@ export default async function LaundryOrderLabelsPage({
   const [{ data: order }, bags, { data: staff }] = await Promise.all([
     admin
       .from("laundry_orders")
-      .select("id, guest_name, room_label_snapshot, status")
+      .select("id, guest_name, room_label_snapshot, status, property_id")
       .eq("id", orderId)
-      .eq("property_id", propertyId)
       .maybeSingle(),
     loadLaundryBagsForOrder(propertyId, orderId),
     admin
@@ -40,6 +41,11 @@ export default async function LaundryOrderLabelsPage({
       .order("full_name"),
   ]);
   if (!order) redirect("/erp/laundry");
+  try {
+    assertDeskProperty(propertyId, order.property_id as string, "Laundry order");
+  } catch {
+    redirect("/erp/laundry");
+  }
 
   const staffOptions = (staff ?? [])
     .filter((member) => {
@@ -76,32 +82,7 @@ export default async function LaundryOrderLabelsPage({
         </Button>
       </div>
 
-      <section className="rounded-xl border bg-card p-4 print:hidden">
-        <p className="text-sm">
-          <span className="font-semibold">{bags.length}</span> active bag
-          {bags.length === 1 ? "" : "s"} · Order{" "}
-          <span className="font-mono">
-            {orderId.slice(0, 8).toUpperCase()}
-          </span>
-        </p>
-        {bags.length ? (
-          <ul className="mt-3 space-y-2 text-sm">
-            {bags.map((bag) => (
-              <li
-                key={bag.id}
-                className="flex items-center justify-between rounded-lg border px-3 py-2"
-              >
-                <span>
-                  Bag {bag.bag_seq} · {bag.public_code}
-                </span>
-                <span className="text-muted-foreground">
-                  {bag.garment_count} pcs · {bag.status}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </section>
+      <LaundryLabelBagActions bags={bags} mode="desk" />
 
       <LaundryBagLabelPrinter
         orderId={orderId}

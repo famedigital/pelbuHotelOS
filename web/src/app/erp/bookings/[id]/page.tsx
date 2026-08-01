@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { boardActionLabel } from "@/lib/arrival-board";
+import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/erp-lists";
 import { formatBtn } from "@/lib/pricing";
@@ -38,7 +39,7 @@ export default async function BookingDetailPage({ params }: Props) {
   const { data, error } = await admin
     .from("bookings")
     .select(
-      `id, contact_name, contact_phone, contact_email, check_in, check_out, status,
+      `id, property_id, contact_name, contact_phone, contact_email, check_in, check_out, status,
        source, channel_source, guest_origin, guide_number, payment_mode, adults, rooms,
        notes, created_at, confirmed_at, checked_in_at, checked_out_at, cancelled_at,
        cancel_reason, hold_expires_at, hold_extended_count, token_required_btn,
@@ -51,11 +52,15 @@ export default async function BookingDetailPage({ params }: Props) {
        payments(id, amount_btn, method, kind, reference, created_at)`,
     )
     .eq("id", id)
-    .eq("property_id", propertyId)
     .maybeSingle();
 
   if (error) throw new Error(`Could not load booking: ${error.message}`);
   if (!data) notFound();
+  try {
+    assertDeskProperty(propertyId, data.property_id as string, "Booking");
+  } catch {
+    notFound();
+  }
 
   const status = (data.status as string) ?? "unknown";
   const agent = firstOf(data.agents as MaybeList<{ company_name?: string }>);

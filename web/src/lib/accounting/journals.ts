@@ -1,6 +1,11 @@
 import "server-only";
 import { roundBtn } from "@/lib/pricing";
 import { assertBalancedLines } from "@/lib/accounting/balance";
+import {
+  assertOpenPeriodForDate,
+  type PeriodGuardOptions,
+} from "@/lib/accounting/period-guard";
+import { allocateJournalNo } from "@/lib/accounting/sequences";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type {
   AccountingAccount,
@@ -69,14 +74,7 @@ export async function nextJournalNo(
   propertyId: string,
   journalDate: string,
 ): Promise<string> {
-  const prefix = `J${journalDate.replaceAll("-", "").slice(0, 6)}`;
-  const { count } = await admin
-    .from("accounting_journals")
-    .select("id", { count: "exact", head: true })
-    .eq("property_id", propertyId)
-    .like("journal_no", `${prefix}%`);
-  const seq = String((count ?? 0) + 1).padStart(4, "0");
-  return `${prefix}-${seq}`;
+  return allocateJournalNo(admin, propertyId, journalDate);
 }
 
 /**
@@ -87,13 +85,20 @@ export async function createAndPostJournal(
   admin: Admin,
   propertyId: string,
   draft: JournalDraft,
+  periodGuard?: PeriodGuardOptions,
 ): Promise<string> {
   assertBalancedLines(draft.lines);
 
-  const period = await resolvePeriodForDate(admin, propertyId, draft.journalDate);
-  if (period?.status === "closed") {
-    throw new Error(`Period ${period.label} is closed.`);
-  }
+  const period = await assertOpenPeriodForDate(
+    admin,
+    propertyId,
+    draft.journalDate,
+    {
+      propertyId,
+      ...periodGuard,
+      actor: periodGuard?.actor ?? draft.createdBy ?? "desk",
+    },
+  );
 
   const journalNo = await nextJournalNo(admin, propertyId, draft.journalDate);
 
@@ -101,7 +106,7 @@ export async function createAndPostJournal(
     .from("accounting_journals")
     .insert({
       property_id: propertyId,
-      period_id: period?.id ?? null,
+      period_id: period.id,
       journal_no: journalNo,
       journal_date: draft.journalDate,
       journal_kind: draft.journalKind,
@@ -160,6 +165,7 @@ export async function reverseJournal(
   propertyId: string,
   journalId: string,
   reversedBy = "desk",
+  periodGuard?: PeriodGuardOptions,
 ): Promise<string> {
   const { data: original } = await admin
     .from("accounting_journals")
@@ -186,16 +192,21 @@ export async function reverseJournal(
     creditBtn: Number(line.debit_btn ?? 0),
   }));
 
-  const reversalId = await createAndPostJournal(admin, propertyId, {
-    journalDate: original.journal_date as string,
-    journalKind: "reversal",
-    memo: `Reversal of journal ${journalId}`,
-    sourceTable: "accounting_journals",
-    sourceId: journalId,
-    sourceEvent: "reversal",
-    lines: reversalLines,
-    createdBy: reversedBy,
-  });
+  const reversalId = await createAndPostJournal(
+    admin,
+    propertyId,
+    {
+      journalDate: original.journal_date as string,
+      journalKind: "reversal",
+      memo: `Reversal of journal ${journalId}`,
+      sourceTable: "accounting_journals",
+      sourceId: journalId,
+      sourceEvent: "reversal",
+      lines: reversalLines,
+      createdBy: reversedBy,
+    },
+    periodGuard,
+  );
 
   await admin
     .from("accounting_journals")
@@ -219,6 +230,7 @@ export async function postSimpleEvent(
     memo?: string;
     journalKind?: JournalDraft["journalKind"];
     paymentSide?: "debit_cash" | "credit_cash";
+    periodGuard?: PeriodGuardOptions;
   },
 ): Promise<PostingResult> {
   const amount = money(input.amountBtn);
@@ -365,15 +377,20 @@ export async function postSimpleEvent(
       });
     }
 
-    const journalId = await createAndPostJournal(admin, propertyId, {
-      journalDate: input.journalDate,
-      journalKind: input.journalKind ?? "general",
-      memo: input.memo,
-      sourceTable: input.sourceTable,
-      sourceId: input.sourceId,
-      sourceEvent: input.eventType,
-      lines,
-    });
+    const journalId = await createAndPostJournal(
+      admin,
+      propertyId,
+      {
+        journalDate: input.journalDate,
+        journalKind: input.journalKind ?? "general",
+        memo: input.memo,
+        sourceTable: input.sourceTable,
+        sourceId: input.sourceId,
+        sourceEvent: input.eventType,
+        lines,
+      },
+      input.periodGuard,
+    );
 
     if (eventId) {
       await admin

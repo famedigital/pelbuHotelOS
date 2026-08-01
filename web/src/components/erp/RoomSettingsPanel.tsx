@@ -9,6 +9,7 @@ import { LiveRefreshBadge } from "@/components/erp/LiveRefreshBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -46,6 +47,8 @@ export type RoomUnitRow = {
   room_type_id: string;
   label: string;
   floor_label: string | null;
+  view_label: string | null;
+  has_balcony: boolean;
   notes: string | null;
   hk_status: string;
   sort_order: number;
@@ -94,6 +97,8 @@ function roomRowKey(unit: RoomUnitRow): string {
     unit.room_type_id,
     unit.label,
     unit.floor_label ?? "",
+    unit.view_label ?? "",
+    unit.has_balcony ? "1" : "0",
     unit.sort_order,
     unit.hk_status,
     unit.notes ?? "",
@@ -110,6 +115,8 @@ type RoomDraft = {
   room_type_id: string;
   label: string;
   floor_label: string;
+  view_label: string;
+  has_balcony: boolean;
   sort_order: string;
   notes: string;
 };
@@ -118,6 +125,7 @@ const ROOM_FIELDS = [
   "room_type_id",
   "label",
   "floor_label",
+  "view_label",
   "sort_order",
   "notes",
 ] as const;
@@ -128,15 +136,22 @@ function useRoomEditor(unit: RoomUnitRow, propertyId: string) {
     room_type_id: unit.room_type_id,
     label: unit.label,
     floor_label: unit.floor_label ?? "",
+    view_label: unit.view_label ?? "",
+    has_balcony: Boolean(unit.has_balcony),
     sort_order: String(unit.sort_order),
     notes: unit.notes ?? "",
   };
   const [draft, setDraft] = useState<RoomDraft>(base);
   const [pending, startTransition] = useTransition();
 
-  const dirty = ROOM_FIELDS.some((field) => draft[field] !== base[field]);
+  const dirty =
+    ROOM_FIELDS.some((field) => draft[field] !== base[field]) ||
+    draft.has_balcony !== base.has_balcony;
 
-  function setField(field: keyof RoomDraft, value: string) {
+  function setField(
+    field: keyof RoomDraft,
+    value: string | boolean,
+  ) {
     setDraft((prev) => ({ ...prev, [field]: value }));
   }
 
@@ -152,6 +167,8 @@ function useRoomEditor(unit: RoomUnitRow, propertyId: string) {
       formData.set("room_unit_id", unit.id);
       formData.set("label", draft.label.trim());
       formData.set("floor_label", draft.floor_label.trim());
+      formData.set("view_label", draft.view_label.trim());
+      if (draft.has_balcony) formData.set("has_balcony", "on");
       formData.set("sort_order", draft.sort_order.trim());
       formData.set("notes", draft.notes.trim());
       const result = await saveRoomUnitSettings({ ok: false }, formData);
@@ -271,16 +288,17 @@ function RoomTableRow({
   return (
     <TableRow data-state={editor.dirty ? "selected" : undefined}>
       <TableCell className="px-3 py-2">
-        <Input
-          value={draft.label}
-          onChange={(event) => setField("label", event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") editor.save();
-          }}
-          aria-label={`Room name or number for ${unit.label}`}
-          className="h-9 w-[132px] font-medium"
-          required
-        />
+            <Input
+              value={draft.label}
+              onChange={(event) => setField("label", event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") editor.save();
+              }}
+              aria-label={`Room name or number for ${unit.label}`}
+              title="Prefer a short door number (101). Category comes from Room type."
+              className="h-9 w-[132px] font-medium"
+              required
+            />
       </TableCell>
       <TableCell className="px-3 py-2">
         <select
@@ -305,8 +323,30 @@ function RoomTableRow({
           }}
           aria-label={`Floor for ${unit.label}`}
           placeholder="—"
-          className="h-9 w-[96px]"
+          className="h-9 w-[72px]"
         />
+      </TableCell>
+      <TableCell className="px-3 py-2">
+        <Input
+          value={draft.view_label}
+          onChange={(event) => setField("view_label", event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") editor.save();
+          }}
+          aria-label={`View for ${unit.label}`}
+          placeholder="Valley"
+          className="h-9 w-[100px]"
+        />
+      </TableCell>
+      <TableCell className="px-3 py-2">
+        <label className="inline-flex h-9 items-center gap-2 text-sm">
+          <Checkbox
+            checked={draft.has_balcony}
+            onCheckedChange={(v) => setField("has_balcony", v === true)}
+            aria-label={`Balcony for ${unit.label}`}
+          />
+          <span className="text-muted-foreground">Balc</span>
+        </label>
       </TableCell>
       <TableCell className="px-3 py-2">
         <Input
@@ -414,6 +454,18 @@ function RoomCard({
             />
           </div>
           <div className="space-y-1.5">
+            <Label htmlFor={`card-view-${unit.id}`} className="text-xs">
+              View
+            </Label>
+            <Input
+              id={`card-view-${unit.id}`}
+              value={draft.view_label}
+              onChange={(event) => setField("view_label", event.target.value)}
+              placeholder="Valley"
+              className="h-9"
+            />
+          </div>
+          <div className="space-y-1.5">
             <Label htmlFor={`card-order-${unit.id}`} className="text-xs">
               Rack order
             </Label>
@@ -426,6 +478,19 @@ function RoomCard({
               step={1}
               className="h-9 tabular-nums"
             />
+          </div>
+          <div className="flex items-end pb-1">
+            <label
+              htmlFor={`card-balc-${unit.id}`}
+              className="inline-flex h-9 items-center gap-2 text-sm"
+            >
+              <Checkbox
+                id={`card-balc-${unit.id}`}
+                checked={draft.has_balcony}
+                onCheckedChange={(v) => setField("has_balcony", v === true)}
+              />
+              Balcony
+            </label>
           </div>
         </div>
         <div className="space-y-1.5">
@@ -615,6 +680,8 @@ function AddRoomForm({
   const [roomTypeId, setRoomTypeId] = useState(defaultTypeId);
   const [label, setLabel] = useState("");
   const [floorLabel, setFloorLabel] = useState("");
+  const [viewLabel, setViewLabel] = useState("");
+  const [hasBalcony, setHasBalcony] = useState(false);
   const [sortOrder, setSortOrder] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -630,12 +697,16 @@ function AddRoomForm({
       formData.set("room_type_id", roomTypeId);
       formData.set("label", label.trim());
       formData.set("floor_label", floorLabel.trim());
+      formData.set("view_label", viewLabel.trim());
+      if (hasBalcony) formData.set("has_balcony", "on");
       formData.set("sort_order", sortOrder.trim());
       const result = await saveRoomUnitSettings({ ok: false }, formData);
       if (result.ok) {
         toast.success(`Room ${label.trim()} added`);
         setLabel("");
         setFloorLabel("");
+        setViewLabel("");
+        setHasBalcony(false);
         setSortOrder("");
         router.refresh();
       } else {
@@ -693,6 +764,31 @@ function AddRoomForm({
           onChange={(event) => setFloorLabel(event.target.value)}
           className="h-9 w-[96px]"
         />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="add-room-view" className="text-xs">
+          View
+        </Label>
+        <Input
+          id="add-room-view"
+          value={viewLabel}
+          onChange={(event) => setViewLabel(event.target.value)}
+          placeholder="Valley"
+          className="h-9 w-[112px]"
+        />
+      </div>
+      <div className="flex h-9 items-end pb-0">
+        <label
+          htmlFor="add-room-balc"
+          className="inline-flex h-9 items-center gap-2 text-sm"
+        >
+          <Checkbox
+            id="add-room-balc"
+            checked={hasBalcony}
+            onCheckedChange={(v) => setHasBalcony(v === true)}
+          />
+          Balcony
+        </label>
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="add-room-order" className="text-xs">
@@ -809,6 +905,7 @@ export function RoomSettingsPanel({
       return [
         unit.label,
         unit.floor_label,
+        unit.view_label,
         unit.notes,
         unit.hk_status,
         type?.name,
@@ -1030,6 +1127,12 @@ export function RoomSettingsPanel({
                     dir={sortDir}
                     onSort={toggleSort}
                   />
+                  <TableHead className="h-10 bg-muted/40 px-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                    View
+                  </TableHead>
+                  <TableHead className="h-10 bg-muted/40 px-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                    Balc
+                  </TableHead>
                   <SortHeader
                     label="Order"
                     sortKey="sort_order"

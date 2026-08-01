@@ -77,7 +77,7 @@ export default async function GstReturnsPage({
     <DeskListShell
       eyebrow="Compliance"
       heading={`GST returns · ${ym}`}
-      blurb="DRC-oriented monthly summary from posted folio lines. Export via /api/erp/export?kind=folio_lines for the same window."
+      blurb="DRC-oriented monthly summary from posted folio lines. Download fiscal filing CSV with doc numbers via GST filing export."
       filters={
         <form
           className="flex flex-wrap items-end gap-2"
@@ -98,6 +98,13 @@ export default async function GstReturnsPage({
           </div>
           <Button type="submit" variant="outline" className="h-10">
             Apply
+          </Button>
+          <Button asChild variant="outline" className="h-10">
+            <a
+              href={`/api/erp/export?kind=gst_filing&since=${ym}-01`}
+            >
+              GST filing CSV
+            </a>
           </Button>
         </form>
       }

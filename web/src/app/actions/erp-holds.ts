@@ -1,7 +1,8 @@
 "use server";
 
 import { writeAuditEvent } from "@/lib/audit";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { isDeskAuthenticated, requireMoneyDesk } from "@/lib/desk-auth";
+import { assertDeskProperty } from "@/lib/desk/property-guard";
 import {
   holdExpiresAtFromNow,
   loadDepositRule,
@@ -9,6 +10,11 @@ import {
   resolveHoldTtlHours,
   type BookingSource,
 } from "@/lib/holds";
+import { postFolioPaymentRecord } from "@/lib/folio/post-payment";
+import {
+  claimBookingPaymentLinks,
+  releaseBookingPaymentLinks,
+} from "@/lib/payments/claim-link";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
@@ -73,6 +79,7 @@ export async function applyBookingConfirmation(args: {
   confirmedBy: string;
   paymentGateway?: "manual" | "pay_bt" | "bank_qr";
   allowOverride?: boolean;
+  idempotencyKey?: string | null;
 }): Promise<{ bookingId: string; amount: number; paymentId: string | null }> {
   const {
     admin,
@@ -83,6 +90,7 @@ export async function applyBookingConfirmation(args: {
     confirmedBy,
     paymentGateway = "manual",
     allowOverride = false,
+    idempotencyKey = null,
   } = args;
 
   const { data: booking, error } = await admin
@@ -117,68 +125,74 @@ export async function applyBookingConfirmation(args: {
     );
   }
 
-  const now = new Date().toISOString();
-  const received =
-    Number(booking.token_received_btn ?? 0) + Math.max(0, amount);
+  await claimBookingPaymentLinks(admin, propertyId, bookingId);
 
-  let paymentId: string | null = null;
-  if (amount > 0) {
-    const payMethod = normalisePaymentMethod(method);
-    const { data: payment, error: payErr } = await admin
-      .from("payments")
-      .insert({
+  try {
+    const now = new Date().toISOString();
+    const received =
+      Number(booking.token_received_btn ?? 0) + Math.max(0, amount);
+
+    let paymentId: string | null = null;
+    if (amount > 0) {
+      const payMethod = normalisePaymentMethod(method);
+      const pay = await postFolioPaymentRecord(admin, {
         property_id: propertyId,
         booking_id: bookingId,
-        amount_btn: amount,
         method: payMethod,
         kind: "deposit",
+        amount_btn: amount,
         reference: reference ?? null,
-        notes: "Booking token / deposit",
-      })
-      .select("id")
-      .single();
-    if (payErr || !payment) {
-      console.error("applyBookingConfirmation payment", payErr);
-      throw new Error("Could not record deposit payment.");
+        notes: reference
+          ? `Booking token / deposit · ${reference}`
+          : "Booking token / deposit",
+        idempotency_key:
+          idempotencyKey ??
+          (reference
+            ? `booking_deposit:${bookingId}:${reference}`
+            : `booking_deposit:${bookingId}:${amount}`),
+      });
+      paymentId = pay.paymentId;
     }
-    paymentId = payment.id as string;
+
+    await admin
+      .from("payment_links")
+      .update({
+        status: amount > 0 ? "paid" : "cancelled",
+        paid_at: amount > 0 ? now : null,
+        payment_id: paymentId,
+        payment_gateway: amount > 0 ? paymentGateway : "manual",
+      })
+      .eq("booking_id", bookingId)
+      .eq("property_id", propertyId)
+      .in("status", ["open", "processing"]);
+
+    const { error: upd } = await admin
+      .from("bookings")
+      .update({
+        status: "confirmed",
+        token_received_btn: received,
+        confirmed_at: now,
+        confirmed_by: confirmedBy,
+        payment_mode: "partial",
+      })
+      .eq("id", bookingId);
+    if (upd) throw new Error("Could not confirm booking.");
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "booking.token_confirm",
+      entityType: "bookings",
+      entityId: bookingId,
+      summary: allowOverride
+        ? `Owner override confirm · Nu ${amount}`
+        : `Token confirmed · Nu ${amount}`,
+    });
+
+    return { bookingId, amount, paymentId };
+  } catch (e) {
+    await releaseBookingPaymentLinks(admin, propertyId, bookingId);
+    throw e;
   }
-
-  await admin
-    .from("payment_links")
-    .update({
-      status: amount > 0 ? "paid" : "cancelled",
-      paid_at: amount > 0 ? now : null,
-      payment_id: paymentId,
-      payment_gateway: amount > 0 ? paymentGateway : "manual",
-    })
-    .eq("booking_id", bookingId)
-    .eq("property_id", propertyId)
-    .in("status", ["open", "processing"]);
-
-  const { error: upd } = await admin
-    .from("bookings")
-    .update({
-      status: "confirmed",
-      token_received_btn: received,
-      confirmed_at: now,
-      confirmed_by: confirmedBy,
-      payment_mode: "partial",
-    })
-    .eq("id", bookingId);
-  if (upd) throw new Error("Could not confirm booking.");
-
-  await writeAuditEvent(admin, {
-    propertyId,
-    action: "booking.token_confirm",
-    entityType: "bookings",
-    entityId: bookingId,
-    summary: allowOverride
-      ? `Owner override confirm · Nu ${amount}`
-      : `Token confirmed · Nu ${amount}`,
-  });
-
-  return { bookingId, amount, paymentId };
 }
 
 /** Mark payment link paid → confirm booking + post deposit payment. */
@@ -187,7 +201,7 @@ export async function confirmBookingToken(
   formData: FormData,
 ): Promise<HoldActionState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const admin = createSupabaseAdminClient();
     const pid = await resolveActivePropertyId(admin);
     const bookingId = trimRequired(formData.get("booking_id"), "Booking");
@@ -195,6 +209,14 @@ export async function confirmBookingToken(
     const method = optionalTrim(formData.get("method")) ?? "bank";
     const reference = optionalTrim(formData.get("reference"));
     const override = optionalTrim(formData.get("owner_override")) === "1";
+
+    const { data: bookingRow } = await admin
+      .from("bookings")
+      .select("id, property_id")
+      .eq("id", bookingId)
+      .single();
+    if (!bookingRow) throw new Error("Booking not found.");
+    assertDeskProperty(pid, bookingRow.property_id as string, "Booking");
 
     const { amount } = await applyBookingConfirmation({
       admin,
@@ -234,11 +256,13 @@ export async function extendBookingHold(
 
     const { data: booking } = await admin
       .from("bookings")
-      .select("id, status, source, check_in, hold_extended_count, hold_expires_at")
+      .select(
+        "id, status, source, check_in, hold_extended_count, hold_expires_at, property_id",
+      )
       .eq("id", bookingId)
-      .eq("property_id", pid)
       .single();
     if (!booking) throw new Error("Booking not found.");
+    assertDeskProperty(pid, booking.property_id as string, "Booking");
     if ((booking.status as string) !== "held") {
       throw new Error("Only held bookings can be extended.");
     }

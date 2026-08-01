@@ -195,21 +195,28 @@ function LaundryTaskCard({
           ) : (
             <StatusForm order={order} />
           )}
-          {order.status !== "requested" || order.billed_at ? (
-            <LaundryBagPrepareForm
-              orderId={order.id}
-              items={order.laundry_order_items}
-              existingBags={bags}
-              mode="staff"
-            />
-          ) : null}
           {bags.length ? (
-            <Button asChild variant="outline" className="min-h-11 w-full">
+            <Button asChild variant="citrus" className="min-h-11 w-full">
               <Link href={`/staff/laundry/orders/${order.id}/labels`}>
                 <PrinterIcon className="size-4" />
-                Print bag labels
+                Print bag QR
               </Link>
             </Button>
+          ) : null}
+          {order.status !== "delivered" && order.status !== "cancelled" ? (
+            <details className="rounded-xl border px-3 py-2">
+              <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
+                Advanced: split across bags
+              </summary>
+              <div className="mt-3">
+                <LaundryBagPrepareForm
+                  orderId={order.id}
+                  items={order.laundry_order_items}
+                  existingBags={bags}
+                  mode="staff"
+                />
+              </div>
+            </details>
           ) : null}
         </div>
       ) : null}

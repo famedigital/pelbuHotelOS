@@ -1,6 +1,8 @@
 import { HoldCountdown } from "@/components/book/HoldCountdown";
 import { formatBtn } from "@/lib/pricing";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +17,24 @@ type PageProps = {
 };
 
 export default async function PayTokenPage({ params }: PageProps) {
+  const h = await headers();
+  const rl = await rateLimit(`pay:${clientIp(h)}`, {
+    limit: 60,
+    windowMs: 15 * 60_000,
+  });
+  if (!rl.ok) {
+    return (
+      <main className="min-h-screen bg-ivory px-6 py-16 text-espresso">
+        <div className="mx-auto max-w-lg">
+          <h1 className="text-2xl font-medium tracking-tight">Too many requests</h1>
+          <p className="mt-3 text-sm text-muted-foreground">
+            Please wait a few minutes and try your payment link again.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   const { token } = await params;
   if (!token || token.length < 16) notFound();
 

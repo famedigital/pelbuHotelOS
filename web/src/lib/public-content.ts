@@ -1,6 +1,6 @@
 import { cloudinaryUrl } from "@/lib/cloudinary";
-import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { resolvePublicPropertyId } from "@/lib/tenant/resolve-public-property";
 
 export type PublicRoom = {
   code: string;
@@ -31,18 +31,8 @@ export function publicRoomSlug(code: string): string {
     .replace(/^-|-$/g, "");
 }
 
-async function flagshipPropertyId(): Promise<string | null> {
-  const admin = createSupabaseAdminClient();
-  const { data } = await admin
-    .from("properties")
-    .select("id")
-    .eq("slug", PELBU_PROPERTY_SLUG)
-    .maybeSingle();
-  return (data?.id as string | undefined) ?? null;
-}
-
 export async function loadPublicRooms(): Promise<PublicRoom[]> {
-  const propertyId = await flagshipPropertyId();
+  const propertyId = await resolvePublicPropertyId();
   if (!propertyId) return [];
   const admin = createSupabaseAdminClient();
   const { data } = await admin
@@ -74,7 +64,7 @@ export async function loadPublicRoom(slug: string): Promise<PublicRoom | null> {
 }
 
 export async function loadGuidePosts(): Promise<GuidePost[]> {
-  const propertyId = await flagshipPropertyId();
+  const propertyId = await resolvePublicPropertyId();
   if (!propertyId) return [];
   const admin = createSupabaseAdminClient();
   const { data } = await admin
@@ -91,7 +81,7 @@ export async function loadGuidePosts(): Promise<GuidePost[]> {
 }
 
 export async function loadGuidePost(slug: string): Promise<GuidePost | null> {
-  const propertyId = await flagshipPropertyId();
+  const propertyId = await resolvePublicPropertyId();
   if (!propertyId) return null;
   const admin = createSupabaseAdminClient();
   const { data } = await admin

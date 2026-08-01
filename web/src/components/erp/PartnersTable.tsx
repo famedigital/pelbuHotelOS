@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 
 import { DataTable } from "@/components/ui/data-table";
 import type { PartnerRow } from "@/app/erp/partners/page";
+import { PartnerDiscountForm } from "./PartnerDiscountForm";
 import { PartnerRowActions } from "./PartnerRowActions";
 
 function fmtDate(iso: string | null): string {
@@ -94,6 +95,19 @@ function buildColumns(
         </span>
       ),
       meta: { className: "px-3 text-right" },
+    },
+    {
+      id: "discount",
+      header: "Discount",
+      cell: ({ row }) => (
+        <PartnerDiscountForm
+          kind={kind}
+          partnerId={row.original.id}
+          discountPct={Number(row.original.discount_pct ?? 0)}
+        />
+      ),
+      enableSorting: false,
+      meta: { className: "px-3" },
     },
     {
       accessorKey: "last_seen_at",

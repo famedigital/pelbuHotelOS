@@ -26,7 +26,7 @@ export default async function GuestsPage({
     .from("bookings")
     .select(
       `id, contact_name, contact_phone, check_in, check_out, status, guest_origin,
-       booking_guests(id, full_name, nationality, passport_or_cid, sdf_ref, sdf_doc_url)`,
+       booking_guests(id, full_name, nationality, passport_or_cid, sdf_ref, sdf_doc_url, blacklisted, blacklist_reason)`,
     )
     .eq("property_id", propertyId)
     .order("check_in", { ascending: false })
@@ -41,6 +41,8 @@ export default async function GuestsPage({
       passport_or_cid: string | null;
       sdf_ref: string | null;
       sdf_doc_url: string | null;
+      blacklisted?: boolean;
+      blacklist_reason?: string | null;
     }[] | null) ?? [];
     if (guests.length === 0) {
       stays.push({
@@ -57,6 +59,8 @@ export default async function GuestsPage({
         status: b.status as string,
         guest_origin: (b.guest_origin as string | null) ?? null,
         stay_count: 1,
+        blacklisted: false,
+        blacklist_reason: null,
       });
       continue;
     }
@@ -75,6 +79,8 @@ export default async function GuestsPage({
         status: b.status as string,
         guest_origin: (b.guest_origin as string | null) ?? null,
         stay_count: 1,
+        blacklisted: Boolean(g.blacklisted),
+        blacklist_reason: g.blacklist_reason ?? null,
       });
     }
   }

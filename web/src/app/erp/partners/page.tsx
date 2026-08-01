@@ -23,6 +23,7 @@ export type PartnerRow = {
   license_no?: string | null;
   visit_count: number;
   last_seen_at: string | null;
+  discount_pct?: number;
 };
 
 export default async function PartnersPage({
@@ -57,7 +58,7 @@ export default async function PartnersPage({
     admin
       .from("guides")
       .select(
-        "id, full_name, phone, guide_number, visit_count, last_seen_at",
+        "id, full_name, phone, guide_number, visit_count, last_seen_at, discount_pct",
       )
       .eq("property_id", property.id as string)
       .order("visit_count", { ascending: false })
@@ -65,7 +66,7 @@ export default async function PartnersPage({
     admin
       .from("drivers")
       .select(
-        "id, full_name, phone, vehicle_no, license_no, visit_count, last_seen_at",
+        "id, full_name, phone, vehicle_no, license_no, visit_count, last_seen_at, discount_pct",
       )
       .eq("property_id", property.id as string)
       .order("visit_count", { ascending: false })
@@ -90,7 +91,7 @@ export default async function PartnersPage({
     <DeskListShell
       eyebrow="Repeat partners"
       heading="Guides & drivers"
-      blurb="Every guide and driver who has brought guests to the property. Visit counts help reception recognize returning partners — the foundation for future perks and discounts."
+      blurb="Every guide and driver who has brought guests to the property. Set a suggested discount % for returning partners — desk applies it on fast-book / rate override."
       filters={
         <form
           className="flex items-center gap-2"

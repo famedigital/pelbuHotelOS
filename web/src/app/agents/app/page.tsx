@@ -1,4 +1,3 @@
-import { agentLogout } from "@/app/actions/agent-auth";
 import { requireAgentSession } from "@/lib/agent-auth";
 import { loadAgentBookings } from "@/lib/agent-occupancy";
 import { formatBtn } from "@/lib/pricing";
@@ -56,7 +55,7 @@ export default async function AgentAccountPage() {
             Your {tier.replace(/_/g, " ")} rates
           </h2>
         </div>
-        <div className="overflow-hidden rounded-xl border border-border">
+        <div className="overflow-x-auto rounded-xl border border-border">
           <table className="min-w-full text-left text-sm">
             <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
@@ -134,15 +133,6 @@ export default async function AgentAccountPage() {
           </ul>
         )}
       </section>
-
-      <form action={agentLogout} className="md:hidden">
-        <button
-          type="submit"
-          className="min-h-11 w-full rounded-xl border border-border text-sm font-medium"
-        >
-          Sign out
-        </button>
-      </form>
     </div>
   );
 }

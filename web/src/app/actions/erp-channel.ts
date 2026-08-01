@@ -1,14 +1,20 @@
 "use server";
 
 import { writeAuditEvent } from "@/lib/audit";
-import { enqueueAfterBookingChange, enqueueAvailabilityWindow } from "@/lib/channel/ari-queue";
+import {
+  enqueueAfterBookingChange,
+  enqueueFullAriWindow,
+  ensureChannexConnection,
+} from "@/lib/channel/ari-queue";
 import {
   ackBookingRevision,
   getChannexConfig,
   pullBookingRevisionFeed,
   pushAvailabilityBatch,
+  pushRestrictionsBatch,
 } from "@/lib/channel/channex-client";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { isDeskAuthenticated, requireMoneyDesk } from "@/lib/desk-auth";
+import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
@@ -51,13 +57,8 @@ export async function saveChannelRoomMap(
     const admin = createSupabaseAdminClient();
     const pid = await propertyId(admin);
 
-    const { data: conn } = await admin
-      .from("channel_connections")
-      .select("id")
-      .eq("property_id", pid)
-      .eq("provider", "channex")
-      .single();
-    if (!conn) throw new Error("Channex connection missing — apply P6 migration.");
+    const conn = await ensureChannexConnection(admin, pid);
+    if (!conn) throw new Error("Could not create Channex connection.");
 
     const roomTypeId = trimRequired(formData.get("room_type_id"), "Room type");
     const externalRoom = trimRequired(
@@ -65,6 +66,14 @@ export async function saveChannelRoomMap(
       "Channex room type id",
     );
     const externalRate = optionalTrim(formData.get("external_rate_plan_id"));
+
+    const { data: roomType } = await admin
+      .from("room_types")
+      .select("id, property_id")
+      .eq("id", roomTypeId)
+      .single();
+    if (!roomType) throw new Error("Room type not found.");
+    assertDeskProperty(pid, roomType.property_id as string, "Room type");
 
     const { error } = await admin.from("channel_room_maps").upsert(
       {
@@ -108,6 +117,9 @@ export async function setChannelStatus(
 
     const externalPropertyId = optionalTrim(formData.get("external_property_id"));
 
+    const conn = await ensureChannexConnection(admin, pid);
+    if (!conn) throw new Error("Could not create Channex connection.");
+
     const { error } = await admin
       .from("channel_connections")
       .update({
@@ -116,8 +128,7 @@ export async function setChannelStatus(
           ? { external_property_id: externalPropertyId }
           : {}),
       })
-      .eq("property_id", pid)
-      .eq("provider", "channex");
+      .eq("id", conn.id);
     if (error) throw new Error("Could not update connection status.");
 
     await writeAuditEvent(admin, {
@@ -147,24 +158,120 @@ export async function enqueueFullAriSync(
     toDate.setUTCDate(toDate.getUTCDate() + 90);
     const to = toDate.toISOString().slice(0, 10);
 
-    const batches = await enqueueAvailabilityWindow(
+    const batches = await enqueueFullAriWindow(
       admin,
       pid,
       from,
       to,
       "desk.full_sync_90d",
     );
+    const total =
+      batches.availability + batches.rates + batches.restrictions;
     revalidateChannel();
     return {
       ok: true,
       message:
-        batches === 0
-          ? "Nothing queued (paused connection or missing maps)."
-          : `Queued ${batches} ARI batch(es) for 90 days.`,
+        total === 0
+          ? "Nothing queued (paused connection, missing maps, or no public rates)."
+          : `Queued ${batches.availability} availability, ${batches.rates} rate, ${batches.restrictions} restriction batch(es) for 90 days.`,
     };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
   }
+}
+
+type AriQueueRow = {
+  id: string;
+  kind: string;
+  payload: unknown;
+  attempts: number;
+};
+
+async function flushOneAriRow(
+  admin: Admin,
+  externalPropertyId: string,
+  row: AriQueueRow,
+): Promise<"sent" | "failed" | "skipped"> {
+  await admin
+    .from("ari_queue")
+    .update({ status: "sending", attempts: Number(row.attempts) + 1 })
+    .eq("id", row.id);
+
+  const payload = row.payload as { values?: Record<string, unknown>[] };
+  const rawValues = payload.values ?? [];
+
+  if (row.kind === "full_sync") {
+    await admin
+      .from("ari_queue")
+      .update({
+        status: "cancelled",
+        last_error: "Placeholder only — map rooms then queue again.",
+      })
+      .eq("id", row.id);
+    return "skipped";
+  }
+
+  let result: { ok: boolean; body: unknown };
+
+  if (row.kind === "availability") {
+    const values = rawValues.map((v) => ({
+      property_id: externalPropertyId,
+      room_type_id: String(v.room_type_id ?? ""),
+      date: String(v.date ?? ""),
+      availability: Number(v.availability ?? 0),
+    }));
+    result = await pushAvailabilityBatch(values);
+  } else if (row.kind === "rates" || row.kind === "restrictions") {
+    const values = rawValues.map((v) => {
+      const base: {
+        property_id: string;
+        rate_plan_id: string;
+        date: string;
+        rate?: number;
+        min_stay?: number;
+        stop_sell?: boolean;
+      } = {
+        property_id: externalPropertyId,
+        rate_plan_id: String(v.rate_plan_id ?? ""),
+        date: String(v.date ?? ""),
+      };
+      if (v.rate != null) base.rate = Number(v.rate);
+      if (v.min_stay != null) base.min_stay = Number(v.min_stay);
+      if (v.stop_sell != null) base.stop_sell = Boolean(v.stop_sell);
+      return base;
+    });
+    result = await pushRestrictionsBatch(values);
+  } else {
+    await admin
+      .from("ari_queue")
+      .update({
+        status: "failed",
+        last_error: `Unknown ARI kind: ${row.kind}`,
+      })
+      .eq("id", row.id);
+    return "failed";
+  }
+
+  if (result.ok) {
+    await admin
+      .from("ari_queue")
+      .update({
+        status: "sent",
+        sent_at: new Date().toISOString(),
+        last_error: null,
+      })
+      .eq("id", row.id);
+    return "sent";
+  }
+
+  await admin
+    .from("ari_queue")
+    .update({
+      status: "failed",
+      last_error: JSON.stringify(result.body).slice(0, 500),
+    })
+    .eq("id", row.id);
+  return "failed";
 }
 
 export async function flushAriQueue(
@@ -200,53 +307,27 @@ export async function flushAriQueue(
       .select("id, kind, payload, attempts")
       .eq("property_id", pid)
       .eq("status", "pending")
-      .eq("kind", "availability")
+      .in("kind", ["availability", "rates", "restrictions", "full_sync"])
       .order("created_at")
-      .limit(20);
+      .limit(40);
 
     let sent = 0;
     let failed = 0;
+    let skipped = 0;
     for (const row of pending ?? []) {
-      await admin
-        .from("ari_queue")
-        .update({ status: "sending", attempts: Number(row.attempts) + 1 })
-        .eq("id", row.id);
-
-      const payload = row.payload as {
-        values?: {
-          date: string;
-          room_type_id: string;
-          availability: number;
-        }[];
-      };
-      const values = (payload.values ?? []).map((v) => ({
-        property_id: conn.external_property_id as string,
-        room_type_id: v.room_type_id,
-        date: v.date,
-        availability: v.availability,
-      }));
-
-      const result = await pushAvailabilityBatch(values);
-      if (result.ok) {
-        await admin
-          .from("ari_queue")
-          .update({
-            status: "sent",
-            sent_at: new Date().toISOString(),
-            last_error: null,
-          })
-          .eq("id", row.id);
-        sent += 1;
-      } else {
-        await admin
-          .from("ari_queue")
-          .update({
-            status: "failed",
-            last_error: JSON.stringify(result.body).slice(0, 500),
-          })
-          .eq("id", row.id);
-        failed += 1;
-      }
+      const outcome = await flushOneAriRow(
+        admin,
+        conn.external_property_id as string,
+        {
+          id: row.id as string,
+          kind: row.kind as string,
+          payload: row.payload,
+          attempts: Number(row.attempts),
+        },
+      );
+      if (outcome === "sent") sent += 1;
+      else if (outcome === "failed") failed += 1;
+      else skipped += 1;
     }
 
     await admin
@@ -257,7 +338,39 @@ export async function flushAriQueue(
     revalidateChannel();
     return {
       ok: true,
-      message: `ARI flush: ${sent} sent, ${failed} failed.`,
+      message: `ARI flush: ${sent} sent, ${failed} failed${skipped ? `, ${skipped} skipped` : ""}.`,
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+/** Re-queue failed ARI jobs as pending so Flush can retry them. */
+export async function retryFailedAriJobs(
+  _prev: ErpChannelState,
+  _formData: FormData,
+): Promise<ErpChannelState> {
+  try {
+    await requireDesk();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+
+    const { data: failed, error } = await admin
+      .from("ari_queue")
+      .update({ status: "pending", last_error: null })
+      .eq("property_id", pid)
+      .eq("status", "failed")
+      .select("id");
+    if (error) throw new Error("Could not retry failed ARI jobs.");
+
+    revalidateChannel();
+    const n = failed?.length ?? 0;
+    return {
+      ok: true,
+      message:
+        n === 0
+          ? "No failed ARI jobs to retry."
+          : `Re-queued ${n} failed job(s). Flush when ready.`,
     };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
@@ -277,12 +390,7 @@ export async function pullChannelBookings(
       throw new Error("Set CHANNEX_API_KEY before pulling booking revisions.");
     }
 
-    const { data: conn } = await admin
-      .from("channel_connections")
-      .select("id")
-      .eq("property_id", pid)
-      .eq("provider", "channex")
-      .single();
+    const conn = await ensureChannexConnection(admin, pid);
 
     const feed = await pullBookingRevisionFeed();
     if (!feed.ok) {
@@ -351,11 +459,11 @@ export async function ackChannelRevision(
 
     const { data: row } = await admin
       .from("channel_booking_revisions")
-      .select("id, external_revision_id, status")
+      .select("id, external_revision_id, status, property_id")
       .eq("id", id)
-      .eq("property_id", pid)
       .single();
     if (!row) throw new Error("Revision not found.");
+    assertDeskProperty(pid, row.property_id as string, "Channel revision");
     if ((row.status as string) !== "imported") {
       throw new Error(
         "Import this revision into a local booking before acknowledging it at Channex.",
@@ -396,7 +504,7 @@ export async function cancelBooking(
   formData: FormData,
 ): Promise<ErpChannelState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const admin = createSupabaseAdminClient();
     const pid = await propertyId(admin);
     const bookingId = trimRequired(formData.get("booking_id"), "Booking");
@@ -404,11 +512,11 @@ export async function cancelBooking(
 
     const { data: booking, error } = await admin
       .from("bookings")
-      .select("id, status, check_in, check_out")
+      .select("id, status, check_in, check_out, property_id")
       .eq("id", bookingId)
-      .eq("property_id", pid)
       .single();
     if (error || !booking) throw new Error("Booking not found.");
+    assertDeskProperty(pid, booking.property_id as string, "Booking");
     if (["cancelled", "checked_out", "no_show", "expired"].includes(booking.status as string)) {
       throw new Error(`Cannot cancel from status ${booking.status}.`);
     }
@@ -454,18 +562,18 @@ export async function markBookingNoShow(
   formData: FormData,
 ): Promise<ErpChannelState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const admin = createSupabaseAdminClient();
     const pid = await propertyId(admin);
     const bookingId = trimRequired(formData.get("booking_id"), "Booking");
 
     const { data: booking } = await admin
       .from("bookings")
-      .select("id, status, check_in, check_out")
+      .select("id, status, check_in, check_out, property_id")
       .eq("id", bookingId)
-      .eq("property_id", pid)
       .single();
     if (!booking) throw new Error("Booking not found.");
+    assertDeskProperty(pid, booking.property_id as string, "Booking");
     if (!["pending", "held", "confirmed"].includes(booking.status as string)) {
       throw new Error("No-show only from pending/held/confirmed.");
     }

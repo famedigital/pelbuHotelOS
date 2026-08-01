@@ -67,6 +67,26 @@ export async function pushAvailabilityBatch(
   });
 }
 
+/**
+ * Push rates and/or restrictions — Channex Update Rate & Restrictions.
+ * Rate amounts are BTN decimals (Channex accepts decimal strings or minor units).
+ */
+export async function pushRestrictionsBatch(
+  values: {
+    property_id: string;
+    rate_plan_id: string;
+    date: string;
+    rate?: number;
+    min_stay?: number;
+    stop_sell?: boolean;
+  }[],
+): Promise<{ ok: boolean; status: number; body: unknown }> {
+  return channexFetch("/restrictions", {
+    method: "POST",
+    body: JSON.stringify({ values }),
+  });
+}
+
 /** Booking revision feed (unacked). */
 export async function pullBookingRevisionFeed(): Promise<{
   ok: boolean;

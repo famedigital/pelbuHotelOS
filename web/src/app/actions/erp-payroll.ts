@@ -2,7 +2,8 @@
 
 import { writeAuditEvent } from "@/lib/audit";
 import { postExpense } from "@/lib/accounting/posting";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { isDeskAuthenticated, requireMoneyDesk } from "@/lib/desk-auth";
+import { assertDeskProperty } from "@/lib/desk/property-guard";
 import {
   computePayrollItem,
   ruleSetFromRow,
@@ -385,18 +386,18 @@ export async function approvePayrollRun(
   formData: FormData,
 ): Promise<PayrollActionState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
     const runId = trimRequired(formData.get("run_id"), "Run");
 
     const { data: run } = await admin
       .from("payroll_runs")
-      .select("id, status, headcount")
+      .select("id, status, headcount, property_id")
       .eq("id", runId)
-      .eq("property_id", propertyId)
       .maybeSingle();
     if (!run) return fail("Payroll run not found.");
+    assertDeskProperty(propertyId, run.property_id as string, "Payroll run");
     if (run.status !== "calculated") {
       return fail("Only a calculated run can be approved.");
     }
@@ -431,7 +432,7 @@ export async function finalizePayrollRun(
   formData: FormData,
 ): Promise<PayrollActionState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
     const runId = trimRequired(formData.get("run_id"), "Run");
@@ -439,12 +440,12 @@ export async function finalizePayrollRun(
     const { data: run } = await admin
       .from("payroll_runs")
       .select(
-        "id, status, headcount, net_total_btn, employer_cost_total_btn, period_id",
+        "id, status, headcount, net_total_btn, employer_cost_total_btn, period_id, property_id",
       )
       .eq("id", runId)
-      .eq("property_id", propertyId)
       .maybeSingle();
     if (!run) return fail("Payroll run not found.");
+    assertDeskProperty(propertyId, run.property_id as string, "Payroll run");
     if (run.status !== "approved") {
       return fail("Only an approved run can be finalized.");
     }
@@ -731,7 +732,7 @@ export async function markPayrollItemPaid(
   formData: FormData,
 ): Promise<PayrollActionState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
     const itemId = trimRequired(formData.get("item_id"), "Payslip");
@@ -739,11 +740,11 @@ export async function markPayrollItemPaid(
 
     const { data: item } = await admin
       .from("payroll_run_items")
-      .select("id, run_id, full_name")
+      .select("id, run_id, full_name, property_id")
       .eq("id", itemId)
-      .eq("property_id", propertyId)
       .maybeSingle();
     if (!item) return fail("Payslip not found.");
+    assertDeskProperty(propertyId, item.property_id as string, "Payslip");
 
     const { error } = await admin
       .from("payroll_run_items")

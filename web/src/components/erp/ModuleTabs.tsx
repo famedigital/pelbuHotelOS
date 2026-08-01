@@ -8,12 +8,14 @@ import { usePathname } from "next/navigation";
 /**
  * Tab strip for the active desk module. Renders links (not client tab panels)
  * so every screen stays a server-rendered route with its own URL.
+ * Calendar routes host Room rack / Day sheet in the sticky header instead.
  */
 export function ModuleTabs() {
   const pathname = usePathname();
   const match = resolveModule(pathname);
 
   if (!match || match.module.tabs.length < 2) return null;
+  if (match.module.key === "calendar") return null;
 
   return (
     <div className="erp border-b bg-background/95">

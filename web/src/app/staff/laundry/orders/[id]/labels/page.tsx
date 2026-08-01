@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { loadLaundryBagsForOrder } from "@/app/actions/laundry-bags";
 import { StaffAppShell } from "@/components/erp/StaffAppShell";
 import { LaundryBagLabelPrinter } from "@/components/laundry/LaundryBagLabelPrinter";
+import { LaundryLabelBagActions } from "@/components/laundry/LaundryLabelBagActions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { canWorkLaundry } from "@/lib/laundry";
@@ -65,6 +66,8 @@ export default async function StaffLaundryLabelsPage({
             <Link href="/staff/laundry">Back</Link>
           </Button>
         </div>
+        <LaundryLabelBagActions bags={bags} mode="staff" />
+
         <LaundryBagLabelPrinter
           orderId={orderId}
           roomLabel={order.room_label_snapshot as string}

@@ -1,9 +1,16 @@
 "use server";
 
 import { writeAuditEvent } from "@/lib/audit";
-import { postFolioLine, postPayment } from "@/lib/accounting/posting";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { periodGuardFromForm } from "@/lib/accounting/period-guard-form";
+import { assertDeskProperty } from "@/lib/desk/property-guard";
+import { isDeskAuthenticated, requireMoneyDesk } from "@/lib/desk-auth";
 import { thimphuToday } from "@/lib/erp-lists";
+import { allocateSplitGst, postFolioCharge } from "@/lib/folio/post-charge";
+import { postFolioPaymentRecord } from "@/lib/folio/post-payment";
+import {
+  applyDiscountPct,
+  resolveBookingPartnerDiscountPct,
+} from "@/lib/partners/discount";
 import {
   POS_TENDER_METHODS,
   POS_VOID_REASON_CODES,
@@ -16,6 +23,7 @@ import { DEFAULT_GST_RATE, percentToRate } from "@/lib/property-settings";
 import { calculateOrderTotals, roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { assertPropertyOutlet } from "@/lib/outlets";
+import { resolveDeskActor } from "@/lib/desk/actor";
 import { getStaffSession } from "@/lib/staff-auth";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
@@ -367,7 +375,7 @@ export async function createDeskOrder(
   formData: FormData,
 ): Promise<DeskPosState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
 
     const customerName = trimRequired(formData.get("customer_name"), "Guest name");
     const phone = trimRequired(formData.get("phone"), "Phone");
@@ -562,9 +570,8 @@ export async function createDeskOrder(
         service_charge_reason: serviceChargeReason,
         gst_btn: gstBtn,
         total_btn: totalBtn,
-        posted_to_folio_at:
-          settleMode === "room_charge" ? nowIso : null,
-        settled_at: settleMode === "room_charge" ? nowIso : null,
+        posted_to_folio_at: null,
+        settled_at: null,
       })
       .select("id")
       .single();
@@ -613,39 +620,46 @@ export async function createDeskOrder(
       const description = priced
         .map((line) => `${line.qty}× ${line.name}`)
         .join(", ");
-      const { data: folioLine, error: lineError } = await admin
-        .from("folio_lines")
-        .insert({
+      try {
+        const partner = await resolveBookingPartnerDiscountPct(
+          admin,
+          bookingId,
+        );
+        const discSubtotal = applyDiscountPct(subtotalBtn, partner.pct);
+        const discService = applyDiscountPct(serviceChargeBtn, partner.pct);
+        const discGst = applyDiscountPct(gstBtn, partner.pct);
+        const discTotal = roundBtn(discSubtotal + discService + discGst);
+        const descSuffix =
+          partner.pct > 0
+            ? ` (−${partner.pct}% ${partner.source ?? "partner"})`
+            : "";
+        await postFolioCharge(admin, property_id, {
           folio_id: folioId,
           booking_id: bookingId,
           source_type: "order",
           source_id: order.id,
-          description: `Desk ${outlet}: ${description}`,
+          description: `Desk ${outlet}: ${description}${descSuffix}`,
           qty: 1,
-          unit_price_btn: subtotalBtn,
-          amount_btn: subtotalBtn,
+          unit_price_btn: discSubtotal,
+          amount_btn: discSubtotal,
           service_charge_rate: serviceChargeApplied ? serviceChargeRate : 0,
-          service_charge_btn: serviceChargeBtn,
+          service_charge_btn: discService,
           service_charge_applied: serviceChargeApplied,
           service_charge_reason: serviceChargeReason,
-          gst_applicable: gstBtn > 0,
-          gst_btn: gstBtn,
-          total_btn: totalBtn,
-          status: "posted",
-        })
-        .select("id, source_type, description, total_btn, gst_btn, created_at")
-        .single();
-      if (lineError || !folioLine) {
-        console.error("createDeskOrder folio line failed", lineError);
-      } else {
-        await postFolioLine(admin, property_id, {
-          id: folioLine.id as string,
-          source_type: "order",
-          description: folioLine.description as string | null,
-          total_btn: Number(folioLine.total_btn),
-          gst_btn: Number(folioLine.gst_btn),
-          created_at: folioLine.created_at as string,
+          gst_applicable: discGst > 0,
+          gst_btn: discGst,
+          total_btn: discTotal,
         });
+        const { error: folioLinkError } = await admin
+          .from("orders")
+          .update({
+            posted_to_folio_at: nowIso,
+            settled_at: nowIso,
+          })
+          .eq("id", order.id);
+        if (folioLinkError) {
+          throw new Error("Folio line posted, but order linkage failed.");
+        }
         await admin.from("order_tenders").insert({
           order_id: order.id,
           method: "room_charge",
@@ -653,6 +667,11 @@ export async function createDeskOrder(
           folio_id: folioId,
           booking_id: bookingId,
         });
+      } catch (e) {
+        await admin.from("orders").delete().eq("id", order.id);
+        throw new Error(
+          e instanceof Error ? e.message : "Could not post room charge to folio.",
+        );
       }
     }
 
@@ -721,7 +740,7 @@ export async function updateOrderKotStatus(formData: FormData): Promise<void> {
 }
 
 export async function postOrderToBookingFolio(formData: FormData): Promise<void> {
-  await requireDesk();
+  await requireMoneyDesk();
 
   const orderId = trimRequired(formData.get("order_id"), "Order");
   const bookingId = trimRequired(formData.get("booking_id"), "Booking");
@@ -733,18 +752,26 @@ export async function postOrderToBookingFolio(formData: FormData): Promise<void>
   const { data: order, error: orderError } = await admin
     .from("orders")
     .select(
-      "id, customer_name, subtotal_btn, service_charge_rate, service_charge_btn, service_charge_applied, service_charge_reason, gst_btn, total_btn, folio_id, posted_to_folio_at, booking_id",
+      "id, customer_name, subtotal_btn, service_charge_rate, service_charge_btn, service_charge_applied, service_charge_reason, gst_btn, total_btn, folio_id, posted_to_folio_at, booking_id, property_id",
     )
     .eq("id", orderId)
-    .eq("property_id", property_id)
     .single();
 
   if (orderError || !order) {
     throw new Error("Order not found.");
   }
+  assertDeskProperty(property_id, order.property_id as string, "Order");
   if (order.posted_to_folio_at) {
     throw new Error("Order is already posted to a folio.");
   }
+
+  const { data: booking } = await admin
+    .from("bookings")
+    .select("id, property_id")
+    .eq("id", bookingId)
+    .single();
+  if (!booking) throw new Error("Booking not found.");
+  assertDeskProperty(property_id, booking.property_id as string, "Booking");
 
   const folioId = await ensureOpenFolio(admin, property_id, bookingId);
 
@@ -758,40 +785,22 @@ export async function postOrderToBookingFolio(formData: FormData): Promise<void>
       .map((item) => `${item.qty}× ${item.name_snapshot as string}`)
       .join(", ") || `Order ${(order.customer_name as string) ?? "guest"}`;
 
-  const { data: folioLine, error: lineError } = await admin
-    .from("folio_lines")
-    .insert({
-      folio_id: folioId,
-      booking_id: bookingId,
-      source_type: "order",
-      source_id: orderId,
-      description,
-      qty: 1,
-      unit_price_btn: Number(order.subtotal_btn),
-      amount_btn: Number(order.subtotal_btn),
-      service_charge_rate: Number(order.service_charge_rate ?? 0),
-      service_charge_btn: Number(order.service_charge_btn ?? 0),
-      service_charge_applied: Boolean(order.service_charge_applied),
-      service_charge_reason: (order.service_charge_reason as string | null) ?? null,
-      gst_applicable: Number(order.gst_btn) > 0,
-      gst_btn: Number(order.gst_btn),
-      total_btn: Number(order.total_btn),
-      status: "posted",
-    })
-    .select("id, source_type, description, total_btn, gst_btn, created_at")
-    .single();
-
-  if (lineError || !folioLine) {
-    throw new Error("Could not post order to folio.");
-  }
-
-  await postFolioLine(admin, property_id, {
-    id: folioLine.id as string,
+  await postFolioCharge(admin, property_id, {
+    folio_id: folioId,
+    booking_id: bookingId,
     source_type: "order",
-    description: folioLine.description as string | null,
-    total_btn: Number(folioLine.total_btn),
-    gst_btn: Number(folioLine.gst_btn),
-    created_at: folioLine.created_at as string,
+    source_id: orderId,
+    description,
+    qty: 1,
+    unit_price_btn: Number(order.subtotal_btn),
+    amount_btn: Number(order.subtotal_btn),
+    service_charge_rate: Number(order.service_charge_rate ?? 0),
+    service_charge_btn: Number(order.service_charge_btn ?? 0),
+    service_charge_applied: Boolean(order.service_charge_applied),
+    service_charge_reason: (order.service_charge_reason as string | null) ?? null,
+    gst_applicable: Number(order.gst_btn) > 0,
+    gst_btn: Number(order.gst_btn),
+    total_btn: Number(order.total_btn),
   });
 
   const { error: patchError } = await admin
@@ -823,7 +832,7 @@ export async function postGuestServiceCharge(
   formData: FormData,
 ): Promise<GuestServiceState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
 
     const bookingId = trimRequired(formData.get("booking_id"), "Booking");
     const kind = trimRequired(formData.get("service_kind"), "Service kind");
@@ -845,6 +854,15 @@ export async function postGuestServiceCharge(
     const admin = createSupabaseAdminClient();
     const property = await loadPropertyPricing(admin);
     const property_id = property.propertyId;
+
+    const { data: booking } = await admin
+      .from("bookings")
+      .select("id, property_id")
+      .eq("id", bookingId)
+      .single();
+    if (!booking) throw new Error("Booking not found.");
+    assertDeskProperty(property_id, booking.property_id as string, "Booking");
+
     const serviceChargeRateRaw = optionalTrim(formData.get("service_charge_rate"));
     const serviceChargeRate = serviceChargeRateRaw
       ? percentToRate(serviceChargeRateRaw)
@@ -857,37 +875,21 @@ export async function postGuestServiceCharge(
     const totalBtn = roundBtn(amountBtn + serviceChargeBtn + gstBtn);
     const folioId = await ensureOpenFolio(admin, property_id, bookingId);
 
-    const { data: folioLine, error } = await admin
-      .from("folio_lines")
-      .insert({
-        folio_id: folioId,
-        booking_id: bookingId,
-        source_type: "guest_service",
-        description: `${kind}: ${description}${notes ? ` · ${notes}` : ""}`,
-        qty: 1,
-        unit_price_btn: amountBtn,
-        amount_btn: amountBtn,
-        service_charge_rate: serviceChargeApplied ? serviceChargeRate : 0,
-        service_charge_btn: serviceChargeBtn,
-        service_charge_applied: serviceChargeApplied,
-        service_charge_reason: notes,
-        gst_applicable: gstApplicable,
-        gst_btn: gstBtn,
-        total_btn: totalBtn,
-        status: "posted",
-      })
-      .select("id, source_type, description, total_btn, gst_btn, created_at")
-      .single();
-    if (error || !folioLine) {
-      throw new Error("Could not post guest service to folio.");
-    }
-    await postFolioLine(admin, property_id, {
-      id: folioLine.id as string,
+    await postFolioCharge(admin, property_id, {
+      folio_id: folioId,
+      booking_id: bookingId,
       source_type: "guest_service",
-      description: folioLine.description as string | null,
-      total_btn: Number(folioLine.total_btn),
-      gst_btn: Number(folioLine.gst_btn),
-      created_at: folioLine.created_at as string,
+      description: `${kind}: ${description}${notes ? ` · ${notes}` : ""}`,
+      qty: 1,
+      unit_price_btn: amountBtn,
+      amount_btn: amountBtn,
+      service_charge_rate: serviceChargeApplied ? serviceChargeRate : 0,
+      service_charge_btn: serviceChargeBtn,
+      service_charge_applied: serviceChargeApplied,
+      service_charge_reason: notes,
+      gst_applicable: gstApplicable,
+      gst_btn: gstBtn,
+      total_btn: totalBtn,
     });
 
     revalidatePath("/erp");
@@ -913,7 +915,7 @@ export async function postFolioPayment(
   formData: FormData,
 ): Promise<PaymentState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
 
     const folioId = trimRequired(formData.get("folio_id"), "Folio");
     const method = trimRequired(formData.get("method"), "Payment method");
@@ -929,13 +931,14 @@ export async function postFolioPayment(
     const amountBtn = roundBtn(amount);
     const reference = optionalTrim(formData.get("reference"));
     const notes = optionalTrim(formData.get("notes"));
+    const clientKey = optionalTrim(formData.get("idempotency_key"));
 
     const admin = createSupabaseAdminClient();
     const property_id = await propertyId(admin);
 
     const { data: folio, error: folioError } = await admin
       .from("folios")
-      .select("id, booking_id, status")
+      .select("id, booking_id, status, property_id")
       .eq("id", folioId)
       .eq("property_id", property_id)
       .single();
@@ -943,70 +946,47 @@ export async function postFolioPayment(
     if (folioError || !folio) {
       throw new Error("Folio not found.");
     }
+    assertDeskProperty(property_id, folio.property_id as string, "Folio");
     if ((folio.status as string) !== "open") {
       throw new Error("Folio is not open.");
     }
 
-    const { data: payment, error: payError } = await admin
-      .from("payments")
-      .insert({
-        property_id,
-        folio_id: folioId,
-        booking_id: folio.booking_id,
-        method,
-        amount_btn: amountBtn,
-        reference,
-        notes,
-      })
-      .select("id")
-      .single();
-
-    if (payError || !payment) {
-      throw new Error("Could not save payment.");
-    }
-
-    const { error: lineError } = await admin.from("folio_lines").insert({
+    const pay = await postFolioPaymentRecord(admin, {
+      property_id,
       folio_id: folioId,
-      booking_id: folio.booking_id,
-      source_type: "payment",
-      source_id: payment.id,
-      description: `Payment · ${method}${reference ? ` · ${reference}` : ""}`,
-      qty: 1,
-      unit_price_btn: -amountBtn,
-      amount_btn: -amountBtn,
-      gst_applicable: false,
-      gst_btn: 0,
-      total_btn: -amountBtn,
-      status: "posted",
+      booking_id: folio.booking_id as string | null,
+      method,
+      amount_btn: amountBtn,
+      kind: "settlement",
+      reference,
+      notes,
+      folio_line_source: "payment",
+      idempotency_key:
+        clientKey ??
+        (reference
+          ? `folio_payment:${folioId}:${method}:${reference}:${amountBtn}`
+          : `folio_payment:${folioId}:${method}:${amountBtn}`),
+      period_guard: periodGuardFromForm(formData, property_id),
     });
 
-    if (lineError) {
-      await admin.from("payments").delete().eq("id", payment.id);
-      throw new Error("Could not post payment to folio.");
+    if (pay.alreadyExists) {
+      return { ok: true, paymentId: pay.paymentId };
     }
 
     await writeAuditEvent(admin, {
       propertyId: property_id,
       action: "payment.create",
       entityType: "payments",
-      entityId: payment.id as string,
+      entityId: pay.paymentId,
       summary: `Payment ${amountBtn} Nu · ${method}`,
       meta: { folioId, method, amountBtn },
-    });
-
-    await postPayment(admin, property_id, {
-      id: payment.id as string,
-      method,
-      kind: "settlement",
-      amount_btn: amountBtn,
-      notes,
     });
 
     revalidatePath("/erp");
     revalidatePath(`/erp/folios/${folioId}`);
     revalidatePath("/erp/reports");
     revalidatePath("/erp/finance");
-    return { ok: true, paymentId: payment.id as string };
+    return { ok: true, paymentId: pay.paymentId };
   } catch (err) {
     return {
       ok: false,
@@ -1126,7 +1106,7 @@ export async function voidOrder(
   formData: FormData,
 ): Promise<PosActionState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const orderId = trimRequired(formData.get("order_id"), "Order");
     const reasonCode = trimRequired(formData.get("reason_code"), "Reason");
     if (!VOID_REASONS.has(reasonCode)) {
@@ -1140,11 +1120,11 @@ export async function voidOrder(
 
     const { data: order, error } = await admin
       .from("orders")
-      .select("id, total_btn, voided_at, table_id")
+      .select("id, total_btn, voided_at, table_id, property_id")
       .eq("id", orderId)
-      .eq("property_id", property_id)
       .single();
     if (error || !order) throw new Error("Order not found.");
+    assertDeskProperty(property_id, order.property_id as string, "Order");
     if (order.voided_at) throw new Error("Order is already voided.");
 
     const amountBtn = Number(order.total_btn);
@@ -1156,13 +1136,15 @@ export async function voidOrder(
     });
     if (stockError) throw new Error("Could not restore order stock.");
 
+    const { actor } = await resolveDeskActor();
+
     const nowIso = new Date().toISOString();
     const { error: patchError } = await admin
       .from("orders")
       .update({
         voided_at: nowIso,
         void_reason: reasonText ?? reasonCode,
-        void_by: "desk",
+        void_by: actor,
         kot_status: "cancelled",
         status: "cancelled",
         is_parked: false,
@@ -1182,7 +1164,7 @@ export async function voidOrder(
       reason_text: reasonText,
       manager_staff_id: managerStaffId,
       amount_btn: amountBtn,
-      created_by: "desk",
+      created_by: actor,
     });
     if (voidInsertError) {
       console.error("pos_voids insert failed", voidInsertError);
@@ -1220,7 +1202,7 @@ export async function voidOrderItem(
   formData: FormData,
 ): Promise<PosActionState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const orderId = trimRequired(formData.get("order_id"), "Order");
     const itemId = trimRequired(formData.get("order_item_id"), "Order item");
     const reasonCode = trimRequired(formData.get("reason_code"), "Reason");
@@ -1235,11 +1217,11 @@ export async function voidOrderItem(
 
     const { data: order, error: orderError } = await admin
       .from("orders")
-      .select("id, voided_at, gst_btn, total_btn, subtotal_btn, service_charge_rate, service_charge_applied, service_charge_btn")
+      .select("id, voided_at, gst_btn, total_btn, subtotal_btn, service_charge_rate, service_charge_applied, service_charge_btn, property_id")
       .eq("id", orderId)
-      .eq("property_id", property_id)
       .single();
     if (orderError || !order) throw new Error("Order not found.");
+    assertDeskProperty(property_id, order.property_id as string, "Order");
     if (order.voided_at) throw new Error("Order is already voided.");
 
     const { data: item, error: itemError } = await admin
@@ -1332,6 +1314,8 @@ export async function voidOrderItem(
       })
       .eq("id", orderId);
 
+    const { actor } = await resolveDeskActor();
+
     await admin.from("pos_voids").insert({
       property_id,
       order_id: orderId,
@@ -1340,7 +1324,7 @@ export async function voidOrderItem(
       reason_text: reasonText,
       manager_staff_id: managerStaffId,
       amount_btn: lineAmount,
-      created_by: "desk",
+      created_by: actor,
     });
 
     await writeAuditEvent(admin, {
@@ -1425,7 +1409,7 @@ export async function splitSettle(
   formData: FormData,
 ): Promise<SplitSettleState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const orderId = trimRequired(formData.get("order_id"), "Order");
     const tenders = parseTenders(formData.get("tenders"));
 
@@ -1443,12 +1427,12 @@ export async function splitSettle(
     const { data: order, error } = await admin
       .from("orders")
       .select(
-        "id, total_btn, voided_at, settled_at, customer_name, outlet, table_id, folio_id, booking_id, pos_shift_id, posted_to_folio_at, subtotal_btn, service_charge_rate, service_charge_btn, service_charge_applied, service_charge_reason, gst_btn",
+        "id, total_btn, voided_at, settled_at, customer_name, outlet, table_id, folio_id, booking_id, pos_shift_id, posted_to_folio_at, subtotal_btn, service_charge_rate, service_charge_btn, service_charge_applied, service_charge_reason, gst_btn, property_id",
       )
       .eq("id", orderId)
-      .eq("property_id", property_id)
       .single();
     if (error || !order) throw new Error("Order not found.");
+    assertDeskProperty(property_id, order.property_id as string, "Order");
     if (order.voided_at) throw new Error("Cannot settle a voided order.");
     if (order.settled_at) throw new Error("Order is already settled.");
 
@@ -1487,38 +1471,38 @@ export async function splitSettle(
         );
         folioId = tenderFolioId;
 
-        const { data: folioLine, error: lineError } = await admin
-          .from("folio_lines")
-          .insert({
+        const orderGst = Number(order.gst_btn ?? 0);
+        const gstShare = allocateSplitGst(
+          tender.amountBtn,
+          totalBtn,
+          orderGst,
+        );
+        const netShare = roundBtn(tender.amountBtn - gstShare);
+
+        try {
+          await postFolioCharge(admin, property_id, {
             folio_id: tenderFolioId,
             booking_id: tenderBookingId,
             source_type: "order",
             source_id: orderId,
             description: `POS split · ${order.outlet as string} · ${order.customer_name as string}`,
             qty: 1,
-            unit_price_btn: tender.amountBtn,
-            amount_btn: tender.amountBtn,
+            unit_price_btn: netShare,
+            amount_btn: netShare,
             service_charge_rate: 0,
             service_charge_btn: 0,
             service_charge_applied: false,
-            gst_applicable: false,
-            gst_btn: 0,
+            gst_applicable: orderGst > 0,
+            gst_btn: gstShare,
             total_btn: tender.amountBtn,
-            status: "posted",
-          })
-          .select("id, source_type, description, total_btn, gst_btn, created_at")
-          .single();
-        if (lineError || !folioLine) {
-          throw new Error("Could not post room-charge tender to folio.");
+          });
+        } catch (e) {
+          throw new Error(
+            e instanceof Error
+              ? e.message
+              : "Could not post room-charge tender to folio.",
+          );
         }
-        await postFolioLine(admin, property_id, {
-          id: folioLine.id as string,
-          source_type: "order",
-          description: folioLine.description as string | null,
-          total_btn: Number(folioLine.total_btn),
-          gst_btn: Number(folioLine.gst_btn),
-          created_at: folioLine.created_at as string,
-        });
       }
 
       const { error: tenderError } = await admin.from("order_tenders").insert({
@@ -1536,28 +1520,18 @@ export async function splitSettle(
       if (tender.method !== "room_charge" && tender.method !== "agent_credit") {
         // Non-room cash/card tenders: optional payment row when folio exists
         if (folioId) {
-          const { data: payment } = await admin
-            .from("payments")
-            .insert({
-              property_id,
-              folio_id: folioId,
-              booking_id: tenderBookingId ?? order.booking_id,
-              method: tender.method === "bank_qr" ? "bank_qr" : tender.method,
-              amount_btn: tender.amountBtn,
-              reference: tender.reference ?? null,
-              notes: `POS tender · order ${orderId.slice(0, 8)}`,
-            })
-            .select("id")
-            .single();
-          if (payment?.id) {
-            await postPayment(admin, property_id, {
-              id: payment.id as string,
-              method: tender.method,
-              kind: "settlement",
-              amount_btn: tender.amountBtn,
-              notes: tender.reference ?? null,
-            });
-          }
+          await postFolioPaymentRecord(admin, {
+            property_id,
+            folio_id: folioId,
+            booking_id: (tenderBookingId ?? order.booking_id) as string | null,
+            method: tender.method === "bank_qr" ? "bank_qr" : tender.method,
+            amount_btn: tender.amountBtn,
+            kind: "settlement",
+            reference: tender.reference ?? null,
+            notes: `POS tender · order ${orderId.slice(0, 8)}`,
+            folio_line_source: "payment",
+            idempotency_key: `pos_tender:${orderId}:${tender.method}:${tender.amountBtn}:${tender.reference ?? ""}`,
+          });
         }
       }
     }
@@ -2016,7 +1990,7 @@ export async function openPosShift(
   formData: FormData,
 ): Promise<PosShiftState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const openingFloat = Number(formData.get("opening_float_btn") ?? 0);
     if (!Number.isFinite(openingFloat) || openingFloat < 0) {
       throw new Error("Opening float cannot be negative.");
@@ -2061,7 +2035,7 @@ export async function closePosShift(
   formData: FormData,
 ): Promise<PosShiftState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const shiftId = trimRequired(formData.get("shift_id"), "Shift");
     const countedCash = Number(formData.get("counted_cash_btn"));
     if (!Number.isFinite(countedCash) || countedCash < 0) {
@@ -2074,13 +2048,17 @@ export async function closePosShift(
     const admin = createSupabaseAdminClient();
     const property_id = await propertyId(admin);
     const staff = await getStaffSession();
+
     const { data: shift } = await admin
       .from("pos_shifts")
-      .select("id, opening_float_btn, status")
+      .select("id, property_id, opening_float_btn, status, closed_at")
       .eq("id", shiftId)
-      .eq("property_id", property_id)
-      .maybeSingle();
-    if (!shift || shift.status !== "open") throw new Error("Open shift not found.");
+      .single();
+    if (!shift) throw new Error("Shift not found.");
+    assertDeskProperty(property_id, shift.property_id as string, "POS shift");
+    if (shift.closed_at || shift.status !== "open") {
+      throw new Error("Open shift not found.");
+    }
 
     const { data: shiftOrders } = await admin
       .from("orders")
@@ -2195,7 +2173,7 @@ export async function recordOnlineOrderPayment(
   formData: FormData,
 ): Promise<ConfirmOrderState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const staff = await getStaffSession();
     const orderId = trimRequired(formData.get("order_id"), "Order");
     const journalNo = trimRequired(
@@ -2221,9 +2199,7 @@ export async function recordOnlineOrderPayment(
       .eq("id", orderId)
       .maybeSingle();
     if (error || !order) throw new Error("Order not found.");
-    if (order.property_id !== property_id) {
-      throw new Error("Order belongs to a different property.");
-    }
+    assertDeskProperty(property_id, order.property_id as string, "Order");
     if (order.voided_at) throw new Error("Order was cancelled.");
     if ((order.order_source as string) !== "public") {
       throw new Error("Only public online orders are paid this way.");

@@ -20,12 +20,32 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const SIDEBAR_COOKIE_NAME = "sidebar_state";
+/** v2 — ignores legacy `sidebar_state=true` so ERP desk defaults collapsed. */
+const SIDEBAR_COOKIE_NAME = "sidebar_state_v2";
+const SIDEBAR_COOKIE_LEGACY = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
-const SIDEBAR_WIDTH = "16rem";
+const SIDEBAR_WIDTH = "13rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
+
+/** shadcn-style icon-rail hover peek — parent Sidebar outer div must use `group/sidebar`. */
+const sidebarIconHover = {
+  panelWidth:
+    "group-hover/sidebar:group-data-[collapsible=icon]:w-(--sidebar-width)",
+  panelWidthFloating:
+    "group-hover/sidebar:group-data-[collapsible=icon]:w-[calc(var(--sidebar-width)+(--spacing(4))+2px)]",
+  panelOverlay:
+    "group-hover/sidebar:group-data-[collapsible=icon]:z-40 group-hover/sidebar:group-data-[collapsible=icon]:overflow-visible group-hover/sidebar:group-data-[collapsible=icon]:shadow-xl group-hover/sidebar:group-data-[collapsible=icon]:ring-1 group-hover/sidebar:group-data-[collapsible=icon]:ring-sidebar-border/80",
+  showFlex: "group-hover/sidebar:group-data-[collapsible=icon]:flex",
+  showBlock: "group-hover/sidebar:group-data-[collapsible=icon]:block",
+  menuButtonSize:
+    "group-hover/sidebar:group-data-[collapsible=icon]:!size-auto group-hover/sidebar:group-data-[collapsible=icon]:!h-8 group-hover/sidebar:group-data-[collapsible=icon]:!w-full",
+  labelVisible:
+    "group-hover/sidebar:group-data-[collapsible=icon]:pointer-events-auto group-hover/sidebar:group-data-[collapsible=icon]:mt-0 group-hover/sidebar:group-data-[collapsible=icon]:opacity-100",
+  overflowAuto:
+    "group-hover/sidebar:group-data-[collapsible=icon]:overflow-auto",
+} as const;
 
 type SidebarContextProps = {
   state: "expanded" | "collapsed";
@@ -35,6 +55,8 @@ type SidebarContextProps = {
   setOpenMobile: (open: boolean) => void;
   isMobile: boolean;
   toggleSidebar: () => void;
+  isHoverExpanded: boolean;
+  setIsHoverExpanded: (value: boolean) => void;
 };
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null);
@@ -48,8 +70,8 @@ function useSidebar() {
 }
 
 function SidebarProvider({
-  defaultState = "expanded",
-  defaultOpen = true,
+  defaultState = "collapsed",
+  defaultOpen = false,
   defaultAutoCollapse = true,
   children,
   style,
@@ -64,6 +86,7 @@ function SidebarProvider({
 }) {
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = React.useState(false);
+  const [isHoverExpanded, setIsHoverExpanded] = React.useState(false);
   const [autoCollapse, setAutoCollapse] = React.useState(defaultAutoCollapse);
   // `_open` is read in a layout effect below to set the initial cookie state.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -81,7 +104,7 @@ function SidebarProvider({
   // Helper: "open" maps to expanded, "closed" maps to collapsed.
   const open = state === "expanded";
 
-  // Auto-collapse on mobile, expand on desktop (unless pinned open).
+  // Auto-collapse on narrow viewports only — never force-expand on large screens.
   React.useEffect(() => {
     if (!autoCollapse) return;
     if (isMobile) {
@@ -91,8 +114,6 @@ function SidebarProvider({
     }
     if (window.innerWidth < 1024) {
       setState("collapsed");
-    } else {
-      setState("expanded");
     }
   }, [isMobile, autoCollapse]);
 
@@ -116,9 +137,11 @@ function SidebarProvider({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [toggleSidebar]);
 
-  // Read persisted cookie on mount so refreshes keep state.
+  // Honor v2 cookie only — written when the user explicitly toggles.
   React.useEffect(() => {
     if (typeof document === "undefined") return;
+    // Drop legacy cookie so old pinned=true does not linger in the jar.
+    document.cookie = `${SIDEBAR_COOKIE_LEGACY}=; path=/; max-age=0`;
     const match = document.cookie.match(
       new RegExp(`(?:^|; )${SIDEBAR_COOKIE_NAME}=([^;]*)`),
     );
@@ -139,8 +162,19 @@ function SidebarProvider({
       setOpenMobile,
       isMobile,
       toggleSidebar,
+      isHoverExpanded,
+      setIsHoverExpanded,
     }),
-    [state, open, setOpen, openMobile, setOpenMobile, isMobile, toggleSidebar],
+    [
+      state,
+      open,
+      setOpen,
+      openMobile,
+      setOpenMobile,
+      isMobile,
+      toggleSidebar,
+      isHoverExpanded,
+    ],
   );
 
   // Expose autoCollapse control to children via a stable setter.
@@ -196,6 +230,7 @@ function Sidebar({
     state,
     openMobile,
     setOpenMobile,
+    setIsHoverExpanded,
   } = useSidebar();
 
   if (collapsible === "none") {
@@ -244,12 +279,20 @@ function Sidebar({
 
   return (
     <div
-      className="group peer text-sidebar-foreground hidden md:block"
+      className="group/sidebar group peer text-sidebar-foreground hidden md:block"
       data-state={state}
       data-collapsible={state === "collapsed" ? collapsible : ""}
       data-variant={variant}
       data-side={side}
       data-slot="sidebar"
+      onMouseEnter={() => {
+        if (state === "collapsed" && collapsible === "icon") {
+          setIsHoverExpanded(true);
+        }
+      }}
+      onMouseLeave={() => {
+        setIsHoverExpanded(false);
+      }}
     >
       {/* Gap placeholder on the side of the sidebar — width matches the sidebar. */}
       <div
@@ -264,14 +307,22 @@ function Sidebar({
       />
       <div
         className={cn(
-          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex",
+          "fixed inset-y-0 z-40 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex",
           side === "left"
             ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
             : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
           // Adjust padding for floating/inset variants
           variant === "floating" || variant === "inset"
-            ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]"
-            : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[collapsible=icon]:overflow-hidden",
+            ? cn(
+                "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]",
+                sidebarIconHover.panelWidthFloating,
+                sidebarIconHover.panelOverlay,
+              )
+            : cn(
+                "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[collapsible=icon]:overflow-hidden",
+                sidebarIconHover.panelWidth,
+                sidebarIconHover.panelOverlay,
+              ),
           className,
         )}
         {...props}
@@ -349,7 +400,7 @@ function SidebarInset({
     <main
       data-slot="sidebar-inset"
       className={cn(
-        "bg-background relative flex w-full flex-1 flex-col",
+        "bg-background relative flex min-w-0 w-full flex-1 flex-col overflow-x-hidden",
         "md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2",
         className,
       )}
@@ -424,6 +475,7 @@ function SidebarContent({
       data-sidebar="content"
       className={cn(
         "flex min-h-0 flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:overflow-hidden",
+        sidebarIconHover.overflowAuto,
         className,
       )}
       {...props}
@@ -458,6 +510,7 @@ function SidebarGroupLabel({
       data-sidebar="group-label"
       className={cn(
         "text-sidebar-foreground/70 ring-sidebar-ring flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium outline-none transition-[margin,opacity] duration-200 ease-linear focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0",
+        sidebarIconHover.labelVisible,
         "[&>svg]:size-4 [&>svg]:shrink-0",
         "font-semibold tracking-[0.18em] uppercase",
         className,
@@ -483,6 +536,7 @@ function SidebarGroupAction({
         // Increases the hit area of the sidebar toggle on desktop.
         "after:absolute after:-inset-2 md:after:hidden",
         "group-data-[collapsible=icon]:hidden",
+        sidebarIconHover.showFlex,
         className,
       )}
       {...props}
@@ -533,7 +587,7 @@ function SidebarMenuItem({
 }
 
 const sidebarMenuBadgeVariants = cva(
-  "pointer-events-none select-none rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-none ring-1 ring-inset transition-[opacity] duration-200 group-data-[collapsible=icon]:hidden",
+  "pointer-events-none select-none rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-none ring-1 ring-inset transition-[opacity] duration-200 group-data-[collapsible=icon]:hidden group-hover/sidebar:group-data-[collapsible=icon]:block",
   {
     variants: {
       variant: {
@@ -622,7 +676,7 @@ function SidebarMenuButton({
   tooltip?: string | React.ComponentProps<typeof TooltipContent>;
 }) {
   const Comp = asChild ? Slot : "button";
-  const { isMobile, state } = useSidebar();
+  const { isMobile, state, isHoverExpanded } = useSidebar();
   const {
     tooltip,
     className: _cn,
@@ -640,6 +694,7 @@ function SidebarMenuButton({
       data-active={isActive}
       className={cn(
         "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
+        sidebarIconHover.menuButtonSize,
         size === "sm" && "h-7 text-xs",
         size === "lg" && "h-12 text-base",
         size === "default" && "h-8",
@@ -674,7 +729,7 @@ function SidebarMenuButton({
       <TooltipContent
         side="right"
         align="center"
-        hidden={state !== "collapsed" || isMobile}
+        hidden={state !== "collapsed" || isMobile || isHoverExpanded}
         {...tooltipContentProps}
       />
     </Tooltip>
@@ -703,6 +758,7 @@ function SidebarMenuAction({
         "peer-data-[size=default]/menu-button:top-1.5",
         "peer-data-[size=lg]/menu-button:top-2.5",
         "group-data-[collapsible=icon]:hidden",
+        sidebarIconHover.showFlex,
         props.showOnHover &&
           "peer-focus-visible/menu-button:opacity-100 group-hover/menu-item:opacity-100 data-[state=open]:opacity-100 opacity-0",
         className,
@@ -726,6 +782,7 @@ function SidebarMenuAction_Dropdown({
         "ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground peer-hover/menu-button:text-sidebar-accent-foreground absolute top-1.5 right-1 flex aspect-square w-5 items-center justify-center rounded-md p-0 outline-none transition-transform focus-visible:ring-2 [&>svg]:size-4 [&>svg]:text-sidebar-accent-foreground",
         "after:absolute after:-inset-2 md:after:hidden",
         "group-data-[collapsible=icon]:hidden",
+        sidebarIconHover.showFlex,
         className,
       )}
       {...props}
@@ -746,6 +803,7 @@ function SidebarMenuSub({
       className={cn(
         "border-sidebar-border mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l px-2.5 py-0.5",
         "group-data-[collapsible=icon]:hidden",
+        sidebarIconHover.showFlex,
         className,
       )}
       {...props}
@@ -792,6 +850,7 @@ function SidebarMenuSubButton({
         size === "sm" && "text-xs",
         size === "md" && "text-sm",
         "group-data-[collapsible=icon]:hidden",
+        sidebarIconHover.showFlex,
         className,
       )}
       {...props}

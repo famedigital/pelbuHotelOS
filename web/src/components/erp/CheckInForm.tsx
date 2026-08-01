@@ -902,6 +902,17 @@ export function CheckOutForm({
           {formatBtn(folioBalance)}
         </span>
       </p>
+      <label className="block space-y-1.5 text-sm">
+        <span className="text-muted-foreground">Early checkout fee (optional)</span>
+        <Input
+          type="number"
+          name="early_checkout_fee_btn"
+          min={0}
+          step="0.01"
+          placeholder="0"
+          className="h-10"
+        />
+      </label>
       <input
         type="hidden"
         name="allow_balance"

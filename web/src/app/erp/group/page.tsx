@@ -103,10 +103,10 @@ export default async function GroupDeskPage() {
     <div className="erp mx-auto w-full max-w-[1200px] space-y-10 p-4 md:p-6">
       <header className="space-y-1.5">
         <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-          Blocks
+          Front desk
         </p>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Group / block bookings
+          Group bookings
         </h1>
         <p className="max-w-prose text-sm text-muted-foreground">
           Create a group master and attach reservations for a shared rooming

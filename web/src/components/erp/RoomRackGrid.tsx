@@ -6,12 +6,14 @@ import {
   moveCalendarAssignmentCrossType,
   previewCalendarCrossTypeMove,
   releaseCalendarRoomBlock,
+  resizeCalendarAssignment,
   setCalendarAssignmentLock,
   undoCalendarAssignmentMove,
 } from "@/app/actions/erp-calendar";
 import { CalendarLiveRefresh } from "@/components/erp/CalendarLiveRefresh";
 import { CalendarReservationEditDialog } from "@/components/erp/CalendarReservationEditDialog";
 import { CalendarRoomBlockDialog } from "@/components/erp/CalendarRoomBlockDialog";
+import { CalendarRoomUnitEditDialog } from "@/components/erp/CalendarRoomUnitEditDialog";
 import {
   CalendarReservationDialog,
   type CalendarAgent,
@@ -19,14 +21,28 @@ import {
   type CalendarSelectedUnit,
 } from "@/components/erp/CalendarReservationDialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { BanIcon, MoreHorizontalIcon, PencilIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import {
   useCallback,
   useDeferredValue,
@@ -42,11 +58,15 @@ export type RackUnit = {
   id: string;
   label: string;
   floor_label: string | null;
+  view_label: string | null;
+  has_balcony: boolean;
   sort_order: number;
   room_type_id: string;
   room_type_code: string;
   room_type_name: string;
   hk_status?: string | null;
+  connecting_room_unit_id?: string | null;
+  connecting_room_label?: string | null;
 };
 
 export type RackStay = {
@@ -75,9 +95,13 @@ export type RackStay = {
   agent_name: string | null;
   group_name: string | null;
   folio_id: string | null;
+  /** Net open folio balance (BTN); >0 means guest owes. */
+  folio_balance?: number;
   room_label: string;
   room_type_id: string;
   room_type_name: string;
+  /** International / regional SDF or passport incomplete for desk badge. */
+  sdf_incomplete?: boolean;
 };
 
 export type UnassignedBooking = {
@@ -104,13 +128,94 @@ export type RoomBlock = {
   reason: string;
 };
 
-const CELL = 44;
-const LEFT = 340;
-const LEFT_GRID_COLUMNS = "56px 32px minmax(120px, 1fr) minmax(72px, 88px)";
-const ROW_H = 40;
+export type RackAllotment = {
+  id: string;
+  room_type_id: string;
+  agent_name: string;
+  rooms_per_week: number;
+  valid_from: string;
+  valid_to: string;
+};
+
+const CELL_SM = 36;
+const CELL_MD = 44;
+const CELL_LG = 56;
+const LEFT_DESKTOP = 148;
+const LEFT_MOBILE = 104;
+const CATEGORY_H = 24;
+const ROW_H = 44;
 const HEADER_H = 48;
 const FOOTER_H = 32;
 const TOOLBAR_H = 40;
+
+type CellZoom = "sm" | "md" | "lg";
+
+function cellWidthForZoom(z: CellZoom): number {
+  if (z === "sm") return CELL_SM;
+  if (z === "lg") return CELL_LG;
+  return CELL_MD;
+}
+
+type RackRow =
+  | {
+      kind: "category";
+      roomTypeId: string;
+      code: string;
+      name: string;
+    }
+  | { kind: "unit"; unit: RackUnit; unitIdx: number };
+
+function buildRackRows(units: RackUnit[]): RackRow[] {
+  const rows: RackRow[] = [];
+  let lastTypeId: string | undefined;
+  units.forEach((unit, unitIdx) => {
+    if (unit.room_type_id !== lastTypeId) {
+      rows.push({
+        kind: "category",
+        roomTypeId: unit.room_type_id,
+        code:
+          unit.room_type_code ||
+          unit.room_type_name.slice(0, 3).toUpperCase(),
+        name: unit.room_type_name,
+      });
+      lastTypeId = unit.room_type_id;
+    }
+    rows.push({ kind: "unit", unit, unitIdx });
+  });
+  return rows;
+}
+
+function useLeftPaneWidth(): number {
+  const [left, setLeft] = useState(LEFT_DESKTOP);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const apply = () => setLeft(mq.matches ? LEFT_MOBILE : LEFT_DESKTOP);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+  return left;
+}
+
+function unitIdxFromContentY(
+  contentY: number,
+  rackRows: RackRow[],
+  unitCount: number,
+): number {
+  if (unitCount <= 0) return 0;
+  let y = 0;
+  let lastUnitIdx = 0;
+  for (const row of rackRows) {
+    if (row.kind === "category") {
+      y += CATEGORY_H;
+      continue;
+    }
+    if (contentY < y + ROW_H) return row.unitIdx;
+    lastUnitIdx = row.unitIdx;
+    y += ROW_H;
+  }
+  return Math.max(0, Math.min(unitCount - 1, lastUnitIdx));
+}
 
 function addDays(iso: string, n: number): string {
   const d = new Date(`${iso}T12:00:00Z`);
@@ -146,12 +251,90 @@ function fmtHeader(iso: string): { dow: string; day: string; mon: string } {
   };
 }
 
-function statusBarClass(status: string): string {
-  if (status === "checked_in") return "bg-citrus text-white border-citrus";
-  if (status === "confirmed") return "bg-sky-600 text-white border-sky-700";
+function statusBadgeClass(status: string): string {
+  if (status === "checked_in")
+    return "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+  if (status === "confirmed")
+    return "border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300";
   if (status === "pending" || status === "held")
-    return "bg-amber-400 text-foreground border-amber-500";
-  return "bg-muted text-foreground border-border";
+    return "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200";
+  return "border-border bg-muted text-muted-foreground";
+}
+
+/** Ops-first stay colors: lifecycle fill + optional dues cue. */
+type StayOpsTone = {
+  bar: string;
+  accent: string;
+  dues: boolean;
+  lifeLabel: string;
+};
+
+function stayOpsTone(stay: RackStay, today: string): StayOpsTone {
+  const overdueDeparture =
+    stay.status === "checked_in" && stay.check_out <= today;
+  const arrivingToday =
+    stay.check_in === today &&
+    (stay.status === "confirmed" ||
+      stay.status === "pending" ||
+      stay.status === "held");
+  const departingToday =
+    stay.status === "checked_in" && stay.check_out === today;
+  const dues = Number(stay.folio_balance ?? 0) > 0.5;
+
+  if (overdueDeparture) {
+    return {
+      bar: "bg-rose-700 text-white ring-1 ring-rose-300/70",
+      accent: "bg-rose-950",
+      dues,
+      lifeLabel: "Overdue out",
+    };
+  }
+  if (arrivingToday) {
+    return {
+      bar: "bg-sky-500 text-white",
+      accent: "bg-sky-700",
+      dues,
+      lifeLabel: "Arriving",
+    };
+  }
+  if (departingToday) {
+    return {
+      bar: "bg-amber-500 text-foreground",
+      accent: "bg-amber-700",
+      dues,
+      lifeLabel: "Departing",
+    };
+  }
+  if (stay.status === "checked_in") {
+    return {
+      bar: "bg-emerald-600 text-white",
+      accent: "bg-emerald-800",
+      dues,
+      lifeLabel: "In-house",
+    };
+  }
+  if (stay.status === "confirmed") {
+    return {
+      bar: "bg-sky-700 text-white",
+      accent: "bg-sky-900",
+      dues,
+      lifeLabel: "Confirmed",
+    };
+  }
+  if (stay.status === "pending" || stay.status === "held") {
+    return {
+      bar: "bg-amber-300 text-foreground",
+      accent: "bg-amber-600",
+      dues,
+      lifeLabel: "Held",
+    };
+  }
+  return {
+    bar: "bg-muted text-foreground",
+    accent: "bg-foreground/25",
+    dues,
+    lifeLabel: stay.status,
+  };
 }
 
 function hkStatusClass(status?: string | null): string {
@@ -183,12 +366,93 @@ function sourceAbbreviation(stay: RackStay): string {
   );
 }
 
+function sourceLabel(stay: RackStay): string {
+  const source = stay.booked_by_role || stay.source;
+  return (
+    {
+      owner: "Owner",
+      reservation: "Reservation",
+      agent: "Agent",
+      mou_agent: "MOU agent",
+      client: "Direct",
+      ota: "OTA",
+    }[source ?? ""] ?? "Reservation"
+  );
+}
+
 function groupTint(name: string): string {
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
     hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
   }
   return `hsl(${hash % 360} 70% 55%)`;
+}
+
+function categoryColor(roomTypeId: string): string {
+  let hash = 0;
+  for (let i = 0; i < roomTypeId.length; i++) {
+    hash = (hash * 31 + roomTypeId.charCodeAt(i)) >>> 0;
+  }
+  return `hsl(${hash % 360} 65% 42%)`;
+}
+
+function categoryTint(roomTypeId: string, dark = false): string {
+  let hash = 0;
+  for (let i = 0; i < roomTypeId.length; i++) {
+    hash = (hash * 31 + roomTypeId.charCodeAt(i)) >>> 0;
+  }
+  const hue = hash % 360;
+  return dark
+    ? `hsl(${hue} 28% 17%)`
+    : `hsl(${hue} 45% 92%)`;
+}
+
+function floorAbbrev(floorLabel: string | null): string | null {
+  const trimmed = floorLabel?.trim();
+  if (!trimmed) return null;
+  const num = trimmed.match(/\d+/);
+  if (num) return `F${num[0]}`;
+  return trimmed.length <= 4 ? trimmed : trimmed.slice(0, 3);
+}
+
+/**
+ * Prefer a short door number for the rack. `DELUXE SUITE-01` → `01`,
+ * `101` stays `101`. Full inventory label remains in the tooltip.
+ */
+function displayRoomNumber(label: string): string {
+  const trimmed = label.trim();
+  if (!trimmed) return "—";
+  const dashed = trimmed.match(/[-–—]\s*([A-Za-z]?\d+)\s*$/);
+  if (dashed?.[1]) return dashed[1];
+  const trailing = trimmed.match(/(\d+)\s*$/);
+  if (trailing?.[1] && trimmed.length > trailing[1].length) {
+    return trailing[1];
+  }
+  return trimmed;
+}
+
+function roomAttrLine(unit: RackUnit): string | null {
+  const parts: string[] = [];
+  const floor = floorAbbrev(unit.floor_label);
+  if (floor) parts.push(floor);
+  const view = unit.view_label?.trim();
+  if (view) parts.push(view);
+  if (unit.has_balcony) parts.push("Balc");
+  if (unit.connecting_room_label) {
+    parts.push(`↔ ${unit.connecting_room_label}`);
+  }
+  return parts.length ? parts.join(" · ") : null;
+}
+
+function roomTooltip(unit: RackUnit): string {
+  const parts = [unit.label, unit.room_type_name];
+  if (unit.floor_label?.trim()) parts.push(unit.floor_label.trim());
+  if (unit.view_label?.trim()) parts.push(unit.view_label.trim());
+  if (unit.has_balcony) parts.push("Balcony");
+  if (unit.connecting_room_label) {
+    parts.push(`Connects ${unit.connecting_room_label}`);
+  }
+  return parts.join(" · ");
 }
 
 function occupancyTone(percent: number): {
@@ -269,14 +533,20 @@ function selectionConflicts(
 
 function StayHoverCard({
   stay,
+  today,
   suppressed,
   onOpenDetail,
 }: {
   stay: RackStay;
+  today: string;
   suppressed: boolean;
   onOpenDetail: () => void;
 }) {
   const nights = nightsBetween(stay.check_in, stay.check_out);
+  const overdueDeparture =
+    stay.status === "checked_in" && stay.check_out <= today;
+  const checkedIn = stay.status === "checked_in";
+  const tone = stayOpsTone(stay, today);
   // Controlled for the whole lifetime — flipping between `false` and
   // `undefined` while dragging makes Radix warn about switching modes.
   const [open, setOpen] = useState(false);
@@ -291,58 +561,147 @@ function StayHoverCard({
         <button
           type="button"
           className={cn(
-            "flex h-[calc(100%-8px)] w-full items-center overflow-hidden rounded-md border px-1.5 text-left text-[11px] font-medium shadow-sm",
-            statusBarClass(stay.status),
+            "relative flex h-[calc(100%-4px)] w-full flex-col justify-center gap-0.5 overflow-hidden rounded-sm py-0.5 pl-2 pr-1.5 text-left",
+            tone.bar,
+            tone.dues && "ring-2 ring-inset ring-violet-300/90",
           )}
+          title={
+            [
+              tone.lifeLabel,
+              overdueDeparture ? "Departure due — still checked in" : null,
+              tone.dues ? "Open folio balance / dues" : null,
+            ]
+              .filter(Boolean)
+              .join(" · ") || undefined
+          }
           onClick={onOpenDetail}
         >
-          <span className="mr-1 shrink-0 rounded border border-current/25 bg-black/10 px-1 font-mono text-[8px] font-bold">
-            {sourceAbbreviation(stay)}
-          </span>
-          {stay.group_name ? (
+          <span
+            aria-hidden
+            className={cn("absolute inset-y-0 left-0 w-[3px]", tone.accent)}
+          />
+          {tone.dues ? (
             <span
-              className="mr-1 size-2 shrink-0 rounded-full"
-              style={{ backgroundColor: groupTint(stay.group_name) }}
-              title={stay.group_name}
+              aria-hidden
+              className="absolute inset-y-0 right-0 w-1 bg-violet-400"
             />
           ) : null}
-          <span className="truncate">{stay.contact_name ?? "Guest"}</span>
-          {stay.guide_number ? (
-            <span className="ml-1 shrink-0 text-[8px] opacity-90" title={`Guide ${stay.guide_number}`}>
-              G
+          {/* Row 1 — guest name (like room number line) */}
+          <span className="flex min-w-0 items-center gap-1 leading-none">
+            {stay.group_name ? (
+              <span
+                className="size-1.5 shrink-0 rounded-full"
+                style={{ backgroundColor: groupTint(stay.group_name) }}
+                title={stay.group_name}
+              />
+            ) : null}
+            <span className="min-w-0 truncate text-[11px] font-semibold tracking-tight md:text-[12px]">
+              {stay.contact_name ?? "Guest"}
             </span>
-          ) : null}
-          {stay.payment_mode === "on_credit" ? (
-            <span className="ml-0.5 shrink-0 text-[8px] opacity-90" title="On credit">
-              $
+            {stay.is_locked ? (
+              <span
+                className="ml-auto shrink-0 text-[8px] opacity-80"
+                aria-label="Assignment locked"
+              >
+                ◆
+              </span>
+            ) : null}
+          </span>
+          {/* Row 2 — source + flags (like room attr line) */}
+          <span className="flex min-w-0 items-center gap-1 text-[9px] leading-none opacity-90">
+            <span
+              className="shrink-0 font-mono font-semibold opacity-80"
+              title={sourceLabel(stay)}
+            >
+              {sourceAbbreviation(stay)}
             </span>
-          ) : null}
-          {stay.is_locked ? (
-            <span className="ml-auto pl-1 text-[9px]" aria-label="Assignment locked">
-              ◆
-            </span>
-          ) : null}
+            {overdueDeparture ? (
+              <span className="shrink-0 font-bold" title="Not checked out">
+                OUT
+              </span>
+            ) : tone.lifeLabel === "Arriving" ? (
+              <span className="shrink-0 font-bold" title="Arriving today">
+                IN
+              </span>
+            ) : tone.lifeLabel === "Departing" ? (
+              <span className="shrink-0 font-bold" title="Departing today">
+                DEP
+              </span>
+            ) : null}
+            {stay.guide_number ? (
+              <span
+                className="shrink-0 opacity-90"
+                title={`Guide ${stay.guide_number}`}
+              >
+                G
+              </span>
+            ) : null}
+            {stay.payment_mode === "on_credit" ? (
+              <span className="shrink-0 opacity-90" title="On credit">
+                $
+              </span>
+            ) : null}
+            {tone.dues ? (
+              <span
+                className="shrink-0 rounded-[2px] bg-violet-950/40 px-0.5 text-[8px] font-bold leading-none"
+                title={`Dues ${Number(stay.folio_balance ?? 0).toFixed(0)}`}
+              >
+                DUE
+              </span>
+            ) : null}
+            {stay.sdf_incomplete ? (
+              <span
+                className="shrink-0 rounded-[2px] bg-destructive/90 px-0.5 text-[8px] font-bold leading-none text-destructive-foreground"
+                title="SDF / passport incomplete"
+              >
+                SDF
+              </span>
+            ) : null}
+            {stay.agent_name ? (
+              <span
+                className="min-w-0 truncate opacity-75"
+                title={stay.agent_name}
+              >
+                {stay.agent_name}
+              </span>
+            ) : null}
+          </span>
         </button>
       </HoverCardTrigger>
       <HoverCardContent
         side="top"
         align="start"
-        className="erp z-50 space-y-2 text-sm"
+        className="erp z-50 w-72 space-y-2.5 p-3 text-sm"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="font-semibold text-foreground">
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-foreground">
               {stay.contact_name ?? "Guest"}
             </p>
             <p className="text-xs text-muted-foreground">
               {stay.room_label} · {stay.room_type_name}
             </p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              {sourceLabel(stay)}
+              {stay.agent_name ? ` · ${stay.agent_name}` : ""}
+              {` · ${tone.lifeLabel}`}
+            </p>
+            {tone.dues ? (
+              <p className="mt-1 text-[11px] font-medium text-violet-700 dark:text-violet-300">
+                Open balance / dues
+              </p>
+            ) : null}
+            {stay.sdf_incomplete ? (
+              <p className="mt-1 text-[11px] font-medium text-destructive">
+                SDF / passport incomplete
+              </p>
+            ) : null}
           </div>
           <span
             className={cn(
-              "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
-              statusBarClass(stay.status),
+              "inline-flex shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-medium capitalize",
+              statusBadgeClass(stay.status),
             )}
           >
             {stay.status.replace(/_/g, " ")}
@@ -358,12 +717,6 @@ function StayHoverCard({
             {stay.adults} adult{stay.adults === 1 ? "" : "s"} · {stay.rooms} room
             {stay.rooms === 1 ? "" : "s"}
           </dd>
-          {stay.agent_name ? (
-            <>
-              <dt className="text-muted-foreground">Agent</dt>
-              <dd>{stay.agent_name}</dd>
-            </>
-          ) : null}
           {stay.contact_phone ? (
             <>
               <dt className="text-muted-foreground">Phone</dt>
@@ -403,12 +756,20 @@ function StayHoverCard({
             </>
           ) : null}
         </dl>
-        <div className="flex flex-wrap gap-2 border-t pt-2">
+        <div className="flex flex-wrap gap-1.5 border-t pt-2">
+          {!checkedIn ? (
+            <Link
+              href={`/erp/check-in?id=${stay.booking_id}`}
+              className="inline-flex h-8 items-center rounded-md bg-primary px-2.5 text-xs text-primary-foreground"
+            >
+              Check-in
+            </Link>
+          ) : null}
           <Link
-            href={`/erp/check-in?id=${stay.booking_id}`}
-            className="inline-flex h-8 items-center rounded-md bg-primary px-2.5 text-xs text-primary-foreground"
+            href={`/erp/bookings/${stay.booking_id}`}
+            className="inline-flex h-8 items-center rounded-md border px-2.5 text-xs"
           >
-            Check-in
+            Booking
           </Link>
           {stay.folio_id ? (
             <Link
@@ -416,6 +777,14 @@ function StayHoverCard({
               className="inline-flex h-8 items-center rounded-md border px-2.5 text-xs"
             >
               Folio
+            </Link>
+          ) : null}
+          {checkedIn ? (
+            <Link
+              href={`/erp/check-in?id=${stay.booking_id}`}
+              className="inline-flex h-8 items-center rounded-md border px-2.5 text-xs"
+            >
+              Guest docs
             </Link>
           ) : null}
         </div>
@@ -434,6 +803,8 @@ export function RoomRackGrid({
   agents,
   unassigned,
   blocks,
+  allotments = [],
+  propertyId,
 }: {
   units: RackUnit[];
   stays: RackStay[];
@@ -444,8 +815,15 @@ export function RoomRackGrid({
   agents: CalendarAgent[];
   unassigned: UnassignedBooking[];
   blocks: RoomBlock[];
+  allotments?: RackAllotment[];
+  propertyId: string;
 }) {
   const router = useRouter();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  const leftWidth = useLeftPaneWidth();
+  const [cellZoom, setCellZoom] = useState<CellZoom>("md");
+  const CELL = cellWidthForZoom(cellZoom);
   const endExclusive = addDays(start, days.length);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -460,6 +838,7 @@ export function RoomRackGrid({
   const [assignMessage, setAssignMessage] = useState<string | null>(null);
   const [assigning, startAssigning] = useTransition();
   const [selectedStayId, setSelectedStayId] = useState<string | null>(null);
+  const [contextStayId, setContextStayId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearch = useDeferredValue(searchQuery.trim().toLowerCase());
   const [flashStayId, setFlashStayId] = useState<string | null>(null);
@@ -469,6 +848,44 @@ export function RoomRackGrid({
   const [undoMoveId, setUndoMoveId] = useState<string | null>(null);
   const [movingPending, startMoving] = useTransition();
   const [blockUnit, setBlockUnit] = useState<RackUnit | null>(null);
+  const [editUnit, setEditUnit] = useState<RackUnit | null>(null);
+  const [, startResizing] = useTransition();
+
+  const beginStayResize = useCallback(
+    (edge: "start" | "end", stay: RackStay, event: ReactPointerEvent) => {
+      if (stay.is_locked) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const originX = event.clientX;
+      const originFrom = stay.from_date;
+      const originTo = stay.to_date;
+      const onUp = (ev: PointerEvent) => {
+        window.removeEventListener("pointerup", onUp);
+        const deltaDays = Math.round((ev.clientX - originX) / CELL);
+        if (!deltaDays) return;
+        let from = originFrom;
+        let to = originTo;
+        if (edge === "start") {
+          from = addDays(originFrom, deltaDays);
+          if (from >= to) from = addDays(to, -1);
+        } else {
+          to = addDays(originTo, deltaDays);
+          if (to <= from) to = addDays(from, 1);
+        }
+        startResizing(async () => {
+          const result = await resizeCalendarAssignment(stay.id, from, to);
+          setOperationMessage(
+            result.ok
+              ? (result.message ?? "Stay resized")
+              : (result.error ?? "Could not resize stay"),
+          );
+          if (result.ok) router.refresh();
+        });
+      };
+      window.addEventListener("pointerup", onUp);
+    },
+    [CELL, router, startResizing],
+  );
 
   const staysByUnit = useMemo(() => {
     const map = new Map<string, RackStay[]>();
@@ -753,7 +1170,77 @@ export function RoomRackGrid({
     [movingPending, router],
   );
 
-  const gridWidth = LEFT + days.length * CELL;
+  const rackRows = useMemo(() => buildRackRows(units), [units]);
+
+  /** Windowed row render for large inventories (virtualization without extra deps). */
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportH, setViewportH] = useState(600);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onScroll = () => setScrollTop(el.scrollTop);
+    const onResize = () => setViewportH(el.clientHeight || 600);
+    onResize();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onResize);
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onResize);
+    };
+  }, []);
+
+  const rowOffsets = useMemo(() => {
+    const offsets: number[] = [];
+    let y = 0;
+    for (const row of rackRows) {
+      offsets.push(y);
+      y += row.kind === "category" ? CATEGORY_H : ROW_H;
+    }
+    return { offsets, totalH: y };
+  }, [rackRows]);
+
+  const VIRTUALIZE_THRESHOLD = 40;
+  const useVirtual = rackRows.length > VIRTUALIZE_THRESHOLD;
+  const overscan = 8;
+  const visibleRowRange = useMemo(() => {
+    if (!useVirtual) {
+      return { start: 0, end: rackRows.length, totalH: rowOffsets.totalH };
+    }
+    const { offsets, totalH } = rowOffsets;
+    const contentTop = Math.max(0, scrollTop - HEADER_H);
+    let start = 0;
+    while (
+      start < offsets.length - 1 &&
+      offsets[start + 1]! <= contentTop
+    ) {
+      start += 1;
+    }
+    start = Math.max(0, start - overscan);
+    let end = start;
+    const bottom = contentTop + viewportH + ROW_H * overscan;
+    while (end < offsets.length && offsets[end]! < bottom) {
+      end += 1;
+    }
+    end = Math.min(rackRows.length, end + overscan);
+    return { start, end, totalH };
+  }, [useVirtual, rackRows.length, rowOffsets, scrollTop, viewportH]);
+
+  const visibleCategories = useMemo(() => {
+    const seen = new Map<string, { code: string; name: string }>();
+    for (const unit of units) {
+      if (!seen.has(unit.room_type_id)) {
+        seen.set(unit.room_type_id, {
+          code:
+            unit.room_type_code ||
+            unit.room_type_name.slice(0, 3).toUpperCase(),
+          name: unit.room_type_name,
+        });
+      }
+    }
+    return [...seen.entries()].map(([id, info]) => ({ id, ...info }));
+  }, [units]);
+
+  const gridWidth = leftWidth + days.length * CELL;
   const norm = draft ? normalizeSel(draft) : null;
 
   const assignPoolBooking = useCallback(
@@ -884,11 +1371,11 @@ export function RoomRackGrid({
       const scroller = scrollRef.current;
       if (!scroller) return null;
       const rect = scroller.getBoundingClientRect();
-      const contentX = x - rect.left + scroller.scrollLeft - LEFT;
+      const contentX = x - rect.left + scroller.scrollLeft - leftWidth;
       const contentY = y - rect.top + scroller.scrollTop - HEADER_H;
       if (contentX < 0 || contentY < 0) return null;
       return {
-        unitIdx: clamp(Math.floor(contentY / ROW_H), units.length - 1),
+        unitIdx: unitIdxFromContentY(contentY, rackRows, units.length),
         dayIdx: clamp(Math.floor(contentX / CELL), days.length - 1),
       };
     };
@@ -935,7 +1422,7 @@ export function RoomRackGrid({
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onCancel);
     };
-  }, [dragging, days.length, openFromSelection, units.length]);
+  }, [CELL, dragging, days.length, leftWidth, openFromSelection, rackRows, units.length]);
 
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
@@ -961,7 +1448,7 @@ export function RoomRackGrid({
   };
 
   return (
-    <div className="erp flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col">
+    <div className="erp flex h-[calc(100dvh-3.5rem)] min-h-0 min-w-0 flex-col overflow-hidden">
       <div
         className="flex shrink-0 flex-wrap items-center gap-1.5 border-b bg-background px-2"
         style={{ minHeight: TOOLBAR_H }}
@@ -980,66 +1467,212 @@ export function RoomRackGrid({
             {n}d
           </Link>
         ))}
-        <div className="ml-1 flex max-w-[min(62vw,760px)] items-stretch gap-1 overflow-x-auto py-1">
-          {monthStats.map((stat) => {
-            const tone = occupancyTone(stat.percent);
-            return (
-              <div
-                key={stat.key}
-                title={`${stat.label}: ${stat.booked} booked and ${stat.empty} empty room-nights across ${stat.days} visible days`}
-                className={cn(
-                  "group relative min-w-[112px] shrink-0 overflow-hidden rounded-md border px-2 py-1 shadow-xs transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md",
-                  tone.card,
-                )}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
-                    {stat.label}
-                  </span>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-[11px] font-medium"
+            >
+              Stay colors
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="start"
+            className="erp w-auto max-w-[min(92vw,280px)] space-y-2 p-3"
+          >
+            <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Stay colors
+            </p>
+            <ul className="space-y-1.5 text-xs">
+              {[
+                { swatch: "bg-sky-500", label: "Arriving today" },
+                { swatch: "bg-emerald-600", label: "In-house" },
+                { swatch: "bg-amber-500", label: "Departing today" },
+                { swatch: "bg-sky-700", label: "Confirmed (future)" },
+                { swatch: "bg-amber-300", label: "Held / pending" },
+                { swatch: "bg-rose-700", label: "Overdue checkout" },
+              ].map((row) => (
+                <li key={row.label} className="flex items-center gap-2">
                   <span
+                    className={cn("size-3 shrink-0 rounded-sm", row.swatch)}
+                  />
+                  <span>{row.label}</span>
+                </li>
+              ))}
+              <li className="flex items-center gap-2 border-t pt-1.5">
+                <span className="size-3 shrink-0 rounded-sm bg-sky-600 ring-2 ring-inset ring-violet-400" />
+                <span>Violet edge / DUE = open folio balance</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="rounded-[2px] bg-destructive px-1 text-[9px] font-bold text-white">
+                  SDF
+                </span>
+                <span>Passport / SDF incomplete</span>
+              </li>
+            </ul>
+          </PopoverContent>
+        </Popover>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-[11px] font-medium"
+            >
+              Categories
+              {visibleCategories.length > 0 ? (
+                <span className="ml-1 tabular-nums text-muted-foreground">
+                  {visibleCategories.length}
+                </span>
+              ) : null}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="start"
+            className="erp w-auto max-w-[min(92vw,320px)] space-y-2 p-3"
+          >
+            <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Room categories
+            </p>
+            <ul className="space-y-1">
+              {visibleCategories.map((cat) => (
+                <li
+                  key={cat.id}
+                  className="flex items-center gap-2 rounded-md px-1 py-0.5 text-xs"
+                >
+                  <span
+                    className="inline-flex min-w-[2rem] shrink-0 items-center justify-center rounded px-1.5 py-0.5 font-mono text-[10px] font-bold text-white"
+                    style={{ backgroundColor: categoryColor(cat.id) }}
+                  >
+                    {cat.code}
+                  </span>
+                  <span className="truncate text-foreground">{cat.name}</span>
+                </li>
+              ))}
+            </ul>
+          </PopoverContent>
+        </Popover>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-[11px] font-medium"
+            >
+              Occupancy
+              {monthStats[0] ? (
+                <span className="ml-1 tabular-nums text-muted-foreground">
+                  {monthStats[0].percent}%
+                </span>
+              ) : null}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="start"
+            className="erp w-auto max-w-[min(92vw,420px)] space-y-2 p-3"
+          >
+            <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Visible months
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {monthStats.map((stat) => {
+                const tone = occupancyTone(stat.percent);
+                return (
+                  <div
+                    key={stat.key}
+                    title={`${stat.label}: ${stat.booked} booked and ${stat.empty} empty room-nights across ${stat.days} visible days`}
                     className={cn(
-                      "text-sm font-bold tabular-nums transition-transform duration-300 group-hover:scale-110",
-                      tone.value,
+                      "relative min-w-[112px] overflow-hidden rounded-md border px-2 py-1 shadow-xs",
+                      tone.card,
                     )}
                   >
-                    {stat.percent}%
-                  </span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
+                        {stat.label}
+                      </span>
+                      <span className={cn("text-sm font-bold tabular-nums", tone.value)}>
+                        {stat.percent}%
+                      </span>
+                    </div>
+                    <div className="mt-0.5 flex gap-2 text-[9px] tabular-nums text-muted-foreground">
+                      <span>B {stat.booked}</span>
+                      <span>E {stat.empty}</span>
+                    </div>
+                    <div className="absolute inset-x-0 bottom-0 h-0.5 bg-black/5">
+                      <div
+                        className={cn("h-full", tone.bar)}
+                        style={{ width: `${stat.percent}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+              {todayIndex >= 0 ? (
+                <div className="relative min-w-[100px] overflow-hidden rounded-md border border-violet-300 bg-violet-50/80 px-2 py-1 shadow-xs dark:border-violet-800 dark:bg-violet-950/25">
+                  <p className="text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
+                    Today rooms
+                  </p>
+                  <p className="text-[10px] tabular-nums text-violet-700 dark:text-violet-300">
+                    <strong>{todayBooked}</strong> booked ·{" "}
+                    <strong>{Math.max(0, units.length - todayBooked)}</strong> empty
+                  </p>
                 </div>
-                <div className="mt-0.5 flex gap-2 text-[9px] tabular-nums text-muted-foreground">
-                  <span>B {stat.booked}</span>
-                  <span>E {stat.empty}</span>
-                </div>
-                <div className="absolute inset-x-0 bottom-0 h-0.5 bg-black/5">
-                  <div
-                    className={cn(
-                      "h-full transition-[width] duration-1000 ease-out",
-                      tone.bar,
-                    )}
-                    style={{ width: `${stat.percent}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-          {todayIndex >= 0 ? (
-            <div className="relative min-w-[100px] shrink-0 overflow-hidden rounded-md border border-violet-300 bg-violet-50/80 px-2 py-1 shadow-xs dark:border-violet-800 dark:bg-violet-950/25">
-              <span className="absolute top-1 right-1 size-1.5 animate-pulse rounded-full bg-violet-500" />
-              <p className="text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
-                Today rooms
-              </p>
-              <p className="text-[10px] tabular-nums text-violet-700 dark:text-violet-300">
-                <strong>{todayBooked}</strong> booked ·{" "}
-                <strong>{Math.max(0, units.length - todayBooked)}</strong> empty
-              </p>
+              ) : null}
             </div>
-          ) : null}
-        </div>
+          </PopoverContent>
+        </Popover>
+        <label className="inline-flex h-7 items-center gap-1 rounded-md border bg-card px-1.5 text-[10px] text-muted-foreground">
+          <span className="hidden sm:inline">Go to</span>
+          <input
+            type="date"
+            value={start}
+            aria-label="Go to date"
+            className="h-6 max-w-[9.5rem] border-0 bg-transparent text-[11px] text-foreground outline-none"
+            onChange={(event) => {
+              const next = event.target.value;
+              if (!/^\d{4}-\d{2}-\d{2}$/.test(next)) return;
+              router.push(`/erp/calendar?days=${windowDays}&start=${next}`);
+            }}
+          />
+        </label>
         <Link
           href={`/erp/calendar?days=${windowDays}&start=${today}`}
           className="inline-flex h-7 items-center rounded-md border px-2 text-[11px] text-muted-foreground hover:bg-muted/50"
         >
           Today
         </Link>
+        <div
+          className="inline-flex h-7 items-center gap-0.5 rounded-md border bg-card p-0.5"
+          role="group"
+          aria-label="Day column zoom"
+        >
+          {(
+            [
+              ["sm", "S"],
+              ["md", "M"],
+              ["lg", "L"],
+            ] as const
+          ).map(([z, label]) => (
+            <button
+              key={z}
+              type="button"
+              aria-pressed={cellZoom === z}
+              className={cn(
+                "inline-flex h-6 min-w-6 items-center justify-center rounded px-1.5 text-[10px] font-semibold",
+                cellZoom === z
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:bg-muted/60",
+              )}
+              onClick={() => setCellZoom(z)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <Link
           href={`/erp/calendar?days=${windowDays}&start=${addDays(start, -windowDays)}`}
           className="inline-flex h-7 items-center rounded-md border px-2 text-[11px] text-muted-foreground hover:bg-muted/50"
@@ -1068,7 +1701,7 @@ export function RoomRackGrid({
             }}
             placeholder="Guest, phone, guide #…"
             aria-label="Search calendar stays"
-            className="h-7 w-52 border-0 bg-transparent py-1 pr-8 text-xs shadow-none focus-visible:ring-1"
+            className="h-7 w-36 border-0 bg-transparent py-1 pr-8 text-xs shadow-none focus-visible:ring-1 sm:w-52"
           />
           {deferredSearch ? (
             <span className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-[9px] text-muted-foreground">
@@ -1085,17 +1718,11 @@ export function RoomRackGrid({
             <span className="ml-2 text-accent">Drag to select nights…</span>
           ) : null}
         </span>
-        <Link
-          href={`/erp/calendar/day-sheet?date=${today}`}
-          className="inline-flex h-7 items-center rounded-md border px-2 text-[11px] text-muted-foreground hover:bg-muted/50"
-        >
-          Day sheet
-        </Link>
         <span
           className="inline-flex h-7 items-center rounded-md border border-violet-300 bg-violet-50/70 px-2 text-[10px] font-medium text-violet-700 dark:border-violet-800 dark:bg-violet-950/25 dark:text-violet-300"
           title="Click any room number in the frozen left column to create an OOO, OOS, or hold block."
         >
-          Blocks {blocks.length} · click room
+          Blocks {blocks.length}
         </span>
         <CalendarLiveRefresh />
       </div>
@@ -1230,25 +1857,19 @@ export function RoomRackGrid({
           .
         </p>
       ) : (
-        <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto bg-card">
+        <div ref={scrollRef} className="min-h-0 min-w-0 flex-1 overflow-auto bg-card">
           <div style={{ width: gridWidth, minWidth: "100%" }}>
             <div
               className="sticky top-0 z-30 flex border-b bg-card"
               style={{ height: HEADER_H }}
             >
               <div
-                className="sticky left-0 z-40 flex shrink-0 items-end border-r bg-card px-3 pb-2"
-                style={{ width: LEFT }}
+                className="sticky left-0 z-30 flex shrink-0 items-end border-r bg-card px-2 pb-2"
+                style={{ width: leftWidth }}
               >
-                <div
-                  className="grid w-full gap-2 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase"
-                  style={{ gridTemplateColumns: LEFT_GRID_COLUMNS }}
-                >
-                  <span>Floor</span>
-                  <span>#</span>
-                  <span>Category</span>
-                  <span>Room</span>
-                </div>
+                <span className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+                  Room
+                </span>
               </div>
               <div className="flex">
                 {days.map((day) => {
@@ -1278,9 +1899,105 @@ export function RoomRackGrid({
               </div>
             </div>
 
-            {units.map((unit, unitIdx) => {
+            {useVirtual ? (
+              <div
+                aria-hidden
+                style={{
+                  height: rowOffsets.offsets[visibleRowRange.start ?? 0] ?? 0,
+                }}
+              />
+            ) : null}
+            {rackRows
+              .slice(visibleRowRange.start ?? 0, visibleRowRange.end ?? rackRows.length)
+              .map((row, sliceIdx) => {
+              const rowIdx = (visibleRowRange.start ?? 0) + sliceIdx;
+              if (row.kind === "category") {
+                const tint = categoryTint(row.roomTypeId, isDark);
+                const accent = categoryColor(row.roomTypeId);
+                return (
+                  <div
+                    key={`cat-${row.roomTypeId}-${rowIdx}`}
+                    className="sticky left-0 z-10 flex border-b"
+                    style={{
+                      height: CATEGORY_H,
+                      width: gridWidth,
+                      backgroundColor: tint,
+                    }}
+                  >
+                    <div
+                      className="sticky left-0 z-20 flex shrink-0 items-center gap-1.5 border-r px-2"
+                      style={{
+                        width: leftWidth,
+                        backgroundColor: tint,
+                      }}
+                    >
+                      <span
+                        className="inline-flex shrink-0 items-center rounded px-1 py-0.5 font-mono text-[9px] font-bold text-white"
+                        style={{ backgroundColor: accent }}
+                      >
+                        {row.code}
+                      </span>
+                      <span
+                        className={cn(
+                          "truncate text-[10px] font-semibold",
+                          isDark ? "text-foreground/70" : "text-foreground/80",
+                        )}
+                      >
+                        {row.name}
+                      </span>
+                    </div>
+                    <div
+                      className="relative"
+                      style={{
+                        width: days.length * CELL,
+                        backgroundColor: tint,
+                      }}
+                    >
+                      {allotments
+                        .filter((a) => a.room_type_id === row.roomTypeId)
+                        .map((a) => {
+                          const from =
+                            a.valid_from < start ? start : a.valid_from;
+                          const toExclusive = addDays(
+                            a.valid_to < endExclusive
+                              ? a.valid_to
+                              : addDays(endExclusive, -1),
+                            1,
+                          );
+                          const to =
+                            toExclusive > endExclusive
+                              ? endExclusive
+                              : toExclusive;
+                          if (to <= start || from >= endExclusive) return null;
+                          const left = dayIndex(start, from) * CELL;
+                          const width = Math.max(
+                            CELL,
+                            dayIndex(from, to) * CELL,
+                          );
+                          return (
+                            <div
+                              key={a.id}
+                              className="pointer-events-none absolute inset-y-0 border border-dashed border-violet-500/50 bg-violet-500/15"
+                              style={{ left: left + 1, width: width - 2 }}
+                              title={`Allotment · ${a.agent_name} · ${a.rooms_per_week}/wk`}
+                            />
+                          );
+                        })}
+                      <span className="sr-only">
+                        {allotments.filter((a) => a.room_type_id === row.roomTypeId)
+                          .length
+                          ? "Agent allotment overlay"
+                          : ""}
+                      </span>
+                    </div>
+                  </div>
+                );
+              }
+
+              const { unit, unitIdx } = row;
               const rowStays = staysByUnit.get(unit.id) ?? [];
               const rowBlocks = blocksByUnit.get(unit.id) ?? [];
+              const attrLine = roomAttrLine(unit);
               return (
                 <div
                   key={unit.id}
@@ -1303,55 +2020,87 @@ export function RoomRackGrid({
                   }}
                 >
                   <div
-                    className="sticky left-0 z-20 flex shrink-0 items-center border-r bg-card px-3 text-xs"
-                    style={{ width: LEFT }}
+                    className="group/room sticky left-0 z-20 flex shrink-0 items-center gap-0.5 border-r bg-card px-1 md:px-1.5"
+                    style={{ width: leftWidth, height: ROW_H }}
                   >
-                    <div
-                      className="grid w-full items-center gap-2"
-                      style={{ gridTemplateColumns: LEFT_GRID_COLUMNS }}
+                    <button
+                      type="button"
+                      className="flex min-w-0 flex-1 flex-col justify-center gap-0 py-0 text-left hover:text-accent"
+                      title={`${roomTooltip(unit)} · HK ${unit.hk_status ?? "unknown"} · click to block`}
+                      onClick={() => setBlockUnit(unit)}
                     >
-                      <span
-                        className="truncate text-muted-foreground"
-                        title={unit.floor_label ?? "No floor"}
-                      >
-                        {unit.floor_label ?? "—"}
-                      </span>
-                      <span className="tabular-nums text-muted-foreground">
-                        {unitIdx + 1}
-                      </span>
-                      <span
-                        className="flex min-w-0 items-center gap-1.5"
-                        title={`${unit.room_type_name}${unit.room_type_code ? ` (${unit.room_type_code})` : ""}`}
-                      >
-                        {unit.room_type_code ? (
-                          <span className="shrink-0 rounded border bg-muted px-1 py-0.5 font-mono text-[9px] font-semibold text-foreground">
-                            {unit.room_type_code}
-                          </span>
-                        ) : null}
-                        <span className="truncate font-medium text-foreground">
-                          {unit.room_type_name}
-                        </span>
-                      </span>
-                      <button
-                        type="button"
-                        className="flex min-w-0 items-center gap-1.5 truncate text-left font-semibold text-foreground hover:text-accent"
-                        title={`${unit.label} · HK ${unit.hk_status ?? "unknown"} · click to block`}
-                        onClick={() => setBlockUnit(unit)}
-                      >
+                      <span className="flex min-w-0 items-center gap-1">
                         <span
                           className={cn(
-                            "size-2 shrink-0 rounded-full",
+                            "size-1.5 shrink-0 rounded-full",
                             hkStatusClass(unit.hk_status),
                           )}
                         />
-                        <span className="truncate">{unit.label}</span>
-                      </button>
+                        <span className="min-w-0 truncate text-[13px] font-bold leading-none tabular-nums text-foreground md:text-[14px]">
+                          {displayRoomNumber(unit.label)}
+                        </span>
+                      </span>
+                      <span className="min-w-0 truncate pl-2.5 text-[9px] leading-tight text-muted-foreground md:pl-3">
+                        {unit.room_type_name}
+                      </span>
+                      {attrLine ? (
+                        <span className="min-w-0 truncate pl-2.5 text-[8px] leading-tight text-muted-foreground/80 md:pl-3">
+                          {attrLine}
+                        </span>
+                      ) : null}
+                    </button>
+                    <div className="flex shrink-0 items-center gap-0 opacity-100 md:opacity-0 md:group-hover/room:opacity-100 md:group-focus-within/room:opacity-100">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="hidden size-6 text-muted-foreground md:inline-flex"
+                        title="Block room"
+                        aria-label={`Block ${unit.label}`}
+                        onClick={() => setBlockUnit(unit)}
+                      >
+                        <BanIcon className="size-3" />
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="size-6 text-muted-foreground"
+                            aria-label={`More actions for ${unit.label}`}
+                          >
+                            <MoreHorizontalIcon className="size-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="erp w-44">
+                          <DropdownMenuItem
+                            onSelect={() => setEditUnit(unit)}
+                          >
+                            <PencilIcon className="size-3.5" />
+                            Edit room
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={() => setBlockUnit(unit)}
+                          >
+                            <BanIcon className="size-3.5" />
+                            Block room
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              void navigator.clipboard?.writeText(unit.label);
+                            }}
+                          >
+                            Copy label
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
 
                   <div
                     className="relative flex select-none"
-                    style={{ width: days.length * CELL }}
+                    style={{ width: days.length * CELL, height: ROW_H }}
                   >
                     {days.map((day, dayIdx) => {
                       const selected = cellSelected(unitIdx, dayIdx);
@@ -1369,29 +2118,33 @@ export function RoomRackGrid({
                           data-rack-cell="1"
                           data-unit-idx={unitIdx}
                           data-day-idx={dayIdx}
-                          onPointerDown={(e) =>
-                            onCellPointerDown(e, unitIdx, dayIdx)
-                          }
-                          onClick={() => assignPoolBooking(unit)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              if (selectedPool) {
-                                assignPoolBooking(unit);
-                              } else {
-                                openFromSelection({
-                                  unitStart: unitIdx,
-                                  unitEnd: unitIdx,
-                                  dayStart: dayIdx,
-                                  dayEnd: dayIdx,
-                                });
-                              }
+                          onPointerDown={(e) => {
+                            if (selectedPool) {
+                              e.preventDefault();
+                              assignPoolBooking(unit);
+                              return;
                             }
+                            onCellPointerDown(e, unitIdx, dayIdx);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key !== "Enter") return;
+                            if (selectedPool) {
+                              assignPoolBooking(unit);
+                              return;
+                            }
+                            openFromSelection({
+                              unitStart: unitIdx,
+                              unitEnd: unitIdx,
+                              dayStart: dayIdx,
+                              dayEnd: dayIdx,
+                            });
                           }}
                           className={cn(
                             "absolute top-0 h-full cursor-cell border-r",
                             isWeekend(day) && "bg-muted/30",
                             day === today && "bg-accent/5",
-                            selected && "bg-sky-500/35 ring-1 ring-inset ring-sky-600",
+                            selected &&
+                              "bg-sky-500/35 ring-1 ring-inset ring-sky-600",
                             selectedPool &&
                               unit.room_type_id === selectedPool.room_type_id &&
                               "bg-amber-200/45 hover:bg-amber-300/60",
@@ -1407,7 +2160,6 @@ export function RoomRackGrid({
                         />
                       );
                     })}
-
                     {rowBlocks.map((block) => {
                       const from =
                         block.from_date < start ? start : block.from_date;
@@ -1419,10 +2171,7 @@ export function RoomRackGrid({
                         return null;
                       }
                       const left = dayIndex(start, from) * CELL;
-                      const width = Math.max(
-                        CELL,
-                        dayIndex(from, to) * CELL,
-                      );
+                      const width = Math.max(CELL, dayIndex(from, to) * CELL);
                       return (
                         <button
                           key={block.id}
@@ -1442,7 +2191,6 @@ export function RoomRackGrid({
                         </button>
                       );
                     })}
-
                     {rowStays.map((stay) => {
                       const from =
                         stay.from_date < start ? start : stay.from_date;
@@ -1450,19 +2198,17 @@ export function RoomRackGrid({
                         stay.to_date > endExclusive
                           ? endExclusive
                           : stay.to_date;
-                      if (to <= start || from >= endExclusive || to <= from)
+                      if (to <= start || from >= endExclusive || to <= from) {
                         return null;
+                      }
                       const left = dayIndex(start, from) * CELL;
-                      const width = Math.max(
-                        CELL,
-                        dayIndex(from, to) * CELL,
-                      );
+                      const width = Math.max(CELL, dayIndex(from, to) * CELL);
                       return (
                         <div
                           key={stay.id}
                           data-stay-id={stay.id}
                           className={cn(
-                            "absolute top-0 z-10 h-full rounded-md transition-[opacity,box-shadow] duration-200",
+                            "group/stay absolute top-0 z-10 h-full rounded-sm transition-[opacity,box-shadow] duration-200",
                             dayFilter &&
                               !matchesDayFilter(stay) &&
                               "opacity-20",
@@ -1471,6 +2217,11 @@ export function RoomRackGrid({
                           )}
                           style={{ left: left + 2, width: width - 4 }}
                           onPointerDown={(e) => e.stopPropagation()}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setContextStayId(stay.id);
+                          }}
                           draggable={!stay.is_locked}
                           onDragStart={(event) => {
                             event.dataTransfer.effectAllowed = "move";
@@ -1482,13 +2233,102 @@ export function RoomRackGrid({
                           }}
                           onDragEnd={() => setMovingStayId(null)}
                         >
+                          {!stay.is_locked ? (
+                            <>
+                              <button
+                                type="button"
+                                aria-label="Resize stay start"
+                                className="absolute top-0 left-0 z-20 h-full w-1.5 cursor-ew-resize rounded-l-sm bg-foreground/15 opacity-0 transition-opacity group-hover/stay:opacity-100 focus-visible:opacity-100"
+                                onPointerDown={(e) =>
+                                  beginStayResize("start", stay, e)
+                                }
+                              />
+                              <button
+                                type="button"
+                                aria-label="Resize stay end"
+                                className="absolute top-0 right-0 z-20 h-full w-1.5 cursor-ew-resize rounded-r-sm bg-foreground/15 opacity-0 transition-opacity group-hover/stay:opacity-100 focus-visible:opacity-100"
+                                onPointerDown={(e) =>
+                                  beginStayResize("end", stay, e)
+                                }
+                              />
+                            </>
+                          ) : null}
                           <StayHoverCard
                             stay={stay}
+                            today={today}
                             suppressed={
-                              dragging || selectedStayId === stay.id
+                              dragging ||
+                              selectedStayId === stay.id ||
+                              contextStayId === stay.id
                             }
                             onOpenDetail={() => setSelectedStayId(stay.id)}
                           />
+                          <DropdownMenu
+                            open={contextStayId === stay.id}
+                            onOpenChange={(open) => {
+                              if (!open && contextStayId === stay.id) {
+                                setContextStayId(null);
+                              }
+                            }}
+                          >
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                className="sr-only"
+                                aria-label={`Actions for ${stay.contact_name ?? "stay"}`}
+                              >
+                                Stay actions
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                              align="start"
+                              className="erp w-48"
+                              onCloseAutoFocus={(e) => e.preventDefault()}
+                            >
+                              <DropdownMenuItem
+                                onSelect={() => {
+                                  setContextStayId(null);
+                                  setSelectedStayId(stay.id);
+                                }}
+                              >
+                                Open stay
+                              </DropdownMenuItem>
+                              {stay.status !== "checked_in" ? (
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/erp/check-in?id=${stay.booking_id}`}>
+                                    Check-in
+                                  </Link>
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/erp/check-out?id=${stay.booking_id}`}>
+                                    Check-out
+                                  </Link>
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem asChild>
+                                <Link href={`/erp/bookings/${stay.booking_id}`}>
+                                  Booking
+                                </Link>
+                              </DropdownMenuItem>
+                              {stay.folio_id ? (
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/erp/folios/${stay.folio_id}`}>
+                                    Folio
+                                  </Link>
+                                </DropdownMenuItem>
+                              ) : null}
+                              <DropdownMenuItem
+                                onSelect={() => {
+                                  void navigator.clipboard?.writeText(
+                                    stay.contact_name ?? stay.booking_id,
+                                  );
+                                }}
+                              >
+                                Copy guest name
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       );
                     })}
@@ -1496,16 +2336,29 @@ export function RoomRackGrid({
                 </div>
               );
             })}
+            {useVirtual ? (
+              <div
+                aria-hidden
+                style={{
+                  height: Math.max(
+                    0,
+                    rowOffsets.totalH -
+                      (rowOffsets.offsets[visibleRowRange.end ?? 0] ??
+                        rowOffsets.totalH),
+                  ),
+                }}
+              />
+            ) : null}
 
             <div
               className="sticky bottom-0 z-30 flex border-t bg-card"
               style={{ height: FOOTER_H }}
             >
               <div
-                className="sticky left-0 z-40 flex shrink-0 items-center border-r bg-card px-3 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase"
-                style={{ width: LEFT }}
+                className="sticky left-0 z-30 flex shrink-0 items-center border-r bg-card px-2 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase"
+                style={{ width: leftWidth }}
               >
-                Booked / empty
+                Occ
               </div>
               <div className="flex">
                 {days.map((day, i) => {
@@ -1557,6 +2410,15 @@ export function RoomRackGrid({
           if (!nextOpen) setBlockUnit(null);
         }}
         start={today}
+      />
+      <CalendarRoomUnitEditDialog
+        unit={editUnit}
+        propertyId={propertyId}
+        open={editUnit != null}
+        peerUnits={units.map((u) => ({ id: u.id, label: u.label }))}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setEditUnit(null);
+        }}
       />
     </div>
   );

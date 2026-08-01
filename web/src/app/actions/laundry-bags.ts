@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import {
+  canAdvanceBagStatus,
   canWorkLaundry,
   laundryBagScanPath,
   makeLaundryBagPublicCode,
@@ -290,9 +291,6 @@ export async function advanceLaundryBagStatus(
       "Next status",
     ) as LaundryBagStatus;
     const notes = optionalTrim(formData.get("notes"));
-    if (!["in_process", "ready", "delivered", "open"].includes(next)) {
-      throw new Error("Invalid bag status.");
-    }
     const admin = createSupabaseAdminClient();
     const { data: bag } = await admin
       .from("laundry_order_bags")
@@ -302,6 +300,9 @@ export async function advanceLaundryBagStatus(
       .maybeSingle();
     if (!bag || bag.status === "voided") throw new Error("Bag not found.");
     const current = bag.status as LaundryBagStatus;
+    if (!canAdvanceBagStatus(current, next)) {
+      throw new Error(`Cannot move bag from ${current} to ${next}.`);
+    }
     const { error } = await admin
       .from("laundry_order_bags")
       .update({

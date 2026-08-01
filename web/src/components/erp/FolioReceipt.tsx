@@ -26,6 +26,7 @@ export type FolioReceiptData = {
   label: string;
   bookingId: string | null;
   createdAt: string;
+  docNo?: string | null;
   lines: ReceiptLine[];
 };
 
@@ -109,6 +110,7 @@ export function FolioReceipt({
       </header>
 
       <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm text-foreground sm:grid-cols-3">
+        {data.docNo ? <Field label="Receipt no." value={data.docNo} /> : null}
         <Field label="Folio" value={data.label} />
         <Field label="Ref" value={data.folioId.slice(0, 8)} />
         <Field label="Issued" value={fmtDateTime(data.createdAt)} />

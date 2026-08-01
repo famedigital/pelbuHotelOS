@@ -5,6 +5,10 @@ import { writeAuditEvent } from "@/lib/audit";
 import { enqueueAfterBookingChange } from "@/lib/channel/ari-queue";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { notifyNewBooking } from "@/lib/notify";
+import {
+  applyDiscountPct,
+  resolvePartnerDiscountByIds,
+} from "@/lib/partners/discount";
 import { roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import {
@@ -80,6 +84,8 @@ async function estimateAndChargeCredit(
     checkIn: string;
     checkOut: string;
     roomTypeIds: string[];
+    guideId?: string | null;
+    driverId?: string | null;
   },
 ): Promise<number> {
   if (args.paymentMode !== "on_credit" || !args.agentId) return 0;
@@ -109,7 +115,11 @@ async function estimateAndChargeCredit(
     }
     estimate += rate * nights;
   }
-  const creditChargeBtn = roundBtn(estimate);
+  const partnerPct = await resolvePartnerDiscountByIds(admin, {
+    guideId: args.guideId,
+    driverId: args.driverId,
+  });
+  const creditChargeBtn = roundBtn(applyDiscountPct(estimate, partnerPct));
   if (creditChargeBtn <= 0) {
     throw new Error("Could not estimate on-credit amount from rates.");
   }
@@ -117,7 +127,10 @@ async function estimateAndChargeCredit(
     agentId: args.agentId,
     amountBtn: creditChargeBtn,
     bookingId: args.bookingId,
-    note: "Calendar reservation on credit",
+    note:
+      partnerPct > 0
+        ? `Calendar reservation on credit (−${partnerPct}% partner)`
+        : "Calendar reservation on credit",
   });
   return creditChargeBtn;
 }

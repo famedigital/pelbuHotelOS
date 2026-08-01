@@ -1,4 +1,6 @@
 import { applyBookingConfirmation } from "@/app/actions/erp-holds";
+import { captureServerError } from "@/lib/observability";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
@@ -69,6 +71,10 @@ export async function POST(request: Request): Promise<Response> {
     return json(503, { error: "Payment webhooks not configured." });
   }
 
+  const ip = clientIp(request.headers);
+  const rl = await rateLimit(`pay-webhook:${ip}`, { limit: 120, windowMs: 60_000 });
+  if (!rl.ok) return json(429, { error: "Rate limited." });
+
   const ok = await verifySignature(request);
   if (!ok) return json(401, { error: "Invalid signature." });
 
@@ -136,11 +142,13 @@ export async function POST(request: Request): Promise<Response> {
       reference: payload.reference ?? null,
       confirmedBy: `gateway:${gateway}`,
       paymentGateway: gateway,
+      idempotencyKey: `webhook:${token}:${payload.reference ?? "noref"}:${amountBtn}`,
     });
     return json(200, { ok: true, booking_id: link.booking_id });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Confirm failed.";
     console.error("payments webhook", message);
+    await captureServerError(e, { route: "payments/webhook" });
     await admin
       .from("payment_links")
       .update({ status: "open" })

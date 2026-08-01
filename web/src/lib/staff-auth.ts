@@ -14,6 +14,8 @@ export type StaffSession = {
   department: string | null;
   /** When true, this staff session may open /erp (dual-auth with DESK_PIN). */
   canAccessDesk: boolean;
+  /** RBAC desk role for ERP money / FO gates. */
+  deskRole: string | null;
 };
 
 /** Deterministic Auth email for staff-code/PIN identities (never shown to staff). */
@@ -42,7 +44,7 @@ export async function getStaffSession(): Promise<StaffSession | null> {
   const { data } = await admin
     .from("staff_members")
     .select(
-      "id, property_id, employee_code, full_name, role_label, access_level, department, status, can_login, can_access_desk",
+      "id, property_id, employee_code, full_name, role_label, access_level, department, status, can_login, can_access_desk, desk_role",
     )
     .eq("auth_user_id", user.id)
     .maybeSingle();
@@ -65,6 +67,7 @@ export async function getStaffSession(): Promise<StaffSession | null> {
     accessLevel: data.access_level as string,
     department: (data.department as string | null) ?? null,
     canAccessDesk: Boolean(data.can_access_desk),
+    deskRole: (data.desk_role as string | null) ?? null,
   };
 }
 

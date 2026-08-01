@@ -1,9 +1,11 @@
+import { IssueReceiptButton } from "@/components/erp/FolioOpsForms";
 import {
   FolioReceipt,
   type FolioReceiptData,
   type ReceiptLine,
 } from "@/components/erp/FolioReceipt";
 import { PrintButton } from "@/components/erp/PrintButton";
+import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -23,20 +25,44 @@ export default async function FolioReceiptPage({ params }: Props) {
 
   const { id } = await params;
   const admin = createSupabaseAdminClient();
+  const propertyId = await resolveActivePropertyId(admin);
 
   const { data: folio } = await admin
     .from("folios")
     .select(
-      "id, label, status, booking_id, created_at, folio_lines(description, amount_btn, total_btn, gst_btn, service_charge_btn, source_type, status)",
+      "id, label, status, booking_id, created_at, property_id, folio_lines(description, amount_btn, total_btn, gst_btn, service_charge_btn, source_type, status)",
     )
     .eq("id", id)
     .maybeSingle();
 
   if (!folio) notFound();
+  try {
+    assertDeskProperty(propertyId, folio.property_id as string, "Folio");
+  } catch {
+    notFound();
+  }
 
-  const propertyId = await resolveActivePropertyId(admin);
   const property = await loadProperty(admin, propertyId);
   if (!property) notFound();
+
+  const { data: receiptDoc } = await admin
+    .from("fiscal_documents")
+    .select("doc_no, payment_id")
+    .eq("folio_id", id)
+    .eq("doc_kind", "receipt")
+    .eq("status", "issued")
+    .order("issued_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: latestPayment } = await admin
+    .from("payments")
+    .select("id")
+    .eq("folio_id", id)
+    .eq("property_id", propertyId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   const rawLines = ((folio.folio_lines as {
     description: string;
@@ -65,6 +91,7 @@ export default async function FolioReceiptPage({ params }: Props) {
     label: (folio.label as string) ?? "Folio",
     bookingId: (folio.booking_id as string | null) ?? null,
     createdAt: (folio.created_at as string) ?? new Date().toISOString(),
+    docNo: (receiptDoc?.doc_no as string | undefined) ?? null,
     lines,
   };
 
@@ -89,6 +116,16 @@ export default async function FolioReceiptPage({ params }: Props) {
           <PrintButton label="Print receipt" />
         </div>
       </div>
+
+      <IssueReceiptButton
+        folioId={data.folioId}
+        receiptNo={data.docNo}
+        paymentId={
+          (receiptDoc?.payment_id as string | undefined) ??
+          (latestPayment?.id as string | undefined) ??
+          null
+        }
+      />
 
       <FolioReceipt
         data={data}

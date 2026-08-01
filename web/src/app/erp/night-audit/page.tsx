@@ -11,6 +11,7 @@ import { formatBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
@@ -30,7 +31,7 @@ export default async function ErpNightAuditPage() {
     admin
       .from("night_audits")
       .select(
-        "id, business_date, rooms_occupied, rooms_comp, folio_charges_btn, folio_payments_btn, open_folios, notes, created_at",
+        "id, business_date, rooms_occupied, rooms_comp, folio_charges_btn, folio_payments_btn, open_folios, notes, summary, created_at",
       )
       .eq("property_id", propertyId)
       .order("business_date", { ascending: false })
@@ -96,11 +97,27 @@ export default async function ErpNightAuditPage() {
               </p>
             ) : (
               <ul className="divide-y">
-                {(audits ?? []).map((a) => (
+                {(audits ?? []).map((a) => {
+                  const summary = (a.summary ?? {}) as {
+                    room_nights_posted?: number;
+                    room_nights_skipped?: number;
+                    room_night_errors?: string[];
+                  };
+                  const posted = summary.room_nights_posted ?? 0;
+                  const skipped = summary.room_nights_skipped ?? 0;
+                  return (
                   <li key={a.id as string} className="py-4 text-sm">
-                    <p className="font-medium text-foreground">
-                      {a.business_date as string}
-                    </p>
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <p className="font-medium text-foreground">
+                        {a.business_date as string}
+                      </p>
+                      <Link
+                        href={`/erp/night-audit/${a.id as string}/print`}
+                        className="text-xs font-medium text-accent underline-offset-4 hover:underline"
+                      >
+                        Print pack →
+                      </Link>
+                    </div>
                     <p className="mt-1 text-xs text-muted-foreground">
                       Sellable {a.rooms_occupied as number} · Comp {a.rooms_comp as number}{" "}
                       · Open folios {a.open_folios as number}
@@ -109,13 +126,18 @@ export default async function ErpNightAuditPage() {
                       Charges {formatBtn(Number(a.folio_charges_btn))} · Payments{" "}
                       {formatBtn(Number(a.folio_payments_btn))}
                     </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Room nights: {posted} posted
+                      {skipped > 0 ? ` · ${skipped} skipped (already posted)` : ""}
+                    </p>
                     {a.notes ? (
                       <p className="mt-1 text-xs text-muted-foreground">
                         {a.notes as string}
                       </p>
                     ) : null}
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             )}
           </CardContent>

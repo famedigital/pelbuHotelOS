@@ -1,6 +1,6 @@
-import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { cloudinaryMediaThumbUrl } from "@/lib/cloudinary";
+import { resolvePublicPropertyId } from "@/lib/tenant/resolve-public-property";
 
 /** Same remap as menu-loader — keep gallery thumbs off broken seed IDs. */
 const CMS_MEDIA_REMAP: Record<string, string> = {
@@ -78,20 +78,16 @@ function contentSections(value: unknown): CmsContentSection[] {
 }
 
 export async function loadCmsPage(slug: string): Promise<CmsPage | null> {
+  const propertyId = await resolvePublicPropertyId();
+  if (!propertyId) return null;
   const admin = createSupabaseAdminClient();
-  const { data: property } = await admin
-    .from("properties")
-    .select("id")
-    .eq("slug", PELBU_PROPERTY_SLUG)
-    .single();
-  if (!property) return null;
 
   const { data } = await admin
     .from("cms_pages")
     .select(
       "slug, eyebrow, title, body, hours_note, primary_cta_href, primary_cta_label, secondary_cta_href, secondary_cta_label, meta_description, seo_title, canonical_path, summary, faq_json, sections_json",
     )
-    .eq("property_id", property.id)
+    .eq("property_id", propertyId)
     .eq("slug", slug)
     .eq("is_published", true)
     .maybeSingle();
@@ -131,20 +127,16 @@ export async function loadCmsGallery(
   pageSlug: string,
   width = 960,
 ): Promise<CmsMediaItem[]> {
+  const propertyId = await resolvePublicPropertyId();
+  if (!propertyId) return [];
   const admin = createSupabaseAdminClient();
-  const { data: property } = await admin
-    .from("properties")
-    .select("id")
-    .eq("slug", PELBU_PROPERTY_SLUG)
-    .single();
-  if (!property) return [];
 
   const { data } = await admin
     .from("cms_media")
     .select(
       "id, public_id, alt, kind, sort_order, resource_type, poster_public_id",
     )
-    .eq("property_id", property.id)
+    .eq("property_id", propertyId)
     .eq("page_slug", pageSlug)
     .eq("is_published", true)
     .order("sort_order");

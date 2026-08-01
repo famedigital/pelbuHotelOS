@@ -1,9 +1,14 @@
 import "server-only";
 import { postSimpleEvent } from "@/lib/accounting/journals";
+import type { PeriodGuardOptions } from "@/lib/accounting/period-guard";
 import type { PostingResult } from "@/lib/accounting/types";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
+
+type PostingPeriodGuard = {
+  period_guard?: PeriodGuardOptions;
+};
 
 function todayIso(date?: string | null): string {
   if (date && /^\d{4}-\d{2}-\d{2}/.test(date)) return date.slice(0, 10);
@@ -21,7 +26,7 @@ export async function postFolioLine(
     total_btn: number;
     gst_btn: number;
     created_at?: string;
-  },
+  } & PostingPeriodGuard,
 ): Promise<PostingResult> {
   const source = line.source_type;
   const eventType =
@@ -44,6 +49,7 @@ export async function postFolioLine(
     gstBtn: Number(line.gst_btn ?? 0),
     memo: line.description ?? eventType,
     journalKind: "sales",
+    periodGuard: line.period_guard,
   });
 }
 
@@ -57,7 +63,7 @@ export async function postPayment(
     amount_btn: number;
     created_at?: string;
     notes?: string | null;
-  },
+  } & PostingPeriodGuard,
 ): Promise<PostingResult> {
   const kind = (payment.kind ?? "settlement").toLowerCase();
   let eventType = "payment.bank";
@@ -76,6 +82,33 @@ export async function postPayment(
     amountBtn: Number(payment.amount_btn),
     memo: payment.notes ?? `Payment ${payment.method}`,
     journalKind: "payment",
+    periodGuard: payment.period_guard,
+  });
+}
+
+/** Post a comp / allowance credit (folio line carries negative total_btn). */
+export async function postCompCredit(
+  admin: Admin,
+  propertyId: string,
+  line: {
+    id: string;
+    description: string | null;
+    total_btn: number;
+    created_at?: string;
+  } & PostingPeriodGuard,
+): Promise<PostingResult> {
+  const amountBtn = Math.abs(Number(line.total_btn));
+  if (amountBtn <= 0) return { ok: false, error: "Comp amount must be positive." };
+
+  return postSimpleEvent(admin, propertyId, {
+    eventType: "folio_line.comp",
+    sourceTable: "folio_lines",
+    sourceId: line.id,
+    journalDate: todayIso(line.created_at),
+    amountBtn,
+    memo: line.description ?? "Comp credit",
+    journalKind: "sales",
+    periodGuard: line.period_guard,
   });
 }
 
@@ -90,7 +123,7 @@ export async function postExpense(
     gst_btn?: number;
     expense_date: string;
     payment_method?: string;
-  },
+  } & PostingPeriodGuard,
 ): Promise<PostingResult> {
   const category = expense.category.toLowerCase();
   const allowed = new Set([
@@ -117,6 +150,7 @@ export async function postExpense(
     gstBtn: Number(expense.gst_btn ?? 0),
     memo: expense.description,
     journalKind: "expense",
+    periodGuard: expense.period_guard,
   });
 
   if (result.ok && expense.payment_method === "cash" && result.journalId) {

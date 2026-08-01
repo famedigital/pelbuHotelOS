@@ -3,6 +3,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 
+import { GuestBlacklistForm } from "@/components/erp/GuestBlacklistForm";
 import { DataTable } from "@/components/ui/data-table";
 
 export type GuestStay = {
@@ -19,6 +20,8 @@ export type GuestStay = {
   status: string;
   guest_origin: string | null;
   stay_count: number;
+  blacklisted?: boolean;
+  blacklist_reason?: string | null;
 };
 
 function fmtDate(iso: string | null): string {
@@ -127,16 +130,35 @@ const columns: ColumnDef<GuestStay>[] = [
     meta: { className: "px-3" },
   },
   {
+    id: "flags",
+    header: "Flags",
+    cell: ({ row }) =>
+      row.original.blacklisted ? (
+        <span className="inline-flex rounded-full border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-[10px] font-medium tracking-wide text-destructive uppercase">
+          Blacklist
+        </span>
+      ) : (
+        <span className="text-xs text-muted-foreground">—</span>
+      ),
+    enableSorting: false,
+    meta: { className: "px-3" },
+  },
+  {
     id: "actions",
     header: () => <span className="sr-only">Actions</span>,
     cell: ({ row }) => (
-      <div className="text-right">
+      <div className="space-y-1 text-right">
         <Link
           href={`/erp/check-in?id=${row.original.booking_id}`}
           className="text-sm text-accent underline-offset-4 hover:underline"
         >
           Open →
         </Link>
+        <GuestBlacklistForm
+          guestId={row.original.guestId}
+          blacklisted={Boolean(row.original.blacklisted)}
+          reason={row.original.blacklist_reason ?? null}
+        />
       </div>
     ),
     enableSorting: false,
@@ -178,12 +200,22 @@ export function GuestsTable({ data }: { data: GuestStay[] }) {
                 {fmtDate(row.check_in)} → {fmtDate(row.check_out)} · {row.stay_count}{" "}
                 stays
               </p>
+              {row.blacklisted ? (
+                <p className="mt-2 text-xs font-medium text-destructive">
+                  Blacklisted{row.blacklist_reason ? `: ${row.blacklist_reason}` : ""}
+                </p>
+              ) : null}
               <Link
                 href={`/erp/check-in?id=${row.booking_id}`}
                 className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-accent/30 bg-accent/10 text-sm font-medium text-accent"
               >
                 Open →
               </Link>
+              <GuestBlacklistForm
+                guestId={row.guestId}
+                blacklisted={Boolean(row.blacklisted)}
+                reason={row.blacklist_reason ?? null}
+              />
             </article>
           ))
         )}

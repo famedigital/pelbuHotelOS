@@ -1,6 +1,7 @@
 "use server";
 
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { isDeskAuthenticated, requireMoneyDesk } from "@/lib/desk-auth";
+import { postFolioPaymentRecord, rollbackFolioPaymentRecord } from "@/lib/folio/post-payment";
 import { roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -190,7 +191,7 @@ export async function updateAgentDeskStatus(
   formData: FormData,
 ): Promise<ErpAgentState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const admin = createSupabaseAdminClient();
     const agentId = trimRequired(formData.get("agent_id"), "Agent");
     const status = trimRequired(formData.get("status"), "Status").toLowerCase();
@@ -231,7 +232,7 @@ export async function setAgentCreditLimit(
   formData: FormData,
 ): Promise<ErpAgentState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const admin = createSupabaseAdminClient();
     const propId = await propertyId(admin);
     const agentId = trimRequired(formData.get("agent_id"), "Agent");
@@ -285,7 +286,7 @@ export async function recordAgentCreditPayment(
   formData: FormData,
 ): Promise<ErpAgentState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const admin = createSupabaseAdminClient();
     const propId = await propertyId(admin);
     const agentId = trimRequired(formData.get("agent_id"), "Agent");
@@ -295,6 +296,7 @@ export async function recordAgentCreditPayment(
       throw new Error("Payment amount must be greater than zero.");
     }
     const note = optionalTrim(formData.get("note"));
+    const idempotencyKey = optionalTrim(formData.get("idempotency_key"));
 
     const { data: agent, error: fetchError } = await admin
       .from("agents")
@@ -303,42 +305,76 @@ export async function recordAgentCreditPayment(
       .single();
     if (fetchError || !agent) throw new Error("Agent not found.");
 
+    if (idempotencyKey) {
+      const { data: existingPay } = await admin
+        .from("payments")
+        .select("id")
+        .eq("property_id", propId)
+        .eq("idempotency_key", idempotencyKey)
+        .maybeSingle();
+      if (existingPay?.id) {
+        const { data: ledger } = await admin
+          .from("agent_credit_ledger")
+          .select("id")
+          .eq("payment_id", existingPay.id as string)
+          .maybeSingle();
+        if (ledger) {
+          revalidateAgents();
+          return { ok: true, message: "Payment already recorded." };
+        }
+      }
+    }
+
     const used = Number(agent.credit_used ?? 0);
     const nextUsed = roundBtn(Math.max(0, used - amount));
 
-    const { data: payment, error: payError } = await admin
-      .from("payments")
-      .insert({
-        property_id: propId,
-        method: "bank",
-        amount_btn: amount,
-        reference: "agent_credit_payment",
-        notes:
-          note ??
-          `Agent credit payment — ${(agent.company_name as string) ?? agentId}`,
-      })
-      .select("id")
-      .single();
+    const pay = await postFolioPaymentRecord(admin, {
+      property_id: propId,
+      method: "bank",
+      kind: "settlement",
+      amount_btn: amount,
+      reference: "agent_credit_payment",
+      notes:
+        note ??
+        `Agent credit payment — ${(agent.company_name as string) ?? agentId}`,
+      idempotency_key:
+        idempotencyKey ?? `agent_credit_payment:${agentId}:${amount}`,
+    });
 
-    if (payError || !payment) {
-      console.error("agent credit payment row failed", payError);
+    if (pay.alreadyExists) {
+      const { data: ledger } = await admin
+        .from("agent_credit_ledger")
+        .select("id")
+        .eq("payment_id", pay.paymentId)
+        .maybeSingle();
+      if (ledger) {
+        revalidateAgents();
+        return { ok: true, message: "Payment already recorded." };
+      }
     }
 
-    const { error } = await admin
-      .from("agents")
-      .update({ credit_used: nextUsed })
-      .eq("id", agentId);
-    if (error) throw new Error("Could not update credit used.");
+    try {
+      const { error } = await admin
+        .from("agents")
+        .update({ credit_used: nextUsed })
+        .eq("id", agentId);
+      if (error) throw new Error("Could not update credit used.");
 
-    await appendLedger(admin, {
-      propertyId: propId,
-      agentId,
-      entryType: "payment",
-      amountBtn: -amount,
-      balanceAfterBtn: nextUsed,
-      note: note ?? "Credit payment received",
-      paymentId: payment?.id ?? null,
-    });
+      await appendLedger(admin, {
+        propertyId: propId,
+        agentId,
+        entryType: "payment",
+        amountBtn: -amount,
+        balanceAfterBtn: nextUsed,
+        note: note ?? "Credit payment received",
+        paymentId: pay.paymentId,
+      });
+    } catch (err) {
+      if (!pay.alreadyExists) {
+        await rollbackFolioPaymentRecord(admin, propId, pay.paymentId);
+      }
+      throw err;
+    }
 
     revalidateAgents();
     return {
@@ -434,7 +470,7 @@ export async function upsertRoomRate(
   formData: FormData,
 ): Promise<ErpAgentState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const admin = createSupabaseAdminClient();
     const propId = await propertyId(admin);
 
@@ -590,7 +626,7 @@ export async function approveAgent(
   formData: FormData,
 ): Promise<ErpAgentState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const admin = createSupabaseAdminClient();
     const agentId = trimRequired(formData.get("agent_id"), "Agent");
     const rateTierRaw = optionalTrim(formData.get("rate_tier"));
@@ -657,7 +693,7 @@ export async function rejectAgent(
   formData: FormData,
 ): Promise<ErpAgentState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const admin = createSupabaseAdminClient();
     const agentId = trimRequired(formData.get("agent_id"), "Agent");
     const { error } = await admin

@@ -7,6 +7,10 @@
     {
       "path": "/api/staff/notifications/drain",
       "schedule": "20 2 * * *"
+    },
+    {
+      "path": "/api/cron/night-audit",
+      "schedule": "0 18 * * *"
     }
   ]
 }

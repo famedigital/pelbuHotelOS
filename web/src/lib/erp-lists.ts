@@ -1,14 +1,29 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { resolveActivePropertyId } from "@/lib/property-context";
 
+/** Business date YYYY-MM-DD in an IANA timezone (falls back to Asia/Thimphu). */
+export function todayInTimezone(timeZone?: string | null): string {
+  const tz = timeZone?.trim() || "Asia/Thimphu";
+  try {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+  } catch {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Thimphu",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+  }
+}
+
 /** Asia/Thimphu business date YYYY-MM-DD. */
 export function thimphuToday(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Thimphu",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
+  return todayInTimezone("Asia/Thimphu");
 }
 
 /**

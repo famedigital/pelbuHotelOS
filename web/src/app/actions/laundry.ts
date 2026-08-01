@@ -10,6 +10,7 @@ import {
   hashLaundryToken,
   setLaundrySessionCookie,
 } from "@/lib/laundry-session";
+import { autoPrepareDefaultBag } from "@/lib/laundry/prepare-default-bag";
 import {
   isLaundryPhotoId,
   normalizeGuestName,
@@ -303,6 +304,12 @@ export async function submitGuestLaundry(
       photo_public_ids: photos,
       actor_kind: "guest",
     });
+    await autoPrepareDefaultBag(
+      admin,
+      session.propertyId,
+      order.id as string,
+      "front_desk",
+    );
     revalidatePath("/laundry");
     revalidatePath("/erp/laundry");
     revalidatePath("/staff/laundry");

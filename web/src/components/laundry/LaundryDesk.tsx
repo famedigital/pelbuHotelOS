@@ -2,11 +2,14 @@
 
 import {
   assignLaundryOrder,
+  cancelLaundryOrder,
   createDeskLaundryOrder,
   reopenLaundryCorrection,
   saveLaundryCatalogItem,
+  voidDeskLaundryBag,
   type ErpLaundryState,
 } from "@/app/actions/erp-laundry";
+import type { LaundryBagState } from "@/app/actions/laundry-bags";
 import { LaundryBagPrepareForm } from "@/components/laundry/LaundryBagPrepareForm";
 import { LaundryLiveRefresh } from "@/components/laundry/LaundryLiveRefresh";
 import { LaundryPhotoUpload } from "@/components/laundry/LaundryPhotoUpload";
@@ -35,7 +38,7 @@ import { cloudinaryUrl } from "@/lib/cloudinary";
 import { formatBtn } from "@/lib/pricing";
 import { MinusIcon, PlusIcon, PrinterIcon } from "lucide-react";
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 
 const initial: ErpLaundryState = { ok: false };
 
@@ -86,6 +89,7 @@ export function LaundryDesk({
           catalog={catalog}
           bookings={bookings}
           bookingsError={bookingsError}
+          staff={staff}
         />
       </TabsContent>
       <TabsContent value="pricing">
@@ -187,22 +191,42 @@ function DeskBoard({
             </div>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button asChild size="sm" variant="outline">
-              <Link href={`/erp/laundry/orders/${order.id}/labels`}>
-                <PrinterIcon className="size-3.5" />
-                Bag labels
-              </Link>
-            </Button>
+            {bags.length ? (
+              <Button asChild size="sm" variant="citrus">
+                <Link href={`/erp/laundry/orders/${order.id}/labels`}>
+                  <PrinterIcon className="size-3.5" />
+                  Print bag QR
+                </Link>
+              </Button>
+            ) : (
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/erp/laundry/orders/${order.id}/labels`}>
+                  <PrinterIcon className="size-3.5" />
+                  Bag labels
+                </Link>
+              </Button>
+            )}
           </div>
-          <div className="mt-3">
-            <LaundryBagPrepareForm
-              orderId={order.id}
-              items={order.laundry_order_items}
-              existingBags={bags}
-              mode="desk"
-              staffOptions={staff}
-            />
-          </div>
+          <details className="mt-3 rounded-lg border px-3 py-2">
+            <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
+              Advanced: split across bags
+            </summary>
+            <div className="mt-3">
+              <LaundryBagPrepareForm
+                orderId={order.id}
+                items={order.laundry_order_items}
+                existingBags={bags}
+                mode="desk"
+                staffOptions={staff}
+              />
+            </div>
+          </details>
+          {bags.map((bag) => (
+            <VoidBagForm key={bag.id} bagId={bag.id} bagCode={bag.public_code} />
+          ))}
+          {order.status !== "delivered" && order.status !== "cancelled" ? (
+            <CancelOrderForm orderId={order.id} billed={Boolean(order.billed_at)} />
+          ) : null}
           {order.billed_at && order.status !== "delivered" ? (
             <CorrectionForm orderId={order.id} />
           ) : null}
@@ -293,10 +317,12 @@ function ReceptionIntake({
   catalog,
   bookings,
   bookingsError,
+  staff,
 }: {
   catalog: LaundryCatalogItem[];
   bookings: LaundryBookingOption[];
   bookingsError?: string | null;
+  staff: StaffOption[];
 }) {
   const [state, action, pending] = useActionState(
     createDeskLaundryOrder,
@@ -313,6 +339,8 @@ function ReceptionIntake({
   const [guestName, setGuestName] = useState("");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [photos, setPhotos] = useState<string[]>([]);
+  const activeCatalog = catalog.filter((item) => item.is_active);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
   const lines = Object.entries(quantities)
     .filter(([, qty]) => qty > 0)
     .map(([catalogItemId, qty]) => ({ catalogItemId, qty }));
@@ -351,6 +379,11 @@ function ReceptionIntake({
         />
         <input type="hidden" name="guest_name" value={guestName} />
         <input type="hidden" name="items" value={JSON.stringify(lines)} />
+        <input
+          type="hidden"
+          name="prepared_by_staff_id"
+          value={staff[0]?.id ?? ""}
+        />
         <input
           type="hidden"
           name="photo_public_ids"
@@ -417,11 +450,34 @@ function ReceptionIntake({
         </div>
 
         <div className="space-y-2">
-          <Label>Garments received</Label>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Label>Garments received</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setShowQuickAdd((value) => !value)}
+              >
+                {showQuickAdd ? "Hide add type" : "Add cloth type"}
+              </Button>
+            </div>
+          </div>
+          {activeCatalog.length === 0 ? (
+            <Alert>
+              <AlertDescription>
+                No garment types in the catalog yet — add your first type below,
+                or open the{" "}
+                <span className="font-medium">Pricing</span> tab for the full
+                list.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {showQuickAdd ? (
+            <QuickAddCatalogForm onSaved={() => setShowQuickAdd(false)} />
+          ) : null}
           <div className="grid gap-2 sm:grid-cols-2">
-            {catalog
-              .filter((item) => item.is_active)
-              .map((item) => (
+            {activeCatalog.map((item) => (
                 <div
                   key={item.id}
                   className="flex min-h-14 items-center justify-between rounded-lg border px-3"
@@ -494,14 +550,30 @@ function ReceptionIntake({
         ) : null}
         {state.message ? (
           <Alert>
-            <AlertDescription>{state.message}</AlertDescription>
+            <AlertDescription>
+              {state.message}{" "}
+              {state.labelsUrl ? (
+                <Button asChild size="sm" variant="citrus" className="ml-2">
+                  <Link href={state.labelsUrl}>
+                    <PrinterIcon className="size-3.5" />
+                    Print bag QR
+                  </Link>
+                </Button>
+              ) : null}
+            </AlertDescription>
           </Alert>
         ) : null}
         <Button
           type="submit"
           variant="citrus"
           className="min-h-11"
-          disabled={pending || !selected || !guestName || lines.length === 0}
+          disabled={
+            pending ||
+            !selected ||
+            !guestName ||
+            lines.length === 0 ||
+            activeCatalog.length === 0
+          }
         >
           {pending ? "Creating…" : "Create laundry order"}
         </Button>
@@ -580,6 +652,149 @@ function InHouseStatus({
   return null;
 }
 
+function QuickAddCatalogForm({ onSaved }: { onSaved?: () => void }) {
+  const [state, action, pending] = useActionState(
+    saveLaundryCatalogItem,
+    initial,
+  );
+  const [gstApplicable, setGstApplicable] = useState(true);
+  useEffect(() => {
+    if (state.ok && state.message) onSaved?.();
+  }, [state.ok, state.message, onSaved]);
+  return (
+    <form
+      action={action}
+      className="space-y-3 rounded-lg border border-dashed bg-secondary/30 p-3"
+    >
+      <input type="hidden" name="item_id" value="" />
+      <input type="hidden" name="is_active" value="1" />
+      <input type="hidden" name="gst_applicable" value={gstApplicable ? "1" : "0"} />
+      <p className="text-sm font-medium">Quick add garment type</p>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="space-y-1 sm:col-span-2">
+          <Label htmlFor="quick-catalog-name">Name</Label>
+          <Input
+            id="quick-catalog-name"
+            name="name"
+            placeholder="e.g. Shirt, Trouser, Bedsheet"
+            required
+          />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="quick-catalog-price">Price (Nu)</Label>
+          <Input
+            id="quick-catalog-price"
+            name="price_btn"
+            type="number"
+            min="0"
+            step="0.01"
+            required
+          />
+        </div>
+      </div>
+      <input type="hidden" name="category" value="clothing" />
+      <input type="hidden" name="unit_label" value="piece" />
+      <input type="hidden" name="turnaround_hours" value="24" />
+      <input type="hidden" name="sort_order" value="0" />
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="quick-catalog-gst"
+          checked={gstApplicable}
+          onCheckedChange={(checked) => setGstApplicable(checked === true)}
+        />
+        <Label htmlFor="quick-catalog-gst">GST applies</Label>
+      </div>
+      {state.error ? (
+        <p className="text-xs text-destructive">{state.error}</p>
+      ) : null}
+      {state.message ? (
+        <p className="text-xs text-muted-foreground">{state.message}</p>
+      ) : null}
+      <Button type="submit" size="sm" disabled={pending}>
+        {pending ? "Saving…" : "Save type"}
+      </Button>
+    </form>
+  );
+}
+
+const bagInitial: LaundryBagState = { ok: false };
+
+function VoidBagForm({
+  bagId,
+  bagCode,
+}: {
+  bagId: string;
+  bagCode: string;
+}) {
+  const [state, action, pending] = useActionState(voidDeskLaundryBag, bagInitial);
+  return (
+    <details className="mt-2 text-xs">
+      <summary className="cursor-pointer text-muted-foreground">
+        Void bag {bagCode}
+      </summary>
+      <form action={action} className="mt-2 space-y-2">
+        <input type="hidden" name="bag_id" value={bagId} />
+        <Input name="reason" placeholder="Void reason" maxLength={200} required />
+        {state.error ? (
+          <p className="text-destructive">{state.error}</p>
+        ) : null}
+        {state.message ? (
+          <p className="text-muted-foreground">{state.message}</p>
+        ) : null}
+        <Button type="submit" size="sm" variant="destructive" disabled={pending}>
+          {pending ? "Voiding…" : "Void bag label"}
+        </Button>
+      </form>
+    </details>
+  );
+}
+
+function CancelOrderForm({
+  orderId,
+  billed,
+}: {
+  orderId: string;
+  billed: boolean;
+}) {
+  const [state, action, pending] = useActionState(cancelLaundryOrder, initial);
+  return (
+    <details className="mt-3 border-t pt-3">
+      <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
+        Cancel laundry order
+      </summary>
+      <form action={action} className="mt-3 space-y-2">
+        <input type="hidden" name="order_id" value={orderId} />
+        <Input
+          name="reason"
+          placeholder="Required cancel reason"
+          maxLength={300}
+          required
+        />
+        {billed ? (
+          <p className="text-xs text-muted-foreground">
+            This order was billed — cancelling will void the folio charge and
+            reverse the ledger entry.
+          </p>
+        ) : null}
+        {state.error ? (
+          <p className="text-xs text-destructive">{state.error}</p>
+        ) : null}
+        {state.message ? (
+          <p className="text-xs text-muted-foreground">{state.message}</p>
+        ) : null}
+        <Button
+          type="submit"
+          variant="destructive"
+          size="sm"
+          disabled={pending}
+        >
+          {pending ? "Cancelling…" : "Cancel order"}
+        </Button>
+      </form>
+    </details>
+  );
+}
+
 function CatalogManager({ catalog }: { catalog: LaundryCatalogItem[] }) {
   const [selectedId, setSelectedId] = useState<string>("__new__");
   const selected = catalog.find((item) => item.id === selectedId);
@@ -619,10 +834,12 @@ function CatalogForm({ item }: { item?: LaundryCatalogItem }) {
     saveLaundryCatalogItem,
     initial,
   );
+  const [gstApplicable, setGstApplicable] = useState(item?.gst_applicable ?? true);
   return (
     <form action={action} className="rounded-xl border bg-card p-5">
       <input type="hidden" name="item_id" value={item?.id ?? ""} />
       <input type="hidden" name="is_active" value={item?.is_active === false ? "0" : "1"} />
+      <input type="hidden" name="gst_applicable" value={gstApplicable ? "1" : "0"} />
       <h2 className="text-lg font-semibold">
         {item ? `Edit ${item.name}` : "Add laundry service"}
       </h2>
@@ -686,8 +903,8 @@ function CatalogForm({ item }: { item?: LaundryCatalogItem }) {
       <div className="mt-4 flex items-center gap-2">
         <Checkbox
           id="catalog-gst"
-          name="gst_applicable"
-          defaultChecked={item?.gst_applicable ?? true}
+          checked={gstApplicable}
+          onCheckedChange={(checked) => setGstApplicable(checked === true)}
         />
         <Label htmlFor="catalog-gst">GST applies</Label>
       </div>

@@ -14,10 +14,10 @@
 | Desk property switcher | Yes |
 | CMS pages / media per property | Partially (front-public) |
 | `template_id` (flagship = 1) | Yes |
-| Host → property routing | **No** |
-| Tenant org / billing / seats | **No** |
-| Custom domain certificate automation | **No** |
-| Isolated tenant admin users | **Partial** (staff per property; shared DESK_PIN is not SaaS-grade) |
+| Host → property routing | **Shipped foundation 2026-08-02** — `properties.public_host` / `desk_host` + middleware `x-pelbu-property-*` via `resolvePropertyIdFromHost`; public CMS prefers Host then flagship |
+| Tenant org / billing / seats | **Deepened 2026-08-02** — billing_email, seats_used, domain_verify_token, host cert status UI; Stripe / auto Vercel API still **No** |
+| Custom domain certificate automation | **Partial** — TXT token + cert status pending/verified in Settings; Vercel domains API still manual |
+| Isolated tenant admin users | **Partial** — staff Auth per property + `desk_role`; **never share DESK_PIN across hotels**. Shared DESK_PIN retired in prod unless `ALLOW_DESK_PIN_IN_PROD=1` (single-hotel escape hatch only) |
 
 White-label is mostly a **routing + tenancy + billing** problem on top of the current schema — not a rewrite.
 
@@ -89,14 +89,16 @@ Many Bhutan registrars offer “URL forward” (HTTP 302 to another URL). That *
 ### 4.1 Tables (add)
 
 ```text
-tenants                -- org / chain (BTCL is one tenant)
-  id, name, billing_status, plan, …
+tenants                -- org / chain (BTCL is one tenant)  [Wave 4 shipped]
+  id, name, slug, plan, seat_limit, billing_status, billing_notes, …
 
-tenant_members         -- who can admin the tenant
-  tenant_id, user_id, role
+tenant_members         -- who can admin the tenant  [Wave 4 shipped]
+  tenant_id, user_id, role (owner|admin)
 
-properties             -- already exists; add tenant_id
-property_hostnames     -- NEW
+properties             -- already exists; tenant_id nullable FK  [Wave 4]
+properties.public_host / desk_host  -- Host map (shipped; preferred over separate property_hostnames for MVP)
+
+property_hostnames     -- OPTIONAL later if many aliases per property
   hostname text primary key
   property_id uuid not null
   kind text check (kind in ('public','desk','marketing'))
@@ -135,11 +137,11 @@ return NextResponse.next({ request: { headers } });
 | Audience | Entry | Session |
 |----------|-------|---------|
 | Platform marketing | `os.pelbu.bt/login` | Chooses tenant → desk host |
-| Hotel desk | `desk.hotel.bt/erp/login` | Staff Auth **required**; retire shared DESK_PIN for SaaS tenants |
+| Hotel desk | `desk.hotel.bt/erp/login` | Staff Auth **required** per property; **never** share one `DESK_PIN` across hotels |
 | Guest | `www.hotel.bt` | No desk auth |
 | Agent | `www.hotel.bt/agents` or `agents.hotel.bt` | Agent Auth scoped to property |
 
-Shared `DESK_PIN` is fine for **single-hotel Pelbu** ops. It is **not** acceptable for paying tenants.
+Shared `DESK_PIN` is an **Olakha-only** escape hatch (`ALLOW_DESK_PIN_IN_PROD=1`). It is **not** acceptable for paying / multi-hotel tenants — use named staff Auth with `can_access_desk` + `desk_role`.
 
 ### 4.5 Data isolation
 
@@ -183,10 +185,10 @@ Ship Host routing + staff Auth **before** fancy billing. Billing without isolati
 
 ### MVP (one pilot hotel, not Pelbu)
 
-1. Migration: `tenants`, `property_hostnames`, `properties.tenant_id`.  
-2. Middleware host resolve + `x-property-id`.  
-3. Public pages read CMS by header property.  
-4. Desk host forces `/erp`; staff Auth only (no DESK_PIN).  
+1. Migration: `tenants`, `properties.tenant_id`, `tenant_members` — **done Wave 4**; Host columns on `properties` (not separate `property_hostnames` yet).  
+2. Middleware host resolve + `x-property-id` — **done** (`x-pelbu-property-*`).  
+3. Public pages read CMS by header property — **partial** (Host then flagship).  
+4. Desk host forces `/erp`; staff Auth only (no DESK_PIN) — **partial** (PIN escape hatch for Olakha only).  
 5. Vercel domain attach runbook (manual is OK for pilot).  
 6. Seed clone-from-template-1 script.
 

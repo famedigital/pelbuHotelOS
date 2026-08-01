@@ -6,15 +6,20 @@ import {
 } from "@/app/actions/erp-agents";
 import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
   SheetDescription,
+  SheetFooter,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 import { PlusIcon } from "lucide-react";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 
@@ -26,6 +31,33 @@ export type BookableAgent = {
 };
 
 const createInitial: CreateDeskAgentState = { ok: false };
+
+const fieldSelectClass =
+  "border-input flex h-10 w-full min-w-0 rounded-md border bg-transparent px-3 text-base shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 md:h-9 md:text-sm";
+
+function Field({
+  label,
+  htmlFor,
+  children,
+  hint,
+}: {
+  label: string;
+  htmlFor: string;
+  children: React.ReactNode;
+  hint?: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={htmlFor} className="text-sm font-medium text-foreground">
+        {label}
+      </Label>
+      {children}
+      {hint ? (
+        <p className="text-xs text-muted-foreground">{hint}</p>
+      ) : null}
+    </div>
+  );
+}
 
 function AddAgentButton({
   onClick,
@@ -60,8 +92,16 @@ function CreateDeskAgentSheet({
   seedCompanyName: string;
   onCreated: (agent: BookableAgent) => void;
 }) {
+  const isMobile = useIsMobile();
   const [state, action, pending] = useActionState(createDeskAgent, createInitial);
+  const [wantsMou, setWantsMou] = useState(false);
   const handledId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setWantsMou(false);
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!state.ok || !state.agent) return;
@@ -73,118 +113,162 @@ function CreateDeskAgentSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="erp w-full sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle>Add agent</SheetTitle>
-          <SheetDescription>
+      <SheetContent
+        side={isMobile ? "bottom" : "right"}
+        className={cn(
+          "erp gap-0 p-0",
+          isMobile
+            ? "flex h-[min(92dvh,40rem)] w-full flex-col rounded-t-2xl border-t sm:max-w-none"
+            : "inset-y-0 flex h-full w-full max-w-[100vw] flex-col border-l sm:max-w-md",
+        )}
+      >
+        <SheetHeader className="shrink-0 space-y-1.5 border-b px-5 py-5 pr-12 text-left">
+          <SheetTitle className="text-lg tracking-tight">Add agent</SheetTitle>
+          <SheetDescription className="text-pretty text-sm leading-relaxed">
             Creates an approved trade partner you can attach to this booking
             immediately.
           </SheetDescription>
         </SheetHeader>
 
-        <form action={action} className="mt-6 space-y-4">
-          {state.error ? (
-            <p className="text-sm text-destructive" role="alert">
-              {state.error}
-            </p>
-          ) : null}
+        <form action={action} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-5 py-5">
+            {state.error ? (
+              <p
+                className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+                role="alert"
+              >
+                {state.error}
+              </p>
+            ) : null}
 
-          <div className="space-y-1.5">
-            <Label htmlFor="desk_agent_company">Company name</Label>
-            <Input
-              id="desk_agent_company"
-              name="company_name"
-              required
-              defaultValue={seedCompanyName}
-              key={seedCompanyName}
-              autoComplete="organization"
-            />
+            <Field label="Company name" htmlFor="desk_agent_company">
+              <Input
+                id="desk_agent_company"
+                name="company_name"
+                required
+                defaultValue={seedCompanyName}
+                key={seedCompanyName || "empty"}
+                autoComplete="organization"
+                placeholder="Agency / operator name"
+                className="h-10 md:h-9"
+              />
+            </Field>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field label="Market" htmlFor="desk_agent_market">
+                <select
+                  id="desk_agent_market"
+                  name="market"
+                  required
+                  defaultValue="bhutan"
+                  className={fieldSelectClass}
+                >
+                  <option value="bhutan">Bhutan</option>
+                  <option value="jaigaon">Jaigaon</option>
+                  <option value="india">India</option>
+                </select>
+              </Field>
+
+              <Field label="Status" htmlFor="desk_agent_status">
+                <select
+                  id="desk_agent_status"
+                  name="status"
+                  defaultValue="approved"
+                  className={fieldSelectClass}
+                >
+                  <option value="approved">Approved</option>
+                  <option value="demo">Demo</option>
+                </select>
+              </Field>
+            </div>
+
+            <Field label="Contact name" htmlFor="desk_agent_contact">
+              <Input
+                id="desk_agent_contact"
+                name="contact_name"
+                required
+                autoComplete="name"
+                placeholder="Primary contact"
+                className="h-10 md:h-9"
+              />
+            </Field>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field label="Phone" htmlFor="desk_agent_phone">
+                <Input
+                  id="desk_agent_phone"
+                  name="contact_phone"
+                  type="tel"
+                  required
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="+975…"
+                  className="h-10 md:h-9"
+                />
+              </Field>
+
+              <Field label="Email" htmlFor="desk_agent_email" hint="Optional">
+                <Input
+                  id="desk_agent_email"
+                  name="contact_email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder="ops@…"
+                  className="h-10 md:h-9"
+                />
+              </Field>
+            </div>
+
+            <Field label="Notes" htmlFor="desk_agent_notes" hint="Optional">
+              <Textarea
+                id="desk_agent_notes"
+                name="notes"
+                rows={3}
+                placeholder="MoU terms, preferred rooms, billing notes…"
+                className="min-h-[4.5rem] resize-y"
+              />
+            </Field>
+
+            <label className="flex items-start gap-3 rounded-md border border-border/80 bg-muted/30 px-3 py-3 text-sm">
+              <Checkbox
+                checked={wantsMou}
+                onCheckedChange={(v) => setWantsMou(v === true)}
+                className="mt-0.5"
+              />
+              <input
+                type="hidden"
+                name="wants_mou"
+                value={wantsMou ? "on" : ""}
+              />
+              <span>
+                <span className="font-medium text-foreground">MoU interest</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  Flag for allotment / contract follow-up.
+                </span>
+              </span>
+            </label>
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="desk_agent_market">Market</Label>
-            <select
-              id="desk_agent_market"
-              name="market"
-              required
-              defaultValue="bhutan"
-              className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          <SheetFooter className="mt-0 shrink-0 flex-col gap-2 border-t bg-background px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:flex-row sm:justify-stretch">
+            <Button
+              type="submit"
+              variant="citrus"
+              disabled={pending}
+              className="h-11 w-full sm:order-2 sm:flex-1"
             >
-              <option value="bhutan">Bhutan</option>
-              <option value="jaigaon">Jaigaon</option>
-              <option value="india">India</option>
-            </select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="desk_agent_contact">Contact name</Label>
-            <Input
-              id="desk_agent_contact"
-              name="contact_name"
-              required
-              autoComplete="name"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="desk_agent_phone">Phone</Label>
-            <Input
-              id="desk_agent_phone"
-              name="contact_phone"
-              type="tel"
-              required
-              inputMode="tel"
-              autoComplete="tel"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="desk_agent_email">Email</Label>
-            <Input
-              id="desk_agent_email"
-              name="contact_email"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="desk_agent_status">Status</Label>
-            <select
-              id="desk_agent_status"
-              name="status"
-              defaultValue="approved"
-              className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            >
-              <option value="approved">Approved</option>
-              <option value="demo">Demo</option>
-            </select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="desk_agent_notes">Notes</Label>
-            <Input id="desk_agent_notes" name="notes" />
-          </div>
-
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="wants_mou" value="on" className="size-4" />
-            MoU interest
-          </label>
-
-          <div className="flex gap-2 pt-2">
-            <Button type="submit" variant="citrus" disabled={pending} className="flex-1">
               {pending ? "Saving…" : "Create & select"}
             </Button>
             <Button
               type="button"
               variant="outline"
               disabled={pending}
+              className="h-11 w-full sm:order-1 sm:w-auto sm:min-w-[6.5rem]"
               onClick={() => onOpenChange(false)}
             >
               Cancel
             </Button>
-          </div>
+          </SheetFooter>
         </form>
       </SheetContent>
     </Sheet>

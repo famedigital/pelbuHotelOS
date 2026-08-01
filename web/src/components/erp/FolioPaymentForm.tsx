@@ -1,6 +1,7 @@
 "use client";
 
 import { postFolioPayment, type PaymentState } from "@/app/actions/erp-pos";
+import { PeriodOverrideFields } from "@/components/erp/PeriodOverrideFields";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { TriangleAlertIcon } from "lucide-react";
 import { formatBtn } from "@/lib/pricing";
-import { useActionState } from "react";
+import { useActionState, useRef } from "react";
 
 const initial: PaymentState = { ok: false };
 
@@ -20,6 +21,11 @@ export function FolioPaymentForm({
   suggestedAmount: number;
 }) {
   const [state, action, pending] = useActionState(postFolioPayment, initial);
+  const idempotencyKey = useRef(
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `folio-pay-${folioId}-${Date.now()}`,
+  );
 
   if (state.ok) {
     return (
@@ -50,6 +56,11 @@ export function FolioPaymentForm({
         </Alert>
       ) : null}
       <input type="hidden" name="folio_id" value={folioId} />
+      <input
+        type="hidden"
+        name="idempotency_key"
+        value={idempotencyKey.current}
+      />
 
       <div className="flex items-baseline justify-between gap-3 border-b pb-3">
         <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
@@ -115,6 +126,8 @@ export function FolioPaymentForm({
           <Textarea id="notes" name="notes" rows={2} />
         </div>
       </div>
+
+      <PeriodOverrideFields idPrefix={`pay-${folioId.slice(0, 8)}`} />
 
       <Button
         type="submit"

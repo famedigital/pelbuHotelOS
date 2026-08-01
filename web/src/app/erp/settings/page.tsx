@@ -1,9 +1,14 @@
 import { FinanceImportsSettings } from "@/components/erp/finance/FinanceImportsSettings";
 import {
+  issueHostDomainVerify,
+  markHostDomainVerified,
   saveRoomTypeSettings,
   updatePropertyDocumentDesign,
+  updatePropertyHosts,
   updatePropertyIdentity,
   updatePropertyTaxSettings,
+  updateTenantBilling,
+  updateTenantName,
 } from "@/app/actions/erp-settings";
 import { PropertyWizardForm } from "@/components/erp/PropertyWizardForms";
 import { DeskPageTitle } from "@/components/erp/DeskShell";
@@ -28,6 +33,7 @@ import { requireDeskPropertyId } from "@/lib/erp-lists";
 import { loadProperty } from "@/lib/property-context";
 import { rateToPercent, type PropertyDocumentDesign } from "@/lib/property-settings";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { loadTenantForProperty } from "@/lib/tenant/load";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import type { CSSProperties } from "react";
@@ -75,8 +81,9 @@ export default async function ErpSettingsPage() {
 
   const admin = createSupabaseAdminClient();
   const propertyId = await requireDeskPropertyId();
-  const [property, roomTypesResult, roomUnitsResult] = await Promise.all([
+  const [property, tenant, roomTypesResult, roomUnitsResult] = await Promise.all([
     loadProperty(admin, propertyId),
+    loadTenantForProperty(admin, propertyId),
     admin
       .from("room_types")
       .select("id, code, name, inventory_kind, unit_count")
@@ -84,7 +91,7 @@ export default async function ErpSettingsPage() {
       .order("code"),
     admin
       .from("room_units")
-      .select("id, room_type_id, label, floor_label, notes, hk_status, sort_order")
+      .select("id, room_type_id, label, floor_label, view_label, has_balcony, notes, hk_status, sort_order")
       .eq("property_id", propertyId)
       .order("sort_order")
       .order("label"),
@@ -96,7 +103,12 @@ export default async function ErpSettingsPage() {
     (type) => ({ ...type, unit_count: Number(type.unit_count ?? 0) }),
   );
   const roomUnits = ((roomUnitsResult.data ?? []) as RoomUnitRow[]).map(
-    (unit) => ({ ...unit, sort_order: Number(unit.sort_order ?? 0) }),
+    (unit) => ({
+      ...unit,
+      sort_order: Number(unit.sort_order ?? 0),
+      has_balcony: Boolean(unit.has_balcony),
+      view_label: unit.view_label ?? null,
+    }),
   );
   const inventoryKindByType = new Map(
     roomTypes.map((type) => [type.id, type.inventory_kind]),
@@ -239,9 +251,218 @@ export default async function ErpSettingsPage() {
                 Save identity
               </Button>
             </PropertyWizardForm>
+
+            <div className="mt-8 border-t pt-6">
+              <div className="mb-4 space-y-1">
+                <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+                  White-label hosts
+                </p>
+                <h3 className="text-lg font-semibold tracking-tight text-foreground">
+                  Public & desk hostnames
+                </h3>
+                <p className="max-w-2xl text-sm text-muted-foreground">
+                  Middleware maps these Host headers to this property. Add the
+                  same hostnames in Vercel domains. Leave blank to use the
+                  flagship slug fallback.
+                </p>
+              </div>
+              <PropertyWizardForm action={updatePropertyHosts}>
+                <input type="hidden" name="property_id" value={property.id} />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="public_host">Public host</Label>
+                    <Input
+                      id="public_host"
+                      name="public_host"
+                      defaultValue={property.public_host ?? ""}
+                      placeholder="www.example.bt"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="desk_host">Desk host</Label>
+                    <Input
+                      id="desk_host"
+                      name="desk_host"
+                      defaultValue={property.desk_host ?? ""}
+                      placeholder="desk.example.bt"
+                    />
+                  </div>
+                </div>
+                <Button type="submit" variant="outline" className="mt-4 h-11">
+                  Save hostnames
+                </Button>
+              </PropertyWizardForm>
+              <div className="mt-4 grid gap-3 rounded-lg border p-4 text-sm md:grid-cols-2">
+                <div>
+                  <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                    Public cert
+                  </p>
+                  <p className="mt-1 capitalize">
+                    {property.public_host_cert_status ?? "none"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                    Desk cert
+                  </p>
+                  <p className="mt-1 capitalize">
+                    {property.desk_host_cert_status ?? "none"}
+                  </p>
+                </div>
+                {property.host_verify_token ? (
+                  <div className="md:col-span-2">
+                    <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                      DNS TXT token
+                    </p>
+                    <p className="mt-1 break-all font-mono text-xs">
+                      {property.host_verify_token}
+                    </p>
+                  </div>
+                ) : null}
+                <PropertyWizardForm action={issueHostDomainVerify}>
+                  <input type="hidden" name="property_id" value={property.id} />
+                  <input type="hidden" name="host_target" value="public" />
+                  <Button type="submit" variant="outline" size="sm" className="h-9">
+                    Issue public verify token
+                  </Button>
+                </PropertyWizardForm>
+                <PropertyWizardForm action={markHostDomainVerified}>
+                  <input type="hidden" name="property_id" value={property.id} />
+                  <input type="hidden" name="host_target" value="public" />
+                  <Button type="submit" variant="outline" size="sm" className="h-9">
+                    Mark public cert verified
+                  </Button>
+                </PropertyWizardForm>
+              </div>
+            </div>
+
+            {tenant ? (
+              <div className="mt-8 border-t pt-6">
+                <div className="mb-4 space-y-1">
+                  <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+                    Platform tenant
+                  </p>
+                  <h3 className="text-lg font-semibold tracking-tight text-foreground">
+                    Org name & seats
+                  </h3>
+                  <p className="max-w-2xl text-sm text-muted-foreground">
+                    SaaS org for this hotel. Plan and seat limit are
+                    invoice-first stubs — no card billing yet. Staff access is
+                    per-property Auth; do not share one DESK_PIN across hotels.
+                  </p>
+                </div>
+                <PropertyWizardForm action={updateTenantName}>
+                  <input type="hidden" name="property_id" value={property.id} />
+                  <input type="hidden" name="tenant_id" value={tenant.id} />
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-1.5 md:col-span-2">
+                      <Label htmlFor="tenant_name">Tenant name</Label>
+                      <Input
+                        id="tenant_name"
+                        name="tenant_name"
+                        defaultValue={tenant.name}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="tenant_plan">Plan</Label>
+                      <Input
+                        id="tenant_plan"
+                        value={tenant.plan}
+                        disabled
+                        readOnly
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="tenant_seats">Seat limit</Label>
+                      <Input
+                        id="tenant_seats"
+                        value={String(tenant.seat_limit)}
+                        disabled
+                        readOnly
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="tenant_billing">Billing status</Label>
+                      <Input
+                        id="tenant_billing"
+                        value={tenant.billing_status.replace(/_/g, " ")}
+                        disabled
+                        readOnly
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="tenant_slug">Slug</Label>
+                      <Input
+                        id="tenant_slug"
+                        value={tenant.slug}
+                        disabled
+                        readOnly
+                      />
+                    </div>
+                  </div>
+                  {tenant.billing_notes ? (
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      {tenant.billing_notes}
+                    </p>
+                  ) : null}
+                  <Button type="submit" variant="outline" className="mt-4 h-11">
+                    Save tenant name
+                  </Button>
+                </PropertyWizardForm>
+                <div className="mt-6 border-t pt-4">
+                  <h4 className="text-sm font-semibold text-foreground">
+                    Billing &amp; seats
+                  </h4>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Invoice-first contact and soft seat usage vs limit. Stripe
+                    self-serve remains future.
+                  </p>
+                  <PropertyWizardForm action={updateTenantBilling}>
+                    <input type="hidden" name="property_id" value={property.id} />
+                    <input type="hidden" name="tenant_id" value={tenant.id} />
+                    <div className="mt-3 grid gap-4 md:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="billing_email">Billing email</Label>
+                        <Input
+                          id="billing_email"
+                          name="billing_email"
+                          type="email"
+                          defaultValue={tenant.billing_email ?? ""}
+                          placeholder="accounts@hotel.bt"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="seats_used">
+                          Seats used (of {tenant.seat_limit})
+                        </Label>
+                        <Input
+                          id="seats_used"
+                          name="seats_used"
+                          type="number"
+                          min={0}
+                          max={tenant.seat_limit}
+                          defaultValue={String(tenant.seats_used)}
+                        />
+                      </div>
+                    </div>
+                    {tenant.domain_verified_at ? (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Domain verified{" "}
+                        {new Date(tenant.domain_verified_at).toLocaleString(
+                          "en-BT",
+                        )}
+                      </p>
+                    ) : null}
+                    <Button type="submit" variant="outline" className="mt-4 h-11">
+                      Save billing &amp; seats
+                    </Button>
+                  </PropertyWizardForm>
+                </div>
+              </div>
+            ) : null}
           </section>
         </TabsContent>
-
         <TabsContent value="tax" className="space-y-6">
           <section className="rounded-xl border bg-card p-5 md:p-6">
             <div className="mb-5 space-y-1">
@@ -301,8 +522,24 @@ export default async function ErpSettingsPage() {
                   Apply service charge by default on new POS and folio service bills
                 </Label>
               </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="night_audit_close_time">
+                  Night audit close time (local)
+                </Label>
+                <Input
+                  id="night_audit_close_time"
+                  name="night_audit_close_time"
+                  type="time"
+                  defaultValue={property.night_audit_close_time ?? "00:00"}
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Cron skips this property until local wall-clock reaches this
+                  time ({property.timezone}). Default 00:00 = midnight.
+                </p>
+              </div>
               <Button type="submit" className="h-11">
-                Save tax defaults
+                Save tax &amp; night-audit defaults
               </Button>
             </PropertyWizardForm>
           </section>

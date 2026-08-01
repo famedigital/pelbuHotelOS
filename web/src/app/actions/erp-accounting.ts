@@ -1,5 +1,6 @@
 "use server";
 
+import { writeAuditEvent } from "@/lib/audit";
 import {
   buildBalanceSheet,
   buildGstReport,
@@ -8,8 +9,8 @@ import {
   createAndPostJournal,
   reverseJournal,
 } from "@/lib/accounting";
-import { writeAuditEvent } from "@/lib/audit";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { assertDeskProperty } from "@/lib/desk/property-guard";
+import { isDeskAuthenticated, requireDeskRole, requireMoneyDesk } from "@/lib/desk-auth";
 import { roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -41,7 +42,7 @@ export async function createManualJournal(
   formData: FormData,
 ): Promise<AccountingActionState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
     const journalDate = trimRequired(formData.get("journal_date"), "Date");
@@ -106,10 +107,19 @@ export async function reversePostedJournal(
   formData: FormData,
 ): Promise<AccountingActionState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
     const journalId = trimRequired(formData.get("journal_id"), "Journal");
+
+    const { data: journal } = await admin
+      .from("accounting_journals")
+      .select("id, property_id")
+      .eq("id", journalId)
+      .single();
+    if (!journal) throw new Error("Journal not found.");
+    assertDeskProperty(propertyId, journal.property_id as string, "Journal");
+
     await reverseJournal(admin, propertyId, journalId, "desk");
     revalidateAccounting();
     return { ok: true, message: "Journal reversed." };
@@ -126,7 +136,7 @@ export async function saveOpeningBalanceDraft(
   formData: FormData,
 ): Promise<AccountingActionState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
     const effectiveDate = trimRequired(
@@ -218,7 +228,7 @@ export async function postOpeningBalances(
   _formData: FormData,
 ): Promise<AccountingActionState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
 
@@ -306,13 +316,21 @@ export async function toggleCloseChecklistItem(
   formData: FormData,
 ): Promise<AccountingActionState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
     const periodId = trimRequired(formData.get("period_id"), "Period");
     const itemKey = trimRequired(formData.get("item_key"), "Item");
     const label = trimRequired(formData.get("label"), "Label");
     const done = formData.get("is_done") === "1";
+
+    const { data: period } = await admin
+      .from("accounting_periods")
+      .select("id, property_id")
+      .eq("id", periodId)
+      .single();
+    if (!period) throw new Error("Period not found.");
+    assertDeskProperty(propertyId, period.property_id as string, "Period");
 
     const { error } = await admin.from("accounting_close_checklists").upsert(
       {
@@ -343,10 +361,18 @@ export async function closeAccountingPeriod(
   formData: FormData,
 ): Promise<AccountingActionState> {
   try {
-    await requireDesk();
+    await requireDeskRole(["gm", "owner"]);
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
     const periodId = trimRequired(formData.get("period_id"), "Period");
+
+    const { data: period } = await admin
+      .from("accounting_periods")
+      .select("id, property_id, status")
+      .eq("id", periodId)
+      .single();
+    if (!period) throw new Error("Period not found.");
+    assertDeskProperty(propertyId, period.property_id as string, "Period");
 
     const { data: errors } = await admin
       .from("accounting_posting_events")

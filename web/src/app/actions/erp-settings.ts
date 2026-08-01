@@ -2,12 +2,15 @@
 
 import type { PropertyWizardState } from "@/app/actions/erp-properties";
 import { writeAuditEvent } from "@/lib/audit";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { isDeskAuthenticated, requireDeskRole } from "@/lib/desk-auth";
+import { assertDeskProperty } from "@/lib/desk/property-guard";
 import {
   defaultDocumentDesign,
   mapDocumentDesign,
   percentToRate,
 } from "@/lib/property-settings";
+import { normalizeCloseTime } from "@/lib/night-audit/close-time";
+import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
@@ -157,6 +160,315 @@ export async function updatePropertyIdentity(
   }
 }
 
+export async function updatePropertyHosts(
+  _prev: PropertyWizardState,
+  formData: FormData,
+): Promise<PropertyWizardState> {
+  try {
+    await requireDesk();
+    await requireDeskRole(["gm", "owner"]);
+    const admin = createSupabaseAdminClient();
+    const activePropertyId = await resolveActivePropertyId(admin);
+    const propertyId = trimRequired(formData.get("property_id"), "Property");
+    assertDeskProperty(activePropertyId, propertyId, "Property");
+    const publicHost = optionalTrim(formData.get("public_host"));
+    const deskHost = optionalTrim(formData.get("desk_host"));
+
+    const normalize = (h: string | null) =>
+      h
+        ? h
+            .toLowerCase()
+            .replace(/^https?:\/\//, "")
+            .split("/")[0]
+            ?.trim() || null
+        : null;
+
+    const { error } = await admin
+      .from("properties")
+      .update({
+        public_host: normalize(publicHost),
+        desk_host: normalize(deskHost),
+      })
+      .eq("id", propertyId);
+    if (error) {
+      if (
+        error.message.includes("properties_public_host") ||
+        error.message.includes("unique")
+      ) {
+        throw new Error("That hostname is already used by another property.");
+      }
+      throw new Error(error.message);
+    }
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "property.settings.hosts",
+      entityType: "properties",
+      entityId: propertyId,
+      summary: `Hosts public=${normalize(publicHost) ?? "—"} desk=${normalize(deskHost) ?? "—"}`,
+    });
+
+    revalidatePath("/erp/settings");
+    return { ok: true, propertyId, message: "Hostnames saved." };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not save hosts.",
+    };
+  }
+}
+
+/** Platform stub: rename the SaaS tenant org attached to this property. */
+export async function updateTenantName(
+  _prev: PropertyWizardState,
+  formData: FormData,
+): Promise<PropertyWizardState> {
+  try {
+    await requireDesk();
+    await requireDeskRole(["gm", "owner"]);
+    const admin = createSupabaseAdminClient();
+    const activePropertyId = await resolveActivePropertyId(admin);
+    const propertyId = trimRequired(formData.get("property_id"), "Property");
+    assertDeskProperty(activePropertyId, propertyId, "Property");
+    const tenantId = trimRequired(formData.get("tenant_id"), "Tenant");
+    const name = trimRequired(formData.get("tenant_name"), "Tenant name");
+
+    const { data: property } = await admin
+      .from("properties")
+      .select("tenant_id")
+      .eq("id", propertyId)
+      .maybeSingle();
+    if (!property?.tenant_id || property.tenant_id !== tenantId) {
+      throw new Error("Tenant is not attached to the active property.");
+    }
+
+    const { error } = await admin
+      .from("tenants")
+      .update({ name, updated_at: new Date().toISOString() })
+      .eq("id", tenantId);
+    if (error) throw new Error(error.message);
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "tenant.settings.name",
+      entityType: "tenants",
+      entityId: tenantId,
+      summary: `Tenant renamed to ${name}`,
+    });
+
+    revalidatePath("/erp/settings");
+    revalidatePath("/erp/group");
+    return { ok: true, propertyId, message: "Tenant name saved." };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not save tenant name.",
+    };
+  }
+}
+
+/** Invoice-first billing fields + seat usage soft cap. */
+export async function updateTenantBilling(
+  _prev: PropertyWizardState,
+  formData: FormData,
+): Promise<PropertyWizardState> {
+  try {
+    await requireDesk();
+    await requireDeskRole(["gm", "owner"]);
+    const admin = createSupabaseAdminClient();
+    const activePropertyId = await resolveActivePropertyId(admin);
+    const propertyId = trimRequired(formData.get("property_id"), "Property");
+    assertDeskProperty(activePropertyId, propertyId, "Property");
+    const tenantId = trimRequired(formData.get("tenant_id"), "Tenant");
+    const billingEmail = optionalTrim(formData.get("billing_email"));
+    const seatsUsedRaw = optionalTrim(formData.get("seats_used"));
+    const seatsUsed = seatsUsedRaw ? Number(seatsUsedRaw) : 0;
+    if (!Number.isFinite(seatsUsed) || seatsUsed < 0 || seatsUsed > 10000) {
+      throw new Error("Seats used must be between 0 and 10000.");
+    }
+
+    const { data: property } = await admin
+      .from("properties")
+      .select("tenant_id")
+      .eq("id", propertyId)
+      .maybeSingle();
+    if (!property?.tenant_id || property.tenant_id !== tenantId) {
+      throw new Error("Tenant is not attached to the active property.");
+    }
+
+    const { data: tenant } = await admin
+      .from("tenants")
+      .select("seat_limit")
+      .eq("id", tenantId)
+      .maybeSingle();
+    if (!tenant) throw new Error("Tenant not found.");
+    if (seatsUsed > Number(tenant.seat_limit)) {
+      throw new Error(
+        `Seats used (${seatsUsed}) exceeds seat limit (${tenant.seat_limit}).`,
+      );
+    }
+
+    const { error } = await admin
+      .from("tenants")
+      .update({
+        billing_email: billingEmail,
+        seats_used: Math.floor(seatsUsed),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", tenantId);
+    if (error) throw new Error(error.message);
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "tenant.settings.billing",
+      entityType: "tenants",
+      entityId: tenantId,
+      summary: `Billing email / seats_used=${Math.floor(seatsUsed)}`,
+    });
+
+    revalidatePath("/erp/settings");
+    return { ok: true, propertyId, message: "Tenant billing saved." };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not save tenant billing.",
+    };
+  }
+}
+
+/** Issue / refresh TXT verify token and mark host cert status pending. */
+export async function issueHostDomainVerify(
+  _prev: PropertyWizardState,
+  formData: FormData,
+): Promise<PropertyWizardState> {
+  try {
+    await requireDesk();
+    await requireDeskRole(["gm", "owner"]);
+    const admin = createSupabaseAdminClient();
+    const activePropertyId = await resolveActivePropertyId(admin);
+    const propertyId = trimRequired(formData.get("property_id"), "Property");
+    assertDeskProperty(activePropertyId, propertyId, "Property");
+    const target = optionalTrim(formData.get("host_target")) ?? "public";
+    if (target !== "public" && target !== "desk") {
+      throw new Error("Host target must be public or desk.");
+    }
+
+    const token = `pelbu-verify=${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
+    const patch =
+      target === "public"
+        ? {
+            host_verify_token: token,
+            public_host_cert_status: "pending",
+          }
+        : {
+            host_verify_token: token,
+            desk_host_cert_status: "pending",
+          };
+
+    const { error } = await admin
+      .from("properties")
+      .update(patch)
+      .eq("id", propertyId);
+    if (error) throw new Error(error.message);
+
+    const { data: property } = await admin
+      .from("properties")
+      .select("tenant_id")
+      .eq("id", propertyId)
+      .maybeSingle();
+    if (property?.tenant_id) {
+      await admin
+        .from("tenants")
+        .update({
+          domain_verify_token: token,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", property.tenant_id as string);
+    }
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "property.settings.host_verify",
+      entityType: "properties",
+      entityId: propertyId,
+      summary: `Issued ${target} domain verify token (cert pending)`,
+    });
+
+    revalidatePath("/erp/settings");
+    return {
+      ok: true,
+      propertyId,
+      message: `TXT token ready. Add it at DNS, then mark verified after Vercel cert attaches.`,
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not issue verify token.",
+    };
+  }
+}
+
+/** Mark host cert verified after ops confirms Vercel domain + DNS. */
+export async function markHostDomainVerified(
+  _prev: PropertyWizardState,
+  formData: FormData,
+): Promise<PropertyWizardState> {
+  try {
+    await requireDesk();
+    await requireDeskRole(["gm", "owner"]);
+    const admin = createSupabaseAdminClient();
+    const activePropertyId = await resolveActivePropertyId(admin);
+    const propertyId = trimRequired(formData.get("property_id"), "Property");
+    assertDeskProperty(activePropertyId, propertyId, "Property");
+    const target = optionalTrim(formData.get("host_target")) ?? "public";
+    if (target !== "public" && target !== "desk") {
+      throw new Error("Host target must be public or desk.");
+    }
+
+    const patch =
+      target === "public"
+        ? { public_host_cert_status: "verified" }
+        : { desk_host_cert_status: "verified" };
+
+    const { error } = await admin
+      .from("properties")
+      .update(patch)
+      .eq("id", propertyId);
+    if (error) throw new Error(error.message);
+
+    const { data: property } = await admin
+      .from("properties")
+      .select("tenant_id")
+      .eq("id", propertyId)
+      .maybeSingle();
+    if (property?.tenant_id) {
+      await admin
+        .from("tenants")
+        .update({
+          domain_verified_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", property.tenant_id as string);
+    }
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "property.settings.host_verified",
+      entityType: "properties",
+      entityId: propertyId,
+      summary: `Marked ${target} host cert verified`,
+    });
+
+    revalidatePath("/erp/settings");
+    return { ok: true, propertyId, message: `${target} host marked verified.` };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not mark verified.",
+    };
+  }
+}
+
 /**
  * Saves a Cloudinary public ID chosen in the media picker. The file itself
  * goes browser → Cloudinary, so nothing large travels through this action.
@@ -209,9 +521,11 @@ export async function updatePropertyTaxSettings(
   formData: FormData,
 ): Promise<PropertyWizardState> {
   try {
-    await requireDesk();
+    await requireDeskRole(["gm", "owner"]);
     const admin = createSupabaseAdminClient();
+    const activePropertyId = await resolveActivePropertyId(admin);
     const propertyId = trimRequired(formData.get("property_id"), "Property");
+    assertDeskProperty(activePropertyId, propertyId, "Property");
     const gstRate = requirePercent(formData.get("gst_rate"), "GST rate");
     const serviceChargeRate = requirePercent(
       formData.get("service_charge_rate"),
@@ -219,6 +533,9 @@ export async function updatePropertyTaxSettings(
     );
     const serviceChargeDefaultOn =
       formData.get("service_charge_default_on") === "1";
+    const closeTime = normalizeCloseTime(
+      optionalTrim(formData.get("night_audit_close_time")) ?? "00:00",
+    );
 
     const { error } = await admin
       .from("properties")
@@ -226,6 +543,7 @@ export async function updatePropertyTaxSettings(
         gst_rate: gstRate,
         service_charge_rate: serviceChargeRate,
         service_charge_default_on: serviceChargeDefaultOn,
+        night_audit_close_time: closeTime,
       })
       .eq("id", propertyId);
     if (error) throw new Error(error.message);
@@ -235,17 +553,19 @@ export async function updatePropertyTaxSettings(
       action: "property.settings.tax",
       entityType: "properties",
       entityId: propertyId,
-      summary: "Updated GST and service charge defaults",
+      summary: "Updated GST, service charge, and night-audit close time",
       meta: {
         gst_rate: gstRate,
         service_charge_rate: serviceChargeRate,
         service_charge_default_on: serviceChargeDefaultOn,
+        night_audit_close_time: closeTime,
       },
     });
 
     revalidatePath("/erp/settings");
     revalidatePath("/erp/pos");
-    return { ok: true, propertyId, message: "Tax defaults saved." };
+    revalidatePath("/erp/night-audit");
+    return { ok: true, propertyId, message: "Tax & night-audit defaults saved." };
   } catch (e) {
     return {
       ok: false,
@@ -407,12 +727,27 @@ export async function saveRoomUnitSettings(
     const roomUnitId = optionalTrim(formData.get("room_unit_id"));
     const label = trimRequired(formData.get("label"), "Room name or number");
     const floorLabel = optionalTrim(formData.get("floor_label"));
+    const viewLabel = optionalTrim(formData.get("view_label"));
+    const hasBalcony = formData.get("has_balcony") === "on";
     const notes = optionalTrim(formData.get("notes"));
+    const connectingRaw = optionalTrim(formData.get("connecting_room_unit_id"));
+    const connectingRoomUnitId =
+      connectingRaw && connectingRaw !== roomUnitId ? connectingRaw : null;
     const sortRaw = optionalTrim(formData.get("sort_order"));
     const sortOrder = sortRaw ? Number(sortRaw) : NaN;
     const resolvedSort = Number.isFinite(sortOrder) ? Math.max(0, Math.floor(sortOrder)) : null;
 
     let previousRoomTypeId: string | null = null;
+
+    if (connectingRoomUnitId) {
+      const { data: peer } = await admin
+        .from("room_units")
+        .select("id")
+        .eq("id", connectingRoomUnitId)
+        .eq("property_id", propertyId)
+        .maybeSingle();
+      if (!peer) throw new Error("Connecting room not found on this property.");
+    }
 
     if (roomUnitId) {
       const { data: current } = await admin
@@ -426,6 +761,9 @@ export async function saveRoomUnitSettings(
       const patch: Record<string, unknown> = {
         label,
         floor_label: floorLabel,
+        view_label: viewLabel,
+        has_balcony: hasBalcony,
+        connecting_room_unit_id: connectingRoomUnitId,
         notes,
         room_type_id: roomTypeId,
         updated_at: new Date().toISOString(),
@@ -437,6 +775,18 @@ export async function saveRoomUnitSettings(
         .eq("id", roomUnitId)
         .eq("property_id", propertyId);
       if (error) throw new Error(error.message);
+
+      // Keep peer link mutual when set.
+      if (connectingRoomUnitId) {
+        await admin
+          .from("room_units")
+          .update({
+            connecting_room_unit_id: roomUnitId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", connectingRoomUnitId)
+          .eq("property_id", propertyId);
+      }
     } else {
       let sort_order = resolvedSort;
       if (sort_order == null) {
@@ -454,6 +804,9 @@ export async function saveRoomUnitSettings(
         room_type_id: roomTypeId,
         label,
         floor_label: floorLabel,
+        view_label: viewLabel,
+        has_balcony: hasBalcony,
+        connecting_room_unit_id: connectingRoomUnitId,
         notes,
         hk_status: "clean",
         sort_order,
@@ -476,6 +829,7 @@ export async function saveRoomUnitSettings(
 
     revalidatePath("/erp/settings");
     revalidatePath("/erp/rooms");
+    revalidatePath("/erp/calendar");
     return { ok: true, propertyId, message: "Room saved." };
   } catch (e) {
     return {

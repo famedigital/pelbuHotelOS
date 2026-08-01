@@ -1,6 +1,6 @@
 # Whiteboard — Pelbu Suites live system
 
-Last updated: 2026-07-31. This is the single desk-side map of what is live, how it is hosted, and what is next. Detail lives in [FEATURES.md](FEATURES.md), [PLATFORM.md](PLATFORM.md), and the audit docs linked at the bottom.
+Last updated: 2026-08-02. This is the single desk-side map of what is live, how it is hosted, and what is next. Detail lives in [FEATURES.md](FEATURES.md), [PLATFORM.md](PLATFORM.md), and the audit docs linked at the bottom.
 
 ---
 
@@ -10,7 +10,7 @@ Last updated: 2026-07-31. This is the single desk-side map of what is live, how 
 |---------|-------------|------|--------|
 | Public conversion site | Production Vercel (`pelbusuites` / Olakha) | None | Live — homepage, rooms, F&B, spa, meeting, agents, booking wizard |
 | Guest laundry | `/laundry` (PWA) | Guest session cookie | Live — bag QR, intake, tracking |
-| Desk / Work ERP | `/erp` (Work PWA) | DESK_PIN **or** staff Auth with `can_access_desk` | Live — 9 modules, module tabs |
+| Desk / Work ERP | `/erp` (Work PWA) | DESK_PIN **or** staff Auth with `can_access_desk` | Live — 9 modules; calendar uses header tabs |
 | Staff portal | `/staff` | Staff Auth | Live — leave, payslips, laundry labels |
 | Agent portal | `/agents` | Agent Auth | Live — voucher / book |
 | Public pay link | `/pay/[token]` | Token | Live |
@@ -21,7 +21,7 @@ Last updated: 2026-07-31. This is the single desk-side map of what is live, how 
 |--------|---------|------|
 | Dashboard | `/erp` | — |
 | Calendar | `/erp/calendar` | Room rack, Day sheet |
-| Front desk | `/erp/arrivals` | Arrivals, In-house, Departures, Check-in, **Check-out**, Fast book, Reservations, Guests |
+| Front desk | `/erp/arrivals` | Arrivals, In-house, Departures, Check-in, **Check-out**, Fast book, Reservations, Guests, **Loyalty** |
 | Rooms | `/erp/rooms` | Rooms, Housekeeping, Maintenance, Laundry |
 | POS | `/erp/pos` | Register, Menu, Kitchen TV |
 | Money | `/erp/payments` | Payments, Invoices, Night audit, GST, Finance, Reports |
@@ -37,7 +37,11 @@ Deep links such as `/erp/folios/[id]`, `/erp/bookings/[id]`, `/erp/orders/[id]/s
 
 | Layer | Provider | Notes |
 |-------|----------|-------|
-| App | Vercel (Next.js 16 / Turbopack) | Hobby cron: `expire-holds` only |
+| App | Vercel (Next.js 16 / Turbopack) | Crons: `expire-holds`, staff notification drain, **night-audit** (`0 18 * * *` UTC ≈ midnight Thimphu). Set `CRON_SECRET` in production. |
+| CI | GitHub Actions | `.github/workflows/web-ci.yml` — lint + unit tests + typecheck on `web/` |
+| Observability | Sentry (optional) | Set `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN`; no-op when unset |
+| Rate limits | In-memory (+ optional Upstash) | Login, pay links, book/order, webhooks |
+| Staging | Documented | Preview/staging must use a **non-prod** Supabase project or branch — see §2.1 |
 | Database + Auth + Realtime | Supabase (`umrpibwhxpzsfdyupiuf`) | Service-role used widely from server actions |
 | Images / docs | Cloudinary | CMS media + SDF docs + laundry photos |
 | Email | Resend | Booking / staff notices |
@@ -46,6 +50,20 @@ Deep links such as `/erp/folios/[id]`, `/erp/bookings/[id]`, `/erp/orders/[id]/s
 
 **International ERP intent:** the product can later move the data plane to an AWS VM (own Postgres, mail, WhatsApp Business API). That move is **not** required for multi-tenant SaaS on the current stack — see [MULTI-TENANT-WHITELABEL.md](MULTI-TENANT-WHITELABEL.md).
 
+### 2.1 Staging (required before risky money deploys)
+
+| Env | App | Database |
+|-----|-----|----------|
+| Production | Vercel production | Supabase project `umrpibwhxpzsfdyupiuf` |
+| Staging / Preview | Vercel Preview **or** second Vercel project `pelbusuites-staging` | Separate Supabase project **or** Supabase branch — never point Preview at prod DB |
+| Local | `npm run dev` | Same as staging preferred; `.env.local` |
+
+**White-label foundation (2026-08-02):** `properties.public_host` / `desk_host` + middleware `x-pelbu-property-*` headers via `resolvePropertyIdFromHost`. Tenant billing email + seats_used + DNS TXT verify / cert status UI shipped (invoice-first; no Stripe). See [MULTI-TENANT-WHITELABEL.md](MULTI-TENANT-WHITELABEL.md).
+
+**Competitive gap close (2026-08-02):** connecting rooms + rack virtualization; night-audit `close_time`; group AR statement print; loyalty portal; offline IndexedDB drafts; DRC e-invoice stub; edge journal proof tests. Residuals: live Channex cert (needs `CHANNEX_*`), 24/7 support staffing (business), Stripe self-serve, full RMS.
+
+Launch cutover: [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md).
+
 ---
 
 ## 3. Property model today
@@ -53,11 +71,25 @@ Deep links such as `/erp/folios/[id]`, `/erp/bookings/[id]`, `/erp/orders/[id]/s
 - Every ops row is keyed by `property_id`.
 - Desk can switch the active property (cookie / context).
 - `template_id = 1` is Pelbu Suites Olakha (flagship).
-- Group overview and “Add hotel” exist; there is **no** hostname → property router yet (one public site = one brand).
+- Group overview and “Add hotel” exist; Host → property middleware + Settings hostnames shipped; tenant billing still open.
 
 ---
 
-## 4. Desk UX shipped this pass (2026-07-31)
+## 4. Desk UX shipped (recent passes)
+
+### 2026-08-01 — Calendar density + sidebar identity
+
+| Fix | Route / component | What changed |
+|-----|-------------------|--------------|
+| Category-grouped rack | `RoomRackGrid` | Floor groups → **category** groups; color acronym chips; Categories legend popover |
+| Slim left pane | `RoomRackGrid` | 108px desktop / 72px mobile room column |
+| Sticky scroll containment | `RoomRackGrid` + `DeskShell` | Room column stays pinned; no slide-over nav on horizontal scroll |
+| Header calendar tabs | `CalendarHeaderTabs` + `DeskShell` | Room rack / Day sheet in sticky header; `ModuleTabs` suppressed on calendar |
+| Occupancy + go-to-date | `RoomRackGrid` toolbar | Occupancy popover; date input + window paging for far-future |
+| Icon-collapsed sidebar | `sidebar.tsx` + `DeskShell` | Default collapsed; 13rem expanded; hover peek; cookie `sidebar_state_v2` |
+| Property logo in nav | `AppSidebar` + Settings Identity | Cloudinary logo from `/erp/settings` |
+
+### 2026-07-31 — Front desk process UX
 
 | Fix | Route / component | What changed |
 |-----|-------------------|--------------|
@@ -74,14 +106,16 @@ Local crawl (desk session cookie): **all static ERP routes returned HTTP 200** (
 
 Full severity register: [ERP-AUDIT.md](ERP-AUDIT.md).
 
-| Gap | Why engineers will call it “vibe coded” | Target standard |
-|-----|------------------------------------------|-----------------|
-| Empty folio after check-in | Room nights not auto-posted; balance Nu 0 with 0 lines is normal until charges post | Night-audit room-night posting (OHIP / Opera pattern) |
-| Laundry money integrity | GST checkbox never submits; correction voids folio without reversing journal; cancel can orphan charges | Fix GST form post; reverseJournal on correction; block cancel without void |
-| Service-role bypass | Most desk writes use admin client; RLS is a second fence, not the primary one | AuthZ at action + RLS for non-admin clients |
-| RLS enabled, 0 policies | `booking_guests`, `booking_rooms`, `booking_drivers`, `guides`, `drivers`, `order_items` | Add policies or document admin-only |
-| No night-audit cron | Only `expire-holds` is scheduled; night audit is snapshot-only | Nightly room-post job + period lock |
-| White-label incomplete | Multi-property DB yes; multi-hostname public + tenant billing no | Host middleware + tenant accounts |
+| Gap | Why engineers will call it “vibe coded” | Target standard | Status |
+|-----|------------------------------------------|-----------------|--------|
+| Empty folio after check-in | Room nights post on night-audit cron, not at check-in; balance Nu 0 with 0 lines until roll | Clear copy + optional same-day post | **Partial** — cron + posting shipped; UX copy still confusing |
+| Laundry money integrity | GST / reversal / cancel paths | Fix GST form post; reverseJournal on correction; block cancel without void | **Largely fixed 2026-08-01** — see ERP-AUDIT §7.1 |
+| Service-role bypass | Most desk writes use admin client; RLS is a second fence, not the primary one | AuthZ at action + RLS for non-admin clients | **Partial** — `assertDeskProperty` pilot on folio/POS |
+| RLS enabled, 0 policies | Several booking/order tables | Add policies or document admin-only | **Fixed 2026-08-01** — service_role policies migration |
+| No night-audit cron | Only `expire-holds` was scheduled | Cron + room-night posting | **Fixed 2026-08-01** — `/api/cron/night-audit`; no-shows / close-day blockers open |
+| White-label incomplete | Multi-property DB yes; multi-hostname public + tenant billing no | Host middleware + tenant accounts | **Partial** — Host columns + Settings UI + middleware headers; tenant billing open |
+| Calendar Realtime | Poll-only refresh on rack | Supabase Realtime + channel toasts | **Partial** — poll + toast on fingerprint change (no browser Realtime by design) |
+| Crawl waves A–G | Authenticated HTTP matrix in ERP-AUDIT §4; Playwright MCP pending user enable | Interactive button pass after MCP green | **Partial** — routes 200; click-through pending |
 
 ---
 
@@ -96,13 +130,22 @@ Full severity register: [ERP-AUDIT.md](ERP-AUDIT.md).
 | [FEATURES.md](FEATURES.md) | Module shipped vs remaining |
 | [PLATFORM.md](PLATFORM.md) | Architecture north star |
 | [UAT-CHECKLIST.md](UAT-CHECKLIST.md) | Go-live tests |
+| [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md) | Launch-day env + smoke |
+| [FINANCE-UAT.md](FINANCE-UAT.md) | Period close / GST / bank recon pack |
+| [OPS-RUNBOOK.md](OPS-RUNBOOK.md) | Night audit / payments / hosts / channel ops |
+| [CHANNEX-CERT.md](CHANNEX-CERT.md) | Channel cert after white-label |
 
 ---
 
 ## 7. Next build order (engineering)
 
-1. **P0 money:** room-night posting on night audit; folio immutability + reversal; period lock.
-2. **P0 laundry money:** catalog seed enforcement; folio post + reversing entry on correction.
-3. **P1 authZ:** staff-scoped clients for reads; policies on zero-policy tables; leaked-password protection on Auth.
-4. **P1 white-label MVP:** `Host` → `property_id` middleware; per-tenant public CMS; tenant login landing.
-5. **P2 BTCL:** multi-outlet POS, 200+ staff HR scale, chain reporting — see BTCL doc.
+**Beat eZee / IDS waves (in progress):** Wave 0 docs/UAT honesty + Wave 1 Channel desk/ARI are underway. Waves 2–4 (AuthZ purge, FO parity, SaaS tenants) follow — do not invent signed UAT initials in docs.
+
+1. **P0 money:** largely shipped (gateways, laundry→`postFolioCharge`, CN print, line transfer, night-audit blockers).
+2. **P0 laundry money:** gateway billing shipped 2026-08-02 (RPC quotes; app posts).
+3. **P1 Channel (Wave 1):** active-property `/erp/channel`, rates + restrictions ARI, flush/retry UX — code shipped; **human** `CHANNEX_*` cert still required.
+4. **P1 authZ (Wave 2):** `desk_role` + prod PIN retire; expand `assertDeskProperty` / money gates.
+5. **P1 calendar:** v2 leftovers shipped; v3+ only on desk ask.
+6. **P1 white-label (Wave 4):** tenants + seats stub + Host→CMS preference shipped; Stripe / domain automation still open — MULTI-TENANT-WHITELABEL.
+7. **P2 BTCL (Wave 5):** multi-outlet POS, 200+ staff HR scale, chain reporting — BTCL doc (**deal-triggered**).
+8. **Ops runbook:** [OPS-RUNBOOK.md](OPS-RUNBOOK.md).

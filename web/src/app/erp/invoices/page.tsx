@@ -42,48 +42,60 @@ export default async function InvoicesPage({
   const propertyId = await requireDeskPropertyId();
 
   let req = admin
-    .from("folios")
+    .from("fiscal_documents")
     .select(
-      "id, label, status, folio_type, booking_id, created_at, closed_at, folio_lines(total_btn, gst_btn, status)",
+      "id, doc_no, issued_at, folio_id, folios(id, label, status, folio_type, booking_id, folio_lines(total_btn, gst_btn, status))",
     )
     .eq("property_id", propertyId)
-    .order("created_at", { ascending: false })
+    .eq("doc_kind", "invoice")
+    .eq("status", "issued")
+    .order("issued_at", { ascending: false })
     .limit(200);
 
-  if (status) req = req.eq("status", status);
+  const { data: docs } = await req;
 
-  const { data: folios } = await req;
-
-  const rows = (folios ?? [])
-    .map((f) => {
-      const lines = (f.folio_lines as {
-        total_btn: number;
-        gst_btn: number;
+  const rows = (docs ?? [])
+    .map((doc) => {
+      const rawFolio = doc.folios;
+      const folio = (Array.isArray(rawFolio) ? rawFolio[0] : rawFolio) as {
+        id: string;
+        label: string;
         status: string;
-      }[] | null) ?? [];
+        folio_type: string;
+        booking_id: string | null;
+        folio_lines: { total_btn: number; gst_btn: number; status: string }[] | null;
+      } | null;
+      const lines = folio?.folio_lines ?? [];
       const posted = lines.filter((l) => l.status === "posted");
       const total = posted.reduce((s, l) => s + Number(l.total_btn), 0);
       const gst = posted.reduce((s, l) => s + Number(l.gst_btn ?? 0), 0);
+      const folioStatus = folio?.status ?? "";
       return {
-        id: f.id as string,
-        label: (f.label as string) ?? "Folio",
-        status: f.status as string,
-        folio_type: f.folio_type as string,
-        booking_id: (f.booking_id as string | null) ?? null,
-        created_at: f.created_at as string,
+        docId: doc.id as string,
+        docNo: doc.doc_no as string,
+        folioId: (doc.folio_id as string) ?? "",
+        label: folio?.label ?? "Folio",
+        status: folioStatus,
+        folio_type: folio?.folio_type ?? "guest",
+        booking_id: folio?.booking_id ?? null,
+        issued_at: doc.issued_at as string,
         total,
         gst,
       };
     })
-    .filter((r) =>
-      matchesQuery([r.label, r.id, r.booking_id, r.status, r.folio_type], query),
-    );
+    .filter((r) => {
+      if (status && r.status !== status) return false;
+      return matchesQuery(
+        [r.docNo, r.label, r.folioId, r.booking_id, r.status, r.folio_type],
+        query,
+      );
+    });
 
   return (
     <DeskListShell
-      eyebrow="Folios"
-      heading="Invoices"
-      blurb="Browse guest and master folios. Open to reprint lines, take payment, void, or issue deposit links."
+      eyebrow="Money"
+      heading="Tax invoices"
+      blurb="Fiscal invoice numbers issued from guest folios. Issue a number on the folio before reprint — sequences are gapless per property and year."
       filters={
         <form
           className="flex flex-wrap items-end gap-2"
@@ -99,13 +111,13 @@ export default async function InvoicesPage({
               type="search"
               name="q"
               defaultValue={q ?? ""}
-              placeholder="Label, folio id, booking…"
+              placeholder="Invoice no, folio label, booking…"
               className="h-10"
             />
           </div>
           <div className="space-y-1.5">
             <label htmlFor="status" className="sr-only">
-              Status
+              Folio status
             </label>
             <select
               id="status"
@@ -113,9 +125,9 @@ export default async function InvoicesPage({
               defaultValue={status ?? ""}
               className="h-10 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
             >
-              <option value="">All</option>
-              <option value="open">Open</option>
-              <option value="closed">Closed</option>
+              <option value="">All folio statuses</option>
+              <option value="open">Open folio</option>
+              <option value="closed">Closed folio</option>
             </select>
           </div>
           <Button type="submit" variant="outline" className="h-10">
@@ -124,21 +136,19 @@ export default async function InvoicesPage({
         </form>
       }
     >
-      <p className="text-xs text-muted-foreground">{rows.length} shown</p>
+      <p className="text-xs text-muted-foreground">{rows.length} issued</p>
       <div className="space-y-3 md:hidden">
         {rows.length === 0 ? (
           <p className="rounded-xl border bg-card px-4 py-6 text-sm text-muted-foreground">
-            No invoices yet.
+            No tax invoices issued yet. Open a folio and use Issue tax invoice.
           </p>
         ) : (
           rows.map((row) => (
-            <article key={row.id} className="rounded-xl border bg-card p-4">
+            <article key={row.docId} className="rounded-xl border bg-card p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="font-medium text-foreground">{row.label}</p>
-                  <p className="mt-1 font-mono text-xs text-muted-foreground">
-                    {row.id.slice(0, 8)}
-                  </p>
+                  <p className="font-mono font-medium text-foreground">{row.docNo}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{row.label}</p>
                 </div>
                 <StatusPill value={row.status} />
               </div>
@@ -159,13 +169,13 @@ export default async function InvoicesPage({
                 </div>
               </dl>
               <p className="mt-3 text-xs text-muted-foreground">
-                {fmtDateTime(row.created_at)}
+                Issued {fmtDateTime(row.issued_at)}
               </p>
               <a
-                href={`/erp/folios/${row.id}`}
+                href={`/erp/folios/${row.folioId}`}
                 className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-accent/30 bg-accent/10 text-sm font-medium text-accent"
               >
-                Open / reprint →
+                Open folio →
               </a>
             </article>
           ))
@@ -173,43 +183,49 @@ export default async function InvoicesPage({
       </div>
       <div className="hidden overflow-hidden rounded-lg border bg-card md:block">
         <table className="min-w-[720px] w-full text-sm">
-          <caption className="sr-only">Invoices</caption>
+          <caption className="sr-only">Tax invoices</caption>
           <thead className="bg-muted/40">
             <tr className="hover:bg-transparent">
-              {["Invoice", "Type", "Created", "GST", "Total", "Status", ""].map(
-                (h) => (
-                  <th
-                    key={h}
-                    scope="col"
-                    className="h-10 px-3 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-                  >
-                    {h}
-                  </th>
-                ),
-              )}
+              {[
+                "Invoice no.",
+                "Folio",
+                "Issued",
+                "GST",
+                "Total",
+                "Folio status",
+                "",
+              ].map((h) => (
+                <th
+                  key={h}
+                  scope="col"
+                  className="h-10 px-3 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                >
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-3 py-6 text-muted-foreground">
-                  No invoices yet.
+                  No tax invoices issued yet. Open a folio and use Issue tax invoice.
                 </td>
               </tr>
             ) : (
               rows.map((r) => (
-                <tr key={r.id} className="border-t">
+                <tr key={r.docId} className="border-t">
+                  <td className="px-3 py-2.5 font-mono font-medium text-foreground">
+                    {r.docNo}
+                  </td>
                   <td className="px-3 py-2.5">
                     <p className="font-medium text-foreground">{r.label}</p>
                     <p className="font-mono text-xs text-muted-foreground">
-                      {r.id.slice(0, 8)}
+                      {r.folioId.slice(0, 8)}
                     </p>
                   </td>
-                  <td className="px-3 py-2.5 text-sm text-muted-foreground">
-                    {r.folio_type}
-                  </td>
                   <td className="px-3 py-2.5 text-sm text-foreground">
-                    {fmtDateTime(r.created_at)}
+                    {fmtDateTime(r.issued_at)}
                   </td>
                   <td className="px-3 py-2.5 tabular-nums">{formatBtn(r.gst)}</td>
                   <td className="px-3 py-2.5 font-medium tabular-nums text-foreground">
@@ -220,10 +236,10 @@ export default async function InvoicesPage({
                   </td>
                   <td className="px-3 py-2.5 text-right">
                     <a
-                      href={`/erp/folios/${r.id}`}
+                      href={`/erp/folios/${r.folioId}`}
                       className="text-sm text-accent underline-offset-4 hover:underline"
                     >
-                      Open / reprint →
+                      Open folio →
                     </a>
                   </td>
                 </tr>

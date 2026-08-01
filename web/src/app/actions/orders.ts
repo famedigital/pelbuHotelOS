@@ -5,12 +5,14 @@ import { notifyNewOrder } from "@/lib/notify";
 import { loadMenuStockMap } from "@/lib/menu-stock";
 import { calculateOrderTotals } from "@/lib/pricing";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   assertPhone,
   optionalTrim,
   trimRequired,
 } from "@/lib/validation";
+import { headers } from "next/headers";
 
 export type OrderActionState = {
   ok: boolean;
@@ -72,6 +74,18 @@ export async function createOrder(
   formData: FormData,
 ): Promise<OrderActionState> {
   try {
+    const h = await headers();
+    const rl = await rateLimit(`order:${clientIp(h)}`, {
+      limit: 20,
+      windowMs: 60 * 60_000,
+    });
+    if (!rl.ok) {
+      return {
+        ok: false,
+        error: "Too many orders from this network. Try again later.",
+      };
+    }
+
     const customerName = trimRequired(formData.get("customer_name"), "Full name");
     const phone = trimRequired(formData.get("phone"), "Phone");
     assertPhone(phone);

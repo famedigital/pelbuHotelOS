@@ -1,13 +1,16 @@
 import {
   RoomRackGrid,
+  type RackAllotment,
   type RackStay,
   type RackUnit,
   type RoomBlock,
   type UnassignedBooking,
 } from "@/components/erp/RoomRackGrid";
+import { DeskOfflineQueueStrip } from "@/components/erp/DeskOfflineQueueStrip";
 import type { CalendarAgent } from "@/components/erp/CalendarReservationDialog";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId, thimphuToday } from "@/lib/erp-lists";
+import { netFolioBalance } from "@/lib/folio/balance";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 
@@ -47,12 +50,13 @@ export default async function CalendarPage({ searchParams }: Props) {
     { data: agentRows },
     { data: bookingRows },
     { data: blockRows },
+    { data: allotmentRows },
   ] =
     await Promise.all([
       admin
         .from("room_units")
         .select(
-          "id, label, floor_label, sort_order, room_type_id, hk_status, room_types!inner(code, name, inventory_kind)",
+          "id, label, floor_label, view_label, has_balcony, sort_order, room_type_id, hk_status, connecting_room_unit_id, room_types!inner(code, name, inventory_kind)",
         )
         .eq("property_id", propertyId)
         .eq("room_types.inventory_kind", "sellable_guest")
@@ -69,8 +73,9 @@ export default async function CalendarPage({ searchParams }: Props) {
              check_in, check_out, adults, rooms, guide_number,
              payment_mode, notes, agent_id, source, booked_by_role, guest_origin,
              agents(company_name),
-             folios(id, status),
-             booking_group_members(booking_groups(name))
+             folios(id, status, folio_lines(id, total_btn, status, reverses_line_id)),
+             booking_group_members(booking_groups(name)),
+             booking_guests(passport_or_cid, sdf_ref)
            )`,
         )
         .eq("property_id", propertyId)
@@ -105,9 +110,19 @@ export default async function CalendarPage({ searchParams }: Props) {
         .lt("from_date", endExclusive)
         .gt("to_date", start)
         .limit(500),
+      admin
+        .from("agent_allotments")
+        .select(
+          "id, room_type_id, rooms_per_week, valid_from, valid_to, agents(company_name)",
+        )
+        .eq("property_id", propertyId)
+        .lte("valid_from", endExclusive)
+        .gte("valid_to", start)
+        .limit(200),
     ]);
 
-  const units: RackUnit[] = (unitRows ?? []).map((u) => {
+  const units: RackUnit[] = (unitRows ?? [])
+    .map((u) => {
     const rt = u.room_types as
       | { code?: string; name?: string }
       | { code?: string; name?: string }[]
@@ -117,17 +132,36 @@ export default async function CalendarPage({ searchParams }: Props) {
       id: u.id as string,
       label: u.label as string,
       floor_label: (u.floor_label as string | null) ?? null,
+      view_label: (u.view_label as string | null) ?? null,
+      has_balcony: Boolean(u.has_balcony),
       sort_order: Number(u.sort_order ?? 0),
       room_type_id: u.room_type_id as string,
       room_type_code: (type?.code as string) ?? "",
       room_type_name: (type?.name as string) ?? "Room",
       hk_status: (u.hk_status as string | null) ?? null,
+      connecting_room_unit_id:
+        (u.connecting_room_unit_id as string | null) ?? null,
+      connecting_room_label: null as string | null,
     };
-  });
+  })
+    .sort((a, b) => {
+      const typeCmp = a.room_type_name.localeCompare(b.room_type_name);
+      if (typeCmp !== 0) return typeCmp;
+      if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+      return a.label.localeCompare(b.label, undefined, { numeric: true });
+    });
+
+  const labelById = new Map(units.map((u) => [u.id, u.label]));
+  for (const u of units) {
+    if (u.connecting_room_unit_id) {
+      u.connecting_room_label =
+        labelById.get(u.connecting_room_unit_id) ?? null;
+    }
+  }
 
   const unitLabelById = new Map(units.map((u) => [u.id, u]));
 
-  const stays: RackStay[] = (assignRows ?? [])
+  const stays = (assignRows ?? [])
     .map((a) => {
       const b = a.bookings as Record<string, unknown> | Record<string, unknown>[] | null;
       const booking = Array.isArray(b) ? b[0] : b;
@@ -144,9 +178,23 @@ export default async function CalendarPage({ searchParams }: Props) {
       const agentObj = Array.isArray(agent) ? agent[0] : agent;
 
       const folios = booking.folios as
-        | { id: string; status: string }[]
+        | {
+            id: string;
+            status: string;
+            folio_lines?: {
+              id: string;
+              total_btn: number;
+              status: string;
+              reverses_line_id?: string | null;
+            }[];
+          }[]
         | null;
       const openFolio = (folios ?? []).find((f) => f.status === "open");
+      let folioBalance = 0;
+      for (const f of folios ?? []) {
+        if (f.status === "settled") continue;
+        folioBalance += netFolioBalance(f.folio_lines ?? []);
+      }
 
       const members = booking.booking_group_members as
         | { booking_groups?: { name?: string } | { name?: string }[] | null }[]
@@ -169,7 +217,25 @@ export default async function CalendarPage({ searchParams }: Props) {
       const roomType = Array.isArray(rt) ? rt[0] : rt;
       const fallback = unitLabelById.get(a.room_unit_id as string);
 
-      return {
+      const guests =
+        (booking.booking_guests as
+          | { passport_or_cid?: string | null; sdf_ref?: string | null }[]
+          | null) ?? [];
+      const origin = (booking.guest_origin as string | null) ?? null;
+      const needsSdf =
+        origin === "international" ||
+        origin === "regional" ||
+        origin == null;
+      const sdfIncomplete =
+        needsSdf &&
+        (guests.length === 0 ||
+          guests.some(
+            (g) =>
+              !String(g.passport_or_cid ?? "").trim() ||
+              !String(g.sdf_ref ?? "").trim(),
+          ));
+
+      const stay: RackStay = {
         id: a.id as string,
         booking_id: a.booking_id as string,
         room_unit_id: a.room_unit_id as string,
@@ -190,17 +256,20 @@ export default async function CalendarPage({ searchParams }: Props) {
         payment_mode: (booking.payment_mode as string | null) ?? null,
         source: (booking.source as string | null) ?? null,
         booked_by_role: (booking.booked_by_role as string | null) ?? null,
-        guest_origin: (booking.guest_origin as string | null) ?? null,
+        guest_origin: origin,
         notes: (booking.notes as string | null) ?? null,
         agent_name: agentObj?.company_name ?? null,
         group_name: groupName,
         folio_id: openFolio?.id ?? null,
+        folio_balance: folioBalance,
         room_label: roomUnit?.label ?? fallback?.label ?? "Room",
         room_type_id:
           roomUnit?.room_type_id ?? fallback?.room_type_id ?? "",
         room_type_name:
           roomType?.name ?? fallback?.room_type_name ?? "Room",
+        sdf_incomplete: sdfIncomplete,
       };
+      return stay;
     })
     .filter((s): s is RackStay => s != null);
 
@@ -289,17 +358,38 @@ export default async function CalendarPage({ searchParams }: Props) {
     reason: block.reason as string,
   }));
 
+  const allotments: RackAllotment[] = (allotmentRows ?? []).map((row) => {
+    const agent = row.agents as
+      | { company_name?: string }
+      | { company_name?: string }[]
+      | null;
+    const agentObj = Array.isArray(agent) ? agent[0] : agent;
+    return {
+      id: row.id as string,
+      room_type_id: row.room_type_id as string,
+      agent_name: agentObj?.company_name ?? "Agent",
+      rooms_per_week: Number(row.rooms_per_week ?? 0),
+      valid_from: row.valid_from as string,
+      valid_to: row.valid_to as string,
+    };
+  });
+
   return (
-    <RoomRackGrid
-      units={units}
-      stays={stays}
-      start={start}
-      days={days}
-      today={today}
-      windowDays={windowDays}
-      agents={agents}
-      unassigned={unassigned}
-      blocks={blocks}
-    />
+    <div className="space-y-3">
+      <DeskOfflineQueueStrip defaultKind="hold_draft" />
+      <RoomRackGrid
+        units={units}
+        stays={stays}
+        start={start}
+        days={days}
+        today={today}
+        windowDays={windowDays}
+        agents={agents}
+        unassigned={unassigned}
+        blocks={blocks}
+        allotments={allotments}
+        propertyId={propertyId}
+      />
+    </div>
   );
 }

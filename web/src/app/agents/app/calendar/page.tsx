@@ -88,7 +88,7 @@ export default async function AgentCalendarPage() {
           <Legend className="bg-destructive/20" label="Full" />
           <Legend className="border border-primary" label="Your stay" />
         </div>
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-7">
           {occupancy.map((day) => {
             const availability = availabilityFor(day);
             const mine = ownDates.has(day.date);

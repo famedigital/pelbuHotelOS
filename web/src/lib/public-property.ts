@@ -1,5 +1,5 @@
-import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { resolvePublicPropertyId } from "@/lib/tenant/resolve-public-property";
 
 export type PublicPropertyProfile = {
   name: string;
@@ -25,13 +25,15 @@ function instagramUrl(handle: string | null): string | null {
 
 /** Public NAP fields only — never invent missing contact values. */
 export async function loadPublicPropertyProfile(): Promise<PublicPropertyProfile | null> {
+  const propertyId = await resolvePublicPropertyId();
+  if (!propertyId) return null;
   const admin = createSupabaseAdminClient();
   const { data } = await admin
     .from("properties")
     .select(
       "name, phone, email, address, whatsapp, maps_url, instagram_handle, facebook_url, tiktok_url",
     )
-    .eq("slug", PELBU_PROPERTY_SLUG)
+    .eq("id", propertyId)
     .maybeSingle();
 
   if (!data) return null;

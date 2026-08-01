@@ -1,14 +1,23 @@
+import { PrintButton } from "@/components/erp/PrintButton";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { requireDeskPropertyId, thimphuToday } from "@/lib/erp-lists";
 import { formatBtn } from "@/lib/pricing";
-import { PELBU_PROPERTY_SLUG } from "@/lib/property";
+import {
+  computeManagerFlash,
+  formatFlashMoney,
+} from "@/lib/reports/manager-flash";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
@@ -18,37 +27,28 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-function monthStartIso(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+function monthStartIso(today: string): string {
+  return `${today.slice(0, 7)}-01`;
 }
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+type Props = {
+  searchParams: Promise<{ from?: string; to?: string }>;
+};
 
-export default async function ErpReportsPage() {
+export default async function ErpReportsPage({ searchParams }: Props) {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
 
+  const sp = await searchParams;
   const admin = createSupabaseAdminClient();
-  const { data: property } = await admin
-    .from("properties")
-    .select("id")
-    .eq("slug", PELBU_PROPERTY_SLUG)
-    .single();
-  const propertyId = property?.id as string | undefined;
-  if (!propertyId) {
-    return (
-      <div className="erp mx-auto w-full max-w-[1200px] p-6">
-        <p className="text-sm text-destructive">Property not configured.</p>
-      </div>
-    );
-  }
-
-  const since = monthStartIso();
-  const today = todayIso();
+  const propertyId = await requireDeskPropertyId();
+  const today = thimphuToday();
+  const since = monthStartIso(today);
+  const from =
+    sp.from && /^\d{4}-\d{2}-\d{2}$/.test(sp.from) ? sp.from : since;
+  const to = sp.to && /^\d{4}-\d{2}-\d{2}$/.test(sp.to) ? sp.to : today;
 
   const [
+    flash,
     roomTypesRes,
     bookingsRes,
     bookingRoomsRes,
@@ -60,6 +60,7 @@ export default async function ErpReportsPage() {
     auditRes,
     hkRes,
   ] = await Promise.all([
+    computeManagerFlash(admin, propertyId, { from, to }),
     admin
       .from("room_types")
       .select("id, code, name, inventory_kind, unit_count")
@@ -127,9 +128,7 @@ export default async function ErpReportsPage() {
     ["confirmed", "checked_in"].includes(b.status as string),
   );
   const todayInHouse = inHouse.filter(
-    (b) =>
-      String(b.check_in) <= today &&
-      String(b.check_out) > today,
+    (b) => String(b.check_in) <= today && String(b.check_out) > today,
   );
 
   const bookingIds = new Set(todayInHouse.map((b) => b.id as string));
@@ -200,13 +199,16 @@ export default async function ErpReportsPage() {
   const agentMap = new Map(
     (agentsRes.data ?? []).map((a) => [a.id as string, a]),
   );
-  const agentProd = new Map<string, { name: string; bookings: number }>();
+  const agentProd = new Map<
+    string,
+    { id: string; name: string; bookings: number }
+  >();
   for (const b of bookingsRes.data ?? []) {
     const aid = b.agent_id as string | null;
     if (!aid) continue;
     const agent = agentMap.get(aid);
     const name = (agent?.company_name as string) ?? aid.slice(0, 8);
-    const cur = agentProd.get(aid) ?? { name, bookings: 0 };
+    const cur = agentProd.get(aid) ?? { id: aid, name, bookings: 0 };
     cur.bookings += 1;
     agentProd.set(aid, cur);
   }
@@ -221,20 +223,138 @@ export default async function ErpReportsPage() {
   }
 
   return (
-    <div className="erp mx-auto w-full max-w-[1200px] space-y-10 p-4 md:p-6">
-      <header className="space-y-1.5">
-        <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-          Reports
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Month-to-date
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Month from {since} · ADR uses sellable rooms only (comp beds excluded).
-        </p>
+    <div className="erp mx-auto w-full max-w-[1200px] space-y-10 p-4 md:p-6 print:max-w-none print:p-0">
+      <header className="flex flex-wrap items-end justify-between gap-3 print:hidden">
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+            Reports
+          </p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            Manager flash &amp; MTD
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            ADR / OCC / RevPAR use sellable rooms only (comp beds excluded).
+          </p>
+        </div>
+        <PrintButton label="Print flash" />
       </header>
 
-      <p className="text-xs text-muted-foreground">
+      <section className="space-y-3 print:hidden">
+        <div>
+          <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+            Report catalog
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Named reports with date and entity filters — not a free-form query
+            builder.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            {
+              href: `/erp/reports/agent-production?from=${from}&to=${to}`,
+              title: "Agent production",
+              blurb: "Bookings, room-nights, quoted totals",
+            },
+            {
+              href: `/erp/reports/agent-ar?from=${from}&to=${to}`,
+              title: "Agent AR & habit",
+              blurb: "Outstanding, aging, payment mix",
+            },
+            {
+              href: `/erp/reports/staff-attendance?from=${from}&to=${to}`,
+              title: "Staff attendance",
+              blurb: "Punches and estimated hours",
+            },
+            {
+              href: `/erp/reports/inventory-movements?from=${from}&to=${to}`,
+              title: "Inventory movements",
+              blurb: "Receive / issue / waste by item",
+            },
+          ].map((card) => (
+            <Link
+              key={card.href}
+              href={card.href}
+              className="rounded-lg border bg-card p-4 transition-colors hover:border-accent/40 hover:bg-accent/5"
+            >
+              <p className="text-sm font-medium text-foreground">{card.title}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{card.blurb}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <div className="hidden print:block">
+        <h1 className="text-xl font-semibold">
+          Manager flash · {from} → {to}
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Sellable capacity {flash.sellableCapacity} · {flash.days} night
+          {flash.days === 1 ? "" : "s"}
+        </p>
+      </div>
+
+      <section className="space-y-4 rounded-lg border bg-card p-4 print:break-inside-avoid">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+              Manager flash
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground print:hidden">
+              Date range (inclusive) · room nights / sellable capacity nights
+            </p>
+          </div>
+          <form
+            className="flex flex-wrap items-end gap-2 print:hidden"
+            action="/erp/reports"
+            method="get"
+          >
+            <div className="space-y-1">
+              <Label htmlFor="from" className="text-xs text-muted-foreground">
+                From
+              </Label>
+              <Input
+                id="from"
+                type="date"
+                name="from"
+                defaultValue={from}
+                className="h-9 w-40"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="to" className="text-xs text-muted-foreground">
+                To
+              </Label>
+              <Input
+                id="to"
+                type="date"
+                name="to"
+                defaultValue={to}
+                className="h-9 w-40"
+              />
+            </div>
+            <Button type="submit" variant="outline" className="h-9">
+              Apply
+            </Button>
+          </form>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <Stat label="OCC %" value={`${flash.occupancyPct}%`} />
+          <Stat
+            label="Room nights"
+            value={`${flash.roomNightsSold} / ${flash.capacityNights}`}
+          />
+          <Stat label="Room revenue" value={formatFlashMoney(flash.roomRevenueBtn)} />
+          <Stat label="ADR" value={formatFlashMoney(flash.adrBtn)} />
+          <Stat label="RevPAR" value={formatFlashMoney(flash.revparBtn)} />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Window {from} → {to} · {flash.days} day{flash.days === 1 ? "" : "s"} ·
+          sellable inventory {flash.sellableCapacity}
+        </p>
+      </section>
+
+      <p className="text-xs text-muted-foreground print:hidden">
         Export CSV:{" "}
         <a
           href={`/api/erp/export?kind=payments&since=${since}`}
@@ -256,9 +376,23 @@ export default async function ErpReportsPage() {
         >
           folio lines
         </a>
+        {" · "}
+        <a
+          href={`/api/erp/export?kind=gst_filing&since=${since}`}
+          className="font-medium text-accent underline-offset-4 hover:underline"
+        >
+          GST filing
+        </a>
+        {" · "}
+        <Link
+          href="/erp/night-audit"
+          className="font-medium text-accent underline-offset-4 hover:underline"
+        >
+          night audit
+        </Link>
       </p>
 
-      <section className="space-y-3">
+      <section className="space-y-3 print:hidden">
         <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
           Occupancy today
         </p>
@@ -282,7 +416,7 @@ export default async function ErpReportsPage() {
         </p>
       </section>
 
-      <section className="space-y-3">
+      <section className="space-y-3 print:hidden">
         <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
           This month — money
         </p>
@@ -299,7 +433,7 @@ export default async function ErpReportsPage() {
         </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 print:hidden">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
@@ -344,10 +478,15 @@ export default async function ErpReportsPage() {
               <ul>
                 {agentRows.map((a) => (
                   <li
-                    key={a.name}
+                    key={a.id}
                     className="flex justify-between border-b py-3 text-sm last:border-0"
                   >
-                    <span className="text-foreground">{a.name}</span>
+                    <Link
+                      href={`/erp/agents/${a.id}`}
+                      className="text-foreground underline-offset-4 hover:underline"
+                    >
+                      {a.name}
+                    </Link>
                     <span className="tabular-nums text-muted-foreground">
                       {a.bookings} booking{a.bookings === 1 ? "" : "s"}
                     </span>
@@ -368,7 +507,12 @@ export default async function ErpReportsPage() {
                         key={a.id as string}
                         className="flex justify-between border-b py-2 text-xs last:border-0"
                       >
-                        <span>{a.company_name as string}</span>
+                        <Link
+                          href={`/erp/agents/${a.id as string}`}
+                          className="hover:underline"
+                        >
+                          {a.company_name as string}
+                        </Link>
                         <span className="tabular-nums text-muted-foreground">
                           {formatBtn(Number(a.credit_used))} /{" "}
                           {formatBtn(Number(a.credit_limit))}
@@ -382,7 +526,7 @@ export default async function ErpReportsPage() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="print:hidden">
         <CardHeader className="pb-3">
           <CardTitle className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
             Audit trail

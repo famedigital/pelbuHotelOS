@@ -5,6 +5,7 @@ import {
   enqueueFullAriSync,
   flushAriQueue,
   pullChannelBookings,
+  retryFailedAriJobs,
   saveChannelRoomMap,
   setChannelStatus,
   type ErpChannelState,
@@ -34,6 +35,97 @@ function Flash({ state }: { state: ErpChannelState }) {
 }
 
 export type RoomTypeOpt = { id: string; code: string; name: string };
+
+export type MappingChecklistItem = {
+  roomTypeId: string;
+  code: string;
+  name: string;
+  mapped: boolean;
+  hasRatePlan: boolean;
+};
+
+export function ChannelMappingChecklist({
+  items,
+  apiReady,
+  hasExternalProperty,
+  connectionStatus,
+  failedCount,
+  pendingCount,
+}: {
+  items: MappingChecklistItem[];
+  apiReady: boolean;
+  hasExternalProperty: boolean;
+  connectionStatus: string;
+  failedCount: number;
+  pendingCount: number;
+}) {
+  const mapped = items.filter((i) => i.mapped).length;
+  const withRates = items.filter((i) => i.hasRatePlan).length;
+  const readyToFlush =
+    apiReady &&
+    hasExternalProperty &&
+    ["staging", "live"].includes(connectionStatus) &&
+    mapped > 0;
+
+  return (
+    <div className="erp space-y-3 rounded-lg border bg-card p-4">
+      <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+        Mapping checklist
+      </h3>
+      <ul className="space-y-1.5 text-xs text-muted-foreground">
+        <li className={apiReady ? "text-foreground" : ""}>
+          {apiReady ? "✓" : "○"} CHANNEX_API_KEY in env
+        </li>
+        <li className={hasExternalProperty ? "text-foreground" : ""}>
+          {hasExternalProperty ? "✓" : "○"} Channex property id on connection
+        </li>
+        <li
+          className={
+            ["staging", "live"].includes(connectionStatus)
+              ? "text-foreground"
+              : ""
+          }
+        >
+          {["staging", "live"].includes(connectionStatus) ? "✓" : "○"} Status
+          staging or live (now: {connectionStatus})
+        </li>
+        <li className={mapped > 0 ? "text-foreground" : ""}>
+          {mapped > 0 ? "✓" : "○"} Room types mapped ({mapped}/{items.length})
+        </li>
+        <li className={withRates > 0 ? "text-foreground" : ""}>
+          {withRates > 0 ? "✓" : "○"} Rate plans mapped ({withRates}/
+          {items.length}) — needed for rates / min-stay / stop-sell
+        </li>
+        <li className={readyToFlush ? "text-foreground" : ""}>
+          {readyToFlush ? "✓" : "○"} Ready to flush
+          {pendingCount > 0 ? ` · ${pendingCount} pending` : ""}
+          {failedCount > 0 ? ` · ${failedCount} failed` : ""}
+        </li>
+      </ul>
+      {items.length > 0 ? (
+        <ul className="divide-y border-t pt-2">
+          {items.map((item) => (
+            <li
+              key={item.roomTypeId}
+              className="flex flex-wrap items-baseline justify-between gap-2 py-2 font-mono text-[11px]"
+            >
+              <span className="text-foreground">
+                {item.code} · {item.name}
+              </span>
+              <span className="text-muted-foreground">
+                {item.mapped
+                  ? item.hasRatePlan
+                    ? "room + rate"
+                    : "room only"
+                  : "unmapped"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
 
 export function ChannelMapForm({ roomTypes }: { roomTypes: RoomTypeOpt[] }) {
   const [state, action, pending] = useActionState(saveChannelRoomMap, initial);
@@ -82,7 +174,7 @@ export function ChannelMapForm({ roomTypes }: { roomTypes: RoomTypeOpt[] }) {
           htmlFor="external_rate_plan_id"
           className="text-xs text-muted-foreground"
         >
-          Channex rate_plan_id (optional)
+          Channex rate_plan_id (required for rates / stop-sell)
         </Label>
         <Input id="external_rate_plan_id" name="external_rate_plan_id" />
       </div>
@@ -150,7 +242,7 @@ export function ChannelStatusForm({
   );
 }
 
-export function ChannelQueueActions() {
+export function ChannelQueueActions({ failedCount = 0 }: { failedCount?: number }) {
   const [syncState, syncAction, syncPending] = useActionState(
     enqueueFullAriSync,
     initial,
@@ -159,12 +251,17 @@ export function ChannelQueueActions() {
     flushAriQueue,
     initial,
   );
+  const [retryState, retryAction, retryPending] = useActionState(
+    retryFailedAriJobs,
+    initial,
+  );
   const [pullState, pullAction, pullPending] = useActionState(
     pullChannelBookings,
     initial,
   );
   useActionToast(syncState, { successMessage: "ARI sync queued" });
   useActionToast(flushState, { successMessage: "ARI queue flushed" });
+  useActionToast(retryState, { successMessage: "Failed jobs re-queued" });
   useActionToast(pullState, { successMessage: "Bookings pulled" });
 
   return (
@@ -173,8 +270,12 @@ export function ChannelQueueActions() {
         ARI / bookings
       </h3>
       <p className="text-xs text-muted-foreground">
-        Queue is local until <code className="font-mono">CHANNEX_API_KEY</code> is
-        set. Flush only works in staging/live with property id mapped.
+        Queue builds local availability + public rates + min-stay / stop-sell
+        batches. Flush requires <code className="font-mono">CHANNEX_API_KEY</code>
+        , staging/live status, Channex property id, and room maps. Failed jobs
+        stay marked until you retry then flush again. Live certification is a
+        human packet (see docs/CHANNEX-CERT.md) — desk flush alone does not
+        raise Channel maturity past ~40–55.
       </p>
       <div className="flex flex-wrap gap-2">
         <form action={syncAction}>
@@ -196,7 +297,22 @@ export function ChannelQueueActions() {
             disabled={flushPending}
             className="h-10 text-xs"
           >
-            {flushPending ? "Flushing…" : "Flush ARI queue"}
+            {flushPending ? "Flushing…" : "Flush pending"}
+          </Button>
+        </form>
+        <form action={retryAction}>
+          <Button
+            type="submit"
+            variant="outline"
+            size="sm"
+            disabled={retryPending || failedCount === 0}
+            className="h-10 text-xs"
+          >
+            {retryPending
+              ? "Retrying…"
+              : failedCount > 0
+                ? `Retry ${failedCount} failed`
+                : "Retry failed"}
           </Button>
         </form>
         <form action={pullAction}>
@@ -212,6 +328,7 @@ export function ChannelQueueActions() {
       </div>
       <Flash state={syncState} />
       <Flash state={flushState} />
+      <Flash state={retryState} />
       <Flash state={pullState} />
     </div>
   );

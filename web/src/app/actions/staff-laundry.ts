@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { postFolioLine } from "@/lib/accounting/posting";
 import {
   canWorkLaundry,
   isLaundryPhotoId,
@@ -9,6 +8,8 @@ import {
   type LaundryOrder,
   type LaundryStatus,
 } from "@/lib/laundry";
+import { postFolioCharge } from "@/lib/folio/post-charge";
+import { captureServerError } from "@/lib/observability";
 import { requireStaffSession, type StaffSession } from "@/lib/staff-auth";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
@@ -71,7 +72,7 @@ export async function confirmLaundryReceipt(
     const admin = createSupabaseAdminClient();
     const { data: order } = await admin
       .from("laundry_orders")
-      .select("id, property_id, folio_line_id")
+      .select("id, property_id, folio_line_id, status")
       .eq("id", orderId)
       .eq("property_id", session.propertyId)
       .maybeSingle();
@@ -108,32 +109,91 @@ export async function confirmLaundryReceipt(
       { p_order_id: orderId, p_staff_id: session.staffId },
     );
     if (rpcError) throw new Error(rpcError.message);
-    const folioLineId = String(
-      (result as { folio_line_id?: string } | null)?.folio_line_id ?? "",
-    );
-    if (folioLineId) {
-      const { data: line } = await admin
-        .from("folio_lines")
-        .select("id, source_type, description, total_btn, gst_btn, created_at")
-        .eq("id", folioLineId)
-        .single();
-      if (line) {
-        await postFolioLine(admin, session.propertyId, {
-          id: line.id as string,
-          source_type: line.source_type as string,
-          description: line.description as string | null,
-          total_btn: Number(line.total_btn),
-          gst_btn: Number(line.gst_btn),
-          created_at: line.created_at as string,
-        });
+    const quote = result as {
+      already_billed?: boolean;
+      folio_line_id?: string;
+      folio_id?: string;
+      booking_id?: string;
+      amount_btn?: number;
+      unit_price_btn?: number;
+      service_charge_rate?: number;
+      service_charge_btn?: number;
+      service_charge_applied?: boolean;
+      gst_btn?: number;
+      total_btn?: number;
+      description?: string;
+    } | null;
+
+    let folioLineId = quote?.folio_line_id ?? "";
+    const totalBtn = Number(quote?.total_btn ?? 0);
+
+    if (!quote?.already_billed) {
+      if (!quote?.folio_id) {
+        throw new Error("Laundry quote did not return a folio.");
       }
+      try {
+        const charge = await postFolioCharge(admin, session.propertyId, {
+          folio_id: quote.folio_id,
+          booking_id: quote.booking_id ?? null,
+          source_type: "guest_service",
+          source_id: orderId,
+          description: quote.description ?? "Laundry",
+          qty: 1,
+          unit_price_btn: Number(quote.unit_price_btn ?? quote.amount_btn ?? 0),
+          amount_btn: Number(quote.amount_btn ?? 0),
+          service_charge_rate: Number(quote.service_charge_rate ?? 0),
+          service_charge_btn: Number(quote.service_charge_btn ?? 0),
+          service_charge_applied: Boolean(quote.service_charge_applied),
+          gst_applicable: Number(quote.gst_btn ?? 0) > 0,
+          gst_btn: Number(quote.gst_btn ?? 0),
+          total_btn: totalBtn,
+        });
+        folioLineId = charge.lineId;
+      } catch (postErr) {
+        await captureServerError(postErr, {
+          route: "laundry_confirm",
+          orderId,
+        });
+        throw postErr;
+      }
+
+      const { error: attachError } = await admin
+        .from("laundry_orders")
+        .update({
+          folio_id: quote.folio_id,
+          folio_line_id: folioLineId,
+          status: "received",
+          received_at: new Date().toISOString(),
+          billed_at: new Date().toISOString(),
+          billed_by: session.staffId,
+          assigned_staff_id: session.staffId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", orderId)
+        .eq("property_id", session.propertyId)
+        .is("folio_line_id", null);
+      if (attachError) {
+        throw new Error(
+          "Folio charged but laundry order could not be marked billed. Contact desk.",
+        );
+      }
+
+      await admin.from("laundry_order_events").insert({
+        property_id: session.propertyId,
+        order_id: orderId,
+        event_type: "receipt_confirmed",
+        from_status: order.status,
+        to_status: "received",
+        notes: "Counts confirmed and folio charged via gateway",
+        actor_kind: "staff",
+        actor_staff_id: session.staffId,
+      });
     }
+
     refreshLaundry();
     return {
       ok: true,
-      message: `Receipt confirmed. Folio charge Nu ${Number(
-        (result as { total_btn?: number } | null)?.total_btn ?? 0,
-      ).toFixed(2)}.`,
+      message: `Receipt confirmed. Folio charge Nu ${totalBtn.toFixed(2)}.`,
     };
   } catch (error) {
     return {

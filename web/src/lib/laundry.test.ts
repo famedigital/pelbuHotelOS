@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  canAdvanceBagStatus,
   isLaundryPhotoId,
-  laundryBagScanPath,
+  LAUNDRY_BAG_TRANSITIONS,
   LAUNDRY_TRANSITIONS,
+  laundryBagScanPath,
   makeLaundryBagPublicCode,
+  nextBagStatuses,
   normalizeGuestName,
   validateBagAllocations,
 } from "./laundry";
@@ -19,11 +22,18 @@ test("laundry status flow blocks skipping chain-of-custody stages", () => {
   assert.deepEqual(LAUNDRY_TRANSITIONS.requested, [
     "received",
     "exception",
-    "cancelled",
   ]);
   assert.equal(LAUNDRY_TRANSITIONS.received.includes("ready"), false);
+  assert.equal(LAUNDRY_TRANSITIONS.washing.includes("quality_check"), false);
   assert.equal(LAUNDRY_TRANSITIONS.ready.includes("delivered"), true);
   assert.deepEqual(LAUNDRY_TRANSITIONS.delivered, []);
+});
+
+test("bag status follows strict open → in_process → ready → delivered chain", () => {
+  assert.deepEqual(nextBagStatuses("open"), ["in_process"]);
+  assert.equal(canAdvanceBagStatus("open", "ready"), false);
+  assert.equal(canAdvanceBagStatus("delivered", "open"), false);
+  assert.equal(LAUNDRY_BAG_TRANSITIONS.delivered.length, 0);
 });
 
 test("photo references must stay inside the active property folder", () => {

@@ -19,6 +19,7 @@ import {
   type LaundryOrder,
 } from "@/lib/laundry";
 import { formatBtn } from "@/lib/pricing";
+import { LaundryLiveRefresh } from "@/components/laundry/LaundryLiveRefresh";
 import { MinusIcon, PlusIcon, ShirtIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useState } from "react";
@@ -157,11 +158,14 @@ function GuestIntake({
             </p>
             <h1 className="mt-1 font-display text-2xl">{session.guestName}</h1>
           </div>
-          <form action={logoutLaundryGuest}>
-            <Button type="submit" variant="ghost" size="sm">
-              Change guest
-            </Button>
-          </form>
+          <div className="flex flex-col items-end gap-2">
+            <LaundryLiveRefresh />
+            <form action={logoutLaundryGuest}>
+              <Button type="submit" variant="ghost" size="sm">
+                Change guest
+              </Button>
+            </form>
+          </div>
         </div>
       </section>
 
@@ -172,9 +176,16 @@ function GuestIntake({
           before your room folio is charged.
         </p>
         {catalog.length === 0 ? (
-          <p className="mt-5 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-            Laundry pricing is being prepared. Please call reception.
-          </p>
+          <div className="mt-5 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">
+              Laundry service is not ready for self-service yet.
+            </p>
+            <p className="mt-2 leading-6">
+              Our team is still loading the garment price list. Please call
+              reception or visit the front desk to request pickup — staff can
+              take your order manually.
+            </p>
+          </div>
         ) : (
           <div className="mt-5 space-y-2">
             {catalog.map((item) => {

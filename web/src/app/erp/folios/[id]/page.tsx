@@ -1,13 +1,21 @@
 import {
+  AttachToMasterForm,
   CompCreditForm,
   DepositLinkForm,
+  IssueCreditNoteButton,
+  IssueInvoiceButton,
   MarkLinkPaidForm,
+  PromoteToMasterForm,
+  TransferLineForm,
   VoidLineButton,
 } from "@/components/erp/FolioOpsForms";
 import { FolioPaymentForm } from "@/components/erp/FolioPaymentForm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { formatBtn } from "@/lib/pricing";
+import { netFolioBalance } from "@/lib/folio/balance";
+import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { notFound, redirect } from "next/navigation";
 
@@ -27,16 +35,27 @@ export default async function FolioDetailPage({ params }: Props) {
 
   const { id } = await params;
   const admin = createSupabaseAdminClient();
+  const activePropertyId = await resolveActivePropertyId(admin);
 
   const { data: folio } = await admin
     .from("folios")
     .select(
-      "id, label, status, booking_id, master_folio_id, folio_type, created_at, folio_lines(id, description, total_btn, gst_btn, service_charge_btn, service_charge_applied, source_type, status, is_comp, void_reason, created_at)",
+      "id, label, status, booking_id, master_folio_id, folio_type, property_id, created_at, folio_lines(id, description, total_btn, gst_btn, service_charge_btn, service_charge_applied, source_type, status, is_comp, void_reason, reverses_line_id, created_at)",
     )
     .eq("id", id)
     .maybeSingle();
 
   if (!folio) notFound();
+
+  try {
+    assertDeskProperty(
+      activePropertyId,
+      folio.property_id as string,
+      "Folio",
+    );
+  } catch {
+    notFound();
+  }
 
   const { data: links } = await admin
     .from("payment_links")
@@ -44,6 +63,55 @@ export default async function FolioDetailPage({ params }: Props) {
     .eq("folio_id", id)
     .order("created_at", { ascending: false })
     .limit(10);
+
+  const { data: invoiceDoc } = await admin
+    .from("fiscal_documents")
+    .select("id, doc_no")
+    .eq("folio_id", id)
+    .eq("doc_kind", "invoice")
+    .eq("status", "issued")
+    .maybeSingle();
+
+  const { data: siblingFolios } = folio.booking_id
+    ? await admin
+        .from("folios")
+        .select("id, label, status")
+        .eq("property_id", activePropertyId)
+        .eq("booking_id", folio.booking_id as string)
+        .eq("status", "open")
+        .neq("id", id)
+        .limit(20)
+    : { data: [] as { id: string; label: string; status: string }[] };
+
+  const transferTargets = (siblingFolios ?? []).map((f) => ({
+    id: f.id as string,
+    label: (f.label as string) || (f.id as string).slice(0, 8),
+  }));
+
+  const { data: masterRows } = await admin
+    .from("folios")
+    .select("id, label")
+    .eq("property_id", activePropertyId)
+    .eq("status", "open")
+    .eq("folio_type", "master")
+    .neq("id", id)
+    .order("created_at", { ascending: false })
+    .limit(40);
+  const masterCandidates = (masterRows ?? []).map((f) => ({
+    id: f.id as string,
+    label: (f.label as string) || (f.id as string).slice(0, 8),
+  }));
+
+  const { data: childFolios } =
+    (folio.folio_type as string) === "master"
+      ? await admin
+          .from("folios")
+          .select("id, label, status")
+          .eq("property_id", activePropertyId)
+          .eq("master_folio_id", id)
+          .order("created_at", { ascending: true })
+          .limit(40)
+      : { data: [] as { id: string; label: string; status: string }[] };
 
   const lines = ((folio.folio_lines as {
     id: string;
@@ -56,13 +124,14 @@ export default async function FolioDetailPage({ params }: Props) {
     status: string;
     is_comp?: boolean;
     void_reason?: string | null;
+    reverses_line_id?: string | null;
     created_at: string;
   }[] | null) ?? []).sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   );
 
   const posted = lines.filter((line) => line.status === "posted");
-  const balance = posted.reduce((sum, line) => sum + Number(line.total_btn), 0);
+  const balance = netFolioBalance(lines);
   const folioStatus = (folio.status as string) ?? "open";
 
   return (
@@ -124,7 +193,9 @@ export default async function FolioDetailPage({ params }: Props) {
               <ul className="divide-y">
                 {lines.length === 0 ? (
                   <li className="px-5 py-8 text-sm text-muted-foreground">
-                    No lines yet. Charges and payments will appear here.
+                    No lines yet. Room rent posts at night audit (midnight
+                    Thimphu cron or manual run on Night audit). POS, laundry,
+                    and desk charges appear here when posted.
                   </li>
                 ) : (
                   lines.map((line) => {
@@ -172,7 +243,13 @@ export default async function FolioDetailPage({ params }: Props) {
                         !voided &&
                         !isPayment &&
                         line.source_type !== "comp" ? (
-                          <VoidLineButton lineId={line.id} />
+                          <>
+                            <VoidLineButton lineId={line.id} />
+                            <TransferLineForm
+                              lineId={line.id}
+                              siblingFolios={transferTargets}
+                            />
+                          </>
                         ) : null}
                       </li>
                     );
@@ -232,6 +309,15 @@ export default async function FolioDetailPage({ params }: Props) {
                 bookingId={(folio.booking_id as string | null) ?? null}
               />
               <CompCreditForm folioId={folio.id as string} />
+              {(folio.folio_type as string) !== "master" && !folio.master_folio_id ? (
+                <PromoteToMasterForm folioId={folio.id as string} />
+              ) : null}
+              {(folio.folio_type as string) !== "master" ? (
+                <AttachToMasterForm
+                  folioId={folio.id as string}
+                  masterCandidates={masterCandidates}
+                />
+              ) : null}
             </>
           ) : (
             <Card>
@@ -240,6 +326,44 @@ export default async function FolioDetailPage({ params }: Props) {
               </CardContent>
             </Card>
           )}
+          {(folio.folio_type as string) === "master" && (childFolios ?? []).length > 0 ? (
+            <Card className="gap-0 p-0">
+              <CardHeader className="border-b px-4 py-3">
+                <CardTitle className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+                  Linked guest folios
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <ul className="divide-y">
+                  {(childFolios ?? []).map((c) => (
+                    <li key={c.id as string} className="px-4 py-2 text-sm">
+                      <a
+                        href={`/erp/folios/${c.id as string}`}
+                        className="text-accent underline-offset-4 hover:underline"
+                      >
+                        {(c.label as string) || (c.id as string).slice(0, 8)}
+                      </a>
+                      <span className="ml-2 text-xs text-muted-foreground uppercase">
+                        {c.status as string}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          ) : null}
+          <a
+            href="/erp/folios"
+            className="inline-flex h-9 w-full items-center justify-center rounded-md border text-xs font-medium text-muted-foreground hover:bg-muted"
+          >
+            City ledger list
+          </a>
+          <IssueInvoiceButton
+            folioId={folio.id as string}
+            invoiceNo={(invoiceDoc?.doc_no as string | undefined) ?? null}
+            invoiceDocId={(invoiceDoc?.id as string | undefined) ?? null}
+          />
+          <IssueCreditNoteButton folioId={folio.id as string} />
           <a
             href={`/erp/folios/${folio.id as string}/receipt`}
             className="inline-flex h-11 w-full items-center justify-center rounded-md border text-sm font-medium text-foreground hover:bg-muted"

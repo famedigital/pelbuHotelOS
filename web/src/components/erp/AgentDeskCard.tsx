@@ -16,7 +16,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatBtn } from "@/lib/pricing";
-import { useActionState, useState } from "react";
+import Link from "next/link";
+import { useActionState, useRef, useState } from "react";
 
 export type DeskAgentRow = {
   id: string;
@@ -183,9 +184,19 @@ function CreditPaymentForm({ agent }: { agent: DeskAgentRow }) {
     recordAgentCreditPayment,
     initial,
   );
+  const idempotencyKey = useRef(
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `agent-pay-${agent.id}-${Date.now()}`,
+  );
   return (
     <form action={action} className="space-y-2">
       <input type="hidden" name="agent_id" value={agent.id} />
+      <input
+        type="hidden"
+        name="idempotency_key"
+        value={idempotencyKey.current}
+      />
       <div className="flex flex-wrap items-end gap-2">
         <label className="block min-w-[8rem] flex-1 text-xs text-muted-foreground">
           Payment (Nu)
@@ -277,9 +288,12 @@ export function AgentDeskCard({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-base font-medium text-foreground">
+            <Link
+              href={`/erp/agents/${agent.id}`}
+              className="text-base font-medium text-foreground underline-offset-4 hover:underline"
+            >
               {agent.company_name}
-            </h2>
+            </Link>
             <span
               className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${statusTone}`}
             >
@@ -301,12 +315,12 @@ export function AgentDeskCard({
           {agent.contact_email ? (
             <p className="text-xs text-muted-foreground">{agent.contact_email}</p>
           ) : null}
-          <a
-            href={`/erp/agents/${agent.id}/statement`}
+          <Link
+            href={`/erp/agents/${agent.id}?tab=money`}
             className="mt-3 inline-flex text-sm text-accent underline-offset-4 hover:underline"
           >
-            Statement →
-          </a>
+            Money / statement →
+          </Link>
         </div>
         <div className="text-right text-sm text-foreground">
           <p>

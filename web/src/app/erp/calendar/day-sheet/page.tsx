@@ -83,9 +83,8 @@ export default async function CalendarDaySheetPage({ searchParams }: Props) {
       .from("room_units")
       .select("label, hk_status, room_types(name)")
       .eq("property_id", propertyId)
-      .in("hk_status", ["dirty", "inspect", "ooo"])
       .order("label")
-      .limit(120),
+      .limit(200),
     admin
       .from("room_assignment_occupants")
       .select("assignment_id, occupant_kind, display_name")
@@ -224,6 +223,16 @@ export default async function CalendarDaySheetPage({ searchParams }: Props) {
   const departures = rows.filter((row) => row.kind === "departure");
   const stayovers = rows.filter((row) => row.kind === "stayover");
 
+  const allUnits = dirtyRooms ?? [];
+  const dirtyCount = allUnits.filter((u) => u.hk_status === "dirty").length;
+  const inspectCount = allUnits.filter((u) => u.hk_status === "inspect").length;
+  const oooHkCount = allUnits.filter((u) => u.hk_status === "ooo").length;
+  const oooBlocks = (blocks ?? []).filter((b) => b.block_kind === "ooo").length;
+  const oosBlocks = (blocks ?? []).filter((b) => b.block_kind === "oos").length;
+  const attentionRooms = allUnits.filter((u) =>
+    ["dirty", "inspect", "ooo"].includes(u.hk_status as string),
+  );
+
   const unassignedArrivals = (arrivalsMissingRooms ?? [])
     .filter((b) => {
       const assigns =
@@ -286,6 +295,31 @@ export default async function CalendarDaySheetPage({ searchParams }: Props) {
         </h1>
       </div>
 
+      <section className="rounded-lg border bg-card p-4 print:break-inside-avoid">
+        <h2 className="text-sm font-semibold">House status</h2>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {[
+            ["Arrivals", arrivals.length],
+            ["Stayovers", stayovers.length],
+            ["Departures", departures.length],
+            ["Dirty", dirtyCount],
+            ["OOO", oooHkCount + oooBlocks],
+            ["OOS", oosBlocks],
+          ].map(([label, value]) => (
+            <div key={String(label)}>
+              <p className="text-[10px] font-semibold tracking-[0.16em] text-accent uppercase">
+                {label}
+              </p>
+              <p className="mt-1 text-xl font-semibold tabular-nums">{value}</p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Inspect {inspectCount} · Unassigned arrivals {unassignedArrivals.length} ·
+          Active blocks {(blocks ?? []).length}
+        </p>
+      </section>
+
       {unassignedArrivals.length > 0 ? (
         <section className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 print:break-inside-avoid">
           <h2 className="text-sm font-semibold text-destructive">
@@ -347,17 +381,17 @@ export default async function CalendarDaySheetPage({ searchParams }: Props) {
         )}
       </section>
 
-      <section className="rounded-lg border bg-card p-4">
+      <section className="rounded-lg border bg-card p-4 print:break-inside-avoid">
         <h2 className="text-sm font-semibold">
-          Housekeeping attention ({(dirtyRooms ?? []).length})
+          Housekeeping attention ({attentionRooms.length})
         </h2>
-        {(dirtyRooms ?? []).length === 0 ? (
+        {attentionRooms.length === 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">
             No dirty / inspect / OOO rooms.
           </p>
         ) : (
           <ul className="mt-2 grid gap-1 text-sm sm:grid-cols-2">
-            {(dirtyRooms ?? []).map((room) => {
+            {attentionRooms.map((room) => {
               const type = (
                 Array.isArray(room.room_types)
                   ? room.room_types[0]

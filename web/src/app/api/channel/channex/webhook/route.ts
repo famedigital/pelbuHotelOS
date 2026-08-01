@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 /**
  * Inbound webhook from Channex (or relay).
  * Requires CHANNEXT_WEBHOOK_SECRET and header `x-channex-secret`.
- * Revisions are stored; desk/cron imports + acks.
+ * Resolves property via payload property_id → channel_connections.external_property_id,
+ * then falls back to flagship slug.
  */
 export async function POST(request: Request) {
   const expected =
@@ -32,27 +33,65 @@ export async function POST(request: Request) {
   }
 
   const admin = createSupabaseAdminClient();
-  const { data: property } = await admin
-    .from("properties")
-    .select("id")
-    .eq("slug", PELBU_PROPERTY_SLUG)
-    .single();
-  if (!property) {
-    return NextResponse.json({ error: "Property missing" }, { status: 500 });
-  }
-
-  const { data: conn } = await admin
-    .from("channel_connections")
-    .select("id")
-    .eq("property_id", property.id)
-    .eq("provider", "channex")
-    .maybeSingle();
 
   const doc = body as {
     event?: string;
-    data?: { id?: string; attributes?: Record<string, unknown> };
+    data?: {
+      id?: string;
+      attributes?: Record<string, unknown>;
+      relationships?: {
+        property?: { data?: { id?: string } };
+      };
+    };
     id?: string;
+    property_id?: string;
   };
+
+  const externalPropertyId =
+    (typeof doc.property_id === "string" ? doc.property_id : null) ||
+    (typeof doc.data?.attributes?.property_id === "string"
+      ? (doc.data.attributes.property_id as string)
+      : null) ||
+    doc.data?.relationships?.property?.data?.id ||
+    null;
+
+  let propertyId: string | null = null;
+  let connectionId: string | null = null;
+
+  if (externalPropertyId) {
+    const { data: conn } = await admin
+      .from("channel_connections")
+      .select("id, property_id")
+      .eq("provider", "channex")
+      .eq("external_property_id", externalPropertyId)
+      .maybeSingle();
+    if (conn) {
+      propertyId = conn.property_id as string;
+      connectionId = conn.id as string;
+    }
+  }
+
+  if (!propertyId) {
+    const { data: property } = await admin
+      .from("properties")
+      .select("id")
+      .eq("slug", PELBU_PROPERTY_SLUG)
+      .single();
+    propertyId = (property?.id as string | undefined) ?? null;
+    if (propertyId) {
+      const { data: conn } = await admin
+        .from("channel_connections")
+        .select("id")
+        .eq("property_id", propertyId)
+        .eq("provider", "channex")
+        .maybeSingle();
+      connectionId = (conn?.id as string | undefined) ?? null;
+    }
+  }
+
+  if (!propertyId) {
+    return NextResponse.json({ error: "Property missing" }, { status: 500 });
+  }
 
   const revId =
     doc.data?.id ??
@@ -61,8 +100,8 @@ export async function POST(request: Request) {
 
   const { error } = await admin.from("channel_booking_revisions").upsert(
     {
-      property_id: property.id,
-      connection_id: conn?.id ?? null,
+      property_id: propertyId,
+      connection_id: connectionId,
       external_revision_id: String(revId),
       external_booking_id: doc.data?.attributes?.booking_id
         ? String(doc.data.attributes.booking_id)

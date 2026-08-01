@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 import {
   mapPropertySettings,
@@ -20,6 +20,12 @@ export type PropertyRow = {
   setup_completed_at: string | null;
   income_streams: IncomeStreams;
   bank_accounts: BankAccount[];
+  public_host?: string | null;
+  desk_host?: string | null;
+  night_audit_close_time?: string;
+  public_host_cert_status?: string;
+  desk_host_cert_status?: string;
+  host_verify_token?: string | null;
 } & PropertySettings;
 
 export type IncomeStreams = {
@@ -45,7 +51,7 @@ export const DEFAULT_INCOME_STREAMS: IncomeStreams = {
   channel: false,
 };
 
-/** Active property for desk session; falls back to flagship slug. */
+/** Active property for desk session; falls back to Host header then flagship slug. */
 export async function resolveActivePropertyId(
   admin: Admin,
 ): Promise<string> {
@@ -59,6 +65,22 @@ export async function resolveActivePropertyId(
       .maybeSingle();
     if (data?.id) return data.id as string;
   }
+
+  try {
+    const h = await headers();
+    const hostPropertyId = h.get("x-pelbu-property-id")?.trim();
+    if (hostPropertyId) {
+      const { data } = await admin
+        .from("properties")
+        .select("id")
+        .eq("id", hostPropertyId)
+        .maybeSingle();
+      if (data?.id) return data.id as string;
+    }
+  } catch {
+    // headers() unavailable outside request scope
+  }
+
   return propertyIdBySlug(admin, PELBU_PROPERTY_SLUG);
 }
 
@@ -84,7 +106,7 @@ export async function loadProperty(
   const { data } = await admin
     .from("properties")
     .select(
-      "id, slug, name, template_id, timezone, setup_step, setup_completed_at, income_streams, bank_accounts, logo_public_id, legal_name, address, phone, email, tax_id, gst_rate, service_charge_rate, service_charge_default_on, doc_invoice, doc_receipt, doc_voucher",
+      "id, slug, name, template_id, timezone, setup_step, setup_completed_at, income_streams, bank_accounts, logo_public_id, legal_name, address, phone, email, tax_id, gst_rate, service_charge_rate, service_charge_default_on, doc_invoice, doc_receipt, doc_voucher, public_host, desk_host, night_audit_close_time, public_host_cert_status, desk_host_cert_status, host_verify_token",
     )
     .eq("id", id)
     .maybeSingle();
@@ -96,7 +118,7 @@ export async function listProperties(admin: Admin): Promise<PropertyRow[]> {
   const { data } = await admin
     .from("properties")
     .select(
-      "id, slug, name, template_id, timezone, setup_step, setup_completed_at, income_streams, bank_accounts, logo_public_id, legal_name, address, phone, email, tax_id, gst_rate, service_charge_rate, service_charge_default_on, doc_invoice, doc_receipt, doc_voucher",
+      "id, slug, name, template_id, timezone, setup_step, setup_completed_at, income_streams, bank_accounts, logo_public_id, legal_name, address, phone, email, tax_id, gst_rate, service_charge_rate, service_charge_default_on, doc_invoice, doc_receipt, doc_voucher, public_host, desk_host, night_audit_close_time, public_host_cert_status, desk_host_cert_status, host_verify_token",
     )
     .order("name");
   return (data ?? []).map(mapProperty);
@@ -124,6 +146,15 @@ function mapProperty(row: Record<string, unknown>): PropertyRow {
       channel: Boolean(streams.channel),
     },
     bank_accounts: Array.isArray(banks) ? banks : [],
+    public_host: (row.public_host as string | null) ?? null,
+    desk_host: (row.desk_host as string | null) ?? null,
+    night_audit_close_time:
+      (row.night_audit_close_time as string | undefined) ?? "00:00",
+    public_host_cert_status:
+      (row.public_host_cert_status as string | undefined) ?? "none",
+    desk_host_cert_status:
+      (row.desk_host_cert_status as string | undefined) ?? "none",
+    host_verify_token: (row.host_verify_token as string | null) ?? null,
     ...settings,
   };
 }

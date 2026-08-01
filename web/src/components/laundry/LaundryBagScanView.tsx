@@ -3,6 +3,7 @@
 import {
   advanceLaundryBagStatus,
   recordLaundryBagScan,
+  voidLaundryBag,
   type LaundryBagState,
 } from "@/app/actions/laundry-bags";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -13,7 +14,9 @@ import { Label } from "@/components/ui/label";
 import {
   LAUNDRY_BAG_STATUS_LABEL,
   LAUNDRY_STATUS_LABEL,
+  nextBagStatuses,
   type LaundryBag,
+  type LaundryBagStatus,
 } from "@/lib/laundry";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { formatBtn } from "@/lib/pricing";
@@ -217,17 +220,17 @@ export function LaundryBagScanView({
               ? "Awaiting count / folio charge"
               : `Total ${formatBtn(order.total_btn)}`}
           </p>
-          {order.folio_id ? (
-            <Button asChild variant="outline" className="mt-2 min-h-11 w-full">
-              <Link href={`/erp/folios/${order.folio_id}/receipt`}>
-                Open folio receipt
-              </Link>
-            </Button>
+          {order.folio_id && order.billed_at ? (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Posted to guest folio · receipt available at front desk.
+            </p>
           ) : null}
         </div>
       </section>
 
-      <BagCheckpointForm bagId={bag.id} />
+      <BagCheckpointForm bagId={bag.id} currentStatus={bag.status} />
+
+      <VoidBagForm bagId={bag.id} bagCode={bag.public_code} />
 
       {events.length ? (
         <section className="rounded-3xl border bg-card p-5 shadow-sm">
@@ -255,27 +258,94 @@ export function LaundryBagScanView({
   );
 }
 
-function BagCheckpointForm({ bagId }: { bagId: string }) {
+function BagCheckpointForm({
+  bagId,
+  currentStatus,
+}: {
+  bagId: string;
+  currentStatus: LaundryBagStatus;
+}) {
   const [state, action, pending] = useActionState(
     advanceLaundryBagStatus,
     initial,
   );
   const [clientEventId] = useState(() => `${bagId}-${crypto.randomUUID()}`);
+  const nextStatuses = nextBagStatuses(currentStatus);
+  const statusLabels: Record<LaundryBagStatus, string> = {
+    open: "Open",
+    in_process: "In process",
+    ready: "Bag ready",
+    delivered: "Delivered",
+    voided: "Voided",
+  };
   return (
     <section className="rounded-3xl border bg-card p-5 shadow-sm">
       <h2 className="font-display text-xl">Bag checkpoint</h2>
+      {nextStatuses.length === 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          This bag is {LAUNDRY_BAG_STATUS_LABEL[currentStatus].toLowerCase()} —
+          no further checkpoints.
+        </p>
+      ) : (
+        <form action={action} className="mt-4 space-y-3">
+          <input type="hidden" name="bag_id" value={bagId} />
+          <input type="hidden" name="client_event_id" value={clientEventId} />
+          <div className="space-y-1.5">
+            <Label htmlFor="bag-notes">Notes</Label>
+            <Input
+              id="bag-notes"
+              name="notes"
+              maxLength={300}
+              placeholder="Optional handover note"
+            />
+          </div>
+          {state.error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{state.error}</AlertDescription>
+            </Alert>
+          ) : null}
+          {state.message ? (
+            <Alert>
+              <AlertDescription>{state.message}</AlertDescription>
+            </Alert>
+          ) : null}
+          <div className="grid grid-cols-2 gap-2">
+            {nextStatuses.map((status) => (
+              <Button
+                key={status}
+                type="submit"
+                name="next_status"
+                value={status}
+                variant={status === "delivered" ? "citrus" : "default"}
+                className="min-h-12"
+                disabled={pending}
+              >
+                {statusLabels[status]}
+              </Button>
+            ))}
+          </div>
+        </form>
+      )}
+    </section>
+  );
+}
+
+function VoidBagForm({
+  bagId,
+  bagCode,
+}: {
+  bagId: string;
+  bagCode: string;
+}) {
+  const [state, action, pending] = useActionState(voidLaundryBag, initial);
+  return (
+    <details className="rounded-3xl border bg-card p-5 shadow-sm">
+      <summary className="cursor-pointer font-display text-lg">
+        Void bag {bagCode}
+      </summary>
       <form action={action} className="mt-4 space-y-3">
         <input type="hidden" name="bag_id" value={bagId} />
-        <input type="hidden" name="client_event_id" value={clientEventId} />
-        <div className="space-y-1.5">
-          <Label htmlFor="bag-notes">Notes</Label>
-          <Input
-            id="bag-notes"
-            name="notes"
-            maxLength={300}
-            placeholder="Optional handover note"
-          />
-        </div>
+        <Input name="reason" placeholder="Void reason" maxLength={200} required />
         {state.error ? (
           <Alert variant="destructive">
             <AlertDescription>{state.error}</AlertDescription>
@@ -286,47 +356,10 @@ function BagCheckpointForm({ bagId }: { bagId: string }) {
             <AlertDescription>{state.message}</AlertDescription>
           </Alert>
         ) : null}
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            type="submit"
-            name="next_status"
-            value="in_process"
-            className="min-h-12"
-            disabled={pending}
-          >
-            In process
-          </Button>
-          <Button
-            type="submit"
-            name="next_status"
-            value="ready"
-            className="min-h-12"
-            disabled={pending}
-          >
-            Bag ready
-          </Button>
-          <Button
-            type="submit"
-            name="next_status"
-            value="delivered"
-            variant="citrus"
-            className="min-h-12"
-            disabled={pending}
-          >
-            Delivered
-          </Button>
-          <Button
-            type="submit"
-            name="next_status"
-            value="open"
-            variant="outline"
-            className="min-h-12"
-            disabled={pending}
-          >
-            Reset open
-          </Button>
-        </div>
+        <Button type="submit" variant="destructive" className="min-h-11 w-full" disabled={pending}>
+          {pending ? "Voiding…" : "Void bag label"}
+        </Button>
       </form>
-    </section>
+    </details>
   );
 }

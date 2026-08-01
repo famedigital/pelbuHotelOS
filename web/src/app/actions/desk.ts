@@ -4,8 +4,11 @@ import {
   DESK_COOKIE_NAME,
   deskCookieValue,
   deskPinConfigured,
+  deskPinAllowedInProduction,
   verifyDeskPin,
 } from "@/lib/desk-auth";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { headers } from "next/headers";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -18,6 +21,23 @@ export async function deskLogin(
   _prev: DeskLoginState,
   formData: FormData,
 ): Promise<DeskLoginState> {
+  if (
+    process.env.NODE_ENV === "production" &&
+    !deskPinAllowedInProduction()
+  ) {
+    return {
+      ok: false,
+      error: "Shared desk PIN is disabled in production. Sign in with staff Auth.",
+    };
+  }
+
+  const h = await headers();
+  const ip = clientIp(h);
+  const rl = await rateLimit(`desk-login:${ip}`, { limit: 20, windowMs: 15 * 60_000 });
+  if (!rl.ok) {
+    return { ok: false, error: "Too many login attempts. Try again later." };
+  }
+
   const pin = String(formData.get("pin") ?? "");
   if (!deskPinConfigured()) {
     return {

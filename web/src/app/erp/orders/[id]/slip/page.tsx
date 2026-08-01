@@ -6,6 +6,7 @@ import {
 import { PrintButton } from "@/components/erp/PrintButton";
 import { RecordOrderPaymentForm } from "@/components/erp/RecordOrderPaymentForm";
 import { Button } from "@/components/ui/button";
+import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { orderRef } from "@/lib/order-ref";
 import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
@@ -41,7 +42,12 @@ export default async function OrderSlipPage({ params }: Props) {
     .eq("id", id)
     .maybeSingle();
 
-  if (!order || order.property_id !== propertyId) notFound();
+  if (!order) notFound();
+  try {
+    assertDeskProperty(propertyId, order.property_id as string, "Order");
+  } catch {
+    notFound();
+  }
 
   const property = await loadProperty(admin, propertyId);
   if (!property) notFound();

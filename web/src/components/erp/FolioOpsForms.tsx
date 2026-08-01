@@ -1,12 +1,19 @@
 "use client";
 
 import {
+  attachFolioToMaster,
   createDepositLink,
+  issueFolioCreditNote,
+  issueFolioInvoice,
+  issueFolioReceipt,
   markDepositLinkPaid,
   postCompCredit,
+  promoteFolioToMaster,
+  transferFolioLine,
   voidFolioLine,
   type ErpFolioOpsState,
 } from "@/app/actions/erp-folio-ops";
+import { PeriodOverrideFields } from "@/components/erp/PeriodOverrideFields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,6 +70,43 @@ export function VoidLineButton({ lineId }: { lineId: string }) {
       >
         {pending ? "Voiding…" : "Void"}
       </Button>
+      <PeriodOverrideFields idPrefix={`void-${lineId.slice(0, 8)}`} />
+      <Flash state={state} />
+    </form>
+  );
+}
+
+export function TransferLineForm({
+  lineId,
+  siblingFolios,
+}: {
+  lineId: string;
+  siblingFolios: { id: string; label: string }[];
+}) {
+  const [state, action, pending] = useActionState(transferFolioLine, initial);
+  useActionToast(state, { successMessage: "Line transferred" });
+  if (siblingFolios.length === 0) return null;
+  return (
+    <form action={action} className="erp mt-2 flex flex-wrap items-center gap-2">
+      <input type="hidden" name="line_id" value={lineId} />
+      <select
+        name="target_folio_id"
+        required
+        className={`${selectClass()} max-w-[220px]`}
+        defaultValue=""
+      >
+        <option value="" disabled>
+          Transfer to folio…
+        </option>
+        {siblingFolios.map((f) => (
+          <option key={f.id} value={f.id}>
+            {f.label}
+          </option>
+        ))}
+      </select>
+      <Button type="submit" variant="outline" size="sm" disabled={pending} className="text-xs">
+        {pending ? "Moving…" : "Transfer"}
+      </Button>
       <Flash state={state} />
     </form>
   );
@@ -107,6 +151,7 @@ export function CompCreditForm({ folioId }: { folioId: string }) {
       >
         {pending ? "Posting…" : "Post comp credit"}
       </Button>
+      <PeriodOverrideFields idPrefix={`comp-${folioId.slice(0, 8)}`} />
       <Flash state={state} />
     </form>
   );
@@ -210,6 +255,174 @@ export function MarkLinkPaidForm({ linkId }: { linkId: string }) {
         className="h-10 text-xs"
       >
         {pending ? "Marking…" : "Mark paid"}
+      </Button>
+      <PeriodOverrideFields idPrefix={`link-${linkId.slice(0, 8)}`} />
+      <Flash state={state} />
+    </form>
+  );
+}
+
+export function IssueInvoiceButton({
+  folioId,
+  invoiceNo,
+  invoiceDocId,
+}: {
+  folioId: string;
+  invoiceNo?: string | null;
+  invoiceDocId?: string | null;
+}) {
+  const [state, action, pending] = useActionState(issueFolioInvoice, initial);
+  useActionToast(state, { successMessage: "Tax invoice issued" });
+
+  if (invoiceNo) {
+    return (
+      <div className="erp rounded-lg border bg-card p-4 text-sm">
+        <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+          Tax invoice
+        </p>
+        <p className="mt-2 font-mono font-medium text-foreground">{invoiceNo}</p>
+        {invoiceDocId ? (
+          <a
+            href={`/erp/invoices/${invoiceDocId}/print`}
+            className="mt-2 inline-block text-xs text-accent underline-offset-4 hover:underline"
+          >
+            Print / PDF
+          </a>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <form action={action} className="erp space-y-3 rounded-lg border bg-card p-4">
+      <input type="hidden" name="folio_id" value={folioId} />
+      <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+        Tax invoice
+      </p>
+      <p className="text-xs text-muted-foreground">
+        Allocate a gapless fiscal invoice number for GST reporting.
+      </p>
+      <PeriodOverrideFields idPrefix={`inv-${folioId.slice(0, 8)}`} />
+      <Button type="submit" variant="outline" disabled={pending} className="h-10 w-full">
+        {pending ? "Issuing…" : "Issue tax invoice"}
+      </Button>
+      <Flash state={state} />
+    </form>
+  );
+}
+
+export function IssueCreditNoteButton({ folioId }: { folioId: string }) {
+  const [state, action, pending] = useActionState(issueFolioCreditNote, initial);
+  useActionToast(state, { successMessage: "Credit note issued" });
+  return (
+    <form action={action} className="erp space-y-3 rounded-lg border bg-card p-4">
+      <input type="hidden" name="folio_id" value={folioId} />
+      <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+        Credit note
+      </p>
+      <p className="text-xs text-muted-foreground">
+        Issue CN-YYYY-#### against this folio (voids / adjustments already on lines).
+      </p>
+      <PeriodOverrideFields idPrefix={`cn-${folioId.slice(0, 8)}`} />
+      <Button type="submit" variant="outline" disabled={pending} className="h-10 w-full">
+        {pending ? "Issuing…" : "Issue credit note"}
+      </Button>
+      <Flash state={state} />
+    </form>
+  );
+}
+
+export function IssueReceiptButton({
+  folioId,
+  receiptNo,
+  paymentId,
+}: {
+  folioId: string;
+  receiptNo?: string | null;
+  paymentId?: string | null;
+}) {
+  const [state, action, pending] = useActionState(issueFolioReceipt, initial);
+  useActionToast(state, { successMessage: "Receipt issued" });
+
+  if (receiptNo) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Fiscal receipt{" "}
+        <span className="font-mono font-medium text-foreground">{receiptNo}</span>
+      </p>
+    );
+  }
+
+  return (
+    <form action={action} className="erp flex flex-wrap items-end gap-2 print:hidden">
+      <input type="hidden" name="folio_id" value={folioId} />
+      {paymentId ? <input type="hidden" name="payment_id" value={paymentId} /> : null}
+      <PeriodOverrideFields idPrefix={`rcp-${folioId.slice(0, 8)}`} />
+      <Button type="submit" variant="outline" size="sm" disabled={pending}>
+        {pending ? "Issuing…" : "Issue fiscal receipt no."}
+      </Button>
+      <Flash state={state} />
+    </form>
+  );
+}
+
+export function PromoteToMasterForm({ folioId }: { folioId: string }) {
+  const [state, action, pending] = useActionState(promoteFolioToMaster, initial);
+  useActionToast(state, { successMessage: "Promoted to master folio" });
+  return (
+    <form action={action} className="erp space-y-3 rounded-lg border bg-card p-4">
+      <input type="hidden" name="folio_id" value={folioId} />
+      <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+        City ledger / master
+      </p>
+      <p className="text-xs text-muted-foreground">
+        Promote this folio so guest folios can attach under it (group / agent city ledger).
+      </p>
+      <Button type="submit" variant="outline" disabled={pending} className="h-10 w-full">
+        {pending ? "Promoting…" : "Make master folio"}
+      </Button>
+      <Flash state={state} />
+    </form>
+  );
+}
+
+export function AttachToMasterForm({
+  folioId,
+  masterCandidates,
+}: {
+  folioId: string;
+  masterCandidates: Array<{ id: string; label: string }>;
+}) {
+  const [state, action, pending] = useActionState(attachFolioToMaster, initial);
+  useActionToast(state, { successMessage: "Attached to master" });
+  if (masterCandidates.length === 0) return null;
+  return (
+    <form action={action} className="erp space-y-3 rounded-lg border bg-card p-4">
+      <input type="hidden" name="folio_id" value={folioId} />
+      <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+        Attach to master
+      </p>
+      <div>
+        <Label htmlFor={`master-${folioId.slice(0, 8)}`}>Master folio</Label>
+        <select
+          id={`master-${folioId.slice(0, 8)}`}
+          name="master_folio_id"
+          required
+          className={selectClass()}
+          defaultValue=""
+        >
+          <option value="" disabled>
+            Select master…
+          </option>
+          {masterCandidates.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <Button type="submit" variant="outline" disabled={pending} className="h-10 w-full">
+        {pending ? "Attaching…" : "Attach"}
       </Button>
       <Flash state={state} />
     </form>

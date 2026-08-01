@@ -26,16 +26,17 @@ export const LAUNDRY_STATUS_LABEL: Record<LaundryStatus, string> = {
   cancelled: "Cancelled",
 };
 
+/** Linear processing chain — no stage skips; cancel only via dedicated desk action. */
 export const LAUNDRY_TRANSITIONS: Record<LaundryStatus, LaundryStatus[]> = {
-  requested: ["received", "exception", "cancelled"],
-  received: ["washing", "exception", "cancelled"],
-  washing: ["drying", "quality_check", "exception"],
-  drying: ["ironing", "quality_check", "exception"],
+  requested: ["received", "exception"],
+  received: ["washing", "exception"],
+  washing: ["drying", "exception"],
+  drying: ["ironing", "exception"],
   ironing: ["quality_check", "exception"],
-  quality_check: ["ready", "washing", "exception"],
+  quality_check: ["ready", "exception"],
   ready: ["delivered", "exception"],
   delivered: [],
-  exception: ["received", "washing", "quality_check", "ready", "cancelled"],
+  exception: ["received", "washing", "quality_check", "ready"],
   cancelled: [],
 };
 
@@ -136,6 +137,32 @@ export const LAUNDRY_BAG_STATUS_LABEL: Record<LaundryBagStatus, string> = {
   delivered: "Delivered",
   voided: "Voided",
 };
+
+export const LAUNDRY_BAG_TRANSITIONS: Record<
+  LaundryBagStatus,
+  LaundryBagStatus[]
+> = {
+  open: ["in_process", "voided"],
+  in_process: ["ready", "voided"],
+  ready: ["delivered", "voided"],
+  delivered: [],
+  voided: [],
+};
+
+export function canAdvanceBagStatus(
+  from: LaundryBagStatus,
+  to: LaundryBagStatus,
+): boolean {
+  return LAUNDRY_BAG_TRANSITIONS[from]?.includes(to) ?? false;
+}
+
+export function nextBagStatuses(
+  current: LaundryBagStatus,
+): LaundryBagStatus[] {
+  return (LAUNDRY_BAG_TRANSITIONS[current] ?? []).filter(
+    (status) => status !== "voided",
+  );
+}
 
 export type LaundryBagItem = {
   id: string;

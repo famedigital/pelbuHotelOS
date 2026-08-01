@@ -86,6 +86,12 @@ export const ERP_MODULES: ErpModule[] = [
         icon: ReceiptTextIcon,
       },
       { title: "Guests", href: "/erp/guests", icon: UsersIcon },
+      { title: "Loyalty", href: "/erp/loyalty", icon: SparklesIcon },
+      {
+        title: "Groups",
+        href: "/erp/group",
+        icon: HotelIcon,
+      },
     ],
   },
   {
@@ -112,6 +118,11 @@ export const ERP_MODULES: ErpModule[] = [
     tabs: [
       { title: "Register", href: "/erp/pos", icon: ShoppingCartIcon },
       { title: "Menu", href: "/erp/menu", icon: SoupIcon },
+      {
+        title: "Recipe cost",
+        href: "/erp/pos/recipe-cost",
+        icon: ReceiptTextIcon,
+      },
       { title: "Kitchen TV", href: "/erp/kds", icon: MonitorIcon },
     ],
   },
@@ -123,6 +134,7 @@ export const ERP_MODULES: ErpModule[] = [
     tabs: [
       { title: "Payments", href: "/erp/payments", icon: CreditCardIcon },
       { title: "Invoices", href: "/erp/invoices", icon: ReceiptTextIcon },
+      { title: "City ledger", href: "/erp/folios", icon: WalletIcon },
       { title: "Night audit", href: "/erp/night-audit", icon: ScrollTextIcon },
       { title: "GST", href: "/erp/gst", icon: ScrollTextIcon },
       { title: "Finance", href: "/erp/finance", icon: WalletIcon },
@@ -136,6 +148,7 @@ export const ERP_MODULES: ErpModule[] = [
     href: "/erp/agents",
     tabs: [
       { title: "Agents", href: "/erp/agents", icon: UsersIcon },
+      { title: "Rate plans", href: "/erp/rate-plans", icon: ReceiptTextIcon },
       { title: "Partners", href: "/erp/partners", icon: UsersIcon },
       { title: "Allotments", href: "/erp/allotments", icon: ClipboardListIcon },
       { title: "Channel", href: "/erp/channel", icon: TruckIcon },
@@ -177,7 +190,6 @@ export const ERP_MODULES: ErpModule[] = [
         href: "/erp/front-public/media/upload",
         icon: SmartphoneIcon,
       },
-      { title: "Group overview", href: "/erp/group", icon: HotelIcon },
       { title: "Add hotel", href: "/erp/properties/new", icon: HotelIcon },
     ],
   },
@@ -188,6 +200,15 @@ export const NAV_SECTIONS = ERP_MODULES.map((m) => ({
   label: m.title,
   items: m.tabs,
 }));
+
+/** Frequent desk jumps for Ctrl+K — subset of module tabs, no duplicate nav source. */
+export const ERP_QUICK_ACTIONS: ErpNavLeaf[] = [
+  { title: "Check-in", href: "/erp/check-in", icon: UsersIcon },
+  { title: "Check-out", href: "/erp/check-out", icon: WalletIcon },
+  { title: "POS register", href: "/erp/pos", icon: ShoppingCartIcon },
+  { title: "Night audit", href: "/erp/night-audit", icon: ScrollTextIcon },
+  { title: "Settings", href: "/erp/settings", icon: SettingsIcon },
+];
 
 export function isNavActive(
   pathname: string | null,

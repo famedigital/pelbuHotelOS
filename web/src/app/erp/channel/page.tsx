@@ -1,13 +1,16 @@
 import {
   AckRevisionButton,
   ChannelMapForm,
+  ChannelMappingChecklist,
   ChannelQueueActions,
   ChannelStatusForm,
 } from "@/components/erp/ChannelForms";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ensureChannexConnection } from "@/lib/channel/ari-queue";
 import { getChannexConfig } from "@/lib/channel/channex-client";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { PELBU_PROPERTY_SLUG } from "@/lib/property";
+import { requireDeskPropertyId } from "@/lib/erp-lists";
+import { loadProperty } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
@@ -23,19 +26,17 @@ export default async function ErpChannelPage() {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
 
   const admin = createSupabaseAdminClient();
-  const { data: property } = await admin
-    .from("properties")
-    .select("id")
-    .eq("slug", PELBU_PROPERTY_SLUG)
-    .single();
-  const propertyId = property?.id as string | undefined;
-  if (!propertyId) {
+  const propertyId = await requireDeskPropertyId();
+  const property = await loadProperty(admin, propertyId);
+  if (!property) {
     return (
       <div className="erp mx-auto w-full max-w-[1200px] p-6">
         <p className="text-sm text-destructive">Property not configured.</p>
       </div>
     );
   }
+
+  await ensureChannexConnection(admin, propertyId);
 
   const [
     { data: conn },
@@ -70,7 +71,7 @@ export default async function ErpChannelPage() {
       .select("id, kind, status, attempts, last_error, created_at")
       .eq("property_id", propertyId)
       .order("created_at", { ascending: false })
-      .limit(30),
+      .limit(40),
     admin
       .from("channel_booking_revisions")
       .select(
@@ -83,30 +84,53 @@ export default async function ErpChannelPage() {
 
   const apiReady = Boolean(getChannexConfig());
   const pendingAri = (queue ?? []).filter((q) => q.status === "pending").length;
+  const failedAri = (queue ?? []).filter((q) => q.status === "failed").length;
+  const mapByRoom = new Map(
+    (maps ?? []).map((m) => [m.room_type_id as string, m]),
+  );
+  const checklist = (roomTypes ?? []).map((r) => {
+    const map = mapByRoom.get(r.id as string);
+    return {
+      roomTypeId: r.id as string,
+      code: r.code as string,
+      name: r.name as string,
+      mapped: Boolean(map?.is_active),
+      hasRatePlan: Boolean(map?.external_rate_plan_id),
+    };
+  });
 
   return (
     <div className="erp mx-auto w-full max-w-[1200px] space-y-10 p-4 md:p-6">
       <section className="space-y-3">
         <div className="space-y-1">
           <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-            Channex (P6)
+            Channex · {property.name}
           </p>
           <p className="max-w-2xl text-sm text-muted-foreground">
-            Event-driven ARI outbox + booking revision inbox. Certification needs staging
-            credentials, room/rate maps, then flush/ack against Channex — not DIY OTA APIs.
+            Event-driven ARI outbox (availability, public rates, min-stay /
+            stop-sell) + booking revision inbox for the active desk property.
+            Certification needs staging credentials, room/rate maps, then
+            flush/ack against Channex.
           </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-4">
           <Stat label="Connection" value={(conn?.status as string) ?? "missing"} />
           <Stat label="API key" value={apiReady ? "set" : "missing"} />
           <Stat label="Pending ARI" value={String(pendingAri)} />
+          <Stat label="Failed ARI" value={String(failedAri)} />
         </div>
         {conn?.notes ? (
           <p className="text-xs text-muted-foreground">{conn.notes as string}</p>
         ) : null}
+        {conn?.last_ari_push_at ? (
+          <p className="text-xs text-muted-foreground">
+            Last ARI push:{" "}
+            {String(conn.last_ari_push_at).slice(0, 16).replace("T", " ")} UTC
+          </p>
+        ) : null}
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
         <ChannelStatusForm
           status={(conn?.status as string) ?? "draft"}
           externalPropertyId={(conn?.external_property_id as string | null) ?? null}
@@ -118,7 +142,15 @@ export default async function ErpChannelPage() {
             name: r.name as string,
           }))}
         />
-        <ChannelQueueActions />
+        <ChannelQueueActions failedCount={failedAri} />
+        <ChannelMappingChecklist
+          items={checklist}
+          apiReady={apiReady}
+          hasExternalProperty={Boolean(conn?.external_property_id)}
+          connectionStatus={(conn?.status as string) ?? "draft"}
+          failedCount={failedAri}
+          pendingCount={pendingAri}
+        />
       </div>
 
       <Card>
@@ -130,7 +162,8 @@ export default async function ErpChannelPage() {
         <CardContent>
           {(maps ?? []).length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No maps yet — sellable guest types only.
+              No maps yet — sellable guest types only. Rate plan id required for
+              rates / restrictions push.
             </p>
           ) : (
             <ul className="divide-y">
@@ -143,7 +176,7 @@ export default async function ErpChannelPage() {
                   {m.external_room_type_id as string}
                   {m.external_rate_plan_id
                     ? ` · rate ${m.external_rate_plan_id as string}`
-                    : ""}
+                    : " · no rate plan"}
                 </li>
               ))}
             </ul>

@@ -1,4 +1,5 @@
 import { GuestServiceForm } from "@/components/erp/GuestServiceForm";
+import { DeskOfflineQueueStrip } from "@/components/erp/DeskOfflineQueueStrip";
 import { PosLayout } from "@/components/erp/pos/PosLayout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { deskPinConfigured, isDeskAuthenticated } from "@/lib/desk-auth";
@@ -142,6 +143,8 @@ export default async function ErpPosPage() {
           </AlertDescription>
         </Alert>
       ) : null}
+
+      <DeskOfflineQueueStrip defaultKind="pos_park" />
 
       <PosLayout
         items={items}

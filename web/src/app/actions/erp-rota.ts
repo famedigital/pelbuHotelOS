@@ -90,6 +90,25 @@ export async function saveRotaShift(
       .maybeSingle();
     if (!staff) throw new Error("Staff member not found for this property.");
 
+    // Overlap conflict: same staff, same date, overlapping times (draft/published).
+    const { data: peers } = await admin
+      .from("staff_shifts")
+      .select("id, starts_at, ends_at, status")
+      .eq("property_id", propertyId)
+      .eq("staff_id", staffId)
+      .eq("shift_date", shiftDate)
+      .in("status", ["draft", "published"]);
+    for (const peer of peers ?? []) {
+      if (id && peer.id === id) continue;
+      const peerStart = peer.starts_at as string;
+      const peerEnd = peer.ends_at as string;
+      if (startsAt < peerEnd && endsAt > peerStart) {
+        throw new Error(
+          `Shift overlaps existing ${peer.status} shift ${peerStart}–${peerEnd}.`,
+        );
+      }
+    }
+
     const record = {
       property_id: propertyId,
       staff_id: staffId,

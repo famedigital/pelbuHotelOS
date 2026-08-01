@@ -1,0 +1,282 @@
+import "server-only";
+import { DEFAULT_GST_RATE } from "@/lib/property-settings";
+import { postFolioCharge } from "@/lib/folio/post-charge";
+import { roundBtn } from "@/lib/pricing";
+import {
+  agentRateTier,
+  lookupRoomRateBtn,
+  resolveSeasonKind,
+  type RateTier,
+} from "@/lib/rates";
+import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
+
+type Admin = ReturnType<typeof createSupabaseAdminClient>;
+
+export type RoomNightPostResult = {
+  posted: number;
+  skipped: number;
+  errors: string[];
+};
+
+function rateTierFromSource(source: string): RateTier {
+  if (source === "mou_agent") return "mou_agents";
+  if (source === "agent") return "agents";
+  return "public";
+}
+
+async function loadPropertyPricing(admin: Admin, propertyId: string) {
+  const { data } = await admin
+    .from("properties")
+    .select("gst_rate, service_charge_rate, service_charge_default_on")
+    .eq("id", propertyId)
+    .maybeSingle();
+  return {
+    gstRate: Number(data?.gst_rate ?? DEFAULT_GST_RATE),
+    serviceChargeRate: Number(data?.service_charge_rate ?? 0),
+    serviceChargeDefaultOn: Boolean(data?.service_charge_default_on),
+  };
+}
+
+async function ensureOpenFolio(
+  admin: Admin,
+  propertyId: string,
+  bookingId: string,
+  label: string,
+): Promise<string> {
+  const { data: existing } = await admin
+    .from("folios")
+    .select("id")
+    .eq("booking_id", bookingId)
+    .eq("property_id", propertyId)
+    .eq("status", "open")
+    .order("created_at")
+    .limit(1)
+    .maybeSingle();
+  if (existing?.id) return existing.id as string;
+
+  const { data: folio, error } = await admin
+    .from("folios")
+    .insert({
+      property_id: propertyId,
+      booking_id: bookingId,
+      folio_type: "guest",
+      label,
+      status: "open",
+    })
+    .select("id")
+    .single();
+  if (error || !folio) throw new Error("Could not open guest folio.");
+  return folio.id as string;
+}
+
+type OccupiedRoom = {
+  assignmentId: string;
+  bookingId: string;
+  roomUnitId: string;
+  roomLabel: string;
+  roomTypeId: string;
+  contactName: string;
+  checkIn: string;
+  source: string;
+  agentRateTier: string | null;
+};
+
+/**
+ * Post one room-night folio line per occupied sellable room for businessDate.
+ * Idempotent via DB unique (folio_id, business_date, room_unit_id).
+ */
+export async function postRoomNightsForDate(
+  admin: Admin,
+  propertyId: string,
+  businessDate: string,
+): Promise<RoomNightPostResult> {
+  const pricing = await loadPropertyPricing(admin, propertyId);
+  const seasonKind = await resolveSeasonKind(admin, propertyId, businessDate);
+
+  const { data: assignments, error: assignError } = await admin
+    .from("room_assignments")
+    .select(
+      `id, booking_id, room_unit_id, from_date, to_date,
+       room_units(id, label, room_type_id, room_types(inventory_kind)),
+       bookings!inner(
+         id, status, check_in, check_out, contact_name, source, agent_id,
+         agents(rate_tier)
+       )`,
+    )
+    .eq("property_id", propertyId)
+    .lte("from_date", businessDate)
+    .gt("to_date", businessDate);
+
+  if (assignError) {
+    return { posted: 0, skipped: 0, errors: [assignError.message] };
+  }
+
+  const rooms: OccupiedRoom[] = [];
+  for (const row of assignments ?? []) {
+    const bookingRaw = row.bookings as
+      | {
+          id: string;
+          status: string;
+          check_in: string;
+          check_out: string;
+          contact_name: string | null;
+          source: string | null;
+          agent_id: string | null;
+          agents?:
+            | { rate_tier?: string | null }
+            | { rate_tier?: string | null }[]
+            | null;
+        }
+      | {
+          id: string;
+          status: string;
+          check_in: string;
+          check_out: string;
+          contact_name: string | null;
+          source: string | null;
+          agent_id: string | null;
+          agents?:
+            | { rate_tier?: string | null }
+            | { rate_tier?: string | null }[]
+            | null;
+        }[]
+      | null;
+    const booking = Array.isArray(bookingRaw) ? bookingRaw[0] : bookingRaw;
+    if (!booking || booking.status !== "checked_in") continue;
+    if (businessDate < String(booking.check_in).slice(0, 10)) continue;
+    if (businessDate >= String(booking.check_out).slice(0, 10)) continue;
+
+    const unitRaw = row.room_units as
+      | {
+          id: string;
+          label: string;
+          room_type_id: string;
+          room_types?:
+            | { inventory_kind?: string }
+            | { inventory_kind?: string }[]
+            | null;
+        }
+      | {
+          id: string;
+          label: string;
+          room_type_id: string;
+          room_types?:
+            | { inventory_kind?: string }
+            | { inventory_kind?: string }[]
+            | null;
+        }[]
+      | null;
+    const unit = Array.isArray(unitRaw) ? unitRaw[0] : unitRaw;
+    if (!unit) continue;
+    const rt = unit.room_types;
+    const kind = (
+      Array.isArray(rt) ? rt[0]?.inventory_kind : rt?.inventory_kind
+    ) as string | undefined;
+    if (kind !== "sellable_guest") continue;
+
+    const agentRaw = booking.agents;
+    const agent = Array.isArray(agentRaw) ? agentRaw[0] : agentRaw;
+
+    rooms.push({
+      assignmentId: row.id as string,
+      bookingId: booking.id,
+      roomUnitId: unit.id,
+      roomLabel: unit.label,
+      roomTypeId: unit.room_type_id,
+      contactName: booking.contact_name ?? "Guest",
+      checkIn: booking.check_in,
+      source: booking.source ?? "direct",
+      agentRateTier: (agent?.rate_tier as string | null) ?? null,
+    });
+  }
+
+  let posted = 0;
+  let skipped = 0;
+  const errors: string[] = [];
+
+  for (const room of rooms) {
+    const tier = room.agentRateTier
+      ? agentRateTier(room.agentRateTier)
+      : rateTierFromSource(room.source);
+
+    const rate = await lookupRoomRateBtn(admin, {
+      propertyId,
+      roomTypeId: room.roomTypeId,
+      seasonKind,
+      rateTier: tier,
+    });
+    if (rate == null) {
+      errors.push(`Room ${room.roomLabel}: no rate for ${tier}/${seasonKind}.`);
+      continue;
+    }
+
+    const amountBtn = roundBtn(rate);
+    const serviceChargeApplied = pricing.serviceChargeDefaultOn;
+    const serviceChargeRate = serviceChargeApplied ? pricing.serviceChargeRate : 0;
+    const serviceChargeBtn = roundBtn(amountBtn * serviceChargeRate);
+    const gstBase = amountBtn + serviceChargeBtn;
+    const gstBtn = roundBtn(gstBase * pricing.gstRate);
+    const totalBtn = roundBtn(amountBtn + serviceChargeBtn + gstBtn);
+
+    const folioLabel = `${room.contactName} · Room ${room.roomLabel}`;
+    let folioId: string;
+    try {
+      folioId = await ensureOpenFolio(admin, propertyId, room.bookingId, folioLabel);
+    } catch (e) {
+      errors.push(
+        `Room ${room.roomLabel}: ${e instanceof Error ? e.message : "folio error"}.`,
+      );
+      continue;
+    }
+
+    const { data: existingLine } = await admin
+      .from("folio_lines")
+      .select("id")
+      .eq("folio_id", folioId)
+      .eq("business_date", businessDate)
+      .eq("room_unit_id", room.roomUnitId)
+      .eq("source_type", "room")
+      .eq("status", "posted")
+      .maybeSingle();
+    if (existingLine) {
+      skipped += 1;
+      continue;
+    }
+
+    const description = `Room ${room.roomLabel} · ${businessDate}`;
+
+    try {
+      await postFolioCharge(admin, propertyId, {
+        folio_id: folioId,
+        booking_id: room.bookingId,
+        source_type: "room",
+        source_id: room.assignmentId,
+        description,
+        qty: 1,
+        unit_price_btn: amountBtn,
+        amount_btn: amountBtn,
+        service_charge_rate: serviceChargeRate,
+        service_charge_btn: serviceChargeBtn,
+        service_charge_applied: serviceChargeApplied,
+        gst_applicable: gstBtn > 0,
+        gst_btn: gstBtn,
+        total_btn: totalBtn,
+        business_date: businessDate,
+        room_unit_id: room.roomUnitId,
+        journal_date: businessDate,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "post failed";
+      if (msg.includes("duplicate") || msg.includes("unique") || msg.includes("23505")) {
+        skipped += 1;
+        continue;
+      }
+      errors.push(`Room ${room.roomLabel}: ${msg}`);
+      continue;
+    }
+
+    posted += 1;
+  }
+
+  return { posted, skipped, errors };
+}

@@ -1,9 +1,21 @@
 "use server";
 
 import { writeAuditEvent } from "@/lib/audit";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { resolveDeskActor } from "@/lib/desk/actor";
+import { periodGuardFromForm } from "@/lib/accounting/period-guard-form";
+import { assertDeskProperty } from "@/lib/desk/property-guard";
+import { todayInTimezone } from "@/lib/erp-lists";
+import { postFolioCharge } from "@/lib/folio/post-charge";
+import { postFolioPaymentRecord } from "@/lib/folio/post-payment";
+import { voidFolioLineWithReversal } from "@/lib/folio/void-line";
+import { issueFiscalDocument } from "@/lib/fiscal/issue-document";
+import { executeNightAudit } from "@/lib/night-audit/run";
+import {
+  claimPaymentLinkOpen,
+  releasePaymentLinkClaim,
+} from "@/lib/payments/claim-link";
 import { roundBtn } from "@/lib/pricing";
-import { resolveActivePropertyId } from "@/lib/property-context";
+import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 import { createHash, randomBytes } from "crypto";
@@ -29,10 +41,9 @@ const PAY_METHODS = new Set([
   "deposit",
 ]);
 
-async function requireDesk() {
-  if (!(await isDeskAuthenticated())) {
-    throw new Error("Desk session expired. Sign in again.");
-  }
+async function requireMoney() {
+  const { requireMoneyDesk } = await import("@/lib/desk-auth");
+  await requireMoneyDesk();
 }
 
 async function propertyId(admin: Admin) {
@@ -44,6 +55,7 @@ function revalidateFolio(folioId?: string) {
   revalidatePath("/erp/reports");
   revalidatePath("/erp/night-audit");
   revalidatePath("/erp/finance");
+  revalidatePath("/erp/invoices");
   if (folioId) revalidatePath(`/erp/folios/${folioId}`);
 }
 
@@ -52,7 +64,7 @@ export async function voidFolioLine(
   formData: FormData,
 ): Promise<ErpFolioOpsState> {
   try {
-    await requireDesk();
+    await requireMoney();
     const admin = createSupabaseAdminClient();
     const pid = await propertyId(admin);
     const lineId = trimRequired(formData.get("line_id"), "Line");
@@ -60,35 +72,22 @@ export async function voidFolioLine(
 
     const { data: line, error } = await admin
       .from("folio_lines")
-      .select("id, folio_id, status, description, total_btn, source_type")
+      .select("id, folio_id, status, description, total_btn, source_type, folios!inner(property_id)")
       .eq("id", lineId)
       .single();
     if (error || !line) throw new Error("Folio line not found.");
+    const folioPropertyId = (line.folios as { property_id?: string } | null)
+      ?.property_id;
+    assertDeskProperty(pid, folioPropertyId, "Folio line");
 
-    const { data: folio } = await admin
-      .from("folios")
-      .select("id, property_id, status")
-      .eq("id", line.folio_id)
-      .single();
-    if (!folio || (folio.property_id as string) !== pid) {
-      throw new Error("Folio line not found.");
-    }
-    if ((folio.status as string) !== "open") throw new Error("Folio is not open.");
-    if ((line.status as string) === "voided") throw new Error("Already voided.");
-    if ((line.source_type as string) === "payment") {
-      throw new Error("Void payments via a refund adjustment — not line void.");
-    }
+    const { actor } = await resolveDeskActor();
 
-    const { error: upd } = await admin
-      .from("folio_lines")
-      .update({
-        status: "voided",
-        void_reason: reason,
-        voided_at: new Date().toISOString(),
-        voided_by: "desk",
-      })
-      .eq("id", lineId);
-    if (upd) throw new Error("Could not void line.");
+    const result = await voidFolioLineWithReversal(admin, pid, {
+      lineId,
+      reason,
+      voidedBy: actor,
+      period_guard: periodGuardFromForm(formData, pid),
+    });
 
     await writeAuditEvent(admin, {
       propertyId: pid,
@@ -96,10 +95,15 @@ export async function voidFolioLine(
       entityType: "folio_lines",
       entityId: lineId,
       summary: `Voided ${line.description} (${line.total_btn} Nu) · ${reason}`,
-      meta: { folioId: line.folio_id, reason },
+      meta: {
+        folioId: result.folioId,
+        reason,
+        reversalLineId: result.reversalLineId,
+        journalReversed: result.journalReversed,
+      },
     });
 
-    revalidateFolio(line.folio_id as string);
+    revalidateFolio(result.folioId);
     return { ok: true, message: "Line voided." };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
@@ -111,7 +115,7 @@ export async function postCompCredit(
   formData: FormData,
 ): Promise<ErpFolioOpsState> {
   try {
-    await requireDesk();
+    await requireMoney();
     const admin = createSupabaseAdminClient();
     const pid = await propertyId(admin);
     const folioId = trimRequired(formData.get("folio_id"), "Folio");
@@ -129,36 +133,29 @@ export async function postCompCredit(
       .eq("property_id", pid)
       .single();
     if (!folio) throw new Error("Folio not found.");
+    assertDeskProperty(pid, folio.property_id as string, "Folio");
     if ((folio.status as string) !== "open") throw new Error("Folio is not open.");
 
-    const { data: line, error } = await admin
-      .from("folio_lines")
-      .insert({
-        folio_id: folioId,
-        booking_id: folio.booking_id,
-        source_type: "comp",
-        description: `Comp · ${reason}`,
-        qty: 1,
-        unit_price_btn: -amountBtn,
-        amount_btn: -amountBtn,
-        gst_applicable: false,
-        gst_btn: 0,
-        total_btn: -amountBtn,
-        status: "posted",
-        is_comp: true,
-      })
-      .select("id")
-      .single();
-    if (error || !line) {
-      console.error("comp insert failed", error);
-      throw new Error("Could not post comp.");
-    }
+    const charge = await postFolioCharge(admin, pid, {
+      folio_id: folioId,
+      booking_id: folio.booking_id as string | null,
+      source_type: "comp",
+      description: `Comp · ${reason}`,
+      qty: 1,
+      unit_price_btn: -amountBtn,
+      amount_btn: -amountBtn,
+      gst_applicable: false,
+      gst_btn: 0,
+      total_btn: -amountBtn,
+      is_comp: true,
+      period_guard: periodGuardFromForm(formData, pid),
+    });
 
     await writeAuditEvent(admin, {
       propertyId: pid,
       action: "folio.comp",
       entityType: "folio_lines",
-      entityId: line.id as string,
+      entityId: charge.lineId,
       summary: `Comp ${amountBtn} Nu · ${reason}`,
       meta: { folioId, reason },
     });
@@ -175,7 +172,7 @@ export async function createDepositLink(
   formData: FormData,
 ): Promise<ErpFolioOpsState> {
   try {
-    await requireDesk();
+    await requireMoney();
     const admin = createSupabaseAdminClient();
     const pid = await propertyId(admin);
     const folioId = optionalTrim(formData.get("folio_id"));
@@ -193,11 +190,20 @@ export async function createDepositLink(
     if (folioId) {
       const { data: folio } = await admin
         .from("folios")
-        .select("id, booking_id")
+        .select("id, booking_id, property_id")
         .eq("id", folioId)
-        .eq("property_id", pid)
         .single();
       if (!folio) throw new Error("Folio not found.");
+      assertDeskProperty(pid, folio.property_id as string, "Folio");
+    }
+    if (bookingId) {
+      const { data: booking } = await admin
+        .from("bookings")
+        .select("id, property_id")
+        .eq("id", bookingId)
+        .single();
+      if (!booking) throw new Error("Booking not found.");
+      assertDeskProperty(pid, booking.property_id as string, "Booking");
     }
 
     const token = createHash("sha256")
@@ -257,7 +263,7 @@ export async function markDepositLinkPaid(
   formData: FormData,
 ): Promise<ErpFolioOpsState> {
   try {
-    await requireDesk();
+    await requireMoney();
     const admin = createSupabaseAdminClient();
     const pid = await propertyId(admin);
     const linkId = trimRequired(formData.get("link_id"), "Link");
@@ -265,96 +271,199 @@ export async function markDepositLinkPaid(
     if (!PAY_METHODS.has(method)) throw new Error("Invalid payment method.");
     const reference = optionalTrim(formData.get("reference"));
 
-    const { data: link } = await admin
-      .from("payment_links")
-      .select("id, status, amount_btn, folio_id, booking_id, purpose")
-      .eq("id", linkId)
-      .eq("property_id", pid)
-      .single();
-    if (!link) throw new Error("Link not found.");
-    if ((link.status as string) !== "open") throw new Error("Link is not open.");
+    const claim = await claimPaymentLinkOpen(admin, linkId, pid);
+    if (!claim.ok) throw new Error(claim.error);
+    if (!claim.claimed) {
+      if (claim.reason === "already_paid") {
+        return { ok: true, message: "Deposit already marked paid." };
+      }
+      if (claim.reason === "processing") {
+        throw new Error("Link is being processed — wait and refresh.");
+      }
+      throw new Error("Link is not open.");
+    }
 
+    const link = claim.link;
     const amountBtn = roundBtn(Number(link.amount_btn));
     let paymentId: string | null = null;
+    let claimed = true;
 
-    if (link.folio_id) {
-      const { data: folio } = await admin
-        .from("folios")
-        .select("id, booking_id, status")
-        .eq("id", link.folio_id)
-        .single();
-      if (!folio || (folio.status as string) !== "open") {
-        throw new Error("Linked folio is not open.");
-      }
+    try {
+      if (link.folio_id) {
+        const { data: folio } = await admin
+          .from("folios")
+          .select("id, booking_id, status, property_id")
+          .eq("id", link.folio_id)
+          .single();
+        if (!folio) throw new Error("Linked folio not found.");
+        assertDeskProperty(pid, folio.property_id as string, "Folio");
+        if ((folio.status as string) !== "open") {
+          throw new Error("Linked folio is not open.");
+        }
 
-      const { data: payment, error: payErr } = await admin
-        .from("payments")
-        .insert({
+        const pay = await postFolioPaymentRecord(admin, {
           property_id: pid,
-          folio_id: link.folio_id,
-          booking_id: folio.booking_id ?? link.booking_id,
+          folio_id: link.folio_id as string,
+          booking_id: (folio.booking_id ?? link.booking_id) as string | null,
           method,
           kind: link.purpose === "deposit" ? "deposit" : "settlement",
           amount_btn: amountBtn,
           reference,
           notes: `Payment link ${linkId}`,
-        })
-        .select("id")
-        .single();
-      if (payErr || !payment) throw new Error("Could not record payment.");
-      paymentId = payment.id as string;
-
-      await admin.from("folio_lines").insert({
-        folio_id: link.folio_id,
-        booking_id: folio.booking_id ?? link.booking_id,
-        source_type: "deposit",
-        source_id: paymentId,
-        description: `Deposit · ${method}${reference ? ` · ${reference}` : ""}`,
-        qty: 1,
-        unit_price_btn: -amountBtn,
-        amount_btn: -amountBtn,
-        gst_applicable: false,
-        gst_btn: 0,
-        total_btn: -amountBtn,
-        status: "posted",
-      });
-    } else {
-      const { data: payment, error: payErr } = await admin
-        .from("payments")
-        .insert({
+          folio_line_source: "deposit",
+          idempotency_key: `deposit_link:${linkId}`,
+          period_guard: periodGuardFromForm(formData, pid),
+        });
+        paymentId = pay.paymentId;
+      } else {
+        const pay = await postFolioPaymentRecord(admin, {
           property_id: pid,
-          booking_id: link.booking_id,
+          booking_id: link.booking_id as string | null,
           method,
           kind: "deposit",
           amount_btn: amountBtn,
           reference,
           notes: `Payment link ${linkId} (no folio)`,
-        })
-        .select("id")
-        .single();
-      if (payErr || !payment) throw new Error("Could not record payment.");
-      paymentId = payment.id as string;
-    }
+          idempotency_key: `deposit_link:${linkId}`,
+          period_guard: periodGuardFromForm(formData, pid),
+        });
+        paymentId = pay.paymentId;
+      }
 
-    await admin
-      .from("payment_links")
-      .update({
-        status: "paid",
-        paid_at: new Date().toISOString(),
-        payment_id: paymentId,
-      })
-      .eq("id", linkId);
+      await admin
+        .from("payment_links")
+        .update({
+          status: "paid",
+          paid_at: new Date().toISOString(),
+          payment_id: paymentId,
+        })
+        .eq("id", linkId);
+
+      await writeAuditEvent(admin, {
+        propertyId: pid,
+        action: "deposit.paid",
+        entityType: "payment_links",
+        entityId: linkId,
+        summary: `Deposit paid ${amountBtn} Nu via ${method}`,
+      });
+
+      revalidateFolio((link.folio_id as string) ?? undefined);
+      return { ok: true, message: "Deposit marked paid." };
+    } catch (e) {
+      if (claimed) {
+        await releasePaymentLinkClaim(admin, linkId);
+      }
+      throw e;
+    }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+export async function issueFolioInvoice(
+  _prev: ErpFolioOpsState,
+  formData: FormData,
+): Promise<ErpFolioOpsState> {
+  try {
+    await requireMoney();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const folioId = trimRequired(formData.get("folio_id"), "Folio");
+
+    const doc = await issueFiscalDocument(admin, pid, {
+      docKind: "invoice",
+      folioId,
+      issuedBy: "desk",
+      periodGuard: periodGuardFromForm(formData, pid),
+    });
 
     await writeAuditEvent(admin, {
       propertyId: pid,
-      action: "deposit.paid",
-      entityType: "payment_links",
-      entityId: linkId,
-      summary: `Deposit paid ${amountBtn} Nu via ${method}`,
+      action: "fiscal.invoice.issue",
+      entityType: "fiscal_documents",
+      entityId: doc.id,
+      summary: `Issued tax invoice ${doc.docNo}`,
+      meta: { folioId, docNo: doc.docNo },
     });
 
-    revalidateFolio((link.folio_id as string) ?? undefined);
-    return { ok: true, message: "Deposit marked paid." };
+    revalidateFolio(folioId);
+    return { ok: true, message: `Tax invoice ${doc.docNo} issued.` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+export async function issueFolioReceipt(
+  _prev: ErpFolioOpsState,
+  formData: FormData,
+): Promise<ErpFolioOpsState> {
+  try {
+    await requireMoney();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const folioId = trimRequired(formData.get("folio_id"), "Folio");
+    const paymentId = optionalTrim(formData.get("payment_id"));
+
+    const doc = await issueFiscalDocument(admin, pid, {
+      docKind: "receipt",
+      folioId,
+      paymentId,
+      issuedBy: "desk",
+      periodGuard: periodGuardFromForm(formData, pid),
+    });
+
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "fiscal.receipt.issue",
+      entityType: "fiscal_documents",
+      entityId: doc.id,
+      summary: `Issued receipt ${doc.docNo}`,
+      meta: { folioId, paymentId, docNo: doc.docNo },
+    });
+
+    revalidateFolio(folioId);
+    revalidatePath(`/erp/folios/${folioId}/receipt`);
+    return {
+      ok: true,
+      message: `Receipt ${doc.docNo} issued.`,
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+export async function issueFolioCreditNote(
+  _prev: ErpFolioOpsState,
+  formData: FormData,
+): Promise<ErpFolioOpsState> {
+  try {
+    await requireMoney();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const folioId = trimRequired(formData.get("folio_id"), "Folio");
+
+    const doc = await issueFiscalDocument(admin, pid, {
+      docKind: "credit_note",
+      folioId,
+      issuedBy: "desk",
+      periodGuard: periodGuardFromForm(formData, pid),
+    });
+
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "fiscal.credit_note.issue",
+      entityType: "fiscal_documents",
+      entityId: doc.id,
+      summary: `Issued credit note ${doc.docNo}`,
+      meta: { folioId, docNo: doc.docNo },
+    });
+
+    revalidateFolio(folioId);
+    revalidatePath(`/erp/invoices/${doc.id}/print`);
+    return {
+      ok: true,
+      message: `Credit note ${doc.docNo} issued.`,
+    };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
   }
@@ -365,7 +474,7 @@ export async function attachFolioToMaster(
   formData: FormData,
 ): Promise<ErpFolioOpsState> {
   try {
-    await requireDesk();
+    await requireMoney();
     const admin = createSupabaseAdminClient();
     const pid = await propertyId(admin);
     const folioId = trimRequired(formData.get("folio_id"), "Folio");
@@ -374,12 +483,14 @@ export async function attachFolioToMaster(
 
     const { data: rows } = await admin
       .from("folios")
-      .select("id, status, folio_type")
+      .select("id, status, folio_type, property_id")
       .eq("property_id", pid)
       .in("id", [folioId, masterId]);
     const folio = rows?.find((r) => r.id === folioId);
     const master = rows?.find((r) => r.id === masterId);
     if (!folio || !master) throw new Error("Folio not found.");
+    assertDeskProperty(pid, folio.property_id as string, "Folio");
+    assertDeskProperty(pid, master.property_id as string, "Master folio");
     if ((folio.status as string) !== "open" || (master.status as string) !== "open") {
       throw new Error("Both folios must be open.");
     }
@@ -408,7 +519,122 @@ export async function attachFolioToMaster(
 
     revalidateFolio(folioId);
     revalidateFolio(masterId);
+    revalidatePath("/erp/folios");
     return { ok: true, message: "Attached to master folio." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+/** Promote this open folio to a city-ledger / group master. */
+export async function promoteFolioToMaster(
+  _prev: ErpFolioOpsState,
+  formData: FormData,
+): Promise<ErpFolioOpsState> {
+  try {
+    await requireMoney();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const folioId = trimRequired(formData.get("folio_id"), "Folio");
+
+    const { data: folio } = await admin
+      .from("folios")
+      .select("id, status, folio_type, property_id, label")
+      .eq("id", folioId)
+      .single();
+    if (!folio) throw new Error("Folio not found.");
+    assertDeskProperty(pid, folio.property_id as string, "Folio");
+    if ((folio.status as string) !== "open") {
+      throw new Error("Only open folios can become masters.");
+    }
+
+    const { error } = await admin
+      .from("folios")
+      .update({ folio_type: "master", master_folio_id: null })
+      .eq("id", folioId)
+      .eq("property_id", pid);
+    if (error) throw new Error("Could not promote folio.");
+
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "folio.promote_master",
+      entityType: "folios",
+      entityId: folioId,
+      summary: `Promoted ${folio.label as string} to master / city ledger`,
+    });
+
+    revalidateFolio(folioId);
+    revalidatePath("/erp/folios");
+    return { ok: true, message: "Folio is now a master (city ledger)." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+export async function transferFolioLine(
+  _prev: ErpFolioOpsState,
+  formData: FormData,
+): Promise<ErpFolioOpsState> {
+  try {
+    await requireMoney();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const lineId = trimRequired(formData.get("line_id"), "Line");
+    const targetFolioId = trimRequired(formData.get("target_folio_id"), "Target folio");
+
+    const { data: line } = await admin
+      .from("folio_lines")
+      .select(
+        "id, folio_id, status, description, booking_id, folios!inner(property_id, status)",
+      )
+      .eq("id", lineId)
+      .single();
+    if (!line) throw new Error("Folio line not found.");
+    assertDeskProperty(
+      pid,
+      (line.folios as { property_id?: string }).property_id,
+      "Folio line",
+    );
+    if ((line.status as string) !== "posted") {
+      throw new Error("Only posted lines can be transferred.");
+    }
+
+    const { data: target } = await admin
+      .from("folios")
+      .select("id, status, property_id, booking_id")
+      .eq("id", targetFolioId)
+      .eq("property_id", pid)
+      .single();
+    if (!target) throw new Error("Target folio not found.");
+    assertDeskProperty(pid, target.property_id as string, "Target folio");
+    if ((target.status as string) !== "open") {
+      throw new Error("Target folio must be open.");
+    }
+    if (targetFolioId === (line.folio_id as string)) {
+      throw new Error("Line is already on that folio.");
+    }
+
+    const { error } = await admin
+      .from("folio_lines")
+      .update({
+        folio_id: targetFolioId,
+        booking_id: target.booking_id ?? line.booking_id,
+      })
+      .eq("id", lineId);
+    if (error) throw new Error("Could not transfer line.");
+
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "folio.transfer_line",
+      entityType: "folio_lines",
+      entityId: lineId,
+      summary: `Transferred line to folio ${targetFolioId}`,
+      meta: { from: line.folio_id, to: targetFolioId },
+    });
+
+    revalidateFolio(line.folio_id as string);
+    revalidateFolio(targetFolioId);
+    return { ok: true, message: "Line transferred." };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
   }
@@ -419,131 +645,38 @@ export async function runNightAudit(
   formData: FormData,
 ): Promise<ErpFolioOpsState> {
   try {
-    await requireDesk();
+    await requireMoney();
     const admin = createSupabaseAdminClient();
     const pid = await propertyId(admin);
+    const property = await loadProperty(admin, pid);
     const businessDate =
       optionalTrim(formData.get("business_date")) ??
-      new Date().toISOString().slice(0, 10);
+      todayInTimezone(property?.timezone);
     const notes = optionalTrim(formData.get("notes"));
 
-    const { data: existing } = await admin
-      .from("night_audits")
-      .select("id")
-      .eq("property_id", pid)
-      .eq("business_date", businessDate)
-      .maybeSingle();
-    if (existing) {
-      throw new Error(`Night audit already run for ${businessDate}.`);
-    }
-
-    const nextDay = (() => {
-      const d = new Date(`${businessDate}T12:00:00Z`);
-      d.setUTCDate(d.getUTCDate() + 1);
-      return d.toISOString().slice(0, 10);
-    })();
-
-    const [{ data: inHouse }, { data: openFolios }, { data: dayLines }] =
-      await Promise.all([
-        admin
-          .from("bookings")
-          .select("id, booking_rooms(qty, inventory_kind)")
-          .eq("property_id", pid)
-          .in("status", ["confirmed", "checked_in"])
-          .lte("check_in", businessDate)
-          .gt("check_out", businessDate),
-        admin
-          .from("folios")
-          .select("id")
-          .eq("property_id", pid)
-          .eq("status", "open"),
-        admin
-          .from("folios")
-          .select(
-            "id, folio_lines(source_type, total_btn, status, created_at, is_comp)",
-          )
-          .eq("property_id", pid)
-          .limit(400),
-      ]);
-
-    let roomsOccupied = 0;
-    let roomsComp = 0;
-    for (const b of inHouse ?? []) {
-      for (const line of (b.booking_rooms as { qty: number; inventory_kind: string }[] | null) ?? []) {
-        if (line.inventory_kind === "sellable_guest") {
-          roomsOccupied += Number(line.qty);
-        } else if (
-          line.inventory_kind === "guide_comp" ||
-          line.inventory_kind === "driver_comp"
-        ) {
-          roomsComp += Number(line.qty);
-        }
-      }
-    }
-
-    let charges = 0;
-    let payments = 0;
-    for (const f of dayLines ?? []) {
-      for (const line of (f.folio_lines as {
-        source_type: string;
-        total_btn: number;
-        status: string;
-        created_at: string;
-      }[] | null) ?? []) {
-        if (line.status !== "posted") continue;
-        const day = String(line.created_at).slice(0, 10);
-        if (day !== businessDate) continue;
-        const total = Number(line.total_btn);
-        if (line.source_type === "payment" || line.source_type === "deposit") {
-          payments += Math.abs(total);
-        } else {
-          charges += total;
-        }
-      }
-    }
-
-    const summary = {
-      business_date: businessDate,
-      next_day: nextDay,
-      in_house_bookings: (inHouse ?? []).length,
-    };
-
-    const { data: audit, error } = await admin
-      .from("night_audits")
-      .insert({
-        property_id: pid,
-        business_date: businessDate,
-        status: "completed",
-        rooms_occupied: roomsOccupied,
-        rooms_comp: roomsComp,
-        folio_charges_btn: roundBtn(charges),
-        folio_payments_btn: roundBtn(payments),
-        open_folios: (openFolios ?? []).length,
-        summary,
-        run_by: "desk",
-        notes,
-      })
-      .select("id")
-      .single();
-    if (error || !audit) {
-      console.error("night_audits insert failed", error);
-      throw new Error("Could not save night audit.");
-    }
-
-    await writeAuditEvent(admin, {
-      propertyId: pid,
-      action: "night_audit.run",
-      entityType: "night_audits",
-      entityId: audit.id as string,
-      summary: `Night audit ${businessDate} · occ ${roomsOccupied} + comp ${roomsComp}`,
-      meta: summary,
+    const result = await executeNightAudit(admin, pid, businessDate, {
+      runBy: "desk",
+      notes,
     });
 
     revalidateFolio();
+    const parts = [
+      `Occupancy ${result.roomsOccupied} sellable + ${result.roomsComp} comp`,
+      result.posted > 0
+        ? `${result.posted} room-night(s) posted`
+        : result.skipped > 0
+          ? `${result.skipped} room-night(s) already posted (skipped)`
+          : "0 room-nights posted",
+      `Open folios ${result.openFolios}`,
+      `Day charges ${result.folioChargesBtn} Nu · payments ${result.folioPaymentsBtn} Nu`,
+    ];
+    if (result.roomNightErrors.length > 0) {
+      parts.push(`${result.roomNightErrors.length} room-night error(s)`);
+    }
     return {
       ok: true,
-      message: `Night audit ${businessDate} complete.`,
-      auditId: audit.id as string,
+      message: `Night audit ${result.businessDate} complete — ${parts.join(" · ")}.`,
+      auditId: result.auditId,
     };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };

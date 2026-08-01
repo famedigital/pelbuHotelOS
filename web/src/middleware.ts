@@ -15,6 +15,13 @@ function hasSupabaseAuthCookie(request: NextRequest): boolean {
 function hasValidDeskPinCookie(request: NextRequest): boolean {
   const pin = process.env.DESK_PIN?.trim();
   if (!pin) return false;
+  // Match desk-auth: shared PIN retired in prod unless escape hatch.
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.ALLOW_DESK_PIN_IN_PROD !== "1"
+  ) {
+    return false;
+  }
   return request.cookies.get(DESK_COOKIE)?.value === `ok:${pin}`;
 }
 
@@ -45,9 +52,27 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/erp/login", request.url));
   }
 
+  const requestHeaders = new Headers(request.headers);
+  // Host → property hint for public/desk multi-tenant (Wave 4 foundation).
+  // Pages may read x-pelbu-property-slug; flagship used when unset/unmatched.
+  try {
+    const host = request.headers.get("host");
+    if (host && !host.includes("localhost")) {
+      const { resolvePropertyIdFromHost } = await import(
+        "@/lib/tenant/resolve-host"
+      );
+      const resolved = await resolvePropertyIdFromHost(host);
+      requestHeaders.set("x-pelbu-property-id", resolved.propertyId);
+      requestHeaders.set("x-pelbu-property-slug", resolved.slug);
+      requestHeaders.set("x-pelbu-tenant-via", resolved.via);
+    }
+  } catch {
+    // Never block the request on tenant resolution failure.
+  }
+
   let response = NextResponse.next({
     request: {
-      headers: request.headers,
+      headers: requestHeaders,
     },
   });
 
@@ -75,7 +100,7 @@ export async function middleware(request: NextRequest) {
             });
             response = NextResponse.next({
               request: {
-                headers: request.headers,
+                headers: requestHeaders,
               },
             });
             cookiesToSet.forEach(({ name, value, options }) => {

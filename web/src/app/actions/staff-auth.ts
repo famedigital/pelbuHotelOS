@@ -1,6 +1,7 @@
 "use server";
 
 import { writeAuditEvent } from "@/lib/audit";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 import {
   getStaffSession,
   provisionStaffAuthUser,
@@ -11,6 +12,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { trimRequired } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 export type StaffLoginState = {
@@ -23,6 +25,18 @@ export async function staffLogin(
   formData: FormData,
 ): Promise<StaffLoginState> {
   try {
+    const h = await headers();
+    const rl = await rateLimit(`staff-login:${clientIp(h)}`, {
+      limit: 20,
+      windowMs: 15 * 60_000,
+    });
+    if (!rl.ok) {
+      return {
+        ok: false,
+        error: "Too many login attempts. Wait a few minutes.",
+      };
+    }
+
     const employeeCode = trimRequired(formData.get("employee_code"), "Employee code")
       .toUpperCase()
       .replace(/\s+/g, "-");

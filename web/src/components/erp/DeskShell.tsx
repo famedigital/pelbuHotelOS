@@ -1,7 +1,10 @@
 import { deskLogout } from "@/app/actions/desk";
 import { AppSidebar } from "@/components/erp/app-sidebar";
+import { CalendarHeaderTabs } from "@/components/erp/CalendarHeaderTabs";
 import { DeskMobileNav } from "@/components/erp/DeskMobileNav";
+import { ErpCommandPalette } from "@/components/erp/ErpCommandPalette";
 import { ModuleTabs } from "@/components/erp/ModuleTabs";
+import { DeskSearchHint } from "@/components/erp/DeskSearchHint";
 import { PropertySwitcher } from "@/components/erp/PropertySwitcher";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,8 +37,9 @@ export function DeskShell({
 }) {
   return (
     <div className="erp">
-      <SidebarProvider>
+      <SidebarProvider defaultOpen={false} defaultState="collapsed">
         <AppSidebar brandName={title} logoSrc={logoSrc} />
+        <ErpCommandPalette />
         <SidebarInset>
           <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
             <SidebarTrigger className="-ml-1 hidden md:inline-flex" />
@@ -48,6 +52,9 @@ export function DeskShell({
                 {title}
               </h1>
             ) : null}
+            <CalendarHeaderTabs />
+
+            <DeskSearchHint />
 
             <div className="ml-auto flex items-center gap-2">
               {properties && properties.length > 0 && activePropertyId ? (
@@ -69,7 +76,7 @@ export function DeskShell({
             </div>
           </header>
           <ModuleTabs />
-          <div className="flex flex-1 flex-col pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+          <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
             {children}
           </div>
           <DeskMobileNav />

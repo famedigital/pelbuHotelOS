@@ -2,7 +2,10 @@
 
 import { writeAuditEvent } from "@/lib/audit";
 import { postExpense } from "@/lib/accounting/posting";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { assertOpenPeriodForDate } from "@/lib/accounting/period-guard";
+import { periodGuardFromForm } from "@/lib/accounting/period-guard-form";
+import { requireMoneyDesk } from "@/lib/desk-auth";
+import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -31,12 +34,6 @@ const EXPENSE_CATEGORIES = new Set([
 ]);
 const PAY_METHODS = new Set(["cash", "bank", "card"]);
 
-async function requireDesk() {
-  if (!(await isDeskAuthenticated())) {
-    throw new Error("Desk session expired. Sign in again.");
-  }
-}
-
 async function propertyId(admin: Admin) {
   return resolveActivePropertyId(admin);
 }
@@ -59,7 +56,7 @@ export async function createExpense(
   formData: FormData,
 ): Promise<ErpFinanceState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const admin = createSupabaseAdminClient();
     const pid = await propertyId(admin);
 
@@ -83,6 +80,12 @@ export async function createExpense(
     }
 
     const description = trimRequired(formData.get("description"), "Description");
+    const expenseDate = trimRequired(formData.get("expense_date"), "Date");
+    await assertOpenPeriodForDate(admin, pid, expenseDate, {
+      propertyId: pid,
+      ...periodGuardFromForm(formData, pid),
+    });
+
     const { data: expense, error } = await admin
       .from("expenses")
       .insert({
@@ -91,7 +94,7 @@ export async function createExpense(
         description,
         amount_btn: amountBtn,
         gst_btn: gstBtn,
-        expense_date: trimRequired(formData.get("expense_date"), "Date"),
+        expense_date: expenseDate,
         vendor: optionalTrim(formData.get("vendor")),
         payment_method: paymentMethod,
         reference: optionalTrim(formData.get("reference")),
@@ -119,7 +122,7 @@ export async function createExpense(
       description,
       amount_btn: amountBtn,
       gst_btn: gstBtn,
-      expense_date: trimRequired(formData.get("expense_date"), "Date"),
+      expense_date: expenseDate,
       payment_method: paymentMethod,
     });
     if (posting.ok && posting.journalId) {
@@ -159,7 +162,7 @@ export async function importBankStatementJson(
   formData: FormData,
 ): Promise<ErpFinanceState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const admin = createSupabaseAdminClient();
     const pid = await propertyId(admin);
 
@@ -281,7 +284,7 @@ export async function matchBankTxn(
   formData: FormData,
 ): Promise<ErpFinanceState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const admin = createSupabaseAdminClient();
     const pid = await propertyId(admin);
 
@@ -299,11 +302,11 @@ export async function matchBankTxn(
       .from("bank_transactions")
       .select("id, property_id, credit_btn, debit_btn, match_status")
       .eq("id", txnId)
-      .eq("property_id", pid)
       .single();
     if (txnErr || !txn) {
       throw new Error("Bank transaction not found.");
     }
+    assertDeskProperty(pid, txn.property_id as string, "Bank transaction");
     if ((txn.match_status as string) === "matched") {
       throw new Error("Already matched.");
     }
@@ -422,10 +425,18 @@ export async function ignoreBankTxn(
   formData: FormData,
 ): Promise<ErpFinanceState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const admin = createSupabaseAdminClient();
     const pid = await propertyId(admin);
     const txnId = trimRequired(formData.get("bank_txn_id"), "Bank transaction");
+
+    const { data: txn } = await admin
+      .from("bank_transactions")
+      .select("id, property_id")
+      .eq("id", txnId)
+      .single();
+    if (!txn) throw new Error("Bank transaction not found.");
+    assertDeskProperty(pid, txn.property_id as string, "Bank transaction");
 
     const { error } = await admin
       .from("bank_transactions")
@@ -524,7 +535,7 @@ export async function autoMatchBankTxns(
   _formData: FormData,
 ): Promise<ErpFinanceState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const admin = createSupabaseAdminClient();
     const pid = await propertyId(admin);
     const windowDays = 3;

@@ -2,14 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "node:crypto";
+import { resolveDeskActor } from "@/lib/desk/actor";
 import { writeAuditEvent } from "@/lib/audit";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { isDeskAuthenticated, requireMoneyDesk } from "@/lib/desk-auth";
+import { assertDeskProperty } from "@/lib/desk/property-guard";
+import { voidFolioLineWithReversal } from "@/lib/folio/void-line";
 import {
   isLaundryPhotoId,
   laundryBagScanPath,
   makeLaundryBagPublicCode,
   validateBagAllocations,
 } from "@/lib/laundry";
+import { autoPrepareDefaultBag } from "@/lib/laundry/prepare-default-bag";
 import {
   createLaundryToken,
   hashLaundryToken,
@@ -23,6 +27,7 @@ export type ErpLaundryState = {
   ok: boolean;
   message?: string;
   orderId?: string;
+  labelsUrl?: string;
   error?: string;
 };
 
@@ -64,7 +69,7 @@ export async function saveLaundryCatalogItem(
       category,
       unit_label: unitLabel,
       price_btn: price,
-      gst_applicable: formData.get("gst_applicable") === "on",
+      gst_applicable: formData.get("gst_applicable") === "1",
       turnaround_hours: turnaround,
       is_active: formData.get("is_active") !== "0",
       sort_order: Number(formData.get("sort_order") ?? 0),
@@ -233,11 +238,27 @@ export async function createDeskLaundryOrder(
       summary: `Laundry intake · Room ${roomLabel} · ${guestName}`,
       meta: { bookingId, roomUnitId, photoCount: photos.length },
     });
+
+    const optionalStaffId = optionalTrim(formData.get("prepared_by_staff_id"));
+    const bagResult = await autoPrepareDefaultBag(
+      admin,
+      propertyId,
+      order.id as string,
+      "front_desk",
+      optionalStaffId,
+    );
+
     refreshLaundry();
+    const labelsUrl = `/erp/laundry/orders/${order.id}/labels`;
     return {
       ok: true,
       orderId: order.id as string,
-      message: `Laundry ${String(order.id).slice(0, 8).toUpperCase()} created.`,
+      labelsUrl,
+      message: bagResult.ok && bagResult.bags.length
+        ? `Laundry ${String(order.id).slice(0, 8).toUpperCase()} created with bag label ready to print.`
+        : bagResult.ok
+          ? `Laundry ${String(order.id).slice(0, 8).toUpperCase()} created.`
+          : `Laundry ${String(order.id).slice(0, 8).toUpperCase()} created, but bag label failed: ${bagResult.error}`,
     };
   } catch (error) {
     return {
@@ -278,33 +299,51 @@ export async function reopenLaundryCorrection(
   formData: FormData,
 ): Promise<ErpLaundryState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const orderId = trimRequired(formData.get("order_id"), "Laundry order");
     const reason = trimRequired(formData.get("reason"), "Correction reason");
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
     const { data: order } = await admin
       .from("laundry_orders")
-      .select("id, status, folio_line_id, folio_id, total_btn")
+      .select("id, status, folio_line_id, folio_id, total_btn, property_id")
       .eq("id", orderId)
-      .eq("property_id", propertyId)
       .maybeSingle();
-    if (!order?.folio_line_id) throw new Error("Laundry has not been billed.");
+    if (!order) throw new Error("Laundry order not found.");
+    assertDeskProperty(propertyId, order.property_id as string, "Laundry order");
+    if (!order.folio_line_id) throw new Error("Laundry has not been billed.");
     if (order.status === "delivered") {
       throw new Error("Delivered laundry must be corrected from the folio.");
     }
     const now = new Date().toISOString();
-    const { error: lineError } = await admin
+    const { actor } = await resolveDeskActor();
+    const voidResult = await voidFolioLineWithReversal(admin, propertyId, {
+      lineId: order.folio_line_id as string,
+      reason: `Laundry correction · ${reason}`,
+      voidedBy: actor,
+    });
+
+    const { count: voidedCount, error: lineError } = await admin
       .from("folio_lines")
+      .select("id", { count: "exact", head: true })
+      .eq("id", order.folio_line_id)
+      .eq("status", "voided");
+    if (lineError || (voidedCount ?? 0) === 0) {
+      throw new Error("Could not void the original folio charge.");
+    }
+
+    await admin
+      .from("laundry_order_bags")
       .update({
         status: "voided",
-        void_reason: reason,
         voided_at: now,
-        voided_by: "desk",
+        void_reason: `Billing correction · ${reason}`,
+        updated_at: now,
       })
-      .eq("id", order.folio_line_id)
-      .eq("status", "posted");
-    if (lineError) throw new Error("Could not void the original folio charge.");
+      .eq("order_id", orderId)
+      .eq("property_id", propertyId)
+      .neq("status", "voided");
+
     await admin
       .from("laundry_order_items")
       .update({
@@ -350,9 +389,12 @@ export async function reopenLaundryCorrection(
       meta: {
         folioId: order.folio_id,
         voidedLineId: order.folio_line_id,
+        reversalLineId: voidResult.reversalLineId,
+        journalReversed: voidResult.journalReversed,
         previousTotalBtn: Number(order.total_btn ?? 0),
       },
     });
+    await autoPrepareDefaultBag(admin, propertyId, orderId, "front_desk");
     refreshLaundry();
     return {
       ok: true,
@@ -565,6 +607,179 @@ export async function issueDeskLaundryBagLabelTokens(
       ok: false,
       error:
         error instanceof Error ? error.message : "Could not issue label codes.",
+    };
+  }
+}
+
+export async function cancelLaundryOrder(
+  _prev: ErpLaundryState,
+  formData: FormData,
+): Promise<ErpLaundryState> {
+  try {
+    await requireMoneyDesk();
+    const orderId = trimRequired(formData.get("order_id"), "Laundry order");
+    const reason = trimRequired(formData.get("reason"), "Cancel reason");
+    const admin = createSupabaseAdminClient();
+    const propertyId = await resolveActivePropertyId(admin);
+    const { data: order } = await admin
+      .from("laundry_orders")
+      .select("id, status, folio_line_id, folio_id, total_btn, property_id")
+      .eq("id", orderId)
+      .maybeSingle();
+    if (!order) throw new Error("Laundry order not found.");
+    assertDeskProperty(propertyId, order.property_id as string, "Laundry order");
+    if (order.status === "delivered") {
+      throw new Error("Delivered laundry cannot be cancelled from the desk.");
+    }
+    if (order.status === "cancelled") {
+      throw new Error("Laundry is already cancelled.");
+    }
+
+    const now = new Date().toISOString();
+    const { actor } = await resolveDeskActor();
+    if (order.folio_line_id) {
+      const voidResult = await voidFolioLineWithReversal(admin, propertyId, {
+        lineId: order.folio_line_id as string,
+        reason: `Laundry cancelled · ${reason}`,
+        voidedBy: actor,
+      });
+      const { count: voidedCount, error: lineError } = await admin
+        .from("folio_lines")
+        .select("id", { count: "exact", head: true })
+        .eq("id", order.folio_line_id)
+        .eq("status", "voided");
+      if (lineError || (voidedCount ?? 0) === 0) {
+        throw new Error("Could not void the folio charge for this laundry.");
+      }
+      await admin
+        .from("laundry_order_items")
+        .update({
+          unit_price_btn: null,
+          gst_applicable: null,
+          line_total_btn: null,
+        })
+        .eq("order_id", orderId);
+      await writeAuditEvent(admin, {
+        propertyId,
+        action: "laundry.billing.cancel_void",
+        entityType: "laundry_orders",
+        entityId: orderId,
+        summary: `Laundry folio voided on cancel · ${reason}`,
+        meta: {
+          folioId: order.folio_id,
+          voidedLineId: order.folio_line_id,
+          reversalLineId: voidResult.reversalLineId,
+          journalReversed: voidResult.journalReversed,
+        },
+      });
+    }
+
+    await admin
+      .from("laundry_order_bags")
+      .update({
+        status: "voided",
+        voided_at: now,
+        void_reason: `Order cancelled · ${reason}`,
+        updated_at: now,
+      })
+      .eq("order_id", orderId)
+      .eq("property_id", propertyId)
+      .neq("status", "voided");
+
+    const { error } = await admin
+      .from("laundry_orders")
+      .update({
+        status: "cancelled",
+        folio_line_id: null,
+        subtotal_btn: null,
+        service_charge_rate: null,
+        service_charge_btn: null,
+        gst_rate: null,
+        gst_btn: null,
+        total_btn: null,
+        billed_at: null,
+        billed_by: null,
+        updated_at: now,
+      })
+      .eq("id", orderId)
+      .eq("property_id", propertyId);
+    if (error) throw new Error("Could not cancel laundry order.");
+
+    await admin.from("laundry_order_events").insert({
+      property_id: propertyId,
+      order_id: orderId,
+      event_type: "cancelled",
+      from_status: order.status,
+      to_status: "cancelled",
+      notes: reason,
+      actor_kind: "front_desk",
+    });
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "laundry.order.cancel",
+      entityType: "laundry_orders",
+      entityId: orderId,
+      summary: `Laundry cancelled · ${reason}`,
+      meta: { previousStatus: order.status, hadFolio: Boolean(order.folio_line_id) },
+    });
+    refreshLaundry();
+    return { ok: true, message: "Laundry order cancelled." };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error ? error.message : "Could not cancel laundry.",
+    };
+  }
+}
+
+export async function voidDeskLaundryBag(
+  _prev: LaundryBagState,
+  formData: FormData,
+): Promise<LaundryBagState> {
+  try {
+    await requireDesk();
+    const bagId = trimRequired(formData.get("bag_id"), "Bag");
+    const reason = trimRequired(formData.get("reason"), "Void reason");
+    const admin = createSupabaseAdminClient();
+    const propertyId = await resolveActivePropertyId(admin);
+    const { data: bag } = await admin
+      .from("laundry_order_bags")
+      .select("id, order_id, status, property_id")
+      .eq("id", bagId)
+      .maybeSingle();
+    if (!bag || bag.status === "voided") throw new Error("Bag not found.");
+    assertDeskProperty(propertyId, bag.property_id as string, "Laundry bag");
+    if (bag.status === "delivered") {
+      throw new Error("Delivered bags cannot be voided.");
+    }
+    const { error } = await admin
+      .from("laundry_order_bags")
+      .update({
+        status: "voided",
+        voided_at: new Date().toISOString(),
+        void_reason: reason,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", bagId);
+    if (error) throw new Error("Could not void bag label.");
+    await admin.from("laundry_bag_events").insert({
+      property_id: propertyId,
+      bag_id: bagId,
+      order_id: bag.order_id,
+      event_type: "voided",
+      from_status: bag.status,
+      to_status: "voided",
+      notes: reason,
+      actor_kind: "front_desk",
+    });
+    refreshLaundry();
+    revalidatePath(`/erp/laundry/orders/${bag.order_id}/labels`);
+    return { ok: true, message: "Bag label voided." };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not void bag.",
     };
   }
 }

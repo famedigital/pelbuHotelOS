@@ -6,7 +6,8 @@ import {
   normalizeGuestOrigin,
   validateCheckInDocs,
 } from "@/lib/checkin-rules";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { isDeskAuthenticated, requireMoneyDesk } from "@/lib/desk-auth";
+import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import {
@@ -171,15 +172,15 @@ export async function confirmCheckIn(
     const { data: booking, error: bookingError } = await admin
       .from("bookings")
       .select(
-        "id, status, contact_name, check_in, check_out, agent_id, payment_mode, guest_origin, booking_rooms(qty, inventory_kind, room_type_id)",
+        "id, status, contact_name, check_in, check_out, agent_id, payment_mode, guest_origin, property_id, booking_rooms(qty, inventory_kind, room_type_id)",
       )
       .eq("id", bookingId)
-      .eq("property_id", property_id)
       .single();
 
     if (bookingError || !booking) {
       throw new Error("Booking not found.");
     }
+    assertDeskProperty(property_id, booking.property_id as string, "Booking");
 
     const status = booking.status as string;
     if (!["pending", "confirmed"].includes(status)) {
@@ -543,24 +544,29 @@ export async function confirmCheckOut(
   formData: FormData,
 ): Promise<CheckOutState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
 
     const bookingId = trimRequired(formData.get("booking_id"), "Booking");
     const allowBalance = formData.get("allow_balance") === "on";
+    const earlyFeeRaw = optionalTrim(formData.get("early_checkout_fee_btn"));
+    const earlyFee = earlyFeeRaw ? Number(earlyFeeRaw) : 0;
+    if (earlyFeeRaw && (!Number.isFinite(earlyFee) || earlyFee < 0)) {
+      throw new Error("Early checkout fee must be a non-negative amount.");
+    }
 
     const admin = createSupabaseAdminClient();
     const property_id = await propertyId(admin);
 
     const { data: booking, error: bookingError } = await admin
       .from("bookings")
-      .select("id, status, contact_name")
+      .select("id, status, contact_name, property_id")
       .eq("id", bookingId)
-      .eq("property_id", property_id)
       .single();
 
     if (bookingError || !booking) {
       throw new Error("Booking not found.");
     }
+    assertDeskProperty(property_id, booking.property_id as string, "Booking");
     if ((booking.status as string) !== "checked_in") {
       throw new Error("Only checked-in bookings can be checked out.");
     }
@@ -574,9 +580,46 @@ export async function confirmCheckOut(
       .limit(1)
       .maybeSingle();
 
+    if (earlyFee > 0.009) {
+      if (!folio) {
+        throw new Error("Open a folio before posting an early checkout fee.");
+      }
+      const { postFolioCharge } = await import("@/lib/folio/post-charge");
+      const { DEFAULT_GST_RATE } = await import("@/lib/property-settings");
+      const { data: prop } = await admin
+        .from("properties")
+        .select("gst_rate")
+        .eq("id", property_id)
+        .maybeSingle();
+      const gstRate = Number(prop?.gst_rate ?? DEFAULT_GST_RATE);
+      const amountBtn = roundBtn(earlyFee);
+      const gstBtn = gstRate > 0 ? roundBtn(amountBtn * gstRate) : 0;
+      await postFolioCharge(admin, property_id, {
+        folio_id: folio.id as string,
+        booking_id: bookingId,
+        source_type: "service",
+        description: "Early checkout fee",
+        qty: 1,
+        unit_price_btn: amountBtn,
+        amount_btn: amountBtn,
+        gst_applicable: gstBtn > 0,
+        gst_btn: gstBtn,
+        total_btn: roundBtn(amountBtn + gstBtn),
+      });
+    }
+
     let balance = 0;
     if (folio) {
-      balance = ((folio.folio_lines as { total_btn: number; status: string }[] | null) ?? [])
+      const { data: refreshed } = await admin
+        .from("folios")
+        .select("id, folio_lines(total_btn, status)")
+        .eq("id", folio.id)
+        .maybeSingle();
+      const lines =
+        ((refreshed ?? folio).folio_lines as
+          | { total_btn: number; status: string }[]
+          | null) ?? [];
+      balance = lines
         .filter((l) => l.status === "posted")
         .reduce((sum, l) => sum + Number(l.total_btn), 0);
 
@@ -625,7 +668,11 @@ export async function confirmCheckOut(
       entityType: "bookings",
       entityId: bookingId,
       summary: `Checked out ${(booking.contact_name as string) ?? "guest"}`,
-      meta: { folioBalance: balance, allowBalance },
+      meta: {
+        folioBalance: balance,
+        allowBalance,
+        earlyCheckoutFee: earlyFee > 0 ? earlyFee : undefined,
+      },
     });
 
     revalidateCheckIn(folio?.id as string | undefined);
