@@ -15,58 +15,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { usePendingFeedback } from "@/hooks/use-pending-feedback";
+import {
+  HK_FILTER_LABEL,
+  rowMatchesFilter,
+  type HkBoardRow,
+  type HkFilterKey,
+} from "@/lib/hk/board";
 import { useMemo, useState } from "react";
 import { useActionState } from "react";
 
 const initial: OpsState = { ok: false };
 
-export type HkBoardRow = {
-  id: string;
-  roomUnitId: string;
-  isPending: boolean;
-  roomLabel: string;
-  staffName: string | null;
-  staffId: string | null;
-  status: string;
-  notes: string | null;
-  cleanOk: boolean;
-  linenOk: boolean;
-  amenitiesOk: boolean;
-  categories: ("check_in" | "checkout" | "dirty" | "service")[];
-};
-
-type FilterKey =
-  | "open"
-  | "all"
-  | "check_in"
-  | "checkout"
-  | "dirty"
-  | "service";
-
-const FILTER_LABEL: Record<FilterKey, string> = {
-  open: "Open work",
-  all: "All",
-  check_in: "Check-in",
-  checkout: "Checkout",
-  dirty: "Dirty",
-  service: "Service",
-};
-
-const WORK_CATEGORIES = new Set<HkBoardRow["categories"][number]>([
-  "check_in",
-  "checkout",
-  "dirty",
-  "service",
-]);
-
-function rowMatchesFilter(row: HkBoardRow, filter: FilterKey): boolean {
-  if (filter === "all") return true;
-  if (filter === "open") {
-    if (row.status === "done") return false;
-    return row.categories.some((category) => WORK_CATEGORIES.has(category));
-  }
-  return row.categories.includes(filter);
-}
+export type { HkBoardRow };
 
 export function HousekeepingBoard({
   rows,
@@ -79,7 +39,7 @@ export function HousekeepingBoard({
   staff: { id: string; full_name: string }[];
   today: string;
 }) {
-  const [filter, setFilter] = useState<FilterKey>("open");
+  const [filter, setFilter] = useState<HkFilterKey>("open");
   const [query, setQuery] = useState("");
   const [state, action, pending] = useActionState(createHkAssignment, initial);
   usePendingFeedback(pending, "Creating assignment…");
@@ -94,7 +54,7 @@ export function HousekeepingBoard({
         row.staffName ?? "",
         row.notes ?? "",
         row.status,
-        ...row.categories.map((category) => FILTER_LABEL[category]),
+        ...row.categories.map((category) => HK_FILTER_LABEL[category]),
       ]
         .join(" ")
         .toLowerCase();
@@ -110,7 +70,7 @@ export function HousekeepingBoard({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        {(Object.keys(FILTER_LABEL) as FilterKey[]).map((key) => (
+        {(Object.keys(HK_FILTER_LABEL) as HkFilterKey[]).map((key) => (
           <Button
             key={key}
             type="button"
@@ -118,7 +78,7 @@ export function HousekeepingBoard({
             variant={filter === key ? "secondary" : "outline"}
             onClick={() => setFilter(key)}
           >
-            {FILTER_LABEL[key]}
+            {HK_FILTER_LABEL[key]}
             {key === "open" && openCount > 0 ? ` (${openCount})` : ""}
           </Button>
         ))}
@@ -215,7 +175,7 @@ export function HousekeepingBoard({
                             key={category}
                             className="inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
                           >
-                            {FILTER_LABEL[category]}
+                            {HK_FILTER_LABEL[category]}
                           </span>
                         ))}
                       </div>

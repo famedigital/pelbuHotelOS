@@ -1,8 +1,9 @@
-import { HousekeepingBoard, type HkBoardRow } from "@/components/erp/HousekeepingBoard";
+import { HousekeepingBoard } from "@/components/erp/HousekeepingBoard";
 import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { fmtDate, requireDeskPropertyId, thimphuToday } from "@/lib/erp-lists";
+import { buildHousekeepingBoardRows } from "@/lib/hk/board";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 
@@ -11,28 +12,6 @@ export const metadata = {
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";
-
-type RoomUnitRow = {
-  id: string;
-  label: string;
-  hk_status: string;
-  service_requested_at: string | null;
-};
-
-function buildHkCategories(
-  roomUnitId: string,
-  hkStatus: string,
-  serviceRequestedAt: string | null,
-  arrivalRoomIds: Set<string>,
-  departureRoomIds: Set<string>,
-): HkBoardRow["categories"] {
-  const categories: HkBoardRow["categories"] = [];
-  if (arrivalRoomIds.has(roomUnitId)) categories.push("check_in");
-  if (departureRoomIds.has(roomUnitId)) categories.push("checkout");
-  if (hkStatus === "dirty") categories.push("dirty");
-  if (serviceRequestedAt) categories.push("service");
-  return categories;
-}
 
 export default async function HousekeepingPage() {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
@@ -105,30 +84,14 @@ export default async function HousekeepingPage() {
     }
   }
 
-  const unitById = new Map<string, RoomUnitRow>(
-    (units ?? []).map((unit) => [
-      unit.id as string,
-      {
-        id: unit.id as string,
-        label: unit.label as string,
-        hk_status: (unit.hk_status as string) ?? "",
-        service_requested_at:
-          (unit.service_requested_at as string | null) ?? null,
-      },
-    ]),
-  );
+  const unitSnapshots = (units ?? []).map((unit) => ({
+    id: unit.id as string,
+    label: unit.label as string,
+    hk_status: (unit.hk_status as string) ?? "",
+    service_requested_at: (unit.service_requested_at as string | null) ?? null,
+  }));
 
-  const openAssignmentRoomIds = new Set<string>();
-  for (const assignment of assignments ?? []) {
-    const status = assignment.status as string;
-    if (status === "open" || status === "in_progress") {
-      openAssignmentRoomIds.add(assignment.room_unit_id as string);
-    }
-  }
-
-  const boardRows: HkBoardRow[] = [];
-
-  for (const assignment of assignments ?? []) {
+  const assignmentSnapshots = (assignments ?? []).map((assignment) => {
     const room = assignment.room_units as
       | {
           label?: string;
@@ -149,69 +112,26 @@ export default async function HousekeepingPage() {
     const staffName = Array.isArray(staffMember)
       ? staffMember[0]?.full_name
       : staffMember?.full_name;
-    const roomUnitId = assignment.room_unit_id as string;
-    const unit = unitById.get(roomUnitId);
-    const hkStatus = roomRow?.hk_status ?? unit?.hk_status ?? "";
-    const serviceRequestedAt =
-      roomRow?.service_requested_at ?? unit?.service_requested_at ?? null;
-    const categories = buildHkCategories(
-      roomUnitId,
-      hkStatus,
-      serviceRequestedAt,
-      arrivalRoomIds,
-      departureRoomIds,
-    );
 
-    boardRows.push({
+    return {
       id: assignment.id as string,
-      roomUnitId,
-      isPending: false,
-      roomLabel: roomRow?.label ?? unit?.label ?? "—",
-      staffName: staffName ?? null,
-      staffId: (assignment.staff_id as string | null) ?? null,
+      room_unit_id: assignment.room_unit_id as string,
       status: assignment.status as string,
       notes: (assignment.notes as string | null) ?? null,
-      cleanOk: Boolean(assignment.checklist_clean_ok),
-      linenOk: Boolean(assignment.checklist_linen_ok),
-      amenitiesOk: Boolean(assignment.checklist_amenities_ok),
-      categories,
-    });
-  }
+      staff_id: (assignment.staff_id as string | null) ?? null,
+      checklist_clean_ok: Boolean(assignment.checklist_clean_ok),
+      checklist_linen_ok: Boolean(assignment.checklist_linen_ok),
+      checklist_amenities_ok: Boolean(assignment.checklist_amenities_ok),
+      room_label: roomRow?.label ?? null,
+      staff_name: staffName ?? null,
+    };
+  });
 
-  for (const unit of unitById.values()) {
-    if (openAssignmentRoomIds.has(unit.id)) continue;
-    const categories = buildHkCategories(
-      unit.id,
-      unit.hk_status,
-      unit.service_requested_at,
-      arrivalRoomIds,
-      departureRoomIds,
-    );
-    if (categories.length === 0) continue;
-
-    boardRows.push({
-      id: `pending:${unit.id}`,
-      roomUnitId: unit.id,
-      isPending: true,
-      roomLabel: unit.label,
-      staffName: null,
-      staffId: null,
-      status: "needs_assignment",
-      notes: null,
-      cleanOk: false,
-      linenOk: false,
-      amenitiesOk: false,
-      categories,
-    });
-  }
-
-  boardRows.sort((a, b) => {
-    const aOpen = a.status !== "done" ? 0 : 1;
-    const bOpen = b.status !== "done" ? 0 : 1;
-    if (aOpen !== bOpen) return aOpen - bOpen;
-    return a.roomLabel.localeCompare(b.roomLabel, undefined, {
-      numeric: true,
-    });
+  const boardRows = buildHousekeepingBoardRows({
+    units: unitSnapshots,
+    assignments: assignmentSnapshots,
+    arrivalRoomIds,
+    departureRoomIds,
   });
 
   return (
@@ -224,9 +144,9 @@ export default async function HousekeepingPage() {
       <HousekeepingBoard
         rows={boardRows}
         today={today}
-        units={(units ?? []).map((unit) => ({
-          id: unit.id as string,
-          label: unit.label as string,
+        units={unitSnapshots.map((unit) => ({
+          id: unit.id,
+          label: unit.label,
         }))}
         staff={(staff ?? []).map((member) => ({
           id: member.id as string,
