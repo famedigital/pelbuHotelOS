@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
-import { bitsCopyLines, type BitsGstPack } from "@/lib/gst/bits-pack";
+import { bitsCopyLines, type BitsGstPack } from "@/lib/gst/bits-pack-shared";
 import { formatBtn } from "@/lib/pricing";
 import { useActionState, useMemo } from "react";
 

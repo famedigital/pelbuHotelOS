@@ -1,33 +1,11 @@
 import "server-only";
+import type { BitsGstPack } from "@/lib/gst/bits-pack-shared";
 import { roundBtn } from "@/lib/pricing";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
 
-export type BitsGstPack = {
-  periodMonth: string;
-  fieldA: number;
-  fieldB: number;
-  fieldC: number;
-  fieldD: number;
-  fieldE: number;
-  incomeSchedule: {
-    date: string;
-    description: string;
-    taxableBase: number;
-    gst: number;
-    total: number;
-  }[];
-  expenseSchedule: {
-    date: string;
-    vendor: string;
-    tpn: string;
-    description: string;
-    taxableBase: number;
-    gst: number;
-    total: number;
-  }[];
-};
+export type { BitsGstPack } from "@/lib/gst/bits-pack-shared";
 
 export function monthBounds(ym: string): { from: string; to: string; periodMonth: string } {
   const [y, m] = ym.split("-").map(Number);
@@ -122,15 +100,4 @@ export async function buildBitsGstPack(
     incomeSchedule,
     expenseSchedule,
   };
-}
-
-export function bitsCopyLines(pack: BitsGstPack): string[] {
-  return [
-    `BITS GST · ${pack.periodMonth.slice(0, 7)}`,
-    `A · Taxable sales: ${pack.fieldA}`,
-    `B · GST output: ${pack.fieldB}`,
-    `C · Taxable purchases: ${pack.fieldC}`,
-    `D · GST input: ${pack.fieldD}`,
-    `E · Net payable: ${pack.fieldE}`,
-  ];
 }
