@@ -78,6 +78,7 @@ async function propertyId(admin: Admin) {
 
 function revalidateAgents() {
   revalidatePath("/erp/agents");
+  revalidatePath("/erp/rates");
   revalidatePath("/erp");
   revalidatePath("/erp/fast-book");
   revalidatePath("/erp/calendar");
@@ -466,71 +467,14 @@ export type RoomRateRow = {
 
 /** Desk: upsert a single room_rate row by (property, room_type, season, tier). */
 export async function upsertRoomRate(
-  _prev: ErpAgentState,
+  prev: ErpAgentState,
   formData: FormData,
 ): Promise<ErpAgentState> {
-  try {
-    await requireMoneyDesk();
-    const admin = createSupabaseAdminClient();
-    const propId = await propertyId(admin);
-
-    const roomTypeId = trimRequired(formData.get("room_type_id"), "Room type");
-    const seasonKind = trimRequired(formData.get("season_kind"), "Season").toLowerCase();
-    const rateTier = trimRequired(formData.get("rate_tier"), "Tier").toLowerCase();
-    const amountRaw = trimRequired(formData.get("amount_btn"), "Amount");
-
-    if (!SEASONS.has(seasonKind)) {
-      throw new Error("Season must be peak, lean, or off.");
-    }
-    if (!ROOM_RATE_TIERS.has(rateTier)) {
-      throw new Error("Invalid rate tier.");
-    }
-    const amount = roundBtn(Number(amountRaw));
-    if (!Number.isFinite(amount) || amount < 0) {
-      throw new Error("Amount must be a non-negative number.");
-    }
-
-    const { data: existing } = await admin
-      .from("room_rates")
-      .select("id")
-      .eq("property_id", propId)
-      .eq("room_type_id", roomTypeId)
-      .eq("season_kind", seasonKind)
-      .eq("rate_tier", rateTier)
-      .maybeSingle();
-
-    if (existing?.id) {
-      const { error } = await admin
-        .from("room_rates")
-        .update({ amount_btn: amount })
-        .eq("id", existing.id);
-      if (error) {
-        console.error("upsertRoomRate update failed", error);
-        throw new Error("Could not update rate.");
-      }
-    } else {
-      const { error } = await admin.from("room_rates").insert({
-        property_id: propId,
-        room_type_id: roomTypeId,
-        season_kind: seasonKind,
-        rate_tier: rateTier,
-        amount_btn: amount,
-      });
-      if (error) {
-        console.error("upsertRoomRate insert failed", error);
-        throw new Error("Could not create rate.");
-      }
-    }
-
-    revalidateAgents();
-    return { ok: true, message: `Rate saved — Nu ${amount}.` };
-  } catch (err) {
-    return {
-      ok: false,
-      error: err instanceof Error ? err.message : "Could not save rate.",
-    };
-  }
+  const { upsertRoomRate: saveRate } = await import("@/app/actions/erp-rates");
+  return saveRate(prev, formData);
 }
+
+// Legacy inline implementation removed — see erp-rates.ts
 
 // ──────────────────────────── Agent documents ───────────────────────────────
 

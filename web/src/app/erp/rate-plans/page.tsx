@@ -51,13 +51,13 @@ export default async function RatePlansPage() {
     <DeskListShell
       eyebrow="Channels"
       heading="Rate plans"
-      blurb="Named plans for desk / channel mapping. The season × tier matrix on Agents remains the live quote source."
+      blurb="Named plans for desk / channel mapping. Live quotes use the room_rates matrix on Room rates."
       filters={
         <Link
-          href="/erp/agents"
+          href="/erp/rates"
           className="text-sm text-accent underline-offset-4 hover:underline"
         >
-          Rate matrix →
+          Room rates sheet →
         </Link>
       }
     >

@@ -86,7 +86,7 @@ export async function upsertRatePlan(
     });
 
     revalidatePath("/erp/rate-plans");
-    revalidatePath("/erp/agents");
+    revalidatePath("/erp/rates");
     return { ok: true, planId: id! };
   } catch (err) {
     return {
@@ -114,6 +114,7 @@ export async function deactivateRatePlan(
     if (error) throw new Error(error.message);
 
     revalidatePath("/erp/rate-plans");
+    revalidatePath("/erp/rates");
     return { ok: true, planId };
   } catch (err) {
     return {

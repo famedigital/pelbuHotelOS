@@ -1,6 +1,5 @@
 import { AgentsAccordionTable } from "@/components/erp/AgentsAccordionTable";
 import { AgentPinProvisionForm } from "@/components/erp/AgentAuthForms";
-import { RateMatrixEditor } from "@/components/erp/RateMatrixEditor";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Card,
@@ -14,34 +13,16 @@ import { formatBtn } from "@/lib/pricing";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 export const metadata: Metadata = {
-  title: "Agents & rates | Pelbu OS",
+  title: "Agents | Pelbu OS",
   robots: { index: false, follow: false },
 };
 
 export const dynamic = "force-dynamic";
-
-type RoomRateRaw = {
-  id: string;
-  season_kind: string;
-  rate_tier: string;
-  amount_btn: number;
-  room_type_id?: string;
-  room_types?:
-    | { id: string; code: string; name: string; inventory_kind: string }
-    | { id: string; code: string; name: string; inventory_kind: string }[]
-    | null;
-};
-
-type RoomTypeLiteRaw = {
-  id: string;
-  code: string;
-  name: string;
-  inventory_kind: string;
-};
 
 type AgentDocRaw = {
   id: string;
@@ -95,18 +76,6 @@ export default async function ErpAgentsPage() {
     .order("created_at", { ascending: false })
     .limit(80);
 
-  const ratesQ = propertyId
-    ? admin
-        .from("room_rates")
-        .select(
-          "id, season_kind, rate_tier, amount_btn, room_type_id, room_types(id, code, name, inventory_kind)",
-        )
-        .eq("property_id", propertyId)
-        .order("season_kind")
-        .order("rate_tier")
-        .limit(200)
-    : Promise.resolve({ data: [] as RoomRateRaw[], error: null });
-
   const ledgerQ = propertyId
     ? admin
         .from("agent_credit_ledger")
@@ -118,29 +87,14 @@ export default async function ErpAgentsPage() {
         .limit(30)
     : Promise.resolve({ data: [] as Record<string, unknown>[], error: null });
 
-  const roomTypesQ = propertyId
-    ? admin
-        .from("room_types")
-        .select("id, code, name, inventory_kind")
-        .eq("property_id", propertyId)
-        .order("name")
-    : Promise.resolve({ data: [] as RoomTypeLiteRaw[], error: null });
-
-  const [agentsRes, ratesRes, ledgerRes, roomTypesRes] = await Promise.all([
-    agentsQ,
-    ratesQ,
-    ledgerQ,
-    roomTypesQ,
-  ]);
+  const [agentsRes, ledgerRes] = await Promise.all([agentsQ, ledgerQ]);
 
   if (agentsRes.error) {
     console.error("erp/agents agents query failed", agentsRes.error);
   }
 
   const agentRows = (agentsRes.data ?? []) as unknown as AgentRaw[];
-  const rateRows = (ratesRes.data ?? []) as unknown as RoomRateRaw[];
   const ledger = ledgerRes.data ?? [];
-  const roomTypesRaw = (roomTypesRes.data ?? []) as unknown as RoomTypeLiteRaw[];
 
   const agents = agentRows.map((row) => ({
     id: row.id,
@@ -182,27 +136,6 @@ export default async function ErpAgentsPage() {
     arr.push(doc);
     docsByAgent.set(doc.agent_id, arr);
   }
-
-  const rates = rateRows;
-  const rateMatrixRows = rates.map((r) => {
-    const rt = r.room_types;
-    const room = Array.isArray(rt) ? rt[0] : rt;
-    return {
-      id: r.id,
-      room_type_id: (r.room_type_id ?? room?.id) as string,
-      room_type_name: room?.name ?? "—",
-      season_kind: r.season_kind,
-      rate_tier: r.rate_tier,
-      amount_btn: Number(r.amount_btn ?? 0),
-    };
-  });
-
-  const roomTypeLites: RoomTypeLiteRaw[] = roomTypesRaw.map((rt) => ({
-    id: rt.id,
-    code: rt.code,
-    name: rt.name,
-    inventory_kind: rt.inventory_kind,
-  }));
 
   const pendingCount = agents.filter((a) => a.status === "pending").length;
   const totalApprovedCredit = agents
@@ -308,16 +241,24 @@ export default async function ErpAgentsPage() {
       </section>
 
       <section className="space-y-4">
-        <header className="space-y-1.5">
-          <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-            Rate matrix
-          </p>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            Edit per-night Nu rates by season × tier. Changes apply immediately to
-            fast-book, check-in on-credit estimates, and the public agent portal.
-          </p>
-        </header>
-        <RateMatrixEditor rows={rateMatrixRows} roomTypes={roomTypeLites} />
+        <Card>
+          <CardHeader>
+            <CardTitle>Agent rates</CardTitle>
+            <CardDescription>
+              Per-agent <code className="font-mono text-xs">rate_tier</code>{" "}
+              (agents, mou_agents, etc.) selects which column group applies at
+              booking. Base Nu amounts live on the Room rates sheet — not here.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link
+              href="/erp/rates"
+              className="inline-flex h-10 items-center rounded-md border px-4 text-sm font-medium text-foreground hover:bg-muted"
+            >
+              Open room rates sheet →
+            </Link>
+          </CardContent>
+        </Card>
       </section>
 
       <section className="space-y-3">

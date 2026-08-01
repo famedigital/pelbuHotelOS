@@ -91,8 +91,27 @@ const demoVoucher: FastBookVoucherData = {
   lines: [{ name: "Superior room", code: "sup", qty: 1 }],
 };
 
-export default async function ErpSettingsPage() {
+export default async function ErpSettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
+
+  const { tab } = await searchParams;
+  const settingsTabs = new Set([
+    "identity",
+    "commercial",
+    "policies",
+    "tax",
+    "documents",
+    "rooms",
+    "compliance",
+    "finance-imports",
+    "danger",
+  ]);
+  const defaultTab =
+    tab && settingsTabs.has(tab) ? tab : "identity";
 
   const admin = createSupabaseAdminClient();
   const propertyId = await requireDeskPropertyId();
@@ -341,16 +360,16 @@ export default async function ErpSettingsPage() {
               Setup wizard
             </a>
             <a
-              href="/erp/agents"
+              href="/erp/rates"
               className="inline-flex h-10 items-center rounded-md border px-4 text-sm text-foreground hover:bg-muted"
             >
-              Rates matrix
+              Room rates
             </a>
           </>
         }
       />
 
-      <Tabs defaultValue="identity" className="space-y-6">
+      <Tabs defaultValue={defaultTab} className="space-y-6">
         <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="identity">Identity</TabsTrigger>
           <TabsTrigger value="commercial">Rates &amp; meals</TabsTrigger>

@@ -47,10 +47,10 @@ export function SettingsCommercialPanel({
           </p>
         </div>
         <Link
-          href="/erp/agents"
+          href="/erp/rates"
           className="inline-flex h-10 items-center rounded-md border px-4 text-sm text-foreground hover:bg-muted"
         >
-          Agent rate matrix →
+          Room rates sheet →
         </Link>
       </div>
 

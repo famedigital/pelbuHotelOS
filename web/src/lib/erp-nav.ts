@@ -20,6 +20,7 @@ import {
   UsersIcon,
   WalletIcon,
   WrenchIcon,
+  TagsIcon,
   type LucideIcon,
 } from "lucide-react";
 
@@ -198,6 +199,7 @@ export const ERP_MODULES: ErpModule[] = [
     href: "/erp/settings",
     tabs: [
       { title: "Settings", href: "/erp/settings", icon: SettingsIcon },
+      { title: "Room rates", href: "/erp/rates", icon: TagsIcon },
       { title: "Website CMS", href: "/erp/front-public", icon: Globe2Icon },
       {
         title: "Media",
