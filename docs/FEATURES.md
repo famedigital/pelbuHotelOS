@@ -105,6 +105,9 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Mixed-category selection ack (modal + Fast Book) | **Done** |
 | Multi-cell drag (e.g. rooms 4–6 × Aug 2–4) | **Fixed** — window pointer tracking + geometry fallback (no `setPointerCapture`) |
 | Slim left room column + **category** group headers | **Done** (2026-08 density pass; floor groups retired) |
+| Dense room identity (door / type / floor·view·balcony) | **Done** (`view_label`, `has_balcony`; Settings → Rooms) |
+| Stay-bar ops colors + two-line guest/flags + hover CTAs | **Done** |
+| Reservation edit journey (Guest / Stay / Money / Ops) | **Done** (`CalendarReservationEditDialog`) |
 | Category colour acronym chips + Categories legend popover | **Done** |
 | Sticky horizontal scroll (Room column does not slide over nav) | **Done** |
 | Room rack / Day sheet in sticky header | **Done** (`CalendarHeaderTabs`; `ModuleTabs` suppressed on calendar) |

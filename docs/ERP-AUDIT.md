@@ -2,20 +2,20 @@
 
 **Audience:** hotel operators + software engineers reviewing Pelbu OS.  
 **Lens:** Opera / OHIP / Mews / Protel / Micros class processes, plus IFRS-style posting hygiene.  
-**Date:** 2026-08-02 (maturity + competitive gap refresh; Phase A/B evidence from 2026-08-01).  
-**Method:** code review of money / laundry / desk paths, Supabase advisor pass, HTTP crawl of static `/erp` routes with a desk session, Phase A money-path verification (2026-08-01), calendar density + sidebar identity pass (2026-08-01), Beat eZee/IDS waves 0–4 + competitive gap close (2026-08-02).
+**Date:** 2026-08-01 (**v1.0** package — see [RELEASE-v1.md](RELEASE-v1.md); maturity + competitive gap evidence from 2026-08-02 wave).  
+**Method:** code review of money / laundry / desk paths, Supabase advisor pass, HTTP crawl of static `/erp` routes with a desk session, Phase A money-path verification (2026-08-01), calendar density + sidebar identity + agent dossier / reports catalog (2026-08-01), Beat eZee/IDS waves 0–4 + competitive gap close (2026-08-02).
 
 This is not a marketing checklist. It is the register you hand another engineer so they can say “we know the gaps and the fix order,” instead of “this was vibe-coded for one hotel.”
 
 ---
 
-## 0. Maturity snapshot (2026-08-02)
+## 0. Maturity snapshot (2026-08-01 — v1.0)
 
 Honest module-level status — **Shipped** = desk can run a shift; **Partial** = usable with known process gaps; **Not started** = schema or stub only.
 
 | Area | Status | Highlight |
 |------|--------|-----------|
-| **Overall ERP** | **Partial — production-usable for Pelbu Olakha** | Real folio, journals, night-audit cron + `close_time`, POS, laundry CoC; Waves 0–4 + competitive gaps closed in code; not chain-SaaS or Opera-parity |
+| **Overall ERP** | **v1.0 — production-usable for Pelbu Olakha** | Real folio, journals, night-audit cron + `close_time`, POS, laundry CoC, agent dossier + named reports; Waves 0–4 + competitive gaps closed in code; not chain-SaaS or Opera-parity |
 | **Front desk / calendar** | **Shipped v2+ — Partial vs Cloudbeds** | Category rack + connecting rooms + row virtualization; poll refresh only |
 | **Folio / money** | **Partial — Phase B + Wave 3 + AR statement** | Gateways, void/reversal, period lock, fiscal INV/RCP/CN + print, laundry via `postFolioCharge`, line transfer, **group AR statement**; Bhutan live e-invoice API still open (stub + [GST-EINVOICE.md](GST-EINVOICE.md)) |
 | **Finance / GST** | **Partial** | Double-entry + bank recon; edge journal proof tests + [FINANCE-UAT.md](FINANCE-UAT.md); `/erp/invoices` lists issued fiscal tax invoices (INV-YYYY-####) |

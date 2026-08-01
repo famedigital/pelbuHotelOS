@@ -4,33 +4,36 @@ All Pelbu OS docs live in this folder (`C:\GitHub\pelbusuites\docs`).
 
 | Doc | Purpose |
 |-----|---------|
-| [WHITEBOARD.md](WHITEBOARD.md) | **Live system map** — surfaces, 9 ERP modules, hosting, known gaps |
+| [RELEASE-v1.md](RELEASE-v1.md) | **v1.0 release** — combined plans + what’s in / out of scope |
+| [WHITEBOARD.md](WHITEBOARD.md) | **Live system map** — surfaces, ERP modules, hosting, known gaps |
 | [ERP-AUDIT.md](ERP-AUDIT.md) | **International PMS fault register** + Phase A–C correction roadmap |
-| [MULTI-TENANT-WHITELABEL.md](MULTI-TENANT-WHITELABEL.md) | SaaS white-label, DNS/CNAME, Host → property routing |
+| [FEATURES.md](FEATURES.md) | **Shipped vs remaining** — modules, calendar, phases |
+| [PLANS.md](PLANS.md) | **Cursor plans mirror** — every plan file → Done / residual / superseded |
+| [GO-LIVE-TOMORROW.md](GO-LIVE-TOMORROW.md) | Day-1 shift guide by role |
+| [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md) | Cutover env + smoke (real initials) |
+| [UAT-CHECKLIST.md](UAT-CHECKLIST.md) | Full go-live UAT before Excel cutover |
+| [PLATFORM.md](PLATFORM.md) | Architecture, UX north stars, phases |
+| [MULTI-TENANT-WHITELABEL.md](MULTI-TENANT-WHITELABEL.md) | SaaS white-label, DNS/CNAME, Host → property |
 | [BTCL-ADAPTATION.md](BTCL-ADAPTATION.md) | Multi-hotel chain adaptation (BTCL) |
-| [FEATURES.md](FEATURES.md) | **Shipped vs remaining** — ERP calendar, Sidebar shell, settings, phases |
-| [PLATFORM.md](PLATFORM.md) | Full Pelbu OS plan (architecture, UX north stars, phases) |
-| [PLANS.md](PLANS.md) | **Cursor plans mirror** — status of every file in `C:\Users\rajiv\.cursor\plans\` |
-| [UAT-CHECKLIST.md](UAT-CHECKLIST.md) | Go-live test checklist before Excel cutover |
-| [IMAGE_SERVER.md](IMAGE_SERVER.md) | **Cloudinary** + MCP (chosen image CDN) |
+| [FINANCE-UAT.md](FINANCE-UAT.md) | Period / GST / bank recon / edge journals |
+| [OPS-RUNBOOK.md](OPS-RUNBOOK.md) | Night audit / payments / hosts / channel ops |
+| [CHANNEX-CERT.md](CHANNEX-CERT.md) | Live Channel certification |
+| [GST-EINVOICE.md](GST-EINVOICE.md) | Bhutan DRC e-invoice stub vs live |
+| [IMAGE_SERVER.md](IMAGE_SERVER.md) | Cloudinary + MCP |
 | [CLAUDE.md](CLAUDE.md) | Claude agent handoff rules |
-| [../.cursor/commands/zai-handoff-mews-pink-public.md](../.cursor/commands/zai-handoff-mews-pink-public.md) | z.ai Round 1 brief — **palette section outdated** (pink retired; use Sky & Citrus) |
-| [../.cursor/commands/zai-handoff-mews-timeline-desk.md](../.cursor/commands/zai-handoff-mews-timeline-desk.md) | z.ai Round 2 — Timeline desk brief (ERP Timeline largely shipped via calendar plan) |
+| [../AGENTS.md](../AGENTS.md) | Cursor / z.ai / Claude ownership |
 | [../README.md](../README.md) | Project quick start |
 | [../design/mockups/README.md](../design/mockups/README.md) | UX mockup index |
 | [../scripts/bank-recon/README.md](../scripts/bank-recon/README.md) | Bhutan bank PDF → JSON recon |
 
-## Latest product truth (2026-07-31)
+## Latest product truth (2026-08-01 — v1.0)
 
-- Desk IA: **9 modules** + `ModuleTabs` (Front desk includes dedicated **Check-out**)
-- Check-in guest docs: dense **table** hybrid again
-- POS open tickets: tap row → ticket detail panel
-- Audit docs: WHITEBOARD, ERP-AUDIT, MULTI-TENANT-WHITELABEL, BTCL-ADAPTATION
-- Public: Himalayan Dusk conversion rebuild; homepage hero only; room/food/spa/meeting/agent engines
-- Search: sitemap, robots, canonicals, structured data, FAQ, Olakha guide, `llms.txt`
-- Work PWA: unified login with desk/staff/agent routing and mobile footer tabs
+- **Release:** boutique single-hotel **v1.0** — [RELEASE-v1.md](RELEASE-v1.md)
 - Desk palette: **Sky & Citrus** — sky-500 `#0ea5e9` + amber-500 `#f59e0b`
-- Shell: `DeskShell` + shadcn **Sidebar**
-- Calendar: `/erp/calendar` v1–v2 (plan `calendar_drag_booking_64bad6ba`)
-- Settings: `/erp/settings`
-- Plan source of truth for Cursor artifacts: `C:\Users\rajiv\.cursor\plans\` → mirrored in [PLANS.md](PLANS.md)
+- Shell: `DeskShell` + shadcn **Sidebar**; Groups under **Front desk**
+- Calendar: `/erp/calendar` rack (density, stay colors, connecting rooms, virtualization)
+- Agents: `/erp/agents/[id]` dossier · Reports catalog at `/erp/reports`
+- Money: folio gateways, night-audit cron + `close_time`, fiscal INV/RCP/CN
+- Public: Himalayan Dusk conversion + `/book` hold funnel
+- Post-v1 residuals: live Channex cert, Stripe SaaS, Phase C purchase-cost trends, full AuthZ purge
+- Plan mirror: `C:\Users\rajiv\.cursor\plans\` → [PLANS.md](PLANS.md)

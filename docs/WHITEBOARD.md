@@ -1,6 +1,6 @@
 # Whiteboard — Pelbu Suites live system
 
-Last updated: 2026-08-02. This is the single desk-side map of what is live, how it is hosted, and what is next. Detail lives in [FEATURES.md](FEATURES.md), [PLATFORM.md](PLATFORM.md), and the audit docs linked at the bottom.
+Last updated: 2026-08-01 (**v1.0**). This is the single desk-side map of what is live, how it is hosted, and what is next. Release package: [RELEASE-v1.md](RELEASE-v1.md). Detail: [FEATURES.md](FEATURES.md), [PLATFORM.md](PLATFORM.md), audit docs below.
 
 ---
 
@@ -21,13 +21,13 @@ Last updated: 2026-08-02. This is the single desk-side map of what is live, how 
 |--------|---------|------|
 | Dashboard | `/erp` | — |
 | Calendar | `/erp/calendar` | Room rack, Day sheet |
-| Front desk | `/erp/arrivals` | Arrivals, In-house, Departures, Check-in, **Check-out**, Fast book, Reservations, Guests, **Loyalty** |
+| Front desk | `/erp/arrivals` | Arrivals, In-house, Departures, Check-in, **Check-out**, Fast book, Reservations, Guests, **Groups**, **Loyalty** |
 | Rooms | `/erp/rooms` | Rooms, Housekeeping, Maintenance, Laundry |
 | POS | `/erp/pos` | Register, Menu, Kitchen TV |
-| Money | `/erp/payments` | Payments, Invoices, Night audit, GST, Finance, Reports |
-| Channels | `/erp/agents` | Agents, Partners, Allotments, Channel |
+| Money | `/erp/payments` | Payments, Invoices, Night audit, GST, Finance, **Reports** |
+| Channels | `/erp/agents` | Agents (**dossier** `/erp/agents/[id]`), Partners, Allotments, Channel |
 | Team & stock | `/erp/hr` | HR, Rota, Attendance, Leave, Payroll, Stock |
-| Hotel | `/erp/settings` | Settings, Website CMS, Media, Phone upload, Group, Add hotel |
+| Hotel | `/erp/settings` | Settings, Website CMS, Media, Phone upload, Add hotel |
 
 Deep links such as `/erp/folios/[id]`, `/erp/bookings/[id]`, `/erp/orders/[id]/slip` stay as detail routes (not sidebar tabs).
 
@@ -125,8 +125,10 @@ Full severity register: [ERP-AUDIT.md](ERP-AUDIT.md).
 | Doc | Purpose |
 |-----|---------|
 | [WHITEBOARD.md](WHITEBOARD.md) | This map |
+| [RELEASE-v1.md](RELEASE-v1.md) | Combined v1.0 release (plans → outcome) |
 | [ERP-AUDIT.md](ERP-AUDIT.md) | International PMS fault register + correction roadmap |
 | [FEATURES.md](FEATURES.md) | Module shipped vs remaining |
+| [PLANS.md](PLANS.md) | Cursor plans status mirror |
 | [MULTI-TENANT-WHITELABEL.md](MULTI-TENANT-WHITELABEL.md) | SaaS white-label + DNS + Host routing |
 | [BTCL-ADAPTATION.md](BTCL-ADAPTATION.md) | Multi-hotel chain (BTCL) adaptation |
 | [PLATFORM.md](PLATFORM.md) | Architecture north star |

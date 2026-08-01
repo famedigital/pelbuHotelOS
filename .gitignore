@@ -41,3 +41,12 @@ next-env.d.ts
 # local refs / large dumps
 ref/
 *.xlsx
+
+# scratch / agent temp (never commit)
+.tmp/
+.tmp*
+.tmp_*.sql
+.tmp_*.json
+web/eslint-pass.json
+web/eslint-pos.json
+web/home.html
