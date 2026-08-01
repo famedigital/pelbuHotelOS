@@ -23,13 +23,13 @@ export async function createHkAssignment(
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
     const roomUnitId = trimRequired(formData.get("room_unit_id"), "Room");
-    const staffId = trimRequired(formData.get("staff_id"), "Staff");
+    const staffId = optionalTrim(formData.get("staff_id"));
     const businessDate = trimRequired(formData.get("business_date"), "Date");
     const notes = optionalTrim(formData.get("notes"));
     const { error } = await admin.from("hk_assignments").insert({
       property_id: propertyId,
       room_unit_id: roomUnitId,
-      staff_id: staffId,
+      staff_id: staffId || null,
       business_date: businessDate,
       notes,
       status: "open",

@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   const { admin, propertyId } = auth;
 
   let body: {
-    kind?: "receipt" | "statement" | "parser" | "attachment";
+    kind?: "receipt" | "statement" | "parser" | "attachment" | "compliance";
     fileName?: string;
     mimeType?: string;
     byteSize?: number;
@@ -55,7 +55,9 @@ export async function POST(request: NextRequest) {
         ? "statements"
         : kind === "attachment"
           ? "attachments"
-          : "receipts";
+          : kind === "compliance"
+            ? "compliance"
+            : "receipts";
 
   const path = financeStoragePath(propertyId, folder, fileName);
   const signed = await createFinanceSignedUpload(admin, path);

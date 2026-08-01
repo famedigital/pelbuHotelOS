@@ -1,6 +1,6 @@
 # Pelbu Suites — Feature status
 
-Last updated: **2026-08-01** (**v1.0**).
+Last updated: **2026-08-02** (**v1.0 + Olakha wave Phase 6**).
 Property #1: `pelbu-suites-olakha` (`template_id` 1). Work login supports staff Auth with desk access; `DESK_PIN` remains a temporary single-hotel fallback — **never share across hotels**.
 
 **Verdict:** **v1.0 ready** for single-hotel Pelbu Olakha — see **[RELEASE-v1.md](RELEASE-v1.md)**. Core desk OS + public conversion PWA are **built**. Day-1 ops: **[GO-LIVE-TOMORROW.md](GO-LIVE-TOMORROW.md)**; cutover: **[LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md)** (real initials). Not chain-SaaS complete — Stripe self-serve, full SEC-01 admin purge, and **live** Channex certification remain post-v1. Competitive gap wave: connecting rooms + rack virtualization, night-audit `close_time`, group AR, loyalty lite, offline drafts, DRC stub, tenants foundation.
@@ -59,7 +59,9 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Layout | `web/src/app/erp/layout.tsx` → authenticated `DeskShell` |
 | Sidebar IA | Front desk · Money · Channels · Inventory & people · Group · Settings footer |
 | Property switcher | Header; multi-property helpers + wizard exist |
-| Settings | `/erp/settings` — 4 tabs: **Identity** (logo upload + brand/legal fields) · **Tax & service** (GST %, service charge %, default-on toggle) · **Documents** (invoice/receipt/voucher presets + branded customizer + live preview) · **Rooms** (add category with unit count, rename/manage room units). Plan `erp_settings_page_41e5deb4` |
+| Settings | `/erp/settings` — Identity · Commercial · Policies · Tax · Documents · Rooms · Compliance · Finance imports · **Danger zone** (owner WIPE). Plan `erp_settings_page_41e5deb4` |
+| **Training LMS** | `/erp/training` — role-filtered manuals + checklist (local progress) |
+| Loading UX | Top **NavigationProgress** on desk nav · `usePendingFeedback` + sonner on mutating actions (rota publish, danger wipe) |
 | Reskin | **Sky & Citrus (final)** — shadcn primitives + TanStack `DataTable`; sky-500 accent + amber citrus under `.erp`. Plan `erp_shadcn_reskin_d79ac669` (all 13 clusters) |
 
 ### Desk ERP modules
@@ -85,7 +87,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Rooms HK | `/erp/rooms` | Physical units clean/dirty/inspect/occupied/ooo |
 | Housekeeping / maintenance | `/erp/housekeeping`, `/erp/maintenance` | P9 |
 | Inventory | `/erp/inventory` | SKU stock + movements |
-| HR | `/erp/hr` | Staff/shifts/leave + weekly rota + overlap conflict; biometrics / 200-staff payroll residual |
+| HR | `/erp/hr` | Staff **Form\|Sheet** toggle · shifts/leave · weekly rota (copy week + publish pending UX) · overlap conflict |
 | Channel | `/erp/channel` | Active-property Channex maps, ARI queue (availability + rates + min-stay/stop-sell), flush/retry, feed pull/ack — **live cert still open** ([CHANNEX-CERT.md](CHANNEX-CERT.md)) |
 | Loyalty | `/erp/loyalty` (+ `/guest/loyalty`) | Points ledger + guest portal lite |
 | Recipe cost | `/erp/pos/recipe-cost` | Multi-outlet margin rollup; full RMS open |

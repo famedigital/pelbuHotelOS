@@ -2,6 +2,7 @@ import {
   AttachToMasterForm,
   CompCreditForm,
   DepositLinkForm,
+  BankProofPaymentForm,
   IssueCreditNoteButton,
   IssueInvoiceButton,
   MarkLinkPaidForm,
@@ -10,6 +11,7 @@ import {
   VoidLineButton,
 } from "@/components/erp/FolioOpsForms";
 import { FolioPaymentForm } from "@/components/erp/FolioPaymentForm";
+import { PostDamageChargeForm } from "@/components/erp/PostDamageChargeForm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
@@ -101,6 +103,13 @@ export default async function FolioDetailPage({ params }: Props) {
     id: f.id as string,
     label: (f.label as string) || (f.id as string).slice(0, 8),
   }));
+
+  const { data: damageItems } = await admin
+    .from("property_damage_items")
+    .select("id, label, amount_btn")
+    .eq("property_id", activePropertyId)
+    .eq("is_active", true)
+    .order("sort_order");
 
   const { data: childFolios } =
     (folio.folio_type as string) === "master"
@@ -304,11 +313,23 @@ export default async function FolioDetailPage({ params }: Props) {
                 folioId={folio.id as string}
                 suggestedAmount={Math.max(balance, 0)}
               />
+              <BankProofPaymentForm
+                folioId={folio.id as string}
+                suggestedAmount={Math.max(balance, 0)}
+              />
               <DepositLinkForm
                 folioId={folio.id as string}
                 bookingId={(folio.booking_id as string | null) ?? null}
               />
               <CompCreditForm folioId={folio.id as string} />
+              <PostDamageChargeForm
+                folioId={folio.id as string}
+                items={(damageItems ?? []).map((d) => ({
+                  id: d.id as string,
+                  label: d.label as string,
+                  amountBtn: d.amount_btn == null ? null : Number(d.amount_btn),
+                }))}
+              />
               {(folio.folio_type as string) !== "master" && !folio.master_folio_id ? (
                 <PromoteToMasterForm folioId={folio.id as string} />
               ) : null}

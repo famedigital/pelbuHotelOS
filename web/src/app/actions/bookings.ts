@@ -13,6 +13,10 @@ import { applyDiscountPct } from "@/lib/partners/discount";
 import { roundBtn } from "@/lib/pricing";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 import {
+  computeMealStayTotalBtn,
+  resolveMealPlanForBook,
+} from "@/lib/meal-plans";
+import {
   lookupRoomRateBtn,
   nightsBetween,
   resolveSeasonKind,
@@ -55,7 +59,8 @@ export type MealPlanOption = {
   code: string;
   name: string;
   blurb: string | null;
-  /** Presentational only until desk prices are confirmed into money paths. */
+  /** Nu per adult per night; null = label-only on quote. */
+  amountPerAdultNight: number | null;
   priced: boolean;
 };
 
@@ -158,8 +163,11 @@ export async function previewStayCost(
       code: row.code as string,
       name: row.name as string,
       blurb: (row.blurb as string | null) ?? null,
-      // P0: never treat meal-plan amounts as bookable money.
-      priced: false,
+      amountPerAdultNight:
+        row.amount_btn_per_adult_night == null
+          ? null
+          : Number(row.amount_btn_per_adult_night),
+      priced: row.amount_btn_per_adult_night != null,
     }));
 
     return {
@@ -218,7 +226,6 @@ export async function createBooking(
     // quoted_total_btn until desk-priced meal math ships.
     const requestedMealPlanCode =
       optionalTrim(formData.get("meal_plan_code")) ?? "EP";
-    // Optional: snapshot of the price the guest saw in the wizard preview,
     // so the quoted total survives later rate changes.
     const quotedTotalRaw = formData.get("quoted_total_btn");
     let quotedTotalBtn =
@@ -240,14 +247,19 @@ export async function createBooking(
 
     const propertyId = property.id as string;
 
-    const { data: mealPlan } = await admin
-      .from("meal_plans")
-      .select("code")
-      .eq("property_id", propertyId)
-      .eq("code", requestedMealPlanCode)
-      .eq("is_active", true)
-      .maybeSingle();
-    const mealPlanCode = (mealPlan?.code as string | undefined) ?? "EP";
+    const mealResolved = await resolveMealPlanForBook(
+      admin,
+      propertyId,
+      requestedMealPlanCode,
+    );
+    const stayNights = nightsBetween(checkIn, checkOut);
+    const mealPlanAmountBtn =
+      computeMealStayTotalBtn(
+        mealResolved.amountPerAdultNight,
+        adults,
+        stayNights,
+      ) ?? 0;
+    const mealPlanCode = mealResolved.code;
 
     const { data: roomTypes } = await admin
       .from("room_types")
@@ -331,6 +343,10 @@ export async function createBooking(
       }
     }
 
+    if (quotedTotalBtn != null && mealPlanAmountBtn > 0) {
+      quotedTotalBtn = roundBtn(quotedTotalBtn + mealPlanAmountBtn);
+    }
+
     const { data: booking, error: bookingError } = await admin
       .from("bookings")
       .insert({
@@ -352,7 +368,7 @@ export async function createBooking(
         payment_mode: "partial",
         quoted_total_btn: quotedTotalBtn,
         meal_plan_code: mealPlanCode,
-        meal_plan_amount_btn: 0,
+        meal_plan_amount_btn: mealPlanAmountBtn,
       })
       .select("id")
       .single();

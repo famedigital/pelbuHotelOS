@@ -37,7 +37,7 @@ export async function claimPaymentLinkOpen(
     .update({ status: "processing" })
     .eq("id", linkId)
     .eq("property_id", propertyId)
-    .eq("status", "open")
+    .in("status", ["open", "pending_bank"])
     .select("id, status, amount_btn, folio_id, booking_id, purpose")
     .maybeSingle();
 

@@ -4,7 +4,17 @@ Plans live outside the repo at `C:\Users\rajiv\.cursor\plans\` (Cursor plan-mode
 **Release roll-up:** [RELEASE-v1.md](RELEASE-v1.md).  
 **Shipped routes:** [FEATURES.md](FEATURES.md).
 
-Last reconciled: **2026-08-01** (v1.0 package).
+Last reconciled: **2026-08-02** (v1.0 package + Olakha production wave Phase 6 done).
+
+---
+
+## Active wave (in progress)
+
+| Plan | Focus | Status | Saved copy |
+|------|--------|--------|------------|
+| `rates_meals_nationality_7c9e2c95.plan.md` | Production-ready #1 ERP — meals, nationality, inventory OS, GST BITS, HK, kitchen, owner P&L | **Done (implementation)** — residual: Playwright click-through, depreciation UI, accounting journal purge on wipe | [plans/olakha-production-ready-erp-wave.md](plans/olakha-production-ready-erp-wave.md) |
+
+**Phase 6 (Aug 2026):** LMS · danger wipe · loading UX · RLS hygiene · unit tests. Wave implementation complete; see wave doc for deferred polish.
 
 ---
 

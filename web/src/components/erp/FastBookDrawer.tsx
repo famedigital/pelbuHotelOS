@@ -28,6 +28,9 @@ type Props = {
   open: boolean;
   onClose: () => void;
   hasQty: boolean;
+  mealPlans: { code: string; name: string; blurb: string | null }[];
+  defaultMealPlanCode: string;
+  defaultGuestOrigin: string;
 };
 
 function DrawerBody({
@@ -36,12 +39,18 @@ function DrawerBody({
   hasQty,
   agentId,
   setAgentId,
+  mealPlans,
+  defaultMealPlanCode,
+  defaultGuestOrigin,
 }: {
   agents: BookableAgent[];
   pending: boolean;
   hasQty: boolean;
   agentId: string;
   setAgentId: (v: string) => void;
+  mealPlans: { code: string; name: string; blurb: string | null }[];
+  defaultMealPlanCode: string;
+  defaultGuestOrigin: string;
 }) {
   return (
     <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
@@ -115,7 +124,7 @@ function DrawerBody({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="guest_origin">Guest origin</Label>
-            <Select name="guest_origin" defaultValue="international" required>
+            <Select name="guest_origin" defaultValue={defaultGuestOrigin} required>
               <SelectTrigger id="guest_origin">
                 <SelectValue placeholder="Select origin" />
               </SelectTrigger>
@@ -131,6 +140,21 @@ function DrawerBody({
             <p className="text-[11px] text-muted-foreground">
               Drives whether a guide is required.
             </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="meal_plan_code">Meal plan</Label>
+            <Select name="meal_plan_code" defaultValue={defaultMealPlanCode} required>
+              <SelectTrigger id="meal_plan_code">
+                <SelectValue placeholder="Select meal plan" />
+              </SelectTrigger>
+              <SelectContent>
+                {mealPlans.map((plan) => (
+                  <SelectItem key={plan.code} value={plan.code}>
+                    {plan.code} · {plan.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label>Agent</Label>
@@ -189,6 +213,9 @@ export function FastBookDrawer({
   open,
   onClose,
   hasQty,
+  mealPlans,
+  defaultMealPlanCode,
+  defaultGuestOrigin,
 }: Props) {
   // Agent picker is a type-to-search Combobox; we mirror its value into a
   // hidden input so the parent <form> submission contract is unchanged.
@@ -211,6 +238,9 @@ export function FastBookDrawer({
           hasQty={hasQty}
           agentId={agentId}
           setAgentId={setAgentId}
+          mealPlans={mealPlans}
+          defaultMealPlanCode={defaultMealPlanCode}
+          defaultGuestOrigin={defaultGuestOrigin}
         />
       </aside>
     );
@@ -236,6 +266,9 @@ export function FastBookDrawer({
           hasQty={hasQty}
           agentId={agentId}
           setAgentId={setAgentId}
+          mealPlans={mealPlans}
+          defaultMealPlanCode={defaultMealPlanCode}
+          defaultGuestOrigin={defaultGuestOrigin}
         />
       </SheetContent>
     </Sheet>

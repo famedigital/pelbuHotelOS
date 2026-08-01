@@ -2,6 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { DataTable } from "@/components/ui/data-table";
 import {
@@ -71,6 +72,10 @@ function BadgePill({ badge }: { badge: ArrivalBadge }) {
       {badge.label}
     </span>
   );
+}
+
+function dossierHref(id: string): string {
+  return `/erp/bookings/${id}`;
 }
 
 const columns: ColumnDef<BookingRow>[] = [
@@ -159,7 +164,8 @@ const columns: ColumnDef<BookingRow>[] = [
       <div className="text-right">
         <Link
           href={boardActionHref(row.original.status, row.original.id)}
-          className="inline-flex min-h-9 items-center rounded-md border border-accent/30 bg-accent/10 px-3 text-sm font-medium text-accent hover:bg-accent/15"
+          className="inline-flex min-h-9 items-center rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted"
+          onClick={(e) => e.stopPropagation()}
         >
           {row.original.action_label ?? boardActionLabel(row.original.status)} →
         </Link>
@@ -179,6 +185,8 @@ export function BookingsTable({
   caption?: string;
   emptyMessage?: string;
 }) {
+  const router = useRouter();
+
   return (
     <>
       <div className="space-y-3 md:hidden">
@@ -190,7 +198,16 @@ export function BookingsTable({
           data.map((row) => (
             <article
               key={row.id}
-              className="rounded-xl border border-border bg-card p-4 shadow-xs"
+              role="link"
+              tabIndex={0}
+              onClick={() => router.push(dossierHref(row.id))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  router.push(dossierHref(row.id));
+                }
+              }}
+              className="cursor-pointer rounded-xl border border-border bg-card p-4 shadow-xs"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -223,7 +240,8 @@ export function BookingsTable({
               ) : null}
               <Link
                 href={boardActionHref(row.status, row.id)}
-                className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-accent/30 bg-accent/10 px-4 text-sm font-medium text-accent"
+                className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-border bg-background px-4 text-sm font-medium text-foreground"
+                onClick={(e) => e.stopPropagation()}
               >
                 {row.action_label ?? boardActionLabel(row.status)} →
               </Link>
@@ -241,6 +259,7 @@ export function BookingsTable({
           searchPlaceholder="Guest, phone, agent…"
           className="erp"
           searchable={false}
+          getRowHref={(row) => dossierHref(row.id)}
         />
       </div>
     </>

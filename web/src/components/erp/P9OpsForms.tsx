@@ -59,8 +59,8 @@ export function HkAssignForm({
       </div>
       <div className="space-y-1">
         <Label className="text-sm">Staff</Label>
-        <select name="staff_id" required className={fieldClass}>
-          <option value="">Select…</option>
+        <select name="staff_id" className={fieldClass}>
+          <option value="">Unassigned</option>
           {staff.map((s) => (
             <option key={s.id} value={s.id}>
               {s.full_name}

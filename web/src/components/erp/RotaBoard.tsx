@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { formatShiftOutlet, SHIFT_OUTLETS } from "@/lib/shift-outlets";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 
@@ -33,18 +34,7 @@ export type RotaShift = {
   notes: string | null;
 };
 
-const OUTLETS = [
-  "front_desk",
-  "cafe",
-  "pastry",
-  "restaurant",
-  "bar",
-  "spa",
-  "housekeeping",
-  "maintenance",
-  "security",
-  "admin",
-];
+const OUTLETS = SHIFT_OUTLETS;
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const initialState = { ok: false } as const;
@@ -135,7 +125,7 @@ export function RotaBoard({
                             </span>
                             {shift.outlet ? (
                               <span className="block text-[10px] opacity-80">
-                                {shift.outlet}
+                                {formatShiftOutlet(shift.outlet)}
                               </span>
                             ) : null}
                           </button>
@@ -232,7 +222,7 @@ function ShiftDialog({
               <option value="">— none —</option>
               {OUTLETS.map((outlet) => (
                 <option key={outlet} value={outlet}>
-                  {outlet.replace(/_/g, " ")}
+                  {formatShiftOutlet(outlet)}
                 </option>
               ))}
             </select>

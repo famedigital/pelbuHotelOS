@@ -1,3 +1,4 @@
+import { RoleReadinessStrip } from "@/components/erp/RoleReadinessStrip";
 import { BookingLifecycleActions } from "@/components/erp/BookingLifecycleActions";
 import { DeskLiveRefresh } from "@/components/erp/DeskLiveRefresh";
 import { OrderBoard } from "@/components/erp/order-board/OrderBoard";
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { deskPinConfigured, isDeskAuthenticated } from "@/lib/desk-auth";
 import { thimphuToday } from "@/lib/erp-lists";
+import { computeRoleReadiness } from "@/lib/erp/readiness";
 import type { KotStatus } from "@/lib/kot";
 import { formatBtn } from "@/lib/pricing";
 import {
@@ -157,6 +159,7 @@ export default async function ErpDashboardPage() {
   }, 0);
 
   const setupIncomplete = activeProperty && !activeProperty.setup_completed_at;
+  const readinessTiles = await computeRoleReadiness(admin, propertyId);
 
   return (
     <div className="erp space-y-6 p-4 md:p-6">
@@ -184,6 +187,8 @@ export default async function ErpDashboardPage() {
           </AlertDescription>
         </Alert>
       ) : null}
+
+      <RoleReadinessStrip tiles={readinessTiles} />
 
       {/* KPI cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

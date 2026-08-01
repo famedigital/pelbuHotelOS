@@ -252,6 +252,11 @@ export default async function ErpReportsPage({ searchParams }: Props) {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
             {
+              href: `/erp/reports/performance?from=${from}&to=${to}`,
+              title: "Owner performance",
+              blurb: "Targets vs achieved · income · OpEx · agents & countries",
+            },
+            {
               href: `/erp/reports/agent-production?from=${from}&to=${to}`,
               title: "Agent production",
               blurb: "Bookings, room-nights, quoted totals",

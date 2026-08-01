@@ -28,11 +28,11 @@ export default async function FinanceExpensesPage() {
   const from = monthStart();
   const to = new Date().toISOString().slice(0, 10);
 
-  const [{ data: expenses }, { data: attachments }] = await Promise.all([
+  const [{ data: expenses }, { data: attachments }, { data: vendors }] = await Promise.all([
     admin
       .from("expenses")
       .select(
-        "id, category, description, amount_btn, gst_btn, expense_date, vendor, payment_method, reference, status, journal_id, notes, tpn, bill_no, gross_btn",
+        "id, category, description, amount_btn, gst_btn, expense_date, vendor, vendor_id, payment_method, reference, status, journal_id, notes, tpn, bill_no, gross_btn",
       )
       .eq("property_id", propertyId)
       .order("expense_date", { ascending: false })
@@ -43,7 +43,20 @@ export default async function FinanceExpensesPage() {
       .eq("property_id", propertyId)
       .order("sort_order")
       .limit(1000),
+    admin
+      .from("accounting_vendors")
+      .select("id, name, tax_id")
+      .eq("property_id", propertyId)
+      .eq("is_active", true)
+      .order("name")
+      .limit(200),
   ]);
+
+  const vendorRows = (vendors ?? []).map((v) => ({
+    id: v.id as string,
+    name: v.name as string,
+    tpn: (v.tax_id as string | null) ?? null,
+  }));
 
   const firstAttachment = new Map<string, string>();
   for (const a of attachments ?? []) {
@@ -61,6 +74,7 @@ export default async function FinanceExpensesPage() {
       expense_date: String(e.expense_date),
       bill_no: (e.bill_no as string | null) ?? (e.reference as string | null) ?? "",
       vendor: (e.vendor as string | null) ?? "",
+      vendor_id: (e.vendor_id as string | null) ?? null,
       tpn: (e.tpn as string | null) ?? "",
       description: e.description as string,
       category: e.category as string,
@@ -82,7 +96,11 @@ export default async function FinanceExpensesPage() {
       description="Spreadsheet-style expense register with receipt camera/upload and PDF extraction review."
       actions={<ExportButtons report="expenses" from={from} to={to} />}
     >
-      <ExpenseWorkbench initialRows={rows} propertyId={propertyId} />
+      <ExpenseWorkbench
+        initialRows={rows}
+        propertyId={propertyId}
+        vendors={vendorRows}
+      />
     </FinanceShell>
   );
 }

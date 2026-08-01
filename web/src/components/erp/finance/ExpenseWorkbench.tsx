@@ -22,6 +22,7 @@ import { ReceiptImportPanel } from "@/components/erp/finance/ReceiptImportPanel"
 type Props = {
   initialRows: ExpenseGridRow[];
   propertyId: string;
+  vendors?: { id: string; name: string; tpn: string | null }[];
 };
 
 function emptyRow(): ExpenseGridRow {
@@ -56,7 +57,7 @@ async function sha256File(file: File): Promise<string> {
     .join("");
 }
 
-export function ExpenseWorkbench({ initialRows }: Props) {
+export function ExpenseWorkbench({ initialRows, vendors = [] }: Props) {
   const [rows, setRows] = useState<ExpenseGridRow[]>(() =>
     initialRows.map((r) => ({
       ...r,
@@ -179,6 +180,7 @@ export function ExpenseWorkbench({ initialRows }: Props) {
             expense_date: r.expense_date,
             bill_no: r.bill_no,
             vendor: r.vendor,
+            vendor_id: r.vendor_id || undefined,
             tpn: r.tpn,
             description: r.description,
             category: r.category,
@@ -357,6 +359,13 @@ export function ExpenseWorkbench({ initialRows }: Props) {
 
   return (
     <div className="space-y-3" onPaste={onPaste}>
+      {vendors.length > 0 ? (
+        <datalist id="expense-vendors">
+          {vendors.map((v) => (
+            <option key={v.name} value={v.name} />
+          ))}
+        </datalist>
+      ) : null}
       <ReceiptImportPanel
         onReviewReady={() => {
           /* batch review opens inline below via panel state */
@@ -561,8 +570,17 @@ export function ExpenseWorkbench({ initialRows }: Props) {
                   <td className="p-1">
                     <Input
                       className="h-8 w-36"
+                      list={vendors.length > 0 ? "expense-vendors" : undefined}
                       value={r.vendor}
-                      onChange={(e) => updateRow(key, { vendor: e.target.value })}
+                      onChange={(e) => {
+                        const name = e.target.value;
+                        const match = vendors.find((v) => v.name === name);
+                        updateRow(key, {
+                          vendor: name,
+                          vendor_id: match?.id ?? null,
+                          ...(match?.tpn ? { tpn: match.tpn } : {}),
+                        });
+                      }}
                     />
                   </td>
                   <td className="p-1">

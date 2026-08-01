@@ -3,6 +3,10 @@
 import { requireAgentSession } from "@/lib/agent-auth";
 import { holdExpiresAtFromNow, resolveHoldTtlHours } from "@/lib/holds";
 import { soldQtyByRoomType } from "@/lib/inventory-availability";
+import {
+  computeMealStayTotalBtn,
+  resolveMealPlanForBook,
+} from "@/lib/meal-plans";
 import { roundBtn } from "@/lib/pricing";
 import {
   agentRateTier,
@@ -165,7 +169,24 @@ export async function createAgentBooking(
       seasonKind: season,
       rateTier: tier,
     });
-    const quotedTotalBtn = rate == null ? null : roundBtn(rate * nights * rooms);
+    const roomTotalBtn = rate == null ? null : roundBtn(rate * nights * rooms);
+
+    const mealPlanCodeRaw = optionalTrim(formData.get("meal_plan_code")) ?? "EP";
+    const mealResolved = await resolveMealPlanForBook(
+      admin,
+      propertyId,
+      mealPlanCodeRaw,
+    );
+    const mealPlanAmountBtn =
+      computeMealStayTotalBtn(
+        mealResolved.amountPerAdultNight,
+        rooms,
+        nights,
+      ) ?? 0;
+    const quotedTotalBtn =
+      roomTotalBtn == null
+        ? null
+        : roundBtn(roomTotalBtn + mealPlanAmountBtn);
 
     const { hours } = await resolveHoldTtlHours(
       admin,
@@ -193,8 +214,8 @@ export async function createAgentBooking(
         // Agent credit is settled by the desk on confirmation, not here.
         payment_mode: "on_credit",
         quoted_total_btn: quotedTotalBtn,
-        meal_plan_code: "EP",
-        meal_plan_amount_btn: 0,
+        meal_plan_code: mealResolved.code,
+        meal_plan_amount_btn: mealPlanAmountBtn,
       })
       .select("id")
       .single();

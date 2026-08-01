@@ -1,4 +1,7 @@
 import { HkAssignForm, HkStatusForm } from "@/components/erp/P9OpsForms";
+import { HkChecklistForm } from "@/components/erp/HkLostFoundForms";
+import { HkStaffAssignForm } from "@/components/erp/HkStaffAssignForm";
+import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { fmtDate, requireDeskPropertyId, thimphuToday } from "@/lib/erp-lists";
@@ -36,7 +39,9 @@ export default async function HousekeepingPage() {
       admin
         .from("hk_assignments")
         .select(
-          "id, business_date, status, notes, due_at, room_units(label), staff_members(full_name)",
+          `id, business_date, status, notes, due_at, staff_id,
+           checklist_clean_ok, checklist_linen_ok, checklist_amenities_ok,
+           room_units(label), staff_members(full_name)`,
         )
         .eq("property_id", propertyId)
         .eq("business_date", today)
@@ -48,7 +53,8 @@ export default async function HousekeepingPage() {
     <DeskListShell
       eyebrow="Housekeeping"
       heading={`Assignments · ${fmtDate(today)}`}
-      blurb="Assign dirty rooms to housekeeping staff. Room status board remains on Rooms."
+      blurb="Assign dirty rooms to housekeeping staff. Complete the turnover checklist before marking clean — amenities deduct from stock."
+      headerAside={<FrontDeskLiveRefresh />}
     >
       <HkAssignForm
         today={today}
@@ -67,7 +73,7 @@ export default async function HousekeepingPage() {
           <caption className="sr-only">Today&apos;s assignments</caption>
           <thead className="bg-muted/40">
             <tr className="hover:bg-transparent">
-              {["Room", "Staff", "Status", "Notes", ""].map((h) => (
+              {["Room", "Staff", "Status", "Notes", "Checklist", ""].map((h) => (
                 <th
                   key={h}
                   scope="col"
@@ -81,7 +87,7 @@ export default async function HousekeepingPage() {
           <tbody>
             {(assignments ?? []).length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-3 py-6 text-muted-foreground">
+                <td colSpan={6} className="px-3 py-6 text-muted-foreground">
                   No assignments for today.
                 </td>
               </tr>
@@ -101,16 +107,29 @@ export default async function HousekeepingPage() {
                 const tone =
                   statusValue === "done"
                     ? "border-citrus/40 bg-citrus-tint/60 text-citrus"
-                    : statusValue === "pending" || statusValue === "new"
+                    : statusValue === "open" || statusValue === "in_progress"
                       ? "border-destructive/30 bg-destructive/5 text-destructive"
                       : "border-border bg-muted text-muted-foreground";
                 return (
-                  <tr key={a.id as string} className="border-t">
+                  <tr key={a.id as string} className="border-t align-top">
                     <td className="px-3 py-2.5 font-medium text-foreground">
                       {roomLabel ?? "—"}
                     </td>
                     <td className="px-3 py-2.5 text-foreground">
-                      {staffName ?? "—"}
+                      <HkStaffAssignForm
+                        assignmentId={a.id as string}
+                        staffId={(a.staff_id as string | null) ?? null}
+                        staff={(staff ?? []).map((s) => ({
+                          id: s.id as string,
+                          full_name: s.full_name as string,
+                        }))}
+                        status={statusValue}
+                      />
+                      {staffName && statusValue === "done" ? (
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          {staffName}
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-3 py-2.5">
                       <span
@@ -121,6 +140,15 @@ export default async function HousekeepingPage() {
                     </td>
                     <td className="px-3 py-2.5 text-sm text-muted-foreground">
                       {(a.notes as string) ?? "—"}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <HkChecklistForm
+                        id={a.id as string}
+                        cleanOk={Boolean(a.checklist_clean_ok)}
+                        linenOk={Boolean(a.checklist_linen_ok)}
+                        amenitiesOk={Boolean(a.checklist_amenities_ok)}
+                        status={statusValue}
+                      />
                     </td>
                     <td className="px-3 py-2.5">
                       <HkStatusForm id={a.id as string} status={statusValue} />

@@ -1,8 +1,13 @@
 import { DeskLoginForm } from "@/components/erp/DeskLoginForm";
+import { StaffLoginForm } from "@/components/erp/StaffAuthForms";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { BRAND_ICONS } from "@/lib/brand";
-import { deskPinConfigured, isDeskAuthenticated } from "@/lib/desk-auth";
+import {
+  deskPinAllowedInProduction,
+  deskPinConfigured,
+  isDeskAuthenticated,
+} from "@/lib/desk-auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -15,6 +20,10 @@ export default async function DeskLoginPage() {
   if (await isDeskAuthenticated()) {
     redirect("/erp");
   }
+
+  const pinOk =
+    deskPinConfigured() &&
+    (process.env.NODE_ENV !== "production" || deskPinAllowedInProduction());
 
   return (
     <main className="erp flex min-h-screen items-center justify-center bg-background px-6 py-16">
@@ -36,24 +45,38 @@ export default async function DeskLoginPage() {
               Front desk
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Review bookings, orders, spa/meeting requests, enquiries, and
-              agent applications.
+              Sign in with your staff employee code and PIN. Owner / GM accounts
+              open the full desk.
             </p>
           </div>
         </div>
-        {!deskPinConfigured() ? (
-          <Alert variant="destructive">
-            <AlertTitle>Desk PIN not configured</AlertTitle>
+
+        <div className="space-y-2">
+          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Staff Auth
+          </p>
+          <StaffLoginForm />
+        </div>
+
+        {pinOk ? (
+          <div className="space-y-2 border-t border-border pt-6">
+            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Shared desk PIN
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Single-hotel escape hatch only — prefer named staff accounts.
+            </p>
+            <DeskLoginForm />
+          </div>
+        ) : deskPinConfigured() ? (
+          <Alert>
+            <AlertTitle>Shared desk PIN off in production</AlertTitle>
             <AlertDescription>
-              Set <code className="font-mono">DESK_PIN</code> in{" "}
-              <code className="font-mono">.env.local</code> (and Vercel) to
-              enable production desk login. Local non-production builds can open
-              the inbox without a PIN.
+              Use staff Auth above. Shared PIN stays disabled by design.
             </AlertDescription>
           </Alert>
-        ) : (
-          <DeskLoginForm />
-        )}
+        ) : null}
+
         {process.env.NODE_ENV !== "production" && !deskPinConfigured() ? (
           <Button asChild variant="outline" className="h-11 w-full">
             <a href="/erp">Continue without PIN (dev)</a>

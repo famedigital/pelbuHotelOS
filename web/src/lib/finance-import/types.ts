@@ -19,6 +19,7 @@ export const EXPENSE_CATEGORIES = [
   "marketing",
   "tax",
   "bank_fee",
+  "rent",
   "other",
 ] as const;
 
@@ -52,6 +53,7 @@ export type ExpenseGridRow = {
   expense_date: string;
   bill_no: string;
   vendor: string;
+  vendor_id?: string | null;
   tpn: string;
   description: string;
   category: ExpenseCategory | string;

@@ -5,6 +5,10 @@ import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { processStaffNotificationOutbox } from "@/lib/staff-notify";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  isShiftOutlet,
+  shiftSaveErrorMessage,
+} from "@/lib/shift-outlets";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
 
@@ -15,19 +19,6 @@ export type RotaActionState = {
   error?: string;
   message?: string;
 };
-
-const SHIFT_OUTLETS = new Set([
-  "front_desk",
-  "cafe",
-  "pastry",
-  "restaurant",
-  "bar",
-  "spa",
-  "housekeeping",
-  "maintenance",
-  "security",
-  "admin",
-]);
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_TIME = /^\d{2}:\d{2}(:\d{2})?$/;
@@ -78,7 +69,7 @@ export async function saveRotaShift(
     const startsAt = assertTime(trimRequired(formData.get("starts_at"), "Start"), "Start");
     const endsAt = assertTime(trimRequired(formData.get("ends_at"), "End"), "End");
     const outlet = optionalTrim(formData.get("outlet"))?.toLowerCase() ?? null;
-    if (outlet && !SHIFT_OUTLETS.has(outlet)) throw new Error("Invalid outlet.");
+    if (outlet && !isShiftOutlet(outlet)) throw new Error("Invalid outlet.");
     if (endsAt <= startsAt) throw new Error("End time must be after start time.");
 
     const { data: staff } = await admin
@@ -127,12 +118,16 @@ export async function saveRotaShift(
         .eq("id", id)
         .eq("property_id", propertyId)
         .in("status", ["draft", "published"]);
-      if (error) throw new Error("Could not update shift.");
+      if (error) {
+        throw new Error(shiftSaveErrorMessage(error, "Could not update shift."));
+      }
     } else {
       const { error } = await admin
         .from("staff_shifts")
         .insert({ ...record, status: "draft" });
-      if (error) throw new Error("Could not add shift.");
+      if (error) {
+        throw new Error(shiftSaveErrorMessage(error, "Could not add shift."));
+      }
     }
 
     refreshRota();
@@ -216,7 +211,9 @@ export async function copyRotaWeek(
     }));
 
     const { error: insertError } = await admin.from("staff_shifts").insert(rows);
-    if (insertError) throw new Error("Could not copy the week.");
+    if (insertError) {
+      throw new Error(shiftSaveErrorMessage(insertError, "Could not copy the week."));
+    }
 
     await writeAuditEvent(admin, {
       propertyId,

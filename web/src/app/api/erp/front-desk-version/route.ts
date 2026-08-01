@@ -24,6 +24,7 @@ export async function GET() {
     { data: bookings, error: bookingError },
     { data: assignments, error: assignError },
     { data: units, error: unitError },
+    { data: hkAssignments, error: hkError },
   ] = await Promise.all([
     admin
       .from("bookings")
@@ -43,16 +44,22 @@ export async function GET() {
       .limit(500),
     admin
       .from("room_units")
-      .select("id, hk_status, label")
+      .select("id, hk_status, label, service_requested_at, updated_at")
       .eq("property_id", propertyId)
       .order("label")
       .limit(300),
+    admin
+      .from("hk_assignments")
+      .select("id, room_unit_id, staff_id, status, business_date, created_at, completed_at")
+      .eq("property_id", propertyId)
+      .eq("business_date", today)
+      .limit(200),
   ]);
 
-  if (bookingError || assignError || unitError) {
+  if (bookingError || assignError || unitError || hkError) {
     console.error(
       "front-desk-version query failed",
-      bookingError ?? assignError ?? unitError,
+      bookingError ?? assignError ?? unitError ?? hkError,
     );
     return NextResponse.json({ error: "Query failed" }, { status: 500 });
   }
@@ -63,6 +70,7 @@ export async function GET() {
         bookings: bookings ?? [],
         assignments: assignments ?? [],
         units: units ?? [],
+        hkAssignments: hkAssignments ?? [],
       }),
     )
     .digest("hex")

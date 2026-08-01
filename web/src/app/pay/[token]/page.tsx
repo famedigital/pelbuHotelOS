@@ -1,4 +1,5 @@
 import { HoldCountdown } from "@/components/book/HoldCountdown";
+import { PayProofUploadForm } from "@/components/pay/PayProofUploadForm";
 import { formatBtn } from "@/lib/pricing";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -42,7 +43,7 @@ export default async function PayTokenPage({ params }: PageProps) {
   const { data: link } = await admin
     .from("payment_links")
     .select(
-      "id, amount_btn, purpose, status, bank_hint, payee_name, expires_at, booking_id, property_id",
+      "id, amount_btn, purpose, status, bank_hint, payee_name, expires_at, booking_id, property_id, proof_submitted_at",
     )
     .eq("token", token)
     .maybeSingle();
@@ -69,7 +70,12 @@ export default async function PayTokenPage({ params }: PageProps) {
   const banks = (property?.bank_accounts as { label?: string; bank?: string; account?: string; hint?: string }[]) ?? [];
   const amount = Number(link.amount_btn);
   const isOpen = link.status === "open";
+  const isPendingBank = link.status === "pending_bank";
   const isPaid = link.status === "paid";
+  const neftHint =
+    banks.find((b) => b.hint?.toLowerCase().includes("neft") || b.hint?.toLowerCase().includes("ifsc"))
+      ?.hint ??
+    "India NEFT: use IFSC + account above · quote booking ref in remarks · allow 2–3 days";
 
   return (
     <main className="min-h-screen bg-ivory px-6 py-16 text-espresso">
@@ -81,8 +87,10 @@ export default async function PayTokenPage({ params }: PageProps) {
         <p className="mt-3 text-sm text-muted-foreground">
           {isPaid
             ? "Your deposit is recorded. The desk will confirm your stay."
+            : isPendingBank
+              ? "Your payment screenshot is with the desk. They confirm when the transfer lands (2–3 days)."
             : isOpen
-              ? "Transfer the token amount below. Quote your booking reference in the bank remarks. The desk confirms the booking once money arrives."
+              ? "Transfer the token amount below. Quote your booking reference in the bank remarks. Upload your screenshot when done."
               : "This payment link is no longer open."}
         </p>
 
@@ -140,7 +148,16 @@ export default async function PayTokenPage({ params }: PageProps) {
                   {b.hint ? <p className="text-muted-foreground">{b.hint}</p> : null}
                 </li>
               ))}
+              <li className="border-t border-espresso/10 pt-2 text-muted-foreground">
+                {neftHint}
+              </li>
             </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">{neftHint}</p>
+          )}
+
+          {isOpen ? (
+            <PayProofUploadForm token={token} neftHint={neftHint} />
           ) : null}
 
           <p className="text-xs text-muted-foreground">

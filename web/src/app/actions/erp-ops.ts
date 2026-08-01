@@ -5,6 +5,7 @@ import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { isShiftOutlet, shiftSaveErrorMessage } from "@/lib/shift-outlets";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
 
@@ -42,16 +43,6 @@ const INV_CATEGORIES = new Set([
 const INV_UNITS = new Set(["ea", "kg", "g", "l", "ml", "case"]);
 const MOVE_KINDS = new Set(["receive", "adjust", "waste", "issue", "count"]);
 const HK_STATUSES = new Set(["clean", "dirty", "inspect", "ooo", "occupied"]);
-const SHIFT_OUTLETS = new Set([
-  "front_desk",
-  "cafe",
-  "pastry",
-  "restaurant",
-  "bar",
-  "spa",
-  "housekeeping",
-  "other",
-]);
 
 async function requireDesk() {
   if (!(await isDeskAuthenticated())) {
@@ -156,7 +147,7 @@ export async function createStaffShift(
     const admin = createSupabaseAdminClient();
     const pid = await propertyId(admin);
     const outletRaw = optionalTrim(formData.get("outlet"))?.toLowerCase();
-    if (outletRaw && !SHIFT_OUTLETS.has(outletRaw)) {
+    if (outletRaw && !isShiftOutlet(outletRaw)) {
       throw new Error("Invalid shift outlet.");
     }
 
@@ -178,7 +169,7 @@ export async function createStaffShift(
       .single();
     if (error || !data) {
       console.error("staff_shifts insert failed", error);
-      throw new Error("Could not save shift.");
+      throw new Error(shiftSaveErrorMessage(error, "Could not save shift."));
     }
 
     await writeAuditEvent(admin, {
@@ -401,6 +392,32 @@ export async function updateRoomHkStatus(
     const unitId = trimRequired(formData.get("room_unit_id"), "Room");
     const status = trimRequired(formData.get("hk_status"), "Status").toLowerCase();
     if (!HK_STATUSES.has(status)) throw new Error("Invalid housekeeping status.");
+
+    if (status === "clean") {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data: openAssignment } = await admin
+        .from("hk_assignments")
+        .select(
+          "id, checklist_clean_ok, checklist_linen_ok, checklist_amenities_ok, status",
+        )
+        .eq("property_id", pid)
+        .eq("room_unit_id", unitId)
+        .eq("business_date", today)
+        .in("status", ["open", "in_progress"])
+        .limit(1)
+        .maybeSingle();
+
+      if (
+        openAssignment &&
+        (!openAssignment.checklist_clean_ok ||
+          !openAssignment.checklist_linen_ok ||
+          !openAssignment.checklist_amenities_ok)
+      ) {
+        throw new Error(
+          "Complete HK turnover checklist on Housekeeping before marking clean.",
+        );
+      }
+    }
 
     const { data, error } = await admin
       .from("room_units")

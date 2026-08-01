@@ -38,10 +38,14 @@ export function BookingLifecycleActions({
   bookingId,
   status,
   tokenRequired,
+  cancelPolicySummary,
+  isMouAgent,
 }: {
   bookingId: string;
   status: string;
   tokenRequired?: number;
+  cancelPolicySummary?: string;
+  isMouAgent?: boolean;
 }) {
   const canCancel = ["pending", "held", "confirmed", "checked_in"].includes(
     status,
@@ -62,7 +66,13 @@ export function BookingLifecycleActions({
       ) : null}
       {canExtend ? <ExtendHoldForm bookingId={bookingId} /> : null}
       <div className="flex flex-wrap gap-3">
-        {canCancel ? <CancelForm bookingId={bookingId} /> : null}
+        {canCancel ? (
+          <CancelForm
+            bookingId={bookingId}
+            cancelPolicySummary={cancelPolicySummary}
+            isMouAgent={isMouAgent}
+          />
+        ) : null}
         {canNoShow ? <NoShowForm bookingId={bookingId} /> : null}
       </div>
     </div>
@@ -169,7 +179,15 @@ function ExtendHoldForm({ bookingId }: { bookingId: string }) {
   );
 }
 
-function CancelForm({ bookingId }: { bookingId: string }) {
+function CancelForm({
+  bookingId,
+  cancelPolicySummary,
+  isMouAgent,
+}: {
+  bookingId: string;
+  cancelPolicySummary?: string;
+  isMouAgent?: boolean;
+}) {
   const [state, action, pending] = useActionState(cancelBooking, channelInitial);
   useActionToast(state, { successMessage: "Booking cancelled" });
   const [open, setOpen] = useState(false);
@@ -194,6 +212,15 @@ function CancelForm({ bookingId }: { bookingId: string }) {
             coming.
           </DialogDescription>
         </DialogHeader>
+        {isMouAgent ? (
+          <p className="rounded-md border border-citrus/30 bg-citrus-tint/40 px-3 py-2 text-xs text-foreground">
+            MoU agent — free cancel anytime (no fee).
+          </p>
+        ) : cancelPolicySummary ? (
+          <p className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            {cancelPolicySummary}
+          </p>
+        ) : null}
         <form action={action} className="space-y-3">
           <input type="hidden" name="booking_id" value={bookingId} />
           <div className="space-y-1.5">

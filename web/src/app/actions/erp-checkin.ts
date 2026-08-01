@@ -2,6 +2,8 @@
 
 import { chargeAgentCredit } from "@/app/actions/erp-agents";
 import { writeAuditEvent } from "@/lib/audit";
+import { postMealPlanFolioLine } from "@/lib/folio/meal-plan";
+import { nationalityRequired } from "@/lib/countries";
 import {
   normalizeGuestOrigin,
   validateCheckInDocs,
@@ -172,7 +174,7 @@ export async function confirmCheckIn(
     const { data: booking, error: bookingError } = await admin
       .from("bookings")
       .select(
-        "id, status, contact_name, check_in, check_out, agent_id, payment_mode, guest_origin, property_id, booking_rooms(qty, inventory_kind, room_type_id)",
+        "id, status, contact_name, check_in, check_out, agent_id, payment_mode, guest_origin, booked_by_role, meal_plan_code, meal_plan_amount_btn, property_id, booking_rooms(qty, inventory_kind, room_type_id)",
       )
       .eq("id", bookingId)
       .single();
@@ -210,6 +212,14 @@ export async function confirmCheckIn(
       driverName,
     });
     if (docsError) throw new Error(docsError);
+
+    if (nationalityRequired(guestOrigin)) {
+      for (const [i, g] of guests.entries()) {
+        if (!g.nationality.trim()) {
+          throw new Error(`Guest ${i + 1}: nationality is required for ${guestOrigin} guests.`);
+        }
+      }
+    }
 
     if (roomUnitIds.length === 0) {
       throw new Error("Assign physical rooms before confirming check-in.");
@@ -508,6 +518,24 @@ export async function confirmCheckIn(
       bookingId,
       `${primaryGuest.fullName.trim()} · ${booking.check_in as string}`,
     );
+
+    const mealAmount = Number(booking.meal_plan_amount_btn ?? 0);
+    if (mealAmount > 0) {
+      const { data: mealPlan } = await admin
+        .from("meal_plans")
+        .select("name")
+        .eq("property_id", property_id)
+        .eq("code", booking.meal_plan_code as string)
+        .maybeSingle();
+      await postMealPlanFolioLine(admin, property_id, {
+        folioId,
+        bookingId,
+        mealPlanCode: (booking.meal_plan_code as string) ?? "EP",
+        mealPlanName: (mealPlan?.name as string) ?? "Meals",
+        mealPlanAmountBtn: mealAmount,
+        businessDate: booking.check_in as string,
+      });
+    }
 
     await writeAuditEvent(admin, {
       propertyId: property_id,

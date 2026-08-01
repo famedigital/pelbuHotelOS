@@ -25,6 +25,7 @@ export function DeskListShell({
   blurb,
   children,
   filters,
+  headerAside,
 }: {
   /** Kept for backward compat. Ignored — title is now in the shell header. */
   title?: string;
@@ -32,6 +33,8 @@ export function DeskListShell({
   heading: string;
   blurb?: string;
   filters?: ReactNode;
+  /** Live badge, CTAs, etc. — aligned top-right of the page header. */
+  headerAside?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -45,16 +48,19 @@ export function DeskListShell({
           </AlertDescription>
         </Alert>
       ) : null}
-      <header className="space-y-1.5">
-        <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
-          {eyebrow}
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          {heading}
-        </h1>
-        {blurb ? (
-          <p className="max-w-prose text-sm text-muted-foreground">{blurb}</p>
-        ) : null}
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
+            {eyebrow}
+          </p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            {heading}
+          </h1>
+          {blurb ? (
+            <p className="max-w-prose text-sm text-muted-foreground">{blurb}</p>
+          ) : null}
+        </div>
+        {headerAside}
       </header>
       {filters}
       {children}

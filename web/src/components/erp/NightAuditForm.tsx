@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 const initial: ErpFolioOpsState = { ok: false };
 
@@ -21,11 +21,13 @@ const OUTCOMES = [
   "Snapshots occupancy: sellable rooms vs guide/driver comp beds.",
   "Totals folio charges and payments posted on the business date.",
   "Counts open folios still carrying a balance.",
+  "Emails + stores a full hotel Excel backup (ops + settings) for continuity.",
   "Fails loudly if any room-night post errors — nothing is saved for that date.",
 ];
 
 export function NightAuditForm({ defaultDate }: { defaultDate: string }) {
   const [state, action, pending] = useActionState(runNightAudit, initial);
+  const [downloadDate, setDownloadDate] = useState(defaultDate);
   useActionToast(state, { successMessage: "Night audit complete" });
   return (
     <form action={action} className="erp space-y-4 rounded-lg border bg-card p-4">
@@ -72,6 +74,7 @@ export function NightAuditForm({ defaultDate }: { defaultDate: string }) {
           name="business_date"
           defaultValue={defaultDate}
           required
+          onChange={(e) => setDownloadDate(e.target.value)}
         />
       </div>
       <div className="space-y-1.5">
@@ -82,6 +85,14 @@ export function NightAuditForm({ defaultDate }: { defaultDate: string }) {
       </div>
       <Button type="submit" variant="citrus" disabled={pending} className="h-10 w-full">
         {pending ? "Running…" : "Complete night audit"}
+      </Button>
+      <Button asChild variant="outline" className="h-10 w-full">
+        <a
+          href={`/api/erp/night-audit/continuity?date=${encodeURIComponent(downloadDate)}`}
+          download
+        >
+          Download hotel backup
+        </a>
       </Button>
       {state.ok || state.error ? (
         <p

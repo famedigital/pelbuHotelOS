@@ -111,12 +111,21 @@ export default async function ErpNightAuditPage() {
                       <p className="font-medium text-foreground">
                         {a.business_date as string}
                       </p>
-                      <Link
-                        href={`/erp/night-audit/${a.id as string}/print`}
-                        className="text-xs font-medium text-accent underline-offset-4 hover:underline"
-                      >
-                        Print pack →
-                      </Link>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <a
+                          href={`/api/erp/night-audit/continuity?date=${encodeURIComponent(a.business_date as string)}`}
+                          className="text-xs font-medium text-accent underline-offset-4 hover:underline"
+                          download
+                        >
+                          Download backup
+                        </a>
+                        <Link
+                          href={`/erp/night-audit/${a.id as string}/print`}
+                          className="text-xs font-medium text-accent underline-offset-4 hover:underline"
+                        >
+                          Print pack →
+                        </Link>
+                      </div>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
                       Sellable {a.rooms_occupied as number} · Comp {a.rooms_comp as number}{" "}

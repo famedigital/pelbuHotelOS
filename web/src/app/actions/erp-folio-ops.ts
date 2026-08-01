@@ -673,11 +673,272 @@ export async function runNightAudit(
     if (result.roomNightErrors.length > 0) {
       parts.push(`${result.roomNightErrors.length} room-night error(s)`);
     }
+    if (result.hotelBackup?.emailed) {
+      parts.push("hotel backup emailed");
+    } else if (result.hotelBackup && !result.hotelBackup.ok) {
+      parts.push("hotel backup pack failed (audit still saved)");
+    } else if (result.hotelBackup?.ok) {
+      parts.push("hotel backup stored");
+    }
     return {
       ok: true,
       message: `Night audit ${result.businessDate} complete — ${parts.join(" · ")}.`,
       auditId: result.auditId,
     };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+/** Submit bank/QR proof — creates pending_bank payment (no GL until confirmed). */
+export async function submitBankPaymentProof(
+  _prev: ErpFolioOpsState,
+  formData: FormData,
+): Promise<ErpFolioOpsState> {
+  try {
+    await requireMoney();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const folioId = trimRequired(formData.get("folio_id"), "Folio");
+    const method = (optionalTrim(formData.get("method")) ?? "bank_qr").toLowerCase();
+    if (!["bank_qr", "bank"].includes(method)) {
+      throw new Error("Proof flow supports bank QR or NEFT/bank transfer only.");
+    }
+    const amount = Number(String(formData.get("amount_btn") ?? "").replace(/,/g, ""));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error("Amount must be positive.");
+    }
+    const amountBtn = roundBtn(amount);
+    const proofUrl = trimRequired(formData.get("proof_url"), "Payment screenshot");
+    const reference = optionalTrim(formData.get("reference"));
+
+    const { data: folio } = await admin
+      .from("folios")
+      .select("id, booking_id, status, property_id")
+      .eq("id", folioId)
+      .eq("property_id", pid)
+      .single();
+    if (!folio) throw new Error("Folio not found.");
+    if ((folio.status as string) !== "open") throw new Error("Folio is not open.");
+
+    const pay = await postFolioPaymentRecord(admin, {
+      property_id: pid,
+      folio_id: folioId,
+      booking_id: folio.booking_id as string | null,
+      method,
+      amount_btn: amountBtn,
+      kind: "settlement",
+      reference,
+      notes: "Awaiting bank confirmation (2–3 days)",
+      confirmation_status: "pending_bank",
+      proof_url: proofUrl,
+      idempotency_key: `pending:${folioId}:${method}:${amountBtn}:${reference ?? "none"}`,
+      period_guard: periodGuardFromForm(formData, pid),
+    });
+
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "payment.proof_submitted",
+      entityType: "payments",
+      entityId: pay.paymentId,
+      summary: `Bank proof ${amountBtn} Nu · pending`,
+      meta: { folioId, method },
+    });
+
+    revalidateFolio(folioId);
+    revalidatePath("/erp/finance/bank-proofs");
+    return {
+      ok: true,
+      message: "Proof submitted — pending bank confirmation (2–3 days).",
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+/** Desk confirms pending bank payment → posts folio + GL + receipt path. */
+export async function confirmPendingBankPayment(
+  _prev: ErpFolioOpsState,
+  formData: FormData,
+): Promise<ErpFolioOpsState> {
+  try {
+    await requireMoney();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const paymentId = trimRequired(formData.get("payment_id"), "Payment");
+
+    const { data: payment } = await admin
+      .from("payments")
+      .select(
+        "id, property_id, folio_id, booking_id, method, amount_btn, kind, reference, notes, confirmation_status",
+      )
+      .eq("id", paymentId)
+      .eq("property_id", pid)
+      .single();
+    if (!payment) throw new Error("Payment not found.");
+    if ((payment.confirmation_status as string) !== "pending_bank") {
+      throw new Error("Payment is not pending bank confirmation.");
+    }
+
+    const amountBtn = roundBtn(Number(payment.amount_btn));
+    const folioId = payment.folio_id as string | null;
+    const reference = optionalTrim(formData.get("reference")) ?? (payment.reference as string | null);
+
+    if (folioId) {
+      const { data: folio } = await admin
+        .from("folios")
+        .select("id, status")
+        .eq("id", folioId)
+        .single();
+      if (!folio || (folio.status as string) !== "open") {
+        throw new Error("Linked folio is not open.");
+      }
+
+      const { error: lineError } = await admin.from("folio_lines").insert({
+        folio_id: folioId,
+        booking_id: payment.booking_id,
+        source_type: "payment",
+        source_id: paymentId,
+        description: `Payment · ${payment.method}${reference ? ` · ${reference}` : ""}`,
+        qty: 1,
+        unit_price_btn: -amountBtn,
+        amount_btn: -amountBtn,
+        gst_applicable: false,
+        gst_btn: 0,
+        total_btn: -amountBtn,
+        status: "posted",
+      });
+      if (lineError) throw new Error("Could not post payment to folio.");
+    }
+
+    const { postPayment } = await import("@/lib/accounting/posting");
+    const gl = await postPayment(admin, pid, {
+      id: paymentId,
+      method: payment.method as string,
+      kind: (payment.kind as string) ?? "settlement",
+      amount_btn: amountBtn,
+      notes: payment.notes as string | null,
+      period_guard: periodGuardFromForm(formData, pid),
+    });
+    if (!gl.ok) {
+      if (folioId) {
+        await admin
+          .from("folio_lines")
+          .delete()
+          .eq("source_type", "payment")
+          .eq("source_id", paymentId);
+      }
+      throw new Error(gl.error ?? "Ledger posting failed.");
+    }
+
+    await admin
+      .from("payments")
+      .update({
+        confirmation_status: "confirmed",
+        confirmed_at: new Date().toISOString(),
+        confirmed_by: "desk",
+        reference,
+      })
+      .eq("id", paymentId);
+
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "payment.bank_confirmed",
+      entityType: "payments",
+      entityId: paymentId,
+      summary: `Confirmed bank payment ${amountBtn} Nu`,
+      meta: { folioId },
+    });
+
+    revalidateFolio(folioId ?? undefined);
+    revalidatePath("/erp/finance/bank-proofs");
+    revalidatePath("/erp/payments");
+    return {
+      ok: true,
+      message: folioId
+        ? "Payment confirmed — issue receipt from folio."
+        : "Payment confirmed.",
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+/** Guest submits proof on deposit link → pending_bank. */
+export async function submitPaymentLinkProof(
+  _prev: ErpFolioOpsState,
+  formData: FormData,
+): Promise<ErpFolioOpsState> {
+  try {
+    const admin = createSupabaseAdminClient();
+    const token = trimRequired(formData.get("token"), "Token");
+    const proofUrl = trimRequired(formData.get("proof_url"), "Screenshot");
+    const reference = optionalTrim(formData.get("proof_reference"));
+
+    const { data: link } = await admin
+      .from("payment_links")
+      .select("id, property_id, status")
+      .eq("token", token)
+      .maybeSingle();
+    if (!link) throw new Error("Payment link not found.");
+    if ((link.status as string) !== "open") {
+      throw new Error("This link is no longer open for proof upload.");
+    }
+
+    const { error } = await admin
+      .from("payment_links")
+      .update({
+        status: "pending_bank",
+        proof_url: proofUrl,
+        proof_reference: reference,
+        proof_submitted_at: new Date().toISOString(),
+      })
+      .eq("id", link.id);
+    if (error) throw new Error(error.message);
+
+    revalidatePath(`/pay/${token}`);
+    revalidatePath("/erp/finance/bank-proofs");
+    return {
+      ok: true,
+      message: "Screenshot received — desk confirms in 2–3 days.",
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+/** Confirm deposit link that has pending_bank proof. */
+export async function confirmPaymentLinkProof(
+  _prev: ErpFolioOpsState,
+  formData: FormData,
+): Promise<ErpFolioOpsState> {
+  try {
+    await requireMoney();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const linkId = trimRequired(formData.get("link_id"), "Link");
+    const method = (optionalTrim(formData.get("method")) ?? "bank_qr").toLowerCase();
+    const reference = optionalTrim(formData.get("reference"));
+
+    const { data: link } = await admin
+      .from("payment_links")
+      .select("id, property_id, status, proof_reference")
+      .eq("id", linkId)
+      .eq("property_id", pid)
+      .single();
+    if (!link) throw new Error("Link not found.");
+    if ((link.status as string) !== "pending_bank") {
+      throw new Error("Link is not awaiting bank confirmation.");
+    }
+
+    if (reference) formData.set("reference", reference);
+    else if (link.proof_reference) {
+      formData.set("reference", link.proof_reference as string);
+    }
+    formData.set("link_id", linkId);
+    formData.set("method", method);
+
+    return markDepositLinkPaid({ ok: false }, formData);
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
   }

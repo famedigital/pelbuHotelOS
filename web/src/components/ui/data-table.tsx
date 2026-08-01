@@ -13,6 +13,7 @@ import {
   type Table as TanstackTable,
 } from "@tanstack/react-table";
 import { ChevronDownIcon, ChevronUpIcon, ChevronsUpDownIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,8 @@ export interface DataTableProps<TData, TValue> {
   toolbar?: React.ReactNode;
   /** Render rows as labelled cards below md. Defaults to true. */
   mobileCards?: boolean;
+  /** When set, clicking a row navigates here (action cells still work independently). */
+  getRowHref?: (row: TData) => string | undefined;
 }
 
 export function DataTable<TData, TValue>({
@@ -74,9 +77,11 @@ export function DataTable<TData, TValue>({
   className,
   toolbar,
   mobileCards = true,
+  getRowHref,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = React.useState("");
+  const router = useRouter();
 
   const table = useReactTable({
     data,
@@ -192,10 +197,24 @@ export function DataTable<TData, TValue>({
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
+              table.getRowModel().rows.map((row) => {
+                const href = getRowHref?.(row.original);
+                return (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  className={href ? "cursor-pointer" : undefined}
+                  onClick={
+                    href
+                      ? (e) => {
+                          const target = e.target as HTMLElement;
+                          if (target.closest("a, button, input, select, textarea")) {
+                            return;
+                          }
+                          router.push(href);
+                        }
+                      : undefined
+                  }
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
@@ -212,7 +231,8 @@ export function DataTable<TData, TValue>({
                     </TableCell>
                   ))}
                 </TableRow>
-              ))
+                );
+              })
             ) : (
               <TableRow className="hover:bg-transparent">
                 <TableCell

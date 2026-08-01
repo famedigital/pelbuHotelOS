@@ -1,4 +1,5 @@
 import { BookingLifecycleActions } from "@/components/erp/BookingLifecycleActions";
+import { GuestPackPanel, type GuestPackData } from "@/components/erp/GuestPackPanel";
 import { DeskListShell, StatusPill } from "@/components/erp/DeskListShell";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +13,9 @@ import { boardActionLabel } from "@/lib/arrival-board";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/erp-lists";
+import { resolveCancelPolicyContext } from "@/lib/policies/cancel-policy";
 import { formatBtn } from "@/lib/pricing";
+import { loadProperty } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -43,8 +46,9 @@ export default async function BookingDetailPage({ params }: Props) {
        source, channel_source, guest_origin, guide_number, payment_mode, adults, rooms,
        notes, created_at, confirmed_at, checked_in_at, checked_out_at, cancelled_at,
        cancel_reason, hold_expires_at, hold_extended_count, token_required_btn,
-       token_received_btn, quoted_total_btn, meal_plan_code,
-       agents(company_name),
+       token_received_btn, quoted_total_btn, meal_plan_code, meal_plan_amount_btn,
+       booked_by_role, agent_id,
+       agents(company_name, wants_mou),
        booking_rooms(qty, inventory_kind, room_types(name, code)),
        booking_guests(full_name, nationality, passport_or_cid, sort_order),
        room_assignments(room_units(label, hk_status)),
@@ -63,7 +67,9 @@ export default async function BookingDetailPage({ params }: Props) {
   }
 
   const status = (data.status as string) ?? "unknown";
-  const agent = firstOf(data.agents as MaybeList<{ company_name?: string }>);
+  const agentRow = firstOf(
+    data.agents as MaybeList<{ company_name?: string; wants_mou?: boolean }>,
+  );
   const guests = sortGuests(
     (data.booking_guests as GuestRow[] | null) ?? [],
   );
@@ -83,6 +89,54 @@ export default async function BookingDetailPage({ params }: Props) {
   const tokenReceived = Number(data.token_received_btn ?? 0);
   const canCheckIn = CHECKIN_STATUSES.includes(status);
 
+  const [property, policyRow, damageRows, cancelCtx] = await Promise.all([
+    loadProperty(admin, propertyId),
+    admin
+      .from("property_policies")
+      .select("*")
+      .eq("property_id", propertyId)
+      .maybeSingle(),
+    admin
+      .from("property_damage_items")
+      .select("label, amount_btn")
+      .eq("property_id", propertyId)
+      .eq("is_active", true)
+      .order("sort_order"),
+    resolveCancelPolicyContext(admin, {
+      propertyId,
+      checkIn: data.check_in as string,
+      bookedByRole: data.booked_by_role as string | null,
+      agentId: data.agent_id as string | null,
+    }),
+  ]);
+
+  const isMouAgent =
+    cancelCtx.isMouAgent || Boolean(agentRow?.wants_mou);
+
+  const guestPackData: GuestPackData = {
+    propertyName: property?.name ?? "Pelbu Suites",
+    propertyPhone: property?.phone ?? null,
+    propertyEmail: property?.email ?? null,
+    guestName: (data.contact_name as string) ?? "Guest",
+    guestEmail: (data.contact_email as string | null) ?? null,
+    checkIn: data.check_in as string,
+    checkOut: data.check_out as string,
+    roomLabels,
+    mealPlanCode: (data.meal_plan_code as string | null) ?? null,
+    policySummary: policyRow.data?.guest_summary as string | null,
+    houseRules: policyRow.data?.house_rules as string | null,
+    dos: policyRow.data?.dos as string | null,
+    donts: policyRow.data?.donts as string | null,
+    wifiName: policyRow.data?.wifi_name as string | null,
+    wifiPassword: policyRow.data?.wifi_password as string | null,
+    checkInTime: policyRow.data?.check_in_time as string | null,
+    checkOutTime: policyRow.data?.check_out_time as string | null,
+    damageItems: (damageRows.data ?? []).map((d) => ({
+      label: d.label as string,
+      amountBtn: d.amount_btn == null ? null : Number(d.amount_btn),
+    })),
+  };
+
   return (
     <DeskListShell
       eyebrow="Booking"
@@ -93,6 +147,11 @@ export default async function BookingDetailPage({ params }: Props) {
     >
       <div className="flex flex-wrap items-center gap-2">
         <StatusPill value={status} />
+        {isMouAgent ? (
+          <span className="inline-flex items-center rounded-full border border-citrus/40 bg-citrus-tint/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-citrus">
+            MoU — free cancel
+          </span>
+        ) : null}
         <span className="font-mono text-xs text-muted-foreground">
           {data.id as string}
         </span>
@@ -138,6 +197,8 @@ export default async function BookingDetailPage({ params }: Props) {
               bookingId={data.id as string}
               status={status}
               tokenRequired={tokenRequired}
+              cancelPolicySummary={cancelCtx.summary}
+              isMouAgent={isMouAgent}
             />
           </CardContent>
         </Card>
@@ -156,6 +217,8 @@ export default async function BookingDetailPage({ params }: Props) {
               bookingId={data.id as string}
               status={status}
               tokenRequired={tokenRequired}
+              cancelPolicySummary={cancelCtx.summary}
+              isMouAgent={isMouAgent}
             />
           </CardContent>
         </Card>
@@ -196,11 +259,22 @@ export default async function BookingDetailPage({ params }: Props) {
                     .join(" · ") || null
                 }
               />
-              <Field label="Agent" value={agent?.company_name ?? null} />
+              <Field label="Agent" value={agentRow?.company_name ?? null} />
               <Field label="Origin" value={data.guest_origin as string} />
               <Field label="Guide #" value={data.guide_number as string} />
               <Field label="Payment mode" value={data.payment_mode as string} />
-              <Field label="Meal plan" value={data.meal_plan_code as string} />
+              <Field
+                label="Meal plan"
+                value={
+                  data.meal_plan_code
+                    ? `${data.meal_plan_code as string}${
+                        Number(data.meal_plan_amount_btn ?? 0) > 0
+                          ? ` · ${formatBtn(Number(data.meal_plan_amount_btn))}`
+                          : ""
+                      }`
+                    : null
+                }
+              />
               <Field
                 label="Rooms assigned"
                 value={roomLabels.length ? roomLabels.join(", ") : null}
@@ -274,6 +348,21 @@ export default async function BookingDetailPage({ params }: Props) {
           </CardContent>
         </Card>
       </div>
+
+      {["checked_in", "checked_out"].includes(status) ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Guest check-in pack</CardTitle>
+            <CardDescription>
+              Rules, do&apos;s/don&apos;ts, and damage prices from Settings →
+              Policies.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <GuestPackPanel bookingId={data.id as string} data={guestPackData} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>

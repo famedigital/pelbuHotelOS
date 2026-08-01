@@ -1,10 +1,10 @@
 import { FastBookForm } from "@/components/erp/FastBookForm";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { DeskPageTitle } from "@/components/erp/DeskShell";
 import { deskPinConfigured, isDeskAuthenticated } from "@/lib/desk-auth";
 import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
-
 export const metadata = {
   title: "Fast book | Pelbu OS",
   robots: { index: false, follow: false },
@@ -30,7 +30,7 @@ export default async function FastBookPage({ searchParams }: Props) {
   const propertyId = await resolveActivePropertyId(admin);
   const property = await loadProperty(admin, propertyId);
 
-  const [{ data: roomTypes }, { data: agents }, preferredUnit] = await Promise.all([
+  const [{ data: roomTypes }, { data: agents }, preferredUnit, { data: mealPlans }, { data: propertyDefaults }] = await Promise.all([
     property
       ? admin
           .from("room_types")
@@ -51,8 +51,22 @@ export default async function FastBookPage({ searchParams }: Props) {
           .eq("property_id", property.id)
           .maybeSingle()
       : Promise.resolve({ data: null }),
+    property
+      ? admin
+          .from("meal_plans")
+          .select("code, name, blurb, amount_btn_per_adult_night, is_active")
+          .eq("property_id", property.id)
+          .eq("is_active", true)
+          .order("sort_order")
+      : Promise.resolve({ data: [] }),
+    property
+      ? admin
+          .from("properties")
+          .select("default_meal_plan_code")
+          .eq("id", property.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
-
   const qtyByCode: Record<string, number> = {};
   const unit = preferredUnit.data;
   if (unit) {
@@ -63,8 +77,13 @@ export default async function FastBookPage({ searchParams }: Props) {
 
   return (
     <div className="erp mx-auto w-full max-w-[1200px] space-y-6 p-4 md:p-6">
-      {!deskPinConfigured() ? (
-        <Alert variant="warning">
+      <DeskPageTitle
+        eyebrow="Front desk"
+        title="Fast book"
+        description="30-second walk-in express — defaults meal plan and guest origin. Use Calendar for full rack pricing and overrides."
+      />
+
+      {!deskPinConfigured() ? (        <Alert variant="warning">
           <AlertTitle>Dev mode</AlertTitle>
           <AlertDescription>
             Desk PIN not set. Add <code className="font-mono">DESK_PIN</code> before
@@ -73,13 +92,7 @@ export default async function FastBookPage({ searchParams }: Props) {
         </Alert>
       ) : null}
 
-      <p className="text-sm text-muted-foreground">
-        One screen: dates → rooms → pax → agent → guide no → guest / guide /
-        driver beds → save.
-      </p>
-
-      <FastBookForm
-        roomTypes={(roomTypes ?? []).map((r) => ({
+      <FastBookForm        roomTypes={(roomTypes ?? []).map((r) => ({
           id: r.id as string,
           code: r.code as string,
           name: r.name as string,
@@ -112,8 +125,19 @@ export default async function FastBookPage({ searchParams }: Props) {
           checkOut: sp.check_out,
           roomUnitId: unit?.id as string | undefined,
           qtyByCode,
+          mealPlanCode:
+            (propertyDefaults?.default_meal_plan_code as string | undefined) ?? "EP",
+          guestOrigin: "regional",
         }}
-      />
-    </div>
+        mealPlans={(mealPlans ?? []).map((m) => ({
+          code: m.code as string,
+          name: m.name as string,
+          blurb: (m.blurb as string | null) ?? null,
+          amountPerAdultNight:
+            m.amount_btn_per_adult_night == null
+              ? null
+              : Number(m.amount_btn_per_adult_night),
+        }))}
+      />    </div>
   );
 }

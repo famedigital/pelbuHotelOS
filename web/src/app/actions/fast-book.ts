@@ -3,7 +3,10 @@
 import { chargeAgentCredit } from "@/app/actions/erp-agents";
 import { enqueueAfterBookingChange } from "@/lib/channel/ari-queue";
 import { soldQtyByRoomType } from "@/lib/inventory-availability";
-import { notifyNewBooking } from "@/lib/notify";
+import {
+  computeMealStayTotalBtn,
+  resolveMealPlanForBook,
+} from "@/lib/meal-plans";import { notifyNewBooking } from "@/lib/notify";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
@@ -130,6 +133,20 @@ export async function createFastBooking(
     const propertyId = await resolveActivePropertyId(admin);
     const property = { id: propertyId };
 
+    const mealPlanCodeRaw = trimRequired(formData.get("meal_plan_code"), "Meal plan");
+    const mealResolved = await resolveMealPlanForBook(
+      admin,
+      property.id as string,
+      mealPlanCodeRaw,
+    );
+    const nights = nightsBetween(checkIn, checkOut);
+    const mealPlanAmountBtn =
+      computeMealStayTotalBtn(
+        mealResolved.amountPerAdultNight,
+        adults,
+        nights,
+      ) ?? 0;
+
     const { data: roomTypes, error: typesError } = await admin
       .from("room_types")
       .select("id, code, name, inventory_kind, unit_count")
@@ -206,7 +223,6 @@ export async function createFastBooking(
     }
 
     let creditChargeBtn = 0;
-    const nights = nightsBetween(checkIn, checkOut);
     if (paymentMode === "on_credit" && agentId) {
       const season = await resolveSeasonKind(admin, property.id as string, checkIn);
       let estimate = 0;
@@ -252,6 +268,8 @@ export async function createFastBooking(
         guest_origin: guestOrigin,
         payment_mode: paymentMode,
         notes,
+        meal_plan_code: mealResolved.code,
+        meal_plan_amount_btn: mealPlanAmountBtn,
       })
       .select("id")
       .single();

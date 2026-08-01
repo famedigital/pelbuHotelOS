@@ -8,6 +8,13 @@ import {
 import { AgentPicker, type BookableAgent } from "@/components/erp/AgentPicker";
 import { Button } from "@/components/ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -41,6 +48,11 @@ const initial: CalendarBookState = { ok: false };
 const fieldClass =
   "mt-1.5 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
 
+export type CalendarMealPlan = {
+  code: string;
+  name: string;
+};
+
 type ReservationDraft = {
   groupName: string;
   contactName: string;
@@ -52,11 +64,15 @@ type ReservationDraft = {
   source: string;
   agentId: string;
   paymentMode: string;
+  mealPlanCode: string;
   notes: string;
   mixAcknowledged: boolean;
 };
 
-function draftForSelection(selection: CalendarSelection): ReservationDraft {
+function draftForSelection(
+  selection: CalendarSelection,
+  defaultMealPlanCode: string,
+): ReservationDraft {
   return {
     groupName: `Group · ${selection.units.length} rooms · ${selection.checkIn}`,
     contactName: "",
@@ -68,6 +84,7 @@ function draftForSelection(selection: CalendarSelection): ReservationDraft {
     source: "reservation",
     agentId: "",
     paymentMode: "cash",
+    mealPlanCode: defaultMealPlanCode,
     notes: "",
     mixAcknowledged: false,
   };
@@ -92,11 +109,15 @@ export function CalendarReservationDialog({
   onOpenChange,
   selection,
   agents,
+  mealPlans,
+  defaultMealPlanCode,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selection: CalendarSelection | null;
   agents: CalendarAgent[];
+  mealPlans: CalendarMealPlan[];
+  defaultMealPlanCode: string;
 }) {
   const router = useRouter();
   const isGroup = (selection?.units.length ?? 0) > 1;
@@ -128,8 +149,8 @@ export function CalendarReservationDialog({
     );
     setNightCount(nextNights);
     setCheckOut(addDays(selection.checkIn, nextNights));
-    setDraft(draftForSelection(selection));
-  }, [selection]);
+    setDraft(draftForSelection(selection, defaultMealPlanCode));
+  }, [selection, defaultMealPlanCode]);
 
   const categoryMix = useMemo(
     () => {
@@ -389,6 +410,26 @@ export function CalendarReservationDialog({
                 <option value="partial">Partial</option>
                 <option value="on_credit">On credit</option>
               </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="calendar_meal_plan_code">Meal plan</Label>
+              <Select
+                value={draft.mealPlanCode}
+                onValueChange={(value) => updateDraft("mealPlanCode", value)}
+                required
+              >
+                <SelectTrigger id="calendar_meal_plan_code">
+                  <SelectValue placeholder="Select meal plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {mealPlans.map((plan) => (
+                    <SelectItem key={plan.code} value={plan.code}>
+                      {plan.code} · {plan.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <input type="hidden" name="meal_plan_code" value={draft.mealPlanCode} />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="notes">Notes</Label>

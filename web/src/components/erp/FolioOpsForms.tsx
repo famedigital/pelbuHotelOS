@@ -9,16 +9,20 @@ import {
   markDepositLinkPaid,
   postCompCredit,
   promoteFolioToMaster,
+  submitBankPaymentProof,
   transferFolioLine,
   voidFolioLine,
   type ErpFolioOpsState,
 } from "@/app/actions/erp-folio-ops";
 import { PeriodOverrideFields } from "@/components/erp/PeriodOverrideFields";
+import { CloudinaryDocField } from "@/components/erp/CloudinaryDocField";
+import { CloudinaryPicker } from "@/components/erp/CloudinaryPicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
-import { useActionState } from "react";
+import { cloudinaryOriginalUrl } from "@/lib/cloudinary";
+import { useActionState, useState } from "react";
 
 const initial: ErpFolioOpsState = { ok: false };
 
@@ -175,7 +179,7 @@ export function DepositLinkForm({
         Deposit / QR link
       </h3>
       <p className="text-xs text-muted-foreground">
-        Share the link for bank QR / Pay.bt. Desk marks paid when funds clear.
+        Share the link for bank QR / NEFT. Guest uploads proof → pending bank → confirm in Finance.
       </p>
       <input type="hidden" name="folio_id" value={folioId} />
       {bookingId ? (
@@ -424,6 +428,85 @@ export function AttachToMasterForm({
       <Button type="submit" variant="outline" disabled={pending} className="h-10 w-full">
         {pending ? "Attaching…" : "Attach"}
       </Button>
+      <Flash state={state} />
+    </form>
+  );
+}
+
+export function BankProofPaymentForm({
+  folioId,
+  suggestedAmount,
+}: {
+  folioId: string;
+  suggestedAmount: number;
+}) {
+  const [state, action, pending] = useActionState(submitBankPaymentProof, initial);
+  useActionToast(state, { successMessage: "Proof submitted — pending bank" });
+  const [proofUrl, setProofUrl] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [intent, setIntent] = useState<"camera" | "file">("camera");
+
+  return (
+    <form action={action} className="erp space-y-3 rounded-lg border bg-card p-4">
+      <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+        Bank QR / NEFT proof
+      </h3>
+      <p className="text-xs text-muted-foreground">
+        Upload guest screenshot → pending bank (2–3 days) → confirm in Finance → Bank proofs →
+        issue receipt.
+      </p>
+      <input type="hidden" name="folio_id" value={folioId} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="proof_method">Method</Label>
+          <select id="proof_method" name="method" defaultValue="bank_qr" className={selectClass()}>
+            <option value="bank_qr">Bank QR / GPay</option>
+            <option value="bank">NEFT / bank transfer</option>
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="proof_amount_btn">Amount (Nu)</Label>
+          <Input
+            id="proof_amount_btn"
+            name="amount_btn"
+            type="number"
+            min="0.01"
+            step="0.01"
+            required
+            defaultValue={suggestedAmount > 0 ? suggestedAmount : undefined}
+          />
+        </div>
+      </div>
+      <CloudinaryDocField
+        name="proof_url"
+        value={proofUrl}
+        onPick={(pickIntent) => {
+          setIntent(pickIntent);
+          setPickerOpen(true);
+        }}
+        onClear={() => setProofUrl("")}
+      />
+      <CloudinaryPicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        title="Payment screenshot"
+        uploadFolder="pelbu/payments"
+        initialTab="upload"
+        uploadIntent={intent}
+        acceptVideo={false}
+        onSelect={(publicId) => {
+          setProofUrl(cloudinaryOriginalUrl(publicId) ?? publicId);
+          setPickerOpen(false);
+        }}
+      />
+      <div className="space-y-1.5">
+        <Label htmlFor="proof_reference">Bank reference</Label>
+        <Input id="proof_reference" name="reference" placeholder="Optional txn ID" />
+      </div>
+      <Button type="submit" disabled={pending || !proofUrl} variant="outline" className="h-10 w-full">
+        {pending ? "Submitting…" : "Submit proof → pending bank"}
+      </Button>
+      <PeriodOverrideFields idPrefix={`proof-${folioId.slice(0, 8)}`} />
       <Flash state={state} />
     </form>
   );

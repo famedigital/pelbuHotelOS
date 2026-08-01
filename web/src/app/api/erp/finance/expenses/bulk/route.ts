@@ -29,13 +29,9 @@ type RowIn = {
   reference?: string | null;
   status?: "draft" | "posted";
   receipt_path?: string | null;
+  vendor_id?: string | null;
   delete?: boolean;
 };
-
-/**
- * Bulk save/post expense spreadsheet rows in one request.
- * Posted rows go through postExpense; drafts skip the ledger.
- */
 export async function POST(request: NextRequest) {
   const auth = await requireDeskFinanceApi();
   if (auth.error) return auth.error;
@@ -105,6 +101,7 @@ export async function POST(request: NextRequest) {
         notes: row.notes?.trim() || null,
         tpn: row.tpn?.trim() || null,
         bill_no: row.bill_no?.trim() || null,
+        vendor_id: row.vendor_id?.trim() || null,
         gross_btn: roundBtn(amountBtn),
         status: status === "posted" ? "posted" : "draft",
       };

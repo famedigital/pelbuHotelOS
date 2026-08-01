@@ -17,6 +17,7 @@ import { CalendarRoomUnitEditDialog } from "@/components/erp/CalendarRoomUnitEdi
 import {
   CalendarReservationDialog,
   type CalendarAgent,
+  type CalendarMealPlan,
   type CalendarSelection,
   type CalendarSelectedUnit,
 } from "@/components/erp/CalendarReservationDialog";
@@ -65,6 +66,7 @@ export type RackUnit = {
   room_type_code: string;
   room_type_name: string;
   hk_status?: string | null;
+  service_requested_at?: string | null;
   connecting_room_unit_id?: string | null;
   connecting_room_label?: string | null;
 };
@@ -805,6 +807,8 @@ export function RoomRackGrid({
   blocks,
   allotments = [],
   propertyId,
+  mealPlans,
+  defaultMealPlanCode,
 }: {
   units: RackUnit[];
   stays: RackStay[];
@@ -817,6 +821,8 @@ export function RoomRackGrid({
   blocks: RoomBlock[];
   allotments?: RackAllotment[];
   propertyId: string;
+  mealPlans: CalendarMealPlan[];
+  defaultMealPlanCode: string;
 }) {
   const router = useRouter();
   const { resolvedTheme } = useTheme();
@@ -2039,6 +2045,12 @@ export function RoomRackGrid({
                         <span className="min-w-0 truncate text-[13px] font-bold leading-none tabular-nums text-foreground md:text-[14px]">
                           {displayRoomNumber(unit.label)}
                         </span>
+                        {unit.service_requested_at ? (
+                          <span
+                            className="size-1.5 shrink-0 rounded-full bg-violet-500 ring-1 ring-violet-300"
+                            title="Service requested"
+                          />
+                        ) : null}
                       </span>
                       <span className="min-w-0 truncate pl-2.5 text-[9px] leading-tight text-muted-foreground md:pl-3">
                         {unit.room_type_name}
@@ -2391,6 +2403,8 @@ export function RoomRackGrid({
         onOpenChange={setDialogOpen}
         selection={selection}
         agents={agents}
+        mealPlans={mealPlans}
+        defaultMealPlanCode={defaultMealPlanCode}
       />
       <CalendarReservationEditDialog
         stay={selectedStay}

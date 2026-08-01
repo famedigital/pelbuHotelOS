@@ -15,6 +15,11 @@ import {
 } from "@/lib/channel/channex-client";
 import { isDeskAuthenticated, requireMoneyDesk } from "@/lib/desk-auth";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
+import {
+  postCancelPolicyFeeIfDue,
+  postNoShowPolicyFeeIfDue,
+} from "@/lib/folio/policy-fee";
+import { resolveCancelPolicyContext } from "@/lib/policies/cancel-policy";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
@@ -46,6 +51,7 @@ function revalidateChannel() {
   revalidatePath("/erp/fast-book");
   revalidatePath("/erp/reservations");
   revalidatePath("/erp/bookings/[id]", "page");
+  revalidatePath("/erp/folios/[id]", "page");
 }
 
 export async function saveChannelRoomMap(
@@ -512,7 +518,9 @@ export async function cancelBooking(
 
     const { data: booking, error } = await admin
       .from("bookings")
-      .select("id, status, check_in, check_out, property_id")
+      .select(
+        "id, status, check_in, check_out, property_id, agent_id, booked_by_role, contact_name, token_received_btn",
+      )
       .eq("id", bookingId)
       .single();
     if (error || !booking) throw new Error("Booking not found.");
@@ -520,6 +528,13 @@ export async function cancelBooking(
     if (["cancelled", "checked_out", "no_show", "expired"].includes(booking.status as string)) {
       throw new Error(`Cannot cancel from status ${booking.status}.`);
     }
+
+    const cancelCtx = await resolveCancelPolicyContext(admin, {
+      propertyId: pid,
+      checkIn: booking.check_in as string,
+      bookedByRole: booking.booked_by_role as string | null,
+      agentId: booking.agent_id as string | null,
+    });
 
     const { error: upd } = await admin
       .from("bookings")
@@ -533,6 +548,22 @@ export async function cancelBooking(
 
     // Free physical inventory immediately so the rack and ARI stay aligned.
     await admin.from("room_assignments").delete().eq("booking_id", bookingId);
+
+    let feeNote = "";
+    try {
+      const posted = await postCancelPolicyFeeIfDue(admin, {
+        propertyId: pid,
+        bookingId,
+        contactName: (booking.contact_name as string) ?? "Guest",
+        checkIn: booking.check_in as string,
+        tokenReceivedBtn: Number(booking.token_received_btn ?? 0),
+        cancelCtx,
+      });
+      if (posted) feeNote = posted;
+    } catch (feeErr) {
+      console.error("cancel policy fee failed", feeErr);
+      feeNote = " · fee not posted — review folio";
+    }
 
     await writeAuditEvent(admin, {
       propertyId: pid,
@@ -551,7 +582,12 @@ export async function cancelBooking(
     );
 
     revalidateChannel();
-    return { ok: true, message: "Booking cancelled · ARI queued." };
+    const windowNote = cancelCtx.waiveCancelFee
+      ? cancelCtx.isMouAgent
+        ? " · MoU — no cancel fee"
+        : " · Within free-cancel window"
+      : feeNote || " · Late cancel — review deposit forfeit";
+    return { ok: true, message: `Booking cancelled · ARI queued${windowNote}.` };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
   }
@@ -569,13 +605,25 @@ export async function markBookingNoShow(
 
     const { data: booking } = await admin
       .from("bookings")
-      .select("id, status, check_in, check_out, property_id")
+      .select(
+        "id, status, check_in, check_out, property_id, agent_id, booked_by_role, source, contact_name",
+      )
       .eq("id", bookingId)
       .single();
     if (!booking) throw new Error("Booking not found.");
     assertDeskProperty(pid, booking.property_id as string, "Booking");
     if (!["pending", "held", "confirmed"].includes(booking.status as string)) {
       throw new Error("No-show only from pending/held/confirmed.");
+    }
+
+    const cancelCtx = await resolveCancelPolicyContext(admin, {
+      propertyId: pid,
+      checkIn: booking.check_in as string,
+      bookedByRole: booking.booked_by_role as string | null,
+      agentId: booking.agent_id as string | null,
+    });
+    if (cancelCtx.waiveNoShowFee) {
+      // MoU agents: mark no-show without implying a penalty path.
     }
 
     const { error } = await admin
@@ -589,6 +637,27 @@ export async function markBookingNoShow(
     if (error) throw new Error("Could not mark no-show.");
 
     await admin.from("room_assignments").delete().eq("booking_id", bookingId);
+
+    let noShowFeeNote = "";
+    if (!cancelCtx.waiveNoShowFee) {
+      try {
+        const posted = await postNoShowPolicyFeeIfDue(admin, {
+          propertyId: pid,
+          bookingId,
+          contactName: (booking.contact_name as string) ?? "Guest",
+          checkIn: booking.check_in as string,
+          checkOut: booking.check_out as string,
+          bookedByRole: booking.booked_by_role as string | null,
+          source: booking.source as string | null,
+          agentId: booking.agent_id as string | null,
+          cancelCtx,
+        });
+        if (posted) noShowFeeNote = posted;
+      } catch (feeErr) {
+        console.error("no-show policy fee failed", feeErr);
+        noShowFeeNote = " · fee not posted — review folio";
+      }
+    }
 
     await writeAuditEvent(admin, {
       propertyId: pid,
@@ -607,7 +676,10 @@ export async function markBookingNoShow(
     );
 
     revalidateChannel();
-    return { ok: true, message: "Marked no-show · ARI queued." };
+    const feeNote = cancelCtx.waiveNoShowFee
+      ? " · MoU — no no-show fee"
+      : noShowFeeNote || " · no-show fee due — review folio";
+    return { ok: true, message: `Marked no-show · ARI queued${feeNote}.` };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
   }

@@ -13,7 +13,8 @@ import { BookingStepStay } from "@/components/book/BookingStepStay";
 import { BookingSummary } from "@/components/book/BookingSummary";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { formatBtn } from "@/lib/pricing";
+import { formatBtn, roundBtn } from "@/lib/pricing";
+import { computeMealStayTotalBtn } from "@/lib/meal-plans-calc";
 import {
   nightsBetween,
   parseStaySearch,
@@ -172,7 +173,20 @@ export function BookingWizard({
 
   const options: RoomOption[] = preview?.options ?? [];
   const selectedOption = options.find((o) => o.code === selectedCode) ?? null;
-  const selectedTotal = selectedOption?.totalBtn ?? null;
+  const selectedMealPlan =
+    preview?.mealPlans.find((p) => p.code === mealPlanCode) ?? null;
+  const mealTotalBtn =
+    selectedOption?.totalBtn != null
+      ? computeMealStayTotalBtn(
+          selectedMealPlan?.amountPerAdultNight,
+          adults,
+          nights,
+        ) ?? 0
+      : 0;
+  const selectedTotal =
+    selectedOption?.totalBtn != null
+      ? roundBtn(selectedOption.totalBtn + mealTotalBtn)
+      : null;
 
   if (state.ok && state.bookingId) {
     return (

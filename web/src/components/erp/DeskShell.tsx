@@ -4,6 +4,7 @@ import { CalendarHeaderTabs } from "@/components/erp/CalendarHeaderTabs";
 import { DeskMobileNav } from "@/components/erp/DeskMobileNav";
 import { ErpCommandPalette } from "@/components/erp/ErpCommandPalette";
 import { ModuleTabs } from "@/components/erp/ModuleTabs";
+import { NavigationProgress } from "@/components/erp/NavigationProgress";
 import { DeskSearchHint } from "@/components/erp/DeskSearchHint";
 import { PropertySwitcher } from "@/components/erp/PropertySwitcher";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,7 @@ export function DeskShell({
 }) {
   return (
     <div className="erp">
+      <NavigationProgress />
       <SidebarProvider defaultOpen={false} defaultState="collapsed">
         <AppSidebar brandName={title} logoSrc={logoSrc} />
         <ErpCommandPalette />

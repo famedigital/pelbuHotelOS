@@ -10,6 +10,18 @@ Short desk/owner checklist when something breaks after go-live.
 - Strict mode: set `NIGHT_AUDIT_CRON_STRICT=1` to fail the cron when dirty rooms / open balances / rate variance / overdue departures exist (desk must clear or force-close manually first).
 - Desk override: notes containing `force close` (audited).
 
+## Hotel backup Excel pack (continuity)
+
+Every successful night audit (desk or cron) builds a multi-sheet `.xlsx` hotel snapshot:
+
+- **Ops sheets:** in-house, arrivals/departures, bookings (~±90d), folio lines, payments, open laundry.
+- **Settings sheets:** property, rooms/types, seasons/rates, outlets/menu, laundry catalog, agents, staff (no auth secrets), dining tables.
+- **Storage:** private bucket `night-audit-packs` at `{propertyId}/{YYYY-MM-DD}.xlsx` (overwrite per date).
+- **Email:** Resend attachment to `NOTIFY_DESK_EMAIL` plus optional comma-list `OPS_BACKUP_EMAIL`. Failures never fail the audit.
+- **Download:** `/erp/night-audit` → **Download hotel backup**, or `GET /api/erp/night-audit/continuity?date=YYYY-MM-DD` (money desk).
+- **Habit:** save the nightly email to phone/USB. Treat as confidential owner/ops.
+- **Import:** `pack_version = 1` in `_meta` is the future clean-state import contract; **importer not shipped yet**.
+
 ## Payments / webhooks
 
 - Webhook: `/api/payments/webhook` — rate limited; HMAC when merchant credentials exist.

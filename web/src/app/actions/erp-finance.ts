@@ -30,6 +30,7 @@ const EXPENSE_CATEGORIES = new Set([
   "marketing",
   "tax",
   "bank_fee",
+  "rent",
   "other",
 ]);
 const PAY_METHODS = new Set(["cash", "bank", "card"]);
@@ -86,6 +87,25 @@ export async function createExpense(
       ...periodGuardFromForm(formData, pid),
     });
 
+    const vendorId = optionalTrim(formData.get("vendor_id"));
+    let vendorName = optionalTrim(formData.get("vendor"));
+    let vendorTpn = optionalTrim(formData.get("tpn"));
+    if (vendorId) {
+      const { data: vendor } = await admin
+        .from("accounting_vendors")
+        .select("name, tax_id")
+        .eq("id", vendorId)
+        .eq("property_id", pid)
+        .maybeSingle();
+      if (vendor) {
+        vendorName = vendor.name as string;
+        vendorTpn = (vendor.tax_id as string | null) ?? vendorTpn;
+      }
+    }
+
+    const leasePeriodMonth = optionalTrim(formData.get("lease_period_month"));
+    const leaseLandlord = optionalTrim(formData.get("lease_landlord"));
+
     const { data: expense, error } = await admin
       .from("expenses")
       .insert({
@@ -95,10 +115,14 @@ export async function createExpense(
         amount_btn: amountBtn,
         gst_btn: gstBtn,
         expense_date: expenseDate,
-        vendor: optionalTrim(formData.get("vendor")),
+        vendor: vendorName,
+        vendor_id: vendorId,
+        tpn: vendorTpn,
         payment_method: paymentMethod,
         reference: optionalTrim(formData.get("reference")),
         notes: optionalTrim(formData.get("notes")),
+        lease_period_month: leasePeriodMonth || null,
+        lease_landlord: leaseLandlord || null,
       })
       .select("id")
       .single();
@@ -665,6 +689,108 @@ export async function autoMatchBankTxns(
           ? "No confident auto-matches (need amount + date ±3d, preferably reference)."
           : `Auto-matched ${matched} transaction${matched === 1 ? "" : "s"}.`,
     };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+export async function createVendor(
+  _prev: ErpFinanceState,
+  formData: FormData,
+): Promise<ErpFinanceState> {
+  try {
+    await requireMoneyDesk();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const name = trimRequired(formData.get("name"), "Vendor name");
+    const taxId = optionalTrim(formData.get("tax_id"));
+    const phone = optionalTrim(formData.get("phone"));
+    const email = optionalTrim(formData.get("email"));
+    const notes = optionalTrim(formData.get("notes"));
+
+    const { error } = await admin.from("accounting_vendors").insert({
+      property_id: pid,
+      name,
+      tax_id: taxId,
+      phone,
+      email,
+      notes,
+    });
+    if (error) throw new Error(error.message);
+
+    revalidateFinance();
+    revalidatePath("/erp/finance/vendors");
+    return { ok: true, message: `Vendor ${name} saved.` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+export async function saveGstReturnPack(
+  _prev: ErpFinanceState,
+  formData: FormData,
+): Promise<ErpFinanceState> {
+  try {
+    await requireMoneyDesk();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const periodMonth = trimRequired(formData.get("period_month"), "Month");
+    const fieldA = roundBtn(Number(formData.get("field_a") ?? 0));
+    const fieldB = roundBtn(Number(formData.get("field_b") ?? 0));
+    const fieldC = roundBtn(Number(formData.get("field_c") ?? 0));
+    const fieldD = roundBtn(Number(formData.get("field_d") ?? 0));
+    const fieldE = roundBtn(Number(formData.get("field_e") ?? 0));
+    const bankStatementId = optionalTrim(formData.get("bank_statement_id"));
+    const notes = optionalTrim(formData.get("notes"));
+
+    const { error } = await admin.from("gst_return_packs").upsert(
+      {
+        property_id: pid,
+        period_month: periodMonth,
+        field_a_taxable_sales: fieldA,
+        field_b_gst_output: fieldB,
+        field_c_taxable_purchases: fieldC,
+        field_d_gst_input: fieldD,
+        field_e_net_payable: fieldE,
+        bank_statement_id: bankStatementId,
+        notes,
+        status: "draft",
+      },
+      { onConflict: "property_id,period_month" },
+    );
+    if (error) throw new Error(error.message);
+
+    revalidatePath("/erp/finance/gst");
+    return { ok: true, message: "GST pack saved." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+export async function markGstReturnFiled(
+  _prev: ErpFinanceState,
+  formData: FormData,
+): Promise<ErpFinanceState> {
+  try {
+    await requireMoneyDesk();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const periodMonth = trimRequired(formData.get("period_month"), "Month");
+    const confirmationUrl = optionalTrim(formData.get("filed_confirmation_url"));
+
+    const { error } = await admin
+      .from("gst_return_packs")
+      .update({
+        status: "filed",
+        filed_at: new Date().toISOString(),
+        filed_confirmation_url: confirmationUrl,
+      })
+      .eq("property_id", pid)
+      .eq("period_month", periodMonth);
+    if (error) throw new Error(error.message);
+
+    revalidatePath("/erp/finance/gst");
+    return { ok: true, message: "Marked filed in BITS." };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
   }

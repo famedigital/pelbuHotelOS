@@ -77,11 +77,19 @@ type Props = {
   };
   invoiceDesign?: PropertyDocumentDesign;
   voucherDesign?: PropertyDocumentDesign;
+  mealPlans?: {
+    code: string;
+    name: string;
+    blurb: string | null;
+    amountPerAdultNight: number | null;
+  }[];
   defaults?: {
     checkIn?: string;
     checkOut?: string;
     roomUnitId?: string;
     qtyByCode?: Record<string, number>;
+    mealPlanCode?: string;
+    guestOrigin?: string;
   };
 };
 
@@ -91,6 +99,7 @@ export function FastBookForm({
   property,
   invoiceDesign,
   voucherDesign,
+  mealPlans = [],
   defaults,
 }: Props) {
   const [state, action, pending] = useActionState(createFastBooking, initial);
@@ -245,6 +254,9 @@ export function FastBookForm({
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         hasQty={hasQty}
+        mealPlans={mealPlans}
+        defaultMealPlanCode={defaults?.mealPlanCode ?? "EP"}
+        defaultGuestOrigin={defaults?.guestOrigin ?? "regional"}
       />
     </form>
   );

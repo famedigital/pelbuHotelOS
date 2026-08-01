@@ -3,6 +3,7 @@ import { reverseJournal } from "@/lib/accounting/journals";
 import { postPayment } from "@/lib/accounting/posting";
 import type { PeriodGuardOptions } from "@/lib/accounting/period-guard";
 import { assertOpenPeriodForDate } from "@/lib/accounting/period-guard";
+import { skipsLedgerUntilConfirmed } from "@/lib/payments/bank-proof-flow";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
@@ -20,6 +21,9 @@ export type FolioPaymentInput = {
   folio_line_source?: "payment" | "deposit" | null;
   idempotency_key?: string | null;
   period_guard?: PeriodGuardOptions;
+  /** Bank QR / NEFT proof awaiting desk confirmation — skips folio line + GL until confirmed. */
+  confirmation_status?: "confirmed" | "pending_bank";
+  proof_url?: string | null;
 };
 
 export type FolioPaymentResult = {
@@ -46,6 +50,7 @@ export async function postFolioPaymentRecord(
     ...input.period_guard,
   });
 
+  const pendingBank = input.confirmation_status === "pending_bank";
   const row: Record<string, unknown> = {
     property_id: input.property_id,
     folio_id: input.folio_id ?? null,
@@ -55,6 +60,9 @@ export async function postFolioPaymentRecord(
     amount_btn: amountBtn,
     reference: input.reference ?? null,
     notes: input.notes ?? null,
+    confirmation_status: pendingBank ? "pending_bank" : "confirmed",
+    proof_url: input.proof_url ?? null,
+    proof_submitted_at: pendingBank ? new Date().toISOString() : null,
   };
   if (input.idempotency_key) {
     row.idempotency_key = input.idempotency_key;
@@ -89,6 +97,10 @@ export async function postFolioPaymentRecord(
 
   const paymentId = payment.id as string;
   const lineSource = input.folio_line_source ?? null;
+
+  if (skipsLedgerUntilConfirmed(input.confirmation_status)) {
+    return { ok: true, paymentId };
+  }
 
   if (input.folio_id && lineSource) {
     const { error: lineError } = await admin.from("folio_lines").insert({

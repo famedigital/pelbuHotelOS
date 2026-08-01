@@ -106,6 +106,7 @@ export const ERP_MODULES: ErpModule[] = [
         href: "/erp/housekeeping",
         icon: SparklesIcon,
       },
+      { title: "Lost & found", href: "/erp/lost-found", icon: ClipboardListIcon },
       { title: "Maintenance", href: "/erp/maintenance", icon: WrenchIcon },
       { title: "Laundry", href: "/erp/laundry", icon: ShirtIcon },
     ],
@@ -121,6 +122,12 @@ export const ERP_MODULES: ErpModule[] = [
       {
         title: "Recipe cost",
         href: "/erp/pos/recipe-cost",
+        icon: ReceiptTextIcon,
+      },
+      { title: "Kitchen board", href: "/erp/kitchen", icon: SoupIcon },
+      {
+        title: "Food cost",
+        href: "/erp/kitchen/food-cost",
         icon: ReceiptTextIcon,
       },
       { title: "Kitchen TV", href: "/erp/kds", icon: MonitorIcon },
@@ -139,6 +146,11 @@ export const ERP_MODULES: ErpModule[] = [
       { title: "GST", href: "/erp/gst", icon: ScrollTextIcon },
       { title: "Finance", href: "/erp/finance", icon: WalletIcon },
       { title: "Reports", href: "/erp/reports", icon: ScrollTextIcon },
+      {
+        title: "Owner performance",
+        href: "/erp/reports/performance",
+        icon: ScrollTextIcon,
+      },
     ],
   },
   {
@@ -170,6 +182,12 @@ export const ERP_MODULES: ErpModule[] = [
       { title: "Leave", href: "/erp/hr/leave", icon: ScrollTextIcon },
       { title: "Payroll", href: "/erp/hr/payroll", icon: WalletIcon },
       { title: "Stock", href: "/erp/inventory", icon: ShoppingCartIcon },
+      { title: "Audits", href: "/erp/inventory/audits", icon: ClipboardListIcon },
+      {
+        title: "Purchase orders",
+        href: "/erp/inventory/purchase-orders",
+        icon: ReceiptTextIcon,
+      },
     ],
   },
   {
@@ -191,6 +209,7 @@ export const ERP_MODULES: ErpModule[] = [
         icon: SmartphoneIcon,
       },
       { title: "Add hotel", href: "/erp/properties/new", icon: HotelIcon },
+      { title: "Training", href: "/erp/training", icon: ScrollTextIcon },
     ],
   },
 ];
@@ -208,6 +227,7 @@ export const ERP_QUICK_ACTIONS: ErpNavLeaf[] = [
   { title: "POS register", href: "/erp/pos", icon: ShoppingCartIcon },
   { title: "Night audit", href: "/erp/night-audit", icon: ScrollTextIcon },
   { title: "Settings", href: "/erp/settings", icon: SettingsIcon },
+  { title: "Training", href: "/erp/training", icon: ScrollTextIcon },
 ];
 
 export function isNavActive(

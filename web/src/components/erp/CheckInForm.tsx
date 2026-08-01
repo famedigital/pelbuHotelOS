@@ -28,6 +28,7 @@ import {
   sdfRequired,
   type GuestOrigin,
 } from "@/lib/checkin-rules";
+import { countryComboboxOptions, nationalityRequired } from "@/lib/countries";
 import { cloudinaryOriginalUrl, cloudinaryUrl } from "@/lib/cloudinary";
 import { formatBtn } from "@/lib/pricing";
 import type {
@@ -194,6 +195,8 @@ export function CheckInForm({
     (r) => r.inventory_kind === "driver_comp" && r.qty > 0,
   );
   const guestCount = Math.max(1, booking.adults || booking.booking_guests.length || 1);
+
+  const countryOptions = useMemo(() => countryComboboxOptions(), []);
 
   const [guidePick, setGuidePick] = useState<PartnerOption | null>(
     booking.guide_id
@@ -525,16 +528,24 @@ export function CheckInForm({
                 <div className="min-w-0 space-y-1.5 xl:space-y-0">
                   <Label className={CELL_LABEL} htmlFor={`guest_nat_${index}`}>
                     Nationality
+                    {nationalityRequired(origin) ? (
+                      <span className="text-destructive"> *</span>
+                    ) : null}
                   </Label>
-                  <Input
-                    id={`guest_nat_${index}`}
+                  <Combobox
+                    options={countryOptions}
+                    value={guest.nationality || null}
+                    onValueChange={(value) =>
+                      updateGuest(index, { nationality: value })
+                    }
+                    placeholder="Select country…"
+                    searchPlaceholder="Search countries…"
+                    className={CELL_INPUT}
+                  />
+                  <input
+                    type="hidden"
                     name="guest_nationality"
                     value={guest.nationality}
-                    onKeyDown={blockEnterSubmit}
-                    onChange={(e) =>
-                      updateGuest(index, { nationality: e.target.value })
-                    }
-                    className={CELL_INPUT}
                   />
                 </div>
 

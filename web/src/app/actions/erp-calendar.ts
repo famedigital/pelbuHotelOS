@@ -9,6 +9,10 @@ import {
   applyDiscountPct,
   resolvePartnerDiscountByIds,
 } from "@/lib/partners/discount";
+import {
+  computeMealStayTotalBtn,
+  resolveMealPlanForBook,
+} from "@/lib/meal-plans";
 import { roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import {
@@ -271,6 +275,33 @@ function parseCommon(formData: FormData): CommonFields {
   };
 }
 
+async function resolveMealFromForm(
+  admin: ReturnType<typeof createSupabaseAdminClient>,
+  propertyId: string,
+  formData: FormData,
+  adults: number,
+  checkIn: string,
+  checkOut: string,
+) {
+  const mealPlanCodeRaw = trimRequired(formData.get("meal_plan_code"), "Meal plan");
+  const mealResolved = await resolveMealPlanForBook(
+    admin,
+    propertyId,
+    mealPlanCodeRaw,
+  );
+  const nights = nightsBetween(checkIn, checkOut);
+  const mealPlanAmountBtn =
+    computeMealStayTotalBtn(
+      mealResolved.amountPerAdultNight,
+      adults,
+      nights,
+    ) ?? 0;
+  return {
+    mealPlanCode: mealResolved.code,
+    mealPlanAmountBtn,
+  };
+}
+
 /** Single selected room → one confirmed booking assigned to that unit. */
 export async function createCalendarReservation(
   _prev: CalendarBookState,
@@ -288,6 +319,14 @@ export async function createCalendarReservation(
 
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
+    const meal = await resolveMealFromForm(
+      admin,
+      propertyId,
+      formData,
+      common.adults,
+      common.checkIn,
+      common.checkOut,
+    );
     const [unit] = await loadFreeUnits(
       admin,
       propertyId,
@@ -317,6 +356,8 @@ export async function createCalendarReservation(
         guest_origin: common.guestOrigin,
         payment_mode: common.paymentMode,
         notes: common.notes,
+        meal_plan_code: meal.mealPlanCode,
+        meal_plan_amount_btn: meal.mealPlanAmountBtn,
       })
       .select("id")
       .single();
@@ -453,6 +494,14 @@ export async function createCalendarGroupReservation(
     }
 
     const propertyId = await resolveActivePropertyId(admin);
+    const meal = await resolveMealFromForm(
+      admin,
+      propertyId,
+      formData,
+      common.adults,
+      common.checkIn,
+      common.checkOut,
+    );
     const units = await loadFreeUnits(
       admin,
       propertyId,
@@ -501,6 +550,8 @@ export async function createCalendarGroupReservation(
           guest_origin: common.guestOrigin,
           payment_mode: common.paymentMode,
           notes: `${groupName} · ${unit.label}${common.notes ? ` · ${common.notes}` : ""}`,
+          meal_plan_code: meal.mealPlanCode,
+          meal_plan_amount_btn: meal.mealPlanAmountBtn,
         })
         .select("id")
         .single();

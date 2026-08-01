@@ -1,6 +1,7 @@
 import "server-only";
 import { writeAuditEvent } from "@/lib/audit";
 import { postRoomNightsForDate } from "@/lib/folio/room-night";
+import { deliverHotelBackupPack } from "@/lib/night-audit/deliver-hotel-backup";
 import { roundBtn } from "@/lib/pricing";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -23,6 +24,13 @@ export type ExecuteNightAuditResult = {
   /** Close-day issues recorded even when cron completes (desk may hard-block). */
   blockers: string[];
   forceClose: boolean;
+  hotelBackup?: {
+    ok: boolean;
+    emailed: boolean;
+    storagePath?: string;
+    filename?: string;
+    error?: string;
+  };
 };
 
 export type ExecuteNightAuditOptions = {
@@ -295,6 +303,37 @@ export async function executeNightAudit(
     meta: summary,
   });
 
+  // Best-effort Excel hotel backup — never fails the audit.
+  const hotelBackup = await deliverHotelBackupPack(admin, propertyId, date, {
+    auditId: audit.id as string,
+    roomsOccupied,
+    roomsComp,
+    posted: roomNightResult.posted,
+    skipped: roomNightResult.skipped,
+    openFolios: (openFolios ?? []).length,
+    folioChargesBtn: roundBtn(charges),
+    folioPaymentsBtn: roundBtn(payments),
+    noShows,
+    blockers,
+    runBy: opts.runBy,
+    notes: opts.notes ?? null,
+    forceClose,
+  });
+
+  const hotel_backup = {
+    ok: hotelBackup.ok,
+    emailed: hotelBackup.emailed,
+    storage_path: hotelBackup.storagePath ?? null,
+    filename: hotelBackup.filename ?? null,
+    error: hotelBackup.error ?? null,
+  };
+  await admin
+    .from("night_audits")
+    .update({
+      summary: { ...summary, hotel_backup, continuity_pack: hotel_backup },
+    })
+    .eq("id", audit.id as string);
+
   return {
     ok: true,
     auditId: audit.id as string,
@@ -309,5 +348,12 @@ export async function executeNightAudit(
     roomNightErrors: roomNightResult.errors,
     blockers,
     forceClose,
+    hotelBackup: {
+      ok: hotelBackup.ok,
+      emailed: hotelBackup.emailed,
+      storagePath: hotelBackup.storagePath,
+      filename: hotelBackup.filename,
+      error: hotelBackup.error,
+    },
   };
 }

@@ -51,12 +51,14 @@ export default async function CalendarPage({ searchParams }: Props) {
     { data: bookingRows },
     { data: blockRows },
     { data: allotmentRows },
+    { data: mealPlanRows },
+    { data: propertyDefaults },
   ] =
     await Promise.all([
       admin
         .from("room_units")
         .select(
-          "id, label, floor_label, view_label, has_balcony, sort_order, room_type_id, hk_status, connecting_room_unit_id, room_types!inner(code, name, inventory_kind)",
+          "id, label, floor_label, view_label, has_balcony, sort_order, room_type_id, hk_status, service_requested_at, connecting_room_unit_id, room_types!inner(code, name, inventory_kind)",
         )
         .eq("property_id", propertyId)
         .eq("room_types.inventory_kind", "sellable_guest")
@@ -119,6 +121,17 @@ export default async function CalendarPage({ searchParams }: Props) {
         .lte("valid_from", endExclusive)
         .gte("valid_to", start)
         .limit(200),
+      admin
+        .from("meal_plans")
+        .select("code, name")
+        .eq("property_id", propertyId)
+        .eq("is_active", true)
+        .order("sort_order"),
+      admin
+        .from("properties")
+        .select("default_meal_plan_code")
+        .eq("id", propertyId)
+        .maybeSingle(),
     ]);
 
   const units: RackUnit[] = (unitRows ?? [])
@@ -139,6 +152,7 @@ export default async function CalendarPage({ searchParams }: Props) {
       room_type_code: (type?.code as string) ?? "",
       room_type_name: (type?.name as string) ?? "Room",
       hk_status: (u.hk_status as string | null) ?? null,
+      service_requested_at: (u.service_requested_at as string | null) ?? null,
       connecting_room_unit_id:
         (u.connecting_room_unit_id as string | null) ?? null,
       connecting_room_label: null as string | null,
@@ -389,6 +403,13 @@ export default async function CalendarPage({ searchParams }: Props) {
         blocks={blocks}
         allotments={allotments}
         propertyId={propertyId}
+        mealPlans={(mealPlanRows ?? []).map((m) => ({
+          code: m.code as string,
+          name: m.name as string,
+        }))}
+        defaultMealPlanCode={
+          (propertyDefaults?.default_meal_plan_code as string | undefined) ?? "EP"
+        }
       />
     </div>
   );

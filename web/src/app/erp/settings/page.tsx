@@ -12,6 +12,11 @@ import {
 } from "@/app/actions/erp-settings";
 import { PropertyWizardForm } from "@/components/erp/PropertyWizardForms";
 import { DeskPageTitle } from "@/components/erp/DeskShell";
+import { SettingsCommercialPanel } from "@/components/erp/SettingsCommercialPanel";
+import {
+  SettingsPoliciesPanel,
+  type PolicySettingsData,
+} from "@/components/erp/SettingsPoliciesPanel";
 import { FastBookInvoice, type FastBookInvoiceData } from "@/components/erp/FastBookInvoice";
 import { FastBookVoucher, type FastBookVoucherData } from "@/components/erp/FastBookVoucher";
 import { LogoUploadForm } from "@/components/erp/LogoUploadForm";
@@ -22,13 +27,23 @@ import {
   type RoomUnitRow,
   type RoomsView,
 } from "@/components/erp/RoomSettingsPanel";
+import {
+  SettingsAmenityParsPanel,
+  type AmenityParRow,
+} from "@/components/erp/SettingsAmenityParsPanel";
+import { SettingsDangerZonePanel } from "@/components/erp/SettingsDangerZonePanel";
+import {
+  SettingsCompliancePanel,
+  type ComplianceCategoryRow,
+  type ComplianceDocumentRow,
+} from "@/components/erp/SettingsCompliancePanel";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { getDeskRole, isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/erp-lists";
 import { loadProperty } from "@/lib/property-context";
 import { rateToPercent, type PropertyDocumentDesign } from "@/lib/property-settings";
@@ -81,7 +96,9 @@ export default async function ErpSettingsPage() {
 
   const admin = createSupabaseAdminClient();
   const propertyId = await requireDeskPropertyId();
-  const [property, tenant, roomTypesResult, roomUnitsResult] = await Promise.all([
+  const deskRole = await getDeskRole();
+  const isOwner = deskRole === "owner";
+  const [property, tenant, roomTypesResult, roomUnitsResult, mealPlansResult, policyResult, damageResult, amenityParsResult] = await Promise.all([
     loadProperty(admin, propertyId),
     loadTenantForProperty(admin, propertyId),
     admin
@@ -95,6 +112,29 @@ export default async function ErpSettingsPage() {
       .eq("property_id", propertyId)
       .order("sort_order")
       .order("label"),
+    admin
+      .from("meal_plans")
+      .select("code, name, blurb, amount_btn_per_adult_night, is_active, sort_order")
+      .eq("property_id", propertyId)
+      .order("sort_order"),
+    admin
+      .from("property_policies")
+      .select("*")
+      .eq("property_id", propertyId)
+      .maybeSingle(),
+    admin
+      .from("property_damage_items")
+      .select("id, code, label, amount_btn, is_active, sort_order")
+      .eq("property_id", propertyId)
+      .order("sort_order"),
+    admin
+      .from("room_amenity_pars")
+      .select(
+        `id, par_qty, sort_order, is_active,
+         inventory_items(sku, name, unit, qty_on_hand, reorder_level, unit_cost_btn)`,
+      )
+      .eq("property_id", propertyId)
+      .order("sort_order"),
   ]);
 
   if (!property) notFound();
@@ -124,10 +164,167 @@ export default async function ErpSettingsPage() {
     { sellable: 0, guide: 0, driver: 0 },
   );
 
+  const amenityPars: AmenityParRow[] = (amenityParsResult.data ?? [])
+    .map((row) => {
+      const item = row.inventory_items as
+        | {
+            sku?: string;
+            name?: string;
+            unit?: string;
+            qty_on_hand?: number;
+            reorder_level?: number;
+            unit_cost_btn?: number;
+          }
+        | {
+            sku?: string;
+            name?: string;
+            unit?: string;
+            qty_on_hand?: number;
+            reorder_level?: number;
+            unit_cost_btn?: number;
+          }[]
+        | null;
+      const inv = Array.isArray(item) ? item[0] : item;
+      if (!inv?.sku) return null;
+      return {
+        id: row.id as string,
+        par_qty: Number(row.par_qty),
+        sort_order: Number(row.sort_order),
+        is_active: Boolean(row.is_active),
+        sku: inv.sku,
+        name: inv.name ?? inv.sku,
+        unit: inv.unit ?? "ea",
+        qty_on_hand: Number(inv.qty_on_hand ?? 0),
+        reorder_level: Number(inv.reorder_level ?? 0),
+        unit_cost_btn: Number(inv.unit_cost_btn ?? 0),
+      };
+    })
+    .filter((row): row is AmenityParRow => row != null);
+
   const roomsView: RoomsView =
     (await cookies()).get(ROOMS_VIEW_COOKIE)?.value === "cards"
       ? "cards"
       : "table";
+
+  const { data: defaultMealRow } = await admin
+    .from("properties")
+    .select("default_meal_plan_code")
+    .eq("id", propertyId)
+    .maybeSingle();
+
+  const mealPlans = (mealPlansResult.data ?? []).map((row) => ({
+    code: row.code as string,
+    name: row.name as string,
+    blurb: (row.blurb as string | null) ?? null,
+    amount_btn_per_adult_night:
+      row.amount_btn_per_adult_night == null
+        ? null
+        : Number(row.amount_btn_per_adult_night),
+    is_active: Boolean(row.is_active),
+    sort_order: Number(row.sort_order ?? 0),
+  }));
+
+  const policy: PolicySettingsData = policyResult.data
+    ? {
+        free_cancel_days: Number(policyResult.data.free_cancel_days ?? 3),
+        late_cancel_forfeit_deposit: Boolean(
+          policyResult.data.late_cancel_forfeit_deposit,
+        ),
+        no_show_nights: Number(policyResult.data.no_show_nights ?? 1),
+        mou_free_cancel: Boolean(policyResult.data.mou_free_cancel),
+        mou_waive_no_show: Boolean(policyResult.data.mou_waive_no_show),
+        guest_summary: (policyResult.data.guest_summary as string | null) ?? null,
+        house_rules: (policyResult.data.house_rules as string | null) ?? null,
+        dos: (policyResult.data.dos as string | null) ?? null,
+        donts: (policyResult.data.donts as string | null) ?? null,
+        wifi_name: (policyResult.data.wifi_name as string | null) ?? null,
+        wifi_password: (policyResult.data.wifi_password as string | null) ?? null,
+        check_in_time: (policyResult.data.check_in_time as string | null) ?? null,
+        check_out_time: (policyResult.data.check_out_time as string | null) ?? null,
+        quiet_hours: (policyResult.data.quiet_hours as string | null) ?? null,
+      }
+    : {
+        free_cancel_days: 3,
+        late_cancel_forfeit_deposit: true,
+        no_show_nights: 1,
+        mou_free_cancel: true,
+        mou_waive_no_show: true,
+        guest_summary: null,
+        house_rules: null,
+        dos: null,
+        donts: null,
+        wifi_name: null,
+        wifi_password: null,
+        check_in_time: null,
+        check_out_time: null,
+        quiet_hours: null,
+      };
+
+  const damageItems = (damageResult.data ?? []).map((row) => ({
+    id: row.id as string,
+    code: row.code as string,
+    label: row.label as string,
+    amount_btn: row.amount_btn == null ? null : Number(row.amount_btn),
+    is_active: Boolean(row.is_active),
+  }));
+
+  const [{ data: complianceCategoriesRaw }, { data: complianceDocsRaw }] =
+    await Promise.all([
+      admin
+        .from("property_compliance_categories")
+        .select("id, code, name, description, sort_order")
+        .eq("property_id", propertyId)
+        .order("sort_order"),
+      admin
+        .from("property_compliance_documents")
+        .select(
+          `id, category_id, title, file_name, storage_path, uploaded_at, valid_until,
+           lease_agreement_ref, deposit_slip_ref, handover_inventory_ref,
+           property_compliance_categories(name, code)`,
+        )
+        .eq("property_id", propertyId)
+        .order("uploaded_at", { ascending: false })
+        .limit(100),
+    ]);
+
+  const docCountByCategory = new Map<string, number>();
+  for (const doc of complianceDocsRaw ?? []) {
+    const cid = doc.category_id as string;
+    docCountByCategory.set(cid, (docCountByCategory.get(cid) ?? 0) + 1);
+  }
+
+  const complianceCategories: ComplianceCategoryRow[] = (
+    complianceCategoriesRaw ?? []
+  ).map((c) => ({
+    id: c.id as string,
+    code: c.code as string,
+    name: c.name as string,
+    description: (c.description as string | null) ?? null,
+    documentCount: docCountByCategory.get(c.id as string) ?? 0,
+  }));
+
+  const complianceDocuments: ComplianceDocumentRow[] = (
+    complianceDocsRaw ?? []
+  ).map((d) => {
+    const cat = d.property_compliance_categories as {
+      name?: string;
+      code?: string;
+    } | null;
+    return {
+      id: d.id as string,
+      categoryId: d.category_id as string,
+      categoryName: cat?.name ?? "Category",
+      categoryCode: cat?.code ?? "other",
+      title: d.title as string,
+      fileName: d.file_name as string,
+      storagePath: d.storage_path as string,
+      uploadedAt: d.uploaded_at as string,
+      validUntil: (d.valid_until as string | null) ?? null,
+      leaseAgreementRef: (d.lease_agreement_ref as string | null) ?? null,
+      depositSlipRef: (d.deposit_slip_ref as string | null) ?? null,
+      handoverInventoryRef: (d.handover_inventory_ref as string | null) ?? null,
+    };
+  });
 
   return (
     <div className="erp space-y-8 p-4 md:p-6">
@@ -156,10 +353,18 @@ export default async function ErpSettingsPage() {
       <Tabs defaultValue="identity" className="space-y-6">
         <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="identity">Identity</TabsTrigger>
+          <TabsTrigger value="commercial">Rates &amp; meals</TabsTrigger>
+          <TabsTrigger value="policies">Policies</TabsTrigger>
           <TabsTrigger value="tax">Tax & service</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="rooms">Rooms</TabsTrigger>
+          <TabsTrigger value="compliance">Compliance</TabsTrigger>
           <TabsTrigger value="finance-imports">Finance imports</TabsTrigger>
+          {isOwner ? (
+            <TabsTrigger value="danger" className="text-destructive data-[state=active]:text-destructive">
+              Danger zone
+            </TabsTrigger>
+          ) : null}
         </TabsList>
 
         <TabsContent value="identity" className="space-y-6">
@@ -463,6 +668,25 @@ export default async function ErpSettingsPage() {
             ) : null}
           </section>
         </TabsContent>
+
+        <TabsContent value="commercial" className="space-y-6">
+          <SettingsCommercialPanel
+            propertyId={property.id}
+            defaultMealPlanCode={
+              (defaultMealRow?.default_meal_plan_code as string | undefined) ?? "EP"
+            }
+            mealPlans={mealPlans}
+          />
+        </TabsContent>
+
+        <TabsContent value="policies" className="space-y-6">
+          <SettingsPoliciesPanel
+            propertyId={property.id}
+            policy={policy}
+            damageItems={damageItems}
+          />
+        </TabsContent>
+
         <TabsContent value="tax" className="space-y-6">
           <section className="rounded-xl border bg-card p-5 md:p-6">
             <div className="mb-5 space-y-1">
@@ -703,11 +927,20 @@ export default async function ErpSettingsPage() {
             </PropertyWizardForm>
           </section>
 
+          <SettingsAmenityParsPanel rows={amenityPars} />
+
           <RoomSettingsPanel
             propertyId={property.id}
             roomTypes={roomTypes}
             units={roomUnits}
             initialView={roomsView}
+          />
+        </TabsContent>
+
+        <TabsContent value="compliance" className="space-y-6">
+          <SettingsCompliancePanel
+            categories={complianceCategories}
+            documents={complianceDocuments}
           />
         </TabsContent>
 
@@ -730,6 +963,12 @@ export default async function ErpSettingsPage() {
             <FinanceImportsSettings />
           </section>
         </TabsContent>
+
+        {isOwner ? (
+          <TabsContent value="danger" className="space-y-6">
+            <SettingsDangerZonePanel propertyId={property.id} confirmPhrase="WIPE" />
+          </TabsContent>
+        ) : null}
       </Tabs>
     </div>
   );

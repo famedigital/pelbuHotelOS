@@ -1,12 +1,13 @@
 import {
   ExportButtons,
-  FinanceKpi,
   FinanceShell,
 } from "@/components/erp/finance/FinanceShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { buildGstReport } from "@/lib/accounting/reports";
+import { GstBitsPackPanel } from "@/components/erp/finance/GstBitsPackPanel";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { buildBitsGstPack } from "@/lib/gst/bits-pack";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { formatBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
@@ -19,23 +20,51 @@ export const metadata: Metadata = {
 };
 export const dynamic = "force-dynamic";
 
-function monthStart() {
+function defaultYm() {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-export default async function FinanceGstPage() {
+export default async function FinanceGstPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string }>;
+}) {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
+  const { month } = await searchParams;
+  const ym = month && /^\d{4}-\d{2}$/.test(month) ? month : defaultYm();
+
   const admin = createSupabaseAdminClient();
   const propertyId = await resolveActivePropertyId(admin);
-  const from = monthStart();
-  const to = new Date().toISOString().slice(0, 10);
-  const gst = await buildGstReport(admin, propertyId, from, to);
+  const pack = await buildBitsGstPack(admin, propertyId, ym);
+
+  const [{ data: saved }, { data: statements }] = await Promise.all([
+    admin
+      .from("gst_return_packs")
+      .select("status, bank_statement_id, filed_at")
+      .eq("property_id", propertyId)
+      .eq("period_month", pack.periodMonth)
+      .maybeSingle(),
+    admin
+      .from("bank_statements")
+      .select("id, bank_code, period_start, period_end, source_filename")
+      .eq("property_id", propertyId)
+      .order("created_at", { ascending: false })
+      .limit(20),
+  ]);
+
+  const bankStatements = (statements ?? []).map((s) => ({
+    id: s.id as string,
+    label: `${(s.bank_code as string).toUpperCase()} · ${s.period_start ?? "?"} – ${s.period_end ?? "?"} · ${s.source_filename ?? "import"}`,
+  }));
+
+  const from = pack.periodMonth;
+  const to = ym === defaultYm() ? new Date().toISOString().slice(0, 10) : pack.periodMonth;
 
   return (
     <FinanceShell
-      title="GST returns"
-      description="Output tax from sales, input credit from expenses, and net payable for the month."
+      title="GST / BITS month pack"
+      description="Portal fields A–E from folio sales and expense input. Copy into BITS, attach bank stmt, mark filed."
       actions={
         <>
           <ExportButtons report="gst" from={from} to={to} />
@@ -43,65 +72,28 @@ export default async function FinanceGstPage() {
             href="/erp/gst"
             className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
           >
-            Classic GST page
+            Classic view
           </Link>
         </>
       }
     >
-      <div className="grid gap-3 sm:grid-cols-3">
-        <FinanceKpi label="GST output" value={formatBtn(gst.output)} />
-        <FinanceKpi label="GST input" value={formatBtn(gst.input)} />
-        <FinanceKpi label="Net payable" value={formatBtn(gst.netPayable)} />
-      </div>
+      <form className="flex flex-wrap items-end gap-2" action="/erp/finance/gst" method="get">
+        <div className="space-y-1.5">
+          <Label htmlFor="month" className="text-xs text-muted-foreground">
+            Month
+          </Label>
+          <Input id="month" type="month" name="month" defaultValue={ym} className="h-10 w-44" />
+        </div>
+        <Button type="submit" variant="outline" className="h-10">
+          Apply
+        </Button>
+      </form>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Output detail</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {gst.outputRows.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No GST output posted in the ledger this month.
-              </p>
-            ) : (
-              <ul className="divide-y text-sm">
-                {gst.outputRows.map((row, i) => (
-                  <li key={`${row.accountId}-${i}`} className="flex justify-between py-2">
-                    <span>
-                      {row.code} · {row.name}
-                    </span>
-                    <span className="tabular-nums">{formatBtn(row.amount)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Input detail</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {gst.inputRows.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No GST input posted in the ledger this month.
-              </p>
-            ) : (
-              <ul className="divide-y text-sm">
-                {gst.inputRows.map((row, i) => (
-                  <li key={`${row.accountId}-${i}`} className="flex justify-between py-2">
-                    <span>
-                      {row.code} · {row.name}
-                    </span>
-                    <span className="tabular-nums">{formatBtn(row.amount)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <GstBitsPackPanel
+        pack={pack}
+        savedStatus={(saved?.status as string | null) ?? null}
+        bankStatements={bankStatements}
+      />
     </FinanceShell>
   );
 }

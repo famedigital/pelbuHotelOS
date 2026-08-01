@@ -1,6 +1,5 @@
-import { RoomHkButtons } from "@/components/erp/OpsForms";
+import { RoomsBoard, type RoomBoardUnit } from "@/components/erp/RoomsBoard";
 import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
-import { Card, CardContent } from "@/components/ui/card";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -25,7 +24,7 @@ export default async function ErpRoomsPage() {
   const { data: units } = await admin
     .from("room_units")
     .select(
-      "id, label, hk_status, floor_label, notes, updated_at, room_types(code, name, inventory_kind)",
+      "id, label, hk_status, floor_label, notes, updated_at, service_requested_at, room_types(code, name, inventory_kind)",
     )
     .eq("property_id", propertyId)
     .order("label")
@@ -40,6 +39,25 @@ export default async function ErpRoomsPage() {
     counts[st] = (counts[st] ?? 0) + 1;
   }
 
+  const boardUnits: RoomBoardUnit[] = (units ?? []).map((u) => {
+    const rt = u.room_types as {
+      code?: string;
+      name?: string;
+      inventory_kind?: string;
+    } | null;
+    const kind = rt?.inventory_kind ?? "";
+    return {
+      id: u.id as string,
+      label: u.label as string,
+      hk_status: u.hk_status as string,
+      floor_label: (u.floor_label as string | null) ?? null,
+      notes: (u.notes as string | null) ?? null,
+      room_type_name: rt?.name ?? rt?.code ?? "Room",
+      is_comp: kind === "guide_comp" || kind === "driver_comp",
+      service_requested_at: (u.service_requested_at as string | null) ?? null,
+    };
+  });
+
   return (
     <div className="erp mx-auto w-full max-w-[1200px] space-y-10 p-4 md:p-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -51,8 +69,8 @@ export default async function ErpRoomsPage() {
             Housekeeping board
           </h1>
           <p className="max-w-prose text-sm text-muted-foreground">
-            Physical units from room inventory — guest vs guide/driver stay
-            separate for ADR. Checkout marks rooms dirty automatically.
+            Toggle table or cards · multi-select bulk Request service. Checkout
+            marks rooms dirty automatically.
           </p>
         </div>
         <FrontDeskLiveRefresh />
@@ -74,41 +92,9 @@ export default async function ErpRoomsPage() {
         </div>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {(units ?? []).map((u) => {
-          const rt = u.room_types as {
-            code?: string;
-            name?: string;
-            inventory_kind?: string;
-          } | null;
-          const kind = rt?.inventory_kind ?? "";
-          const isComp = kind === "guide_comp" || kind === "driver_comp";
-          return (
-            <Card key={u.id as string}>
-              <CardContent className="space-y-2">
-                <div className="flex items-baseline justify-between gap-2">
-                  <h3 className="font-mono text-sm font-medium text-foreground">
-                    {u.label as string}
-                  </h3>
-                  <span className="text-[10px] font-semibold tracking-[0.14em] text-accent uppercase">
-                    {u.hk_status as string}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {rt?.name ?? rt?.code ?? "Room"}
-                  {isComp ? " · comp" : ""}
-                </p>
-                <RoomHkButtons
-                  unitId={u.id as string}
-                  current={u.hk_status as string}
-                />
-              </CardContent>
-            </Card>
-          );
-        })}
-      </section>
+      <RoomsBoard units={boardUnits} />
 
-      {(units ?? []).length === 0 ? (
+      {boardUnits.length === 0 ? (
         <p className="text-sm text-muted-foreground">No room units seeded yet.</p>
       ) : null}
     </div>

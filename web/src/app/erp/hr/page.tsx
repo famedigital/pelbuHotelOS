@@ -1,3 +1,4 @@
+import { CopyForWhatsAppButton } from "@/components/erp/CopyForWhatsAppButton";
 import {
   StaffShiftForm,
   type StaffOption,
@@ -211,27 +212,27 @@ export default async function ErpHrPage() {
           </Card>
 
           <section className="grid gap-6 xl:grid-cols-[1.45fr_1fr]">
-            <Card>
+            <Card className="xl:col-span-2">
               <CardHeader>
-                <CardTitle>Add staff member</CardTitle>
+                <CardTitle>Add staff</CardTitle>
                 <CardDescription>
-                  Employee code is the permanent import and future staff-login
+                  Single form or CSV sheet upload — employee code is the permanent
                   identifier.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <StaffCreateForm />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Bulk staff upload</CardTitle>
-                <CardDescription>
-                  Validate first, then create or update the complete CSV batch.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <StaffCsvImportForm />
+                <Tabs defaultValue="form" className="gap-4">
+                  <TabsList>
+                    <TabsTrigger value="form">Form</TabsTrigger>
+                    <TabsTrigger value="sheet">Sheet</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="form" className="mt-4">
+                    <StaffCreateForm />
+                  </TabsContent>
+                  <TabsContent value="sheet" className="mt-4">
+                    <StaffCsvImportForm />
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           </section>
@@ -324,7 +325,15 @@ export default async function ErpHrPage() {
                         {notice.requires_acknowledgement ? " · acknowledgement required" : ""}
                       </p>
                       {notice.status === "published" ? (
-                        <NoticeReminderButton announcementId={notice.id as string} />
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <NoticeReminderButton announcementId={notice.id as string} />
+                          <CopyForWhatsAppButton
+                            title={notice.title as string}
+                            body={notice.body as string}
+                            category={notice.category as string}
+                            priority={notice.priority as string}
+                          />
+                        </div>
                       ) : null}
                     </article>
                   );

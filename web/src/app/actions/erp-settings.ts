@@ -873,3 +873,251 @@ export async function deleteRoomUnit(formData: FormData): Promise<void> {
   revalidatePath("/erp/settings");
   revalidatePath("/erp/rooms");
 }
+
+export type CommercialSettingsState = {
+  ok: boolean;
+  error?: string;
+  message?: string;
+};
+
+function parseMealAmount(raw: FormDataEntryValue | null): number | null {
+  const text = String(raw ?? "").trim();
+  if (!text || text.toLowerCase() === "label") return null;
+  const num = Number(text);
+  if (!Number.isFinite(num) || num < 0) {
+    throw new Error("Meal amount must be blank (label-only) or a non-negative number.");
+  }
+  return num;
+}
+
+export async function updateCommercialSettings(
+  _prev: CommercialSettingsState,
+  formData: FormData,
+): Promise<CommercialSettingsState> {
+  try {
+    await requireDesk();
+    await requireDeskRole(["owner", "gm"]);
+    const admin = createSupabaseAdminClient();
+    const propertyId = trimRequired(formData.get("property_id"), "Property");
+    await assertDeskProperty(await resolveActivePropertyId(admin), propertyId, "Property");
+
+    const defaultMealPlan = trimRequired(
+      formData.get("default_meal_plan_code"),
+      "Default meal plan",
+    );
+    const codes = formData.getAll("meal_code") as string[];
+
+    for (const code of codes) {
+      const isActive = formData.get(`meal_active_${code}`) === "on";
+      const amount = parseMealAmount(formData.get(`meal_amount_${code}`));
+      const { error } = await admin
+        .from("meal_plans")
+        .update({
+          is_active: isActive,
+          amount_btn_per_adult_night: amount,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("property_id", propertyId)
+        .eq("code", code);
+      if (error) throw new Error(`Could not save meal plan ${code}.`);
+    }
+
+    const { error: propError } = await admin
+      .from("properties")
+      .update({ default_meal_plan_code: defaultMealPlan })
+      .eq("id", propertyId);
+    if (propError) throw new Error("Could not save default meal plan.");
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "property.settings.commercial",
+      entityType: "properties",
+      entityId: propertyId,
+      summary: "Updated rates & meals settings",
+    });
+
+    revalidatePath("/erp/settings");
+    revalidatePath("/erp/fast-book");
+    return { ok: true, message: "Rates & meals saved." };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not save commercial settings.",
+    };
+  }
+}
+
+export async function updatePropertyPoliciesSettings(
+  _prev: CommercialSettingsState,
+  formData: FormData,
+): Promise<CommercialSettingsState> {
+  try {
+    await requireDesk();
+    await requireDeskRole(["owner", "gm"]);
+    const admin = createSupabaseAdminClient();
+    const propertyId = trimRequired(formData.get("property_id"), "Property");
+    await assertDeskProperty(await resolveActivePropertyId(admin), propertyId, "Property");
+
+    const freeCancelDays = Number(String(formData.get("free_cancel_days") ?? "3"));
+    if (!Number.isInteger(freeCancelDays) || freeCancelDays < 0) {
+      throw new Error("Free cancel days must be zero or a positive whole number.");
+    }
+
+    const noShowNights = Number(String(formData.get("no_show_nights") ?? "1"));
+    if (!Number.isInteger(noShowNights) || noShowNights < 0) {
+      throw new Error("No-show nights must be zero or a positive whole number.");
+    }
+
+    const patch = {
+      free_cancel_days: freeCancelDays,
+      late_cancel_forfeit_deposit:
+        formData.get("late_cancel_forfeit_deposit") === "on",
+      no_show_nights: noShowNights,
+      mou_free_cancel: formData.get("mou_free_cancel") === "on",
+      mou_waive_no_show: formData.get("mou_waive_no_show") === "on",
+      guest_summary: optionalTrim(formData.get("guest_summary")),
+      house_rules: optionalTrim(formData.get("house_rules")),
+      dos: optionalTrim(formData.get("dos")),
+      donts: optionalTrim(formData.get("donts")),
+      wifi_name: optionalTrim(formData.get("wifi_name")),
+      wifi_password: optionalTrim(formData.get("wifi_password")),
+      check_in_time: optionalTrim(formData.get("check_in_time")),
+      check_out_time: optionalTrim(formData.get("check_out_time")),
+      quiet_hours: optionalTrim(formData.get("quiet_hours")),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await admin
+      .from("property_policies")
+      .upsert({ property_id: propertyId, ...patch });
+    if (error) throw new Error("Could not save policies.");
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "property.settings.policies",
+      entityType: "property_policies",
+      entityId: propertyId,
+      summary: "Updated booking & house policies",
+    });
+
+    revalidatePath("/erp/settings");
+    revalidatePath("/erp/bookings");
+    return { ok: true, message: "Policies saved." };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not save policies.",
+    };
+  }
+}
+
+export async function updateDamageCatalogItem(
+  _prev: CommercialSettingsState,
+  formData: FormData,
+): Promise<CommercialSettingsState> {
+  try {
+    await requireDesk();
+    await requireDeskRole(["owner", "gm"]);
+    const admin = createSupabaseAdminClient();
+    const propertyId = trimRequired(formData.get("property_id"), "Property");
+    const itemId = trimRequired(formData.get("item_id"), "Item");
+    await assertDeskProperty(await resolveActivePropertyId(admin), propertyId, "Property");
+
+    const amountRaw = String(formData.get("amount_btn") ?? "").trim();
+    const amountBtn =
+      !amountRaw || amountRaw.toLowerCase() === "manager"
+        ? null
+        : Number(amountRaw);
+    if (amountBtn != null && (!Number.isFinite(amountBtn) || amountBtn < 0)) {
+      throw new Error("Damage amount must be blank (manager price) or non-negative.");
+    }
+
+    const { error } = await admin
+      .from("property_damage_items")
+      .update({
+        amount_btn: amountBtn,
+        is_active: formData.get("is_active") === "on",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", itemId)
+      .eq("property_id", propertyId);
+    if (error) throw new Error("Could not save damage item.");
+
+    revalidatePath("/erp/settings");
+    revalidatePath("/erp/folios");
+    return { ok: true, message: "Damage item updated." };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not save damage item.",
+    };
+  }
+}
+
+export type SettingsActionState = {
+  ok: boolean;
+  error?: string;
+  message?: string;
+};
+
+const WIPE_CONFIRM_PHRASE = "WIPE";
+
+/** Owner-only danger zone — type WIPE to confirm. Audit-logged. */
+export async function wipeOperationalData(
+  _prev: SettingsActionState,
+  formData: FormData,
+): Promise<SettingsActionState> {
+  try {
+    await requireDeskRole(["owner"]);
+    const admin = createSupabaseAdminClient();
+    const propertyId = trimRequired(formData.get("property_id"), "Property");
+    const activeId = await resolveActivePropertyId(admin);
+    await assertDeskProperty(activeId, propertyId, "Property");
+
+    const phrase = String(formData.get("confirm_phrase") ?? "").trim();
+    if (phrase !== WIPE_CONFIRM_PHRASE) {
+      throw new Error(`Type ${WIPE_CONFIRM_PHRASE} exactly to confirm.`);
+    }
+
+    const { data, error } = await admin.rpc("wipe_property_operational_data", {
+      p_property_id: propertyId,
+    });
+    if (error) throw new Error(error.message);
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "property.operational_wipe",
+      entityType: "properties",
+      entityId: propertyId,
+      summary: "Owner wiped operational data (bookings, folios, orders, laundry, inventory ops)",
+      meta: { counts: data ?? {} },
+      actor: "owner",
+    });
+
+    revalidatePath("/erp");
+    revalidatePath("/erp/settings");
+    revalidatePath("/erp/calendar");
+    revalidatePath("/erp/arrivals");
+    revalidatePath("/erp/reservations");
+    revalidatePath("/erp/folios");
+    revalidatePath("/erp/inventory");
+
+    const bookings =
+      typeof data === "object" && data && "bookings" in data
+        ? Number((data as Record<string, unknown>).bookings)
+        : null;
+
+    return {
+      ok: true,
+      message:
+        bookings != null
+          ? `Wipe complete — ${bookings} booking(s) removed. Rooms, rates, staff, and compliance kept.`
+          : "Wipe complete. Rooms, rates, staff, and compliance kept.",
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Wipe failed.",
+    };
+  }
+}

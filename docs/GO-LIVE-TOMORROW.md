@@ -121,11 +121,14 @@ Until then, POS / laundry / desk charges still post normally. Only **room rent**
 - Sellable + comp occupancy counts  
 - Room nights posted (or skipped if already posted)  
 - Open folio count  
-- Day charges vs payments (Nu)
+- Day charges vs payments (Nu)  
+- Hotel backup emailed/stored (best-effort — audit still succeeds if email fails)
+
+**Hotel backup:** every successful run emails a confidential Excel pack (`NOTIFY_DESK_EMAIL` / `OPS_BACKUP_EMAIL`) and stores it. Use **Download hotel backup** on the same page anytime (or from History). Save to USB/phone. Import-into-clean-property is a future tool (`pack_version 1` contract).
 
 **If it fails:** read the error — room-night errors block the save. Fix the folio/booking issue and re-run (same date only if prior run did not complete).
 
-**History** on the same page lists past runs with room-night counts.
+**History** on the same page lists past runs with room-night counts + download links.
 
 ---
 

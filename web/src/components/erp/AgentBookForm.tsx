@@ -127,6 +127,7 @@ export function AgentBookForm() {
       <input type="hidden" name="check_out" value={checkOut} />
       <input type="hidden" name="rooms" value={rooms} />
       <input type="hidden" name="room_type_code" value={selectedCode ?? ""} />
+      <input type="hidden" name="meal_plan_code" value="EP" />
 
       {state.error ? (
         <p
