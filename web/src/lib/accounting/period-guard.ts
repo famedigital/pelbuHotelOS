@@ -1,6 +1,6 @@
 import "server-only";
 import { writeAuditEvent } from "@/lib/audit";
-import { verifyPosManagerPin } from "@/lib/pos";
+import { verifyManagerPinForProperty } from "@/lib/manager-pin";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { AccountingPeriod } from "@/lib/accounting/types";
 import { resolvePeriodForDate } from "@/lib/accounting/journals";
@@ -47,7 +47,11 @@ export async function assertOpenPeriodForDate(
 
   const pin = options?.managerPin?.trim();
   const reason = options?.overrideReason?.trim();
-  if (pin && reason && verifyPosManagerPin(pin)) {
+  const verified =
+    pin && reason
+      ? await verifyManagerPinForProperty(admin, propertyId, pin)
+      : null;
+  if (verified?.ok) {
     await writeAuditEvent(admin, {
       propertyId,
       action: "accounting.period.override_post",

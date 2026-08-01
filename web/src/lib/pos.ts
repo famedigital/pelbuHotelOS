@@ -308,6 +308,7 @@ export function voidManagerThresholdBtn(): number {
   return Number.isFinite(n) && n >= 0 ? n : 500;
 }
 
+/** Env-only manager PIN check. Prefer verifyManagerPinForProperty for desk flows. */
 export function verifyPosManagerPin(pin: string): boolean {
   const expected =
     process.env.POS_MANAGER_PIN?.trim() || process.env.DESK_PIN?.trim();

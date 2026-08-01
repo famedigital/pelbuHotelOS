@@ -11,10 +11,10 @@ import {
   applyDiscountPct,
   resolveBookingPartnerDiscountPct,
 } from "@/lib/partners/discount";
+import { verifyManagerPinForProperty } from "@/lib/manager-pin";
 import {
   POS_TENDER_METHODS,
   POS_VOID_REASON_CODES,
-  verifyPosManagerPin,
   voidManagerThresholdBtn,
   type PosTenderMethod,
   type PosVoidReasonCode,
@@ -346,7 +346,9 @@ async function resolveModifiers(
   return byLine;
 }
 
-function requireVoidManagerPin(
+async function requireVoidManagerPin(
+  admin: ReturnType<typeof createSupabaseAdminClient>,
+  propertyId: string,
   amountBtn: number,
   reasonCode: string,
   formData: FormData,
@@ -357,8 +359,12 @@ function requireVoidManagerPin(
     reasonCode === "manager_comp";
   if (!needsPin) return;
   const pin = optionalTrim(formData.get("manager_pin"));
-  if (!pin || !verifyPosManagerPin(pin)) {
+  if (!pin) {
     throw new Error("Manager PIN required for this void.");
+  }
+  const verified = await verifyManagerPinForProperty(admin, propertyId, pin);
+  if (!verified.ok) {
+    throw new Error(verified.error);
   }
 }
 
@@ -1128,7 +1134,7 @@ export async function voidOrder(
     if (order.voided_at) throw new Error("Order is already voided.");
 
     const amountBtn = Number(order.total_btn);
-    requireVoidManagerPin(amountBtn, reasonCode, formData);
+    await requireVoidManagerPin(admin, property_id, amountBtn, reasonCode, formData);
 
     const { error: stockError } = await admin.rpc("pos_apply_order_stock", {
       p_order_id: orderId,
@@ -1252,7 +1258,7 @@ export async function voidOrderItem(
       { applyServiceCharge: false },
     ).subtotalBtn;
 
-    requireVoidManagerPin(lineAmount, reasonCode, formData);
+    await requireVoidManagerPin(admin, property_id, lineAmount, reasonCode, formData);
 
     const { error: stockError } = await admin.rpc(
       "pos_apply_order_item_stock",
@@ -2042,11 +2048,12 @@ export async function closePosShift(
       throw new Error("Counted cash cannot be negative.");
     }
     const pin = trimRequired(formData.get("manager_pin"), "Manager PIN");
-    if (!verifyPosManagerPin(pin)) throw new Error("Manager PIN is incorrect.");
     const notes = optionalTrim(formData.get("notes"));
 
     const admin = createSupabaseAdminClient();
     const property_id = await propertyId(admin);
+    const verified = await verifyManagerPinForProperty(admin, property_id, pin);
+    if (!verified.ok) throw new Error(verified.error);
     const staff = await getStaffSession();
 
     const { data: shift } = await admin
@@ -2119,7 +2126,10 @@ export async function closePosShift(
         void_total_btn: voidTotal,
         closed_by: staff?.staffId ?? null,
         closed_by_name: staff?.fullName ?? "desk",
-        manager_approved_by: staff?.staffId ?? null,
+        manager_approved_by:
+          verified.source === "staff"
+            ? verified.staffId
+            : (staff?.staffId ?? null),
         closed_at: nowIso,
         notes,
       })
