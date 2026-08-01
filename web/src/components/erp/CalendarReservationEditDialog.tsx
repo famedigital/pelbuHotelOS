@@ -6,6 +6,7 @@ import {
   updateCalendarReservationDetails,
 } from "@/app/actions/erp-calendar";
 import type { CalendarAgent } from "@/components/erp/CalendarReservationDialog";
+import { BookingDetailPanelLoader } from "@/components/erp/BookingDetailPanelLoader";
 import { AgentPicker } from "@/components/erp/AgentPicker";
 import { AgentVoucherEmailButton } from "@/components/erp/AgentVoucherEmailButton";
 import {
@@ -578,38 +579,13 @@ export function CalendarReservationEditDialog({
                   </div>
                 </div>
 
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Button asChild variant="citrus" className="justify-start">
-                    <Link href={`/erp/check-in?id=${stay.booking_id}`}>
-                      Check-in / guest documents
+                {stay.folio_id ? (
+                  <Button asChild variant="outline" className="justify-start">
+                    <Link href={`/erp/folios/${stay.folio_id}/receipt`}>
+                      Print receipt
                     </Link>
                   </Button>
-                  {stay.folio_id ? (
-                    <>
-                      <Button asChild variant="outline" className="justify-start">
-                        <Link href={`/erp/folios/${stay.folio_id}`}>
-                          Folio &amp; invoice
-                        </Link>
-                      </Button>
-                      <Button asChild variant="outline" className="justify-start">
-                        <Link href={`/erp/folios/${stay.folio_id}/receipt`}>
-                          Print receipt
-                        </Link>
-                      </Button>
-                    </>
-                  ) : (
-                    <Button asChild variant="outline" className="justify-start">
-                      <Link href={`/erp/invoices?q=${stay.booking_id}`}>
-                        Find / generate invoice
-                      </Link>
-                    </Button>
-                  )}
-                  <Button asChild variant="ghost" className="justify-start">
-                    <Link href={`/erp/bookings/${stay.booking_id}`}>
-                      Booking detail
-                    </Link>
-                  </Button>
-                </div>
+                ) : null}
 
                 <section className="rounded-lg border bg-muted/20 p-4">
                   <div className="flex items-center gap-2">
@@ -633,6 +609,23 @@ export function CalendarReservationEditDialog({
                       voucher.
                     </p>
                   )}
+                </section>
+
+                <section className="rounded-lg border bg-card p-4">
+                  <h3 className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+                    Booking actions
+                  </h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Check-in, cancel, no-show, and folio — same as reservations
+                    desk.
+                  </p>
+                  <div className="mt-3">
+                    <BookingDetailPanelLoader
+                      bookingId={stay.booking_id}
+                      compact
+                      showDossierLink
+                    />
+                  </div>
                 </section>
               </TabsContent>
 
