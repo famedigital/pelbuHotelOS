@@ -1,23 +1,10 @@
 "use client";
 
-import {
-  approveAgent,
-  recordAgentCreditPayment,
-  rejectAgent,
-  setAgentCreditLimit,
-  updateAgentDeskStatus,
-  type AgentDocumentRow,
-  type ErpAgentState,
-} from "@/app/actions/erp-agents";
-import { AgentDocumentManager } from "@/components/erp/AgentDocumentManager";
-import { Button } from "@/components/ui/button";
+import type { AgentDocumentRow } from "@/app/actions/erp-agents";
+import { AgentDetailPanel } from "@/components/erp/AgentDetailPanel";
 import { Card } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { formatBtn } from "@/lib/pricing";
 import Link from "next/link";
-import { useActionState, useRef, useState } from "react";
 
 export type DeskAgentRow = {
   id: string;
@@ -38,233 +25,6 @@ export type DeskAgentRow = {
   portal_token: string | null;
 };
 
-const initial: ErpAgentState = { ok: false };
-
-const RATE_TIERS = [
-  "agents",
-  "mou_agents",
-  "friends",
-  "family",
-  "mutual_friends",
-  "public",
-] as const;
-
-function fieldClass() {
-  return "mt-1.5 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
-}
-
-function ActionFlash({ state }: { state: ErpAgentState }) {
-  if (!state.ok && !state.error) return null;
-  return (
-    <p
-      className={`mt-2 text-sm ${state.ok ? "text-foreground" : "text-destructive"}`}
-      role="status"
-    >
-      {state.ok ? state.message : state.error}
-    </p>
-  );
-}
-
-function StatusForm({ agent }: { agent: DeskAgentRow }) {
-  const [state, action, pending] = useActionState(updateAgentDeskStatus, initial);
-  return (
-    <form action={action} className="space-y-2">
-      <input type="hidden" name="agent_id" value={agent.id} />
-      <div className="grid gap-2 sm:grid-cols-2">
-        <label className="block text-xs text-muted-foreground">
-          Status
-          <select
-            name="status"
-            defaultValue={agent.status}
-            className={fieldClass()}
-            required
-          >
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="demo">Demo</option>
-            <option value="rejected">Rejected</option>
-          </select>
-        </label>
-        <label className="block text-xs text-muted-foreground">
-          Rate tier
-          <select name="rate_tier" defaultValue={agent.rate_tier} className={fieldClass()}>
-            {RATE_TIERS.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <label className="flex items-center gap-2 text-xs text-foreground">
-        <Checkbox
-          name="wants_mou"
-          value="on"
-          defaultChecked={agent.wants_mou}
-        />
-        MoU interest / flag
-      </label>
-      <Button type="submit" disabled={pending} size="sm" className="h-9">
-        {pending ? "Saving…" : "Update status"}
-      </Button>
-      <ActionFlash state={state} />
-    </form>
-  );
-}
-
-function QuickApproveReject({ agent }: { agent: DeskAgentRow }) {
-  const [appState, appAction, appPending] = useActionState(approveAgent, initial);
-  const [rejState, rejAction, rejPending] = useActionState(rejectAgent, initial);
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <form action={appAction} className="inline-flex">
-        <input type="hidden" name="agent_id" value={agent.id} />
-        <input type="hidden" name="rate_tier" value={agent.rate_tier} />
-        <Button
-          type="submit"
-          variant="citrus"
-          size="sm"
-          disabled={appPending || agent.status === "approved"}
-          className="h-9"
-        >
-          {appPending ? "Approving…" : agent.status === "approved" ? "Approved" : "Approve & issue portal"}
-        </Button>
-      </form>
-      <form action={rejAction} className="inline-flex">
-        <input type="hidden" name="agent_id" value={agent.id} />
-        <Button
-          type="submit"
-          variant="outline"
-          size="sm"
-          disabled={rejPending || agent.status === "rejected"}
-          className="h-9 border-destructive/40 text-destructive hover:bg-destructive/5 hover:text-destructive"
-        >
-          {rejPending ? "Rejecting…" : agent.status === "rejected" ? "Rejected" : "Reject"}
-        </Button>
-      </form>
-      {(appState.ok || appState.error) && <ActionFlash state={appState} />}
-      {(rejState.ok || rejState.error) && <ActionFlash state={rejState} />}
-    </div>
-  );
-}
-
-function CreditLimitForm({ agent }: { agent: DeskAgentRow }) {
-  const [state, action, pending] = useActionState(setAgentCreditLimit, initial);
-  return (
-    <form action={action} className="flex flex-wrap items-end gap-2">
-      <input type="hidden" name="agent_id" value={agent.id} />
-      <label className="block min-w-[8rem] flex-1 text-xs text-muted-foreground">
-        Credit limit (Nu)
-        <Input
-          name="credit_limit"
-          type="number"
-          min={0}
-          step="0.01"
-          defaultValue={agent.credit_limit}
-          className="mt-1.5"
-          required
-        />
-      </label>
-      <Button
-        type="submit"
-        variant="outline"
-        size="sm"
-        disabled={pending}
-        className="h-9"
-      >
-        {pending ? "Saving…" : "Set limit"}
-      </Button>
-      <ActionFlash state={state} />
-    </form>
-  );
-}
-
-function CreditPaymentForm({ agent }: { agent: DeskAgentRow }) {
-  const [state, action, pending] = useActionState(
-    recordAgentCreditPayment,
-    initial,
-  );
-  const idempotencyKey = useRef(
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : `agent-pay-${agent.id}-${Date.now()}`,
-  );
-  return (
-    <form action={action} className="space-y-2">
-      <input type="hidden" name="agent_id" value={agent.id} />
-      <input
-        type="hidden"
-        name="idempotency_key"
-        value={idempotencyKey.current}
-      />
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="block min-w-[8rem] flex-1 text-xs text-muted-foreground">
-          Payment (Nu)
-          <Input
-            name="amount_btn"
-            type="number"
-            min={0.01}
-            step="0.01"
-            className="mt-1.5"
-            required
-          />
-        </label>
-        <label className="block min-w-[10rem] flex-[2] text-xs text-muted-foreground">
-          Note
-          <Input name="note" type="text" className="mt-1.5" />
-        </label>
-        <Button
-          type="submit"
-          variant="citrus"
-          size="sm"
-          disabled={pending}
-          className="h-9"
-        >
-          {pending ? "Saving…" : "Record payment"}
-        </Button>
-      </div>
-      <ActionFlash state={state} />
-    </form>
-  );
-}
-
-function PortalTokenBadge({ token }: { token: string | null }) {
-  const [copied, setCopied] = useState(false);
-  async function copy(value: string) {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setCopied(false);
-    }
-  }
-  if (!token) {
-    return (
-      <p className="text-xs text-muted-foreground">
-        Portal: not issued (approve to issue).
-      </p>
-    );
-  }
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <p className="text-xs text-muted-foreground">Portal token</p>
-      <code className="rounded-md border bg-muted px-2 py-0.5 font-mono text-xs text-foreground">
-        {token}
-      </code>
-      <Button
-        type="button"
-        onClick={() => copy(token)}
-        variant="outline"
-        size="sm"
-        className="h-7 px-2 text-[11px]"
-      >
-        {copied ? "Copied" : "Copy"}
-      </Button>
-    </div>
-  );
-}
-
 export function AgentDeskCard({
   agent,
   documents,
@@ -272,7 +32,6 @@ export function AgentDeskCard({
   agent: DeskAgentRow;
   documents: AgentDocumentRow[];
 }) {
-  const [open, setOpen] = useState(false);
   const available = Math.max(0, agent.credit_limit - agent.credit_used);
   const statusTone =
     agent.status === "approved"
@@ -312,15 +71,6 @@ export function AgentDeskCard({
             {[agent.contact_name, agent.contact_phone].filter(Boolean).join(" · ") ||
               "No contact on file"}
           </p>
-          {agent.contact_email ? (
-            <p className="text-xs text-muted-foreground">{agent.contact_email}</p>
-          ) : null}
-          <Link
-            href={`/erp/agents/${agent.id}?tab=money`}
-            className="mt-3 inline-flex text-sm text-accent underline-offset-4 hover:underline"
-          >
-            Money / statement →
-          </Link>
         </div>
         <div className="text-right text-sm text-foreground">
           <p>
@@ -331,59 +81,9 @@ export function AgentDeskCard({
         </div>
       </div>
 
-      <div className="mt-5 grid gap-5 border-t pt-5 lg:grid-cols-2">
-        <div className="space-y-3">
-          <StatusForm agent={agent} />
-          <QuickApproveReject agent={agent} />
-          <PortalTokenBadge token={agent.portal_token} />
-        </div>
-        <div className="space-y-4">
-          <CreditLimitForm agent={agent} />
-          <CreditPaymentForm agent={agent} />
-        </div>
+      <div className="mt-5 border-t pt-5">
+        <AgentDetailPanel agent={agent} documents={documents} />
       </div>
-
-      <div className="mt-4">
-        <Button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          variant="outline"
-          size="sm"
-          className="h-9 gap-2 text-xs"
-          aria-expanded={open}
-        >
-          {open ? "Hide" : "Show"} notes, license & MoU documents ({documents.length})
-          <span aria-hidden="true">{open ? "▴" : "▾"}</span>
-        </Button>
-      </div>
-
-      {open ? (
-        <div className="mt-3 grid gap-4 border-t pt-4 lg:grid-cols-2">
-          <div className="space-y-2 text-sm text-foreground/80">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
-              Application
-            </p>
-            {agent.notes ? (
-              <p className="whitespace-pre-wrap text-foreground/85">{agent.notes}</p>
-            ) : (
-              <p className="text-muted-foreground">No notes supplied.</p>
-            )}
-            {agent.license_url ? (
-              <p className="text-xs">
-                <a
-                  href={agent.license_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-accent underline-offset-4 hover:underline"
-                >
-                  Open trade license →
-                </a>
-              </p>
-            ) : null}
-          </div>
-          <AgentDocumentManager agentId={agent.id} documents={documents} />
-        </div>
-      ) : null}
     </Card>
   );
 }

@@ -117,7 +117,7 @@ export default async function ErpInventoryPage() {
     <div className="erp mx-auto w-full max-w-[1200px] space-y-6 p-4 md:p-6">
       <header className="space-y-1.5">
         <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-          Team &amp; stock
+          Team &amp; inventory
         </p>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           Inventory

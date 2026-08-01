@@ -168,7 +168,7 @@ export const ERP_MODULES: ErpModule[] = [
   },
   {
     key: "team",
-    title: "Team & stock",
+    title: "Team & inventory",
     icon: UsersIcon,
     href: "/erp/hr",
     tabs: [
@@ -181,13 +181,14 @@ export const ERP_MODULES: ErpModule[] = [
       },
       { title: "Leave", href: "/erp/hr/leave", icon: ScrollTextIcon },
       { title: "Payroll", href: "/erp/hr/payroll", icon: WalletIcon },
-      { title: "Stock", href: "/erp/inventory", icon: ShoppingCartIcon },
+      { title: "Inventory", href: "/erp/inventory", icon: ShoppingCartIcon },
       { title: "Audits", href: "/erp/inventory/audits", icon: ClipboardListIcon },
       {
         title: "Purchase orders",
         href: "/erp/inventory/purchase-orders",
         icon: ReceiptTextIcon,
       },
+      { title: "Assets", href: "/erp/inventory/assets", icon: WrenchIcon },
     ],
   },
   {

@@ -1,4 +1,4 @@
-import { AgentDeskCard } from "@/components/erp/AgentDeskCard";
+import { AgentsAccordionTable } from "@/components/erp/AgentsAccordionTable";
 import { AgentPinProvisionForm } from "@/components/erp/AgentAuthForms";
 import { RateMatrixEditor } from "@/components/erp/RateMatrixEditor";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -15,6 +15,7 @@ import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Agents & rates | Pelbu OS",
@@ -254,12 +255,17 @@ export default async function ErpAgentsPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
-            {agents.map((row) => (
-              <AgentDeskCard
-                key={row.id}
-                agent={row}
-                documents={(docsByAgent.get(row.id) ?? []).map((d) => ({
+          <Suspense
+            fallback={
+              <p className="rounded-xl border border-border bg-card px-4 py-6 text-sm text-muted-foreground">
+                Loading agents…
+              </p>
+            }
+          >
+            <AgentsAccordionTable
+              data={agents.map((row) => ({
+                ...row,
+                documents: (docsByAgent.get(row.id) ?? []).map((d) => ({
                   id: d.id,
                   agent_id: d.agent_id,
                   kind: d.kind,
@@ -268,10 +274,11 @@ export default async function ErpAgentsPage() {
                   notes: d.notes,
                   uploaded_by: d.uploaded_by,
                   created_at: d.created_at,
-                }))}
-              />
-            ))}
-          </div>
+                })),
+              }))}
+              emptyMessage="No agent applications yet."
+            />
+          </Suspense>
         )}
       </section>
 
