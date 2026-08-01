@@ -29,7 +29,7 @@ import {
 } from "@/lib/laundry";
 import { formatBtn } from "@/lib/pricing";
 import { usePendingFeedback } from "@/hooks/use-pending-feedback";
-import { MinusIcon, PlusIcon, PrinterIcon } from "lucide-react";
+import { CreditCardIcon, MinusIcon, PlusIcon, PrinterIcon } from "lucide-react";
 import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 
@@ -107,6 +107,50 @@ function ReceptionIntake({
   bookingsError?: string | null;
   staff: StaffOption[];
 }) {
+  const activeCatalog = catalog.filter((item) => item.is_active);
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-4">
+      <div>
+        <h2 className="text-xl font-semibold">Reception laundry intake</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          In-house guests charge to room folio. Walk-in visitors pay by deposit
+          link before processing starts.
+        </p>
+      </div>
+
+      <Tabs defaultValue="in-house" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="in-house">In-house guest</TabsTrigger>
+          <TabsTrigger value="walk-in">Walk-in / public</TabsTrigger>
+        </TabsList>
+        <TabsContent value="in-house">
+          <InHouseIntakeForm
+            catalog={activeCatalog}
+            bookings={bookings}
+            bookingsError={bookingsError}
+            staff={staff}
+          />
+        </TabsContent>
+        <TabsContent value="walk-in">
+          <WalkInIntakeForm catalog={activeCatalog} staff={staff} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function InHouseIntakeForm({
+  catalog,
+  bookings,
+  bookingsError,
+  staff,
+}: {
+  catalog: LaundryCatalogItem[];
+  bookings: LaundryBookingOption[];
+  bookingsError?: string | null;
+  staff: StaffOption[];
+}) {
   const [state, action, pending] = useActionState(
     createDeskLaundryOrder,
     initial,
@@ -123,8 +167,6 @@ function ReceptionIntake({
   const [guestName, setGuestName] = useState("");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [photos, setPhotos] = useState<string[]>([]);
-  const activeCatalog = catalog.filter((item) => item.is_active);
-  const [showQuickAdd, setShowQuickAdd] = useState(false);
   const lines = Object.entries(quantities)
     .filter(([, qty]) => qty > 0)
     .map(([catalogItemId, qty]) => ({ catalogItemId, qty }));
@@ -136,14 +178,9 @@ function ReceptionIntake({
     );
     setGuestName(option?.booking.contactName ?? "");
   }
-  return (
-    <div className="mx-auto max-w-3xl rounded-xl border bg-card p-4 md:p-6">
-      <h2 className="text-xl font-semibold">Reception laundry intake</h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Use this when the guest hands laundry to reception. Select the room,
-        count garments, take the intake photo, and submit.
-      </p>
 
+  return (
+    <div className="rounded-xl border bg-card p-4 md:p-6">
       <InHouseStatus
         error={bookingsError}
         roomCount={roomOptions.length}
@@ -151,6 +188,7 @@ function ReceptionIntake({
       />
 
       <form action={action} className="mt-5 space-y-5">
+        <input type="hidden" name="intake_mode" value="in_house" />
         <input
           type="hidden"
           name="booking_id"
@@ -173,6 +211,7 @@ function ReceptionIntake({
           name="photo_public_ids"
           value={JSON.stringify(photos)}
         />
+
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Checked-in room</Label>
@@ -201,12 +240,6 @@ function ReceptionIntake({
                 ))}
               </SelectContent>
             </Select>
-            {roomOptions.length > 0 ? (
-              <p className="text-xs text-muted-foreground">
-                {roomOptions.length} room
-                {roomOptions.length === 1 ? "" : "s"} in house
-              </p>
-            ) : null}
           </div>
           <div className="space-y-1.5">
             <Label>Guest name</Label>
@@ -233,136 +266,296 @@ function ReceptionIntake({
           </div>
         </div>
 
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <Label>Garments received</Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setShowQuickAdd((value) => !value)}
-              >
-                {showQuickAdd ? "Hide add type" : "Add cloth type"}
-              </Button>
-            </div>
-          </div>
-          {activeCatalog.length === 0 ? (
-            <Alert>
-              <AlertDescription>
-                No garment types in the catalog yet — add your first type below,
-                or open the{" "}
-                <span className="font-medium">Pricing</span> tab for the full
-                list.
-              </AlertDescription>
-            </Alert>
-          ) : null}
-          {showQuickAdd ? (
-            <QuickAddCatalogForm onSaved={() => setShowQuickAdd(false)} />
-          ) : null}
-          <div className="grid gap-2 sm:grid-cols-2">
-            {activeCatalog.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex min-h-14 items-center justify-between rounded-lg border px-3"
-                >
-                  <div>
-                    <p className="text-sm font-medium">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatBtn(item.price_btn)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="outline"
-                      className="size-9"
-                      onClick={() =>
-                        setQuantities((current) => ({
-                          ...current,
-                          [item.id]: Math.max(0, (current[item.id] ?? 0) - 1),
-                        }))
-                      }
-                    >
-                      <MinusIcon className="size-4" />
-                    </Button>
-                    <span className="w-7 text-center text-sm font-semibold">
-                      {quantities[item.id] ?? 0}
-                    </span>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="outline"
-                      className="size-9"
-                      onClick={() =>
-                        setQuantities((current) => ({
-                          ...current,
-                          [item.id]: Math.min(200, (current[item.id] ?? 0) + 1),
-                        }))
-                      }
-                    >
-                      <PlusIcon className="size-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
+        <GarmentGrid
+          catalog={catalog}
+          quantities={quantities}
+          onChange={setQuantities}
+        />
+
         <LaundryPhotoUpload
           value={photos}
           onChange={setPhotos}
           context={
             selected ? { bookingId: selected.booking.id } : undefined
           }
-          label="Take reception intake photo"
+          label="Intake photo (optional)"
         />
+
         <div className="space-y-1.5">
           <Label htmlFor="desk-laundry-notes">Notes</Label>
           <Textarea
             id="desk-laundry-notes"
             name="notes"
             maxLength={500}
-            rows={3}
-            placeholder="Existing stains, delicate garment, pickup instructions…"
+            rows={2}
+            placeholder="Stains, delicate items, pickup instructions…"
           />
         </div>
-        {state.error ? (
-          <Alert variant="destructive">
-            <AlertDescription>{state.error}</AlertDescription>
-          </Alert>
-        ) : null}
-        {state.message ? (
-          <Alert>
-            <AlertDescription>
-              {state.message}{" "}
-              {state.labelsUrl ? (
-                <Button asChild size="sm" variant="citrus" className="ml-2">
-                  <Link href={state.labelsUrl}>
-                    <PrinterIcon className="size-3.5" />
-                    Print bag QR
-                  </Link>
-                </Button>
-              ) : null}
-            </AlertDescription>
-          </Alert>
-        ) : null}
+
+        <IntakeResult state={state} />
+
         <Button
           type="submit"
           variant="citrus"
-          className="min-h-11"
+          className="min-h-11 w-full sm:w-auto"
           disabled={
             pending ||
             !selected ||
             !guestName ||
             lines.length === 0 ||
-            activeCatalog.length === 0
+            catalog.length === 0
           }
         >
-          {pending ? "Creating…" : "Create laundry order"}
+          {pending ? "Creating…" : "Create in-house order"}
         </Button>
       </form>
     </div>
+  );
+}
+
+function WalkInIntakeForm({
+  catalog,
+  staff,
+}: {
+  catalog: LaundryCatalogItem[];
+  staff: StaffOption[];
+}) {
+  const [state, action, pending] = useActionState(
+    createDeskLaundryOrder,
+    initial,
+  );
+  usePendingFeedback(pending, "Creating walk-in order…");
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [photos, setPhotos] = useState<string[]>([]);
+  const lines = Object.entries(quantities)
+    .filter(([, qty]) => qty > 0)
+    .map(([catalogItemId, qty]) => ({ catalogItemId, qty }));
+
+  return (
+    <div className="rounded-xl border bg-card p-4 md:p-6">
+      <p className="text-sm text-muted-foreground">
+        Name and mobile required. No room assignment — guest pays via bank
+        transfer link before laundry starts.
+      </p>
+
+      <form action={action} className="mt-5 space-y-5">
+        <input type="hidden" name="intake_mode" value="walk_in" />
+        <input type="hidden" name="items" value={JSON.stringify(lines)} />
+        <input
+          type="hidden"
+          name="prepared_by_staff_id"
+          value={staff[0]?.id ?? ""}
+        />
+        <input
+          type="hidden"
+          name="photo_public_ids"
+          value={JSON.stringify(photos)}
+        />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="walkin_guest_name">Full name</Label>
+            <Input
+              id="walkin_guest_name"
+              name="guest_name"
+              autoComplete="name"
+              maxLength={100}
+              required
+              className="min-h-11"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="walkin_guest_phone">Mobile number</Label>
+            <Input
+              id="walkin_guest_phone"
+              name="guest_phone"
+              type="tel"
+              autoComplete="tel"
+              inputMode="tel"
+              maxLength={20}
+              required
+              className="min-h-11"
+              placeholder="17xxxxxx / +975…"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="walkin_room_hint">Room hint (optional)</Label>
+          <Input
+            id="walkin_room_hint"
+            name="room_hint"
+            maxLength={30}
+            placeholder="If visiting a guest room, note it here"
+          />
+        </div>
+
+        <GarmentGrid
+          catalog={catalog}
+          quantities={quantities}
+          onChange={setQuantities}
+        />
+
+        <LaundryPhotoUpload
+          value={photos}
+          onChange={setPhotos}
+          label="Intake photo (optional)"
+        />
+
+        <div className="space-y-1.5">
+          <Label htmlFor="walkin_notes">Notes</Label>
+          <Textarea
+            id="walkin_notes"
+            name="notes"
+            maxLength={500}
+            rows={2}
+            placeholder="Pickup time, special care…"
+          />
+        </div>
+
+        <IntakeResult state={state} showPayLink />
+
+        <Button
+          type="submit"
+          variant="citrus"
+          className="min-h-11 w-full sm:w-auto"
+          disabled={pending || lines.length === 0 || catalog.length === 0}
+        >
+          {pending ? "Creating…" : "Create walk-in order"}
+        </Button>
+      </form>
+    </div>
+  );
+}
+
+function GarmentGrid({
+  catalog,
+  quantities,
+  onChange,
+}: {
+  catalog: LaundryCatalogItem[];
+  quantities: Record<string, number>;
+  onChange: (value: Record<string, number>) => void;
+}) {
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Label>Garments</Label>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => setShowQuickAdd((value) => !value)}
+        >
+          {showQuickAdd ? "Hide add type" : "Add cloth type"}
+        </Button>
+      </div>
+      {catalog.length === 0 ? (
+        <Alert>
+          <AlertDescription>
+            No garment types yet — add one below or use the Pricing tab.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {showQuickAdd ? (
+        <QuickAddCatalogForm onSaved={() => setShowQuickAdd(false)} />
+      ) : null}
+      <div className="grid gap-2 sm:grid-cols-2">
+        {catalog.map((item) => (
+          <div
+            key={item.id}
+            className="flex min-h-14 items-center justify-between rounded-lg border px-3"
+          >
+            <div>
+              <p className="text-sm font-medium">{item.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {formatBtn(item.price_btn)}
+              </p>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className="size-9"
+                onClick={() =>
+                  onChange({
+                    ...quantities,
+                    [item.id]: Math.max(0, (quantities[item.id] ?? 0) - 1),
+                  })
+                }
+              >
+                <MinusIcon className="size-4" />
+              </Button>
+              <span className="w-7 text-center text-sm font-semibold">
+                {quantities[item.id] ?? 0}
+              </span>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className="size-9"
+                onClick={() =>
+                  onChange({
+                    ...quantities,
+                    [item.id]: Math.min(200, (quantities[item.id] ?? 0) + 1),
+                  })
+                }
+              >
+                <PlusIcon className="size-4" />
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function IntakeResult({
+  state,
+  showPayLink,
+}: {
+  state: ErpLaundryState;
+  showPayLink?: boolean;
+}) {
+  if (!state.error && !state.message) return null;
+  return (
+    <>
+      {state.error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
+      ) : null}
+      {state.message ? (
+        <Alert>
+          <AlertDescription className="flex flex-wrap items-center gap-2">
+            <span>{state.message}</span>
+            {showPayLink && state.payUrl ? (
+              <Button asChild size="sm" variant="citrus">
+                <Link href={state.payUrl} target="_blank" rel="noopener">
+                  <CreditCardIcon className="size-3.5" />
+                  Open pay link
+                  {state.estimatedTotalBtn != null
+                    ? ` · ${formatBtn(state.estimatedTotalBtn)}`
+                    : ""}
+                </Link>
+              </Button>
+            ) : null}
+            {state.labelsUrl ? (
+              <Button asChild size="sm" variant="outline">
+                <Link href={state.labelsUrl}>
+                  <PrinterIcon className="size-3.5" />
+                  Print bag QR
+                </Link>
+              </Button>
+            ) : null}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+    </>
   );
 }
 

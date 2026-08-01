@@ -136,7 +136,11 @@ export function LaundryBoardPanel({
                 return (
                   <TableRow key={order.id} className="align-top">
                     <TableCell className="font-medium">
-                      {order.room_label_snapshot}
+                      {order.source === "walk_in" ||
+                      !order.room_label_snapshot ||
+                      order.room_label_snapshot === "Walk-in"
+                        ? "Walk-in"
+                        : order.room_label_snapshot}
                       <p className="font-mono text-[10px] text-muted-foreground">
                         {order.id.slice(0, 8).toUpperCase()}
                       </p>
@@ -233,7 +237,12 @@ function LaundryCompactCard({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate font-semibold">
-            {order.room_label_snapshot} · {order.guest_name}
+            {order.source === "walk_in" ||
+            !order.room_label_snapshot ||
+            order.room_label_snapshot === "Walk-in"
+              ? "Walk-in"
+              : order.room_label_snapshot}{" "}
+            · {order.guest_name}
           </p>
           <p className="text-xs text-muted-foreground">
             {order.source.replace("_", " ")}

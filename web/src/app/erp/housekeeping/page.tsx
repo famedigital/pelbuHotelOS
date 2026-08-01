@@ -12,6 +12,28 @@ export const metadata = {
 };
 export const dynamic = "force-dynamic";
 
+type RoomUnitRow = {
+  id: string;
+  label: string;
+  hk_status: string;
+  service_requested_at: string | null;
+};
+
+function buildHkCategories(
+  roomUnitId: string,
+  hkStatus: string,
+  serviceRequestedAt: string | null,
+  arrivalRoomIds: Set<string>,
+  departureRoomIds: Set<string>,
+): HkBoardRow["categories"] {
+  const categories: HkBoardRow["categories"] = [];
+  if (arrivalRoomIds.has(roomUnitId)) categories.push("check_in");
+  if (departureRoomIds.has(roomUnitId)) categories.push("checkout");
+  if (hkStatus === "dirty") categories.push("dirty");
+  if (serviceRequestedAt) categories.push("service");
+  return categories;
+}
+
 export default async function HousekeepingPage() {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
   const admin = createSupabaseAdminClient();
@@ -83,7 +105,30 @@ export default async function HousekeepingPage() {
     }
   }
 
-  const boardRows: HkBoardRow[] = (assignments ?? []).map((assignment) => {
+  const unitById = new Map<string, RoomUnitRow>(
+    (units ?? []).map((unit) => [
+      unit.id as string,
+      {
+        id: unit.id as string,
+        label: unit.label as string,
+        hk_status: (unit.hk_status as string) ?? "",
+        service_requested_at:
+          (unit.service_requested_at as string | null) ?? null,
+      },
+    ]),
+  );
+
+  const openAssignmentRoomIds = new Set<string>();
+  for (const assignment of assignments ?? []) {
+    const status = assignment.status as string;
+    if (status === "open" || status === "in_progress") {
+      openAssignmentRoomIds.add(assignment.room_unit_id as string);
+    }
+  }
+
+  const boardRows: HkBoardRow[] = [];
+
+  for (const assignment of assignments ?? []) {
     const room = assignment.room_units as
       | {
           label?: string;
@@ -105,21 +150,23 @@ export default async function HousekeepingPage() {
       ? staffMember[0]?.full_name
       : staffMember?.full_name;
     const roomUnitId = assignment.room_unit_id as string;
-    const hkStatus = roomRow?.hk_status ?? "";
-    const categories: HkBoardRow["categories"] = [];
-    if (arrivalRoomIds.has(roomUnitId)) categories.push("check_in");
-    if (departureRoomIds.has(roomUnitId)) categories.push("checkout");
-    if (hkStatus === "dirty") categories.push("dirty");
-    if (roomRow?.service_requested_at) categories.push("service");
-    if (
-      categories.length === 0 ||
-      (categories.includes("check_in") && assignment.status === "open")
-    ) {
-      categories.push("new_room");
-    }
-    return {
+    const unit = unitById.get(roomUnitId);
+    const hkStatus = roomRow?.hk_status ?? unit?.hk_status ?? "";
+    const serviceRequestedAt =
+      roomRow?.service_requested_at ?? unit?.service_requested_at ?? null;
+    const categories = buildHkCategories(
+      roomUnitId,
+      hkStatus,
+      serviceRequestedAt,
+      arrivalRoomIds,
+      departureRoomIds,
+    );
+
+    boardRows.push({
       id: assignment.id as string,
-      roomLabel: roomRow?.label ?? "—",
+      roomUnitId,
+      isPending: false,
+      roomLabel: roomRow?.label ?? unit?.label ?? "—",
       staffName: staffName ?? null,
       staffId: (assignment.staff_id as string | null) ?? null,
       status: assignment.status as string,
@@ -127,15 +174,51 @@ export default async function HousekeepingPage() {
       cleanOk: Boolean(assignment.checklist_clean_ok),
       linenOk: Boolean(assignment.checklist_linen_ok),
       amenitiesOk: Boolean(assignment.checklist_amenities_ok),
-      categories: [...new Set(categories)],
-    };
+      categories,
+    });
+  }
+
+  for (const unit of unitById.values()) {
+    if (openAssignmentRoomIds.has(unit.id)) continue;
+    const categories = buildHkCategories(
+      unit.id,
+      unit.hk_status,
+      unit.service_requested_at,
+      arrivalRoomIds,
+      departureRoomIds,
+    );
+    if (categories.length === 0) continue;
+
+    boardRows.push({
+      id: `pending:${unit.id}`,
+      roomUnitId: unit.id,
+      isPending: true,
+      roomLabel: unit.label,
+      staffName: null,
+      staffId: null,
+      status: "needs_assignment",
+      notes: null,
+      cleanOk: false,
+      linenOk: false,
+      amenitiesOk: false,
+      categories,
+    });
+  }
+
+  boardRows.sort((a, b) => {
+    const aOpen = a.status !== "done" ? 0 : 1;
+    const bOpen = b.status !== "done" ? 0 : 1;
+    if (aOpen !== bOpen) return aOpen - bOpen;
+    return a.roomLabel.localeCompare(b.roomLabel, undefined, {
+      numeric: true,
+    });
   });
 
   return (
     <DeskListShell
       eyebrow="Housekeeping"
       heading={`Assignments · ${fmtDate(today)}`}
-      blurb="Turnover board with check-in, checkout, and service filters. Assign from the table row — checklist still deducts amenities on mark done."
+      blurb="Open work shows dirty rooms, service requests, and today's check-in/checkout turns. Filters narrow the list — assign and checklist from each row."
       headerAside={<FrontDeskLiveRefresh />}
     >
       <HousekeepingBoard

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { resolveDeskActor } from "@/lib/desk/actor";
 import { writeAuditEvent } from "@/lib/audit";
 import { isDeskAuthenticated, requireMoneyDesk } from "@/lib/desk-auth";
@@ -19,6 +19,8 @@ import {
   hashLaundryToken,
 } from "@/lib/laundry-session";
 import { resolveActivePropertyId } from "@/lib/property-context";
+import { calculateOrderTotals, roundBtn } from "@/lib/pricing";
+import { absoluteUrl } from "@/lib/site";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 import type { LaundryBagState } from "@/app/actions/laundry-bags";
@@ -28,6 +30,8 @@ export type ErpLaundryState = {
   message?: string;
   orderId?: string;
   labelsUrl?: string;
+  payUrl?: string;
+  estimatedTotalBtn?: number;
   error?: string;
 };
 
@@ -112,6 +116,10 @@ export async function saveLaundryCatalogItem(
 
 type DeskLine = { catalogItemId: string; qty: number };
 
+function normalizePhone(value: string): string {
+  return value.replace(/\s+/g, "").trim();
+}
+
 function parseDeskLines(value: FormDataEntryValue | null): DeskLine[] {
   let parsed: unknown;
   try {
@@ -136,19 +144,215 @@ function parseDeskLines(value: FormDataEntryValue | null): DeskLine[] {
   return lines;
 }
 
+async function createDeskWalkInOrder(
+  admin: ReturnType<typeof createSupabaseAdminClient>,
+  propertyId: string,
+  formData: FormData,
+  lines: DeskLine[],
+): Promise<ErpLaundryState> {
+  const guestName = trimRequired(formData.get("guest_name"), "Guest name");
+  const guestPhone = normalizePhone(
+    trimRequired(formData.get("guest_phone"), "Mobile number"),
+  );
+  if (guestName.length > 100) throw new Error("Name is too long.");
+  if (guestPhone.length < 8 || guestPhone.length > 20) {
+    throw new Error("Enter a valid mobile number.");
+  }
+  const roomHint = optionalTrim(formData.get("room_hint"))?.slice(0, 30);
+  const notes = optionalTrim(formData.get("notes"));
+
+  const { data: property } = await admin
+    .from("properties")
+    .select(
+      "id, gst_rate, service_charge_rate, service_charge_default_on, bank_accounts",
+    )
+    .eq("id", propertyId)
+    .maybeSingle();
+  if (!property) throw new Error("Property is not configured.");
+
+  let photos: string[] = [];
+  try {
+    const parsed = JSON.parse(String(formData.get("photo_public_ids") ?? "[]"));
+    if (Array.isArray(parsed)) {
+      photos = parsed
+        .map(String)
+        .filter((id) => isLaundryPhotoId(id, propertyId))
+        .slice(0, 4);
+    }
+  } catch {
+    throw new Error("Photo reference is invalid.");
+  }
+
+  const ids = lines.map((line) => line.catalogItemId);
+  const { data: catalog } = await admin
+    .from("laundry_catalog_items")
+    .select("id, name, unit_label, price_btn, gst_applicable")
+    .eq("property_id", propertyId)
+    .eq("is_active", true)
+    .in("id", ids);
+  if (!catalog || catalog.length !== new Set(ids).size) {
+    throw new Error("One or more laundry services are unavailable.");
+  }
+  const byId = new Map(catalog.map((item) => [item.id as string, item]));
+  const pricingLines = lines.map((line) => {
+    const item = byId.get(line.catalogItemId)!;
+    return {
+      qty: line.qty,
+      unitPriceBtn: Number(item.price_btn),
+      gstApplicable: Boolean(item.gst_applicable),
+    };
+  });
+  const totals = calculateOrderTotals(pricingLines, {
+    gstRate: Number(property.gst_rate ?? 0.07),
+    serviceChargeRate: Number(property.service_charge_rate ?? 0),
+    applyServiceCharge: Boolean(property.service_charge_default_on),
+  });
+  if (totals.totalBtn <= 0) {
+    throw new Error("Order total must be greater than zero.");
+  }
+
+  const { data: order, error: orderError } = await admin
+    .from("laundry_orders")
+    .insert({
+      property_id: propertyId,
+      booking_id: null,
+      room_unit_id: null,
+      guest_name: guestName,
+      guest_phone: guestPhone,
+      room_label_snapshot: roomHint || "Walk-in",
+      source: "walk_in",
+      requested_notes: notes,
+      intake_photo_public_ids: photos,
+      subtotal_btn: totals.subtotalBtn,
+      service_charge_btn: totals.serviceChargeBtn,
+      gst_btn: totals.gstBtn,
+      total_btn: totals.totalBtn,
+    })
+    .select("id")
+    .single();
+  if (orderError || !order) throw new Error("Could not create walk-in laundry order.");
+
+  const { error: itemError } = await admin.from("laundry_order_items").insert(
+    lines.map((line) => {
+      const item = byId.get(line.catalogItemId)!;
+      return {
+        order_id: order.id,
+        catalog_item_id: line.catalogItemId,
+        name_snapshot: item.name as string,
+        unit_label_snapshot: item.unit_label as string,
+        requested_qty: line.qty,
+      };
+    }),
+  );
+  if (itemError) {
+    await admin.from("laundry_orders").delete().eq("id", order.id);
+    throw new Error("Could not save laundry items.");
+  }
+
+  const banks = (property.bank_accounts as { hint?: string }[] | null) ?? [];
+  const bankHint =
+    banks.find((b) => b.hint)?.hint ??
+    "BoB / BNB / TBank / DrukPNB — quote laundry ref in remarks";
+  const token = createHash("sha256")
+    .update(randomBytes(24))
+    .digest("hex")
+    .slice(0, 24);
+  const expires = new Date();
+  expires.setDate(expires.getDate() + 3);
+
+  const { data: link, error: linkError } = await admin
+    .from("payment_links")
+    .insert({
+      property_id: propertyId,
+      token,
+      amount_btn: roundBtn(totals.totalBtn),
+      purpose: "balance",
+      payee_name: guestName,
+      payee_phone: guestPhone,
+      bank_hint: bankHint,
+      expires_at: expires.toISOString(),
+      notes: `Laundry walk-in · order ${String(order.id).slice(0, 8).toUpperCase()}`,
+      status: "open",
+    })
+    .select("id, token")
+    .single();
+  if (linkError || !link) {
+    await admin.from("laundry_orders").delete().eq("id", order.id);
+    throw new Error("Could not create payment link.");
+  }
+
+  await admin
+    .from("laundry_orders")
+    .update({ payment_link_id: link.id })
+    .eq("id", order.id);
+
+  await admin.from("laundry_order_events").insert({
+    property_id: propertyId,
+    order_id: order.id,
+    event_type: "front_desk_intake",
+    to_status: "requested",
+    notes: notes ?? "Walk-in desk intake",
+    photo_public_ids: photos,
+    actor_kind: "front_desk",
+  });
+
+  await writeAuditEvent(admin, {
+    propertyId,
+    action: "laundry.order.create",
+    entityType: "laundry_orders",
+    entityId: order.id as string,
+    summary: `Walk-in laundry · ${guestName} · ${guestPhone}`,
+    meta: { source: "walk_in", photoCount: photos.length },
+  });
+
+  const optionalStaffId = optionalTrim(formData.get("prepared_by_staff_id"));
+  const bagResult = await autoPrepareDefaultBag(
+    admin,
+    propertyId,
+    order.id as string,
+    "front_desk",
+    optionalStaffId,
+  );
+
+  refreshLaundry();
+  const labelsUrl = `/erp/laundry/orders/${order.id}/labels`;
+  const payUrl = absoluteUrl(`/pay/${link.token as string}`);
+  const orderRef = String(order.id).slice(0, 8).toUpperCase();
+  return {
+    ok: true,
+    orderId: order.id as string,
+    labelsUrl,
+    payUrl,
+    estimatedTotalBtn: totals.totalBtn,
+    message: bagResult.ok && bagResult.bags.length
+      ? `Walk-in ${orderRef} created · send pay link (${formatDeskTotal(totals.totalBtn)}) before processing.`
+      : `Walk-in ${orderRef} created · send pay link (${formatDeskTotal(totals.totalBtn)}).`,
+  };
+}
+
+function formatDeskTotal(total: number): string {
+  return `Nu ${total.toFixed(2)}`;
+}
+
 export async function createDeskLaundryOrder(
   _prev: ErpLaundryState,
   formData: FormData,
 ): Promise<ErpLaundryState> {
   try {
     await requireDesk();
+    const intakeMode = optionalTrim(formData.get("intake_mode")) ?? "in_house";
+    const lines = parseDeskLines(formData.get("items"));
+    const admin = createSupabaseAdminClient();
+    const propertyId = await resolveActivePropertyId(admin);
+
+    if (intakeMode === "walk_in") {
+      return await createDeskWalkInOrder(admin, propertyId, formData, lines);
+    }
+
     const bookingId = trimRequired(formData.get("booking_id"), "Guest stay");
     const roomUnitId = trimRequired(formData.get("room_unit_id"), "Room");
     const guestName = trimRequired(formData.get("guest_name"), "Guest name");
-    const lines = parseDeskLines(formData.get("items"));
     const notes = optionalTrim(formData.get("notes"));
-    const admin = createSupabaseAdminClient();
-    const propertyId = await resolveActivePropertyId(admin);
     const { data: assignment } = await admin
       .from("room_assignments")
       .select("id, room_units(label), bookings!inner(id, status)")

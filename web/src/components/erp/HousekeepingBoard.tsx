@@ -22,6 +22,8 @@ const initial: OpsState = { ok: false };
 
 export type HkBoardRow = {
   id: string;
+  roomUnitId: string;
+  isPending: boolean;
   roomLabel: string;
   staffName: string | null;
   staffId: string | null;
@@ -30,25 +32,41 @@ export type HkBoardRow = {
   cleanOk: boolean;
   linenOk: boolean;
   amenitiesOk: boolean;
-  categories: ("check_in" | "checkout" | "new_room" | "dirty" | "service")[];
+  categories: ("check_in" | "checkout" | "dirty" | "service")[];
 };
 
 type FilterKey =
+  | "open"
   | "all"
   | "check_in"
   | "checkout"
-  | "new_room"
   | "dirty"
   | "service";
 
 const FILTER_LABEL: Record<FilterKey, string> = {
+  open: "Open work",
   all: "All",
   check_in: "Check-in",
   checkout: "Checkout",
-  new_room: "New room",
   dirty: "Dirty",
   service: "Service",
 };
+
+const WORK_CATEGORIES = new Set<HkBoardRow["categories"][number]>([
+  "check_in",
+  "checkout",
+  "dirty",
+  "service",
+]);
+
+function rowMatchesFilter(row: HkBoardRow, filter: FilterKey): boolean {
+  if (filter === "all") return true;
+  if (filter === "open") {
+    if (row.status === "done") return false;
+    return row.categories.some((category) => WORK_CATEGORIES.has(category));
+  }
+  return row.categories.includes(filter);
+}
 
 export function HousekeepingBoard({
   rows,
@@ -61,7 +79,7 @@ export function HousekeepingBoard({
   staff: { id: string; full_name: string }[];
   today: string;
 }) {
-  const [filter, setFilter] = useState<FilterKey>("all");
+  const [filter, setFilter] = useState<FilterKey>("open");
   const [query, setQuery] = useState("");
   const [state, action, pending] = useActionState(createHkAssignment, initial);
   usePendingFeedback(pending, "Creating assignment…");
@@ -69,20 +87,25 @@ export function HousekeepingBoard({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter((row) => {
-      if (filter !== "all" && !row.categories.includes(filter)) return false;
+      if (!rowMatchesFilter(row, filter)) return false;
       if (!q) return true;
       const haystack = [
         row.roomLabel,
         row.staffName ?? "",
         row.notes ?? "",
         row.status,
-        row.id,
+        ...row.categories.map((category) => FILTER_LABEL[category]),
       ]
         .join(" ")
         .toLowerCase();
       return haystack.includes(q);
     });
   }, [filter, query, rows]);
+
+  const openCount = useMemo(
+    () => rows.filter((row) => rowMatchesFilter(row, "open")).length,
+    [rows],
+  );
 
   return (
     <div className="space-y-4">
@@ -96,6 +119,7 @@ export function HousekeepingBoard({
             onClick={() => setFilter(key)}
           >
             {FILTER_LABEL[key]}
+            {key === "open" && openCount > 0 ? ` (${openCount})` : ""}
           </Button>
         ))}
         <Input
@@ -174,7 +198,9 @@ export function HousekeepingBoard({
             {filtered.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
-                  No assignments match this filter.
+                  {filter === "open"
+                    ? "No open housekeeping work right now."
+                    : "No assignments match this filter."}
                 </TableCell>
               </TableRow>
             ) : (
@@ -182,24 +208,36 @@ export function HousekeepingBoard({
                 <TableRow key={row.id} className="align-top">
                   <TableCell className="font-medium">{row.roomLabel}</TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {row.categories.map((category) => (
-                        <span
-                          key={category}
-                          className="inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
-                        >
-                          {FILTER_LABEL[category]}
-                        </span>
-                      ))}
-                    </div>
+                    {row.categories.length ? (
+                      <div className="flex flex-wrap gap-1">
+                        {row.categories.map((category) => (
+                          <span
+                            key={category}
+                            className="inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+                          >
+                            {FILTER_LABEL[category]}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell>
-                    <HkStaffAssignForm
-                      assignmentId={row.id}
-                      staffId={row.staffId}
-                      staff={staff}
-                      status={row.status}
-                    />
+                    {row.isPending ? (
+                      <PendingAssignForm
+                        roomUnitId={row.roomUnitId}
+                        staff={staff}
+                        today={today}
+                      />
+                    ) : (
+                      <HkStaffAssignForm
+                        assignmentId={row.id}
+                        staffId={row.staffId}
+                        staff={staff}
+                        status={row.status}
+                      />
+                    )}
                   </TableCell>
                   <TableCell>
                     <StatusBadge status={row.status} />
@@ -208,16 +246,24 @@ export function HousekeepingBoard({
                     {row.notes ?? "—"}
                   </TableCell>
                   <TableCell>
-                    <HkChecklistForm
-                      id={row.id}
-                      cleanOk={row.cleanOk}
-                      linenOk={row.linenOk}
-                      amenitiesOk={row.amenitiesOk}
-                      status={row.status}
-                    />
+                    {row.isPending ? (
+                      <span className="text-xs text-muted-foreground">
+                        Assign first
+                      </span>
+                    ) : (
+                      <HkChecklistForm
+                        id={row.id}
+                        cleanOk={row.cleanOk}
+                        linenOk={row.linenOk}
+                        amenitiesOk={row.amenitiesOk}
+                        status={row.status}
+                      />
+                    )}
                   </TableCell>
                   <TableCell>
-                    <HkStatusForm id={row.id} status={row.status} />
+                    {row.isPending ? null : (
+                      <HkStatusForm id={row.id} status={row.status} />
+                    )}
                   </TableCell>
                 </TableRow>
               ))
@@ -229,18 +275,62 @@ export function HousekeepingBoard({
   );
 }
 
+function PendingAssignForm({
+  roomUnitId,
+  staff,
+  today,
+}: {
+  roomUnitId: string;
+  staff: { id: string; full_name: string }[];
+  today: string;
+}) {
+  const [state, action, pending] = useActionState(createHkAssignment, initial);
+  usePendingFeedback(pending, "Creating assignment…");
+
+  return (
+    <form action={action} className="flex flex-wrap items-center gap-1">
+      <input type="hidden" name="business_date" value={today} />
+      <input type="hidden" name="room_unit_id" value={roomUnitId} />
+      <select
+        name="staff_id"
+        className="h-8 min-w-[120px] rounded-md border border-input bg-transparent px-2 text-xs"
+        defaultValue=""
+      >
+        <option value="">Unassigned</option>
+        {staff.map((member) => (
+          <option key={member.id} value={member.id}>
+            {member.full_name}
+          </option>
+        ))}
+      </select>
+      <Button type="submit" size="sm" variant="outline" className="h-8 px-2" disabled={pending}>
+        {pending ? "…" : "Assign"}
+      </Button>
+      {state.error ? (
+        <p className="w-full text-[10px] text-destructive">{state.error}</p>
+      ) : null}
+    </form>
+  );
+}
+
 function StatusBadge({ status }: { status: string }) {
   const tone =
     status === "done"
       ? "border-citrus/40 bg-citrus-tint/60 text-citrus"
-      : status === "open" || status === "in_progress"
+      : status === "open" ||
+          status === "in_progress" ||
+          status === "needs_assignment"
         ? "border-destructive/30 bg-destructive/5 text-destructive"
         : "border-border bg-muted text-muted-foreground";
+  const label =
+    status === "needs_assignment"
+      ? "needs assign"
+      : status.replace("_", " ");
   return (
     <span
       className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide whitespace-nowrap ${tone}`}
     >
-      {status}
+      {label}
     </span>
   );
 }
