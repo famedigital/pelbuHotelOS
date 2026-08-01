@@ -2,25 +2,27 @@
 
 **Audience:** hotel operators + software engineers reviewing Pelbu OS.  
 **Lens:** Opera / OHIP / Mews / Protel / Micros class processes, plus IFRS-style posting hygiene.  
-**Date:** 2026-08-01.  
-**Method:** code review of money / laundry / desk paths, Supabase advisor pass, HTTP crawl of static `/erp` routes with a desk session, Phase A money-path verification (2026-08-01), and calendar density + sidebar identity pass (2026-08-01).
+**Date:** 2026-08-02 (maturity + competitive gap refresh; Phase A/B evidence from 2026-08-01).  
+**Method:** code review of money / laundry / desk paths, Supabase advisor pass, HTTP crawl of static `/erp` routes with a desk session, Phase A money-path verification (2026-08-01), calendar density + sidebar identity pass (2026-08-01), Beat eZee/IDS waves 0–4 + competitive gap close (2026-08-02).
 
 This is not a marketing checklist. It is the register you hand another engineer so they can say “we know the gaps and the fix order,” instead of “this was vibe-coded for one hotel.”
 
 ---
 
-## 0. Maturity snapshot (2026-08-01)
+## 0. Maturity snapshot (2026-08-02)
 
 Honest module-level status — **Shipped** = desk can run a shift; **Partial** = usable with known process gaps; **Not started** = schema or stub only.
 
 | Area | Status | Highlight |
 |------|--------|-----------|
-| **Overall ERP** | **Partial — production-usable for Pelbu Olakha** | Real folio, journals, night-audit cron, POS, laundry CoC; not chain-SaaS or Opera-parity |
-| **Front desk / calendar** | **Shipped v2 — Partial vs Cloudbeds** | Category-grouped rack, density pass, sticky scroll containment, occupancy popover, go-to-date; poll refresh only |
-| **Folio / money** | **Partial — Phase B + Wave 2 + AR statement** | Gateways, void/reversal, period lock, fiscal INV/RCP/CN + print PDF, laundry via `postFolioCharge`, line transfer, **group AR statement** at `/erp/folios/[id]/statement`; Bhutan live e-invoice API still open (stub + doc shipped) |
-| **Finance / GST** | **Partial** | Double-entry ledger + bank recon; edge journal proof tests + FINANCE-UAT checklist; `/erp/invoices` lists issued fiscal tax invoices (INV-YYYY-####) |
+| **Overall ERP** | **Partial — production-usable for Pelbu Olakha** | Real folio, journals, night-audit cron + `close_time`, POS, laundry CoC; Waves 0–4 + competitive gaps closed in code; not chain-SaaS or Opera-parity |
+| **Front desk / calendar** | **Shipped v2+ — Partial vs Cloudbeds** | Category rack + connecting rooms + row virtualization; poll refresh only |
+| **Folio / money** | **Partial — Phase B + Wave 3 + AR statement** | Gateways, void/reversal, period lock, fiscal INV/RCP/CN + print, laundry via `postFolioCharge`, line transfer, **group AR statement**; Bhutan live e-invoice API still open (stub + [GST-EINVOICE.md](GST-EINVOICE.md)) |
+| **Finance / GST** | **Partial** | Double-entry + bank recon; edge journal proof tests + [FINANCE-UAT.md](FINANCE-UAT.md); `/erp/invoices` lists issued fiscal tax invoices (INV-YYYY-####) |
 | **HR** | **Partial — rota usable** | Staff, shifts, leave, kiosk attendance; weekly rota + **overlap conflict** detection; biometrics / 200-staff payroll residual |
-| **Channel / SaaS** | **Partial — foundation + desk ARI + tenant deepen** | Active-property Channel desk; ARI flush UX; Host + **billing email / seats / cert verify**; live Channex cert still open |
+| **Channel** | **Partial — desk ARI ready; live cert open** | Active-property Channel desk + rates/restrictions outbox; **~40–55 until** human `CHANNEX_*` cert — [CHANNEX-CERT.md](CHANNEX-CERT.md) |
+| **SaaS / white-label** | **Partial — foundation ~55** | Host middleware + tenants + billing email / seats / cert verify UI; Stripe self-serve open — [MULTI-TENANT-WHITELABEL.md](MULTI-TENANT-WHITELABEL.md) |
+| **SEC-01 AuthZ** | **Partial — Wave 2 purge** | `desk_role` + `requireMoneyDesk` + `assertDeskProperty` on money paths; staff-scoped client rewrite still open (§7.3) |
 
 **Front desk / calendar (detail):** `/erp/calendar` is the primary ops home. Left pane slimmed (108px desktop / 72px mobile). Rooms grouped by **category** (floor groups retired). Color acronym chips + Categories legend popover. Sticky horizontal scroll keeps the Room column from sliding over nav. Room rack / Day sheet tabs live in the sticky header (`CalendarHeaderTabs`; `ModuleTabs` suppressed on calendar). Occupancy popover + go-to-date for far-future windows shipped.
 
@@ -36,11 +38,11 @@ Honest module-level status — **Shipped** = desk can run a shift; **Partial** =
 | Folio | Immutable posted lines; corrections via reversing entries; clear balance | Posting gateways + `voidFolioLineWithReversal`; not every path uses reversal; balance via `netFolioBalance` |
 | Night audit | Scheduled roll: room rent, no-shows, rate variance, date roll, audit report | **Cron shipped** + per-property `night_audit_close_time` gate; room-night posting idempotent; no-shows + close-day blockers; desk hard-blocks unless force-close |
 | Double-entry | Every guest charge/payment → balanced journal in open period | Posting helpers exist; not every money path proven end-to-end |
-| Tax (Bhutan GST) | Inclusive/exclusive rule documented; invoice sequences gapless per property | GST screens exist; sequence / lock gaps remain |
-| Inventory / POS | KOT → settle → stock deduction; voids with reason + audit | Modern POS shipped; open-ticket detail fixed 2026-07-31 |
+| Tax (Bhutan GST) | Inclusive/exclusive rule documented; invoice sequences gapless per property | GST screens + §5.1 policy; `property_sequences` shipped; live DRC e-invoice still stub |
+| Inventory / POS | KOT → settle → stock deduction; voids with reason + audit | Modern POS shipped; recipe-cost rollup; open-ticket detail fixed 2026-07-31 |
 | Laundry | Priced catalog → bag CoC → folio charge → reverse on cancel | Catalog seed + bag CoC + gateway billing via `postFolioCharge` shipped; reverse on cancel/correction largely fixed |
-| Multi-property | Property isolation by RLS **and** app authZ | `property_id` everywhere; desk uses service role heavily; `assertDeskProperty` pilot |
-| Multi-tenant SaaS | Host routing, tenant billing, isolated logins | Host + tenant billing email/seats/cert verify UI; Stripe self-serve still open — MULTI-TENANT-WHITELABEL.md |
+| Multi-property | Property isolation by RLS **and** app authZ | `property_id` everywhere; Wave 2 money gates + `assertDeskProperty`; admin client still used for reads |
+| Multi-tenant SaaS | Host routing, tenant billing, isolated logins | Host + tenant billing email/seats/cert verify UI; Stripe self-serve still open — [MULTI-TENANT-WHITELABEL.md](MULTI-TENANT-WHITELABEL.md) |
 
 ---
 
@@ -73,7 +75,7 @@ Honest module-level status — **Shipped** = desk can run a shift; **Partial** =
 |----|-----|---------|----------|------------|
 | NA-01 | **P0** | No scheduled night audit. Manual UI only. | Was: expire-holds only | **Shipped 2026-08-01:** `/api/cron/night-audit` + `0 18 * * *` UTC; desk UI still available |
 | NA-02 | **P0** | Soft / missing period lock: risk of posting into a closed accounting period. | `accounting_periods` + gateways | **Shipped 2026-08-01/02:** `assertOpenPeriodForDate` on folio/payment/void/expense/fiscal; manager PIN override with audit |
-| NA-03 | **P1** | Night audit report completeness (rate variance, open balances, HK dirty count) not proven against Opera-style checklist. | `/erp/night-audit` + `executeNightAudit` | **Shipped 2026-08-02:** desk checklist + blockers for dirty HK, open folio balances, room-night errors, departures not checked out, rate variance; desk hard-blocks unless force-close; cron records blockers (optional `NIGHT_AUDIT_CRON_STRICT=1`). **Still open:** per-property close_time; richer Opera variance report packaging |
+| NA-03 | **P1** | Night audit report completeness (rate variance, open balances, HK dirty count) not proven against Opera-style checklist. | `/erp/night-audit` + `executeNightAudit` | **Shipped 2026-08-02:** desk checklist + blockers for dirty HK, open folio balances, room-night errors, departures not checked out, rate variance; desk hard-blocks unless force-close; cron records blockers (optional `NIGHT_AUDIT_CRON_STRICT=1`); **per-property `night_audit_close_time`** (Settings + cron gate). **Still open:** richer Opera variance report packaging |
 
 ### 3.3 Accounting & payments
 
@@ -81,7 +83,7 @@ Honest module-level status — **Shipped** = desk can run a shift; **Partial** =
 |----|-----|---------|----------|------------|
 | AC-01 | **P0** | Not every folio charge/payment is proven to create a **balanced** journal with a posting event. | `lib/accounting/posting.ts` + call sites | Single `postFolioLine` / `postPayment` gateway; unit tests for balance; forbid raw inserts of `folio_lines` |
 | AC-02 | **P0** | Posted folio lines may be mutable / deletable without a reversing entry pattern. | Inspect mutations on `folio_lines` | Status machine: `posted` → only `voided` via reversing line; store `reverses_line_id`, actor, reason |
-| AC-03 | **P1** | Invoice / receipt / journal sequence gapless-ness and concurrency not guaranteed. | Sequence helpers / DB sequences | **Shipped 2026-08-01:** `property_sequences` + `next_property_sequence` RPC; `allocateJournalNo` / `allocateFiscalDocNo` use row-locked upsert. **Still open:** journal numbers gapless but not legally immutable; credit notes |
+| AC-03 | **P1** | Invoice / receipt / journal sequence gapless-ness and concurrency not guaranteed. | Sequence helpers / DB sequences | **Shipped 2026-08-01/02:** `property_sequences` + `next_property_sequence` RPC; `allocateJournalNo` / `allocateFiscalDocNo` use row-locked upsert; fiscal **CN** issue + print. **Still open:** journal numbers gapless but not legally immutable; live Bhutan e-invoice API |
 | AC-04 | **P1** | Idempotency: double-click payment / webhook replay can double-post. | Payment actions / webhooks | **Shipped 2026-08-01:** `payments (property_id, idempotency_key)` unique partial index; gateway webhook + deposit link + folio desk + POS tender + agent credit keys; desk deposit link `open→processing` claim |
 | AC-05 | **P2** | GST inclusive vs exclusive + rounding (`roundBtn`) must be one documented rule. | `lib/pricing` | **Documented 2026-08-01:** see §5.1 — exclusive-add GST, `roundBtn` on every BTN total; property `gst_rate` from seed |
 
@@ -117,7 +119,7 @@ Honest module-level status — **Shipped** = desk can run a shift; **Partial** =
 
 | ID | Sev | Finding | Evidence | Correction |
 |----|-----|---------|----------|------------|
-| PL-01 | **P1** | No `Host` → property middleware; public site always resolves flagship (`pelbu-suites-olakha`). | Was: slug-only | **Partial 2026-08-02 / Wave 4:** Host columns + middleware; `tenants` / `tenant_members` / `properties.tenant_id` + Settings org/seats stub; public CMS prefers Host then flagship. **Still open:** Stripe, domain verify automation, CMS always Host-bound on every public route — see MULTI-TENANT-WHITELABEL.md |
+| PL-01 | **P1** | No `Host` → property middleware; public site always resolves flagship (`pelbu-suites-olakha`). | Was: slug-only | **Partial 2026-08-02 / Wave 4:** Host columns + middleware; `tenants` / `tenant_members` / `properties.tenant_id` + billing email / seats_used / DNS TXT + cert status UI; public CMS prefers Host then flagship. **Still open:** Stripe self-serve, Vercel domains API automation — see [MULTI-TENANT-WHITELABEL.md](MULTI-TENANT-WHITELABEL.md) |
 | PL-02 | **P2** | CallMeBot is fine for Pelbu ops alerts; not acceptable as the only WhatsApp channel for a chain SaaS. | Integrations | WhatsApp Business API (Cloud or AWS-hosted) for tenant messaging |
 | PL-03 | **P3** | Willing AWS VM path (own DB/mail/WA) is optional hardening, not a substitute for process fixes above. | — | Keep Supabase until P0 money is solid; then evaluate |
 
@@ -133,7 +135,7 @@ Honest module-level status — **Shipped** = desk can run a shift; **Partial** =
 | UX-06 | **P2** | Sidebar always expanded wasted horizontal space on calendar | `SidebarProvider defaultOpen={false}`; `sidebar.tsx`: 13rem width, icon-collapsed default, hover peek | **Fixed** — cookie `sidebar_state_v2` |
 | UX-07 | **P3** | Category colour legend not visible at a glance | Categories popover + color acronym chips on category header rows | **Fixed** |
 
-**Calendar v2 leftovers (2026-08-02):** resize handles, allotment overlay, departure-not-checked-out highlight, right-click quick actions, and column zoom are **shipped**. Desk keeps **poll** refresh (no browser Realtime by design). **v3+ open:** connecting rooms, stop-sell markers on rack, rooming-list editor, VIP intelligence — see [FEATURES.md](FEATURES.md).
+**Calendar v2 leftovers (2026-08-02):** resize handles, allotment overlay, departure-not-checked-out highlight, right-click quick actions, and column zoom are **shipped**. Desk keeps **poll** refresh (no browser Realtime by design). **v3+ shipped:** connecting rooms + row virtualization. **v3+ optional:** stop-sell markers on rack, rooming-list editor, VIP intelligence — see [FEATURES.md](FEATURES.md).
 
 ---
 
@@ -161,7 +163,7 @@ This proves routes compile and auth gates work. It does **not** prove money corr
 
 ### Phase A — Stop the bleeding (1–2 sprints)
 
-1. Night-audit room-night posting + idempotent unique key (FO-01, NA-01). **Shipped 2026-08-01:** `postRoomNightsForDate` in night audit; unique index `(folio_id, business_date, room_unit_id)`. **Shipped 2026-08-01 (cron):** `executeNightAudit` + `/api/cron/night-audit` at `0 18 * * *` UTC (midnight Thimphu); `CRON_SECRET` required in production. **Shipped 2026-08-02:** no-show marking + close-day blockers (NA-03). **Still open:** per-property close_time.  
+1. Night-audit room-night posting + idempotent unique key (FO-01, NA-01). **Shipped 2026-08-01:** `postRoomNightsForDate` in night audit; unique index `(folio_id, business_date, room_unit_id)`. **Shipped 2026-08-01 (cron):** `executeNightAudit` + `/api/cron/night-audit` at `0 18 * * *` UTC (midnight Thimphu); `CRON_SECRET` required in production. **Shipped 2026-08-02:** no-show marking + close-day blockers (NA-03) + per-property `night_audit_close_time`.  
 2. Folio line immutability + reversing entry API (AC-02). **Shipped 2026-08-01:** `voidFolioLineWithReversal` (void + reversing folio line + `reverseJournal`); `netFolioBalance` on folio detail.  
 3. Period open check on every post (NA-02). **Shipped 2026-08-01:** `createAndPostJournal` rejects missing/closed/soft-closed periods; `period_id` required on insert. **Shipped 2026-08-01 (extend):** `assertOpenPeriodForDate` on folio charge/payment, void, expense create, fiscal issue; manager PIN + reason override with audit. **Shipped 2026-08-02:** laundry confirm no longer inserts `folio_lines` in RPC — app posts via `postFolioCharge` (period guard applies).  
 4. Laundry catalog seed + reverse on void (LD-01, LD-02). **Shipped 2026-08-01:** Pelbu catalog seed; GST checkbox fix; reversal on correction; staff confirm fails on GL error. **Shipped 2026-08-02:** laundry gateway billing (`laundry_confirm_receipt` quotes; app posts via `postFolioCharge`); cancel voids folio. See §7.1.  
@@ -175,7 +177,7 @@ This proves routes compile and auth gates work. It does **not** prove money corr
 4. Night-audit cron (NA-01). **Shipped 2026-08-01:** `executeNightAudit` + `/api/cron/night-audit` at `0 18 * * *` UTC; `CRON_SECRET` in production.
 5. Staff-scoped reads; shrink admin surface (SEC-01). **Wave 2 purge 2026-08-01:** `requireMoneyDesk` on folio deposit/fiscal/night-audit, finance expense/bank, accounting journals/opening balances, POS settle/void/shift/payment, laundry billing cancel/correct, agent credit/rates/approve, check-out, booking cancel/no-show, payroll approve/finalize/pay; `requireDeskRole(["gm","owner"])` on period close + tax settings; `assertDeskProperty` on id loads (folios, bookings, orders, laundry, journals, bank txns, channel maps/revisions, receipt/slip pages). Unit coverage: `property-guard.test.ts`, `desk-auth.test.ts`. **Still open:** staff-scoped Supabase client for reads; HK/ops/CMS/menu/settings room edits still `requireDesk` + admin; agents table has no `property_id` (global partners); Playwright money isolation click-through.
 6. Documented GST/rounding (AC-05). **Shipped 2026-08-01:** §5.1 below.
-7. White-label Host routing MVP (PL-01). **Foundation shipped 2026-08-02** (host columns + middleware + Settings). Tenant billing / multi-tenant accounts still deferred — MULTI-TENANT-WHITELABEL.md.
+7. White-label Host routing MVP (PL-01). **Wave 4 foundation shipped 2026-08-02** (host columns + middleware + Settings + tenants / billing email / seats / cert verify UI). Stripe self-serve + Vercel domains API still open — [MULTI-TENANT-WHITELABEL.md](MULTI-TENANT-WHITELABEL.md).
 
 ### §5.1 GST and rounding policy (AC-05)
 
@@ -200,7 +202,7 @@ Property setting: `properties.gst_rate` (seeded). Future: per-outlet inclusive m
 ## 6. How to talk about this with other engineers
 
 **Do say:**  
-“Property-scoped PMS with real folio, journals, night-audit cron (room-night posting + Opera blockers), posting gateways (including laundry), payment idempotency, property-scoped fiscal/journal sequences, INV/CN print, desk_role RBAC, Host→property middleware foundation, and Bhutan GST policy (§5.1). Calendar v2 has resize/allotment/overdue + poll. Channel desk is active-property + ARI rates/restrictions queue — live Channex cert still open. Known gaps: tenant SaaS billing, service-role-heavy authZ surface, Pay.bt live credentials.”
+“Property-scoped PMS with real folio, journals, night-audit cron (room-night posting + Opera blockers + `close_time`), posting gateways (including laundry), payment idempotency, property-scoped fiscal/journal sequences, INV/CN print, group AR statements, desk_role RBAC, Host→property middleware + tenants foundation, loyalty portal lite, offline draft queue, connecting-room rack, and Bhutan GST policy (§5.1). Channel desk is active-property + ARI rates/restrictions queue — live Channex cert still open. Known residuals: Stripe self-serve, staff-scoped client rewrite, Pay.bt live credentials, prod UAT initials.”
 
 **Do not say:**  
 “It works for our hotel” without the fault register. That is what reads as vibe-coded.
@@ -242,7 +244,7 @@ Property setting: `properties.gst_rate` (seeded). Future: per-outlet inclusive m
 | MY-A5 | **P0** | Period lock incomplete: `period_id` null bypasses journal guard; folios/payments/expenses have no period lock | **Fixed 2026-08-02** — gateways + laundry via `postFolioCharge`; manager override with audit |
 | MY-A6 | **P1** | POS room-charge can stamp `posted_to_folio_at` even if folio insert fails | **Fixed 2026-08-02:** `createDeskOrder` sets `posted_to_folio_at` only after `postFolioCharge` succeeds; order deleted on folio failure |
 | MY-A7 | **P1** | Split room tender may post folio GST as 0 | **Fixed 2026-08-02:** `allocateSplitGst` uses `roundBtn`; split settle sets `gst_applicable` when order has GST; folio post errors fail settle loudly |
-| MY-A8 | **P1** | No fiscal invoice/receipt sequence — `/erp/invoices` is folio browser | **Partial fix 2026-08-01** — `fiscal_documents` + `INV-/RCP-YYYY-####`; issue from folio/receipt; invoices desk lists issued docs. **Still open:** branded PDF, credit notes, Bhutan e-invoice API |
+| MY-A8 | **P1** | No fiscal invoice/receipt sequence — `/erp/invoices` is folio browser | **Partial fix 2026-08-01/02** — `fiscal_documents` + `INV-/RCP-/CN-YYYY-####`; issue from folio/receipt; invoices desk lists issued docs + print. **Still open:** richer branded PDF polish; live Bhutan e-invoice API (stub shipped — [GST-EINVOICE.md](GST-EINVOICE.md)) |
 | MY-A9 | **P1** | Journal numbers = per-property `count+1` (race / not gapless) | **Fixed 2026-08-01** — `allocateJournalNo` via `next_property_sequence` row lock |
 | MY-A10 | **P1** | Agent credit payments not journaled; weak payment idempotency; `folio_lines (source_type, source_id)` not unique | **Fixed 2026-08-01** — agent credit → `postFolioPaymentRecord` + rollback; idempotency keys on all payment gateways; folio line uniqueness still deferred (reversal pattern instead) |
 | MY-A11 | **P1** | GST exclusive-add in code; no documented inclusive/exclusive + rounding policy | **Fixed 2026-08-01** — §5.1 GST policy |
@@ -298,6 +300,11 @@ Folio detail / receipt / transfer / void / payment; booking detail + check-in/ou
 - Whiteboard map: [WHITEBOARD.md](WHITEBOARD.md)  
 - Features matrix: [FEATURES.md](FEATURES.md)  
 - UAT scripts: [UAT-CHECKLIST.md](UAT-CHECKLIST.md)  
+- Launch cutover: [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md)  
+- Finance UAT: [FINANCE-UAT.md](FINANCE-UAT.md)  
+- Ops runbook: [OPS-RUNBOOK.md](OPS-RUNBOOK.md)  
+- Channex cert: [CHANNEX-CERT.md](CHANNEX-CERT.md)  
+- GST e-invoice: [GST-EINVOICE.md](GST-EINVOICE.md)  
 - **Go-live briefing:** [GO-LIVE-TOMORROW.md](GO-LIVE-TOMORROW.md)  
 - White-label: [MULTI-TENANT-WHITELABEL.md](MULTI-TENANT-WHITELABEL.md)  
 - BTCL chain: [BTCL-ADAPTATION.md](BTCL-ADAPTATION.md)

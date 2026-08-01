@@ -39,6 +39,6 @@ Do **not** chase Channel maturity to 98 until Olakha Ops+Money are stable and yo
 
 Channel maturity may move toward 90–98 only after cert packet accepted.
 
-Current honest score until then: **~50–55** (active-property desk + rates/restrictions outbox; not live cert).
+Current honest score until then: **~40–55** (active-property desk + rates/restrictions outbox; not live cert).
 
-See also: [OPS-RUNBOOK.md](OPS-RUNBOOK.md), [FEATURES.md](FEATURES.md).
+See also: [OPS-RUNBOOK.md](OPS-RUNBOOK.md) · [FEATURES.md](FEATURES.md) · [WHITEBOARD.md](WHITEBOARD.md) · [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md).

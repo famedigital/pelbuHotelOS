@@ -1,9 +1,9 @@
 # Pelbu Suites — Feature status
 
-Last updated: **2026-08-02**.
+Last updated: **2026-08-01** (**v1.0**).
 Property #1: `pelbu-suites-olakha` (`template_id` 1). Work login supports staff Auth with desk access; `DESK_PIN` remains a temporary single-hotel fallback — **never share across hotels**.
 
-**Verdict:** Core hotel OS modules and the flagship public conversion rebuild are **built**. Go-live for Pelbu Olakha (single property): see **[GO-LIVE-TOMORROW.md](GO-LIVE-TOMORROW.md)**. Not "100% done" for chain SaaS — Stripe self-serve, full SEC-01 admin purge, and **live** Channex certification remain open. Competitive gap wave (2026-08-02): connecting rooms + rack virtualization, night-audit `close_time`, group AR statements, loyalty portal lite, offline IndexedDB drafts, DRC e-invoice stub, tenant billing/seats/cert domains deepened.
+**Verdict:** **v1.0 ready** for single-hotel Pelbu Olakha — see **[RELEASE-v1.md](RELEASE-v1.md)**. Core desk OS + public conversion PWA are **built**. Day-1 ops: **[GO-LIVE-TOMORROW.md](GO-LIVE-TOMORROW.md)**; cutover: **[LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md)** (real initials). Not chain-SaaS complete — Stripe self-serve, full SEC-01 admin purge, and **live** Channex certification remain post-v1. Competitive gap wave: connecting rooms + rack virtualization, night-audit `close_time`, group AR, loyalty lite, offline drafts, DRC stub, tenants foundation.
 
 **Palette (FINAL):** **Sky & Citrus** — sky-500 `#0ea5e9` accent + amber-500 `#f59e0b` citrus. Shipped on the desk (`.erp` scope). Pelbu-pink / Bubblegum is **retired**.
 
@@ -85,8 +85,10 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Rooms HK | `/erp/rooms` | Physical units clean/dirty/inspect/occupied/ooo |
 | Housekeeping / maintenance | `/erp/housekeeping`, `/erp/maintenance` | P9 |
 | Inventory | `/erp/inventory` | SKU stock + movements |
-| HR | `/erp/hr` | Basic staff/shifts/leave; **advanced HR plan in progress** |
-| Channel | `/erp/channel` | Active-property Channex maps, ARI queue (availability + rates + min-stay/stop-sell), flush/retry, feed pull/ack — **live cert still open** |
+| HR | `/erp/hr` | Staff/shifts/leave + weekly rota + overlap conflict; biometrics / 200-staff payroll residual |
+| Channel | `/erp/channel` | Active-property Channex maps, ARI queue (availability + rates + min-stay/stop-sell), flush/retry, feed pull/ack — **live cert still open** ([CHANNEX-CERT.md](CHANNEX-CERT.md)) |
+| Loyalty | `/erp/loyalty` (+ `/guest/loyalty`) | Points ledger + guest portal lite |
+| Recipe cost | `/erp/pos/recipe-cost` | Multi-outlet margin rollup; full RMS open |
 | Allotments | `/erp/allotments` | P9 |
 | Group / properties | `/erp/group`, `/erp/properties/*` | Multi-hotel overview + setup wizard |
 | Night audit | `/erp/night-audit` | Close-day checklist + room-night posting; cron midnight Thimphu |
@@ -138,39 +140,56 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 
 ---
 
+## Competitive gap close (shipped 2026-08-02)
+
+| Item | Where |
+|------|--------|
+| Connecting rooms + rack virtualization | `room_units.connecting_room_unit_id`; calendar badge + edit; virtualize when &gt; 40 rows |
+| Night-audit `close_time` | `properties.night_audit_close_time` + Settings + cron gate |
+| Group AR statement | `/erp/folios/[id]/statement` |
+| Loyalty portal lite | Points ledger + `/erp/loyalty` + `/guest/loyalty` |
+| Offline IndexedDB drafts | Hold/book drafts + POS park (`DeskOfflineQueueStrip`); folio money stays online-only |
+| Recipe / food cost rollup | `/erp/pos/recipe-cost` (multi-outlet margin); full RMS still open |
+| DRC e-invoice stub | `drc-einvoice.ts` + [GST-EINVOICE.md](GST-EINVOICE.md) |
+| Tenants SaaS foundation | `tenants` / seats / billing email / Host cert UI — [MULTI-TENANT-WHITELABEL.md](MULTI-TENANT-WHITELABEL.md) |
+
+---
+
 ## Not done / partial
 
 | Item | Status |
 |------|--------|
-| **Calendar v3+** | Connecting rooms + row virtualization shipped; other v3+ items still optional — see calendar section |
-| **Advanced HR** | Weekly rota + publish + **overlap conflict detection** shipped; biometrics / 200-staff payroll at scale still business residual |
-| **Channex certification** | Desk ARI flush UX polished; **live cert residual** needs human `CHANNEX_*` — see CHANNEX-CERT.md |
+| **Calendar v3+ leftover polish** | Connecting rooms + virtualization **shipped**; optional leftovers (overbooking buffer, stop-sell markers, rooming-list editor, VIP intel, full keyboard) — pull only when desk asks |
+| **Advanced HR at chain scale** | Weekly rota + publish + overlap conflict **shipped**; biometrics / 200-staff payroll = business residual |
+| **Channex live certification** | Wave 1 desk ARI **shipped**; **ops residual** needs human `CHANNEX_*` — [CHANNEX-CERT.md](CHANNEX-CERT.md) |
 | **Live Pay.bt / bank QR** | Methods + deposit links + HMAC webhook with atomic claim; payment is desk-confirmed until merchant credentials exist |
-| **PWA offline desk** | IndexedDB queue for hold/book drafts + POS park; attendance localStorage queue; **folio money not queued** |
-| **Recipe / food cost** | Multi-outlet rollup + item margin at `/erp/pos/recipe-cost`; theoretical vs actual / full RMS still open |
-| **Loyalty** | Points ledger + `/erp/loyalty` + `/guest/loyalty` portal lite shipped |
-| **Bhutan e-invoice** | Stub interface `drc-einvoice.ts` + [GST-EINVOICE.md](GST-EINVOICE.md) — live when DRC mandates |
+| **PWA offline desk (money)** | Drafts/park **shipped**; **folio charges / payments / night audit not queued** (by design) |
+| **Full RMS / theoretical vs actual** | Recipe-cost rollup **shipped**; theoretical vs actual / full RMS still open |
+| **Loyalty earn-at-checkout** | Portal lite + ledger **shipped**; auto-earn wiring at checkout still soft |
+| **Bhutan live e-invoice** | Stub **shipped** — live API only when DRC mandates ([GST-EINVOICE.md](GST-EINVOICE.md)) |
+| **Tenants Stripe / domain automation** | Foundation + billing/seats/cert UI **shipped**; Stripe self-serve + Vercel domains API still open |
+| **SEC-01 staff-scoped client** | Wave 2 money gates **shipped**; full admin-client rewrite still residual — [ERP-AUDIT.md](ERP-AUDIT.md) |
 | **Purchase cost trends (Phase C)** | **Not started** — MoM item price / gas-grocery analytics need `unit_cost_btn` written on every inventory **receive** (movement value is partial today). Do not fake trends from a single `inventory_items.unit_cost_btn` |
 | **Partner perks** | Discount % auto-applied on public book quote (guide_number → guide) + calendar on-credit + POS; spa auto-apply still open |
 | **Agent voucher PDF/email** | Print + Resend text email shipped; branded PDF attachment still open |
 | **Extra templates** | Only flagship `template_id=1` |
-| **Mews pricing parity (P8+)** | Guest portal lite shipped; SMS, BI/RMS, APIs/Key — after public UI + cert |
+| **Mews Enterprise catalog (P3)** | Door locks, kiosk, public API / webhooks — not scoped for Olakha go-live |
+| **24/7 support staffing** | Business residual — [OPS-RUNBOOK.md](OPS-RUNBOOK.md) |
 | **Push to origin** | Local tree may be ahead — push when ready |
 
 ---
 
 ## Desk nav map (as shipped)
 
-`AppSidebar` groups (`web/src/components/erp/app-sidebar.tsx`):
+`AppSidebar` / `erp-nav.ts` groups:
 
-- **Front desk:** Dashboard · Calendar · Arrivals · In-house · Departures · Reservations · Check-in · Fast book · Guests · Rooms · Housekeeping · Maintenance
-- **Money:** Invoices · Payments · POS / Folio board · Finance · GST · Night audit
+- **Front desk:** Dashboard · Calendar · Arrivals · In-house · Departures · Reservations · Check-in · Check-out · Fast book · Guests · **Groups** · Rooms · Housekeeping · Maintenance · Laundry
+- **Money:** Invoices · Payments · POS · Finance · GST · Night audit · Reports
 - **Channels:** Allotments · Channel · Partners · Agents
 - **Inventory & people:** Stock · HR
-- **Group:** Group overview · Add hotel · Reports
-- **Footer:** Settings
+- **Footer:** Settings · Add hotel (property wizard)
 
-Default ops home for room inventory: **`/erp/calendar`**.
+Default ops home for room inventory: **`/erp/calendar`**. Agent click → **`/erp/agents/[id]`** dossier.
 
 ---
 
@@ -197,11 +216,11 @@ Never commit `.env*`.
 | P2 | Check-in, POS/KOT, folio, GST, payments | Done |
 | P3 | Agents, credit, rates | Done |
 | P4 | Finance + bank recon | Done |
-| P5 | HR, inventory, audit, reports | Done (basic HR); advanced HR plan open |
+| P5 | HR, inventory, audit, reports | Done (rota + conflict); chain-scale HR residual |
 | P5.5 | Fast-book UX v2 + StayDatesField + guest_origin + partners master | **Done (2026-07-29)** |
 | P5.6 | ERP Timeline + shell + settings + **Sky & Citrus** reskin | **ERP core Done** — public rebuild/Airbnb still open; early Sheet-nav sketch → **Sidebar** |
-| P6 | Channex + templates | **Wave 1 desk shipped** (active property + rates/restrictions ARI); live cert open |
-| P7 | Night audit, voids/comps, deposits, UAT doc | Done (provider APIs open) |
-| P8+ | Mews pricing parity | Planned |
+| P6 | Channex + templates | **Wave 1 desk shipped**; live cert open — [CHANNEX-CERT.md](CHANNEX-CERT.md) |
+| P7 | Night audit, voids/comps, deposits, UAT doc | Done (`close_time` + blockers); provider APIs open |
+| P8+ | Mews pricing parity / Enterprise catalog | Guest loyalty lite shipped; locks/API/SMS/BI residual |
 
-See also: [PLATFORM.md](PLATFORM.md) · [PLANS.md](PLANS.md) · [UAT-CHECKLIST.md](UAT-CHECKLIST.md) · [../AGENTS.md](../AGENTS.md)
+See also: [RELEASE-v1.md](RELEASE-v1.md) · [WHITEBOARD.md](WHITEBOARD.md) · [ERP-AUDIT.md](ERP-AUDIT.md) · [PLATFORM.md](PLATFORM.md) · [PLANS.md](PLANS.md) · [UAT-CHECKLIST.md](UAT-CHECKLIST.md) · [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md) · [FINANCE-UAT.md](FINANCE-UAT.md) · [OPS-RUNBOOK.md](OPS-RUNBOOK.md) · [../AGENTS.md](../AGENTS.md)

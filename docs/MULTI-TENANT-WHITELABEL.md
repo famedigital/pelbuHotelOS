@@ -2,7 +2,7 @@
 
 **Goal:** Sell Pelbu OS like eZee / Mews: a marketing site for the product, tenant logins into their own ERP, and each hotel’s **own public website** on their domain — while you keep hosting the platform.
 
-**Date:** 2026-07-31.
+**Date:** 2026-08-02.
 
 ---
 
@@ -194,11 +194,13 @@ Ship Host routing + staff Auth **before** fancy billing. Billing without isolati
 
 ### v1 SaaS
 
-1. Self-serve domain verification (TXT).  
-2. Tenant admin UI (users, properties, plan).  
-3. Billing.  
+1. Self-serve domain verification (TXT) — **partial** (token + cert status UI; Vercel API still manual).  
+2. Tenant admin UI (users, properties, plan) — **partial** (Settings org/seats/billing email).  
+3. Billing — **invoice-first UI shipped**; Stripe self-serve still open.  
 4. Per-tenant messaging credentials.  
 5. Status page + backup policy.
+
+See also: [WHITEBOARD.md](WHITEBOARD.md) · [OPS-RUNBOOK.md](OPS-RUNBOOK.md) · [FEATURES.md](FEATURES.md).
 
 ---
 

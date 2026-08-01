@@ -50,9 +50,20 @@ Short desk/owner checklist when something breaks after go-live.
 - **Not queued:** folio charges, payments, night audit, channel flush — those stay online-only.
 - Calendar shows `DeskOfflineQueueStrip` when offline or when drafts are pending.
 
+## Owner residual ops (after Waves 0–4)
+
+Engineering waves are shipped. Owner still owns:
+
+1. [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md) + [FINANCE-UAT.md](FINANCE-UAT.md) — real initials only.
+2. Enable Supabase HaveIBeenPwned leaked-password protection.
+3. Set `CHANNEX_*` and complete [CHANNEX-CERT.md](CHANNEX-CERT.md).
+4. Remove `ALLOW_DESK_PIN_IN_PROD` when staff Auth covers the desk.
+5. Optional: Pay.bt credentials, `SENTRY_DSN`, Upstash Redis.
+
 ## UAT
 
 - Launch: [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md)
 - Finance: [FINANCE-UAT.md](FINANCE-UAT.md) (includes edge journal proof checklist)
 - Desk smoke: [UAT-CHECKLIST.md](UAT-CHECKLIST.md)
 - GST e-invoice stub: [GST-EINVOICE.md](GST-EINVOICE.md) — live when DRC mandates
+- Map: [WHITEBOARD.md](WHITEBOARD.md)

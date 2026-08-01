@@ -52,3 +52,5 @@ Desk spot-check (initials required — cannot invent prod UAT):
 | GST export includes INV/CN | ☐ | |
 | Unmatched queue match/clear | ☐ | |
 | Edge journals (above) | ☐ | |
+
+Do **not** invent initials. Related: [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md) · [GST-EINVOICE.md](GST-EINVOICE.md) · [OPS-RUNBOOK.md](OPS-RUNBOOK.md) · [WHITEBOARD.md](WHITEBOARD.md).

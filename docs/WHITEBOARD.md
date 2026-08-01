@@ -60,9 +60,9 @@ Deep links such as `/erp/folios/[id]`, `/erp/bookings/[id]`, `/erp/orders/[id]/s
 
 **White-label foundation (2026-08-02):** `properties.public_host` / `desk_host` + middleware `x-pelbu-property-*` headers via `resolvePropertyIdFromHost`. Tenant billing email + seats_used + DNS TXT verify / cert status UI shipped (invoice-first; no Stripe). See [MULTI-TENANT-WHITELABEL.md](MULTI-TENANT-WHITELABEL.md).
 
-**Competitive gap close (2026-08-02):** connecting rooms + rack virtualization; night-audit `close_time`; group AR statement print; loyalty portal; offline IndexedDB drafts; DRC e-invoice stub; edge journal proof tests. Residuals: live Channex cert (needs `CHANNEX_*`), 24/7 support staffing (business), Stripe self-serve, full RMS.
+**Competitive gap close (2026-08-02):** connecting rooms + rack virtualization; night-audit `close_time`; group AR statement print; loyalty portal lite; offline IndexedDB drafts; DRC e-invoice stub; recipe-cost rollup; edge journal proof tests. Residuals below are **ops / business**, not missing desk code.
 
-Launch cutover: [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md).
+Launch cutover: [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md) · Finance pack: [FINANCE-UAT.md](FINANCE-UAT.md).
 
 ---
 
@@ -71,7 +71,8 @@ Launch cutover: [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md).
 - Every ops row is keyed by `property_id`.
 - Desk can switch the active property (cookie / context).
 - `template_id = 1` is Pelbu Suites Olakha (flagship).
-- Group overview and “Add hotel” exist; Host → property middleware + Settings hostnames shipped; tenant billing still open.
+- Group overview and “Add hotel” exist; Host → property middleware + Settings hostnames shipped.
+- Tenants foundation (`tenants` / `tenant_members` / billing email / seats / cert status) shipped; **Stripe self-serve** still open.
 
 ---
 
@@ -108,12 +109,12 @@ Full severity register: [ERP-AUDIT.md](ERP-AUDIT.md).
 
 | Gap | Why engineers will call it “vibe coded” | Target standard | Status |
 |-----|------------------------------------------|-----------------|--------|
-| Empty folio after check-in | Room nights post on night-audit cron, not at check-in; balance Nu 0 with 0 lines until roll | Clear copy + optional same-day post | **Partial** — cron + posting shipped; UX copy still confusing |
+| Empty folio after check-in | Room nights post on night-audit cron, not at check-in; balance Nu 0 with 0 lines until roll | Clear copy + optional same-day post | **Partial** — cron + posting + copy shipped; optional day-one post still open |
 | Laundry money integrity | GST / reversal / cancel paths | Fix GST form post; reverseJournal on correction; block cancel without void | **Largely fixed 2026-08-01** — see ERP-AUDIT §7.1 |
-| Service-role bypass | Most desk writes use admin client; RLS is a second fence, not the primary one | AuthZ at action + RLS for non-admin clients | **Partial** — `assertDeskProperty` pilot on folio/POS |
+| Service-role bypass | Most desk writes use admin client; RLS is a second fence, not the primary one | AuthZ at action + RLS for non-admin clients | **Partial** — Wave 2 money gates + `assertDeskProperty`; staff-scoped client rewrite open |
 | RLS enabled, 0 policies | Several booking/order tables | Add policies or document admin-only | **Fixed 2026-08-01** — service_role policies migration |
-| No night-audit cron | Only `expire-holds` was scheduled | Cron + room-night posting | **Fixed 2026-08-01** — `/api/cron/night-audit`; no-shows / close-day blockers open |
-| White-label incomplete | Multi-property DB yes; multi-hostname public + tenant billing no | Host middleware + tenant accounts | **Partial** — Host columns + Settings UI + middleware headers; tenant billing open |
+| No night-audit cron | Only `expire-holds` was scheduled | Cron + room-night posting | **Fixed 2026-08-01** — cron + blockers + `close_time` (2026-08-02) |
+| White-label incomplete | Multi-property DB yes; multi-hostname public + tenant billing no | Host middleware + tenant accounts | **Partial** — Host + tenants foundation + billing/seats/cert UI; Stripe open |
 | Calendar Realtime | Poll-only refresh on rack | Supabase Realtime + channel toasts | **Partial** — poll + toast on fingerprint change (no browser Realtime by design) |
 | Crawl waves A–G | Authenticated HTTP matrix in ERP-AUDIT §4; Playwright MCP pending user enable | Interactive button pass after MCP green | **Partial** — routes 200; click-through pending |
 
@@ -125,27 +126,41 @@ Full severity register: [ERP-AUDIT.md](ERP-AUDIT.md).
 |-----|---------|
 | [WHITEBOARD.md](WHITEBOARD.md) | This map |
 | [ERP-AUDIT.md](ERP-AUDIT.md) | International PMS fault register + correction roadmap |
+| [FEATURES.md](FEATURES.md) | Module shipped vs remaining |
 | [MULTI-TENANT-WHITELABEL.md](MULTI-TENANT-WHITELABEL.md) | SaaS white-label + DNS + Host routing |
 | [BTCL-ADAPTATION.md](BTCL-ADAPTATION.md) | Multi-hotel chain (BTCL) adaptation |
-| [FEATURES.md](FEATURES.md) | Module shipped vs remaining |
 | [PLATFORM.md](PLATFORM.md) | Architecture north star |
-| [UAT-CHECKLIST.md](UAT-CHECKLIST.md) | Go-live tests |
+| [UAT-CHECKLIST.md](UAT-CHECKLIST.md) | Go-live desk smoke tests |
 | [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md) | Launch-day env + smoke |
-| [FINANCE-UAT.md](FINANCE-UAT.md) | Period close / GST / bank recon pack |
+| [FINANCE-UAT.md](FINANCE-UAT.md) | Period close / GST / bank recon / edge journals |
 | [OPS-RUNBOOK.md](OPS-RUNBOOK.md) | Night audit / payments / hosts / channel ops |
-| [CHANNEX-CERT.md](CHANNEX-CERT.md) | Channel cert after white-label |
+| [CHANNEX-CERT.md](CHANNEX-CERT.md) | Live Channel cert after desk ARI is ready |
+| [GST-EINVOICE.md](GST-EINVOICE.md) | Bhutan DRC e-invoice stub vs live mandate |
 
 ---
 
-## 7. Next build order (engineering)
+## 7. Beat eZee / IDS waves — shipped (2026-08-02)
 
-**Beat eZee / IDS waves (in progress):** Wave 0 docs/UAT honesty + Wave 1 Channel desk/ARI are underway. Waves 2–4 (AuthZ purge, FO parity, SaaS tenants) follow — do not invent signed UAT initials in docs.
+| Wave | Scope | Status |
+|------|--------|--------|
+| **0** | Docs / UAT honesty (no invented initials) | **Shipped** |
+| **1** | Channel desk + ARI (active property, rates/restrictions, flush/retry) | **Code shipped** — live cert needs human `CHANNEX_*` |
+| **2** | AuthZ purge (`desk_role`, money gates, `assertDeskProperty`, prod PIN retire) | **Shipped** — staff-scoped client rewrite still residual |
+| **3** | FO / cashiering parity (blockers, transfer, laundry gateway, CN print, AR statement, …) | **Shipped** |
+| **4** | SaaS tenants foundation (Host, billing email/seats, cert verify UI) | **Shipped** — Stripe / domain automation open |
+| Competitive gap close | Connecting rooms, `close_time`, loyalty lite, offline drafts, recipe cost, DRC stub | **Shipped** |
 
-1. **P0 money:** largely shipped (gateways, laundry→`postFolioCharge`, CN print, line transfer, night-audit blockers).
-2. **P0 laundry money:** gateway billing shipped 2026-08-02 (RPC quotes; app posts).
-3. **P1 Channel (Wave 1):** active-property `/erp/channel`, rates + restrictions ARI, flush/retry UX — code shipped; **human** `CHANNEX_*` cert still required.
-4. **P1 authZ (Wave 2):** `desk_role` + prod PIN retire; expand `assertDeskProperty` / money gates.
-5. **P1 calendar:** v2 leftovers shipped; v3+ only on desk ask.
-6. **P1 white-label (Wave 4):** tenants + seats stub + Host→CMS preference shipped; Stripe / domain automation still open — MULTI-TENANT-WHITELABEL.
-7. **P2 BTCL (Wave 5):** multi-outlet POS, 200+ staff HR scale, chain reporting — BTCL doc (**deal-triggered**).
-8. **Ops runbook:** [OPS-RUNBOOK.md](OPS-RUNBOOK.md).
+### Residual ops for the owner (not engineering build order)
+
+1. Run [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md) + [FINANCE-UAT.md](FINANCE-UAT.md) — **real initials only**.
+2. Supabase Auth → enable **HaveIBeenPwned** leaked-password protection.
+3. Set Preview then prod `CHANNEX_API_KEY` / `CHANNEX_WEBHOOK_SECRET`; complete [CHANNEX-CERT.md](CHANNEX-CERT.md).
+4. Remove `ALLOW_DESK_PIN_IN_PROD` once staff Auth + `desk_role` covers the desk.
+5. Optional: live Pay.bt merchant credentials; `SENTRY_DSN`; Upstash Redis for multi-instance rate limits.
+6. Business residuals (not code): Stripe self-serve, 24/7 support staffing, full RMS / theoretical vs actual, P3 locks / public API.
+
+### Still engineering (deal-triggered / optional)
+
+- **P2 BTCL (Wave 5):** multi-outlet POS at scale, 200+ staff HR, chain reporting — [BTCL-ADAPTATION.md](BTCL-ADAPTATION.md).
+- **P3:** door locks, kiosk, public API / webhooks — Mews Enterprise catalog; not scoped for Olakha go-live.
+- Ops day-to-day: [OPS-RUNBOOK.md](OPS-RUNBOOK.md).

@@ -22,3 +22,5 @@ Until then, `submit()` returns `not_configured` and internal sequences remain th
 
 - [FINANCE-UAT.md](FINANCE-UAT.md) — journal edge proof + GST sign-off
 - [FEATURES.md](FEATURES.md) — GST / fiscal status
+- [WHITEBOARD.md](WHITEBOARD.md) — residual ops map
+- [OPS-RUNBOOK.md](OPS-RUNBOOK.md) — night audit / payments
