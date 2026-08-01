@@ -1,6 +1,7 @@
 import { InventoryDesk } from "@/components/erp/InventoryDesk";
 import type { InvItemRow, InvLocationOption } from "@/components/erp/InventoryOpsForms";
-import type { MovementRow } from "@/components/erp/InventoryDesk";
+import { DeskListShell } from "@/components/erp/DeskListShell";
+import type { InventoryCategoryRow } from "@/lib/inventory-catalog";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/erp-lists";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -8,7 +9,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Inventory | Pelbu OS",
+  title: "Inventory items | Pelbu OS",
   robots: { index: false, follow: false },
 };
 
@@ -20,38 +21,34 @@ export default async function ErpInventoryPage() {
   const admin = createSupabaseAdminClient();
   const propertyId = await requireDeskPropertyId();
 
-  const [{ data: items }, { data: locations }, { data: moves }, { data: balances }] =
+  const [{ data: items }, { data: locations }, { data: categories }, { data: balances }] =
     await Promise.all([
-    admin
-      .from("inventory_items")
-      .select(
-        "id, sku, name, category, unit, qty_on_hand, reorder_level, unit_cost_btn, is_active, default_location_id",
-      )
-      .eq("property_id", propertyId)
-      .eq("is_active", true)
-      .order("sku")
-      .limit(300),
-    admin
-      .from("inventory_locations")
-      .select("id, code, name, department")
-      .eq("property_id", propertyId)
-      .eq("is_active", true)
-      .order("sort_order"),
-    admin
-      .from("inventory_movements")
-      .select(
-        `id, movement_kind, qty_delta, unit_cost_btn, total_amount_btn, reference, created_at,
-         inventory_items(sku, name),
-         inventory_locations(name)`,
-      )
-      .eq("property_id", propertyId)
-      .order("created_at", { ascending: false })
-      .limit(50),
-    admin
-      .from("inventory_balances")
-      .select("item_id, qty_on_hand, inventory_locations(code, name)")
-      .eq("property_id", propertyId),
-  ]);
+      admin
+        .from("inventory_items")
+        .select(
+          "id, sku, name, category, unit, qty_on_hand, reorder_level, unit_cost_btn, is_active, default_location_id",
+        )
+        .eq("property_id", propertyId)
+        .eq("is_active", true)
+        .order("sku")
+        .limit(500),
+      admin
+        .from("inventory_locations")
+        .select("id, code, name, department")
+        .eq("property_id", propertyId)
+        .eq("is_active", true)
+        .order("sort_order"),
+      admin
+        .from("inventory_categories")
+        .select("slug, name, sort_order")
+        .eq("property_id", propertyId)
+        .eq("is_active", true)
+        .order("sort_order"),
+      admin
+        .from("inventory_balances")
+        .select("item_id, qty_on_hand, inventory_locations(code, name)")
+        .eq("property_id", propertyId),
+    ]);
 
   const balancesByItem = new Map<
     string,
@@ -90,22 +87,11 @@ export default async function ErpInventoryPage() {
     department: l.department as string,
   }));
 
-  const movementRows: MovementRow[] = (moves ?? []).map((m) => {
-    const item = m.inventory_items as { sku?: string; name?: string } | null;
-    const loc = m.inventory_locations as { name?: string } | null;
-    return {
-      id: m.id as string,
-      movement_kind: m.movement_kind as string,
-      qty_delta: Number(m.qty_delta),
-      unit_cost_btn: m.unit_cost_btn != null ? Number(m.unit_cost_btn) : null,
-      total_amount_btn: m.total_amount_btn != null ? Number(m.total_amount_btn) : null,
-      reference: (m.reference as string | null) ?? null,
-      created_at: m.created_at as string,
-      sku: item?.sku ?? "—",
-      name: item?.name ?? "",
-      location_name: loc?.name ?? null,
-    };
-  });
+  const categoryRows: InventoryCategoryRow[] = (categories ?? []).map((c) => ({
+    slug: c.slug as string,
+    name: c.name as string,
+    sort_order: Number(c.sort_order),
+  }));
 
   const lowCount = itemRows.filter((i) => i.qty_on_hand <= i.reorder_level).length;
   const stockValue = itemRows.reduce(
@@ -114,33 +100,28 @@ export default async function ErpInventoryPage() {
   );
 
   return (
-    <div className="erp mx-auto w-full max-w-[1200px] space-y-6 p-4 md:p-6">
-      <header className="space-y-1.5">
-        <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-          Team &amp; inventory
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Inventory
-        </h1>
-        <p className="max-w-prose text-sm text-muted-foreground">
-          Table-first stock by SKU · receive with receipt photo · damage and
-          replace · transfers between store, pantry, F&amp;B, and room amenities.
-        </p>
-      </header>
-
+    <DeskListShell
+      eyebrow="Inventory"
+      heading="Items"
+      blurb="One SKU per row · qty on hand · receive, damage, transfer from row actions. Add catalog lines in the sheet — not a long form."
+    >
       {locationRows.length === 0 ? (
         <p className="text-sm text-destructive">
-          No inventory locations — apply the Phase 3 migration.
+          No inventory locations — open{" "}
+          <a href="/erp/inventory/locations" className="underline">
+            Locations
+          </a>{" "}
+          or apply migrations.
         </p>
       ) : (
         <InventoryDesk
           items={itemRows}
           locations={locationRows}
-          movements={movementRows}
+          categories={categoryRows}
           lowCount={lowCount}
           stockValue={stockValue}
         />
       )}
-    </div>
+    </DeskListShell>
   );
 }

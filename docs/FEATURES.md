@@ -57,7 +57,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Feature | Notes |
 |---------|--------|
 | Layout | `web/src/app/erp/layout.tsx` → authenticated `DeskShell` |
-| Sidebar IA | Front desk · Money · Channels · Inventory & people · Group · Settings footer |
+| Sidebar IA | Front desk · Rooms · POS · Money · Channels · **Team** · **Inventory** · Hotel (Settings footer) |
 | Property switcher | Header; multi-property helpers + wizard exist |
 | Settings | `/erp/settings` — Identity · Commercial · Policies · Tax · Documents · Rooms · Compliance · Finance imports · **Danger zone** (owner WIPE). Plan `erp_settings_page_41e5deb4` |
 | **Training LMS** | `/erp/training` — role-filtered manuals + checklist (local progress) |
@@ -86,7 +86,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Reports | `/erp/reports` (+ `/erp/reports/[slug]`) | Manager flash + **named catalog** (agent production, agent AR/habit, staff attendance, inventory movements) + CSV; not a free-form query builder |
 | Rooms HK | `/erp/rooms` | Physical units clean/dirty/inspect/occupied/ooo |
 | Housekeeping / maintenance | `/erp/housekeeping`, `/erp/maintenance` | P9 |
-| Inventory | `/erp/inventory` | SKU stock + movements |
+| Inventory | `/erp/inventory` (+ tabs: Items · Locations · Moves · **Assessment** · POs · Assets) | **Independent sidebar module** — table-first SKU catalog, staff categories, receive/damage/transfer; Assessment = stocktake at `/erp/inventory/audits` |
 | HR | `/erp/hr` | Staff **Form\|Sheet** toggle · shifts/leave · weekly rota (copy week + publish pending UX) · overlap conflict |
 | Channel | `/erp/channel` | Active-property Channex maps, ARI queue (availability + rates + min-stay/stop-sell), flush/retry, feed pull/ack — **live cert still open** ([CHANNEX-CERT.md](CHANNEX-CERT.md)) |
 | Loyalty | `/erp/loyalty` (+ `/guest/loyalty`) | Points ledger + guest portal lite |

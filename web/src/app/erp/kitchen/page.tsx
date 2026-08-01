@@ -53,7 +53,7 @@ export default async function KitchenBoardPage() {
         .select("id, sku, name, category, qty_on_hand, reorder_level, unit")
         .eq("property_id", propertyId)
         .eq("is_active", true)
-        .in("category", ["produce", "meat", "dairy", "dry"])
+        .in("category", ["produce", "meat", "dairy", "dry", "vegetables", "grocery", "kitchen"])
         .order("category")
         .order("name")
         .limit(80),

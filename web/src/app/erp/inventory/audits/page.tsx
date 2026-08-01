@@ -8,12 +8,11 @@ import { DeskListShell } from "@/components/erp/DeskListShell";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { fmtDate, requireDeskPropertyId } from "@/lib/erp-lists";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Stock audits | Pelbu OS",
+  title: "Stock assessment | Pelbu OS",
   robots: { index: false, follow: false },
 };
 
@@ -92,15 +91,9 @@ export default async function InventoryAuditsPage() {
   return (
     <DeskListShell
       eyebrow="Inventory"
-      heading="Stock audits"
-      blurb="Phone-friendly count sessions by location. Post applies variances to balances."
+      heading="Assessment"
+      blurb="Weekly stocktake / audit — start a count by location, enter variances with photos, post to adjust balances. History below."
     >
-      <p className="text-sm">
-        <Link href="/erp/inventory" className="text-accent underline-offset-4 hover:underline">
-          ← Back to stock
-        </Link>
-      </p>
-
       {!openSession ? (
         <StartAuditForm locations={locationRows} />
       ) : (

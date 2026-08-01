@@ -7,7 +7,6 @@ import { DeskListShell } from "@/components/erp/DeskListShell";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/erp-lists";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
@@ -47,11 +46,6 @@ export default async function InventoryAssetsPage() {
       heading="Asset register"
       blurb="Lite fixed-asset list from accounting. Depreciation runs stay in Finance → Accounting."
     >
-      <p className="text-sm">
-        <Link href="/erp/inventory" className="text-accent underline-offset-4 hover:underline">
-          ← Back to stock
-        </Link>
-      </p>
       <RegisterAssetForm />
       <AssetTable assets={rows} />
     </DeskListShell>

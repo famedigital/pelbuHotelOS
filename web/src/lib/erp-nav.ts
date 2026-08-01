@@ -1,5 +1,6 @@
 import {
   BedDoubleIcon,
+  BoxesIcon,
   CalendarClockIcon,
   ClipboardListIcon,
   CreditCardIcon,
@@ -40,9 +41,9 @@ export type ErpModule = {
 };
 
 /**
- * Desk information architecture: nine modules, each opening on its first tab.
+ * Desk information architecture: ten modules, each opening on its first tab.
  * Sub-pages are tabs rather than sidebar entries so the shift path stays short
- * and related screens (arrivals → check-in → check-out) sit next to each other.
+ * and related screens sit next to each other.
  *
  * Routes are unchanged — this is navigation only, so deep links and
  * revalidatePath calls elsewhere keep working.
@@ -169,11 +170,11 @@ export const ERP_MODULES: ErpModule[] = [
   },
   {
     key: "team",
-    title: "Team & inventory",
+    title: "Team",
     icon: UsersIcon,
     href: "/erp/hr",
     tabs: [
-      { title: "HR", href: "/erp/hr", icon: UsersIcon },
+      { title: "Staff", href: "/erp/hr", icon: UsersIcon },
       { title: "Rota", href: "/erp/hr/rota", icon: CalendarClockIcon },
       {
         title: "Attendance",
@@ -182,10 +183,32 @@ export const ERP_MODULES: ErpModule[] = [
       },
       { title: "Leave", href: "/erp/hr/leave", icon: ScrollTextIcon },
       { title: "Payroll", href: "/erp/hr/payroll", icon: WalletIcon },
-      { title: "Inventory", href: "/erp/inventory", icon: ShoppingCartIcon },
-      { title: "Audits", href: "/erp/inventory/audits", icon: ClipboardListIcon },
+    ],
+  },
+  {
+    key: "inventory",
+    title: "Inventory",
+    icon: BoxesIcon,
+    href: "/erp/inventory",
+    tabs: [
+      { title: "Items", href: "/erp/inventory", icon: BoxesIcon },
       {
-        title: "Purchase orders",
+        title: "Locations",
+        href: "/erp/inventory/locations",
+        icon: HotelIcon,
+      },
+      {
+        title: "Moves",
+        href: "/erp/inventory/moves",
+        icon: ScrollTextIcon,
+      },
+      {
+        title: "Assessment",
+        href: "/erp/inventory/audits",
+        icon: ClipboardListIcon,
+      },
+      {
+        title: "POs",
         href: "/erp/inventory/purchase-orders",
         icon: ReceiptTextIcon,
       },

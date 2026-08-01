@@ -30,16 +30,6 @@ const STAFF_ROLES = new Set([
   "other",
 ]);
 const LEAVE_TYPES = new Set(["annual", "sick", "unpaid", "other"]);
-const INV_CATEGORIES = new Set([
-  "produce",
-  "dairy",
-  "meat",
-  "beverage",
-  "dry",
-  "packaging",
-  "amenity",
-  "other",
-]);
 const INV_UNITS = new Set(["ea", "kg", "g", "l", "ml", "case"]);
 const MOVE_KINDS = new Set(["receive", "adjust", "waste", "issue", "count"]);
 const HK_STATUSES = new Set(["clean", "dirty", "inspect", "ooo", "occupied"]);
@@ -251,7 +241,14 @@ export async function createInventoryItem(
     const pid = await propertyId(admin);
     const category = trimRequired(formData.get("category"), "Category").toLowerCase();
     const unit = trimRequired(formData.get("unit"), "Unit").toLowerCase();
-    if (!INV_CATEGORIES.has(category)) throw new Error("Invalid category.");
+    const { data: catRow } = await admin
+      .from("inventory_categories")
+      .select("slug")
+      .eq("property_id", pid)
+      .eq("slug", category)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (!catRow) throw new Error("Invalid category.");
     if (!INV_UNITS.has(unit)) throw new Error("Invalid unit.");
 
     const qtyRaw = String(formData.get("qty_on_hand") ?? "0").trim();

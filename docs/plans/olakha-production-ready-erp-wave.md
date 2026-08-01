@@ -9,6 +9,7 @@
 - **Phase 4 (done):** Vendors master + TPN · expense vendor datalist + bulk `vendor_id` · GST BITS A–E month pack + copy + filed · rent expense category + lease fields · bank QR/NEFT proof → `pending_bank` → confirm queue · pay page proof upload · **compliance vault** (Settings → Compliance: categories, upload, lease package refs).
 - **Phase 5 (done):** `/erp/kitchen` board (gas, covers, expiry, events, staff shift, food cost tile) · `/erp/kitchen/food-cost` COGS worksheet · role readiness strip on `/erp` (Owner/FO/HK) · `/erp/reports/performance` targets/income/OpEx/agents/countries · staff bulletin **Copy for WhatsApp** on HR notices.
 - **Phase 6 (done):** `/erp/training` role-filtered LMS + local checklist · Settings → **Danger zone** owner WIPE (RPC + audit) · HR staff **Form|Sheet** toggle · rota copy/publish pending UX · ERP **NavigationProgress** + `usePendingFeedback` · `order_items` grant revoke · unit tests (cancel policy, meal folio calc, bank proof flow) · HIBP note in GO-LIVE.
+- **Inventory nav (Aug 2026):** **Inventory** is its own sidebar module (Items · Locations · Moves · **Assessment** · POs · Assets). **Team** = HR only. Table-first items + staff-defined categories + hotel-wide seed SKUs. Assessment tab → `/erp/inventory/audits` stocktake workflow.
 **Source:** [`rates_meals_nationality_7c9e2c95.plan.md`](file:///C:/Users/rajiv/.cursor/plans/rates_meals_nationality_7c9e2c95.plan.md) (Cursor plan)  
 **Registered:** [PLANS.md](../PLANS.md)
 

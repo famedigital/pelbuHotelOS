@@ -20,10 +20,38 @@ async function requireDesk() {
 
 function revalidateInv() {
   revalidatePath("/erp/inventory");
+  revalidatePath("/erp/inventory/locations");
+  revalidatePath("/erp/inventory/moves");
   revalidatePath("/erp/inventory/audits");
   revalidatePath("/erp/inventory/purchase-orders");
   revalidatePath("/erp/inventory/assets");
   revalidatePath("/erp/housekeeping");
+  revalidatePath("/erp/kitchen");
+}
+
+async function assertCategorySlug(
+  admin: Admin,
+  propertyId: string,
+  slug: string,
+): Promise<void> {
+  const normalized = slug.trim().toLowerCase().replace(/\s+/g, "_");
+  const { data } = await admin
+    .from("inventory_categories")
+    .select("slug")
+    .eq("property_id", propertyId)
+    .eq("slug", normalized)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (!data) throw new Error("Pick a valid category or create one first.");
+}
+
+function slugifyCategory(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "")
+    .slice(0, 48);
 }
 
 async function nextPoNumber(admin: Admin, propertyId: string): Promise<string> {
@@ -843,6 +871,185 @@ export async function postInventoryAudit(
           ? "Audit posted — no variances."
           : `Audit posted · ${adjusted} SKU${adjusted === 1 ? "" : "s"} adjusted.`,
     };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+/** Staff-defined stock category. */
+export async function createInventoryCategory(
+  _prev: InvState,
+  formData: FormData,
+): Promise<InvState> {
+  try {
+    await requireDesk();
+    const admin = createSupabaseAdminClient();
+    const propertyId = await resolveActivePropertyId(admin);
+    const name = trimRequired(formData.get("name"), "Category name");
+    const slug = slugifyCategory(name);
+    if (!slug) throw new Error("Category name is too short.");
+
+    const { error } = await admin.from("inventory_categories").insert({
+      property_id: propertyId,
+      slug,
+      name: name.trim(),
+      sort_order: 50,
+    });
+    if (error) {
+      if (error.message.includes("duplicate")) {
+        throw new Error("That category already exists.");
+      }
+      throw new Error(error.message);
+    }
+
+    revalidateInv();
+    return { ok: true, message: `Category “${name.trim()}” added.` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+type BulkItemInput = {
+  sku: string;
+  name: string;
+  category: string;
+  unit: string;
+  reorder_level?: number;
+  unit_cost_btn?: number;
+  default_location_id?: string | null;
+};
+
+const INV_UNITS = new Set(["ea", "kg", "g", "l", "ml", "case"]);
+
+/** Table/sheet bulk add — one row per SKU. */
+export async function bulkCreateInventoryItems(
+  _prev: InvState,
+  formData: FormData,
+): Promise<InvState> {
+  try {
+    await requireDesk();
+    const admin = createSupabaseAdminClient();
+    const propertyId = await resolveActivePropertyId(admin);
+    const raw = trimRequired(formData.get("rows_json"), "Rows");
+    let rows: BulkItemInput[];
+    try {
+      rows = JSON.parse(raw) as BulkItemInput[];
+    } catch {
+      throw new Error("Could not read item rows.");
+    }
+    if (!Array.isArray(rows) || rows.length === 0) {
+      throw new Error("Add at least one item row.");
+    }
+    if (rows.length > 50) throw new Error("Save up to 50 items at a time.");
+
+    let saved = 0;
+    for (const row of rows) {
+      const sku = row.sku?.trim().toUpperCase();
+      const name = row.name?.trim();
+      const category = row.category?.trim().toLowerCase();
+      const unit = row.unit?.trim().toLowerCase() || "ea";
+      if (!sku || !name || !category) continue;
+      if (!INV_UNITS.has(unit)) throw new Error(`Invalid unit on ${sku}.`);
+      await assertCategorySlug(admin, propertyId, category);
+
+      const reorder = roundBtn(Number(row.reorder_level) || 0);
+      const unitCost = roundBtn(Number(row.unit_cost_btn) || 0);
+      const locationId = row.default_location_id?.trim() || null;
+
+      const { data, error } = await admin
+        .from("inventory_items")
+        .insert({
+          property_id: propertyId,
+          sku,
+          name,
+          category,
+          unit,
+          qty_on_hand: 0,
+          reorder_level: reorder,
+          unit_cost_btn: unitCost,
+          default_location_id: locationId,
+        })
+        .select("id")
+        .single();
+      if (error) {
+        throw new Error(
+          error.message.includes("duplicate")
+            ? `SKU ${sku} already exists.`
+            : error.message,
+        );
+      }
+
+      await writeAuditEvent(admin, {
+        propertyId,
+        action: "inventory.create",
+        entityType: "inventory_items",
+        entityId: data.id as string,
+        summary: `Created SKU ${sku}`,
+      });
+      saved += 1;
+    }
+
+    if (saved === 0) throw new Error("No valid rows to save.");
+
+    revalidateInv();
+    return {
+      ok: true,
+      message: `${saved} item${saved === 1 ? "" : "s"} added to catalog.`,
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+const LOC_DEPARTMENTS = new Set([
+  "room",
+  "pantry",
+  "store",
+  "fnb",
+  "kitchen",
+  "maintenance",
+  "laundry",
+  "other",
+]);
+
+/** Add a stock location (store, pantry, kitchen cart, etc.). */
+export async function createInventoryLocation(
+  _prev: InvState,
+  formData: FormData,
+): Promise<InvState> {
+  try {
+    await requireDesk();
+    const admin = createSupabaseAdminClient();
+    const propertyId = await resolveActivePropertyId(admin);
+    const code = trimRequired(formData.get("code"), "Code")
+      .toUpperCase()
+      .replace(/\s+/g, "-")
+      .slice(0, 24);
+    const name = trimRequired(formData.get("name"), "Name");
+    const department = trimRequired(formData.get("department"), "Department").toLowerCase();
+    if (!LOC_DEPARTMENTS.has(department)) throw new Error("Invalid department.");
+
+    const { count } = await admin
+      .from("inventory_locations")
+      .select("id", { count: "exact", head: true })
+      .eq("property_id", propertyId);
+    const sortOrder = (count ?? 0) + 1;
+
+    const { error } = await admin.from("inventory_locations").insert({
+      property_id: propertyId,
+      code,
+      name: name.trim(),
+      department,
+      sort_order: sortOrder,
+    });
+    if (error) {
+      throw new Error(
+        error.message.includes("duplicate") ? "Location code already exists." : error.message,
+      );
+    }
+
+    revalidateInv();
+    return { ok: true, message: `Location ${code} added.` };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
   }
