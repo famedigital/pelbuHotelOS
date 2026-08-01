@@ -3,8 +3,9 @@ import { LaundryGuestPortal } from "@/components/laundry/LaundryGuestPortal";
 import { loadGuestLaundryData } from "@/app/actions/laundry";
 
 export const metadata: Metadata = {
-  title: "Guest laundry | Pelbu Suites",
-  description: "Private in-room laundry collection for current hotel guests.",
+  title: "Laundry | Pelbu Suites",
+  description:
+    "Guest and walk-in laundry collection at Pelbu Suites — pay by bank transfer or charge to your room folio.",
   robots: { index: false, follow: false },
 };
 
@@ -37,8 +38,8 @@ export default async function LaundryPage({
           roomPrefill={room?.slice(0, 30)}
         />
         <p className="mt-6 text-center text-xs leading-5 text-muted-foreground">
-          Need help? Contact reception. Guest and room details are checked
-          privately and are never shown as a directory.
+          Need help? Contact reception. Walk-in orders require name and mobile;
+          in-house guests verify privately with room and check-in name.
         </p>
       </div>
     </main>

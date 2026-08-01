@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { usePendingFeedback } from "@/hooks/use-pending-feedback";
 import { useActionState } from "react";
 
 const initial: OpsState = { ok: false };
@@ -31,6 +32,7 @@ export function HkChecklistForm({
 }) {
   const [state, action, pending] = useActionState(completeHkChecklist, initial);
   const done = status === "done";
+  usePendingFeedback(pending, "Saving checklist…");
 
   return (
     <form action={action} className="erp space-y-2 rounded-md border bg-muted/20 p-2">

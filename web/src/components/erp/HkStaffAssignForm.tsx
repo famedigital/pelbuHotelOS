@@ -2,6 +2,7 @@
 
 import { assignHkStaff, type InvState } from "@/app/actions/erp-inventory";
 import { Button } from "@/components/ui/button";
+import { usePendingFeedback } from "@/hooks/use-pending-feedback";
 import { useActionState } from "react";
 
 const initial: InvState = { ok: false };
@@ -22,6 +23,7 @@ export function HkStaffAssignForm({
 }) {
   const [state, action, pending] = useActionState(assignHkStaff, initial);
   const locked = status === "done" || status === "skipped";
+  usePendingFeedback(pending, "Assigning attendant…");
 
   return (
     <form action={action} className="erp flex flex-wrap items-center gap-2">

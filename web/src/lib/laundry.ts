@@ -69,7 +69,8 @@ export type LaundryOrder = {
   room_unit_id: string;
   guest_name: string;
   room_label_snapshot: string;
-  source: "guest" | "front_desk" | "staff";
+  source: "guest" | "front_desk" | "staff" | "walk_in";
+  guest_phone?: string | null;
   status: LaundryStatus;
   assigned_staff_id: string | null;
   requested_notes: string | null;

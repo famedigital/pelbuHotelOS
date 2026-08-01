@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { usePendingFeedback } from "@/hooks/use-pending-feedback";
 import { useActionState } from "react";
 
 const initial: OpsState = { ok: false };
@@ -86,6 +87,7 @@ export function HkAssignForm({
 
 export function HkStatusForm({ id, status }: { id: string; status: string }) {
   const [state, action, pending] = useActionState(updateHkAssignmentStatus, initial);
+  usePendingFeedback(pending, "Updating status…");
   return (
     <form action={action} className="erp flex items-center gap-2">
       <input type="hidden" name="id" value={id} />

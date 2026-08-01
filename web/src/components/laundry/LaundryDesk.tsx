@@ -1,20 +1,14 @@
 "use client";
 
 import {
-  assignLaundryOrder,
-  cancelLaundryOrder,
   createDeskLaundryOrder,
-  reopenLaundryCorrection,
   saveLaundryCatalogItem,
-  voidDeskLaundryBag,
   type ErpLaundryState,
 } from "@/app/actions/erp-laundry";
-import type { LaundryBagState } from "@/app/actions/laundry-bags";
-import { LaundryBagPrepareForm } from "@/components/laundry/LaundryBagPrepareForm";
+import { LaundryBoardPanel } from "@/components/laundry/LaundryBoardPanel";
 import { LaundryLiveRefresh } from "@/components/laundry/LaundryLiveRefresh";
 import { LaundryPhotoUpload } from "@/components/laundry/LaundryPhotoUpload";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -29,13 +23,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  LAUNDRY_STATUS_LABEL,
   type LaundryBag,
   type LaundryCatalogItem,
   type LaundryOrder,
 } from "@/lib/laundry";
-import { cloudinaryUrl } from "@/lib/cloudinary";
 import { formatBtn } from "@/lib/pricing";
+import { usePendingFeedback } from "@/hooks/use-pending-feedback";
 import { MinusIcon, PlusIcon, PrinterIcon } from "lucide-react";
 import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
@@ -82,7 +75,11 @@ export function LaundryDesk({
         </div>
       </div>
       <TabsContent value="board">
-        <DeskBoard orders={orders} bagsByOrder={bagsByOrder} staff={staff} />
+        <LaundryBoardPanel
+          orders={orders}
+          bagsByOrder={bagsByOrder}
+          staff={staff}
+        />
       </TabsContent>
       <TabsContent value="intake">
         <ReceptionIntake
@@ -96,220 +93,6 @@ export function LaundryDesk({
         <CatalogManager catalog={catalog} />
       </TabsContent>
     </Tabs>
-  );
-}
-
-function DeskBoard({
-  orders,
-  bagsByOrder,
-  staff,
-}: {
-  orders: LaundryOrder[];
-  bagsByOrder: Record<string, LaundryBag[]>;
-  staff: StaffOption[];
-}) {
-  if (!orders.length) {
-    return (
-      <div className="rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
-        No laundry orders yet.
-      </div>
-    );
-  }
-  return (
-    <div className="grid gap-3 lg:grid-cols-2">
-      {orders.map((order) => {
-        const bags = bagsByOrder[order.id] ?? [];
-        return (
-        <article key={order.id} className="rounded-xl border bg-card p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-lg font-semibold">
-                Room {order.room_label_snapshot}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {order.guest_name} · {order.source.replace("_", " ")}
-                {bags.length
-                  ? ` · ${bags.length} bag${bags.length === 1 ? "" : "s"}`
-                  : ""}
-              </p>
-            </div>
-            <Badge
-              variant={order.status === "exception" ? "destructive" : "outline"}
-            >
-              {LAUNDRY_STATUS_LABEL[order.status]}
-            </Badge>
-          </div>
-          <p className="mt-3 text-sm">
-            {order.laundry_order_items
-              .map(
-                (item) =>
-                  `${item.confirmed_qty ?? item.requested_qty}× ${item.name_snapshot}`,
-              )
-              .join(", ")}
-          </p>
-          {bags.length ? (
-            <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-              {bags.map((bag) => (
-                <li key={bag.id}>
-                  Bag {bag.bag_seq} · {bag.public_code} · {bag.garment_count} pcs
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {order.intake_photo_public_ids.length ? (
-            <div className="mt-3 flex gap-2 overflow-x-auto">
-              {order.intake_photo_public_ids.map((id) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={id}
-                  src={cloudinaryUrl(id, {
-                    width: 180,
-                    height: 180,
-                    crop: "fill",
-                  }) ?? undefined}
-                  alt="Laundry intake"
-                  className="size-20 rounded-lg object-cover"
-                />
-              ))}
-            </div>
-          ) : null}
-          <div className="mt-4 flex items-end justify-between gap-3 border-t pt-3">
-            <AssignmentForm
-              orderId={order.id}
-              assignedStaffId={order.assigned_staff_id}
-              staff={staff}
-            />
-            <div className="text-right">
-              <p className="font-mono text-[10px] text-muted-foreground">
-                {order.id.slice(0, 8).toUpperCase()}
-              </p>
-              <p className="mt-1 text-sm font-semibold tabular-nums">
-                {order.total_btn == null
-                  ? "Awaiting count"
-                  : formatBtn(order.total_btn)}
-              </p>
-            </div>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {bags.length ? (
-              <Button asChild size="sm" variant="citrus">
-                <Link href={`/erp/laundry/orders/${order.id}/labels`}>
-                  <PrinterIcon className="size-3.5" />
-                  Print bag QR
-                </Link>
-              </Button>
-            ) : (
-              <Button asChild size="sm" variant="outline">
-                <Link href={`/erp/laundry/orders/${order.id}/labels`}>
-                  <PrinterIcon className="size-3.5" />
-                  Bag labels
-                </Link>
-              </Button>
-            )}
-          </div>
-          <details className="mt-3 rounded-lg border px-3 py-2">
-            <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
-              Advanced: split across bags
-            </summary>
-            <div className="mt-3">
-              <LaundryBagPrepareForm
-                orderId={order.id}
-                items={order.laundry_order_items}
-                existingBags={bags}
-                mode="desk"
-                staffOptions={staff}
-              />
-            </div>
-          </details>
-          {bags.map((bag) => (
-            <VoidBagForm key={bag.id} bagId={bag.id} bagCode={bag.public_code} />
-          ))}
-          {order.status !== "delivered" && order.status !== "cancelled" ? (
-            <CancelOrderForm orderId={order.id} billed={Boolean(order.billed_at)} />
-          ) : null}
-          {order.billed_at && order.status !== "delivered" ? (
-            <CorrectionForm orderId={order.id} />
-          ) : null}
-        </article>
-        );
-      })}
-    </div>
-  );
-}
-
-function CorrectionForm({ orderId }: { orderId: string }) {
-  const [state, action, pending] = useActionState(
-    reopenLaundryCorrection,
-    initial,
-  );
-  return (
-    <details className="mt-3 border-t pt-3">
-      <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
-        Correct confirmed count or charge
-      </summary>
-      <form action={action} className="mt-3 space-y-2">
-        <input type="hidden" name="order_id" value={orderId} />
-        <Input
-          name="reason"
-          placeholder="Required correction reason"
-          maxLength={300}
-          required
-        />
-        {state.error ? (
-          <p className="text-xs text-destructive">{state.error}</p>
-        ) : null}
-        {state.message ? (
-          <p className="text-xs text-muted-foreground">{state.message}</p>
-        ) : null}
-        <Button
-          type="submit"
-          variant="destructive"
-          size="sm"
-          disabled={pending}
-        >
-          {pending ? "Reopening…" : "Void charge and recount"}
-        </Button>
-      </form>
-    </details>
-  );
-}
-
-function AssignmentForm({
-  orderId,
-  assignedStaffId,
-  staff,
-}: {
-  orderId: string;
-  assignedStaffId: string | null;
-  staff: StaffOption[];
-}) {
-  const [value, setValue] = useState(
-    assignedStaffId ?? "__unassigned__",
-  );
-  return (
-    <form action={assignLaundryOrder} className="min-w-0 flex-1">
-      <input type="hidden" name="order_id" value={orderId} />
-      <input type="hidden" name="staff_id" value={value} />
-      <Label className="mb-1 block text-xs">Assigned to</Label>
-      <div className="flex gap-2">
-        <Select value={value} onValueChange={setValue}>
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__unassigned__">Unassigned</SelectItem>
-            {staff.map((member) => (
-              <SelectItem key={member.id} value={member.id}>
-                {member.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button type="submit" variant="outline">
-          Save
-        </Button>
-      </div>
-    </form>
   );
 }
 
@@ -328,6 +111,7 @@ function ReceptionIntake({
     createDeskLaundryOrder,
     initial,
   );
+  usePendingFeedback(pending, "Creating laundry order…");
   const roomOptions = bookings.flatMap((booking) =>
     booking.rooms.map((room) => ({ booking, room })),
   );
@@ -714,84 +498,6 @@ function QuickAddCatalogForm({ onSaved }: { onSaved?: () => void }) {
         {pending ? "Saving…" : "Save type"}
       </Button>
     </form>
-  );
-}
-
-const bagInitial: LaundryBagState = { ok: false };
-
-function VoidBagForm({
-  bagId,
-  bagCode,
-}: {
-  bagId: string;
-  bagCode: string;
-}) {
-  const [state, action, pending] = useActionState(voidDeskLaundryBag, bagInitial);
-  return (
-    <details className="mt-2 text-xs">
-      <summary className="cursor-pointer text-muted-foreground">
-        Void bag {bagCode}
-      </summary>
-      <form action={action} className="mt-2 space-y-2">
-        <input type="hidden" name="bag_id" value={bagId} />
-        <Input name="reason" placeholder="Void reason" maxLength={200} required />
-        {state.error ? (
-          <p className="text-destructive">{state.error}</p>
-        ) : null}
-        {state.message ? (
-          <p className="text-muted-foreground">{state.message}</p>
-        ) : null}
-        <Button type="submit" size="sm" variant="destructive" disabled={pending}>
-          {pending ? "Voiding…" : "Void bag label"}
-        </Button>
-      </form>
-    </details>
-  );
-}
-
-function CancelOrderForm({
-  orderId,
-  billed,
-}: {
-  orderId: string;
-  billed: boolean;
-}) {
-  const [state, action, pending] = useActionState(cancelLaundryOrder, initial);
-  return (
-    <details className="mt-3 border-t pt-3">
-      <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
-        Cancel laundry order
-      </summary>
-      <form action={action} className="mt-3 space-y-2">
-        <input type="hidden" name="order_id" value={orderId} />
-        <Input
-          name="reason"
-          placeholder="Required cancel reason"
-          maxLength={300}
-          required
-        />
-        {billed ? (
-          <p className="text-xs text-muted-foreground">
-            This order was billed — cancelling will void the folio charge and
-            reverse the ledger entry.
-          </p>
-        ) : null}
-        {state.error ? (
-          <p className="text-xs text-destructive">{state.error}</p>
-        ) : null}
-        {state.message ? (
-          <p className="text-xs text-muted-foreground">{state.message}</p>
-        ) : null}
-        <Button
-          type="submit"
-          variant="destructive"
-          size="sm"
-          disabled={pending}
-        >
-          {pending ? "Cancelling…" : "Cancel order"}
-        </Button>
-      </form>
-    </details>
   );
 }
 

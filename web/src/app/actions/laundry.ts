@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import {
   clearLaundrySession,
   createLaundryToken,
@@ -18,12 +18,16 @@ import {
   type LaundryOrder,
 } from "@/lib/laundry";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
+import { calculateOrderTotals, roundBtn } from "@/lib/pricing";
+import { absoluteUrl } from "@/lib/site";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 
 export type LaundryGuestState = {
   ok: boolean;
   orderId?: string;
+  payUrl?: string;
+  estimatedTotalBtn?: number;
   error?: string;
 };
 
@@ -335,19 +339,40 @@ export async function loadGuestLaundryData(): Promise<{
   catalog: LaundryCatalogItem[];
   orders: LaundryOrder[];
 }> {
-  const session = await getLaundryGuestSession();
-  if (!session) return { session: null, catalog: [], orders: [] };
   const admin = createSupabaseAdminClient();
+  const { data: property } = await admin
+    .from("properties")
+    .select("id")
+    .eq("slug", PELBU_PROPERTY_SLUG)
+    .maybeSingle();
+  if (!property) return { session: null, catalog: [], orders: [] };
+
+  const session = await getLaundryGuestSession();
+  const catalogQuery = admin
+    .from("laundry_catalog_items")
+    .select(
+      "id, name, category, unit_label, price_btn, gst_applicable, turnaround_hours, is_active, sort_order",
+    )
+    .eq("property_id", property.id)
+    .eq("is_active", true)
+    .order("sort_order")
+    .order("name");
+
+  if (!session) {
+    const { data: catalog } = await catalogQuery;
+    return {
+      session: null,
+      catalog: (catalog ?? []).map((row) => ({
+        ...row,
+        price_btn: Number(row.price_btn),
+        turnaround_hours: Number(row.turnaround_hours),
+      })) as LaundryCatalogItem[],
+      orders: [],
+    };
+  }
+
   const [{ data: catalog }, { data: orders }] = await Promise.all([
-    admin
-      .from("laundry_catalog_items")
-      .select(
-        "id, name, category, unit_label, price_btn, gst_applicable, turnaround_hours, is_active, sort_order",
-      )
-      .eq("property_id", session.propertyId)
-      .eq("is_active", true)
-      .order("sort_order")
-      .order("name"),
+    catalogQuery,
     admin
       .from("laundry_orders")
       .select(
@@ -383,4 +408,181 @@ export async function loadGuestLaundryData(): Promise<{
       })),
     })) as LaundryOrder[],
   };
+}
+
+function normalizePhone(value: string): string {
+  return value.replace(/\s+/g, "").trim();
+}
+
+export async function submitPublicWalkInLaundry(
+  _prev: LaundryGuestState,
+  formData: FormData,
+): Promise<LaundryGuestState> {
+  try {
+    const guestName = trimRequired(formData.get("guest_name"), "Your name");
+    const guestPhone = normalizePhone(
+      trimRequired(formData.get("guest_phone"), "Mobile number"),
+    );
+    if (guestName.length > 100) {
+      throw new Error("Name is too long.");
+    }
+    if (guestPhone.length < 8 || guestPhone.length > 20) {
+      throw new Error("Enter a valid mobile number.");
+    }
+    const roomHint = optionalTrim(formData.get("room_hint"))?.slice(0, 30);
+    const lines = parseLines(formData.get("items"));
+    const notes = optionalTrim(formData.get("notes"));
+
+    const admin = createSupabaseAdminClient();
+    const { data: property } = await admin
+      .from("properties")
+      .select(
+        "id, gst_rate, service_charge_rate, service_charge_default_on, bank_accounts",
+      )
+      .eq("slug", PELBU_PROPERTY_SLUG)
+      .maybeSingle();
+    if (!property) throw new Error("Laundry service is not configured.");
+
+    const propertyId = property.id as string;
+    const validPhotos = parsePhotoIds(
+      formData.get("photo_public_ids"),
+      propertyId,
+    );
+    const ids = lines.map((line) => line.catalogItemId);
+    const { data: catalog } = await admin
+      .from("laundry_catalog_items")
+      .select("id, name, unit_label, price_btn, gst_applicable")
+      .eq("property_id", propertyId)
+      .eq("is_active", true)
+      .in("id", ids);
+    if (!catalog || catalog.length !== ids.length) {
+      throw new Error("One or more laundry services are unavailable.");
+    }
+    const byId = new Map(catalog.map((row) => [row.id as string, row]));
+    const pricingLines = lines.map((line) => {
+      const item = byId.get(line.catalogItemId)!;
+      return {
+        qty: line.qty,
+        unitPriceBtn: Number(item.price_btn),
+        gstApplicable: Boolean(item.gst_applicable),
+      };
+    });
+    const totals = calculateOrderTotals(pricingLines, {
+      gstRate: Number(property.gst_rate ?? 0.07),
+      serviceChargeRate: Number(property.service_charge_rate ?? 0),
+      applyServiceCharge: Boolean(property.service_charge_default_on),
+    });
+    if (totals.totalBtn <= 0) {
+      throw new Error("Order total must be greater than zero.");
+    }
+
+    const { data: order, error: orderError } = await admin
+      .from("laundry_orders")
+      .insert({
+        property_id: propertyId,
+        booking_id: null,
+        room_unit_id: null,
+        guest_name: guestName,
+        guest_phone: guestPhone,
+        room_label_snapshot: roomHint || "Walk-in",
+        source: "walk_in",
+        requested_notes: notes,
+        intake_photo_public_ids: validPhotos,
+        subtotal_btn: totals.subtotalBtn,
+        service_charge_btn: totals.serviceChargeBtn,
+        gst_btn: totals.gstBtn,
+        total_btn: totals.totalBtn,
+      })
+      .select("id")
+      .single();
+    if (orderError || !order) {
+      throw new Error("Could not submit laundry request.");
+    }
+
+    const { error: itemError } = await admin.from("laundry_order_items").insert(
+      lines.map((line) => {
+        const item = byId.get(line.catalogItemId)!;
+        return {
+          order_id: order.id,
+          catalog_item_id: line.catalogItemId,
+          name_snapshot: item.name as string,
+          unit_label_snapshot: item.unit_label as string,
+          requested_qty: line.qty,
+        };
+      }),
+    );
+    if (itemError) {
+      await admin.from("laundry_orders").delete().eq("id", order.id);
+      throw new Error("Could not save laundry items.");
+    }
+
+    const banks =
+      (property.bank_accounts as { hint?: string }[] | null) ?? [];
+    const bankHint =
+      banks.find((b) => b.hint)?.hint ??
+      "BoB / BNB / TBank / DrukPNB — quote laundry ref in remarks";
+    const token = createHash("sha256")
+      .update(randomBytes(24))
+      .digest("hex")
+      .slice(0, 24);
+    const expires = new Date();
+    expires.setDate(expires.getDate() + 3);
+
+    const { data: link, error: linkError } = await admin
+      .from("payment_links")
+      .insert({
+        property_id: propertyId,
+        token,
+        amount_btn: roundBtn(totals.totalBtn),
+        purpose: "balance",
+        payee_name: guestName,
+        payee_phone: guestPhone,
+        bank_hint: bankHint,
+        expires_at: expires.toISOString(),
+        notes: `Laundry walk-in · order ${String(order.id).slice(0, 8).toUpperCase()}`,
+        status: "open",
+      })
+      .select("id, token")
+      .single();
+    if (linkError || !link) {
+      await admin.from("laundry_orders").delete().eq("id", order.id);
+      throw new Error("Could not create payment link.");
+    }
+
+    await admin
+      .from("laundry_orders")
+      .update({ payment_link_id: link.id })
+      .eq("id", order.id);
+
+    await admin.from("laundry_order_events").insert({
+      property_id: propertyId,
+      order_id: order.id,
+      event_type: "requested",
+      to_status: "requested",
+      notes: notes ?? "Public walk-in intake",
+      photo_public_ids: validPhotos,
+      actor_kind: "guest",
+    });
+
+    await autoPrepareDefaultBag(admin, propertyId, order.id as string, "front_desk");
+
+    revalidatePath("/laundry");
+    revalidatePath("/erp/laundry");
+    revalidatePath("/staff/laundry");
+
+    return {
+      ok: true,
+      orderId: order.id as string,
+      payUrl: absoluteUrl(`/pay/${link.token as string}`),
+      estimatedTotalBtn: totals.totalBtn,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Could not submit laundry request.",
+    };
+  }
 }

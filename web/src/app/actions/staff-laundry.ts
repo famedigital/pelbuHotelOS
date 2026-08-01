@@ -72,7 +72,7 @@ export async function confirmLaundryReceipt(
     const admin = createSupabaseAdminClient();
     const { data: order } = await admin
       .from("laundry_orders")
-      .select("id, property_id, folio_line_id, status")
+      .select("id, property_id, folio_line_id, status, source")
       .eq("id", orderId)
       .eq("property_id", session.propertyId)
       .maybeSingle();
@@ -111,6 +111,7 @@ export async function confirmLaundryReceipt(
     if (rpcError) throw new Error(rpcError.message);
     const quote = result as {
       already_billed?: boolean;
+      walk_in?: boolean;
       folio_line_id?: string;
       folio_id?: string;
       booking_id?: string;
@@ -126,6 +127,14 @@ export async function confirmLaundryReceipt(
 
     let folioLineId = quote?.folio_line_id ?? "";
     const totalBtn = Number(quote?.total_btn ?? 0);
+
+    if (quote?.walk_in && quote.already_billed) {
+      refreshLaundry();
+      return {
+        ok: true,
+        message: `Walk-in receipt confirmed. Total Nu ${totalBtn.toFixed(2)}.`,
+      };
+    }
 
     if (!quote?.already_billed) {
       if (!quote?.folio_id) {

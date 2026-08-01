@@ -39,7 +39,7 @@ export default async function ErpLaundryPage() {
       admin
         .from("laundry_orders")
         .select(
-          "id, booking_id, room_unit_id, guest_name, room_label_snapshot, source, status, assigned_staff_id, requested_notes, condition_notes, exception_notes, intake_photo_public_ids, completion_photo_public_ids, total_btn, requested_at, received_at, ready_at, delivered_at, billed_at, laundry_order_items(id, catalog_item_id, name_snapshot, unit_label_snapshot, requested_qty, confirmed_qty, unit_price_btn, line_total_btn)",
+          "id, booking_id, room_unit_id, guest_name, guest_phone, room_label_snapshot, source, status, assigned_staff_id, requested_notes, condition_notes, exception_notes, intake_photo_public_ids, completion_photo_public_ids, total_btn, requested_at, received_at, ready_at, delivered_at, billed_at, laundry_order_items(id, catalog_item_id, name_snapshot, unit_label_snapshot, requested_qty, confirmed_qty, unit_price_btn, line_total_btn)",
         )
         .eq("property_id", propertyId)
         .order("requested_at", { ascending: false })
@@ -67,6 +67,7 @@ export default async function ErpLaundryPage() {
   })) as LaundryCatalogItem[];
   const orderRows = (orders ?? []).map((row) => ({
     ...row,
+    guest_phone: (row.guest_phone as string | null) ?? null,
     total_btn: row.total_btn == null ? null : Number(row.total_btn),
     intake_photo_public_ids:
       (row.intake_photo_public_ids as string[] | null) ?? [],
