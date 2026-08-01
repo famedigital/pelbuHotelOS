@@ -2,6 +2,8 @@ import {
   KitchenEventDeleteButton,
   KitchenEventForm,
 } from "@/components/erp/KitchenOpsForms";
+import { KitchenCoversSection } from "@/components/erp/KitchenCoversSection";
+import { KitchenStaffSection } from "@/components/erp/KitchenStaffSection";
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { computeMealCovers } from "@/lib/kitchen/covers";
 import { computeFoodCostPeriod } from "@/lib/kitchen/food-cost";
+import { computeKitchenStaffBoard } from "@/lib/kitchen/staff-shift";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId, thimphuToday } from "@/lib/erp-lists";
 import { formatBtn } from "@/lib/pricing";
@@ -39,9 +42,10 @@ export default async function KitchenBoardPage() {
   const today = thimphuToday();
   const from = monthStart(today);
 
-  const [covers, foodCost, gasRes, stockRes, expiryRes, eventsRes, shiftsRes, servicesRes] =
+  const [covers, staffBoard, foodCost, gasRes, stockRes, expiryRes, eventsRes, servicesRes] =
     await Promise.all([
       computeMealCovers(admin, propertyId, today),
+      computeKitchenStaffBoard(admin, propertyId, today),
       computeFoodCostPeriod(admin, propertyId, from, today),
       admin
         .from("inventory_items")
@@ -73,13 +77,6 @@ export default async function KitchenBoardPage() {
         .gte("event_date", today)
         .order("event_date")
         .limit(20),
-      admin
-        .from("staff_shifts")
-        .select("id, outlet, starts_at, ends_at, staff_members(full_name, role_label)")
-        .eq("property_id", propertyId)
-        .eq("shift_date", today)
-        .in("status", ["published"])
-        .order("starts_at"),
       admin
         .from("service_requests")
         .select("id, kind, contact_name, preferred_on, party_size, status")
@@ -114,12 +111,15 @@ export default async function KitchenBoardPage() {
   });
 
   const filterCategories = ["all", "produce", "meat", "dairy", "dry"] as const;
+  const gasOk = Number(gasFull) >= 1;
+  const stockOk = lowStock.length === 0;
+  const foodCostOk = foodCost.foodCostPct <= 32;
 
   return (
     <DeskListShell
       eyebrow="F&B operations"
       heading="Kitchen board"
-      blurb="Gas, grocery stock, meal covers, events, and food cost for today's service."
+      blurb="Meal covers, staff on shift, gas, grocery stock, events, and food cost for today's service."
       filters={
         <div className="flex flex-wrap items-center gap-2">
           <Link
@@ -143,28 +143,45 @@ export default async function KitchenBoardPage() {
         </div>
       }
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Link href="/erp/inventory" className="block rounded-xl border bg-card p-4 hover:border-accent/40">
+      <section className="space-y-4" aria-label="Service readiness">
+        <KitchenCoversSection covers={covers} businessDate={today} />
+        <KitchenStaffSection board={staffBoard} businessDate={today} />
+      </section>
+
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Link
+          href="/erp/inventory"
+          className={`block rounded-xl border bg-card p-4 hover:border-accent/40 ${
+            gasOk ? "" : "border-destructive/40"
+          }`}
+        >
           <p className="text-xs text-muted-foreground">LPG cylinders</p>
           <p className="mt-1 text-2xl font-semibold tabular-nums">
             {Number(gasFull)} full · {Number(gasEmpty)} empty
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">Update on Stock → LPG SKUs</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {gasOk ? "Spare full OK" : "Low — refill spare cylinder"}
+          </p>
         </Link>
-        <Card className="gap-2 py-4">
-          <CardContent>
-            <p className="text-xs text-muted-foreground">Covers today</p>
-            <p className="mt-1 text-lg font-semibold tabular-nums">
-              BF {covers.breakfast} · Lunch {covers.lunch} · Dinner {covers.dinner}
-            </p>
-            {covers.eventCovers > 0 ? (
-              <p className="text-xs text-muted-foreground">+ {covers.eventCovers} event covers</p>
-            ) : null}
-          </CardContent>
-        </Card>
+        <Link
+          href="/erp/inventory"
+          className={`block rounded-xl border bg-card p-4 hover:border-accent/40 ${
+            stockOk ? "" : "border-amber-400/50"
+          }`}
+        >
+          <p className="text-xs text-muted-foreground">Grocery stock</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums">
+            {stockOk ? "OK" : `${lowStock.length} low`}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Meat · veg · dairy · dry goods
+          </p>
+        </Link>
         <Link
           href="/erp/kitchen/food-cost"
-          className="block rounded-xl border bg-card p-4 hover:border-accent/40"
+          className={`block rounded-xl border bg-card p-4 hover:border-accent/40 ${
+            foodCostOk ? "" : "border-amber-400/50"
+          }`}
         >
           <p className="text-xs text-muted-foreground">Food cost MTD</p>
           <p className="mt-1 text-2xl font-semibold tabular-nums">{foodCost.foodCostPct}%</p>
@@ -174,11 +191,13 @@ export default async function KitchenBoardPage() {
         </Link>
         <Card className="gap-2 py-4">
           <CardContent>
-            <p className="text-xs text-muted-foreground">Staff on shift</p>
+            <p className="text-xs text-muted-foreground">Upcoming events</p>
             <p className="mt-1 text-2xl font-semibold tabular-nums">
-              {(shiftsRes.data ?? []).length}
+              {(eventsRes.data ?? []).length}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">Published shifts today</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Banquets &amp; extra covers
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -281,41 +300,6 @@ export default async function KitchenBoardPage() {
                       <KitchenEventDeleteButton eventId={ev.id as string} />
                     </li>
                   ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Staff on shift</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {(shiftsRes.data ?? []).length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No published shifts today.{" "}
-                  <Link href="/erp/hr/rota" className="text-accent underline-offset-4 hover:underline">
-                    Rota →
-                  </Link>
-                </p>
-              ) : (
-                <ul className="divide-y text-sm">
-                  {(shiftsRes.data ?? []).map((s) => {
-                    const staff = s.staff_members as {
-                      full_name?: string;
-                      role_label?: string;
-                    } | null;
-                    return (
-                      <li key={s.id as string} className="flex justify-between py-2">
-                        <span>
-                          {staff?.full_name ?? "Staff"} · {staff?.role_label ?? "—"}
-                        </span>
-                        <span className="text-muted-foreground capitalize">
-                          {s.outlet as string}
-                        </span>
-                      </li>
-                    );
-                  })}
                 </ul>
               )}
             </CardContent>
