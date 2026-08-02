@@ -162,10 +162,9 @@ export async function loadRoleDashboardSnapshot(
         "id, contact_name, contact_phone, check_in, check_out, adults, rooms, status, token_required_btn",
       )
       .eq("property_id", propertyId)
-      .or(
-        `status.eq.held,status.eq.checked_in,and(check_in.eq.${today},status.in.(pending,confirmed)),and(check_out.eq.${today},status.in.(checked_in,confirmed))`,
-      )
-      .limit(120),
+      .in("status", ["held", "checked_in", "pending", "confirmed"])
+      .order("created_at", { ascending: false })
+      .limit(150),
     admin
       .from("orders")
       .select(

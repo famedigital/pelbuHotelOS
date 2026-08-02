@@ -19,7 +19,7 @@ Last updated: 2026-08-01 (**v1.0**). This is the single desk-side map of what is
 
 | Module | Landing | Tabs |
 |--------|---------|------|
-| Dashboard | `/erp` | Property FO/GM home (readiness, holds, open KOTs) — **not** chef F&B board |
+| Dashboard | `/erp` | Role home: Owner · Manager · Front desk · F&B · Kitchen (food pax) · HK · Laundry · Cashier. Owner/GM switcher. |
 | Calendar | `/erp/calendar` | Room rack, Day sheet |
 | Front desk | `/erp/arrivals` | Arrivals, In-house, Departures, Check-in, **Check-out**, Fast book, Reservations, Guests, **Groups**, **Loyalty** |
 | Rooms | `/erp/rooms` | Rooms, Housekeeping, Maintenance, Laundry |

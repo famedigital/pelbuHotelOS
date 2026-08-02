@@ -27,6 +27,12 @@ describe("mapAccessLevelToDeskRole", () => {
     assert.equal(mapAccessLevelToDeskRole("housekeeping"), "hk");
   });
 
+  it("maps kitchen fnb laundry access levels", () => {
+    assert.equal(mapAccessLevelToDeskRole("kitchen"), "kitchen");
+    assert.equal(mapAccessLevelToDeskRole("fnb"), "fnb");
+    assert.equal(mapAccessLevelToDeskRole("laundry"), "laundry");
+  });
+
   it("defaults unknown levels to front_desk", () => {
     assert.equal(mapAccessLevelToDeskRole(null), "front_desk");
     assert.equal(mapAccessLevelToDeskRole("desk"), "front_desk");
@@ -34,12 +40,15 @@ describe("mapAccessLevelToDeskRole", () => {
 });
 
 describe("requireMoneyDesk role set", () => {
-  it("includes front_desk cashier gm owner and excludes hk", () => {
+  it("includes front_desk cashier gm owner and excludes ops-only roles", () => {
     assert.equal(MONEY_ROLES.has("front_desk"), true);
     assert.equal(MONEY_ROLES.has("cashier"), true);
     assert.equal(MONEY_ROLES.has("gm"), true);
     assert.equal(MONEY_ROLES.has("owner"), true);
     assert.equal(MONEY_ROLES.has("hk"), false);
+    assert.equal(MONEY_ROLES.has("fnb"), false);
+    assert.equal(MONEY_ROLES.has("kitchen"), false);
+    assert.equal(MONEY_ROLES.has("laundry"), false);
   });
 
   it("PIN escape maps to gm which is a money role", () => {

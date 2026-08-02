@@ -98,13 +98,18 @@ export function DepartmentSelect({
   return (
     <div className={cn(compact ? "space-y-1" : "space-y-1.5", className)}>
       {name ? (
-        <input type="hidden" name={name} form={form} value={value} />
+        <input
+          type="hidden"
+          name={name}
+          form={form}
+          value={value}
+          required={Boolean(required) && !value}
+        />
       ) : null}
       <select
         id={id}
         value={selectValue}
         disabled={disabled}
-        required={Boolean(required) && !value && !adding}
         className={cn(defaultSelectClass, selectClassName)}
         aria-label={id ? undefined : "Department"}
         onChange={(event) => {
@@ -150,6 +155,7 @@ export function DepartmentSelect({
             placeholder="New department name"
             className={cn("h-11 min-w-0 flex-1", inputClassName)}
             aria-label="New department name"
+            required={Boolean(required) && !value}
           />
           <div className="flex shrink-0 gap-1.5">
             <Button

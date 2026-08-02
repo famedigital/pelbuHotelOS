@@ -46,8 +46,12 @@ export function StaffInlineAddTable({
 }) {
   const router = useRouter();
   const [rows, setRows] = useState<DraftRow[]>([emptyRow()]);
+  /** Newly named departments this session (shared across hire rows). */
+  const [sessionDepartments, setSessionDepartments] = useState<string[]>([]);
   const [state, action, pending] = useActionState(upsertStaffMember, initial);
   useActionToast(state, { successMessage: "Staff added" });
+
+  const departmentOptions = [...departments, ...sessionDepartments];
 
   useEffect(() => {
     if (state.ok) {
@@ -60,6 +64,17 @@ export function StaffInlineAddTable({
     setRows((prev) =>
       prev.map((row) => (row.key === key ? { ...row, [field]: value } : row)),
     );
+  }
+
+  function setDepartment(key: string, value: string) {
+    update(key, "department", value);
+    const trimmed = value.trim();
+    if (
+      trimmed &&
+      !departmentOptions.some((d) => d.toLowerCase() === trimmed.toLowerCase())
+    ) {
+      setSessionDepartments((prev) => [...prev, trimmed]);
+    }
   }
 
   return (
@@ -100,7 +115,8 @@ export function StaffInlineAddTable({
               action={action}
               pending={pending}
               onChange={update}
-              departments={departments}
+              onDepartmentChange={setDepartment}
+              departments={departmentOptions}
             />
           </article>
         ))}
@@ -161,8 +177,8 @@ export function StaffInlineAddTable({
                     id={`${row.key}-dept-grid`}
                     form={`hire-${row.key}`}
                     value={row.department}
-                    onChange={(value) => update(row.key, "department", value)}
-                    departments={departments}
+                    onChange={(value) => setDepartment(row.key, value)}
+                    departments={departmentOptions}
                     compact
                   />
                 </td>
@@ -248,12 +264,14 @@ function HireForm({
   action,
   pending,
   onChange,
+  onDepartmentChange,
   departments,
 }: {
   row: DraftRow;
   action: (payload: FormData) => void;
   pending: boolean;
   onChange: (key: string, field: keyof DraftRow, value: string) => void;
+  onDepartmentChange: (key: string, value: string) => void;
   departments: string[];
 }) {
   return (
@@ -299,7 +317,7 @@ function HireForm({
           <DepartmentSelect
             id={`${row.key}-dept`}
             value={row.department}
-            onChange={(value) => onChange(row.key, "department", value)}
+            onChange={(value) => onDepartmentChange(row.key, value)}
             departments={departments}
           />
         </div>
