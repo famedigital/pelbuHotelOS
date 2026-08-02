@@ -261,6 +261,14 @@ export default async function ErpSettingsPage({
         check_in_time: (policyResult.data.check_in_time as string | null) ?? null,
         check_out_time: (policyResult.data.check_out_time as string | null) ?? null,
         quiet_hours: (policyResult.data.quiet_hours as string | null) ?? null,
+        early_checkout_fee_btn:
+          policyResult.data.early_checkout_fee_btn == null
+            ? null
+            : Number(policyResult.data.early_checkout_fee_btn),
+        late_checkout_fee_btn:
+          policyResult.data.late_checkout_fee_btn == null
+            ? null
+            : Number(policyResult.data.late_checkout_fee_btn),
       }
     : {
         free_cancel_days: 3,
@@ -277,6 +285,8 @@ export default async function ErpSettingsPage({
         check_in_time: null,
         check_out_time: null,
         quiet_hours: null,
+        early_checkout_fee_btn: null,
+        late_checkout_fee_btn: null,
       };
 
   const damageItems = (damageResult.data ?? []).map((row) => ({

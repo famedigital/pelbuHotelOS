@@ -165,6 +165,13 @@ export default async function FolioDetailPage({ params }: Props) {
     .eq("is_active", true)
     .order("sort_order");
 
+  const { data: minibarItems } = await admin
+    .from("property_minibar_items")
+    .select("id, label, amount_btn, category")
+    .eq("property_id", activePropertyId)
+    .eq("is_active", true)
+    .order("sort_order");
+
   const { data: childFolios } =
     (folio.folio_type as string) === "master"
       ? await admin
@@ -524,6 +531,12 @@ export default async function FolioDetailPage({ params }: Props) {
               id: d.id as string,
               label: d.label as string,
               amountBtn: d.amount_btn == null ? null : Number(d.amount_btn),
+            }))}
+            minibarItems={(minibarItems ?? []).map((m) => ({
+              id: m.id as string,
+              label: m.label as string,
+              amountBtn: Number(m.amount_btn ?? 0),
+              category: (m.category as string) || "minibar",
             }))}
             defaultGroup={defaultActionGroup}
           />

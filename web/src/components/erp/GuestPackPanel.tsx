@@ -50,19 +50,39 @@ export function GuestPackPanel({
     if (!content) return;
     const win = window.open("", "_blank", "noopener,noreferrer,width=800,height=900");
     if (!win) return;
+    const safeName = data.guestName.replace(/[<>&"]/g, "");
     win.document.write(`
-      <!DOCTYPE html><html><head><title>Guest pack — ${data.guestName}</title>
+      <!DOCTYPE html><html><head><title>Guest pack — ${safeName}</title>
       <style>
-        body { font-family: system-ui, sans-serif; padding: 24px; color: #1a1a1a; max-width: 720px; margin: 0 auto; }
-        h1 { font-size: 1.25rem; margin: 0 0 4px; }
-        h2 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: #666; margin: 24px 0 8px; }
-        ul { margin: 0; padding-left: 1.2rem; }
-        li { margin: 4px 0; }
-        .muted { color: #555; font-size: 0.9rem; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        td { padding: 4px 8px; border-bottom: 1px solid #eee; }
-        td:last-child { text-align: right; }
-      </style></head><body>${content.innerHTML}</body></html>`);
+        @page { size: A4; margin: 16mm 14mm; }
+        * { box-sizing: border-box; }
+        body {
+          font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+          padding: 0; color: #1c1917; max-width: 720px; margin: 0 auto;
+          line-height: 1.45;
+        }
+        .brand-bar {
+          border-bottom: 3px solid #0ea5e9;
+          padding-bottom: 12px; margin-bottom: 20px;
+        }
+        h1 { font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -0.02em; color: #0c4a6e; }
+        .eyebrow { font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase;
+          color: #0ea5e9; font-weight: 700; margin: 0 0 6px; }
+        h2 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.14em;
+          color: #57534e; margin: 22px 0 8px; border-bottom: 1px solid #e7e5e4; padding-bottom: 4px; }
+        .muted { color: #57534e; font-size: 0.92rem; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+        td { padding: 6px 8px; border-bottom: 1px solid #f5f5f4; }
+        td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+        .footer { margin-top: 28px; padding-top: 10px; border-top: 1px solid #e7e5e4;
+          font-size: 0.75rem; color: #78716c; }
+      </style></head><body>
+        <div class="brand-bar">
+          <p class="eyebrow">Welcome pack</p>
+          ${content.innerHTML}
+          <p class="footer">${data.propertyName} · present this pack at reception if needed</p>
+        </div>
+      </body></html>`);
     win.document.close();
     win.focus();
     win.print();

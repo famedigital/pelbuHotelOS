@@ -10,6 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
+import {
+  INHOUSE_TASK_KINDS,
+  labelInhouseTaskKind,
+} from "@/lib/inhouse-task-kinds";
 import { TriangleAlertIcon } from "lucide-react";
 import { useActionState } from "react";
 
@@ -41,17 +45,18 @@ export function InhouseTasksPanel({
     completeInhouseTask,
     doneInitial,
   );
-  useActionToast(createState, { successMessage: "Task scheduled" });
-  useActionToast(doneState, { successMessage: "Task done" });
+  useActionToast(createState, { successMessage: "Request scheduled" });
+  useActionToast(doneState, { successMessage: "Request done" });
 
   return (
     <div className="space-y-4 rounded-lg border bg-card p-4">
       <div>
         <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
-          Wake-up &amp; timed tasks
+          Guest requests
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Open calls and reminders for in-house guests.
+          Wake-ups, towels, taxi, minibar restock, and other timed desk tasks for
+          in-house stays.
         </p>
       </div>
 
@@ -91,9 +96,11 @@ export function InhouseTasksPanel({
             defaultValue="wake_up"
             className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm"
           >
-            <option value="wake_up">Wake-up</option>
-            <option value="callback">Callback</option>
-            <option value="other">Other</option>
+            {INHOUSE_TASK_KINDS.map((k) => (
+              <option key={k.value} value={k.value}>
+                {k.label}
+              </option>
+            ))}
           </select>
         </label>
         <label className="space-y-1.5 text-sm sm:col-span-2 lg:col-span-3">
@@ -102,13 +109,13 @@ export function InhouseTasksPanel({
         </label>
         <div className="flex items-end">
           <Button type="submit" disabled={createPending} className="h-10 w-full">
-            {createPending ? "Saving…" : "Add task"}
+            {createPending ? "Saving…" : "Add request"}
           </Button>
         </div>
       </form>
 
       {tasks.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No open tasks.</p>
+        <p className="text-sm text-muted-foreground">No open requests.</p>
       ) : (
         <ul className="divide-y rounded-md border">
           {tasks.map((t) => (
@@ -117,8 +124,8 @@ export function InhouseTasksPanel({
               className="flex flex-wrap items-center justify-between gap-3 px-3 py-2.5 text-sm"
             >
               <div className="min-w-0">
-                <p className="font-medium capitalize">
-                  {t.kind.replace(/_/g, " ")}
+                <p className="font-medium">
+                  {labelInhouseTaskKind(t.kind)}
                   {t.guest ? ` · ${t.guest}` : ""}
                   {t.room ? ` · ${t.room}` : ""}
                 </p>
@@ -146,28 +153,38 @@ export function InhouseTasksPanel({
   );
 }
 
-/** Compact create form for calendar reservation edit dialog. */
+/** Compact create form for calendar / StayHub reservation. */
 export function InhouseTaskQuickForm({ bookingId }: { bookingId: string }) {
   const [state, action, pending] = useActionState(
     createInhouseTask,
     createInitial,
   );
-  useActionToast(state, { successMessage: "Wake-up scheduled" });
+  useActionToast(state, { successMessage: "Request scheduled" });
 
   return (
     <form action={action} className="space-y-2 rounded-md border p-3">
       <input type="hidden" name="booking_id" value={bookingId} />
-      <input type="hidden" name="kind" value="wake_up" />
       <Label className="text-[11px] font-semibold tracking-[0.16em] text-accent uppercase">
-        Schedule wake-up
+        Guest request
       </Label>
       {state.error ? (
         <p className="text-xs text-destructive">{state.error}</p>
       ) : null}
+      <select
+        name="kind"
+        defaultValue="wake_up"
+        className="h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm"
+      >
+        {INHOUSE_TASK_KINDS.map((k) => (
+          <option key={k.value} value={k.value}>
+            {k.label}
+          </option>
+        ))}
+      </select>
       <Input type="datetime-local" name="due_at" required className="h-9" />
       <Input name="notes" placeholder="Notes" className="h-9" />
       <Button type="submit" size="sm" disabled={pending} className="w-full">
-        {pending ? "Saving…" : "Add wake-up"}
+        {pending ? "Saving…" : "Add request"}
       </Button>
     </form>
   );

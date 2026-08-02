@@ -620,9 +620,14 @@ export async function confirmCheckOut(
     const bookingId = trimRequired(formData.get("booking_id"), "Booking");
     const allowBalance = formData.get("allow_balance") === "on";
     const earlyFeeRaw = optionalTrim(formData.get("early_checkout_fee_btn"));
+    const lateFeeRaw = optionalTrim(formData.get("late_checkout_fee_btn"));
     const earlyFee = earlyFeeRaw ? Number(earlyFeeRaw) : 0;
+    const lateFee = lateFeeRaw ? Number(lateFeeRaw) : 0;
     if (earlyFeeRaw && (!Number.isFinite(earlyFee) || earlyFee < 0)) {
       throw new Error("Early checkout fee must be a non-negative amount.");
+    }
+    if (lateFeeRaw && (!Number.isFinite(lateFee) || lateFee < 0)) {
+      throw new Error("Late checkout fee must be a non-negative amount.");
     }
 
     const admin = createSupabaseAdminClient();
@@ -670,6 +675,34 @@ export async function confirmCheckOut(
         booking_id: bookingId,
         source_type: "service",
         description: "Early checkout fee",
+        qty: 1,
+        unit_price_btn: amountBtn,
+        amount_btn: amountBtn,
+        gst_applicable: gstBtn > 0,
+        gst_btn: gstBtn,
+        total_btn: roundBtn(amountBtn + gstBtn),
+      });
+    }
+
+    if (lateFee > 0.009) {
+      if (!folio) {
+        throw new Error("Open a folio before posting a late checkout fee.");
+      }
+      const { postFolioCharge } = await import("@/lib/folio/post-charge");
+      const { DEFAULT_GST_RATE } = await import("@/lib/property-settings");
+      const { data: prop } = await admin
+        .from("properties")
+        .select("gst_rate")
+        .eq("id", property_id)
+        .maybeSingle();
+      const gstRate = Number(prop?.gst_rate ?? DEFAULT_GST_RATE);
+      const amountBtn = roundBtn(lateFee);
+      const gstBtn = gstRate > 0 ? roundBtn(amountBtn * gstRate) : 0;
+      await postFolioCharge(admin, property_id, {
+        folio_id: folio.id as string,
+        booking_id: bookingId,
+        source_type: "service",
+        description: "Late checkout fee",
         qty: 1,
         unit_price_btn: amountBtn,
         amount_btn: amountBtn,

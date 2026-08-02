@@ -64,6 +64,8 @@ export type StayHubSummary = {
   folioId: string | null;
   folioBalance: number;
   isLocked: boolean;
+  earlyCheckoutFeeBtn: number | null;
+  lateCheckoutFeeBtn: number | null;
 };
 
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -190,6 +192,12 @@ export async function fetchStayHubSummary(
   );
   const balance = lines.reduce((s, l) => s + Number(l.total_btn ?? 0), 0);
 
+  const { data: policy } = await admin
+    .from("property_policies")
+    .select("early_checkout_fee_btn, late_checkout_fee_btn")
+    .eq("property_id", propertyId)
+    .maybeSingle();
+
   return {
     ok: true,
     data: {
@@ -222,6 +230,14 @@ export async function fetchStayHubSummary(
       folioId: openFolio?.id ?? null,
       folioBalance: balance,
       isLocked: Boolean(preferred?.is_locked),
+      earlyCheckoutFeeBtn:
+        policy?.early_checkout_fee_btn == null
+          ? null
+          : Number(policy.early_checkout_fee_btn),
+      lateCheckoutFeeBtn:
+        policy?.late_checkout_fee_btn == null
+          ? null
+          : Number(policy.late_checkout_fee_btn),
     },
   };
 }

@@ -3,6 +3,7 @@
 import { writeAuditEvent } from "@/lib/audit";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/desk-property";
+import { isInhouseTaskKind } from "@/lib/inhouse-task-kinds";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
@@ -33,8 +34,8 @@ export async function createInhouseTask(
     const bookingId = optionalTrim(formData.get("booking_id"));
     const dueAtRaw = trimRequired(formData.get("due_at"), "Due time");
     const kind = optionalTrim(formData.get("kind")) ?? "wake_up";
-    if (!["wake_up", "callback", "other"].includes(kind)) {
-      throw new Error("Invalid task kind.");
+    if (!isInhouseTaskKind(kind)) {
+      throw new Error("Invalid request kind.");
     }
     const notes = optionalTrim(formData.get("notes"));
 

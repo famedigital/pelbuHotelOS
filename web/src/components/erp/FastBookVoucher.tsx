@@ -172,7 +172,7 @@ export function FastBookVoucher({
             if (typeof window !== "undefined") window.print();
           }}
         >
-          Print voucher
+          Print agent voucher
         </Button>
         {data.agentId ? (
           <AgentVoucherEmailButton bookingId={data.bookingId} />

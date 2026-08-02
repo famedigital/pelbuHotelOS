@@ -988,6 +988,24 @@ export async function updatePropertyPoliciesSettings(
       check_in_time: optionalTrim(formData.get("check_in_time")),
       check_out_time: optionalTrim(formData.get("check_out_time")),
       quiet_hours: optionalTrim(formData.get("quiet_hours")),
+      early_checkout_fee_btn: (() => {
+        const raw = optionalTrim(formData.get("early_checkout_fee_btn"));
+        if (!raw) return null;
+        const n = Number(raw);
+        if (!Number.isFinite(n) || n < 0) {
+          throw new Error("Early checkout fee must be non-negative.");
+        }
+        return n;
+      })(),
+      late_checkout_fee_btn: (() => {
+        const raw = optionalTrim(formData.get("late_checkout_fee_btn"));
+        if (!raw) return null;
+        const n = Number(raw);
+        if (!Number.isFinite(n) || n < 0) {
+          throw new Error("Late checkout fee must be non-negative.");
+        }
+        return n;
+      })(),
       updated_at: new Date().toISOString(),
     };
 

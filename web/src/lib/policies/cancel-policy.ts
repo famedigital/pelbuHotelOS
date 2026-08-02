@@ -16,6 +16,8 @@ export type PropertyPolicyRow = {
   mou_free_cancel: boolean;
   mou_waive_no_show: boolean;
   guest_summary: string | null;
+  early_checkout_fee_btn: number | null;
+  late_checkout_fee_btn: number | null;
 };
 
 export type CancelPolicyContext = {
@@ -34,6 +36,8 @@ const DEFAULT_POLICY: PropertyPolicyRow = {
   mou_free_cancel: true,
   mou_waive_no_show: true,
   guest_summary: null,
+  early_checkout_fee_btn: null,
+  late_checkout_fee_btn: null,
 };
 
 export async function loadPropertyPolicy(
@@ -43,7 +47,7 @@ export async function loadPropertyPolicy(
   const { data } = await admin
     .from("property_policies")
     .select(
-      "free_cancel_days, late_cancel_forfeit_deposit, no_show_nights, mou_free_cancel, mou_waive_no_show, guest_summary",
+      "free_cancel_days, late_cancel_forfeit_deposit, no_show_nights, mou_free_cancel, mou_waive_no_show, guest_summary, early_checkout_fee_btn, late_checkout_fee_btn",
     )
     .eq("property_id", propertyId)
     .maybeSingle();
@@ -57,6 +61,14 @@ export async function loadPropertyPolicy(
     mou_free_cancel: Boolean(data.mou_free_cancel),
     mou_waive_no_show: Boolean(data.mou_waive_no_show),
     guest_summary: (data.guest_summary as string | null) ?? null,
+    early_checkout_fee_btn:
+      data.early_checkout_fee_btn == null
+        ? null
+        : Number(data.early_checkout_fee_btn),
+    late_checkout_fee_btn:
+      data.late_checkout_fee_btn == null
+        ? null
+        : Number(data.late_checkout_fee_btn),
   };
 }
 

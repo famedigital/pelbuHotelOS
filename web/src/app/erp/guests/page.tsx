@@ -4,6 +4,7 @@ import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { matchesQuery } from "@/lib/erp-lists";
 import { requireDeskPropertyId } from "@/lib/desk-property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata = {
@@ -107,13 +108,29 @@ export default async function GuestsPage({
     <DeskListShell
       eyebrow="Directory"
       heading="Guest list"
-      blurb="Derived from booking guests and contacts. Search by name, passport/CID, SDF, or phone."
+      blurb="Derived from booking guests and contacts. Search by name, passport/CID, SDF, or phone. Incomplete passport/SDF flagged for immigration."
       filters={
-        <DeskSearchForm
-          action="/erp/guests"
-          q={q}
-          placeholder="Name, passport/CID, SDF, phone…"
-        />
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <DeskSearchForm
+            action="/erp/guests"
+            q={q}
+            placeholder="Name, passport/CID, SDF, phone…"
+          />
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/api/erp/export?kind=immigration&scope=in_house"
+              className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
+            >
+              SDF export (in-house)
+            </Link>
+            <Link
+              href="/api/erp/export?kind=immigration&scope=arrivals"
+              className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
+            >
+              Arrivals export
+            </Link>
+          </div>
+        </div>
       }
     >
       <p className="text-xs text-muted-foreground">{filtered.length} shown</p>

@@ -14,6 +14,10 @@ import {
 import { FolioPaymentForm } from "@/components/erp/FolioPaymentForm";
 import { PostDamageChargeForm } from "@/components/erp/PostDamageChargeForm";
 import {
+  PostMinibarChargeForm,
+  type MinibarPickerItem,
+} from "@/components/erp/PostMinibarChargeForm";
+import {
   Accordion,
   AccordionContent,
   AccordionItem,
@@ -43,6 +47,7 @@ type Props = {
   hasMaster: boolean;
   masterCandidates: FolioMasterOption[];
   damageItems: FolioDamageOption[];
+  minibarItems?: MinibarPickerItem[];
   /** Suggested default open panel based on stay money next step */
   defaultGroup: "collect" | "invoice" | "post" | "adjust";
 };
@@ -69,6 +74,7 @@ export function FolioActionsPanel({
   hasMaster,
   masterCandidates,
   damageItems,
+  minibarItems = [],
   defaultGroup,
 }: Props) {
   if (!folioOpen) {
@@ -174,15 +180,16 @@ export function FolioActionsPanel({
             <span className="flex flex-col items-start gap-0.5 text-left">
               <span>Adjustments</span>
               <span className="text-[11px] font-normal text-muted-foreground">
-                Comp, damage, master folio, credit note
+                Comp, minibar, damage, master folio, credit note
               </span>
             </span>
           </AccordionTrigger>
           <AccordionContent className="space-y-3 pb-4">
             <GroupHint>
-              Use sparingly — voids sit on each activity line. Comp and damage
-              add audited adjustments.
+              Use sparingly — voids sit on each activity line. Minibar, amenity,
+              comp, and damage add audited charges without a full POS ticket.
             </GroupHint>
+            <PostMinibarChargeForm folioId={folioId} items={minibarItems} />
             <CompCreditForm folioId={folioId} />
             <PostDamageChargeForm folioId={folioId} items={damageItems} />
             {!isMaster && !hasMaster ? (

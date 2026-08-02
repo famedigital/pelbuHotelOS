@@ -80,24 +80,36 @@ const columns: ColumnDef<GuestStay>[] = [
   {
     id: "id_sdf",
     header: "ID / SDF",
-    cell: ({ row }) => (
-      <div className="font-mono text-xs text-foreground/80">
-        <div>{row.original.passport_or_cid ?? "—"}</div>
-        <div className="text-muted-foreground">
-          SDF {row.original.sdf_ref ?? "—"}
+    cell: ({ row }) => {
+      const incomplete =
+        !String(row.original.passport_or_cid ?? "").trim() ||
+        !String(row.original.sdf_ref ?? "").trim();
+      return (
+        <div className="font-mono text-xs text-foreground/80">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span>{row.original.passport_or_cid ?? "—"}</span>
+            {incomplete ? (
+              <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-amber-800 uppercase">
+                Incomplete
+              </span>
+            ) : null}
+          </div>
+          <div className="text-muted-foreground">
+            SDF {row.original.sdf_ref ?? "—"}
+          </div>
+          {row.original.sdf_doc_url ? (
+            <a
+              href={row.original.sdf_doc_url}
+              target="_blank"
+              rel="noreferrer"
+              className="text-accent underline-offset-2 hover:underline"
+            >
+              Doc
+            </a>
+          ) : null}
         </div>
-        {row.original.sdf_doc_url ? (
-          <a
-            href={row.original.sdf_doc_url}
-            target="_blank"
-            rel="noreferrer"
-            className="text-accent underline-offset-2 hover:underline"
-          >
-            Doc
-          </a>
-        ) : null}
-      </div>
-    ),
+      );
+    },
     enableSorting: false,
     meta: { className: "px-3" },
   },
@@ -148,11 +160,19 @@ const columns: ColumnDef<GuestStay>[] = [
     header: () => <span className="sr-only">Actions</span>,
     cell: ({ row }) => (
       <div className="space-y-1 text-right">
+        {!row.original.guestId.startsWith("contact-") ? (
+          <Link
+            href={`/erp/guests/${row.original.guestId}`}
+            className="block text-sm text-accent underline-offset-4 hover:underline"
+          >
+            Profile →
+          </Link>
+        ) : null}
         <Link
-          href={`/erp/check-in?id=${row.original.booking_id}`}
-          className="text-sm text-accent underline-offset-4 hover:underline"
+          href={`/erp/reservations?booking=${row.original.booking_id}`}
+          className="block text-sm text-muted-foreground underline-offset-4 hover:underline"
         >
-          Open →
+          Stay →
         </Link>
         <GuestBlacklistForm
           guestId={row.original.guestId}

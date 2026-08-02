@@ -159,6 +159,8 @@ function summaryFromSeed(stay: StayHubSeedStay): StayHubSummary {
     folioId: stay.folio_id,
     folioBalance: Number(stay.folio_balance ?? 0),
     isLocked: stay.is_locked,
+    earlyCheckoutFeeBtn: null,
+    lateCheckoutFeeBtn: null,
   };
 }
 
@@ -1161,6 +1163,8 @@ export function StayHubDialog({
                                     : []
                               }
                               folioBalance={dues}
+                              earlyFeeDefaultBtn={summary.earlyCheckoutFeeBtn}
+                              lateFeeDefaultBtn={summary.lateCheckoutFeeBtn}
                             />
                           </WorkSection>
                           <WorkSection title="In-house task">

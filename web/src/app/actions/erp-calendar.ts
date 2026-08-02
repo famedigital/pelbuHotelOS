@@ -1215,6 +1215,15 @@ export async function moveCalendarAssignmentCrossType(
     if (!preview.sameType && decision !== "continue" && decision !== "override") {
       throw new Error("Confirm the new rate or enter an override.");
     }
+    const reasonTrim = (overrideReason ?? "").trim();
+    if (decision === "override") {
+      if (overrideAmountBtn == null || !Number.isFinite(overrideAmountBtn)) {
+        throw new Error("Override amount is required.");
+      }
+      if (!reasonTrim) {
+        throw new Error("Override reason is required for rate override audit.");
+      }
+    }
     const { data: moveId, error } = await admin.rpc(
       "move_room_assignment_cross_type",
       {
@@ -1224,8 +1233,7 @@ export async function moveCalendarAssignmentCrossType(
         p_rate_decision: decision,
         p_override_amount_btn:
           decision === "override" ? (overrideAmountBtn ?? null) : null,
-        p_override_reason:
-          decision === "override" ? (overrideReason ?? null) : null,
+        p_override_reason: decision === "override" ? reasonTrim : null,
       },
     );
     if (error) throw new Error(error.message);
@@ -1239,9 +1247,25 @@ export async function moveCalendarAssignmentCrossType(
         move_id: moveId,
         delta_btn: preview.deltaBtn,
         override_amount_btn: overrideAmountBtn ?? null,
-        override_reason: overrideReason ?? null,
+        override_reason: decision === "override" ? reasonTrim : null,
       },
     });
+    if (decision === "override") {
+      await writeAuditEvent(admin, {
+        propertyId,
+        action: "rate.override",
+        entityType: "room_assignments",
+        entityId: assignmentId,
+        summary: `Rate override Nu ${overrideAmountBtn}: ${reasonTrim}`,
+        meta: {
+          move_id: moveId,
+          override_amount_btn: overrideAmountBtn,
+          override_reason: reasonTrim,
+          from_type: preview.fromTypeName,
+          to_type: preview.toTypeName,
+        },
+      });
+    }
     revalidateCalendar();
     return {
       ok: true,

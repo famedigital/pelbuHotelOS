@@ -921,10 +921,15 @@ export function CheckOutForm({
   bookingId,
   rooms = [],
   folioBalance = 0,
+  earlyFeeDefaultBtn = null,
+  lateFeeDefaultBtn = null,
 }: {
   bookingId: string;
   rooms?: string[];
   folioBalance?: number;
+  /** From property policies when set */
+  earlyFeeDefaultBtn?: number | null;
+  lateFeeDefaultBtn?: number | null;
 }) {
   const [state, action, pending] = useActionState(confirmCheckOut, checkOutInitial);
   useActionToast(state, { successMessage: "Guest checked out" });
@@ -964,17 +969,54 @@ export function CheckOutForm({
           {formatBtn(folioBalance)}
         </span>
       </p>
-      <label className="block space-y-1.5 text-sm">
-        <span className="text-muted-foreground">Early checkout fee (optional)</span>
-        <Input
-          type="number"
-          name="early_checkout_fee_btn"
-          min={0}
-          step="0.01"
-          placeholder="0"
-          className="h-10"
-        />
-      </label>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block space-y-1.5 text-sm">
+          <span className="text-muted-foreground">
+            Early checkout fee (optional)
+          </span>
+          <Input
+            type="number"
+            name="early_checkout_fee_btn"
+            min={0}
+            step="0.01"
+            placeholder="0"
+            defaultValue={
+              earlyFeeDefaultBtn != null && earlyFeeDefaultBtn > 0
+                ? String(earlyFeeDefaultBtn)
+                : undefined
+            }
+            className="h-10"
+          />
+          {earlyFeeDefaultBtn != null && earlyFeeDefaultBtn > 0 ? (
+            <span className="text-xs text-muted-foreground">
+              Policy default {formatBtn(earlyFeeDefaultBtn)} — clear to zero if waived.
+            </span>
+          ) : null}
+        </label>
+        <label className="block space-y-1.5 text-sm">
+          <span className="text-muted-foreground">
+            Late checkout fee (optional)
+          </span>
+          <Input
+            type="number"
+            name="late_checkout_fee_btn"
+            min={0}
+            step="0.01"
+            placeholder="0"
+            defaultValue={
+              lateFeeDefaultBtn != null && lateFeeDefaultBtn > 0
+                ? String(lateFeeDefaultBtn)
+                : undefined
+            }
+            className="h-10"
+          />
+          {lateFeeDefaultBtn != null && lateFeeDefaultBtn > 0 ? (
+            <span className="text-xs text-muted-foreground">
+              Policy default {formatBtn(lateFeeDefaultBtn)} — clear to zero if waived.
+            </span>
+          ) : null}
+        </label>
+      </div>
       <input
         type="hidden"
         name="allow_balance"

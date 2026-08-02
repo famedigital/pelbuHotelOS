@@ -32,6 +32,8 @@ export type PolicySettingsData = {
   check_in_time: string | null;
   check_out_time: string | null;
   quiet_hours: string | null;
+  early_checkout_fee_btn: number | null;
+  late_checkout_fee_btn: number | null;
 };
 
 export type DamageItemRow = {
@@ -101,6 +103,34 @@ export function SettingsPoliciesPanel({
                 type="number"
                 min={0}
                 defaultValue={policy.no_show_nights}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="early_checkout_fee_btn">
+                Early checkout fee (Nu)
+              </Label>
+              <Input
+                id="early_checkout_fee_btn"
+                name="early_checkout_fee_btn"
+                type="number"
+                min={0}
+                step="0.01"
+                defaultValue={policy.early_checkout_fee_btn ?? ""}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="late_checkout_fee_btn">
+                Late checkout fee (Nu)
+              </Label>
+              <Input
+                id="late_checkout_fee_btn"
+                name="late_checkout_fee_btn"
+                type="number"
+                min={0}
+                step="0.01"
+                defaultValue={policy.late_checkout_fee_btn ?? ""}
+                placeholder="0"
               />
             </div>
           </div>

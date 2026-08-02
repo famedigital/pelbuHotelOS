@@ -52,20 +52,155 @@ export async function GET(request: Request) {
 
   if (
     kind === "agent-production" ||
+    kind === "agent-commission" ||
     kind === "agent-ar" ||
     kind === "staff-attendance" ||
-    kind === "inventory-movements"
+    kind === "inventory-movements" ||
+    kind === "immigration" ||
+    kind === "sdf"
   ) {
     const propertyId = await requireDeskPropertyId();
     const today = thimphuToday();
 
-    if (kind === "agent-production") {
+    if (kind === "immigration" || kind === "sdf") {
+      const scope = url.searchParams.get("scope") ?? "in_house";
+      let bookingsQuery = admin
+        .from("bookings")
+        .select(
+          `id, contact_name, contact_phone, check_in, check_out, status, guest_origin,
+           booking_guests(full_name, nationality, passport_or_cid, sdf_ref),
+           room_assignments(room_units(label))`,
+        )
+        .eq("property_id", propertyId)
+        .limit(500);
+
+      if (scope === "arrivals") {
+        bookingsQuery = bookingsQuery
+          .eq("check_in", today)
+          .in("status", ["confirmed", "checked_in", "pending"]);
+      } else {
+        bookingsQuery = bookingsQuery
+          .lte("check_in", today)
+          .gt("check_out", today)
+          .in("status", ["checked_in", "confirmed"]);
+      }
+
+      const { data: bookingRows } = await bookingsQuery;
+      const rows: string[][] = [];
+      for (const b of bookingRows ?? []) {
+        const assigns =
+          (b.room_assignments as
+            | { room_units?: { label?: string } | { label?: string }[] }[]
+            | null) ?? [];
+        const rooms = assigns
+          .map((a) => {
+            const u = Array.isArray(a.room_units) ? a.room_units[0] : a.room_units;
+            return u?.label;
+          })
+          .filter(Boolean)
+          .join("; ");
+        const guests =
+          (b.booking_guests as
+            | {
+                full_name?: string | null;
+                nationality?: string | null;
+                passport_or_cid?: string | null;
+                sdf_ref?: string | null;
+              }[]
+            | null) ?? [];
+        if (guests.length === 0) {
+          rows.push([
+            csvEscape(b.id),
+            csvEscape(b.contact_name),
+            "",
+            csvEscape(b.guest_origin),
+            "",
+            "",
+            "1",
+            csvEscape(b.check_in),
+            csvEscape(b.check_out),
+            csvEscape(b.status),
+            csvEscape(rooms),
+            csvEscape(b.contact_phone),
+          ]);
+          continue;
+        }
+        for (const g of guests) {
+          const incomplete =
+            !String(g.passport_or_cid ?? "").trim() ||
+            !String(g.sdf_ref ?? "").trim()
+              ? "1"
+              : "0";
+          rows.push([
+            csvEscape(b.id),
+            csvEscape(g.full_name || b.contact_name),
+            csvEscape(g.nationality),
+            csvEscape(b.guest_origin),
+            csvEscape(g.passport_or_cid),
+            csvEscape(g.sdf_ref),
+            incomplete,
+            csvEscape(b.check_in),
+            csvEscape(b.check_out),
+            csvEscape(b.status),
+            csvEscape(rooms),
+            csvEscape(b.contact_phone),
+          ]);
+        }
+      }
+      return csvResponse(
+        "immigration",
+        today,
+        [
+          "booking_id",
+          "guest_name",
+          "nationality",
+          "guest_origin",
+          "passport_or_cid",
+          "sdf_ref",
+          "passport_sdf_incomplete",
+          "check_in",
+          "check_out",
+          "status",
+          "rooms",
+          "contact_phone",
+        ],
+        rows,
+      );
+    }
+
+    if (kind === "agent-production" || kind === "agent-commission") {
       const rows = await loadAgentProductionReport(admin, {
         propertyId,
         from: since,
         to: until,
         agentId,
       });
+      if (kind === "agent-commission") {
+        return csvResponse(
+          kind,
+          since,
+          [
+            "agent_id",
+            "company_name",
+            "bookings",
+            "rooms",
+            "room_nights",
+            "quoted_total",
+            "commission_pct",
+            "commission_btn",
+          ],
+          rows.map((r) => [
+            csvEscape(r.agent_id),
+            csvEscape(r.company_name),
+            csvEscape(r.bookings),
+            csvEscape(r.rooms),
+            csvEscape(r.room_nights),
+            csvEscape(r.quoted_total),
+            csvEscape(r.commission_pct ?? ""),
+            csvEscape(r.commission_btn ?? 0),
+          ]),
+        );
+      }
       return csvResponse(
         kind,
         since,
@@ -76,6 +211,8 @@ export async function GET(request: Request) {
           "rooms",
           "room_nights",
           "quoted_total",
+          "commission_pct",
+          "commission_btn",
         ],
         rows.map((r) => [
           csvEscape(r.agent_id),
@@ -84,6 +221,8 @@ export async function GET(request: Request) {
           csvEscape(r.rooms),
           csvEscape(r.room_nights),
           csvEscape(r.quoted_total),
+          csvEscape(r.commission_pct ?? ""),
+          csvEscape(r.commission_btn ?? 0),
         ]),
       );
     }
