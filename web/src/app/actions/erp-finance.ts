@@ -795,3 +795,281 @@ export async function markGstReturnFiled(
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
   }
 }
+
+/**
+ * Create expense or walk-in payment from unmatched bank line, then auto-match.
+ * Debit → expense out of hotel bank. Credit → guest receipt into hotel bank.
+ */
+export async function createFromBankTxn(
+  _prev: ErpFinanceState,
+  formData: FormData,
+): Promise<ErpFinanceState> {
+  try {
+    await requireMoneyDesk();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const txnId = trimRequired(formData.get("bank_txn_id"), "Bank transaction");
+    const mode = trimRequired(formData.get("mode"), "Mode").toLowerCase();
+
+    const { data: txn, error: txnErr } = await admin
+      .from("bank_transactions")
+      .select(
+        "id, property_id, credit_btn, debit_btn, match_status, description, reference, txn_date",
+      )
+      .eq("id", txnId)
+      .single();
+    if (txnErr || !txn) throw new Error("Bank transaction not found.");
+    assertDeskProperty(pid, txn.property_id as string, "Bank transaction");
+    if ((txn.match_status as string) !== "unmatched") {
+      throw new Error("Only unmatched bank lines can create records.");
+    }
+
+    const credit = Number(txn.credit_btn ?? 0);
+    const debit = Number(txn.debit_btn ?? 0);
+    const txnDate = String(txn.txn_date).slice(0, 10);
+    const desc =
+      (txn.description as string)?.trim() ||
+      `Bank ${txn.reference ?? txnId.slice(0, 8)}`;
+
+    if (mode === "expense") {
+      if (debit <= 0) throw new Error("Expense create needs a bank debit.");
+      await assertOpenPeriodForDate(admin, pid, txnDate, { propertyId: pid });
+      const { data: expense, error } = await admin
+        .from("expenses")
+        .insert({
+          property_id: pid,
+          category: "other",
+          description: desc.slice(0, 200),
+          amount_btn: roundBtn(debit),
+          gst_btn: 0,
+          expense_date: txnDate,
+          payment_method: "bank",
+          reference: (txn.reference as string | null) ?? `bank:${txnId.slice(0, 8)}`,
+          notes: "Created from unmatched bank debit.",
+        })
+        .select("id")
+        .single();
+      if (error || !expense) throw new Error("Could not create expense.");
+      const posting = await postExpense(admin, pid, {
+        id: expense.id as string,
+        category: "other",
+        description: desc.slice(0, 200),
+        amount_btn: roundBtn(debit),
+        gst_btn: 0,
+        expense_date: txnDate,
+        payment_method: "bank",
+      });
+      if (posting.ok && posting.journalId) {
+        await admin
+          .from("expenses")
+          .update({ journal_id: posting.journalId })
+          .eq("id", expense.id);
+      }
+      await admin.from("bank_recon_matches").insert({
+        property_id: pid,
+        bank_txn_id: txnId,
+        expense_id: expense.id,
+        match_kind: "manual",
+        matched_amount_btn: roundBtn(debit),
+        note: "Created expense from bank debit",
+        matched_by: "desk",
+      });
+      await admin
+        .from("bank_transactions")
+        .update({ match_status: "matched" })
+        .eq("id", txnId);
+      await writeAuditEvent(admin, {
+        propertyId: pid,
+        action: "bank.create_expense",
+        entityType: "bank_transactions",
+        entityId: txnId,
+        summary: `Expense from bank · ${debit} Nu`,
+        meta: { expenseId: expense.id },
+      });
+      revalidateFinance();
+      return { ok: true, message: "Expense created and matched to bank line." };
+    }
+
+    if (mode === "payment") {
+      if (credit <= 0) throw new Error("Payment create needs a bank credit.");
+      const { postFolioPaymentRecord } = await import(
+        "@/lib/folio/post-payment"
+      );
+      const pay = await postFolioPaymentRecord(admin, {
+        property_id: pid,
+        folio_id: null,
+        booking_id: null,
+        method: "bank",
+        amount_btn: roundBtn(credit),
+        kind: "deposit",
+        reference: (txn.reference as string | null) ?? `bank:${txnId.slice(0, 8)}`,
+        notes: `Created from bank credit · ${desc.slice(0, 120)}`,
+        folio_line_source: null,
+        idempotency_key: `bank_create_pay:${txnId}`,
+      });
+      await admin.from("bank_recon_matches").insert({
+        property_id: pid,
+        bank_txn_id: txnId,
+        payment_id: pay.paymentId,
+        match_kind: "manual",
+        matched_amount_btn: roundBtn(credit),
+        note: "Created payment from bank credit",
+        matched_by: "desk",
+      });
+      await admin
+        .from("bank_transactions")
+        .update({ match_status: "matched" })
+        .eq("id", txnId);
+      await writeAuditEvent(admin, {
+        propertyId: pid,
+        action: "bank.create_payment",
+        entityType: "bank_transactions",
+        entityId: txnId,
+        summary: `Payment from bank · ${credit} Nu`,
+        meta: { paymentId: pay.paymentId },
+      });
+      revalidateFinance();
+      return { ok: true, message: "Payment created and matched to bank line." };
+    }
+
+    throw new Error("Mode must be expense or payment.");
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+/** Vendor AP bill — Dr expense / Cr AP (not paid yet). */
+export async function createVendorBill(
+  _prev: ErpFinanceState,
+  formData: FormData,
+): Promise<ErpFinanceState> {
+  try {
+    await requireMoneyDesk();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const { postApBill } = await import("@/lib/accounting/posting");
+
+    const description = trimRequired(formData.get("description"), "Description");
+    const billDate = trimRequired(formData.get("bill_date"), "Bill date");
+    await assertOpenPeriodForDate(admin, pid, billDate, { propertyId: pid });
+    const amountBtn = parseMoney(formData.get("amount_btn"), "Amount");
+    const gstRaw = String(formData.get("gst_btn") ?? "").trim();
+    const gstBtn = gstRaw ? roundBtn(Number(gstRaw.replace(/,/g, ""))) : 0;
+    const totalBtn = roundBtn(amountBtn + gstBtn);
+    const vendorId = optionalTrim(formData.get("vendor_id"));
+    const dueDate = optionalTrim(formData.get("due_date"));
+    const billNo = optionalTrim(formData.get("bill_no"));
+
+    const { data: bill, error } = await admin
+      .from("accounting_bills")
+      .insert({
+        property_id: pid,
+        vendor_id: vendorId,
+        bill_no: billNo,
+        bill_date: billDate,
+        due_date: dueDate || null,
+        description,
+        amount_btn: amountBtn,
+        gst_btn: gstBtn,
+        total_btn: totalBtn,
+        status: "open",
+        notes: optionalTrim(formData.get("notes")),
+      })
+      .select("id")
+      .single();
+    if (error || !bill) throw new Error(error?.message ?? "Could not save bill.");
+
+    const posting = await postApBill(admin, pid, {
+      id: bill.id as string,
+      total_btn: totalBtn,
+      gst_btn: gstBtn,
+      bill_date: billDate,
+      description,
+    });
+    if (posting.ok && posting.journalId) {
+      await admin
+        .from("accounting_bills")
+        .update({ journal_id: posting.journalId })
+        .eq("id", bill.id);
+    }
+
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "ap.bill.create",
+      entityType: "accounting_bills",
+      entityId: bill.id as string,
+      summary: `AP bill ${totalBtn} Nu · ${description}`,
+    });
+
+    revalidateFinance();
+    revalidatePath("/erp/finance/vendors");
+    return {
+      ok: true,
+      message: posting.ok
+        ? "Bill recorded (AP). Pay when you leave the hotel bank."
+        : `Bill saved; ledger: ${posting.error}`,
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+/** Pay open AP bill from hotel bank. */
+export async function payVendorBill(
+  _prev: ErpFinanceState,
+  formData: FormData,
+): Promise<ErpFinanceState> {
+  try {
+    await requireMoneyDesk();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const { postApPay } = await import("@/lib/accounting/posting");
+    const billId = trimRequired(formData.get("bill_id"), "Bill");
+
+    const { data: bill } = await admin
+      .from("accounting_bills")
+      .select("id, property_id, total_btn, status, description, bill_date")
+      .eq("id", billId)
+      .maybeSingle();
+    if (!bill) throw new Error("Bill not found.");
+    assertDeskProperty(pid, bill.property_id as string, "Bill");
+    if (!["open", "partial"].includes(bill.status as string)) {
+      throw new Error("Bill is not open.");
+    }
+
+    const paidOn =
+      optionalTrim(formData.get("paid_on")) ??
+      new Date().toISOString().slice(0, 10);
+    await assertOpenPeriodForDate(admin, pid, paidOn, { propertyId: pid });
+
+    const amount = Number(bill.total_btn);
+    const posting = await postApPay(admin, pid, {
+      id: bill.id as string,
+      amount_btn: amount,
+      paid_on: paidOn,
+      description: bill.description as string,
+    });
+    if (!posting.ok) {
+      throw new Error(posting.error ?? "Could not post bill payment.");
+    }
+
+    await admin
+      .from("accounting_bills")
+      .update({ status: "paid" })
+      .eq("id", billId);
+
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "ap.bill.pay",
+      entityType: "accounting_bills",
+      entityId: billId,
+      summary: `Paid AP bill ${amount} Nu`,
+    });
+
+    revalidateFinance();
+    revalidatePath("/erp/finance/vendors");
+    return { ok: true, message: "Bill paid from hotel bank." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}

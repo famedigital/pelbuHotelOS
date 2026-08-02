@@ -3,6 +3,7 @@
 import {
   autoMatchBankTxns,
   createExpense,
+  createFromBankTxn,
   ignoreBankTxn,
   importBankStatementJson,
   matchBankTxn,
@@ -397,6 +398,53 @@ export function UnmatchedTxnRow({
         </Button>
       </form>
       <ActionFlash state={ignoreState} />
+
+      <CreateFromBankTxnActions txnId={txn.id} isCredit={isCredit} />
     </li>
+  );
+}
+
+function CreateFromBankTxnActions({
+  txnId,
+  isCredit,
+}: {
+  txnId: string;
+  isCredit: boolean;
+}) {
+  const [state, action, pending] = useActionState(createFromBankTxn, initial);
+  useActionToast(state, {
+    successMessage: isCredit
+      ? "Payment created from bank"
+      : "Expense created from bank",
+  });
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
+      <p className="w-full text-[11px] text-muted-foreground">
+        No match? Create books entry from this bank line:
+      </p>
+      <form action={action}>
+        <input type="hidden" name="bank_txn_id" value={txnId} />
+        <input
+          type="hidden"
+          name="mode"
+          value={isCredit ? "payment" : "expense"}
+        />
+        <Button
+          type="submit"
+          variant="outline"
+          size="sm"
+          disabled={pending}
+          className="h-9 text-xs"
+        >
+          {pending
+            ? "Creating…"
+            : isCredit
+              ? "Create payment & match"
+              : "Create expense & match"}
+        </Button>
+      </form>
+      <ActionFlash state={state} />
+    </div>
   );
 }

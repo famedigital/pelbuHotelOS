@@ -428,12 +428,42 @@ export async function ensureCloseChecklist(
   const admin = createSupabaseAdminClient();
   const propertyId = await resolveActivePropertyId(admin);
   const items = [
-    { key: "posting_errors", label: "Resolve posting errors" },
-    { key: "bank_recon", label: "Finish bank reconciliation" },
-    { key: "gst_review", label: "Review GST input/output" },
-    { key: "payroll", label: "Confirm payroll postings" },
-    { key: "statements", label: "Preview P&L, TB, and balance sheet" },
-    { key: "lock", label: "Ready to lock the period" },
+    {
+      key: "night_audit",
+      label: "Night audit clean for the period (no open blockers)",
+    },
+    {
+      key: "posting_errors",
+      label: "All ledger posting errors resolved",
+    },
+    {
+      key: "bank_recon",
+      label: "Bank statement matched — unmatched queue empty",
+    },
+    {
+      key: "ar_review",
+      label: "City ledger / agent AR reviewed (who still owes)",
+    },
+    {
+      key: "gst_review",
+      label: "GST pack A–E checked — ready to file in BITS",
+    },
+    {
+      key: "payroll",
+      label: "Payroll finalized and payslips paid or held intentionally",
+    },
+    {
+      key: "ap_bills",
+      label: "Vendor bills paid or noted as intentional AP",
+    },
+    {
+      key: "statements",
+      label: "Preview P&L, trial balance, and balance sheet",
+    },
+    {
+      key: "lock",
+      label: "Ready to lock the accounting period",
+    },
   ];
   await admin.from("accounting_close_checklists").upsert(
     items.map((item) => ({

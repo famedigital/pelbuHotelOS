@@ -26,10 +26,12 @@ export async function postFolioLine(
     total_btn: number;
     gst_btn: number;
     created_at?: string;
+    /** Agent-settled charges hit AR — Agents, not guest AR. */
+    bill_to?: "agent" | "guest" | null;
   } & PostingPeriodGuard,
 ): Promise<PostingResult> {
   const source = line.source_type;
-  const eventType =
+  const base =
     source === "room"
       ? "folio_line.room"
       : source === "order"
@@ -39,6 +41,8 @@ export async function postFolioLine(
           : source === "guest_service"
             ? "folio_line.guest_service"
             : "folio_line.other";
+  const eventType =
+    line.bill_to === "agent" ? `${base}.agent` : base;
 
   return postSimpleEvent(admin, propertyId, {
     eventType,
@@ -134,6 +138,7 @@ export async function postExpense(
     "marketing",
     "tax",
     "bank_fee",
+    "rent",
     "other",
   ]);
   const eventType = `expense.${allowed.has(category) ? category : "other"}`;
@@ -189,6 +194,7 @@ export async function postInventoryMovement(
   });
 }
 
+/** Accrue payroll (employer cost) to payroll payable — used when not going through expenses. */
 export async function postPayrollFinalize(
   admin: Admin,
   propertyId: string,
@@ -196,7 +202,7 @@ export async function postPayrollFinalize(
     id: string;
     employer_cost_btn: number;
     period_end?: string | null;
-  },
+  } & PostingPeriodGuard,
 ): Promise<PostingResult> {
   return postSimpleEvent(admin, propertyId, {
     eventType: "payroll.finalize",
@@ -206,5 +212,129 @@ export async function postPayrollFinalize(
     amountBtn: Number(run.employer_cost_btn),
     memo: "Payroll finalize",
     journalKind: "payroll",
+    periodGuard: run.period_guard,
+  });
+}
+
+/**
+ * Net salary payout from hotel bank — clears payroll_payable.
+ * sourceId = payroll_run_items.id (idempotent per payslip).
+ */
+export async function postPayrollPayout(
+  admin: Admin,
+  propertyId: string,
+  item: {
+    id: string;
+    net_btn: number;
+    full_name?: string | null;
+    paid_on?: string | null;
+    reference?: string | null;
+  } & PostingPeriodGuard,
+): Promise<PostingResult> {
+  return postSimpleEvent(admin, propertyId, {
+    eventType: "payroll.payout",
+    sourceTable: "payroll_run_items",
+    sourceId: item.id,
+    journalDate: todayIso(item.paid_on),
+    amountBtn: Number(item.net_btn),
+    memo:
+      item.reference ??
+      `Payroll paid · ${item.full_name ?? item.id.slice(0, 8)}`,
+    journalKind: "payroll",
+    periodGuard: item.period_guard,
+  });
+}
+
+/**
+ * Walk-in POS tender with no folio — hits cash/bank/card and F&B revenue immediately.
+ * sourceId = order_tenders id (or synthetic key when no tender row id).
+ */
+export async function postPosWalkInTender(
+  admin: Admin,
+  propertyId: string,
+  tender: {
+    id: string;
+    method: string;
+    amount_btn: number;
+    gst_btn?: number;
+    created_at?: string;
+    notes?: string | null;
+  } & PostingPeriodGuard,
+): Promise<PostingResult> {
+  const method = (tender.method ?? "cash").toLowerCase();
+  let eventType = "pos.walk_in.cash";
+  if (method === "card") eventType = "pos.walk_in.card";
+  else if (
+    method === "bank" ||
+    method === "bank_qr" ||
+    method === "pay_bt" ||
+    method === "deposit"
+  ) {
+    eventType = "pos.walk_in.bank";
+  } else if (method === "cash") {
+    eventType = "pos.walk_in.cash";
+  } else {
+    // Unknown non-room tender — treat as cash sale so hotel account still moves.
+    eventType = "pos.walk_in.cash";
+  }
+
+  return postSimpleEvent(admin, propertyId, {
+    eventType,
+    sourceTable: "order_tenders",
+    sourceId: tender.id,
+    journalDate: todayIso(tender.created_at),
+    amountBtn: Number(tender.amount_btn),
+    gstBtn: Number(tender.gst_btn ?? 0),
+    memo: tender.notes ?? `POS walk-in · ${method}`,
+    journalKind: "sales",
+    periodGuard: tender.period_guard,
+  });
+}
+
+/** Vendor AP bill: expense holding / Dr expense Cr AP. */
+export async function postApBill(
+  admin: Admin,
+  propertyId: string,
+  bill: {
+    id: string;
+    total_btn: number;
+    gst_btn?: number;
+    bill_date: string;
+    description: string;
+  } & PostingPeriodGuard,
+): Promise<PostingResult> {
+  return postSimpleEvent(admin, propertyId, {
+    eventType: "ap.bill",
+    sourceTable: "accounting_bills",
+    sourceId: bill.id,
+    journalDate: todayIso(bill.bill_date),
+    amountBtn: Number(bill.total_btn),
+    gstBtn: Number(bill.gst_btn ?? 0),
+    memo: bill.description,
+    journalKind: "expense",
+    periodGuard: bill.period_guard,
+  });
+}
+
+/** Pay open vendor bill from hotel bank. */
+export async function postApPay(
+  admin: Admin,
+  propertyId: string,
+  bill: {
+    id: string;
+    amount_btn: number;
+    paid_on?: string | null;
+    description?: string | null;
+  } & PostingPeriodGuard,
+): Promise<PostingResult> {
+  return postSimpleEvent(admin, propertyId, {
+    eventType: "ap.pay",
+    sourceTable: "accounting_bills",
+    sourceId: `pay:${bill.id}`,
+    journalDate: todayIso(bill.paid_on),
+    amountBtn: Number(bill.amount_btn),
+    memo: bill.description ?? "Vendor bill payment",
+    journalKind: "payment",
+    periodGuard: bill.period_guard,
   });
 }

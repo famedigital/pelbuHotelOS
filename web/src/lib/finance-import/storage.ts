@@ -10,7 +10,14 @@ type Admin = ReturnType<typeof createSupabaseAdminClient>;
 
 export function financeStoragePath(
   propertyId: string,
-  kind: "receipts" | "statements" | "parsers" | "raw" | "attachments" | "compliance",
+  kind:
+    | "receipts"
+    | "statements"
+    | "parsers"
+    | "raw"
+    | "attachments"
+    | "compliance"
+    | "dot_assessment",
   fileName: string,
 ): string {
   const safe = fileName.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 180);

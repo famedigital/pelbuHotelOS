@@ -92,8 +92,8 @@ export default async function FinanceExpensesPage() {
 
   return (
     <FinanceShell
-      title="Expenses workbench"
-      description="Spreadsheet-style expense register with receipt camera/upload and PDF extraction review."
+      title="Money out"
+      description="Expenses leave the hotel bank/cash. Payroll deep-link under Money out nav. Spreadsheet workbench + receipt import."
       actions={<ExportButtons report="expenses" from={from} to={to} />}
     >
       <ExpenseWorkbench

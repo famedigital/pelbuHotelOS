@@ -328,10 +328,11 @@ export async function postSimpleEvent(
         creditBtn: amount,
       });
     } else if (
-      input.eventType.startsWith("folio_line.") &&
+      (input.eventType.startsWith("folio_line.") ||
+        input.eventType.startsWith("pos.walk_in.")) &&
       gst > 0
     ) {
-      // AR gross, revenue net, GST output
+      // AR or cash (gross), revenue net, GST output — walk-in POS is cash-and-carry
       const gstOutput = await getAccountBySystemKey(
         admin,
         propertyId,
@@ -360,6 +361,31 @@ export async function postSimpleEvent(
           creditBtn: gst,
         });
       }
+    } else if (input.eventType === "ap.bill" && gst > 0) {
+      // Vendor bill with GST input credit, liability at gross
+      const gstInput = await getAccountBySystemKey(admin, propertyId, "gst_input");
+      if (!gstInput) throw new Error("GST input account missing.");
+      lines.push({
+        accountId: debitAccount.id,
+        departmentId,
+        description: input.memo,
+        debitBtn: net > 0 ? net : amount,
+        creditBtn: 0,
+      });
+      if (net > 0) {
+        lines.push({
+          accountId: gstInput.id,
+          description: "GST input",
+          debitBtn: gst,
+          creditBtn: 0,
+        });
+      }
+      lines.push({
+        accountId: creditAccount.id,
+        description: input.memo,
+        debitBtn: 0,
+        creditBtn: amount,
+      });
     } else {
       lines.push({
         accountId: debitAccount.id,

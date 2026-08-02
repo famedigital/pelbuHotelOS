@@ -9,14 +9,17 @@ import {
   OpeningBalanceForm,
 } from "@/components/erp/finance/SetupForms";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { buildHotelAccountSnapshot } from "@/lib/accounting/hotel-account";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { formatBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Finance · Setup | Pelbu OS",
+  title: "Finance · Setup & close | Pelbu OS",
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";
@@ -26,12 +29,14 @@ export default async function FinanceSetupPage() {
   const admin = createSupabaseAdminClient();
   const propertyId = await resolveActivePropertyId(admin);
   const today = new Date().toISOString().slice(0, 10);
+  const monthStart = `${today.slice(0, 8)}01`;
 
   const [
     { data: accounts },
     { data: opening },
     { data: period },
     postingErrorsRes,
+    snap,
   ] = await Promise.all([
     admin
       .from("accounting_accounts")
@@ -56,6 +61,7 @@ export default async function FinanceSetupPage() {
       .select("id", { count: "exact", head: true })
       .eq("property_id", propertyId)
       .eq("status", "error"),
+    buildHotelAccountSnapshot(admin, propertyId, monthStart, today),
   ]);
 
   let openingLines: Record<string, { debit: string; credit: string }> = {};
@@ -96,11 +102,79 @@ export default async function FinanceSetupPage() {
     (postingErrorsRes.count ?? 0) === 0 &&
     period?.status !== "closed";
 
+  const att = snap.attention;
+
   return (
     <FinanceShell
-      title="Finance setup"
-      description="Opening balances, chart of accounts, posting diagnostics, and period close."
+      title="Setup & month close"
+      description="You are the hotel’s accountant. Before locking the month: bank matches, GST pack ready, AR reviewed, payroll paid, no posting errors."
     >
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Owner close snapshot</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
+          <p>
+            Liquid (cash+bank+card):{" "}
+            <span className="font-medium tabular-nums">
+              {formatBtn(snap.vault.liquidBtn)}
+            </span>
+          </p>
+          <p>
+            Unmatched bank:{" "}
+            <span className="font-medium">{att.unmatchedBank}</span>
+            {" · "}
+            <Link href="/erp/finance/banking" className="underline">
+              Banking
+            </Link>
+          </p>
+          <p>
+            Pending bank proofs:{" "}
+            <span className="font-medium">{att.pendingBankProofs}</span>
+          </p>
+          <p>
+            Posting errors:{" "}
+            <span className="font-medium">{att.postingErrors}</span>
+          </p>
+          <p>
+            Open AP bills:{" "}
+            <span className="font-medium">{att.openBills}</span>
+            {" · "}
+            <Link href="/erp/finance/vendors" className="underline">
+              Vendors
+            </Link>
+          </p>
+          <p>
+            Unpaid payslips:{" "}
+            <span className="font-medium">{att.unpaidPayslips}</span>
+            {" · "}
+            <Link href="/erp/hr/payroll" className="underline">
+              Payroll
+            </Link>
+          </p>
+          <p>
+            AR guests / agents:{" "}
+            <span className="font-medium tabular-nums">
+              {formatBtn(snap.vault.arGuestBtn)} / {formatBtn(snap.vault.arAgentBtn)}
+            </span>
+            {" · "}
+            <Link href="/erp/folios" className="underline">
+              City ledger
+            </Link>
+          </p>
+          <p>
+            GST net:{" "}
+            <span className="font-medium tabular-nums">
+              {formatBtn(snap.vault.gstNetBtn)}
+            </span>
+            {" · "}
+            <Link href="/erp/finance/gst" className="underline">
+              GST pack
+            </Link>
+          </p>
+        </CardContent>
+      </Card>
+
       <div className="grid gap-6 lg:grid-cols-2">
         <OpeningBalanceForm
           accounts={(accounts ?? []).map((a) => ({
@@ -166,7 +240,10 @@ export default async function FinanceSetupPage() {
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
           <p>Opening status: {(opening?.status as string) ?? "not started"}</p>
-          <p>Current period: {(period?.label as string) ?? "—"} ({(period?.status as string) ?? "n/a"})</p>
+          <p>
+            Current period: {(period?.label as string) ?? "—"} (
+            {(period?.status as string) ?? "n/a"})
+          </p>
           <p>Posting errors: {postingErrorsRes.count ?? 0}</p>
         </CardContent>
       </Card>

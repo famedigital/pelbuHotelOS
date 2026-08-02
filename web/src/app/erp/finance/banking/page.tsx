@@ -101,7 +101,7 @@ export default async function FinanceBankingPage() {
   return (
     <FinanceShell
       title="Banking & reconciliation"
-      description="Upload bank PDFs with approved parsers, review staged rows, then match payments and expenses."
+      description="Prove the hotel bank matches the books. Match payments/expenses or create missing books lines from unmatched debit/credit."
       actions={<ExportButtons report="bank_recon" from={from} to={to} />}
     >
       <div className="grid gap-3 sm:grid-cols-3">

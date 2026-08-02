@@ -12,7 +12,10 @@ export type EdgeJournalKind =
   | "folio_payment"
   | "void_reverse"
   | "comp"
-  | "laundry";
+  | "laundry"
+  | "pos_walk_in"
+  | "payroll_payout"
+  | "agent_ar_charge";
 
 export function buildEdgeJournalLines(
   kind: EdgeJournalKind,
@@ -97,6 +100,51 @@ export function buildEdgeJournalLines(
           description: "Laundry revenue",
         },
       ];
+    case "pos_walk_in":
+      return [
+        {
+          accountId: "cash",
+          debitBtn: amount,
+          creditBtn: 0,
+          description: "Walk-in POS cash",
+        },
+        {
+          accountId: "fb_rev",
+          debitBtn: 0,
+          creditBtn: amount,
+          description: "F&B revenue",
+        },
+      ];
+    case "payroll_payout":
+      return [
+        {
+          accountId: "payroll_payable",
+          debitBtn: amount,
+          creditBtn: 0,
+          description: "Clear payroll payable",
+        },
+        {
+          accountId: "bank",
+          debitBtn: 0,
+          creditBtn: amount,
+          description: "Hotel bank payout",
+        },
+      ];
+    case "agent_ar_charge":
+      return [
+        {
+          accountId: "ar_agent",
+          debitBtn: amount,
+          creditBtn: 0,
+          description: "Agent bill-to AR",
+        },
+        {
+          accountId: "room_rev",
+          debitBtn: 0,
+          creditBtn: amount,
+          description: "Room revenue",
+        },
+      ];
     default: {
       const _exhaustive: never = kind;
       throw new Error(`Unknown edge kind: ${_exhaustive}`);
@@ -112,6 +160,9 @@ export function proveEdgeJournals(amountBtn = 1070): EdgeJournalKind[] {
     "void_reverse",
     "comp",
     "laundry",
+    "pos_walk_in",
+    "payroll_payout",
+    "agent_ar_charge",
   ];
   for (const kind of kinds) {
     assertBalancedLines(buildEdgeJournalLines(kind, amountBtn));

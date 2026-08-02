@@ -3,6 +3,11 @@ import {
   FinanceKpi,
   FinanceShell,
 } from "@/components/erp/finance/FinanceShell";
+import {
+  FinanceSearchField,
+  MoneyRow,
+  bucketFromSourceType,
+} from "@/components/erp/finance/MoneyRow";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { formatBtn } from "@/lib/pricing";
@@ -22,8 +27,14 @@ function monthStart() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
-export default async function FinanceIncomePage() {
+export default async function FinanceIncomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
+  const { q } = await searchParams;
+  const query = (q ?? "").trim().toLowerCase();
   const admin = createSupabaseAdminClient();
   const propertyId = await resolveActivePropertyId(admin);
   const from = monthStart();
@@ -32,7 +43,9 @@ export default async function FinanceIncomePage() {
   const [{ data: payments }, { data: folios }] = await Promise.all([
     admin
       .from("payments")
-      .select("id, amount_btn, method, kind, reference, created_at, folio_id")
+      .select(
+        "id, amount_btn, method, kind, reference, notes, created_at, folio_id, confirmation_status",
+      )
       .eq("property_id", propertyId)
       .gte("created_at", from)
       .order("created_at", { ascending: false })
@@ -40,7 +53,7 @@ export default async function FinanceIncomePage() {
     admin
       .from("folios")
       .select(
-        "id, folio_lines(id, source_type, description, total_btn, gst_btn, status, created_at)",
+        "id, label, folio_lines(id, source_type, description, total_btn, gst_btn, status, created_at, bill_to)",
       )
       .eq("property_id", propertyId)
       .limit(300),
@@ -57,6 +70,7 @@ export default async function FinanceIncomePage() {
             gst_btn: number;
             status: string;
             created_at: string;
+            bill_to?: string | null;
           }[]
         | null) ?? [];
     return rows
@@ -66,101 +80,128 @@ export default async function FinanceIncomePage() {
           String(l.created_at) >= from &&
           !["payment", "deposit", "adjustment"].includes(l.source_type),
       )
-      .map((l) => ({ ...l, folio_id: f.id as string }));
+      .map((l) => ({
+        ...l,
+        folio_id: f.id as string,
+        folio_label: (f.label as string | null) ?? null,
+      }));
   });
 
-  const salesTotal = lines.reduce((s, l) => s + Number(l.total_btn), 0);
-  const receiptsTotal = (payments ?? []).reduce(
+  const match = (hay: string) =>
+    !query || hay.toLowerCase().includes(query);
+
+  const salesFiltered = lines.filter((l) =>
+    match(
+      `${l.description ?? ""} ${l.source_type} ${l.total_btn} ${l.bill_to ?? ""}`,
+    ),
+  );
+  const payFiltered = (payments ?? []).filter((p) =>
+    match(
+      `${p.method} ${p.kind} ${p.reference ?? ""} ${p.notes ?? ""} ${p.amount_btn}`,
+    ),
+  );
+
+  const salesTotal = salesFiltered.reduce((s, l) => s + Number(l.total_btn), 0);
+  const receiptsTotal = payFiltered.reduce(
     (s, p) => s + Number(p.amount_btn),
     0,
   );
 
   return (
     <FinanceShell
-      title="Income register"
-      description="Posted folio sales and guest receipts for the selected month."
+      title="Money in"
+      description="Sales on folios (holding in AR until paid) and receipts into cash/bank. Search by amount, reference, or description."
       actions={<ExportButtons report="income" from={from} to={to} />}
     >
+      <FinanceSearchField defaultValue={q} />
+
       <div className="grid gap-3 sm:grid-cols-2">
         <FinanceKpi label="Sales posted" value={formatBtn(salesTotal)} />
-        <FinanceKpi label="Receipts collected" value={formatBtn(receiptsTotal)} />
+        <FinanceKpi
+          label="Receipts collected"
+          value={formatBtn(receiptsTotal)}
+        />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Sales lines</CardTitle>
+          <CardTitle className="text-sm">Sales lines (charges)</CardTitle>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left text-xs text-muted-foreground">
-                <th className="py-2 pr-3">Date</th>
-                <th className="py-2 pr-3">Type</th>
-                <th className="py-2 pr-3">Description</th>
-                <th className="py-2 pr-3 text-right">GST</th>
-                <th className="py-2 text-right">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lines.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-6 text-muted-foreground">
-                    No posted sales this month.
-                  </td>
-                </tr>
-              ) : (
-                lines.slice(0, 100).map((line) => (
-                  <tr key={line.id} className="border-b last:border-0">
-                    <td className="py-2 pr-3 tabular-nums">
-                      {String(line.created_at).slice(0, 10)}
-                    </td>
-                    <td className="py-2 pr-3">{line.source_type}</td>
-                    <td className="py-2 pr-3">{line.description}</td>
-                    <td className="py-2 pr-3 text-right tabular-nums">
-                      {formatBtn(Number(line.gst_btn))}
-                    </td>
-                    <td className="py-2 text-right tabular-nums">
-                      {formatBtn(Number(line.total_btn))}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <CardContent>
+          {salesFiltered.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No posted sales this month.
+            </p>
+          ) : (
+            <ul className="divide-y">
+              {salesFiltered.slice(0, 100).map((line) => (
+                <MoneyRow
+                  key={line.id}
+                  date={String(line.created_at).slice(0, 10)}
+                  title={line.description ?? line.source_type}
+                  amount={formatBtn(Number(line.total_btn))}
+                  direction="hold"
+                  bucket={bucketFromSourceType(line.source_type)}
+                  state="posted"
+                  trail={[
+                    {
+                      label: `Folio ${line.folio_id.slice(0, 8)}`,
+                      href: `/erp/folios/${line.folio_id}`,
+                    },
+                    {
+                      label:
+                        line.bill_to === "agent" ? "Bill to agent" : "Bill to guest",
+                    },
+                  ]}
+                  booksHref="/erp/finance/accounting"
+                />
+              ))}
+            </ul>
+          )}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Receipts</CardTitle>
+          <CardTitle className="text-sm">Receipts (into hotel account)</CardTitle>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left text-xs text-muted-foreground">
-                <th className="py-2 pr-3">Date</th>
-                <th className="py-2 pr-3">Method</th>
-                <th className="py-2 pr-3">Kind</th>
-                <th className="py-2 pr-3">Reference</th>
-                <th className="py-2 text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(payments ?? []).map((p) => (
-                <tr key={p.id as string} className="border-b last:border-0">
-                  <td className="py-2 pr-3 tabular-nums">
-                    {String(p.created_at).slice(0, 10)}
-                  </td>
-                  <td className="py-2 pr-3">{p.method as string}</td>
-                  <td className="py-2 pr-3">{(p.kind as string) ?? "settlement"}</td>
-                  <td className="py-2 pr-3">{(p.reference as string) ?? "—"}</td>
-                  <td className="py-2 text-right tabular-nums">
-                    {formatBtn(Number(p.amount_btn))}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <CardContent>
+          {payFiltered.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No receipts this month.</p>
+          ) : (
+            <ul className="divide-y">
+              {payFiltered.map((p) => {
+                const pending =
+                  (p.confirmation_status as string) === "pending_bank";
+                const kind = (p.kind as string) ?? "settlement";
+                return (
+                  <MoneyRow
+                    key={p.id as string}
+                    date={String(p.created_at).slice(0, 10)}
+                    title={`${p.method as string} · ${kind}`}
+                    amount={formatBtn(Number(p.amount_btn))}
+                    direction={kind === "refund" ? "reversal" : "in"}
+                    bucket={kind === "deposit" ? "deposit" : "other"}
+                    state={pending ? "pending_bank" : "posted"}
+                    trail={[
+                      ...(p.folio_id
+                        ? [
+                            {
+                              label: `Folio ${String(p.folio_id).slice(0, 8)}`,
+                              href: `/erp/folios/${p.folio_id as string}`,
+                            },
+                          ]
+                        : [{ label: "Walk-in / unattached" }]),
+                      ...((p.reference as string | null)
+                        ? [{ label: `Ref ${p.reference as string}` }]
+                        : []),
+                    ]}
+                    booksHref="/erp/finance"
+                  />
+                );
+              })}
+            </ul>
+          )}
         </CardContent>
       </Card>
     </FinanceShell>

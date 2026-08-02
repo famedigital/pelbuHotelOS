@@ -60,8 +60,8 @@ export default async function FinanceAccountingPage() {
 
   return (
     <FinanceShell
-      title="General ledger"
-      description="Chart postings, manual journals, and the operational posting queue."
+      title="Journals (books)"
+      description="Drill-down only — day-to-day money stays on Hotel account, Income, and Expenses. Reverse mistakes here with reason."
       actions={<ExportButtons report="journals" from={from} to={to} />}
     >
       <div className="grid gap-3 sm:grid-cols-3">
