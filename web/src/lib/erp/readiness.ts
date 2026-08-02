@@ -20,7 +20,7 @@ function toneFromCounts(ok: number, warn: number, bad: number): ReadinessTone {
   return "green";
 }
 
-/** Department readiness widgets for desk dashboard (Owner / FO / HK). */
+/** Department readiness widgets for desk (Owner / FO / HK strip). Prefer role dashboards on `/erp`. */
 export async function computeRoleReadiness(
   admin: Admin,
   propertyId: string,

@@ -7,7 +7,7 @@
 **Index:** [PLANS.md](../PLANS.md) · [FEATURES.md](../FEATURES.md)
 
 **Counts (original plan todos):** **50 completed** · **21 residual** · **0 cancelled**  
-**N+1 tranche:** landed in multi-commit push after quality gate (see §1.3)
+**N+1 tranche:** landed in multi-commit push after quality gate (see §1.3) — HEAD near `0c3dbe2` on `main`
 
 ---
 

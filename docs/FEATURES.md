@@ -70,7 +70,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 
 | Module | Route | Status |
 |--------|-------|--------|
-| **Dashboard** (FO/GM) | `/erp` | Property-wide readiness · arrivals/holds/folio KPIs · open KOT triage · link to Kitchen board; **not** the chef F&B home |
+| **Dashboard** (role home) | `/erp` | **Per desk role:** Owner · Manager · Front desk · F&B · Kitchen (**BF/L/D pax** + event pax) · HK · Laundry · Cashier. Owner/GM can preview all via `?view=`. Assign role on Staff → Access. |
 | **Calendar / Timeline** | `/erp/calendar` | **v1–v2 shipped (2026-07-29)** — see below |
 | Calendar day sheet | `/erp/calendar/day-sheet` | Printable arrivals / departures / stayovers / blocks |
 | Fast book | Modal on `/erp/reservations?new=1` (deeplink `/erp/fast-book` redirects) | Create path is modal → StayHub at Reserve; form still has qty grid + drawer |

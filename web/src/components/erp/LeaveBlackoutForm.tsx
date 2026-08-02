@@ -4,6 +4,7 @@ import {
   createLeaveBlackout,
   type LeaveActionState,
 } from "@/app/actions/staff-leave";
+import { DepartmentSelect } from "@/components/erp/DepartmentSelect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,14 +47,14 @@ export function LeaveBlackoutForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1">
           <Label htmlFor="blackout-department">Department (optional)</Label>
-          <select id="blackout-department" name="department" className={selectClass}>
-            <option value="">All departments</option>
-            {departments.map((department) => (
-              <option key={department} value={department}>
-                {department}
-              </option>
-            ))}
-          </select>
+          <DepartmentSelect
+            id="blackout-department"
+            name="department"
+            departments={departments}
+            allowEmpty
+            emptyLabel="All departments"
+            selectClassName={selectClass}
+          />
         </div>
         <div className="space-y-1">
           <Label htmlFor="blackout-policy">Leave policy (optional)</Label>
