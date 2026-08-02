@@ -685,3 +685,65 @@ html[data-splash="done"] #pelbu-splash {
     );
   }
 }
+
+/* Document print sizes (invoice / receipt) — set data-doc-paper on <html> */
+@media print {
+  html[data-doc-paper="a4"] {
+    width: auto;
+  }
+  html[data-doc-paper="a4"] body {
+    background: white !important;
+  }
+  @page {
+    margin: 12mm;
+  }
+  html[data-doc-paper="a4"] {
+    /* Chrome prints @page size when supported */
+  }
+  html[data-doc-paper="a4"] {
+    /* size set on dedicated @page below */
+  }
+}
+
+@page a4-doc {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
+@page thermal-doc {
+  size: 80mm auto;
+  margin: 3mm;
+}
+
+@media print {
+  html[data-doc-paper="a4"] {
+    /* Prefer A4 — browsers without named pages still respect width */
+  }
+  html[data-doc-paper="thermal"] body {
+    background: white !important;
+  }
+  html[data-doc-paper="a4"] .doc-print-sheet {
+    max-width: 720px !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+  html[data-doc-paper="thermal"] .doc-print-sheet {
+    max-width: 72mm !important;
+    width: 72mm !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    font-size: 11px !important;
+  }
+  html[data-doc-paper="thermal"] .doc-print-sheet h1 {
+    font-size: 1.05rem !important;
+  }
+  html[data-doc-paper="thermal"] .doc-print-sheet img {
+    max-height: 40px !important;
+  }
+}

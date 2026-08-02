@@ -220,8 +220,16 @@ export function FolioActionsPanel({
           href={`/erp/folios/${folioId}/receipt`}
           className="inline-flex h-11 w-full items-center justify-center rounded-md border bg-card text-sm font-medium text-foreground hover:bg-muted"
         >
-          Print receipt
+          Receipt · print / email
         </a>
+        {invoiceDocId ? (
+          <a
+            href={`/erp/invoices/${invoiceDocId}/print`}
+            className="inline-flex h-11 w-full items-center justify-center rounded-md border bg-card text-sm font-medium text-foreground hover:bg-muted"
+          >
+            Invoice · print / email
+          </a>
+        ) : null}
         {bookingId ? (
           <a
             href={`/erp/reservations?booking=${bookingId}&step=stay_money`}

@@ -80,11 +80,19 @@ export function FolioReceipt({
   return (
     <section
       aria-label="Folio receipt"
-      className="erp mx-auto rounded-lg border bg-card px-6 py-6 print:mx-0 print:border-0 print:px-0 print:py-0"
+      className={
+        isThermal
+          ? "doc-print-sheet erp mx-auto rounded-lg border bg-card px-3 py-4 print:mx-0 print:border-0 print:px-0 print:py-0"
+          : "doc-print-sheet erp mx-auto rounded-lg border bg-card px-6 py-6 print:mx-0 print:border-0 print:px-0 print:py-0"
+      }
       style={wrapStyle}
     >
       <header
-        className="flex flex-wrap items-start justify-between gap-4 border-b pb-4"
+        className={
+          isThermal
+            ? "flex flex-col gap-2 border-b pb-3"
+            : "flex flex-wrap items-start justify-between gap-4 border-b pb-4"
+        }
         style={{ borderColor: design.brand_color }}
       >
         <div className="space-y-1">
@@ -94,7 +102,13 @@ export function FolioReceipt({
           >
             {brandName}
           </p>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          <h1
+            className={
+              isThermal
+                ? "text-lg font-semibold tracking-tight text-foreground"
+                : "text-2xl font-semibold tracking-tight text-foreground"
+            }
+          >
             Receipt
           </h1>
           <p className="text-sm text-muted-foreground">{design.header_text}</p>
@@ -104,12 +118,20 @@ export function FolioReceipt({
           <img
             src={logoSrc}
             alt={`${brandName} logo`}
-            className="h-16 w-auto object-contain"
+            className={
+              isThermal ? "h-10 w-auto object-contain" : "h-16 w-auto object-contain"
+            }
           />
         ) : null}
       </header>
 
-      <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm text-foreground sm:grid-cols-3">
+      <dl
+        className={
+          isThermal
+            ? "mt-3 grid grid-cols-1 gap-y-1.5 text-xs text-foreground"
+            : "mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm text-foreground sm:grid-cols-3"
+        }
+      >
         {data.docNo ? <Field label="Receipt no." value={data.docNo} /> : null}
         <Field label="Folio" value={data.label} />
         <Field label="Ref" value={data.folioId.slice(0, 8)} />

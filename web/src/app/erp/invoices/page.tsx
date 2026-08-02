@@ -176,12 +176,20 @@ export default async function InvoicesPage({
               <p className="mt-3 text-xs text-muted-foreground">
                 Issued {fmtDateTime(row.issued_at)}
               </p>
-              <a
-                href={`/erp/folios/${row.folioId}`}
-                className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-accent/30 bg-accent/10 text-sm font-medium text-accent"
-              >
-                Open folio →
-              </a>
+              <div className="mt-4 flex flex-col gap-2">
+                <a
+                  href={`/erp/invoices/${row.docId}/print`}
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-accent/30 bg-accent/10 text-sm font-medium text-accent"
+                >
+                  Print / email invoice
+                </a>
+                <a
+                  href={`/erp/folios/${row.folioId}`}
+                  className="inline-flex min-h-10 w-full items-center justify-center rounded-xl border text-sm font-medium text-foreground hover:bg-muted"
+                >
+                  Open folio →
+                </a>
+              </div>
             </article>
           ))
         )}
@@ -242,12 +250,20 @@ export default async function InvoicesPage({
                     <StatusPill value={r.status} />
                   </td>
                   <td className="px-3 py-2.5 text-right">
-                    <a
-                      href={`/erp/folios/${r.folioId}`}
-                      className="text-sm text-accent underline-offset-4 hover:underline"
-                    >
-                      Open folio →
-                    </a>
+                    <div className="flex flex-col items-end gap-1">
+                      <a
+                        href={`/erp/invoices/${r.docId}/print`}
+                        className="text-sm font-medium text-accent underline-offset-4 hover:underline"
+                      >
+                        Print / email
+                      </a>
+                      <a
+                        href={`/erp/folios/${r.folioId}`}
+                        className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+                      >
+                        Folio →
+                      </a>
+                    </div>
                   </td>
                 </tr>
               ))

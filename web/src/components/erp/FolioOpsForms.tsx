@@ -288,12 +288,20 @@ export function IssueInvoiceButton({
         </p>
         <p className="mt-2 font-mono font-medium text-foreground">{invoiceNo}</p>
         {invoiceDocId ? (
-          <a
-            href={`/erp/invoices/${invoiceDocId}/print`}
-            className="mt-2 inline-block text-xs text-accent underline-offset-4 hover:underline"
-          >
-            Print / PDF
-          </a>
+          <div className="mt-2 flex flex-wrap gap-3 text-xs">
+            <a
+              href={`/erp/invoices/${invoiceDocId}/print`}
+              className="font-medium text-accent underline-offset-4 hover:underline"
+            >
+              Print / email invoice
+            </a>
+            <a
+              href={`/erp/folios/${folioId}/receipt`}
+              className="text-muted-foreground underline-offset-4 hover:underline"
+            >
+              Receipt
+            </a>
+          </div>
         ) : null}
       </div>
     );
