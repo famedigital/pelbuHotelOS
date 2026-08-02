@@ -1,6 +1,6 @@
 import { PrintButton } from "@/components/erp/PrintButton";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { requireDeskPropertyId } from "@/lib/erp-lists";
+import { requireDeskPropertyId } from "@/lib/desk-property";
 import { formatBtn } from "@/lib/pricing";
 import { loadProperty } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";

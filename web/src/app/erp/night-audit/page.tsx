@@ -1,4 +1,4 @@
-import { NightAuditForm } from "@/components/erp/NightAuditForm";
+import { NightAuditDesk } from "@/components/erp/NightAuditDesk";
 import {
   Card,
   CardContent,
@@ -7,11 +7,11 @@ import {
 } from "@/components/ui/card";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { thimphuToday } from "@/lib/erp-lists";
+import type { NightAuditPipelineStep } from "@/lib/night-audit/steps";
 import { formatBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
@@ -20,6 +20,11 @@ export const metadata: Metadata = {
 };
 
 export const dynamic = "force-dynamic";
+
+function parsePipeline(raw: unknown): NightAuditPipelineStep[] | null {
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  return raw as NightAuditPipelineStep[];
+}
 
 export default async function ErpNightAuditPage() {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
@@ -79,79 +84,30 @@ export default async function ErpNightAuditPage() {
     zByDate.set(date, current);
   }
 
+  const history = (audits ?? []).map((a) => {
+    const summary = (a.summary ?? {}) as {
+      room_nights_posted?: number;
+      room_nights_skipped?: number;
+      pipeline?: unknown;
+    };
+    return {
+      id: a.id as string,
+      business_date: a.business_date as string,
+      rooms_occupied: Number(a.rooms_occupied),
+      rooms_comp: Number(a.rooms_comp),
+      folio_charges_btn: Number(a.folio_charges_btn),
+      folio_payments_btn: Number(a.folio_payments_btn),
+      open_folios: Number(a.open_folios),
+      notes: (a.notes as string | null) ?? null,
+      pipeline: parsePipeline(summary.pipeline),
+      room_nights_posted: summary.room_nights_posted ?? 0,
+      room_nights_skipped: summary.room_nights_skipped ?? 0,
+    };
+  });
+
   return (
     <div className="erp mx-auto w-full max-w-[1200px] space-y-10 p-4 md:p-6">
-      <div className="grid gap-8 lg:grid-cols-[360px_1fr]">
-        <NightAuditForm defaultDate={today} />
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-              History
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {(audits ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No night audits yet.
-              </p>
-            ) : (
-              <ul className="divide-y">
-                {(audits ?? []).map((a) => {
-                  const summary = (a.summary ?? {}) as {
-                    room_nights_posted?: number;
-                    room_nights_skipped?: number;
-                    room_night_errors?: string[];
-                  };
-                  const posted = summary.room_nights_posted ?? 0;
-                  const skipped = summary.room_nights_skipped ?? 0;
-                  return (
-                  <li key={a.id as string} className="py-4 text-sm">
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <p className="font-medium text-foreground">
-                        {a.business_date as string}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <a
-                          href={`/api/erp/night-audit/continuity?date=${encodeURIComponent(a.business_date as string)}`}
-                          className="text-xs font-medium text-accent underline-offset-4 hover:underline"
-                          download
-                        >
-                          Download backup
-                        </a>
-                        <Link
-                          href={`/erp/night-audit/${a.id as string}/print`}
-                          className="text-xs font-medium text-accent underline-offset-4 hover:underline"
-                        >
-                          Print pack →
-                        </Link>
-                      </div>
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Sellable {a.rooms_occupied as number} · Comp {a.rooms_comp as number}{" "}
-                      · Open folios {a.open_folios as number}
-                    </p>
-                    <p className="mt-1 text-xs tabular-nums text-foreground">
-                      Charges {formatBtn(Number(a.folio_charges_btn))} · Payments{" "}
-                      {formatBtn(Number(a.folio_payments_btn))}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Room nights: {posted} posted
-                      {skipped > 0 ? ` · ${skipped} skipped (already posted)` : ""}
-                    </p>
-                    {a.notes ? (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {a.notes as string}
-                      </p>
-                    ) : null}
-                  </li>
-                  );
-                })}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <NightAuditDesk defaultDate={today} history={history} />
 
       <Card>
         <CardHeader className="pb-3">

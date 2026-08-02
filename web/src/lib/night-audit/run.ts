@@ -2,8 +2,28 @@ import "server-only";
 import { writeAuditEvent } from "@/lib/audit";
 import { postRoomNightsForDate } from "@/lib/folio/room-night";
 import { deliverHotelBackupPack } from "@/lib/night-audit/deliver-hotel-backup";
+import {
+  applyPipelineStep,
+  initialNightAuditPipeline,
+  NIGHT_AUDIT_STEP_LABELS,
+  type NightAuditPipelineStep,
+  type NightAuditStepEvent,
+  type NightAuditStepId,
+} from "@/lib/night-audit/steps";
 import { roundBtn } from "@/lib/pricing";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
+
+export type {
+  NightAuditPipelineStep,
+  NightAuditStepEvent,
+  NightAuditStepId,
+  NightAuditStepStatus,
+} from "@/lib/night-audit/steps";
+export {
+  initialNightAuditPipeline,
+  NIGHT_AUDIT_STEP_IDS,
+  NIGHT_AUDIT_STEP_LABELS,
+} from "@/lib/night-audit/steps";
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
 
@@ -21,9 +41,9 @@ export type ExecuteNightAuditResult = {
   folioChargesBtn: number;
   folioPaymentsBtn: number;
   roomNightErrors: string[];
-  /** Close-day issues recorded even when cron completes (desk may hard-block). */
   blockers: string[];
   forceClose: boolean;
+  pipeline: NightAuditPipelineStep[];
   hotelBackup?: {
     ok: boolean;
     emailed: boolean;
@@ -36,8 +56,8 @@ export type ExecuteNightAuditResult = {
 export type ExecuteNightAuditOptions = {
   runBy: NightAuditRunBy;
   notes?: string | null;
-  /** Desk override when blockers present (also via notes containing "force close"). */
   forceClose?: boolean;
+  onStep?: (event: NightAuditStepEvent) => void | Promise<void>;
 };
 
 /**
@@ -51,7 +71,23 @@ export async function executeNightAudit(
   opts: ExecuteNightAuditOptions,
 ): Promise<ExecuteNightAuditResult> {
   const date = businessDate.slice(0, 10);
+  let pipeline = initialNightAuditPipeline();
+  const emit = async (
+    id: NightAuditStepId,
+    status: NightAuditStepEvent["status"],
+    detail?: string,
+  ) => {
+    const event: NightAuditStepEvent = {
+      id,
+      label: NIGHT_AUDIT_STEP_LABELS[id],
+      status,
+      detail,
+    };
+    pipeline = applyPipelineStep(pipeline, event);
+    await opts.onStep?.(event);
+  };
 
+  await emit("guard", "running");
   const { data: existing } = await admin
     .from("night_audits")
     .select("id")
@@ -59,8 +95,11 @@ export async function executeNightAudit(
     .eq("business_date", date)
     .maybeSingle();
   if (existing) {
-    throw new Error(`Night audit already run for ${date}.`);
+    const msg = `Night audit already run for ${date}.`;
+    await emit("guard", "failed", msg);
+    throw new Error(msg);
   }
+  await emit("guard", "done", `Business date ${date} is open`);
 
   const nextDay = (() => {
     const d = new Date(`${date}T12:00:00Z`);
@@ -68,6 +107,7 @@ export async function executeNightAudit(
     return d.toISOString().slice(0, 10);
   })();
 
+  await emit("occupancy", "running");
   const [{ data: inHouse }, { data: openFolios }, { data: dayLines }] =
     await Promise.all([
       admin
@@ -107,7 +147,13 @@ export async function executeNightAudit(
       }
     }
   }
+  await emit(
+    "occupancy",
+    "done",
+    `${roomsOccupied} sellable · ${roomsComp} comp · ${(inHouse ?? []).length} booking(s)`,
+  );
 
+  await emit("day_money", "running");
   let charges = 0;
   let payments = 0;
   for (const f of dayLines ?? []) {
@@ -130,10 +176,23 @@ export async function executeNightAudit(
       }
     }
   }
+  await emit(
+    "day_money",
+    "done",
+    `Charges Nu ${roundBtn(charges)} · payments Nu ${roundBtn(payments)} · open folios ${(openFolios ?? []).length}`,
+  );
 
+  await emit("room_nights", "running");
   const roomNightResult = await postRoomNightsForDate(admin, propertyId, date);
+  await emit(
+    "room_nights",
+    "done",
+    roomNightResult.errors.length > 0
+      ? `${roomNightResult.posted} posted · ${roomNightResult.skipped} skipped · ${roomNightResult.errors.length} error(s)`
+      : `${roomNightResult.posted} posted · ${roomNightResult.skipped} skipped`,
+  );
 
-  // No-shows: confirmed arrivals for businessDate that never checked in
+  await emit("no_shows", "running");
   const { data: noShowCandidates } = await admin
     .from("bookings")
     .select("id, contact_name")
@@ -149,8 +208,13 @@ export async function executeNightAudit(
       .eq("status", "confirmed");
     if (!nsErr) noShows += 1;
   }
+  await emit(
+    "no_shows",
+    "done",
+    noShows > 0 ? `${noShows} marked no-show` : "None",
+  );
 
-  // Close-day blockers (report + hard-fail unless override)
+  await emit("blockers", "running");
   const { count: dirtyCount } = await admin
     .from("room_units")
     .select("id", { count: "exact", head: true })
@@ -195,7 +259,6 @@ export async function executeNightAudit(
     );
   }
 
-  // Rate variance report: room lines for business date with non-positive amounts
   const rateVariance: { lineId: string; amount: number; note: string }[] = [];
   for (const f of dayLines ?? []) {
     for (const line of (f.folio_lines as
@@ -230,27 +293,44 @@ export async function executeNightAudit(
 
   const forceClose =
     opts.notes?.toLowerCase().includes("force close") ||
-    Boolean((opts as { forceClose?: boolean }).forceClose);
+    Boolean(opts.forceClose);
 
-  /**
-   * Desk: hard-block unless force close.
-   * Cron: completes by default (Opera-style automated roll) and records blockers
-   * in summary. Set NIGHT_AUDIT_CRON_STRICT=1 to fail the cron when blockers exist.
-   */
   const cronStrict =
-    opts.runBy === "cron" &&
-    process.env.NIGHT_AUDIT_CRON_STRICT === "1";
-  if (blockers.length > 0 && !forceClose && (opts.runBy === "desk" || cronStrict)) {
-    throw new Error(
-      `Night audit blocked: ${blockers.join("; ")}.${
-        opts.runBy === "desk"
-          ? ' Add note "force close" to override with audit.'
-          : " Clear blockers or unset NIGHT_AUDIT_CRON_STRICT."
-      }`,
-    );
+    opts.runBy === "cron" && process.env.NIGHT_AUDIT_CRON_STRICT === "1";
+
+  if (
+    blockers.length > 0 &&
+    !forceClose &&
+    (opts.runBy === "desk" || cronStrict)
+  ) {
+    const msg = `Night audit blocked: ${blockers.join("; ")}.${
+      opts.runBy === "desk"
+        ? ' Add note "force close" to override with audit.'
+        : " Clear blockers or unset NIGHT_AUDIT_CRON_STRICT."
+    }`;
+    await emit("blockers", "failed", msg);
+    throw new Error(msg);
   }
 
-  const summary = {
+  if (blockers.length > 0 && forceClose) {
+    await emit("blockers", "done", `Force close — ${blockers.join("; ")}`);
+  } else if (blockers.length > 0) {
+    await emit(
+      "blockers",
+      "done",
+      `Logged (cron continues): ${blockers.join("; ")}`,
+    );
+  } else {
+    await emit("blockers", "done", "All clear");
+  }
+
+  if (roomNightResult.errors.length > 0 && !forceClose) {
+    const msg = `Room-night posting failed for ${roomNightResult.errors.length} room(s): ${roomNightResult.errors.slice(0, 3).join(" ")}`;
+    await emit("save", "failed", msg);
+    throw new Error(msg);
+  }
+
+  const summaryBase = {
     business_date: date,
     next_day: nextDay,
     in_house_bookings: (inHouse ?? []).length,
@@ -264,14 +344,10 @@ export async function executeNightAudit(
     rate_variance: rateVariance,
     blockers,
     force_close: forceClose,
+    pipeline: pipeline.map((s) => ({ ...s })),
   };
 
-  if (roomNightResult.errors.length > 0 && !forceClose) {
-    throw new Error(
-      `Room-night posting failed for ${roomNightResult.errors.length} room(s): ${roomNightResult.errors.slice(0, 3).join(" ")}`,
-    );
-  }
-
+  await emit("save", "running");
   const { data: audit, error } = await admin
     .from("night_audits")
     .insert({
@@ -283,7 +359,7 @@ export async function executeNightAudit(
       folio_charges_btn: roundBtn(charges),
       folio_payments_btn: roundBtn(payments),
       open_folios: (openFolios ?? []).length,
-      summary,
+      summary: summaryBase,
       run_by: opts.runBy,
       notes: opts.notes ?? null,
     })
@@ -291,8 +367,11 @@ export async function executeNightAudit(
     .single();
   if (error || !audit) {
     console.error("night_audits insert failed", error);
-    throw new Error("Could not save night audit.");
+    const msg = "Could not save night audit.";
+    await emit("save", "failed", msg);
+    throw new Error(msg);
   }
+  await emit("save", "done", `Audit ${String(audit.id).slice(0, 8)}…`);
 
   await writeAuditEvent(admin, {
     propertyId,
@@ -300,10 +379,10 @@ export async function executeNightAudit(
     entityType: "night_audits",
     entityId: audit.id as string,
     summary: `Night audit ${date} · occ ${roomsOccupied} + comp ${roomsComp}`,
-    meta: summary,
+    meta: summaryBase,
   });
 
-  // Best-effort Excel hotel backup — never fails the audit.
+  await emit("backup", "running");
   const hotelBackup = await deliverHotelBackupPack(admin, propertyId, date, {
     auditId: audit.id as string,
     roomsOccupied,
@@ -327,11 +406,37 @@ export async function executeNightAudit(
     filename: hotelBackup.filename ?? null,
     error: hotelBackup.error ?? null,
   };
+
+  if (hotelBackup.ok) {
+    await emit(
+      "backup",
+      "done",
+      hotelBackup.emailed
+        ? "Emailed + stored"
+        : hotelBackup.filename
+          ? `Stored ${hotelBackup.filename}`
+          : "Stored",
+    );
+  } else {
+    await emit(
+      "backup",
+      "done",
+      hotelBackup.error
+        ? `Pack failed (audit saved): ${hotelBackup.error}`
+        : "Pack failed (audit saved)",
+    );
+  }
+
+  const pipelineFinal = pipeline.map((s) => ({ ...s }));
+  const summary = {
+    ...summaryBase,
+    pipeline: pipelineFinal,
+    hotel_backup,
+    continuity_pack: hotel_backup,
+  };
   await admin
     .from("night_audits")
-    .update({
-      summary: { ...summary, hotel_backup, continuity_pack: hotel_backup },
-    })
+    .update({ summary })
     .eq("id", audit.id as string);
 
   return {
@@ -348,6 +453,7 @@ export async function executeNightAudit(
     roomNightErrors: roomNightResult.errors,
     blockers,
     forceClose,
+    pipeline: pipelineFinal,
     hotelBackup: {
       ok: hotelBackup.ok,
       emailed: hotelBackup.emailed,
