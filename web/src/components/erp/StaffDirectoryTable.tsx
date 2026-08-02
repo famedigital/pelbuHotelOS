@@ -125,6 +125,7 @@ export function StaffDirectoryTable({
   documents,
   conduct,
   managers,
+  departments = [],
 }: {
   data: StaffDossierMember[];
   privateProfiles: StaffPrivateProfile[];
@@ -132,6 +133,7 @@ export function StaffDirectoryTable({
   documents: StaffDocumentRow[];
   conduct: StaffConductRow[];
   managers: ManagerOption[];
+  departments?: string[];
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -191,6 +193,7 @@ export function StaffDirectoryTable({
         documents={docs}
         conduct={records}
         managers={managers}
+        departments={departments}
       />
     </>
   );

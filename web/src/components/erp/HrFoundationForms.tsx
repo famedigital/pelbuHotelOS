@@ -8,6 +8,7 @@ import {
   type HrActionState,
 } from "@/app/actions/erp-hr";
 import { reviewLeaveStage } from "@/app/actions/staff-leave";
+import { DepartmentSelect } from "@/components/erp/DepartmentSelect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,7 +50,11 @@ function ActionResult({ state }: { state: HrActionState }) {
   );
 }
 
-export function StaffCreateForm() {
+export function StaffCreateForm({
+  departments = [],
+}: {
+  departments?: string[];
+}) {
   const [state, action, pending] = useActionState(upsertStaffMember, initialState);
   useActionToast(state, { successMessage: "Staff member added" });
 
@@ -89,7 +94,12 @@ export function StaffCreateForm() {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="department">Department</Label>
-          <Input id="department" name="department" placeholder="Rooms division" />
+          <DepartmentSelect
+            id="department"
+            name="department"
+            departments={departments}
+            selectClassName={selectClass}
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="position_title">Position</Label>
@@ -273,19 +283,15 @@ export function AnnouncementCreateForm({
         {audience === "department" ? (
           <div className="space-y-1.5">
             <Label htmlFor="notice_department">Department</Label>
-            <select
+            <DepartmentSelect
               id="notice_department"
               name="audience_value"
-              className={selectClass}
+              departments={departments}
               required
-            >
-              <option value="">Select department…</option>
-              {departments.map((department) => (
-                <option key={department} value={department}>
-                  {department}
-                </option>
-              ))}
-            </select>
+              allowEmpty
+              emptyLabel="Select department…"
+              selectClassName={selectClass}
+            />
           </div>
         ) : null}
         {audience === "role" ? (

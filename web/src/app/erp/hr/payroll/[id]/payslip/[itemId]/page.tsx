@@ -60,7 +60,7 @@ export default async function DeskPayslipPage({
     : run.payroll_periods;
 
   return (
-    <div className="space-y-4 print:space-y-0">
+    <div className="erp mx-auto w-full max-w-[1200px] space-y-4 p-4 md:p-6 print:max-w-none print:space-y-0 print:p-0">
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <Button asChild variant="ghost" size="sm">
           <Link href={`/erp/hr/payroll/${id}`}>← Back to run</Link>

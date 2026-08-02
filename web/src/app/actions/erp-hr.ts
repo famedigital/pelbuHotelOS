@@ -54,7 +54,16 @@ const ACCESS_LEVELS = new Set([
   "owner",
 ]);
 
-const DESK_ROLES = new Set(["front_desk", "cashier", "gm", "hk", "owner"]);
+const DESK_ROLES = new Set([
+  "front_desk",
+  "cashier",
+  "gm",
+  "hk",
+  "owner",
+  "fnb",
+  "kitchen",
+  "laundry",
+]);
 
 const DOC_TYPES = new Set(["pass_photo", "cv", "cid", "other_id", "other"]);
 const CONDUCT_KINDS = new Set(["merit", "warning"]);

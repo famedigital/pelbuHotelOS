@@ -20,7 +20,7 @@ export default async function AttendanceKioskPage() {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-lg items-center p-4">
+    <main className="erp mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-lg items-center p-4 md:p-6">
       <Card className="w-full">
         <CardHeader>
           <p className="text-xs font-semibold tracking-[0.18em] text-accent uppercase">

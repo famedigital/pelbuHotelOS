@@ -233,7 +233,7 @@ export default async function ErpHrPage() {
   const draftShifts = (shifts ?? []).filter((row) => row.status === "draft").length;
 
   return (
-    <div className="erp mx-auto w-full max-w-[1440px] space-y-8 p-4 md:p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+    <div className="erp mx-auto w-full max-w-[1200px] space-y-8 p-4 md:p-6">
       <header>
         <p className="text-xs font-semibold tracking-[0.2em] text-accent uppercase">
           People operations
@@ -319,6 +319,7 @@ export default async function ErpHrPage() {
                 documents={documents}
                 conduct={conduct}
                 managers={managers}
+                departments={departments}
               />
             </CardContent>
           </Card>
@@ -342,7 +343,7 @@ export default async function ErpHrPage() {
                   </TabsTrigger>
                 </TabsList>
                 <TabsContent value="table" className="mt-4">
-                  <StaffInlineAddTable />
+                  <StaffInlineAddTable departments={departments} />
                 </TabsContent>
                 <TabsContent value="sheet" className="mt-4">
                   <StaffCsvImportForm />

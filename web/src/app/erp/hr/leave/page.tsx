@@ -125,7 +125,7 @@ export default async function ErpLeavePage() {
   ).sort();
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6">
+    <div className="erp mx-auto w-full max-w-[1200px] space-y-6 p-4 md:p-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm text-muted-foreground">

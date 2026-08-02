@@ -113,7 +113,7 @@ export default async function ErpRotaPage({
   const publishedCount = shifts.filter((shift) => shift.status === "published").length;
 
   return (
-    <div className="erp mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+    <div className="erp mx-auto w-full max-w-[1200px] space-y-6 p-4 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm text-muted-foreground">

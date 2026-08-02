@@ -14,6 +14,7 @@ import {
 } from "@/app/actions/erp-hr";
 import { setStaffPortalPin } from "@/app/actions/staff-auth";
 import { CloudinaryPicker } from "@/components/erp/CloudinaryPicker";
+import { DepartmentSelect } from "@/components/erp/DepartmentSelect";
 import { StaffAvatar } from "@/components/erp/StaffAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -355,6 +356,7 @@ export function StaffDossierDialog({
   documents,
   conduct,
   managers,
+  departments = [],
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -364,6 +366,7 @@ export function StaffDossierDialog({
   documents: StaffDocumentRow[];
   conduct: StaffConductRow[];
   managers: ManagerOption[];
+  departments?: string[];
 }) {
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const [step, setStep] = useState<StepId>("profile");
@@ -384,6 +387,7 @@ export function StaffDossierDialog({
       documents={documents}
       conduct={conduct}
       managers={managers}
+      departments={departments}
       step={step}
       setStep={setStep}
     />
@@ -488,6 +492,7 @@ function DossierBody({
   documents,
   conduct,
   managers,
+  departments,
   step,
   setStep,
 }: {
@@ -497,6 +502,7 @@ function DossierBody({
   documents: StaffDocumentRow[];
   conduct: StaffConductRow[];
   managers: ManagerOption[];
+  departments: string[];
   step: StepId;
   setStep: (step: StepId) => void;
 }) {
@@ -590,7 +596,11 @@ function DossierBody({
 
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-5 sm:py-4 md:px-6">
         {step === "profile" ? (
-          <ProfileStep member={member} managers={managers} />
+          <ProfileStep
+            member={member}
+            managers={managers}
+            departments={departments}
+          />
         ) : null}
         {step === "access" ? <AccessStep member={member} /> : null}
         {step === "compensation" ? (
@@ -620,9 +630,11 @@ function DossierBody({
 function ProfileStep({
   member,
   managers,
+  departments,
 }: {
   member: StaffDossierMember;
   managers: ManagerOption[];
+  departments: string[];
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -726,11 +738,11 @@ function ProfileStep({
                 </select>
               </Field>
               <Field label="Department" htmlFor="d_department">
-                <Input
+                <DepartmentSelect
                   id="d_department"
                   name="department"
                   defaultValue={member.department ?? ""}
-                  className="h-11"
+                  departments={departments}
                 />
               </Field>
               <Field label="Position" htmlFor="d_position">
@@ -1018,9 +1030,12 @@ function AccessStep({ member }: { member: StaffDossierMember }) {
                 <option value="">— none —</option>
                 <option value="front_desk">Front desk</option>
                 <option value="cashier">Cashier</option>
-                <option value="gm">GM</option>
-                <option value="hk">Housekeeping</option>
+                <option value="gm">Manager / GM</option>
                 <option value="owner">Owner</option>
+                <option value="fnb">F&amp;B</option>
+                <option value="kitchen">Kitchen</option>
+                <option value="hk">Housekeeping</option>
+                <option value="laundry">Laundry</option>
               </select>
             </Field>
             <div className="flex flex-wrap items-center gap-2 pt-1">

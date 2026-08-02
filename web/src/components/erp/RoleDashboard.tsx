@@ -11,6 +11,7 @@ import {
 import type { DeskRole } from "@/lib/desk-auth";
 import {
   DASHBOARD_VIEWS,
+  deskRoleToDashboardView,
   type DashboardView,
   type RoleDashboardSnapshot,
 } from "@/lib/erp/role-dashboard";
@@ -309,9 +310,11 @@ function HoldsList({ snap }: { snap: RoleDashboardSnapshot }) {
 export function DashboardViewSwitcher({
   active,
   canPreview,
+  homeView,
 }: {
   active: DashboardView;
   canPreview: boolean;
+  homeView: DashboardView;
 }) {
   if (!canPreview) return null;
   return (
@@ -321,10 +324,12 @@ export function DashboardViewSwitcher({
     >
       {DASHBOARD_VIEWS.map((v) => {
         const selected = v.id === active;
+        const href =
+          v.id === homeView ? "/erp" : `/erp?view=${encodeURIComponent(v.id)}`;
         return (
           <Link
             key={v.id}
-            href={v.id === "gm" ? "/erp" : `/erp?view=${v.id}`}
+            href={href}
             className={`inline-flex h-8 items-center rounded-md px-2.5 text-xs font-medium transition-colors ${
               selected
                 ? "bg-accent text-accent-foreground"
@@ -895,6 +900,9 @@ export function RoleDashboard({
   sessionRole: DeskRole | null;
 }) {
   const canPreview = sessionRole === "owner" || sessionRole === "gm";
+  const homeView = sessionRole
+    ? deskRoleToDashboardView(sessionRole)
+    : "front_desk";
   const body =
     view === "owner" ? (
       <OwnerBoard snap={snap} />
@@ -916,7 +924,11 @@ export function RoleDashboard({
 
   return (
     <div className="erp space-y-4 p-4 md:p-6">
-      <DashboardViewSwitcher active={view} canPreview={canPreview} />
+      <DashboardViewSwitcher
+        active={view}
+        canPreview={canPreview}
+        homeView={homeView}
+      />
       {body}
     </div>
   );

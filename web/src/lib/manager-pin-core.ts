@@ -1,4 +1,8 @@
-import { mapAccessLevelToDeskRole, type DeskRole } from "@/lib/desk-auth";
+import {
+  mapAccessLevelToDeskRole,
+  normalizeDeskRole,
+  type DeskRole,
+} from "@/lib/desk-auth";
 
 const MANAGER_DESK_ROLES: ReadonlySet<DeskRole> = new Set(["owner", "gm"]);
 
@@ -19,7 +23,7 @@ export function resolveStaffDeskRole(
   accessLevel: string | null | undefined,
 ): DeskRole {
   return (
-    (deskRole as DeskRole | null) ?? mapAccessLevelToDeskRole(accessLevel)
+    normalizeDeskRole(deskRole) ?? mapAccessLevelToDeskRole(accessLevel)
   );
 }
 

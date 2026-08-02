@@ -1,6 +1,7 @@
 "use client";
 
 import { upsertStaffMember, type HrActionState } from "@/app/actions/erp-hr";
+import { DepartmentSelect } from "@/components/erp/DepartmentSelect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,7 +38,12 @@ function emptyRow(): DraftRow {
 
 const initial: HrActionState = { ok: false };
 
-export function StaffInlineAddTable() {
+export function StaffInlineAddTable({
+  departments = [],
+}: {
+  /** Property-used departments (defaults are merged in DepartmentSelect). */
+  departments?: string[];
+}) {
   const router = useRouter();
   const [rows, setRows] = useState<DraftRow[]>([emptyRow()]);
   const [state, action, pending] = useActionState(upsertStaffMember, initial);
@@ -94,6 +100,7 @@ export function StaffInlineAddTable() {
               action={action}
               pending={pending}
               onChange={update}
+              departments={departments}
             />
           </article>
         ))}
@@ -149,13 +156,14 @@ export function StaffInlineAddTable() {
                     <RoleOptions />
                   </select>
                 </td>
-                <td className="p-1.5">
-                  <Input
-                    value={row.department}
-                    onChange={(e) => update(row.key, "department", e.target.value)}
-                    className="h-11"
+                <td className="p-1.5 min-w-[11rem]">
+                  <DepartmentSelect
+                    id={`${row.key}-dept-grid`}
                     form={`hire-${row.key}`}
-                    name="department"
+                    value={row.department}
+                    onChange={(value) => update(row.key, "department", value)}
+                    departments={departments}
+                    compact
                   />
                 </td>
                 <td className="p-1.5">
@@ -240,11 +248,13 @@ function HireForm({
   action,
   pending,
   onChange,
+  departments,
 }: {
   row: DraftRow;
   action: (payload: FormData) => void;
   pending: boolean;
   onChange: (key: string, field: keyof DraftRow, value: string) => void;
+  departments: string[];
 }) {
   return (
     <form action={action} className="space-y-3">
@@ -286,12 +296,11 @@ function HireForm({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={`${row.key}-dept`}>Department</Label>
-          <Input
+          <DepartmentSelect
             id={`${row.key}-dept`}
-            name="department"
             value={row.department}
-            onChange={(e) => onChange(row.key, "department", e.target.value)}
-            className="h-11"
+            onChange={(value) => onChange(row.key, "department", value)}
+            departments={departments}
           />
         </div>
         <div className="space-y-1.5">
