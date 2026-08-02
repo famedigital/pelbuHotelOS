@@ -136,8 +136,13 @@ export function buildStayHubSteps(input: StayHubCycleInput): StayHubStep[] {
       currentIdx = ORDER.indexOf("check_out");
     else if (checkedOut) currentIdx = ORDER.length - 1;
   } else if (input.forceCurrent && !terminal) {
-    const forced = ORDER.indexOf(input.forceCurrent);
-    if (forced >= 0) currentIdx = forced;
+    // Held/pending: never treat check_out as current even if forced from board/URL.
+    if (holdActive && input.forceCurrent === "check_out") {
+      currentIdx = ORDER.indexOf("confirm");
+    } else {
+      const forced = ORDER.indexOf(input.forceCurrent);
+      if (forced >= 0) currentIdx = forced;
+    }
   }
 
   return ORDER.map((id, i) => {
@@ -177,6 +182,8 @@ export function recommendStayHubStep(
 ): StayHubStepId {
   const status = (input.status ?? "").toLowerCase();
   if (stayHubTerminal(status)) return "reserve";
+  // Hold is always Confirm — boards must not land on check-out/money.
+  if (status === "held" || status === "pending") return "confirm";
 
   const board = input.board ?? "auto";
   if (board === "in_house") return "stay_money";
@@ -185,6 +192,8 @@ export function recommendStayHubStep(
     return settled ? "check_out" : "stay_money";
   }
   if (board === "arrivals") {
+    if (status === "checked_in") return "stay_money";
+    if (status === "checked_out") return "check_out";
     const steps = buildStayHubSteps(input);
     const cur = steps.find((s) => s.current);
     if (cur?.id === "check_in" || cur?.id === "arrival") return cur.id;

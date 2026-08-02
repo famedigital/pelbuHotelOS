@@ -1,5 +1,5 @@
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { resolveActivePropertyId } from "@/lib/property-context";
+/** Pure date/list helpers — safe for Client Components.
+ *  Do not import next/headers or Supabase admin here. */
 
 /** Business date YYYY-MM-DD in an IANA timezone (falls back to Asia/Thimphu). */
 export function todayInTimezone(timeZone?: string | null): string {
@@ -60,11 +60,6 @@ export function fmtDateTime(iso: string | null | undefined): string {
     minute: "2-digit",
     timeZone: "Asia/Thimphu",
   });
-}
-
-export async function requireDeskPropertyId(): Promise<string> {
-  const admin = createSupabaseAdminClient();
-  return resolveActivePropertyId(admin);
 }
 
 export function matchesQuery(

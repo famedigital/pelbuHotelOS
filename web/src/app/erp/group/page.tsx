@@ -4,7 +4,8 @@ import {
 } from "@/components/erp/P9OpsForms";
 import { Card, CardContent } from "@/components/ui/card";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { fmtDate, requireDeskPropertyId } from "@/lib/erp-lists";
+import { fmtDate } from "@/lib/erp-lists";
+import { requireDeskPropertyId } from "@/lib/desk-property";
 import { formatBtn } from "@/lib/pricing";
 import {
   listProperties,

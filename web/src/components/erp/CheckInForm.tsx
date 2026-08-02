@@ -38,7 +38,14 @@ import type {
 import { cn } from "@/lib/utils";
 import { Trash2Icon, TriangleAlertIcon } from "lucide-react";
 import Link from "next/link";
-import { useActionState, useMemo, useState, type KeyboardEvent } from "react";
+import {
+  useActionState,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 
 /** Dense inputs inside the guest docs grid — must shrink, never force scroll. */
 const CELL_INPUT =
@@ -179,15 +186,33 @@ export function CheckInForm({
   drivers = [],
   slots,
   units,
+  embedded = false,
+  onCheckedIn,
 }: {
   booking: CheckInBooking;
   guides?: PartnerOption[];
   drivers?: PartnerOption[];
   slots: CheckInAssignmentSlot[];
   units: CheckInRoomUnit[];
+  /** When true (StayHub modal), success UI advances hub — no Next arrival dead-end. */
+  embedded?: boolean;
+  onCheckedIn?: (payload: {
+    bookingId: string;
+    folioId?: string;
+  }) => void;
 }) {
   const [state, action, pending] = useActionState(confirmCheckIn, checkInInitial);
   useActionToast(state, { successMessage: "Guest checked in" });
+  const notifiedOkRef = useRef(false);
+
+  useEffect(() => {
+    if (!state.ok || !state.bookingId || notifiedOkRef.current) return;
+    notifiedOkRef.current = true;
+    onCheckedIn?.({
+      bookingId: state.bookingId,
+      folioId: state.folioId,
+    });
+  }, [state.ok, state.bookingId, state.folioId, onCheckedIn]);
 
   const origin = (booking.guest_origin ?? "international") as GuestOrigin;
   const driver = booking.booking_drivers[0];
@@ -292,7 +317,10 @@ export function CheckInForm({
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
           Rooms locked · folio opened
-          {state.folioId ? (
+          {embedded
+            ? " · continue to Stay / Money for charges and payment"
+            : null}
+          {!embedded && state.folioId ? (
             <>
               {" · "}
               <Link
@@ -304,17 +332,40 @@ export function CheckInForm({
             </>
           ) : null}
         </p>
-        <div className="mt-6 flex flex-wrap gap-2">
-          <Button asChild variant="citrus" className="h-11">
-            <Link href="/erp/check-in">Next arrival</Link>
-          </Button>
-          <Button asChild variant="outline" className="h-11">
-            <Link href="/erp/pos">POS</Link>
-          </Button>
-          <Button asChild variant="outline" className="h-11">
-            <Link href="/erp/calendar">Room rack</Link>
-          </Button>
-        </div>
+        {embedded ? (
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="citrus"
+              className="h-11 min-h-11"
+              onClick={() =>
+                onCheckedIn?.({
+                  bookingId: state.bookingId!,
+                  folioId: state.folioId,
+                })
+              }
+            >
+              Continue to Stay / Money
+            </Button>
+            {state.folioId ? (
+              <Button asChild variant="outline" className="h-11 min-h-11">
+                <Link href={`/erp/folios/${state.folioId}`}>Open folio</Link>
+              </Button>
+            ) : null}
+          </div>
+        ) : (
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Button asChild variant="citrus" className="h-11">
+              <Link href="/erp/check-in">Next arrival</Link>
+            </Button>
+            <Button asChild variant="outline" className="h-11">
+              <Link href="/erp/pos">POS</Link>
+            </Button>
+            <Button asChild variant="outline" className="h-11">
+              <Link href="/erp/calendar">Room rack</Link>
+            </Button>
+          </div>
+        )}
       </div>
     );
   }

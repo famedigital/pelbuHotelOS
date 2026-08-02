@@ -1,10 +1,6 @@
-import { FastBookForm } from "@/components/erp/FastBookForm";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { DeskPageTitle } from "@/components/erp/DeskShell";
-import { deskPinConfigured, isDeskAuthenticated } from "@/lib/desk-auth";
-import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { redirect } from "next/navigation";
+
 export const metadata = {
   title: "Fast book | Pelbu OS",
   robots: { index: false, follow: false },
@@ -20,124 +16,21 @@ type Props = {
   }>;
 };
 
+/**
+ * Thin deep-link: Fast Book lives as a modal on Reservations (?new=1).
+ * Preserves calendar-style prefill query params.
+ */
 export default async function FastBookPage({ searchParams }: Props) {
   if (!(await isDeskAuthenticated())) {
     redirect("/erp/login");
   }
 
   const sp = await searchParams;
-  const admin = createSupabaseAdminClient();
-  const propertyId = await resolveActivePropertyId(admin);
-  const property = await loadProperty(admin, propertyId);
+  const params = new URLSearchParams();
+  params.set("new", "1");
+  if (sp.check_in) params.set("check_in", sp.check_in);
+  if (sp.check_out) params.set("check_out", sp.check_out);
+  if (sp.room_unit_id) params.set("room_unit_id", sp.room_unit_id);
 
-  const [{ data: roomTypes }, { data: agents }, preferredUnit, { data: mealPlans }, { data: propertyDefaults }] = await Promise.all([
-    property
-      ? admin
-          .from("room_types")
-          .select("id, code, name, inventory_kind, unit_count")
-          .eq("property_id", property.id)
-          .order("code")
-      : Promise.resolve({ data: [] }),
-    admin
-      .from("agents")
-      .select("id, company_name, market, status")
-      .in("status", ["approved", "demo"])
-      .order("company_name"),
-    sp.room_unit_id && property
-      ? admin
-          .from("room_units")
-          .select("id, room_type_id, room_types(code)")
-          .eq("id", sp.room_unit_id)
-          .eq("property_id", property.id)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-    property
-      ? admin
-          .from("meal_plans")
-          .select("code, name, blurb, amount_btn_per_adult_night, is_active")
-          .eq("property_id", property.id)
-          .eq("is_active", true)
-          .order("sort_order")
-      : Promise.resolve({ data: [] }),
-    property
-      ? admin
-          .from("properties")
-          .select("default_meal_plan_code")
-          .eq("id", property.id)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-  ]);
-  const qtyByCode: Record<string, number> = {};
-  const unit = preferredUnit.data;
-  if (unit) {
-    const rt = unit.room_types as { code?: string } | { code?: string }[] | null;
-    const code = Array.isArray(rt) ? rt[0]?.code : rt?.code;
-    if (code) qtyByCode[code] = 1;
-  }
-
-  return (
-    <div className="erp mx-auto w-full max-w-[1200px] space-y-6 p-4 md:p-6">
-      <DeskPageTitle
-        eyebrow="Front desk"
-        title="Fast book"
-        description="30-second walk-in express — defaults meal plan and guest origin. Use Calendar for full rack pricing and overrides."
-      />
-
-      {!deskPinConfigured() ? (        <Alert variant="warning">
-          <AlertTitle>Dev mode</AlertTitle>
-          <AlertDescription>
-            Desk PIN not set. Add <code className="font-mono">DESK_PIN</code> before
-            production.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
-      <FastBookForm        roomTypes={(roomTypes ?? []).map((r) => ({
-          id: r.id as string,
-          code: r.code as string,
-          name: r.name as string,
-          inventory_kind: r.inventory_kind as string,
-          unit_count: Number(r.unit_count ?? 0),
-        }))}
-        agents={(agents ?? []).map((a) => ({
-          id: a.id as string,
-          company_name: a.company_name as string,
-          market: a.market as string,
-          status: a.status as string,
-        }))}
-        property={
-          property
-            ? {
-                name: property.name,
-                legal_name: property.legal_name,
-                address: property.address,
-                phone: property.phone,
-                email: property.email,
-                tax_id: property.tax_id,
-                logo_public_id: property.logo_public_id,
-              }
-            : undefined
-        }
-        invoiceDesign={property?.doc_invoice}
-        voucherDesign={property?.doc_voucher}
-        defaults={{
-          checkIn: sp.check_in,
-          checkOut: sp.check_out,
-          roomUnitId: unit?.id as string | undefined,
-          qtyByCode,
-          mealPlanCode:
-            (propertyDefaults?.default_meal_plan_code as string | undefined) ?? "EP",
-          guestOrigin: "regional",
-        }}
-        mealPlans={(mealPlans ?? []).map((m) => ({
-          code: m.code as string,
-          name: m.name as string,
-          blurb: (m.blurb as string | null) ?? null,
-          amountPerAdultNight:
-            m.amount_btn_per_adult_night == null
-              ? null
-              : Number(m.amount_btn_per_adult_night),
-        }))}
-      />    </div>
-  );
+  redirect(`/erp/reservations?${params.toString()}`);
 }

@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
+import { useStayHubOptional } from "@/components/erp/StayHubProvider";
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -120,6 +121,7 @@ export function CalendarReservationDialog({
   defaultMealPlanCode: string;
 }) {
   const router = useRouter();
+  const stayHub = useStayHubOptional();
   const isGroup = (selection?.units.length ?? 0) > 1;
   const action = isGroup
     ? createCalendarGroupReservation
@@ -135,9 +137,16 @@ export function CalendarReservationDialog({
   useEffect(() => {
     if (state.ok && open) {
       onOpenChange(false);
+      if (state.bookingId && stayHub) {
+        stayHub.openStayHub({
+          bookingId: state.bookingId,
+          step: "reserve",
+          agents,
+        });
+      }
       router.refresh();
     }
-  }, [state.ok, open, onOpenChange, router]);
+  }, [state.ok, state.bookingId, open, onOpenChange, router, stayHub, agents]);
 
   // A new drag selection starts a fresh draft; a rejected submit keeps whatever
   // the user already typed so they never re-enter the whole form.

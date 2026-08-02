@@ -4,7 +4,7 @@ import {
   createFastBooking,
   type FastBookState,
 } from "@/app/actions/fast-book";
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { FastBookDrawer } from "./FastBookDrawer";
 import { FastBookGrid } from "./FastBookGrid";
@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TriangleAlertIcon } from "lucide-react";
 import type { PropertyDocumentDesign } from "@/lib/property-settings";
+import { cn } from "@/lib/utils";
 
 export type FastBookRoomType = {
   id: string;
@@ -63,7 +64,7 @@ type Snapshot = {
   lines: { name: string; code: string; qty: number; kind: string }[];
 };
 
-type Props = {
+export type FastBookFormProps = {
   roomTypes: FastBookRoomType[];
   agents: FastBookAgent[];
   property?: {
@@ -91,6 +92,13 @@ type Props = {
     mealPlanCode?: string;
     guestOrigin?: string;
   };
+  /**
+   * Modal path: fire once after create, then close Fast Book and open StayHub.
+   * When set, SuccessSplit invoices are skipped.
+   */
+  onCreated?: (bookingId: string) => void;
+  /** Compact layout inside Dialog / mobile sheet. */
+  embedded?: boolean;
 };
 
 export function FastBookForm({
@@ -101,10 +109,15 @@ export function FastBookForm({
   voucherDesign,
   mealPlans = [],
   defaults,
-}: Props) {
+  onCreated,
+  embedded = false,
+}: FastBookFormProps) {
   const [state, action, pending] = useActionState(createFastBooking, initial);
-  useActionToast(state, { successMessage: "Booking saved" });
+  useActionToast(state, {
+    successMessage: onCreated ? "Reservation created" : "Booking saved",
+  });
   const minCheckIn = useMemo(() => todayIso(), []);
+  const notifiedCreated = useRef(false);
 
   const [qtyValues, setQtyValues] = useState<Record<string, number>>(
     () => defaults?.qtyByCode ?? {},
@@ -140,7 +153,26 @@ export function FastBookForm({
     });
   };
 
+  useEffect(() => {
+    if (!onCreated || !state.ok || !state.bookingId || notifiedCreated.current)
+      return;
+    notifiedCreated.current = true;
+    onCreated(state.bookingId);
+  }, [onCreated, state.ok, state.bookingId]);
+
   if (state.ok && state.bookingId) {
+    if (onCreated) {
+      return (
+        <div className="erp rounded-lg border bg-card px-4 py-8 text-center">
+          <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+            Saved
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Opening StayHub at Reserve…
+          </p>
+        </div>
+      );
+    }
     return (
       <SuccessSplit
         bookingId={state.bookingId}
@@ -167,7 +199,12 @@ export function FastBookForm({
           // ignore — form still submits via React action
         }
       }}
-      className="erp grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_360px]"
+      className={cn(
+        "erp grid grid-cols-1 gap-6",
+        embedded
+          ? "md:grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px]"
+          : "md:grid-cols-[minmax(0,1fr)_360px]",
+      )}
     >
       {defaults?.roomUnitId ? (
         <input type="hidden" name="room_unit_id" value={defaults.roomUnitId} />
@@ -321,7 +358,7 @@ function SuccessSplit({
   bookingId: string;
   snapshot: Snapshot | null;
   roomTypes: FastBookRoomType[];
-  property?: Props["property"];
+  property?: FastBookFormProps["property"];
   invoiceDesign?: PropertyDocumentDesign;
   voucherDesign?: PropertyDocumentDesign;
 }) {

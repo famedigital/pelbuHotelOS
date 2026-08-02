@@ -1,7 +1,8 @@
 import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
 import { PrintButton } from "@/components/erp/PrintButton";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { requireDeskPropertyId, thimphuToday } from "@/lib/erp-lists";
+import { thimphuToday } from "@/lib/erp-lists";
+import { requireDeskPropertyId } from "@/lib/desk-property";
 import { loadProperty } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";

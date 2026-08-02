@@ -1,4 +1,3 @@
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,7 +8,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { deskPinConfigured } from "@/lib/desk-auth";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 import Link from "next/link";
@@ -39,15 +37,6 @@ export function DeskListShell({
 }) {
   return (
     <div className="erp mx-auto w-full max-w-[1200px] space-y-8 p-4 md:p-6">
-      {!deskPinConfigured() ? (
-        <Alert variant="warning">
-          <AlertTitle>Dev mode</AlertTitle>
-          <AlertDescription>
-            Desk PIN not set. Add <code className="font-mono">DESK_PIN</code>{" "}
-            before production.
-          </AlertDescription>
-        </Alert>
-      ) : null}
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1.5">
           <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">

@@ -161,6 +161,7 @@ export async function postFolioCharge(
       total_btn: Number(line.total_btn),
       gst_btn: Number(line.gst_btn),
       created_at: input.journal_date ?? (line.created_at as string),
+      bill_to: billTo,
       period_guard: input.period_guard,
     });
   }

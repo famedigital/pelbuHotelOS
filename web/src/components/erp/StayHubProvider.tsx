@@ -73,7 +73,13 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
   const [units, setUnits] = useState<RackUnit[]>([]);
   const [board, setBoard] = useState<OpenStayHubOptions["board"]>("auto");
   const onToggleLockRef = useRef<OpenStayHubOptions["onToggleLock"]>(undefined);
+  /** Skip writeUrl while hydrating open state from the URL. */
   const suppressUrlWrite = useRef(false);
+  /**
+   * After close, searchParams still has booking= until router.replace settles.
+   * Without this, the deep-link effect re-opens the modal (double-click close).
+   */
+  const suppressOpenFromUrl = useRef(false);
   const lastOpenedIdRef = useRef<string | null>(null);
 
   const open = bookingId != null;
@@ -86,6 +92,8 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
         params.set("booking", nextBookingId);
         if (step) params.set("step", step);
         else params.delete("step");
+        // Fast Book deep-link; drop so closing StayHub does not re-open create.
+        params.delete("new");
       } else {
         params.delete("booking");
         params.delete("step");
@@ -101,6 +109,7 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
     (opts: OpenStayHubOptions) => {
       const id = opts.bookingId.trim();
       if (!id) return;
+      suppressOpenFromUrl.current = false;
       const isNew = lastOpenedIdRef.current !== id;
       lastOpenedIdRef.current = id;
       setBookingId(id);
@@ -120,6 +129,8 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
   );
 
   const closeStayHub = useCallback(() => {
+    // Block deep-link re-open until booking is gone from the URL.
+    suppressOpenFromUrl.current = true;
     lastOpenedIdRef.current = null;
     setBookingId(null);
     setAssignmentId(null);
@@ -130,15 +141,15 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
     writeUrl(null, null);
   }, [writeUrl]);
 
-  // Deep link: ?booking=&step=
+  // Deep link: ?booking=&step= (and re-open guard after close)
   useEffect(() => {
     const fromUrl = (searchParams.get("booking") ?? "").trim();
     if (!fromUrl) {
-      if (bookingId && !suppressUrlWrite.current) {
-        // URL cleared externally
-      }
+      // URL stripped — deep links / openStayHub can hydrate again.
+      suppressOpenFromUrl.current = false;
       return;
     }
+    if (suppressOpenFromUrl.current) return;
     if (fromUrl === bookingId) return;
     suppressUrlWrite.current = true;
     const step = parseStayHubStep(searchParams.get("step"));

@@ -1,7 +1,7 @@
 "use server";
 
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { requireDeskPropertyId } from "@/lib/erp-lists";
+import { requireDeskPropertyId } from "@/lib/desk-property";
 import { loadBookingDetail, type BookingDetailData } from "@/lib/booking-detail";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 

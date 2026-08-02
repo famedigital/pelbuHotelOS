@@ -1,6 +1,7 @@
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { requireDeskPropertyId, thimphuToday } from "@/lib/erp-lists";
+import { thimphuToday } from "@/lib/erp-lists";
+import { requireDeskPropertyId } from "@/lib/desk-property";
 import { netFolioBalance } from "@/lib/folio/balance";
 import { formatBtn } from "@/lib/pricing";
 import { addToAging, emptyAging } from "@/lib/reports/ar-aging";

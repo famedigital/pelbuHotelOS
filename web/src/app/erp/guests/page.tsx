@@ -1,7 +1,8 @@
 import { DeskListShell, DeskSearchForm } from "@/components/erp/DeskListShell";
 import { GuestsTable, type GuestStay } from "@/components/erp/GuestsTable";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { matchesQuery, requireDeskPropertyId } from "@/lib/erp-lists";
+import { matchesQuery } from "@/lib/erp-lists";
+import { requireDeskPropertyId } from "@/lib/desk-property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 

@@ -9,7 +9,8 @@ import {
 import { DeskOfflineQueueStrip } from "@/components/erp/DeskOfflineQueueStrip";
 import type { CalendarAgent } from "@/components/erp/CalendarReservationDialog";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { requireDeskPropertyId, thimphuToday } from "@/lib/erp-lists";
+import { thimphuToday } from "@/lib/erp-lists";
+import { requireDeskPropertyId } from "@/lib/desk-property";
 import { netFolioBalance } from "@/lib/folio/balance";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";

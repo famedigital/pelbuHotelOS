@@ -5,7 +5,7 @@ import type {
   PartnerOption,
 } from "@/components/erp/CheckInForm";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { requireDeskPropertyId } from "@/lib/erp-lists";
+import { requireDeskPropertyId } from "@/lib/desk-property";
 import { roundBtn } from "@/lib/pricing";
 import {
   agentRateTier,

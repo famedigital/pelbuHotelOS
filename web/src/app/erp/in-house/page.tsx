@@ -6,7 +6,8 @@ import {
   type InhouseTaskRow,
 } from "@/components/erp/InhouseTasksPanel";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { fmtDate, requireDeskPropertyId, thimphuToday } from "@/lib/erp-lists";
+import { fmtDate, thimphuToday } from "@/lib/erp-lists";
+import { requireDeskPropertyId } from "@/lib/desk-property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -104,7 +105,7 @@ export default async function InHousePage() {
     <DeskListShell
       eyebrow="Today"
       heading={`In-house · ${fmtDate(today)}`}
-      blurb="Guests currently staying — room numbers, folio balance, wake-ups, and checkout handoff."
+      blurb="Guests currently staying. Open StayHub at Stay / Money for charges, payments, invoice, tasks — then hand off to Check-out when settled."
       filters={
         <div className="flex flex-wrap items-center justify-end gap-3">
           <div className="flex items-center gap-3">

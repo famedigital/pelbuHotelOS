@@ -2,7 +2,7 @@
 
 import { writeAuditEvent } from "@/lib/audit";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { requireDeskPropertyId } from "@/lib/erp-lists";
+import { requireDeskPropertyId } from "@/lib/desk-property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 import { revalidatePath } from "next/cache";

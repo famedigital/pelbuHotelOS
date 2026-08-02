@@ -2,7 +2,8 @@ import { BookingBoardTable } from "@/components/erp/BookingBoardTable";
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { fmtDate, requireDeskPropertyId, thimphuToday } from "@/lib/erp-lists";
+import { fmtDate, thimphuToday } from "@/lib/erp-lists";
+import { requireDeskPropertyId } from "@/lib/desk-property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -41,7 +42,7 @@ export default async function DeparturesPage() {
     <DeskListShell
       eyebrow="Today"
       heading={`Departures · ${fmtDate(today)}`}
-      blurb="Due out today — review folio balance and assigned rooms, then check out (rooms go dirty for HK)."
+      blurb="Due out today. Open StayHub at Stay / Money (open balance) or Check-out (settled). Check-out marks rooms dirty for housekeeping."
       filters={
         <div className="flex flex-wrap items-center justify-end gap-3">
           <div className="flex items-center gap-3">
