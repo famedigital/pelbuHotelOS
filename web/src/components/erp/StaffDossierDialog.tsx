@@ -739,6 +739,7 @@ function ProfileStep({
               </Field>
               <Field label="Department" htmlFor="d_department">
                 <DepartmentSelect
+                  key={member.id}
                   id="d_department"
                   name="department"
                   defaultValue={member.department ?? ""}
