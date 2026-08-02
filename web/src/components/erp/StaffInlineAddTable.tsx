@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
+import { mergeDepartmentOptions } from "@/lib/hr/departments";
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 
 const selectClass =
   "flex h-11 w-full min-h-11 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
@@ -51,7 +52,10 @@ export function StaffInlineAddTable({
   const [state, action, pending] = useActionState(upsertStaffMember, initial);
   useActionToast(state, { successMessage: "Staff added" });
 
-  const departmentOptions = [...departments, ...sessionDepartments];
+  const departmentOptions = useMemo(
+    () => mergeDepartmentOptions(departments, sessionDepartments),
+    [departments, sessionDepartments],
+  );
 
   useEffect(() => {
     if (state.ok) {
