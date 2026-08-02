@@ -9,7 +9,7 @@ export const REPORT_CATALOG = [
   {
     slug: "agent-production",
     title: "Agent production",
-    blurb: "Bookings, room-nights, and quoted totals by agent.",
+    blurb: "Bookings, room-nights, quoted totals, and commission from production.",
   },
   {
     slug: "agent-ar",

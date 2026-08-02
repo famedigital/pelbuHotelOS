@@ -1,5 +1,6 @@
 import { MealPlansRatesSummary } from "@/components/erp/MealPlansRatesSummary";
 import { RoomRatesSheet } from "@/components/erp/RoomRatesSheet";
+import { SeasonsDateEditor } from "@/components/erp/SeasonsDateEditor";
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/desk-property";
@@ -31,6 +32,15 @@ export default async function RoomRatesPage() {
       loadPropertyDefaultMealPlanCode(admin, propertyId),
     ]);
 
+  const seasonRows = seasons
+    .filter((s) => Boolean(s.id))
+    .map((s) => ({
+      id: s.id as string,
+      kind: s.kind,
+      starts_on: s.starts_on,
+      ends_on: s.ends_on,
+    }));
+
   return (
     <DeskListShell
       eyebrow="Hotel"
@@ -53,6 +63,10 @@ export default async function RoomRatesPage() {
         </div>
       }
     >
+      <section className="rounded-xl border bg-card p-5">
+        <SeasonsDateEditor seasons={seasonRows} />
+      </section>
+
       <section className="space-y-3">
         <header className="space-y-1">
           <h2 className="text-lg font-semibold tracking-tight">Room rate sheet</h2>

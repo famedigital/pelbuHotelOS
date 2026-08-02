@@ -261,11 +261,20 @@ async function AgentProductionTable({
   return (
     <DeskTable
       caption="Production"
-      headers={["Agent", "Bookings", "Rooms", "Room-nights", "Quoted", ""]}
+      headers={[
+        "Agent",
+        "Bookings",
+        "Rooms",
+        "Room-nights",
+        "Quoted",
+        "Comm %",
+        "Commission",
+        "",
+      ]}
     >
       {rows.length === 0 ? (
         <tr>
-          <td colSpan={6} className="px-3 py-6 text-muted-foreground">
+          <td colSpan={8} className="px-3 py-6 text-muted-foreground">
             No agent production in this range.
           </td>
         </tr>
@@ -278,6 +287,12 @@ async function AgentProductionTable({
             <td className="px-3 py-2.5 tabular-nums">{r.room_nights}</td>
             <td className="px-3 py-2.5 tabular-nums">
               {formatBtn(r.quoted_total)}
+            </td>
+            <td className="px-3 py-2.5 tabular-nums">
+              {r.commission_pct != null ? `${r.commission_pct}%` : "—"}
+            </td>
+            <td className="px-3 py-2.5 tabular-nums">
+              {formatBtn(r.commission_btn)}
             </td>
             <td className="px-3 py-2.5 text-right">
               <Link

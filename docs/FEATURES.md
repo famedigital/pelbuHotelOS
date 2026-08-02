@@ -1,9 +1,9 @@
 # Pelbu Suites — Feature status
 
-Last updated: **2026-08-02** (**v1.0 + Olakha wave Phase 6**).
+Last updated: **2026-08-02** (**v1.0 + Olakha residual Phases A–C**).
 Property #1: `pelbu-suites-olakha` (`template_id` 1). Work login supports staff Auth with desk access; `DESK_PIN` remains a temporary single-hotel fallback — **never share across hotels**.
 
-**Verdict:** **v1.0 ready** for single-hotel Pelbu Olakha — see **[RELEASE-v1.md](RELEASE-v1.md)**. Core desk OS + public conversion PWA are **built**. Day-1 ops: **[GO-LIVE-TOMORROW.md](GO-LIVE-TOMORROW.md)**; cutover: **[LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md)** (real initials). Not chain-SaaS complete — Stripe self-serve, full SEC-01 admin purge, and **live** Channex certification remain post-v1. Competitive gap wave: connecting rooms + rack virtualization, night-audit `close_time`, group AR, loyalty lite, offline drafts, DRC stub, tenants foundation.
+**Verdict:** **v1.0 ready** for single-hotel Pelbu Olakha — see **[RELEASE-v1.md](RELEASE-v1.md)**. Core desk OS + public conversion PWA are **built**. Residual FO/money pack (journals proof, Playwright smoke, minibar, immigration SDF CSV, seasons editor, guest history) landed after N+1. Day-1 ops: **[GO-LIVE-TOMORROW.md](GO-LIVE-TOMORROW.md)**; cutover: **[LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md)** (real initials). Not chain-SaaS complete — Stripe self-serve, full SEC-01 admin purge, and **live** Channex certification remain post-v1.
 
 **Palette (FINAL):** **Sky & Citrus** — sky-500 `#0ea5e9` accent + amber-500 `#f59e0b` citrus. Shipped on the desk (`.erp` scope). Pelbu-pink / Bubblegum is **retired**.
 
@@ -96,7 +96,10 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Recipe cost | `/erp/pos/recipe-cost` | Multi-outlet margin rollup; full RMS open |
 | Allotments | `/erp/allotments` | P9 |
 | Group / properties | `/erp/group`, `/erp/properties/*` | Multi-hotel overview + setup wizard |
-| Night audit | `/erp/night-audit` | Close-day checklist + room-night posting; cron midnight Thimphu |
+| Night audit | `/erp/night-audit` | Close-day checklist + room-night posting; cron midnight Thimphu; printable pack with POS cash variance table |
+| Guests | `/erp/guests`, `/erp/guests/[id]` | Directory + **profile stay history**; SDF incomplete badge; immigration CSV export |
+| Room rates | `/erp/rates` | Rate matrix + **season date-range editor** |
+| Folio | `/erp/folios/[id]` | Payments, void, comp, minibar/amenity quick charge, damage; day-1 post; stay money strip |
 | Settings | `/erp/settings` | Identity · Tax & service · Documents · Rooms (see shell table) |
 | **DOT assessment** | `/erp/dot-assessment` | HCS 2024 3★/4★ digital checklist (Trade · BFDA · DOT), entry gate, M/Q/P scores, photos, print pack |
 
@@ -143,7 +146,8 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Audit trail | `audit_events` on money/ops actions |
 | Booking holds | TTL by source/season; cron `expire-holds` |
 | Cancel / no-show | Frees `room_assignments`; queues ARI when channel mapped |
-| Accounting CSV | `/api/erp/export?kind=payments\|expenses\|folio_lines` |
+| Accounting CSV | `/api/erp/export?kind=payments\|expenses\|folio_lines\|immigration\|agent-production\|agent-commission` |
+| Playwright desk smoke | `web/e2e/money-path.spec.ts` — skips without `PLAYWRIGHT_*` secrets |
 | UAT checklist | `docs/UAT-CHECKLIST.md` |
 | Brand assets | `design/brand/` + favicons/PWA icons |
 
@@ -180,11 +184,11 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | **SEC-01 staff-scoped client** | Wave 2 money gates **shipped**; full admin-client rewrite still residual — [ERP-AUDIT.md](ERP-AUDIT.md) |
 | **Purchase cost trends (Phase C)** | **Not started** — MoM item price / gas-grocery analytics need `unit_cost_btn` written on every inventory **receive** (movement value is partial today). Do not fake trends from a single `inventory_items.unit_cost_btn` |
 | **Partner perks** | Discount % auto-applied on public book quote (guide_number → guide) + calendar on-credit + POS; spa auto-apply still open |
-| **Agent voucher PDF/email** | Print + Resend text email shipped; branded PDF attachment still open |
+| **Agent voucher PDF/email** | Print + Resend text email shipped; high-quality print CSS improved; native PDF attachment still soft |
 | **Extra templates** | Only flagship `template_id=1` |
 | **Mews Enterprise catalog (P3)** | Door locks, kiosk, public API / webhooks — not scoped for Olakha go-live |
 | **24/7 support staffing** | Business residual — [OPS-RUNBOOK.md](OPS-RUNBOOK.md) |
-| **Push to origin** | Local tree may be ahead — push when ready |
+| **Playwright against staging** | Smoke shipped; full book→CI→pay→NA→CO needs secrets + seed property |
 
 ---
 

@@ -1,13 +1,13 @@
 # Olakha ERP — way forward (after production-ready wave)
 
-**Status:** **In progress** — wave Phases 0–6 done; post-wave fixups on `main` through `9d3fe3f`; **N+1 tranche** (StayHub / NA / HR / DOT / kitchen events / journals) stabilized below  
-**Last reconciled:** 2026-08-03 (review plan: uncommitted wave vs production)  
+**Status:** **Phases A–C residual pack landed** (journals + Playwright smoke, FO friction, week packs) on `main` after N+1  
+**Last reconciled:** 2026-08-02 residual finish  
 **Cursor plan:** `rates_meals_nationality_7c9e2c95.plan.md` (50/71 done) · review `review_uncommitted_wave_3f5a1d06`  
 **Wave snapshot:** [olakha-production-ready-erp-wave.md](olakha-production-ready-erp-wave.md)  
 **Index:** [PLANS.md](../PLANS.md) · [FEATURES.md](../FEATURES.md)
 
-**Counts (original plan todos):** **50 completed** · **21 residual** · **0 cancelled**  
-**N+1 tranche:** landed in multi-commit push after quality gate (see §1.3) — HEAD near `0c3dbe2` on `main`
+**Counts (original plan todos):** **50 completed** · residual A–C largely **implemented** · **0 cancelled**  
+**N+1 tranche:** landed earlier · **A/B/C residual pack** follows (this doc §1.4)
 
 ---
 
@@ -38,16 +38,24 @@ Boutique desk OS: commercial meals + nationality, FO booking + fast book, polici
 
 | Area | What N+1 adds |
 |------|----------------|
-| **StayHub + FO** | Six-step cycle UI (Reserve → Confirm → Arrival → CI → Stay/Money → CO); StayProgressStrip; FolioActionsPanel; NewReservationLauncher / FastBookDialog; board pages wired to same process |
-| **Night audit** | NightAuditDesk + pipeline/list steps; deeper run API; replaces thin NightAuditForm |
-| **HR / Team** | Personnel file, Staff dossier/inline add, rota cover templates migration + editor |
-| **Kitchen / POS** | Kitchen events (time/menu/ops/bills); POS layout/closing/how-to growth |
-| **Finance** | Hotel accountant rules migration; journal-proof / posting / hotel-account depth |
-| **DOT** | Full `/erp/dot-assessment` + HCS catalogs (Hotel nav) |
+| **StayHub + FO** | Six-step cycle UI; StayProgressStrip; FolioActionsPanel; boards wired to same process |
+| **Night audit** | NightAuditDesk + pipeline; deeper run API |
+| **HR / Team** | Personnel file, rota cover templates |
+| **Kitchen / POS** | Kitchen events; POS layout/closing growth |
+| **Finance** | Hotel accountant rules; journal-proof / posting depth |
+| **DOT** | Full `/erp/dot-assessment` + HCS catalogs |
 
-**Maps to residuals:** partial `pr-money-journals`, FO cycle education, partial NA packing, advanced HR/schedule. Does **not** finish Playwright, PDFs, minibar, immigration export, etc.
+### 1.4 Residual Phases A–C (this finish)
 
-**Verdict for Olakha:** Wave + post-wave usable live; N+1 deepens FO system-of-record, NA, HR, and money trust. Remaining work is **Playwright smoke**, **FO extras (P1)**, and **week packs (P2)** — not a rebuild.
+| Phase | What landed |
+|-------|-------------|
+| **A** | Journal-proof GST shapes + void reverse net-to-zero tests; Playwright smoke pack (`web/e2e`, `npm run test:e2e`) skips cleanly without secrets; build green |
+| **B** | Branded guest-pack print CSS; agent voucher print path; guest request kinds + panel; immigration/SDF CSV + incomplete badge; early/late fee policy → checkout; minibar folio picker; rate override reason + `rate.override` audit |
+| **C** | Seasons date-range editor on Room rates; agent commission CSV/production columns; NA print shift variance table; guest profile stay history `/erp/guests/[id]` |
+
+**Migration:** `supabase/migrations/20260810090000_phase_abc_residuals.sql` (applied to linked Supabase project).
+
+**Verdict for Olakha:** Wave + N+1 + A/B/C residuals = ops go-live thickness for FO money + desk friction. Still soft/out of scope: Channex live, Pay.bt, WhatsApp API, spa enterprise, agent commission % form editor (column + CSV done).
 
 ---
 
@@ -61,101 +69,34 @@ Reserve → Confirm → Arrival → Check-in
   → Check-out when balance 0 → room dirty → HK
 ```
 
-| Moment | What guest sees on folio |
-|--------|---------------------------|
-| Just checked in | At least **day-1 room** (+ meal if priced). Not “empty Nu 0”. |
-| Later nights | **Night audit** — not silent auto every night without close |
-| Manual fix | Folio → **Post day-1 room + meals** or **Post room night** |
-| Settled | Payment confirmed; tax invoice / receipt when issued |
+---
 
-**Not required for Olakha money:** Channex live, Pay.bt, WhatsApp/SMS API.
+## 3. Gaps still open (after A–C)
 
-StayHub should **encode this cycle everywhere** (calendar modal + reservations accordion + list boards) — not only calendar.
+| Gap | Status |
+|-----|--------|
+| Journals + reverse voids | **Shipped (proof)** — desk UAT initials still in FINANCE-UAT |
+| Playwright critical path | **Smoke shipped** — needs secrets for full run |
+| Branded PDF engine | Print improved; PDF attachment soft |
+| Guest requests | **Shipped** |
+| Immigration / SDF | **Shipped** |
+| Early / late fees | **Shipped** |
+| Minibar picker | **Shipped** |
+| Rate override audit | **Shipped** |
+| Seasons editor | **Shipped** |
+| Agent commission CSV | **Shipped** (set % on agent row) |
+| NA variance pack | Print pack improved |
+| Guest stay history | **Shipped** on profile |
+
+### P2 / Phase D — pull if desk asks
+
+Maint stock · cost trends · stop-sell · rooming list · day-use · spa lite · loyalty earn · commission % editor UI.
 
 ---
 
-## 3. Gaps still open (residual after N+1)
+## 4. Explicitly out of scope
 
-### P0 — money trust & go-live confidence
-
-| Gap | Plan id | Status after N+1 |
-|-----|---------|------------------|
-| **Balanced journals + reversing voids** | `pr-money-journals` | **Partial** — journal-proof + posting deepened; still need full-path UAT |
-| **Playwright critical path** | `pr-playwright-uat` | **Open** — unit tests only |
-| **FO money UX** | ops / StayHub | **Much stronger in N+1** — keep coaching + LMS |
-
-### P1 — desk ops
-
-| Gap | Plan id | Notes |
-|-----|---------|--------|
-| **Branded PDF** guest pack + agent voucher | `branded-pdf-pack`, `pr-branded-pdfs` | Still soft |
-| **Guest requests on dossier** | `guest-requests-elevate` | Wake-up exists; expand kinds |
-| **Immigration / SDF export** + incomplete badge | `cg-immigration-export` | Open |
-| **Early / late fees** | `cg-early-late-fees` | Open |
-| **Minibar / amenity folio picker** | `cg-minibar-folio` | Open |
-| **Rate override reason + audit** | `cg-rate-override-audit` | Soft |
-| **Seasons date-range editor** | `seasons-settings` | Open |
-| **Agent commission CSV** | `cg-agent-commission` | Open |
-| **Night audit variance PDF** | `cg-na-variance-pack` | **Partial** — pipeline better; PDF pack soft |
-
-### P2 — later when desk asks
-
-Maint stock issue · cost trends · stop-sell rack · rooming list · day-use · guest history · spa lite · loyalty earn · calendar Realtime · full readiness depths.
-
----
-
-## 4. Recommended next phases (Olakha ops)
-
-Each phase **2–5 days**. Do **not** restart the old 71-todo wave.
-
-### Phase A finish — Money path proof (2–4 days) — **do next**
-
-1. Finish folio/POS/laundry/void → journal balance & reversing voids where still open.
-2. **Playwright smoke:** book → check-in (assert day-1 line) → pay → NA → checkout; POS settle; laundry bill.
-3. Owner dry-run with LMS + optional Danger wipe on non-prod.
-
-**Exit:** Owner trusts Nu paths; browser pack is the safety net.
-
-### Phase B finish — FO desk friction (3–5 days)
-
-1. Branded PDF guest pack + agent voucher.
-2. Dossier **Requests** + kinds.
-3. Immigration/SDF export + passport badge.
-4. Minibar quick charge; early/late fees.
-5. Rate override reason + audit.
-
-### Phase C — Close the week packs (2–4 days)
-
-Seasons editor · agent commission CSV · NA variance PDF · guest stay history.
-
-### Phase D — Ops connective (3–5 days, pull if desk asks)
-
-Maint→stock · cost trends lite · day-use / rooming / stop-sell · loyalty earn / spa lite.
-
-### Phase E — Harden & document (continuous)
-
-LMS / GO-LIVE / FINANCE-UAT · optional Realtime · Channex/Pay.bt only with keys.
-
----
-
-## 5. Explicitly out of scope
-
-| Item | Why |
-|------|-----|
-| **Live Channex / OTA** | Not subscribed |
-| **Pay.bt** | Bank QR + NEFT proof is the path |
-| **WhatsApp / SMS API** | Copy for WhatsApp only |
-| **Door locks / kiosk API** | Enterprise class |
-| **DRC live e-invoice** | Stub until mandate |
-| **Chain HR biometrics** | BTCL scale |
-| **Stripe SaaS** | Foundation only |
-
----
-
-## 6. Immediate next two
-
-1. **Phase A finish** — journals UAT + Playwright.  
-2. **Phase B finish** — PDF/export + requests + minibar + fees.
+Live Channex · Pay.bt · WhatsApp API · door locks · DRC live e-invoice · chain HR biometrics · Stripe SaaS.
 
 ---
 
@@ -163,9 +104,6 @@ LMS / GO-LIVE / FINANCE-UAT · optional Realtime · Channex/Pay.bt only with key
 
 | Doc | Role |
 |-----|------|
-| [olakha-production-ready-erp-wave.md](olakha-production-ready-erp-wave.md) | Wave 0–6 snapshot |
 | [FEATURES.md](../FEATURES.md) | Shipped vs partial |
 | [GO-LIVE-TOMORROW.md](../GO-LIVE-TOMORROW.md) | Day-1 shift guide |
-| [ERP-AUDIT.md](../ERP-AUDIT.md) | Fault register |
 | [FINANCE-UAT.md](../FINANCE-UAT.md) | Finance sign-off |
-| Cursor `rates_meals_nationality_7c9e2c95` | Original 71 todos |

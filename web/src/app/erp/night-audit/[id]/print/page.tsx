@@ -163,24 +163,70 @@ export default async function NightAuditPrintPage({ params }: Props) {
         {(shifts ?? []).length === 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">No POS shifts.</p>
         ) : (
-          <div className="mt-3 grid gap-2 text-sm sm:grid-cols-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Sales</p>
-              <p className="font-medium tabular-nums">{formatBtn(posSales)}</p>
+          <>
+            <div className="mt-3 grid gap-2 text-sm sm:grid-cols-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Sales</p>
+                <p className="font-medium tabular-nums">{formatBtn(posSales)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Cash</p>
+                <p className="font-medium tabular-nums">{formatBtn(posCash)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Variance</p>
+                <p
+                  className={`font-medium tabular-nums ${
+                    Math.abs(posVariance) > 0.009
+                      ? "text-amber-700 dark:text-amber-300"
+                      : ""
+                  }`}
+                >
+                  {formatBtn(posVariance)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Voids</p>
+                <p className="font-medium tabular-nums">{formatBtn(posVoids)}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Cash</p>
-              <p className="font-medium tabular-nums">{formatBtn(posCash)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Variance</p>
-              <p className="font-medium tabular-nums">{formatBtn(posVariance)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Voids</p>
-              <p className="font-medium tabular-nums">{formatBtn(posVoids)}</p>
-            </div>
-          </div>
+            <table className="mt-4 w-full text-left text-xs">
+              <thead>
+                <tr className="border-b text-muted-foreground">
+                  <th className="py-1.5 pr-2 font-medium">Shift</th>
+                  <th className="py-1.5 pr-2 font-medium">Status</th>
+                  <th className="py-1.5 pr-2 font-medium text-right">Expected</th>
+                  <th className="py-1.5 pr-2 font-medium text-right">Counted</th>
+                  <th className="py-1.5 font-medium text-right">Variance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(shifts ?? []).map((shift) => (
+                  <tr key={shift.id as string} className="border-b border-border/60">
+                    <td className="py-1.5 pr-2">
+                      {(shift.opened_by_name as string) ||
+                        String(shift.id).slice(0, 8)}
+                      {shift.closed_by_name
+                        ? ` → ${shift.closed_by_name as string}`
+                        : ""}
+                    </td>
+                    <td className="py-1.5 pr-2 capitalize">
+                      {String(shift.status ?? "—")}
+                    </td>
+                    <td className="py-1.5 pr-2 text-right tabular-nums">
+                      {formatBtn(Number(shift.expected_cash_btn ?? 0))}
+                    </td>
+                    <td className="py-1.5 pr-2 text-right tabular-nums">
+                      {formatBtn(Number(shift.counted_cash_btn ?? 0))}
+                    </td>
+                    <td className="py-1.5 text-right tabular-nums">
+                      {formatBtn(Number(shift.variance_btn ?? 0))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
         )}
       </section>
 

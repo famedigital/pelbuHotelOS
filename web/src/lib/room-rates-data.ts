@@ -21,6 +21,7 @@ export type RateMatrixRow = {
 };
 
 export type SeasonWindow = {
+  id?: string;
   kind: string;
   starts_on: string;
   ends_on: string;
@@ -51,7 +52,7 @@ export async function loadRoomRatesMatrix(
       .order("name"),
     admin
       .from("seasons")
-      .select("kind, starts_on, ends_on")
+      .select("id, kind, starts_on, ends_on")
       .eq("property_id", propertyId)
       .order("starts_on"),
   ]);
@@ -85,6 +86,7 @@ export async function loadRoomRatesMatrix(
   });
 
   const seasons = (seasonsRes.data ?? []).map((s) => ({
+    id: s.id as string,
     kind: s.kind as string,
     starts_on: s.starts_on as string,
     ends_on: s.ends_on as string,

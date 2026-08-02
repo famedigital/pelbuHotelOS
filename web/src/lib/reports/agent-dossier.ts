@@ -529,12 +529,14 @@ export async function loadAgentProductionReport(
     room_nights: number;
     quoted_total: number;
     rooms: number;
+    commission_pct: number | null;
+    commission_btn: number;
   }[]
 > {
   let q = admin
     .from("bookings")
     .select(
-      "id, agent_id, rooms, quoted_total_btn, check_in, check_out, agents(company_name)",
+      "id, agent_id, rooms, quoted_total_btn, check_in, check_out, agents(company_name, commission_pct)",
     )
     .eq("property_id", opts.propertyId)
     .not("agent_id", "is", null)
@@ -578,6 +580,8 @@ export async function loadAgentProductionReport(
       room_nights: number;
       quoted_total: number;
       rooms: number;
+      commission_pct: number | null;
+      commission_btn: number;
     }
   >();
 
@@ -585,19 +589,24 @@ export async function loadAgentProductionReport(
     const agentId = b.agent_id as string;
     if (!agentId) continue;
     const ag = b.agents as
-      | { company_name?: string }
-      | { company_name?: string }[]
+      | { company_name?: string; commission_pct?: number | null }
+      | { company_name?: string; commission_pct?: number | null }[]
       | null;
     const agentObj = Array.isArray(ag) ? ag[0] : ag;
     const name = agentObj?.company_name ?? "Agent";
+    const commissionPct =
+      agentObj?.commission_pct == null
+        ? null
+        : Number(agentObj.commission_pct);
     const nights = nightsByBooking.get(b.id as string) ?? 0;
     const qty =
       roomsByBooking.get(b.id as string) ?? Number(b.rooms ?? 1);
+    const quoted = Number(b.quoted_total_btn ?? 0);
     const existing = byAgent.get(agentId);
     if (existing) {
       existing.bookings += 1;
       existing.room_nights += qty * nights;
-      existing.quoted_total += Number(b.quoted_total_btn ?? 0);
+      existing.quoted_total += quoted;
       existing.rooms += qty;
     } else {
       byAgent.set(agentId, {
@@ -605,11 +614,22 @@ export async function loadAgentProductionReport(
         company_name: name,
         bookings: 1,
         room_nights: qty * nights,
-        quoted_total: Number(b.quoted_total_btn ?? 0),
+        quoted_total: quoted,
         rooms: qty,
+        commission_pct: commissionPct,
+        commission_btn: 0,
       });
     }
   }
 
-  return [...byAgent.values()].sort((a, b) => b.room_nights - a.room_nights);
+  return [...byAgent.values()]
+    .map((row) => {
+      const pct = row.commission_pct;
+      const commission_btn =
+        pct != null && pct > 0
+          ? Math.round((row.quoted_total * pct) / 100 * 100) / 100
+          : 0;
+      return { ...row, commission_btn };
+    })
+    .sort((a, b) => b.room_nights - a.room_nights);
 }
