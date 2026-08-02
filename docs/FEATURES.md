@@ -75,10 +75,11 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Check-in / out | `/erp/check-in` | Physical room allocation (guest + guide/driver); HK readiness; multi-guest rooming; origin-aware SDF/guide; checkout → dirty |
 | Arrivals / in-house / departures | `/erp/arrivals` etc. | P8 list boards |
 | Reservations / guests | `/erp/reservations`, `/erp/guests` | P8 lists |
-| POS | `/erp/pos` | Cafe/bar/restaurant cashier → folio; floor plan; stock & shifts |
+| POS | `/erp/pos` | Cafe/bar/restaurant cashier → folio; floor plan; stock & shifts; **Open tickets + Closed today** (paid methods, folio link, charge-to-room) |
 | **Laundry** | `/erp/laundry` (+ `/qr`, `/orders/[id]/labels`) · guest `/laundry` · staff `/staff/laundry` (+ bag scan/labels) | Guest QR room+name intake · reception photo intake · maid mobile board · **Amazon-style bag QR labels** (1–N bags, per-bag garments, staff-secured scan) · maid-confirmed counts → atomic folio post · printable room + bag stickers |
-| Folio | `/erp/folios/[id]` (+ `/receipt`) | Payments, void, comp, deposit links; **tax invoice + fiscal receipt issue** |
-| Invoices / payments | `/erp/invoices`, `/erp/payments` | **Invoices:** issued fiscal tax invoice list (INV-YYYY-####) |
+| Folio | `/erp/folios/[id]` (+ `/receipt`) | Payments, void, comp, deposit links; **tax invoice + fiscal receipt issue**; **day-1 room post at check-in** + manual Post room night / day-1 charges; **stay money process strip** |
+| Kitchen | `/erp/kitchen` | Covers board + **Publish meal service (BF/lunch/dinner)** to FO/POS feed (`kitchen_meal_services`) |
+| Invoices / payments | `/erp/invoices`, `/erp/payments` | **Invoices:** issued fiscal tax invoice list (INV-YYYY-####) only — not POS tickets. Settle/paid/on-room under **POS → Closed today** |
 | Agents | `/erp/agents` (+ `/erp/agents/[id]` dossier) | Approve, credit, rates matrix, documents; **click agent → 360° dossier** (bookings, guests, rooms, money/AR, rates/allotments) |
 | Finance + bank recon | `/erp/finance` | **Double-entry ledger + Import Workbench (2026-07-29)** — Overview · Income · Expenses (spreadsheet + receipt PDF extract) · Banking (PDF + approved parsers) · Accounting · GST · Reports · Setup; Settings → Finance imports for parser versions; isolated `services/finance-parser-worker` |
 | GST | `/erp/gst` (+ `/erp/finance/gst`) | Returns / summaries + ledger GST input/output |
@@ -229,3 +230,17 @@ Never commit `.env*`.
 | P8+ | Mews pricing parity / Enterprise catalog | Guest loyalty lite shipped; locks/API/SMS/BI residual |
 
 See also: [RELEASE-v1.md](RELEASE-v1.md) · [WHITEBOARD.md](WHITEBOARD.md) · [ERP-AUDIT.md](ERP-AUDIT.md) · [PLATFORM.md](PLATFORM.md) · [PLANS.md](PLANS.md) · [UAT-CHECKLIST.md](UAT-CHECKLIST.md) · [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md) · [FINANCE-UAT.md](FINANCE-UAT.md) · [OPS-RUNBOOK.md](OPS-RUNBOOK.md) · [../AGENTS.md](../AGENTS.md)
+
+---
+
+## Front-desk stay money cycle (FO)
+
+1. **Book / assign rates** — calendar, fast book, or public `/book`. Room Nu from `room_rates` (`/erp/rates`); meal plan snapshot on booking.
+2. **Check-in** — opens guest folio; by default posts **day-1 room rent** (toggle: Settings → Tax → *Post day-1 room rent at check-in*) and **meal plan** when `meal_plan_amount_btn > 0`.
+3. **Post charges** — further nights via **night audit** (cron midnight Thimphu or `/erp/night-audit`). Manual: folio → **Post day-1 room + meals** / **Post room night**.
+4. **Invoice / pay** — collect payment, deposit link, issue tax invoice.
+5. **Checkout** when balance is zero (`/erp/check-out`).
+
+Empty Nu 0 after check-in historically meant no day-1 post + night audit not yet run (FO-01). Fixed 2026-08-02.
+
+Kitchen publishes BF/lunch/dinner covers + menu notes from `/erp/kitchen` → visible on POS as **Kitchen service feed**.

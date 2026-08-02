@@ -373,7 +373,9 @@ export type DeskPosState = {
   orderId?: string;
   folioId?: string;
   totalBtn?: number;
+  settleMode?: "cash" | "room_charge";
   error?: string;
+  message?: string;
 };
 
 export async function createDeskOrder(
@@ -700,11 +702,19 @@ export async function createDeskOrder(
 
     revalidatePath("/erp");
     revalidatePath("/erp/pos");
+    const message =
+      settleMode === "room_charge" && folioId
+        ? `Charged to room · ${formatShort(totalBtn)} · guest pays at checkout`
+        : parkOnCreate
+          ? `Parked · ${formatShort(totalBtn)}`
+          : `Ticket saved · ${formatShort(totalBtn)} · settle when ready`;
     return {
       ok: true,
       orderId: order.id as string,
       folioId: folioId ?? undefined,
       totalBtn,
+      settleMode,
+      message,
     };
   } catch (err) {
     return {
@@ -758,7 +768,7 @@ export async function postOrderToBookingFolio(formData: FormData): Promise<void>
   const { data: order, error: orderError } = await admin
     .from("orders")
     .select(
-      "id, customer_name, subtotal_btn, service_charge_rate, service_charge_btn, service_charge_applied, service_charge_reason, gst_btn, total_btn, folio_id, posted_to_folio_at, booking_id, property_id",
+      "id, customer_name, outlet, subtotal_btn, service_charge_rate, service_charge_btn, service_charge_applied, service_charge_reason, gst_btn, total_btn, folio_id, posted_to_folio_at, settled_at, voided_at, booking_id, property_id, table_id",
     )
     .eq("id", orderId)
     .single();
@@ -767,8 +777,16 @@ export async function postOrderToBookingFolio(formData: FormData): Promise<void>
     throw new Error("Order not found.");
   }
   assertDeskProperty(property_id, order.property_id as string, "Order");
+  if (order.voided_at) {
+    throw new Error("Cannot post a voided order to a folio.");
+  }
   if (order.posted_to_folio_at) {
     throw new Error("Order is already posted to a folio.");
+  }
+  if (order.settled_at) {
+    throw new Error(
+      "Order is already settled. Use the existing tenders; do not post again.",
+    );
   }
 
   const { data: booking } = await admin
@@ -778,6 +796,17 @@ export async function postOrderToBookingFolio(formData: FormData): Promise<void>
     .single();
   if (!booking) throw new Error("Booking not found.");
   assertDeskProperty(property_id, booking.property_id as string, "Booking");
+
+  const { data: existingTenders } = await admin
+    .from("order_tenders")
+    .select("id")
+    .eq("order_id", orderId)
+    .limit(1);
+  if (existingTenders && existingTenders.length > 0) {
+    throw new Error(
+      "Order already has tenders. Settle is complete or recall first.",
+    );
+  }
 
   const folioId = await ensureOpenFolio(admin, property_id, bookingId);
 
@@ -791,31 +820,51 @@ export async function postOrderToBookingFolio(formData: FormData): Promise<void>
       .map((item) => `${item.qty}× ${item.name_snapshot as string}`)
       .join(", ") || `Order ${(order.customer_name as string) ?? "guest"}`;
 
+  const partner = await resolveBookingPartnerDiscountPct(admin, bookingId);
+  const subtotalBtn = Number(order.subtotal_btn);
+  const serviceChargeBtn = Number(order.service_charge_btn ?? 0);
+  const gstBtn = Number(order.gst_btn);
+  const totalBtn = Number(order.total_btn);
+  const discSubtotal = applyDiscountPct(subtotalBtn, partner.pct);
+  const discService = applyDiscountPct(serviceChargeBtn, partner.pct);
+  const discGst = applyDiscountPct(gstBtn, partner.pct);
+  const discTotal = roundBtn(discSubtotal + discService + discGst);
+  const descSuffix =
+    partner.pct > 0
+      ? ` (−${partner.pct}% ${partner.source ?? "partner"})`
+      : "";
+  const outlet = (order.outlet as string | null) ?? "F&B";
+
   await postFolioCharge(admin, property_id, {
     folio_id: folioId,
     booking_id: bookingId,
     source_type: "order",
     source_id: orderId,
-    description,
+    description: `Desk ${outlet}: ${description}${descSuffix}`,
     qty: 1,
-    unit_price_btn: Number(order.subtotal_btn),
-    amount_btn: Number(order.subtotal_btn),
+    unit_price_btn: discSubtotal,
+    amount_btn: discSubtotal,
     service_charge_rate: Number(order.service_charge_rate ?? 0),
-    service_charge_btn: Number(order.service_charge_btn ?? 0),
+    service_charge_btn: discService,
     service_charge_applied: Boolean(order.service_charge_applied),
     service_charge_reason: (order.service_charge_reason as string | null) ?? null,
-    gst_applicable: Number(order.gst_btn) > 0,
-    gst_btn: Number(order.gst_btn),
-    total_btn: Number(order.total_btn),
+    gst_applicable: discGst > 0,
+    gst_btn: discGst,
+    total_btn: discTotal,
   });
 
+  const nowIso = new Date().toISOString();
   const { error: patchError } = await admin
     .from("orders")
     .update({
       booking_id: bookingId,
       folio_id: folioId,
       order_source: "room_charge",
-      posted_to_folio_at: new Date().toISOString(),
+      posted_to_folio_at: nowIso,
+      settled_at: nowIso,
+      is_parked: false,
+      parked_at: null,
+      status: "completed",
     })
     .eq("id", orderId);
 
@@ -823,7 +872,35 @@ export async function postOrderToBookingFolio(formData: FormData): Promise<void>
     throw new Error("Folio saved, but order linkage failed.");
   }
 
+  const { error: tenderError } = await admin.from("order_tenders").insert({
+    order_id: orderId,
+    method: "room_charge",
+    amount_btn: discTotal > 0 ? discTotal : totalBtn,
+    folio_id: folioId,
+    booking_id: bookingId,
+  });
+  if (tenderError) {
+    throw new Error("Order posted to folio, but room-charge tender failed.");
+  }
+
+  if (order.table_id) {
+    await admin
+      .from("dining_tables")
+      .update({ status: "dirty" })
+      .eq("id", order.table_id as string);
+  }
+
+  await writeAuditEvent(admin, {
+    propertyId: property_id,
+    action: "pos.order.post_to_folio",
+    entityType: "orders",
+    entityId: orderId,
+    summary: `Charge to room · ${formatShort(discTotal > 0 ? discTotal : totalBtn)}`,
+    meta: { bookingId, folioId },
+  });
+
   revalidatePath("/erp");
+  revalidatePath("/erp/pos");
   revalidatePath(`/erp/folios/${folioId}`);
 }
 
@@ -1407,7 +1484,11 @@ function parseTenders(raw: FormDataEntryValue | null): TenderInput[] {
 export type SplitSettleState = {
   ok: boolean;
   orderId?: string;
+  folioId?: string;
+  totalBtn?: number;
+  methods?: string[];
   error?: string;
+  message?: string;
 };
 
 export async function splitSettle(
@@ -1588,7 +1669,19 @@ export async function splitSettle(
     revalidatePath("/erp/pos");
     if (folioId) revalidatePath(`/erp/folios/${folioId}`);
     revalidatePath("/erp/finance");
-    return { ok: true, orderId };
+    const methodList = [...new Set(tenders.map((t) => t.method))];
+    const methodText = methodList.join(" + ");
+    const message = folioId
+      ? `Settled ${formatShort(totalBtn)} · ${methodText} · open folio to issue tax invoice`
+      : `Settled ${formatShort(totalBtn)} · ${methodText}`;
+    return {
+      ok: true,
+      orderId,
+      folioId: folioId ?? undefined,
+      totalBtn,
+      methods: methodList,
+      message,
+    };
   } catch (err) {
     return {
       ok: false,

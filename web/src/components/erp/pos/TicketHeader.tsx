@@ -136,7 +136,7 @@ export function TicketHeader({
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Settle</Label>
+          <Label className="text-xs text-muted-foreground">How to bill</Label>
           <Tabs
             value={settleMode}
             onValueChange={(v) =>
@@ -144,15 +144,28 @@ export function TicketHeader({
             }
           >
             <TabsList className="h-9 w-full">
-              <TabsTrigger value="cash">Cash</TabsTrigger>
-              <TabsTrigger value="room_charge">Room</TabsTrigger>
+              <TabsTrigger value="cash">Pay now</TabsTrigger>
+              <TabsTrigger value="room_charge">Charge to room</TabsTrigger>
             </TabsList>
           </Tabs>
+          <p className="text-[10px] text-muted-foreground">
+            {settleMode === "room_charge"
+              ? "Adds to guest folio now; guest pays at checkout. Tax invoice issues from folio, not this ticket."
+              : "Creates an open ticket — settle cash/card later when the guest pays."}
+          </p>
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="th_room_unit_id" className="text-xs text-muted-foreground">
+          <Label
+            htmlFor="th_room_unit_id"
+            className={
+              settleMode === "room_charge"
+                ? "text-xs font-medium text-foreground"
+                : "text-xs text-muted-foreground"
+            }
+          >
             In-house room
+            {settleMode === "room_charge" ? " (required)" : ""}
           </Label>
           <Select
             value={roomUnitId || NONE}
@@ -160,7 +173,14 @@ export function TicketHeader({
               onRoomUnitIdChange(value === NONE ? "" : value)
             }
           >
-            <SelectTrigger id="th_room_unit_id" className="w-full">
+            <SelectTrigger
+              id="th_room_unit_id"
+              className={`w-full ${
+                settleMode === "room_charge" && !roomUnitId
+                  ? "border-citrus ring-1 ring-citrus/30"
+                  : ""
+              }`}
+            >
               <SelectValue placeholder="Walk-in / select room" />
             </SelectTrigger>
             <SelectContent>
@@ -173,6 +193,11 @@ export function TicketHeader({
               ))}
             </SelectContent>
           </Select>
+          {settleMode === "room_charge" && !roomUnitId ? (
+            <p className="text-[10px] text-citrus">
+              Select the in-house room to post this ticket to the guest folio.
+            </p>
+          ) : null}
         </div>
 
         <div className="space-y-1.5">
@@ -204,7 +229,8 @@ export function TicketHeader({
           </Select>
           {selectedBooking?.source === "agent" ? (
             <p className="text-[10px] text-muted-foreground">
-              Stay by agent; POS remains guest-paid unless Room is selected.
+              Stay by agent; POS stays guest-paid unless Charge to room is
+              selected.
             </p>
           ) : null}
         </div>

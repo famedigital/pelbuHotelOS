@@ -1,12 +1,18 @@
 "use client";
 
 import { BookingLifecycleActions } from "@/components/erp/BookingLifecycleActions";
+import { StayMoneyCycleLegend } from "@/components/erp/StayMoneyCycleLegend";
+import { StayMoneyProcessStrip } from "@/components/erp/StayMoneyProcessStrip";
 import { Button } from "@/components/ui/button";
 import {
   boardActionHref,
   boardActionLabel,
 } from "@/lib/arrival-board";
 import type { BookingDetailData } from "@/lib/booking-detail";
+import {
+  buildStayMoneySteps,
+  stayMoneyNextAction,
+} from "@/lib/folio/stay-money-cycle";
 import { formatBtn } from "@/lib/pricing";
 import Link from "next/link";
 
@@ -55,13 +61,41 @@ export function BookingDetailPanel({
   ].includes(status);
   const isClosed = ["cancelled", "no_show", "expired"].includes(status);
 
+  const moneySteps = buildStayMoneySteps({
+    status,
+    hasFolio: Boolean(data.open_folio_id),
+    hasCharges: data.folio_has_charges,
+    balanceBtn: data.folio_balance_btn,
+  });
+  const next = stayMoneyNextAction({
+    status,
+    hasFolio: Boolean(data.open_folio_id),
+    hasCharges: data.folio_has_charges,
+    balanceBtn: data.folio_balance_btn,
+  });
+  const nextHref =
+    next.hrefHint === "check-in"
+      ? boardActionHref(status, data.id, "arrivals")
+      : next.hrefHint === "check-out"
+        ? boardActionHref(status, data.id, "departures")
+        : next.hrefHint === "folio" && data.open_folio_id
+          ? `/erp/folios/${data.open_folio_id}`
+          : boardActionHref(status, data.id);
+
   return (
     <div
       className={`space-y-4 ${compact ? "text-sm" : ""} ${className ?? ""}`}
     >
+      <StayMoneyProcessStrip steps={moneySteps} />
+
       <div className="flex flex-wrap items-center gap-2">
-        {canCheckIn ? (
-          <Button asChild size={compact ? "sm" : "default"}>
+        <Button asChild size={compact ? "sm" : "default"}>
+          <Link href={nextHref}>{next.label}</Link>
+        </Button>
+        {canCheckIn &&
+        next.hrefHint !== "check-in" &&
+        next.hrefHint !== "check-out" ? (
+          <Button asChild variant="outline" size={compact ? "sm" : "default"}>
             <Link href={boardActionHref(status, data.id)}>
               {boardActionLabel(status)}
             </Link>
@@ -188,6 +222,11 @@ export function BookingDetailPanel({
               }
             />
           </dl>
+          {!data.folio_has_charges && status === "checked_in" ? (
+            <p className="mt-2 rounded-md border border-amber-500/30 bg-amber-50/50 px-2 py-1.5 text-xs text-foreground dark:bg-amber-950/20">
+              No charges posted yet. Open folio → Post day-1 room + meals.
+            </p>
+          ) : null}
           <h4 className="mt-4 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
             Payments
           </h4>
@@ -218,6 +257,8 @@ export function BookingDetailPanel({
           )}
         </section>
       </div>
+
+      {!compact ? <StayMoneyCycleLegend compact /> : null}
 
       <section className="rounded-lg border bg-card p-3 sm:p-4">
         <h3 className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">

@@ -1,3 +1,4 @@
+import { thimphuToday } from "@/lib/erp-lists";
 import type { MenuItem } from "@/lib/menu";
 import type { TableStatus } from "@/lib/pos-tables";
 import { resolveActivePropertyId } from "@/lib/property-context";
@@ -61,6 +62,11 @@ export type PosMenuItem = MenuItem & {
   prep_station: PrepStation;
 };
 
+export type PosTenderLine = {
+  method: string;
+  amount_btn: number;
+};
+
 export type OpenPosTicket = {
   id: string;
   customer_name: string;
@@ -82,6 +88,13 @@ export type OpenPosTicket = {
   /** Null until the desk records the guest's transfer — KOT fires from this. */
   payment_recorded_at: string | null;
   payment_journal_no: string | null;
+  settled_at: string | null;
+  posted_to_folio_at: string | null;
+  folio_id: string | null;
+  booking_id: string | null;
+  /** Sum of order_tenders.amount_btn (desk settle / room charge). */
+  amount_tendered_btn: number;
+  tenders: PosTenderLine[];
   order_items: {
     name_snapshot: string;
     qty: number;
@@ -89,6 +102,9 @@ export type OpenPosTicket = {
     prep_station: string;
   }[];
 };
+
+/** Settled / closed tickets for the business-day history lane. */
+export type SettledPosTicket = OpenPosTicket;
 
 export const POS_VOID_REASON_CODES = [
   "guest_change",
@@ -236,58 +252,80 @@ export async function loadModifierGroupsForItems(
   }));
 }
 
-export async function loadOpenPosTickets(
-  admin?: Admin,
-): Promise<OpenPosTicket[]> {
-  const client = admin ?? createSupabaseAdminClient();
-  const propertyId = await resolveActivePropertyId(client);
+const POS_TICKET_SELECT =
+  "id, customer_name, phone, outlet, total_btn, kot_status, is_parked, table_id, covers, created_at, order_source, delivery_type, delivery_area, confirmed_at, confirmed_by, payment_recorded_at, payment_journal_no, settled_at, posted_to_folio_at, folio_id, booking_id, order_tenders(method, amount_btn), order_items(name_snapshot, qty, course_no, menu_items(prep_station))";
 
-  const { data } = await client
-    .from("orders")
-    .select(
-      "id, customer_name, phone, outlet, total_btn, kot_status, is_parked, table_id, covers, created_at, order_source, delivery_type, delivery_area, confirmed_at, confirmed_by, payment_recorded_at, payment_journal_no, order_items(name_snapshot, qty, course_no, menu_items(prep_station))",
-    )
-    .eq("property_id", propertyId)
-    .is("voided_at", null)
-    .in("kot_status", ["new", "preparing", "ready"])
-    .order("created_at", { ascending: false })
-    .limit(60);
+type RawOrderTicketRow = {
+  id: string;
+  customer_name: string;
+  phone: string;
+  outlet: string;
+  total_btn: number;
+  kot_status: string;
+  is_parked: boolean;
+  table_id: string | null;
+  covers: number | null;
+  created_at: string;
+  order_source: string | null;
+  delivery_type: string | null;
+  delivery_area: string | null;
+  confirmed_at: string | null;
+  confirmed_by: string | null;
+  payment_recorded_at: string | null;
+  payment_journal_no: string | null;
+  settled_at: string | null;
+  posted_to_folio_at: string | null;
+  folio_id: string | null;
+  booking_id: string | null;
+  order_tenders:
+    | { method: string; amount_btn: number }[]
+    | null;
+  order_items:
+    | {
+        name_snapshot: string;
+        qty: number;
+        course_no: number;
+        menu_items:
+          | { prep_station: string | null }
+          | { prep_station: string | null }[]
+          | null;
+      }[]
+    | null;
+};
 
-  return (data ?? []).map((row) => ({
-    id: row.id as string,
-    customer_name: row.customer_name as string,
-    phone: row.phone as string,
-    outlet: row.outlet as string,
+function mapPosTicketRow(row: RawOrderTicketRow): OpenPosTicket {
+  const tenders = (row.order_tenders ?? []).map((t) => ({
+    method: t.method,
+    amount_btn: Number(t.amount_btn),
+  }));
+  const amountTendered = tenders.reduce((s, t) => s + t.amount_btn, 0);
+
+  return {
+    id: row.id,
+    customer_name: row.customer_name,
+    phone: row.phone,
+    outlet: row.outlet,
     total_btn: Number(row.total_btn),
-    kot_status: row.kot_status as string,
+    kot_status: row.kot_status,
     is_parked: Boolean(row.is_parked),
-    table_id: (row.table_id as string | null) ?? null,
+    table_id: row.table_id ?? null,
     covers: row.covers == null ? null : Number(row.covers),
-    created_at: row.created_at as string,
-    order_source: (row.order_source as string | null) ?? "desk",
-    delivery_type: (row.delivery_type as string | null) ?? "pickup",
-    delivery_area: (row.delivery_area as string | null) ?? null,
-    confirmed_at: (row.confirmed_at as string | null) ?? null,
-    confirmed_by_staff: (row.confirmed_by as string | null) ?? null,
-    payment_recorded_at: (row.payment_recorded_at as string | null) ?? null,
-    payment_journal_no: (row.payment_journal_no as string | null) ?? null,
-    order_items: (
-      (row.order_items as
-        | {
-            name_snapshot: string;
-            qty: number;
-            course_no: number;
-            menu_items:
-              | { prep_station: string | null }
-              | { prep_station: string | null }[]
-              | null;
-          }[]
-        | null) ?? []
-    ).map((i) => {
-      const mi = i.menu_items as
-        | { prep_station: string | null }
-        | { prep_station: string | null }[]
-        | null;
+    created_at: row.created_at,
+    order_source: row.order_source ?? "desk",
+    delivery_type: row.delivery_type ?? "pickup",
+    delivery_area: row.delivery_area ?? null,
+    confirmed_at: row.confirmed_at ?? null,
+    confirmed_by_staff: row.confirmed_by ?? null,
+    payment_recorded_at: row.payment_recorded_at ?? null,
+    payment_journal_no: row.payment_journal_no ?? null,
+    settled_at: row.settled_at ?? null,
+    posted_to_folio_at: row.posted_to_folio_at ?? null,
+    folio_id: row.folio_id ?? null,
+    booking_id: row.booking_id ?? null,
+    amount_tendered_btn: amountTendered,
+    tenders,
+    order_items: (row.order_items ?? []).map((i) => {
+      const mi = i.menu_items;
       const prepFromJoin = Array.isArray(mi)
         ? (mi[0]?.prep_station as string | null)
         : (mi?.prep_station as string | null);
@@ -298,7 +336,88 @@ export async function loadOpenPosTickets(
         prep_station: prepFromJoin ?? "kitchen",
       };
     }),
-  }));
+  };
+}
+
+/** Desk payment badge for list/detail UIs. */
+export function posTicketPayLabel(ticket: OpenPosTicket): {
+  label: string;
+  tone: "unpaid" | "cash" | "room" | "online" | "settled";
+} {
+  if (ticket.posted_to_folio_at || ticket.tenders.some((t) => t.method === "room_charge")) {
+    return { label: "On room", tone: "room" };
+  }
+  if (ticket.settled_at && ticket.amount_tendered_btn > 0) {
+    return { label: "Settled", tone: "cash" };
+  }
+  if (ticket.settled_at) {
+    return { label: "Settled", tone: "settled" };
+  }
+  if (ticket.order_source === "public") {
+    if (ticket.payment_recorded_at) {
+      return { label: "Online paid", tone: "online" };
+    }
+    return { label: "Unpaid", tone: "unpaid" };
+  }
+  return { label: "Unpaid", tone: "unpaid" };
+}
+
+export async function loadOpenPosTickets(
+  admin?: Admin,
+): Promise<OpenPosTicket[]> {
+  const client = admin ?? createSupabaseAdminClient();
+  const propertyId = await resolveActivePropertyId(client);
+
+  const { data } = await client
+    .from("orders")
+    .select(POS_TICKET_SELECT)
+    .eq("property_id", propertyId)
+    .is("voided_at", null)
+    .in("kot_status", ["new", "preparing", "ready"])
+    .order("created_at", { ascending: false })
+    .limit(60);
+
+  return ((data ?? []) as RawOrderTicketRow[]).map(mapPosTicketRow);
+}
+
+/**
+ * Settled orders for Thimphu business date (for Closed today lane).
+ * Includes room-charge and cash/card desks that closed today.
+ */
+export async function loadSettledPosTickets(
+  admin?: Admin,
+  limit = 40,
+): Promise<SettledPosTicket[]> {
+  const client = admin ?? createSupabaseAdminClient();
+  const propertyId = await resolveActivePropertyId(client);
+  const dayStart = `${thimphuToday()}T00:00:00+06:00`;
+
+  const { data } = await client
+    .from("orders")
+    .select(POS_TICKET_SELECT)
+    .eq("property_id", propertyId)
+    .is("voided_at", null)
+    .not("settled_at", "is", null)
+    .gte("settled_at", dayStart)
+    .order("settled_at", { ascending: false })
+    .limit(limit);
+
+  return ((data ?? []) as RawOrderTicketRow[]).map(mapPosTicketRow);
+}
+
+/** Human label for tender method codes. */
+export function tenderMethodLabel(method: string): string {
+  const map: Record<string, string> = {
+    cash: "Cash",
+    bank: "Bank",
+    card: "Card",
+    agent_credit: "Agent credit",
+    bank_qr: "Bank QR",
+    pay_bt: "Pay.bt",
+    deposit: "Deposit",
+    room_charge: "Room charge",
+  };
+  return map[method] ?? method.replace(/_/g, " ");
 }
 
 /** Nu threshold above which void requires manager PIN (env override). */

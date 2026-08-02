@@ -64,6 +64,8 @@ export interface DataTableProps<TData, TValue> {
   mobileCards?: boolean;
   /** When set, clicking a row navigates here (action cells still work independently). */
   getRowHref?: (row: TData) => string | undefined;
+  /** When set, clicking a row invokes this callback (ignored if getRowHref also fires). */
+  onRowClick?: (row: TData) => void;
 }
 
 export function DataTable<TData, TValue>({
@@ -78,6 +80,7 @@ export function DataTable<TData, TValue>({
   toolbar,
   mobileCards = true,
   getRowHref,
+  onRowClick,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = React.useState("");
@@ -116,10 +119,41 @@ export function DataTable<TData, TValue>({
       {mobileCards ? (
         <div className="space-y-3 md:hidden">
           {table.getRowModel().rows.length > 0 ? (
-            table.getRowModel().rows.map((row) => (
+            table.getRowModel().rows.map((row) => {
+              const href = getRowHref?.(row.original);
+              const clickable = Boolean(href || onRowClick);
+              return (
               <article
                 key={row.id}
-                className="rounded-xl border border-border bg-card p-4 shadow-xs"
+                className={cn(
+                  "rounded-xl border border-border bg-card p-4 shadow-xs min-h-11",
+                  clickable && "cursor-pointer active:bg-muted/40",
+                )}
+                role={clickable ? "button" : undefined}
+                tabIndex={clickable ? 0 : undefined}
+                onClick={
+                  clickable
+                    ? (e) => {
+                        const target = e.target as HTMLElement;
+                        if (target.closest("a, button, input, select, textarea")) {
+                          return;
+                        }
+                        if (href) router.push(href);
+                        else onRowClick?.(row.original);
+                      }
+                    : undefined
+                }
+                onKeyDown={
+                  clickable
+                    ? (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          if (href) router.push(href);
+                          else onRowClick?.(row.original);
+                        }
+                      }
+                    : undefined
+                }
               >
                 <dl className="space-y-3">
                   {row.getVisibleCells().map((cell) => {
@@ -149,7 +183,8 @@ export function DataTable<TData, TValue>({
                   })}
                 </dl>
               </article>
-            ))
+              );
+            })
           ) : (
             <p className="rounded-xl border border-border bg-card px-4 py-6 text-sm text-muted-foreground">
               {emptyMessage}
@@ -199,19 +234,21 @@ export function DataTable<TData, TValue>({
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => {
                 const href = getRowHref?.(row.original);
+                const clickable = Boolean(href || onRowClick);
                 return (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className={href ? "cursor-pointer" : undefined}
+                  className={clickable ? "cursor-pointer" : undefined}
                   onClick={
-                    href
+                    clickable
                       ? (e) => {
                           const target = e.target as HTMLElement;
                           if (target.closest("a, button, input, select, textarea")) {
                             return;
                           }
-                          router.push(href);
+                          if (href) router.push(href);
+                          else onRowClick?.(row.original);
                         }
                       : undefined
                   }

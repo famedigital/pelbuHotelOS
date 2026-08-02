@@ -11,8 +11,9 @@ import {
   undoCalendarAssignmentMove,
 } from "@/app/actions/erp-calendar";
 import { CalendarLiveRefresh } from "@/components/erp/CalendarLiveRefresh";
-import { CalendarReservationEditDialog } from "@/components/erp/CalendarReservationEditDialog";
 import { CalendarRoomBlockDialog } from "@/components/erp/CalendarRoomBlockDialog";
+import { RoomDayBoard } from "@/components/erp/RoomDayBoard";
+import { useStayHubOptional } from "@/components/erp/StayHubProvider";
 import { CalendarRoomUnitEditDialog } from "@/components/erp/CalendarRoomUnitEditDialog";
 import {
   CalendarReservationDialog,
@@ -40,10 +41,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { BanIcon, MoreHorizontalIcon, PencilIcon } from "lucide-react";
+import { BanIcon, MoreHorizontalIcon, PencilIcon, PlusIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   useCallback,
   useDeferredValue,
@@ -99,6 +101,8 @@ export type RackStay = {
   folio_id: string | null;
   /** Net open folio balance (BTN); >0 means guest owes. */
   folio_balance?: number;
+  /** True when non-payment charge lines exist (room/meal/POS). */
+  folio_has_charges?: boolean;
   room_label: string;
   room_type_id: string;
   room_type_name: string;
@@ -827,6 +831,8 @@ export function RoomRackGrid({
   const router = useRouter();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+  const isMdUp = useMediaQuery("(min-width: 768px)");
+  const stayHub = useStayHubOptional();
   const leftWidth = useLeftPaneWidth();
   const [cellZoom, setCellZoom] = useState<CellZoom>("md");
   const CELL = cellWidthForZoom(cellZoom);
@@ -856,6 +862,33 @@ export function RoomRackGrid({
   const [blockUnit, setBlockUnit] = useState<RackUnit | null>(null);
   const [editUnit, setEditUnit] = useState<RackUnit | null>(null);
   const [, startResizing] = useTransition();
+  const [dayBoardDate, setDayBoardDate] = useState(today);
+
+  const openStay = useCallback(
+    (stay: RackStay) => {
+      setSelectedStayId(stay.id);
+      if (stayHub) {
+        stayHub.openStayHub({
+          bookingId: stay.booking_id,
+          assignmentId: stay.id,
+          seedStay: stay,
+          agents,
+          units,
+          onToggleLock: (seed) => {
+            // seed may be StayHubSeedStay shape
+            const match =
+              stays.find((s) => s.id === seed.id) ??
+              stays.find((s) => s.booking_id === seed.booking_id);
+            if (match) toggleStayLockRef.current?.(match);
+          },
+        });
+        return;
+      }
+    },
+    [stayHub, agents, units, stays],
+  );
+
+  const toggleStayLockRef = useRef<((stay: RackStay) => void) | null>(null);
 
   const beginStayResize = useCallback(
     (edge: "start" | "end", stay: RackStay, event: ReactPointerEvent) => {
@@ -957,8 +990,6 @@ export function RoomRackGrid({
   const todayIndex = days.indexOf(today);
   const todayBooked = todayIndex >= 0 ? (bookedPerDay[todayIndex] ?? 0) : 0;
 
-  const selectedStay =
-    stays.find((stay) => stay.id === selectedStayId) ?? null;
   const movingStay =
     stays.find((stay) => stay.id === movingStayId) ?? null;
 
@@ -1013,22 +1044,26 @@ export function RoomRackGrid({
     [dayFilter, dayGroups],
   );
 
-  const focusStay = useCallback((stay: RackStay) => {
-    const element = document.querySelector<HTMLElement>(
-      `[data-stay-id="${stay.id}"]`,
-    );
-    element?.scrollIntoView({
-      behavior: "smooth",
-      block: "center",
-      inline: "center",
-    });
-    setFlashStayId(stay.id);
-    setSelectedStayId(stay.id);
-    window.setTimeout(
-      () => setFlashStayId((current) => (current === stay.id ? null : current)),
-      1400,
-    );
-  }, []);
+  const focusStay = useCallback(
+    (stay: RackStay) => {
+      const element = document.querySelector<HTMLElement>(
+        `[data-stay-id="${stay.id}"]`,
+      );
+      element?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+        inline: "center",
+      });
+      setFlashStayId(stay.id);
+      openStay(stay);
+      window.setTimeout(
+        () =>
+          setFlashStayId((current) => (current === stay.id ? null : current)),
+        1400,
+      );
+    },
+    [openStay],
+  );
 
   const moveStayToUnit = useCallback(
     (stay: RackStay, unit: RackUnit) => {
@@ -1144,6 +1179,7 @@ export function RoomRackGrid({
     },
     [movingPending, router],
   );
+  toggleStayLockRef.current = toggleStayLock;
 
   const undoLastMove = useCallback(() => {
     if (!undoMoveId || movingPending) return;
@@ -1452,6 +1488,69 @@ export function RoomRackGrid({
       dayIdx <= norm.dayEnd
     );
   };
+
+  const openVacantBook = useCallback(
+    (unit: RackUnit, date: string) => {
+      setSelection({
+        checkIn: date,
+        checkOut: addDays(date, 1),
+        units: [
+          {
+            id: unit.id,
+            label: unit.label,
+            room_type_name: unit.room_type_name,
+            room_type_code: unit.room_type_code,
+          },
+        ],
+      });
+      setDialogOpen(true);
+    },
+    [],
+  );
+
+  // Phone: Day board (not pinch Gantt). Desktop/tablet keep full rack.
+  if (!isMdUp) {
+    return (
+      <div className="erp flex h-[calc(100dvh-3.5rem)] min-h-0 min-w-0 flex-col overflow-hidden">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b px-3 py-2">
+          <div>
+            <p className="text-sm font-medium">Day board</p>
+            <p className="text-[11px] text-muted-foreground">
+              Tap a room or guest · FAB to book
+            </p>
+          </div>
+          <CalendarLiveRefresh />
+        </div>
+        <RoomDayBoard
+          units={units}
+          stays={stays}
+          blocks={blocks}
+          unassigned={unassigned}
+          today={today}
+          selectedDate={dayBoardDate}
+          onDateChange={setDayBoardDate}
+          onOpenStay={openStay}
+          onBookVacant={openVacantBook}
+          onBookFab={() => {
+            setSelection({
+              checkIn: dayBoardDate,
+              checkOut: addDays(dayBoardDate, 1),
+              units: [],
+            });
+            setDialogOpen(true);
+          }}
+        />
+        <CalendarReservationDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          selection={selection}
+          agents={agents}
+          mealPlans={mealPlans}
+          defaultMealPlanCode={defaultMealPlanCode}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="erp flex h-[calc(100dvh-3.5rem)] min-h-0 min-w-0 flex-col overflow-hidden">
@@ -2273,7 +2372,7 @@ export function RoomRackGrid({
                               selectedStayId === stay.id ||
                               contextStayId === stay.id
                             }
-                            onOpenDetail={() => setSelectedStayId(stay.id)}
+                            onOpenDetail={() => openStay(stay)}
                           />
                           <DropdownMenu
                             open={contextStayId === stay.id}
@@ -2300,22 +2399,42 @@ export function RoomRackGrid({
                               <DropdownMenuItem
                                 onSelect={() => {
                                   setContextStayId(null);
-                                  setSelectedStayId(stay.id);
+                                  openStay(stay);
                                 }}
                               >
                                 Open stay
                               </DropdownMenuItem>
                               {stay.status !== "checked_in" ? (
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/erp/check-in?id=${stay.booking_id}`}>
-                                    Check-in
-                                  </Link>
+                                <DropdownMenuItem
+                                  onSelect={() => {
+                                    setContextStayId(null);
+                                    stayHub?.openStayHub({
+                                      bookingId: stay.booking_id,
+                                      assignmentId: stay.id,
+                                      seedStay: stay,
+                                      agents,
+                                      units,
+                                      step: "check_in",
+                                    });
+                                  }}
+                                >
+                                  Check-in
                                 </DropdownMenuItem>
                               ) : (
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/erp/check-out?id=${stay.booking_id}`}>
-                                    Check-out
-                                  </Link>
+                                <DropdownMenuItem
+                                  onSelect={() => {
+                                    setContextStayId(null);
+                                    stayHub?.openStayHub({
+                                      bookingId: stay.booking_id,
+                                      assignmentId: stay.id,
+                                      seedStay: stay,
+                                      agents,
+                                      units,
+                                      step: "check_out",
+                                    });
+                                  }}
+                                >
+                                  Check-out
                                 </DropdownMenuItem>
                               )}
                               <DropdownMenuItem asChild>
@@ -2405,17 +2524,6 @@ export function RoomRackGrid({
         agents={agents}
         mealPlans={mealPlans}
         defaultMealPlanCode={defaultMealPlanCode}
-      />
-      <CalendarReservationEditDialog
-        stay={selectedStay}
-        open={selectedStay != null}
-        parentPending={movingPending}
-        units={units}
-        agents={agents}
-        onToggleLock={toggleStayLock}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) setSelectedStayId(null);
-        }}
       />
       <CalendarRoomBlockDialog
         unit={blockUnit}

@@ -7,6 +7,7 @@ import { ModuleTabs } from "@/components/erp/ModuleTabs";
 import { NavigationProgress } from "@/components/erp/NavigationProgress";
 import { DeskSearchHint } from "@/components/erp/DeskSearchHint";
 import { PropertySwitcher } from "@/components/erp/PropertySwitcher";
+import { StayHubShell } from "@/components/erp/StayHubShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,45 +44,47 @@ export function DeskShell({
         <AppSidebar brandName={title} logoSrc={logoSrc} />
         <ErpCommandPalette />
         <SidebarInset>
-          <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-            <SidebarTrigger className="-ml-1 hidden md:inline-flex" />
-            <Separator
-              orientation="vertical"
-              className="mr-1 hidden h-4! md:block"
-            />
-            {title ? (
-              <h1 className="truncate text-sm font-medium text-muted-foreground">
-                {title}
-              </h1>
-            ) : null}
-            <CalendarHeaderTabs />
-
-            <DeskSearchHint />
-
-            <div className="ml-auto flex items-center gap-2">
-              {properties && properties.length > 0 && activePropertyId ? (
-                <PropertySwitcher
-                  properties={properties}
-                  activePropertyId={activePropertyId}
-                />
+          <StayHubShell>
+            <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+              <SidebarTrigger className="-ml-1 hidden md:inline-flex" />
+              <Separator
+                orientation="vertical"
+                className="mr-1 hidden h-4! md:block"
+              />
+              {title ? (
+                <h1 className="truncate text-sm font-medium text-muted-foreground">
+                  {title}
+                </h1>
               ) : null}
-              <form action={deskLogout}>
-                <Button
-                  type="submit"
-                  variant="outline"
-                  size="sm"
-                  className="hidden h-9 md:inline-flex"
-                >
-                  Sign out
-                </Button>
-              </form>
+              <CalendarHeaderTabs />
+
+              <DeskSearchHint />
+
+              <div className="ml-auto flex items-center gap-2">
+                {properties && properties.length > 0 && activePropertyId ? (
+                  <PropertySwitcher
+                    properties={properties}
+                    activePropertyId={activePropertyId}
+                  />
+                ) : null}
+                <form action={deskLogout}>
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    size="sm"
+                    className="hidden h-9 md:inline-flex"
+                  >
+                    Sign out
+                  </Button>
+                </form>
+              </div>
+            </header>
+            <ModuleTabs />
+            <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+              {children}
             </div>
-          </header>
-          <ModuleTabs />
-          <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
-            {children}
-          </div>
-          <DeskMobileNav />
+            <DeskMobileNav />
+          </StayHubShell>
         </SidebarInset>
       </SidebarProvider>
     </div>

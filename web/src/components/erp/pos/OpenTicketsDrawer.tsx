@@ -3,6 +3,7 @@
 import {
   confirmPublicOrder,
   parkOrder,
+  postOrderToBookingFolio,
   recallOrder,
   type ConfirmOrderState,
   unparkOrder,
@@ -11,6 +12,7 @@ import {
 } from "@/app/actions/erp-pos";
 import { DeskLiveRefresh } from "@/components/erp/DeskLiveRefresh";
 import { RecordOrderPaymentForm } from "@/components/erp/RecordOrderPaymentForm";
+import type { PosBookingOption } from "@/components/erp/pos/types";
 import { orderRef } from "@/lib/order-ref";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +25,8 @@ import {
 } from "@/components/ui/sheet";
 import { useActionToast } from "@/hooks/use-action-toast";
 import type { DiningTable, OpenPosTicket } from "@/lib/pos";
+import { formatBtn } from "@/lib/pricing";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   startTransition,
@@ -37,6 +41,21 @@ const initialPark: PosActionState = { ok: false };
 const initialUnpark: PosActionState = { ok: false };
 const initialRecall: PosActionState = { ok: false };
 const initialConfirm: ConfirmOrderState = { ok: false };
+
+const TENDER_LABELS: Record<string, string> = {
+  cash: "Cash",
+  bank: "Bank",
+  card: "Card",
+  agent_credit: "Agent credit",
+  bank_qr: "Bank QR",
+  pay_bt: "Pay.bt",
+  deposit: "Deposit",
+  room_charge: "Room charge",
+};
+
+function tenderLabel(method: string): string {
+  return TENDER_LABELS[method] ?? method.replace(/_/g, " ");
+}
 
 function ticketTableLabel(
   ticket: OpenPosTicket,
@@ -56,6 +75,106 @@ function timeLabel(iso: string): string {
   });
 }
 
+function paidAmount(ticket: OpenPosTicket): number {
+  if (ticket.amount_tendered_btn > 0) return ticket.amount_tendered_btn;
+  if (ticket.order_source === "public" && ticket.payment_recorded_at) {
+    return ticket.total_btn;
+  }
+  if (ticket.settled_at) return ticket.total_btn;
+  return 0;
+}
+
+function balanceAmount(ticket: OpenPosTicket): number {
+  if (ticket.settled_at) return 0;
+  return Math.max(
+    0,
+    Math.round((ticket.total_btn - paidAmount(ticket)) * 100) / 100,
+  );
+}
+
+function PayBadge({ ticket }: { ticket: OpenPosTicket }) {
+  const onRoom =
+    Boolean(ticket.posted_to_folio_at) ||
+    ticket.tenders.some((t) => t.method === "room_charge");
+  if (onRoom) {
+    return (
+      <Badge variant="secondary" className="text-[10px]">
+        On room
+      </Badge>
+    );
+  }
+  if (ticket.settled_at) {
+    return (
+      <Badge variant="secondary" className="text-[10px]">
+        Settled
+      </Badge>
+    );
+  }
+  if (ticket.order_source === "public" && ticket.payment_recorded_at) {
+    return (
+      <Badge variant="secondary" className="text-[10px]">
+        Online paid
+      </Badge>
+    );
+  }
+  return (
+    <Badge
+      variant="outline"
+      className="border-citrus/40 text-[10px] text-citrus"
+    >
+      Unpaid
+    </Badge>
+  );
+}
+
+function MoneyStrip({ ticket }: { ticket: OpenPosTicket }) {
+  const paid = paidAmount(ticket);
+  const balance = balanceAmount(ticket);
+  const methods =
+    ticket.tenders.length > 0
+      ? ticket.tenders
+          .map((t) => `${tenderLabel(t.method)} ${formatBtn(t.amount_btn)}`)
+          .join(" · ")
+      : ticket.order_source === "public" && ticket.payment_recorded_at
+        ? `Journal ${ticket.payment_journal_no ?? "recorded"}`
+        : null;
+
+  return (
+    <div className="mt-2 space-y-1 rounded-md border border-border/70 bg-muted/30 px-2.5 py-2 text-[11px]">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-muted-foreground">
+          Total{" "}
+          <span className="font-semibold tabular-nums text-foreground">
+            {formatBtn(ticket.total_btn)}
+          </span>
+        </span>
+        <span className="text-muted-foreground">
+          Paid{" "}
+          <span className="font-semibold tabular-nums text-foreground">
+            {formatBtn(paid)}
+          </span>
+        </span>
+        <span className="text-muted-foreground">
+          Balance{" "}
+          <span className="font-semibold tabular-nums text-foreground">
+            {formatBtn(balance)}
+          </span>
+        </span>
+      </div>
+      {methods ? <p className="text-muted-foreground">{methods}</p> : null}
+      {ticket.folio_id ? (
+        <Link
+          href={`/erp/folios/${ticket.folio_id}`}
+          className="inline-flex text-accent underline-offset-4 hover:underline"
+          onClick={(e) => e.stopPropagation()}
+        >
+          Open folio →
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
 const PREP_LABELS: Record<string, string> = {
   kitchen: "Kitchen",
   bar: "Bar",
@@ -70,9 +189,21 @@ const PREP_LABELS: Record<string, string> = {
  * one Pastry section — matching how stations actually pull work.
  */
 function groupByPrepStation(
-  items: { name_snapshot: string; qty: number; course_no: number; prep_station: string }[],
-): { station: string; label: string; lines: { qty: number; name: string; course_no: number }[] }[] {
-  const map = new Map<string, { qty: number; name: string; course_no: number }[]>();
+  items: {
+    name_snapshot: string;
+    qty: number;
+    course_no: number;
+    prep_station: string;
+  }[],
+): {
+  station: string;
+  label: string;
+  lines: { qty: number; name: string; course_no: number }[];
+}[] {
+  const map = new Map<
+    string,
+    { qty: number; name: string; course_no: number }[]
+  >();
   for (const item of items) {
     const station = item.prep_station || "kitchen";
     const list = map.get(station) ?? [];
@@ -83,7 +214,6 @@ function groupByPrepStation(
     });
     map.set(station, list);
   }
-  // Stable order: kitchen first, then bar, pastry, grill, cold, then others.
   const order = ["kitchen", "bar", "pastry", "grill", "cold"];
   return [...map.entries()]
     .map(([station, lines]) => ({
@@ -102,6 +232,8 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   tickets: OpenPosTicket[];
+  settledTickets?: OpenPosTicket[];
+  bookings?: PosBookingOption[];
   tables: DiningTable[];
   onSettle: (orderId: string) => void;
   onVoid: (orderId: string) => void;
@@ -111,6 +243,8 @@ export function OpenTicketsDrawer({
   open,
   onOpenChange,
   tickets,
+  settledTickets = [],
+  bookings = [],
   tables,
   onSettle,
   onVoid,
@@ -133,9 +267,11 @@ export function OpenTicketsDrawer({
   );
   const router = useRouter();
   const [kotError, setKotError] = useState<string | null>(null);
+  const [postError, setPostError] = useState<string | null>(null);
+  const [postPending, startPostTransition] = useTransition();
   const [kotPending, startKotTransition] = useTransition();
-  /** Ticket opened from the list — the drawer swaps to a detail view for it. */
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [lane, setLane] = useState<"open" | "closed">("open");
 
   function runKot(orderId: string, nextStatus: string) {
     setKotError(null);
@@ -147,7 +283,26 @@ export function OpenTicketsDrawer({
         await updateOrderKotStatus(fd);
         startTransition(() => router.refresh());
       } catch (err) {
-        setKotError(err instanceof Error ? err.message : "Could not update KOT.");
+        setKotError(
+          err instanceof Error ? err.message : "Could not update KOT.",
+        );
+      }
+    });
+  }
+
+  function runPostToRoom(orderId: string, bookingId: string) {
+    setPostError(null);
+    startPostTransition(async () => {
+      try {
+        const fd = new FormData();
+        fd.set("order_id", orderId);
+        fd.set("booking_id", bookingId);
+        await postOrderToBookingFolio(fd);
+        startTransition(() => router.refresh());
+      } catch (err) {
+        setPostError(
+          err instanceof Error ? err.message : "Could not charge to room.",
+        );
       }
     });
   }
@@ -159,8 +314,6 @@ export function OpenTicketsDrawer({
     successMessage: "Order confirmed — open the slip and send it to the guest",
   });
 
-  // Land the cashier on the confirmation slip as soon as a confirm succeeds,
-  // so they can screenshot it without hunting for the ticket again.
   const openedSlipFor = useRef<string | null>(null);
   useEffect(() => {
     if (!confirmState.ok || !confirmState.orderId) return;
@@ -174,35 +327,74 @@ export function OpenTicketsDrawer({
     (t) => isOnline(t) && !t.confirmed_at && !t.is_parked,
   );
   const awaitingPayment = tickets.filter(
-    (t) => isOnline(t) && t.confirmed_at && !t.payment_recorded_at && !t.is_parked,
+    (t) =>
+      isOnline(t) && t.confirmed_at && !t.payment_recorded_at && !t.is_parked,
   );
   const parked = tickets.filter((t) => t.is_parked);
   const active = tickets.filter(
     (t) =>
-      !t.is_parked && !(isOnline(t) && (!t.confirmed_at || !t.payment_recorded_at)),
+      !t.is_parked &&
+      !(isOnline(t) && (!t.confirmed_at || !t.payment_recorded_at)),
   );
-  const busy = parkPending || unparkPending || recallPending || kotPending || confirmPending;
+  const busy =
+    parkPending ||
+    unparkPending ||
+    recallPending ||
+    kotPending ||
+    confirmPending ||
+    postPending;
 
-  const detail = detailId ? (tickets.find((t) => t.id === detailId) ?? null) : null;
+  const detailFromOpen = detailId
+    ? (tickets.find((t) => t.id === detailId) ?? null)
+    : null;
+  const detailFromClosed = detailId
+    ? (settledTickets.find((t) => t.id === detailId) ?? null)
+    : null;
+  const detail = detailFromOpen ?? detailFromClosed;
+  const detailIsClosed = Boolean(detailFromClosed && !detailFromOpen);
 
-  /**
-   * Every action a ticket can take, in one place, so the detail view offers the
-   * same operations the grouped list does without duplicating per-group markup.
-   */
-  function ticketActions(t: OpenPosTicket) {
+  function ticketActions(t: OpenPosTicket, closedLane = false) {
     const online = isOnline(t);
+    if (closedLane || t.settled_at) {
+      return (
+        <div className="flex flex-wrap gap-1.5">
+          <Button
+            asChild
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9"
+          >
+            <Link href={`/erp/orders/${t.id}/slip`}>Print slip</Link>
+          </Button>
+          {t.folio_id ? (
+            <Button
+              asChild
+              type="button"
+              variant="citrus"
+              size="sm"
+              className="h-9"
+            >
+              <Link href={`/erp/folios/${t.folio_id}`}>Open folio</Link>
+            </Button>
+          ) : null}
+        </div>
+      );
+    }
     return (
       <div className="flex flex-wrap gap-1.5">
-        <Button
-          type="button"
-          variant="citrus"
-          size="sm"
-          className="h-9"
-          disabled={busy}
-          onClick={() => onSettle(t.id)}
-        >
-          Settle
-        </Button>
+        {!t.settled_at ? (
+          <Button
+            type="button"
+            variant="citrus"
+            size="sm"
+            className="h-9"
+            disabled={busy}
+            onClick={() => onSettle(t.id)}
+          >
+            Settle
+          </Button>
+        ) : null}
         <Button
           type="button"
           variant="outline"
@@ -239,6 +431,15 @@ export function OpenTicketsDrawer({
             Open slip
           </Button>
         ) : null}
+        <Button
+          asChild
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9"
+        >
+          <Link href={`/erp/orders/${t.id}/slip`}>Print slip</Link>
+        </Button>
         {t.is_parked ? (
           <form action={unparkAction}>
             <input type="hidden" name="order_id" value={t.id} />
@@ -312,7 +513,11 @@ export function OpenTicketsDrawer({
     <Sheet
       open={open}
       onOpenChange={(next) => {
-        if (!next) setDetailId(null);
+        if (!next) {
+          setDetailId(null);
+          setPostError(null);
+          setLane("open");
+        }
         onOpenChange(next);
       }}
     >
@@ -325,37 +530,99 @@ export function OpenTicketsDrawer({
             <SheetTitle>
               {detail
                 ? `Ticket ${orderRef(detail.id)}`
-                : "Open tickets"}
+                : lane === "closed"
+                  ? "Closed today"
+                  : "Open tickets"}
             </SheetTitle>
             <DeskLiveRefresh label="Live" />
           </div>
           <SheetDescription>
             {detail
-              ? "Full ticket — items, totals, and every action for this order."
-              : "Tap a ticket to open it. Settle, recall, or void from here."}
+              ? "Full ticket — items, money, and every action for this order."
+              : lane === "closed"
+                ? "Settled tickets for today’s business date. Tax invoices issue from the guest folio."
+                : "Tap a ticket to open it. Settle, charge to room, or void from here."}
           </SheetDescription>
+          {!detail ? (
+            <div className="flex gap-1 pt-1">
+              <Button
+                type="button"
+                size="sm"
+                variant={lane === "open" ? "default" : "outline"}
+                className="h-8"
+                onClick={() => setLane("open")}
+              >
+                Open · {tickets.length}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={lane === "closed" ? "default" : "outline"}
+                className="h-8"
+                onClick={() => setLane("closed")}
+              >
+                Closed today · {settledTickets.length}
+              </Button>
+            </div>
+          ) : null}
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto p-4">
-          {kotError ? (
-            <p className="mb-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive" role="alert">
-              {kotError}
+          {kotError || postError ? (
+            <p
+              className="mb-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+              role="alert"
+            >
+              {postError ?? kotError}
             </p>
           ) : null}
           {detail ? (
             <TicketDetail
               ticket={detail}
               tables={tables}
-              onBack={() => setDetailId(null)}
-              actions={ticketActions(detail)}
+              bookings={bookings}
+              closedLane={detailIsClosed}
+              postPending={busy}
+              onBack={() => {
+                setDetailId(null);
+                setPostError(null);
+              }}
+              onPostToRoom={runPostToRoom}
+              actions={ticketActions(detail, detailIsClosed)}
             />
+          ) : lane === "closed" ? (
+            settledTickets.length === 0 ? (
+              <div className="flex min-h-[200px] flex-col items-center justify-center gap-1 text-center">
+                <p className="text-sm font-medium text-foreground">
+                  No closed tickets today
+                </p>
+                <p className="max-w-xs text-xs text-muted-foreground">
+                  Settled pay-now and charge-to-room tickets appear here. Tax
+                  invoices (INV-YYYY-####) are listed under Money → Invoices
+                  after you issue them from a folio.
+                </p>
+              </div>
+            ) : (
+              <TicketGroup
+                title="Closed today"
+                tickets={settledTickets}
+                tables={tables}
+                busy={busy}
+                onSettle={onSettle}
+                onVoid={onVoid}
+                onOpen={setDetailId}
+                closedLane
+                actions={(t) => ticketActions(t, true)}
+              />
+            )
           ) : tickets.length === 0 ? (
             <div className="flex min-h-[200px] flex-col items-center justify-center gap-1 text-center">
               <p className="text-sm font-medium text-foreground">
                 No open tickets
               </p>
               <p className="text-xs text-muted-foreground">
-                New tickets and parked tickets will appear here.
+                New tickets and parked tickets will appear here. Check Closed
+                today for settled bills.
               </p>
             </div>
           ) : (
@@ -397,53 +664,40 @@ export function OpenTicketsDrawer({
                   onOpen={setDetailId}
                   highlight
                   footer={(t) => (
-                    <div className="mt-3 space-y-2 border-t border-border/60 pt-3">
-                      <p className="text-[11px] text-muted-foreground">
-                        Send slip {orderRef(t.id)} to {t.phone}, then enter the
-                        journal number the guest sends back.
-                      </p>
+                    <div className="mt-2">
                       <RecordOrderPaymentForm orderId={t.id} compact />
                     </div>
                   )}
+                  actions={() => null}
+                />
+              ) : null}
+              {parked.length > 0 ? (
+                <TicketGroup
+                  title="Parked"
+                  tickets={parked}
+                  tables={tables}
+                  busy={busy}
+                  onSettle={onSettle}
+                  onVoid={onVoid}
+                  onOpen={setDetailId}
                   actions={(t) => (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-9"
-                      disabled={busy}
-                      onClick={() => router.push(`/erp/orders/${t.id}/slip`)}
-                    >
-                      Open slip
-                    </Button>
+                    <form action={unparkAction}>
+                      <input type="hidden" name="order_id" value={t.id} />
+                      <Button
+                        type="submit"
+                        variant="outline"
+                        size="sm"
+                        className="h-9"
+                        disabled={busy}
+                      >
+                        Resume
+                      </Button>
+                    </form>
                   )}
                 />
               ) : null}
               <TicketGroup
-                title="Parked"
-                tickets={parked}
-                tables={tables}
-                busy={busy}
-                onSettle={onSettle}
-                onVoid={onVoid}
-                onOpen={setDetailId}
-                actions={(t) => (
-                  <form action={unparkAction}>
-                    <input type="hidden" name="order_id" value={t.id} />
-                    <Button
-                      type="submit"
-                      variant="outline"
-                      size="sm"
-                      className="h-9"
-                      disabled={busy}
-                    >
-                      Resume
-                    </Button>
-                  </form>
-                )}
-              />
-              <TicketGroup
-                title="Active"
+                title="Live"
                 tickets={active}
                 tables={tables}
                 busy={busy}
@@ -524,6 +778,7 @@ function TicketGroup({
   actions,
   footer,
   highlight = false,
+  closedLane = false,
 }: {
   title: string;
   tickets: OpenPosTicket[];
@@ -535,6 +790,7 @@ function TicketGroup({
   actions: (t: OpenPosTicket) => React.ReactNode;
   footer?: (t: OpenPosTicket) => React.ReactNode;
   highlight?: boolean;
+  closedLane?: boolean;
 }) {
   if (tickets.length === 0) return null;
   return (
@@ -568,6 +824,7 @@ function TicketGroup({
                       Online
                     </Badge>
                   ) : null}
+                  <PayBadge ticket={t} />
                 </div>
                 <p className="text-[11px] text-muted-foreground">
                   <span className="font-mono">{t.id.slice(0, 8)}</span>
@@ -588,81 +845,91 @@ function TicketGroup({
                       : !t.payment_recorded_at
                         ? ` · confirmed ${timeLabel(t.confirmed_at)} · unpaid`
                         : ` · paid ${t.payment_journal_no ?? ""}`.trimEnd()}
-                  {` · ${timeLabel(t.created_at)}`}
+                  {` · ${timeLabel(t.settled_at ?? t.created_at)}`}
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-sm font-semibold tabular-nums text-foreground">
-                  {t.total_btn.toLocaleString("en-BT", {
-                    maximumFractionDigits: 2,
-                  })}{" "}
-                  Nu
+                  {formatBtn(t.total_btn)}
                 </p>
-                <Badge
-                  variant={t.kot_status === "ready" ? "gold" : "secondary"}
-                  className="mt-1 capitalize"
-                >
-                  {t.kot_status}
-                </Badge>
+                {!closedLane ? (
+                  <Badge
+                    variant={t.kot_status === "ready" ? "gold" : "secondary"}
+                    className="mt-1 capitalize"
+                  >
+                    {t.kot_status}
+                  </Badge>
+                ) : (
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    {t.tenders.map((x) => tenderLabel(x.method)).join(" · ") ||
+                      "Settled"}
+                  </p>
+                )}
               </div>
             </button>
 
-            {t.order_items.length > 0 ? (
-              (() => {
-                const groups = groupByPrepStation(t.order_items);
-                const mixed = groups.length > 1;
-                return (
-                  <div className="mt-2 space-y-1.5">
-                    {groups.map((g) => (
-                      <div key={g.station} className="space-y-0.5">
-                        {mixed ? (
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-accent">
-                            {g.label}
-                          </p>
-                        ) : null}
-                        <ul className="space-y-0.5 text-[11px] text-muted-foreground">
-                          {g.lines.slice(0, mixed ? 4 : 4).map((i, idx) => (
-                            <li key={idx}>
-                              {i.qty}× {i.name}
-                              {i.course_no > 1 ? ` · c${i.course_no}` : ""}
-                            </li>
-                          ))}
-                          {g.lines.length > 4 ? (
-                            <li className="italic">
-                              + {g.lines.length - 4} more
-                            </li>
+            <MoneyStrip ticket={t} />
+
+            {t.order_items.length > 0
+              ? (() => {
+                  const groups = groupByPrepStation(t.order_items);
+                  const mixed = groups.length > 1;
+                  return (
+                    <div className="mt-2 space-y-1.5">
+                      {groups.map((g) => (
+                        <div key={g.station} className="space-y-0.5">
+                          {mixed ? (
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-accent">
+                              {g.label}
+                            </p>
                           ) : null}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()
-            ) : null}
+                          <ul className="space-y-0.5 text-[11px] text-muted-foreground">
+                            {g.lines.slice(0, 4).map((i, idx) => (
+                              <li key={idx}>
+                                {i.qty}× {i.name}
+                                {i.course_no > 1 ? ` · c${i.course_no}` : ""}
+                              </li>
+                            ))}
+                            {g.lines.length > 4 ? (
+                              <li className="italic">
+                                + {g.lines.length - 4} more
+                              </li>
+                            ) : null}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()
+              : null}
 
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap gap-1.5">
-                <Button
-                  type="button"
-                  variant="citrus"
-                  size="sm"
-                  className="h-9"
-                  onClick={() => onSettle(t.id)}
-                  disabled={busy}
-                >
-                  Settle
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9"
-                  onClick={() => onVoid(t.id)}
-                  disabled={busy}
-                >
-                  Void
-                </Button>
-              </div>
+              {!closedLane && !t.settled_at ? (
+                <div className="flex flex-wrap gap-1.5">
+                  <Button
+                    type="button"
+                    variant="citrus"
+                    size="sm"
+                    className="h-9"
+                    onClick={() => onSettle(t.id)}
+                    disabled={busy}
+                  >
+                    Settle
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9"
+                    onClick={() => onVoid(t.id)}
+                    disabled={busy}
+                  >
+                    Void
+                  </Button>
+                </div>
+              ) : (
+                <div />
+              )}
               {actions(t)}
             </div>
             {footer ? footer(t) : null}
@@ -673,19 +940,23 @@ function TicketGroup({
   );
 }
 
-/**
- * Single-ticket view inside the same drawer. Opening a ticket used to do
- * nothing, so the desk had to guess which action button applied to which row.
- */
 function TicketDetail({
   ticket,
   tables,
+  bookings,
+  closedLane,
+  postPending,
   onBack,
+  onPostToRoom,
   actions,
 }: {
   ticket: OpenPosTicket;
   tables: DiningTable[];
+  bookings: PosBookingOption[];
+  closedLane: boolean;
+  postPending: boolean;
   onBack: () => void;
+  onPostToRoom: (orderId: string, bookingId: string) => void;
   actions: React.ReactNode;
 }) {
   const groups = groupByPrepStation(ticket.order_items);
@@ -693,6 +964,12 @@ function TicketDetail({
   const awaitingPayment =
     online && Boolean(ticket.confirmed_at) && !ticket.payment_recorded_at;
   const table = ticketTableLabel(ticket, tables);
+  const canChargeRoom =
+    !closedLane &&
+    !ticket.settled_at &&
+    !ticket.posted_to_folio_at &&
+    bookings.length > 0;
+  const [bookingId, setBookingId] = useState(ticket.booking_id ?? "");
 
   return (
     <div className="space-y-4">
@@ -723,13 +1000,14 @@ function TicketDetail({
                   Parked
                 </Badge>
               ) : null}
+              <PayBadge ticket={ticket} />
             </div>
             <p className="mt-1 text-[11px] text-muted-foreground">
               <span className="font-mono">{orderRef(ticket.id)}</span>
               {` · ${ticket.outlet}`}
               {ticket.covers ? ` · ${ticket.covers} covers` : ""}
               {table ? ` · ${table}` : ""}
-              {` · ${timeLabel(ticket.created_at)}`}
+              {` · ${timeLabel(ticket.settled_at ?? ticket.created_at)}`}
             </p>
             {ticket.phone ? (
               <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -739,10 +1017,7 @@ function TicketDetail({
           </div>
           <div className="text-right">
             <p className="text-base font-semibold tabular-nums text-foreground">
-              {ticket.total_btn.toLocaleString("en-BT", {
-                maximumFractionDigits: 2,
-              })}{" "}
-              Nu
+              {formatBtn(ticket.total_btn)}
             </p>
             <Badge
               variant={ticket.kot_status === "ready" ? "gold" : "secondary"}
@@ -752,6 +1027,7 @@ function TicketDetail({
             </Badge>
           </div>
         </div>
+        <MoneyStrip ticket={ticket} />
       </div>
 
       <div className="rounded-lg border bg-card">
@@ -793,6 +1069,52 @@ function TicketDetail({
           </p>
           <RecordOrderPaymentForm orderId={ticket.id} compact />
         </div>
+      ) : null}
+
+      {canChargeRoom ? (
+        <div className="space-y-2 rounded-lg border bg-card p-3">
+          <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+            Charge to room
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            Posts the full ticket to the in-house guest folio. Guest pays at
+            checkout. Tax invoice issues from the folio, not this ticket.
+          </p>
+          <select
+            className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+            value={bookingId}
+            onChange={(e) => setBookingId(e.target.value)}
+          >
+            <option value="">Select in-house guest</option>
+            {bookings.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.rooms.map((r) => r.label).join(", ") || "Room"} ·{" "}
+                {b.contact_name ?? "Guest"}
+              </option>
+            ))}
+          </select>
+          <Button
+            type="button"
+            variant="citrus"
+            className="w-full"
+            disabled={!bookingId || postPending}
+            onClick={() => onPostToRoom(ticket.id, bookingId)}
+          >
+            {postPending ? "Posting…" : "Charge to room"}
+          </Button>
+        </div>
+      ) : null}
+
+      {ticket.folio_id && ticket.posted_to_folio_at ? (
+        <p className="text-xs text-muted-foreground">
+          On guest folio. Issue tax invoice from the folio when needed.{" "}
+          <Link
+            href={`/erp/folios/${ticket.folio_id}`}
+            className="text-accent underline-offset-4 hover:underline"
+          >
+            Open folio →
+          </Link>
+        </p>
       ) : null}
 
       <div>{actions}</div>

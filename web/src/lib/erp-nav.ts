@@ -79,8 +79,6 @@ export const ERP_MODULES: ErpModule[] = [
       { title: "Arrivals", href: "/erp/arrivals", icon: ClipboardListIcon },
       { title: "In-house", href: "/erp/in-house", icon: BedDoubleIcon },
       { title: "Departures", href: "/erp/departures", icon: ScrollTextIcon },
-      { title: "Check-in", href: "/erp/check-in", icon: UsersIcon },
-      { title: "Check-out", href: "/erp/check-out", icon: WalletIcon },
       { title: "Fast book", href: "/erp/fast-book", icon: SparklesIcon },
       {
         title: "Reservations",

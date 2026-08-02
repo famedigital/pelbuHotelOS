@@ -63,6 +63,8 @@ export type BookingDetailData = {
   room_labels: string[];
   open_folio_id: string | null;
   folio_balance_btn: number;
+  /** Non-payment posted charge lines exist */
+  folio_has_charges: boolean;
   guests: BookingDetailGuest[];
   room_lines: BookingDetailRoomLine[];
   payments: BookingDetailPayment[];
@@ -78,7 +80,7 @@ const BOOKING_SELECT = `
   booking_rooms(qty, inventory_kind, room_types(name, code)),
   booking_guests(full_name, nationality, passport_or_cid, sort_order),
   room_assignments(room_units(label)),
-  folios(id, status, folio_lines(total_btn, status)),
+  folios(id, status, folio_lines(total_btn, status, source_type, reverses_line_id)),
   payments(id, amount_btn, method, kind, reference, created_at)
 `;
 
@@ -148,12 +150,25 @@ export async function loadBookingDetail(
     (data.folios as Array<{
       id: string;
       status?: string;
-      folio_lines?: Array<{ total_btn?: number; status?: string }> | null;
+      folio_lines?: Array<{
+        total_btn?: number;
+        status?: string;
+        source_type?: string;
+        reverses_line_id?: string | null;
+      }> | null;
     }> | null) ?? [];
   const openFolio = folios.find((f) => f.status === "open") ?? folios[0];
-  const folioBalance = (openFolio?.folio_lines ?? [])
+  const openLines = openFolio?.folio_lines ?? [];
+  const folioBalance = openLines
     .filter((l) => l.status === "posted")
     .reduce((sum, l) => sum + Number(l.total_btn ?? 0), 0);
+  const folioHasCharges = openLines.some(
+    (l) =>
+      l.status === "posted" &&
+      l.source_type !== "payment" &&
+      l.source_type !== "deposit" &&
+      l.source_type !== "comp",
+  );
 
   const payments = ((data.payments as BookingDetailPayment[] | null) ?? [])
     .slice()
@@ -221,6 +236,7 @@ export async function loadBookingDetail(
     room_labels: roomLabels,
     open_folio_id: openFolio?.id ?? null,
     folio_balance_btn: folioBalance,
+    folio_has_charges: folioHasCharges,
     guests,
     room_lines: roomLines,
     payments,

@@ -143,14 +143,46 @@ export async function createStaffShift(
 
     const staffId = trimRequired(formData.get("staff_id"), "Staff");
     await assertActiveStaffInProperty(admin, pid, staffId);
+    const shiftDate = trimRequired(formData.get("shift_date"), "Date");
+    let startsAt = trimRequired(formData.get("starts_at"), "Start");
+    let endsAt = trimRequired(formData.get("ends_at"), "End");
+    if (/^\d{2}:\d{2}$/.test(startsAt)) startsAt = `${startsAt}:00`;
+    if (/^\d{2}:\d{2}$/.test(endsAt)) endsAt = `${endsAt}:00`;
+    if (endsAt <= startsAt) throw new Error("End time must be after start time.");
+
+    const { assertNoOverlap } = await import("@/lib/rota/overlap");
+    const { data: peers } = await admin
+      .from("staff_shifts")
+      .select("id, staff_id, shift_date, starts_at, ends_at, status")
+      .eq("property_id", pid)
+      .eq("staff_id", staffId)
+      .eq("shift_date", shiftDate)
+      .in("status", ["draft", "published"]);
+    assertNoOverlap(
+      {
+        staffId,
+        shiftDate,
+        startsAt,
+        endsAt,
+      },
+      (peers ?? []).map((peer) => ({
+        id: peer.id as string,
+        staffId: peer.staff_id as string,
+        shiftDate: peer.shift_date as string,
+        startsAt: peer.starts_at as string,
+        endsAt: peer.ends_at as string,
+        status: peer.status as string,
+      })),
+    );
+
     const { data, error } = await admin
       .from("staff_shifts")
       .insert({
         property_id: pid,
         staff_id: staffId,
-        shift_date: trimRequired(formData.get("shift_date"), "Date"),
-        starts_at: trimRequired(formData.get("starts_at"), "Start"),
-        ends_at: trimRequired(formData.get("ends_at"), "End"),
+        shift_date: shiftDate,
+        starts_at: startsAt,
+        ends_at: endsAt,
         outlet: outletRaw ?? null,
         notes: optionalTrim(formData.get("notes")),
         status: "draft",

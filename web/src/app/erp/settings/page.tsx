@@ -765,6 +765,21 @@ export default async function ErpSettingsPage({
                   Apply service charge by default on new POS and folio service bills
                 </Label>
               </div>
+              <div className="flex min-h-11 items-center gap-3 rounded-lg border px-4 py-3">
+                <Checkbox
+                  id="post_day1_room_at_checkin"
+                  name="post_day1_room_at_checkin"
+                  value="1"
+                  defaultChecked={property.post_day1_room_at_checkin !== false}
+                />
+                <Label
+                  htmlFor="post_day1_room_at_checkin"
+                  className="text-sm text-foreground"
+                >
+                  Post day-1 room rent at check-in (rates from room rates sheet;
+                  later nights still at night audit)
+                </Label>
+              </div>
               <div className="space-y-1.5">
                 <Label htmlFor="night_audit_close_time">
                   Night audit close time (local)

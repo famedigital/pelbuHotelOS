@@ -83,6 +83,8 @@ export type PosLayoutProps = {
   tables: DiningTable[];
   staff: PosStaffOption[];
   openTickets: OpenPosTicket[];
+  /** Settled today — Closed today lane in open-tickets drawer. */
+  settledTickets?: OpenPosTicket[];
   bookings: PosBookingOption[];
   shift: PosShift | null;
   gstRate: number;

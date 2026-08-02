@@ -121,7 +121,10 @@ export default async function InHousePage() {
     >
       <InhouseTasksPanel tasks={tasks} bookingOptions={bookingOptions} />
       <p className="text-xs text-muted-foreground">{rows?.length ?? 0} shown</p>
-      <BookingBoardTable rows={(rows as Record<string, unknown>[]) ?? []} />
+      <BookingBoardTable
+        rows={(rows as Record<string, unknown>[]) ?? []}
+        board="in_house"
+      />
     </DeskListShell>
   );
 }

@@ -533,6 +533,8 @@ export async function updatePropertyTaxSettings(
     );
     const serviceChargeDefaultOn =
       formData.get("service_charge_default_on") === "1";
+    const postDay1RoomAtCheckin =
+      formData.get("post_day1_room_at_checkin") === "1";
     const closeTime = normalizeCloseTime(
       optionalTrim(formData.get("night_audit_close_time")) ?? "00:00",
     );
@@ -543,6 +545,7 @@ export async function updatePropertyTaxSettings(
         gst_rate: gstRate,
         service_charge_rate: serviceChargeRate,
         service_charge_default_on: serviceChargeDefaultOn,
+        post_day1_room_at_checkin: postDay1RoomAtCheckin,
         night_audit_close_time: closeTime,
       })
       .eq("id", propertyId);
@@ -553,11 +556,12 @@ export async function updatePropertyTaxSettings(
       action: "property.settings.tax",
       entityType: "properties",
       entityId: propertyId,
-      summary: "Updated GST, service charge, and night-audit close time",
+      summary: "Updated GST, service charge, day-1 post, and night-audit close time",
       meta: {
         gst_rate: gstRate,
         service_charge_rate: serviceChargeRate,
         service_charge_default_on: serviceChargeDefaultOn,
+        post_day1_room_at_checkin: postDay1RoomAtCheckin,
         night_audit_close_time: closeTime,
       },
     });

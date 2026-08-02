@@ -1,9 +1,11 @@
 import {
   KitchenEventDeleteButton,
   KitchenEventForm,
+  PublishMealServiceForm,
 } from "@/components/erp/KitchenOpsForms";
 import { KitchenCoversSection } from "@/components/erp/KitchenCoversSection";
 import { KitchenStaffSection } from "@/components/erp/KitchenStaffSection";
+import { MealServiceBoard } from "@/components/erp/MealServiceBoard";
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -15,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { computeMealCovers } from "@/lib/kitchen/covers";
 import { computeFoodCostPeriod } from "@/lib/kitchen/food-cost";
+import { loadMealServicesForDate } from "@/lib/kitchen/meal-service";
 import { computeKitchenStaffBoard } from "@/lib/kitchen/staff-shift";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId, thimphuToday } from "@/lib/erp-lists";
@@ -42,11 +45,21 @@ export default async function KitchenBoardPage() {
   const today = thimphuToday();
   const from = monthStart(today);
 
-  const [covers, staffBoard, foodCost, gasRes, stockRes, expiryRes, eventsRes, servicesRes] =
-    await Promise.all([
+  const [
+    covers,
+    staffBoard,
+    foodCost,
+    mealServices,
+    gasRes,
+    stockRes,
+    expiryRes,
+    eventsRes,
+    servicesRes,
+  ] = await Promise.all([
       computeMealCovers(admin, propertyId, today),
       computeKitchenStaffBoard(admin, propertyId, today),
       computeFoodCostPeriod(admin, propertyId, from, today),
+      loadMealServicesForDate(admin, propertyId, today),
       admin
         .from("inventory_items")
         .select("sku, name, qty_on_hand, reorder_level")
@@ -119,9 +132,15 @@ export default async function KitchenBoardPage() {
     <DeskListShell
       eyebrow="F&B operations"
       heading="Kitchen board"
-      blurb="Meal covers, staff on shift, gas, grocery stock, events, and food cost for today's service."
+      blurb="Meal covers, publish BF/lunch/dinner service to FO & F&B, staff on shift, gas, stock, and food cost."
       filters={
         <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/erp/pos"
+            className="inline-flex h-9 items-center rounded-md border px-3 text-xs hover:bg-muted"
+          >
+            F&B POS
+          </Link>
           <Link
             href="/erp/kitchen/food-cost"
             className="inline-flex h-9 items-center rounded-md border px-3 text-xs hover:bg-muted"
@@ -145,6 +164,19 @@ export default async function KitchenBoardPage() {
     >
       <section className="space-y-4" aria-label="Service readiness">
         <KitchenCoversSection covers={covers} businessDate={today} />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <PublishMealServiceForm
+            defaultDate={today}
+            defaultPeriod="breakfast"
+            defaultHeads={covers.breakfast}
+          />
+          <PublishMealServiceForm
+            defaultDate={today}
+            defaultPeriod="dinner"
+            defaultHeads={covers.dinner}
+          />
+        </div>
+        <MealServiceBoard services={mealServices} businessDate={today} />
         <KitchenStaffSection board={staffBoard} businessDate={today} />
       </section>
 

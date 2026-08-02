@@ -1,6 +1,7 @@
 import { BookingBoardTable } from "@/components/erp/BookingBoardTable";
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
+import { StayMoneyCycleLegend } from "@/components/erp/StayMoneyCycleLegend";
 import { Card, CardContent } from "@/components/ui/card";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { fmtDate, requireDeskPropertyId, thimphuToday } from "@/lib/erp-lists";
@@ -48,7 +49,7 @@ export default async function ArrivalsPage() {
       title="Arrivals"
       eyebrow="Arrivals"
       heading={`Arrivals · ${fmtDate(today)}`}
-      blurb="Today's pending and confirmed arrivals only. Assign physical rooms, confirm housekeeping readiness, collect guest documents, then check in."
+      blurb="Today's pending and confirmed arrivals only. Assign physical rooms, confirm housekeeping readiness, collect guest documents, then check in — check-in opens a folio and posts day-1 room rent (plus priced meal plan)."
       filters={
         <div className="flex flex-wrap items-center justify-end gap-3">
           <div className="flex items-center gap-3">
@@ -63,6 +64,10 @@ export default async function ArrivalsPage() {
         </div>
       }
     >
+      <div className="mb-4">
+        <StayMoneyCycleLegend compact />
+      </div>
+
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <ArrivalStat label="Arrival bookings" value={summary.bookings} />
         <ArrivalStat label="Expected guests" value={summary.guests} />
@@ -88,7 +93,7 @@ export default async function ArrivalsPage() {
             document and room-assignment form.
           </p>
         </div>
-        <BookingBoardTable rows={boardRows} />
+        <BookingBoardTable rows={boardRows} board="arrivals" />
       </div>
     </DeskListShell>
   );

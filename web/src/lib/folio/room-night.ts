@@ -82,13 +82,30 @@ type OccupiedRoom = {
 };
 
 /**
+ * Post day-1 room nights for a single booking (arrival business date).
+ * Used at check-in; night audit re-run is safe (idempotent skip).
+ */
+export async function postRoomNightsForBooking(
+  admin: Admin,
+  propertyId: string,
+  bookingId: string,
+  businessDate: string,
+): Promise<RoomNightPostResult> {
+  return postRoomNightsForDate(admin, propertyId, businessDate, {
+    bookingId,
+  });
+}
+
+/**
  * Post one room-night folio line per occupied sellable room for businessDate.
  * Idempotent via DB unique (folio_id, business_date, room_unit_id).
+ * Rates always resolve from live `room_rates` (same sheet as `/erp/rates`).
  */
 export async function postRoomNightsForDate(
   admin: Admin,
   propertyId: string,
   businessDate: string,
+  opts?: { bookingId?: string },
 ): Promise<RoomNightPostResult> {
   const pricing = await loadPropertyPricing(admin, propertyId);
   const seasonKind = await resolveSeasonKind(admin, propertyId, businessDate);
@@ -143,6 +160,7 @@ export async function postRoomNightsForDate(
       | null;
     const booking = Array.isArray(bookingRaw) ? bookingRaw[0] : bookingRaw;
     if (!booking || booking.status !== "checked_in") continue;
+    if (opts?.bookingId && booking.id !== opts.bookingId) continue;
     if (businessDate < String(booking.check_in).slice(0, 10)) continue;
     if (businessDate >= String(booking.check_out).slice(0, 10)) continue;
 

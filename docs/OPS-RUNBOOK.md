@@ -2,6 +2,16 @@
 
 Short desk/owner checklist when something breaks after go-live.
 
+## Front-desk stay money cycle
+
+1. Book / rates (`/erp/rates` sheet feeds quotes + room-night posts)
+2. Check-in → open folio + **day-1 room rent** (default on) + meal plan if priced
+3. Later nights → night audit (idempotent); manual backfill: folio → **Post day-1 room + meals** / **Post room night**
+4. Invoice / collect payment / deposit link
+5. Checkout when balance zero
+
+Settings → Tax: *Post day-1 room rent at check-in* (default on). Kitchen publishes BF/dinner feed from `/erp/kitchen` to POS.
+
 ## Night audit cron
 
 - Schedule: `0 18 * * *` UTC ≈ midnight Thimphu (`vercel.json`).

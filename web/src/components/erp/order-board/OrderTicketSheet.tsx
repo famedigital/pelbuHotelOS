@@ -150,7 +150,7 @@ export function OrderTicketSheet({
 
           <section className="space-y-2">
             <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              Folio
+              Charge to room
             </h3>
             {!ticket.postedToFolioAt && openBookings.length > 0 ? (
               <form
@@ -165,7 +165,7 @@ export function OrderTicketSheet({
                   className="h-10 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                 >
                   <option value="" disabled>
-                    Charge to folio
+                    Select in-house guest
                   </option>
                   {openBookings.map((booking) => (
                     <option key={booking.id} value={booking.id}>
@@ -173,13 +173,17 @@ export function OrderTicketSheet({
                     </option>
                   ))}
                 </select>
+                <p className="text-[11px] text-muted-foreground">
+                  Posts full ticket to guest folio and marks ticket settled.
+                  Guest pays at checkout. Tax invoice issues from the folio.
+                </p>
                 <Button type="submit" variant="citrus">
-                  Post to folio
+                  Charge to room
                 </Button>
               </form>
             ) : ticket.postedToFolioAt ? (
               <p className="text-sm text-muted-foreground">
-                Posted
+                On room
                 {ticket.folioId ? (
                   <>
                     {" · "}

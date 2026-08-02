@@ -6,7 +6,12 @@ import { periodGuardFromForm } from "@/lib/accounting/period-guard-form";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { todayInTimezone } from "@/lib/erp-lists";
 import { postFolioCharge } from "@/lib/folio/post-charge";
+import { postMealPlanFolioLine } from "@/lib/folio/meal-plan";
 import { postFolioPaymentRecord } from "@/lib/folio/post-payment";
+import {
+  postRoomNightsForBooking,
+  postRoomNightsForDate,
+} from "@/lib/folio/room-night";
 import { voidFolioLineWithReversal } from "@/lib/folio/void-line";
 import { issueFiscalDocument } from "@/lib/fiscal/issue-document";
 import { executeNightAudit } from "@/lib/night-audit/run";
@@ -939,6 +944,207 @@ export async function confirmPaymentLinkProof(
     formData.set("method", method);
 
     return markDepositLinkPaid({ ok: false }, formData);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+/**
+ * Post room-night charge(s) for a folio's booking on a business date.
+ * Uses live `room_rates` (idempotent). Covers day-1 backfill when check-in
+ * left the folio empty, or force-post before night audit.
+ */
+export async function postFolioRoomNight(
+  _prev: ErpFolioOpsState,
+  formData: FormData,
+): Promise<ErpFolioOpsState> {
+  try {
+    await requireMoney();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const property = await loadProperty(admin, pid);
+    const folioId = trimRequired(formData.get("folio_id"), "Folio");
+    const businessDate =
+      optionalTrim(formData.get("business_date")) ??
+      todayInTimezone(property?.timezone);
+
+    const { data: folio } = await admin
+      .from("folios")
+      .select("id, status, booking_id, property_id, label")
+      .eq("id", folioId)
+      .single();
+    if (!folio) throw new Error("Folio not found.");
+    assertDeskProperty(pid, folio.property_id as string, "Folio");
+    if ((folio.status as string) !== "open") {
+      throw new Error("Folio must be open to post room nights.");
+    }
+    const bookingId = folio.booking_id as string | null;
+    if (!bookingId) {
+      throw new Error("This folio is not linked to a booking.");
+    }
+
+    const { data: booking } = await admin
+      .from("bookings")
+      .select("id, status, check_in, check_out")
+      .eq("id", bookingId)
+      .single();
+    if (!booking) throw new Error("Booking not found.");
+    if ((booking.status as string) !== "checked_in") {
+      throw new Error("Booking must be checked in to post a room night.");
+    }
+
+    const result = await postRoomNightsForBooking(
+      admin,
+      pid,
+      bookingId,
+      businessDate,
+    );
+
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "folio.post_room_night",
+      entityType: "folios",
+      entityId: folioId,
+      summary: `Manual room night ${businessDate}: ${result.posted} posted, ${result.skipped} skipped`,
+      meta: {
+        businessDate,
+        posted: result.posted,
+        skipped: result.skipped,
+        errors: result.errors,
+      },
+    });
+
+    revalidateFolio(folioId);
+    if (result.errors.length && result.posted === 0) {
+      return {
+        ok: false,
+        error: result.errors.slice(0, 3).join(" · "),
+      };
+    }
+    return {
+      ok: true,
+      message:
+        result.posted > 0
+          ? `Posted ${result.posted} room night(s) for ${businessDate}.`
+          : result.skipped > 0
+            ? `Room night already posted for ${businessDate}.`
+            : "No sellable rooms to post for that date.",
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+/**
+ * Backfill check-in charges: meal plan (if priced) + day-1 room night.
+ * Safe to re-run (both paths are idempotent).
+ */
+export async function postFolioCheckInCharges(
+  _prev: ErpFolioOpsState,
+  formData: FormData,
+): Promise<ErpFolioOpsState> {
+  try {
+    await requireMoney();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const folioId = trimRequired(formData.get("folio_id"), "Folio");
+
+    const { data: folio } = await admin
+      .from("folios")
+      .select("id, status, booking_id, property_id")
+      .eq("id", folioId)
+      .single();
+    if (!folio) throw new Error("Folio not found.");
+    assertDeskProperty(pid, folio.property_id as string, "Folio");
+    if ((folio.status as string) !== "open") {
+      throw new Error("Folio must be open.");
+    }
+    const bookingId = folio.booking_id as string | null;
+    if (!bookingId) throw new Error("Folio has no booking.");
+
+    const { data: booking } = await admin
+      .from("bookings")
+      .select(
+        "id, status, check_in, meal_plan_code, meal_plan_amount_btn, contact_name",
+      )
+      .eq("id", bookingId)
+      .single();
+    if (!booking) throw new Error("Booking not found.");
+    if ((booking.status as string) !== "checked_in") {
+      throw new Error("Only checked-in bookings can backfill day-1 charges.");
+    }
+
+    const notes: string[] = [];
+    const mealAmount = Number(booking.meal_plan_amount_btn ?? 0);
+    if (mealAmount > 0) {
+      const { data: mealPlan } = await admin
+        .from("meal_plans")
+        .select("name")
+        .eq("property_id", pid)
+        .eq("code", booking.meal_plan_code as string)
+        .maybeSingle();
+      const meal = await postMealPlanFolioLine(admin, pid, {
+        folioId,
+        bookingId,
+        mealPlanCode: (booking.meal_plan_code as string) ?? "EP",
+        mealPlanName: (mealPlan?.name as string) ?? "Meals",
+        mealPlanAmountBtn: mealAmount,
+        businessDate: booking.check_in as string,
+      });
+      notes.push(meal.posted ? "meal plan posted" : "meal plan already on folio");
+    } else {
+      notes.push("no priced meal plan");
+    }
+
+    const room = await postRoomNightsForBooking(
+      admin,
+      pid,
+      bookingId,
+      booking.check_in as string,
+    );
+    if (room.posted > 0) notes.push(`${room.posted} room night(s)`);
+    else if (room.skipped > 0) notes.push("room night already posted");
+    else if (room.errors.length) notes.push(room.errors[0] ?? "room rate missing");
+    else notes.push("no room night for arrival date");
+
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "folio.post_checkin_charges",
+      entityType: "folios",
+      entityId: folioId,
+      summary: `Day-1 charges for ${booking.contact_name ?? bookingId}`,
+      meta: { notes, roomErrors: room.errors },
+    });
+
+    revalidateFolio(folioId);
+    if (room.errors.length && room.posted === 0 && mealAmount <= 0) {
+      return { ok: false, error: room.errors.slice(0, 2).join(" · ") };
+    }
+    return { ok: true, message: notes.join(" · ") };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+/** @deprecated use postFolioRoomNight — kept alias for clarity in call sites */
+export async function postPropertyRoomNightsForDate(
+  _prev: ErpFolioOpsState,
+  formData: FormData,
+): Promise<ErpFolioOpsState> {
+  try {
+    await requireMoney();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const property = await loadProperty(admin, pid);
+    const businessDate =
+      optionalTrim(formData.get("business_date")) ??
+      todayInTimezone(property?.timezone);
+    const result = await postRoomNightsForDate(admin, pid, businessDate);
+    revalidateFolio();
+    return {
+      ok: true,
+      message: `Posted ${result.posted}, skipped ${result.skipped} for ${businessDate}.`,
+    };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
   }

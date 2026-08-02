@@ -3,6 +3,7 @@
 import { chargeAgentCredit } from "@/app/actions/erp-agents";
 import { writeAuditEvent } from "@/lib/audit";
 import { postMealPlanFolioLine } from "@/lib/folio/meal-plan";
+import { postRoomNightsForBooking } from "@/lib/folio/room-night";
 import { nationalityRequired } from "@/lib/countries";
 import {
   normalizeGuestOrigin,
@@ -519,6 +520,7 @@ export async function confirmCheckIn(
       `${primaryGuest.fullName.trim()} · ${booking.check_in as string}`,
     );
 
+    const chargeNotes: string[] = [];
     const mealAmount = Number(booking.meal_plan_amount_btn ?? 0);
     if (mealAmount > 0) {
       const { data: mealPlan } = await admin
@@ -527,14 +529,54 @@ export async function confirmCheckIn(
         .eq("property_id", property_id)
         .eq("code", booking.meal_plan_code as string)
         .maybeSingle();
-      await postMealPlanFolioLine(admin, property_id, {
-        folioId,
-        bookingId,
-        mealPlanCode: (booking.meal_plan_code as string) ?? "EP",
-        mealPlanName: (mealPlan?.name as string) ?? "Meals",
-        mealPlanAmountBtn: mealAmount,
-        businessDate: booking.check_in as string,
-      });
+      try {
+        const mealResult = await postMealPlanFolioLine(admin, property_id, {
+          folioId,
+          bookingId,
+          mealPlanCode: (booking.meal_plan_code as string) ?? "EP",
+          mealPlanName: (mealPlan?.name as string) ?? "Meals",
+          mealPlanAmountBtn: mealAmount,
+          businessDate: booking.check_in as string,
+        });
+        if (mealResult.posted) chargeNotes.push("meal plan");
+      } catch (mealErr) {
+        console.error("meal plan post failed", mealErr);
+        chargeNotes.push(
+          `meal plan failed: ${mealErr instanceof Error ? mealErr.message : "error"}`,
+        );
+      }
+    }
+
+    // Day-1 room rent posts at check-in (default). Later nights: night audit (idempotent).
+    const { data: propFlags } = await admin
+      .from("properties")
+      .select("post_day1_room_at_checkin")
+      .eq("id", property_id)
+      .maybeSingle();
+    const postDay1 = propFlags?.post_day1_room_at_checkin !== false;
+    if (postDay1) {
+      try {
+        const roomResult = await postRoomNightsForBooking(
+          admin,
+          property_id,
+          bookingId,
+          booking.check_in as string,
+        );
+        if (roomResult.posted > 0) {
+          chargeNotes.push(`${roomResult.posted} room night(s)`);
+        } else if (roomResult.errors.length > 0) {
+          chargeNotes.push(
+            `room night: ${roomResult.errors.slice(0, 2).join("; ")}`,
+          );
+        } else if (roomResult.skipped > 0) {
+          chargeNotes.push("room night already posted");
+        }
+      } catch (roomErr) {
+        console.error("day-1 room night post failed", roomErr);
+        chargeNotes.push(
+          `room night failed: ${roomErr instanceof Error ? roomErr.message : "error"}`,
+        );
+      }
     }
 
     await writeAuditEvent(admin, {
@@ -548,6 +590,7 @@ export async function confirmCheckIn(
         guestCount: guests.length,
         roomUnitIds,
         folioId,
+        charges: chargeNotes,
       },
     });
 

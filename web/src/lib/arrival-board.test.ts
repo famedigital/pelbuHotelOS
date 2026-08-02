@@ -1,5 +1,5 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
+import { test } from "node:test";
 import {
   boardActionHref,
   boardActionLabel,
@@ -59,27 +59,38 @@ test("checked-in shows folio balance badge", () => {
     folio_balance_btn: 1200,
   });
   assert.ok(badges.some((b) => b.key === "balance"));
-  assert.equal(boardActionLabel("checked_in"), "Check out");
-  assert.equal(boardActionLabel("confirmed"), "Check in");
+  assert.equal(boardActionLabel("checked_in"), "Open stay");
+  assert.equal(boardActionLabel("confirmed"), "Open stay");
 });
 
-test("only check-in-actionable statuses route to the check-in screen", () => {
+test("check-in actionable statuses open StayHub on arrivals", () => {
   const id = "c2305a9d-49e4-45fb-ba2b-9d2777dea0a2";
   for (const status of ["pending", "confirmed"]) {
-    assert.equal(boardActionHref(status, id), `/erp/check-in?id=${id}`);
+    const href = boardActionHref(status, id);
+    assert.ok(href.includes(`/erp/arrivals`));
+    assert.ok(href.includes(`booking=${id}`));
+    assert.ok(href.includes("step="));
   }
   for (const status of ["held", "checked_out", "cancelled", "no_show", null]) {
-    assert.equal(boardActionHref(status, id), `/erp/bookings/${id}`);
+    const href = boardActionHref(status, id);
+    assert.ok(href.includes("booking="));
+    assert.ok(
+      href.startsWith("/erp/reservations") ||
+        href.startsWith("/erp/arrivals") ||
+        href.startsWith("/erp/in-house"),
+    );
   }
 });
 
-test("in-house stays route to the settlement screen", () => {
+test("in-house stays open StayHub on in-house board", () => {
   const id = "c2305a9d-49e4-45fb-ba2b-9d2777dea0a2";
-  assert.equal(boardActionHref("checked_in", id), `/erp/check-out?id=${id}`);
+  const href = boardActionHref("checked_in", id);
+  assert.ok(href.includes("/erp/in-house"));
+  assert.ok(href.includes(`booking=${id}`));
 });
 
-test("held bookings advertise the token action, closed ones just view", () => {
+test("held bookings advertise the token action, closed ones view stay", () => {
   assert.equal(boardActionLabel("held"), "Confirm token");
-  assert.equal(boardActionLabel("checked_out"), "View");
-  assert.equal(boardActionLabel("cancelled"), "View");
+  assert.equal(boardActionLabel("checked_out"), "Open stay");
+  assert.equal(boardActionLabel("cancelled"), "Open stay");
 });

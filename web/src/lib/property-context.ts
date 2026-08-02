@@ -23,6 +23,7 @@ export type PropertyRow = {
   public_host?: string | null;
   desk_host?: string | null;
   night_audit_close_time?: string;
+  post_day1_room_at_checkin?: boolean;
   public_host_cert_status?: string;
   desk_host_cert_status?: string;
   host_verify_token?: string | null;
@@ -106,7 +107,7 @@ export async function loadProperty(
   const { data } = await admin
     .from("properties")
     .select(
-      "id, slug, name, template_id, timezone, setup_step, setup_completed_at, income_streams, bank_accounts, logo_public_id, legal_name, address, phone, email, tax_id, gst_rate, service_charge_rate, service_charge_default_on, doc_invoice, doc_receipt, doc_voucher, public_host, desk_host, night_audit_close_time, public_host_cert_status, desk_host_cert_status, host_verify_token",
+      "id, slug, name, template_id, timezone, setup_step, setup_completed_at, income_streams, bank_accounts, logo_public_id, legal_name, address, phone, email, tax_id, gst_rate, service_charge_rate, service_charge_default_on, post_day1_room_at_checkin, doc_invoice, doc_receipt, doc_voucher, public_host, desk_host, night_audit_close_time, public_host_cert_status, desk_host_cert_status, host_verify_token",
     )
     .eq("id", id)
     .maybeSingle();
@@ -118,7 +119,7 @@ export async function listProperties(admin: Admin): Promise<PropertyRow[]> {
   const { data } = await admin
     .from("properties")
     .select(
-      "id, slug, name, template_id, timezone, setup_step, setup_completed_at, income_streams, bank_accounts, logo_public_id, legal_name, address, phone, email, tax_id, gst_rate, service_charge_rate, service_charge_default_on, doc_invoice, doc_receipt, doc_voucher, public_host, desk_host, night_audit_close_time, public_host_cert_status, desk_host_cert_status, host_verify_token",
+      "id, slug, name, template_id, timezone, setup_step, setup_completed_at, income_streams, bank_accounts, logo_public_id, legal_name, address, phone, email, tax_id, gst_rate, service_charge_rate, service_charge_default_on, post_day1_room_at_checkin, doc_invoice, doc_receipt, doc_voucher, public_host, desk_host, night_audit_close_time, public_host_cert_status, desk_host_cert_status, host_verify_token",
     )
     .order("name");
   return (data ?? []).map(mapProperty);

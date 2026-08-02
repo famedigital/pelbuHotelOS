@@ -75,7 +75,7 @@ export default async function CalendarPage({ searchParams }: Props) {
              check_in, check_out, adults, rooms, guide_number,
              payment_mode, notes, agent_id, source, booked_by_role, guest_origin,
              agents(company_name),
-             folios(id, status, folio_lines(id, total_btn, status, reverses_line_id)),
+             folios(id, status, folio_lines(id, total_btn, status, source_type, reverses_line_id)),
              booking_group_members(booking_groups(name)),
              booking_guests(passport_or_cid, sdf_ref)
            )`,
@@ -199,15 +199,27 @@ export default async function CalendarPage({ searchParams }: Props) {
               id: string;
               total_btn: number;
               status: string;
+              source_type?: string;
               reverses_line_id?: string | null;
             }[];
           }[]
         | null;
       const openFolio = (folios ?? []).find((f) => f.status === "open");
       let folioBalance = 0;
+      let folioHasCharges = false;
       for (const f of folios ?? []) {
         if (f.status === "settled") continue;
         folioBalance += netFolioBalance(f.folio_lines ?? []);
+        for (const line of f.folio_lines ?? []) {
+          if (
+            line.status === "posted" &&
+            line.source_type !== "payment" &&
+            line.source_type !== "deposit" &&
+            line.source_type !== "comp"
+          ) {
+            folioHasCharges = true;
+          }
+        }
       }
 
       const members = booking.booking_group_members as
@@ -276,6 +288,7 @@ export default async function CalendarPage({ searchParams }: Props) {
         group_name: groupName,
         folio_id: openFolio?.id ?? null,
         folio_balance: folioBalance,
+        folio_has_charges: folioHasCharges,
         room_label: roomUnit?.label ?? fallback?.label ?? "Room",
         room_type_id:
           roomUnit?.room_type_id ?? fallback?.room_type_id ?? "",

@@ -95,7 +95,7 @@ export default async function InvoicesPage({
     <DeskListShell
       eyebrow="Money"
       heading="Tax invoices"
-      blurb="Fiscal invoice numbers issued from guest folios. Issue a number on the folio before reprint — sequences are gapless per property and year."
+      blurb="Fiscal invoice numbers (INV-YYYY-####) issued from guest folios only — not POS ticket slips. F&B room charges land on the folio first; issue a number there when you need paperwork. Cash walk-ins without a folio do not appear here."
       filters={
         <form
           className="flex flex-wrap items-end gap-2"
@@ -140,7 +140,11 @@ export default async function InvoicesPage({
       <div className="space-y-3 md:hidden">
         {rows.length === 0 ? (
           <p className="rounded-xl border bg-card px-4 py-6 text-sm text-muted-foreground">
-            No tax invoices issued yet. Open a folio and use Issue tax invoice.
+            No tax invoices issued yet. Open a guest folio (from calendar,
+            in-house, or a POS charge-to-room ticket) and use{" "}
+            <span className="font-medium text-foreground">Issue tax invoice</span>
+            . POS cashier slips are under POS → Open tickets → Closed today —
+            they are not fiscal INV numbers.
           </p>
         ) : (
           rows.map((row) => (
@@ -209,7 +213,9 @@ export default async function InvoicesPage({
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-3 py-6 text-muted-foreground">
-                  No tax invoices issued yet. Open a folio and use Issue tax invoice.
+                  No tax invoices issued yet. F&amp;B charges live on the guest
+                  folio first; Issue tax invoice there when needed. POS ticket
+                  slips are under POS → Closed today.
                 </td>
               </tr>
             ) : (

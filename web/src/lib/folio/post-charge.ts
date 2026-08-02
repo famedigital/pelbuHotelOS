@@ -12,6 +12,8 @@ export { allocateSplitGst } from "@/lib/folio/split-gst";
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
 
+export type FolioBillTo = "agent" | "guest";
+
 export type FolioChargeInput = {
   folio_id: string;
   booking_id?: string | null;
@@ -31,10 +33,36 @@ export type FolioChargeInput = {
   is_comp?: boolean;
   business_date?: string | null;
   room_unit_id?: string | null;
+  /** Who settles: agent room bucket vs guest extras (default from source). */
+  bill_to?: FolioBillTo;
   /** Journal date override (YYYY-MM-DD or ISO). */
   journal_date?: string | null;
   period_guard?: PeriodGuardOptions;
 };
+
+/** Default payor for a charge source when caller does not set bill_to. */
+export function defaultBillTo(
+  sourceType: string,
+  opts?: { hasAgent?: boolean; paymentMode?: string | null },
+): FolioBillTo {
+  const st = (sourceType ?? "").toLowerCase();
+  const agentModes = new Set([
+    "on_credit",
+    "prepaid",
+    "partial",
+    "agent_credit",
+  ]);
+  const agentish =
+    Boolean(opts?.hasAgent) &&
+    agentModes.has((opts?.paymentMode ?? "").toLowerCase());
+  if (
+    ["room", "meal_plan", "cancel_fee", "no_show_fee"].includes(st) &&
+    agentish
+  ) {
+    return "agent";
+  }
+  return "guest";
+}
 
 export type FolioChargeResult = {
   ok: true;
@@ -66,6 +94,22 @@ export async function postFolioCharge(
     ...input.period_guard,
   });
 
+  let billTo = input.bill_to;
+  if (!billTo) {
+    let hasAgent = false;
+    let paymentMode: string | null = null;
+    if (input.booking_id) {
+      const { data: booking } = await admin
+        .from("bookings")
+        .select("agent_id, payment_mode")
+        .eq("id", input.booking_id)
+        .maybeSingle();
+      hasAgent = Boolean(booking?.agent_id);
+      paymentMode = (booking?.payment_mode as string | null) ?? null;
+    }
+    billTo = defaultBillTo(input.source_type, { hasAgent, paymentMode });
+  }
+
   const { data: line, error } = await admin
     .from("folio_lines")
     .insert({
@@ -88,6 +132,7 @@ export async function postFolioCharge(
       is_comp: input.is_comp ?? false,
       business_date: input.business_date ?? null,
       room_unit_id: input.room_unit_id ?? null,
+      bill_to: billTo,
     })
     .select("id, source_type, description, total_btn, gst_btn, created_at")
     .single();

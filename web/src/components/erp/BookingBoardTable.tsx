@@ -1,4 +1,4 @@
-import { BookingsTable, type BookingRow } from "@/components/erp/BookingsTable";
+import { BookingsTable, type BookingRow, type BoardKind } from "@/components/erp/BookingsTable";
 import {
   boardActionLabel,
   computeArrivalBadges,
@@ -7,16 +7,13 @@ import {
 /**
  * Server-rendered adapter that maps raw booking query rows into the typed
  * `BookingsTable` shape. Used by arrivals / in-house / departures boards.
- *
- * Expected optional nested shapes from Supabase:
- * - agents(company_name)
- * - room_assignments(room_units(label, hk_status, room_types(inventory_kind)))
- * - folios(status, folio_lines(total_btn, status))
  */
 export function BookingBoardTable({
   rows,
+  board = "auto",
 }: {
   rows: Record<string, unknown>[];
+  board?: BoardKind;
 }) {
   const data: BookingRow[] = rows.map((r) => {
     const agent = r.agents as
@@ -126,6 +123,7 @@ export function BookingBoardTable({
       data={data}
       caption="Board"
       emptyMessage="None for this board."
+      board={board}
     />
   );
 }

@@ -1,4 +1,6 @@
 import { guideRequired, sdfRequired, type GuestOrigin } from "@/lib/checkin-rules";
+import type { StayHubStepId } from "@/lib/folio/stay-hub-cycle";
+import { recommendStayHubStep } from "@/lib/folio/stay-hub-cycle";
 
 export type ArrivalBadge = {
   key: string;
@@ -95,22 +97,57 @@ export function computeArrivalBadges(row: ArrivalBoardInput): ArrivalBadge[] {
   return badges;
 }
 
-/**
- * Statuses the check-in screen can actually act on. Anything else routed there
- * lands on a dead end, so it belongs on the booking detail page instead.
- */
-const CHECKIN_STATUSES = new Set(["pending", "confirmed", "checked_in"]);
-
 export function boardActionLabel(status: string | null): string {
-  if (status === "checked_in") return "Check out";
-  if (status === "pending" || status === "confirmed") return "Check in";
+  if (status === "checked_in") return "Open stay";
+  if (status === "pending" || status === "confirmed") return "Open stay";
   if (status === "held") return "Confirm token";
-  return "View";
+  return "Open stay";
 }
 
-export function boardActionHref(status: string | null, id: string): string {
-  if (status === "checked_in") return `/erp/check-out?id=${id}`;
-  return CHECKIN_STATUSES.has(status ?? "")
-    ? `/erp/check-in?id=${id}`
-    : `/erp/bookings/${id}`;
+/**
+ * StayHub deep link on FO list routes (?booking=&step=). Prefer modal over
+ * full-page check-in / check-out forms.
+ */
+export function boardActionHref(
+  status: string | null,
+  id: string,
+  board:
+    | "arrivals"
+    | "in_house"
+    | "departures"
+    | "reservations"
+    | "auto" = "auto",
+): string {
+  const step = recommendStayHubStep({
+    status: status ?? "confirmed",
+    board,
+    balanceBtn: 0,
+    hasRoomAssigned: true,
+    sdfIncomplete: false,
+  });
+  const base =
+    board === "in_house"
+      ? "/erp/in-house"
+      : board === "departures"
+        ? "/erp/departures"
+        : board === "reservations"
+          ? "/erp/reservations"
+          : board === "arrivals"
+            ? "/erp/arrivals"
+            : status === "checked_in"
+              ? "/erp/in-house"
+              : ["pending", "confirmed"].includes(status ?? "")
+                ? "/erp/arrivals"
+                : "/erp/reservations";
+  return `${base}?booking=${encodeURIComponent(id)}&step=${step}`;
+}
+
+export function stayHubHref(
+  id: string,
+  step?: StayHubStepId | null,
+  listPath = "/erp/reservations",
+): string {
+  const params = new URLSearchParams({ booking: id });
+  if (step) params.set("step", step);
+  return `${listPath}?${params.toString()}`;
 }

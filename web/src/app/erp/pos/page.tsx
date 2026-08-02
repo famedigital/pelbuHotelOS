@@ -1,9 +1,11 @@
 import { GuestServiceForm } from "@/components/erp/GuestServiceForm";
 import { DeskOfflineQueueStrip } from "@/components/erp/DeskOfflineQueueStrip";
+import { MealServiceBoard } from "@/components/erp/MealServiceBoard";
 import { PosLayout } from "@/components/erp/pos/PosLayout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { deskPinConfigured, isDeskAuthenticated } from "@/lib/desk-auth";
 import { thimphuToday } from "@/lib/erp-lists";
+import { loadMealServicesForDate } from "@/lib/kitchen/meal-service";
 import { loadMenuByOutlets } from "@/lib/menu-loader";
 import {
   loadActiveOutletCodes,
@@ -15,6 +17,7 @@ import {
   loadOpenPosTickets,
   loadOpenPosShift,
   loadPosStaff,
+  loadSettledPosTickets,
   POS_TENDER_METHODS,
   POS_VOID_REASON_CODES,
   voidManagerThresholdBtn,
@@ -44,8 +47,16 @@ export default async function ErpPosPage() {
     activeOnly: true,
   });
 
-  const [items, { data: bookings }, tables, openTickets, staff, shift] =
-    await Promise.all([
+  const [
+    items,
+    { data: bookings },
+    tables,
+    openTickets,
+    settledTickets,
+    staff,
+    shift,
+    mealServices,
+  ] = await Promise.all([
       loadMenuByOutlets(
         activeOutletCodes.length > 0
           ? activeOutletCodes
@@ -66,8 +77,10 @@ export default async function ErpPosPage() {
         : Promise.resolve({ data: [] }),
       loadDiningTables(admin),
       loadOpenPosTickets(admin),
+      loadSettledPosTickets(admin),
       loadPosStaff(admin),
       loadOpenPosShift(admin),
+      loadMealServicesForDate(admin, propertyId, today),
     ]);
 
   const modifierGroups = await loadModifierGroupsForItems(
@@ -146,6 +159,13 @@ export default async function ErpPosPage() {
 
       <DeskOfflineQueueStrip defaultKind="pos_park" />
 
+      <MealServiceBoard
+        services={mealServices}
+        businessDate={today}
+        title="Kitchen service feed"
+        emptyHint="Kitchen has not published breakfast / dinner covers yet."
+      />
+
       <PosLayout
         items={items}
         outlets={outlets.map((o) => ({ code: o.code, name: o.name }))}
@@ -153,6 +173,7 @@ export default async function ErpPosPage() {
         tables={tables}
         staff={staff}
         openTickets={openTickets}
+        settledTickets={settledTickets}
         bookings={bookingOptions}
         shift={shift}
         gstRate={property?.gst_rate ?? 0.07}

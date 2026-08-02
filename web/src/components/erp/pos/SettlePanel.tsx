@@ -29,7 +29,7 @@ const METHOD_LABELS: Record<TenderDraft["method"], string> = {
   bank_qr: "Bank QR",
   pay_bt: "Pay.bt",
   deposit: "Deposit",
-  room_charge: "Room charge",
+  room_charge: "Charge to room",
 };
 
 const fieldClass =
@@ -64,7 +64,7 @@ export function SettlePanel({
 }: Props) {
   const open = orderId !== null;
   const [state, action, pending] = useActionState(splitSettle, initial);
-  useActionToast(state, { successMessage: "Order settled" });
+  useActionToast(state);
 
   const ticket = useMemo(
     () => liveTickets.find((t) => t.id === orderId) ?? null,
@@ -247,7 +247,7 @@ export function SettlePanel({
                       htmlFor={`ref_${t.key}`}
                       className="text-[11px] text-muted-foreground"
                     >
-                      Reference
+                      Reference / slip no
                     </Label>
                     <Input
                       id={`ref_${t.key}`}
@@ -256,9 +256,19 @@ export function SettlePanel({
                       onChange={(e) =>
                         updateTender(t.key, { reference: e.target.value })
                       }
-                      placeholder="Optional"
+                      placeholder={
+                        t.method === "cash"
+                          ? "Optional"
+                          : "Txn, slip, or last 4 digits"
+                      }
                       className="h-9"
                     />
+                    {t.method !== "cash" && t.method !== "room_charge" ? (
+                      <p className="text-[10px] text-muted-foreground">
+                        Bank / card / QR transfer id or receipt number for
+                        recon.
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
@@ -314,7 +324,7 @@ export function SettlePanel({
                       htmlFor={`book_${t.key}`}
                       className="text-[11px] text-muted-foreground"
                     >
-                      Booking folio
+                      In-house guest (folio)
                     </Label>
                     <select
                       id={`book_${t.key}`}
@@ -323,16 +333,22 @@ export function SettlePanel({
                       onChange={(e) =>
                         updateTender(t.key, { bookingId: e.target.value })
                       }
+                      required
                     >
-                      <option value="">Select booking</option>
+                      <option value="">Select in-house guest</option>
                       {bookings.map((b) => (
                         <option key={b.id} value={b.id}>
-                          {(b.contact_name ?? "Guest")} · {b.check_in} →{" "}
-                          {b.check_out} · {nightsBetween(b.check_in, b.check_out)}
-                          n
+                          {(b.rooms.map((r) => r.label).join(", ") || "Room") +
+                            " · "}
+                          {b.contact_name ?? "Guest"} · {b.check_in} →{" "}
+                          {b.check_out} ·{" "}
+                          {nightsBetween(b.check_in, b.check_out)}n
                         </option>
                       ))}
                     </select>
+                    <p className="text-[10px] text-muted-foreground">
+                      Posts to the guest folio now. Guest settles at checkout.
+                    </p>
                   </div>
                 ) : null}
               </li>
@@ -376,8 +392,8 @@ export function SettlePanel({
 
           {hasRoomCharge ? (
             <p className="text-[11px] text-muted-foreground">
-              Room-charge tenders post to the selected booking folio immediately
-              on settle.
+              Charge-to-room posts to the guest folio on settle. Tax invoices
+              (INV-…) are issued later from that folio, not from this dialog.
             </p>
           ) : null}
 

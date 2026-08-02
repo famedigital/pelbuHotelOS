@@ -8,6 +8,8 @@ import {
   issueFolioReceipt,
   markDepositLinkPaid,
   postCompCredit,
+  postFolioCheckInCharges,
+  postFolioRoomNight,
   promoteFolioToMaster,
   submitBankPaymentProof,
   transferFolioLine,
@@ -309,6 +311,80 @@ export function IssueInvoiceButton({
       <PeriodOverrideFields idPrefix={`inv-${folioId.slice(0, 8)}`} />
       <Button type="submit" variant="outline" disabled={pending} className="h-10 w-full">
         {pending ? "Issuing…" : "Issue tax invoice"}
+      </Button>
+      <Flash state={state} />
+    </form>
+  );
+}
+
+/** Post day-1 room rent + priced meal plan (idempotent backfill). */
+export function PostCheckInChargesForm({
+  folioId,
+  defaultDate,
+}: {
+  folioId: string;
+  defaultDate: string;
+}) {
+  const [state, action, pending] = useActionState(postFolioCheckInCharges, initial);
+  useActionToast(state, { successMessage: "Day-1 charges updated" });
+  return (
+    <form action={action} className="erp space-y-3 rounded-lg border border-accent/30 bg-accent/5 p-4">
+      <input type="hidden" name="folio_id" value={folioId} />
+      <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+        Day-1 charges
+      </p>
+      <p className="text-xs text-muted-foreground">
+        Posts meal plan (if priced) and room rent for arrival date{" "}
+        <span className="font-mono text-foreground">{defaultDate}</span>. Safe if
+        already posted. Rates from{" "}
+        <a href="/erp/rates" className="text-accent underline-offset-4 hover:underline">
+          /erp/rates
+        </a>
+        .
+      </p>
+      <Button type="submit" disabled={pending} className="h-10 w-full">
+        {pending ? "Posting…" : "Post day-1 room + meals"}
+      </Button>
+      <Flash state={state} />
+    </form>
+  );
+}
+
+/** Manual room-night post for a chosen business date. */
+export function PostRoomNightForm({
+  folioId,
+  defaultDate,
+}: {
+  folioId: string;
+  defaultDate: string;
+}) {
+  const [state, action, pending] = useActionState(postFolioRoomNight, initial);
+  useActionToast(state, { successMessage: "Room night posted" });
+  return (
+    <form action={action} className="erp space-y-3 rounded-lg border bg-card p-4">
+      <input type="hidden" name="folio_id" value={folioId} />
+      <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+        Post room night
+      </p>
+      <p className="text-xs text-muted-foreground">
+        Posts one night of sellable room rent from the live rate sheet. Later
+        nights also post at night audit (idempotent).
+      </p>
+      <div>
+        <Label htmlFor="rn_business_date" className="text-xs">
+          Business date
+        </Label>
+        <Input
+          id="rn_business_date"
+          name="business_date"
+          type="date"
+          defaultValue={defaultDate}
+          required
+          className="mt-1.5"
+        />
+      </div>
+      <Button type="submit" variant="outline" disabled={pending} className="h-10 w-full">
+        {pending ? "Posting…" : "Post room night"}
       </Button>
       <Flash state={state} />
     </form>

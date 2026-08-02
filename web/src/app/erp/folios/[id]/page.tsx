@@ -6,15 +6,20 @@ import {
   IssueCreditNoteButton,
   IssueInvoiceButton,
   MarkLinkPaidForm,
+  PostCheckInChargesForm,
+  PostRoomNightForm,
   PromoteToMasterForm,
   TransferLineForm,
   VoidLineButton,
 } from "@/components/erp/FolioOpsForms";
 import { FolioPaymentForm } from "@/components/erp/FolioPaymentForm";
 import { PostDamageChargeForm } from "@/components/erp/PostDamageChargeForm";
+import { StayMoneyCycleLegend } from "@/components/erp/StayMoneyCycleLegend";
+import { StayMoneyProcessStrip } from "@/components/erp/StayMoneyProcessStrip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { buildStayMoneySteps } from "@/lib/folio/stay-money-cycle";
 import { formatBtn } from "@/lib/pricing";
 import { netFolioBalance } from "@/lib/folio/balance";
 import { resolveActivePropertyId } from "@/lib/property-context";
@@ -42,7 +47,7 @@ export default async function FolioDetailPage({ params }: Props) {
   const { data: folio } = await admin
     .from("folios")
     .select(
-      "id, label, status, booking_id, master_folio_id, folio_type, property_id, created_at, folio_lines(id, description, total_btn, gst_btn, service_charge_btn, service_charge_applied, source_type, status, is_comp, void_reason, reverses_line_id, created_at)",
+      "id, label, status, booking_id, master_folio_id, folio_type, property_id, created_at, folio_lines(id, description, total_btn, gst_btn, service_charge_btn, service_charge_applied, source_type, status, is_comp, void_reason, reverses_line_id, created_at, business_date)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -74,12 +79,23 @@ export default async function FolioDetailPage({ params }: Props) {
     .eq("status", "issued")
     .maybeSingle();
 
-  const { data: siblingFolios } = folio.booking_id
+  const bookingId = (folio.booking_id as string | null) ?? null;
+  const { data: booking } = bookingId
+    ? await admin
+        .from("bookings")
+        .select(
+          "id, status, check_in, check_out, contact_name, meal_plan_code, meal_plan_amount_btn",
+        )
+        .eq("id", bookingId)
+        .maybeSingle()
+    : { data: null };
+
+  const { data: siblingFolios } = bookingId
     ? await admin
         .from("folios")
         .select("id, label, status")
         .eq("property_id", activePropertyId)
-        .eq("booking_id", folio.booking_id as string)
+        .eq("booking_id", bookingId)
         .eq("status", "open")
         .neq("id", id)
         .limit(20)
@@ -135,17 +151,55 @@ export default async function FolioDetailPage({ params }: Props) {
     void_reason?: string | null;
     reverses_line_id?: string | null;
     created_at: string;
+    business_date?: string | null;
   }[] | null) ?? []).sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   );
 
-  const posted = lines.filter((line) => line.status === "posted");
   const balance = netFolioBalance(lines);
   const folioStatus = (folio.status as string) ?? "open";
+  const chargeLines = lines.filter(
+    (line) =>
+      line.status === "posted" &&
+      line.source_type !== "payment" &&
+      line.source_type !== "deposit" &&
+      line.source_type !== "comp",
+  );
+  const paymentLines = lines.filter(
+    (line) =>
+      line.status === "posted" &&
+      (line.source_type === "payment" || line.source_type === "deposit"),
+  );
+  const chargesTotal = chargeLines.reduce(
+    (sum, line) => sum + Number(line.total_btn),
+    0,
+  );
+  const paymentsTotal = paymentLines.reduce(
+    (sum, line) => sum + Math.abs(Number(line.total_btn)),
+    0,
+  );
+
+  const bookingStatus = (booking?.status as string) ?? "confirmed";
+  const processSteps = buildStayMoneySteps({
+    status: bookingStatus,
+    hasFolio: true,
+    hasCharges: chargeLines.length > 0,
+    hasInvoice: Boolean(invoiceDoc),
+    balanceBtn: balance,
+  });
+
+  const arrivalDate =
+    (booking?.check_in as string | undefined) ??
+    new Date().toISOString().slice(0, 10);
+  const mealAmt = Number(booking?.meal_plan_amount_btn ?? 0);
+  const needsDay1 =
+    folioStatus === "open" &&
+    bookingStatus === "checked_in" &&
+    (chargeLines.length === 0 || (mealAmt > 0 && !lines.some((l) => l.source_type === "meal_plan" && l.status === "posted")));
 
   return (
     <div className="erp mx-auto w-full max-w-[1100px] p-4 md:p-6">
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
             {(folio.folio_type as string) === "master" ? "Master folio" : "Guest folio"}
@@ -154,10 +208,26 @@ export default async function FolioDetailPage({ params }: Props) {
             {folio.label as string}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            <span className="tracking-wide uppercase">{folioStatus}</span> · booking{" "}
-            <span className="font-mono text-foreground/70">
-              {(folio.booking_id as string) ?? "—"}
-            </span>
+            <span className="tracking-wide uppercase">{folioStatus}</span>
+            {booking ? (
+              <>
+                {" · "}
+                <span className="tracking-wide uppercase">{bookingStatus.replace(/_/g, " ")}</span>
+                {" · "}
+                {booking.check_in as string} → {booking.check_out as string}
+              </>
+            ) : null}
+            {bookingId ? (
+              <>
+                {" · "}
+                <a
+                  href={`/erp/bookings/${bookingId}`}
+                  className="font-mono text-foreground/70 underline-offset-4 hover:underline"
+                >
+                  {bookingId.slice(0, 8)}
+                </a>
+              </>
+            ) : null}
             {folio.master_folio_id ? (
               <>
                 {" · master "}
@@ -170,41 +240,73 @@ export default async function FolioDetailPage({ params }: Props) {
               </>
             ) : null}
           </p>
-          <p className="mt-1 font-mono text-xs text-muted-foreground">
-            {folio.id as string}
-          </p>
         </div>
-        <Card className="gap-1 py-4">
+        <Card className="min-w-[10rem] gap-1 py-4">
           <CardContent className="text-right">
             <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-              Balance
+              Balance due
             </p>
             <p
               className={`mt-1 text-2xl font-medium tabular-nums ${
-                balance > 0 ? "text-destructive" : "text-foreground"
+                balance > 0.5 ? "text-destructive" : "text-foreground"
               }`}
             >
               {formatBtn(balance)}
+            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground tabular-nums">
+              Charges {formatBtn(chargesTotal)} · Paid {formatBtn(paymentsTotal)}
             </p>
           </CardContent>
         </Card>
       </div>
 
+      <div className="mb-6 space-y-3 rounded-xl border bg-card px-4 py-3">
+        <StayMoneyProcessStrip steps={processSteps} />
+        <p className="text-xs text-muted-foreground">
+          {needsDay1
+            ? "No sellable charges yet — post day-1 room and meals below, or wait for night audit for later nights."
+            : balance > 0.5
+              ? "Charges on file — collect payment or issue invoice next."
+              : chargeLines.length > 0
+                ? "Balance settled. Ready for checkout when the guest departs."
+                : "Open the stay money cycle legend if the sequence is unclear."}
+        </p>
+      </div>
+
       <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="min-w-0 space-y-8">
+        <section className="min-w-0 space-y-6">
           <Card className="gap-0 p-0">
             <CardHeader className="border-b px-5 py-3">
               <CardTitle className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-                Lines ({lines.length})
+                Charges &amp; payments ({lines.length})
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <ul className="divide-y">
                 {lines.length === 0 ? (
-                  <li className="px-5 py-8 text-sm text-muted-foreground">
-                    No lines yet. Room rent posts at night audit (midnight
-                    Thimphu cron or manual run on Night audit). POS, laundry,
-                    and desk charges appear here when posted.
+                  <li className="space-y-3 px-5 py-8 text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground">No lines yet</p>
+                    <p>
+                      Check-in opens the folio. <strong className="font-medium text-foreground">Day-1 room rent</strong> and
+                      priced meal plans should post at check-in (or use{" "}
+                      <strong className="font-medium text-foreground">Post day-1 room + meals</strong>{" "}
+                      in the sidebar). Further nights post at{" "}
+                      <a
+                        href="/erp/night-audit"
+                        className="text-accent underline-offset-4 hover:underline"
+                      >
+                        night audit
+                      </a>{" "}
+                      (midnight Thimphu cron or manual run). POS, laundry, and
+                      desk charges appear here when posted.
+                    </p>
+                    {bookingStatus === "checked_in" ? (
+                      <p className="rounded-md border border-amber-500/30 bg-amber-50/60 px-3 py-2 text-xs text-foreground dark:bg-amber-950/30">
+                        This guest is checked in with an empty folio — run{" "}
+                        <strong>Post day-1 room + meals</strong> so balance
+                        reflects the stay before collect payment.
+                      </p>
+                    ) : null}
                   </li>
                 ) : (
                   lines.map((line) => {
@@ -239,6 +341,7 @@ export default async function FolioDetailPage({ params }: Props) {
                           <span className="tracking-wide uppercase">{line.source_type}</span>
                           {" · "}
                           <span className="tracking-wide uppercase">{line.status}</span>
+                          {line.business_date ? ` · ${line.business_date}` : ""}
                           {line.service_charge_applied &&
                           Number(line.service_charge_btn ?? 0) > 0
                             ? ` · SC ${formatBtn(Number(line.service_charge_btn ?? 0))}`
@@ -267,6 +370,8 @@ export default async function FolioDetailPage({ params }: Props) {
               </ul>
             </CardContent>
           </Card>
+
+          <StayMoneyCycleLegend />
 
           {(links ?? []).length > 0 ? (
             <section>
@@ -309,6 +414,33 @@ export default async function FolioDetailPage({ params }: Props) {
         <aside className="space-y-4">
           {folioStatus === "open" ? (
             <>
+              {bookingStatus === "checked_in" && bookingId ? (
+                <>
+                  {needsDay1 ? (
+                    <PostCheckInChargesForm
+                      folioId={folio.id as string}
+                      defaultDate={arrivalDate}
+                    />
+                  ) : null}
+                  <PostRoomNightForm
+                    folioId={folio.id as string}
+                    defaultDate={arrivalDate}
+                  />
+                </>
+              ) : null}
+
+              <div className="rounded-lg border border-border bg-muted/30 p-3">
+                <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+                  Next actions
+                </p>
+                <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-muted-foreground">
+                  <li>Post charges (day-1 / room night / POS)</li>
+                  <li>Collect payment or deposit link</li>
+                  <li>Issue tax invoice</li>
+                  <li>Checkout when balance is zero</li>
+                </ol>
+              </div>
+
               <FolioPaymentForm
                 folioId={folio.id as string}
                 suggestedAmount={Math.max(balance, 0)}
@@ -319,7 +451,12 @@ export default async function FolioDetailPage({ params }: Props) {
               />
               <DepositLinkForm
                 folioId={folio.id as string}
-                bookingId={(folio.booking_id as string | null) ?? null}
+                bookingId={bookingId}
+              />
+              <IssueInvoiceButton
+                folioId={folio.id as string}
+                invoiceNo={(invoiceDoc?.doc_no as string | undefined) ?? null}
+                invoiceDocId={(invoiceDoc?.id as string | undefined) ?? null}
               />
               <CompCreditForm folioId={folio.id as string} />
               <PostDamageChargeForm
@@ -373,23 +510,26 @@ export default async function FolioDetailPage({ params }: Props) {
               </CardContent>
             </Card>
           ) : null}
-          <a
-            href="/erp/folios"
-            className="inline-flex h-9 w-full items-center justify-center rounded-md border text-xs font-medium text-muted-foreground hover:bg-muted"
-          >
-            City ledger list
-          </a>
-          <IssueInvoiceButton
-            folioId={folio.id as string}
-            invoiceNo={(invoiceDoc?.doc_no as string | undefined) ?? null}
-            invoiceDocId={(invoiceDoc?.id as string | undefined) ?? null}
-          />
           <IssueCreditNoteButton folioId={folio.id as string} />
+          {bookingStatus === "checked_in" && bookingId ? (
+            <a
+              href={`/erp/check-out?id=${bookingId}`}
+              className="inline-flex h-11 w-full items-center justify-center rounded-md border border-citrus/40 bg-citrus-tint/40 text-sm font-medium text-foreground hover:bg-citrus-tint/70"
+            >
+              Checkout guest
+            </a>
+          ) : null}
           <a
             href={`/erp/folios/${folio.id as string}/receipt`}
             className="inline-flex h-11 w-full items-center justify-center rounded-md border text-sm font-medium text-foreground hover:bg-muted"
           >
             Print receipt
+          </a>
+          <a
+            href="/erp/folios"
+            className="inline-flex h-9 w-full items-center justify-center rounded-md border text-xs font-medium text-muted-foreground hover:bg-muted"
+          >
+            City ledger list
           </a>
           <a
             href="/erp"

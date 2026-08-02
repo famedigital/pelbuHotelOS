@@ -79,6 +79,7 @@ export function PosLayout({
   tables,
   staff,
   openTickets,
+  settledTickets = [],
   bookings,
   shift,
   gstRate,
@@ -215,7 +216,7 @@ export function PosLayout({
   useKeyboardShortcuts(shortcuts);
 
   const [state, action, pending] = useActionState(createDeskOrder, initial);
-  useActionToast(state, { successMessage: "Ticket sent to kitchen" });
+  useActionToast(state);
 
   const menuItems = useMemo(
     () =>
@@ -423,6 +424,8 @@ export function PosLayout({
         open={ticketsOpen}
         onOpenChange={setTicketsOpen}
         tickets={openTickets}
+        settledTickets={settledTickets}
+        bookings={bookings}
         tables={tables}
         onSettle={(id) => {
           setTicketsOpen(false);
@@ -517,20 +520,30 @@ export function PosLayout({
           aria-live="polite"
         >
           <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-            Ticket saved
+            {state.settleMode === "room_charge" && state.folioId
+              ? "Charged to room"
+              : "Ticket saved"}
           </p>
           <h2 className="mt-3 text-2xl font-semibold tracking-tight text-foreground">
-            Order is on the KOT board
+            {state.settleMode === "room_charge" && state.folioId
+              ? "On the guest folio"
+              : "Order is on the KOT board"}
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Ref <span className="font-mono text-foreground">{state.orderId}</span>
+            Ref{" "}
+            <span className="font-mono text-foreground">{state.orderId}</span>
             {state.totalBtn != null ? ` · ${formatBtn(state.totalBtn)}` : ""}
-            {state.folioId ? ` · folio ${state.folioId.slice(0, 8)}` : ""}
+            {state.message ? ` · ${state.message}` : null}
           </p>
           <div className="mt-8 flex flex-wrap gap-2">
             <Button asChild variant="citrus" className="h-11">
               <a href="/erp/pos">New ticket</a>
             </Button>
+            {state.folioId ? (
+              <Button asChild variant="outline" className="h-11">
+                <a href={`/erp/folios/${state.folioId}`}>Open folio</a>
+              </Button>
+            ) : null}
             <Button asChild variant="outline" className="h-11">
               <a href="/erp">Order board</a>
             </Button>
