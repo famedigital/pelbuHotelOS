@@ -3,6 +3,11 @@
 import { writeAuditEvent } from "@/lib/audit";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { resolveActivePropertyId } from "@/lib/property-context";
+import {
+  assertNoOverlap,
+  templateAppliesOnDay,
+  type ShiftInterval,
+} from "@/lib/rota/overlap";
 import { processStaffNotificationOutbox } from "@/lib/staff-notify";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
@@ -18,6 +23,7 @@ export type RotaActionState = {
   ok: boolean;
   error?: string;
   message?: string;
+  details?: string[];
 };
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -53,6 +59,51 @@ function addDays(iso: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
+function toShiftIntervals(
+  rows: Array<{
+    id?: string;
+    staff_id: string;
+    shift_date: string;
+    starts_at: string;
+    ends_at: string;
+    status?: string;
+  }>,
+): ShiftInterval[] {
+  return rows.map((row) => ({
+    id: row.id,
+    staffId: row.staff_id,
+    shiftDate: row.shift_date,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    status: row.status,
+  }));
+}
+
+async function loadDayPeers(
+  admin: Admin,
+  propertyId: string,
+  staffId: string,
+  shiftDate: string,
+): Promise<ShiftInterval[]> {
+  const { data: peers } = await admin
+    .from("staff_shifts")
+    .select("id, staff_id, shift_date, starts_at, ends_at, status")
+    .eq("property_id", propertyId)
+    .eq("staff_id", staffId)
+    .eq("shift_date", shiftDate)
+    .in("status", ["draft", "published"]);
+  return toShiftIntervals(
+    (peers ?? []) as Array<{
+      id: string;
+      staff_id: string;
+      shift_date: string;
+      starts_at: string;
+      ends_at: string;
+      status: string;
+    }>,
+  );
+}
+
 /** Add or edit a single draft shift from the rota grid. */
 export async function saveRotaShift(
   _previous: RotaActionState,
@@ -81,24 +132,18 @@ export async function saveRotaShift(
       .maybeSingle();
     if (!staff) throw new Error("Staff member not found for this property.");
 
-    // Overlap conflict: same staff, same date, overlapping times (draft/published).
-    const { data: peers } = await admin
-      .from("staff_shifts")
-      .select("id, starts_at, ends_at, status")
-      .eq("property_id", propertyId)
-      .eq("staff_id", staffId)
-      .eq("shift_date", shiftDate)
-      .in("status", ["draft", "published"]);
-    for (const peer of peers ?? []) {
-      if (id && peer.id === id) continue;
-      const peerStart = peer.starts_at as string;
-      const peerEnd = peer.ends_at as string;
-      if (startsAt < peerEnd && endsAt > peerStart) {
-        throw new Error(
-          `Shift overlaps existing ${peer.status} shift ${peerStart}–${peerEnd}.`,
-        );
-      }
-    }
+    const peers = await loadDayPeers(admin, propertyId, staffId, shiftDate);
+    assertNoOverlap(
+      {
+        id: id ?? undefined,
+        staffId,
+        shiftDate,
+        startsAt,
+        endsAt,
+      },
+      peers,
+      { ignoreId: id },
+    );
 
     const record = {
       property_id: propertyId,
@@ -165,7 +210,7 @@ export async function deleteRotaShift(
   }
 }
 
-/** Copy an entire week of shifts forward as fresh drafts. */
+/** Copy an entire week of shifts forward as fresh drafts; skip conflicts. */
 export async function copyRotaWeek(
   _previous: RotaActionState,
   formData: FormData,
@@ -185,30 +230,87 @@ export async function copyRotaWeek(
     }
 
     const sourceEnd = addDays(sourceWeek, 7);
+    const targetEnd = addDays(targetWeek, 7);
     const { data: shifts, error } = await admin
       .from("staff_shifts")
-      .select("staff_id, shift_date, starts_at, ends_at, outlet, notes")
+      .select("staff_id, shift_date, starts_at, ends_at, outlet, notes, status")
       .eq("property_id", propertyId)
       .gte("shift_date", sourceWeek)
-      .lt("shift_date", sourceEnd);
+      .lt("shift_date", sourceEnd)
+      .in("status", ["draft", "published"]);
     if (error) throw new Error("Could not read the source week.");
     if (!shifts?.length) throw new Error("The source week has no shifts to copy.");
+
+    const { data: existing } = await admin
+      .from("staff_shifts")
+      .select("id, staff_id, shift_date, starts_at, ends_at, status")
+      .eq("property_id", propertyId)
+      .gte("shift_date", targetWeek)
+      .lt("shift_date", targetEnd)
+      .in("status", ["draft", "published"]);
+
+    const targetPeers = toShiftIntervals(
+      (existing ?? []) as Array<{
+        id: string;
+        staff_id: string;
+        shift_date: string;
+        starts_at: string;
+        ends_at: string;
+        status: string;
+      }>,
+    );
 
     const offsetDays =
       (new Date(`${targetWeek}T00:00:00Z`).getTime() -
         new Date(`${sourceWeek}T00:00:00Z`).getTime()) /
       86_400_000;
 
-    const rows = shifts.map((shift) => ({
-      property_id: propertyId,
-      staff_id: shift.staff_id as string,
-      shift_date: addDays(shift.shift_date as string, offsetDays),
-      starts_at: shift.starts_at as string,
-      ends_at: shift.ends_at as string,
-      outlet: shift.outlet as string | null,
-      notes: shift.notes as string | null,
-      status: "draft",
-    }));
+    const rows: Array<Record<string, unknown>> = [];
+    const skipped: string[] = [];
+    const planned: ShiftInterval[] = [...targetPeers];
+
+    for (const shift of shifts) {
+      const staffId = shift.staff_id as string;
+      const shiftDate = addDays(shift.shift_date as string, offsetDays);
+      const startsAt = shift.starts_at as string;
+      const endsAt = shift.ends_at as string;
+      const candidate: ShiftInterval = {
+        staffId,
+        shiftDate,
+        startsAt,
+        endsAt,
+        status: "draft",
+      };
+      try {
+        assertNoOverlap(candidate, planned);
+      } catch (overlapError) {
+        skipped.push(
+          `${shiftDate} staff ${staffId.slice(0, 8)}…: ${
+            overlapError instanceof Error ? overlapError.message : "conflict"
+          }`,
+        );
+        continue;
+      }
+      planned.push(candidate);
+      rows.push({
+        property_id: propertyId,
+        staff_id: staffId,
+        shift_date: shiftDate,
+        starts_at: startsAt,
+        ends_at: endsAt,
+        outlet: shift.outlet as string | null,
+        notes: shift.notes as string | null,
+        status: "draft",
+      });
+    }
+
+    if (!rows.length) {
+      return {
+        ok: false,
+        error: "No shifts could be copied — every slot conflicted on the target week.",
+        details: skipped.slice(0, 20),
+      };
+    }
 
     const { error: insertError } = await admin.from("staff_shifts").insert(rows);
     if (insertError) {
@@ -219,16 +321,324 @@ export async function copyRotaWeek(
       propertyId,
       action: "rota.copy_week",
       entityType: "staff_shifts",
-      summary: `Copied ${rows.length} shifts from ${sourceWeek} to ${targetWeek}`,
-      meta: { sourceWeek, targetWeek, count: rows.length },
+      summary: `Copied ${rows.length} shifts from ${sourceWeek} to ${targetWeek} (skipped ${skipped.length})`,
+      meta: { sourceWeek, targetWeek, count: rows.length, skipped: skipped.length },
     });
 
     refreshRota();
-    return { ok: true, message: `${rows.length} shifts copied as drafts.` };
+    return {
+      ok: true,
+      message:
+        skipped.length > 0
+          ? `${rows.length} shifts copied as drafts; ${skipped.length} skipped (conflicts).`
+          : `${rows.length} shifts copied as drafts.`,
+      details: skipped.length ? skipped.slice(0, 20) : undefined,
+    };
   } catch (error) {
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Could not copy week.",
+    };
+  }
+}
+
+/** Generate draft shifts for a week from active cover templates. */
+export async function autoGenerateRotaWeek(
+  _previous: RotaActionState,
+  formData: FormData,
+): Promise<RotaActionState> {
+  try {
+    const { admin, propertyId } = await requireRotaDesk();
+    const weekStart = assertDate(
+      trimRequired(formData.get("week_start"), "Week"),
+      "Week",
+    );
+    const weekEnd = addDays(weekStart, 7);
+    const days = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
+
+    const [{ data: templates }, { data: staffRows }, { data: existing }, { data: leave }] =
+      await Promise.all([
+        admin
+          .from("rota_cover_templates")
+          .select(
+            "id, name, outlet, days_of_week, starts_at, ends_at, slots_needed, preferred_role_labels, preferred_position_ilike, priority",
+          )
+          .eq("property_id", propertyId)
+          .eq("is_active", true)
+          .order("priority"),
+        admin
+          .from("staff_members")
+          .select("id, full_name, role_label, position_title, status")
+          .eq("property_id", propertyId)
+          .eq("status", "active")
+          .order("full_name"),
+        admin
+          .from("staff_shifts")
+          .select("id, staff_id, shift_date, starts_at, ends_at, status")
+          .eq("property_id", propertyId)
+          .gte("shift_date", weekStart)
+          .lt("shift_date", weekEnd)
+          .in("status", ["draft", "published"]),
+        admin
+          .from("staff_leave")
+          .select("staff_id, starts_on, ends_on, status")
+          .eq("property_id", propertyId)
+          .eq("status", "approved")
+          .lte("starts_on", addDays(weekStart, 6))
+          .gte("ends_on", weekStart),
+      ]);
+
+    if (!templates?.length) {
+      throw new Error("No active cover templates. Add templates first.");
+    }
+    if (!staffRows?.length) {
+      throw new Error("No active staff available for auto-rota.");
+    }
+
+    const planned = toShiftIntervals(
+      (existing ?? []) as Array<{
+        id: string;
+        staff_id: string;
+        shift_date: string;
+        starts_at: string;
+        ends_at: string;
+        status: string;
+      }>,
+    );
+
+    const onLeave = (staffId: string, date: string): boolean =>
+      (leave ?? []).some(
+        (row) =>
+          row.staff_id === staffId &&
+          (row.starts_on as string) <= date &&
+          (row.ends_on as string) >= date,
+      );
+
+    type StaffPick = {
+      id: string;
+      full_name: string;
+      role_label: string;
+      position_title: string | null;
+    };
+    const staff = (staffRows ?? []) as StaffPick[];
+    const rows: Array<Record<string, unknown>> = [];
+    const unfilled: string[] = [];
+
+    const roleMatch = (member: StaffPick, roles: string[]): boolean => {
+      if (!roles.length) return true;
+      return roles.some((role) => role.toLowerCase() === member.role_label.toLowerCase());
+    };
+
+    const positionMatch = (member: StaffPick, pattern: string | null): boolean => {
+      if (!pattern) return true;
+      const hay = (member.position_title ?? "").toLowerCase();
+      // preferred_position_ilike uses SQL ILIKE wildcards (%).
+      const regex = new RegExp(
+        `^${pattern
+          .toLowerCase()
+          .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+          .replace(/%/g, ".*")}$`,
+      );
+      return regex.test(hay);
+    };
+
+    for (const template of templates) {
+      const startsAt = String(template.starts_at).slice(0, 8);
+      const endsAt = String(template.ends_at).slice(0, 8);
+      const startNorm = startsAt.length === 5 ? `${startsAt}:00` : startsAt;
+      const endNorm = endsAt.length === 5 ? `${endsAt}:00` : endsAt;
+      if (endNorm <= startNorm) continue;
+
+      const daysOfWeek = (template.days_of_week as number[] | null) ?? [];
+      const roles = (template.preferred_role_labels as string[] | null) ?? [];
+      const posPattern = (template.preferred_position_ilike as string | null) ?? null;
+      const slots = Number(template.slots_needed ?? 1);
+
+      for (const date of days) {
+        if (!templateAppliesOnDay(daysOfWeek, date)) continue;
+
+        let filled = 0;
+        const candidates = staff
+          .filter((member) => roleMatch(member, roles))
+          .filter((member) => positionMatch(member, posPattern))
+          .filter((member) => !onLeave(member.id, date))
+          .sort((a, b) => a.full_name.localeCompare(b.full_name));
+
+        // Prefer role-matched; fall back to any free active staff if filters empty of free people.
+        const tryPools = [candidates, staff.filter((m) => !onLeave(m.id, date))];
+
+        for (const pool of tryPools) {
+          for (const member of pool) {
+            if (filled >= slots) break;
+            const candidate: ShiftInterval = {
+              staffId: member.id,
+              shiftDate: date,
+              startsAt: startNorm,
+              endsAt: endNorm,
+              status: "draft",
+            };
+            try {
+              assertNoOverlap(candidate, planned);
+            } catch {
+              continue;
+            }
+            planned.push(candidate);
+            rows.push({
+              property_id: propertyId,
+              staff_id: member.id,
+              shift_date: date,
+              starts_at: startNorm,
+              ends_at: endNorm,
+              outlet: template.outlet as string,
+              notes: `Auto: ${template.name as string}`,
+              status: "draft",
+            });
+            filled += 1;
+          }
+          if (filled >= slots) break;
+        }
+
+        if (filled < slots) {
+          unfilled.push(
+            `${date} ${template.name as string}: need ${slots}, filled ${filled}`,
+          );
+        }
+      }
+    }
+
+    if (!rows.length) {
+      return {
+        ok: false,
+        error: "Could not place any cover slots (all staff leave/busy or no matches).",
+        details: unfilled.slice(0, 20),
+      };
+    }
+
+    const { error: insertError } = await admin.from("staff_shifts").insert(rows);
+    if (insertError) {
+      throw new Error(
+        shiftSaveErrorMessage(insertError, "Could not generate draft rota."),
+      );
+    }
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "rota.auto_generate",
+      entityType: "staff_shifts",
+      summary: `Auto-generated ${rows.length} draft shifts for week ${weekStart}`,
+      meta: {
+        weekStart,
+        created: rows.length,
+        unfilled: unfilled.length,
+        templates: templates.length,
+      },
+    });
+
+    refreshRota();
+    return {
+      ok: true,
+      message:
+        unfilled.length > 0
+          ? `Generated ${rows.length} draft shifts; ${unfilled.length} slots underfilled.`
+          : `Generated ${rows.length} draft shifts from cover templates.`,
+      details: unfilled.length ? unfilled.slice(0, 20) : undefined,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not auto-generate rota.",
+    };
+  }
+}
+
+export async function upsertRotaCoverTemplate(
+  _previous: RotaActionState,
+  formData: FormData,
+): Promise<RotaActionState> {
+  try {
+    const { admin, propertyId } = await requireRotaDesk();
+    const id = optionalTrim(formData.get("id"));
+    const name = trimRequired(formData.get("name"), "Name");
+    const outlet = trimRequired(formData.get("outlet"), "Outlet").toLowerCase();
+    if (!isShiftOutlet(outlet)) throw new Error("Invalid outlet.");
+    const startsAt = assertTime(trimRequired(formData.get("starts_at"), "Start"), "Start");
+    const endsAt = assertTime(trimRequired(formData.get("ends_at"), "End"), "End");
+    if (endsAt <= startsAt) throw new Error("End time must be after start time.");
+
+    const slotsNeeded = Math.min(
+      20,
+      Math.max(1, Number(formData.get("slots_needed") ?? 1) || 1),
+    );
+    const priority = Number(formData.get("priority") ?? 100) || 100;
+    const daysRaw = formData.getAll("days_of_week").map(String);
+    const daysOfWeek = daysRaw
+      .map((d) => Number(d))
+      .filter((d) => d >= 1 && d <= 7);
+    const rolesRaw = optionalTrim(formData.get("preferred_role_labels"));
+    const preferredRoles = rolesRaw
+      ? rolesRaw
+          .split(/[,|]/)
+          .map((r) => r.trim().toLowerCase())
+          .filter(Boolean)
+      : [];
+
+    const record = {
+      property_id: propertyId,
+      name,
+      outlet,
+      days_of_week: daysOfWeek,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      slots_needed: slotsNeeded,
+      preferred_role_labels: preferredRoles,
+      preferred_position_ilike: optionalTrim(formData.get("preferred_position_ilike")),
+      priority,
+      is_active: formData.get("is_active") !== "off",
+      notes: optionalTrim(formData.get("notes")),
+      updated_at: new Date().toISOString(),
+    };
+
+    if (id) {
+      const { error } = await admin
+        .from("rota_cover_templates")
+        .update(record)
+        .eq("id", id)
+        .eq("property_id", propertyId);
+      if (error) throw new Error("Could not update cover template.");
+    } else {
+      const { error } = await admin.from("rota_cover_templates").insert(record);
+      if (error) throw new Error("Could not create cover template.");
+    }
+
+    refreshRota();
+    return { ok: true, message: id ? "Cover template updated." : "Cover template added." };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not save template.",
+    };
+  }
+}
+
+export async function deleteRotaCoverTemplate(
+  _previous: RotaActionState,
+  formData: FormData,
+): Promise<RotaActionState> {
+  try {
+    const { admin, propertyId } = await requireRotaDesk();
+    const id = trimRequired(formData.get("id"), "Template");
+    const { error } = await admin
+      .from("rota_cover_templates")
+      .delete()
+      .eq("id", id)
+      .eq("property_id", propertyId);
+    if (error) throw new Error("Could not delete template.");
+    refreshRota();
+    return { ok: true, message: "Cover template deleted." };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not delete template.",
     };
   }
 }

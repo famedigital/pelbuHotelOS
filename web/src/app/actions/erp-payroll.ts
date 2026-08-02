@@ -1,7 +1,7 @@
 "use server";
 
 import { writeAuditEvent } from "@/lib/audit";
-import { postExpense } from "@/lib/accounting/posting";
+import { postExpense, postPayrollPayout } from "@/lib/accounting/posting";
 import { isDeskAuthenticated, requireMoneyDesk } from "@/lib/desk-auth";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
 import {
@@ -236,12 +236,26 @@ export async function calculatePayrollRun(
     const { data: profiles } = await admin
       .from("staff_private_profiles")
       .select(
-        "staff_id, base_wage_btn, bank_name, bank_account_number, provident_fund_number, tax_identifier",
+        "staff_id, base_wage_btn, bank_name, bank_account_number, provident_fund_number, tax_identifier, health_contribution_btn, service_charge_eligible, service_charge_share_btn",
       )
       .in("staff_id", staffIds);
     const profileByStaff = new Map(
       (profiles ?? []).map((p) => [p.staff_id as string, p]),
     );
+
+    const { data: recurring } = await admin
+      .from("staff_pay_components")
+      .select("staff_id, kind, code, label, amount_btn, taxable")
+      .eq("property_id", propertyId)
+      .eq("is_active", true)
+      .in("staff_id", staffIds);
+    const recurringByStaff = new Map<string, typeof recurring>();
+    for (const row of recurring ?? []) {
+      const key = row.staff_id as string;
+      const list = recurringByStaff.get(key) ?? [];
+      list.push(row);
+      recurringByStaff.set(key, list);
+    }
 
     const { data: adjustments } = await admin
       .from("payroll_adjustments")
@@ -276,6 +290,40 @@ export async function calculatePayrollRun(
 
       const earnings: PayComponent[] = [];
       const deductions: PayComponent[] = [];
+
+      for (const row of recurringByStaff.get(member.id as string) ?? []) {
+        const component: PayComponent = {
+          code: row.code as string,
+          label: row.label as string,
+          amount: Number(row.amount_btn ?? 0),
+          taxable: Boolean(row.taxable),
+        };
+        if (row.kind === "earning") earnings.push(component);
+        else deductions.push({ ...component, taxable: false });
+      }
+
+      // Health contribution (HC) and optional fixed service-charge share (SC).
+      const hc = Number(profile?.health_contribution_btn ?? 0);
+      if (hc > 0) {
+        deductions.push({
+          code: "HC",
+          label: "Health contribution",
+          amount: hc,
+          taxable: false,
+        });
+      }
+      if (
+        profile?.service_charge_eligible &&
+        Number(profile.service_charge_share_btn ?? 0) > 0
+      ) {
+        earnings.push({
+          code: "SC_SHARE",
+          label: "Service charge share",
+          amount: Number(profile.service_charge_share_btn),
+          taxable: true,
+        });
+      }
+
       for (const adj of adjByStaff.get(member.id as string) ?? []) {
         const component: PayComponent = {
           code: adj.code as string,
@@ -740,11 +788,31 @@ export async function markPayrollItemPaid(
 
     const { data: item } = await admin
       .from("payroll_run_items")
-      .select("id, run_id, full_name, property_id")
+      .select(
+        "id, run_id, full_name, property_id, net_btn, payment_status",
+      )
       .eq("id", itemId)
       .maybeSingle();
     if (!item) return fail("Payslip not found.");
     assertDeskProperty(propertyId, item.property_id as string, "Payslip");
+    if ((item.payment_status as string) === "paid") {
+      return { ok: true, message: "Already marked as paid." };
+    }
+
+    const netBtn = Number(item.net_btn ?? 0);
+    if (netBtn > 0) {
+      const paidOn = new Date().toISOString().slice(0, 10);
+      const gl = await postPayrollPayout(admin, propertyId, {
+        id: itemId,
+        net_btn: netBtn,
+        full_name: item.full_name as string | null,
+        paid_on: paidOn,
+        reference: reference ?? undefined,
+      });
+      if (!gl.ok) {
+        return fail(gl.error ?? "Could not post payroll payout to ledger.");
+      }
+    }
 
     const { error } = await admin
       .from("payroll_run_items")
@@ -762,11 +830,13 @@ export async function markPayrollItemPaid(
       entityType: "payroll_run_items",
       entityId: itemId,
       summary: `Marked payslip paid for ${item.full_name}`,
-      meta: { reference },
+      meta: { reference, netBtn },
     });
 
     revalidatePayroll(item.run_id as string);
-    return { ok: true, message: "Marked as paid." };
+    revalidatePath("/erp/finance");
+    revalidatePath("/erp/finance/expenses");
+    return { ok: true, message: "Marked as paid · bank ledger updated." };
   } catch (err) {
     return fail(err instanceof Error ? err.message : "Something went wrong.");
   }

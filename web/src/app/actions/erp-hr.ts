@@ -1,7 +1,7 @@
 "use server";
 
 import { writeAuditEvent } from "@/lib/audit";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { isDeskAuthenticated, requireMoneyDesk } from "@/lib/desk-auth";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
@@ -14,6 +14,7 @@ export type HrActionState = {
   error?: string;
   message?: string;
   details?: string[];
+  staffId?: string;
 };
 
 const STAFF_ROLES = new Set([
@@ -45,6 +46,21 @@ const STAFF_STATUSES = new Set([
   "terminated",
 ]);
 
+const ACCESS_LEVELS = new Set([
+  "employee",
+  "supervisor",
+  "hr_admin",
+  "payroll_admin",
+  "owner",
+]);
+
+const DESK_ROLES = new Set(["front_desk", "cashier", "gm", "hk", "owner"]);
+
+const DOC_TYPES = new Set(["pass_photo", "cv", "cid", "other_id", "other"]);
+const CONDUCT_KINDS = new Set(["merit", "warning"]);
+const CONDUCT_SEVERITIES = new Set(["note", "low", "medium", "high", "critical"]);
+const PAY_KINDS = new Set(["earning", "deduction"]);
+
 const NOTICE_CATEGORIES = new Set([
   "company",
   "hr",
@@ -69,9 +85,10 @@ async function requireHrDesk(): Promise<{
   return { admin, propertyId: await resolveActivePropertyId(admin) };
 }
 
-function refreshHr(): void {
+function refreshHr(_staffId?: string): void {
   revalidatePath("/erp/hr");
   revalidatePath("/staff");
+  revalidatePath("/erp/hr/payroll");
 }
 
 function normalizeEmployeeCode(value: FormDataEntryValue | null): string {
@@ -90,6 +107,14 @@ function normalizeEmail(value: string | null): string | null {
     throw new Error(`Invalid email: ${email}`);
   }
   return email;
+}
+
+function parseMoney(value: FormDataEntryValue | null, label: string): number | null {
+  const raw = optionalTrim(value);
+  if (!raw) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) throw new Error(`${label} must be a non-negative number.`);
+  return Math.round(n * 100) / 100;
 }
 
 function parseCsv(text: string): string[][] {
@@ -147,7 +172,24 @@ export async function upsertStaffMember(
       throw new Error("Invalid employment type.");
     }
 
-    const record = {
+    const managerId = optionalTrim(formData.get("manager_id"));
+    if (managerId) {
+      const { data: manager } = await admin
+        .from("staff_members")
+        .select("id")
+        .eq("id", managerId)
+        .eq("property_id", propertyId)
+        .maybeSingle();
+      if (!manager) throw new Error("Manager not found on this property.");
+      if (id && managerId === id) throw new Error("Staff cannot manage themselves.");
+    }
+
+    const statusRaw = optionalTrim(formData.get("status"))?.toLowerCase();
+    if (statusRaw && !STAFF_STATUSES.has(statusRaw)) {
+      throw new Error("Invalid staff status.");
+    }
+
+    const record: Record<string, unknown> = {
       property_id: propertyId,
       employee_code: employeeCode,
       full_name: trimRequired(formData.get("full_name"), "Name"),
@@ -158,9 +200,13 @@ export async function upsertStaffMember(
       phone: optionalTrim(formData.get("phone")),
       email: normalizeEmail(optionalTrim(formData.get("email"))),
       hired_on: optionalTrim(formData.get("hired_on")),
+      probation_ends_on: optionalTrim(formData.get("probation_ends_on")),
+      contract_ends_on: optionalTrim(formData.get("contract_ends_on")),
       notes: optionalTrim(formData.get("notes")),
+      manager_id: managerId,
       updated_at: new Date().toISOString(),
     };
+    if (statusRaw) record.status = statusRaw;
 
     let savedId: string;
     if (id) {
@@ -171,12 +217,17 @@ export async function upsertStaffMember(
         .eq("property_id", propertyId)
         .select("id")
         .single();
-      if (error || !data) throw new Error("Could not update staff member.");
+      if (error || !data) {
+        if (error?.code === "23505") {
+          throw new Error(`Employee code ${employeeCode} already exists.`);
+        }
+        throw new Error("Could not update staff member.");
+      }
       savedId = data.id as string;
     } else {
       const { data, error } = await admin
         .from("staff_members")
-        .insert({ ...record, status: "active" })
+        .insert({ ...record, status: statusRaw ?? "active" })
         .select("id")
         .single();
       if (error || !data) {
@@ -190,8 +241,11 @@ export async function upsertStaffMember(
         property_id: propertyId,
         staff_id: savedId,
         event_type: "hire",
-        effective_on: record.hired_on || new Date().toISOString().slice(0, 10),
-        summary: `${record.full_name} joined as ${record.position_title || role}`,
+        effective_on:
+          (record.hired_on as string) || new Date().toISOString().slice(0, 10),
+        summary: `${record.full_name as string} joined as ${
+          (record.position_title as string) || role
+        }`,
       });
     }
 
@@ -200,16 +254,481 @@ export async function upsertStaffMember(
       action: id ? "staff.update" : "staff.create",
       entityType: "staff_members",
       entityId: savedId,
-      summary: `${id ? "Updated" : "Added"} staff ${record.full_name}`,
+      summary: `${id ? "Updated" : "Added"} staff ${record.full_name as string}`,
       meta: { employeeCode, role, employmentType },
     });
 
-    refreshHr();
-    return { ok: true, message: id ? "Staff member updated." : "Staff member added." };
+    refreshHr(savedId);
+    return {
+      ok: true,
+      message: id ? "Staff member updated." : "Staff member added.",
+      staffId: savedId,
+    };
   } catch (error) {
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Could not save staff member.",
+    };
+  }
+}
+
+/** Roles, access level, desk gate (PIN set via setStaffPortalPin). */
+export async function upsertStaffRolesAccess(
+  _previous: HrActionState,
+  formData: FormData,
+): Promise<HrActionState> {
+  try {
+    const { admin, propertyId } = await requireHrDesk();
+    const staffId = trimRequired(formData.get("staff_id"), "Staff");
+    const accessLevel = (
+      optionalTrim(formData.get("access_level")) ?? "employee"
+    ).toLowerCase();
+    const roleLabel = optionalTrim(formData.get("role_label"))?.toLowerCase();
+    const deskRoleRaw = optionalTrim(formData.get("desk_role"))?.toLowerCase();
+    const canAccessDesk = formData.get("can_access_desk") === "on";
+
+    if (!ACCESS_LEVELS.has(accessLevel)) throw new Error("Invalid access level.");
+    if (roleLabel && !STAFF_ROLES.has(roleLabel)) throw new Error("Invalid operational role.");
+    if (deskRoleRaw && !DESK_ROLES.has(deskRoleRaw)) throw new Error("Invalid desk role.");
+    if (canAccessDesk && !deskRoleRaw) {
+      throw new Error("Pick a desk role when granting ERP desk access.");
+    }
+
+    const update: Record<string, unknown> = {
+      access_level: accessLevel,
+      can_access_desk: canAccessDesk,
+      desk_role: canAccessDesk ? deskRoleRaw : null,
+      updated_at: new Date().toISOString(),
+    };
+    if (roleLabel) update.role_label = roleLabel;
+
+    const { data, error } = await admin
+      .from("staff_members")
+      .update(update)
+      .eq("id", staffId)
+      .eq("property_id", propertyId)
+      .select("id, full_name")
+      .single();
+    if (error || !data) throw new Error("Could not update access settings.");
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "staff.access_update",
+      entityType: "staff_members",
+      entityId: staffId,
+      summary: `Updated access for ${data.full_name as string}`,
+      meta: { accessLevel, canAccessDesk, deskRole: deskRoleRaw },
+    });
+
+    refreshHr(staffId);
+    return { ok: true, message: "Access settings saved.", staffId };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not save access.",
+    };
+  }
+}
+
+/** Private wage, bank, HC, SC — money desk only. */
+export async function upsertStaffPrivateProfile(
+  _previous: HrActionState,
+  formData: FormData,
+): Promise<HrActionState> {
+  try {
+    await requireMoneyDesk();
+    const { admin, propertyId } = await requireHrDesk();
+    const staffId = trimRequired(formData.get("staff_id"), "Staff");
+
+    const { data: staff } = await admin
+      .from("staff_members")
+      .select("id, full_name")
+      .eq("id", staffId)
+      .eq("property_id", propertyId)
+      .maybeSingle();
+    if (!staff) throw new Error("Staff member not found.");
+
+    const baseWage = parseMoney(formData.get("base_wage_btn"), "Base wage");
+    const healthContribution = parseMoney(
+      formData.get("health_contribution_btn"),
+      "Health contribution",
+    );
+    const scShare = parseMoney(
+      formData.get("service_charge_share_btn"),
+      "Service charge share",
+    );
+    const paySchedule = (
+      optionalTrim(formData.get("pay_schedule")) ?? "monthly"
+    ).toLowerCase();
+    if (!new Set(["monthly", "fortnightly", "weekly"]).has(paySchedule)) {
+      throw new Error("Invalid pay schedule.");
+    }
+
+    const record = {
+      staff_id: staffId,
+      property_id: propertyId,
+      cid_number: optionalTrim(formData.get("cid_number")),
+      date_of_birth: optionalTrim(formData.get("date_of_birth")),
+      address: optionalTrim(formData.get("address")),
+      emergency_contact_name: optionalTrim(formData.get("emergency_contact_name")),
+      emergency_contact_phone: optionalTrim(formData.get("emergency_contact_phone")),
+      bank_name: optionalTrim(formData.get("bank_name")),
+      bank_account_number: optionalTrim(formData.get("bank_account_number")),
+      tax_identifier: optionalTrim(formData.get("tax_identifier")),
+      provident_fund_number: optionalTrim(formData.get("provident_fund_number")),
+      base_wage_btn: baseWage,
+      health_contribution_btn: healthContribution,
+      service_charge_eligible: formData.get("service_charge_eligible") === "on",
+      service_charge_share_btn: scShare,
+      photo_public_id: optionalTrim(formData.get("photo_public_id")),
+      pay_schedule: paySchedule,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await admin
+      .from("staff_private_profiles")
+      .upsert(record, { onConflict: "staff_id" });
+    if (error) {
+      console.error("staff_private_profiles upsert failed", error);
+      throw new Error("Could not save compensation profile.");
+    }
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "staff.private_profile_upsert",
+      entityType: "staff_private_profiles",
+      entityId: staffId,
+      summary: `Updated private profile for ${staff.full_name as string}`,
+      meta: {
+        hasWage: baseWage != null,
+        scEligible: record.service_charge_eligible,
+      },
+    });
+
+    refreshHr(staffId);
+    return { ok: true, message: "Compensation profile saved.", staffId };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error ? error.message : "Could not save private profile.",
+    };
+  }
+}
+
+export async function upsertStaffPayComponent(
+  _previous: HrActionState,
+  formData: FormData,
+): Promise<HrActionState> {
+  try {
+    await requireMoneyDesk();
+    const { admin, propertyId } = await requireHrDesk();
+    const id = optionalTrim(formData.get("id"));
+    const staffId = trimRequired(formData.get("staff_id"), "Staff");
+    const kind = trimRequired(formData.get("kind"), "Kind").toLowerCase();
+    if (!PAY_KINDS.has(kind)) throw new Error("Invalid pay component kind.");
+    const amount = parseMoney(formData.get("amount_btn"), "Amount");
+    if (amount == null) throw new Error("Amount is required.");
+
+    const record = {
+      property_id: propertyId,
+      staff_id: staffId,
+      kind,
+      code: trimRequired(formData.get("code"), "Code").toUpperCase().replace(/\s+/g, "_"),
+      label: trimRequired(formData.get("label"), "Label"),
+      amount_btn: amount,
+      taxable: formData.get("taxable") === "on" || formData.get("taxable") === "true",
+      is_active: formData.get("is_active") !== "off",
+      effective_from:
+        optionalTrim(formData.get("effective_from")) ??
+        new Date().toISOString().slice(0, 10),
+      effective_to: optionalTrim(formData.get("effective_to")),
+      notes: optionalTrim(formData.get("notes")),
+      updated_at: new Date().toISOString(),
+    };
+
+    if (id) {
+      const { error } = await admin
+        .from("staff_pay_components")
+        .update(record)
+        .eq("id", id)
+        .eq("property_id", propertyId);
+      if (error) throw new Error("Could not update pay component.");
+    } else {
+      const { error } = await admin.from("staff_pay_components").insert(record);
+      if (error) {
+        if (error.code === "23505") {
+          throw new Error("An active component with this code already exists.");
+        }
+        throw new Error("Could not add pay component.");
+      }
+    }
+
+    refreshHr(staffId);
+    return { ok: true, message: "Pay component saved.", staffId };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not save pay component.",
+    };
+  }
+}
+
+export async function deleteStaffPayComponent(
+  _previous: HrActionState,
+  formData: FormData,
+): Promise<HrActionState> {
+  try {
+    await requireMoneyDesk();
+    const { admin, propertyId } = await requireHrDesk();
+    const id = trimRequired(formData.get("id"), "Component");
+    const staffId = optionalTrim(formData.get("staff_id"));
+    const { error } = await admin
+      .from("staff_pay_components")
+      .delete()
+      .eq("id", id)
+      .eq("property_id", propertyId);
+    if (error) throw new Error("Could not delete pay component.");
+    refreshHr(staffId ?? undefined);
+    return { ok: true, message: "Pay component removed.", staffId: staffId ?? undefined };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not delete component.",
+    };
+  }
+}
+
+/** One file each for pass photo / CV so directory photos and dossiers stay clean. */
+const EXCLUSIVE_DOC_TYPES = new Set(["pass_photo", "cv"]);
+
+async function syncPassPhotoToProfile(
+  admin: Admin,
+  propertyId: string,
+  staffId: string,
+  publicId: string | null,
+): Promise<void> {
+  const { data: existingProfile } = await admin
+    .from("staff_private_profiles")
+    .select("staff_id")
+    .eq("staff_id", staffId)
+    .eq("property_id", propertyId)
+    .maybeSingle();
+  if (existingProfile) {
+    await admin
+      .from("staff_private_profiles")
+      .update({
+        photo_public_id: publicId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("staff_id", staffId)
+      .eq("property_id", propertyId);
+    return;
+  }
+  if (publicId) {
+    await admin.from("staff_private_profiles").insert({
+      staff_id: staffId,
+      property_id: propertyId,
+      photo_public_id: publicId,
+    });
+  }
+}
+
+export async function upsertStaffDocument(
+  _previous: HrActionState,
+  formData: FormData,
+): Promise<HrActionState> {
+  try {
+    const { admin, propertyId } = await requireHrDesk();
+    const id = optionalTrim(formData.get("id"));
+    const staffId = trimRequired(formData.get("staff_id"), "Staff");
+    const docType = trimRequired(formData.get("doc_type"), "Document type").toLowerCase();
+    if (!DOC_TYPES.has(docType)) throw new Error("Invalid document type.");
+    const publicId = trimRequired(formData.get("cloudinary_public_id"), "Cloudinary asset");
+    const title =
+      optionalTrim(formData.get("title")) ??
+      (docType === "pass_photo"
+        ? "Pass photo"
+        : docType === "cv"
+          ? "CV"
+          : docType === "cid"
+            ? "CID"
+            : docType === "other_id"
+              ? "ID document"
+              : "Document");
+
+    const record = {
+      property_id: propertyId,
+      staff_id: staffId,
+      doc_type: docType,
+      title,
+      cloudinary_public_id: publicId,
+      resource_type: optionalTrim(formData.get("resource_type")) ?? "image",
+      notes: optionalTrim(formData.get("notes")),
+      updated_at: new Date().toISOString(),
+    };
+
+    let targetId = id;
+    if (!targetId && EXCLUSIVE_DOC_TYPES.has(docType)) {
+      const { data: existing } = await admin
+        .from("staff_documents")
+        .select("id")
+        .eq("property_id", propertyId)
+        .eq("staff_id", staffId)
+        .eq("doc_type", docType)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      targetId = existing?.id ?? undefined;
+    }
+
+    if (targetId) {
+      const { error } = await admin
+        .from("staff_documents")
+        .update(record)
+        .eq("id", targetId)
+        .eq("property_id", propertyId);
+      if (error) throw new Error("Could not update document.");
+    } else {
+      const { error } = await admin.from("staff_documents").insert(record);
+      if (error) throw new Error("Could not add document.");
+    }
+
+    if (docType === "pass_photo") {
+      await syncPassPhotoToProfile(admin, propertyId, staffId, publicId);
+    }
+
+    refreshHr(staffId);
+    return { ok: true, message: "Document saved.", staffId };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not save document.",
+    };
+  }
+}
+
+export async function deleteStaffDocument(
+  _previous: HrActionState,
+  formData: FormData,
+): Promise<HrActionState> {
+  try {
+    const { admin, propertyId } = await requireHrDesk();
+    const id = trimRequired(formData.get("id"), "Document");
+    const { data: existing, error: loadError } = await admin
+      .from("staff_documents")
+      .select("id, staff_id, doc_type, cloudinary_public_id")
+      .eq("id", id)
+      .eq("property_id", propertyId)
+      .maybeSingle();
+    if (loadError || !existing) throw new Error("Document not found.");
+    const staffId = existing.staff_id as string;
+
+    const { error } = await admin
+      .from("staff_documents")
+      .delete()
+      .eq("id", id)
+      .eq("property_id", propertyId);
+    if (error) throw new Error("Could not delete document.");
+
+    if (existing.doc_type === "pass_photo") {
+      const { data: nextPhoto } = await admin
+        .from("staff_documents")
+        .select("cloudinary_public_id")
+        .eq("property_id", propertyId)
+        .eq("staff_id", staffId)
+        .eq("doc_type", "pass_photo")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      await syncPassPhotoToProfile(
+        admin,
+        propertyId,
+        staffId,
+        (nextPhoto?.cloudinary_public_id as string | undefined) ?? null,
+      );
+    }
+
+    refreshHr(staffId);
+    return { ok: true, message: "Document removed.", staffId };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not delete document.",
+    };
+  }
+}
+
+export async function upsertStaffConductRecord(
+  _previous: HrActionState,
+  formData: FormData,
+): Promise<HrActionState> {
+  try {
+    const { admin, propertyId } = await requireHrDesk();
+    const id = optionalTrim(formData.get("id"));
+    const staffId = trimRequired(formData.get("staff_id"), "Staff");
+    const kind = trimRequired(formData.get("kind"), "Kind").toLowerCase();
+    const severity = (
+      optionalTrim(formData.get("severity")) ?? "note"
+    ).toLowerCase();
+    if (!CONDUCT_KINDS.has(kind)) throw new Error("Invalid conduct kind.");
+    if (!CONDUCT_SEVERITIES.has(severity)) throw new Error("Invalid severity.");
+
+    const record = {
+      property_id: propertyId,
+      staff_id: staffId,
+      kind,
+      severity,
+      title: trimRequired(formData.get("title"), "Title"),
+      body: optionalTrim(formData.get("body")),
+      recorded_on:
+        optionalTrim(formData.get("recorded_on")) ??
+        new Date().toISOString().slice(0, 10),
+      updated_at: new Date().toISOString(),
+    };
+
+    if (id) {
+      const { error } = await admin
+        .from("staff_conduct_records")
+        .update(record)
+        .eq("id", id)
+        .eq("property_id", propertyId);
+      if (error) throw new Error("Could not update conduct record.");
+    } else {
+      const { error } = await admin.from("staff_conduct_records").insert(record);
+      if (error) throw new Error("Could not add conduct record.");
+    }
+
+    refreshHr(staffId);
+    return { ok: true, message: "Conduct record saved.", staffId };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not save record.",
+    };
+  }
+}
+
+export async function deleteStaffConductRecord(
+  _previous: HrActionState,
+  formData: FormData,
+): Promise<HrActionState> {
+  try {
+    const { admin, propertyId } = await requireHrDesk();
+    const id = trimRequired(formData.get("id"), "Record");
+    const staffId = optionalTrim(formData.get("staff_id"));
+    const { error } = await admin
+      .from("staff_conduct_records")
+      .delete()
+      .eq("id", id)
+      .eq("property_id", propertyId);
+    if (error) throw new Error("Could not delete conduct record.");
+    refreshHr(staffId ?? undefined);
+    return { ok: true, message: "Conduct record removed.", staffId: staffId ?? undefined };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not delete record.",
     };
   }
 }
@@ -262,8 +781,8 @@ export async function changeStaffStatus(
       meta: { status, reason },
     });
 
-    refreshHr();
-    return { ok: true, message: "Staff status updated." };
+    refreshHr(id);
+    return { ok: true, message: "Staff status updated.", staffId: id };
   } catch (error) {
     return {
       ok: false,

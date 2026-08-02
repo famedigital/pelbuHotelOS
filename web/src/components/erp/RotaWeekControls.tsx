@@ -1,6 +1,10 @@
 "use client";
 
-import { copyRotaWeek, publishRotaWeek } from "@/app/actions/erp-rota";
+import {
+  autoGenerateRotaWeek,
+  copyRotaWeek,
+  publishRotaWeek,
+} from "@/app/actions/erp-rota";
 import { Button } from "@/components/ui/button";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { usePendingFeedback } from "@/hooks/use-pending-feedback";
@@ -22,49 +26,75 @@ export function RotaWeekControls({
     initialState,
   );
   const [copyState, copy, copyPending] = useActionState(copyRotaWeek, initialState);
-  const pending = publishPending || copyPending;
+  const [genState, generate, genPending] = useActionState(
+    autoGenerateRotaWeek,
+    initialState,
+  );
+  const pending = publishPending || copyPending || genPending;
 
   useActionToast(publishState, { successMessage: "Week published" });
   useActionToast(copyState, { successMessage: "Week copied" });
+  useActionToast(genState, { successMessage: "Draft week generated" });
   usePendingFeedback(pending, "Updating rota…");
 
   useEffect(() => {
-    if (publishState.ok || copyState.ok) router.refresh();
-  }, [publishState.ok, copyState.ok, router]);
+    if (publishState.ok || copyState.ok || genState.ok) router.refresh();
+  }, [publishState.ok, copyState.ok, genState.ok, router]);
 
-  const feedback = publishState.error
-    ? { tone: "error", text: publishState.error }
-    : publishState.message
-      ? { tone: "ok", text: publishState.message }
-      : copyState.error
-        ? { tone: "error", text: copyState.error }
-        : copyState.message
-          ? { tone: "ok", text: copyState.message }
-          : null;
+  const feedbacks = [publishState, copyState, genState];
+  const feedback =
+    feedbacks.find((s) => s.error)?.error
+      ? { tone: "error" as const, text: feedbacks.find((s) => s.error)!.error! }
+      : feedbacks.find((s) => s.message)
+        ? {
+            tone: "ok" as const,
+            text: feedbacks.find((s) => s.message)!.message!,
+          }
+        : null;
+
+  const details =
+    copyState.details ?? genState.details ?? publishState.details ?? null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <form action={copy}>
-        <input type="hidden" name="source_week_start" value={prevWeekStart} />
-        <input type="hidden" name="target_week_start" value={weekStart} />
-        <Button type="submit" variant="outline" size="sm" disabled={pending}>
-          Copy last week
-        </Button>
-      </form>
-      <form action={publish}>
-        <input type="hidden" name="week_start" value={weekStart} />
-        <Button type="submit" size="sm" disabled={pending}>
-          Publish week &amp; alert staff
-        </Button>
-      </form>
+    <div className="flex w-full flex-col gap-2 sm:items-end">
+      <div className="flex flex-wrap items-center gap-2">
+        <form action={generate}>
+          <input type="hidden" name="week_start" value={weekStart} />
+          <Button type="submit" variant="outline" size="sm" className="h-11 min-h-11" disabled={pending}>
+            Generate week
+          </Button>
+        </form>
+        <form action={copy}>
+          <input type="hidden" name="source_week_start" value={prevWeekStart} />
+          <input type="hidden" name="target_week_start" value={weekStart} />
+          <Button type="submit" variant="outline" size="sm" className="h-11 min-h-11" disabled={pending}>
+            Copy last week
+          </Button>
+        </form>
+        <form action={publish}>
+          <input type="hidden" name="week_start" value={weekStart} />
+          <Button type="submit" size="sm" className="h-11 min-h-11" disabled={pending}>
+            Publish week &amp; alert staff
+          </Button>
+        </form>
+      </div>
       {feedback ? (
-        <span
-          className={`text-sm ${
-            feedback.tone === "error" ? "text-destructive" : "text-emerald-600"
-          }`}
-        >
-          {feedback.text}
-        </span>
+        <div className="max-w-md text-sm">
+          <p
+            className={
+              feedback.tone === "error" ? "text-destructive" : "text-emerald-600"
+            }
+          >
+            {feedback.text}
+          </p>
+          {details?.length ? (
+            <ul className="mt-1 list-disc pl-4 text-xs text-muted-foreground">
+              {details.slice(0, 8).map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

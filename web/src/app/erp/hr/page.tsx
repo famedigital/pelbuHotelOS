@@ -1,4 +1,3 @@
-import { CopyForWhatsAppButton } from "@/components/erp/CopyForWhatsAppButton";
 import {
   StaffShiftForm,
   type StaffOption,
@@ -6,16 +5,22 @@ import {
 import {
   AnnouncementCreateForm,
   LeaveReviewForm,
-  StaffCreateForm,
   StaffCsvImportForm,
-  StaffStatusForm,
 } from "@/components/erp/HrFoundationForms";
-import { StaffPinProvisionForm } from "@/components/erp/StaffAuthForms";
 import { NoticeReminderButton } from "@/components/erp/NoticeReminderButton";
+import { CopyForWhatsAppButton } from "@/components/erp/CopyForWhatsAppButton";
 import {
   StaffDirectoryTable,
-  type StaffDirectoryRow,
 } from "@/components/erp/StaffDirectoryTable";
+import { StaffInlineAddTable } from "@/components/erp/StaffInlineAddTable";
+import type {
+  ManagerOption,
+  StaffConductRow,
+  StaffDocumentRow,
+  StaffDossierMember,
+  StaffPayComponentRow,
+  StaffPrivateProfile,
+} from "@/components/erp/StaffDossierDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,11 +61,15 @@ export default async function ErpHrPage() {
     { data: shifts },
     { data: leave },
     { data: announcements },
+    { data: privateRows },
+    { data: payRows },
+    { data: docRows },
+    { data: conductRows },
   ] = await Promise.all([
     admin
       .from("staff_members")
       .select(
-        "id, employee_code, full_name, role_label, department, position_title, employment_type, phone, email, status, hired_on, can_login, pin_set_at, last_login_at",
+        "id, employee_code, full_name, role_label, department, position_title, employment_type, phone, email, status, hired_on, probation_ends_on, contract_ends_on, notes, manager_id, access_level, desk_role, can_access_desk, can_login, pin_set_at, last_login_at",
       )
       .eq("property_id", propertyId)
       .order("full_name")
@@ -90,6 +99,32 @@ export default async function ErpHrPage() {
       .order("is_pinned", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(30),
+    admin
+      .from("staff_private_profiles")
+      .select(
+        "staff_id, cid_number, date_of_birth, address, emergency_contact_name, emergency_contact_phone, bank_name, bank_account_number, tax_identifier, provident_fund_number, base_wage_btn, health_contribution_btn, service_charge_eligible, service_charge_share_btn, photo_public_id, pay_schedule",
+      )
+      .eq("property_id", propertyId),
+    admin
+      .from("staff_pay_components")
+      .select("id, staff_id, kind, code, label, amount_btn, taxable, is_active")
+      .eq("property_id", propertyId)
+      .eq("is_active", true)
+      .order("code"),
+    admin
+      .from("staff_documents")
+      .select(
+        "id, staff_id, doc_type, title, cloudinary_public_id, resource_type, notes",
+      )
+      .eq("property_id", propertyId)
+      .order("created_at", { ascending: false })
+      .limit(500),
+    admin
+      .from("staff_conduct_records")
+      .select("id, staff_id, kind, severity, title, body, recorded_on")
+      .eq("property_id", propertyId)
+      .order("recorded_on", { ascending: false })
+      .limit(500),
   ]);
 
   const staff: StaffOption[] = (staffRows ?? []).map((s) => ({
@@ -103,7 +138,7 @@ export default async function ErpHrPage() {
     name: row.full_name as string,
     role: row.role_label as string,
   }));
-  const staffDirectory: StaffDirectoryRow[] = (staffRows ?? []).map((row) => ({
+  const staffDirectory: StaffDossierMember[] = (staffRows ?? []).map((row) => ({
     id: row.id as string,
     employeeCode: row.employee_code as string,
     fullName: row.full_name as string,
@@ -114,8 +149,75 @@ export default async function ErpHrPage() {
     phone: (row.phone as string | null) ?? null,
     email: (row.email as string | null) ?? null,
     status: row.status as string,
+    hiredOn: (row.hired_on as string | null) ?? null,
+    probationEndsOn: (row.probation_ends_on as string | null) ?? null,
+    contractEndsOn: (row.contract_ends_on as string | null) ?? null,
+    notes: (row.notes as string | null) ?? null,
+    managerId: (row.manager_id as string | null) ?? null,
+    accessLevel: (row.access_level as string) ?? "employee",
+    deskRole: (row.desk_role as string | null) ?? null,
+    canAccessDesk: Boolean(row.can_access_desk),
     canLogin: Boolean(row.can_login),
+    pinSetAt: (row.pin_set_at as string | null) ?? null,
     lastLoginAt: (row.last_login_at as string | null) ?? null,
+  }));
+  const managers: ManagerOption[] = staffDirectory.map((row) => ({
+    id: row.id,
+    fullName: row.fullName,
+    employeeCode: row.employeeCode,
+  }));
+  const privateProfiles: StaffPrivateProfile[] = (privateRows ?? []).map((row) => ({
+    staffId: row.staff_id as string,
+    cidNumber: (row.cid_number as string | null) ?? null,
+    dateOfBirth: (row.date_of_birth as string | null) ?? null,
+    address: (row.address as string | null) ?? null,
+    emergencyContactName: (row.emergency_contact_name as string | null) ?? null,
+    emergencyContactPhone: (row.emergency_contact_phone as string | null) ?? null,
+    bankName: (row.bank_name as string | null) ?? null,
+    bankAccountNumber: (row.bank_account_number as string | null) ?? null,
+    taxIdentifier: (row.tax_identifier as string | null) ?? null,
+    providentFundNumber: (row.provident_fund_number as string | null) ?? null,
+    baseWageBtn:
+      row.base_wage_btn != null ? Number(row.base_wage_btn) : null,
+    healthContributionBtn:
+      row.health_contribution_btn != null
+        ? Number(row.health_contribution_btn)
+        : null,
+    serviceChargeEligible: Boolean(row.service_charge_eligible),
+    serviceChargeShareBtn:
+      row.service_charge_share_btn != null
+        ? Number(row.service_charge_share_btn)
+        : null,
+    photoPublicId: (row.photo_public_id as string | null) ?? null,
+    paySchedule: (row.pay_schedule as string) ?? "monthly",
+  }));
+  const payComponents: StaffPayComponentRow[] = (payRows ?? []).map((row) => ({
+    id: row.id as string,
+    staffId: row.staff_id as string,
+    kind: row.kind as string,
+    code: row.code as string,
+    label: row.label as string,
+    amountBtn: Number(row.amount_btn ?? 0),
+    taxable: Boolean(row.taxable),
+    isActive: Boolean(row.is_active),
+  }));
+  const documents: StaffDocumentRow[] = (docRows ?? []).map((row) => ({
+    id: row.id as string,
+    staffId: row.staff_id as string,
+    docType: row.doc_type as string,
+    title: row.title as string,
+    cloudinaryPublicId: row.cloudinary_public_id as string,
+    resourceType: (row.resource_type as string) ?? "image",
+    notes: (row.notes as string | null) ?? null,
+  }));
+  const conduct: StaffConductRow[] = (conductRows ?? []).map((row) => ({
+    id: row.id as string,
+    staffId: row.staff_id as string,
+    kind: row.kind as string,
+    severity: row.severity as string,
+    title: row.title as string,
+    body: (row.body as string | null) ?? null,
+    recordedOn: row.recorded_on as string,
   }));
   const departments = Array.from(
     new Set(
@@ -131,15 +233,15 @@ export default async function ErpHrPage() {
   const draftShifts = (shifts ?? []).filter((row) => row.status === "draft").length;
 
   return (
-    <div className="erp mx-auto w-full max-w-[1440px] space-y-8 p-4 md:p-6">
+    <div className="erp mx-auto w-full max-w-[1440px] space-y-8 p-4 md:p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <header>
         <p className="text-xs font-semibold tracking-[0.2em] text-accent uppercase">
           People operations
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">Hotel workforce</h1>
         <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          Manage staff records, publish company information, prepare shifts, and
-          review leave without mixing properties.
+          Personnel dossiers, company notices, shift planning, and leave —
+          property-scoped for the desk.
         </p>
       </header>
 
@@ -178,21 +280,21 @@ export default async function ErpHrPage() {
 
       <Tabs defaultValue="people" className="gap-6">
         <TabsList className="h-auto max-w-full flex-wrap justify-start">
-          <TabsTrigger value="people">
+          <TabsTrigger value="people" className="min-h-11">
             People
             <Badge variant="secondary">{staffChoices.length}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="notices">
+          <TabsTrigger value="notices" className="min-h-11">
             Notices
             <Badge variant="secondary">{(announcements ?? []).length}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="scheduling">
+          <TabsTrigger value="scheduling" className="min-h-11">
             Scheduling
             {draftShifts > 0 ? (
               <Badge variant="secondary">{draftShifts} draft</Badge>
             ) : null}
           </TabsTrigger>
-          <TabsTrigger value="leave">
+          <TabsTrigger value="leave" className="min-h-11">
             Leave &amp; payroll
             {pendingLeave > 0 ? (
               <Badge variant="destructive">{pendingLeave}</Badge>
@@ -204,67 +306,50 @@ export default async function ErpHrPage() {
           <Card>
             <CardHeader>
               <CardTitle>Staff directory</CardTitle>
-              <CardDescription>{staffChoices.length} staff records</CardDescription>
+              <CardDescription>
+                All staff show a pass photo (or initials). Tap a person to open
+                their dossier — profile, access, pay, docs, and conduct.
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <StaffDirectoryTable data={staffDirectory} />
+              <StaffDirectoryTable
+                data={staffDirectory}
+                privateProfiles={privateProfiles}
+                payComponents={payComponents}
+                documents={documents}
+                conduct={conduct}
+                managers={managers}
+              />
             </CardContent>
           </Card>
 
-          <section className="grid gap-6 xl:grid-cols-[1.45fr_1fr]">
-            <Card className="xl:col-span-2">
-              <CardHeader>
-                <CardTitle>Add staff</CardTitle>
-                <CardDescription>
-                  Single form or CSV sheet upload — employee code is the permanent
-                  identifier.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Tabs defaultValue="form" className="gap-4">
-                  <TabsList>
-                    <TabsTrigger value="form">Form</TabsTrigger>
-                    <TabsTrigger value="sheet">Sheet</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="form" className="mt-4">
-                    <StaffCreateForm />
-                  </TabsContent>
-                  <TabsContent value="sheet" className="mt-4">
-                    <StaffCsvImportForm />
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
-          </section>
-
-          <section className="grid gap-6 xl:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Staff lifecycle</CardTitle>
-                <CardDescription>
-                  Deactivate, suspend, or terminate without deleting operational
-                  history.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <StaffStatusForm staff={staffChoices} />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Staff portal PIN</CardTitle>
-                <CardDescription>
-                  Enable employee-code + PIN login. Desk-capable staff can open
-                  the Work ERP; others land on the staff PWA at{" "}
-                  <code className="font-mono text-xs">/staff</code>. PINs are
-                  stored only in Supabase Auth. Shared DESK_PIN remains valid.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <StaffPinProvisionForm staff={staffChoices} />
-              </CardContent>
-            </Card>
-          </section>
+          <Card>
+            <CardHeader>
+              <CardTitle>Add staff</CardTitle>
+              <CardDescription>
+                Editable hire table (desktop) or stacked cards (mobile). Sheet
+                import for bulk.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="table" className="gap-4">
+                <TabsList>
+                  <TabsTrigger value="table" className="min-h-11">
+                    Table
+                  </TabsTrigger>
+                  <TabsTrigger value="sheet" className="min-h-11">
+                    CSV
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="table" className="mt-4">
+                  <StaffInlineAddTable />
+                </TabsContent>
+                <TabsContent value="sheet" className="mt-4">
+                  <StaffCsvImportForm />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="notices" className="space-y-6">
@@ -351,12 +436,12 @@ export default async function ErpHrPage() {
                 <CardTitle>Create draft shift</CardTitle>
                 <CardDescription>
                   Drafts stay internal until the week is published from the rota
-                  board.
+                  board. Overlaps are blocked.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <StaffShiftForm staff={staff} />
-                <Button asChild variant="outline">
+                <Button asChild variant="outline" className="h-11">
                   <Link href="/erp/hr/rota">Open rota board</Link>
                 </Button>
               </CardContent>
@@ -483,16 +568,15 @@ export default async function ErpHrPage() {
               <CardHeader>
                 <CardTitle>Policies &amp; payroll</CardTitle>
                 <CardDescription>
-                  Leave policies, balances and coverage checks, plus versioned
-                  Bhutan payroll runs (NPPF + PIT) that post to finance on
-                  finalize.
+                  Leave policies and Bhutan payroll (NPPF + PIT + HC/SC from
+                  personnel files).
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2">
-                <Button asChild variant="outline">
+                <Button asChild variant="outline" className="h-11">
                   <Link href="/erp/hr/leave">Leave management</Link>
                 </Button>
-                <Button asChild variant="outline">
+                <Button asChild variant="outline" className="h-11">
                   <Link href="/erp/hr/payroll">Payroll</Link>
                 </Button>
               </CardContent>
