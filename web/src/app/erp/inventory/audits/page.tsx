@@ -6,7 +6,8 @@ import {
 import type { InvLocationOption } from "@/components/erp/InventoryOpsForms";
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { fmtDate, requireDeskPropertyId } from "@/lib/erp-lists";
+import { fmtDate } from "@/lib/erp-lists";
+import { requireDeskPropertyId } from "@/lib/desk-property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { loadCmsAdminPages } from "@/lib/cms-admin";
 import { publicPathForSlug } from "@/lib/cms-routes";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { requireDeskPropertyId } from "@/lib/erp-lists";
+import { requireDeskPropertyId } from "@/lib/desk-property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   BookOpenTextIcon,

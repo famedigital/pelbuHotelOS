@@ -1,6 +1,5 @@
 import { AgentsAccordionTable } from "@/components/erp/AgentsAccordionTable";
 import { AgentPinProvisionForm } from "@/components/erp/AgentAuthForms";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Card,
   CardContent,
@@ -8,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { deskPinConfigured, isDeskAuthenticated } from "@/lib/desk-auth";
+import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { formatBtn } from "@/lib/pricing";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -147,16 +146,6 @@ export default async function ErpAgentsPage() {
 
   return (
     <div className="erp mx-auto w-full max-w-[1200px] space-y-10 p-4 md:p-6">
-      {!deskPinConfigured() ? (
-        <Alert variant="warning">
-          <AlertTitle>Dev mode</AlertTitle>
-          <AlertDescription>
-            Desk PIN not set. Add <code className="font-mono">DESK_PIN</code>{" "}
-            before production.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
       <section className="grid gap-3 sm:grid-cols-3">
         <SummaryCard label="Pending applications" value={String(pendingCount)} />
         <SummaryCard

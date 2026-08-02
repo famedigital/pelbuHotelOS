@@ -15,7 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { deskPinConfigured, isDeskAuthenticated } from "@/lib/desk-auth";
+import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { thimphuToday } from "@/lib/erp-lists";
 import { computeRoleReadiness } from "@/lib/erp/readiness";
 import type { KotStatus } from "@/lib/kot";
@@ -163,16 +163,6 @@ export default async function ErpDashboardPage() {
 
   return (
     <div className="erp space-y-6 p-4 md:p-6">
-      {!deskPinConfigured() ? (
-        <Alert variant="warning">
-          <AlertTitle>Dev mode</AlertTitle>
-          <AlertDescription>
-            Desk PIN not set. Add <code className="font-mono">DESK_PIN</code>{" "}
-            before production.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
       {setupIncomplete ? (
         <Alert variant="destructive">
           <AlertTitle>Setup incomplete</AlertTitle>
@@ -281,10 +271,19 @@ export default async function ErpDashboardPage() {
                 Order board
               </CardTitle>
               <CardDescription>
-                Triage open kitchen tickets · tap a card for full actions
+                Triage open kitchen tickets · tap a card for full actions · F&amp;B
+                day ops live on Kitchen board (covers, meal publish, food cost)
               </CardDescription>
             </div>
-            <DeskLiveRefresh />
+            <div className="flex shrink-0 items-center gap-3">
+              <Link
+                href="/erp/kitchen"
+                className="text-xs font-medium text-accent underline-offset-4 hover:underline"
+              >
+                Kitchen board →
+              </Link>
+              <DeskLiveRefresh />
+            </div>
           </CardHeader>
           <CardContent>
             <OrderBoard tickets={openTickets} openBookings={openBookings} />

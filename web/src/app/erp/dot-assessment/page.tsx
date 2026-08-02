@@ -1,0 +1,178 @@
+import { createDotAssessment, listDotAssessments } from "@/app/actions/erp-dot-assessment";
+import { Button } from "@/components/ui/button";
+import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { getCatalog } from "@/lib/dot-assessment/catalog";
+import { computeScoreboard } from "@/lib/dot-assessment/score";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { cn } from "@/lib/utils";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+
+export const metadata: Metadata = {
+  title: "DOT Assessment | Pelbu OS",
+  description:
+    "Digital Hotel Classification System 2024 self-assessment (DOT, Trade, BFDA).",
+  robots: { index: false, follow: false },
+};
+
+export const dynamic = "force-dynamic";
+
+export default async function DotAssessmentListPage() {
+  if (!(await isDeskAuthenticated())) redirect("/erp/login");
+
+  let assessments: Awaited<ReturnType<typeof listDotAssessments>> = [];
+  let loadError: string | null = null;
+  try {
+    assessments = await listDotAssessments();
+  } catch (e) {
+    loadError = e instanceof Error ? e.message : "Could not load assessments.";
+  }
+
+  const admin = createSupabaseAdminClient();
+  const withProgress = await Promise.all(
+    assessments.map(async (a) => {
+      const { data: resp } = await admin
+        .from("dot_assessment_responses")
+        .select(
+          "criterion_code, section_key, status, score_m, score_q, score_p, remarks",
+        )
+        .eq("assessment_id", a.id);
+      const catalog = getCatalog(a.starLevel);
+      const board = computeScoreboard(
+        catalog,
+        (resp ?? []).map((r) => ({
+          criterionCode: r.criterion_code as string,
+          sectionKey: r.section_key as string,
+          status: r.status as "pending" | "yes" | "no" | "na" | "scored",
+          scoreM: r.score_m as number | null,
+          scoreQ: r.score_q as number | null,
+          scoreP: r.score_p != null ? Number(r.score_p) : null,
+          remarks: (r.remarks as string | null) ?? null,
+        })),
+        a.naSections,
+      );
+      return {
+        a,
+        pct: board.totals.progressPct,
+        gate: board.entryGatePass,
+        ready: board.readyForInspection,
+      };
+    }),
+  );
+
+  return (
+    <div className="erp mx-auto w-full max-w-3xl space-y-6 p-4 md:p-6">
+      <header className="space-y-1">
+        <p className="text-[11px] font-semibold tracking-[0.18em] text-sky-600 uppercase">
+          Compliance
+        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">DOT assessment</h1>
+        <p className="max-w-xl text-sm text-muted-foreground">
+          Prep Trade license, BFDA, and DOT star classification before the
+          inspector visits — tick, note, photo, score.
+        </p>
+      </header>
+
+      <section className="rounded-2xl border bg-gradient-to-br from-sky-500/[0.07] via-card to-card p-5 md:p-6">
+        <h2 className="text-base font-semibold">New walk-through</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Hotel Classification System for Bhutan 2024 · HCS checklists
+        </p>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <form action={createDotAssessment}>
+            <input type="hidden" name="star_level" value="3" />
+            <Button type="submit" className="h-12 w-full text-base">
+              Start 3★ mid-scale
+            </Button>
+          </form>
+          <form action={createDotAssessment}>
+            <input type="hidden" name="star_level" value="4" />
+            <Button
+              type="submit"
+              variant="outline"
+              className="h-12 w-full text-base"
+            >
+              Start 4★ premium
+            </Button>
+          </form>
+        </div>
+      </section>
+
+      {loadError && (
+        <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+          {loadError} Apply migration{" "}
+          <code className="text-xs">20260808000000_dot_assessment.sql</code> if
+          tables are missing.
+        </p>
+      )}
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+          Continue
+        </h2>
+        {withProgress.length === 0 && !loadError ? (
+          <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+            No assessments yet — start a 3★ or 4★ walk-through above.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {withProgress.map(({ a, pct, gate, ready }) => (
+              <li key={a.id}>
+                <Link
+                  href={`/erp/dot-assessment/${a.id}?step=${pct > 0 ? "gate" : "guide"}`}
+                  className="block rounded-xl border bg-card p-4 transition-all hover:border-sky-400/60 hover:shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium">
+                        {a.starLevel}★ checklist
+                        <span className="ml-2 text-xs font-normal capitalize text-muted-foreground">
+                          {a.status}
+                        </span>
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {new Date(a.updatedAt).toLocaleString(undefined, {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })}
+                        {a.leadAssessor ? ` · ${a.leadAssessor}` : ""}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-semibold tabular-nums">
+                        {pct}%
+                      </p>
+                      <p
+                        className={cn(
+                          "text-[11px] font-medium",
+                          ready
+                            ? "text-emerald-600"
+                            : gate
+                              ? "text-sky-600"
+                              : "text-amber-700",
+                        )}
+                      >
+                        {ready
+                          ? "Ready"
+                          : gate
+                            ? "Gate OK"
+                            : "Gate open"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-sky-500 to-emerald-500"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
+}

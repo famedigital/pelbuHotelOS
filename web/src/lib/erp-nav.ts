@@ -41,9 +41,14 @@ export type ErpModule = {
 };
 
 /**
- * Desk information architecture: ten modules, each opening on its first tab.
+ * Desk information architecture: modules each open on their first tab.
  * Sub-pages are tabs rather than sidebar entries so the shift path stays short
  * and related screens sit next to each other.
+ *
+ * F&B is not a separate sidebar module. Cafe/bar/restaurant lives under `pos`
+ * (register, menu, recipe cost, kitchen board, food cost, KDS). Chef/F&B
+ * ops home is `/erp/kitchen`; FO/GM property home stays `dashboard` (`/erp`).
+ * Do not add a parallel `fnb` root that only re-links these routes.
  *
  * Routes are unchanged — this is navigation only, so deep links and
  * revalidatePath calls elsewhere keep working.
@@ -79,7 +84,6 @@ export const ERP_MODULES: ErpModule[] = [
       { title: "Arrivals", href: "/erp/arrivals", icon: ClipboardListIcon },
       { title: "In-house", href: "/erp/in-house", icon: BedDoubleIcon },
       { title: "Departures", href: "/erp/departures", icon: ScrollTextIcon },
-      { title: "Fast book", href: "/erp/fast-book", icon: SparklesIcon },
       {
         title: "Reservations",
         href: "/erp/reservations",
@@ -112,6 +116,7 @@ export const ERP_MODULES: ErpModule[] = [
     ],
   },
   {
+    /** F&B sell + kitchen ops (not a separate `fnb` module). */
     key: "pos",
     title: "POS",
     icon: ShoppingCartIcon,
@@ -143,14 +148,8 @@ export const ERP_MODULES: ErpModule[] = [
       { title: "Invoices", href: "/erp/invoices", icon: ReceiptTextIcon },
       { title: "City ledger", href: "/erp/folios", icon: WalletIcon },
       { title: "Night audit", href: "/erp/night-audit", icon: ScrollTextIcon },
-      { title: "GST", href: "/erp/gst", icon: ScrollTextIcon },
       { title: "Finance", href: "/erp/finance", icon: WalletIcon },
-      { title: "Reports", href: "/erp/reports", icon: ScrollTextIcon },
-      {
-        title: "Owner performance",
-        href: "/erp/reports/performance",
-        icon: ScrollTextIcon,
-      },
+      { title: "Flash reports", href: "/erp/reports", icon: ScrollTextIcon },
     ],
   },
   {
@@ -233,6 +232,11 @@ export const ERP_MODULES: ErpModule[] = [
         icon: SmartphoneIcon,
       },
       { title: "Add hotel", href: "/erp/properties/new", icon: HotelIcon },
+      {
+        title: "DOT assessment",
+        href: "/erp/dot-assessment",
+        icon: ClipboardListIcon,
+      },
       { title: "Training", href: "/erp/training", icon: ScrollTextIcon },
     ],
   },
@@ -252,6 +256,11 @@ export const ERP_QUICK_ACTIONS: ErpNavLeaf[] = [
   { title: "Night audit", href: "/erp/night-audit", icon: ScrollTextIcon },
   { title: "Settings", href: "/erp/settings", icon: SettingsIcon },
   { title: "Training", href: "/erp/training", icon: ScrollTextIcon },
+  {
+    title: "DOT assessment",
+    href: "/erp/dot-assessment",
+    icon: ClipboardListIcon,
+  },
 ];
 
 export function isNavActive(

@@ -1,0 +1,3291 @@
+{
+  "version": "hcs-2024",
+  "sourceFile": "checklist-4-star-08092025.xlsx",
+  "sourceDate": "2025-09-08",
+  "starLevel": 4,
+  "title": "Assessment Checklist (4 Star Hotels — Premium)",
+  "scoring": {
+    "mandatoryRequired": 192,
+    "qualityBandMode": "percent",
+    "qualityBands3Star": null,
+    "percentBands": [
+      {
+        "rank": 5,
+        "label": "Excellent",
+        "minPct": 80,
+        "maxPct": 100
+      },
+      {
+        "rank": 4,
+        "label": "Very Good",
+        "minPct": 60,
+        "maxPct": 79
+      },
+      {
+        "rank": 3,
+        "label": "Good (Basic Standard)",
+        "minPct": 40,
+        "maxPct": 59
+      },
+      {
+        "rank": 2,
+        "label": "Fair",
+        "minPct": 20,
+        "maxPct": 39
+      },
+      {
+        "rank": 1,
+        "label": "Poor",
+        "minPct": 1,
+        "maxPct": 19
+      }
+    ]
+  },
+  "propertyFields": [
+    {
+      "key": "name_of_accommodation",
+      "label": "Name of Accommodation:",
+      "subLabel": null
+    },
+    {
+      "key": "location",
+      "label": "Location :",
+      "subLabel": null
+    },
+    {
+      "key": "email_id_of_hotel",
+      "label": "Email ID of Hotel",
+      "subLabel": null
+    },
+    {
+      "key": "fixed_line",
+      "label": "Fixed Line:",
+      "subLabel": null
+    },
+    {
+      "key": "internet_homepage",
+      "label": "Internet Homepage:",
+      "subLabel": null
+    },
+    {
+      "key": "tpn_number",
+      "label": "TPN Number:",
+      "subLabel": null
+    },
+    {
+      "key": "trade_license_no",
+      "label": "Trade License No:",
+      "subLabel": null
+    },
+    {
+      "key": "contact_no_of_license_holder",
+      "label": "Contact no of License Holder:",
+      "subLabel": null
+    },
+    {
+      "key": "sales_tax_collection_agetn_no",
+      "label": "Sales Tax collection Agetn No:",
+      "subLabel": null
+    },
+    {
+      "key": "name_of_owner_cid",
+      "label": "Name of Owner/CID:",
+      "subLabel": null
+    },
+    {
+      "key": "contact_no",
+      "label": "Contact No:",
+      "subLabel": null
+    },
+    {
+      "key": "alternative_number",
+      "label": "Alternative Number",
+      "subLabel": null
+    },
+    {
+      "key": "name_of_the_buidling_owner_cid",
+      "label": "Name of the Buidling Owner/CID:",
+      "subLabel": null
+    },
+    {
+      "key": "contact_no_15",
+      "label": "Contact No:",
+      "subLabel": null
+    },
+    {
+      "key": "alternative_number_16",
+      "label": "Alternative Number",
+      "subLabel": null
+    },
+    {
+      "key": "start_of_operation",
+      "label": "Start of Operation",
+      "subLabel": null
+    },
+    {
+      "key": "number_of_rooms_total",
+      "label": "Number of rooms — Total:",
+      "subLabel": "Total:"
+    },
+    {
+      "key": "number_of_rooms_type_of_rooms",
+      "label": "Number of rooms — type of rooms:",
+      "subLabel": "type of rooms:"
+    },
+    {
+      "key": "no_of_beds_twin",
+      "label": "No of beds — Twin",
+      "subLabel": "Twin"
+    },
+    {
+      "key": "no_of_beds_single",
+      "label": "No of beds — Single",
+      "subLabel": "Single"
+    },
+    {
+      "key": "number_of_staff_fill_up_staff_detials_full_time",
+      "label": "Number of staff (fill up staff detials) — Full time",
+      "subLabel": "Full time"
+    },
+    {
+      "key": "number_of_staff_fill_up_staff_detials_part_time",
+      "label": "Number of staff (fill up staff detials) — Part time",
+      "subLabel": "Part time"
+    },
+    {
+      "key": "date_of_assesstment",
+      "label": "Date of assesstment",
+      "subLabel": null
+    }
+  ],
+  "entryGate": [
+    {
+      "code": "gate.1",
+      "no": 1,
+      "text": "To be eligible for physical assessment, premises must first have satisfied all statutory regulations, requirements for health, safety and security, fire, environmental services requirements for waste management, and have certified documentary evidence of compliance.",
+      "kind": "M"
+    },
+    {
+      "code": "gate.2",
+      "no": 2,
+      "text": "Valid Trade License Available",
+      "kind": "M"
+    },
+    {
+      "code": "gate.3",
+      "no": 3,
+      "text": "The premises must have Public Liability Insurance and other statutory insurance policies.",
+      "kind": "M"
+    },
+    {
+      "code": "gate.4",
+      "no": 4,
+      "text": "Clearance from the BAFDA or relevant local authorities ensuring compliance with hygiene and sanitation standards.",
+      "kind": "M"
+    },
+    {
+      "code": "gate.5",
+      "no": 5,
+      "text": "Pest Control Contract",
+      "kind": "M"
+    },
+    {
+      "code": "gate.6",
+      "no": 6,
+      "text": "On-site representative must be contactable 24 hours, 7 days a week.",
+      "kind": "M"
+    },
+    {
+      "code": "gate.7",
+      "no": 7,
+      "text": "Security must be available 24 hours a day.",
+      "kind": "M"
+    },
+    {
+      "code": "gate.8",
+      "no": 8,
+      "text": "Internal Sustainablility Practices - Hotel Sustainability Guide Book or other practices",
+      "kind": "M"
+    },
+    {
+      "code": "gate.9",
+      "no": 9,
+      "text": "Participation in impactful CSR Initiatives (min 1 initiative )",
+      "kind": "M"
+    },
+    {
+      "code": "gate.10",
+      "no": 10,
+      "text": "All staff trained in Fire Drills & Evacuation Procedures docoment",
+      "kind": "M"
+    },
+    {
+      "code": "gate.11",
+      "no": 11,
+      "text": "A basic desaster management plan is implementation docoment",
+      "kind": "M"
+    },
+    {
+      "code": "gate.12",
+      "no": 12,
+      "text": "Incident Reporting SOP  (Template, Communication Flow, etc)",
+      "kind": "M"
+    },
+    {
+      "code": "gate.13",
+      "no": 13,
+      "text": "Food-waste management program",
+      "kind": "M"
+    },
+    {
+      "code": "gate.14",
+      "no": 14,
+      "text": "A written training  plan is available with documentation of attendance",
+      "kind": "M"
+    },
+    {
+      "code": "gate.15",
+      "no": 15,
+      "text": "Department Managers'  work experience in their position or are certification",
+      "kind": "M"
+    },
+    {
+      "code": "gate.16",
+      "no": 16,
+      "text": "General Manager work experience in their position or are certification",
+      "kind": "M"
+    },
+    {
+      "code": "gate.17",
+      "no": 17,
+      "text": "A comprehensive list of staff members, including their roles, qualifications, and employment status (full-time, part-time, or contractual).",
+      "kind": "M"
+    },
+    {
+      "code": "gate.18",
+      "no": 18,
+      "text": "Internal service rules",
+      "kind": "M"
+    },
+    {
+      "code": "gate.19",
+      "no": 19,
+      "text": "Water treatment (evidence)",
+      "kind": "M"
+    },
+    {
+      "code": "gate.20",
+      "no": 20,
+      "text": "QMS evidence (Operational SOP)",
+      "kind": "M"
+    }
+  ],
+  "sections": [
+    {
+      "key": "general",
+      "sheetName": "General Services",
+      "order": 1,
+      "code": "1",
+      "title": "General Hotel Information",
+      "caps": {
+        "M": 12,
+        "Q": 45,
+        "P": 21
+      },
+      "groups": [
+        {
+          "code": "1.1",
+          "title": "General Standards"
+        },
+        {
+          "code": "1.2",
+          "title": "General Impression - Arrival Experience"
+        },
+        {
+          "code": "1.3",
+          "title": "Public Areas"
+        },
+        {
+          "code": "1.4",
+          "title": "Public Toilets"
+        },
+        {
+          "code": "1.5",
+          "title": "Parking"
+        },
+        {
+          "code": "1.6",
+          "title": "Other Facilities"
+        },
+        {
+          "code": "1.7",
+          "title": "Accessibility"
+        }
+      ],
+      "criteria": [
+        {
+          "code": "1.1.1",
+          "text": "Economy Hotels shall have at least 4 rooms, Mid-scale, Premium and Luxury hotels shall have at least 8 rooms",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "1.1"
+        },
+        {
+          "code": "1.1.2",
+          "text": "Full time operation 7 days a week",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "1.1"
+        },
+        {
+          "code": "1.1.3",
+          "text": "Hot and Cold Water available 24 hrs. throughout the hotel",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "1.1"
+        },
+        {
+          "code": "1.1.4",
+          "text": "External hotel signage (name of hotel) and directional signage to cottages/villas is in good condition and well lit",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "1.1"
+        },
+        {
+          "code": "1.1.5",
+          "text": "All outdoor areas on the premises are well lit (gardens, walkways, entrance, etc.)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "1.1"
+        },
+        {
+          "code": "1.1.6",
+          "text": "A drop off/and pick up area close to the entrance  is available.",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "1.1"
+        },
+        {
+          "code": "1.2.1",
+          "text": "The physical environment of the hotel building is well maintained and clean",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "1.2"
+        },
+        {
+          "code": "1.2.2",
+          "text": "The staff is actively attentive, welcoming and helpful, which includes greeting guests, smiling and pro-actively providing help if needed",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "1.2"
+        },
+        {
+          "code": "1.2.3",
+          "text": "Check-in process involves a warm greeting, verification of reservation details, registration process, and sharing essential information about the hotel's amenities, and offering assistance if needed.",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "1.2"
+        },
+        {
+          "code": "1.2.4",
+          "text": "Internal and outdoor facilities  meet the cleaning Standards",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "1.2"
+        },
+        {
+          "code": "1.2.5",
+          "text": "All internal and outdoor areas and facilities are well maintained",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "1.2"
+        },
+        {
+          "code": "1.3.1",
+          "text": "All indoor public areas are non-smoking. Assigned smoking areas with ashtrays are available outdoor.",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "1.3"
+        },
+        {
+          "code": "1.3.2",
+          "text": "Visible directional  signage throughout  the hotel rooms and facilities",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "1.3"
+        },
+        {
+          "code": "1.3.3",
+          "text": "All public areas are clean, in good condition and well lit",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "1.3"
+        },
+        {
+          "code": "1.4.1",
+          "text": "Toilets provide sink with mirror, soap and hand dry option (paper, cloth or air), waste bin",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "1.4"
+        },
+        {
+          "code": "1.4.2",
+          "text": "Individual cabins are gender separated, with toilets, hooks or shelf, toilet paper and spare toilet paper, waste bins in each cabin",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "1.4"
+        },
+        {
+          "code": "1.4.3",
+          "text": "Good ventilation (Central, window, fan)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "1.4"
+        },
+        {
+          "code": "1.4.4",
+          "text": "Public toilets are clean and well maintained",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "1.4"
+        },
+        {
+          "code": "1.5.1",
+          "text": "In-door or out-door parking adjacent to  hotel",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "1.5"
+        },
+        {
+          "code": "1.5.2",
+          "text": "Parking options near the hotel",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "1.5"
+        },
+        {
+          "code": "1.5.3",
+          "text": "Assigned parking for tour-busses or vans",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "1.5"
+        },
+        {
+          "code": "1.5.4",
+          "text": "All parking is safe, well maintained and well lit at night (if available)",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "1.5"
+        },
+        {
+          "code": "1.6.1",
+          "text": "Balconies or terrace directly at room (min 50% of available rooms)",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "1.6"
+        },
+        {
+          "code": "1.7.1",
+          "text": "Barrier-free accessibility - wheelchair or assisted",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "1.7"
+        },
+        {
+          "code": "1.7.2",
+          "text": "1 wheelchair available at lobby",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "1.7"
+        },
+        {
+          "code": "1.7.3",
+          "text": "At least 1 handicapped room available (With stool)",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "1.7"
+        },
+        {
+          "code": "1.7.4",
+          "text": "Elevator for buildings higher than 3 floors",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "1.7"
+        },
+        {
+          "code": "1.7.5",
+          "text": "Elevator cabin with Floor Directory,  Emergency Procedure signage.  Cabins are clean and well maintained",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "1.7"
+        },
+        {
+          "code": "1.7.6",
+          "text": "Separate Service Elevator or separate service staircase for buildings higher than 3 floors",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "1.7"
+        }
+      ]
+    },
+    {
+      "key": "reception",
+      "sheetName": "Reception & Services",
+      "order": 2,
+      "code": "2",
+      "title": "Reception & Services",
+      "caps": {
+        "M": 20,
+        "Q": 10,
+        "P": 1
+      },
+      "groups": [
+        {
+          "code": "2.1",
+          "title": "Reception Area"
+        },
+        {
+          "code": "2.2",
+          "title": "Technology"
+        },
+        {
+          "code": "2.3",
+          "title": "Payment"
+        },
+        {
+          "code": "2.4",
+          "title": "Services"
+        }
+      ],
+      "criteria": [
+        {
+          "code": "2.1.1",
+          "text": "Reception areas or lobbies are welcoming, are clean and well maintained",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.1"
+        },
+        {
+          "code": "2.1.2",
+          "text": "A designated reception facility for guest check-in/check-out.",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.1"
+        },
+        {
+          "code": "2.1.3",
+          "text": "A designated reception area with desk, counter or table for guest check-in/check-out",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.1"
+        },
+        {
+          "code": "2.1.4",
+          "text": "Seating area with chairs (optional table) at the reception is in good quality,  condition and clean",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.1"
+        },
+        {
+          "code": "2.1.5",
+          "text": "Lobby with comfortable seating spaces and furniture in good condition and clean",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.1"
+        },
+        {
+          "code": "2.1.6",
+          "text": "Reception Desk operating 24 hrs.",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.1"
+        },
+        {
+          "code": "2.1.7",
+          "text": "Reception Desk operating  min 16 hrs. and on call during unattended times",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.1"
+        },
+        {
+          "code": "2.1.8",
+          "text": "24hrs  reach of an employee by phone at the front desk  or via mobile if desk is not attended",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.1"
+        },
+        {
+          "code": "2.1.9",
+          "text": "Dedicated Concierge Service or Guest Relation",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.1"
+        },
+        {
+          "code": "2.1.10",
+          "text": "At least 1 English speaking employee on duty per shift in guest contact areas",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.1"
+        },
+        {
+          "code": "2.1.11",
+          "text": "At least 1 certified or qualified Manager on duty per shift",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.1"
+        },
+        {
+          "code": "2.1.12",
+          "text": "Business Corner/Co-working Space  with a desk and chair, workstation with internet access. Printing and copying options available.",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.1"
+        },
+        {
+          "code": "2.2.1",
+          "text": "PMS (Property Management System ) at the reception for check-in and check-out",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.2"
+        },
+        {
+          "code": "2.3.1",
+          "text": "Cashless Payment options available (Credit Cards, Electronic Payment)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.3"
+        },
+        {
+          "code": "2.3.2",
+          "text": "Money Changing Facility offered (License and updated exchange rates visible at  the Front Desk).",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "2.3"
+        },
+        {
+          "code": "2.4.1",
+          "text": "Luggage Service available",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.4"
+        },
+        {
+          "code": "2.4.2",
+          "text": "Luggage Service on request",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.4"
+        },
+        {
+          "code": "2.4.3",
+          "text": "Secure Luggage Storage (SOP)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.4"
+        },
+        {
+          "code": "2.4.4",
+          "text": "Safety Deposit at Reception",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.4"
+        },
+        {
+          "code": "2.4.5",
+          "text": "Guest escorted to their room after check in",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.4"
+        },
+        {
+          "code": "2.4.6",
+          "text": "Umbrella at the reception or in the room",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.4"
+        },
+        {
+          "code": "2.4.7",
+          "text": "Shoe cleaning service or shoe cleaning kit on request",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.4"
+        },
+        {
+          "code": "2.4.8",
+          "text": "Turn down service",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.4"
+        },
+        {
+          "code": "2.4.9",
+          "text": "Wake-up calls Service",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.4"
+        },
+        {
+          "code": "2.4.10",
+          "text": "Daily newspaper or local magazines available in the reception area",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.4"
+        },
+        {
+          "code": "2.4.11",
+          "text": "Guest Information about activities(dedicated tour desk, information at reception, book or digital)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.4"
+        },
+        {
+          "code": "2.4.12",
+          "text": "Baby equipment  - high chair, crib for room on request",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.4"
+        },
+        {
+          "code": "2.4.13",
+          "text": "Assistance with transportation services / Airport Pick up",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "2.4"
+        }
+      ]
+    },
+    {
+      "key": "bedroom",
+      "sheetName": "Bedroom",
+      "order": 3,
+      "code": "3",
+      "title": "Bedrooms",
+      "caps": {
+        "M": 47,
+        "Q": 40,
+        "P": 52
+      },
+      "groups": [
+        {
+          "code": "3.1",
+          "title": "General Room Information"
+        },
+        {
+          "code": "3.2",
+          "title": "Cleaning Services"
+        },
+        {
+          "code": "3.3",
+          "title": "Sleeping Comfort"
+        },
+        {
+          "code": "3.4",
+          "title": "Furniture"
+        },
+        {
+          "code": "3.5",
+          "title": "Amenities"
+        },
+        {
+          "code": "3.6",
+          "title": "Lighting"
+        },
+        {
+          "code": "3.7",
+          "title": "Safety Keeping"
+        },
+        {
+          "code": "3.8",
+          "title": "Noise & Climate Control"
+        },
+        {
+          "code": "3.9",
+          "title": "In-Room Information"
+        },
+        {
+          "code": "3.10",
+          "title": "Other Services"
+        },
+        {
+          "code": "3.11",
+          "title": "Entertainment"
+        },
+        {
+          "code": "3.12",
+          "title": "Telecommunication"
+        }
+      ],
+      "criteria": [
+        {
+          "code": "3.1.1",
+          "text": "Minimum size of rooms (including bathrooms)",
+          "kind": "custom",
+          "maxPoints": null,
+          "notes": "25 sqm +(M)",
+          "groupCode": "3.1"
+        },
+        {
+          "code": "3.1.2",
+          "text": "Number of Suites (min size 40 sqm) - 1 point/suite, max 5 points",
+          "kind": "P",
+          "maxPoints": 5,
+          "notes": null,
+          "groupCode": "3.1"
+        },
+        {
+          "code": "3.1.3",
+          "text": "All rooms(100%)  including  corridors are assigned for non smoking",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.1"
+        },
+        {
+          "code": "3.1.4",
+          "text": "All rooms have windows with blackout curtains (Define in detail)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.1"
+        },
+        {
+          "code": "3.1.5",
+          "text": "All Sheers, curtains or other window shades are clean and in good condition",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.1"
+        },
+        {
+          "code": "3.1.6",
+          "text": "All rooms meet the cleanliness and maintenance standards",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.1"
+        },
+        {
+          "code": "3.1.7",
+          "text": "All rooms meet the lighting standards",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.1"
+        },
+        {
+          "code": "3.2.1",
+          "text": "Daily room cleaning (with the option of opting-out)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.2"
+        },
+        {
+          "code": "3.2.2",
+          "text": "Daily change of towels on demand",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.2"
+        },
+        {
+          "code": "3.2.3",
+          "text": "Change of bedlinen at least every 4 days (Option of opting out)",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.2"
+        },
+        {
+          "code": "3.2.4",
+          "text": "Change of bedlinen at least every 3 days (Option of opting out)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.2"
+        },
+        {
+          "code": "3.2.5",
+          "text": "Change of bedlinen on demand",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "3.2"
+        },
+        {
+          "code": "3.3.1",
+          "text": "Bed system with a well kept  mattress with minimum thickness",
+          "kind": "custom",
+          "maxPoints": null,
+          "notes": "25 cm +",
+          "groupCode": "3.3"
+        },
+        {
+          "code": "3.3.2",
+          "text": "Mattresses are in good condition and clean",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.3"
+        },
+        {
+          "code": "3.3.3",
+          "text": "Single beds min size 90x 190 cm",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.3"
+        },
+        {
+          "code": "3.3.4",
+          "text": "Double Bed min size 130x190 cm",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.3"
+        },
+        {
+          "code": "3.3.5",
+          "text": "Queen size min size 150x190 cm",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.3"
+        },
+        {
+          "code": "3.3.6",
+          "text": "King size min size 180x200 cm",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.3"
+        },
+        {
+          "code": "3.3.7",
+          "text": "Extra Bed (good quality foldable or small bed) on request",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.3"
+        },
+        {
+          "code": "3.3.8",
+          "text": "Mattress cover: mattress protector and sheet. Topper for 4 and 5 Star",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.3"
+        },
+        {
+          "code": "3.3.9",
+          "text": "Number of pillows per single bed/double bed",
+          "kind": "custom",
+          "maxPoints": null,
+          "notes": "",
+          "groupCode": "3.3"
+        },
+        {
+          "code": "3.3.10",
+          "text": "Pillows are of good quality and material and are clean",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.3"
+        },
+        {
+          "code": "3.3.11",
+          "text": "Decorational pillows on bed",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "3.3"
+        },
+        {
+          "code": "3.3.12",
+          "text": "Blanket on bed with 2 sheets",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.3"
+        },
+        {
+          "code": "3.3.13",
+          "text": "Duvets on bed  with cover or 2 sheets",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.3"
+        },
+        {
+          "code": "3.3.14",
+          "text": "Bedlinen is clean and in good condition",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.3"
+        },
+        {
+          "code": "3.3.15",
+          "text": "Additional pillow in room or upon request",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.3"
+        },
+        {
+          "code": "3.3.16",
+          "text": "Availability of anti-allergic pillow",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "3.3"
+        },
+        {
+          "code": "3.3.17",
+          "text": "Additional blanket or duvet available in room or on request",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.3"
+        },
+        {
+          "code": "3.3.18",
+          "text": "Bed Cover/decorative runner",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "3.3"
+        },
+        {
+          "code": "3.4.1",
+          "text": "Furniture and décor  is of good quality and well maintained",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.4"
+        },
+        {
+          "code": "3.4.2",
+          "text": "1 bedside table per bed",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.4"
+        },
+        {
+          "code": "3.4.3",
+          "text": "Writing desk with chair",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.4"
+        },
+        {
+          "code": "3.4.4",
+          "text": "Desk or work surface near a power outlet with light (lamp, downlight or other solution)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.4"
+        },
+        {
+          "code": "3.4.5",
+          "text": "Closets/Wardrobe or open clothes niche providing hangers and  shelves",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.4"
+        },
+        {
+          "code": "3.4.6",
+          "text": "Coat hangers with minimum number per wardrobe",
+          "kind": "custom",
+          "maxPoints": null,
+          "notes": "6 psc",
+          "groupCode": "3.4"
+        },
+        {
+          "code": "3.4.8",
+          "text": "Full size mirror",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.4"
+        },
+        {
+          "code": "3.4.9",
+          "text": "1 chair and table in room",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.4"
+        },
+        {
+          "code": "3.4.10",
+          "text": "Seating arrangements required as defined by category",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.4"
+        },
+        {
+          "code": "3.4.11",
+          "text": "Additional sofa in rooms",
+          "kind": "P",
+          "maxPoints": 5,
+          "notes": null,
+          "groupCode": "3.4"
+        },
+        {
+          "code": "3.4.12",
+          "text": "Fireproof wastepaper basket",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.4"
+        },
+        {
+          "code": "3.5.1",
+          "text": "Water Boiler with coffee/tea amenities",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.5"
+        },
+        {
+          "code": "3.5.2",
+          "text": "Coffee/Tea making facilities in all rooms",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.5"
+        },
+        {
+          "code": "3.5.3",
+          "text": "Fully Stocked Minibar (Standard), 2 drinking glasses",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.5"
+        },
+        {
+          "code": "3.5.4",
+          "text": "Small refrigerator in the room, 2 drinking glasses",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.5"
+        },
+        {
+          "code": "3.5.5",
+          "text": "Free drinking water in room - 2 small bottles (plastic)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.5"
+        },
+        {
+          "code": "3.5.6",
+          "text": "Free drinking water in room - Refillable glass bottle",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "3.5"
+        },
+        {
+          "code": "3.5.7",
+          "text": "Beverages available during room service time",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.5"
+        },
+        {
+          "code": "3.5.8",
+          "text": "Luggage Rack fixed or foldable",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.5"
+        },
+        {
+          "code": "3.6.1",
+          "text": "1 light at every bed for reading (Lamp or downlight)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.6"
+        },
+        {
+          "code": "3.6.2",
+          "text": "1 light at seating area (Standing  Lamp  or other additional ambiance lighting)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.6"
+        },
+        {
+          "code": "3.6.3",
+          "text": "All lights and lamps have individual controlled switches",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.6"
+        },
+        {
+          "code": "3.6.4",
+          "text": "Master switch at bed",
+          "kind": "P",
+          "maxPoints": 5,
+          "notes": null,
+          "groupCode": "3.6"
+        },
+        {
+          "code": "3.6.5",
+          "text": "Master switch at entrance door",
+          "kind": "P",
+          "maxPoints": 5,
+          "notes": null,
+          "groupCode": "3.6"
+        },
+        {
+          "code": "3.6.6",
+          "text": "Individual light control at bed",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.6"
+        },
+        {
+          "code": "3.6.7",
+          "text": "Accessible power socket in bedroom",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.6"
+        },
+        {
+          "code": "3.6.8",
+          "text": "Additional power socket at bedside (each bed)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.6"
+        },
+        {
+          "code": "3.6.9",
+          "text": "Accessible power socket at desk  (Detached from Master switch)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.6"
+        },
+        {
+          "code": "3.6.10",
+          "text": "Plug adaptor available on request",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.6"
+        },
+        {
+          "code": "3.7.1",
+          "text": "Safety box in room",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.7"
+        },
+        {
+          "code": "3.7.2",
+          "text": "Large Safety Box (accommodates 15' laptops, tablets and  and other electronic equipment) in room",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "3.7"
+        },
+        {
+          "code": "3.8.1",
+          "text": "Effective  sound proof windows and doors",
+          "kind": "P",
+          "maxPoints": 5,
+          "notes": null,
+          "groupCode": "3.8"
+        },
+        {
+          "code": "3.8.2",
+          "text": "Individual controllable heating/cooling systems in rooms.",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.8"
+        },
+        {
+          "code": "3.8.3",
+          "text": "Individual room heaters, bukharis or other space heaters with  instructions (Small manual and safety guidelines)",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.8"
+        },
+        {
+          "code": "3.9.1",
+          "text": "Hotel directory in print  or digital, writing pad and pen/pencil visibly displayed",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.9"
+        },
+        {
+          "code": "3.9.2",
+          "text": "“Do not disturb\" and \"Make up room\" signs positioned at door or close to door.",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.9"
+        },
+        {
+          "code": "3.10.1",
+          "text": "Ironing board and iron in rooms",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "3.10"
+        },
+        {
+          "code": "3.10.2",
+          "text": "Iron and ironing board on request",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.10"
+        },
+        {
+          "code": "3.10.3",
+          "text": "Laundry service",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.10"
+        },
+        {
+          "code": "3.10.4",
+          "text": "Laundry bag with Laundry List (in good condition) with items and return rules",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.10"
+        },
+        {
+          "code": "3.10.5",
+          "text": "Reusable Laundry Bag",
+          "kind": "P",
+          "maxPoints": 5,
+          "notes": null,
+          "groupCode": "3.10"
+        },
+        {
+          "code": "3.11.1",
+          "text": "TV  with remote control and channel instructions. Wall mounted or stand alone",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.11"
+        },
+        {
+          "code": "3.11.2",
+          "text": "SMART TV enhanced features, remote control , channel instruction and larger selection of channels",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "3.11"
+        },
+        {
+          "code": "3.11.3",
+          "text": "All TVs are properly tuned with accurate channel guide, functional remote control and usage instructions",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.11"
+        },
+        {
+          "code": "3.11.4",
+          "text": "Satellite/cable TV with international channels",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "3.11"
+        },
+        {
+          "code": "3.12.1",
+          "text": "Telephone with outside line and written user instructions",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.12"
+        },
+        {
+          "code": "3.12.2",
+          "text": "Additional telephone in suite",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "3.12"
+        },
+        {
+          "code": "3.12.3",
+          "text": "Free WIFI access in room",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.12"
+        },
+        {
+          "code": "3.12.4",
+          "text": "Free Wifi access in public and common areas",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "3.12"
+        }
+      ]
+    },
+    {
+      "key": "bathroom",
+      "sheetName": "Bathroom",
+      "order": 4,
+      "code": "4",
+      "title": "Bathroom",
+      "caps": {
+        "M": 26,
+        "Q": 5,
+        "P": 12
+      },
+      "groups": [
+        {
+          "code": "4.1",
+          "title": "General Standards"
+        },
+        {
+          "code": "4.2",
+          "title": "Furniture"
+        },
+        {
+          "code": "4.3",
+          "title": "Amenities"
+        }
+      ],
+      "criteria": [
+        {
+          "code": "4.1.1",
+          "text": "Ensuite bathroom in every room with a minimum size which allows defined features per category",
+          "kind": "custom",
+          "maxPoints": null,
+          "notes": "5 sqm + (M)",
+          "groupCode": "4.1"
+        },
+        {
+          "code": "4.1.2",
+          "text": "Bathrooms are clean, well maintained and in working order",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.1"
+        },
+        {
+          "code": "4.1.3",
+          "text": "Good ventilation, clean and maintained exhaust fan, central or window",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.1"
+        },
+        {
+          "code": "4.1.4",
+          "text": "Heating device in bathroom",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.1"
+        },
+        {
+          "code": "4.1.5",
+          "text": "Water tabs with aerator or other water saving features in working order",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.1"
+        },
+        {
+          "code": "4.1.6",
+          "text": "Floor is anti-slip",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.1"
+        },
+        {
+          "code": "4.2.1",
+          "text": "100% of rooms with shower or bathtub, toilet and washbasin",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.2"
+        },
+        {
+          "code": "4.2.2",
+          "text": "Shower with curtain",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.2"
+        },
+        {
+          "code": "4.2.3",
+          "text": "Shower or bathtub with glass partition  other other separation option",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.2"
+        },
+        {
+          "code": "4.2.4",
+          "text": "Bathtub and separate shower",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "4.2"
+        },
+        {
+          "code": "4.2.5",
+          "text": "Toilet is in a separate room",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "4.2"
+        },
+        {
+          "code": "4.2.6",
+          "text": "Handheld toilet sprayer",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.2"
+        },
+        {
+          "code": "4.2.7",
+          "text": "Mirror at wash basin",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.2"
+        },
+        {
+          "code": "4.2.8",
+          "text": "LED lighting at the the mirror to provide adequate lighting for grooming",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.2"
+        },
+        {
+          "code": "4.2.9",
+          "text": "Power socket at mirror",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.2"
+        },
+        {
+          "code": "4.2.10",
+          "text": "Cosmetic mirror",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "4.2"
+        },
+        {
+          "code": "4.2.11",
+          "text": "Minimum 1 Towel Rack or 2 Hooks",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.2"
+        },
+        {
+          "code": "4.2.12",
+          "text": "Small storage surface or shelf",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.2"
+        },
+        {
+          "code": "4.2.13",
+          "text": "Large storage space or shelf for guests",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.2"
+        },
+        {
+          "code": "4.3.1",
+          "text": "Bathmat",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.3"
+        },
+        {
+          "code": "4.3.2",
+          "text": "Anti Slip mat if required",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "4.3"
+        },
+        {
+          "code": "4.3.3",
+          "text": "Rubbish bin",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.3"
+        },
+        {
+          "code": "4.3.4",
+          "text": "Scale",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "4.3"
+        },
+        {
+          "code": "4.3.5",
+          "text": "Min 1 toothbrush tumbler",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.3"
+        },
+        {
+          "code": "4.3.6",
+          "text": "Soap bar or liquid soap  at the sink and shower each",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.3"
+        },
+        {
+          "code": "4.3.7",
+          "text": "Basic amenities (Shower gel, shampoo, soap)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.3"
+        },
+        {
+          "code": "4.3.8",
+          "text": "Wall dispensers for basic amenities (Shower gel and shampoo) Replaces basic amenities",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "4.3"
+        },
+        {
+          "code": "4.3.9",
+          "text": "Additional amenities in the bathroom",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.3"
+        },
+        {
+          "code": "4.3.10",
+          "text": "Additional amenities on request",
+          "kind": "custom",
+          "maxPoints": null,
+          "notes": "x",
+          "groupCode": "4.3"
+        },
+        {
+          "code": "4.3.11",
+          "text": "1 Tissue box in bathroom or room",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.3"
+        },
+        {
+          "code": "4.3.12",
+          "text": "Toilet paper in reserve",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.3"
+        },
+        {
+          "code": "4.3.13",
+          "text": "1 hand towel per guest",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.3"
+        },
+        {
+          "code": "4.3.14",
+          "text": "1 bath towel per guest",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.3"
+        },
+        {
+          "code": "4.3.15",
+          "text": "1 face cloth per guest",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.3"
+        },
+        {
+          "code": "4.3.16",
+          "text": "1 Bathrobes per guest",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.3"
+        },
+        {
+          "code": "4.3.17",
+          "text": "Bathrobe on demand",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.3"
+        },
+        {
+          "code": "4.3.18",
+          "text": "1 Pair of slippers per guest",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.3"
+        },
+        {
+          "code": "4.3.19",
+          "text": "Slippers on demand",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.3"
+        },
+        {
+          "code": "4.3.20",
+          "text": "Hairdryer in every room or bathroom",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.3"
+        },
+        {
+          "code": "4.3.21",
+          "text": "Hairdryer on demand",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "4.3"
+        }
+      ]
+    },
+    {
+      "key": "fnb",
+      "sheetName": "Food & Beverage",
+      "order": 5,
+      "code": "5",
+      "title": "Food & Beverage",
+      "caps": {
+        "M": 11,
+        "Q": 25,
+        "P": 8
+      },
+      "groups": [
+        {
+          "code": "5.1",
+          "title": "Beverages Outlets"
+        },
+        {
+          "code": "5.2",
+          "title": "Breakfast"
+        },
+        {
+          "code": "5.3",
+          "title": "Food  Outlets"
+        },
+        {
+          "code": "5.4",
+          "title": "Food Offer"
+        }
+      ],
+      "criteria": [
+        {
+          "code": "5.1.1",
+          "text": "Full Service Bar with  beverage offer and qualified (trained or certified) staff",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "5.1"
+        },
+        {
+          "code": "5.1.2",
+          "text": "Bar  is clean and well maintained (behind counter and seating area)",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "5.1"
+        },
+        {
+          "code": "5.1.3",
+          "text": "Cleanliness and quality of the place setting (glasses, plates,cutlery, serviettes)",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "5.1"
+        },
+        {
+          "code": "5.1.4",
+          "text": "Dinning furniture are clean and well maintained",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "5.1"
+        },
+        {
+          "code": "5.2.1",
+          "text": "Breakfast served in a dedicated restaurant or an assigned area",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "5.2"
+        },
+        {
+          "code": "5.2.2",
+          "text": "Breakfast available from 7am to 10 am",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "5.2"
+        },
+        {
+          "code": "5.2.3",
+          "text": "Minimum offer of continental breakfast  with menu",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "5.2"
+        },
+        {
+          "code": "5.2.4",
+          "text": "Breakfast buffet or equivalent breakfast menu",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "5.2"
+        },
+        {
+          "code": "5.2.5",
+          "text": "In-room breakfast menu  for room service with updated items",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "5.2"
+        },
+        {
+          "code": "5.2.6",
+          "text": "Choice of American Breakfast, other international offers and local items available (buffet or menu)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "5.2"
+        },
+        {
+          "code": "5.2.7",
+          "text": "Breakfast box or lunch box on demand",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "5.2"
+        },
+        {
+          "code": "5.3.1",
+          "text": "All-day-dining restaurant open 7 am - 9 pm throughout the day , 7 days a week.",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "5.3"
+        },
+        {
+          "code": "5.3.2",
+          "text": "Restaurant with breakfast and  lunch offer for at least 3 hours (if not fully open)",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "5.3"
+        },
+        {
+          "code": "5.3.2",
+          "text": "Restaurant with breakfast and dinner  offer for at least 4 hours (if not fully open)",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "5.3"
+        },
+        {
+          "code": "5.3.3",
+          "text": "At least 1 additional restaurant available (themed or specialized)",
+          "kind": "P",
+          "maxPoints": 5,
+          "notes": null,
+          "groupCode": "5.3"
+        },
+        {
+          "code": "5.3.3",
+          "text": "Garden Terrace, Café/Bakery or Grab & Go available",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "5.3"
+        },
+        {
+          "code": "5.3.4",
+          "text": "All food & beverage outlets are in clean condition, well maintained and in working order",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "5.3"
+        },
+        {
+          "code": "5.3.4",
+          "text": "Room service during restaurant operation time (Menu in room)",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "5.3"
+        },
+        {
+          "code": "5.3.5",
+          "text": "24-hours room service (Menu in room)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "5.3"
+        },
+        {
+          "code": "5.4.1",
+          "text": "Dietary Menu or Allergy Friendly Menu (Free of Gluten, Lactose) items available",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "5.4"
+        },
+        {
+          "code": "5.4.2",
+          "text": "Vegan Menu (Choice of items on regular Menu)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "5.4"
+        },
+        {
+          "code": "5.4.3",
+          "text": "Menus for all outlets available, printed in good condition or QR code (mobile sensitive)",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "5.4"
+        }
+      ]
+    },
+    {
+      "key": "kitchen",
+      "sheetName": "Kitchen Operation",
+      "order": 6,
+      "code": "6",
+      "title": "Kitchen Operation",
+      "caps": {
+        "M": 17,
+        "Q": 5,
+        "P": 3
+      },
+      "groups": [
+        {
+          "code": "6.1",
+          "title": "Overall Kitchen"
+        },
+        {
+          "code": "6.2",
+          "title": "Hygiene"
+        },
+        {
+          "code": "6.3",
+          "title": "Waste Management"
+        }
+      ],
+      "criteria": [
+        {
+          "code": "6.1.1",
+          "text": "Tiled walls, non-slip floors, drainage system",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "6.1"
+        },
+        {
+          "code": "6.1.2",
+          "text": "Sufficient storage space (dry stores, refrigerators, deep freezers). Easily accessible and clean",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "6.1"
+        },
+        {
+          "code": "6.1.3",
+          "text": "Gas Cylinder meet safety standards (in terms of Installation, location and storage)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "6.1"
+        },
+        {
+          "code": "6.1.4",
+          "text": "Ventilation System  and exhaust hood is in working order and maintained",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "6.1"
+        },
+        {
+          "code": "6.1.5",
+          "text": "Filter System for drinking water in place (OS, UV Light or others)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "6.1"
+        },
+        {
+          "code": "6.1.6",
+          "text": "Hand wash sinks with soap and air dryer or paper towel close to work stations",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "6.1"
+        },
+        {
+          "code": "6.2.1",
+          "text": "All kitchen facilities must are clean, well-maintained, and fully operational, adhering to hygiene and safety standards.",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "6.2"
+        },
+        {
+          "code": "6.2.2",
+          "text": "All kitchen devices/appliances are hygienic and clean",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "6.2"
+        },
+        {
+          "code": "6.2.3",
+          "text": "Food Safety License - BAFRA has done a review  at least 12 month before assessment. Documents on file",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "6.2"
+        },
+        {
+          "code": "6.2.4",
+          "text": "BAFRA Certification of staff and medical certification on file as per BAFDA regulations",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "6.2"
+        },
+        {
+          "code": "6.2.5",
+          "text": "HACCP Program is implemented",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "6.2"
+        },
+        {
+          "code": "6.2.6",
+          "text": "Clean uniform for all staff including head cover",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "6.2"
+        },
+        {
+          "code": "6.2.7",
+          "text": "Segregated storage for meat, fish, vegetables and dry food",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "6.2"
+        },
+        {
+          "code": "6.2.8",
+          "text": "Fully equipped First Aid kit is located in the kitchen",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "6.2"
+        },
+        {
+          "code": "6.2.9",
+          "text": "At least 1 trained/experienced cook with BAFDA certification on duty per shift",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "6.2"
+        },
+        {
+          "code": "6.3.1",
+          "text": "Sufficient waste bins at workstations",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "6.3"
+        },
+        {
+          "code": "6.3.2",
+          "text": "Garbage is segregated with colored or signed waste bins as per local regulation",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "6.3"
+        },
+        {
+          "code": "6.3.3",
+          "text": "Wet garbage area  is separate, ventilated,  equipped with proper bins and clean",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "6.3"
+        },
+        {
+          "code": "6.3.4",
+          "text": "Receiving areas and stores separated  from garbage area. Waste bins with lid for garbage",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "6.3"
+        }
+      ]
+    },
+    {
+      "key": "health",
+      "sheetName": "Health and Safety",
+      "order": 7,
+      "code": "7",
+      "title": "Health & Safety",
+      "caps": {
+        "M": 22,
+        "Q": 0,
+        "P": 19
+      },
+      "groups": [
+        {
+          "code": "7.1",
+          "title": "Health"
+        },
+        {
+          "code": "7.2",
+          "title": "Fire Safety"
+        },
+        {
+          "code": "7.3",
+          "title": "Security"
+        },
+        {
+          "code": "7.4",
+          "title": "Emergency Preparedness"
+        }
+      ],
+      "criteria": [
+        {
+          "code": "7.1.1",
+          "text": "All public, common and back of the house areas are adequately lit to prevent injury hazards and ensure safety for both guests and staff.",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "7.1"
+        },
+        {
+          "code": "7.1.2",
+          "text": "Pest  Control Program",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "7.1"
+        },
+        {
+          "code": "7.1.3",
+          "text": "Fully equipped  First Aid kit is available at the reception",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "7.1"
+        },
+        {
+          "code": "7.1.4",
+          "text": "Food-borne illness incident reporting procedures implemented",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "7.1"
+        },
+        {
+          "code": "7.2.1",
+          "text": "The Fire Safety Clearance  is on file as apart of the hotel license. The latest inspection results are on file.",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "7.2"
+        },
+        {
+          "code": "7.2.2",
+          "text": "Visible fire extinguishers in all common and public areas and back of the house",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "7.2"
+        },
+        {
+          "code": "7.2.3",
+          "text": "Torches in rooms",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "7.2"
+        },
+        {
+          "code": "7.2.4",
+          "text": "Fire Alarm System with control panel",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "7.2"
+        },
+        {
+          "code": "7.2.5",
+          "text": "Sprinklers in rooms or public areas",
+          "kind": "P",
+          "maxPoints": 5,
+          "notes": null,
+          "groupCode": "7.2"
+        },
+        {
+          "code": "7.2.6",
+          "text": "Fire Hose System",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "7.2"
+        },
+        {
+          "code": "7.2.7",
+          "text": "Emergency lighting in all corridors leading to guest rooms",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "7.2"
+        },
+        {
+          "code": "7.2.8",
+          "text": "Emergency Fire Exits are accessible, unobstructed and lead to the external assembly point",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "7.2"
+        },
+        {
+          "code": "7.2.9",
+          "text": "Emergency Exit signs in all corridors leading to guest rooms",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "7.2"
+        },
+        {
+          "code": "7.2.10",
+          "text": "Emergency Exit  Plan in every room at or close to door",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "7.2"
+        },
+        {
+          "code": "7.2.11",
+          "text": "All staff trained in Fire Drills & Evacuation Procedures",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "7.2"
+        },
+        {
+          "code": "7.2.12",
+          "text": "All shift leaders and managers are is certified in First Aid. Min 1 person per shift on duty with certification",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "7.2"
+        },
+        {
+          "code": "7.3.1",
+          "text": "CCTV in high priority areas with min recording time of 7 days",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "7.3"
+        },
+        {
+          "code": "7.3.2",
+          "text": "All rooms have a secure entry system",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "7.3"
+        },
+        {
+          "code": "7.3.3",
+          "text": "* Electronic Key Cards",
+          "kind": "P",
+          "maxPoints": 5,
+          "notes": null,
+          "groupCode": "7.3"
+        },
+        {
+          "code": "7.3.4",
+          "text": "* Self-locking doors with key to open",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "7.3"
+        },
+        {
+          "code": "7.3.5",
+          "text": "* Doors opened with key (no self lock)",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "7.3"
+        },
+        {
+          "code": "7.3.6",
+          "text": "Key Control System implemented",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "7.3"
+        },
+        {
+          "code": "7.3.7",
+          "text": "Spyhole",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "7.3"
+        },
+        {
+          "code": "7.3.8",
+          "text": "Internal securing device (bolt, latch, etc.)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "7.3"
+        },
+        {
+          "code": "7.3.9",
+          "text": "Security personnel or regular patrol with logs",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "7.3"
+        },
+        {
+          "code": "7.4.1",
+          "text": "Power back-up systems are provided. In working condition and regularly tested",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "7.4"
+        },
+        {
+          "code": "7.4.2",
+          "text": "A basic disaster management plan is implemented",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "7.4"
+        },
+        {
+          "code": "7.4.3",
+          "text": "Emergency communication posted in all departments",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "7.4"
+        },
+        {
+          "code": "7.4.4",
+          "text": "Incident Reporting SOP  (Template, Communication Flow, etc.)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "7.4"
+        }
+      ]
+    },
+    {
+      "key": "environment",
+      "sheetName": "Environmental Practices",
+      "order": 8,
+      "code": "8",
+      "title": "Environmental Practices",
+      "caps": {
+        "M": 7,
+        "Q": 0,
+        "P": 21
+      },
+      "groups": [
+        {
+          "code": "8.1",
+          "title": "Certifications and Practices"
+        },
+        {
+          "code": "8.2",
+          "title": "Communication"
+        },
+        {
+          "code": "8.3",
+          "title": "Programs"
+        },
+        {
+          "code": "8.4",
+          "title": "Initiatives"
+        },
+        {
+          "code": "8.5",
+          "title": "Purchasing"
+        }
+      ],
+      "criteria": [
+        {
+          "code": "8.1.1",
+          "text": "Certification of Green Bhutan Guideline 2024",
+          "kind": "P",
+          "maxPoints": 5,
+          "notes": null,
+          "groupCode": "8.1"
+        },
+        {
+          "code": "8.1.2",
+          "text": "International Eco Certifications like Travel life or other classified certifications",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "8.1"
+        },
+        {
+          "code": "8.1.3",
+          "text": "Internal Sustainability Practices - Hotel Sustainability Guide Book or other practices",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "8.1"
+        },
+        {
+          "code": "8.1.4",
+          "text": "Participation in impactful CSR Initiatives (min 1 initiative )",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "8.1"
+        },
+        {
+          "code": "8.2.1",
+          "text": "Information about Sustainability Practices in public areas and rooms",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "8.2"
+        },
+        {
+          "code": "8.2.2",
+          "text": "Staff Training  about environmental initiatives and protocols",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "8.2"
+        },
+        {
+          "code": "8.2.3",
+          "text": "On-barding training of new staff about initiatives and protocols",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "8.2"
+        },
+        {
+          "code": "8.3.1",
+          "text": "Linen and towel re-use program",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "8.3"
+        },
+        {
+          "code": "8.3.2",
+          "text": "Food-waste management program",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "8.3"
+        },
+        {
+          "code": "8.3.3",
+          "text": "Water quality is treated and regularly checked (Water filtration)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "8.3"
+        },
+        {
+          "code": "8.3.4",
+          "text": "Water is being reused (grey water)",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "8.3"
+        },
+        {
+          "code": "8.3.5",
+          "text": "Waste segregation throughout the hotel",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "8.3"
+        },
+        {
+          "code": "8.3.6",
+          "text": "Additional recycling or re-use programs in place",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "8.3"
+        },
+        {
+          "code": "8.3.7",
+          "text": "Composting",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "8.3"
+        },
+        {
+          "code": "8.4.1",
+          "text": "Comprehensive water-saving system",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "8.4"
+        },
+        {
+          "code": "8.4.2",
+          "text": "LED lighting throughout the hotel",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "8.4"
+        },
+        {
+          "code": "8.4.3",
+          "text": "Motion sensors for lights are installed in low frequented areas",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "8.4"
+        },
+        {
+          "code": "8.4.4",
+          "text": "Hotel is promoting eco-friendly transportation",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "8.4"
+        },
+        {
+          "code": "8.5.1",
+          "text": "Environmental purchasing policy in place (packaging, utility savings, partnerships, training)",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "8.5"
+        },
+        {
+          "code": "8.5.2",
+          "text": "Sourcing of local food and other products",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "8.5"
+        }
+      ]
+    },
+    {
+      "key": "quality",
+      "sheetName": "Quality Control & Online Activi",
+      "order": 9,
+      "code": "9",
+      "title": "Quality Control & Online Activities",
+      "caps": {
+        "M": 6,
+        "Q": 0,
+        "P": 10
+      },
+      "groups": [
+        {
+          "code": "9.1",
+          "title": "Quality Control"
+        },
+        {
+          "code": "9.2",
+          "title": "Online Activities"
+        }
+      ],
+      "criteria": [
+        {
+          "code": "9.1.1",
+          "text": "Basic Quality  Control Systems in place",
+          "kind": "X",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "9.1"
+        },
+        {
+          "code": "9.1.2",
+          "text": "Systematic Quality Control System in place",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "9.1"
+        },
+        {
+          "code": "9.1.3",
+          "text": "Online Review Program (Reputation Management) in place",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "9.1"
+        },
+        {
+          "code": "9.2.1",
+          "text": "Basic website with a focus on simple design and essential information optimized for mobile devices",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "9.2"
+        },
+        {
+          "code": "9.2.2",
+          "text": "Comprehensive website with a professionally designed layout and features. Optimized for mobile devices",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "9.2"
+        },
+        {
+          "code": "9.2.4",
+          "text": "Social Media Channels (FB, Instagram or others) are used for enhanced visibility and guest communication",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "9.2"
+        },
+        {
+          "code": "9.2.5",
+          "text": "Website with information/booking request option (\"Get in touch\" or \"contact\" button)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "9.2"
+        },
+        {
+          "code": "9.2.6",
+          "text": "Website with instant booking option (Booking engine)",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "9.2"
+        },
+        {
+          "code": "9.2.7",
+          "text": "Google Business Listing for enhanced visibility is implemented",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "9.2"
+        },
+        {
+          "code": "9.2.8",
+          "text": "Information about environment-friendly  initiatives on website",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "9.2"
+        },
+        {
+          "code": "9.2.9",
+          "text": "Information  about Bhutan Travel Policy  on website",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "9.2"
+        }
+      ]
+    },
+    {
+      "key": "hr",
+      "sheetName": "Human Resources",
+      "order": 10,
+      "code": "10",
+      "title": "Human Resources",
+      "caps": {
+        "M": 14,
+        "Q": 5,
+        "P": 0
+      },
+      "groups": [
+        {
+          "code": "10.1",
+          "title": "Staff Training"
+        },
+        {
+          "code": "10.2",
+          "title": "Employee Appearance"
+        },
+        {
+          "code": "10.3",
+          "title": "Staff Facilities"
+        },
+        {
+          "code": "10.4",
+          "title": "Workforce & Qualification"
+        }
+      ],
+      "criteria": [
+        {
+          "code": "10.1.1",
+          "text": "The Internal Service Rules (ISR) are in place . This includes a Staff Handbook signed by all staff after employment. All documents on file",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "10.1"
+        },
+        {
+          "code": "10.1.2",
+          "text": "A written training  plan is available with documentation of attendance",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "10.1"
+        },
+        {
+          "code": "10.1.3",
+          "text": "An orientation training for all new staff in place",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "10.1"
+        },
+        {
+          "code": "10.2.1",
+          "text": "Staff has a presentable appearance, wears clean uniforms, in good condition with name tag",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "10.2"
+        },
+        {
+          "code": "10.3.1",
+          "text": "All back of the house staff facilities are well maintained & clean",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "10.3"
+        },
+        {
+          "code": "10.3.2",
+          "text": "Changing rooms with showers, toilets, lockers are separated by gender",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "10.3"
+        },
+        {
+          "code": "10.3.3",
+          "text": "Staff dining area or cafeteria is provided, in good condition and clean",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "10.3"
+        },
+        {
+          "code": "10.3.4",
+          "text": "Back of the house facilities are accessible from the service/staff entrance",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "10.3"
+        },
+        {
+          "code": "10.4.1",
+          "text": "Workforce as per the Tourism and Hospitality Sector Qualifications Framework",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "10.4"
+        },
+        {
+          "code": "10.4.2",
+          "text": "An organization chart is displayed on the back office blackboard",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "10.4"
+        },
+        {
+          "code": "10.4.3",
+          "text": "A weekly work schedule is displayed in every department",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "10.4"
+        },
+        {
+          "code": "10.4.4",
+          "text": "At least one staff is on duty in each operational department during opening times",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "10.4"
+        },
+        {
+          "code": "10.4.5",
+          "text": "Full time employees  on the payroll are experienced, certified or trained",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "10.4"
+        },
+        {
+          "code": "10.4.6",
+          "text": "Department Managers have work experience in their position or are certified",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "10.4"
+        },
+        {
+          "code": "10.4.7",
+          "text": "General Manager should have work expereince in their posistion and relevent qualification",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "10.4"
+        },
+        {
+          "code": "10.4.8",
+          "text": "Min staff ratio as per the guideline to be maintained (min 1:1)*",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "10.4"
+        }
+      ]
+    },
+    {
+      "key": "recreation",
+      "sheetName": "Recreational Facilities ",
+      "order": 11,
+      "code": "11",
+      "title": "Recreational Facilities",
+      "caps": {
+        "M": 4,
+        "Q": 10,
+        "P": 19
+      },
+      "groups": [
+        {
+          "code": "11.1",
+          "title": "Sport and Activities"
+        },
+        {
+          "code": "11.2",
+          "title": "Spa/Wellness"
+        },
+        {
+          "code": "11.3",
+          "title": "Children"
+        }
+      ],
+      "criteria": [
+        {
+          "code": "11.1.1",
+          "text": "Indoor and outdoor activities provided (archery, cooking classes, community activites, bike rentals, etc)",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "11.1"
+        },
+        {
+          "code": "11.1.2",
+          "text": "Fitness Room with different exercise machines",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "11.1"
+        },
+        {
+          "code": "11.1.3",
+          "text": "Fitness room and equipment is clean, maintained and in working order",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "11.1"
+        },
+        {
+          "code": "11.2.1",
+          "text": "All  recreational facilities are hygienic, clean and well maintained",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "11.2"
+        },
+        {
+          "code": "11.2.2",
+          "text": "Spa area with treatment rooms for massage",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "11.2"
+        },
+        {
+          "code": "11.2.3",
+          "text": "Full Spa area with extended beaurty traetments, yoga or meditation classes, relaxation areas, etc",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "11.2"
+        },
+        {
+          "code": "11.2.4",
+          "text": "Whirlpool, hot tubs or plunge pools",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "11.2"
+        },
+        {
+          "code": "11.2.5",
+          "text": "Hot Stone bath",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "11.2"
+        },
+        {
+          "code": "11.2.6",
+          "text": "Sauna or steam room",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "11.2"
+        },
+        {
+          "code": "11.2.7",
+          "text": "Swimming pool (indoor or outdoor) in working order and clean",
+          "kind": "P",
+          "maxPoints": 5,
+          "notes": null,
+          "groupCode": "11.2"
+        },
+        {
+          "code": "11.2.8",
+          "text": "At least 1 certified Spa Attendant for treatments in each shift",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "11.2"
+        },
+        {
+          "code": "11.3.1",
+          "text": "in-House child care",
+          "kind": "P",
+          "maxPoints": 5,
+          "notes": null,
+          "groupCode": "11.3"
+        },
+        {
+          "code": "11.3.2",
+          "text": "Playground/playroom",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "11.3"
+        }
+      ]
+    },
+    {
+      "key": "mice",
+      "sheetName": "Event Facilities MICE",
+      "order": 12,
+      "code": "12",
+      "title": "Event Facilities/MICE (hotels with Meeting /Banquets rooms only)",
+      "caps": {
+        "M": 6,
+        "Q": 10,
+        "P": 32
+      },
+      "groups": [
+        {
+          "code": "12.1",
+          "title": "Facilities"
+        },
+        {
+          "code": "12.2",
+          "title": "Equipment"
+        },
+        {
+          "code": "12.3",
+          "title": "Other Services"
+        }
+      ],
+      "criteria": [
+        {
+          "code": "12.1.1",
+          "text": "Conference rooms of at least 36 m2 to 100 m2",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "12.1"
+        },
+        {
+          "code": "12.1.2",
+          "text": "Conference room larger than 100 m2",
+          "kind": "P",
+          "maxPoints": 5,
+          "notes": null,
+          "groupCode": "12.1"
+        },
+        {
+          "code": "12.1.3",
+          "text": "Banqueting facilities for at least 50 persons",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "12.1"
+        },
+        {
+          "code": "12.1.4",
+          "text": "Banqueting facilities for at least 100 persons",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "12.1"
+        },
+        {
+          "code": "12.1.5",
+          "text": "Banquet facilities for at more than 100 people",
+          "kind": "P",
+          "maxPoints": 5,
+          "notes": null,
+          "groupCode": "12.1"
+        },
+        {
+          "code": "12.1.6",
+          "text": "At least 1 boardroom/small break-out room",
+          "kind": "P",
+          "maxPoints": 1,
+          "notes": null,
+          "groupCode": "12.1"
+        },
+        {
+          "code": "12.1.7",
+          "text": "More than 2 boardrooms/break-out rooms",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "12.1"
+        },
+        {
+          "code": "12.1.8",
+          "text": "Meeting rooms  with daylight",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "12.1"
+        },
+        {
+          "code": "12.1.9",
+          "text": "Black-out shades for conference and banquet rooms in good condition and working order",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "12.1"
+        },
+        {
+          "code": "12.1.11",
+          "text": "Adjustable heating or/and air-conditioning in conference, banquet and meeting rooms",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "12.1"
+        },
+        {
+          "code": "12.1.12",
+          "text": "Adjustable lighting in conference, banquet and meeting rooms",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "12.1"
+        },
+        {
+          "code": "12.1.13",
+          "text": "All facilities are clean and well maintained and heating and lighting is in working order",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "12.1"
+        },
+        {
+          "code": "12.1.14",
+          "text": "All equipment provided is clean and in working order",
+          "kind": "Q",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "12.1"
+        },
+        {
+          "code": "12.2.1",
+          "text": "Projection Screen 2x2 m",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "12.2"
+        },
+        {
+          "code": "12.2.2",
+          "text": "Projector ( with minimum 2500 - 3000 Lumen for conference facilities)",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "12.2"
+        },
+        {
+          "code": "12.2.3",
+          "text": "Speaker Podium & Microphone  for facilities with more than 50 persons",
+          "kind": "M",
+          "maxPoints": null,
+          "notes": null,
+          "groupCode": "12.2"
+        },
+        {
+          "code": "12.2.4",
+          "text": "Highspeed Internet/WIFI in conference rooms  on demand",
+          "kind": "P",
+          "maxPoints": 5,
+          "notes": null,
+          "groupCode": "12.2"
+        },
+        {
+          "code": "12.3.1",
+          "text": "Serviced Business Center",
+          "kind": "P",
+          "maxPoints": 3,
+          "notes": null,
+          "groupCode": "12.3"
+        }
+      ]
+    }
+  ],
+  "stats": {
+    "leafCriteria": 324,
+    "mandatoryLeafCount": 188,
+    "entryGateCount": 20,
+    "sectionCount": 12
+  }
+}

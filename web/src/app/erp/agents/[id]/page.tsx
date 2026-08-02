@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { fmtDate, requireDeskPropertyId, thimphuToday } from "@/lib/erp-lists";
+import { fmtDate, thimphuToday } from "@/lib/erp-lists";
+import { requireDeskPropertyId } from "@/lib/desk-property";
 import { formatBtn } from "@/lib/pricing";
 import {
   defaultDossierRange,

@@ -57,10 +57,12 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Feature | Notes |
 |---------|--------|
 | Layout | `web/src/app/erp/layout.tsx` → authenticated `DeskShell` |
-| Sidebar IA | Front desk · Rooms · POS · Money · Channels · **Team** · **Inventory** · Hotel (Settings footer) |
+| Sidebar IA | Dashboard · Calendar · Front desk · Rooms · **POS** (F&B live here — not a separate module) · Money · Channels · **Team** · **Inventory** · Hotel (Settings footer) |
+| **F&B IA (fixed)** | **No standalone F&B sidebar.** Sell/settle = POS register + menu + KDS; daily ops = **Kitchen board** `/erp/kitchen` (F&B ops home); property FO/GM home = Dashboard `/erp`. Do not merge kitchen into `/erp` or add a duplicate F&B root. |
 | Property switcher | Header; multi-property helpers + wizard exist |
 | Settings | `/erp/settings` — Identity · Commercial · Policies · Tax · Documents · Rooms · Compliance · Finance imports · **Danger zone** (owner WIPE). Plan `erp_settings_page_41e5deb4` |
 | **Training LMS** | `/erp/training` — role-filtered manuals + checklist (local progress) |
+| **DOT assessment** | `/erp/dot-assessment` — HCS 2024 3★/4★ digital checklist (Trade · BFDA · DOT), entry gate, M/Q/P scoring, photos, print pack |
 | Loading UX | Top **NavigationProgress** on desk nav · `usePendingFeedback` + sonner on mutating actions (rota publish, danger wipe) |
 | Reskin | **Sky & Citrus (final)** — shadcn primitives + TanStack `DataTable`; sky-500 accent + amber citrus under `.erp`. Plan `erp_shadcn_reskin_d79ac669` (all 13 clusters) |
 
@@ -68,20 +70,20 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 
 | Module | Route | Status |
 |--------|-------|--------|
-| Inbox + KOT board | `/erp` | Live refresh via `/api/erp/kot-version` |
+| **Dashboard** (FO/GM) | `/erp` | Property-wide readiness · arrivals/holds/folio KPIs · open KOT triage · link to Kitchen board; **not** the chef F&B home |
 | **Calendar / Timeline** | `/erp/calendar` | **v1–v2 shipped (2026-07-29)** — see below |
 | Calendar day sheet | `/erp/calendar/day-sheet` | Printable arrivals / departures / stayovers / blocks |
-| Fast book | `/erp/fast-book` | UX v2 — calendar strip + qty grid + drawer + invoice/voucher split; mixed-category ack; nights always visible |
-| Check-in / out | `/erp/check-in` | Physical room allocation (guest + guide/driver); HK readiness; multi-guest rooming; origin-aware SDF/guide; checkout → dirty |
-| Arrivals / in-house / departures | `/erp/arrivals` etc. | P8 list boards |
-| Reservations / guests | `/erp/reservations`, `/erp/guests` | P8 lists |
-| POS | `/erp/pos` | Cafe/bar/restaurant cashier → folio; floor plan; stock & shifts; **Open tickets + Closed today** (paid methods, folio link, charge-to-room) |
+| Fast book | Modal on `/erp/reservations?new=1` (deeplink `/erp/fast-book` redirects) | Create path is modal → StayHub at Reserve; form still has qty grid + drawer |
+| Check-in / out | StayHub panels + `/erp/check-in` | Physical room allocation; after check-in StayHub lands Stay/Money; checkout → dirty |
+| Arrivals / in-house / departures | `/erp/arrivals` etc. | Boards open StayHub (CI / Stay-Money / CO); today’s worklists only for A/D |
+| Reservations / guests | `/erp/reservations`, `/erp/guests` | **New reservation** CTA → Fast Book modal; list all bookings |
+| **POS / F&B** | `/erp/pos` (+ tabs) | **F&B product surface** (sidebar title remains POS): Register · Menu · Recipe cost · **Kitchen board** · Food cost · Kitchen TV. Cashier → folio; floor plan; shifts; **Open tickets + Closed today** |
 | **Laundry** | `/erp/laundry` (+ `/qr`, `/orders/[id]/labels`) · guest `/laundry` · staff `/staff/laundry` (+ bag scan/labels) | Guest QR room+name intake · reception photo intake · maid mobile board · **Amazon-style bag QR labels** (1–N bags, per-bag garments, staff-secured scan) · maid-confirmed counts → atomic folio post · printable room + bag stickers |
 | Folio | `/erp/folios/[id]` (+ `/receipt`) | Payments, void, comp, deposit links; **tax invoice + fiscal receipt issue**; **day-1 room post at check-in** + manual Post room night / day-1 charges; **stay money process strip** |
-| Kitchen | `/erp/kitchen` | Covers board + **Publish meal service (BF/lunch/dinner)** to FO/POS feed (`kitchen_meal_services`) |
+| **Kitchen board** (F&B ops dashboard) | `/erp/kitchen` (+ `/food-cost`) | Covers · staff on shift · publish BF/lunch/dinner to FO/POS (`kitchen_meal_services`) · gas/stock/expiry · food cost COGS · **Events & groups** (banquet cards: menu, time window, pax, venue, package rate/deposit/balance, link/post to folio) — **chef/F&B supervisor home**, not FO Dashboard |
 | Invoices / payments | `/erp/invoices`, `/erp/payments` | **Invoices:** issued fiscal tax invoice list (INV-YYYY-####) only — not POS tickets. Settle/paid/on-room under **POS → Closed today** |
 | Agents | `/erp/agents` (+ `/erp/agents/[id]` dossier) | Approve, credit, rates matrix, documents; **click agent → 360° dossier** (bookings, guests, rooms, money/AR, rates/allotments) |
-| Finance + bank recon | `/erp/finance` | **Double-entry ledger + Import Workbench (2026-07-29)** — Overview · Income · Expenses (spreadsheet + receipt PDF extract) · Banking (PDF + approved parsers) · Accounting · GST · Reports · Setup; Settings → Finance imports for parser versions; isolated `services/finance-parser-worker` |
+| Finance + bank recon | `/erp/finance` | **Hotel accountant** — Vault (cash/bank/holdings) · Money in · Money out (expenses + AP bills + payroll link) · Banking · GST · Journals · Reports · Setup & month close; walk-in POS + payroll payout journals; bank create-from-line; Settings → Finance imports |
 | GST | `/erp/gst` (+ `/erp/finance/gst`) | Returns / summaries + ledger GST input/output |
 | Partners | `/erp/partners` | Guides + drivers master, visit counts, search |
 | Reports | `/erp/reports` (+ `/erp/reports/[slug]`) | Manager flash + **named catalog** (agent production, agent AR/habit, staff attendance, inventory movements) + CSV; not a free-form query builder |
@@ -96,6 +98,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Group / properties | `/erp/group`, `/erp/properties/*` | Multi-hotel overview + setup wizard |
 | Night audit | `/erp/night-audit` | Close-day checklist + room-night posting; cron midnight Thimphu |
 | Settings | `/erp/settings` | Identity · Tax & service · Documents · Rooms (see shell table) |
+| **DOT assessment** | `/erp/dot-assessment` | HCS 2024 3★/4★ digital checklist (Trade · BFDA · DOT), entry gate, M/Q/P scores, photos, print pack |
 
 ### Calendar / room rack (plan `calendar_drag_booking_64bad6ba`)
 
@@ -189,7 +192,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 
 `AppSidebar` / `erp-nav.ts` groups:
 
-- **Front desk:** Dashboard · Calendar · Arrivals · In-house · Departures · Reservations · Check-in · Check-out · Fast book · Guests · **Groups** · Rooms · Housekeeping · Maintenance · Laundry
+- **Front desk:** Dashboard · Calendar · Arrivals · In-house · Departures · Reservations (**New reservation** → Fast Book modal → StayHub) · Guests · **Groups** · Rooms · Housekeeping · Maintenance · Laundry
 - **Money:** Invoices · Payments · POS · Finance · GST · Night audit · Reports
 - **Channels:** Allotments · Channel · Partners · Agents
 - **Inventory & people:** Stock · HR

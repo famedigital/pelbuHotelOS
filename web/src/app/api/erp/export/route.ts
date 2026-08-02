@@ -1,5 +1,6 @@
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { requireDeskPropertyId, thimphuToday } from "@/lib/erp-lists";
+import { thimphuToday } from "@/lib/erp-lists";
+import { requireDeskPropertyId } from "@/lib/desk-property";
 import { loadAgentProductionReport } from "@/lib/reports/agent-dossier";
 import {
   loadAgentArReport,

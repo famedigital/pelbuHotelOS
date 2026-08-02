@@ -44,7 +44,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { getDeskRole, isDeskAuthenticated } from "@/lib/desk-auth";
-import { requireDeskPropertyId } from "@/lib/erp-lists";
+import { requireDeskPropertyId } from "@/lib/desk-property";
 import { loadProperty } from "@/lib/property-context";
 import { rateToPercent, type PropertyDocumentDesign } from "@/lib/property-settings";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";

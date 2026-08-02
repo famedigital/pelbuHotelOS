@@ -2,7 +2,7 @@ import { DeskPageTitle } from "@/components/erp/DeskShell";
 import { ErpMediaPhoneUpload } from "@/components/erp/cms/ErpMediaPhoneUpload";
 import { Button } from "@/components/ui/button";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { requireDeskPropertyId } from "@/lib/erp-lists";
+import { requireDeskPropertyId } from "@/lib/desk-property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { ArrowLeftIcon, MonitorIcon } from "lucide-react";
 import Link from "next/link";

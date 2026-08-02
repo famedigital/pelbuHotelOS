@@ -2,7 +2,7 @@ import { MealPlansRatesSummary } from "@/components/erp/MealPlansRatesSummary";
 import { RoomRatesSheet } from "@/components/erp/RoomRatesSheet";
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { requireDeskPropertyId } from "@/lib/erp-lists";
+import { requireDeskPropertyId } from "@/lib/desk-property";
 import {
   loadActiveMealPlans,
   loadPropertyDefaultMealPlanCode,

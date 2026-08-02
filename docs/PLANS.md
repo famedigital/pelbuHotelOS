@@ -4,17 +4,19 @@ Plans live outside the repo at `C:\Users\rajiv\.cursor\plans\` (Cursor plan-mode
 **Release roll-up:** [RELEASE-v1.md](RELEASE-v1.md).  
 **Shipped routes:** [FEATURES.md](FEATURES.md).
 
-Last reconciled: **2026-08-02** (v1.0 package + Olakha production wave Phase 6 done).
+Last reconciled: **2026-08-03** (wave + post-wave on main through `9d3fe3f`; N+1 tranche StayHub/NA/HR/DOT/kitchen/journals quality-gated and pushed; residual A/B/C queue).
 
 ---
 
-## Active wave (in progress)
+## Active / recommended queue (in progress)
 
 | Plan | Focus | Status | Saved copy |
 |------|--------|--------|------------|
-| `rates_meals_nationality_7c9e2c95.plan.md` | Production-ready #1 ERP — meals, nationality, inventory OS, GST BITS, HK, kitchen, owner P&L | **Done (implementation)** — residual: Playwright click-through, depreciation UI, accounting journal purge on wipe | [plans/olakha-production-ready-erp-wave.md](plans/olakha-production-ready-erp-wave.md) |
+| **Way forward (current)** | Residual after wave + N+1 — **A finish** journals UAT + Playwright → **B** FO friction → week packs | **In progress** | [plans/olakha-erp-way-forward.md](plans/olakha-erp-way-forward.md) |
+| N+1 tranche (shipped) | StayHub FO cycle, night-audit desk, HR personnel/rota cover, kitchen events, hotel accountant/journals, DOT assessment | **Done (pushed)** — see way-forward §1.3 | same way-forward doc |
+| `rates_meals_nationality_7c9e2c95.plan.md` | Production-ready #1 ERP wave | **Done (implementation)** — 50/71; residual in way-forward | [plans/olakha-production-ready-erp-wave.md](plans/olakha-production-ready-erp-wave.md) |
 
-**Phase 6 (Aug 2026):** LMS · danger wipe · loading UX · RLS hygiene · unit tests. Wave implementation complete; see wave doc for deferred polish.
+**Wave 0–6 + post-wave (laundry, rack desks, inventory module, rates sheet, day-1 folio):** done on `main`. **N+1:** StayHub system-of-record + NA/HR/finance/kitchen/DOT. **Next:** Phase A finish (Playwright) → Phase B (PDF/export/minibar/fees). Do not restart the 71-todo wave.
 
 ---
 
@@ -143,6 +145,8 @@ Last reconciled: **2026-08-02** (v1.0 package + Olakha production wave Phase 6 d
 
 | Doc | Role |
 |-----|------|
+| [plans/olakha-erp-way-forward.md](plans/olakha-erp-way-forward.md) | **Current residual queue + phases** |
+| [plans/olakha-production-ready-erp-wave.md](plans/olakha-production-ready-erp-wave.md) | Wave 0–6 snapshot |
 | [RELEASE-v1.md](RELEASE-v1.md) | Combined v1 release picture |
 | [FEATURES.md](FEATURES.md) | Shipped vs remaining |
 | [WHITEBOARD.md](WHITEBOARD.md) | Live system map |

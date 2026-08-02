@@ -1,6 +1,6 @@
 # Production-ready #1 Pelbu ERP (Olakha wave)
 
-**Status:** In progress — Phase 4 done · Phase 5 done · **Phase 6 done**
+**Status:** **Done (implementation)** — Phase 0–6 complete · post-wave fixups landed · residual → [olakha-erp-way-forward.md](olakha-erp-way-forward.md)
 
 **Phase notes (Aug 2026):**
 - **Phase 1:** Meal plans on fast book, calendar, agent book, public quote; cancel/no-show policy folio lines (non-MoU); nationality Combobox on check-in; policies/damage/guest pack wired. Guest standalone edit form deferred (check-in only).

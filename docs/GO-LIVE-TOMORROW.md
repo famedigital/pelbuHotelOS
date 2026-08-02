@@ -48,14 +48,17 @@ This is the practical shift guide — not marketing. Read once with the team bef
 
 ### F&B / Cafe / Bar
 
+**No separate F&B sidebar.** Sell under **POS**; chef day board under **Kitchen board**. Property **Dashboard** (`/erp`) is FO/GM (open tickets triage only).
+
 | Task | Route |
 |------|-------|
 | POS cashier | `/erp/pos` |
 | Kitchen display | `/erp/kds` |
 | Menu admin | `/erp/menu` |
-| Open tickets / online orders | `/erp` (dashboard inbox) |
+| Kitchen / F&B ops dashboard | `/erp/kitchen` (covers, meal publish, food cost) |
+| Open tickets triage | `/erp` (FO dashboard) or POS → Open tickets |
 
-**POS flow:** Open shift → build ticket → settle (cash/card/room charge) → close shift at end of service. Room charge posts to the guest folio immediately — verify on folio before checkout.
+**POS flow:** Open shift → build ticket → **Pay now** (settle cash/card later) or **Charge to room** (pick in-house room → posts to guest folio immediately). Verify room posts on the folio before checkout. Find settled tickets under POS → Open tickets → **Closed today** (total, how paid, folio link). Tax invoices are **not** the POS slip list — issue INV from the folio.
 
 ### Laundry
 
@@ -114,7 +117,7 @@ Until then, POS / laundry / desk charges still post normally. Only **room rent**
 2. Scan **in-house folios** — take payments or post comps if needed.
 3. Confirm **HK room statuses** on departures (dirty/clean).
 
-**Run:** `/erp/night-audit` → pick business date → **Complete night audit**.
+**Run:** `/erp/night-audit` → pick business date → **Complete night audit**. Watch **History** for a live checklist of each step (occupancy → room nights → blockers → save → backup). After success, expand **Show steps** on that date to re-open the permanent checklist.
 
 **Success message shows:**
 
@@ -144,12 +147,13 @@ Until then, POS / laundry / desk charges still post normally. Only **room rent**
 
 ---
 
-## 6. Invoices vs folios
+## 6. Invoices vs folios vs POS tickets
 
 | Screen | What it is |
 |--------|------------|
-| **Folio** (`/erp/folios/{id}`) | Running guest account — charges, payments, balance. |
-| **Tax invoices** (`/erp/invoices`) | **Issued fiscal numbers only** (`INV-YYYY-####`). Issue from folio via **Issue tax invoice** — not automatic on checkout. |
+| **POS tickets** (`/erp/pos` → Open tickets → Closed today) | F&B orders: total, how paid, charge-to-room link, print slip. |
+| **Folio** (`/erp/folios/{id}`) | Running guest account — room, F&B, payments, balance. |
+| **Tax invoices** (`/erp/invoices`) | **Issued fiscal numbers only** (`INV-YYYY-####`). Issue from folio via **Issue tax invoice** — not automatic on POS settle or checkout. |
 | **Receipt** | Print from folio → `/erp/folios/{id}/receipt` after **Issue receipt** (RCP-YYYY-####). |
 
 This is **not** the Bhutan RRCO e-invoice API yet — internal sequences for front-office paperwork.
@@ -190,10 +194,10 @@ Cannot be toggled from app code — owner must click once in Supabase.
 
 1. “Desk login is `/erp/login`. Calendar is home.”  
 2. “Check-in opens folio — **room rent posts at night audit**, not at arrival.”  
-3. “F&B: open POS shift, settle tickets, room charge hits folio.”  
+3. “F&B: open POS shift; **Pay now** or **Charge to room** (posts folio). Closed tickets under POS → Closed today.”  
 4. “Laundry: desk creates order → print bag QR → maid scans.”  
 5. “Manager: run night audit after service; check message for room-night count.”  
-6. “Tax invoice numbers only after **Issue tax invoice** on folio — `/erp/invoices` lists them.”  
+6. “Tax invoice numbers only after **Issue tax invoice** on folio — `/erp/invoices` lists them (not POS slips).”  
 7. “⌘K / Ctrl+K to jump anywhere.”
 
 ---

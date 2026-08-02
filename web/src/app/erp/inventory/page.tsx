@@ -3,7 +3,7 @@ import type { InvItemRow, InvLocationOption } from "@/components/erp/InventoryOp
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import type { InventoryCategoryRow } from "@/lib/inventory-catalog";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { requireDeskPropertyId } from "@/lib/erp-lists";
+import { requireDeskPropertyId } from "@/lib/desk-property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";

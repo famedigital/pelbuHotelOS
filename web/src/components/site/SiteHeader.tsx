@@ -419,17 +419,30 @@ export function SiteHeader({
           </NavigationMenuList>
         </NavigationMenu>
 
-        <Link
-          href="/book"
-          className={cn(
-            "inline-flex h-10 items-center rounded-xl px-4 text-[13px] font-semibold transition-colors",
-            overHero
-              ? "bg-citrus text-sky-ink hover:bg-citrus-soft"
-              : "bg-primary text-primary-foreground hover:bg-primary/90",
-          )}
-        >
-          Book
-        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          <Link
+            href="/login"
+            className={cn(
+              "inline-flex min-h-11 items-center justify-center rounded-xl px-3.5 text-[13px] font-semibold transition-colors",
+              overHero
+                ? "border border-white/35 bg-white/10 text-white [text-shadow:0_1px_3px_rgb(5_59_47/0.55)] hover:bg-white/18"
+                : "border border-border bg-background/80 text-foreground hover:bg-muted",
+            )}
+          >
+            Login
+          </Link>
+          <Link
+            href="/book"
+            className={cn(
+              "inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-[13px] font-semibold transition-colors",
+              overHero
+                ? "bg-citrus text-sky-ink hover:bg-citrus-soft"
+                : "bg-primary text-primary-foreground hover:bg-primary/90",
+            )}
+          >
+            Book
+          </Link>
+        </div>
       </div>
     </header>
   );

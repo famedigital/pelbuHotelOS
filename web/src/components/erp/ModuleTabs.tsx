@@ -15,7 +15,9 @@ export function ModuleTabs() {
   const match = resolveModule(pathname);
 
   if (!match || match.module.tabs.length < 2) return null;
+  // Calendar and the POS register own their own chrome; hide the global strip.
   if (match.module.key === "calendar") return null;
+  if (pathname === "/erp/pos" || pathname === "/erp/pos/") return null;
 
   return (
     <div className="erp border-b bg-background/95">

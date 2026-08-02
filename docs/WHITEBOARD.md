@@ -19,15 +19,18 @@ Last updated: 2026-08-01 (**v1.0**). This is the single desk-side map of what is
 
 | Module | Landing | Tabs |
 |--------|---------|------|
-| Dashboard | `/erp` | — |
+| Dashboard | `/erp` | Property FO/GM home (readiness, holds, open KOTs) — **not** chef F&B board |
 | Calendar | `/erp/calendar` | Room rack, Day sheet |
 | Front desk | `/erp/arrivals` | Arrivals, In-house, Departures, Check-in, **Check-out**, Fast book, Reservations, Guests, **Groups**, **Loyalty** |
 | Rooms | `/erp/rooms` | Rooms, Housekeeping, Maintenance, Laundry |
-| POS | `/erp/pos` | Register, Menu, Kitchen TV |
-| Money | `/erp/payments` | Payments, Invoices, Night audit, GST, Finance, **Reports** |
+| **POS** (F&B lives here) | `/erp/pos` | Register, Menu, Recipe cost, **Kitchen board**, Food cost, Kitchen TV — **no separate F&B module** |
+| Money | `/erp/payments` | Payments, Invoices, Night audit, GST, Finance, **Reports** (includes F&B sales) |
 | Channels | `/erp/agents` | Agents (**dossier** `/erp/agents/[id]`), Partners, Allotments, Channel |
-| Team & stock | `/erp/hr` | HR, Rota, Attendance, Leave, Payroll, Stock |
+| Team | `/erp/hr` | HR, Rota, Attendance, Leave, Payroll |
+| Inventory | `/erp/inventory` | Items, Locations, Moves, Assessment, POs, Assets |
 | Hotel | `/erp/settings` | Settings, Website CMS, Media, Phone upload, Add hotel |
+
+**F&B staff path:** cashier → **POS** + **Kitchen TV**; chef/supervisor → **Kitchen board** (`/erp/kitchen`). Domain labels (HR `fnb`, GL F&B revenue) are not nav modules.
 
 Deep links such as `/erp/folios/[id]`, `/erp/bookings/[id]`, `/erp/orders/[id]/slip` stay as detail routes (not sidebar tabs).
 
