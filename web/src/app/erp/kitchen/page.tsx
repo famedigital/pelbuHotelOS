@@ -1,8 +1,10 @@
 import {
-  KitchenEventDeleteButton,
-  KitchenEventForm,
   PublishMealServiceForm,
 } from "@/components/erp/KitchenOpsForms";
+import {
+  KitchenEventsPanel,
+  type KitchenEventRow,
+} from "@/components/erp/KitchenEventsPanel";
 import { KitchenCoversSection } from "@/components/erp/KitchenCoversSection";
 import { KitchenStaffSection } from "@/components/erp/KitchenStaffSection";
 import { MealServiceBoard } from "@/components/erp/MealServiceBoard";
@@ -20,7 +22,8 @@ import { computeFoodCostPeriod } from "@/lib/kitchen/food-cost";
 import { loadMealServicesForDate } from "@/lib/kitchen/meal-service";
 import { computeKitchenStaffBoard } from "@/lib/kitchen/staff-shift";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { requireDeskPropertyId, thimphuToday } from "@/lib/erp-lists";
+import { thimphuToday } from "@/lib/erp-lists";
+import { requireDeskPropertyId } from "@/lib/desk-property";
 import { formatBtn } from "@/lib/pricing";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
@@ -55,6 +58,7 @@ export default async function KitchenBoardPage() {
     expiryRes,
     eventsRes,
     servicesRes,
+    foliosRes,
   ] = await Promise.all([
       computeMealCovers(admin, propertyId, today),
       computeKitchenStaffBoard(admin, propertyId, today),
@@ -85,11 +89,15 @@ export default async function KitchenBoardPage() {
         .limit(40),
       admin
         .from("kitchen_events")
-        .select("id, event_date, title, covers, meal_period, notes")
+        .select(
+          "id, event_date, title, covers, meal_period, notes, service_time, service_end, menu_note, venue, contact_name, contact_phone, status, rate_per_pax_btn, package_total_btn, deposit_btn, billing_status, bill_note, folio_id, booking_id, posted_folio_line_id, folios(id, label)",
+        )
         .eq("property_id", propertyId)
         .gte("event_date", today)
+        .neq("status", "cancelled")
         .order("event_date")
-        .limit(20),
+        .order("service_time")
+        .limit(40),
       admin
         .from("service_requests")
         .select("id, kind, contact_name, preferred_on, party_size, status")
@@ -98,6 +106,13 @@ export default async function KitchenBoardPage() {
         .gte("preferred_on", today)
         .order("preferred_on")
         .limit(10),
+      admin
+        .from("folios")
+        .select("id, label, booking_id, status")
+        .eq("property_id", propertyId)
+        .eq("status", "open")
+        .order("created_at", { ascending: false })
+        .limit(40),
     ]);
 
   const gasFull =
@@ -127,6 +142,46 @@ export default async function KitchenBoardPage() {
   const gasOk = Number(gasFull) >= 1;
   const stockOk = lowStock.length === 0;
   const foodCostOk = foodCost.foodCostPct <= 32;
+
+  const kitchenEvents: KitchenEventRow[] = (eventsRes.data ?? []).map((ev) => {
+    const folioJoin = ev.folios as
+      | { id?: string; label?: string }
+      | { id?: string; label?: string }[]
+      | null;
+    const folio = Array.isArray(folioJoin) ? folioJoin[0] : folioJoin;
+    return {
+      id: ev.id as string,
+      eventDate: ev.event_date as string,
+      title: ev.title as string,
+      covers: Number(ev.covers ?? 0),
+      mealPeriod: (ev.meal_period as string) ?? "all",
+      notes: (ev.notes as string | null) ?? null,
+      serviceTime: (ev.service_time as string | null) ?? null,
+      serviceEnd: (ev.service_end as string | null) ?? null,
+      menuNote: (ev.menu_note as string | null) ?? null,
+      venue: (ev.venue as string | null) ?? null,
+      contactName: (ev.contact_name as string | null) ?? null,
+      contactPhone: (ev.contact_phone as string | null) ?? null,
+      status: (ev.status as string) ?? "planned",
+      ratePerPaxBtn:
+        ev.rate_per_pax_btn == null ? null : Number(ev.rate_per_pax_btn),
+      packageTotalBtn:
+        ev.package_total_btn == null ? null : Number(ev.package_total_btn),
+      depositBtn: Number(ev.deposit_btn ?? 0),
+      billingStatus: (ev.billing_status as string) ?? "none",
+      billNote: (ev.bill_note as string | null) ?? null,
+      folioId: (ev.folio_id as string | null) ?? null,
+      bookingId: (ev.booking_id as string | null) ?? null,
+      postedFolioLineId: (ev.posted_folio_line_id as string | null) ?? null,
+      folioLabel: (folio?.label as string | null | undefined) ?? null,
+    };
+  });
+
+  const folioOptions = (foliosRes.data ?? []).map((f) => ({
+    id: f.id as string,
+    label: (f.label as string) || (f.id as string).slice(0, 8),
+    bookingId: (f.booking_id as string | null) ?? null,
+  }));
 
   return (
     <DeskListShell
@@ -225,10 +280,11 @@ export default async function KitchenBoardPage() {
           <CardContent>
             <p className="text-xs text-muted-foreground">Upcoming events</p>
             <p className="mt-1 text-2xl font-semibold tabular-nums">
-              {(eventsRes.data ?? []).length}
+              {kitchenEvents.length}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Banquets &amp; extra covers
+              {kitchenEvents.reduce((s, e) => s + e.covers, 0)} pax · banquets
+              &amp; groups
             </p>
           </CardContent>
         </Card>
@@ -309,31 +365,17 @@ export default async function KitchenBoardPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Events &amp; groups</CardTitle>
-              <CardDescription>Banquets and extra covers beyond in-house meal plans</CardDescription>
+              <CardDescription>
+                Banquets and extra covers — menu, time, pax, venue, and package
+                bill (link / post to folio)
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <KitchenEventForm defaultDate={today} />
-              {(eventsRes.data ?? []).length === 0 ? (
-                <p className="text-sm text-muted-foreground">No upcoming kitchen events.</p>
-              ) : (
-                <ul className="divide-y text-sm">
-                  {(eventsRes.data ?? []).map((ev) => (
-                    <li
-                      key={ev.id as string}
-                      className="flex flex-wrap items-center justify-between gap-2 py-2"
-                    >
-                      <div>
-                        <p className="font-medium">{ev.title as string}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {ev.event_date as string} · {ev.covers as number} covers ·{" "}
-                          {ev.meal_period as string}
-                        </p>
-                      </div>
-                      <KitchenEventDeleteButton eventId={ev.id as string} />
-                    </li>
-                  ))}
-                </ul>
-              )}
+            <CardContent>
+              <KitchenEventsPanel
+                defaultDate={today}
+                events={kitchenEvents}
+                folios={folioOptions}
+              />
             </CardContent>
           </Card>
 

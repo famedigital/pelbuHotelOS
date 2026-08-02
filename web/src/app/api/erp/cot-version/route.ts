@@ -47,11 +47,13 @@ export async function GET() {
     return NextResponse.json({ error: "Query failed" }, { status: 500 });
   }
 
+  // Match POS open board: unsettled + unvoided kitchen path (incl. served unpaid).
   const openish = (orders ?? []).filter(
     (o) =>
       o.voided_at == null &&
+      o.settled_at == null &&
       (Boolean(o.is_parked) ||
-        ["new", "preparing", "ready", "served"].includes(
+        ["new", "preparing", "ready", "served", "cancelled"].includes(
           o.kot_status as string,
         )),
   );

@@ -1,6 +1,7 @@
 "use server";
 
 import { writeAuditEvent } from "@/lib/audit";
+import { postPosWalkInTender } from "@/lib/accounting/posting";
 import { periodGuardFromForm } from "@/lib/accounting/period-guard-form";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { isDeskAuthenticated, requireMoneyDesk } from "@/lib/desk-auth";
@@ -12,6 +13,7 @@ import {
   resolveBookingPartnerDiscountPct,
 } from "@/lib/partners/discount";
 import { verifyManagerPinForProperty } from "@/lib/manager-pin";
+import { orderRef } from "@/lib/order-ref";
 import {
   POS_TENDER_METHODS,
   POS_VOID_REASON_CODES,
@@ -386,8 +388,9 @@ export async function createDeskOrder(
     await requireMoneyDesk();
 
     const customerName = trimRequired(formData.get("customer_name"), "Guest name");
-    const phone = trimRequired(formData.get("phone"), "Phone");
-    assertPhone(phone);
+    const phoneRaw = optionalTrim(formData.get("phone"));
+    const phone = phoneRaw ?? "walk-in";
+    if (phoneRaw) assertPhone(phoneRaw);
 
     const settleMode = trimRequired(formData.get("settle_mode"), "Settle mode");
     if (settleMode !== "cash" && settleMode !== "room_charge") {
@@ -753,6 +756,8 @@ export async function updateOrderKotStatus(formData: FormData): Promise<void> {
   }
 
   revalidatePath("/erp");
+  revalidatePath("/erp/pos");
+  revalidatePath("/erp/kds");
 }
 
 export async function postOrderToBookingFolio(formData: FormData): Promise<void> {
@@ -1592,20 +1597,24 @@ export async function splitSettle(
         }
       }
 
-      const { error: tenderError } = await admin.from("order_tenders").insert({
-        order_id: orderId,
-        method: tender.method,
-        amount_btn: tender.amountBtn,
-        reference: tender.reference ?? null,
-        folio_id: tenderFolioId,
-        booking_id: tenderBookingId,
-      });
-      if (tenderError) {
+      const { data: tenderRow, error: tenderError } = await admin
+        .from("order_tenders")
+        .insert({
+          order_id: orderId,
+          method: tender.method,
+          amount_btn: tender.amountBtn,
+          reference: tender.reference ?? null,
+          folio_id: tenderFolioId,
+          booking_id: tenderBookingId,
+        })
+        .select("id")
+        .single();
+      if (tenderError || !tenderRow) {
         throw new Error("Could not save tender.");
       }
 
       if (tender.method !== "room_charge" && tender.method !== "agent_credit") {
-        // Non-room cash/card tenders: optional payment row when folio exists
+        // Folio settle → guest AR payment journals. Walk-in (no folio) → cash sale.
         if (folioId) {
           await postFolioPaymentRecord(admin, {
             property_id,
@@ -1619,6 +1628,23 @@ export async function splitSettle(
             folio_line_source: "payment",
             idempotency_key: `pos_tender:${orderId}:${tender.method}:${tender.amountBtn}:${tender.reference ?? ""}`,
           });
+        } else {
+          const orderGst = Number(order.gst_btn ?? 0);
+          const gstShare = allocateSplitGst(
+            tender.amountBtn,
+            totalBtn,
+            orderGst,
+          );
+          const gl = await postPosWalkInTender(admin, property_id, {
+            id: tenderRow.id as string,
+            method: tender.method,
+            amount_btn: tender.amountBtn,
+            gst_btn: gstShare,
+            notes: `POS walk-in · order ${orderId.slice(0, 8)} · ${order.customer_name as string}`,
+          });
+          if (!gl.ok) {
+            throw new Error(gl.error ?? "Could not post walk-in sale to ledger.");
+          }
         }
       }
     }
@@ -2162,14 +2188,22 @@ export async function closePosShift(
 
     const { data: shiftOrders } = await admin
       .from("orders")
-      .select("id, settled_at, voided_at")
+      .select("id, settled_at, voided_at, customer_name, kot_status")
       .eq("pos_shift_id", shiftId);
     const openOrders = (shiftOrders ?? []).filter(
       (order) => !order.voided_at && !order.settled_at,
     );
     if (openOrders.length > 0) {
+      const sample = openOrders.slice(0, 5).map((order) => {
+        const ref = orderRef(order.id as string);
+        const name = ((order.customer_name as string | null) ?? "").trim();
+        const kitchen = (order.kot_status as string | null) ?? "new";
+        return name ? `${ref} · ${name} (${kitchen})` : `${ref} (${kitchen})`;
+      });
+      const extra =
+        openOrders.length > 5 ? ` +${openOrders.length - 5} more` : "";
       throw new Error(
-        `Settle or void ${openOrders.length} open ticket(s) before closing.`,
+        `Settle or void ${openOrders.length} open ticket(s) before closing: ${sample.join("; ")}${extra}. Check Open tickets (includes kitchen-served, unpaid).`,
       );
     }
     const orderIds = (shiftOrders ?? []).map((order) => order.id as string);

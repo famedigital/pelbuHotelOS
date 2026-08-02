@@ -39,26 +39,42 @@ async function staffPinMatches(
 }
 
 /**
- * Accept env manager PIN (legacy) or an owner/GM staff PIN for the property.
+ * Accept env manager/desk PIN (legacy) or an owner/GM staff PIN for the property.
  * Does not replace the caller's desk session.
+ *
+ * Order matters: compare the env DESK_PIN / POS_MANAGER_PIN *before* the
+ * 4–8 digit staff-PIN rule. Desk PINs are often alphanumeric shared secrets
+ * and must still open the cash drawer close path.
  */
 export async function verifyManagerPinForProperty(
   admin: Admin,
   propertyId: string,
   rawPin: string,
 ): Promise<ManagerPinResult> {
-  let pin: string;
-  try {
-    pin = validateStaffPin(rawPin);
-  } catch (err) {
-    return {
-      ok: false,
-      error: err instanceof Error ? err.message : "Invalid PIN format.",
-    };
+  const trimmed = rawPin.trim();
+  if (!trimmed) {
+    return { ok: false, error: "Manager PIN is required." };
   }
 
-  if (verifyEnvManagerPin(pin)) {
+  if (verifyEnvManagerPin(trimmed)) {
     return { ok: true, source: "env" };
+  }
+
+  let pin: string;
+  try {
+    pin = validateStaffPin(trimmed);
+  } catch (err) {
+    const envConfigured = Boolean(
+      process.env.POS_MANAGER_PIN?.trim() || process.env.DESK_PIN?.trim(),
+    );
+    return {
+      ok: false,
+      error: envConfigured
+        ? "Manager PIN is incorrect. Use the desk / POS manager PIN, or a 4–8 digit owner/GM staff PIN."
+        : err instanceof Error
+          ? err.message
+          : "Invalid PIN format.",
+    };
   }
 
   const { data: staffRows, error } = await admin
@@ -86,7 +102,7 @@ export async function verifyManagerPinForProperty(
     return {
       ok: false,
       error:
-        "No owner or GM staff PIN is configured. Set POS_MANAGER_PIN or enable staff login for a manager.",
+        "Manager PIN is incorrect. No owner/GM staff login is set either — use DESK_PIN / POS_MANAGER_PIN, or enable a manager staff PIN.",
     };
   }
 

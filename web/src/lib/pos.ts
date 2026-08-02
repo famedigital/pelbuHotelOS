@@ -1,6 +1,7 @@
 import { thimphuToday } from "@/lib/erp-lists";
 import type { MenuItem } from "@/lib/menu";
 import type { TableStatus } from "@/lib/pos-tables";
+import { roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -35,6 +36,33 @@ export type PosShift = {
   opened_by_name: string;
   opened_at: string;
 };
+
+/** Live Z-preview for an open shift — tenders, voids, and tickets that block close. */
+export type PosShiftCloseSummary = {
+  shiftId: string;
+  openingFloatBtn: number;
+  settledCount: number;
+  voidedCount: number;
+  openCount: number;
+  voidTotalBtn: number;
+  /** Ordered for display (cash first when present). */
+  tenderLines: { method: string; amountBtn: number }[];
+  cashTendersBtn: number;
+  /** opening float + cash tenders only. */
+  expectedCashBtn: number;
+  /** Sum of all settlement tenders this shift. */
+  salesTotalBtn: number;
+  openTickets: OpenPosTicket[];
+};
+
+/** Kot statuses still on the payment path (matches open board + close blockers). */
+export const POS_OPEN_KOT_STATUSES = [
+  "new",
+  "preparing",
+  "ready",
+  "served",
+  "cancelled",
+] as const;
 
 export type ModifierOption = {
   id: string;
@@ -362,6 +390,14 @@ export function posTicketPayLabel(ticket: OpenPosTicket): {
   return { label: "Unpaid", tone: "unpaid" };
 }
 
+/**
+ * Unsettled desk tickets still on the payment path.
+ *
+ * Includes `served` (kitchen done, guest not paid yet). Previously the board
+ * only listed new/preparing/ready — marking served hid the ticket while shift
+ * close still required settle/void, which blocked close with no visible tickets.
+ * KDS columns still only show new/preparing/ready.
+ */
 export async function loadOpenPosTickets(
   admin?: Admin,
 ): Promise<OpenPosTicket[]> {
@@ -373,11 +409,110 @@ export async function loadOpenPosTickets(
     .select(POS_TICKET_SELECT)
     .eq("property_id", propertyId)
     .is("voided_at", null)
-    .in("kot_status", ["new", "preparing", "ready"])
+    .is("settled_at", null)
+    .in("kot_status", [...POS_OPEN_KOT_STATUSES])
     .order("created_at", { ascending: false })
-    .limit(60);
+    .limit(80);
 
   return ((data ?? []) as RawOrderTicketRow[]).map(mapPosTicketRow);
+}
+
+/**
+ * Cashier close preview for one open shift: tender mix, expected drawer cash,
+ * voids, and open tickets that still block close.
+ */
+export async function loadPosShiftCloseSummary(
+  shift: PosShift,
+  admin?: Admin,
+): Promise<PosShiftCloseSummary> {
+  const client = admin ?? createSupabaseAdminClient();
+
+  const { data: shiftOrders } = await client
+    .from("orders")
+    .select("id, total_btn, voided_at, settled_at")
+    .eq("pos_shift_id", shift.id);
+
+  const rows = shiftOrders ?? [];
+  const openIds = rows
+    .filter((o) => !o.voided_at && !o.settled_at)
+    .map((o) => o.id as string);
+  const settledCount = rows.filter(
+    (o) => Boolean(o.settled_at) && !o.voided_at,
+  ).length;
+  const voidedIds = rows
+    .filter((o) => Boolean(o.voided_at))
+    .map((o) => o.id as string);
+  const orderIds = rows.map((o) => o.id as string);
+
+  const [{ data: openRows }, { data: tenders }, { data: voids }] =
+    await Promise.all([
+      openIds.length > 0
+        ? client
+            .from("orders")
+            .select(POS_TICKET_SELECT)
+            .in("id", openIds)
+            .order("created_at", { ascending: false })
+        : Promise.resolve({ data: [] as RawOrderTicketRow[] }),
+      orderIds.length > 0
+        ? client
+            .from("order_tenders")
+            .select("method, amount_btn")
+            .in("order_id", orderIds)
+        : Promise.resolve({ data: [] as { method: string; amount_btn: number }[] }),
+      voidedIds.length > 0
+        ? client
+            .from("pos_voids")
+            .select("amount_btn")
+            .in("order_id", voidedIds)
+        : Promise.resolve({ data: [] as { amount_btn: number }[] }),
+    ]);
+
+  const totals: Record<string, number> = {};
+  for (const tender of tenders ?? []) {
+    const method = tender.method as string;
+    totals[method] = roundBtn(
+      (totals[method] ?? 0) + Number(tender.amount_btn),
+    );
+  }
+  const cashTendersBtn = totals.cash ?? 0;
+  const salesTotalBtn = roundBtn(
+    Object.values(totals).reduce((sum, n) => sum + n, 0),
+  );
+  const voidTotalBtn = roundBtn(
+    (voids ?? []).reduce((sum, row) => sum + Number(row.amount_btn ?? 0), 0),
+  );
+
+  const methodOrder = [
+    "cash",
+    "card",
+    "bank",
+    "bank_qr",
+    "pay_bt",
+    "agent_credit",
+    "deposit",
+    "room_charge",
+  ];
+  const tenderLines = Object.entries(totals)
+    .map(([method, amountBtn]) => ({ method, amountBtn }))
+    .sort((a, b) => {
+      const ia = methodOrder.indexOf(a.method);
+      const ib = methodOrder.indexOf(b.method);
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    });
+
+  return {
+    shiftId: shift.id,
+    openingFloatBtn: shift.opening_float_btn,
+    settledCount,
+    voidedCount: voidedIds.length,
+    openCount: openIds.length,
+    voidTotalBtn,
+    tenderLines,
+    cashTendersBtn,
+    expectedCashBtn: roundBtn(shift.opening_float_btn + cashTendersBtn),
+    salesTotalBtn,
+    openTickets: ((openRows ?? []) as RawOrderTicketRow[]).map(mapPosTicketRow),
+  };
 }
 
 /**

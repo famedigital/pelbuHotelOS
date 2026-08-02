@@ -26,10 +26,12 @@ export function KitchenTicketStrip({ openTickets, onOpenTickets }: Props) {
         if (!t.confirmed_at) pendingConfirm += 1;
         else if (!t.payment_recorded_at) awaitingPayment += 1;
       }
-      // Station load counts only tickets the kitchen can actually fire:
-      // desk tickets, plus online orders that are confirmed *and* paid.
+      // Station load counts only tickets kitchen can still work:
+      // desk tickets not yet served, plus online that are confirmed *and* paid.
       const skip =
         t.is_parked ||
+        t.kot_status === "served" ||
+        t.kot_status === "cancelled" ||
         (t.order_source === "public" &&
           (!t.confirmed_at || !t.payment_recorded_at));
       if (!skip) {
@@ -43,6 +45,7 @@ export function KitchenTicketStrip({ openTickets, onOpenTickets }: Props) {
       new: byStatus.get("new") ?? 0,
       preparing: byStatus.get("preparing") ?? 0,
       ready: byStatus.get("ready") ?? 0,
+      served: byStatus.get("served") ?? 0,
       parked,
       online,
       pendingConfirm,
@@ -89,6 +92,9 @@ export function KitchenTicketStrip({ openTickets, onOpenTickets }: Props) {
           ) : null}
           {counts.ready > 0 ? (
             <Badge variant="gold">Ready · {counts.ready}</Badge>
+          ) : null}
+          {counts.served > 0 ? (
+            <Badge variant="gold">Served · settle {counts.served}</Badge>
           ) : null}
           {counts.parked > 0 ? (
             <Badge variant="outline">Parked · {counts.parked}</Badge>

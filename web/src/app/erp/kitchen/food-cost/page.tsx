@@ -1,7 +1,8 @@
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { computeFoodCostPeriod } from "@/lib/kitchen/food-cost";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { requireDeskPropertyId, thimphuToday } from "@/lib/erp-lists";
+import { thimphuToday } from "@/lib/erp-lists";
+import { requireDeskPropertyId } from "@/lib/desk-property";
 import { formatBtn } from "@/lib/pricing";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";

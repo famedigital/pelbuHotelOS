@@ -5,6 +5,7 @@ import type {
   OpenPosTicket,
   PosStaffOption,
   PosShift,
+  PosShiftCloseSummary,
   PosTenderMethod,
   PosVoidReasonCode,
 } from "@/lib/pos";
@@ -87,6 +88,8 @@ export type PosLayoutProps = {
   settledTickets?: OpenPosTicket[];
   bookings: PosBookingOption[];
   shift: PosShift | null;
+  /** Live tender/open-ticket summary for the open shift close tab. */
+  shiftCloseSummary?: PosShiftCloseSummary | null;
   gstRate: number;
   serviceChargeRate: number;
   serviceChargeDefaultOn: boolean;

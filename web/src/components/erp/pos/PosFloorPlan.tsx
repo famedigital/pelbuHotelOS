@@ -240,17 +240,29 @@ export function PosFloorPlan({
   );
 
   const endDrag = useCallback(
-    (tableId: string, covers: number) => {
-      // Click (no movement) → select the table.
+    (tableId: string, covers: number, opts?: { fromControls?: boolean }) => {
       const node = draggedNodeRef.current;
       const pos = livePosRef.current;
+      const pressStarted = downRef.current != null;
       if (rafRef.current != null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
       if (node) node.style.willChange = "auto";
 
+      // Kebab / header controls never began a chip press — do not seat the table
+      // (seating jumps to Sell and detaches the Radix menu to top-left).
+      if (opts?.fromControls || !pressStarted) {
+        downRef.current = null;
+        movedRef.current = false;
+        draggedNodeRef.current = null;
+        livePosRef.current = null;
+        setDragId(null);
+        return;
+      }
+
       if (!movedRef.current) {
+        // Click (no movement) → select the table.
         downRef.current = null;
         movedRef.current = false;
         draggedNodeRef.current = null;
@@ -379,7 +391,12 @@ export function PosFloorPlan({
                 onOpenTicket={onOpenTicket}
                 onPointerDown={(e, node) => beginDrag(e, table.id, node)}
                 onPointerMove={moveDrag}
-                onPointerUp={() => endDrag(table.id, table.seats)}
+                onPointerUp={(e) => {
+                  const fromControls = Boolean(
+                    (e.target as HTMLElement | null)?.closest?.("[data-no-drag]"),
+                  );
+                  endDrag(table.id, table.seats, { fromControls });
+                }}
               />
             );
           })}
@@ -425,7 +442,7 @@ function TableChip({
   onOpenTicket: (orderId: string) => void;
   onPointerDown: (e: React.PointerEvent, node: HTMLDivElement) => void;
   onPointerMove: (e: React.PointerEvent) => void;
-  onPointerUp: () => void;
+  onPointerUp: (e: React.PointerEvent) => void;
 }) {
   // Only the dragged chip's transform is mutated imperatively during a drag,
   // so a normal ref is fine here — we read it on pointer down before capture.
@@ -452,6 +469,8 @@ function TableChip({
       <div
         className="flex items-center justify-between gap-1 rounded-t-xl px-2 py-1"
         data-no-drag
+        onPointerDown={(e) => e.stopPropagation()}
+        onPointerUp={(e) => e.stopPropagation()}
       >
         <div className="flex min-w-0 items-center gap-1">
           <span className="truncate text-xs font-semibold text-foreground">
@@ -470,11 +489,17 @@ function TableChip({
               className="inline-flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
               aria-label={`Actions for ${table.name}`}
               disabled={busy}
+              onPointerDown={(e) => e.stopPropagation()}
+              onPointerUp={(e) => e.stopPropagation()}
             >
               <EllipsisVerticalIcon className="size-3.5" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="erp">
+          <DropdownMenuContent
+            align="end"
+            className="erp z-[100]"
+            onCloseAutoFocus={(e) => e.preventDefault()}
+          >
             <DropdownMenuLabel>{table.name}</DropdownMenuLabel>
             <DropdownMenuItem onSelect={onEdit}>
               <PencilIcon className="size-4" />

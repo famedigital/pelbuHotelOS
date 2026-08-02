@@ -118,9 +118,10 @@ export async function computeMealCovers(
 
   const { data: events } = await admin
     .from("kitchen_events")
-    .select("covers, meal_period")
+    .select("covers, meal_period, status")
     .eq("property_id", propertyId)
-    .eq("event_date", businessDate);
+    .eq("event_date", businessDate)
+    .neq("status", "cancelled");
 
   let eventCovers = 0;
   for (const ev of events ?? []) {

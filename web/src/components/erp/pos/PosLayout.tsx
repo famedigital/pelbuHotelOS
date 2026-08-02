@@ -1,7 +1,10 @@
 "use client";
 
-import { createDeskOrder, type DeskPosState } from "@/app/actions/erp-pos";
-import { DeskLiveRefresh } from "@/components/erp/DeskLiveRefresh";
+import {
+  createDeskOrder,
+  updateTableStatus,
+  type DeskPosState,
+} from "@/app/actions/erp-pos";
 import { CartPanel } from "@/components/erp/pos/CartPanel";
 import {
   DiningTableForm,
@@ -13,16 +16,25 @@ import { ModifierDialog } from "@/components/erp/pos/ModifierDialog";
 import { OpenTicketsDrawer } from "@/components/erp/pos/OpenTicketsDrawer";
 import { PosFloorPlan } from "@/components/erp/pos/PosFloorPlan";
 import { PosFullscreenToggle } from "@/components/erp/pos/PosFullscreenToggle";
+import { PosHowToSheet } from "@/components/erp/pos/PosHowToSheet";
 import { PosClosingPanel } from "@/components/erp/pos/PosClosingPanel";
 import { PosSearch } from "@/components/erp/pos/PosSearch";
 import { PosStockPanel } from "@/components/erp/pos/PosStockPanel";
 import { SettlePanel } from "@/components/erp/pos/SettlePanel";
 import { TicketHeader } from "@/components/erp/pos/TicketHeader";
 import { VoidReasonDialog } from "@/components/erp/pos/VoidReasonDialog";
-import { KeyboardShortcutsOverlay } from "@/components/erp/pos/KeyboardShortcutsOverlay";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -30,16 +42,19 @@ import {
   useKeyboardShortcuts,
   type ShortcutBinding,
 } from "@/hooks/use-keyboard-shortcuts";
+import { cn } from "@/lib/utils";
 import { calculateOrderTotals, formatBtn } from "@/lib/pricing";
 import {
+  CircleHelpIcon,
   ConciergeBellIcon,
   BoxesIcon,
-  KeyboardIcon,
   ListOrderedIcon,
   LockKeyholeIcon,
+  MoreHorizontalIcon,
   TriangleAlertIcon,
 } from "lucide-react";
-import { useActionState, useCallback, useMemo, useState } from "react";
+import Link from "next/link";
+import { startTransition, useActionState, useCallback, useMemo, useState } from "react";
 import {
   type CartLine,
   type PosLayoutProps,
@@ -82,6 +97,7 @@ export function PosLayout({
   settledTickets = [],
   bookings,
   shift,
+  shiftCloseSummary = null,
   gstRate,
   serviceChargeRate,
   serviceChargeDefaultOn,
@@ -336,11 +352,41 @@ export function PosLayout({
   function selectTable(nextTableId: string, seats: number) {
     if (tableId === nextTableId) {
       setTableId("");
+      setCovers("");
       return;
     }
     setTableId(nextTableId);
     if (!covers) setCovers(String(seats));
     setSection("menu");
+  }
+
+  const openTicketOnTable = useMemo(
+    () =>
+      tableId
+        ? (openTickets.find((t) => t.table_id === tableId) ?? null)
+        : null,
+    [openTickets, tableId],
+  );
+
+  /** Clear seat context; if a live ticket holds the table, open void instead. */
+  function releaseTable() {
+    if (!tableId) return;
+    if (openTicketOnTable) {
+      setVoidTarget(openTicketOnTable.id);
+      return;
+    }
+    const occupied =
+      tables.find((t) => t.id === tableId)?.status === "occupied";
+    if (occupied) {
+      const fd = new FormData();
+      fd.set("table_id", tableId);
+      fd.set("status", "free");
+      startTransition(() => {
+        void updateTableStatus({ ok: false }, fd);
+      });
+    }
+    setTableId("");
+    setCovers("");
   }
 
   function selectRoom(nextRoomUnitId: string) {
@@ -440,13 +486,26 @@ export function PosLayout({
         orderId={settleTarget}
         onOpenChange={(open) => !open && setSettleTarget(null)}
         bookings={bookings}
-        liveTickets={openTickets}
+        liveTickets={
+          shiftCloseSummary?.openTickets?.length
+            ? [
+                ...openTickets,
+                ...shiftCloseSummary.openTickets.filter(
+                  (t) => !openTickets.some((o) => o.id === t.id),
+                ),
+              ]
+            : openTickets
+        }
         tenderMethods={runtimeConfig.tenderMethods}
       />
       <VoidReasonDialog
         orderId={voidTarget}
         onOpenChange={(open) => !open && setVoidTarget(null)}
-        ticket={openTickets.find((t) => t.id === voidTarget) ?? null}
+        ticket={
+          openTickets.find((t) => t.id === voidTarget) ??
+          shiftCloseSummary?.openTickets.find((t) => t.id === voidTarget) ??
+          null
+        }
         voidReasonCodes={runtimeConfig.voidReasonCodes}
         voidManagerThresholdBtn={runtimeConfig.voidManagerThresholdBtn}
       />
@@ -464,18 +523,22 @@ export function PosLayout({
   );
 
   const toolbar = (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-2">
-        <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-          Point of sale
-        </p>
-        <DeskLiveRefresh />
-      </div>
+    <div className="flex flex-wrap items-center gap-2">
+      <TabsList className="h-9">
+        <TabsTrigger value="menu" className="px-3">
+          Sell
+        </TabsTrigger>
+        <TabsTrigger value="floor" className="px-3">
+          Floor
+          {allTables.length > 0 ? (
+            <span className="ml-1 text-[10px] tabular-nums text-muted-foreground">
+              {allTables.length}
+            </span>
+          ) : null}
+        </TabsTrigger>
+      </TabsList>
 
-      <div className="flex items-center gap-2">
-        {openTickets.length > 0 ? (
-          <Badge variant="secondary">{openTickets.length} open</Badge>
-        ) : null}
+      <div className="ml-auto flex flex-wrap items-center gap-1.5">
         <Button
           type="button"
           variant="outline"
@@ -484,18 +547,82 @@ export function PosLayout({
           onClick={() => setTicketsOpen(true)}
         >
           <ListOrderedIcon className="size-4" />
-          <span className="hidden sm:inline">Open tickets</span>
+          <span className="hidden sm:inline">Tickets</span>
+          {openTickets.length > 0 ? (
+            <Badge variant="secondary" className="ml-1 tabular-nums">
+              {openTickets.length}
+            </Badge>
+          ) : null}
         </Button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="outline" size="sm" className="h-9">
+              <MoreHorizontalIcon className="size-4" />
+              <span className="hidden sm:inline">More</span>
+              {shift ? (
+                <span className="ml-1 size-2 rounded-full bg-emerald-500" />
+              ) : null}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="erp w-52">
+            <DropdownMenuLabel>Register ops</DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuItem onSelect={() => setSection("stock")}>
+                <BoxesIcon className="size-4" />
+                Stock
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setSection("closing")}>
+                <LockKeyholeIcon className="size-4" />
+                Closing
+                {shiftCloseSummary && shiftCloseSummary.openCount > 0 ? (
+                  <Badge
+                    variant="destructive"
+                    className="ml-auto tabular-nums"
+                  >
+                    {shiftCloseSummary.openCount}
+                  </Badge>
+                ) : shift ? (
+                  <span className="ml-auto size-2 rounded-full bg-emerald-500" />
+                ) : null}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setSection("service")}>
+                <ConciergeBellIcon className="size-4" />
+                Guest service
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Kitchen &amp; setup</DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuItem asChild>
+                <Link href="/erp/kitchen">Kitchen board</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/erp/kds">Kitchen TV</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/erp/kitchen/food-cost">Food cost</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/erp/menu">CMS menu</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/erp/pos/recipe-cost">Recipe cost</Link>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <Button
           type="button"
           variant="outline"
           size="sm"
-          className="hidden h-9 px-2 sm:inline-flex"
+          className="h-9 px-2"
           onClick={() => setShortcutsOpen(true)}
-          aria-label="Keyboard shortcuts"
-          title="Keyboard shortcuts (?)"
+          aria-label="How to sell and shortcuts"
+          title="How to sell (?)"
         >
-          <KeyboardIcon className="size-4" />
+          <CircleHelpIcon className="size-4" />
         </Button>
         <PosFullscreenToggle
           active={cssFullscreen}
@@ -509,11 +636,33 @@ export function PosLayout({
   if (state.ok && state.orderId) {
     return (
       <div className={shellClass}>
-        {toolbar}
-        <KitchenTicketStrip
-          openTickets={openTickets}
-          onOpenTickets={() => setTicketsOpen(true)}
-        />
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9"
+            onClick={() => setTicketsOpen(true)}
+          >
+            <ListOrderedIcon className="size-4" />
+            Tickets
+            {openTickets.length > 0 ? (
+              <Badge variant="secondary" className="ml-1 tabular-nums">
+                {openTickets.length}
+              </Badge>
+            ) : null}
+          </Button>
+          <PosFullscreenToggle
+            active={cssFullscreen}
+            onChange={setCssFullscreen}
+          />
+        </div>
+        {openTickets.length > 0 ? (
+          <KitchenTicketStrip
+            openTickets={openTickets}
+            onOpenTickets={() => setTicketsOpen(true)}
+          />
+        ) : null}
         <div
           className="erp rounded-xl border bg-card p-6"
           role="status"
@@ -554,53 +703,33 @@ export function PosLayout({
     );
   }
 
+  const sellMode = section === "menu" || section === "floor";
+
   return (
     <div className={shellClass}>
-      {toolbar}
-
       <Tabs
         value={section}
         onValueChange={(v) => setSection(v as PosSection)}
         className="gap-4"
       >
-        <TabsList className="h-auto min-h-10 w-full flex-wrap justify-start sm:w-fit">
-          <TabsTrigger value="menu" className="px-4">
-            Menu
-          </TabsTrigger>
-          <TabsTrigger value="floor" className="px-4">
-            Floor plan
-            {allTables.length > 0 ? (
-              <span className="ml-1 text-[10px] tabular-nums text-muted-foreground">
-                {allTables.length}
-              </span>
-            ) : null}
-          </TabsTrigger>
-          <TabsTrigger value="stock" className="px-4">
-            <BoxesIcon className="size-4" />
-            Stock
-          </TabsTrigger>
-          <TabsTrigger value="closing" className="px-4">
-            <LockKeyholeIcon className="size-4" />
-            Closing
-            {shift ? (
-              <span className="ml-1 size-2 rounded-full bg-emerald-500" />
-            ) : null}
-          </TabsTrigger>
-          <TabsTrigger value="service" className="px-4">
-            <ConciergeBellIcon className="size-4" />
-            Guest service
-          </TabsTrigger>
-        </TabsList>
+        {toolbar}
 
-        {/* Menu + floor plan share the ticket form, so both panels stay mounted
-            (forceMount + CSS hide) to preserve cart and field state on switch. */}
-        <div
-          className={
-            section === "menu" || section === "floor"
-              ? "space-y-4"
-              : "hidden"
-          }
-        >
+        {section === "stock" || section === "closing" || section === "service" ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <button
+              type="button"
+              className="text-accent underline-offset-4 hover:underline"
+              onClick={() => setSection("menu")}
+            >
+              ← Back to sell
+            </button>
+            <span className="capitalize">
+              {section === "service" ? "Guest service" : section}
+            </span>
+          </div>
+        ) : null}
+
+        <div className={cn("space-y-4", !sellMode && "hidden")}>
           <TicketHeader
             customerName={customerName}
             onCustomerNameChange={setCustomerName}
@@ -626,12 +755,16 @@ export function PosLayout({
             staff={staff}
             serverStaffId={serverStaffId}
             onServerStaffIdChange={setServerStaffId}
+            onReleaseTable={releaseTable}
+            hasOpenTicketOnTable={Boolean(openTicketOnTable)}
           />
 
-          <KitchenTicketStrip
-            openTickets={openTickets}
-            onOpenTickets={() => setTicketsOpen(true)}
-          />
+          {openTickets.length > 0 ? (
+            <KitchenTicketStrip
+              openTickets={openTickets}
+              onOpenTickets={() => setTicketsOpen(true)}
+            />
+          ) : null}
 
           <form action={action} className="block">
             {/* Hidden inputs — contract must match createDeskOrder */}
@@ -874,7 +1007,12 @@ export function PosLayout({
           <PosStockPanel items={items} />
         </TabsContent>
         <TabsContent value="closing">
-          <PosClosingPanel shift={shift} />
+          <PosClosingPanel
+            shift={shift}
+            closeSummary={shiftCloseSummary}
+            onSettleTicket={(id) => setSettleTarget(id)}
+            onVoidTicket={(id) => setVoidTarget(id)}
+          />
         </TabsContent>
         <TabsContent value="service">{guestServiceSlot}</TabsContent>
       </Tabs>
@@ -895,7 +1033,7 @@ export function PosLayout({
         }}
       />
 
-      <KeyboardShortcutsOverlay
+      <PosHowToSheet
         open={shortcutsOpen}
         onOpenChange={setShortcutsOpen}
         bindings={shortcuts}

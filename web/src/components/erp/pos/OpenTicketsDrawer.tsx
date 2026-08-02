@@ -331,9 +331,17 @@ export function OpenTicketsDrawer({
       isOnline(t) && t.confirmed_at && !t.payment_recorded_at && !t.is_parked,
   );
   const parked = tickets.filter((t) => t.is_parked);
+  // Kitchen advanced past ready; still needs desk settle/void before shift close.
+  const servedUnpaid = tickets.filter(
+    (t) =>
+      !t.is_parked &&
+      t.kot_status === "served" &&
+      !(isOnline(t) && (!t.confirmed_at || !t.payment_recorded_at)),
+  );
   const active = tickets.filter(
     (t) =>
       !t.is_parked &&
+      t.kot_status !== "served" &&
       !(isOnline(t) && (!t.confirmed_at || !t.payment_recorded_at)),
   );
   const busy =
@@ -694,6 +702,19 @@ export function OpenTicketsDrawer({
                       </Button>
                     </form>
                   )}
+                />
+              ) : null}
+              {servedUnpaid.length > 0 ? (
+                <TicketGroup
+                  title="Served — settle"
+                  tickets={servedUnpaid}
+                  tables={tables}
+                  busy={busy}
+                  onSettle={onSettle}
+                  onVoid={onVoid}
+                  onOpen={setDetailId}
+                  highlight
+                  actions={(t) => ticketActions(t, false)}
                 />
               ) : null}
               <TicketGroup

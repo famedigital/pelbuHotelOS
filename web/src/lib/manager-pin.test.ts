@@ -18,6 +18,22 @@ describe("verifyEnvManagerPin", () => {
       else process.env.POS_MANAGER_PIN = prev;
     }
   });
+
+  it("matches alphanumeric DESK_PIN (desk login secret)", () => {
+    const prevM = process.env.POS_MANAGER_PIN;
+    const prevD = process.env.DESK_PIN;
+    delete process.env.POS_MANAGER_PIN;
+    process.env.DESK_PIN = "PelbuDesk1";
+    try {
+      assert.equal(verifyEnvManagerPin("PelbuDesk1"), true);
+      assert.equal(verifyEnvManagerPin("wrong"), false);
+    } finally {
+      if (prevM === undefined) delete process.env.POS_MANAGER_PIN;
+      else process.env.POS_MANAGER_PIN = prevM;
+      if (prevD === undefined) delete process.env.DESK_PIN;
+      else process.env.DESK_PIN = prevD;
+    }
+  });
 });
 
 describe("isManagerDeskRole", () => {

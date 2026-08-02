@@ -2,8 +2,7 @@ import { GuestServiceForm } from "@/components/erp/GuestServiceForm";
 import { DeskOfflineQueueStrip } from "@/components/erp/DeskOfflineQueueStrip";
 import { MealServiceBoard } from "@/components/erp/MealServiceBoard";
 import { PosLayout } from "@/components/erp/pos/PosLayout";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { deskPinConfigured, isDeskAuthenticated } from "@/lib/desk-auth";
+import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { thimphuToday } from "@/lib/erp-lists";
 import { loadMealServicesForDate } from "@/lib/kitchen/meal-service";
 import { loadMenuByOutlets } from "@/lib/menu-loader";
@@ -16,6 +15,7 @@ import {
   loadModifierGroupsForItems,
   loadOpenPosTickets,
   loadOpenPosShift,
+  loadPosShiftCloseSummary,
   loadPosStaff,
   loadSettledPosTickets,
   POS_TENDER_METHODS,
@@ -56,6 +56,7 @@ export default async function ErpPosPage() {
     staff,
     shift,
     mealServices,
+    { data: todayEvents },
   ] = await Promise.all([
       loadMenuByOutlets(
         activeOutletCodes.length > 0
@@ -81,7 +82,26 @@ export default async function ErpPosPage() {
       loadPosStaff(admin),
       loadOpenPosShift(admin),
       loadMealServicesForDate(admin, propertyId, today),
+      admin
+        .from("kitchen_events")
+        .select(
+          "id, title, covers, meal_period, service_time, service_end, menu_note, venue, package_total_btn, rate_per_pax_btn, billing_status, status",
+        )
+        .eq("property_id", propertyId)
+        .eq("event_date", today)
+        .neq("status", "cancelled")
+        .order("service_time", { ascending: true }),
     ]);
+
+  const shiftCloseSummary = shift
+    ? await loadPosShiftCloseSummary(shift, admin)
+    : null;
+
+  const dayEvents = [...(todayEvents ?? [])].sort((a, b) => {
+    const ta = (a.service_time as string | null) ?? "99:99";
+    const tb = (b.service_time as string | null) ?? "99:99";
+    return ta.localeCompare(tb);
+  });
 
   const modifierGroups = await loadModifierGroupsForItems(
     items.map((i) => i.id),
@@ -146,24 +166,44 @@ export default async function ErpPosPage() {
   }));
 
   return (
-    <div className="erp mx-auto w-full max-w-[1280px] space-y-6 p-4 md:p-6">
-      {!deskPinConfigured() ? (
-        <Alert variant="warning">
-          <AlertTitle>Dev mode</AlertTitle>
-          <AlertDescription>
-            Desk PIN not set. Add <code className="font-mono">DESK_PIN</code>{" "}
-            before production.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
+    <div className="erp mx-auto w-full max-w-[1280px] space-y-4 p-4 md:p-6">
       <DeskOfflineQueueStrip defaultKind="pos_park" />
 
       <MealServiceBoard
+        compact
         services={mealServices}
+        events={dayEvents.map((ev) => {
+          const covers = Number(ev.covers ?? 0);
+          const rate =
+            ev.rate_per_pax_btn == null ? null : Number(ev.rate_per_pax_btn);
+          let packageTotal =
+            ev.package_total_btn == null
+              ? null
+              : Number(ev.package_total_btn);
+          if (
+            (packageTotal == null || !(packageTotal > 0)) &&
+            rate != null &&
+            rate > 0 &&
+            covers > 0
+          ) {
+            packageTotal = rate * covers;
+          }
+          return {
+            id: ev.id as string,
+            title: ev.title as string,
+            serviceTime: (ev.service_time as string | null) ?? null,
+            serviceEnd: (ev.service_end as string | null) ?? null,
+            covers,
+            mealPeriod: (ev.meal_period as string) ?? "all",
+            menuNote: (ev.menu_note as string | null) ?? null,
+            venue: (ev.venue as string | null) ?? null,
+            packageTotalBtn: packageTotal,
+            billingStatus: (ev.billing_status as string | null) ?? null,
+          };
+        })}
         businessDate={today}
-        title="Kitchen service feed"
-        emptyHint="Kitchen has not published breakfast / dinner covers yet."
+        title="Kitchen today"
+        emptyHint="No published meal service or group events for today."
       />
 
       <PosLayout
@@ -176,6 +216,7 @@ export default async function ErpPosPage() {
         settledTickets={settledTickets}
         bookings={bookingOptions}
         shift={shift}
+        shiftCloseSummary={shiftCloseSummary}
         gstRate={property?.gst_rate ?? 0.07}
         serviceChargeRate={property?.service_charge_rate ?? 0}
         serviceChargeDefaultOn={property?.service_charge_default_on ?? false}
