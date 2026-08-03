@@ -13,6 +13,7 @@ type Totals = {
   serviceChargeBtn: number;
   gstBtn: number;
   totalBtn: number;
+  ncValueBtn?: number;
 };
 
 type Props = {
@@ -34,6 +35,8 @@ type Props = {
   onRemove: (key: string) => void;
   onClear: () => void;
   onEditLine: (key: string) => void;
+  onToggleNc?: (key: string) => void;
+  ncReasons?: { code: string; label: string }[];
   /**
    * The panel renders twice (desktop aside + mobile sheet) inside the same
    * form, so every control id needs a unique prefix.
@@ -67,6 +70,8 @@ export function CartPanel({
   onRemove,
   onClear,
   onEditLine,
+  onToggleNc,
+  ncReasons = [],
   idPrefix,
 }: Props) {
   const gstPct = Math.round(gstRate * 10000) / 100;
@@ -135,6 +140,7 @@ export function CartPanel({
           <ul className="divide-y">
             {cart.map((line) => {
               const unit = lineUnit(line);
+              const isNc = Boolean(line.isNc);
               return (
                 <li
                   key={line.key}
@@ -148,15 +154,37 @@ export function CartPanel({
                     >
                       <p className="truncate text-sm font-medium text-foreground hover:text-accent">
                         {line.name}
+                        {isNc ? (
+                          <span className="ml-1.5 text-[10px] font-semibold tracking-wide text-amber-700 uppercase">
+                            NC
+                          </span>
+                        ) : null}
                       </p>
                       <p className="truncate text-[11px] text-muted-foreground">
                         Course {line.courseNo}
                         {line.seatNo ? ` · Seat ${line.seatNo}` : ""}
-                        {` · ${unit.toLocaleString("en-BT", {
-                          maximumFractionDigits: 2,
-                        })} Nu each`}
+                        {isNc
+                          ? ` · ${line.ncReasonCode ?? "nc"} · list ${unit.toLocaleString("en-BT", { maximumFractionDigits: 2 })} Nu`
+                          : ` · ${unit.toLocaleString("en-BT", {
+                              maximumFractionDigits: 2,
+                            })} Nu each`}
                       </p>
                     </button>
+
+                    {onToggleNc && ncReasons.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => onToggleNc(line.key)}
+                        className={`inline-flex h-8 shrink-0 items-center rounded-md border px-1.5 text-[10px] font-semibold ${
+                          isNc
+                            ? "border-amber-600/50 bg-amber-500/10 text-amber-800"
+                            : "border-input text-muted-foreground hover:bg-secondary"
+                        }`}
+                        title={isNc ? "Clear NC" : "Mark non-chargeable"}
+                      >
+                        NC
+                      </button>
+                    ) : null}
 
                     <div className="flex shrink-0 items-center gap-0.5">
                       <button
@@ -184,9 +212,11 @@ export function CartPanel({
                     </div>
 
                     <span className="w-16 shrink-0 text-right text-sm font-semibold tabular-nums text-foreground">
-                      {(unit * line.qty).toLocaleString("en-BT", {
-                        maximumFractionDigits: 2,
-                      })}
+                      {isNc
+                        ? "0"
+                        : (unit * line.qty).toLocaleString("en-BT", {
+                            maximumFractionDigits: 2,
+                          })}
                     </span>
 
                     <button
@@ -309,6 +339,9 @@ export function CartPanel({
 
         <div className="space-y-1 text-sm">
           <Row label="Subtotal" value={totals.subtotalBtn} />
+          {(totals.ncValueBtn ?? 0) > 0 ? (
+            <Row label="NC list value" value={totals.ncValueBtn ?? 0} muted />
+          ) : null}
           <Row
             label={`Service${applyServiceCharge ? ` (${servicePct}%)` : " (waived)"}`}
             value={totals.serviceChargeBtn}
@@ -359,9 +392,19 @@ export function CartPanel({
   );
 }
 
-function Row({ label, value }: { label: string; value: number }) {
+function Row({
+  label,
+  value,
+  muted,
+}: {
+  label: string;
+  value: number;
+  muted?: boolean;
+}) {
   return (
-    <div className="flex justify-between text-muted-foreground">
+    <div
+      className={`flex justify-between ${muted ? "text-amber-800/80" : "text-muted-foreground"}`}
+    >
       <span>{label}</span>
       <span className="tabular-nums">
         {value.toLocaleString("en-BT", {

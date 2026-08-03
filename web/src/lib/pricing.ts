@@ -21,6 +21,8 @@ export type LineForGst = {
   modifierUnitBtn?: number;
   /** Detailed modifiers — when present, overrides `modifierUnitBtn` for totals. */
   modifiers?: LineModifierForGst[];
+  /** Non-chargeable lines: exclude from subtotal/SC/GST; still report list value. */
+  isNc?: boolean;
 };
 
 export type PricingOptions = {
@@ -50,17 +52,29 @@ export function calculateOrderTotals(
   serviceChargeBtn: number;
   gstBtn: number;
   totalBtn: number;
+  /** List-price total of NC lines (excluded from payable total). */
+  ncValueBtn: number;
+  /** Chargeable subtotal before NC exclusion adjustment (same as subtotal). */
+  listSubtotalBtn: number;
 } {
   let subtotal = 0;
+  let listSubtotal = 0;
+  let ncValue = 0;
   let gstBase = 0;
 
   for (const line of lines) {
+    const isNc = Boolean(line.isNc);
     const modUnit =
       line.modifiers && line.modifiers.length > 0
         ? modifierUnitTotal(line.modifiers)
         : Number(line.modifierUnitBtn ?? 0);
     const unit = line.unitPriceBtn + modUnit;
     const lineTotal = line.qty * unit;
+    listSubtotal += lineTotal;
+    if (isNc) {
+      ncValue += lineTotal;
+      continue;
+    }
     subtotal += lineTotal;
 
     if (line.modifiers && line.modifiers.length > 0) {
@@ -81,6 +95,8 @@ export function calculateOrderTotals(
   }
 
   const subtotalBtn = roundBtn(subtotal);
+  const listSubtotalBtn = roundBtn(listSubtotal);
+  const ncValueBtn = roundBtn(ncValue);
   const serviceChargeRate =
     options.applyServiceCharge === false
       ? 0
@@ -92,7 +108,14 @@ export function calculateOrderTotals(
   const gstBtn = roundBtn((gstBase + taxableServiceCharge) * gstRate);
   const totalBtn = roundBtn(subtotalBtn + serviceChargeBtn + gstBtn);
 
-  return { subtotalBtn, serviceChargeBtn, gstBtn, totalBtn };
+  return {
+    subtotalBtn,
+    serviceChargeBtn,
+    gstBtn,
+    totalBtn,
+    ncValueBtn,
+    listSubtotalBtn,
+  };
 }
 
 export function formatBtn(amount: number): string {

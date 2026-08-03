@@ -48,6 +48,9 @@ export type CartLine = {
   courseNo: number;
   seatNo?: number;
   lineNotes?: string;
+  /** Non-chargeable — still served; Nu 0 on bill. */
+  isNc?: boolean;
+  ncReasonCode?: string;
 };
 
 /** Wire shape for the hidden `cart` JSON input consumed by `createDeskOrder`. */
@@ -58,6 +61,8 @@ export type CartLineInput = {
   courseNo?: number;
   seatNo?: number;
   lineNotes?: string;
+  isNc?: boolean;
+  ncReasonCode?: string;
 };
 
 export type TenderDraft = {
@@ -70,7 +75,8 @@ export type TenderDraft = {
     | "bank_qr"
     | "pay_bt"
     | "deposit"
-    | "room_charge";
+    | "room_charge"
+    | "nc";
   amountBtn: number;
   reference?: string;
   bookingId?: string;
@@ -96,6 +102,8 @@ export type PosLayoutProps = {
   runtimeConfig: PosRuntimeConfig;
   /** Guest-service panel rendered by the server page into the sub-tab. */
   guestServiceSlot?: React.ReactNode;
+  /** Active NC reason codes for POS. */
+  ncReasons?: { code: string; label: string }[];
 };
 
 /** Outlet code is property-scoped text (cafe, rooftop, …). */

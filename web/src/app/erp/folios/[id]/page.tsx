@@ -60,6 +60,7 @@ function sourceLabel(sourceType: string) {
   const map: Record<string, string> = {
     room: "Room",
     meal_plan: "Meal plan",
+    extra_bed: "Extra bed",
     payment: "Payment",
     deposit: "Deposit",
     comp: "Comp",

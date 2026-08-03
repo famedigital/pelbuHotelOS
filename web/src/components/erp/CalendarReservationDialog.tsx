@@ -60,6 +60,8 @@ type ReservationDraft = {
   contactPhone: string;
   contactEmail: string;
   adults: string;
+  children: string;
+  extraBeds: string;
   guideNumber: string;
   guestOrigin: string;
   source: string;
@@ -80,6 +82,8 @@ function draftForSelection(
     contactPhone: "",
     contactEmail: "",
     adults: String(Math.max(2, selection.units.length)),
+    children: "0",
+    extraBeds: "0",
     guideNumber: "",
     guestOrigin: "international",
     source: "reservation",
@@ -348,6 +352,34 @@ export function CalendarReservationDialog({
                 required
                 value={draft.adults}
                 onChange={(event) => updateDraft("adults", event.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="children">Children</Label>
+              <Input
+                id="children"
+                name="children"
+                type="number"
+                min={0}
+                max={12}
+                value={draft.children}
+                onChange={(event) =>
+                  updateDraft("children", event.target.value)
+                }
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="extra_beds">Extra beds</Label>
+              <Input
+                id="extra_beds"
+                name="extra_beds"
+                type="number"
+                min={0}
+                max={2}
+                value={draft.extraBeds}
+                onChange={(event) =>
+                  updateDraft("extraBeds", event.target.value)
+                }
               />
             </div>
             <div className="space-y-1.5">

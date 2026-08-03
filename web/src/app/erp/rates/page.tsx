@@ -104,7 +104,12 @@ export default async function RoomRatesPage() {
           </li>
           <li>
             <strong className="font-medium text-foreground">Meals</strong> —
-            meal plan Nu × adults × nights added on top of room total
+            adult rate × adults × nights + child rate × children × nights
+            (blank child rate = free for kids)
+          </li>
+          <li>
+            <strong className="font-medium text-foreground">Extra beds</strong> —
+            property sell rate × qty × nights (enable in Rates &amp; meals)
           </li>
         </ul>
       </section>

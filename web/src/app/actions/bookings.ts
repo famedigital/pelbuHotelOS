@@ -10,11 +10,14 @@ import { availabilityByRoomType } from "@/lib/inventory-availability";
 import { soldQtyByRoomType } from "@/lib/inventory-availability";
 import { notifyNewBooking } from "@/lib/notify";
 import { applyDiscountPct } from "@/lib/partners/discount";
+import { redeemPromoCode } from "@/lib/marketing/promo";
 import { roundBtn } from "@/lib/pricing";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 import {
-  computeMealStayTotalBtn,
-  resolveMealPlanForBook,
+  loadExtraBedPolicy,
+  MAX_CHILDREN,
+  MAX_EXTRA_BEDS,
+  resolveStayAddonsForBook,
 } from "@/lib/meal-plans";
 import {
   lookupRoomRateBtn,
@@ -29,6 +32,7 @@ import {
   assertPhone,
   assertStayDates,
   optionalTrim,
+  parseNonNegInt,
   parsePositiveInt,
   trimRequired,
 } from "@/lib/validation";
@@ -54,14 +58,22 @@ export type RoomOption = {
   available: boolean;
 };
 
-/** Active meal plan shown for selection. Amounts are never added to token/quote in P0. */
+/** Active meal plan shown for selection. */
 export type MealPlanOption = {
   code: string;
   name: string;
   blurb: string | null;
   /** Nu per adult per night; null = label-only on quote. */
   amountPerAdultNight: number | null;
+  /** Nu per child per night; null = free for children when adult priced. */
+  amountPerChildNight: number | null;
   priced: boolean;
+};
+
+export type ExtraBedOption = {
+  sellable: boolean;
+  ratePerNight: number | null;
+  maxQty: number;
 };
 
 /** Result of a read-only rate/availability preview (no DB writes). */
@@ -75,6 +87,7 @@ export type StayPreview = {
   rooms: number;
   options: RoomOption[];
   mealPlans: MealPlanOption[];
+  extraBed: ExtraBedOption;
 };
 
 /** Plain-object input for preview — kept loose so it can be called from client state without FormData. */
@@ -154,7 +167,9 @@ export async function previewStayCost(
 
     const { data: mealPlanRows } = await admin
       .from("meal_plans")
-      .select("code, name, blurb, amount_btn_per_adult_night")
+      .select(
+        "code, name, blurb, amount_btn_per_adult_night, amount_btn_per_child_night",
+      )
       .eq("property_id", propertyId)
       .eq("is_active", true)
       .order("sort_order");
@@ -167,8 +182,14 @@ export async function previewStayCost(
         row.amount_btn_per_adult_night == null
           ? null
           : Number(row.amount_btn_per_adult_night),
+      amountPerChildNight:
+        row.amount_btn_per_child_night == null
+          ? null
+          : Number(row.amount_btn_per_child_night),
       priced: row.amount_btn_per_adult_night != null,
     }));
+
+    const extraPolicy = await loadExtraBedPolicy(admin, propertyId);
 
     return {
       ok: true,
@@ -182,6 +203,11 @@ export async function previewStayCost(
         rooms,
         options,
         mealPlans,
+        extraBed: {
+          sellable: extraPolicy.sellable,
+          ratePerNight: extraPolicy.ratePerNight,
+          maxQty: MAX_EXTRA_BEDS,
+        },
       },
     };
   } catch (err) {
@@ -215,6 +241,16 @@ export async function createBooking(
     assertStayDates(checkIn, checkOut);
 
     const adults = parsePositiveInt(formData.get("adults"), "Adults", 12);
+    const children = parseNonNegInt(
+      formData.get("children"),
+      "Children",
+      MAX_CHILDREN,
+    );
+    const extraBedsRequested = parseNonNegInt(
+      formData.get("extra_beds"),
+      "Extra beds",
+      MAX_EXTRA_BEDS,
+    );
     const rooms = parsePositiveInt(formData.get("rooms"), "Rooms", 6);
     const guideNumber = optionalTrim(formData.get("guide_number"));
     const notes = optionalTrim(formData.get("notes"));
@@ -222,8 +258,6 @@ export async function createBooking(
     // unavailable, the action falls back to first-available auto-assignment
     // so the legacy single-form path still works.
     const requestedRoomTypeCode = optionalTrim(formData.get("room_type_code"));
-    // Meal plan is preference metadata in P0 — never folded into token or
-    // quoted_total_btn until desk-priced meal math ships.
     const requestedMealPlanCode =
       optionalTrim(formData.get("meal_plan_code")) ?? "EP";
     // so the quoted total survives later rate changes.
@@ -247,19 +281,18 @@ export async function createBooking(
 
     const propertyId = property.id as string;
 
-    const mealResolved = await resolveMealPlanForBook(
-      admin,
-      propertyId,
-      requestedMealPlanCode,
-    );
     const stayNights = nightsBetween(checkIn, checkOut);
-    const mealPlanAmountBtn =
-      computeMealStayTotalBtn(
-        mealResolved.amountPerAdultNight,
-        adults,
-        stayNights,
-      ) ?? 0;
-    const mealPlanCode = mealResolved.code;
+    const addons = await resolveStayAddonsForBook(admin, propertyId, {
+      mealPlanCode: requestedMealPlanCode,
+      adults,
+      children,
+      extraBeds: extraBedsRequested,
+      nights: stayNights,
+    });
+    const mealPlanAmountBtn = addons.mealPlanAmountBtn;
+    const mealPlanCode = addons.mealPlanCode;
+    const extraBeds = addons.extraBeds;
+    const extraBedAmountBtn = addons.extraBedAmountBtn;
 
     const { data: roomTypes } = await admin
       .from("room_types")
@@ -343,9 +376,10 @@ export async function createBooking(
       }
     }
 
-    if (quotedTotalBtn != null && mealPlanAmountBtn > 0) {
-      quotedTotalBtn = roundBtn(quotedTotalBtn + mealPlanAmountBtn);
-    }
+    // quoted_total_btn from the wizard already includes room + meal + extra bed.
+    // Apply guide partner discount to the full stay quote when present.
+
+    const promoCodeRaw = optionalTrim(formData.get("promo_code"));
 
     const { data: booking, error: bookingError } = await admin
       .from("bookings")
@@ -359,6 +393,8 @@ export async function createBooking(
         contact_phone: contactPhone,
         contact_email: contactEmail,
         adults,
+        children,
+        extra_beds: extraBeds,
         rooms,
         guide_number: guideNumber,
         guide_id: resolvedGuideId,
@@ -369,6 +405,7 @@ export async function createBooking(
         quoted_total_btn: quotedTotalBtn,
         meal_plan_code: mealPlanCode,
         meal_plan_amount_btn: mealPlanAmountBtn,
+        extra_bed_amount_btn: extraBedAmountBtn,
       })
       .select("id")
       .single();
@@ -376,6 +413,55 @@ export async function createBooking(
     if (bookingError || !booking) {
       console.error("createBooking insert failed", bookingError);
       throw new Error("Could not save your booking. Please try again.");
+    }
+
+    if (promoCodeRaw && quotedTotalBtn != null && quotedTotalBtn > 0) {
+      let stackWithPartner = false;
+      if (resolvedGuideId) {
+        const { data: g } = await admin
+          .from("guides")
+          .select("discount_pct")
+          .eq("id", resolvedGuideId)
+          .maybeSingle();
+        stackWithPartner = Number(g?.discount_pct ?? 0) > 0;
+      }
+      const nights = nightsBetween(checkIn, checkOut);
+      const redeemed = await redeemPromoCode(admin, {
+        propertyId,
+        code: promoCodeRaw,
+        channel: "public_book",
+        domain: "rooms",
+        preDiscountBtn: quotedTotalBtn,
+        guestKey: contactPhone,
+        bookingId: booking.id as string,
+        minNights: nights,
+        stackPartner: stackWithPartner,
+        createdBy: "public_book",
+      });
+      if (!redeemed.ok) {
+        await admin.from("bookings").delete().eq("id", booking.id);
+        throw new Error(redeemed.error ?? "Promo code rejected.");
+      }
+      const promoDiscountBtn = Number(redeemed.discount_btn ?? 0);
+      const promoCodeId = redeemed.promo_code_id ?? null;
+      const promoCodeSnapshot = redeemed.code ?? promoCodeRaw.toUpperCase();
+      const promoDiscountPct =
+        redeemed.benefit_type === "pct"
+          ? Number(redeemed.benefit_value ?? 0)
+          : null;
+      quotedTotalBtn = roundBtn(
+        Number(redeemed.post_discount_btn ?? quotedTotalBtn - promoDiscountBtn),
+      );
+      await admin
+        .from("bookings")
+        .update({
+          promo_code_id: promoCodeId,
+          promo_discount_pct: promoDiscountPct,
+          promo_discount_btn: promoDiscountBtn,
+          promo_code_snapshot: promoCodeSnapshot,
+          quoted_total_btn: quotedTotalBtn,
+        })
+        .eq("id", booking.id);
     }
 
     const { error: linesError } = await admin.from("booking_rooms").insert({

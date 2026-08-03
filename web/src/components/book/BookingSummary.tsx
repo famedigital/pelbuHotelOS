@@ -9,9 +9,13 @@ type Props = {
   checkOut: string;
   nights: number;
   adults: number;
+  children?: number;
   rooms: number;
+  extraBeds?: number;
   selectedName: string | null;
   perNightBtn?: number | null;
+  mealTotalBtn?: number | null;
+  extraBedTotalBtn?: number | null;
   totalBtn: number | null;
   currency: "BTN";
 };
@@ -52,14 +56,22 @@ export function BookingSummary({
   checkOut,
   nights,
   adults,
+  children = 0,
   rooms,
+  extraBeds = 0,
   selectedName,
   perNightBtn,
+  mealTotalBtn,
+  extraBedTotalBtn,
   totalBtn,
   currency,
 }: Props) {
   const nightsLabel = `${nights} night${nights === 1 ? "" : "s"}`;
   const roomsLabel = `${rooms} room${rooms === 1 ? "" : "s"}`;
+  const guestsLabel =
+    children > 0
+      ? `${adults} adult${adults === 1 ? "" : "s"} · ${children} child${children === 1 ? "" : "ren"}`
+      : String(adults);
 
   return (
     <Card
@@ -75,11 +87,24 @@ export function BookingSummary({
 
       <dl className="space-y-2.5 px-5 py-4 text-sm">
         <Row label="Nights" value={nightsLabel} />
-        <Row label="Guests" value={String(adults)} />
+        <Row label="Guests" value={guestsLabel} />
         <Row label="Rooms" value={roomsLabel} />
+        {extraBeds > 0 ? (
+          <Row
+            label="Extra beds"
+            value={
+              extraBedTotalBtn != null && extraBedTotalBtn > 0
+                ? `${extraBeds} · ${formatBtn(extraBedTotalBtn)}`
+                : String(extraBeds)
+            }
+          />
+        ) : null}
         <Row label="Room type" value={selectedName ?? "Not selected yet"} />
         {perNightBtn != null ? (
           <Row label="Per night" value={formatBtn(perNightBtn)} />
+        ) : null}
+        {mealTotalBtn != null && mealTotalBtn > 0 ? (
+          <Row label="Meals" value={formatBtn(mealTotalBtn)} />
         ) : null}
       </dl>
 

@@ -64,6 +64,7 @@ function roomLabels(
 /**
  * In-house meal covers from checked-in bookings + kitchen events for a date.
  * BB → breakfast; MAP → breakfast + lunch; AP → all three meals.
+ * Children count toward covers when on a meal plan (priced or free).
  */
 export async function computeMealCovers(
   admin: Admin,
@@ -73,7 +74,7 @@ export async function computeMealCovers(
   const { data: bookings } = await admin
     .from("bookings")
     .select(
-      `id, contact_name, adults, meal_plan_code, status,
+      `id, contact_name, adults, children, meal_plan_code, status,
        room_assignments(room_units(label))`,
     )
     .eq("property_id", propertyId)
@@ -88,12 +89,14 @@ export async function computeMealCovers(
 
   for (const b of bookings ?? []) {
     const adults = Number(b.adults ?? 1);
+    const children = Math.max(0, Number(b.children ?? 0));
+    const heads = adults + children;
     const plan = ((b.meal_plan_code as string) ?? "EP").toUpperCase();
     const inclusions = mealPlanInclusions(plan);
 
-    if (inclusions.breakfast) breakfast += adults;
-    if (inclusions.lunch) lunch += adults;
-    if (inclusions.dinner) dinner += adults;
+    if (inclusions.breakfast) breakfast += heads;
+    if (inclusions.lunch) lunch += heads;
+    if (inclusions.dinner) dinner += heads;
 
     if (
       inclusions.breakfast ||
@@ -108,7 +111,7 @@ export async function computeMealCovers(
             | { room_units?: { label?: string } | { label?: string }[] | null }[]
             | null,
         ),
-        adults,
+        adults: heads,
         mealPlanCode: plan,
         status: (b.status as string) ?? "confirmed",
         inclusions,

@@ -1,8 +1,10 @@
 "use client";
 
-import type { MealPlanOption } from "@/app/actions/bookings";
+import type { ExtraBedOption, MealPlanOption } from "@/app/actions/bookings";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MAX_CHILDREN, MAX_EXTRA_BEDS } from "@/lib/meal-plans-calc";
+import { formatBtn } from "@/lib/pricing";
 import { addDaysIso } from "@/lib/stay-dates";
 import { useMemo } from "react";
 
@@ -15,11 +17,16 @@ type Props = {
   onCheckOut: (v: string) => void;
   adults: number;
   onAdults: (n: number) => void;
+  children: number;
+  onChildren: (n: number) => void;
   rooms: number;
   onRooms: (n: number) => void;
+  extraBeds: number;
+  onExtraBeds: (n: number) => void;
   mealPlans: MealPlanOption[];
   mealPlanCode: string;
   onMealPlan: (code: string) => void;
+  extraBed: ExtraBedOption | null;
 };
 
 export function BookingStepStay({
@@ -31,24 +38,35 @@ export function BookingStepStay({
   onCheckOut,
   adults,
   onAdults,
+  children,
+  onChildren,
   rooms,
   onRooms,
+  extraBeds,
+  onExtraBeds,
   mealPlans,
   mealPlanCode,
   onMealPlan,
+  extraBed,
 }: Props) {
   const minCheckout = useMemo(
     () => (checkIn ? addDaysIso(checkIn, 1) : minCheckIn),
     [checkIn, minCheckIn],
   );
 
+  const selectedPlan =
+    mealPlans.find((p) => p.code === mealPlanCode) ?? null;
+  const showChildrenFreeHint =
+    children > 0 &&
+    selectedPlan != null &&
+    selectedPlan.amountPerAdultNight != null &&
+    selectedPlan.amountPerAdultNight > 0 &&
+    selectedPlan.amountPerChildNight == null;
+
   return (
     <fieldset className="space-y-6">
       <legend className="sr-only">Stay dates and party</legend>
 
-      {/* items-start keeps both columns content-height so the two date inputs
-          share a baseline; the nights hint sits below the row (with reserved
-          height) so showing/hiding it never shifts or offsets the fields. */}
       <div className="space-y-2">
         <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
           <div className="grid gap-2">
@@ -91,20 +109,47 @@ export function BookingStepStay({
           onChange={onAdults}
         />
         <Stepper
+          label="Children"
+          value={children}
+          min={0}
+          max={MAX_CHILDREN}
+          onChange={onChildren}
+        />
+        <Stepper
           label="Rooms"
           value={rooms}
           min={1}
           max={6}
           onChange={onRooms}
         />
+        {extraBed?.sellable ? (
+          <Stepper
+            label="Extra beds"
+            value={extraBeds}
+            min={0}
+            max={extraBed.maxQty || MAX_EXTRA_BEDS}
+            onChange={onExtraBeds}
+            hint={
+              extraBed.ratePerNight != null
+                ? `${formatBtn(extraBed.ratePerNight)} / bed / night`
+                : undefined
+            }
+          />
+        ) : null}
       </div>
+
+      {showChildrenFreeHint ? (
+        <p className="text-xs text-muted-foreground" role="status">
+          Children meals are included at no extra charge on this meal plan.
+        </p>
+      ) : null}
 
       {mealPlans.length > 0 ? (
         <div className="space-y-3">
           <Label>Meal plan</Label>
           <p className="text-xs text-muted-foreground">
-            Room rate stays as shown. Meal add-ons are confirmed by the desk
-            before any charge.
+            Meal add-ons are included in your estimate when priced. Final invoice
+            is confirmed by the desk.
           </p>
           <div
             className="grid grid-cols-1 gap-2 sm:grid-cols-2"
@@ -137,6 +182,18 @@ export function BookingStepStay({
                       {plan.blurb}
                     </span>
                   ) : null}
+                  {plan.priced && plan.amountPerAdultNight != null ? (
+                    <span className="mt-1 block text-xs tabular-nums text-muted-foreground">
+                      {plan.amountPerAdultNight === 0
+                        ? "Included with room"
+                        : `${formatBtn(plan.amountPerAdultNight)} / adult / night`}
+                      {plan.amountPerChildNight != null
+                        ? ` · ${formatBtn(plan.amountPerChildNight)} / child`
+                        : plan.amountPerAdultNight > 0
+                          ? " · children free"
+                          : ""}
+                    </span>
+                  ) : null}
                 </label>
               );
             })}
@@ -153,12 +210,14 @@ function Stepper({
   min,
   max,
   onChange,
+  hint,
 }: {
   label: string;
   value: number;
   min: number;
   max: number;
   onChange: (n: number) => void;
+  hint?: string;
 }) {
   return (
     <div className="grid gap-2">
@@ -200,6 +259,9 @@ function Stepper({
           +
         </button>
       </div>
+      {hint ? (
+        <p className="text-[11px] text-muted-foreground tabular-nums">{hint}</p>
+      ) : null}
     </div>
   );
 }

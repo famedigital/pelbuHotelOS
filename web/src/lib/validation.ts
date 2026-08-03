@@ -26,6 +26,21 @@ export function parsePositiveInt(
   return n;
 }
 
+/** Integer ≥ 0 (empty → 0). Used for children, extra beds, optional counts. */
+export function parseNonNegInt(
+  value: FormDataEntryValue | null,
+  label: string,
+  max: number,
+): number {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (!raw) return 0;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 0 || n > max) {
+    throw new Error(`${label} must be between 0 and ${max}.`);
+  }
+  return n;
+}
+
 export function assertPhone(phone: string): void {
   if (!PHONE_RE.test(phone)) {
     throw new Error("Enter a valid phone number (include country code if outside Bhutan).");

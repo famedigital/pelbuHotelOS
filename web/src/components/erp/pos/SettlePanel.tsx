@@ -63,6 +63,7 @@ const METHOD_LABELS: Record<TenderDraft["method"], string> = {
   pay_bt: "Pay.bt",
   deposit: "Deposit",
   room_charge: "Charge to room",
+  nc: "Non-chargeable (NC)",
 };
 
 const fieldClass =

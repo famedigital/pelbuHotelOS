@@ -108,6 +108,20 @@ export default async function ErpPosPage() {
     admin,
   );
 
+  const { data: ncReasonRows } = await admin
+    .from("nc_reason_codes")
+    .select("code, label, domains")
+    .eq("property_id", propertyId)
+    .eq("active", true)
+    .order("sort_order")
+    .limit(40);
+  const ncReasons = (ncReasonRows ?? [])
+    .filter((r) => {
+      const domains = r.domains as string[] | null;
+      return !domains || domains.includes("pos") || domains.includes("all");
+    })
+    .map((r) => ({ code: r.code as string, label: r.label as string }));
+
   const bookingOptions = (bookings ?? []).map((b) => ({
     id: b.id as string,
     contact_name: (b.contact_name as string | null) ?? null,
@@ -225,6 +239,7 @@ export default async function ErpPosPage() {
           tenderMethods: POS_TENDER_METHODS,
           voidManagerThresholdBtn: voidManagerThresholdBtn(),
         }}
+        ncReasons={ncReasons}
         guestServiceSlot={
           <div className="rounded-xl border bg-card p-4">
             <div className="mb-4 space-y-0.5">

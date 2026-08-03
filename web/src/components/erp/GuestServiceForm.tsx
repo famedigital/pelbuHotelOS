@@ -184,6 +184,44 @@ export function GuestServiceForm({
         <Input id="notes" type="text" name="notes" />
       </div>
 
+      <div className="space-y-1.5">
+        <Label htmlFor="promo_code">Promo code</Label>
+        <Input
+          id="promo_code"
+          type="text"
+          name="promo_code"
+          placeholder="Optional"
+          className="font-mono uppercase"
+        />
+      </div>
+
+      <div className="flex h-11 items-center gap-2.5">
+        <Checkbox id="is_nc" name="is_nc" value="1" />
+        <Label htmlFor="is_nc" className="text-sm text-foreground">
+          Non-chargeable (NC)
+        </Label>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="nc_reason_code">NC reason</Label>
+          <Input
+            id="nc_reason_code"
+            name="nc_reason_code"
+            placeholder="service_recovery"
+            className="font-mono text-sm"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="manager_pin">Manager PIN (NC)</Label>
+          <Input
+            id="manager_pin"
+            type="password"
+            name="manager_pin"
+            autoComplete="off"
+          />
+        </div>
+      </div>
+
       <Button
         type="submit"
         disabled={pending || bookings.length === 0}

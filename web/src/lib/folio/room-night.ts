@@ -1,6 +1,10 @@
 import "server-only";
 import { DEFAULT_GST_RATE } from "@/lib/property-settings";
 import { postFolioCharge } from "@/lib/folio/post-charge";
+import {
+  applyDiscountPct,
+  resolveBookingPartnerDiscountPct,
+} from "@/lib/partners/discount";
 import { roundBtn } from "@/lib/pricing";
 import {
   agentRateTier,
@@ -79,6 +83,10 @@ type OccupiedRoom = {
   checkIn: string;
   source: string;
   agentRateTier: string | null;
+  chargeable: boolean;
+  ncReasonCode: string | null;
+  promoDiscountPct: number;
+  promoCodeId: string | null;
 };
 
 /**
@@ -113,10 +121,11 @@ export async function postRoomNightsForDate(
   const { data: assignments, error: assignError } = await admin
     .from("room_assignments")
     .select(
-      `id, booking_id, room_unit_id, from_date, to_date,
+      `id, booking_id, room_unit_id, from_date, to_date, chargeable, nc_reason_code,
        room_units(id, label, room_type_id, room_types(inventory_kind)),
        bookings!inner(
          id, status, check_in, check_out, contact_name, source, agent_id,
+         promo_discount_pct, promo_code_id,
          agents(rate_tier)
        )`,
     )
@@ -205,6 +214,16 @@ export async function postRoomNightsForDate(
       checkIn: booking.check_in,
       source: booking.source ?? "direct",
       agentRateTier: (agent?.rate_tier as string | null) ?? null,
+      chargeable: row.chargeable !== false,
+      ncReasonCode: (row.nc_reason_code as string | null) ?? null,
+      promoDiscountPct: Number(
+        (booking as { promo_discount_pct?: number | null }).promo_discount_pct ??
+          0,
+      ),
+      promoCodeId:
+        ((booking as { promo_code_id?: string | null }).promo_code_id as
+          | string
+          | null) ?? null,
     });
   }
 
@@ -213,6 +232,12 @@ export async function postRoomNightsForDate(
   const errors: string[] = [];
 
   for (const room of rooms) {
+    // NC / house-use: skip folio charge, still counts as occupied elsewhere
+    if (!room.chargeable) {
+      skipped += 1;
+      continue;
+    }
+
     const tier = room.agentRateTier
       ? agentRateTier(room.agentRateTier)
       : rateTierFromSource(room.source);
@@ -228,7 +253,16 @@ export async function postRoomNightsForDate(
       continue;
     }
 
-    const amountBtn = roundBtn(rate);
+    let amountBtn = roundBtn(rate);
+    if (room.promoDiscountPct > 0) {
+      amountBtn = roundBtn(amountBtn * (1 - Math.min(100, room.promoDiscountPct) / 100));
+    }
+    // Partner discount applied on room nights
+    const partner = await resolveBookingPartnerDiscountPct(admin, room.bookingId);
+    if (partner.pct > 0) {
+      amountBtn = applyDiscountPct(amountBtn, partner.pct);
+    }
+
     const serviceChargeApplied = pricing.serviceChargeDefaultOn;
     const serviceChargeRate = serviceChargeApplied ? pricing.serviceChargeRate : 0;
     const serviceChargeBtn = roundBtn(amountBtn * serviceChargeRate);
@@ -261,7 +295,11 @@ export async function postRoomNightsForDate(
       continue;
     }
 
-    const description = `Room ${room.roomLabel} · ${businessDate}`;
+    const promoNote =
+      room.promoDiscountPct > 0 ? ` · promo −${room.promoDiscountPct}%` : "";
+    const partnerNote =
+      partner.pct > 0 ? ` · partner −${partner.pct}%` : "";
+    const description = `Room ${room.roomLabel} · ${businessDate}${promoNote}${partnerNote}`;
 
     try {
       await postFolioCharge(admin, propertyId, {

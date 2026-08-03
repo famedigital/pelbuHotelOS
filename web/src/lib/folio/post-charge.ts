@@ -56,7 +56,9 @@ export function defaultBillTo(
     Boolean(opts?.hasAgent) &&
     agentModes.has((opts?.paymentMode ?? "").toLowerCase());
   if (
-    ["room", "meal_plan", "cancel_fee", "no_show_fee"].includes(st) &&
+    ["room", "meal_plan", "extra_bed", "cancel_fee", "no_show_fee"].includes(
+      st,
+    ) &&
     agentish
   ) {
     return "agent";

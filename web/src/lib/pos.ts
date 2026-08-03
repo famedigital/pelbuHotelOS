@@ -156,6 +156,7 @@ export const POS_TENDER_METHODS = [
   "pay_bt",
   "deposit",
   "room_charge",
+  "nc",
 ] as const;
 
 export type PosTenderMethod = (typeof POS_TENDER_METHODS)[number];

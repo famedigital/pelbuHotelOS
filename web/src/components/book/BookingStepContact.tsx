@@ -64,6 +64,21 @@ export function BookingStepContact() {
       </div>
 
       <div className="grid gap-2">
+        <Label htmlFor="promo-code">
+          Promo code{" "}
+          <span className="text-muted-foreground">(optional)</span>
+        </Label>
+        <Input
+          id="promo-code"
+          type="text"
+          name="promo_code"
+          maxLength={40}
+          placeholder="e.g. TIKTOK50"
+          className="font-mono uppercase"
+        />
+      </div>
+
+      <div className="grid gap-2">
         <Label htmlFor="notes">Notes</Label>
         <Textarea
           id="notes"

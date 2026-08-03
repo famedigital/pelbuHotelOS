@@ -12,6 +12,8 @@ import {
   applyDiscountPct,
   resolveBookingPartnerDiscountPct,
 } from "@/lib/partners/discount";
+import { assertNcReason, recordNcEvent } from "@/lib/marketing/nc";
+import { redeemPromoCode } from "@/lib/marketing/promo";
 import { verifyManagerPinForProperty } from "@/lib/manager-pin";
 import { orderRef } from "@/lib/order-ref";
 import {
@@ -152,6 +154,8 @@ type CartLineInput = {
   courseNo?: number;
   seatNo?: number;
   lineNotes?: string;
+  isNc?: boolean;
+  ncReasonCode?: string;
 };
 
 type ModifierSnapshot = {
@@ -231,6 +235,15 @@ function parseCart(raw: FormDataEntryValue | null): CartLineInput[] {
       }
     }
     const lineNotes = (item as CartLineInput).lineNotes;
+    const isNc = Boolean((item as CartLineInput).isNc);
+    const ncReasonCodeRaw = (item as CartLineInput).ncReasonCode;
+    const ncReasonCode =
+      typeof ncReasonCodeRaw === "string" && ncReasonCodeRaw.trim()
+        ? ncReasonCodeRaw.trim().toLowerCase().slice(0, 40)
+        : undefined;
+    if (isNc && !ncReasonCode) {
+      throw new Error("NC items need a reason code.");
+    }
     lines.push({
       menuItemId: (item as CartLineInput).menuItemId,
       qty,
@@ -241,6 +254,8 @@ function parseCart(raw: FormDataEntryValue | null): CartLineInput[] {
         typeof lineNotes === "string" && lineNotes.trim()
           ? lineNotes.trim().slice(0, 280)
           : undefined,
+      isNc: isNc || undefined,
+      ncReasonCode,
     });
   }
   return lines;
@@ -510,10 +525,24 @@ export async function createDeskOrder(
 
     const modifiersByLine = await resolveModifiers(admin, property_id, cart);
     const byId = new Map(menuRows.map((row) => [row.id as string, row]));
+    const hasAnyNc = cart.some((line) => line.isNc);
+    if (hasAnyNc) {
+      const pin = optionalTrim(formData.get("manager_pin"));
+      if (!pin) {
+        throw new Error("Manager PIN required for non-chargeable (NC) items.");
+      }
+      const verified = await verifyManagerPinForProperty(admin, property_id, pin);
+      if (!verified.ok) throw new Error(verified.error);
+    }
+
     const priced = cart.map((line, idx) => {
       const item = byId.get(line.menuItemId);
       if (!item) throw new Error("Menu item missing.");
       const modifiers = modifiersByLine.get(idx) ?? [];
+      const isNc = Boolean(line.isNc);
+      if (isNc && line.ncReasonCode) {
+        // Validated below in batch for unique reasons; keep code on line.
+      }
       return {
         menuItemId: line.menuItemId,
         qty: line.qty,
@@ -524,14 +553,30 @@ export async function createDeskOrder(
         courseNo: line.courseNo ?? 1,
         seatNo: line.seatNo ?? null,
         lineNotes: line.lineNotes ?? null,
+        isNc,
+        ncReasonCode: line.ncReasonCode ?? null,
       };
     });
 
-    const { subtotalBtn, serviceChargeBtn, gstBtn, totalBtn } = calculateOrderTotals(
+    for (const line of priced) {
+      if (line.isNc && line.ncReasonCode) {
+        await assertNcReason(admin, property_id, line.ncReasonCode, "pos");
+      }
+    }
+
+    const {
+      subtotalBtn: rawSubtotal,
+      serviceChargeBtn: rawService,
+      gstBtn: rawGst,
+      totalBtn: rawTotal,
+      ncValueBtn,
+      listSubtotalBtn,
+    } = calculateOrderTotals(
       priced.map((line) => ({
         qty: line.qty,
         unitPriceBtn: line.unitPriceBtn,
         gstApplicable: line.gstApplicable,
+        isNc: line.isNc,
         modifiers: line.modifiers.map((m) => ({
           priceBtn: m.priceBtn,
           qty: m.qty,
@@ -545,8 +590,20 @@ export async function createDeskOrder(
       },
     );
 
+    let subtotalBtn = rawSubtotal;
+    let serviceChargeBtn = rawService;
+    let gstBtn = rawGst;
+    let totalBtn = rawTotal;
+    let promoCodeId: string | null = null;
+    let promoDiscountBtn = 0;
+    const promoCodeRaw = optionalTrim(formData.get("promo_code"));
+
+    if (promoCodeRaw && totalBtn > 0) {
+      // Discount applied at settle/create after totals — redeem after order insert with order_id
+    }
+
     let folioId: string | null = null;
-    if (settleMode === "room_charge" && bookingId) {
+    if (settleMode === "room_charge" && bookingId && totalBtn > 0) {
       folioId = await ensureOpenFolio(admin, property_id, bookingId);
     }
 
@@ -581,6 +638,9 @@ export async function createDeskOrder(
         service_charge_reason: serviceChargeReason,
         gst_btn: gstBtn,
         total_btn: totalBtn,
+        nc_value_btn: ncValueBtn,
+        list_subtotal_btn: listSubtotalBtn,
+        promo_discount_btn: 0,
         posted_to_folio_at: null,
         settled_at: null,
       })
@@ -592,24 +652,105 @@ export async function createDeskOrder(
       throw new Error("Could not save desk order.");
     }
 
+    // Apply promo against chargeable ticket total (after order row exists)
+    if (promoCodeRaw && totalBtn > 0) {
+      const partnerStack =
+        settleMode === "room_charge" && bookingId
+          ? (await resolveBookingPartnerDiscountPct(admin, bookingId)).pct > 0
+          : false;
+      const redeemed = await redeemPromoCode(admin, {
+        propertyId: property_id,
+        code: promoCodeRaw,
+        channel: "desk_pos",
+        domain: "pos",
+        preDiscountBtn: totalBtn,
+        guestKey: phoneRaw ?? customerName.slice(0, 40),
+        orderId: order.id as string,
+        bookingId: bookingId ?? null,
+        folioId,
+        stackPartner: partnerStack,
+      });
+      if (!redeemed.ok) {
+        await admin.from("orders").delete().eq("id", order.id);
+        throw new Error(redeemed.error ?? "Promo code rejected.");
+      }
+      promoDiscountBtn = Number(redeemed.discount_btn ?? 0);
+      promoCodeId = redeemed.promo_code_id ?? null;
+      // Scale discount proportionally across subtotal / SC / GST
+      const scale =
+        totalBtn > 0 ? (totalBtn - promoDiscountBtn) / totalBtn : 1;
+      subtotalBtn = roundBtn(subtotalBtn * scale);
+      serviceChargeBtn = roundBtn(serviceChargeBtn * scale);
+      gstBtn = roundBtn(gstBtn * scale);
+      totalBtn = roundBtn(subtotalBtn + serviceChargeBtn + gstBtn);
+      await admin
+        .from("orders")
+        .update({
+          promo_code_id: promoCodeId,
+          promo_discount_btn: promoDiscountBtn,
+          subtotal_btn: subtotalBtn,
+          service_charge_btn: serviceChargeBtn,
+          gst_btn: gstBtn,
+          total_btn: totalBtn,
+        })
+        .eq("id", order.id);
+    }
+
+    const actor = await resolveDeskActor().catch(() => null);
+    const approvedBy = actor?.actor ?? "desk";
+
     const { error: itemsError } = await admin.from("order_items").insert(
-      priced.map((line) => ({
-        order_id: order.id,
-        menu_item_id: line.menuItemId,
-        name_snapshot: line.name,
-        qty: line.qty,
-        unit_price_btn: line.unitPriceBtn,
-        gst_applicable: line.gstApplicable,
-        modifiers: line.modifiers,
-        course_no: line.courseNo,
-        seat_no: line.seatNo,
-        line_notes: line.lineNotes,
-      })),
+      priced.map((line) => {
+        const modUnit = line.modifiers.reduce(
+          (s, m) => s + m.priceBtn * m.qty,
+          0,
+        );
+        const listUnit = roundBtn(line.unitPriceBtn + modUnit);
+        const ncValue = line.isNc ? roundBtn(listUnit * line.qty) : 0;
+        return {
+          order_id: order.id,
+          menu_item_id: line.menuItemId,
+          name_snapshot: line.name,
+          qty: line.qty,
+          unit_price_btn: line.isNc ? 0 : line.unitPriceBtn,
+          list_unit_price_btn: listUnit,
+          gst_applicable: line.isNc ? false : line.gstApplicable,
+          modifiers: line.isNc
+            ? line.modifiers.map((m) => ({ ...m, priceBtn: 0 }))
+            : line.modifiers,
+          course_no: line.courseNo,
+          seat_no: line.seatNo,
+          line_notes: line.lineNotes,
+          is_nc: line.isNc,
+          nc_reason_code: line.ncReasonCode,
+          nc_value_btn: ncValue,
+          nc_approved_by: line.isNc ? approvedBy : null,
+        };
+      }),
     );
 
     if (itemsError) {
       await admin.from("orders").delete().eq("id", order.id);
       throw new Error("Could not save order items.");
+    }
+
+    for (const line of priced) {
+      if (!line.isNc || !line.ncReasonCode) continue;
+      const modUnit = line.modifiers.reduce(
+        (s, m) => s + m.priceBtn * m.qty,
+        0,
+      );
+      const listUnit = roundBtn(line.unitPriceBtn + modUnit);
+      await recordNcEvent(admin, {
+        propertyId: property_id,
+        domain: "pos",
+        reasonCode: line.ncReasonCode,
+        listValueBtn: roundBtn(listUnit * line.qty),
+        orderId: order.id as string,
+        bookingId: bookingId ?? null,
+        description: `${line.qty}× ${line.name}`,
+        approvedBy,
+      });
     }
 
     if (!parkOnCreate) {
@@ -627,15 +768,46 @@ export async function createDeskOrder(
       }
     }
 
-    if (settleMode === "room_charge" && folioId && bookingId) {
+    // Fully NC (or zero after promo): auto-settle with NC tender, no folio cash post
+    if (!parkOnCreate && totalBtn <= 0.009) {
+      await admin.from("order_tenders").insert({
+        order_id: order.id,
+        method: "nc",
+        amount_btn: 0,
+        folio_id: folioId,
+        booking_id: bookingId ?? null,
+        reference: "non_chargeable",
+      });
+      await admin
+        .from("orders")
+        .update({
+          settled_at: nowIso,
+          status: "completed",
+          total_btn: 0,
+        })
+        .eq("id", order.id);
+      if (tableId) {
+        await admin
+          .from("dining_tables")
+          .update({ status: "dirty" })
+          .eq("id", tableId)
+          .eq("property_id", property_id);
+      }
+    } else if (settleMode === "room_charge" && folioId && bookingId && totalBtn > 0) {
       const description = priced
-        .map((line) => `${line.qty}× ${line.name}`)
+        .map((line) => {
+          const ncTag = line.isNc ? " [NC]" : "";
+          return `${line.qty}× ${line.name}${ncTag}`;
+        })
         .join(", ");
       try {
         const partner = await resolveBookingPartnerDiscountPct(
           admin,
           bookingId,
         );
+        if (partner.pct > 0 && promoCodeId) {
+          // already blocked if not stackable via redeem
+        }
         const discSubtotal = applyDiscountPct(subtotalBtn, partner.pct);
         const discService = applyDiscountPct(serviceChargeBtn, partner.pct);
         const discGst = applyDiscountPct(gstBtn, partner.pct);
@@ -644,12 +816,14 @@ export async function createDeskOrder(
           partner.pct > 0
             ? ` (−${partner.pct}% ${partner.source ?? "partner"})`
             : "";
+        const promoSuffix =
+          promoDiscountBtn > 0 ? ` · promo −${promoDiscountBtn}` : "";
         await postFolioCharge(admin, property_id, {
           folio_id: folioId,
           booking_id: bookingId,
           source_type: "order",
           source_id: order.id,
-          description: `Desk ${outlet}: ${description}${descSuffix}`,
+          description: `Desk ${outlet}: ${description}${descSuffix}${promoSuffix}`,
           qty: 1,
           unit_price_btn: discSubtotal,
           amount_btn: discSubtotal,
@@ -674,7 +848,7 @@ export async function createDeskOrder(
         await admin.from("order_tenders").insert({
           order_id: order.id,
           method: "room_charge",
-          amount_btn: totalBtn,
+          amount_btn: discTotal > 0 ? discTotal : totalBtn,
           folio_id: folioId,
           booking_id: bookingId,
         });
@@ -935,10 +1109,13 @@ export async function postGuestServiceCharge(
     if (!Number.isFinite(amount) || amount <= 0) {
       throw new Error("Amount must be greater than zero.");
     }
-    const amountBtn = roundBtn(amount);
+    let amountBtn = roundBtn(amount);
     const gstApplicable = formData.get("gst_applicable") === "1";
     const notes = optionalTrim(formData.get("notes"));
     const serviceChargeApplied = formData.get("service_charge_applied") === "1";
+    const isNc = formData.get("is_nc") === "1";
+    const ncReason = optionalTrim(formData.get("nc_reason_code"));
+    const promoCode = optionalTrim(formData.get("promo_code"));
 
     const admin = createSupabaseAdminClient();
     const property = await loadPropertyPricing(admin);
@@ -952,23 +1129,101 @@ export async function postGuestServiceCharge(
     if (!booking) throw new Error("Booking not found.");
     assertDeskProperty(property_id, booking.property_id as string, "Booking");
 
+    if (isNc) {
+      if (!ncReason) throw new Error("NC reason required.");
+      const pin = optionalTrim(formData.get("manager_pin"));
+      if (!pin) throw new Error("Manager PIN required for NC.");
+      const verified = await verifyManagerPinForProperty(
+        admin,
+        property_id,
+        pin,
+      );
+      if (!verified.ok) throw new Error(verified.error);
+      await assertNcReason(admin, property_id, ncReason, "guest_service");
+    }
+
+    let promoDiscountBtn = 0;
+    let promoCodeId: string | null = null;
+    const listAmount = amountBtn;
+
+    if (!isNc && promoCode) {
+      const redeemed = await redeemPromoCode(admin, {
+        propertyId: property_id,
+        code: promoCode,
+        channel: "desk_folio",
+        domain: "guest_service",
+        preDiscountBtn: amountBtn,
+        bookingId,
+      });
+      if (!redeemed.ok) {
+        throw new Error(redeemed.error ?? "Promo rejected.");
+      }
+      promoDiscountBtn = Number(redeemed.discount_btn ?? 0);
+      promoCodeId = redeemed.promo_code_id ?? null;
+      amountBtn = Number(redeemed.post_discount_btn ?? amountBtn);
+    }
+
+    if (isNc) {
+      amountBtn = 0;
+    }
+
     const serviceChargeRateRaw = optionalTrim(formData.get("service_charge_rate"));
     const serviceChargeRate = serviceChargeRateRaw
       ? percentToRate(serviceChargeRateRaw)
       : property.serviceChargeRate;
-    const serviceChargeBtn = serviceChargeApplied
-      ? roundBtn(amountBtn * serviceChargeRate)
-      : 0;
-    const gstBase = gstApplicable ? amountBtn + serviceChargeBtn : 0;
-    const gstBtn = gstApplicable ? roundBtn(gstBase * property.gstRate) : 0;
+    const serviceChargeBtn =
+      serviceChargeApplied && amountBtn > 0
+        ? roundBtn(amountBtn * serviceChargeRate)
+        : 0;
+    const gstBase =
+      gstApplicable && amountBtn > 0 ? amountBtn + serviceChargeBtn : 0;
+    const gstBtn =
+      gstApplicable && amountBtn > 0
+        ? roundBtn(gstBase * property.gstRate)
+        : 0;
     const totalBtn = roundBtn(amountBtn + serviceChargeBtn + gstBtn);
     const folioId = await ensureOpenFolio(admin, property_id, bookingId);
+
+    if (isNc && totalBtn === 0) {
+      await recordNcEvent(admin, {
+        propertyId: property_id,
+        domain: "guest_service",
+        reasonCode: ncReason!,
+        listValueBtn: listAmount,
+        bookingId,
+        folioId,
+        description: `${kind}: ${description}`,
+        approvedBy: "desk",
+      });
+      // zero memo folio line for history
+      await postFolioCharge(admin, property_id, {
+        folio_id: folioId,
+        booking_id: bookingId,
+        source_type: "nc",
+        description: `NC · ${kind}: ${description}${notes ? ` · ${notes}` : ""}`,
+        qty: 1,
+        unit_price_btn: 0,
+        amount_btn: 0,
+        service_charge_rate: 0,
+        service_charge_btn: 0,
+        service_charge_applied: false,
+        gst_applicable: false,
+        gst_btn: 0,
+        total_btn: 0,
+        is_comp: true,
+      });
+      revalidatePath("/erp");
+      revalidatePath(`/erp/folios/${folioId}`);
+      return { ok: true, folioId };
+    }
 
     await postFolioCharge(admin, property_id, {
       folio_id: folioId,
       booking_id: bookingId,
       source_type: "guest_service",
-      description: `${kind}: ${description}${notes ? ` · ${notes}` : ""}`,
+      description: `${kind}: ${description}${notes ? ` · ${notes}` : ""}${
+        promoDiscountBtn > 0 ? ` · promo −${promoDiscountBtn}` : ""
+      }`,
       qty: 1,
       unit_price_btn: amountBtn,
       amount_btn: amountBtn,
@@ -980,6 +1235,7 @@ export async function postGuestServiceCharge(
       gst_btn: gstBtn,
       total_btn: totalBtn,
     });
+    void promoCodeId;
 
     revalidatePath("/erp");
     revalidatePath(`/erp/folios/${folioId}`);
@@ -1466,8 +1722,11 @@ function parseTenders(raw: FormDataEntryValue | null): TenderInput[] {
     if (!method || !TENDER_METHODS.has(method)) {
       throw new Error("Invalid tender method.");
     }
-    if (!Number.isFinite(amount) || amount <= 0) {
-      throw new Error("Each tender amount must be greater than zero.");
+    if (!Number.isFinite(amount) || amount < 0) {
+      throw new Error("Each tender amount must be zero or greater.");
+    }
+    if (method !== "nc" && amount <= 0) {
+      throw new Error("Paid tenders must be greater than zero.");
     }
     const reference = (row as { reference?: string }).reference;
     const bookingId = (row as { bookingId?: string }).bookingId;
@@ -1511,7 +1770,9 @@ export async function splitSettle(
     const posShiftId = await openShiftId(admin, property_id);
     const needsDrawer = tenders.some(
       (tender) =>
-        tender.method !== "room_charge" && tender.method !== "agent_credit",
+        tender.method !== "room_charge" &&
+        tender.method !== "agent_credit" &&
+        tender.method !== "nc",
     );
     if (needsDrawer && !posShiftId) {
       throw new Error("Open a POS shift before taking guest payment.");
@@ -1614,7 +1875,7 @@ export async function splitSettle(
         throw new Error("Could not save tender.");
       }
 
-      if (tender.method !== "room_charge" && tender.method !== "agent_credit") {
+      if (tender.method !== "room_charge" && tender.method !== "agent_credit" && tender.method !== "nc") {
         // Folio settle → guest AR payment journals. Walk-in (no folio) → cash sale.
         if (folioId) {
           await postFolioPaymentRecord(admin, {

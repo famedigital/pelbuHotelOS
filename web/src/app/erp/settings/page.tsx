@@ -133,7 +133,9 @@ export default async function ErpSettingsPage({
       .order("label"),
     admin
       .from("meal_plans")
-      .select("code, name, blurb, amount_btn_per_adult_night, is_active, sort_order")
+      .select(
+        "code, name, blurb, amount_btn_per_adult_night, amount_btn_per_child_night, is_active, sort_order",
+      )
       .eq("property_id", propertyId)
       .order("sort_order"),
     admin
@@ -239,6 +241,10 @@ export default async function ErpSettingsPage({
       row.amount_btn_per_adult_night == null
         ? null
         : Number(row.amount_btn_per_adult_night),
+    amount_btn_per_child_night:
+      row.amount_btn_per_child_night == null
+        ? null
+        : Number(row.amount_btn_per_child_night),
     is_active: Boolean(row.is_active),
     sort_order: Number(row.sort_order ?? 0),
   }));
@@ -710,6 +716,12 @@ export default async function ErpSettingsPage({
               (defaultMealRow?.default_meal_plan_code as string | undefined) ?? "EP"
             }
             mealPlans={mealPlans}
+            extraBedRateBtn={
+              policyResult.data?.extra_bed_rate_btn == null
+                ? null
+                : Number(policyResult.data.extra_bed_rate_btn)
+            }
+            extraBedActive={Boolean(policyResult.data?.extra_bed_active)}
           />
         </TabsContent>
 

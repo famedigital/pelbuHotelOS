@@ -4,8 +4,9 @@ import { chargeAgentCredit } from "@/app/actions/erp-agents";
 import { enqueueAfterBookingChange } from "@/lib/channel/ari-queue";
 import { soldQtyByRoomType } from "@/lib/inventory-availability";
 import {
-  computeMealStayTotalBtn,
-  resolveMealPlanForBook,
+  MAX_CHILDREN,
+  MAX_EXTRA_BEDS,
+  resolveStayAddonsForBook,
 } from "@/lib/meal-plans";import { notifyNewBooking } from "@/lib/notify";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { roundBtn } from "@/lib/pricing";
@@ -23,6 +24,7 @@ import {
   assertPhone,
   assertStayDates,
   optionalTrim,
+  parseNonNegInt,
   parsePositiveInt,
   trimRequired,
 } from "@/lib/validation";
@@ -42,20 +44,6 @@ const GUEST_ORIGINS = new Set([
   "official",
   "local",
 ]);
-
-function parseNonNegInt(
-  value: FormDataEntryValue | null,
-  label: string,
-  max: number,
-): number {
-  const raw = typeof value === "string" ? value.trim() : "";
-  if (!raw) return 0;
-  const n = Number(raw);
-  if (!Number.isInteger(n) || n < 0 || n > max) {
-    throw new Error(`${label} must be between 0 and ${max}.`);
-  }
-  return n;
-}
 
 type RoomTypeRow = {
   id: string;
@@ -98,6 +86,16 @@ export async function createFastBooking(
     assertStayDates(checkIn, checkOut);
 
     const adults = parsePositiveInt(formData.get("adults"), "Adults", 24);
+    const children = parseNonNegInt(
+      formData.get("children"),
+      "Children",
+      MAX_CHILDREN,
+    );
+    const extraBedsRaw = parseNonNegInt(
+      formData.get("extra_beds"),
+      "Extra beds",
+      MAX_EXTRA_BEDS,
+    );
     const guideNumber = optionalTrim(formData.get("guide_number"));
     const notes = optionalTrim(formData.get("notes"));
     const agentId = optionalTrim(formData.get("agent_id"));
@@ -134,18 +132,18 @@ export async function createFastBooking(
     const property = { id: propertyId };
 
     const mealPlanCodeRaw = trimRequired(formData.get("meal_plan_code"), "Meal plan");
-    const mealResolved = await resolveMealPlanForBook(
-      admin,
-      property.id as string,
-      mealPlanCodeRaw,
-    );
     const nights = nightsBetween(checkIn, checkOut);
-    const mealPlanAmountBtn =
-      computeMealStayTotalBtn(
-        mealResolved.amountPerAdultNight,
-        adults,
-        nights,
-      ) ?? 0;
+    const addons = await resolveStayAddonsForBook(admin, property.id as string, {
+      mealPlanCode: mealPlanCodeRaw,
+      adults,
+      children,
+      extraBeds: extraBedsRaw,
+      nights,
+    });
+    const mealPlanAmountBtn = addons.mealPlanAmountBtn;
+    const mealPlanCode = addons.mealPlanCode;
+    const extraBeds = addons.extraBeds;
+    const extraBedAmountBtn = addons.extraBedAmountBtn;
 
     const { data: roomTypes, error: typesError } = await admin
       .from("room_types")
@@ -263,13 +261,16 @@ export async function createFastBooking(
         contact_phone: contactPhone,
         contact_email: contactEmail,
         adults,
+        children,
+        extra_beds: extraBeds,
         rooms: guestRooms,
         guide_number: guideNumber,
         guest_origin: guestOrigin,
         payment_mode: paymentMode,
         notes,
-        meal_plan_code: mealResolved.code,
+        meal_plan_code: mealPlanCode,
         meal_plan_amount_btn: mealPlanAmountBtn,
+        extra_bed_amount_btn: extraBedAmountBtn,
       })
       .select("id")
       .single();

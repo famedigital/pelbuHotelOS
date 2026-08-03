@@ -57,7 +57,25 @@ export async function postMinibarCharge(
     }
     if (unitBtn < 0) throw new Error("Amount must be non-negative.");
 
-    const amountBtn = roundBtn(unitBtn * qty);
+    let amountBtn = roundBtn(unitBtn * qty);
+    const promoCode = optionalTrim(formData.get("promo_code"));
+    if (promoCode && amountBtn > 0) {
+      const { redeemPromoCode } = await import("@/lib/marketing/promo");
+      const redeemed = await redeemPromoCode(admin, {
+        propertyId: pid,
+        code: promoCode,
+        channel: "desk_folio",
+        domain: "pos",
+        preDiscountBtn: amountBtn,
+        bookingId: folio.booking_id as string | null,
+        folioId,
+      });
+      if (!redeemed.ok) {
+        throw new Error(redeemed.error ?? "Promo rejected.");
+      }
+      amountBtn = Number(redeemed.post_discount_btn ?? amountBtn);
+      unitBtn = qty > 0 ? roundBtn(amountBtn / qty) : amountBtn;
+    }
 
     const { data: property } = await admin
       .from("properties")

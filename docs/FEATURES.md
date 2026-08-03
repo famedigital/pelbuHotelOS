@@ -92,6 +92,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Inventory | `/erp/inventory` (+ tabs: Items · Locations · Moves · **Assessment** · POs · Assets) | **Independent sidebar module** — table-first SKU catalog, staff categories, receive/damage/transfer; Assessment = stocktake at `/erp/inventory/audits` |
 | HR | `/erp/hr` | Staff **Form\|Sheet** toggle · shifts/leave · weekly rota (copy week + publish pending UX) · overlap conflict |
 | Channel | `/erp/channel` | Active-property Channex maps, ARI queue (availability + rates + min-stay/stop-sell), flush/retry, feed pull/ack — **live cert still open** ([CHANNEX-CERT.md](CHANNEX-CERT.md)) |
+| **Sales & Marketing** | `/erp/marketing` | Campaigns · coupons (cap/time/domain/channel) · NC reason policies · ROI snapshot; POS/room NC + promo redeem money paths |
 | Loyalty | `/erp/loyalty` (+ `/guest/loyalty`) | Points ledger + guest portal lite |
 | Recipe cost | `/erp/pos/recipe-cost` | Multi-outlet margin rollup; full RMS open |
 | Allotments | `/erp/allotments` | P9 |

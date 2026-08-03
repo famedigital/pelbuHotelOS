@@ -141,21 +141,48 @@ export async function confirmLaundryReceipt(
         throw new Error("Laundry quote did not return a folio.");
       }
       try {
+        let amountBtn = Number(quote.amount_btn ?? 0);
+        let unitBtn = Number(quote.unit_price_btn ?? quote.amount_btn ?? 0);
+        let serviceChargeBtn = Number(quote.service_charge_btn ?? 0);
+        let gstBtn = Number(quote.gst_btn ?? 0);
+        let total = totalBtn;
+        let desc = quote.description ?? "Laundry";
+
+        // Stay-level promo % (e.g. influencer coupon) cascades to laundry when on booking
+        if (quote.booking_id) {
+          const { data: bookingPromo } = await admin
+            .from("bookings")
+            .select("promo_discount_pct, promo_code_snapshot")
+            .eq("id", quote.booking_id)
+            .maybeSingle();
+          const pct = Number(bookingPromo?.promo_discount_pct ?? 0);
+          if (pct > 0) {
+            const scale = 1 - Math.min(100, pct) / 100;
+            amountBtn = Math.round(amountBtn * scale * 100) / 100;
+            unitBtn = Math.round(unitBtn * scale * 100) / 100;
+            serviceChargeBtn =
+              Math.round(serviceChargeBtn * scale * 100) / 100;
+            gstBtn = Math.round(gstBtn * scale * 100) / 100;
+            total = Math.round((amountBtn + serviceChargeBtn + gstBtn) * 100) / 100;
+            desc = `${desc} · promo −${pct}%`;
+          }
+        }
+
         const charge = await postFolioCharge(admin, session.propertyId, {
           folio_id: quote.folio_id,
           booking_id: quote.booking_id ?? null,
           source_type: "guest_service",
           source_id: orderId,
-          description: quote.description ?? "Laundry",
+          description: desc,
           qty: 1,
-          unit_price_btn: Number(quote.unit_price_btn ?? quote.amount_btn ?? 0),
-          amount_btn: Number(quote.amount_btn ?? 0),
+          unit_price_btn: unitBtn,
+          amount_btn: amountBtn,
           service_charge_rate: Number(quote.service_charge_rate ?? 0),
-          service_charge_btn: Number(quote.service_charge_btn ?? 0),
+          service_charge_btn: serviceChargeBtn,
           service_charge_applied: Boolean(quote.service_charge_applied),
-          gst_applicable: Number(quote.gst_btn ?? 0) > 0,
-          gst_btn: Number(quote.gst_btn ?? 0),
-          total_btn: totalBtn,
+          gst_applicable: gstBtn > 0,
+          gst_btn: gstBtn,
+          total_btn: total,
         });
         folioLineId = charge.lineId;
       } catch (postErr) {

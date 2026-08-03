@@ -179,6 +179,26 @@ export function BookingDetailPanel({
               }
             />
             <DetailField
+              label="Children"
+              value={
+                Number(data.children ?? 0) > 0
+                  ? String(data.children)
+                  : null
+              }
+            />
+            <DetailField
+              label="Extra beds"
+              value={
+                Number(data.extra_beds ?? 0) > 0
+                  ? `${data.extra_beds}${
+                      Number(data.extra_bed_amount_btn ?? 0) > 0
+                        ? ` · ${formatBtn(Number(data.extra_bed_amount_btn))}`
+                        : ""
+                    }`
+                  : null
+              }
+            />
+            <DetailField
               label="Rooms assigned"
               value={
                 data.room_labels.length ? data.room_labels.join(", ") : null

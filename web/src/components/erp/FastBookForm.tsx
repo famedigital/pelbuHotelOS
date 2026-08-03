@@ -238,6 +238,35 @@ export function FastBookForm({
               inputMode="numeric"
             />
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="children">Children</Label>
+              <Input
+                id="children"
+                type="number"
+                name="children"
+                min={0}
+                max={12}
+                defaultValue={0}
+                inputMode="numeric"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="extra_beds">Extra beds</Label>
+              <Input
+                id="extra_beds"
+                type="number"
+                name="extra_beds"
+                min={0}
+                max={2}
+                defaultValue={0}
+                inputMode="numeric"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Max 2 · rate from Rates &amp; meals settings
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="rounded-lg border bg-card p-5">

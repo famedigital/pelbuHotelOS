@@ -14,7 +14,10 @@ import { BookingSummary } from "@/components/book/BookingSummary";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatBtn, roundBtn } from "@/lib/pricing";
-import { computeMealStayTotalBtn } from "@/lib/meal-plans-calc";
+import {
+  computeExtraBedStayTotalBtn,
+  computeMealStayTotalBtn,
+} from "@/lib/meal-plans-calc";
 import {
   nightsBetween,
   parseStaySearch,
@@ -98,7 +101,9 @@ export function BookingWizard({
   const [checkIn, setCheckIn] = useState<string>(stay.checkIn);
   const [checkOut, setCheckOut] = useState<string>(stay.checkOut);
   const [adults, setAdults] = useState<number>(stay.adults);
+  const [children, setChildren] = useState<number>(0);
   const [rooms, setRooms] = useState<number>(stay.rooms);
+  const [extraBeds, setExtraBeds] = useState<number>(0);
   const [mealPlanCode, setMealPlanCode] = useState<string>("EP");
 
   // Preview + selection.
@@ -143,6 +148,9 @@ export function BookingWizard({
                 : (plans[0]?.code ?? "EP"),
             );
           }
+          if (!res.preview.extraBed.sellable) {
+            setExtraBeds(0);
+          }
           // If the previously selected room is no longer available, clear it.
           if (
             selectedCode &&
@@ -181,11 +189,21 @@ export function BookingWizard({
           selectedMealPlan?.amountPerAdultNight,
           adults,
           nights,
+          selectedMealPlan?.amountPerChildNight,
+          children,
         ) ?? 0
+      : 0;
+  const extraBedTotalBtn =
+    selectedOption?.totalBtn != null && preview?.extraBed.sellable
+      ? computeExtraBedStayTotalBtn(
+          preview.extraBed.ratePerNight,
+          extraBeds,
+          nights,
+        )
       : 0;
   const selectedTotal =
     selectedOption?.totalBtn != null
-      ? roundBtn(selectedOption.totalBtn + mealTotalBtn)
+      ? roundBtn(selectedOption.totalBtn + mealTotalBtn + extraBedTotalBtn)
       : null;
 
   if (state.ok && state.bookingId) {
@@ -254,7 +272,9 @@ export function BookingWizard({
       <input type="hidden" name="check_in" value={checkIn} />
       <input type="hidden" name="check_out" value={checkOut} />
       <input type="hidden" name="adults" value={adults} />
+      <input type="hidden" name="children" value={children} />
       <input type="hidden" name="rooms" value={rooms} />
+      <input type="hidden" name="extra_beds" value={extraBeds} />
       <input type="hidden" name="meal_plan_code" value={mealPlanCode} />
       <input type="hidden" name="quoted_total_btn" value={selectedTotal ?? ""} />
       {/* Step 2 also renders its own room_type_code hidden input. */}
@@ -292,11 +312,16 @@ export function BookingWizard({
                 onCheckOut={setCheckOut}
                 adults={adults}
                 onAdults={setAdults}
+                children={children}
+                onChildren={setChildren}
                 rooms={rooms}
                 onRooms={setRooms}
+                extraBeds={extraBeds}
+                onExtraBeds={setExtraBeds}
                 mealPlans={preview?.mealPlans ?? []}
                 mealPlanCode={mealPlanCode}
                 onMealPlan={setMealPlanCode}
+                extraBed={preview?.extraBed ?? null}
               />
             ) : null}
 
@@ -322,9 +347,13 @@ export function BookingWizard({
         checkOut={checkOut}
         nights={nights}
         adults={adults}
+        children={children}
         rooms={rooms}
+        extraBeds={extraBeds}
         selectedName={selectedOption?.name ?? null}
         perNightBtn={selectedOption?.perNightBtn ?? null}
+        mealTotalBtn={mealTotalBtn > 0 ? mealTotalBtn : null}
+        extraBedTotalBtn={extraBedTotalBtn > 0 ? extraBedTotalBtn : null}
         totalBtn={selectedTotal}
         currency="BTN"
       />

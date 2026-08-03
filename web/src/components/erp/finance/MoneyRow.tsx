@@ -229,7 +229,7 @@ export function FinanceSearchField({
 /** Map folio source_type → display bucket. */
 export function bucketFromSourceType(sourceType: string): MoneyBucket {
   const s = sourceType.toLowerCase();
-  if (s === "room" || s === "meal_plan") return "rooms";
+  if (s === "room" || s === "meal_plan" || s === "extra_bed") return "rooms";
   if (s === "order") return "fb";
   if (s === "service") return "spa";
   if (s === "guest_service" || s === "laundry") return "services";

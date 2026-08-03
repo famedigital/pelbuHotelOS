@@ -7,21 +7,24 @@ import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
 
 /**
- * Post one idempotent meal-plan folio line when booking snapshot amount > 0.
- * Skips EP / label-only stays.
+ * Post one idempotent extra-bed folio line when booking snapshot amount > 0.
  */
-export async function postMealPlanFolioLine(
+export async function postExtraBedFolioLine(
   admin: Admin,
   propertyId: string,
   args: {
     folioId: string;
     bookingId: string;
-    mealPlanCode: string;
-    mealPlanName: string;
-    mealPlanAmountBtn: number;
+    extraBeds: number;
+    extraBedAmountBtn: number;
     businessDate?: string;
   },
 ): Promise<{ posted: boolean; skipped: boolean }> {
+  const amountBtn = roundBtn(args.extraBedAmountBtn);
+  if (!(amountBtn > 0)) {
+    return { posted: false, skipped: true };
+  }
+
   const businessDate =
     args.businessDate ?? new Date().toISOString().slice(0, 10);
 
@@ -30,7 +33,7 @@ export async function postMealPlanFolioLine(
     .select("id")
     .eq("folio_id", args.folioId)
     .eq("booking_id", args.bookingId)
-    .eq("source_type", "meal_plan")
+    .eq("source_type", "extra_bed")
     .eq("status", "posted")
     .maybeSingle();
 
@@ -44,21 +47,6 @@ export async function postMealPlanFolioLine(
     .eq("id", propertyId)
     .maybeSingle();
 
-  // Apply stay-level promo % snapshot on meal plan when present
-  const { data: bookingPromo } = await admin
-    .from("bookings")
-    .select("promo_discount_pct")
-    .eq("id", args.bookingId)
-    .maybeSingle();
-  let amountBtn = roundBtn(args.mealPlanAmountBtn);
-  const promoPct = Number(bookingPromo?.promo_discount_pct ?? 0);
-  if (promoPct > 0) {
-    amountBtn = roundBtn(amountBtn * (1 - Math.min(100, promoPct) / 100));
-  }
-  if (!(amountBtn > 0)) {
-    return { posted: false, skipped: true };
-  }
-
   const gstRate = Number(property?.gst_rate ?? 0.07);
   const serviceChargeApplied = Boolean(property?.service_charge_default_on);
   const serviceChargeRate = serviceChargeApplied
@@ -69,14 +57,17 @@ export async function postMealPlanFolioLine(
   const gstBtn = roundBtn(gstBase * gstRate);
   const totalBtn = roundBtn(amountBtn + serviceChargeBtn + gstBtn);
 
-  const promoNote = promoPct > 0 ? ` · promo −${promoPct}%` : "";
-  const description = `Meal plan ${args.mealPlanCode} · ${args.mealPlanName}${promoNote}`;
+  const qty = Math.max(1, args.extraBeds);
+  const description =
+    qty === 1
+      ? "Extra bed"
+      : `Extra beds × ${qty}`;
 
   try {
     await postFolioCharge(admin, propertyId, {
       folio_id: args.folioId,
       booking_id: args.bookingId,
-      source_type: "meal_plan",
+      source_type: "extra_bed",
       source_id: args.bookingId,
       description,
       qty: 1,

@@ -57,6 +57,9 @@ export type BookingDetailData = {
   quoted_total_btn: number | null;
   meal_plan_code: string | null;
   meal_plan_amount_btn: number | null;
+  children: number;
+  extra_beds: number;
+  extra_bed_amount_btn: number | null;
   agent_name: string | null;
   is_mou_agent: boolean;
   cancel_policy_summary: string;
@@ -72,10 +75,10 @@ export type BookingDetailData = {
 
 const BOOKING_SELECT = `
   id, property_id, contact_name, contact_phone, contact_email, check_in, check_out, status,
-  source, channel_source, guest_origin, guide_number, payment_mode, adults, rooms,
-  notes, created_at, cancelled_at, cancel_reason, hold_expires_at, hold_extended_count,
+  source, channel_source, guest_origin, guide_number, payment_mode, adults, children, rooms,
+  extra_beds, notes, created_at, cancelled_at, cancel_reason, hold_expires_at, hold_extended_count,
   token_required_btn, token_received_btn, quoted_total_btn, meal_plan_code, meal_plan_amount_btn,
-  booked_by_role, agent_id,
+  extra_bed_amount_btn, booked_by_role, agent_id,
   agents(company_name, wants_mou),
   booking_rooms(qty, inventory_kind, room_types(name, code)),
   booking_guests(full_name, nationality, passport_or_cid, sort_order),
@@ -229,6 +232,12 @@ export async function loadBookingDetail(
     meal_plan_amount_btn:
       data.meal_plan_amount_btn != null
         ? Number(data.meal_plan_amount_btn)
+        : null,
+    children: Number(data.children ?? 0),
+    extra_beds: Number(data.extra_beds ?? 0),
+    extra_bed_amount_btn:
+      data.extra_bed_amount_btn != null
+        ? Number(data.extra_bed_amount_btn)
         : null,
     agent_name: agentRow?.company_name ?? null,
     is_mou_agent: isMouAgent,

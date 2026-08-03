@@ -103,6 +103,7 @@ export function PosLayout({
   serviceChargeDefaultOn,
   runtimeConfig,
   guestServiceSlot,
+  ncReasons = [],
 }: PosLayoutProps) {
   const [menuOutlet, setMenuOutlet] = useState<string>("all");
   const posOutlets = useMemo(
@@ -124,6 +125,8 @@ export function PosLayout({
     String(Math.round(serviceChargeRate * 10000) / 100),
   );
   const [serviceReason, setServiceReason] = useState<string>("");
+  const [promoCode, setPromoCode] = useState("");
+  const [managerPin, setManagerPin] = useState("");
 
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
@@ -436,6 +439,8 @@ export function PosLayout({
         courseNo: l.courseNo,
         seatNo: l.seatNo,
         lineNotes: l.lineNotes,
+        isNc: l.isNc || undefined,
+        ncReasonCode: l.ncReasonCode,
       })),
     [cart],
   );
@@ -445,6 +450,7 @@ export function PosLayout({
       qty: line.qty,
       unitPriceBtn: line.unitPriceBtn,
       gstApplicable: line.gstApplicable,
+      isNc: Boolean(line.isNc),
       modifiers: line.modifierSnapshots.map((m) => ({
         priceBtn: m.priceBtn,
         qty: m.qty,
@@ -457,6 +463,19 @@ export function PosLayout({
       applyServiceCharge,
     });
   }, [cart, applyServiceCharge, gstRate, servicePercent]);
+
+  function toggleNc(key: string) {
+    const defaultReason = ncReasons[0]?.code ?? "service_recovery";
+    setCart((prev) =>
+      prev.map((line) => {
+        if (line.key !== key) return line;
+        if (line.isNc) {
+          return { ...line, isNc: false, ncReasonCode: undefined };
+        }
+        return { ...line, isNc: true, ncReasonCode: defaultReason };
+      }),
+    );
+  }
 
   const lineCount = cart.reduce((sum, l) => sum + l.qty, 0);
 
@@ -799,6 +818,48 @@ export function PosLayout({
               name="service_charge_reason"
               value={serviceReason}
             />
+            <input type="hidden" name="promo_code" value={promoCode} />
+            <input type="hidden" name="manager_pin" value={managerPin} />
+
+            {cart.some((l) => l.isNc) || promoCode ? (
+              <div className="mb-3 grid gap-2 rounded-lg border bg-card p-3 sm:grid-cols-2">
+                <label className="space-y-1 text-xs">
+                  <span className="text-muted-foreground">Promo code</span>
+                  <input
+                    type="text"
+                    value={promoCode}
+                    onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                    placeholder="TIKTOK50"
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-2 font-mono text-sm uppercase"
+                  />
+                </label>
+                <label className="space-y-1 text-xs">
+                  <span className="text-muted-foreground">
+                    Manager PIN{cart.some((l) => l.isNc) ? " (required for NC)" : ""}
+                  </span>
+                  <input
+                    type="password"
+                    value={managerPin}
+                    onChange={(e) => setManagerPin(e.target.value)}
+                    autoComplete="off"
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                  />
+                </label>
+              </div>
+            ) : (
+              <div className="mb-3">
+                <label className="flex max-w-xs flex-col gap-1 text-xs">
+                  <span className="text-muted-foreground">Promo code (optional)</span>
+                  <input
+                    type="text"
+                    value={promoCode}
+                    onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                    placeholder="Have a code?"
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-2 font-mono text-sm uppercase"
+                  />
+                </label>
+              </div>
+            )}
 
             {state.error ? (
               <Alert variant="destructive" className="mb-4">
@@ -942,6 +1003,8 @@ export function PosLayout({
                   onRemove={removeLine}
                   onClear={clearCart}
                   onEditLine={editLine}
+                  onToggleNc={toggleNc}
+                  ncReasons={ncReasons}
                   idPrefix="cart_desktop"
                 />
               </aside>
@@ -994,6 +1057,8 @@ export function PosLayout({
                       onRemove={removeLine}
                       onClear={clearCart}
                       onEditLine={editLine}
+                      onToggleNc={toggleNc}
+                      ncReasons={ncReasons}
                       idPrefix="cart_mobile"
                     />
                   </div>

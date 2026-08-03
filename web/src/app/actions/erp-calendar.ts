@@ -10,8 +10,9 @@ import {
   resolvePartnerDiscountByIds,
 } from "@/lib/partners/discount";
 import {
-  computeMealStayTotalBtn,
-  resolveMealPlanForBook,
+  MAX_CHILDREN,
+  MAX_EXTRA_BEDS,
+  resolveStayAddonsForBook,
 } from "@/lib/meal-plans";
 import { roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
@@ -29,6 +30,7 @@ import {
   assertPhone,
   assertStayDates,
   optionalTrim,
+  parseNonNegInt,
   parsePositiveInt,
   trimRequired,
 } from "@/lib/validation";
@@ -208,6 +210,8 @@ type CommonFields = {
   contactPhone: string;
   contactEmail: string | null;
   adults: number;
+  children: number;
+  extraBeds: number;
   guideNumber: string | null;
   notes: string | null;
   agentId: string | null;
@@ -231,6 +235,16 @@ function parseCommon(formData: FormData): CommonFields {
   assertStayDates(checkIn, checkOut);
 
   const adults = parsePositiveInt(formData.get("adults"), "Adults", 24);
+  const children = parseNonNegInt(
+    formData.get("children"),
+    "Children",
+    MAX_CHILDREN,
+  );
+  const extraBeds = parseNonNegInt(
+    formData.get("extra_beds"),
+    "Extra beds",
+    MAX_EXTRA_BEDS,
+  );
   const guideNumber = optionalTrim(formData.get("guide_number"));
   const notes = optionalTrim(formData.get("notes"));
   const agentId = optionalTrim(formData.get("agent_id"));
@@ -266,6 +280,8 @@ function parseCommon(formData: FormData): CommonFields {
     contactPhone,
     contactEmail,
     adults,
+    children,
+    extraBeds,
     guideNumber,
     notes,
     agentId,
@@ -275,30 +291,30 @@ function parseCommon(formData: FormData): CommonFields {
   };
 }
 
-async function resolveMealFromForm(
+async function resolveAddonsFromForm(
   admin: ReturnType<typeof createSupabaseAdminClient>,
   propertyId: string,
   formData: FormData,
   adults: number,
+  children: number,
+  extraBeds: number,
   checkIn: string,
   checkOut: string,
 ) {
   const mealPlanCodeRaw = trimRequired(formData.get("meal_plan_code"), "Meal plan");
-  const mealResolved = await resolveMealPlanForBook(
-    admin,
-    propertyId,
-    mealPlanCodeRaw,
-  );
   const nights = nightsBetween(checkIn, checkOut);
-  const mealPlanAmountBtn =
-    computeMealStayTotalBtn(
-      mealResolved.amountPerAdultNight,
-      adults,
-      nights,
-    ) ?? 0;
+  const addons = await resolveStayAddonsForBook(admin, propertyId, {
+    mealPlanCode: mealPlanCodeRaw,
+    adults,
+    children,
+    extraBeds,
+    nights,
+  });
   return {
-    mealPlanCode: mealResolved.code,
-    mealPlanAmountBtn,
+    mealPlanCode: addons.mealPlanCode,
+    mealPlanAmountBtn: addons.mealPlanAmountBtn,
+    extraBeds: addons.extraBeds,
+    extraBedAmountBtn: addons.extraBedAmountBtn,
   };
 }
 
@@ -319,11 +335,13 @@ export async function createCalendarReservation(
 
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
-    const meal = await resolveMealFromForm(
+    const meal = await resolveAddonsFromForm(
       admin,
       propertyId,
       formData,
       common.adults,
+      common.children,
+      common.extraBeds,
       common.checkIn,
       common.checkOut,
     );
@@ -351,6 +369,8 @@ export async function createCalendarReservation(
         contact_phone: common.contactPhone,
         contact_email: common.contactEmail,
         adults: common.adults,
+        children: common.children,
+        extra_beds: meal.extraBeds,
         rooms: 1,
         guide_number: common.guideNumber,
         guest_origin: common.guestOrigin,
@@ -358,6 +378,7 @@ export async function createCalendarReservation(
         notes: common.notes,
         meal_plan_code: meal.mealPlanCode,
         meal_plan_amount_btn: meal.mealPlanAmountBtn,
+        extra_bed_amount_btn: meal.extraBedAmountBtn,
       })
       .select("id")
       .single();
@@ -494,11 +515,13 @@ export async function createCalendarGroupReservation(
     }
 
     const propertyId = await resolveActivePropertyId(admin);
-    const meal = await resolveMealFromForm(
+    const meal = await resolveAddonsFromForm(
       admin,
       propertyId,
       formData,
       common.adults,
+      common.children,
+      common.extraBeds,
       common.checkIn,
       common.checkOut,
     );
@@ -528,7 +551,20 @@ export async function createCalendarGroupReservation(
     }
     groupId = group.id as string;
 
-    for (const unit of units) {
+    for (let unitIndex = 0; unitIndex < units.length; unitIndex++) {
+      const unit = units[unitIndex]!;
+      const unitAdults = Math.max(1, Math.floor(common.adults / units.length));
+      const unitChildren =
+        unitIndex === 0
+          ? common.children -
+            Math.floor(common.children / units.length) * (units.length - 1)
+          : Math.floor(common.children / units.length);
+      const unitExtraBeds = unitIndex === 0 ? meal.extraBeds : 0;
+      const unitMealAmount =
+        unitIndex === 0 ? meal.mealPlanAmountBtn : 0;
+      const unitExtraBedAmount =
+        unitIndex === 0 ? meal.extraBedAmountBtn : 0;
+
       const { data: booking, error: bookingError } = await admin
         .from("bookings")
         .insert({
@@ -544,14 +580,17 @@ export async function createCalendarGroupReservation(
           contact_name: common.contactName,
           contact_phone: common.contactPhone,
           contact_email: common.contactEmail,
-          adults: Math.max(1, Math.floor(common.adults / units.length)),
+          adults: unitAdults,
+          children: unitChildren,
+          extra_beds: unitExtraBeds,
           rooms: 1,
           guide_number: common.guideNumber,
           guest_origin: common.guestOrigin,
           payment_mode: common.paymentMode,
           notes: `${groupName} · ${unit.label}${common.notes ? ` · ${common.notes}` : ""}`,
           meal_plan_code: meal.mealPlanCode,
-          meal_plan_amount_btn: meal.mealPlanAmountBtn,
+          meal_plan_amount_btn: unitMealAmount,
+          extra_bed_amount_btn: unitExtraBedAmount,
         })
         .select("id")
         .single();

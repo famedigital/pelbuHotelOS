@@ -6,6 +6,7 @@ import { periodGuardFromForm } from "@/lib/accounting/period-guard-form";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { todayInTimezone } from "@/lib/erp-lists";
 import { postFolioCharge } from "@/lib/folio/post-charge";
+import { postExtraBedFolioLine } from "@/lib/folio/extra-bed";
 import { postMealPlanFolioLine } from "@/lib/folio/meal-plan";
 import { postFolioPaymentRecord } from "@/lib/folio/post-payment";
 import {
@@ -1065,7 +1066,7 @@ export async function postFolioCheckInCharges(
     const { data: booking } = await admin
       .from("bookings")
       .select(
-        "id, status, check_in, meal_plan_code, meal_plan_amount_btn, contact_name",
+        "id, status, check_in, meal_plan_code, meal_plan_amount_btn, extra_beds, extra_bed_amount_btn, contact_name",
       )
       .eq("id", bookingId)
       .single();
@@ -1096,6 +1097,18 @@ export async function postFolioCheckInCharges(
       notes.push("no priced meal plan");
     }
 
+    const extraBedAmount = Number(booking.extra_bed_amount_btn ?? 0);
+    if (extraBedAmount > 0) {
+      const bed = await postExtraBedFolioLine(admin, pid, {
+        folioId,
+        bookingId,
+        extraBeds: Number(booking.extra_beds ?? 1),
+        extraBedAmountBtn: extraBedAmount,
+        businessDate: booking.check_in as string,
+      });
+      notes.push(bed.posted ? "extra bed posted" : "extra bed already on folio");
+    }
+
     const room = await postRoomNightsForBooking(
       admin,
       pid,
@@ -1117,7 +1130,7 @@ export async function postFolioCheckInCharges(
     });
 
     revalidateFolio(folioId);
-    if (room.errors.length && room.posted === 0 && mealAmount <= 0) {
+    if (room.errors.length && room.posted === 0 && mealAmount <= 0 && extraBedAmount <= 0) {
       return { ok: false, error: room.errors.slice(0, 2).join(" · ") };
     }
     return { ok: true, message: notes.join(" · ") };

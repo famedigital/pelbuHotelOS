@@ -133,6 +133,7 @@ export async function executeNightAudit(
 
   let roomsOccupied = 0;
   let roomsComp = 0;
+  let roomsNc = 0;
   for (const b of inHouse ?? []) {
     for (const line of (b.booking_rooms as
       | { qty: number; inventory_kind: string }[]
@@ -147,10 +148,19 @@ export async function executeNightAudit(
       }
     }
   }
+  // NC sellable assignments (house use / media) — still sellable inventory, uncharged
+  const { data: ncAssign } = await admin
+    .from("room_assignments")
+    .select("id")
+    .eq("property_id", propertyId)
+    .eq("chargeable", false)
+    .lte("from_date", businessDate)
+    .gt("to_date", businessDate);
+  roomsNc = (ncAssign ?? []).length;
   await emit(
     "occupancy",
     "done",
-    `${roomsOccupied} sellable · ${roomsComp} comp · ${(inHouse ?? []).length} booking(s)`,
+    `${roomsOccupied} sellable · ${roomsComp} comp · ${roomsNc} NC · ${(inHouse ?? []).length} booking(s)`,
   );
 
   await emit("day_money", "running");

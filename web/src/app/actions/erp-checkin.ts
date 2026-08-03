@@ -2,6 +2,7 @@
 
 import { chargeAgentCredit } from "@/app/actions/erp-agents";
 import { writeAuditEvent } from "@/lib/audit";
+import { postExtraBedFolioLine } from "@/lib/folio/extra-bed";
 import { postMealPlanFolioLine } from "@/lib/folio/meal-plan";
 import { postRoomNightsForBooking } from "@/lib/folio/room-night";
 import { nationalityRequired } from "@/lib/countries";
@@ -175,7 +176,7 @@ export async function confirmCheckIn(
     const { data: booking, error: bookingError } = await admin
       .from("bookings")
       .select(
-        "id, status, contact_name, check_in, check_out, agent_id, payment_mode, guest_origin, booked_by_role, meal_plan_code, meal_plan_amount_btn, property_id, booking_rooms(qty, inventory_kind, room_type_id)",
+        "id, status, contact_name, check_in, check_out, agent_id, payment_mode, guest_origin, booked_by_role, meal_plan_code, meal_plan_amount_btn, extra_beds, extra_bed_amount_btn, property_id, booking_rooms(qty, inventory_kind, room_type_id)",
       )
       .eq("id", bookingId)
       .single();
@@ -543,6 +544,25 @@ export async function confirmCheckIn(
         console.error("meal plan post failed", mealErr);
         chargeNotes.push(
           `meal plan failed: ${mealErr instanceof Error ? mealErr.message : "error"}`,
+        );
+      }
+    }
+
+    const extraBedAmount = Number(booking.extra_bed_amount_btn ?? 0);
+    if (extraBedAmount > 0) {
+      try {
+        const bedResult = await postExtraBedFolioLine(admin, property_id, {
+          folioId,
+          bookingId,
+          extraBeds: Number(booking.extra_beds ?? 1),
+          extraBedAmountBtn: extraBedAmount,
+          businessDate: booking.check_in as string,
+        });
+        if (bedResult.posted) chargeNotes.push("extra bed");
+      } catch (bedErr) {
+        console.error("extra bed post failed", bedErr);
+        chargeNotes.push(
+          `extra bed failed: ${bedErr instanceof Error ? bedErr.message : "error"}`,
         );
       }
     }

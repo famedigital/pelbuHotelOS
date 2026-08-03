@@ -844,11 +844,15 @@ export async function updateCommercialSettings(
     for (const code of codes) {
       const isActive = formData.get(`meal_active_${code}`) === "on";
       const amount = parseMealAmount(formData.get(`meal_amount_${code}`));
+      const childAmount = parseMealAmount(
+        formData.get(`meal_child_amount_${code}`),
+      );
       const { error } = await admin
         .from("meal_plans")
         .update({
           is_active: isActive,
           amount_btn_per_adult_night: amount,
+          amount_btn_per_child_night: childAmount,
           updated_at: new Date().toISOString(),
         })
         .eq("property_id", propertyId)
@@ -856,11 +860,49 @@ export async function updateCommercialSettings(
       if (error) throw new Error(`Could not save meal plan ${code}.`);
     }
 
+    const extraBedActive = formData.get("extra_bed_active") === "on";
+    const extraBedRateRaw = String(formData.get("extra_bed_rate_btn") ?? "").trim();
+    let extraBedRate: number | null = null;
+    if (extraBedRateRaw) {
+      const n = Number(extraBedRateRaw);
+      if (!Number.isFinite(n) || n < 0) {
+        throw new Error("Extra bed rate must be blank or a non-negative number.");
+      }
+      extraBedRate = n;
+    }
+    if (extraBedActive && (extraBedRate == null || extraBedRate <= 0)) {
+      throw new Error("Set a positive extra bed Nu / night to sell on booking.");
+    }
+
     const { error: propError } = await admin
       .from("properties")
       .update({ default_meal_plan_code: defaultMealPlan })
       .eq("id", propertyId);
     if (propError) throw new Error("Could not save default meal plan.");
+
+    const { data: existingPolicy } = await admin
+      .from("property_policies")
+      .select("property_id")
+      .eq("property_id", propertyId)
+      .maybeSingle();
+    if (existingPolicy) {
+      const { error: policyError } = await admin
+        .from("property_policies")
+        .update({
+          extra_bed_active: extraBedActive,
+          extra_bed_rate_btn: extraBedRate,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("property_id", propertyId);
+      if (policyError) throw new Error("Could not save extra bed settings.");
+    } else {
+      const { error: policyError } = await admin.from("property_policies").insert({
+        property_id: propertyId,
+        extra_bed_active: extraBedActive,
+        extra_bed_rate_btn: extraBedRate,
+      });
+      if (policyError) throw new Error("Could not save extra bed settings.");
+    }
 
     await writeAuditEvent(admin, {
       propertyId,
@@ -872,6 +914,7 @@ export async function updateCommercialSettings(
 
     revalidatePath("/erp/settings");
     revalidatePath("/erp/fast-book");
+    revalidatePath("/book");
     return { ok: true, message: "Rates & meals saved." };
   } catch (e) {
     return {
