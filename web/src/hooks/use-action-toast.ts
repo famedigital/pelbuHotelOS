@@ -24,7 +24,10 @@ type ActionState = {
  */
 export function useActionToast(
   state: ActionState,
-  { successMessage }: { successMessage?: string } = {},
+  {
+    successMessage,
+    silentSuccess = false,
+  }: { successMessage?: string; silentSuccess?: boolean } = {},
 ) {
   const lastSignature = useRef<string>("");
 
@@ -38,9 +41,11 @@ export function useActionToast(
     lastSignature.current = signature;
 
     if (state.ok) {
-      toast.success(successMessage ?? state.message ?? "Saved");
+      if (!silentSuccess) {
+        toast.success(successMessage ?? state.message ?? "Saved");
+      }
     } else if (state.error) {
       toast.error(state.error);
     }
-  }, [state.ok, state.error, state.message, successMessage]);
+  }, [state.ok, state.error, state.message, successMessage, silentSuccess]);
 }

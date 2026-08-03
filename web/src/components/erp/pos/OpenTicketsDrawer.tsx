@@ -369,17 +369,28 @@ export function OpenTicketsDrawer({
           <Button
             asChild
             type="button"
+            variant="citrus"
+            size="sm"
+            className="h-9"
+          >
+            <Link href={`/erp/orders/${t.id}/receipt?print=1`}>
+              Print receipt
+            </Link>
+          </Button>
+          <Button
+            asChild
+            type="button"
             variant="outline"
             size="sm"
             className="h-9"
           >
-            <Link href={`/erp/orders/${t.id}/slip`}>Print slip</Link>
+            <Link href={`/erp/orders/${t.id}/receipt`}>View</Link>
           </Button>
           {t.folio_id ? (
             <Button
               asChild
               type="button"
-              variant="citrus"
+              variant="outline"
               size="sm"
               className="h-9"
             >

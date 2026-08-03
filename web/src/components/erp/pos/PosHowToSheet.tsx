@@ -17,7 +17,16 @@ const HOW_TO = [
       "Enter guest name (phone if useful).",
       "Leave bill on Pay now.",
       "Tap dishes, Send ticket.",
-      "Open tickets → Settle when they pay (cash/card/etc.).",
+      "Tickets → Settle when they pay (cash/card/etc.).",
+    ],
+  },
+  {
+    title: "Settle and print guest receipt",
+    steps: [
+      "Tickets → open ticket → Settle.",
+      "Enter cash / card / bank / room / agent credit (must match total).",
+      "After settle you open a PAID receipt — browser print for the guest copy.",
+      "Re-print later: Tickets → Closed today → Print receipt.",
     ],
   },
   {

@@ -16,10 +16,43 @@ import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
 import type { OpenPosTicket, PosTenderMethod } from "@/lib/pos";
 import { TriangleAlertIcon } from "lucide-react";
-import { useEffect, useMemo, useState, useActionState } from "react";
+import { useEffect, useMemo, useRef, useState, useActionState } from "react";
 import type { PosBookingOption, TenderDraft } from "./types";
 
 const initial: SplitSettleState = { ok: false };
+
+/** Opens a same-named shell so we can navigate it after settle without popup-block. */
+function openReceiptShell(): Window | null {
+  try {
+    const w = window.open("about:blank", "posReceiptPrint");
+    if (!w) return null;
+    w.document.open();
+    w.document.write(
+      `<!doctype html><html><head><title>Printing…</title></head>` +
+        `<body style="font:14px system-ui;padding:24px;color:#111">` +
+        `Settling — preparing guest receipt…</body></html>`,
+    );
+    w.document.close();
+    return w;
+  } catch {
+    return null;
+  }
+}
+
+function routeReceiptToWindow(orderId: string, shell: Window | null) {
+  const url = `/erp/orders/${orderId}/receipt?print=1`;
+  if (shell && !shell.closed) {
+    try {
+      shell.location.href = url;
+      shell.focus();
+      return true;
+    } catch {
+      /* fall through */
+    }
+  }
+  window.location.assign(url);
+  return false;
+}
 
 const METHOD_LABELS: Record<TenderDraft["method"], string> = {
   cash: "Cash",
@@ -64,7 +97,13 @@ export function SettlePanel({
 }: Props) {
   const open = orderId !== null;
   const [state, action, pending] = useActionState(splitSettle, initial);
-  useActionToast(state);
+  useActionToast(state, {
+    // Success opens print dialog — avoid toast fighting the print UI.
+    silentSuccess: true,
+  });
+
+  const printShellRef = useRef<Window | null>(null);
+  const handledOrderRef = useRef<string | null>(null);
 
   const ticket = useMemo(
     () => liveTickets.find((t) => t.id === orderId) ?? null,
@@ -80,14 +119,35 @@ export function SettlePanel({
     if (!open) return;
     setTenders([{ key: nextKey(), method: "cash", amountBtn: 0 }]);
     setCashBuffer("");
+    handledOrderRef.current = null;
+    printShellRef.current = null;
   }, [open, orderId]);
 
-  // Close on success
+  // On settle success → auto-open paid receipt and trigger browser print.
   useEffect(() => {
-    if (state.ok && open) {
-      onOpenChange(false);
+    if (!state.ok || !state.orderId) return;
+    if (handledOrderRef.current === state.orderId) return;
+    handledOrderRef.current = state.orderId;
+
+    const shell = printShellRef.current;
+    printShellRef.current = null;
+    onOpenChange(false);
+    routeReceiptToWindow(state.orderId, shell);
+  }, [state.ok, state.orderId, onOpenChange]);
+
+  // Close blank shell if settle fails so cashier isn't stuck with an extra tab.
+  useEffect(() => {
+    if (!state.error) return;
+    const shell = printShellRef.current;
+    if (shell && !shell.closed) {
+      try {
+        shell.close();
+      } catch {
+        /* ignore */
+      }
     }
-  }, [state.ok, open, onOpenChange]);
+    printShellRef.current = null;
+  }, [state.error]);
 
   const tenderSum = useMemo(
     () => tenders.reduce((s, t) => s + (Number(t.amountBtn) || 0), 0),
@@ -167,7 +227,14 @@ export function SettlePanel({
           </Alert>
         ) : null}
 
-        <form action={action} className="space-y-4">
+        <form
+          action={action}
+          className="space-y-4"
+          onSubmit={() => {
+            // Open during the click gesture so browsers allow the print window.
+            printShellRef.current = openReceiptShell();
+          }}
+        >
           <input type="hidden" name="order_id" value={orderId ?? ""} />
           <input
             type="hidden"
@@ -414,7 +481,7 @@ export function SettlePanel({
               {pending
                 ? "Settling…"
                 : balanced
-                  ? "Settle"
+                  ? "Settle & print"
                   : "Balance the tenders"}
             </Button>
           </DialogFooter>

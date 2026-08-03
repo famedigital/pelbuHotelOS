@@ -1694,6 +1694,7 @@ export async function splitSettle(
 
     revalidatePath("/erp");
     revalidatePath("/erp/pos");
+    revalidatePath(`/erp/orders/${orderId}/receipt`);
     if (folioId) revalidatePath(`/erp/folios/${folioId}`);
     revalidatePath("/erp/finance");
     const methodList = [...new Set(tenders.map((t) => t.method))];
