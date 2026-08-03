@@ -87,18 +87,18 @@ export async function emailFiscalDocument(
       .eq("id", propertyId)
       .maybeSingle();
 
+    // fiscal_documents has no amount columns — totals come from folio lines below.
     let docNo: string | null = null;
     let issuedAt: string | null = null;
-    let totalBtn: number | null = null;
-    let gstBtn: number | null = null;
     let docId: string | null = fiscalDocId;
 
     if (fiscalDocId) {
-      const { data: doc } = await admin
+      const { data: doc, error: docError } = await admin
         .from("fiscal_documents")
-        .select("id, doc_no, doc_kind, status, issued_at, total_btn, gst_btn, folio_id")
+        .select("id, doc_no, doc_kind, status, issued_at, folio_id")
         .eq("id", fiscalDocId)
         .maybeSingle();
+      if (docError) throw new Error(docError.message);
       if (!doc || doc.folio_id !== folioId) {
         throw new Error("Fiscal document not found for this folio.");
       }
@@ -110,14 +110,11 @@ export async function emailFiscalDocument(
       }
       docNo = doc.doc_no as string;
       issuedAt = doc.issued_at as string;
-      totalBtn =
-        doc.total_btn == null ? null : Number(doc.total_btn);
-      gstBtn = doc.gst_btn == null ? null : Number(doc.gst_btn);
       docId = doc.id as string;
     } else {
       const { data: latest } = await admin
         .from("fiscal_documents")
-        .select("id, doc_no, issued_at, total_btn, gst_btn")
+        .select("id, doc_no, issued_at")
         .eq("folio_id", folioId)
         .eq("doc_kind", kind)
         .eq("status", "issued")
@@ -128,9 +125,6 @@ export async function emailFiscalDocument(
         docId = latest.id as string;
         docNo = latest.doc_no as string;
         issuedAt = latest.issued_at as string;
-        totalBtn =
-          latest.total_btn == null ? null : Number(latest.total_btn);
-        gstBtn = latest.gst_btn == null ? null : Number(latest.gst_btn);
       }
     }
 
@@ -200,10 +194,10 @@ export async function emailFiscalDocument(
       ),
       chargeLines.length === 0 ? "  (no posted charges)" : null,
       "",
-      `Charges: ${formatBtn(totalBtn ?? chargesSum)}`,
-      `GST (lines): ${formatBtn(gstBtn ?? gstSum)}`,
+      `Charges: ${formatBtn(chargesSum)}`,
+      `GST (lines): ${formatBtn(gstSum)}`,
       paidSum > 0 ? `Payments: ${formatBtn(paidSum)}` : null,
-      totalBtn == null && kind === "receipt"
+      kind === "receipt"
         ? `Balance (approx): ${formatBtn(Math.max(chargesSum - paidSum, 0))}`
         : null,
       "",

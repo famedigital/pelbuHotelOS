@@ -667,6 +667,7 @@ function FnbBoard({ snap }: { snap: RoleDashboardSnapshot }) {
         links={[
           { href: "/erp/pos", label: "POS register" },
           { href: "/erp/kds", label: "Kitchen TV" },
+          { href: "/erp/kds/pass", label: "Pass / Expo TV" },
           { href: "/erp/menu", label: "Menu" },
           { href: "/erp/kitchen/food-cost", label: "Food cost" },
         ]}
@@ -722,6 +723,7 @@ function KitchenBoard({ snap }: { snap: RoleDashboardSnapshot }) {
         links={[
           { href: "/erp/kitchen", label: "Full kitchen board" },
           { href: "/erp/kds", label: "Kitchen TV" },
+          { href: "/erp/kds/pass", label: "Pass / Expo TV" },
           { href: "/erp/pos", label: "POS" },
           { href: "/erp/inventory", label: "Stock" },
         ]}
@@ -883,6 +885,7 @@ function CashierBoard({ snap }: { snap: RoleDashboardSnapshot }) {
           { href: "/erp/pos", label: "POS" },
           { href: "/erp/payments", label: "Payments" },
           { href: "/erp/kds", label: "KDS" },
+          { href: "/erp/kds/pass", label: "Pass TV" },
           { href: "/erp/folios", label: "Folios" },
         ]}
       />

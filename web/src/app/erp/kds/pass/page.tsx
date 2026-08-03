@@ -6,15 +6,20 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Kitchen Display | Pelbu OS",
+  title: "Pass / Expo Display | Pelbu OS",
   robots: { index: false, follow: false },
 };
 
 export const dynamic = "force-dynamic";
 
-export default async function ErpKdsPage() {
+/**
+ * F&B pass / expo TV — only Ready tickets. Waiters/FO mark Served when food leaves.
+ * Separates cook line (`/erp/kds`) from service so the kitchen is not blocking
+ * on "Mark served".
+ */
+export default async function ErpKdsPassPage() {
   if (!(await isDeskAuthenticated())) {
-    redirect("/erp/login?next=/erp/kds");
+    redirect("/erp/login?next=/erp/kds/pass");
   }
 
   const admin = createSupabaseAdminClient();
@@ -28,7 +33,7 @@ export default async function ErpKdsPage() {
     <KitchenDisplayBoard
       initialTickets={tickets}
       propertyName={property?.name ?? "Pelbu Suites"}
-      role="kitchen"
+      role="pass"
     />
   );
 }

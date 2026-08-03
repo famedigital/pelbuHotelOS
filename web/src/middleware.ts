@@ -53,6 +53,8 @@ export async function middleware(request: NextRequest) {
   }
 
   const requestHeaders = new Headers(request.headers);
+  // Layouts (e.g. ERP) use this to skip shell chrome on print / KDS routes.
+  requestHeaders.set("x-pathname", pathname);
   // Host → property hint for public/desk multi-tenant (Wave 4 foundation).
   // Pages may read x-pelbu-property-slug; flagship used when unset/unmatched.
   try {

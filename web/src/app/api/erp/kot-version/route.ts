@@ -78,5 +78,14 @@ export async function GET() {
     online: openish.filter(
       (o) => (o.order_source as string | null) === "public",
     ).length,
+    counts: {
+      new: openish.filter((o) => o.kot_status === "new" && !o.is_parked).length,
+      preparing: openish.filter(
+        (o) => o.kot_status === "preparing" && !o.is_parked,
+      ).length,
+      ready: openish.filter(
+        (o) => o.kot_status === "ready" && !o.is_parked,
+      ).length,
+    },
   });
 }

@@ -746,4 +746,34 @@ html[data-splash="done"] #pelbu-splash {
   html[data-doc-paper="thermal"] .doc-print-sheet img {
     max-height: 40px !important;
   }
+  /* Fiscal tax invoice — compact thermal, preserve A4 letterhead hierarchy */
+  html[data-doc-paper="thermal"] .fiscal-invoice-sheet {
+    padding: 0 !important;
+  }
+  html[data-doc-paper="thermal"] .fiscal-invoice-letterhead {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+  html[data-doc-paper="thermal"] .fiscal-invoice-sheet .fiscal-invoice-lines th,
+  html[data-doc-paper="thermal"] .fiscal-invoice-sheet .fiscal-invoice-lines td {
+    padding-top: 0.35rem !important;
+    padding-bottom: 0.35rem !important;
+  }
+  html[data-doc-paper="thermal"] .fiscal-invoice-stay {
+    margin-top: 0.65rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+  html[data-doc-paper="thermal"] .fiscal-invoice-stay dl {
+    grid-template-columns: 1fr !important;
+    gap: 0.35rem !important;
+  }
+  html[data-doc-paper="thermal"] .fiscal-invoice-stay-note {
+    display: none !important;
+  }
+  html[data-doc-paper="a4"] .fiscal-invoice-sheet {
+    color: #171717 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }

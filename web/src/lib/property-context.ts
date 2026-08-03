@@ -1,56 +1,25 @@
 import { cookies, headers } from "next/headers";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
+import { mapPropertySettings } from "@/lib/property-settings";
 import {
-  mapPropertySettings,
-  type PropertySettings,
-} from "@/lib/property-settings";
+  DEFAULT_INCOME_STREAMS,
+  type BankAccount,
+  type IncomeStreams,
+  type PropertyRow,
+} from "@/lib/property-types";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
 
 export const ACTIVE_PROPERTY_COOKIE = "pelbu_active_property";
 
-export type PropertyRow = {
-  id: string;
-  slug: string;
-  name: string;
-  template_id: number;
-  timezone: string;
-  setup_step: number;
-  setup_completed_at: string | null;
-  income_streams: IncomeStreams;
-  bank_accounts: BankAccount[];
-  public_host?: string | null;
-  desk_host?: string | null;
-  night_audit_close_time?: string;
-  post_day1_room_at_checkin?: boolean;
-  public_host_cert_status?: string;
-  desk_host_cert_status?: string;
-  host_verify_token?: string | null;
-} & PropertySettings;
-
-export type IncomeStreams = {
-  rooms: boolean;
-  outlets: string[];
-  services: string[];
-  guest_services: string[];
-  channel: boolean;
-};
-
-export type BankAccount = {
-  label: string;
-  bank?: string;
-  account?: string;
-  hint?: string;
-};
-
-export const DEFAULT_INCOME_STREAMS: IncomeStreams = {
-  rooms: true,
-  outlets: ["cafe", "pastry", "restaurant", "bar"],
-  services: ["spa", "meeting", "steam"],
-  guest_services: ["taxi", "shop", "other"],
-  channel: false,
-};
+export type {
+  BankAccount,
+  IncomeStreams,
+  PropertyRow,
+  PropertySwitcherOption,
+} from "@/lib/property-types";
+export { DEFAULT_INCOME_STREAMS } from "@/lib/property-types";
 
 /** Active property for desk session; falls back to Host header then flagship slug. */
 export async function resolveActivePropertyId(

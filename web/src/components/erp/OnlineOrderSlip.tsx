@@ -1,6 +1,6 @@
 import { orderRef } from "@/lib/order-ref";
 import { formatBtn } from "@/lib/pricing";
-import type { BankAccount } from "@/lib/property-context";
+import type { BankAccount } from "@/lib/property-types";
 
 export type OrderSlipLine = {
   name: string;

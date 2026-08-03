@@ -19,81 +19,103 @@ import {
   Volume2Icon,
   VolumeXIcon,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { startTransition, useCallback, useEffect, useMemo, useState } from "react";
+
+export type KdsRole = "kitchen" | "pass";
 
 /**
- * Kitchen Display System (KDS) board — runs fullscreen on a wall TV wired to
- * a mini-PC / laptop / tablet via HDMI.
- *
- * Three columns (New → Preparing → Ready) mirroring the canonical KOT flow.
- * Each card groups items by prep_station so the right station picks the right
- * work. A Web Audio chime fires on every board change (new ticket, status
- * advance, void) so the kitchen hears it even when not looking. The page
- * auto-refreshes its data on version change and ticks elapsed timers every
- * second.
- *
- * Auth/layout: this route bypasses the DeskShell (see `erp/layout.tsx`) so the
- * TV gets a clean surface. The page handler still requires desk auth.
+ * Kitchen Display (cook line) or Pass/Expo Display (F&B service).
+ * Loads tickets from `/api/erp/kot-board` every ~1.5s — no RSC full refresh.
  */
 export function KitchenDisplayBoard({
-  tickets,
+  initialTickets,
   propertyName,
+  role = "kitchen",
 }: {
-  tickets: OpenPosTicket[];
+  initialTickets: OpenPosTicket[];
   propertyName: string;
+  role?: KdsRole;
 }) {
-  const router = useRouter();
+  const isPass = role === "pass";
   const {
     status,
     muted,
+    armed,
+    armAudio,
     toggleMute,
     testSound,
     lastChangedAt,
-  } = useKotNotifier({ intervalMs: 4000 });
+  } = useKotNotifier({
+    intervalMs: 1500,
+    speak: true,
+    preferReadyAlert: isPass,
+  });
 
+  const [tickets, setTickets] = useState<OpenPosTicket[]>(initialTickets);
+  const [fetchError, setFetchError] = useState(false);
   const [fs, setFs] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const firstVersionChange = useRef(true);
+  const [advancing, setAdvancing] = useState<string | null>(null);
 
-  // The notifier polls the version endpoint and updates `lastChangedAt` when
-  // any ticket changes. Refresh the server-component payload so the board
-  // receives the new ticket rows; previously it only played the chime while
-  // continuing to render the stale `tickets` prop.
-  useEffect(() => {
-    if (firstVersionChange.current) {
-      firstVersionChange.current = false;
-      return;
+  const fetchBoard = useCallback(async () => {
+    try {
+      const res = await fetch("/api/erp/kot-board", {
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+      if (!res.ok) {
+        setFetchError(true);
+        return;
+      }
+      const data = (await res.json()) as { tickets?: OpenPosTicket[] };
+      setTickets(data.tickets ?? []);
+      setFetchError(false);
+    } catch {
+      setFetchError(true);
     }
-    startTransition(() => router.refresh());
-  }, [lastChangedAt, router]);
+  }, []);
 
-  // Tick "Xm ago" labels every 15s — cheap, no re-render storms.
+  // Hydrate board on version changes (notifier fires lastChangedAt).
+  useEffect(() => {
+    void fetchBoard();
+  }, [lastChangedAt, fetchBoard]);
+
+  // Backup poll so tickets appear even if version endpoint lags (1.5s).
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (document.visibilityState === "visible") void fetchBoard();
+    }, 1500);
+    return () => window.clearInterval(id);
+  }, [fetchBoard]);
+
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 15_000);
     return () => window.clearInterval(id);
   }, []);
 
-  // Enter native fullscreen on the TV.
   useEffect(() => {
-    if (fs) {
-      const el = document.documentElement;
-      const anyEl = el as HTMLElement & {
-        webkitRequestFullscreen?: () => Promise<void>;
-      };
-      const req =
-        el.requestFullscreen?.bind(el) ??
-        anyEl.webkitRequestFullscreen?.bind(anyEl);
-      req?.().catch(() => {});
-      return () => {
-        if (document.fullscreenElement) {
-          (document.exitFullscreen ?? (document as Document & {
+    if (!fs) return;
+    const el = document.documentElement;
+    const anyEl = el as HTMLElement & {
+      webkitRequestFullscreen?: () => Promise<void>;
+    };
+    const req =
+      el.requestFullscreen?.bind(el) ??
+      anyEl.webkitRequestFullscreen?.bind(anyEl);
+    req?.().catch(() => {});
+    return () => {
+      if (document.fullscreenElement) {
+        (
+          document.exitFullscreen ??
+          (document as Document & {
             webkitExitFullscreen?: () => Promise<void>;
-          }).webkitExitFullscreen)?.().catch(() => {});
-        }
-      };
-    }
-    return;
+          }).webkitExitFullscreen
+        )
+          ?.()
+          .catch(() => {});
+      }
+    };
   }, [fs]);
 
   useEffect(() => {
@@ -104,23 +126,23 @@ export function KitchenDisplayBoard({
     return () => document.removeEventListener("fullscreenchange", onFsChange);
   }, [fs]);
 
-  const columns = useMemo(() => {
+  const columnMap = useMemo(() => {
     const map: Record<string, OpenPosTicket[]> = {
       new: [],
       preparing: [],
       ready: [],
     };
     for (const t of tickets) {
-      // Online orders only reach the kitchen once the desk has recorded the
-      // guest's payment — unconfirmed or unpaid tickets stay on POS.
-      if (t.order_source === "public" && (!t.confirmed_at || !t.payment_recorded_at)) {
+      if (
+        t.order_source === "public" &&
+        (!t.confirmed_at || !t.payment_recorded_at)
+      ) {
         continue;
       }
       if (t.kot_status in map) {
         map[t.kot_status].push(t);
       }
     }
-    // Sort each column oldest first (longest-waiting at top).
     for (const col of KOT_BOARD_COLUMNS) {
       map[col].sort(
         (a, b) =>
@@ -132,41 +154,90 @@ export function KitchenDisplayBoard({
 
   const counts = useMemo(
     () => ({
-      new: columns.new.length,
-      preparing: columns.preparing.length,
-      ready: columns.ready.length,
+      new: columnMap.new.length,
+      preparing: columnMap.preparing.length,
+      ready: columnMap.ready.length,
     }),
-    [columns],
+    [columnMap],
   );
 
   function advance(orderId: string, nextStatus: string) {
+    setAdvancing(orderId);
+    // Optimistic removal / status move
+    setTickets((prev) =>
+      prev.map((t) =>
+        t.id === orderId ? { ...t, kot_status: nextStatus } : t,
+      ),
+    );
     const fd = new FormData();
     fd.set("order_id", orderId);
     fd.set("kot_status", nextStatus);
     startTransition(async () => {
-      await updateOrderKotStatus(fd);
-      startTransition(() => router.refresh());
+      try {
+        await updateOrderKotStatus(fd);
+        void fetchBoard();
+      } catch {
+        void fetchBoard();
+      } finally {
+        setAdvancing(null);
+      }
     });
   }
 
-  const offline = status === "offline";
+  const offline = status === "offline" || fetchError;
   const updatedSecondsAgo = Math.max(
     0,
     Math.round((now - lastChangedAt) / 1000),
   );
 
+  const columnsToShow = isPass
+    ? (["ready"] as const)
+    : KOT_BOARD_COLUMNS;
+
   return (
     <div className="flex h-screen flex-col bg-background text-foreground">
-      {/* Header — large, readable from across the kitchen. */}
+      {!armed && (
+        <div className="z-50 flex items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-500 px-4 py-3 text-amber-950">
+          <p className="text-sm font-semibold sm:text-base">
+            Tap to enable loud kitchen alarms + voice. Browsers block sound until
+            you click.
+          </p>
+          <Button
+            type="button"
+            size="lg"
+            className="h-12 shrink-0 bg-background text-foreground hover:bg-background/90"
+            onClick={armAudio}
+          >
+            <Volume2Icon className="size-5" />
+            Enable loud sound
+          </Button>
+        </div>
+      )}
+
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-4 py-3 md:px-6">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
           <p className="text-base font-semibold tracking-tight md:text-lg">
             {propertyName}
             <span className="ml-2 text-[11px] font-medium tracking-[0.2em] text-accent uppercase">
-              Kitchen
+              {isPass ? "Pass / Expo" : "Kitchen"}
             </span>
           </p>
           <StatusPill offline={offline} updatedSecondsAgo={updatedSecondsAgo} />
+          {!isPass ? (
+            <Link
+              href="/erp/kds/pass"
+              className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              Open Pass screen
+            </Link>
+          ) : (
+            <Link
+              href="/erp/kds"
+              className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              Open Kitchen TV
+            </Link>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <ColumnCountBadges counts={counts} />
@@ -174,21 +245,20 @@ export function KitchenDisplayBoard({
             type="button"
             variant="outline"
             size="sm"
-            className="h-10"
+            className="h-11"
             onClick={testSound}
-            title="Test sound"
+            title="Test loud alarm"
           >
             <Volume2Icon className="size-4" />
-            <span className="hidden text-xs sm:inline">Test</span>
+            <span className="hidden text-xs sm:inline">Test loud</span>
           </Button>
           <Button
             type="button"
             variant={muted ? "outline" : "citrus"}
             size="sm"
-            className="h-10"
+            className="h-11"
             onClick={toggleMute}
             aria-pressed={!muted}
-            title={muted ? "Unmute alerts" : "Mute alerts"}
           >
             {muted ? (
               <VolumeXIcon className="size-4" />
@@ -203,10 +273,9 @@ export function KitchenDisplayBoard({
             type="button"
             variant="outline"
             size="sm"
-            className="h-10"
+            className="h-11"
             onClick={() => setFs((v) => !v)}
             aria-pressed={fs}
-            title={fs ? "Exit fullscreen" : "Fullscreen"}
           >
             {fs ? (
               <MinimizeIcon className="size-4" />
@@ -217,14 +286,26 @@ export function KitchenDisplayBoard({
         </div>
       </header>
 
-      {/* Board — three columns, fill viewport height, scroll per column. */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 p-3 md:grid-cols-3 md:p-4">
-        {KOT_BOARD_COLUMNS.map((col) => (
+      {isPass && (
+        <p className="border-b bg-gold/10 px-4 py-2 text-center text-sm text-foreground md:px-6">
+          Service screen — only tickets kitchen marked <strong>Ready</strong>.
+          Tap <strong>Mark served</strong> when food leaves the pass.
+        </p>
+      )}
+
+      <div
+        className={`grid min-h-0 flex-1 gap-3 p-3 md:p-4 ${
+          isPass ? "grid-cols-1" : "grid-cols-1 md:grid-cols-3"
+        }`}
+      >
+        {columnsToShow.map((col) => (
           <Column
             key={col}
             status={col}
-            tickets={columns[col]}
+            tickets={columnMap[col]}
             now={now}
+            isPass={isPass}
+            advancingId={advancing}
             onAdvance={advance}
           />
         ))}
@@ -248,15 +329,15 @@ function StatusPill({
       </span>
     );
   }
-  const fresh = updatedSecondsAgo < 10;
+  const fresh = updatedSecondsAgo < 5;
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent">
       <span
         className={`size-2 rounded-full ${
-          fresh ? "bg-accent" : "bg-accent/50"
+          fresh ? "animate-pulse bg-accent" : "bg-accent/50"
         }`}
       />
-      Live · updated {updatedSecondsAgo}s ago
+      Live · {updatedSecondsAgo}s
     </span>
   );
 }
@@ -304,11 +385,15 @@ function Column({
   status,
   tickets,
   now,
+  isPass,
+  advancingId,
   onAdvance,
 }: {
   status: string;
   tickets: OpenPosTicket[];
   now: number;
+  isPass: boolean;
+  advancingId: string | null;
   onAdvance: (orderId: string, nextStatus: string) => void;
 }) {
   const headerTone =
@@ -317,10 +402,25 @@ function Column({
       : status === "preparing"
         ? "border-accent/30 bg-accent/10 text-accent"
         : "border-gold/40 bg-gold/10 text-gold";
+
+  // Kitchen: new → prepare → ready. Pass: ready → served.
+  // Kitchen must NOT mark served (that's the expo/pass job).
   const nextStatus =
-    status === "new" ? "preparing" : status === "preparing" ? "ready" : null;
+    isPass && status === "ready"
+      ? "served"
+      : !isPass && status === "new"
+        ? "preparing"
+        : !isPass && status === "preparing"
+          ? "ready"
+          : null;
   const nextLabel =
-    nextStatus === "preparing" ? "Start cooking" : "Mark ready";
+    nextStatus === "preparing"
+      ? "Start cooking"
+      : nextStatus === "ready"
+        ? "Mark ready"
+        : nextStatus === "served"
+          ? "Mark served"
+          : null;
 
   return (
     <section className="flex min-h-0 flex-col rounded-xl border border-border/60 bg-card/60">
@@ -328,14 +428,14 @@ function Column({
         className={`flex items-center justify-between gap-2 rounded-t-xl border-b px-4 py-2.5 ${headerTone}`}
       >
         <h2 className="text-sm font-semibold tracking-wide uppercase">
-          {KOT_LABEL[status]}
+          {isPass ? "Ready for service" : KOT_LABEL[status]}
         </h2>
         <span className="text-lg font-bold tabular-nums">{tickets.length}</span>
       </header>
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
         {tickets.length === 0 ? (
           <p className="mt-8 text-center text-sm text-muted-foreground">
-            Nothing here.
+            {isPass ? "Nothing waiting at the pass." : "Nothing here."}
           </p>
         ) : (
           tickets.map((t) => (
@@ -345,7 +445,8 @@ function Column({
               now={now}
               nextStatus={nextStatus}
               nextLabel={nextLabel}
-              isReady={status === "ready"}
+              busy={advancingId === t.id}
+              bigServe={isPass}
               onAdvance={onAdvance}
             />
           ))
@@ -360,24 +461,27 @@ function TicketCard({
   now,
   nextStatus,
   nextLabel,
-  isReady,
+  busy,
+  bigServe,
   onAdvance,
 }: {
   ticket: OpenPosTicket;
   now: number;
   nextStatus: string | null;
   nextLabel: string | null;
-  isReady: boolean;
+  busy: boolean;
+  bigServe: boolean;
   onAdvance: (orderId: string, nextStatus: string) => void;
 }) {
   const createdMs = new Date(ticket.created_at).getTime();
   const elapsedMin = Math.max(0, Math.floor((now - createdMs) / 60_000));
-  // Red tint after 12 minutes — calls attention to tickets that are dragging.
   const slow = elapsedMin >= 12;
 
-  // Group lines by prep_station inside this single ticket.
   const groups = useMemo(() => {
-    const map = new Map<string, { name: string; qty: number; course_no: number }[]>();
+    const map = new Map<
+      string,
+      { name: string; qty: number; course_no: number }[]
+    >();
     for (const item of ticket.order_items) {
       const station = item.prep_station || "kitchen";
       const list = map.get(station) ?? [];
@@ -401,7 +505,7 @@ function TicketCard({
   return (
     <article
       className={`rounded-lg border p-3 ${
-        isReady
+        bigServe
           ? "border-gold/50 bg-gold/5"
           : slow
             ? "border-destructive/40 bg-destructive/5"
@@ -410,7 +514,7 @@ function TicketCard({
     >
       <header className="flex items-baseline justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-foreground">
+          <p className="truncate text-base font-semibold text-foreground sm:text-lg">
             {ticket.customer_name || "Walk-in"}
           </p>
           <p className="text-[11px] text-muted-foreground">
@@ -431,14 +535,14 @@ function TicketCard({
         {groups.map((g) => (
           <div key={g.station} className="space-y-1">
             {mixed ? (
-              <p className="text-[10px] font-bold uppercase tracking-wide text-accent">
+              <p className="text-[10px] font-bold tracking-wide text-accent uppercase">
                 {g.label}
               </p>
             ) : null}
-            <ul className="space-y-0.5 text-sm text-foreground">
+            <ul className="space-y-0.5 text-sm text-foreground sm:text-base">
               {g.lines.map((line, i) => (
                 <li key={i} className="flex items-baseline gap-2">
-                  <span className="text-base font-bold tabular-nums text-foreground">
+                  <span className="text-base font-bold tabular-nums sm:text-lg">
                     {line.qty}×
                   </span>
                   <span className="flex-1">{line.name}</span>
@@ -457,24 +561,20 @@ function TicketCard({
       {nextStatus && nextLabel ? (
         <button
           type="button"
+          disabled={busy}
           onClick={() => onAdvance(ticket.id, nextStatus)}
-          className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-md bg-accent text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90"
+          className={`mt-3 flex w-full items-center justify-center gap-2 rounded-md text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60 ${
+            bigServe
+              ? "h-14 bg-gold text-base text-background"
+              : "h-11 bg-accent text-accent-foreground"
+          }`}
         >
-          {nextStatus === "ready" ? (
-            <CheckIcon className="size-4" />
+          {nextStatus === "ready" || nextStatus === "served" ? (
+            <CheckIcon className="size-5" />
           ) : (
             <ClockIcon className="size-4" />
           )}
-          {nextLabel}
-        </button>
-      ) : isReady ? (
-        <button
-          type="button"
-          onClick={() => onAdvance(ticket.id, "served")}
-          className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-md border border-gold/50 bg-gold/10 text-sm font-semibold text-gold transition-colors hover:bg-gold/20"
-        >
-          <CheckIcon className="size-4" />
-          Mark served
+          {busy ? "Updating…" : nextLabel}
         </button>
       ) : null}
     </article>
@@ -482,7 +582,12 @@ function TicketCard({
 }
 
 function ElapsedPill({ minutes, slow }: { minutes: number; slow: boolean }) {
-  const label = minutes < 1 ? "now" : minutes < 60 ? `${minutes}m` : `${Math.floor(minutes / 60)}h${minutes % 60}m`;
+  const label =
+    minutes < 1
+      ? "now"
+      : minutes < 60
+        ? `${minutes}m`
+        : `${Math.floor(minutes / 60)}h${minutes % 60}m`;
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums ${

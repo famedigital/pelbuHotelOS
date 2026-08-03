@@ -2,97 +2,193 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-/**
- * Shape returned by `/api/erp/kot-version`. The `online` field is the count of
- * public-source open tickets; `count` is all open tickets.
- */
 type KotVersionResponse = {
   version: string;
   count: number;
   parked: number;
   online: number;
+  counts?: {
+    new?: number;
+    preparing?: number;
+    ready?: number;
+  };
 };
 
 export type KotNotifierStatus = "idle" | "live" | "offline";
 
+export type KotAlertKind = "new_ticket" | "ready_ticket" | "change" | "test";
+
+export type KotBoardCounts = {
+  new: number;
+  preparing: number;
+  ready: number;
+};
+
 /**
- * Polls the KOT version fingerprint and surfaces:
- *   - `status`  — live / offline (for the header chip)
- *   - `muted`   + `toggleMute()` — user-facing sound toggle
- *   - `newCount`/`readyCount` — current open counts (for badges)
- *   - `lastChangedAt` — epoch ms of the last fingerprint change (for "updated Xs ago")
- *
- * Sound: on every version change we synthesize a short two-note chime via Web
- * Audio. No binary asset — synthesized at runtime, so it survives SW cache
- * misses and works on HDMI-connected TVs with no local speakers besides the
- * TV. The chime is created lazily on the first user gesture (browsers block
- * autoplay until interaction), then reused.
- *
- * Polling pauses when the tab is hidden (the existing `DeskLiveRefresh` also
- * does this) but resumes on focus — a TV mini-PC keeps the tab foregrounded.
+ * Kitchen / Pass live poller (1.5s default).
+ * Diffs version + status counts for the right siren; optional speech alerts.
  */
-export function useKotNotifier({ intervalMs = 4000 }: { intervalMs?: number } = {}) {
+export function useKotNotifier({
+  intervalMs = 1500,
+  speak = true,
+  /** Pass/Expo: alert only when Ready count increases. */
+  preferReadyAlert = false,
+}: {
+  intervalMs?: number;
+  speak?: boolean;
+  preferReadyAlert?: boolean;
+} = {}) {
   const [status, setStatus] = useState<KotNotifierStatus>("idle");
   const [muted, setMuted] = useState(false);
+  const [armed, setArmed] = useState(false);
   const [newCount, setNewCount] = useState(0);
   const [readyCount, setReadyCount] = useState(0);
   const [lastChangedAt, setLastChangedAt] = useState<number>(() => Date.now());
+  const [lastAlertKind, setLastAlertKind] = useState<KotAlertKind | null>(null);
+  const [counts, setCounts] = useState<KotBoardCounts>({
+    new: 0,
+    preparing: 0,
+    ready: 0,
+  });
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const lastVersionRef = useRef<string | null>(null);
+  const lastCountsRef = useRef<KotBoardCounts | null>(null);
   const mutedRef = useRef(false);
+  const speakRef = useRef(speak);
+  const preferReadyRef = useRef(preferReadyAlert);
 
-  // Keep a ref of muted state so the poll callback (stable via useCallback)
-  // always sees the latest value without re-subscribing.
   useEffect(() => {
     mutedRef.current = muted;
   }, [muted]);
+  useEffect(() => {
+    speakRef.current = speak;
+  }, [speak]);
+  useEffect(() => {
+    preferReadyRef.current = preferReadyAlert;
+  }, [preferReadyAlert]);
 
-  const playChime = useCallback(() => {
-    if (mutedRef.current) return;
-    if (typeof window === "undefined") return;
+  const ensureCtx = useCallback((): AudioContext | null => {
+    if (typeof window === "undefined") return null;
     const AudioCtx =
       window.AudioContext ||
       (window as unknown as { webkitAudioContext?: typeof AudioContext })
         .webkitAudioContext;
-    if (!AudioCtx) return;
-    try {
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new AudioCtx();
-      }
-      const ctx = audioCtxRef.current;
-      if (ctx.state === "suspended") void ctx.resume();
-      const now = ctx.currentTime;
+    if (!AudioCtx) return null;
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new AudioCtx();
+    }
+    return audioCtxRef.current;
+  }, []);
 
-      // Two ascending notes (E5 → A5) — bright "new ticket" feel without
-      // being harsh on repeat. Soft-sine to keep the TV from blaring.
-      const notes = [
-        { freq: 659.25, start: 0, dur: 0.14 },
-        { freq: 880.0, start: 0.13, dur: 0.22 },
-      ];
-      const master = ctx.createGain();
-      master.gain.value = 0.18;
-      master.connect(ctx.destination);
-      for (const n of notes) {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "sine";
-        osc.frequency.value = n.freq;
-        gain.gain.setValueAtTime(0, now + n.start);
-        gain.gain.linearRampToValueAtTime(1, now + n.start + 0.015);
-        gain.gain.exponentialRampToValueAtTime(
-          0.0001,
-          now + n.start + n.dur,
-        );
-        osc.connect(gain);
-        gain.connect(master);
-        osc.start(now + n.start);
-        osc.stop(now + n.start + n.dur + 0.02);
-      }
+  const speakAlert = useCallback((kind: KotAlertKind) => {
+    if (!speakRef.current) return;
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      const phrase =
+        kind === "ready_ticket"
+          ? "Order ready for service. Order ready."
+          : kind === "new_ticket"
+            ? "New kitchen order. New kitchen order."
+            : kind === "test"
+              ? "Kitchen sound test. Alert system ready."
+              : "Kitchen board updated.";
+      const u = new SpeechSynthesisUtterance(phrase);
+      u.rate = 0.9;
+      u.pitch = 1;
+      u.volume = 1;
+      const voices = window.speechSynthesis.getVoices();
+      const en =
+        voices.find((v) => /^en/i.test(v.lang) && /Google|Microsoft|Samantha|Daniel/i.test(v.name)) ??
+        voices.find((v) => /^en/i.test(v.lang));
+      if (en) u.voice = en;
+      window.speechSynthesis.speak(u);
     } catch {
-      // Audio is best-effort — never break the board.
+      /* best-effort */
     }
   }, []);
+
+  /**
+   * Kitchen-grade siren: ~2.8s of square sweeps + sawtooth stabs, then voice.
+   * Loud by design — lower the TV volume if needed, not the other way around.
+   */
+  const playAlarm = useCallback(
+    (kind: KotAlertKind = "new_ticket") => {
+      if (mutedRef.current && kind !== "test") return;
+      const ctx = ensureCtx();
+      if (!ctx) return;
+      try {
+        if (ctx.state === "suspended") void ctx.resume();
+        const now = ctx.currentTime;
+        const master = ctx.createGain();
+        master.connect(ctx.destination);
+
+        // Soft pulse when kitchen advances its own tickets (not a new POS fire).
+        if (kind === "change") {
+          master.gain.value = 0.28;
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = "triangle";
+          osc.frequency.value = 740;
+          g.gain.setValueAtTime(0.0001, now);
+          g.gain.exponentialRampToValueAtTime(0.85, now + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+          osc.connect(g);
+          g.connect(master);
+          osc.start(now);
+          osc.stop(now + 0.22);
+          setLastAlertKind(kind);
+          return;
+        }
+
+        master.gain.value = kind === "test" ? 0.5 : 0.65;
+
+        const sweeps = [
+          { t: 0.0, a: 680, b: 980 },
+          { t: 0.55, a: 720, b: 1100 },
+          { t: 1.15, a: 640, b: 1050 },
+        ];
+        for (const s of sweeps) {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = "square";
+          osc.frequency.setValueAtTime(s.a, now + s.t);
+          osc.frequency.linearRampToValueAtTime(s.b, now + s.t + 0.28);
+          osc.frequency.linearRampToValueAtTime(s.a, now + s.t + 0.48);
+          g.gain.setValueAtTime(0.0001, now + s.t);
+          g.gain.exponentialRampToValueAtTime(0.95, now + s.t + 0.04);
+          g.gain.setValueAtTime(0.95, now + s.t + 0.4);
+          g.gain.exponentialRampToValueAtTime(0.0001, now + s.t + 0.52);
+          osc.connect(g);
+          g.connect(master);
+          osc.start(now + s.t);
+          osc.stop(now + s.t + 0.55);
+        }
+
+        const stabs = [1.75, 1.95, 2.15, 2.4];
+        for (const t of stabs) {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = "sawtooth";
+          osc.frequency.value = kind === "ready_ticket" ? 560 : 920;
+          g.gain.setValueAtTime(0.0001, now + t);
+          g.gain.exponentialRampToValueAtTime(1, now + t + 0.01);
+          g.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.16);
+          osc.connect(g);
+          g.connect(master);
+          osc.start(now + t);
+          osc.stop(now + t + 0.18);
+        }
+
+        window.setTimeout(() => speakAlert(kind), 1000);
+        setLastAlertKind(kind);
+      } catch {
+        /* ignore audio errors */
+      }
+    },
+    [ensureCtx, speakAlert],
+  );
 
   const tick = useCallback(async () => {
     if (typeof document !== "undefined" && document.visibilityState === "hidden") {
@@ -110,22 +206,44 @@ export function useKotNotifier({ intervalMs = 4000 }: { intervalMs?: number } = 
       const data = (await res.json()) as KotVersionResponse;
       setStatus("live");
 
-      // The version endpoint returns aggregate counts; new/ready come from
-      // its `count` plus the per-status fields when present. We diff on
-      // `version` for the chime trigger — any state change (new ticket,
-      // status advance, void, settle) flips it.
+      const nextCounts: KotBoardCounts = {
+        new: data.counts?.new ?? 0,
+        preparing: data.counts?.preparing ?? 0,
+        ready: data.counts?.ready ?? 0,
+      };
+
       const prev = lastVersionRef.current;
+      const prevCounts = lastCountsRef.current;
       if (prev !== null && prev !== data.version) {
         setLastChangedAt(Date.now());
-        playChime();
+        const newUp = prevCounts != null && nextCounts.new > prevCounts.new;
+        const readyUp =
+          prevCounts != null && nextCounts.ready > prevCounts.ready;
+
+        if (preferReadyRef.current) {
+          // Pass / Expo TV: only care when kitchen marks Ready.
+          if (readyUp) playAlarm("ready_ticket");
+        } else {
+          // Kitchen TV: blare on new tickets; short change tone for other moves.
+          if (newUp) playAlarm("new_ticket");
+          else if (readyUp) {
+            /* optional soft — skip so own Ready doesn't spam kitchen */
+          } else {
+            // Status advance / park — soft pulse only (no voice)
+            playAlarm("change");
+          }
+        }
       }
+
       lastVersionRef.current = data.version;
+      lastCountsRef.current = nextCounts;
+      setCounts(nextCounts);
       setNewCount(data.count ?? 0);
-      setReadyCount(data.parked ?? 0);
+      setReadyCount(nextCounts.ready);
     } catch {
       setStatus("offline");
     }
-  }, [playChime]);
+  }, [playAlarm]);
 
   useEffect(() => {
     void tick();
@@ -140,49 +258,55 @@ export function useKotNotifier({ intervalMs = 4000 }: { intervalMs?: number } = 
     };
   }, [tick, intervalMs]);
 
+  // Soft "change" alarm is too loud with square waves — add quiet path.
+  // Override playAlarm internally for change: one short pulse only.
+
+  const armAudio = useCallback(() => {
+    const ctx = ensureCtx();
+    if (ctx?.state === "suspended") void ctx.resume();
+    setArmed(true);
+    setMuted(false);
+    mutedRef.current = false;
+    try {
+      window.speechSynthesis?.getVoices();
+    } catch {
+      /* ignore */
+    }
+    playAlarm("test");
+  }, [ensureCtx, playAlarm]);
+
   const toggleMute = useCallback(() => {
     setMuted((m) => {
       const next = !m;
       mutedRef.current = next;
-      // Play a soft tick immediately on unmute so the operator hears that
-      // audio is now live (no surprise first chime 4s later).
       if (!next) {
-        try {
-          if (!audioCtxRef.current && typeof window !== "undefined") {
-            const AudioCtx =
-              window.AudioContext ||
-              (window as unknown as { webkitAudioContext?: typeof AudioContext })
-                .webkitAudioContext;
-            if (AudioCtx) audioCtxRef.current = new AudioCtx();
-          }
-          if (audioCtxRef.current?.state === "suspended") {
-            void audioCtxRef.current.resume();
-          }
-        } catch {
-          // ignore
-        }
+        const ctx = ensureCtx();
+        if (ctx?.state === "suspended") void ctx.resume();
+        setArmed(true);
       }
       return next;
     });
-  }, []);
+  }, [ensureCtx]);
 
-  /**
-   * Test the chime on demand. Used by the "Test sound" button so the operator
-   * can confirm the TV audio is wired before opening hours.
-   */
   const testSound = useCallback(() => {
     mutedRef.current = false;
     setMuted(false);
-    playChime();
-  }, [playChime]);
+    setArmed(true);
+    playAlarm("test");
+  }, [playAlarm]);
 
   return {
     status,
     muted,
+    armed,
+    armAudio,
     toggleMute,
     testSound,
     newCount,
     readyCount,
     lastChangedAt,
+    lastAlertKind,
+    counts,
+    playAlarm,
   };
 }

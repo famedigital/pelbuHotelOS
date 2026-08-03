@@ -758,6 +758,7 @@ export async function updateOrderKotStatus(formData: FormData): Promise<void> {
   revalidatePath("/erp");
   revalidatePath("/erp/pos");
   revalidatePath("/erp/kds");
+  revalidatePath("/erp/kds/pass");
 }
 
 export async function postOrderToBookingFolio(formData: FormData): Promise<void> {

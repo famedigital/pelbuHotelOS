@@ -63,11 +63,17 @@ export default async function ErpLayout({
     );
   }
 
-  // The kitchen display (KDS) route runs fullscreen on a wall TV / tablet.
-  // It's still desk-auth-gated (the page handler checks isDeskAuthenticated)
-  // but it bypasses the sidebar shell entirely so the TV gets a clean,
-  // chrome-free surface.
-  if (pathname === "/erp/kds") {
+  // Kitchen + Pass/Expo TV boards run fullscreen on wall displays.
+  // Desk-auth-gated in the page handlers; no sidebar chrome.
+  // Invoice / receipt / statement print sheets also skip the shell for a clean page.
+  const isPrintSurface =
+    pathname === "/erp/kds" ||
+    pathname.startsWith("/erp/kds/") ||
+    /\/print\/?$/.test(pathname) ||
+    /\/receipt\/?$/.test(pathname) ||
+    /\/statement\/?$/.test(pathname);
+
+  if (isPrintSurface) {
     return (
       <>
         {children}

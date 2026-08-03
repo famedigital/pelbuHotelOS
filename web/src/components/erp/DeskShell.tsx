@@ -16,7 +16,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
-import type { PropertyRow } from "@/lib/property-context";
+import type { PropertyRow } from "@/lib/property-types";
 import type { ReactNode } from "react";
 
 /**

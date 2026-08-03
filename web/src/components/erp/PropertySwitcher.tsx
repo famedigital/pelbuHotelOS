@@ -1,13 +1,13 @@
 "use client";
 
 import { switchActiveProperty } from "@/app/actions/erp-holds";
-import type { PropertyRow } from "@/lib/property-context";
+import type { PropertySwitcherOption } from "@/lib/property-types";
 
 export function PropertySwitcher({
   properties,
   activePropertyId,
 }: {
-  properties: PropertyRow[];
+  properties: PropertySwitcherOption[];
   activePropertyId: string;
 }) {
   return (

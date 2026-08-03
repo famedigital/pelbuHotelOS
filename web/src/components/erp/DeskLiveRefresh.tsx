@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
  * void, settle, and tender changes via `/api/erp/kot-version`.
  */
 export function DeskLiveRefresh({
-  intervalMs = 4000,
+  intervalMs = 2000,
   label = "Live",
 }: {
   intervalMs?: number;
