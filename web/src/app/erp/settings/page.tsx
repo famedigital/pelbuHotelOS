@@ -369,6 +369,11 @@ export default async function ErpSettingsPage({
             >
               Setup wizard
             </a>
+            {!property.setup_completed_at ? (
+              <span className="inline-flex h-10 items-center text-xs text-destructive">
+                Incomplete
+              </span>
+            ) : null}
             <a
               href="/erp/rates"
               className="inline-flex h-10 items-center rounded-md border px-4 text-sm text-foreground hover:bg-muted"

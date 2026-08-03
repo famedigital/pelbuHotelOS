@@ -95,7 +95,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Loyalty | `/erp/loyalty` (+ `/guest/loyalty`) | Points ledger + guest portal lite |
 | Recipe cost | `/erp/pos/recipe-cost` | Multi-outlet margin rollup; full RMS open |
 | Allotments | `/erp/allotments` | P9 |
-| Group / properties | `/erp/group`, `/erp/properties/*` | Multi-hotel overview + setup wizard |
+| Group / properties | `/erp/group`, `/erp/properties/*` | Multi-hotel overview + **setup wizard** (identity → rooms/units → rates → outlets/deposits → team/banks) |
 | Night audit | `/erp/night-audit` | Close-day checklist + room-night posting; cron midnight Thimphu; printable pack with POS cash variance table |
 | Guests | `/erp/guests`, `/erp/guests/[id]` | Directory + **profile stay history**; SDF incomplete badge; immigration CSV export |
 | Room rates | `/erp/rates` | Rate matrix + **season date-range editor** |

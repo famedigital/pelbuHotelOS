@@ -4,78 +4,111 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 /**
- * Keeps the desk inbox/KOT board + POS open-tickets drawer fresh without a
- * manual browser refresh. Desk-auth'd version poll (orders have no anon SELECT
- * — cannot use browser Realtime safely). Version fingerprint includes park,
- * void, settle, and tender changes via `/api/erp/kot-version`.
+ * POS / desk inbox live badge. Push via KOT SSE (no 2s Vercel poll).
+ * On order change → debounced router.refresh(). Safety: 60s version poll.
  */
 export function DeskLiveRefresh({
-  intervalMs = 2000,
   label = "Live",
+  safetyPollMs = 60_000,
 }: {
-  intervalMs?: number;
-  /** Optional override for the live badge text when connected. */
   label?: string;
+  /** Backup poll only — keep high to protect Vercel limits. */
+  safetyPollMs?: number;
 }) {
   const router = useRouter();
-  const lastVersion = useRef<string | null>(null);
   const [live, setLive] = useState(false);
   const [error, setError] = useState(false);
   const [parked, setParked] = useState<number | null>(null);
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    let es: EventSource | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let safetyTimer: ReturnType<typeof setInterval> | null = null;
 
-    async function tick() {
-      if (document.visibilityState === "hidden") {
-        timer = setTimeout(tick, intervalMs);
-        return;
-      }
+    const scheduleRefresh = () => {
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+      refreshTimer.current = setTimeout(() => {
+        if (!cancelled) router.refresh();
+      }, 250);
+    };
+
+    const pullParkedBadge = async () => {
+      if (document.visibilityState === "hidden") return;
       try {
         const res = await fetch("/api/erp/kot-version", {
           cache: "no-store",
           credentials: "same-origin",
         });
         if (!res.ok) {
-          if (!cancelled) {
-            setLive(false);
-            setError(true);
-          }
-          timer = setTimeout(tick, intervalMs * 2);
+          if (!cancelled) setError(true);
           return;
         }
-        const body = (await res.json()) as {
-          version?: string;
-          parked?: number;
-        };
-        const version = body.version ?? "";
+        const body = (await res.json()) as { parked?: number };
+        if (!cancelled) {
+          setError(false);
+          if (typeof body.parked === "number") setParked(body.parked);
+        }
+      } catch {
+        if (!cancelled) setError(true);
+      }
+    };
+
+    const connect = () => {
+      if (cancelled) return;
+      es = new EventSource("/api/erp/kot/stream");
+      es.addEventListener("ready", () => {
         if (!cancelled) {
           setLive(true);
           setError(false);
-          if (typeof body.parked === "number") setParked(body.parked);
-          if (lastVersion.current !== null && lastVersion.current !== version) {
-            router.refresh();
-          }
-          lastVersion.current = version;
         }
-      } catch {
+        void pullParkedBadge();
+      });
+      es.addEventListener("kot", () => {
+        if (!cancelled) {
+          setLive(true);
+          setError(false);
+        }
+        scheduleRefresh();
+        void pullParkedBadge();
+      });
+      es.onerror = () => {
         if (!cancelled) {
           setLive(false);
           setError(true);
         }
-      }
-      if (!cancelled) {
-        timer = setTimeout(tick, intervalMs);
-      }
-    }
+        es?.close();
+        es = null;
+        if (!cancelled) {
+          reconnectTimer = setTimeout(connect, 2_500);
+        }
+      };
+    };
 
-    void tick();
+    connect();
+    safetyTimer = setInterval(() => {
+      void pullParkedBadge();
+      if (document.visibilityState === "visible") scheduleRefresh();
+    }, safetyPollMs);
+
+    const onVis = () => {
+      if (document.visibilityState === "visible") {
+        void pullParkedBadge();
+        scheduleRefresh();
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+
     return () => {
       cancelled = true;
-      if (timer) clearTimeout(timer);
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (safetyTimer) clearInterval(safetyTimer);
+      document.removeEventListener("visibilitychange", onVis);
+      es?.close();
     };
-  }, [intervalMs, router]);
+  }, [router, safetyPollMs]);
 
   const connectedLabel =
     parked != null && parked > 0 ? `${label} · ${parked} parked` : label;
@@ -86,13 +119,13 @@ export function DeskLiveRefresh({
       aria-live="polite"
       title={
         error
-          ? "Live updates paused"
+          ? "Live updates reconnecting"
           : live
-            ? "Polling for kitchen / POS ticket changes"
+            ? "Push updates (kitchen / POS tickets)"
             : "Connecting…"
       }
     >
-      {error ? "Board offline" : live ? connectedLabel : "…"}
+      {error ? "Reconnecting…" : live ? connectedLabel : "…"}
     </p>
   );
 }

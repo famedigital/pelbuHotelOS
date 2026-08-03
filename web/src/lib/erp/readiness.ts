@@ -95,9 +95,17 @@ export async function computeRoleReadiness(
     String(nightAudit.business_date) >= today;
 
   const ownerItems = [
-    { label: "Property setup complete", ok: setupOk, href: "/erp/settings" },
-    { label: "TPN on file", ok: tpnOk, href: "/erp/settings" },
-    { label: "Bank account on file", ok: bankOk, href: "/erp/settings" },
+    {
+      label: "Property setup complete",
+      ok: setupOk,
+      href: `/erp/properties/${propertyId}/setup`,
+    },
+    { label: "TPN on file", ok: tpnOk, href: `/erp/properties/${propertyId}/setup?step=1` },
+    {
+      label: "Bank account on file",
+      ok: bankOk,
+      href: `/erp/properties/${propertyId}/setup?step=5`,
+    },
     {
       label: "GST pack filed this month",
       ok: gstFiled,

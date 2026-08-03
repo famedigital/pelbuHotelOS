@@ -26,7 +26,8 @@ export type KdsRole = "kitchen" | "pass";
 
 /**
  * Kitchen Display (cook line) or Pass/Expo Display (F&B service).
- * Loads tickets from `/api/erp/kot-board` every ~1.5s — no RSC full refresh.
+ * Board data: fetch on Supabase-driven SSE events (via useKotNotifier),
+ * not a 1.5s Vercel poll. Safety re-sync is 60s / tab focus.
  */
 export function KitchenDisplayBoard({
   initialTickets,
@@ -46,8 +47,9 @@ export function KitchenDisplayBoard({
     toggleMute,
     testSound,
     lastChangedAt,
+    refresh,
   } = useKotNotifier({
-    intervalMs: 1500,
+    safetyPollMs: 60_000,
     speak: true,
     preferReadyAlert: isPass,
   });
@@ -76,18 +78,10 @@ export function KitchenDisplayBoard({
     }
   }, []);
 
-  // Hydrate board on version changes (notifier fires lastChangedAt).
+  // Push-driven: notifier bumps lastChangedAt on SSE `kot` + safety poll.
   useEffect(() => {
     void fetchBoard();
   }, [lastChangedAt, fetchBoard]);
-
-  // Backup poll so tickets appear even if version endpoint lags (1.5s).
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      if (document.visibilityState === "visible") void fetchBoard();
-    }, 1500);
-    return () => window.clearInterval(id);
-  }, [fetchBoard]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 15_000);
@@ -163,7 +157,7 @@ export function KitchenDisplayBoard({
 
   function advance(orderId: string, nextStatus: string) {
     setAdvancing(orderId);
-    // Optimistic removal / status move
+    // Optimistic local move; SSE will re-sync peers.
     setTickets((prev) =>
       prev.map((t) =>
         t.id === orderId ? { ...t, kot_status: nextStatus } : t,
@@ -176,6 +170,7 @@ export function KitchenDisplayBoard({
       try {
         await updateOrderKotStatus(fd);
         void fetchBoard();
+        refresh();
       } catch {
         void fetchBoard();
       } finally {

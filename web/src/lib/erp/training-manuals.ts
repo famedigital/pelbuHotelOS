@@ -58,7 +58,7 @@ export const TRAINING_MANUALS: TrainingManual[] = [
       {
         id: "wipe",
         title: "Danger zone wipe (test data only)",
-        body: "After UAT, owner types WIPE to clear bookings/folios/orders — keeps rooms, rates, staff.",
+        body: "After UAT, owner types WIPE to clear ops data; optionally tick rooms/staff/menu/agents/rates/rota/attendance/leave.",
         href: "/erp/settings",
       },
       {

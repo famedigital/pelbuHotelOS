@@ -10,6 +10,49 @@ import { useActionState } from "react";
 
 const initialState: SettingsActionState = { ok: false };
 
+const MASTER_OPTIONS = [
+  {
+    name: "wipe_rooms",
+    label: "Rooms & categories",
+    hint: "Room types + physical doors (also clears rates for those types)",
+  },
+  {
+    name: "wipe_staff",
+    label: "Staff",
+    hint: "Non-owner staff, profiles, payroll lines",
+  },
+  {
+    name: "wipe_menu",
+    label: "Menu",
+    hint: "Menu items, modifiers, recipes, stock profiles",
+  },
+  {
+    name: "wipe_agents",
+    label: "Agents",
+    hint: "Travel agent companies, documents, allotments",
+  },
+  {
+    name: "wipe_rates",
+    label: "Prices / rates",
+    hint: "Room rate matrix and named rate plans",
+  },
+  {
+    name: "wipe_rota",
+    label: "Rota",
+    hint: "Staff shifts and rota cover templates",
+  },
+  {
+    name: "wipe_attendance",
+    label: "Attendance",
+    hint: "Punch events and attendance devices",
+  },
+  {
+    name: "wipe_leave",
+    label: "Leave",
+    hint: "Leave requests, balances, ledger (keeps policies)",
+  },
+] as const;
+
 export function SettingsDangerZonePanel({
   propertyId,
   confirmPhrase,
@@ -18,8 +61,8 @@ export function SettingsDangerZonePanel({
   confirmPhrase: string;
 }) {
   const [state, action, pending] = useActionState(wipeOperationalData, initialState);
-  useActionToast(state, { successMessage: "Operational data wiped" });
-  usePendingFeedback(pending, "Wiping operational data…");
+  useActionToast(state, { successMessage: "Wipe complete" });
+  usePendingFeedback(pending, "Wiping data…");
 
   return (
     <section className="rounded-xl border border-destructive/40 bg-destructive/5 p-5 md:p-6">
@@ -31,20 +74,57 @@ export function SettingsDangerZonePanel({
           Wipe operational data
         </h2>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Owner only. Removes test bookings, folios, payments, orders, laundry,
-          inventory movements/audits/POs, calendar blocks, lost &amp; found, and
-          night audits.{" "}
+          Owner only. Always removes test bookings, folios, payments, orders,
+          laundry, inventory movements/audits/POs, calendar blocks, lost &amp;
+          found, and night audits.{" "}
           <strong className="font-medium text-foreground">
-            Keeps rooms, rates, meal plans, policies, damage catalog, compliance
-            vault, staff, CMS, and seasons.
+            Masters stay unless you tick them below. Owner staff accounts are
+            never removed. Checking Staff also clears their attendance, leave,
+            and rota (FK safety).
           </strong>{" "}
           Complete training and UAT first. Action is audit-logged and cannot be
           undone.
         </p>
       </div>
 
-      <form action={action} className="max-w-md space-y-4">
+      <form action={action} className="max-w-xl space-y-5">
         <input type="hidden" name="property_id" value={propertyId} />
+
+        <fieldset className="space-y-3">
+          <legend className="text-sm font-medium text-foreground">
+            Also wipe master data{" "}
+            <span className="font-normal text-muted-foreground">
+              (optional, off by default)
+            </span>
+          </legend>
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {MASTER_OPTIONS.map((opt) => (
+              <li key={opt.name}>
+                <label
+                  htmlFor={opt.name}
+                  className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-border/80 bg-background/60 px-3 py-2.5 hover:border-destructive/30"
+                >
+                  <input
+                    id={opt.name}
+                    type="checkbox"
+                    name={opt.name}
+                    value="1"
+                    className="mt-0.5 size-4 shrink-0 rounded border-input accent-destructive"
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-foreground">
+                      {opt.label}
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      {opt.hint}
+                    </span>
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </fieldset>
+
         <div className="space-y-1.5">
           <Label htmlFor="danger_confirm">
             Type <span className="font-mono font-semibold">{confirmPhrase}</span>{" "}
@@ -61,7 +141,7 @@ export function SettingsDangerZonePanel({
           />
         </div>
         <Button type="submit" variant="destructive" disabled={pending}>
-          {pending ? "Wiping…" : "Wipe operational data"}
+          {pending ? "Wiping…" : "Wipe selected data"}
         </Button>
         {state.error ? (
           <p className="text-sm text-destructive" role="alert">

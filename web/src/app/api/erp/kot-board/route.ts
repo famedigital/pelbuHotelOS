@@ -9,8 +9,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Lightweight KDS board payload: open tickets + version fingerprint +
- * status counts. Kitchen / Pass TVs poll this instead of `router.refresh()`
- * (RSC re-render is slow and often feels like a full page stall).
+ * status counts. Called on SSE push (and rare safety poll) — not a tight timer.
  */
 export async function GET() {
   if (!(await isDeskAuthenticated())) {

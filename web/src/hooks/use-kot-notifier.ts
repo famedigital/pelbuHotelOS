@@ -25,17 +25,22 @@ export type KotBoardCounts = {
 };
 
 /**
- * Kitchen / Pass live poller (1.5s default).
- * Diffs version + status counts for the right siren; optional speech alerts.
+ * Kitchen / Pass live notifier — push via SSE (Supabase Realtime bridge),
+ * not a 1.5s poll that hammers Vercel.
+ *
+ * - Primary: EventSource `/api/erp/kot/stream` → on `kot` fetch counts once
+ * - Safety: version poll every 60s + on tab focus
+ * - Siren/voice when counts move in the expected direction
  */
 export function useKotNotifier({
-  intervalMs = 1500,
+  safetyPollMs = 60_000,
   speak = true,
-  /** Pass/Expo: alert only when Ready count increases. */
   preferReadyAlert = false,
 }: {
-  intervalMs?: number;
+  /** Backup poll only (default 60s). Do not set under ~15s in production. */
+  safetyPollMs?: number;
   speak?: boolean;
+  /** Pass/Expo: alert only when Ready count increases. */
   preferReadyAlert?: boolean;
 } = {}) {
   const [status, setStatus] = useState<KotNotifierStatus>("idle");
@@ -57,6 +62,7 @@ export function useKotNotifier({
   const mutedRef = useRef(false);
   const speakRef = useRef(speak);
   const preferReadyRef = useRef(preferReadyAlert);
+  const fetchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     mutedRef.current = muted;
@@ -100,8 +106,11 @@ export function useKotNotifier({
       u.volume = 1;
       const voices = window.speechSynthesis.getVoices();
       const en =
-        voices.find((v) => /^en/i.test(v.lang) && /Google|Microsoft|Samantha|Daniel/i.test(v.name)) ??
-        voices.find((v) => /^en/i.test(v.lang));
+        voices.find(
+          (v) =>
+            /^en/i.test(v.lang) &&
+            /Google|Microsoft|Samantha|Daniel/i.test(v.name),
+        ) ?? voices.find((v) => /^en/i.test(v.lang));
       if (en) u.voice = en;
       window.speechSynthesis.speak(u);
     } catch {
@@ -109,10 +118,6 @@ export function useKotNotifier({
     }
   }, []);
 
-  /**
-   * Kitchen-grade siren: ~2.8s of square sweeps + sawtooth stabs, then voice.
-   * Loud by design — lower the TV volume if needed, not the other way around.
-   */
   const playAlarm = useCallback(
     (kind: KotAlertKind = "new_ticket") => {
       if (mutedRef.current && kind !== "test") return;
@@ -124,7 +129,6 @@ export function useKotNotifier({
         const master = ctx.createGain();
         master.connect(ctx.destination);
 
-        // Soft pulse when kitchen advances its own tickets (not a new POS fire).
         if (kind === "change") {
           master.gain.value = 0.28;
           const osc = ctx.createOscillator();
@@ -190,22 +194,8 @@ export function useKotNotifier({
     [ensureCtx, speakAlert],
   );
 
-  const tick = useCallback(async () => {
-    if (typeof document !== "undefined" && document.visibilityState === "hidden") {
-      return;
-    }
-    try {
-      const res = await fetch("/api/erp/kot-version", {
-        cache: "no-store",
-        credentials: "same-origin",
-      });
-      if (!res.ok) {
-        setStatus("offline");
-        return;
-      }
-      const data = (await res.json()) as KotVersionResponse;
-      setStatus("live");
-
+  const applyVersion = useCallback(
+    (data: KotVersionResponse, opts?: { forceChanged?: boolean }) => {
       const nextCounts: KotBoardCounts = {
         new: data.counts?.new ?? 0,
         preparing: data.counts?.preparing ?? 0,
@@ -214,22 +204,22 @@ export function useKotNotifier({
 
       const prev = lastVersionRef.current;
       const prevCounts = lastCountsRef.current;
-      if (prev !== null && prev !== data.version) {
-        setLastChangedAt(Date.now());
-        const newUp = prevCounts != null && nextCounts.new > prevCounts.new;
-        const readyUp =
-          prevCounts != null && nextCounts.ready > prevCounts.ready;
+      const versionChanged = prev !== null && prev !== data.version;
+      const force = Boolean(opts?.forceChanged);
 
-        if (preferReadyRef.current) {
-          // Pass / Expo TV: only care when kitchen marks Ready.
-          if (readyUp) playAlarm("ready_ticket");
-        } else {
-          // Kitchen TV: blare on new tickets; short change tone for other moves.
-          if (newUp) playAlarm("new_ticket");
-          else if (readyUp) {
-            /* optional soft — skip so own Ready doesn't spam kitchen */
-          } else {
-            // Status advance / park — soft pulse only (no voice)
+      if (versionChanged || force) {
+        if (versionChanged || force) {
+          setLastChangedAt(Date.now());
+        }
+        if (versionChanged && prevCounts != null) {
+          const newUp = nextCounts.new > prevCounts.new;
+          const readyUp = nextCounts.ready > prevCounts.ready;
+
+          if (preferReadyRef.current) {
+            if (readyUp) playAlarm("ready_ticket");
+          } else if (newUp) {
+            playAlarm("new_ticket");
+          } else if (!readyUp) {
             playAlarm("change");
           }
         }
@@ -240,26 +230,97 @@ export function useKotNotifier({
       setCounts(nextCounts);
       setNewCount(data.count ?? 0);
       setReadyCount(nextCounts.ready);
-    } catch {
-      setStatus("offline");
-    }
-  }, [playAlarm]);
+    },
+    [playAlarm],
+  );
 
+  const fetchVersion = useCallback(
+    async (opts?: { forceChanged?: boolean }) => {
+      if (
+        typeof document !== "undefined" &&
+        document.visibilityState === "hidden"
+      ) {
+        return;
+      }
+      try {
+        const res = await fetch("/api/erp/kot-version", {
+          cache: "no-store",
+          credentials: "same-origin",
+        });
+        if (!res.ok) {
+          setStatus((s) => (s === "live" ? s : "offline"));
+          return;
+        }
+        const data = (await res.json()) as KotVersionResponse;
+        setStatus("live");
+        applyVersion(data, opts);
+      } catch {
+        setStatus((s) => (s === "live" ? s : "offline"));
+      }
+    },
+    [applyVersion],
+  );
+
+  const scheduleFetch = useCallback(
+    (forceChanged?: boolean) => {
+      if (fetchDebounceRef.current) clearTimeout(fetchDebounceRef.current);
+      fetchDebounceRef.current = setTimeout(() => {
+        void fetchVersion({ forceChanged });
+      }, 250);
+    },
+    [fetchVersion],
+  );
+
+  // SSE: push when orders change.
   useEffect(() => {
-    void tick();
-    const id = window.setInterval(tick, intervalMs);
+    let es: EventSource | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let stopped = false;
+
+    const connect = () => {
+      if (stopped) return;
+      es = new EventSource("/api/erp/kot/stream");
+      es.addEventListener("ready", () => {
+        setStatus("live");
+        void fetchVersion();
+      });
+      es.addEventListener("kot", () => {
+        setStatus("live");
+        // Always bump board consumers; siren uses version/counts diff.
+        scheduleFetch(true);
+      });
+      es.onerror = () => {
+        setStatus("offline");
+        es?.close();
+        es = null;
+        if (!stopped) {
+          reconnectTimer = setTimeout(connect, 2_500);
+        }
+      };
+    };
+
+    connect();
+    return () => {
+      stopped = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (fetchDebounceRef.current) clearTimeout(fetchDebounceRef.current);
+      es?.close();
+    };
+  }, [fetchVersion, scheduleFetch]);
+
+  // Safety poll (60s default) + focus reload.
+  useEffect(() => {
+    void fetchVersion();
+    const id = window.setInterval(() => void fetchVersion(), safetyPollMs);
     const onVis = () => {
-      if (document.visibilityState === "visible") void tick();
+      if (document.visibilityState === "visible") void fetchVersion();
     };
     document.addEventListener("visibilitychange", onVis);
     return () => {
       window.clearInterval(id);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [tick, intervalMs]);
-
-  // Soft "change" alarm is too loud with square waves — add quiet path.
-  // Override playAlarm internally for change: one short pulse only.
+  }, [fetchVersion, safetyPollMs]);
 
   const armAudio = useCallback(() => {
     const ctx = ensureCtx();
@@ -308,5 +369,7 @@ export function useKotNotifier({
     lastAlertKind,
     counts,
     playAlarm,
+    /** Manual board re-sync (e.g. after advancing a ticket). */
+    refresh: () => void fetchVersion({ forceChanged: true }),
   };
 }

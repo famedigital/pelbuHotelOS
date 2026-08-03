@@ -1,16 +1,6 @@
--- Phase 6: owner danger-zone wipe RPC + order_items grant hygiene
+-- Fix wipe_property_operational_data: laundry child tables use order_id, not laundry_order_id.
+-- Symptom: RPC 400 / postgres "column lob.laundry_order_id does not exist".
 
--- ---------------------------------------------------------------------------
--- order_items: desk uses service_role only; revoke direct PostgREST access
--- ---------------------------------------------------------------------------
-revoke all on table public.order_items from anon, authenticated;
-
-comment on table public.order_items is
-  'POS line items — service_role only via Next.js server actions.';
-
--- ---------------------------------------------------------------------------
--- Owner wipe: operational data only (keeps rooms, rates, policies, staff, CMS)
--- ---------------------------------------------------------------------------
 create or replace function public.wipe_property_operational_data(p_property_id uuid)
 returns jsonb
 language plpgsql
@@ -26,7 +16,6 @@ begin
   end if;
 
   -- Laundry custody (before bookings: laundry_orders.booking_id is ON DELETE RESTRICT)
-  -- Column is order_id (not laundry_order_id) on bags/events/items.
   delete from laundry_bag_events where property_id = p_property_id;
   get diagnostics v_n = row_count;
   v_counts := v_counts || jsonb_build_object('laundry_bag_events', v_n);

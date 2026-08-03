@@ -11,6 +11,7 @@ import {
 } from "@/lib/property-settings";
 import { normalizeCloseTime } from "@/lib/night-audit/close-time";
 import { resolveActivePropertyId } from "@/lib/property-context";
+import { syncRoomUnits } from "@/lib/rooms/sync-room-units";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
@@ -31,77 +32,6 @@ function requirePercent(value: FormDataEntryValue | null, label: string): number
     throw new Error(`${label} must be between 0 and 100.`);
   }
   return percentToRate(raw);
-}
-
-function formatUnitLabel(code: string, n: number): string {
-  return `${code.toUpperCase()}-${String(n).padStart(2, "0")}`;
-}
-
-async function syncRoomUnits(
-  admin: Admin,
-  propertyId: string,
-  roomTypeId: string,
-  code: string,
-  unitCount: number,
-) {
-  const safeCount = Math.max(0, unitCount);
-  const { data: units, error } = await admin
-    .from("room_units")
-    .select("id, label, created_at")
-    .eq("property_id", propertyId)
-    .eq("room_type_id", roomTypeId)
-    .order("created_at", { ascending: true })
-    .order("label", { ascending: true });
-  if (error) throw new Error(error.message);
-
-  const existing = (units ?? []) as {
-    id: string;
-    label: string;
-    created_at: string;
-  }[];
-  const existingLabels = new Set(existing.map((unit) => unit.label));
-
-  if (existing.length < safeCount) {
-    const inserts: Array<{
-      property_id: string;
-      room_type_id: string;
-      label: string;
-      hk_status: string;
-      sort_order: number;
-    }> = [];
-    let next = 1;
-    let sortBase = existing.length;
-    while (existing.length + inserts.length < safeCount) {
-      const label = formatUnitLabel(code, next);
-      next += 1;
-      if (existingLabels.has(label) || inserts.some((row) => row.label === label)) {
-        continue;
-      }
-      sortBase += 1;
-      inserts.push({
-        property_id: propertyId,
-        room_type_id: roomTypeId,
-        label,
-        hk_status: "clean",
-        sort_order: sortBase,
-      });
-    }
-    if (inserts.length) {
-      const { error: insertError } = await admin.from("room_units").insert(inserts);
-      if (insertError) throw new Error(insertError.message);
-    }
-  }
-
-  if (existing.length > safeCount) {
-    const surplus = existing.slice(safeCount).map((unit) => unit.id);
-    if (surplus.length) {
-      const { error: deleteError } = await admin
-        .from("room_units")
-        .delete()
-        .in("id", surplus);
-      if (deleteError) throw new Error(deleteError.message);
-    }
-  }
 }
 
 async function syncRoomTypeCount(admin: Admin, roomTypeId: string) {
@@ -1084,7 +1014,12 @@ export type SettingsActionState = {
 
 const WIPE_CONFIRM_PHRASE = "WIPE";
 
-/** Owner-only danger zone — type WIPE to confirm. Audit-logged. */
+function formFlag(formData: FormData, name: string): boolean {
+  const v = formData.get(name);
+  return v === "1" || v === "on" || v === "true";
+}
+
+/** Owner-only danger zone — type WIPE to confirm. Optional master-data flags. Audit-logged. */
 export async function wipeOperationalData(
   _prev: SettingsActionState,
   formData: FormData,
@@ -1101,18 +1036,37 @@ export async function wipeOperationalData(
       throw new Error(`Type ${WIPE_CONFIRM_PHRASE} exactly to confirm.`);
     }
 
+    const flags = {
+      p_wipe_rooms: formFlag(formData, "wipe_rooms"),
+      p_wipe_staff: formFlag(formData, "wipe_staff"),
+      p_wipe_menu: formFlag(formData, "wipe_menu"),
+      p_wipe_agents: formFlag(formData, "wipe_agents"),
+      p_wipe_rates: formFlag(formData, "wipe_rates"),
+      p_wipe_rota: formFlag(formData, "wipe_rota"),
+      p_wipe_attendance: formFlag(formData, "wipe_attendance"),
+      p_wipe_leave: formFlag(formData, "wipe_leave"),
+    };
+
     const { data, error } = await admin.rpc("wipe_property_operational_data", {
       p_property_id: propertyId,
+      ...flags,
     });
     if (error) throw new Error(error.message);
+
+    const selected = Object.entries(flags)
+      .filter(([, on]) => on)
+      .map(([k]) => k.replace("p_wipe_", ""));
 
     await writeAuditEvent(admin, {
       propertyId,
       action: "property.operational_wipe",
       entityType: "properties",
       entityId: propertyId,
-      summary: "Owner wiped operational data (bookings, folios, orders, laundry, inventory ops)",
-      meta: { counts: data ?? {} },
+      summary:
+        selected.length > 0
+          ? `Owner wiped operational data + master: ${selected.join(", ")}`
+          : "Owner wiped operational data (bookings, folios, orders, laundry, inventory ops)",
+      meta: { counts: data ?? {}, flags },
       actor: "owner",
     });
 
@@ -1123,18 +1077,32 @@ export async function wipeOperationalData(
     revalidatePath("/erp/reservations");
     revalidatePath("/erp/folios");
     revalidatePath("/erp/inventory");
+    revalidatePath("/erp/rooms");
+    revalidatePath("/erp/staff");
+    revalidatePath("/erp/menu");
+    revalidatePath("/erp/agents");
+    revalidatePath("/erp/rates");
+    revalidatePath("/erp/hr");
+    revalidatePath("/erp/rota");
+    revalidatePath("/erp/attendance");
+    revalidatePath("/erp/leave");
 
     const bookings =
       typeof data === "object" && data && "bookings" in data
         ? Number((data as Record<string, unknown>).bookings)
         : null;
 
+    const masterNote =
+      selected.length > 0
+        ? ` Also wiped: ${selected.join(", ")}.`
+        : " Master data (rooms, rates, staff, menu…) kept unless checked.";
+
     return {
       ok: true,
       message:
         bookings != null
-          ? `Wipe complete — ${bookings} booking(s) removed. Rooms, rates, staff, and compliance kept.`
-          : "Wipe complete. Rooms, rates, staff, and compliance kept.",
+          ? `Wipe complete — ${bookings} booking(s) removed.${masterNote}`
+          : `Wipe complete.${masterNote}`,
     };
   } catch (e) {
     return {

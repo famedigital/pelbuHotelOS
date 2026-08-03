@@ -7,11 +7,10 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 /**
- * Canonical KOT live-refresh fingerprint. `DeskLiveRefresh` polls this path.
+ * Canonical KOT live-refresh fingerprint + status counts.
+ * Called on SSE push and a rare 60s safety poll (not a tight timer).
  *
- * (The legacy route file lives at `api/erp/cot-version`; this alias is the
- * correct name and keeps both old and new clients working — no rename of the
- * file is required.)
+ * (Legacy alias path: `api/erp/cot-version` — keep both clients working.)
  */
 export async function GET() {
   if (!(await isDeskAuthenticated())) {
