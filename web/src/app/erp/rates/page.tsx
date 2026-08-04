@@ -1,5 +1,4 @@
-import { MealPlansRatesSummary } from "@/components/erp/MealPlansRatesSummary";
-import { RoomRatesSheet } from "@/components/erp/RoomRatesSheet";
+import { RatePackagesWorkspace } from "@/components/erp/RatePackagesWorkspace";
 import { SeasonsDateEditor } from "@/components/erp/SeasonsDateEditor";
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
@@ -54,7 +53,7 @@ export default async function RoomRatesPage() {
     <DeskListShell
       eyebrow="Hotel"
       heading="Room rates & meal packages"
-      blurb="Single source for per-night room Nu by season and market tier. Public book, fast book, calendar reservations, check-in, and agent portal all quote from this matrix plus meal plan add-ons."
+      blurb="One public package card for everyday use (room only + BB / MAP totals at double occupancy), plus season windows and trade market tiers when you need them. Website /rates reads the same public package math."
       filters={
         <div className="flex flex-wrap gap-2">
           <Link
@@ -84,39 +83,23 @@ export default async function RoomRatesPage() {
         <SeasonsDateEditor seasons={seasonRows} />
       </section>
 
-      <section className="space-y-3">
-        <header className="space-y-1">
-          <h2 className="text-lg font-semibold tracking-tight">Room rate sheet</h2>
-          <p className="max-w-3xl text-sm text-muted-foreground">
-            Rows are room categories; columns are peak, lean, and off seasons.
-            Switch tier tabs for public rack, agent, MOU, friends, and family
-            rates. Each agent&apos;s tier on their profile selects which column
-            group applies at booking time. Under each adult Nu, the sheet shows
-            the <strong className="font-medium text-foreground">child package</strong>
-            : 0–6 free and 6–12 auto at 50% of adult. Amounts are{" "}
-            {ratesInclusiveOfGstSc
-              ? "inclusive of GST and SC (when SC is on by default)"
-              : "exclusive of GST and SC"}
-            {" — "}
-            change under Settings → Rates &amp; meals.
-          </p>
-        </header>
-        <RoomRatesSheet
-          rows={rows}
-          roomTypes={roomTypes}
-          seasons={seasons}
-          ratesInclusiveOfGstSc={ratesInclusiveOfGstSc}
-        />
-      </section>
-
-      <MealPlansRatesSummary
+      <RatePackagesWorkspace
+        rows={rows}
+        roomTypes={roomTypes}
+        seasons={seasons}
         mealPlans={mealPlans}
         defaultMealPlanCode={defaultMealPlanCode}
+        ratesInclusiveOfGstSc={ratesInclusiveOfGstSc}
       />
 
       <section className="rounded-lg border border-dashed bg-muted/30 px-4 py-4 text-sm text-muted-foreground">
         <p className="font-medium text-foreground">How quoting works</p>
         <ul className="mt-2 list-inside list-disc space-y-1">
+          <li>
+            <strong className="font-medium text-foreground">Packages</strong> —
+            website and desk package card = public room night + (adult meal Nu
+            × 2) for each priced plan (BB, MAP, …). EP stays room only.
+          </li>
           <li>
             <strong className="font-medium text-foreground">Tax basis</strong>{" "}
             —{" "}
@@ -139,7 +122,8 @@ export default async function RoomRatesPage() {
           <li>
             <strong className="font-medium text-foreground">Agent book</strong> —
             agent&apos;s <code className="font-mono text-xs">rate_tier</code>{" "}
-            (usually agents or mou_agents)
+            (usually agents or mou_agents) for room only; meals still add on at
+            booking
           </li>
           <li>
             <strong className="font-medium text-foreground">Desk flows</strong> —
@@ -147,9 +131,9 @@ export default async function RoomRatesPage() {
           </li>
           <li>
             <strong className="font-medium text-foreground">Child package</strong>{" "}
-            — ages 0–6 free; ages 6–12 = 50% of adult rate (auto from the adult
-            room / meal amount). Count ages 6–12 only in booking children;
-            infants under 6 do not pay.
+            — ages 0–6 free; ages 6–12 = 50% of adult meal portion (and of adult
+            room when charging per child on room). Count ages 6–12 only in
+            booking children.
           </li>
           <li>
             <strong className="font-medium text-foreground">Meals</strong> —

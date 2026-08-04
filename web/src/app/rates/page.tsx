@@ -1,9 +1,10 @@
 import { AgentRatesSection } from "@/components/rates/AgentRatesSection";
-import { RateCardTable } from "@/components/rates/RateCardTable";
+import { RatePackagesTable } from "@/components/rates/RatePackagesTable";
 import { EngineShell } from "@/components/site/EngineShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { readAgentRateViewSession } from "@/lib/agent-rate-view";
+import { formatBtn } from "@/lib/pricing";
 import {
   loadAgentRateCard,
   loadPublicRateCard,
@@ -20,7 +21,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Room rates | Pelbu Suites",
   description:
-    "Public rack rates for rooms at Pelbu Suites, Olakha Thimphu — peak, lean and off seasons. Book direct or ask your agent about trade terms.",
+    "Public rack rates and meal packages at Pelbu Suites, Olakha Thimphu — peak, lean and off seasons. Book direct or ask your agent about trade terms.",
   alternates: { canonical: "/rates" },
   robots: { index: true, follow: true },
 };
@@ -72,8 +73,8 @@ export default async function RatesPage() {
         title="Room rates"
         description={
           seasonNote
-            ? `Published rack rates by season at ${propertyName}, Olakha. ${seasonNote}`
-            : `Published rack rates by season at ${propertyName}, Olakha.`
+            ? `Room and meal package rates by season at ${propertyName}, Olakha. ${seasonNote}`
+            : `Room and meal package rates by season at ${propertyName}, Olakha.`
         }
         actions={
           <Button asChild variant="citrus">
@@ -93,36 +94,43 @@ export default async function RatesPage() {
         ) : (
           <div className="space-y-12">
             <section
-              aria-labelledby="rack-rates-heading"
+              aria-labelledby="package-rates-heading"
               className="space-y-5"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2
-                    id="rack-rates-heading"
+                    id="package-rates-heading"
                     className="font-display text-2xl text-foreground md:text-3xl"
                   >
-                    Rack rates
+                    Rate packages
                   </h2>
                   <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-                    Public best available tier from the live rate matrix. Figures
-                    are per room, per night in Nu (BTN).
+                    Prices per room / night. Meal package columns include double
+                    occupancy meals (adult meal rate × 2). Room only is EP.
+                    Choose Peak, Lean, or Off season.
                   </p>
                 </div>
                 <Badge variant="sky">{taxLabel}</Badge>
               </div>
 
-              <RateCardTable
-                rooms={card.publicTier.rooms}
-                seasons={card.seasons}
+              <RatePackagesTable
+                card={card.packages}
+                seasons={card.seasons.map((s) => ({
+                  kind: s.kind,
+                  startsOn: s.startsOn,
+                  endsOn: s.endsOn,
+                }))}
                 currentSeasonKind={card.currentSeasonKind}
+                mode="public"
+                taxInclusive={card.inclusiveOfGstSc}
               />
 
               {card.defaultMealPlan || card.mealPlans.length > 0 ? (
                 <div className="max-w-2xl space-y-1.5 text-sm text-muted-foreground">
                   {card.defaultMealPlan ? (
                     <p>
-                      Default meal plan:{" "}
+                      Default meal plan when you book:{" "}
                       <span className="font-medium text-foreground">
                         {card.defaultMealPlan.name}
                       </span>
@@ -132,16 +140,22 @@ export default async function RatesPage() {
                       {card.defaultMealPlan.blurb
                         ? ` — ${card.defaultMealPlan.blurb}`
                         : null}
-                      . Room-only (EP) and package plans are selectable when you
-                      book.
+                      . You can pick room-only or another package on the booking
+                      form; the live quote uses your dates and occupancy.
                     </p>
                   ) : null}
                   {card.mealPlans.length > 1 ? (
                     <p>
                       Meal plans available:{" "}
                       {card.mealPlans
-                        .map((m) => `${m.name} (${m.code})`)
-                        .join(", ")}
+                        .map((m) => {
+                          const adult = m.amount_btn_per_adult_night;
+                          if (adult != null && adult > 0) {
+                            return `${m.name} (${m.code}) from ${formatBtn(adult)}/adult/night`;
+                          }
+                          return `${m.name} (${m.code})`;
+                        })
+                        .join("; ")}
                       .
                     </p>
                   ) : null}
@@ -161,13 +175,14 @@ export default async function RatesPage() {
                 <p>
                   Rates are subject to availability and can change without
                   notice. Live quotes on the booking form may differ by date,
-                  promotion, or inventory.
+                  promotion, occupancy, or inventory.
                 </p>
                 <p>
                   {card.inclusiveOfGstSc
                     ? "Listed amounts are inclusive of GST and service charge (when SC is applied on the property)."
                     : "Listed amounts exclude GST and service charge unless your quote says otherwise. Final tax is calculated at booking and on the folio."}
                 </p>
+                <p>{card.packages.childNote} Exact child counts apply at booking.</p>
               </aside>
             </section>
 

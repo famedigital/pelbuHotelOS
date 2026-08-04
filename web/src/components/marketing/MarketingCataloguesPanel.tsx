@@ -5,19 +5,34 @@ import {
   upsertCatalogue,
   type CatalogueActionState,
 } from "@/app/actions/erp-catalogues";
+import { CloudinaryPicker } from "@/components/erp/CloudinaryPicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useActionToast } from "@/hooks/use-action-toast";
+import { cloudinaryUrl } from "@/lib/cloudinary";
 import type { MarketingCatalogueRow } from "@/lib/marketing/catalogue";
 import {
+  getCatalogueTemplate,
   listCatalogueTemplates,
+  type CatalogueSectionType,
   type CatalogueTemplateCode,
 } from "@/lib/marketing/catalogue-templates";
-import { absoluteUrl } from "@/lib/site";
+import { catalogueShareUrl } from "@/lib/marketing/catalogue-share";
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 
 const initial: CatalogueActionState = { ok: false };
+
+const ALL_SECTION_TYPES: CatalogueSectionType[] = [
+  "cover",
+  "gallery",
+  "rooms",
+  "fnb",
+  "spa",
+  "meeting",
+  "rates",
+  "contact",
+];
 
 function Feedback({ state }: { state: CatalogueActionState }) {
   if (!state.error && !state.message) return null;
@@ -47,6 +62,12 @@ export function MarketingCataloguesPanel({
   );
   useActionToast(createState, { successMessage: "Catalogue saved" });
   const [editId, setEditId] = useState<string | null>(null);
+  const [templateCode, setTemplateCode] =
+    useState<CatalogueTemplateCode>("flagship_stay");
+  const template = useMemo(
+    () => getCatalogueTemplate(templateCode),
+    [templateCode],
+  );
   const editRow = editId
     ? (catalogues.find((c) => c.id === editId) ?? null)
     : null;
@@ -87,7 +108,8 @@ export function MarketingCataloguesPanel({
                       type="radio"
                       name="template_code"
                       value={t.code}
-                      defaultChecked={t.code === "flagship_stay"}
+                      checked={templateCode === t.code}
+                      onChange={() => setTemplateCode(t.code)}
                       required
                     />
                     <span className="font-medium">{t.name}</span>
@@ -128,21 +150,17 @@ export function MarketingCataloguesPanel({
             <select
               name="audience"
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-              defaultValue="public"
+              defaultValue={template.defaultAudience}
+              key={`audience-${templateCode}`}
             >
               <option value="public">Public (IG/FB)</option>
               <option value="agents">Agents</option>
               <option value="media_press">Media / press</option>
             </select>
           </label>
-          <label className="space-y-1.5 text-sm">
-            <span className="text-muted-foreground">Cover Cloudinary ID</span>
-            <Input
-              name="cover_public_id"
-              placeholder="pelbu/hotel/..."
-              className="h-10 font-mono text-xs"
-            />
-          </label>
+          <div className="sm:col-span-2 lg:col-span-2">
+            <CoverPublicIdField />
+          </div>
           <label className="space-y-1.5 text-sm">
             <span className="text-muted-foreground">Promo code (optional)</span>
             <select
@@ -174,6 +192,22 @@ export function MarketingCataloguesPanel({
               className="h-10"
             />
           </label>
+          <label className="space-y-1.5 text-sm">
+            <span className="text-muted-foreground">Story caption (short)</span>
+            <Input
+              name="caption_story"
+              placeholder="Short story sticker text"
+              className="h-10"
+            />
+          </label>
+          <label className="space-y-1.5 text-sm">
+            <span className="text-muted-foreground">Agent blurb</span>
+            <Input
+              name="caption_agent"
+              placeholder="Trade newsletter blurb"
+              className="h-10"
+            />
+          </label>
           <label className="space-y-1.5 text-sm sm:col-span-2">
             <span className="text-muted-foreground">Hashtags</span>
             <Input
@@ -187,7 +221,8 @@ export function MarketingCataloguesPanel({
             <select
               name="cta_kind"
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-              defaultValue="book"
+              defaultValue={templateCode === "fnb_taste" ? "order" : "book"}
+              key={`cta-${templateCode}`}
             >
               <option value="book">Book stay</option>
               <option value="order">Order F&B</option>
@@ -195,34 +230,43 @@ export function MarketingCataloguesPanel({
               <option value="custom">Custom URL</option>
             </select>
           </label>
+          <label className="space-y-1.5 text-sm">
+            <span className="text-muted-foreground">Custom CTA URL</span>
+            <Input
+              name="cta_href"
+              placeholder="/book or https://…"
+              className="h-10 font-mono text-xs"
+            />
+          </label>
 
-          <fieldset className="sm:col-span-2 lg:col-span-3 space-y-2">
+          <fieldset
+            className="sm:col-span-2 lg:col-span-3 space-y-2"
+            key={`sections-${templateCode}`}
+          >
             <legend className="text-xs font-medium text-muted-foreground">
-              Sections (defaults from template; check to include)
+              Sections (from {template.name}; uncheck to hide)
             </legend>
             <div className="flex flex-wrap gap-3 text-sm">
-              {(
-                [
-                  "cover",
-                  "gallery",
-                  "rooms",
-                  "fnb",
-                  "spa",
-                  "meeting",
-                  "rates",
-                  "contact",
-                ] as const
-              ).map((type) => (
-                <label key={type} className="inline-flex items-center gap-1.5">
-                  <input
-                    type="checkbox"
-                    name={`section_${type}`}
-                    value="1"
-                    defaultChecked={type !== "rates" && type !== "meeting"}
-                  />
-                  <span className="capitalize">{type}</span>
-                </label>
-              ))}
+              {ALL_SECTION_TYPES.map((type) => {
+                const def = template.defaultSections.find(
+                  (s) => s.type === type,
+                );
+                const defaultOn = def ? def.enabled : false;
+                return (
+                  <label
+                    key={type}
+                    className="inline-flex items-center gap-1.5"
+                  >
+                    <input
+                      type="checkbox"
+                      name={`section_${type}`}
+                      value="1"
+                      defaultChecked={defaultOn}
+                    />
+                    <span className="capitalize">{type}</span>
+                  </label>
+                );
+              })}
             </div>
             <input type="hidden" name="sections" value="[]" />
           </fieldset>
@@ -258,6 +302,7 @@ export function MarketingCataloguesPanel({
               <th className="px-3 py-2 font-medium">Template</th>
               <th className="px-3 py-2 font-medium">Status</th>
               <th className="px-3 py-2 font-medium">Views</th>
+              <th className="px-3 py-2 font-medium">Social DL</th>
               <th className="px-3 py-2 font-medium">Share</th>
               <th className="px-3 py-2 font-medium" />
             </tr>
@@ -266,7 +311,7 @@ export function MarketingCataloguesPanel({
             {catalogues.length === 0 ? (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={7}
                   className="px-3 py-6 text-center text-muted-foreground"
                 >
                   No catalogues yet.
@@ -286,6 +331,9 @@ export function MarketingCataloguesPanel({
                   </td>
                   <td className="px-3 py-2">{c.status}</td>
                   <td className="px-3 py-2 tabular-nums">{c.view_count}</td>
+                  <td className="px-3 py-2 tabular-nums">
+                    {c.social_download_count}
+                  </td>
                   <td className="px-3 py-2">
                     {c.status === "published" ? (
                       <div className="flex flex-col gap-0.5">
@@ -296,8 +344,18 @@ export function MarketingCataloguesPanel({
                         >
                           Open
                         </Link>
+                        <Link
+                          href={`/c/${c.slug}/print`}
+                          className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+                          target="_blank"
+                        >
+                          Print / PDF
+                        </Link>
                         <span className="max-w-[12rem] truncate font-mono text-[10px] text-muted-foreground">
-                          {absoluteUrl(`/c/${c.slug}`)}
+                          {catalogueShareUrl(
+                            c.slug,
+                            c.audience === "agents" ? "agent" : "copy",
+                          )}
                         </span>
                       </div>
                     ) : (
@@ -340,6 +398,28 @@ function EditCatalogueForm({
 }) {
   const [state, action, pending] = useActionState(upsertCatalogue, initial);
   useActionToast(state, { successMessage: "Catalogue updated" });
+  const [templateCode, setTemplateCode] = useState<CatalogueTemplateCode>(
+    catalogue.template_code,
+  );
+  const template = useMemo(
+    () => getCatalogueTemplate(templateCode),
+    [templateCode],
+  );
+  const enabled = new Set(
+    (catalogue.sections ?? [])
+      .filter((s) => s.enabled !== false)
+      .map((s) => s.type),
+  );
+  // Switching template re-seeds enable flags from template defaults while
+  // keeping types staff already enabled when shared across templates.
+  const sectionDefaults =
+    templateCode === catalogue.template_code
+      ? enabled
+      : new Set(
+          template.defaultSections
+            .filter((s) => s.enabled)
+            .map((s) => s.type),
+        );
 
   return (
     <form
@@ -347,14 +427,17 @@ function EditCatalogueForm({
       className="grid gap-3 rounded-lg border border-sky-500/40 bg-card p-4 sm:grid-cols-2 lg:grid-cols-3"
     >
       <input type="hidden" name="catalogue_id" value={catalogue.id} />
-      <input type="hidden" name="template_code" value={catalogue.template_code} />
       <input
         type="hidden"
         name="sections"
-        value={JSON.stringify(catalogue.sections ?? [])}
+        value={JSON.stringify(
+          templateCode === catalogue.template_code
+            ? (catalogue.sections ?? [])
+            : template.defaultSections,
+        )}
       />
       <p className="sm:col-span-2 lg:col-span-3 text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
-        Edit catalogue · {catalogue.title}
+        Edit · {catalogue.title}
       </p>
       <button
         type="button"
@@ -363,6 +446,31 @@ function EditCatalogueForm({
       >
         Cancel edit
       </button>
+
+      <label className="space-y-1.5 text-sm sm:col-span-2 lg:col-span-3">
+        <span className="text-muted-foreground">Template</span>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {listCatalogueTemplates().map((t) => (
+            <label
+              key={t.code}
+              className="flex cursor-pointer flex-col gap-1 rounded-md border p-3 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50"
+            >
+              <span className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="template_code"
+                  value={t.code}
+                  checked={templateCode === t.code}
+                  onChange={() => setTemplateCode(t.code)}
+                />
+                <span className="font-medium">{t.name}</span>
+              </span>
+              <span className="text-xs text-muted-foreground">{t.blurb}</span>
+            </label>
+          ))}
+        </div>
+      </label>
+
       <label className="space-y-1.5 text-sm">
         <span className="text-muted-foreground">Title</span>
         <Input
@@ -385,12 +493,29 @@ function EditCatalogueForm({
         <select
           name="status"
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-          defaultValue={catalogue.status === "archived" ? "draft" : catalogue.status}
+          defaultValue={
+            catalogue.status === "archived" ? "draft" : catalogue.status
+          }
         >
           <option value="draft">Draft</option>
           <option value="published">Published</option>
         </select>
       </label>
+      <label className="space-y-1.5 text-sm">
+        <span className="text-muted-foreground">Audience</span>
+        <select
+          name="audience"
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+          defaultValue={catalogue.audience}
+        >
+          <option value="public">Public (IG/FB)</option>
+          <option value="agents">Agents</option>
+          <option value="media_press">Media / press</option>
+        </select>
+      </label>
+      <div className="sm:col-span-2">
+        <CoverPublicIdField initial={catalogue.cover_public_id} />
+      </div>
       <label className="space-y-1.5 text-sm">
         <span className="text-muted-foreground">Promo code</span>
         <select
@@ -422,6 +547,72 @@ function EditCatalogueForm({
           className="h-10"
         />
       </label>
+      <label className="space-y-1.5 text-sm">
+        <span className="text-muted-foreground">Story caption</span>
+        <Input
+          name="caption_story"
+          defaultValue={catalogue.caption_story ?? ""}
+          className="h-10"
+        />
+      </label>
+      <label className="space-y-1.5 text-sm">
+        <span className="text-muted-foreground">Agent blurb</span>
+        <Input
+          name="caption_agent"
+          defaultValue={catalogue.caption_agent ?? ""}
+          className="h-10"
+        />
+      </label>
+      <label className="space-y-1.5 text-sm sm:col-span-2">
+        <span className="text-muted-foreground">Hashtags</span>
+        <Input
+          name="hashtags"
+          defaultValue={catalogue.hashtags ?? ""}
+          className="h-10"
+        />
+      </label>
+      <label className="space-y-1.5 text-sm">
+        <span className="text-muted-foreground">CTA</span>
+        <select
+          name="cta_kind"
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+          defaultValue={catalogue.cta_kind}
+        >
+          <option value="book">Book stay</option>
+          <option value="order">Order F&B</option>
+          <option value="contact">Contact</option>
+          <option value="custom">Custom URL</option>
+        </select>
+      </label>
+      <label className="space-y-1.5 text-sm">
+        <span className="text-muted-foreground">Custom CTA URL</span>
+        <Input
+          name="cta_href"
+          defaultValue={catalogue.cta_href ?? ""}
+          className="h-10 font-mono text-xs"
+        />
+      </label>
+      <fieldset
+        className="sm:col-span-2 lg:col-span-3 space-y-2"
+        key={`edit-sections-${templateCode}`}
+      >
+        <legend className="text-xs font-medium text-muted-foreground">
+          Sections ({template.name})
+        </legend>
+        <div className="flex flex-wrap gap-3 text-sm">
+          {ALL_SECTION_TYPES.map((type) => (
+            <label key={type} className="inline-flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                name={`section_${type}`}
+                value="1"
+                defaultChecked={sectionDefaults.has(type)}
+              />
+              <span className="capitalize">{type}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
       <Feedback state={state} />
       <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-3">
         <Button type="submit" disabled={pending}>
@@ -445,6 +636,74 @@ function ArchiveForm({ id }: { id: string }) {
         {pending ? "…" : "Archive"}
       </Button>
     </form>
+  );
+}
+
+function CoverPublicIdField({ initial = "" }: { initial?: string | null }) {
+  const [publicId, setPublicId] = useState(initial ?? "");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const preview = publicId
+    ? cloudinaryUrl(publicId, { width: 480, height: 300, crop: "fill" })
+    : null;
+
+  return (
+    <div className="space-y-2">
+      <span className="text-sm text-muted-foreground">Cover image</span>
+      <input type="hidden" name="cover_public_id" value={publicId} />
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex h-16 w-24 items-center justify-center overflow-hidden rounded-md border bg-muted/30">
+          {preview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={preview}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <span className="px-1 text-center text-[10px] text-muted-foreground">
+              No cover
+            </span>
+          )}
+        </div>
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPickerOpen(true)}
+            >
+              {publicId ? "Change cover" : "Pick cover"}
+            </Button>
+            {publicId ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setPublicId("")}
+              >
+                Clear
+              </Button>
+            ) : null}
+          </div>
+          <p className="truncate font-mono text-[10px] text-muted-foreground">
+            {publicId || "Uses first gallery/room photo if empty"}
+          </p>
+        </div>
+      </div>
+      <CloudinaryPicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        onSelect={(id) => {
+          setPublicId(id);
+          setPickerOpen(false);
+        }}
+        uploadFolder="pelbu/marketing"
+        title="Catalogue cover"
+        description="Pick an approved CMS/hotel image for the pack hero and OG preview."
+        acceptVideo={false}
+      />
+    </div>
   );
 }
 

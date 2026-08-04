@@ -208,6 +208,13 @@ export default async function MarketingPage({
     (s, c) => s + Number(c.view_count ?? 0),
     0,
   );
+  const catalogueSocialDls = catalogues.reduce(
+    (s, c) => s + Number(c.social_download_count ?? 0),
+    0,
+  );
+  const publishedCatalogues = catalogues.filter(
+    (c) => c.status === "published",
+  ).length;
 
   const discountByCampaign = new Map<string, number>();
   for (const r of rangeRedemptions) {
@@ -433,6 +440,18 @@ export default async function MarketingPage({
             <StatCard
               label="Redemptions + NC events"
               value={String(rangeRedemptions.length + rangeNc.length)}
+            />
+            <StatCard
+              label="Published catalogues"
+              value={String(publishedCatalogues)}
+            />
+            <StatCard
+              label="Catalogue views (all-time)"
+              value={String(catalogueViews)}
+            />
+            <StatCard
+              label="Social crop opens (all-time)"
+              value={String(catalogueSocialDls)}
             />
           </div>
 

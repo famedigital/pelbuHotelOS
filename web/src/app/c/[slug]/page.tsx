@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { PrintButton } from "@/components/erp/PrintButton";
+import QRCode from "qrcode";
+import { DocPrintControls } from "@/components/erp/DocPrintControls";
 import { CatalogueShareBar } from "@/components/marketing/CatalogueShareBar";
 import {
   CatalogueSocialPack,
@@ -11,6 +12,10 @@ import {
   recordCatalogueView,
   resolveCatalogueContent,
 } from "@/lib/marketing/catalogue";
+import {
+  buildCatalogueCaption,
+  catalogueShareUrl,
+} from "@/lib/marketing/catalogue-share";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { absoluteUrl, SITE_NAME } from "@/lib/site";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -26,14 +31,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!row) return { title: "Catalogue" };
 
   const content = await resolveCatalogueContent(admin, row);
-  const ogImage =
-    content.coverPublicId
-      ? cloudinaryUrl(content.coverPublicId, {
-          width: 1200,
-          height: 630,
-          crop: "fill",
-        })
-      : content.coverSrc;
+  const ogImage = content.coverPublicId
+    ? cloudinaryUrl(content.coverPublicId, {
+        width: 1200,
+        height: 630,
+        crop: "fill",
+      })
+    : content.coverSrc;
   const indexable = row.audience === "public";
   const url = absoluteUrl(`/c/${row.slug}`);
 
@@ -69,11 +73,24 @@ export default async function PublicCataloguePage({ params }: Props) {
   const content = await resolveCatalogueContent(admin, row);
   await recordCatalogueView(admin, row.id).catch(() => undefined);
 
-  const shareUrl = absoluteUrl(`/c/${row.slug}`);
-  const caption =
-    row.audience === "agents"
-      ? row.caption_agent ?? row.caption_feed
-      : row.caption_feed;
+  const shareSource =
+    row.audience === "agents" ? ("agent" as const) : ("copy" as const);
+  const shareUrl = catalogueShareUrl(row.slug, shareSource);
+  const caption = buildCatalogueCaption({
+    feedCaption: row.caption_feed,
+    storyCaption: row.caption_story,
+    agentCaption: row.caption_agent,
+    hashtags: null,
+    promoCode: content.promoCode,
+    audience: row.audience,
+  });
+
+  const qrUrl = catalogueShareUrl(row.slug, "qr");
+  const qrDataUrl = await QRCode.toDataURL(qrUrl, {
+    margin: 1,
+    width: 256,
+    errorCorrectionLevel: "M",
+  }).catch(() => null);
 
   return (
     <div className="min-h-dvh bg-background">
@@ -82,8 +99,8 @@ export default async function PublicCataloguePage({ params }: Props) {
           <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
             Catalogue
           </p>
-          <div className="flex gap-2">
-            <PrintButton label="Save PDF" />
+          <div className="flex flex-wrap items-center gap-2">
+            <DocPrintControls defaultSize="a4" printLabel="Save PDF" />
             <a
               href={`/c/${row.slug}/print`}
               className="inline-flex h-9 items-center rounded-md border px-3 text-xs font-medium"
@@ -93,11 +110,13 @@ export default async function PublicCataloguePage({ params }: Props) {
           </div>
         </div>
         <CatalogueShareBar
+          slug={row.slug}
           shareUrl={shareUrl}
           caption={caption}
           hashtags={row.hashtags}
           facebookUrl={content.property.facebook}
           instagramUrl={content.property.instagram}
+          qrDataUrl={qrDataUrl}
         />
         <details className="rounded-xl border bg-card p-4">
           <summary className="cursor-pointer text-sm font-medium">

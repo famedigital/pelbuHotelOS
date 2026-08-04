@@ -1,10 +1,15 @@
 import "server-only";
 
 import type { RateTier, SeasonKind } from "@/lib/rates";
+import {
+  buildPackageRateCard,
+  type PackageRateCard,
+} from "@/lib/rate-packages";
 import { loadRoomRateTaxSettings } from "@/lib/room-rate-tax";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export type { SeasonKind } from "@/lib/rates";
+export type { PackageRateCard } from "@/lib/rate-packages";
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
 
@@ -30,16 +35,26 @@ export type RateCardTierBlock = {
   rooms: RateCardRoom[];
 };
 
+export type PublicMealPlanRow = {
+  code: string;
+  name: string;
+  blurb: string | null;
+  amount_btn_per_adult_night: number | null;
+  amount_btn_per_child_night: number | null;
+};
+
 export type PublicRateCard = {
   propertyId: string;
   propertyName: string;
   seasons: RateCardSeason[];
   currentSeasonKind: SeasonKind;
   inclusiveOfGstSc: boolean;
-  defaultMealPlan: { code: string; name: string; blurb: string | null } | null;
-  mealPlans: { code: string; name: string; blurb: string | null }[];
+  defaultMealPlan: PublicMealPlanRow | null;
+  mealPlans: PublicMealPlanRow[];
   /** Public / BAR rack only */
   publicTier: RateCardTierBlock;
+  /** Room + meal package totals for public BAR (double occupancy meals). */
+  packages: PackageRateCard;
   whatsapp: string | null;
 };
 
@@ -204,7 +219,9 @@ export async function loadPublicRateCard(
     loadRatesForTiers(admin, propertyId, ["public"]),
     admin
       .from("meal_plans")
-      .select("code, name, blurb, is_active, sort_order")
+      .select(
+        "code, name, blurb, is_active, sort_order, amount_btn_per_adult_night, amount_btn_per_child_night",
+      )
       .eq("property_id", propertyId)
       .eq("is_active", true)
       .order("sort_order"),
@@ -220,10 +237,18 @@ export async function loadPublicRateCard(
   const today = todayThimphuIso();
   const currentSeasonKind = resolveCurrentSeason(seasonsRaw, today);
 
-  const mealPlans = (mealRows ?? []).map((m) => ({
+  const mealPlans: PublicMealPlanRow[] = (mealRows ?? []).map((m) => ({
     code: m.code as string,
     name: m.name as string,
     blurb: (m.blurb as string | null) ?? null,
+    amount_btn_per_adult_night:
+      m.amount_btn_per_adult_night == null
+        ? null
+        : Number(m.amount_btn_per_adult_night),
+    amount_btn_per_child_night:
+      m.amount_btn_per_child_night == null
+        ? null
+        : Number(m.amount_btn_per_child_night),
   }));
   const defaultCode =
     (property.default_meal_plan_code as string | null)?.trim() || "EP";
@@ -231,6 +256,23 @@ export async function loadPublicRateCard(
     mealPlans.find((m) => m.code === defaultCode) ??
     mealPlans[0] ??
     null;
+
+  const publicRooms = buildTierRooms(roomTypes, rates, "public");
+  const packages = buildPackageRateCard({
+    rooms: publicRooms.map((r) => ({
+      id: r.id,
+      code: r.code,
+      name: r.name,
+      amounts: r.amounts,
+    })),
+    mealPlans: mealPlans.map((m) => ({
+      code: m.code,
+      name: m.name,
+      blurb: m.blurb,
+      amount_btn_per_adult_night: m.amount_btn_per_adult_night,
+      amount_btn_per_child_night: m.amount_btn_per_child_night,
+    })),
+  });
 
   return {
     propertyId,
@@ -243,8 +285,9 @@ export async function loadPublicRateCard(
     publicTier: {
       tier: "public",
       label: TIER_LABELS.public,
-      rooms: buildTierRooms(roomTypes, rates, "public"),
+      rooms: publicRooms,
     },
+    packages,
     whatsapp: (property.whatsapp as string | null) ?? null,
   };
 }

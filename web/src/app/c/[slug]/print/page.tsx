@@ -1,11 +1,11 @@
 import { notFound } from "next/navigation";
-import { PrintButton } from "@/components/erp/PrintButton";
+import { DocPrintControls } from "@/components/erp/DocPrintControls";
 import { CatalogueView } from "@/components/marketing/CatalogueView";
 import {
   loadPublishedCatalogueBySlug,
   resolveCatalogueContent,
 } from "@/lib/marketing/catalogue";
-import { absoluteUrl } from "@/lib/site";
+import { catalogueShareUrl } from "@/lib/marketing/catalogue-share";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -22,12 +22,15 @@ export default async function CataloguePrintPage({ params }: Props) {
   const row = await loadPublishedCatalogueBySlug(admin, slug);
   if (!row) notFound();
   const content = await resolveCatalogueContent(admin, row);
-  const shareUrl = absoluteUrl(`/c/${row.slug}`);
+  const shareUrl = catalogueShareUrl(
+    row.slug,
+    row.audience === "agents" ? "agent" : "copy",
+  );
 
   return (
     <div className="min-h-dvh bg-white text-zinc-900">
       <div className="print:hidden flex justify-end gap-2 p-4">
-        <PrintButton label="Print / Save PDF" />
+        <DocPrintControls defaultSize="a4" printLabel="Print / Save PDF" />
       </div>
       <CatalogueView content={content} shareUrl={shareUrl} mode="print" />
     </div>

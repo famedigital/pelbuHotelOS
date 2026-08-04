@@ -99,15 +99,48 @@ export async function upsertCatalogue(
     }
 
     // Unchecked HTML checkboxes omit the field — treat missing as disabled when
-    // at least one section_* field is present (create form).
-    const anySectionField = sections.some(
-      (s) => formData.get(`section_${s.type}`) != null,
-    );
+    // at least one section_* field is present (create / edit form).
+    const anySectionField = (
+      [
+        "cover",
+        "gallery",
+        "rooms",
+        "fnb",
+        "spa",
+        "meeting",
+        "rates",
+        "contact",
+      ] as const
+    ).some((type) => formData.get(`section_${type}`) != null);
+
     if (anySectionField) {
-      sections = sections.map((s) => ({
-        ...s,
-        enabled: formData.get(`section_${s.type}`) === "1",
-      }));
+      const types = [
+        "cover",
+        "gallery",
+        "rooms",
+        "fnb",
+        "spa",
+        "meeting",
+        "rates",
+        "contact",
+      ] as const;
+      const byType = new Map(sections.map((s) => [s.type, { ...s }]));
+      for (const type of types) {
+        const enabled = formData.get(`section_${type}`) === "1";
+        const existing = byType.get(type);
+        if (existing) {
+          byType.set(type, { ...existing, enabled });
+        } else if (enabled) {
+          byType.set(type, {
+            type,
+            enabled: true,
+            sort_order: 50 + byType.size * 10,
+          });
+        }
+      }
+      sections = Array.from(byType.values()).sort(
+        (a, b) => a.sort_order - b.sort_order,
+      );
     }
 
     // Rates list: keep off for public packs unless staff explicitly enable.

@@ -40,6 +40,7 @@ function revalidateRates() {
   revalidatePath("/erp/fast-book");
   revalidatePath("/erp/calendar");
   revalidatePath("/book");
+  revalidatePath("/rates");
 }
 
 function parseRateCells(raw: unknown): RateCellInput[] {

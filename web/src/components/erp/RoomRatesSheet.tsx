@@ -5,11 +5,33 @@ import {
   type ErpRatesState,
 } from "@/app/actions/erp-rates";
 import { childRateFromAdult } from "@/lib/child-packages";
-import type { RateMatrixRow, RoomTypeLite, SeasonWindow } from "@/lib/room-rates-data";
 import { formatBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useActionState, useCallback, useMemo, useState } from "react";
+
+export type RateMatrixRow = {
+  id: string | null;
+  room_type_id: string;
+  room_type_name: string;
+  season_kind: string;
+  rate_tier: string;
+  amount_btn: number;
+};
+
+export type RoomTypeLite = {
+  id: string;
+  code: string;
+  name: string;
+  inventory_kind: string;
+};
+
+export type SeasonWindow = {
+  id?: string;
+  kind: string;
+  starts_on: string;
+  ends_on: string;
+};
 
 const SEASONS = ["peak", "lean", "off"] as const;
 const TIERS = [
@@ -37,20 +59,33 @@ function formatSeasonDates(seasons: SeasonWindow[], kind: string): string {
     .join(", ");
 }
 
+const PRIMARY_TIERS = TIERS.filter((t) => t.code === "public");
+const ADVANCED_TIERS = TIERS.filter((t) => t.code !== "public");
+
 export function RoomRatesSheet({
   rows,
   roomTypes,
   seasons,
   ratesInclusiveOfGstSc = false,
+  defaultTier = "public",
+  advancedTiersDisclosure = false,
 }: {
   rows: RateMatrixRow[];
   roomTypes: RoomTypeLite[];
   seasons: SeasonWindow[];
   /** Property policy: sheet Nu inclusive of GST + SC. */
   ratesInclusiveOfGstSc?: boolean;
+  /** Initial market tier tab. */
+  defaultTier?: string;
+  /**
+   * When true, public is primary; other market tiers are behind a disclosure
+   * so small hotels are not forced through six tabs on first open.
+   */
+  advancedTiersDisclosure?: boolean;
 }) {
   const guestRooms = roomTypes.filter((r) => r.inventory_kind === "sellable_guest");
-  const [activeTier, setActiveTier] = useState<string>("public");
+  const [activeTier, setActiveTier] = useState<string>(defaultTier);
+  const [showAdvancedTiers, setShowAdvancedTiers] = useState(false);
 
   const savedByKey = useMemo(() => {
     const map = new Map<CellKey, number>();
@@ -154,8 +189,8 @@ export function RoomRatesSheet({
         </Link>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {TIERS.map((tier) => (
+      <div className="flex flex-wrap items-center gap-2">
+        {PRIMARY_TIERS.map((tier) => (
           <button
             key={tier.code}
             type="button"
@@ -170,7 +205,64 @@ export function RoomRatesSheet({
             {tier.label}
           </button>
         ))}
+        {advancedTiersDisclosure ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setShowAdvancedTiers((v) => !v)}
+              className={cn(
+                "rounded-full border px-3 py-1.5 text-xs font-medium tracking-wide transition-colors",
+                showAdvancedTiers
+                  ? "border-input bg-muted text-foreground"
+                  : "border-dashed border-input text-muted-foreground hover:bg-muted",
+              )}
+              aria-expanded={showAdvancedTiers}
+            >
+              {showAdvancedTiers ? "Hide trade tiers" : "Advanced market tiers"}
+            </button>
+            {showAdvancedTiers
+              ? ADVANCED_TIERS.map((tier) => (
+                  <button
+                    key={tier.code}
+                    type="button"
+                    onClick={() => setActiveTier(tier.code)}
+                    className={cn(
+                      "rounded-full border px-3 py-1.5 text-xs font-medium tracking-wide transition-colors",
+                      activeTier === tier.code
+                        ? "border-accent bg-accent/10 text-foreground"
+                        : "border-input text-muted-foreground hover:bg-muted",
+                    )}
+                  >
+                    {tier.label}
+                  </button>
+                ))
+              : null}
+          </>
+        ) : (
+          TIERS.filter((t) => t.code !== "public").map((tier) => (
+            <button
+              key={tier.code}
+              type="button"
+              onClick={() => setActiveTier(tier.code)}
+              className={cn(
+                "rounded-full border px-3 py-1.5 text-xs font-medium tracking-wide transition-colors",
+                activeTier === tier.code
+                  ? "border-accent bg-accent/10 text-foreground"
+                  : "border-input text-muted-foreground hover:bg-muted",
+              )}
+            >
+              {tier.label}
+            </button>
+          ))
+        )}
       </div>
+
+      {advancedTiersDisclosure && !showAdvancedTiers && activeTier !== "public" ? (
+        <p className="text-xs text-muted-foreground">
+          Showing {TIERS.find((t) => t.code === activeTier)?.label ?? activeTier}
+          . Open Advanced market tiers to switch.
+        </p>
+      ) : null}
 
       <div className="overflow-x-auto rounded-lg border bg-card">
         <table className="min-w-full text-left text-sm">

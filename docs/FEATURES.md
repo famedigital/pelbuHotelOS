@@ -34,7 +34,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Feature | Route / notes |
 |---------|----------------|
 | Flagship conversion pages | `/`, rooms, cafe, restaurant, bar, dine, spa, meeting, book, order, contact, agents |
-| Public room rates | `/rates` — rack/public tier table from `room_rates`; trade tiers only after email+WhatsApp soft gate (audit `rate_card_access_log` + httpOnly cookie); GST/SC inclusive badge from `property_policies` |
+| Public room rates | `/rates` — **package card** (room only + BB/MAP totals at double occupancy) from `room_rates` + `meal_plans`; same math as desk; trade tiers only after email+WhatsApp soft gate (audit `rate_card_access_log` + httpOnly cookie); GST/SC inclusive badge; child package footnotes (0–6 free, 6–12 meal @ 50%) |
 | CMS galleries + menus | Supabase `cms_*` / `menu_items` + Cloudinary `image_public_id` |
 | Direct book | Creates booking; overbooking guard; hold TTL + deposit payment URL; uses `StayDatesField` (Dates mode default) |
 | F&B order | Cafe/pastry/restaurant → separate KOT tickets; mixed carts rejected |
@@ -100,7 +100,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Group / properties | `/erp/group`, `/erp/properties/*` | Multi-hotel overview + **setup wizard** (identity → rooms/units → rates → outlets/deposits → team/banks) |
 | Night audit | `/erp/night-audit` | Close-day checklist + room-night posting; cron midnight Thimphu; printable pack with POS cash variance table |
 | Guests | `/erp/guests`, `/erp/guests/[id]` | Directory + **profile stay history**; SDF incomplete badge; immigration CSV export |
-| Room rates | `/erp/rates` | Rate matrix + **season date-range editor** |
+| Room rates | `/erp/rates` | **Public package card** (room + meal packages) primary; public room Nu edit + advanced market tiers; season date-range editor; meal plan strip → Settings |
 | Folio | `/erp/folios/[id]` | Payments, void, comp, minibar/amenity quick charge, damage; day-1 post; stay money strip |
 | Settings | `/erp/settings` | Identity · Tax & service · Documents · Rooms (see shell table) |
 | **DOT assessment** | `/erp/dot-assessment` | HCS 2024 3★/4★ digital checklist (Trade · BFDA · DOT), entry gate, M/Q/P scores, photos, print pack |
