@@ -1066,7 +1066,8 @@ function AccessStep({
               <span>
                 <span className="font-medium">Allow hotel desk (/erp)</span>
                 <span className="mt-1 block text-muted-foreground">
-                  Employee-code + PIN dual-auth. Shared DESK_PIN still works.
+                  Front desk / cashier / HK / F&amp;B need this on plus a desk
+                  role and portal PIN. Without it they can only use /staff.
                 </span>
               </span>
             </label>

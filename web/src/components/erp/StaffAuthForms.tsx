@@ -14,11 +14,17 @@ const pinInitial = { ok: false as boolean, error: undefined as string | undefine
 const selectClass =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
 
-export function StaffLoginForm() {
+export function StaffLoginForm({
+  workspace = "staff",
+}: {
+  /** desk: require can_access_desk; staff: staff portal is enough */
+  workspace?: "staff" | "desk";
+}) {
   const [state, action, pending] = useActionState(staffLogin, loginInitial);
 
   return (
     <form action={action} className="space-y-4" noValidate>
+      <input type="hidden" name="workspace" value={workspace} />
       <div className="space-y-1.5">
         <Label htmlFor="employee_code">Employee code</Label>
         <Input
@@ -114,8 +120,9 @@ export function StaffPinProvisionForm({
         <span>
           <span className="font-medium">Also allow hotel desk (/erp)</span>
           <span className="mt-1 block text-muted-foreground">
-            Dual-auth Work access. Shared DESK_PIN still works for the whole
-            front desk.
+            Required for front desk, cashier, and other ERP operators. Leave
+            unchecked for staff-portal only (rota / leave). Unchecked does not
+            strip desk access already granted under Team → Access.
           </span>
         </span>
       </label>

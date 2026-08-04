@@ -45,8 +45,8 @@ export default async function DeskLoginPage() {
               Front desk
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Sign in with your staff employee code and PIN. Owner / GM accounts
-              open the full desk.
+              Sign in with your employee code and PIN. Any staff account with
+              desk access enabled by HR can open Work — not only Owner / GM.
             </p>
           </div>
         </div>
@@ -55,7 +55,7 @@ export default async function DeskLoginPage() {
           <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
             Staff Auth
           </p>
-          <StaffLoginForm />
+          <StaffLoginForm workspace="desk" />
         </div>
 
         {pinOk ? (

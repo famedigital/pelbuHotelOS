@@ -60,8 +60,14 @@ export async function staffLogin(
 
     const member = staff[0];
     if (!member.can_login || !member.auth_user_id) {
-      throw new Error("Ask HR to enable your staff login PIN first.");
+      throw new Error(
+        "Ask HR to enable your staff login PIN first (Team → person → Set PIN).",
+      );
     }
+
+    // "desk" when signing in from /erp/login — fail closed with a clear HR path
+    // instead of silently opening the staff portal (looks like "login failed").
+    const wantsDesk = String(formData.get("workspace") ?? "") === "desk";
 
     const supabase = await createSupabaseServerClient();
     const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -73,6 +79,15 @@ export async function staffLogin(
     });
     if (signInError) {
       return { ok: false, error: "Incorrect employee code or PIN." };
+    }
+
+    if (wantsDesk && !member.can_access_desk) {
+      await supabase.auth.signOut();
+      return {
+        ok: false,
+        error:
+          "Your PIN works, but hotel desk is off for this account. Ask HR or a manager to turn on “Allow hotel desk (/erp)” and set a desk role (front desk, cashier, etc.).",
+      };
     }
 
     await admin
@@ -87,7 +102,10 @@ export async function staffLogin(
       entityId: member.id as string,
       summary: `${member.full_name as string} signed into staff portal`,
       actor: member.employee_code as string,
-      meta: { canAccessDesk: Boolean(member.can_access_desk) },
+      meta: {
+        canAccessDesk: Boolean(member.can_access_desk),
+        workspace: wantsDesk ? "desk" : "staff",
+      },
     });
 
     redirect(member.can_access_desk ? "/erp" : "/staff");
@@ -146,7 +164,7 @@ export async function setStaffPortalPin(
     const { data: staff, error } = await admin
       .from("staff_members")
       .select(
-        "id, property_id, employee_code, full_name, access_level, auth_user_id, status",
+        "id, property_id, employee_code, full_name, access_level, auth_user_id, status, can_access_desk, desk_role",
       )
       .eq("id", staffId)
       .eq("property_id", propertyId)
@@ -169,15 +187,37 @@ export async function setStaffPortalPin(
       pin,
     );
 
+    // can_access_desk semantics:
+    // - "on" → grant desk
+    // - field present but not "on" (dossier hidden "off") → explicit revoke/keep off
+    // - field absent (unchecked checkbox on bulk form) → preserve existing so a PIN
+    //   reset cannot accidentally strip desk that Access already granted
+    const deskField = formData.get("can_access_desk");
+    let nextCanAccessDesk = Boolean(staff.can_access_desk);
+    if (deskField === "on") {
+      nextCanAccessDesk = true;
+    } else if (deskField !== null) {
+      nextCanAccessDesk = false;
+    }
+
+    const update: Record<string, unknown> = {
+      auth_user_id: authUserId,
+      can_login: true,
+      can_access_desk: nextCanAccessDesk,
+      pin_set_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    // Desk flag without RBAC role breaks Access UX require-desk-role; default FO.
+    if (
+      nextCanAccessDesk &&
+      !(staff.desk_role as string | null)?.trim()
+    ) {
+      update.desk_role = "front_desk";
+    }
+
     const { error: updateError } = await admin
       .from("staff_members")
-      .update({
-        auth_user_id: authUserId,
-        can_login: true,
-        can_access_desk: formData.get("can_access_desk") === "on",
-        pin_set_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
+      .update(update)
       .eq("id", staffId)
       .eq("property_id", propertyId);
     if (updateError) throw new Error("Could not enable staff login.");
@@ -190,7 +230,7 @@ export async function setStaffPortalPin(
       summary: `Enabled staff portal PIN for ${staff.full_name as string}`,
       meta: {
         employeeCode: staff.employee_code,
-        canAccessDesk: formData.get("can_access_desk") === "on",
+        canAccessDesk: nextCanAccessDesk,
       },
     });
 
