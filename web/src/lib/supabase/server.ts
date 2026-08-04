@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import type { ReadonlyRequestCookies } from "next/dist/server/web/spec-extension/adapters/request-cookies";
 import { getSupabaseAnonKey, getSupabaseUrl } from "./env";
 
 /**
@@ -31,27 +32,33 @@ function nextCookieOptions(
   };
 }
 
+function bindSupabaseCookies(cookieStore: ReadonlyRequestCookies) {
+  return {
+    getAll() {
+      return cookieStore.getAll();
+    },
+    setAll(cookiesToSet: Array<{ name: string; value: string; options?: CookieOptions }>) {
+      try {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          // Pass only serialize options Next/cookies accepts — drops any
+          // library-only fields that can throw and abort the whole setAll.
+          cookieStore.set(name, value, nextCookieOptions(options));
+        });
+      } catch {
+        // Called from a Server Component — safe to ignore when middleware
+        // refreshes sessions. Server Actions / Route Handlers must set cookies.
+      }
+    },
+  };
+}
+
 /** Cookie-aware anon client for Server Components / Route Handlers / Actions. */
-export async function createSupabaseServerClient() {
-  const cookieStore = await cookies();
+export async function createSupabaseServerClient(
+  cookieStore?: ReadonlyRequestCookies,
+) {
+  const jar = cookieStore ?? (await cookies());
 
   return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll(cookiesToSet) {
-        try {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            // Pass only serialize options Next/cookies accepts — drops any
-            // library-only fields that can throw and abort the whole setAll.
-            cookieStore.set(name, value, nextCookieOptions(options));
-          });
-        } catch {
-          // Called from a Server Component — safe to ignore when middleware
-          // refreshes sessions. Server Actions / Route Handlers must set cookies.
-        }
-      },
-    },
+    cookies: bindSupabaseCookies(jar),
   });
 }

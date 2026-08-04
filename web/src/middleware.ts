@@ -137,12 +137,7 @@ export async function middleware(request: NextRequest) {
   const needsAuthRefresh =
     pathname.startsWith("/staff") ||
     pathname.startsWith("/agents/app") ||
-    pathname.startsWith("/agents/login") ||
-    // Desk-capable staff reach /erp on Supabase Auth rather than the shared
-    // PIN, so refresh only for them and let PIN sessions skip the round trip.
-    (isErp &&
-      !hasValidDeskPinCookie(request) &&
-      hasSupabaseAuthSessionCookie(request.cookies.getAll()));
+    pathname.startsWith("/agents/login");
 
   if (needsAuthRefresh) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
