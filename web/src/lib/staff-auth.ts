@@ -3,6 +3,22 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
 
+/** Shared shape for staff_members lookups; desk_module_keys optional for pre-migration fallback. */
+type StaffMemberRow = {
+  id: string;
+  property_id: string;
+  employee_code: string;
+  full_name: string;
+  role_label: string;
+  access_level: string;
+  department: string | null;
+  status: string;
+  can_login: boolean;
+  can_access_desk: boolean | null;
+  desk_role: string | null;
+  desk_module_keys?: string[] | null;
+};
+
 export type StaffSession = {
   staffId: string;
   propertyId: string;
@@ -56,7 +72,7 @@ export async function getStaffSession(): Promise<StaffSession | null> {
 
   // Migration 20260816100000 may not be applied yet — fall back without the column
   // so staff login still resolves can_access_desk for /erp.
-  let row = data;
+  let row: StaffMemberRow | null = data as StaffMemberRow | null;
   if (error?.message?.includes("desk_module_keys")) {
     const fallback = await admin
       .from("staff_members")
@@ -65,7 +81,9 @@ export async function getStaffSession(): Promise<StaffSession | null> {
       )
       .eq("auth_user_id", user.id)
       .maybeSingle();
-    row = fallback.data;
+    row = fallback.data
+      ? { ...(fallback.data as Omit<StaffMemberRow, "desk_module_keys">), desk_module_keys: null }
+      : null;
   } else if (error) {
     return null;
   }
@@ -73,28 +91,28 @@ export async function getStaffSession(): Promise<StaffSession | null> {
   if (
     !row ||
     !row.can_login ||
-    !["active", "on_leave"].includes(row.status as string)
+    !["active", "on_leave"].includes(row.status)
   ) {
     return null;
   }
 
-  const rawKeys = (row as { desk_module_keys?: string[] | null }).desk_module_keys;
+  const rawKeys = row.desk_module_keys;
   const deskModuleKeys =
     Array.isArray(rawKeys) && rawKeys.length > 0
       ? rawKeys.map(String)
       : null;
 
   return {
-    staffId: row.id as string,
-    propertyId: row.property_id as string,
+    staffId: row.id,
+    propertyId: row.property_id,
     authUserId: user.id,
-    employeeCode: row.employee_code as string,
-    fullName: row.full_name as string,
-    roleLabel: row.role_label as string,
-    accessLevel: row.access_level as string,
-    department: (row.department as string | null) ?? null,
+    employeeCode: row.employee_code,
+    fullName: row.full_name,
+    roleLabel: row.role_label,
+    accessLevel: row.access_level,
+    department: row.department ?? null,
     canAccessDesk: Boolean(row.can_access_desk),
-    deskRole: (row.desk_role as string | null) ?? null,
+    deskRole: row.desk_role ?? null,
     deskModuleKeys,
   };
 }
