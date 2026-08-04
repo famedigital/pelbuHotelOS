@@ -7,7 +7,7 @@ import { HomeWhy } from "@/components/home/HomeWhy";
 import { CmsContentSections } from "@/components/site/CmsContentSections";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { PublicSiteHeader } from "@/components/site/PublicSiteHeader";
-import { BRAND_ICONS, HOME_HERO_SLIDES, OUTLET_SHOWCASE_PHOTOS } from "@/lib/brand";
+import { HOME_HERO_SLIDES, OUTLET_SHOWCASE_PHOTOS } from "@/lib/brand";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { loadCmsGallery, loadCmsPage } from "@/lib/cms";
 import { loadHomeShowcase } from "@/lib/home-content";
@@ -105,7 +105,7 @@ export default async function HomePage() {
           ]),
         }}
       />
-      <PublicSiteHeader logoSrc={BRAND_ICONS.mark} variant="hero" />
+      <PublicSiteHeader variant="hero" />
       <main>
         <HomeHero
           slides={slides}

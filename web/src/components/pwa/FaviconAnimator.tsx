@@ -1,9 +1,10 @@
 "use client";
 
+import { BRAND_ICONS } from "@/lib/brand";
 import { useEffect } from "react";
 
 /**
- * Animated tab favicon. Renders the Pelbu knot mark to a canvas with a
+ * Animated tab favicon. Renders the Pelbu brand mark to a canvas with a
  * rotating gold "loading" arc while the document loads, then settles to the
  * crisp static favicon. Works in Chromium/Firefox (dynamic favicon via data
  * URL); Safari ignores runtime favicon swaps and keeps the static PNG, which
@@ -11,8 +12,8 @@ import { useEffect } from "react";
  */
 
 const SIZE = 64; // canvas render size (browser downscales to 16/32 in the tab)
-const MARK_SRC = "/icons/icon-512.png";
-const STATIC_SRC = "/icons/favicon-32.png";
+const MARK_SRC = BRAND_ICONS.markLg;
+const STATIC_SRC = BRAND_ICONS.favicon32;
 const GOLD = "#d4a852";
 const GOLD_TRACK = "rgba(184, 137, 44, 0.18)";
 const COMMIT_INTERVAL_MS = 80; // ~12fps favicon updates — plenty, cheap
@@ -84,7 +85,7 @@ export function FaviconAnimator() {
       running = false;
       cancelAnimationFrame(raf);
       // Hand back to the crisp static favicon asset.
-      iconLink.href = `${STATIC_SRC}?v=settled`;
+      iconLink.href = STATIC_SRC;
     };
 
     const frame = (now: number) => {

@@ -1,7 +1,8 @@
 /* Pelbu Work PWA — never caches authenticated operational data. */
 
-const CACHE_NAME = "pelbu-work-v1";
+const CACHE_NAME = "pelbu-work-v2";
 const OFFLINE_URL = "/work-offline.html";
+const ICON_V = "20260804";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -10,8 +11,8 @@ self.addEventListener("install", (event) => {
       .then((cache) =>
         cache.addAll([
           OFFLINE_URL,
-          "/icons/icon-192.png",
-          "/icons/icon-512.png",
+          `/icons/icon-192.png?v=${ICON_V}`,
+          `/icons/icon-512.png?v=${ICON_V}`,
         ]),
       ),
   );

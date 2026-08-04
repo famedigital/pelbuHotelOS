@@ -4,9 +4,9 @@ import {
   TiktokGlyph,
 } from "@/components/site/SocialIcons";
 import { Button } from "@/components/ui/button";
-import { BRAND_ICONS } from "@/lib/brand";
 import { buildFooterColumns } from "@/lib/mega-menu";
 import { loadPublicRooms } from "@/lib/public-content";
+import { resolveLogoSrc } from "@/lib/public-logo";
 import {
   loadPublicPropertyProfile,
   type PublicPropertyProfile,
@@ -89,6 +89,7 @@ export async function SiteFooter({
   ]);
   const columns = buildFooterColumns(rooms);
   const socials = socialLinks(property);
+  const logoSrc = resolveLogoSrc(property?.logoPublicId);
 
   return (
     <footer className="relative overflow-hidden bg-gradient-to-br from-sky-ink via-sky-ink to-sky-800 text-white">
@@ -114,7 +115,7 @@ export async function SiteFooter({
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={BRAND_ICONS.mark}
+                src={logoSrc}
                 alt=""
                 className="h-9 w-9 object-contain"
                 width={36}

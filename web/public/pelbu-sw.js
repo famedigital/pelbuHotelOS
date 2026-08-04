@@ -1,8 +1,9 @@
 /* Pelbu Suites public PWA — navigation resilience only. */
 
-const CACHE_NAME = "pelbu-public-v1";
+const CACHE_NAME = "pelbu-public-v2";
 const OFFLINE_URL = "/offline.html";
 const PRIVATE_PREFIXES = ["/api/", "/erp/", "/staff/", "/agents/app/", "/pay/"];
+const ICON_V = "20260804";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -11,8 +12,8 @@ self.addEventListener("install", (event) => {
       .then((cache) =>
         cache.addAll([
           OFFLINE_URL,
-          "/icons/icon-192.png",
-          "/icons/icon-512.png",
+          `/icons/icon-192.png?v=${ICON_V}`,
+          `/icons/icon-512.png?v=${ICON_V}`,
         ]),
       ),
   );

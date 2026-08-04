@@ -3,15 +3,26 @@
  * Prefer these constants over hardcoding paths in components.
  */
 
-/** Favicon + PWA icons under `web/public/icons` (knot mark). */
+/**
+ * Bump when replacing files under `web/public/icons` so browsers/PWA drop stale caches.
+ * Keep in sync with `?v=` on icons in `*.webmanifest` and SW precache lists.
+ */
+export const BRAND_ICON_VERSION = "20260804";
+
+function iconPath(path: string): string {
+  return `${path}?v=${BRAND_ICON_VERSION}`;
+}
+
+/** Favicon + PWA icons under `web/public/icons` (primary brand mark). */
 export const BRAND_ICONS = {
-  favicon: "/favicon.ico",
-  favicon16: "/icons/favicon-16.png",
-  favicon32: "/icons/favicon-32.png",
-  /** Knot mark — use on dark/espresso chrome (header, ERP). */
-  mark: "/icons/icon-192.png",
-  markLg: "/icons/icon-512.png",
-  appleTouch: "/icons/apple-touch-icon.png",
+  favicon: iconPath("/favicon.ico"),
+  favicon16: iconPath("/icons/favicon-16.png"),
+  favicon32: iconPath("/icons/favicon-32.png"),
+  /** Brand mark — use on dark/espresso chrome (header, ERP fallback). */
+  mark: iconPath("/icons/icon-192.png"),
+  markLg: iconPath("/icons/icon-512.png"),
+  markMaskable: iconPath("/icons/icon-512-maskable.png"),
+  appleTouch: iconPath("/icons/apple-touch-icon.png"),
 } as const;
 
 /** @deprecated use BRAND_ICONS.mark */
@@ -20,7 +31,10 @@ export const BRAND_FAVICON = BRAND_ICONS.favicon;
 
 /** Cloudinary public_ids — logos + curated high-resolution photography. */
 export const BRAND_CLOUDINARY = {
-  logoPrimary: "pelbu/brand/logo-primary",
+  /** Live Settings → Identity logo (ERP desk + printed docs source of truth). */
+  logoPrimary: "pelbu/brand/h2q193tfpc5qrgchfjj1",
+  /** Legacy alias still used in some older uploads. */
+  logoLegacy: "pelbu/brand/logo-primary",
   logoFlat: "pelbu/brand/logo-flat",
   logoWordmark: "pelbu/brand/logo-wordmark",
   roomsDeluxe: "pelbu/seven-suites/official-img6149",

@@ -11,6 +11,8 @@ export type PublicPropertyProfile = {
   instagram: string | null;
   facebook: string | null;
   tiktok: string | null;
+  /** Cloudinary public_id from Settings → Identity; drives public-site brand logo. */
+  logoPublicId: string | null;
 };
 
 /** Instagram is stored as a handle; render it as a profile URL. */
@@ -31,7 +33,7 @@ export async function loadPublicPropertyProfile(): Promise<PublicPropertyProfile
   const { data } = await admin
     .from("properties")
     .select(
-      "name, phone, email, address, whatsapp, maps_url, instagram_handle, facebook_url, tiktok_url",
+      "name, phone, email, address, whatsapp, maps_url, instagram_handle, facebook_url, tiktok_url, logo_public_id",
     )
     .eq("id", propertyId)
     .maybeSingle();
@@ -48,5 +50,6 @@ export async function loadPublicPropertyProfile(): Promise<PublicPropertyProfile
     instagram: instagramUrl((data.instagram_handle as string | null) ?? null),
     facebook: (data.facebook_url as string | null) ?? null,
     tiktok: (data.tiktok_url as string | null) ?? null,
+    logoPublicId: (data.logo_public_id as string | null) ?? null,
   };
 }

@@ -5,7 +5,7 @@ import { CmsContentSections } from "@/components/site/CmsContentSections";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { PublicSiteHeader } from "@/components/site/PublicSiteHeader";
 import { Button } from "@/components/ui/button";
-import { BRAND_CLOUDINARY, BRAND_ICONS } from "@/lib/brand";
+import { BRAND_CLOUDINARY } from "@/lib/brand";
 import { loadCmsPage } from "@/lib/cms";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { loadPublicPropertyProfile } from "@/lib/public-property";
@@ -110,7 +110,7 @@ export default async function ContactPage() {
           ]),
         }}
       />
-      <PublicSiteHeader logoSrc={BRAND_ICONS.mark} variant="solid" />
+      <PublicSiteHeader variant="solid" />
       <main>
         <section className="border-b border-border bg-gradient-to-b from-sky-100/40 to-background">
           <div className="mx-auto grid max-w-[1120px] gap-10 px-5 py-14 md:grid-cols-2 md:items-center md:px-8 md:py-20">
