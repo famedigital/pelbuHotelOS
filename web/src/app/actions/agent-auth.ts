@@ -8,18 +8,15 @@ import {
   provisionAgentAuthUser,
   validateAgentPin,
 } from "@/lib/agent-auth";
-import { hasSupabaseAuthSessionCookie } from "@/lib/supabase-auth-cookies";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { trimRequired } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 export type AgentLoginState = {
   ok: boolean;
   error?: string;
-  redirectTo?: string;
 };
 
 function isRedirect(error: unknown): boolean {
@@ -63,31 +60,12 @@ export async function agentLogin(
       return { ok: false, error: "Incorrect agent code or PIN." };
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      return {
-        ok: false,
-        error: "Signed in but session cookie was not set. Try again.",
-      };
-    }
-
-    const jar = await cookies();
-    if (!hasSupabaseAuthSessionCookie(jar.getAll())) {
-      return {
-        ok: false,
-        error: "Session cookie could not be saved. Check browser cookies and try again.",
-      };
-    }
-
     await admin
       .from("agents")
       .update({ last_login_at: new Date().toISOString() })
       .eq("id", agent.id);
 
-    // Hard-nav on the client after Set-Cookie; avoid soft-redirect races.
-    return { ok: true, redirectTo: "/agents/app" };
+    redirect("/agents/app");
   } catch (error) {
     if (isRedirect(error)) throw error;
     return {

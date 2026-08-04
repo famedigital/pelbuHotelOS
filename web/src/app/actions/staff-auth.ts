@@ -8,31 +8,17 @@ import {
   staffAuthEmail,
   validateStaffPin,
 } from "@/lib/staff-auth";
-import {
-  clearSupabaseAuthSessionCookies,
-  hasSupabaseAuthSessionCookie,
-} from "@/lib/supabase-auth-cookies";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { trimRequired } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 export type StaffLoginState = {
   ok: boolean;
   error?: string;
-  /** Full-page destination after cookies land (hard nav on client). */
-  redirectTo?: string;
 };
-
-function staffSignInErrorMessage(message: string): string {
-  const lower = message.toLowerCase();
-  if (lower.includes("fetch") || lower.includes("network")) {
-    return "Could not reach auth service. Check your connection and try again.";
-  }
-  return "Incorrect employee code or PIN.";
-}
 
 export async function staffLogin(
   _previous: StaffLoginState,
@@ -77,12 +63,7 @@ export async function staffLogin(
       throw new Error("Ask HR to enable your staff login PIN first.");
     }
 
-    const cookieStore = await cookies();
-    // A prior failed sign-in can leave mismatched auth-token.0/.1 chunks that
-    // pass the name-only cookie check but break getUser on the next GET /erp.
-    clearSupabaseAuthSessionCookies(cookieStore);
-
-    const supabase = await createSupabaseServerClient(cookieStore);
+    const supabase = await createSupabaseServerClient();
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: staffAuthEmail(
         member.property_id as string,
@@ -91,31 +72,7 @@ export async function staffLogin(
       password: pin,
     });
     if (signInError) {
-      return {
-        ok: false,
-        error: staffSignInErrorMessage(signInError.message),
-      };
-    }
-
-    // Confirm session materialised on this request before redirect (cookies
-    // are written via createSupabaseServerClient setAll on SIGNED_IN).
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      return {
-        ok: false,
-        error: "Signed in but session cookie was not set. Try again.",
-      };
-    }
-
-    // getUser() can succeed from in-memory client state even when Set-Cookie
-    // failed; middleware only sees real request cookies.
-    if (!hasSupabaseAuthSessionCookie(cookieStore.getAll())) {
-      return {
-        ok: false,
-        error: "Session cookie could not be saved. Check browser cookies and try again.",
-      };
+      return { ok: false, error: "Incorrect employee code or PIN." };
     }
 
     await admin
@@ -133,14 +90,7 @@ export async function staffLogin(
       meta: { canAccessDesk: Boolean(member.can_access_desk) },
     });
 
-    // Soft redirect() races RSC prefetches before Set-Cookie commits on Vercel.
-    // Return the destination and let the client do window.location.assign so
-    // the auth cookie is on the next full document request.
-    // Do not revalidatePath here — it can trigger /erp RSC while session is mid-write.
-    return {
-      ok: true,
-      redirectTo: member.can_access_desk ? "/erp" : "/staff",
-    };
+    redirect(member.can_access_desk ? "/erp" : "/staff");
   } catch (error) {
     if (
       error &&

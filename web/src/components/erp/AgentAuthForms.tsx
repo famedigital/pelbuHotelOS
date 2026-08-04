@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { TriangleAlertIcon } from "lucide-react";
-import { useActionState, useEffect } from "react";
+import { useActionState } from "react";
 
 const loginInitial: AgentLoginState = { ok: false };
 const pinInitial = {
@@ -26,14 +26,6 @@ const selectClass =
 export function AgentLoginForm() {
   const [state, action, pending] = useActionState(agentLogin, loginInitial);
 
-  useEffect(() => {
-    if (state.ok && state.redirectTo) {
-      window.location.assign(state.redirectTo);
-    }
-  }, [state.ok, state.redirectTo]);
-
-  const redirecting = Boolean(state.ok && state.redirectTo);
-
   return (
     <form action={action} className="space-y-4" noValidate>
       <div className="space-y-1.5">
@@ -46,7 +38,6 @@ export function AgentLoginForm() {
           placeholder="AG-0001"
           required
           className="h-11"
-          disabled={pending || redirecting}
         />
       </div>
       <div className="space-y-1.5">
@@ -61,7 +52,6 @@ export function AgentLoginForm() {
           maxLength={8}
           required
           className="h-11"
-          disabled={pending || redirecting}
         />
       </div>
       {state.error ? (
@@ -70,21 +60,8 @@ export function AgentLoginForm() {
           <AlertDescription>{state.error}</AlertDescription>
         </Alert>
       ) : null}
-      {redirecting ? (
-        <p className="text-sm text-muted-foreground">
-          Signed in. Opening portal…
-          {state.redirectTo ? (
-            <>
-              {" "}
-              <a href={state.redirectTo} className="underline underline-offset-4">
-                Continue
-              </a>
-            </>
-          ) : null}
-        </p>
-      ) : null}
-      <Button type="submit" disabled={pending || redirecting} className="h-11 w-full">
-        {redirecting ? "Opening…" : pending ? "Signing in…" : "Sign in"}
+      <Button type="submit" disabled={pending} className="h-11 w-full">
+        {pending ? "Signing in…" : "Sign in"}
       </Button>
     </form>
   );
