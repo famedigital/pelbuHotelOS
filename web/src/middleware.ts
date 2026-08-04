@@ -1,3 +1,4 @@
+import { hasSupabaseAuthSessionCookie } from "@/lib/supabase-auth-cookies";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -5,18 +6,6 @@ const INSTALL_PATHS = new Set(["/", "/book", "/menu", "/spa", "/meeting"]);
 
 /** Mirrors DESK_COOKIE_NAME in lib/desk-auth (that module imports next/headers). */
 const DESK_COOKIE = "pelbu_desk_session";
-
-/**
- * Supabase Auth session cookies for @supabase/ssr / supabase-js.
- * Base name: `sb-<project-ref>-auth-token`
- * Chunks:     `sb-<project-ref>-auth-token.0`, `.1`, …
- * PKCE:       `sb-<project-ref>-auth-token-code-verifier`
- */
-function hasSupabaseAuthCookie(request: NextRequest): boolean {
-  return request.cookies
-    .getAll()
-    .some((c) => c.name.startsWith("sb-") && c.name.includes("-auth-token"));
-}
 
 function hasValidDeskPinCookie(request: NextRequest): boolean {
   const pin = process.env.DESK_PIN?.trim();
@@ -46,7 +35,7 @@ function isErpLoginPath(pathname: string): boolean {
  * ignored sb-* cookies and caused login → /erp → /erp/login loops.
  */
 function erpCredentialsPresent(request: NextRequest): boolean {
-  if (hasSupabaseAuthCookie(request)) return true;
+  if (hasSupabaseAuthSessionCookie(request.cookies.getAll())) return true;
   if (hasValidDeskPinCookie(request)) return true;
 
   // Matches hasDeskPinSession(): no PIN configured means open access off prod.
@@ -57,24 +46,21 @@ function erpCredentialsPresent(request: NextRequest): boolean {
   return false;
 }
 
-/**
- * Gate /erp, refresh staff Auth cookies, and emit a short-lived install hint
- * for eligible public mobile visits. The browser still decides whether
- * installation is possible; middleware cannot invoke the native install prompt.
- */
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const isErp = pathname === "/erp" || pathname.startsWith("/erp/");
-
-  if (isErp && !isErpLoginPath(pathname) && !erpCredentialsPresent(request)) {
-    return NextResponse.redirect(new URL("/erp/login", request.url));
-  }
-
+function applyRequestHints(request: NextRequest): Headers {
   const requestHeaders = new Headers(request.headers);
   // Layouts (e.g. ERP) use this to skip shell chrome on print / KDS routes.
-  requestHeaders.set("x-pathname", pathname);
+  requestHeaders.set("x-pathname", request.nextUrl.pathname);
   // Host → property hint for public/desk multi-tenant (Wave 4 foundation).
   // Pages may read x-pelbu-property-slug; flagship used when unset/unmatched.
+  // Tenant resolution is skipped for Server Actions to keep login latency low
+  // and avoid any side effects on the auth cookie path.
+  return requestHeaders;
+}
+
+async function applyTenantHeaders(
+  request: NextRequest,
+  requestHeaders: Headers,
+): Promise<void> {
   try {
     const host = request.headers.get("host");
     if (host && !host.includes("localhost")) {
@@ -89,6 +75,42 @@ export async function middleware(request: NextRequest) {
   } catch {
     // Never block the request on tenant resolution failure.
   }
+}
+
+/**
+ * Gate /erp, refresh staff Auth cookies, and emit a short-lived install hint
+ * for eligible public mobile visits. The browser still decides whether
+ * installation is possible; middleware cannot invoke the native install prompt.
+ *
+ * CRITICAL (Vercel / Next production login):
+ * Never attach Set-Cookie on Server Action responses from middleware.
+ * Middleware cookie writes (set *or* delete) can drop Set-Cookie headers from
+ * the subsequent Server Action — so signInWithPassword succeeds and audit
+ * logs write, but the browser never stores `sb-*-auth-token`, and GET /erp
+ * bounces back to /erp/login (POST /erp/login status 0 soft-nav abort).
+ */
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const isErp = pathname === "/erp" || pathname.startsWith("/erp/");
+  const isServerAction = Boolean(request.headers.get("next-action"));
+
+  if (isErp && !isErpLoginPath(pathname) && !erpCredentialsPresent(request)) {
+    return NextResponse.redirect(new URL("/erp/login", request.url));
+  }
+
+  const requestHeaders = applyRequestHints(request);
+
+  // Server Actions: forward pathname only. No tenant lookup, no auth refresh
+  // cookie writes, no install-hint cookie mutation.
+  if (isServerAction) {
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+  }
+
+  await applyTenantHeaders(request, requestHeaders);
 
   let response = NextResponse.next({
     request: {
@@ -102,7 +124,9 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/agents/login") ||
     // Desk-capable staff reach /erp on Supabase Auth rather than the shared
     // PIN, so refresh only for them and let PIN sessions skip the round trip.
-    (isErp && !hasValidDeskPinCookie(request) && hasSupabaseAuthCookie(request));
+    (isErp &&
+      !hasValidDeskPinCookie(request) &&
+      hasSupabaseAuthSessionCookie(request.cookies.getAll()));
 
   if (needsAuthRefresh) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -124,7 +148,13 @@ export async function middleware(request: NextRequest) {
               },
             });
             cookiesToSet.forEach(({ name, value, options }) => {
-              response.cookies.set(name, value, options);
+              response.cookies.set(name, value, {
+                ...options,
+                path: options?.path ?? "/",
+                sameSite: options?.sameSite ?? "lax",
+                secure:
+                  options?.secure ?? process.env.NODE_ENV === "production",
+              });
             });
           },
         },
@@ -150,7 +180,13 @@ export async function middleware(request: NextRequest) {
       secure: process.env.NODE_ENV === "production",
     });
     response.headers.set("x-pelbu-install", "1");
-  } else {
+  } else if (
+    // Only clear the hint on the public install surface when it is present.
+    // Never touch cookies on /erp (incl. /erp/login) so login Server Actions
+    // keep their Set-Cookie headers intact.
+    INSTALL_PATHS.has(pathname) &&
+    request.cookies.has("pelbu_install_hint")
+  ) {
     response.cookies.delete("pelbu_install_hint");
   }
 

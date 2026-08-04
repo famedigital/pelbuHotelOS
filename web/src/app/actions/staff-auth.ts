@@ -8,6 +8,7 @@ import {
   staffAuthEmail,
   validateStaffPin,
 } from "@/lib/staff-auth";
+import { hasSupabaseAuthSessionCookie } from "@/lib/supabase-auth-cookies";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { trimRequired } from "@/lib/validation";
@@ -90,10 +91,7 @@ export async function staffLogin(
     // getUser() can succeed from in-memory client state even when Set-Cookie
     // failed; middleware only sees real request cookies.
     const jar = await cookies();
-    const sessionCookiePresent = jar
-      .getAll()
-      .some((c) => c.name.startsWith("sb-") && c.name.includes("-auth-token"));
-    if (!sessionCookiePresent) {
+    if (!hasSupabaseAuthSessionCookie(jar.getAll())) {
       return {
         ok: false,
         error: "Session cookie could not be saved. Check browser cookies and try again.",
@@ -115,8 +113,12 @@ export async function staffLogin(
       meta: { canAccessDesk: Boolean(member.can_access_desk) },
     });
 
-    revalidatePath("/", "layout");
-    redirect(member.can_access_desk ? "/erp" : "/staff");
+    // Scope revalidation to the post-login surface only. Full-site layout
+    // revalidate races soft navigation and is unnecessary for auth stickiness
+    // (cookies are set above; middleware must not strip Set-Cookie on this action).
+    const destination = member.can_access_desk ? "/erp" : "/staff";
+    revalidatePath(destination, "layout");
+    redirect(destination);
   } catch (error) {
     if (
       error &&

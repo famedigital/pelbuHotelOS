@@ -8,6 +8,7 @@ import {
   provisionAgentAuthUser,
   validateAgentPin,
 } from "@/lib/agent-auth";
+import { hasSupabaseAuthSessionCookie } from "@/lib/supabase-auth-cookies";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { trimRequired } from "@/lib/validation";
@@ -72,10 +73,7 @@ export async function agentLogin(
     }
 
     const jar = await cookies();
-    const sessionCookiePresent = jar
-      .getAll()
-      .some((c) => c.name.startsWith("sb-") && c.name.includes("-auth-token"));
-    if (!sessionCookiePresent) {
+    if (!hasSupabaseAuthSessionCookie(jar.getAll())) {
       return {
         ok: false,
         error: "Session cookie could not be saved. Check browser cookies and try again.",

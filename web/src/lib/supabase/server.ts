@@ -1,8 +1,37 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseAnonKey, getSupabaseUrl } from "./env";
 
-/** Cookie-aware anon client for Server Components / Route Handlers. */
+/**
+ * Next.js CookieStore options that work on Vercel production.
+ * Always pin path + SameSite + Secure so auth cookies survive the
+ * Server Action → redirect → GET /erp hop on pelbu-os.vercel.app.
+ */
+function nextCookieOptions(
+  options?: CookieOptions,
+): Pick<
+  CookieOptions,
+  | "path"
+  | "domain"
+  | "maxAge"
+  | "expires"
+  | "httpOnly"
+  | "secure"
+  | "sameSite"
+> {
+  return {
+    path: options?.path ?? "/",
+    domain: options?.domain,
+    maxAge: options?.maxAge,
+    expires: options?.expires,
+    httpOnly: options?.httpOnly,
+    // Production (HTTPS): require Secure. Dev may run on http://localhost.
+    secure: options?.secure ?? process.env.NODE_ENV === "production",
+    sameSite: (options?.sameSite as CookieOptions["sameSite"]) ?? "lax",
+  };
+}
+
+/** Cookie-aware anon client for Server Components / Route Handlers / Actions. */
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
 
@@ -16,20 +45,7 @@ export async function createSupabaseServerClient() {
           cookiesToSet.forEach(({ name, value, options }) => {
             // Pass only serialize options Next/cookies accepts — drops any
             // library-only fields that can throw and abort the whole setAll.
-            cookieStore.set(name, value, {
-              path: options?.path,
-              domain: options?.domain,
-              maxAge: options?.maxAge,
-              expires: options?.expires,
-              httpOnly: options?.httpOnly,
-              secure: options?.secure,
-              sameSite: options?.sameSite as
-                | boolean
-                | "lax"
-                | "strict"
-                | "none"
-                | undefined,
-            });
+            cookieStore.set(name, value, nextCookieOptions(options));
           });
         } catch {
           // Called from a Server Component — safe to ignore when middleware
