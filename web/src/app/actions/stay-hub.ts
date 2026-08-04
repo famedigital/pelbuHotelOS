@@ -52,6 +52,9 @@ export type StayHubSummary = {
   source: string | null;
   agentId: string | null;
   agentName: string | null;
+  soldByStaffId: string | null;
+  soldByName: string | null;
+  salesClaimStatus: string | null;
   notes: string | null;
   paymentMode: string | null;
   sdfIncomplete: boolean;
@@ -86,8 +89,9 @@ export async function fetchStayHubSummary(
       `
       id, contact_name, contact_phone, contact_email, status, check_in, check_out,
       adults, rooms, guide_number, guest_origin, source, notes, agent_id, payment_mode,
-      booked_by_role,
+      booked_by_role, sold_by_staff_id, sales_claim_status,
       agents(company_name),
+      sold_by_staff:staff_members!sold_by_staff_id(full_name),
       booking_guests(full_name, passport_or_cid, nationality, sdf_ref),
       room_assignments(id, room_unit_id, is_locked, from_date, to_date,
         room_units(id, label, room_type_id, room_types(id, name))),
@@ -218,6 +222,16 @@ export async function fetchStayHubSummary(
         null,
       agentId: (data.agent_id as string | null) ?? null,
       agentName: agent?.company_name ?? null,
+      soldByStaffId: (data.sold_by_staff_id as string | null) ?? null,
+      soldByName: (() => {
+        const raw = data.sold_by_staff as
+          | { full_name?: string }
+          | { full_name?: string }[]
+          | null;
+        const s = Array.isArray(raw) ? raw[0] : raw;
+        return s?.full_name ?? null;
+      })(),
+      salesClaimStatus: (data.sales_claim_status as string | null) ?? null,
       notes: (data.notes as string | null) ?? null,
       paymentMode: (data.payment_mode as string | null) ?? null,
       sdfIncomplete,

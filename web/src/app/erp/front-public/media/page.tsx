@@ -28,7 +28,7 @@ export default async function FrontPublicMediaPage() {
       <DeskPageTitle
         eyebrow="Website CMS"
         title="Media library"
-        description="Photos and video for each public page. Hero media runs in the page banner, gallery items fill the strips, and the order here is the order guests see. Shoot from a phone, arrange on desktop."
+        description="Photos and video for each public page. Homepage hero slider = Role “Hero” on the home tab (Change photo on each card to swap). Gallery fills photo strips; order is guest order."
         actions={
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="citrus">

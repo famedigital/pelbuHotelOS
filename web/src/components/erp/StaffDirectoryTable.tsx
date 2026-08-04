@@ -126,6 +126,7 @@ export function StaffDirectoryTable({
   conduct,
   managers,
   departments = [],
+  canEditModules = false,
 }: {
   data: StaffDossierMember[];
   privateProfiles: StaffPrivateProfile[];
@@ -134,6 +135,7 @@ export function StaffDirectoryTable({
   conduct: StaffConductRow[];
   managers: ManagerOption[];
   departments?: string[];
+  canEditModules?: boolean;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -194,6 +196,7 @@ export function StaffDirectoryTable({
         conduct={records}
         managers={managers}
         departments={departments}
+        canEditModules={canEditModules}
       />
     </>
   );

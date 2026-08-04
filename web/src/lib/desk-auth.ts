@@ -161,6 +161,36 @@ export async function requireMoneyDesk(): Promise<DeskRole> {
   return requireDeskRole([...MONEY_ROLES]);
 }
 
+/**
+ * Module allowlist for the current desk session (nav + deep-link soft ACL).
+ * PIN sessions (gm) receive the full catalog.
+ */
+export async function getDeskModuleKeys(): Promise<string[]> {
+  const { allDeskModuleKeys, resolveDeskModules } = await import(
+    "@/lib/erp/desk-modules"
+  );
+
+  if (await hasDeskPinSession()) {
+    return allDeskModuleKeys();
+  }
+
+  try {
+    const { getStaffSession } = await import("@/lib/staff-auth");
+    const staff = await getStaffSession();
+    if (!staff?.canAccessDesk) return allDeskModuleKeys();
+    const role =
+      normalizeDeskRole(staff.deskRole) ??
+      mapDepartmentToDeskRole(staff.department) ??
+      mapAccessLevelToDeskRole(staff.accessLevel);
+    return resolveDeskModules({
+      deskRole: role,
+      deskModuleKeys: staff.deskModuleKeys,
+    });
+  } catch {
+    return allDeskModuleKeys();
+  }
+}
+
 export function deskCookieValue(pin: string): string {
   return `ok:${pin.trim()}`;
 }

@@ -4,10 +4,12 @@ import {
   upsertPromoCode,
 } from "@/app/actions/erp-marketing";
 import { DeskListShell } from "@/components/erp/DeskListShell";
+import { MarketingCataloguesPanel } from "@/components/marketing/MarketingCataloguesPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/desk-property";
+import { listCataloguesForProperty } from "@/lib/marketing/catalogue";
 import { formatBtn } from "@/lib/pricing";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
@@ -52,6 +54,7 @@ export default async function MarketingPage({
     { data: reasons },
     { data: redemptions },
     { data: ncEvents },
+    catalogues,
   ] = await Promise.all([
     admin
       .from("marketing_campaigns")
@@ -90,6 +93,7 @@ export default async function MarketingPage({
       .eq("property_id", propertyId)
       .order("created_at", { ascending: false })
       .limit(30),
+    listCataloguesForProperty(admin, propertyId).catch(() => []),
   ]);
 
   const activePromos = (promos ?? []).filter((p) => p.active);
@@ -106,9 +110,14 @@ export default async function MarketingPage({
     (s, r) => s + Number(r.list_value_btn ?? 0),
     0,
   );
+  const catalogueViews = catalogues.reduce(
+    (s, c) => s + Number(c.view_count ?? 0),
+    0,
+  );
 
   const tabs = [
     { id: "dashboard", label: "Dashboard" },
+    { id: "catalogues", label: "Catalogues" },
     { id: "campaigns", label: "Campaigns" },
     { id: "coupons", label: "Coupons" },
     { id: "nc", label: "NC policies" },
@@ -156,8 +165,8 @@ export default async function MarketingPage({
               value={String(activePromos.length)}
             />
             <StatCard
-              label="Recent discount burn"
-              value={formatBtn(discountBurn)}
+              label="Catalogue views"
+              value={String(catalogueViews)}
             />
             <StatCard label="Recent NC list value" value={formatBtn(ncBurn)} />
           </div>
@@ -190,6 +199,17 @@ export default async function MarketingPage({
             <NcTable rows={ncEvents ?? []} />
           </section>
         </div>
+      ) : null}
+
+      {tab === "catalogues" ? (
+        <MarketingCataloguesPanel
+          catalogues={catalogues}
+          promos={activePromos.map((p) => ({
+            id: p.id as string,
+            code: p.code as string,
+            name: (p.name as string) ?? (p.code as string),
+          }))}
+        />
       ) : null}
 
       {tab === "campaigns" ? (

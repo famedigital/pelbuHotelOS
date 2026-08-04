@@ -191,7 +191,8 @@ export function StaffStatusForm({ staff }: { staff: StaffChoice[] }) {
       <div className="space-y-1.5">
         <Label htmlFor="staff_status">New status</Label>
         <select id="staff_status" name="status" className={selectClass}>
-          <option value="active">Active</option>
+          <option value="provisional">Provisional</option>
+          <option value="active">Active (hired)</option>
           <option value="on_leave">On leave</option>
           <option value="inactive">Inactive</option>
           <option value="suspended">Suspended</option>

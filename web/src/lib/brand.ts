@@ -37,6 +37,9 @@ export const BRAND_CLOUDINARY = {
   spaJacuzzi: "pelbu/spa/jacuzzi",
   barPour: "pelbu/bar/evening-pour",
   galleryExt: "pelbu/gallery/ta2",
+  /** Building exterior — preferred first hero / brand place shot. */
+  hotelExterior: "pelbu/hotel/exterior",
+  hotelExteriorAlt: "pelbu/gallery/ext11",
 } as const;
 
 /** Known-good Cloudinary IDs for homepage outlet slideshows.
@@ -72,9 +75,20 @@ export type HeroSlide = {
 };
 
 /**
- * Homepage hero carousel — prefer official 5K interiors.
+ * Homepage hero carousel — hotel exterior first, then curated interiors/outlets.
+ * Live slider prefers `cms_media` rows with kind=hero when any exist.
  */
 export const HOME_HERO_SLIDES: readonly HeroSlide[] = [
+  {
+    publicId: BRAND_CLOUDINARY.hotelExterior,
+    alt: "Pelbu Suites hotel exterior, Olakha Thimphu",
+    label: "Pelbu Suites",
+  },
+  {
+    publicId: BRAND_CLOUDINARY.hotelExteriorAlt,
+    alt: "Pelbu Suites building exterior",
+    label: "Hotel",
+  },
   {
     publicId: BRAND_CLOUDINARY.roomsDeluxe,
     alt: "Deluxe suite with mountain view",
@@ -91,19 +105,14 @@ export const HOME_HERO_SLIDES: readonly HeroSlide[] = [
     label: "Twin room",
   },
   {
-    publicId: BRAND_CLOUDINARY.roomsSuiteAlt,
-    alt: "Suite with ensuite bath",
-    label: "Suite",
+    publicId: BRAND_CLOUDINARY.diningRoom,
+    alt: "Dining room at Pelbu Suites",
+    label: "Restaurant",
   },
   {
     publicId: BRAND_CLOUDINARY.cafePastry,
     alt: "Cafe and pastry at Pelbu",
     label: "Cafe",
-  },
-  {
-    publicId: BRAND_CLOUDINARY.restaurantPlate,
-    alt: "Restaurant plate at Pelbu",
-    label: "Restaurant",
   },
   {
     publicId: BRAND_CLOUDINARY.spaSteam,

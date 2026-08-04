@@ -1,4 +1,8 @@
 import type { DeskRole } from "@/lib/desk-auth";
+import {
+  loadGuestForecast,
+  type GuestForecast,
+} from "@/lib/erp/guest-forecast";
 import { thimphuToday } from "@/lib/erp-lists";
 import { computeMealCovers, type MealCovers } from "@/lib/kitchen/covers";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -126,6 +130,8 @@ export type RoleDashboardSnapshot = {
   tpnOnFile: boolean;
   bankOnFile: boolean;
   gstFiledThisMonth: boolean;
+  /** Weekly + calendar-month guest/room forecast for all department boards. */
+  guestForecast: GuestForecast;
 };
 
 export async function loadRoleDashboardSnapshot(
@@ -137,6 +143,7 @@ export async function loadRoleDashboardSnapshot(
 
   const [
     mealCovers,
+    guestForecast,
     { data: property },
     { data: bookings },
     { data: orders },
@@ -151,6 +158,7 @@ export async function loadRoleDashboardSnapshot(
     { data: openFolios },
   ] = await Promise.all([
     computeMealCovers(admin, propertyId, today),
+    loadGuestForecast(admin, propertyId),
     admin
       .from("properties")
       .select("name, setup_completed_at, tax_id, bank_accounts")
@@ -377,5 +385,6 @@ export async function loadRoleDashboardSnapshot(
     tpnOnFile: Boolean((property?.tax_id as string | null)?.trim()),
     bankOnFile: Array.isArray(bankAccounts) && bankAccounts.length > 0,
     gstFiledThisMonth: gstPack?.status === "filed",
+    guestForecast,
   };
 }

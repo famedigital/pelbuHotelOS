@@ -50,6 +50,11 @@ import {
   cloudinaryOriginalUrl,
   cloudinaryUrl,
 } from "@/lib/cloudinary";
+import {
+  DESK_MODULE_CATALOG,
+  defaultModulesForDeskRole,
+} from "@/lib/erp/desk-modules";
+import type { DeskRole } from "@/lib/desk-auth";
 import { cn } from "@/lib/utils";
 import {
   CheckIcon,
@@ -104,6 +109,8 @@ export type StaffDossierMember = {
   canLogin: boolean;
   pinSetAt: string | null;
   lastLoginAt: string | null;
+  /** null = inherit role defaults for ERP modules */
+  deskModuleKeys: string[] | null;
 };
 
 export type StaffPrivateProfile = {
@@ -357,6 +364,7 @@ export function StaffDossierDialog({
   conduct,
   managers,
   departments = [],
+  canEditModules = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -367,6 +375,8 @@ export function StaffDossierDialog({
   conduct: StaffConductRow[];
   managers: ManagerOption[];
   departments?: string[];
+  /** Owner / GM only may change module matrix. */
+  canEditModules?: boolean;
 }) {
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const [step, setStep] = useState<StepId>("profile");
@@ -388,6 +398,7 @@ export function StaffDossierDialog({
       conduct={conduct}
       managers={managers}
       departments={departments}
+      canEditModules={canEditModules}
       step={step}
       setStep={setStep}
     />
@@ -493,6 +504,7 @@ function DossierBody({
   conduct,
   managers,
   departments,
+  canEditModules,
   step,
   setStep,
 }: {
@@ -503,6 +515,7 @@ function DossierBody({
   conduct: StaffConductRow[];
   managers: ManagerOption[];
   departments: string[];
+  canEditModules: boolean;
   step: StepId;
   setStep: (step: StepId) => void;
 }) {
@@ -602,7 +615,9 @@ function DossierBody({
             departments={departments}
           />
         ) : null}
-        {step === "access" ? <AccessStep member={member} /> : null}
+        {step === "access" ? (
+          <AccessStep member={member} canEditModules={canEditModules} />
+        ) : null}
         {step === "compensation" ? (
           <CompensationStep
             member={member}
@@ -777,7 +792,8 @@ function ProfileStep({
                   defaultValue={member.status}
                   className={selectClass}
                 >
-                  <option value="active">Active</option>
+                  <option value="provisional">Provisional</option>
+                  <option value="active">Active (hired)</option>
                   <option value="on_leave">On leave</option>
                   <option value="inactive">Inactive</option>
                   <option value="suspended">Suspended</option>
@@ -881,10 +897,28 @@ function ProfileStep({
 
 /* ─── Access ──────────────────────────────────────────────────────────── */
 
-function AccessStep({ member }: { member: StaffDossierMember }) {
+function AccessStep({
+  member,
+  canEditModules,
+}: {
+  member: StaffDossierMember;
+  canEditModules: boolean;
+}) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [resetPin, setResetPin] = useState(false);
+  const roleForDefaults = (member.deskRole as DeskRole | null) ?? "front_desk";
+  const isOwner =
+    member.accessLevel === "owner" || member.deskRole === "owner";
+  const roleDefaults = defaultModulesForDeskRole(
+    isOwner ? "owner" : roleForDefaults,
+  );
+  const [useDefaults, setUseDefaults] = useState(
+    member.deskModuleKeys == null,
+  );
+  const [moduleKeys, setModuleKeys] = useState<string[]>(
+    member.deskModuleKeys ?? roleDefaults,
+  );
   const [accessState, accessAction, accessPending] = useActionState(
     upsertStaffRolesAccess,
     initialHr,
@@ -904,6 +938,17 @@ function AccessStep({ member }: { member: StaffDossierMember }) {
       router.refresh();
     }
   }, [pinState.ok, router]);
+  useEffect(() => {
+    if (editing) {
+      setUseDefaults(member.deskModuleKeys == null);
+      setModuleKeys(member.deskModuleKeys ?? roleDefaults);
+    }
+  }, [editing, member.deskModuleKeys, roleDefaults]);
+
+  const moduleSummary =
+    member.deskModuleKeys == null
+      ? `Role defaults (${roleDefaults.join(", ")})`
+      : member.deskModuleKeys.join(", ");
 
   const rows = [
     { label: "Operational role", value: titleCase(member.role) },
@@ -919,6 +964,10 @@ function AccessStep({ member }: { member: StaffDossierMember }) {
     {
       label: "Desk RBAC role",
       value: member.deskRole ? titleCase(member.deskRole) : "—",
+    },
+    {
+      label: "ERP modules",
+      value: moduleSummary,
     },
     {
       label: "Staff app portal",
@@ -942,7 +991,7 @@ function AccessStep({ member }: { member: StaffDossierMember }) {
     <div>
       <SectionToolbar
         title="Access"
-        description="Roles, desk dual-auth, and portal PIN"
+        description="Roles, desk dual-auth, modules, and portal PIN"
       >
         {!editing && !resetPin ? (
           <>
@@ -1039,6 +1088,78 @@ function AccessStep({ member }: { member: StaffDossierMember }) {
                 <option value="laundry">Laundry</option>
               </select>
             </Field>
+
+            {canEditModules ? (
+              <div className="space-y-2 rounded-md border p-3">
+                <p className="text-sm font-medium">ERP modules</p>
+                <p className="text-xs text-muted-foreground">
+                  Owner / GM only. Full matrix on Team → Module access.
+                </p>
+                <input
+                  type="hidden"
+                  name="module_mode"
+                  value={useDefaults ? "defaults" : "custom"}
+                />
+                {!useDefaults
+                  ? moduleKeys.map((k) => (
+                      <input
+                        key={k}
+                        type="hidden"
+                        name="module_key"
+                        value={k}
+                      />
+                    ))
+                  : null}
+                <label className="flex min-h-10 items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={useDefaults}
+                    onChange={(e) => {
+                      setUseDefaults(e.target.checked);
+                      if (e.target.checked) setModuleKeys(roleDefaults);
+                    }}
+                    className="size-4 rounded border"
+                  />
+                  Use role defaults
+                </label>
+                <div
+                  className={`grid gap-2 sm:grid-cols-2 ${
+                    useDefaults ? "opacity-50" : ""
+                  }`}
+                >
+                  {DESK_MODULE_CATALOG.map((mod) => {
+                    const checked = useDefaults
+                      ? roleDefaults.includes(mod.key)
+                      : moduleKeys.includes(mod.key);
+                    return (
+                      <label
+                        key={mod.key}
+                        className="flex min-h-10 items-center gap-2 text-sm"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={useDefaults || mod.key === "dashboard"}
+                          onChange={() => {
+                            if (mod.key === "dashboard") return;
+                            setModuleKeys((prev) =>
+                              prev.includes(mod.key)
+                                ? prev.filter((x) => x !== mod.key)
+                                : [...prev, mod.key],
+                            );
+                          }}
+                          className="size-4 rounded border"
+                        />
+                        {mod.title}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <input type="hidden" name="module_mode" value="omit" />
+            )}
+
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <Result state={accessState} />
               <Button
@@ -1201,8 +1322,8 @@ function CompensationStep({
     if (delState.ok) router.refresh();
   }, [delState.ok, router]);
 
+  const hasSalary = privateProfile?.baseWageBtn != null;
   const payRows = [
-    { label: "Base wage", value: money(privateProfile?.baseWageBtn) },
     {
       label: "Pay schedule",
       value: titleCase(privateProfile?.paySchedule ?? "monthly"),
@@ -1252,7 +1373,7 @@ function CompensationStep({
       <div>
         <SectionToolbar
           title="Compensation & private file"
-          description="Wage, PF, HC/SC, bank — money-desk sensitive"
+          description="Monthly salary, PF, HC/SC, bank — requires money desk"
         >
           {!editing ? (
             <Button
@@ -1263,10 +1384,39 @@ function CompensationStep({
               onClick={() => setEditing(true)}
             >
               <PencilIcon className="size-3.5" />
-              Edit
+              {hasSalary ? "Edit salary" : "Set salary"}
             </Button>
           ) : null}
         </SectionToolbar>
+
+        {!editing ? (
+          <div
+            className={cn(
+              "mb-4 rounded-lg border p-4",
+              hasSalary
+                ? "border-border bg-muted/30"
+                : "border-dashed border-amber-500/50 bg-amber-50/60 dark:bg-amber-950/20",
+            )}
+          >
+            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Monthly salary (Nu)
+            </p>
+            {hasSalary ? (
+              <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">
+                {money(privateProfile?.baseWageBtn)}
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-muted-foreground">
+                No salary set — edit compensation to add monthly basic pay (used
+                for payroll / PF / NPPF). Money desk / manager money PIN required
+                to save.
+              </p>
+            )}
+            <p className="mt-1 text-xs text-muted-foreground">
+              Basic pay for payroll · {titleCase(privateProfile?.paySchedule ?? "monthly")}
+            </p>
+          </div>
+        ) : null}
 
         {editing ? (
           <EditPanel
@@ -1281,7 +1431,7 @@ function CompensationStep({
                 value={privateProfile?.photoPublicId ?? ""}
               />
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Base wage (Nu)" htmlFor="c_wage">
+                <Field label="Monthly salary (Nu)" htmlFor="c_wage">
                   <Input
                     id="c_wage"
                     name="base_wage_btn"
@@ -1290,7 +1440,12 @@ function CompensationStep({
                     step="0.01"
                     defaultValue={privateProfile?.baseWageBtn ?? ""}
                     className="h-11"
+                    placeholder="e.g. 15000"
+                    autoFocus
                   />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Basic pay used for payroll / PF / NPPF. Requires money desk.
+                  </p>
                 </Field>
                 <Field label="Pay schedule" htmlFor="c_schedule">
                   <select

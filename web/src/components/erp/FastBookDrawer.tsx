@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AgentPicker, type BookableAgent } from "@/components/erp/AgentPicker";
+import { StaffPicker, type BookableStaff } from "@/components/erp/StaffPicker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,8 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 
 type Props = {
   agents: BookableAgent[];
+  staff: BookableStaff[];
+  defaultSoldByStaffId?: string;
   pending: boolean;
   open: boolean;
   onClose: () => void;
@@ -35,19 +38,25 @@ type Props = {
 
 function DrawerBody({
   agents,
+  staff,
   pending,
   hasQty,
   agentId,
   setAgentId,
+  soldByStaffId,
+  setSoldByStaffId,
   mealPlans,
   defaultMealPlanCode,
   defaultGuestOrigin,
 }: {
   agents: BookableAgent[];
+  staff: BookableStaff[];
   pending: boolean;
   hasQty: boolean;
   agentId: string;
   setAgentId: (v: string) => void;
+  soldByStaffId: string;
+  setSoldByStaffId: (v: string) => void;
   mealPlans: { code: string; name: string; blurb: string | null }[];
   defaultMealPlanCode: string;
   defaultGuestOrigin: string;
@@ -167,6 +176,20 @@ function DrawerBody({
             />
           </div>
           <div className="space-y-1.5">
+            <Label>Sold by (staff)</Label>
+            <StaffPicker
+              name="sold_by_staff_id"
+              staff={staff}
+              value={soldByStaffId}
+              onValueChange={setSoldByStaffId}
+              className="bg-background"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Incentive claim for who brought the guest or agent. Owner/GM
+              approves later.
+            </p>
+          </div>
+          <div className="space-y-1.5">
             <Label htmlFor="guide_number">Guide number</Label>
             <Input
               id="guide_number"
@@ -209,6 +232,8 @@ function DrawerBody({
 
 export function FastBookDrawer({
   agents,
+  staff,
+  defaultSoldByStaffId = "",
   pending,
   open,
   onClose,
@@ -217,14 +242,30 @@ export function FastBookDrawer({
   defaultMealPlanCode,
   defaultGuestOrigin,
 }: Props) {
-  // Agent picker is a type-to-search Combobox; we mirror its value into a
-  // hidden input so the parent <form> submission contract is unchanged.
+  // Pickers are type-to-search Comboboxes; we mirror values into hidden form fields.
   const [agentId, setAgentId] = useState<string>("");
+  const [soldByStaffId, setSoldByStaffId] = useState(defaultSoldByStaffId);
 
   // Switch between the desktop rail (static column in the form grid) and the
   // mobile bottom Sheet based on viewport. Only one body is rendered at a
   // time, so form fields are never duplicated in the DOM.
   const isDesktop = useMediaQuery("(min-width: 768px)");
+
+  const body = (
+    <DrawerBody
+      agents={agents}
+      staff={staff}
+      pending={pending}
+      hasQty={hasQty}
+      agentId={agentId}
+      setAgentId={setAgentId}
+      soldByStaffId={soldByStaffId}
+      setSoldByStaffId={setSoldByStaffId}
+      mealPlans={mealPlans}
+      defaultMealPlanCode={defaultMealPlanCode}
+      defaultGuestOrigin={defaultGuestOrigin}
+    />
+  );
 
   if (isDesktop) {
     return (
@@ -232,16 +273,7 @@ export function FastBookDrawer({
         aria-label="Booking details"
         className="erp md:w-[360px] md:flex-shrink-0 md:self-start md:rounded-lg md:border md:bg-card"
       >
-        <DrawerBody
-          agents={agents}
-          pending={pending}
-          hasQty={hasQty}
-          agentId={agentId}
-          setAgentId={setAgentId}
-          mealPlans={mealPlans}
-          defaultMealPlanCode={defaultMealPlanCode}
-          defaultGuestOrigin={defaultGuestOrigin}
-        />
+        {body}
       </aside>
     );
   }
@@ -260,16 +292,7 @@ export function FastBookDrawer({
             Booking details
           </SheetTitle>
         </SheetHeader>
-        <DrawerBody
-          agents={agents}
-          pending={pending}
-          hasQty={hasQty}
-          agentId={agentId}
-          setAgentId={setAgentId}
-          mealPlans={mealPlans}
-          defaultMealPlanCode={defaultMealPlanCode}
-          defaultGuestOrigin={defaultGuestOrigin}
-        />
+        {body}
       </SheetContent>
     </Sheet>
   );

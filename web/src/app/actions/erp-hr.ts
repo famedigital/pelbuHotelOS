@@ -1,7 +1,13 @@
 "use server";
 
 import { writeAuditEvent } from "@/lib/audit";
-import { isDeskAuthenticated, requireMoneyDesk } from "@/lib/desk-auth";
+import {
+  getDeskRole,
+  isDeskAuthenticated,
+  requireDeskRole,
+  requireMoneyDesk,
+} from "@/lib/desk-auth";
+import { isDeskModuleKey } from "@/lib/erp/desk-modules";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
@@ -39,6 +45,7 @@ const EMPLOYMENT_TYPES = new Set([
 ]);
 
 const STAFF_STATUSES = new Set([
+  "provisional",
   "active",
   "inactive",
   "on_leave",
@@ -96,8 +103,47 @@ async function requireHrDesk(): Promise<{
 
 function refreshHr(_staffId?: string): void {
   revalidatePath("/erp/hr");
+  revalidatePath("/erp/hr/access");
+  revalidatePath("/erp/hr/recruitment");
+  revalidatePath("/erp/hr/recruitment/print");
+  revalidatePath("/erp/hr/positions");
+  revalidatePath("/erp/hr/vacancies");
+  revalidatePath("/erp");
   revalidatePath("/staff");
   revalidatePath("/erp/hr/payroll");
+  revalidatePath("/careers");
+}
+
+/**
+ * Parse module keys from form fields:
+ * - module_mode=defaults → store NULL (role defaults)
+ * - module_mode=custom → require checked module_key[] including dashboard
+ * - module_mode absent or omit → undefined (do not change column)
+ */
+function parseDeskModuleKeysForUpdate(
+  formData: FormData,
+): string[] | null | undefined {
+  const mode = (optionalTrim(formData.get("module_mode")) ?? "").toLowerCase();
+  if (!mode || mode === "omit") return undefined;
+  if (mode === "defaults") return null;
+  if (mode !== "custom") {
+    throw new Error("Invalid module access mode.");
+  }
+  const keys = [
+    ...new Set(
+      formData
+        .getAll("module_key")
+        .map((v) => String(v).trim())
+        .filter((k) => isDeskModuleKey(k)),
+    ),
+  ];
+  if (!keys.includes("dashboard")) {
+    throw new Error("Dashboard must stay enabled when customizing modules.");
+  }
+  if (keys.length === 0) {
+    throw new Error("Select at least one module, or use role defaults.");
+  }
+  return keys;
 }
 
 function normalizeEmployeeCode(value: FormDataEntryValue | null): string {
@@ -303,6 +349,30 @@ export async function upsertStaffRolesAccess(
       throw new Error("Pick a desk role when granting ERP desk access.");
     }
 
+    const editorRole = await getDeskRole();
+    const moduleKeysUpdate = parseDeskModuleKeysForUpdate(formData);
+    if (moduleKeysUpdate !== undefined) {
+      await requireDeskRole(["owner", "gm"]);
+    }
+
+    const { data: existing } = await admin
+      .from("staff_members")
+      .select("id, full_name, desk_role, access_level")
+      .eq("id", staffId)
+      .eq("property_id", propertyId)
+      .maybeSingle();
+    if (!existing) throw new Error("Staff member not found.");
+
+    const targetIsOwner =
+      (existing.desk_role as string | null) === "owner" ||
+      (existing.access_level as string) === "owner";
+    if (targetIsOwner && editorRole !== "owner" && moduleKeysUpdate !== undefined) {
+      throw new Error("Only an owner can change another owner's module access.");
+    }
+    if (targetIsOwner && editorRole !== "owner" && canAccessDesk === false) {
+      throw new Error("Only an owner can revoke another owner's desk access.");
+    }
+
     const update: Record<string, unknown> = {
       access_level: accessLevel,
       can_access_desk: canAccessDesk,
@@ -310,6 +380,11 @@ export async function upsertStaffRolesAccess(
       updated_at: new Date().toISOString(),
     };
     if (roleLabel) update.role_label = roleLabel;
+    if (!canAccessDesk) {
+      update.desk_module_keys = null;
+    } else if (moduleKeysUpdate !== undefined) {
+      update.desk_module_keys = moduleKeysUpdate;
+    }
 
     const { data, error } = await admin
       .from("staff_members")
@@ -326,7 +401,12 @@ export async function upsertStaffRolesAccess(
       entityType: "staff_members",
       entityId: staffId,
       summary: `Updated access for ${data.full_name as string}`,
-      meta: { accessLevel, canAccessDesk, deskRole: deskRoleRaw },
+      meta: {
+        accessLevel,
+        canAccessDesk,
+        deskRole: deskRoleRaw,
+        deskModuleKeys: moduleKeysUpdate === undefined ? "unchanged" : moduleKeysUpdate,
+      },
     });
 
     refreshHr(staffId);
@@ -335,6 +415,90 @@ export async function upsertStaffRolesAccess(
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Could not save access.",
+    };
+  }
+}
+
+/**
+ * GM / Owner: set per-staff ERP module allowlist (or reset to role defaults).
+ * Does not change access_level / can_access_desk.
+ */
+export async function upsertStaffModuleAccess(
+  _previous: HrActionState,
+  formData: FormData,
+): Promise<HrActionState> {
+  try {
+    const editorRole = await requireDeskRole(["owner", "gm"]);
+    const { admin, propertyId } = await requireHrDesk();
+    const staffId = trimRequired(formData.get("staff_id"), "Staff");
+    const moduleKeysUpdate = parseDeskModuleKeysForUpdate(formData);
+    if (moduleKeysUpdate === undefined) {
+      throw new Error("Choose role defaults or custom modules.");
+    }
+
+    const { data: existing } = await admin
+      .from("staff_members")
+      .select(
+        "id, full_name, can_access_desk, desk_role, access_level, status",
+      )
+      .eq("id", staffId)
+      .eq("property_id", propertyId)
+      .maybeSingle();
+    if (!existing) throw new Error("Staff member not found.");
+    if (!existing.can_access_desk) {
+      throw new Error("Grant hotel desk access before setting modules.");
+    }
+
+    const targetIsOwner =
+      (existing.desk_role as string | null) === "owner" ||
+      (existing.access_level as string) === "owner";
+    if (targetIsOwner && editorRole !== "owner") {
+      throw new Error("Only an owner can change another owner's module access.");
+    }
+
+    // Owner desk always resolves to full catalog; store NULL (role defaults).
+    const keysToStore = targetIsOwner ? null : moduleKeysUpdate;
+
+    const { data, error } = await admin
+      .from("staff_members")
+      .update({
+        desk_module_keys: keysToStore,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", staffId)
+      .eq("property_id", propertyId)
+      .select("id, full_name")
+      .single();
+    if (error || !data) throw new Error("Could not update module access.");
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "staff.module_access_update",
+      entityType: "staff_members",
+      entityId: staffId,
+      summary: `Module access for ${data.full_name as string}`,
+      meta: {
+        deskModuleKeys: keysToStore,
+        mode: keysToStore === null ? "defaults" : "custom",
+      },
+    });
+
+    refreshHr(staffId);
+    return {
+      ok: true,
+      message:
+        keysToStore === null
+          ? "Module access reset to role defaults."
+          : "Module access saved.",
+      staffId,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Could not update module access.",
     };
   }
 }
@@ -357,7 +521,10 @@ export async function upsertStaffPrivateProfile(
       .maybeSingle();
     if (!staff) throw new Error("Staff member not found.");
 
-    const baseWage = parseMoney(formData.get("base_wage_btn"), "Base wage");
+    const baseWage = parseMoney(
+      formData.get("base_wage_btn"),
+      "Monthly salary",
+    );
     const healthContribution = parseMoney(
       formData.get("health_contribution_btn"),
       "Health contribution",
@@ -753,11 +920,21 @@ export async function changeStaffStatus(
     const reason = trimRequired(formData.get("reason"), "Reason");
     if (!STAFF_STATUSES.has(status)) throw new Error("Invalid staff status.");
 
+    const { data: before } = await admin
+      .from("staff_members")
+      .select("id, full_name, status")
+      .eq("id", id)
+      .eq("property_id", propertyId)
+      .maybeSingle();
+    if (!before) throw new Error("Staff member not found.");
+
+    const prior = (before.status as string) ?? "";
+    const effectiveOn = new Date().toISOString().slice(0, 10);
     const { data: staff, error } = await admin
       .from("staff_members")
       .update({
         status,
-        ended_on: status === "terminated" ? new Date().toISOString().slice(0, 10) : null,
+        ended_on: status === "terminated" ? effectiveOn : null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
@@ -771,15 +948,20 @@ export async function changeStaffStatus(
         ? "termination"
         : status === "suspended"
           ? "suspension"
-          : status === "active"
-            ? "reactivation"
-            : "note";
+          : status === "provisional"
+            ? "provisional"
+            : status === "active" && prior === "provisional"
+              ? "confirmation"
+              : status === "active"
+                ? "reactivation"
+                : "note";
     await admin.from("staff_employment_events").insert({
       property_id: propertyId,
       staff_id: id,
       event_type: eventType,
+      effective_on: effectiveOn,
       summary: reason,
-      details: { status },
+      details: { status, prior_status: prior },
     });
     await writeAuditEvent(admin, {
       propertyId,
@@ -787,7 +969,7 @@ export async function changeStaffStatus(
       entityType: "staff_members",
       entityId: id,
       summary: `${staff.full_name as string} changed to ${status}`,
-      meta: { status, reason },
+      meta: { status, prior, reason },
     });
 
     refreshHr(id);
@@ -796,6 +978,238 @@ export async function changeStaffStatus(
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Could not update status.",
+    };
+  }
+}
+
+/**
+ * Onboard a provisional hire (recruitment pipeline). Confirm or terminate later
+ * from /erp/hr/recruitment.
+ */
+export async function provisionStaffMember(
+  _previous: HrActionState,
+  formData: FormData,
+): Promise<HrActionState> {
+  try {
+    const { admin, propertyId } = await requireHrDesk();
+    const employeeCode = normalizeEmployeeCode(formData.get("employee_code"));
+    const role = trimRequired(formData.get("role_label"), "Role").toLowerCase();
+    const employmentType = (
+      optionalTrim(formData.get("employment_type")) ?? "full_time"
+    ).toLowerCase();
+    if (!STAFF_ROLES.has(role)) throw new Error("Invalid staff role.");
+    if (!EMPLOYMENT_TYPES.has(employmentType)) {
+      throw new Error("Invalid employment type.");
+    }
+
+    const fullName = trimRequired(formData.get("full_name"), "Name");
+    const hiredOn =
+      optionalTrim(formData.get("hired_on")) ??
+      new Date().toISOString().slice(0, 10);
+    const probationEnds = optionalTrim(formData.get("probation_ends_on"));
+    const managerId = optionalTrim(formData.get("manager_id"));
+    if (managerId) {
+      const { data: manager } = await admin
+        .from("staff_members")
+        .select("id")
+        .eq("id", managerId)
+        .eq("property_id", propertyId)
+        .maybeSingle();
+      if (!manager) throw new Error("Manager not found on this property.");
+    }
+
+    const notes = optionalTrim(formData.get("notes"));
+    const record = {
+      property_id: propertyId,
+      employee_code: employeeCode,
+      full_name: fullName,
+      role_label: role,
+      department: optionalTrim(formData.get("department")),
+      position_title: optionalTrim(formData.get("position_title")),
+      employment_type: employmentType,
+      phone: optionalTrim(formData.get("phone")),
+      email: normalizeEmail(optionalTrim(formData.get("email"))),
+      hired_on: hiredOn,
+      probation_ends_on: probationEnds,
+      manager_id: managerId,
+      notes,
+      status: "provisional",
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await admin
+      .from("staff_members")
+      .insert(record)
+      .select("id")
+      .single();
+    if (error || !data) {
+      if (error?.code === "23505") {
+        throw new Error(`Employee code ${employeeCode} already exists.`);
+      }
+      throw new Error("Could not provision staff member.");
+    }
+
+    const staffId = data.id as string;
+
+    let wageNote = "";
+    const baseWage = parseMoney(
+      formData.get("base_wage_btn"),
+      "Monthly salary",
+    );
+    if (baseWage != null) {
+      try {
+        await requireMoneyDesk();
+        const { error: wageError } = await admin
+          .from("staff_private_profiles")
+          .upsert(
+            {
+              staff_id: staffId,
+              property_id: propertyId,
+              base_wage_btn: baseWage,
+              pay_schedule: "monthly",
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "staff_id" },
+          );
+        if (wageError) {
+          wageNote =
+            " Provisioned without salary — open staff Compensation to set monthly pay.";
+        }
+      } catch {
+        wageNote =
+          " Provisioned without salary (money desk required). Set pay under Compensation.";
+      }
+    }
+
+    await admin.from("staff_employment_events").insert({
+      property_id: propertyId,
+      staff_id: staffId,
+      event_type: "provisional",
+      effective_on: hiredOn,
+      summary: `${fullName} provisioned as ${
+        (record.position_title as string | null) || role
+      }`,
+      details: {
+        status: "provisional",
+        department: record.department,
+        probation_ends_on: probationEnds,
+        base_wage_btn: baseWage,
+      },
+    });
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "staff.provision",
+      entityType: "staff_members",
+      entityId: staffId,
+      summary: `Provisioned ${fullName}`,
+      meta: {
+        employeeCode,
+        role,
+        employmentType,
+        hasWage: baseWage != null && !wageNote,
+      },
+    });
+
+    refreshHr(staffId);
+    return {
+      ok: true,
+      message: `Staff provisioned. Confirm hire or terminate after probation.${wageNote}`,
+      staffId,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Could not provision staff member.",
+    };
+  }
+}
+
+/**
+ * Recruitment decision: confirm provisional → hired (active) or terminate.
+ */
+export async function decideProvisionalStaff(
+  _previous: HrActionState,
+  formData: FormData,
+): Promise<HrActionState> {
+  try {
+    const { admin, propertyId } = await requireHrDesk();
+    const id = trimRequired(formData.get("staff_id"), "Staff");
+    const decision = trimRequired(formData.get("decision"), "Decision")
+      .toLowerCase();
+    const reason = trimRequired(formData.get("reason"), "Reason");
+    if (decision !== "hire" && decision !== "terminate") {
+      throw new Error("Decision must be hire or terminate.");
+    }
+
+    const { data: before } = await admin
+      .from("staff_members")
+      .select("id, full_name, status, position_title, role_label")
+      .eq("id", id)
+      .eq("property_id", propertyId)
+      .maybeSingle();
+    if (!before) throw new Error("Staff member not found.");
+    if ((before.status as string) !== "provisional") {
+      throw new Error("Only provisional staff can be decided here.");
+    }
+
+    const effectiveOn =
+      optionalTrim(formData.get("effective_on")) ??
+      new Date().toISOString().slice(0, 10);
+    const nextStatus = decision === "hire" ? "active" : "terminated";
+    const { data: staff, error } = await admin
+      .from("staff_members")
+      .update({
+        status: nextStatus,
+        ended_on: decision === "terminate" ? effectiveOn : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .eq("property_id", propertyId)
+      .select("id, full_name")
+      .single();
+    if (error || !staff) throw new Error("Could not apply recruitment decision.");
+
+    await admin.from("staff_employment_events").insert({
+      property_id: propertyId,
+      staff_id: id,
+      event_type: decision === "hire" ? "confirmation" : "termination",
+      effective_on: effectiveOn,
+      summary: reason,
+      details: {
+        status: nextStatus,
+        prior_status: "provisional",
+        decision,
+      },
+    });
+    await writeAuditEvent(admin, {
+      propertyId,
+      action:
+        decision === "hire" ? "staff.confirm_hire" : "staff.terminate_provision",
+      entityType: "staff_members",
+      entityId: id,
+      summary: `${staff.full_name as string}: provisional → ${nextStatus}`,
+      meta: { decision, reason, effectiveOn },
+    });
+
+    refreshHr(id);
+    return {
+      ok: true,
+      message:
+        decision === "hire"
+          ? "Hire confirmed — staff is active."
+          : "Provisional ended — staff terminated.",
+      staffId: id,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Could not apply recruitment decision.",
     };
   }
 }

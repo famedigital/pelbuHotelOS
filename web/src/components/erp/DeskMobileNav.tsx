@@ -1,7 +1,7 @@
 "use client";
 
 import { deskLogout } from "@/app/actions/desk";
-import { NAV_SECTIONS } from "@/lib/erp-nav";
+import { ERP_MODULES, NAV_SECTIONS } from "@/lib/erp-nav";
 import {
   Sheet,
   SheetClose,
@@ -20,21 +20,61 @@ import {
   SparklesIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 
 const PRIMARY_ITEMS = [
-  { title: "Calendar", href: "/erp/calendar", icon: CalendarDaysIcon },
-  { title: "Book", href: "/erp/fast-book", icon: SparklesIcon },
-  { title: "Stay", href: "/erp/in-house", icon: BedDoubleIcon },
-  { title: "POS", href: "/erp/pos", icon: ShoppingCartIcon },
+  {
+    title: "Calendar",
+    href: "/erp/calendar",
+    icon: CalendarDaysIcon,
+    moduleKey: "calendar",
+  },
+  {
+    title: "Book",
+    href: "/erp/fast-book",
+    icon: SparklesIcon,
+    moduleKey: "front-desk",
+  },
+  {
+    title: "Stay",
+    href: "/erp/in-house",
+    icon: BedDoubleIcon,
+    moduleKey: "front-desk",
+  },
+  {
+    title: "POS",
+    href: "/erp/pos",
+    icon: ShoppingCartIcon,
+    moduleKey: "pos",
+  },
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function DeskMobileNav() {
+export function DeskMobileNav({
+  allowedModuleKeys,
+}: {
+  allowedModuleKeys?: readonly string[];
+} = {}) {
   const pathname = usePathname();
+  const allow = useMemo(() => {
+    if (!allowedModuleKeys || allowedModuleKeys.length === 0) return null;
+    return new Set(allowedModuleKeys);
+  }, [allowedModuleKeys]);
+
+  const primary = PRIMARY_ITEMS.filter(
+    (item) => !allow || allow.has(item.moduleKey),
+  );
+  const sections = useMemo(() => {
+    if (!allow) return NAV_SECTIONS;
+    return ERP_MODULES.filter((m) => allow.has(m.key)).map((m) => ({
+      label: m.title,
+      items: m.tabs,
+    }));
+  }, [allow]);
 
   return (
     <nav
@@ -42,8 +82,13 @@ export function DeskMobileNav() {
       data-slot="desk-mobile-nav"
       className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
     >
-      <div className="grid h-16 grid-cols-5">
-        {PRIMARY_ITEMS.map((item) => {
+      <div
+        className="grid h-16"
+        style={{
+          gridTemplateColumns: `repeat(${Math.max(primary.length + 1, 2)}, minmax(0, 1fr))`,
+        }}
+      >
+        {primary.map((item) => {
           const active = isActive(pathname, item.href);
           const Icon = item.icon;
           return (
@@ -85,11 +130,11 @@ export function DeskMobileNav() {
             <SheetHeader className="text-left">
               <SheetTitle>Pelbu desk</SheetTitle>
               <SheetDescription>
-                All operational and back-office tools.
+                Tools available on your desk account.
               </SheetDescription>
             </SheetHeader>
             <div className="overflow-y-auto px-4 pb-5">
-              {NAV_SECTIONS.map((section) => (
+              {sections.map((section) => (
                 <section key={section.label} className="mb-5">
                   <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                     {section.label}

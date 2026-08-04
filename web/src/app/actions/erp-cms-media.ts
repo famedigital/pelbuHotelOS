@@ -146,14 +146,41 @@ export async function updateCmsMedia(
     const posterPublicId =
       optionalTrim(formData.get("poster_public_id"))?.slice(0, 300) ?? null;
 
+    // Optional asset swap (Change photo / video on an existing card).
+    const publicId = optionalTrim(formData.get("public_id"))?.slice(0, 300);
+    const hasAssetSwap = Boolean(publicId);
+    const resourceType = hasAssetSwap
+      ? parseResourceType(formData.get("resource_type"))
+      : null;
+    const format = optionalTrim(formData.get("format"))?.slice(0, 40) ?? null;
+    const durationSec = optionalNumber(formData.get("duration_sec"));
+    const bytes = optionalNumber(formData.get("bytes"));
+    const width = optionalNumber(formData.get("width"));
+    const height = optionalNumber(formData.get("height"));
+
+    const patch: Record<string, unknown> = {
+      alt,
+      kind,
+      is_published: isPublished,
+      poster_public_id: posterPublicId,
+    };
+    if (publicId && resourceType) {
+      patch.public_id = publicId;
+      patch.resource_type = resourceType;
+      patch.format = format;
+      patch.duration_sec = durationSec;
+      patch.bytes = bytes;
+      patch.width = width;
+      patch.height = height;
+      // New asset: clear stale poster unless still provided.
+      if (resourceType !== "video") {
+        patch.poster_public_id = null;
+      }
+    }
+
     const { data: updated, error } = await admin
       .from("cms_media")
-      .update({
-        alt,
-        kind,
-        is_published: isPublished,
-        poster_public_id: posterPublicId,
-      })
+      .update(patch)
       .eq("id", id)
       .eq("property_id", propertyId)
       .select("page_slug")
@@ -162,18 +189,92 @@ export async function updateCmsMedia(
 
     await writeAuditEvent(admin, {
       propertyId,
-      action: "cms.media.update",
+      action: hasAssetSwap ? "cms.media.replace" : "cms.media.update",
       entityType: "cms_media",
       entityId: id,
-      summary: `Updated media on ${updated.page_slug}`,
-      meta: { alt, kind, isPublished },
+      summary: hasAssetSwap
+        ? `Replaced media asset on ${updated.page_slug}`
+        : `Updated media on ${updated.page_slug}`,
+      meta: { alt, kind, isPublished, publicId: publicId ?? undefined },
     });
     revalidateForSlug(updated.page_slug as string);
-    return { ok: true, message: "Media updated." };
+    return {
+      ok: true,
+      message: hasAssetSwap ? "Photo updated." : "Media updated.",
+    };
   } catch (error) {
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Could not update media.",
+    };
+  }
+}
+
+/** Swap only the Cloudinary asset on an existing cms_media row (hero / gallery). */
+export async function replaceCmsMediaAsset(
+  _previous: CmsMediaState = EMPTY_STATE,
+  formData: FormData,
+): Promise<CmsMediaState> {
+  void _previous;
+  try {
+    const { admin, propertyId } = await context();
+    const id = trimRequired(formData.get("media_id"), "Media");
+    const publicId = trimRequired(
+      formData.get("public_id"),
+      "Cloudinary public ID",
+    );
+    if (publicId.length > 300) {
+      throw new Error("Cloudinary public ID is too long.");
+    }
+    const resourceType = parseResourceType(formData.get("resource_type"));
+    const format = optionalTrim(formData.get("format"))?.slice(0, 40) ?? null;
+    const durationSec = optionalNumber(formData.get("duration_sec"));
+    const bytes = optionalNumber(formData.get("bytes"));
+    const width = optionalNumber(formData.get("width"));
+    const height = optionalNumber(formData.get("height"));
+    const posterPublicId =
+      optionalTrim(formData.get("poster_public_id"))?.slice(0, 300) ?? null;
+
+    const { data: updated, error } = await admin
+      .from("cms_media")
+      .update({
+        public_id: publicId,
+        resource_type: resourceType,
+        format,
+        duration_sec: durationSec,
+        bytes,
+        width,
+        height,
+        poster_public_id:
+          resourceType === "video" ? posterPublicId : null,
+      })
+      .eq("id", id)
+      .eq("property_id", propertyId)
+      .select("page_slug, kind")
+      .maybeSingle();
+    if (error || !updated) throw new Error("Media item was not found.");
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "cms.media.replace",
+      entityType: "cms_media",
+      entityId: id,
+      summary: `Replaced ${updated.kind} asset on ${updated.page_slug}`,
+      meta: { publicId, resourceType },
+    });
+    revalidateForSlug(updated.page_slug as string);
+    return {
+      ok: true,
+      message:
+        resourceType === "video"
+          ? "Video replaced on the live slide."
+          : "Photo replaced on the live slide.",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error ? error.message : "Could not replace media.",
     };
   }
 }

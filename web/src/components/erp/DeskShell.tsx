@@ -29,20 +29,27 @@ export function DeskShell({
   properties,
   activePropertyId,
   logoSrc,
+  allowedModuleKeys,
   children,
 }: {
   title?: string;
   properties?: PropertyRow[];
   activePropertyId?: string;
   logoSrc?: string | null;
+  /** ERP_MODULES keys the session may open. */
+  allowedModuleKeys?: readonly string[];
   children: ReactNode;
 }) {
   return (
     <div className="erp">
       <NavigationProgress />
       <SidebarProvider defaultOpen={false} defaultState="collapsed">
-        <AppSidebar brandName={title} logoSrc={logoSrc} />
-        <ErpCommandPalette />
+        <AppSidebar
+          brandName={title}
+          logoSrc={logoSrc}
+          allowedModuleKeys={allowedModuleKeys}
+        />
+        <ErpCommandPalette allowedModuleKeys={allowedModuleKeys} />
         <SidebarInset>
           <StayHubShell>
             <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
@@ -83,7 +90,7 @@ export function DeskShell({
             <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
               {children}
             </div>
-            <DeskMobileNav />
+            <DeskMobileNav allowedModuleKeys={allowedModuleKeys} />
           </StayHubShell>
         </SidebarInset>
       </SidebarProvider>

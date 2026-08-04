@@ -4,6 +4,7 @@ import {
   addCmsMedia,
   deleteCmsMedia,
   moveCmsMedia,
+  replaceCmsMediaAsset,
   updateCmsMedia,
   type CmsMediaState,
 } from "@/app/actions/erp-cms-media";
@@ -31,12 +32,14 @@ import {
   ArrowUpIcon,
   ImageIcon,
   PlusIcon,
+  RefreshCwIcon,
   SmartphoneIcon,
   Trash2Icon,
   VideoIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useActionState, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 
 const KIND_LABELS: Record<CmsMediaKind, string> = {
   hero: "Hero",
@@ -62,9 +65,33 @@ function thumb(
 }
 
 function MediaCardRow({ item }: { item: CmsMediaRow }) {
+  const router = useRouter();
   const [state, formAction, pending] = useActionState(updateCmsMedia, EMPTY);
-  const src = thumb(item.public_id, item.resource_type, item.poster_public_id);
-  const isVideo = item.resource_type === "video";
+  const [replaceState, replaceAction, replacePending] = useActionState(
+    replaceCmsMediaAsset,
+    EMPTY,
+  );
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pendingId, setPendingId] = useState(item.public_id);
+  const [pendingType, setPendingType] = useState<CloudinaryResourceType>(
+    item.resource_type,
+  );
+  const [isRefreshing, startRefresh] = useTransition();
+
+  useEffect(() => {
+    setPendingId(item.public_id);
+    setPendingType(item.resource_type);
+  }, [item.public_id, item.resource_type]);
+
+  useEffect(() => {
+    if (replaceState.ok) {
+      startRefresh(() => router.refresh());
+    }
+  }, [replaceState.ok, router]);
+
+  const src = thumb(pendingId, pendingType, item.poster_public_id);
+  const isVideo = pendingType === "video";
+  const busy = pending || replacePending || isRefreshing;
 
   return (
     <li className="flex flex-col overflow-hidden rounded-xl border bg-card">
@@ -73,7 +100,7 @@ function MediaCardRow({ item }: { item: CmsMediaRow }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={src}
-            alt={item.alt || item.public_id}
+            alt={item.alt || pendingId}
             className="h-full w-full object-cover"
             loading="lazy"
           />
@@ -89,20 +116,38 @@ function MediaCardRow({ item }: { item: CmsMediaRow }) {
             <Badge variant="outline">Hidden</Badge>
           ) : null}
         </div>
+        <div className="absolute inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-black/70 to-transparent p-2 pt-8">
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            className="h-9 gap-1.5 bg-white/95 text-foreground hover:bg-white"
+            disabled={busy}
+            onClick={() => setPickerOpen(true)}
+          >
+            <RefreshCwIcon className="size-3.5" aria-hidden />
+            {replacePending ? "Replacing…" : "Change photo"}
+          </Button>
+        </div>
       </div>
 
       <form action={formAction} className="flex flex-1 flex-col gap-3 p-3">
         <input type="hidden" name="media_id" value={item.id} />
         <p
           className="truncate font-mono text-[11px] text-muted-foreground"
-          title={item.public_id}
+          title={pendingId}
         >
-          {item.public_id}
+          {pendingId}
         </p>
 
         <div className="grid gap-1.5">
           <Label htmlFor={`alt-${item.id}`} className="text-xs">
             Alt text
+            {item.kind === "hero" ? (
+              <span className="ml-1 font-normal text-muted-foreground">
+                (hero caption)
+              </span>
+            ) : null}
           </Label>
           <Input
             id={`alt-${item.id}`}
@@ -147,14 +192,27 @@ function MediaCardRow({ item }: { item: CmsMediaRow }) {
           </div>
         </div>
 
-        <div className="mt-auto flex items-center gap-2 pt-1">
-          <Button type="submit" size="sm" disabled={pending}>
-            {pending ? "Saving…" : "Save"}
+        <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
+          <Button type="submit" size="sm" disabled={busy}>
+            {pending ? "Saving…" : "Save details"}
           </Button>
-          {state.error ? (
-            <span className="text-xs text-destructive">{state.error}</span>
-          ) : state.ok ? (
-            <span className="text-xs text-muted-foreground">{state.message}</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={() => setPickerOpen(true)}
+          >
+            Change photo
+          </Button>
+          {state.error || replaceState.error ? (
+            <span className="text-xs text-destructive">
+              {state.error ?? replaceState.error}
+            </span>
+          ) : state.ok || replaceState.ok ? (
+            <span className="text-xs text-muted-foreground">
+              {replaceState.message ?? state.message}
+            </span>
           ) : null}
         </div>
       </form>
@@ -192,11 +250,48 @@ function MediaCardRow({ item }: { item: CmsMediaRow }) {
           </Button>
         </form>
       </div>
+
+      <CloudinaryPicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        uploadFolder={`pelbu/${item.page_slug}`}
+        title={
+          item.kind === "hero"
+            ? "Change hero slide photo"
+            : "Change media photo or video"
+        }
+        description="Pick a library asset or upload a new file. This replaces the live image without removing the slide."
+        onSelect={(id, meta?: CloudinaryPickerSelection) => {
+          setPendingId(id);
+          setPendingType(meta?.resourceType ?? "image");
+          setPickerOpen(false);
+          const fd = new FormData();
+          fd.set("media_id", item.id);
+          fd.set("public_id", id);
+          fd.set("resource_type", meta?.resourceType ?? "image");
+          if (meta?.format) fd.set("format", meta.format);
+          if (meta?.bytes != null) fd.set("bytes", String(meta.bytes));
+          if (meta?.width) fd.set("width", String(meta.width));
+          if (meta?.height) fd.set("height", String(meta.height));
+          if (meta?.durationSec != null) {
+            fd.set("duration_sec", String(meta.durationSec));
+          }
+          // useActionState dispatcher accepts FormData when invoked as form action;
+          // also works as (prev, formData) — React 19 uses (payload).
+          void replaceAction(fd);
+        }}
+      />
     </li>
   );
 }
 
-function AddMediaForm({ pageSlug }: { pageSlug: string }) {
+function AddMediaForm({
+  pageSlug,
+  defaultKind = "gallery",
+}: {
+  pageSlug: string;
+  defaultKind?: CmsMediaKind;
+}) {
   const [state, formAction, pending] = useActionState(addCmsMedia, EMPTY);
   const [publicId, setPublicId] = useState("");
   const [resourceType, setResourceType] =
@@ -278,7 +373,8 @@ function AddMediaForm({ pageSlug }: { pageSlug: string }) {
           <select
             id={`new-kind-${pageSlug}`}
             name="kind"
-            defaultValue="gallery"
+            defaultValue={defaultKind}
+            key={`${pageSlug}-${defaultKind}`}
             className={selectClass}
           >
             {CMS_MEDIA_KINDS.map((kind) => (
@@ -316,8 +412,9 @@ function AddMediaForm({ pageSlug }: { pageSlug: string }) {
       </div>
 
       <p className="mt-2 text-xs text-muted-foreground">
-        Hero media replaces the built-in banner slides for this page. Videos
-        stream adaptively (HLS) on the public site.
+        Set Role to <strong>Hero</strong> for homepage slider slides (order =
+        slide order). Gallery fills photo strips. Use{" "}
+        <strong>Change photo</strong> on a card to swap an existing slide image.
       </p>
 
       {preview ? (
@@ -444,12 +541,27 @@ export function CmsMediaManager({ groups }: { groups: CmsMediaGroup[] }) {
           <Badge variant={heroCount > 0 ? "secondary" : "outline"}>
             {heroCount > 0
               ? `${heroCount} hero slide${heroCount === 1 ? "" : "s"} live`
-              : "Using built-in hero slides"}
+              : "Using built-in hero slides — add with Role: Hero"}
           </Badge>
         ) : null}
       </div>
 
-      <AddMediaForm pageSlug={group.page_slug} />
+      {group.page_slug === "home" && heroCount === 0 ? (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-50/80 px-4 py-3 text-sm text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
+          <p className="font-medium">Homepage hero is still the built-in set</p>
+          <p className="mt-1 text-muted-foreground dark:text-amber-100/80">
+            To edit the slider: add photos below with Role set to{" "}
+            <strong>Hero</strong> (default on home). Order with ↑ ↓ is the
+            slide order. On each card, use <strong>Change photo</strong> to
+            swap the image without deleting the slide.
+          </p>
+        </div>
+      ) : null}
+
+      <AddMediaForm
+        pageSlug={group.page_slug}
+        defaultKind={group.page_slug === "home" ? "hero" : "gallery"}
+      />
 
       {group.items.length === 0 ? (
         <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">

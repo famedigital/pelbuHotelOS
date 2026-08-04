@@ -25,12 +25,14 @@ export function SettingsCommercialPanel({
   mealPlans,
   extraBedRateBtn,
   extraBedActive,
+  staffSalesCommissionPct,
 }: {
   propertyId: string;
   defaultMealPlanCode: string;
   mealPlans: MealPlanSettingsRow[];
   extraBedRateBtn: number | null;
   extraBedActive: boolean;
+  staffSalesCommissionPct: number | null;
 }) {
   const [state, action, pending] = useActionState(updateCommercialSettings, initial);
   useActionToast(state, { successMessage: "Rates & meals saved" });
@@ -192,6 +194,43 @@ export function SettingsCommercialPanel({
               />
             </div>
           </div>
+        </div>
+
+        <div className="mt-6 rounded-lg border p-4">
+          <p className="text-sm font-medium text-foreground">
+            Staff sales commission
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Suggested % of quoted stay total for Owner/GM-approved sales claims
+            (reporting and export only — does not post payroll).
+          </p>
+          <div className="mt-4 max-w-xs space-y-1">
+            <Label htmlFor="staff_sales_commission_pct" className="text-xs">
+              Commission %
+            </Label>
+            <Input
+              id="staff_sales_commission_pct"
+              name="staff_sales_commission_pct"
+              type="text"
+              inputMode="decimal"
+              placeholder="e.g. 2"
+              defaultValue={
+                staffSalesCommissionPct == null
+                  ? ""
+                  : String(staffSalesCommissionPct)
+              }
+              className="h-9 w-28"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Blank = no suggested commission amount
+            </p>
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Queue:{" "}
+            <Link href="/erp/sales-claims" className="text-accent underline">
+              Sales claims
+            </Link>
+          </p>
         </div>
 
         <div className="mt-6 max-w-xs space-y-1.5">

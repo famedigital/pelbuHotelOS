@@ -8,6 +8,7 @@ import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { matchesQuery } from "@/lib/erp-lists";
 import { requireDeskPropertyId } from "@/lib/desk-property";
 import { loadProperty } from "@/lib/property-context";
+import { getStaffSession } from "@/lib/staff-auth";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -57,6 +58,7 @@ export default async function ReservationsPage({
     preferredUnit,
     { data: mealPlans },
     { data: propertyDefaults },
+    { data: staffRows },
   ] = await Promise.all([
     (() => {
       let req = admin
@@ -106,6 +108,15 @@ export default async function ReservationsPage({
           .eq("id", property.id)
           .maybeSingle()
       : Promise.resolve({ data: null }),
+    property
+      ? admin
+          .from("staff_members")
+          .select("id, full_name, employee_code, role_label")
+          .eq("property_id", property.id)
+          .in("status", ["active", "on_leave"])
+          .order("full_name")
+          .limit(300)
+      : Promise.resolve({ data: [] }),
   ]);
 
   const qtyByCode: Record<string, number> = {};
@@ -148,6 +159,7 @@ export default async function ReservationsPage({
     ),
   );
 
+  const staffSession = await getStaffSession();
   const fastBookForm = {
     roomTypes: (roomTypes ?? []).map((r) => ({
       id: r.id as string,
@@ -162,6 +174,16 @@ export default async function ReservationsPage({
       market: a.market as string,
       status: a.status as string,
     })),
+    staff: (staffRows ?? []).map((s) => ({
+      id: s.id as string,
+      full_name: (s.full_name as string) || "Staff",
+      employee_code: (s.employee_code as string | null) ?? null,
+      role_label: (s.role_label as string | null) ?? null,
+    })),
+    defaultSoldByStaffId:
+      staffSession && staffSession.propertyId === propertyId
+        ? staffSession.staffId
+        : "",
     property: property
       ? {
           name: property.name,

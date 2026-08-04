@@ -15,6 +15,7 @@ import {
   type DashboardView,
   type RoleDashboardSnapshot,
 } from "@/lib/erp/role-dashboard";
+import { fmtDate } from "@/lib/erp-lists";
 import { formatBtn } from "@/lib/pricing";
 import {
   BedDoubleIcon,
@@ -79,6 +80,156 @@ function Kpi({
         </CardContent>
       </Card>
     </Link>
+  );
+}
+
+function GuestForecastPanel({ snap }: { snap: RoleDashboardSnapshot }) {
+  const f = snap.guestForecast;
+  const wd = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+  function weekday(iso: string): string {
+    const d = new Date(`${iso}T12:00:00Z`);
+    return wd[d.getUTCDay()] ?? "";
+  }
+  const maxRoom = Math.max(1, ...f.weekly.map((d) => d.rooms), ...f.monthly.map((d) => d.rooms));
+
+  return (
+    <section
+      className="rounded-xl border bg-card p-4"
+      aria-label="Guest forecast weekly and monthly"
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-foreground">
+            Guest forecast
+          </p>
+          <p className="text-xs text-muted-foreground">
+            From held, confirmed, and in-house bookings · {fmtDate(f.businessDate)}
+          </p>
+        </div>
+        <Link
+          href="/erp/calendar"
+          className="text-xs font-medium text-accent underline-offset-4 hover:underline"
+        >
+          Room rack →
+        </Link>
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div>
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Next 7 days
+            </p>
+            <p className="text-xs tabular-nums text-muted-foreground">
+              Arr {f.weekTotals.arrivals} · Dep {f.weekTotals.departures} · peak{" "}
+              {f.weekTotals.peakGuests} guests / {f.weekTotals.peakRooms} rms
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[280px] border-collapse text-left text-xs">
+              <thead>
+                <tr className="border-b text-[10px] tracking-wide text-muted-foreground uppercase">
+                  <th className="py-1.5 pr-2 font-medium">Day</th>
+                  <th className="py-1.5 pr-2 font-medium tabular-nums">Arr</th>
+                  <th className="py-1.5 pr-2 font-medium tabular-nums">Dep</th>
+                  <th className="py-1.5 pr-2 font-medium tabular-nums">Rooms</th>
+                  <th className="py-1.5 font-medium tabular-nums">Guests</th>
+                </tr>
+              </thead>
+              <tbody>
+                {f.weekly.map((day) => (
+                  <tr
+                    key={day.date}
+                    className={`border-b border-border/50 ${
+                      day.date === f.businessDate ? "bg-muted/40" : ""
+                    }`}
+                  >
+                    <td className="py-1.5 pr-2 whitespace-nowrap">
+                      <span className="font-medium">{weekday(day.date)}</span>
+                      <span className="ml-1 text-muted-foreground">
+                        {day.date.slice(8)}
+                      </span>
+                    </td>
+                    <td className="py-1.5 pr-2 tabular-nums">{day.arrivals}</td>
+                    <td className="py-1.5 pr-2 tabular-nums">{day.departures}</td>
+                    <td className="py-1.5 pr-2 tabular-nums">{day.rooms}</td>
+                    <td className="py-1.5 tabular-nums font-medium">{day.guests}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+              This month
+            </p>
+            <p className="text-xs tabular-nums text-muted-foreground">
+              Arr {f.monthTotals.arrivals} · Dep {f.monthTotals.departures} · avg{" "}
+              {f.monthTotals.avgGuests} guests / {f.monthTotals.avgRooms} rms
+            </p>
+          </div>
+          <div
+            className="flex h-24 items-end gap-px"
+            role="img"
+            aria-label="Daily in-house rooms for the calendar month"
+          >
+            {f.monthly.map((day) => {
+              const h = Math.max(4, Math.round((day.rooms / maxRoom) * 100));
+              const isToday = day.date === f.businessDate;
+              return (
+                <div
+                  key={day.date}
+                  title={`${day.date}: ${day.guests} guests, ${day.rooms} rooms, ${day.arrivals} arr / ${day.departures} dep`}
+                  className={`min-w-0 flex-1 rounded-t-sm ${
+                    isToday
+                      ? "bg-accent"
+                      : day.rooms > 0
+                        ? "bg-accent/45"
+                        : "bg-muted"
+                  }`}
+                  style={{ height: `${h}%` }}
+                />
+              );
+            })}
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="rounded-lg border px-2.5 py-2">
+              <p className="text-[10px] text-muted-foreground uppercase">Arrivals</p>
+              <p className="text-lg font-semibold tabular-nums">
+                {f.monthTotals.arrivals}
+              </p>
+            </div>
+            <div className="rounded-lg border px-2.5 py-2">
+              <p className="text-[10px] text-muted-foreground uppercase">
+                Departures
+              </p>
+              <p className="text-lg font-semibold tabular-nums">
+                {f.monthTotals.departures}
+              </p>
+            </div>
+            <div className="rounded-lg border px-2.5 py-2">
+              <p className="text-[10px] text-muted-foreground uppercase">
+                Peak guests
+              </p>
+              <p className="text-lg font-semibold tabular-nums text-citrus">
+                {f.monthTotals.peakGuests}
+              </p>
+            </div>
+            <div className="rounded-lg border px-2.5 py-2">
+              <p className="text-[10px] text-muted-foreground uppercase">
+                Peak rooms
+              </p>
+              <p className="text-lg font-semibold tabular-nums">
+                {f.monthTotals.peakRooms}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -348,10 +499,12 @@ export function DashboardViewSwitcher({
 function Shell({
   title,
   subtitle,
+  snap,
   children,
 }: {
   title: string;
   subtitle: string;
+  snap: RoleDashboardSnapshot;
   children: ReactNode;
 }) {
   return (
@@ -368,6 +521,7 @@ function Shell({
         </div>
         <DeskLiveRefresh />
       </header>
+      <GuestForecastPanel snap={snap} />
       {children}
     </div>
   );
@@ -378,6 +532,7 @@ function OwnerBoard({ snap }: { snap: RoleDashboardSnapshot }) {
     <Shell
       title="Owner"
       subtitle={`${snap.propertyName ?? "Property"} · ${snap.businessDate}`}
+      snap={snap}
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
@@ -468,6 +623,7 @@ function ManagerBoard({ snap }: { snap: RoleDashboardSnapshot }) {
     <Shell
       title="Manager"
       subtitle={`Duty board · ${snap.businessDate}`}
+      snap={snap}
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
@@ -550,7 +706,7 @@ function ManagerBoard({ snap }: { snap: RoleDashboardSnapshot }) {
 
 function FrontDeskBoard({ snap }: { snap: RoleDashboardSnapshot }) {
   return (
-    <Shell title="Front desk" subtitle={`Shift home · ${snap.businessDate}`}>
+    <Shell title="Front desk" subtitle={`Shift home · ${snap.businessDate}`} snap={snap}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
           href="/erp/arrivals"
@@ -609,7 +765,7 @@ function FrontDeskBoard({ snap }: { snap: RoleDashboardSnapshot }) {
 
 function FnbBoard({ snap }: { snap: RoleDashboardSnapshot }) {
   return (
-    <Shell title="F&B" subtitle={`Register & service · ${snap.businessDate}`}>
+    <Shell title="F&B" subtitle={`Register & service · ${snap.businessDate}`} snap={snap}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
           href="/erp/pos"
@@ -678,7 +834,11 @@ function FnbBoard({ snap }: { snap: RoleDashboardSnapshot }) {
 
 function KitchenBoard({ snap }: { snap: RoleDashboardSnapshot }) {
   return (
-    <Shell title="Kitchen" subtitle={`Cook line · pax & tickets · ${snap.businessDate}`}>
+    <Shell
+      title="Kitchen"
+      subtitle={`Cook line · pax & tickets · ${snap.businessDate}`}
+      snap={snap}
+    >
       <MealPaxStrip snap={snap} emphasize />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
@@ -734,7 +894,7 @@ function KitchenBoard({ snap }: { snap: RoleDashboardSnapshot }) {
 
 function HkBoard({ snap }: { snap: RoleDashboardSnapshot }) {
   return (
-    <Shell title="Housekeeping" subtitle={`Rooms · ${snap.businessDate}`}>
+    <Shell title="Housekeeping" subtitle={`Rooms · ${snap.businessDate}`} snap={snap}>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <Kpi
           href="/erp/housekeeping"
@@ -793,7 +953,7 @@ function HkBoard({ snap }: { snap: RoleDashboardSnapshot }) {
 
 function LaundryBoard({ snap }: { snap: RoleDashboardSnapshot }) {
   return (
-    <Shell title="Laundry" subtitle={`Pipeline · ${snap.businessDate}`}>
+    <Shell title="Laundry" subtitle={`Pipeline · ${snap.businessDate}`} snap={snap}>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <Kpi
           href="/erp/laundry"
@@ -847,7 +1007,7 @@ function LaundryBoard({ snap }: { snap: RoleDashboardSnapshot }) {
 
 function CashierBoard({ snap }: { snap: RoleDashboardSnapshot }) {
   return (
-    <Shell title="Cashier" subtitle={`POS settle path · ${snap.businessDate}`}>
+    <Shell title="Cashier" subtitle={`POS settle path · ${snap.businessDate}`} snap={snap}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
           href="/erp/pos"

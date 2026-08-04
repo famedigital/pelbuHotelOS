@@ -70,7 +70,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 
 | Module | Route | Status |
 |--------|-------|--------|
-| **Dashboard** (role home) | `/erp` | **Per desk role:** Owner · Manager · Front desk · F&B · Kitchen (**BF/L/D pax** + event pax) · HK · Laundry · Cashier. Owner/GM can preview all via `?view=`. Assign role on Staff → Access. |
+| **Dashboard** (role home) | `/erp` | **Per desk role:** Owner · Manager · Front desk · F&B · Kitchen (**BF/L/D pax** + event pax) · HK · Laundry · Cashier — each board shows **weekly + monthly guest forecast** (arr/dep/rooms/guests from bookings). Owner/GM can preview all via `?view=`. Assign role on Staff → Access. |
 | **Calendar / Timeline** | `/erp/calendar` | **v1–v2 shipped (2026-07-29)** — see below |
 | Calendar day sheet | `/erp/calendar/day-sheet` | Printable arrivals / departures / stayovers / blocks |
 | Fast book | Modal on `/erp/reservations?new=1` (deeplink `/erp/fast-book` redirects) | Create path is modal → StayHub at Reserve; form still has qty grid + drawer |
@@ -90,9 +90,9 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Rooms HK | `/erp/rooms` | Physical units clean/dirty/inspect/occupied/ooo |
 | Housekeeping / maintenance | `/erp/housekeeping`, `/erp/maintenance` | P9 |
 | Inventory | `/erp/inventory` (+ tabs: Items · Locations · Moves · **Assessment** · POs · Assets) | **Independent sidebar module** — table-first SKU catalog, staff categories, receive/damage/transfer; Assessment = stocktake at `/erp/inventory/audits` |
-| HR | `/erp/hr` | Staff **Form\|Sheet** toggle · shifts/leave · weekly rota (copy week + publish pending UX) · overlap conflict |
+| HR | `/erp/hr` (+ `/access`, `/positions`, `/vacancies`, `/recruitment`, print) | Staff **Form\|Sheet** · **Module access** · **Positions** (TOR + template PDFs) · **Vacancies** (open headcount, inbox) · public `/careers` · Recruitment (provision → hire/terminate + print) · rota · leave · payroll |
 | Channel | `/erp/channel` | Active-property Channex maps, ARI queue (availability + rates + min-stay/stop-sell), flush/retry, feed pull/ack — **live cert still open** ([CHANNEX-CERT.md](CHANNEX-CERT.md)) |
-| **Sales & Marketing** | `/erp/marketing` | Campaigns · coupons (cap/time/domain/channel) · NC reason policies · ROI snapshot; POS/room NC + promo redeem money paths |
+| **Sales & Marketing** | `/erp/marketing` | Campaigns · coupons · NC policies · catalogues (templates, `/c/[slug]` share+OG, social crops, print PDF) · ROI; POS/room NC + promo money paths |
 | Loyalty | `/erp/loyalty` (+ `/guest/loyalty`) | Points ledger + guest portal lite |
 | Recipe cost | `/erp/pos/recipe-cost` | Multi-outlet margin rollup; full RMS open |
 | Allotments | `/erp/allotments` | P9 |

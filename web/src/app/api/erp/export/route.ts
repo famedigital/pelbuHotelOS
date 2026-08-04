@@ -55,6 +55,7 @@ export async function GET(request: Request) {
     kind === "agent-commission" ||
     kind === "agent-ar" ||
     kind === "staff-attendance" ||
+    kind === "staff-sales" ||
     kind === "inventory-movements" ||
     kind === "immigration" ||
     kind === "sdf"
@@ -286,6 +287,47 @@ export async function GET(request: Request) {
           csvEscape(r.clock_ins),
           csvEscape(r.clock_outs),
           csvEscape(r.estimated_hours),
+        ]),
+      );
+    }
+
+    if (kind === "staff-sales") {
+      const { loadStaffSalesReport } = await import("@/lib/reports/catalog");
+      const rows = await loadStaffSalesReport(admin, {
+        propertyId,
+        from: since,
+        to: until,
+        staffId,
+        status: "approved",
+      });
+      return csvResponse(
+        kind,
+        since,
+        [
+          "booking_id",
+          "staff_id",
+          "staff_name",
+          "contact_name",
+          "check_in",
+          "check_out",
+          "agent_name",
+          "quoted_total_btn",
+          "commission_pct",
+          "commission_btn",
+          "sales_claim_status",
+        ],
+        rows.map((r) => [
+          csvEscape(r.booking_id),
+          csvEscape(r.staff_id),
+          csvEscape(r.staff_name),
+          csvEscape(r.contact_name),
+          csvEscape(r.check_in),
+          csvEscape(r.check_out),
+          csvEscape(r.agent_name),
+          csvEscape(r.quoted_total_btn),
+          csvEscape(r.commission_pct ?? ""),
+          csvEscape(r.commission_btn),
+          csvEscape(r.sales_claim_status),
         ]),
       );
     }

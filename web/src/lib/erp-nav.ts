@@ -89,6 +89,11 @@ export const ERP_MODULES: ErpModule[] = [
         href: "/erp/reservations",
         icon: ReceiptTextIcon,
       },
+      {
+        title: "Sales claims",
+        href: "/erp/sales-claims",
+        icon: ReceiptTextIcon,
+      },
       { title: "Guests", href: "/erp/guests", icon: UsersIcon },
       { title: "Loyalty", href: "/erp/loyalty", icon: SparklesIcon },
       {
@@ -173,6 +178,26 @@ export const ERP_MODULES: ErpModule[] = [
     href: "/erp/hr",
     tabs: [
       { title: "Staff", href: "/erp/hr", icon: UsersIcon },
+      {
+        title: "Module access",
+        href: "/erp/hr/access",
+        icon: SettingsIcon,
+      },
+      {
+        title: "Positions",
+        href: "/erp/hr/positions",
+        icon: ClipboardListIcon,
+      },
+      {
+        title: "Vacancies",
+        href: "/erp/hr/vacancies",
+        icon: ReceiptTextIcon,
+      },
+      {
+        title: "Recruitment",
+        href: "/erp/hr/recruitment",
+        icon: ClipboardListIcon,
+      },
       { title: "Rota", href: "/erp/hr/rota", icon: CalendarClockIcon },
       {
         title: "Attendance",

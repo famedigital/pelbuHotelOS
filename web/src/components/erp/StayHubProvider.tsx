@@ -5,6 +5,7 @@ import {
   type StayHubSeedStay,
 } from "@/components/erp/StayHubDialog";
 import type { CalendarAgent } from "@/components/erp/CalendarReservationDialog";
+import type { BookableStaff } from "@/components/erp/StaffPicker";
 import type { RackUnit } from "@/components/erp/RoomRackGrid";
 import {
   parseStayHubStep,
@@ -28,6 +29,7 @@ export type OpenStayHubOptions = {
   step?: StayHubStepId | null;
   seedStay?: StayHubSeedStay | null;
   agents?: CalendarAgent[];
+  staff?: BookableStaff[];
   units?: RackUnit[];
   onToggleLock?: (stay: StayHubSeedStay) => void;
   board?: "arrivals" | "in_house" | "departures" | "reservations" | "auto";
@@ -70,6 +72,7 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
   );
   const [seedStay, setSeedStay] = useState<StayHubSeedStay | null>(null);
   const [agents, setAgents] = useState<CalendarAgent[]>([]);
+  const [staff, setStaff] = useState<BookableStaff[]>([]);
   const [units, setUnits] = useState<RackUnit[]>([]);
   const [board, setBoard] = useState<OpenStayHubOptions["board"]>("auto");
   const onToggleLockRef = useRef<OpenStayHubOptions["onToggleLock"]>(undefined);
@@ -120,6 +123,7 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
       }
       setSeedStay(opts.seedStay ?? null);
       if (opts.agents) setAgents(opts.agents);
+      if (opts.staff) setStaff(opts.staff);
       if (opts.units) setUnits(opts.units);
       setBoard(opts.board ?? "auto");
       onToggleLockRef.current = opts.onToggleLock;
@@ -182,6 +186,7 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
         preferredStep={preferredStep}
         seedStay={seedStay}
         agents={agents}
+        staff={staff}
         units={units}
         board={board}
         onOpenChange={(next) => {

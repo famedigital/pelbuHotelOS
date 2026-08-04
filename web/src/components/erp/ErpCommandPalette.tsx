@@ -14,12 +14,16 @@ import {
   CommandShortcut,
 } from "@/components/ui/command";
 import { ERP_MODULES, ERP_QUICK_ACTIONS } from "@/lib/erp-nav";
+import { resolveModule } from "@/lib/erp-nav";
 
 /**
- * Desk command palette — Ctrl+K / Cmd+K jumps to any module tab or quick action.
- * Mounted in DeskShell so it only runs inside the authenticated ERP shell.
+ * Desk command palette — Ctrl+K / Cmd+K jumps to any allowed module tab.
  */
-export function ErpCommandPalette() {
+export function ErpCommandPalette({
+  allowedModuleKeys,
+}: {
+  allowedModuleKeys?: readonly string[];
+} = {}) {
   const [open, setOpen] = React.useState(false);
   const router = useRouter();
 
@@ -32,6 +36,25 @@ export function ErpCommandPalette() {
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
+
+  const allow = React.useMemo(() => {
+    if (!allowedModuleKeys || allowedModuleKeys.length === 0) return null;
+    return new Set(allowedModuleKeys);
+  }, [allowedModuleKeys]);
+
+  const modules = React.useMemo(() => {
+    if (!allow) return ERP_MODULES;
+    return ERP_MODULES.filter((m) => allow.has(m.key));
+  }, [allow]);
+
+  const quick = React.useMemo(() => {
+    if (!allow) return ERP_QUICK_ACTIONS;
+    return ERP_QUICK_ACTIONS.filter((action) => {
+      const match = resolveModule(action.href);
+      if (!match) return true;
+      return allow.has(match.module.key);
+    });
+  }, [allow]);
 
   const navigate = React.useCallback(
     (href: string) => {
@@ -51,23 +74,27 @@ export function ErpCommandPalette() {
       <CommandInput placeholder="Jump to a screen…" aria-label="Search desk screens" />
       <CommandList>
         <CommandEmpty>No matching screen.</CommandEmpty>
-        <CommandGroup heading="Quick actions">
-          {ERP_QUICK_ACTIONS.map((action) => {
-            const Icon = action.icon;
-            return (
-              <CommandItem
-                key={action.href}
-                value={`${action.title} ${action.href}`}
-                onSelect={() => navigate(action.href)}
-              >
-                <Icon />
-                <span>{action.title}</span>
-              </CommandItem>
-            );
-          })}
-        </CommandGroup>
-        <CommandSeparator />
-        {ERP_MODULES.map((module) => (
+        {quick.length > 0 ? (
+          <>
+            <CommandGroup heading="Quick actions">
+              {quick.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <CommandItem
+                    key={action.href}
+                    value={`${action.title} ${action.href}`}
+                    onSelect={() => navigate(action.href)}
+                  >
+                    <Icon />
+                    <span>{action.title}</span>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+            <CommandSeparator />
+          </>
+        ) : null}
+        {modules.map((module) => (
           <CommandGroup key={module.key} heading={module.title}>
             {module.tabs.map((tab) => {
               const Icon = tab.icon;

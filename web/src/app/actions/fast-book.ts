@@ -7,10 +7,16 @@ import {
   MAX_CHILDREN,
   MAX_EXTRA_BEDS,
   resolveStayAddonsForBook,
-} from "@/lib/meal-plans";import { notifyNewBooking } from "@/lib/notify";
+} from "@/lib/meal-plans";
+import { notifyNewBooking } from "@/lib/notify";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { writeAuditEvent } from "@/lib/audit";
 import { roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
+import {
+  buildSalesClaimInsert,
+  resolveSoldByStaffId,
+} from "@/lib/sales-claims";
 import {
   agentRateTier,
   lookupRoomRateBtn,
@@ -130,6 +136,12 @@ export async function createFastBooking(
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
     const property = { id: propertyId };
+    const soldByStaffId = await resolveSoldByStaffId(
+      admin,
+      propertyId,
+      formData.get("sold_by_staff_id"),
+    );
+    const salesClaim = buildSalesClaimInsert(soldByStaffId);
 
     const mealPlanCodeRaw = trimRequired(formData.get("meal_plan_code"), "Meal plan");
     const nights = nightsBetween(checkIn, checkOut);
@@ -271,6 +283,8 @@ export async function createFastBooking(
         meal_plan_code: mealPlanCode,
         meal_plan_amount_btn: mealPlanAmountBtn,
         extra_bed_amount_btn: extraBedAmountBtn,
+        sold_by_staff_id: salesClaim.sold_by_staff_id,
+        sales_claim_status: salesClaim.sales_claim_status,
       })
       .select("id")
       .single();
@@ -278,6 +292,17 @@ export async function createFastBooking(
     if (bookingError || !booking) {
       console.error("createFastBooking insert failed", bookingError);
       throw new Error("Could not save booking. Check schema migration is applied.");
+    }
+
+    if (soldByStaffId) {
+      await writeAuditEvent(admin, {
+        propertyId: property.id as string,
+        action: "sales_claim.set",
+        entityType: "bookings",
+        entityId: booking.id as string,
+        summary: "Sales claim set on fast book",
+        meta: { sold_by_staff_id: soldByStaffId },
+      });
     }
 
     const { error: linesError } = await admin.from("booking_rooms").insert(

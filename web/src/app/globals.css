@@ -686,8 +686,20 @@ html[data-splash="done"] #pelbu-splash {
   }
 }
 
-/* Document print sizes (invoice / receipt) — set data-doc-paper on <html> */
 @media print {
+  .catalogue-print {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  .catalogue-print img {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .catalogue-print section {
+    break-inside: avoid;
+  }
+
+  /* Document print sizes (invoice / receipt) — set data-doc-paper on <html> */
   html[data-doc-paper="a4"] {
     width: auto;
   }

@@ -16,6 +16,11 @@ export type StaffSession = {
   canAccessDesk: boolean;
   /** RBAC desk role for ERP money / FO gates. */
   deskRole: string | null;
+  /**
+   * Explicit ERP module allowlist. Null means inherit desk_role defaults.
+   * @see resolveDeskModules
+   */
+  deskModuleKeys: string[] | null;
 };
 
 /** Deterministic Auth email for staff-code/PIN identities (never shown to staff). */
@@ -44,7 +49,7 @@ export async function getStaffSession(): Promise<StaffSession | null> {
   const { data } = await admin
     .from("staff_members")
     .select(
-      "id, property_id, employee_code, full_name, role_label, access_level, department, status, can_login, can_access_desk, desk_role",
+      "id, property_id, employee_code, full_name, role_label, access_level, department, status, can_login, can_access_desk, desk_role, desk_module_keys",
     )
     .eq("auth_user_id", user.id)
     .maybeSingle();
@@ -57,6 +62,12 @@ export async function getStaffSession(): Promise<StaffSession | null> {
     return null;
   }
 
+  const rawKeys = data.desk_module_keys as string[] | null | undefined;
+  const deskModuleKeys =
+    Array.isArray(rawKeys) && rawKeys.length > 0
+      ? rawKeys.map(String)
+      : null;
+
   return {
     staffId: data.id as string,
     propertyId: data.property_id as string,
@@ -68,6 +79,7 @@ export async function getStaffSession(): Promise<StaffSession | null> {
     department: (data.department as string | null) ?? null,
     canAccessDesk: Boolean(data.can_access_desk),
     deskRole: (data.desk_role as string | null) ?? null,
+    deskModuleKeys,
   };
 }
 

@@ -36,7 +36,8 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { isDeskAuthenticated, getDeskRole } from "@/lib/desk-auth";
+import { canEditDeskModuleAccess } from "@/lib/erp/desk-modules";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
@@ -55,6 +56,7 @@ export default async function ErpHrPage() {
 
   const admin = createSupabaseAdminClient();
   const propertyId = await resolveActivePropertyId(admin);
+  const canEditModules = canEditDeskModuleAccess(await getDeskRole());
 
   const [
     { data: staffRows },
@@ -65,11 +67,13 @@ export default async function ErpHrPage() {
     { data: payRows },
     { data: docRows },
     { data: conductRows },
+    { count: openVacancyCount },
+    { count: newAppCount },
   ] = await Promise.all([
     admin
       .from("staff_members")
       .select(
-        "id, employee_code, full_name, role_label, department, position_title, employment_type, phone, email, status, hired_on, probation_ends_on, contract_ends_on, notes, manager_id, access_level, desk_role, can_access_desk, can_login, pin_set_at, last_login_at",
+        "id, employee_code, full_name, role_label, department, position_title, employment_type, phone, email, status, hired_on, probation_ends_on, contract_ends_on, notes, manager_id, access_level, desk_role, can_access_desk, can_login, pin_set_at, last_login_at, desk_module_keys",
       )
       .eq("property_id", propertyId)
       .order("full_name")
@@ -125,6 +129,16 @@ export default async function ErpHrPage() {
       .eq("property_id", propertyId)
       .order("recorded_on", { ascending: false })
       .limit(500),
+    admin
+      .from("hr_job_vacancies")
+      .select("id", { count: "exact", head: true })
+      .eq("property_id", propertyId)
+      .eq("status", "open"),
+    admin
+      .from("hr_vacancy_applications")
+      .select("id", { count: "exact", head: true })
+      .eq("property_id", propertyId)
+      .eq("status", "new"),
   ]);
 
   const staff: StaffOption[] = (staffRows ?? []).map((s) => ({
@@ -160,6 +174,10 @@ export default async function ErpHrPage() {
     canLogin: Boolean(row.can_login),
     pinSetAt: (row.pin_set_at as string | null) ?? null,
     lastLoginAt: (row.last_login_at as string | null) ?? null,
+    deskModuleKeys: (() => {
+      const raw = row.desk_module_keys as string[] | null | undefined;
+      return Array.isArray(raw) && raw.length > 0 ? raw.map(String) : null;
+    })(),
   }));
   const managers: ManagerOption[] = staffDirectory.map((row) => ({
     id: row.id,
@@ -240,9 +258,45 @@ export default async function ErpHrPage() {
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">Hotel workforce</h1>
         <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          Personnel dossiers, company notices, shift planning, and leave —
-          property-scoped for the desk.
+          Personnel dossiers, company notices, shift planning, leave, and
+          recruitment (provision → hire or terminate) — property-scoped for the
+          desk.
         </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button asChild variant="outline" className="min-h-10">
+            <Link href="/erp/hr/positions">Positions & TOR →</Link>
+          </Button>
+          <Button asChild variant="outline" className="min-h-10">
+            <Link href="/erp/hr/vacancies">
+              Vacancies
+              {(openVacancyCount ?? 0) > 0
+                ? ` (${openVacancyCount} open)`
+                : ""}{" "}
+              →
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="min-h-10">
+            <Link href="/erp/hr/recruitment">Recruitment pipeline →</Link>
+          </Button>
+          <Button asChild variant="outline" className="min-h-10">
+            <Link href="/erp/hr/access">Module access →</Link>
+          </Button>
+        </div>
+        {(openVacancyCount ?? 0) > 0 || (newAppCount ?? 0) > 0 ? (
+          <p className="mt-3 rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-sm">
+            <Link
+              href="/erp/hr/vacancies"
+              className="font-medium text-accent underline-offset-4 hover:underline"
+            >
+              {(openVacancyCount ?? 0) > 0
+                ? `${openVacancyCount} open ${openVacancyCount === 1 ? "vacancy" : "vacancies"}`
+                : "Vacancies"}
+              {(newAppCount ?? 0) > 0
+                ? ` · ${newAppCount} new application${newAppCount === 1 ? "" : "s"}`
+                : ""}
+            </Link>
+          </p>
+        ) : null}
       </header>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="HR overview">
@@ -320,6 +374,7 @@ export default async function ErpHrPage() {
                 conduct={conduct}
                 managers={managers}
                 departments={departments}
+                canEditModules={canEditModules}
               />
             </CardContent>
           </Card>

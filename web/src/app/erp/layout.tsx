@@ -1,7 +1,11 @@
 import { DeskShell } from "@/components/erp/DeskShell";
 import { WorkPwaRegistrar } from "@/components/pwa/WorkPwaRegistrar";
 import { cloudinaryUrl } from "@/lib/cloudinary";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import {
+  getDeskModuleKeys,
+  isDeskAuthenticated,
+} from "@/lib/desk-auth";
+import { pathnameAllowedForModules } from "@/lib/erp/desk-modules";
 import {
   listProperties,
   loadProperty,
@@ -10,6 +14,7 @@ import {
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +87,16 @@ export default async function ErpLayout({
     );
   }
 
+  const allowedModuleKeys = await getDeskModuleKeys();
+
+  if (
+    pathname &&
+    pathname !== "/erp" &&
+    !pathnameAllowedForModules(pathname, allowedModuleKeys)
+  ) {
+    redirect("/erp");
+  }
+
   const admin = createSupabaseAdminClient();
   const propertyId = await resolveActivePropertyId(admin);
   const [activeProperty, properties] = await Promise.all([
@@ -104,6 +119,7 @@ export default async function ErpLayout({
       properties={properties}
       activePropertyId={propertyId}
       logoSrc={logoSrc}
+      allowedModuleKeys={allowedModuleKeys}
     >
       {children}
       <WorkPwaRegistrar />

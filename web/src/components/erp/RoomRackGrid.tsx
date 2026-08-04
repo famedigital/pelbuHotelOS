@@ -22,6 +22,7 @@ import {
   type CalendarSelection,
   type CalendarSelectedUnit,
 } from "@/components/erp/CalendarReservationDialog";
+import type { BookableStaff } from "@/components/erp/StaffPicker";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -97,6 +98,10 @@ export type RackStay = {
   guest_origin: string | null;
   notes: string | null;
   agent_name: string | null;
+  /** Staff sales claim */
+  sold_by_staff_id?: string | null;
+  sold_by_name?: string | null;
+  sales_claim_status?: string | null;
   group_name: string | null;
   folio_id: string | null;
   /** Net open folio balance (BTN); >0 means guest owes. */
@@ -807,6 +812,8 @@ export function RoomRackGrid({
   today,
   windowDays,
   agents,
+  staff = [],
+  defaultSoldByStaffId = "",
   unassigned,
   blocks,
   allotments = [],
@@ -821,6 +828,8 @@ export function RoomRackGrid({
   today: string;
   windowDays: number;
   agents: CalendarAgent[];
+  staff?: BookableStaff[];
+  defaultSoldByStaffId?: string;
   unassigned: UnassignedBooking[];
   blocks: RoomBlock[];
   allotments?: RackAllotment[];
@@ -873,6 +882,7 @@ export function RoomRackGrid({
           assignmentId: stay.id,
           seedStay: stay,
           agents,
+          staff,
           units,
           onToggleLock: (seed) => {
             // seed may be StayHubSeedStay shape
@@ -885,7 +895,7 @@ export function RoomRackGrid({
         return;
       }
     },
-    [stayHub, agents, units, stays],
+    [stayHub, agents, staff, units, stays],
   );
 
   const toggleStayLockRef = useRef<((stay: RackStay) => void) | null>(null);
@@ -1545,6 +1555,8 @@ export function RoomRackGrid({
           onOpenChange={setDialogOpen}
           selection={selection}
           agents={agents}
+          staff={staff}
+          defaultSoldByStaffId={defaultSoldByStaffId}
           mealPlans={mealPlans}
           defaultMealPlanCode={defaultMealPlanCode}
         />
@@ -2522,6 +2534,8 @@ export function RoomRackGrid({
         onOpenChange={setDialogOpen}
         selection={selection}
         agents={agents}
+        staff={staff}
+        defaultSoldByStaffId={defaultSoldByStaffId}
         mealPlans={mealPlans}
         defaultMealPlanCode={defaultMealPlanCode}
       />

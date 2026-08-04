@@ -24,6 +24,11 @@ import {
   type RateTier,
 } from "@/lib/rates";
 import { assignRoomsForBooking } from "@/lib/room-assignments";
+import {
+  buildSalesClaimInsert,
+  buildSalesClaimWrite,
+  resolveSoldByStaffId,
+} from "@/lib/sales-claims";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   assertOptionalEmail,
@@ -218,6 +223,7 @@ type CommonFields = {
   source: string;
   guestOrigin: string;
   paymentMode: string;
+  soldByStaffRaw: FormDataEntryValue | null;
 };
 
 function parseCommon(formData: FormData): CommonFields {
@@ -288,6 +294,7 @@ function parseCommon(formData: FormData): CommonFields {
     source,
     guestOrigin,
     paymentMode,
+    soldByStaffRaw: formData.get("sold_by_staff_id"),
   };
 }
 
@@ -335,6 +342,12 @@ export async function createCalendarReservation(
 
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
+    const soldByStaffId = await resolveSoldByStaffId(
+      admin,
+      propertyId,
+      common.soldByStaffRaw,
+    );
+    const salesClaim = buildSalesClaimInsert(soldByStaffId);
     const meal = await resolveAddonsFromForm(
       admin,
       propertyId,
@@ -379,6 +392,8 @@ export async function createCalendarReservation(
         meal_plan_code: meal.mealPlanCode,
         meal_plan_amount_btn: meal.mealPlanAmountBtn,
         extra_bed_amount_btn: meal.extraBedAmountBtn,
+        sold_by_staff_id: salesClaim.sold_by_staff_id,
+        sales_claim_status: salesClaim.sales_claim_status,
       })
       .select("id")
       .single();
@@ -386,6 +401,17 @@ export async function createCalendarReservation(
     if (bookingError || !booking) {
       console.error("calendar reservation insert failed", bookingError);
       throw new Error("Could not save reservation.");
+    }
+
+    if (soldByStaffId) {
+      await writeAuditEvent(admin, {
+        propertyId,
+        action: "sales_claim.set",
+        entityType: "bookings",
+        entityId: booking.id as string,
+        summary: "Sales claim set on calendar reservation",
+        meta: { sold_by_staff_id: soldByStaffId },
+      });
     }
 
     const { error: lineError } = await admin.from("booking_rooms").insert({
@@ -515,6 +541,12 @@ export async function createCalendarGroupReservation(
     }
 
     const propertyId = await resolveActivePropertyId(admin);
+    const soldByStaffId = await resolveSoldByStaffId(
+      admin,
+      propertyId,
+      common.soldByStaffRaw,
+    );
+    const salesClaim = buildSalesClaimInsert(soldByStaffId);
     const meal = await resolveAddonsFromForm(
       admin,
       propertyId,
@@ -591,6 +623,8 @@ export async function createCalendarGroupReservation(
           meal_plan_code: meal.mealPlanCode,
           meal_plan_amount_btn: unitMealAmount,
           extra_bed_amount_btn: unitExtraBedAmount,
+          sold_by_staff_id: salesClaim.sold_by_staff_id,
+          sales_claim_status: salesClaim.sales_claim_status,
         })
         .select("id")
         .single();
@@ -1330,6 +1364,8 @@ export type CalendarReservationEditInput = {
   source: string;
   agentId: string;
   notes: string;
+  /** Staff sales claim — empty string clears when not approved. */
+  soldByStaffId?: string;
 };
 
 /** Edit reservation details without changing payment/folio accounting. */
@@ -1365,7 +1401,9 @@ export async function updateCalendarReservationDetails(
     const propertyId = await resolveActivePropertyId(admin);
     const { data: existing } = await admin
       .from("bookings")
-      .select("id, payment_mode, contact_name")
+      .select(
+        "id, payment_mode, contact_name, sold_by_staff_id, sales_claim_status",
+      )
       .eq("id", input.bookingId)
       .eq("property_id", propertyId)
       .maybeSingle();
@@ -1382,6 +1420,17 @@ export async function updateCalendarReservationDetails(
       }
     }
 
+    const soldByStaffId = await resolveSoldByStaffId(
+      admin,
+      propertyId,
+      input.soldByStaffId ?? "",
+    );
+    const salesPatch = buildSalesClaimWrite(soldByStaffId, {
+      sold_by_staff_id: (existing.sold_by_staff_id as string | null) ?? null,
+      sales_claim_status:
+        (existing.sales_claim_status as string | null) ?? null,
+    });
+
     const { error } = await admin
       .from("bookings")
       .update({
@@ -1395,10 +1444,28 @@ export async function updateCalendarReservationDetails(
         booked_by_role: source,
         agent_id: agentId,
         notes,
+        ...salesPatch,
       })
       .eq("id", input.bookingId)
       .eq("property_id", propertyId);
     if (error) throw new Error("Could not update reservation.");
+
+    const prevStaff = (existing.sold_by_staff_id as string | null) ?? null;
+    if (prevStaff !== soldByStaffId) {
+      await writeAuditEvent(admin, {
+        propertyId,
+        action: soldByStaffId ? "sales_claim.set" : "sales_claim.clear",
+        entityType: "bookings",
+        entityId: input.bookingId,
+        summary: soldByStaffId
+          ? "Sales claim updated on reservation"
+          : "Sales claim cleared on reservation",
+        meta: {
+          sold_by_staff_id: soldByStaffId,
+          previous_sold_by_staff_id: prevStaff,
+        },
+      });
+    }
 
     await writeAuditEvent(admin, {
       propertyId,
@@ -1411,6 +1478,7 @@ export async function updateCalendarReservationDetails(
         agent_id: agentId,
         adults,
         guest_origin: input.guestOrigin,
+        sold_by_staff_id: soldByStaffId,
       },
     });
     revalidateCalendar();

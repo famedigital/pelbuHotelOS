@@ -6,6 +6,7 @@ import {
   type CalendarBookState,
 } from "@/app/actions/erp-calendar";
 import { AgentPicker, type BookableAgent } from "@/components/erp/AgentPicker";
+import { StaffPicker, type BookableStaff } from "@/components/erp/StaffPicker";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -66,6 +67,7 @@ type ReservationDraft = {
   guestOrigin: string;
   source: string;
   agentId: string;
+  soldByStaffId: string;
   paymentMode: string;
   mealPlanCode: string;
   notes: string;
@@ -75,6 +77,7 @@ type ReservationDraft = {
 function draftForSelection(
   selection: CalendarSelection,
   defaultMealPlanCode: string,
+  defaultSoldByStaffId = "",
 ): ReservationDraft {
   return {
     groupName: `Group · ${selection.units.length} rooms · ${selection.checkIn}`,
@@ -88,6 +91,7 @@ function draftForSelection(
     guestOrigin: "international",
     source: "reservation",
     agentId: "",
+    soldByStaffId: defaultSoldByStaffId,
     paymentMode: "cash",
     mealPlanCode: defaultMealPlanCode,
     notes: "",
@@ -114,6 +118,8 @@ export function CalendarReservationDialog({
   onOpenChange,
   selection,
   agents,
+  staff = [],
+  defaultSoldByStaffId = "",
   mealPlans,
   defaultMealPlanCode,
 }: {
@@ -121,6 +127,8 @@ export function CalendarReservationDialog({
   onOpenChange: (open: boolean) => void;
   selection: CalendarSelection | null;
   agents: CalendarAgent[];
+  staff?: BookableStaff[];
+  defaultSoldByStaffId?: string;
   mealPlans: CalendarMealPlan[];
   defaultMealPlanCode: string;
 }) {
@@ -146,11 +154,21 @@ export function CalendarReservationDialog({
           bookingId: state.bookingId,
           step: "reserve",
           agents,
+          staff,
         });
       }
       router.refresh();
     }
-  }, [state.ok, state.bookingId, open, onOpenChange, router, stayHub, agents]);
+  }, [
+    state.ok,
+    state.bookingId,
+    open,
+    onOpenChange,
+    router,
+    stayHub,
+    agents,
+    staff,
+  ]);
 
   // A new drag selection starts a fresh draft; a rejected submit keeps whatever
   // the user already typed so they never re-enter the whole form.
@@ -162,8 +180,10 @@ export function CalendarReservationDialog({
     );
     setNightCount(nextNights);
     setCheckOut(addDays(selection.checkIn, nextNights));
-    setDraft(draftForSelection(selection, defaultMealPlanCode));
-  }, [selection, defaultMealPlanCode]);
+    setDraft(
+      draftForSelection(selection, defaultMealPlanCode, defaultSoldByStaffId),
+    );
+  }, [selection, defaultMealPlanCode, defaultSoldByStaffId]);
 
   const categoryMix = useMemo(
     () => {
@@ -434,6 +454,19 @@ export function CalendarReservationDialog({
                 onValueChange={(next) => updateDraft("agentId", next)}
                 className="bg-background"
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Sold by (staff)</Label>
+              <StaffPicker
+                name="sold_by_staff_id"
+                staff={staff}
+                value={draft.soldByStaffId}
+                onValueChange={(next) => updateDraft("soldByStaffId", next)}
+                className="bg-background"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Who brought the guest or agent — Owner/GM approves later.
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="payment_mode">Payment</Label>

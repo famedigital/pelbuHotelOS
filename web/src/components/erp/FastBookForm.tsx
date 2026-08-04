@@ -29,6 +29,7 @@ export type FastBookRoomType = {
 };
 
 import type { BookableAgent } from "@/components/erp/AgentPicker";
+import type { BookableStaff } from "@/components/erp/StaffPicker";
 
 export type FastBookAgent = BookableAgent;
 
@@ -67,6 +68,8 @@ type Snapshot = {
 export type FastBookFormProps = {
   roomTypes: FastBookRoomType[];
   agents: FastBookAgent[];
+  staff?: BookableStaff[];
+  defaultSoldByStaffId?: string;
   property?: {
     name: string;
     legal_name?: string | null;
@@ -104,6 +107,8 @@ export type FastBookFormProps = {
 export function FastBookForm({
   roomTypes,
   agents,
+  staff = [],
+  defaultSoldByStaffId = "",
   property,
   invoiceDesign,
   voucherDesign,
@@ -316,6 +321,8 @@ export function FastBookForm({
 
       <FastBookDrawer
         agents={agents}
+        staff={staff}
+        defaultSoldByStaffId={defaultSoldByStaffId}
         pending={pending}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}

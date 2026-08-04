@@ -14,6 +14,7 @@ import {
   loadAgentArReport,
   loadInventoryMovementsSummary,
   loadStaffAttendanceSummary,
+  loadStaffSalesReport,
   REPORT_CATALOG,
 } from "@/lib/reports/catalog";
 import { loadAgentProductionReport } from "@/lib/reports/agent-dossier";
@@ -157,7 +158,7 @@ export default async function ReportRunnerPage({ params, searchParams }: Props) 
               </select>
             </label>
           ) : null}
-          {slug === "staff-attendance" ? (
+          {slug === "staff-attendance" || slug === "staff-sales" ? (
             <label className="text-xs text-muted-foreground">
               Staff
               <select
@@ -222,6 +223,14 @@ export default async function ReportRunnerPage({ params, searchParams }: Props) 
       ) : null}
       {slug === "staff-attendance" ? (
         <StaffAttendanceTable
+          propertyId={propertyId}
+          from={from}
+          to={to}
+          staffId={staffId}
+        />
+      ) : null}
+      {slug === "staff-sales" ? (
+        <StaffSalesTable
           propertyId={propertyId}
           from={from}
           to={to}
@@ -478,5 +487,68 @@ async function InventoryMovementsTable({
         )}
       </DeskTable>
     </div>
+  );
+}
+
+async function StaffSalesTable({
+  propertyId,
+  from,
+  to,
+  staffId,
+}: {
+  propertyId: string;
+  from: string;
+  to: string;
+  staffId?: string;
+}) {
+  const admin = createSupabaseAdminClient();
+  const rows = await loadStaffSalesReport(admin, {
+    propertyId,
+    from,
+    to,
+    staffId,
+    status: "approved",
+  });
+  return (
+    <DeskTable
+      caption="Staff sales"
+      headers={[
+        "Staff",
+        "Guest",
+        "Stay",
+        "Agent",
+        "Quoted",
+        "Comm %",
+        "Commission",
+      ]}
+    >
+      {rows.length === 0 ? (
+        <tr>
+          <td colSpan={7} className="px-3 py-6 text-muted-foreground">
+            No approved staff sales claims in this range.
+          </td>
+        </tr>
+      ) : (
+        rows.map((r) => (
+          <tr key={r.booking_id} className="border-t">
+            <td className="px-3 py-2.5 font-medium">{r.staff_name}</td>
+            <td className="px-3 py-2.5">{r.contact_name}</td>
+            <td className="px-3 py-2.5 tabular-nums text-sm">
+              {r.check_in} → {r.check_out}
+            </td>
+            <td className="px-3 py-2.5 text-sm">{r.agent_name ?? "—"}</td>
+            <td className="px-3 py-2.5 tabular-nums">
+              {formatBtn(r.quoted_total_btn)}
+            </td>
+            <td className="px-3 py-2.5 tabular-nums">
+              {r.commission_pct != null ? `${r.commission_pct}%` : "—"}
+            </td>
+            <td className="px-3 py-2.5 tabular-nums">
+              {formatBtn(r.commission_btn)}
+            </td>
+          </tr>
+        ))
+      )}
+    </DeskTable>
   );
 }

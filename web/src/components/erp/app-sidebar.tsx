@@ -35,14 +35,29 @@ export { NAV_SECTIONS } from "@/lib/erp-nav";
 export function AppSidebar({
   brandName = "Pelbu desk",
   logoSrc,
+  allowedModuleKeys,
 }: {
   /** Active hotel name — falls back to the Pelbu label. */
   brandName?: string;
   /** Cloudinary logo from settings; falls back to the local knot mark. */
   logoSrc?: string | null;
+  /** ERP_MODULES keys the session may open; omit = all. */
+  allowedModuleKeys?: readonly string[];
 } = {}) {
   const pathname = usePathname();
   const activeMatch = resolveModule(pathname);
+  const modules = React.useMemo(() => {
+    if (!allowedModuleKeys || allowedModuleKeys.length === 0) {
+      return ERP_MODULES;
+    }
+    const allow = new Set(allowedModuleKeys);
+    return ERP_MODULES.filter((m) => allow.has(m.key));
+  }, [allowedModuleKeys]);
+  const showSettings =
+    !allowedModuleKeys ||
+    allowedModuleKeys.length === 0 ||
+    allowedModuleKeys.includes("hotel");
+
   const [browseExpanded, setBrowseExpanded] = React.useState<Set<string>>(
     () => new Set(),
   );
@@ -105,7 +120,7 @@ export function AppSidebar({
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-0.5">
-              {ERP_MODULES.map((module) => (
+              {modules.map((module) => (
                 <SidebarModuleItem
                   key={module.key}
                   module={module}
@@ -119,22 +134,24 @@ export function AppSidebar({
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border/60">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              tooltip="Settings"
-              isActive={pathname?.startsWith("/erp/settings") ?? false}
-            >
-              <Link href="/erp/settings">
-                <SettingsIcon />
-                <span>Settings</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
+      {showSettings ? (
+        <SidebarFooter className="border-t border-sidebar-border/60">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                tooltip="Settings"
+                isActive={pathname?.startsWith("/erp/settings") ?? false}
+              >
+                <Link href="/erp/settings">
+                  <SettingsIcon />
+                  <span>Settings</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      ) : null}
       <SidebarRail />
     </Sidebar>
   );

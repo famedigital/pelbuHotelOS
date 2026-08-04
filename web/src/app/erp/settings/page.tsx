@@ -722,6 +722,11 @@ export default async function ErpSettingsPage({
                 : Number(policyResult.data.extra_bed_rate_btn)
             }
             extraBedActive={Boolean(policyResult.data?.extra_bed_active)}
+            staffSalesCommissionPct={
+              policyResult.data?.staff_sales_commission_pct == null
+                ? null
+                : Number(policyResult.data.staff_sales_commission_pct)
+            }
           />
         </TabsContent>
 

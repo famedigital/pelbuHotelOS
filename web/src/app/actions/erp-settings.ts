@@ -874,6 +874,18 @@ export async function updateCommercialSettings(
       throw new Error("Set a positive extra bed Nu / night to sell on booking.");
     }
 
+    const staffCommRaw = String(
+      formData.get("staff_sales_commission_pct") ?? "",
+    ).trim();
+    let staffSalesCommissionPct: number | null = null;
+    if (staffCommRaw) {
+      const n = Number(staffCommRaw);
+      if (!Number.isFinite(n) || n < 0 || n > 100) {
+        throw new Error("Staff sales commission must be blank or 0–100%.");
+      }
+      staffSalesCommissionPct = n;
+    }
+
     const { error: propError } = await admin
       .from("properties")
       .update({ default_meal_plan_code: defaultMealPlan })
@@ -891,17 +903,19 @@ export async function updateCommercialSettings(
         .update({
           extra_bed_active: extraBedActive,
           extra_bed_rate_btn: extraBedRate,
+          staff_sales_commission_pct: staffSalesCommissionPct,
           updated_at: new Date().toISOString(),
         })
         .eq("property_id", propertyId);
-      if (policyError) throw new Error("Could not save extra bed settings.");
+      if (policyError) throw new Error("Could not save commercial policy settings.");
     } else {
       const { error: policyError } = await admin.from("property_policies").insert({
         property_id: propertyId,
         extra_bed_active: extraBedActive,
         extra_bed_rate_btn: extraBedRate,
+        staff_sales_commission_pct: staffSalesCommissionPct,
       });
-      if (policyError) throw new Error("Could not save extra bed settings.");
+      if (policyError) throw new Error("Could not save commercial policy settings.");
     }
 
     await writeAuditEvent(admin, {

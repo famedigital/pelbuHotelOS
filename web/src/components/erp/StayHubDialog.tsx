@@ -16,6 +16,7 @@ import {
 } from "@/app/actions/stay-hub";
 import type { CalendarAgent } from "@/components/erp/CalendarReservationDialog";
 import { AgentPicker } from "@/components/erp/AgentPicker";
+import { StaffPicker, type BookableStaff } from "@/components/erp/StaffPicker";
 import { AgentVoucherEmailButton } from "@/components/erp/AgentVoucherEmailButton";
 import { BookingLifecycleActions } from "@/components/erp/BookingLifecycleActions";
 import { CheckInForm, CheckOutForm } from "@/components/erp/CheckInForm";
@@ -94,6 +95,7 @@ type Draft = {
   guestOrigin: string;
   source: string;
   agentId: string;
+  soldByStaffId: string;
   notes: string;
 };
 
@@ -147,6 +149,9 @@ function summaryFromSeed(stay: StayHubSeedStay): StayHubSummary {
     source: stay.booked_by_role || stay.source,
     agentId: stay.agent_id,
     agentName: stay.agent_name,
+    soldByStaffId: stay.sold_by_staff_id ?? null,
+    soldByName: stay.sold_by_name ?? null,
+    salesClaimStatus: stay.sales_claim_status ?? null,
     notes: stay.notes,
     paymentMode: stay.payment_mode,
     sdfIncomplete: stay.sdf_incomplete === true,
@@ -174,6 +179,7 @@ function draftFromSummary(s: StayHubSummary): Draft {
     guestOrigin: s.guestOrigin ?? "international",
     source: s.source || "reservation",
     agentId: s.agentId ?? "",
+    soldByStaffId: s.soldByStaffId ?? "",
     notes: s.notes ?? "",
   };
 }
@@ -239,6 +245,7 @@ export function StayHubDialog({
   preferredStep = null,
   seedStay = null,
   agents: agentsProp = [],
+  staff: staffProp = [],
   units: unitsProp = [],
   board = "auto",
   onToggleLock,
@@ -252,6 +259,7 @@ export function StayHubDialog({
   preferredStep?: StayHubStepId | null;
   seedStay?: StayHubSeedStay | null;
   agents?: CalendarAgent[];
+  staff?: BookableStaff[];
   units?: RackUnit[];
   board?: "arrivals" | "in_house" | "departures" | "reservations" | "auto";
   onToggleLock?: (stay: StayHubSeedStay) => void;
@@ -284,6 +292,7 @@ export function StayHubDialog({
   const postChargesRef = useRef<HTMLDivElement | null>(null);
 
   const agents = agentsProp;
+  const staff = staffProp;
   const units = unitsProp;
 
   /** Bound to booking id only — never reset panel on summary rehydrate. */
@@ -574,6 +583,7 @@ export function StayHubDialog({
       guestOrigin: "international",
       source: "reservation",
       agentId: "",
+      soldByStaffId: "",
       notes: "",
     },
     enabled: Boolean(open && bookingId && draft && summary && !terminal),
@@ -593,6 +603,7 @@ export function StayHubDialog({
         source: d.source,
         agentId: d.agentId,
         notes: d.notes,
+        soldByStaffId: d.soldByStaffId,
       });
       if (result.ok) {
         draftDirtyRef.current = false;
@@ -878,6 +889,8 @@ export function StayHubDialog({
                         <GuestIdentityFields
                           draft={draft}
                           agents={agents}
+                          staff={staff}
+                          salesClaimStatus={summary.salesClaimStatus}
                           onUpdate={updateDraft}
                         />
                         <p className="mt-2 text-[11px] text-muted-foreground">
@@ -1121,6 +1134,8 @@ export function StayHubDialog({
                           <GuestIdentityFields
                             draft={draft}
                             agents={agents}
+                            staff={staff}
+                            salesClaimStatus={summary.salesClaimStatus}
                             onUpdate={updateDraft}
                           />
                           <p className="mt-2 text-[11px] text-muted-foreground">
@@ -1279,10 +1294,14 @@ function Callout({
 function GuestIdentityFields({
   draft,
   agents,
+  staff,
+  salesClaimStatus,
   onUpdate,
 }: {
   draft: Draft;
   agents: CalendarAgent[];
+  staff: BookableStaff[];
+  salesClaimStatus?: string | null;
   onUpdate: <K extends keyof Draft>(key: K, value: Draft[K]) => void;
 }) {
   return (
@@ -1364,6 +1383,27 @@ function GuestIdentityFields({
           onValueChange={(next) => onUpdate("agentId", next)}
           className="bg-background min-h-11 sm:min-h-9"
         />
+      </Field>
+      <Field label="Sold by (staff)" id="hub_sold_by">
+        <StaffPicker
+          staff={staff}
+          value={draft.soldByStaffId}
+          onValueChange={(next) => onUpdate("soldByStaffId", next)}
+          className="bg-background min-h-11 sm:min-h-9"
+          disabled={salesClaimStatus === "approved"}
+        />
+        {salesClaimStatus ? (
+          <p className="mt-1 text-[11px] text-muted-foreground capitalize">
+            Claim: {salesClaimStatus}
+            {salesClaimStatus === "approved"
+              ? " · clear only via Owner/GM reject"
+              : ""}
+          </p>
+        ) : (
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Incentive credit — Owner/GM approves on Sales claims.
+          </p>
+        )}
       </Field>
       <div className="sm:col-span-2">
         <Field label="Notes" id="hub_notes">

@@ -93,4 +93,5 @@ export const PUBLIC_INDEXABLE_ROUTES = [
   "/stay/olakha-thimphu",
   "/guide",
   "/agents",
+  "/careers",
 ] as const;

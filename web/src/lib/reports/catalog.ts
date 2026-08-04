@@ -22,6 +22,12 @@ export const REPORT_CATALOG = [
     blurb: "Clock events and estimated hours by staff member.",
   },
   {
+    slug: "staff-sales",
+    title: "Staff sales claims",
+    blurb:
+      "Approved staff sales claims: quoted totals and suggested commission.",
+  },
+  {
     slug: "inventory-movements",
     title: "Inventory movements",
     blurb: "Receive / issue / waste quantities by item (unit cost when recorded).",
@@ -257,6 +263,112 @@ export async function loadAgentArReport(
   }
 
   return rows.sort((a, b) => b.outstanding - a.outstanding);
+}
+
+export type StaffSalesClaimRow = {
+  booking_id: string;
+  contact_name: string;
+  check_in: string;
+  check_out: string;
+  staff_id: string;
+  staff_name: string;
+  agent_name: string | null;
+  quoted_total_btn: number;
+  commission_pct: number | null;
+  commission_btn: number;
+  sales_claim_status: string;
+  sales_verified_at: string | null;
+};
+
+export async function loadStaffSalesReport(
+  admin: SupabaseClient,
+  opts: {
+    propertyId: string;
+    from: string;
+    to: string;
+    staffId?: string;
+    status?: "approved" | "claimed" | "rejected" | "all";
+  },
+): Promise<StaffSalesClaimRow[]> {
+  const { commissionBtnFromQuote } = await import("@/lib/sales-claims");
+  const { data: policy } = await admin
+    .from("property_policies")
+    .select("staff_sales_commission_pct")
+    .eq("property_id", opts.propertyId)
+    .maybeSingle();
+  const commissionPct =
+    policy?.staff_sales_commission_pct == null
+      ? null
+      : Number(policy.staff_sales_commission_pct);
+
+  const status = opts.status ?? "approved";
+  // Explicit chain builds (avoid filter reassignment TS deep instantiation).
+  let data: Array<Record<string, unknown>> | null = null;
+  if (status === "all") {
+    let q = admin
+      .from("bookings")
+      .select(
+        "id, contact_name, check_in, check_out, quoted_total_btn, sales_claim_status, sales_verified_at, sold_by_staff_id, agents(company_name), sold_by:staff_members!sold_by_staff_id(full_name)",
+      )
+      .eq("property_id", opts.propertyId)
+      .not("sold_by_staff_id", "is", null)
+      .not("sales_claim_status", "is", null)
+      .gte("check_in", opts.from)
+      .lte("check_in", opts.to)
+      .order("check_in", { ascending: false })
+      .limit(2000);
+    if (opts.staffId) q = q.eq("sold_by_staff_id", opts.staffId);
+    const res = await q;
+    data = (res.data as Array<Record<string, unknown>> | null) ?? null;
+  } else {
+    let q = admin
+      .from("bookings")
+      .select(
+        "id, contact_name, check_in, check_out, quoted_total_btn, sales_claim_status, sales_verified_at, sold_by_staff_id, agents(company_name), sold_by:staff_members!sold_by_staff_id(full_name)",
+      )
+      .eq("property_id", opts.propertyId)
+      .not("sold_by_staff_id", "is", null)
+      .eq("sales_claim_status", status)
+      .gte("check_in", opts.from)
+      .lte("check_in", opts.to)
+      .order("check_in", { ascending: false })
+      .limit(2000);
+    if (opts.staffId) q = q.eq("sold_by_staff_id", opts.staffId);
+    const res = await q;
+    data = (res.data as Array<Record<string, unknown>> | null) ?? null;
+  }
+
+  return (data ?? []).map((r) => {
+    const agent = r.agents as
+      | { company_name?: string }
+      | { company_name?: string }[]
+      | null;
+    const agentName = Array.isArray(agent)
+      ? (agent[0]?.company_name ?? null)
+      : (agent?.company_name ?? null);
+    const sold = r.sold_by as
+      | { full_name?: string }
+      | { full_name?: string }[]
+      | null;
+    const staffName = Array.isArray(sold)
+      ? (sold[0]?.full_name ?? "Staff")
+      : (sold?.full_name ?? "Staff");
+    const quoted = Number(r.quoted_total_btn ?? 0);
+    return {
+      booking_id: r.id as string,
+      contact_name: (r.contact_name as string) || "Guest",
+      check_in: String(r.check_in).slice(0, 10),
+      check_out: String(r.check_out).slice(0, 10),
+      staff_id: r.sold_by_staff_id as string,
+      staff_name: staffName,
+      agent_name: agentName,
+      quoted_total_btn: quoted,
+      commission_pct: commissionPct,
+      commission_btn: commissionBtnFromQuote(quoted, commissionPct),
+      sales_claim_status: (r.sales_claim_status as string) ?? "",
+      sales_verified_at: (r.sales_verified_at as string | null) ?? null,
+    };
+  });
 }
 
 /** Re-export for catalog page convenience. */

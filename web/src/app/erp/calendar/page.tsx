@@ -13,6 +13,7 @@ import { thimphuToday } from "@/lib/erp-lists";
 import { requireDeskPropertyId } from "@/lib/desk-property";
 import { netFolioBalance } from "@/lib/folio/balance";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getStaffSession } from "@/lib/staff-auth";
 import { redirect } from "next/navigation";
 
 export const metadata = {
@@ -54,6 +55,7 @@ export default async function CalendarPage({ searchParams }: Props) {
     { data: allotmentRows },
     { data: mealPlanRows },
     { data: propertyDefaults },
+    { data: staffRows },
   ] =
     await Promise.all([
       admin
@@ -75,7 +77,9 @@ export default async function CalendarPage({ searchParams }: Props) {
              contact_name, contact_phone, contact_email, status,
              check_in, check_out, adults, rooms, guide_number,
              payment_mode, notes, agent_id, source, booked_by_role, guest_origin,
+             sold_by_staff_id, sales_claim_status,
              agents(company_name),
+             sold_by_staff:staff_members!sold_by_staff_id(full_name),
              folios(id, status, folio_lines(id, total_btn, status, source_type, reverses_line_id)),
              booking_group_members(booking_groups(name)),
              booking_guests(passport_or_cid, sdf_ref)
@@ -133,6 +137,13 @@ export default async function CalendarPage({ searchParams }: Props) {
         .select("default_meal_plan_code")
         .eq("id", propertyId)
         .maybeSingle(),
+      admin
+        .from("staff_members")
+        .select("id, full_name, employee_code, role_label")
+        .eq("property_id", propertyId)
+        .in("status", ["active", "on_leave"])
+        .order("full_name")
+        .limit(300),
     ]);
 
   const units: RackUnit[] = (unitRows ?? [])
@@ -286,6 +297,19 @@ export default async function CalendarPage({ searchParams }: Props) {
         guest_origin: origin,
         notes: (booking.notes as string | null) ?? null,
         agent_name: agentObj?.company_name ?? null,
+        sold_by_staff_id:
+          (booking.sold_by_staff_id as string | null | undefined) ?? null,
+        sales_claim_status:
+          (booking.sales_claim_status as string | null | undefined) ?? null,
+        sold_by_name: (() => {
+          const raw = booking.sold_by_staff as
+            | { full_name?: string }
+            | { full_name?: string }[]
+            | null
+            | undefined;
+          const s = Array.isArray(raw) ? raw[0] : raw;
+          return s?.full_name ?? null;
+        })(),
         group_name: groupName,
         folio_id: openFolio?.id ?? null,
         folio_balance: folioBalance,
@@ -402,6 +426,18 @@ export default async function CalendarPage({ searchParams }: Props) {
     };
   });
 
+  const staffSession = await getStaffSession();
+  const staff = (staffRows ?? []).map((s) => ({
+    id: s.id as string,
+    full_name: (s.full_name as string) || "Staff",
+    employee_code: (s.employee_code as string | null) ?? null,
+    role_label: (s.role_label as string | null) ?? null,
+  }));
+  const defaultSoldByStaffId =
+    staffSession && staffSession.propertyId === propertyId
+      ? staffSession.staffId
+      : "";
+
   return (
     <div className="space-y-3">
       <DeskOfflineQueueStrip defaultKind="hold_draft" />
@@ -413,6 +449,8 @@ export default async function CalendarPage({ searchParams }: Props) {
         today={today}
         windowDays={windowDays}
         agents={agents}
+        staff={staff}
+        defaultSoldByStaffId={defaultSoldByStaffId}
         unassigned={unassigned}
         blocks={blocks}
         allotments={allotments}

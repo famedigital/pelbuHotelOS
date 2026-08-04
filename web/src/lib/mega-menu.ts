@@ -129,6 +129,7 @@ export function buildFooterColumns(rooms: PublicRoom[]): FooterColumn[] {
       heading: "About",
       links: [
         { href: "/contact", label: "About & contact" },
+        { href: "/careers", label: "Careers" },
         { href: "/services", label: "Hotel services" },
         { href: "/gallery", label: "Photo gallery" },
         { href: "/faq", label: "FAQ" },
@@ -401,6 +402,7 @@ export function buildMegaMenus(rooms: PublicRoom[]): MegaMenu[] {
           heading: "Hotel",
           items: [
             { href: "/services", title: "Hotel services" },
+            { href: "/careers", title: "Careers" },
             { href: "/gallery", title: "Photo gallery" },
             { href: "/faq", title: "FAQ" },
           ],
@@ -441,6 +443,13 @@ export function buildMegaMenus(rooms: PublicRoom[]): MegaMenu[] {
               description:
                 "Rooms, dining, spa, meetings and everything the desk arranges.",
               publicId: BRAND_CLOUDINARY.diningRoom,
+            },
+            {
+              href: "/careers",
+              title: "Careers",
+              description:
+                "Open roles at Pelbu Suites — express interest and we will call if there is a fit.",
+              publicId: BRAND_CLOUDINARY.galleryExt,
             },
           ],
         },
