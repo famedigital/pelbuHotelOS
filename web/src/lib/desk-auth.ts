@@ -65,6 +65,10 @@ export async function hasDeskPinSession(): Promise<boolean> {
 /**
  * Desk / Work access: shared DESK_PIN session (if allowed) OR staff Auth with
  * `staff_members.can_access_desk`.
+ *
+ * When property_policies.desk_restrict_to_scheduled_shifts is ON, non-management
+ * staff also need a published staff_shifts window covering now (Thimphu).
+ * Shared DESK_PIN and Owner/GM always bypass the shift rule.
  */
 export async function isDeskAuthenticated(): Promise<boolean> {
   if (await hasDeskPinSession()) return true;
@@ -72,7 +76,17 @@ export async function isDeskAuthenticated(): Promise<boolean> {
   try {
     const { getStaffSession } = await import("@/lib/staff-auth");
     const staff = await getStaffSession();
-    return Boolean(staff?.canAccessDesk);
+    if (!staff?.canAccessDesk) return false;
+
+    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+    const { staffSessionSatisfiesDeskShift } = await import(
+      "@/lib/desk-shift-gate"
+    );
+    const gate = await staffSessionSatisfiesDeskShift(
+      createSupabaseAdminClient(),
+      staff,
+    );
+    return gate.ok;
   } catch {
     return false;
   }

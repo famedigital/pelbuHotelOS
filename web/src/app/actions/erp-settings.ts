@@ -945,6 +945,73 @@ export async function updateCommercialSettings(
   }
 }
 
+/** Owner/GM: optional desk access limited to published staff_shifts. Default OFF. */
+export async function updateDeskShiftRestrictionSettings(
+  _prev: CommercialSettingsState,
+  formData: FormData,
+): Promise<CommercialSettingsState> {
+  try {
+    await requireDesk();
+    await requireDeskRole(["owner", "gm"]);
+    const admin = createSupabaseAdminClient();
+    const propertyId = trimRequired(formData.get("property_id"), "Property");
+    await assertDeskProperty(await resolveActivePropertyId(admin), propertyId, "Property");
+
+    const restrict = formData.get("desk_restrict_to_scheduled_shifts") === "on";
+
+    const { data: existingPolicy } = await admin
+      .from("property_policies")
+      .select("property_id")
+      .eq("property_id", propertyId)
+      .maybeSingle();
+
+    if (existingPolicy) {
+      const { error } = await admin
+        .from("property_policies")
+        .update({
+          desk_restrict_to_scheduled_shifts: restrict,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("property_id", propertyId);
+      if (error) throw new Error("Could not save desk shift restriction.");
+    } else {
+      const { error } = await admin.from("property_policies").insert({
+        property_id: propertyId,
+        desk_restrict_to_scheduled_shifts: restrict,
+      });
+      if (error) throw new Error("Could not save desk shift restriction.");
+    }
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "property.settings.desk_shift_restriction",
+      entityType: "property_policies",
+      entityId: propertyId,
+      summary: restrict
+        ? "Enabled desk restriction to scheduled shifts"
+        : "Disabled desk restriction to scheduled shifts (staff free access)",
+      meta: { desk_restrict_to_scheduled_shifts: restrict },
+    });
+
+    revalidatePath("/erp/settings");
+    revalidatePath("/erp/login");
+    return {
+      ok: true,
+      message: restrict
+        ? "Desk is now limited to scheduled shifts for non-management staff."
+        : "Desk open any time for staff with hotel desk access (default).",
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      error:
+        e instanceof Error
+          ? e.message
+          : "Could not save desk shift restriction.",
+    };
+  }
+}
+
 export async function updatePropertyPoliciesSettings(
   _prev: CommercialSettingsState,
   formData: FormData,

@@ -8,6 +8,9 @@ import {
   deskPinConfigured,
   isDeskAuthenticated,
 } from "@/lib/desk-auth";
+import { DESK_OUTSIDE_SHIFT_MESSAGE } from "@/lib/desk-shift-gate";
+import { getStaffSession } from "@/lib/staff-auth";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -19,6 +22,24 @@ export const metadata = {
 export default async function DeskLoginPage() {
   if (await isDeskAuthenticated()) {
     redirect("/erp");
+  }
+
+  // Staff Auth present but blocked by shift restriction → clear denial, not a mystery bounce.
+  let outsideShiftBanner: string | null = null;
+  try {
+    const staff = await getStaffSession();
+    if (staff?.canAccessDesk) {
+      const { staffSessionSatisfiesDeskShift } = await import(
+        "@/lib/desk-shift-gate"
+      );
+      const gate = await staffSessionSatisfiesDeskShift(
+        createSupabaseAdminClient(),
+        staff,
+      );
+      if (!gate.ok) outsideShiftBanner = gate.message;
+    }
+  } catch {
+    // ignore
   }
 
   const pinOk =
@@ -50,6 +71,15 @@ export default async function DeskLoginPage() {
             </p>
           </div>
         </div>
+
+        {outsideShiftBanner ? (
+          <Alert variant="destructive">
+            <AlertTitle>Outside scheduled shift</AlertTitle>
+            <AlertDescription>
+              {outsideShiftBanner || DESK_OUTSIDE_SHIFT_MESSAGE}
+            </AlertDescription>
+          </Alert>
+        ) : null}
 
         <div className="space-y-2">
           <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">

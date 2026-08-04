@@ -59,6 +59,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 |---------|--------|
 | Layout | `web/src/app/erp/layout.tsx` → authenticated `DeskShell` |
 | Sidebar IA | Dashboard · Calendar · Front desk · Rooms · **POS** (F&B live here — not a separate module) · Money · Channels · **Team** · **Inventory** · Hotel (Settings footer) |
+| Desk shift gate | **Default OFF** — any staff with `can_login` + `can_access_desk` may open `/erp` any time. Optional Settings → Identity → **Restrict hotel desk to scheduled shifts** limits non-management staff to a covering published `staff_shifts` (Thimphu); Owner/GM/manager + DESK_PIN bypass. Not POS cashier shifts. |
 | **F&B IA (fixed)** | **No standalone F&B sidebar.** Sell/settle = POS register + menu + KDS; daily ops = **Kitchen board** `/erp/kitchen` (F&B ops home); property FO/GM home = Dashboard `/erp`. Do not merge kitchen into `/erp` or add a duplicate F&B root. |
 | Property switcher | Header; multi-property helpers + wizard exist |
 | Settings | `/erp/settings` — Identity · Commercial · Policies · Tax · Documents · Rooms · Compliance · Finance imports · **Danger zone** (owner WIPE). Plan `erp_settings_page_41e5deb4` |

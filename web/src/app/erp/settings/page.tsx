@@ -17,6 +17,7 @@ import {
   SettingsPoliciesPanel,
   type PolicySettingsData,
 } from "@/components/erp/SettingsPoliciesPanel";
+import { SettingsDeskSecurityPanel } from "@/components/erp/settings/SettingsDeskSecurityPanel";
 import { FastBookInvoice, type FastBookInvoiceData } from "@/components/erp/FastBookInvoice";
 import { FastBookVoucher, type FastBookVoucherData } from "@/components/erp/FastBookVoucher";
 import { LogoUploadForm } from "@/components/erp/LogoUploadForm";
@@ -408,6 +409,19 @@ export default async function ErpSettingsPage({
         </TabsList>
 
         <TabsContent value="identity" className="space-y-6">
+          <SettingsDeskSecurityPanel
+            propertyId={property.id}
+            deskRestrictToScheduledShifts={Boolean(
+              (
+                policyResult.data as
+                  | { desk_restrict_to_scheduled_shifts?: boolean }
+                  | null
+                  | undefined
+              )?.desk_restrict_to_scheduled_shifts,
+            )}
+            canEdit={deskRole === "owner" || deskRole === "gm"}
+          />
+
           <section className="rounded-xl border bg-card p-5 md:p-6">
             <div className="mb-5 space-y-1">
               <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">

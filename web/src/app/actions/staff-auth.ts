@@ -46,7 +46,7 @@ export async function staffLogin(
     const { data: staff, error } = await admin
       .from("staff_members")
       .select(
-        "id, property_id, employee_code, full_name, access_level, auth_user_id, can_login, can_access_desk, status",
+        "id, property_id, employee_code, full_name, access_level, desk_role, auth_user_id, can_login, can_access_desk, status",
       )
       .eq("employee_code", employeeCode)
       .in("status", ["active", "on_leave"])
@@ -90,6 +90,27 @@ export async function staffLogin(
       };
     }
 
+    let mayOpenDesk = Boolean(member.can_access_desk);
+    if (mayOpenDesk) {
+      const { staffSessionSatisfiesDeskShift } = await import(
+        "@/lib/desk-shift-gate"
+      );
+      const gate = await staffSessionSatisfiesDeskShift(admin, {
+        staffId: member.id as string,
+        propertyId: member.property_id as string,
+        accessLevel: (member.access_level as string) ?? "employee",
+        deskRole: (member.desk_role as string | null) ?? null,
+      });
+      if (!gate.ok) {
+        if (wantsDesk) {
+          await supabase.auth.signOut();
+          return { ok: false, error: gate.message };
+        }
+        // Staff portal login: keep session but route to /staff, not /erp.
+        mayOpenDesk = false;
+      }
+    }
+
     await admin
       .from("staff_members")
       .update({ last_login_at: new Date().toISOString() })
@@ -104,11 +125,12 @@ export async function staffLogin(
       actor: member.employee_code as string,
       meta: {
         canAccessDesk: Boolean(member.can_access_desk),
+        deskOpened: mayOpenDesk,
         workspace: wantsDesk ? "desk" : "staff",
       },
     });
 
-    redirect(member.can_access_desk ? "/erp" : "/staff");
+    redirect(mayOpenDesk ? "/erp" : "/staff");
   } catch (error) {
     if (
       error &&
