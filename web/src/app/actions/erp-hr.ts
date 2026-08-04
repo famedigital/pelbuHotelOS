@@ -351,8 +351,17 @@ export async function upsertStaffRolesAccess(
 
     const editorRole = await getDeskRole();
     const moduleKeysUpdate = parseDeskModuleKeysForUpdate(formData);
+    // Module matrix fields are Owner/GM only; non-managers omit via module_mode=omit.
     if (moduleKeysUpdate !== undefined) {
-      await requireDeskRole(["owner", "gm"]);
+      try {
+        await requireDeskRole(["owner", "gm"]);
+      } catch (permErr) {
+        throw new Error(
+          permErr instanceof Error
+            ? permErr.message
+            : "Only Owner or GM can change ERP module access. Desk access and role can still be set by managers with HR access.",
+        );
+      }
     }
 
     const { data: existing } = await admin
@@ -393,7 +402,16 @@ export async function upsertStaffRolesAccess(
       .eq("property_id", propertyId)
       .select("id, full_name")
       .single();
-    if (error || !data) throw new Error("Could not update access settings.");
+    if (error || !data) {
+      const detail = error?.message?.trim();
+      // Surface missing-column / schema drift instead of a silent hang failure mode
+      // (clients stall only on never-resolving actions; still return clear errors).
+      throw new Error(
+        detail
+          ? `Could not update access settings: ${detail}`
+          : "Could not update access settings.",
+      );
+    }
 
     await writeAuditEvent(admin, {
       propertyId,
@@ -410,7 +428,7 @@ export async function upsertStaffRolesAccess(
     });
 
     refreshHr(staffId);
-    return { ok: true, message: "Access settings saved.", staffId };
+    return { ok: true, message: "Desk access saved.", staffId };
   } catch (error) {
     return {
       ok: false,
@@ -469,7 +487,14 @@ export async function upsertStaffModuleAccess(
       .eq("property_id", propertyId)
       .select("id, full_name")
       .single();
-    if (error || !data) throw new Error("Could not update module access.");
+    if (error || !data) {
+      const detail = error?.message?.trim();
+      throw new Error(
+        detail
+          ? `Could not update module access: ${detail}`
+          : "Could not update module access.",
+      );
+    }
 
     await writeAuditEvent(admin, {
       propertyId,

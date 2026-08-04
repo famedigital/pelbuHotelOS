@@ -71,6 +71,7 @@ import {
   useActionState,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -910,40 +911,70 @@ function AccessStep({
   const roleForDefaults = (member.deskRole as DeskRole | null) ?? "front_desk";
   const isOwner =
     member.accessLevel === "owner" || member.deskRole === "owner";
-  const roleDefaults = defaultModulesForDeskRole(
-    isOwner ? "owner" : roleForDefaults,
+  // Memoize: defaultModulesForDeskRole returns a new array every call.
+  // Putting a fresh array in useEffect deps re-render-looped Access edit
+  // (“Saving…” forever, browser thrash) whenever desk_module_keys is NULL.
+  const roleDefaults = useMemo(
+    () =>
+      defaultModulesForDeskRole(isOwner ? "owner" : roleForDefaults),
+    [isOwner, roleForDefaults],
   );
   const [useDefaults, setUseDefaults] = useState(
     member.deskModuleKeys == null,
   );
   const [moduleKeys, setModuleKeys] = useState<string[]>(
-    member.deskModuleKeys ?? roleDefaults,
+    () => member.deskModuleKeys ?? roleDefaults,
   );
   const [accessState, accessAction, accessPending] = useActionState(
     upsertStaffRolesAccess,
     initialHr,
   );
   const [pinState, pinAction, pinPending] = useActionState(setStaffPortalPin, pinInitial);
-  useActionToast(accessState, { successMessage: "Access saved" });
+  // Errors always toast; success toast uses the server message when present.
+  useActionToast(accessState, { successMessage: "Desk access saved" });
   useActionToast(pinState, { successMessage: "PIN saved" });
+  // Only exit edit/PIN reset after a *completed* pending→idle success
+  // (sticky accessState.ok from a prior save must not flip panels closed).
+  const accessWasPending = useRef(false);
+  const pinWasPending = useRef(false);
   useEffect(() => {
-    if (accessState.ok) {
+    if (accessPending) {
+      accessWasPending.current = true;
+      return;
+    }
+    if (accessWasPending.current && accessState.ok) {
+      accessWasPending.current = false;
       setEditing(false);
       router.refresh();
+    } else {
+      accessWasPending.current = false;
     }
-  }, [accessState.ok, router]);
+  }, [accessPending, accessState.ok, router]);
   useEffect(() => {
-    if (pinState.ok) {
+    if (pinPending) {
+      pinWasPending.current = true;
+      return;
+    }
+    if (pinWasPending.current && pinState.ok) {
+      pinWasPending.current = false;
       setResetPin(false);
       router.refresh();
+    } else {
+      pinWasPending.current = false;
     }
-  }, [pinState.ok, router]);
-  useEffect(() => {
-    if (editing) {
-      setUseDefaults(member.deskModuleKeys == null);
-      setModuleKeys(member.deskModuleKeys ?? roleDefaults);
-    }
-  }, [editing, member.deskModuleKeys, roleDefaults]);
+  }, [pinPending, pinState.ok, router]);
+
+  /** Seed form defaults only when opening edit — never in a render-looping effect. */
+  function openAccessEdit() {
+    setUseDefaults(member.deskModuleKeys == null);
+    setModuleKeys(
+      member.deskModuleKeys != null
+        ? [...member.deskModuleKeys]
+        : [...roleDefaults],
+    );
+    setResetPin(false);
+    setEditing(true);
+  }
 
   const moduleSummary =
     member.deskModuleKeys == null
@@ -1000,10 +1031,7 @@ function AccessStep({
               variant="outline"
               size="sm"
               className="h-9 gap-1.5"
-              onClick={() => {
-                setResetPin(false);
-                setEditing(true);
-              }}
+              onClick={openAccessEdit}
             >
               <PencilIcon className="size-3.5" />
               Edit access
