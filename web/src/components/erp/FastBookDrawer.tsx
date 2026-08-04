@@ -110,6 +110,17 @@ function DrawerBody({
           <Label htmlFor="notes">Notes</Label>
           <Textarea id="notes" name="notes" rows={2} />
         </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="promo_code">Promo code</Label>
+          <Input
+            id="promo_code"
+            type="text"
+            name="promo_code"
+            placeholder="Optional · e.g. TIKTOK50"
+            className="font-mono uppercase"
+            autoComplete="off"
+          />
+        </div>
       </fieldset>
 
       <fieldset className="space-y-3" disabled={pending}>

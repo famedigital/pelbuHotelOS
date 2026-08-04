@@ -31,6 +31,7 @@ import {
   PostRoomNightForm,
 } from "@/components/erp/FolioOpsForms";
 import { InhouseTaskQuickForm } from "@/components/erp/InhouseTasksPanel";
+import { RoomNcForm } from "@/components/erp/RoomNcForm";
 import type { RackStay, RackUnit } from "@/components/erp/RoomRackGrid";
 import { StayMoneyCycleLegend } from "@/components/erp/StayMoneyCycleLegend";
 import {
@@ -166,6 +167,9 @@ function summaryFromSeed(stay: StayHubSeedStay): StayHubSummary {
     isLocked: stay.is_locked,
     earlyCheckoutFeeBtn: null,
     lateCheckoutFeeBtn: null,
+    chargeable: true,
+    ncReasonCode: null,
+    roomNcReasons: [],
   };
 }
 
@@ -927,6 +931,26 @@ export function StayHubDialog({
                         </WorkSection>
                       ) : null}
 
+                      {summary.assignmentId ? (
+                        <WorkSection title="Room NC">
+                          <RoomNcForm
+                            assignmentId={summary.assignmentId}
+                            chargeable={summary.chargeable}
+                            ncReasonCode={summary.ncReasonCode}
+                            reasons={summary.roomNcReasons}
+                            roomLabel={summary.roomLabel}
+                            onSuccess={() => {
+                              void fetchStayHubSummary(
+                                summary.bookingId,
+                                summary.assignmentId,
+                              ).then((result) => {
+                                if (result.ok) applySummary(result.data, false);
+                              });
+                            }}
+                          />
+                        </WorkSection>
+                      ) : null}
+
                       {!terminal ? (
                         <WorkSection title="Cancel / no-show">
                           <BookingLifecycleActions
@@ -1026,6 +1050,26 @@ export function StayHubDialog({
                           </div>
                         </div>
                       </WorkSection>
+
+                      {isInHouse && summary.assignmentId ? (
+                        <WorkSection title="Room NC">
+                          <RoomNcForm
+                            assignmentId={summary.assignmentId}
+                            chargeable={summary.chargeable}
+                            ncReasonCode={summary.ncReasonCode}
+                            reasons={summary.roomNcReasons}
+                            roomLabel={summary.roomLabel}
+                            onSuccess={() => {
+                              void fetchStayHubSummary(
+                                summary.bookingId,
+                                summary.assignmentId,
+                              ).then((result) => {
+                                if (result.ok) applySummary(result.data, false);
+                              });
+                            }}
+                          />
+                        </WorkSection>
+                      ) : null}
 
                       {folioId ? (
                         <>

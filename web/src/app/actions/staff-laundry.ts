@@ -148,8 +148,35 @@ export async function confirmLaundryReceipt(
         let total = totalBtn;
         let desc = quote.description ?? "Laundry";
 
-        // Stay-level promo % (e.g. influencer coupon) cascades to laundry when on booking
-        if (quote.booking_id) {
+        // Stay-level promo % cascades; optional explicit laundry promo code overrides
+        let appliedPromo = false;
+        const laundryPromoCode = optionalTrim(formData.get("promo_code"));
+        if (laundryPromoCode && amountBtn > 0) {
+          const { redeemPromoCode } = await import("@/lib/marketing/promo");
+          const redeemed = await redeemPromoCode(admin, {
+            propertyId: session.propertyId,
+            code: laundryPromoCode,
+            channel: "desk_folio",
+            domain: "laundry",
+            preDiscountBtn: amountBtn,
+            bookingId: quote.booking_id ?? null,
+            folioId: quote.folio_id,
+          });
+          if (!redeemed.ok) {
+            throw new Error(redeemed.error ?? "Promo rejected.");
+          }
+          const post = Number(redeemed.post_discount_btn ?? amountBtn);
+          const scale = amountBtn > 0 ? post / amountBtn : 1;
+          amountBtn = Math.round(post * 100) / 100;
+          unitBtn = Math.round(unitBtn * scale * 100) / 100;
+          serviceChargeBtn =
+            Math.round(serviceChargeBtn * scale * 100) / 100;
+          gstBtn = Math.round(gstBtn * scale * 100) / 100;
+          total = Math.round((amountBtn + serviceChargeBtn + gstBtn) * 100) / 100;
+          desc = `${desc} · promo ${redeemed.code ?? laundryPromoCode}`;
+          appliedPromo = true;
+        }
+        if (!appliedPromo && quote.booking_id) {
           const { data: bookingPromo } = await admin
             .from("bookings")
             .select("promo_discount_pct, promo_code_snapshot")

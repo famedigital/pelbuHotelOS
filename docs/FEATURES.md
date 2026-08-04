@@ -34,6 +34,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Feature | Route / notes |
 |---------|----------------|
 | Flagship conversion pages | `/`, rooms, cafe, restaurant, bar, dine, spa, meeting, book, order, contact, agents |
+| Public room rates | `/rates` — rack/public tier table from `room_rates`; trade tiers only after email+WhatsApp soft gate (audit `rate_card_access_log` + httpOnly cookie); GST/SC inclusive badge from `property_policies` |
 | CMS galleries + menus | Supabase `cms_*` / `menu_items` + Cloudinary `image_public_id` |
 | Direct book | Creates booking; overbooking guard; hold TTL + deposit payment URL; uses `StayDatesField` (Dates mode default) |
 | F&B order | Cafe/pastry/restaurant → separate KOT tickets; mixed carts rejected |
@@ -92,7 +93,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Inventory | `/erp/inventory` (+ tabs: Items · Locations · Moves · **Assessment** · POs · Assets) | **Independent sidebar module** — table-first SKU catalog, staff categories, receive/damage/transfer; Assessment = stocktake at `/erp/inventory/audits` |
 | HR | `/erp/hr` (+ `/access`, `/positions`, `/vacancies`, `/recruitment`, print) | Staff **Form\|Sheet** · **Module access** · **Positions** (TOR + template PDFs) · **Vacancies** (open headcount, inbox) · public `/careers` · Recruitment (provision → hire/terminate + print) · rota · leave · payroll |
 | Channel | `/erp/channel` | Active-property Channex maps, ARI queue (availability + rates + min-stay/stop-sell), flush/retry, feed pull/ack — **live cert still open** ([CHANNEX-CERT.md](CHANNEX-CERT.md)) |
-| **Sales & Marketing** | `/erp/marketing` | Campaigns · coupons · NC policies · catalogues (templates, `/c/[slug]` share+OG, social crops, print PDF) · ROI; POS/room NC + promo money paths |
+| **Sales & Marketing** | `/erp/marketing` | Campaigns/coupons/NC (edit + status) · **CRM contacts** (type/tags/search, optional agent link) · **email broadcast** one-shot via Resend (owner/GM, max 50/session, `marketing_email_sends`) · **Share/Meta hub** (FB sharer, copy IG caption, catalogue crops; optional Graph post only if `FACEBOOK_PAGE_*` tokens) · campaign `meta_post_url` / `ig_handle` ROI fields · catalogues · room NC · ROI lite · public book + POS + Fast Book promo with **full stay-level reprice** (`promo_discount_pct` cascades room nights, meals, laundry; fixed promos amortized to %) |
 | Loyalty | `/erp/loyalty` (+ `/guest/loyalty`) | Points ledger + guest portal lite |
 | Recipe cost | `/erp/pos/recipe-cost` | Multi-outlet margin rollup; full RMS open |
 | Allotments | `/erp/allotments` | P9 |
@@ -137,7 +138,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 
 | Feature | Notes |
 |---------|--------|
-| Rates + seasons | `room_rates`, peak/lean/off × tiers |
+| Rates + seasons | `room_rates`, peak/lean/off × tiers; **Inc./Excl. GST+SC** via `property_policies.rates_inclusive_of_gst_sc` (Settings → Rates & meals; folio + public/agent quote) |
 | Agent credit ledger | Limit + charge on credit bookings |
 | Guide & driver partners | Master `guides`/`drivers`; `bookings.guide_id` / `driver_id`; visit counts |
 | Guest origin | `bookings.guest_origin` drives guide-required rule |

@@ -4,9 +4,11 @@ import {
   batchUpsertRoomRates,
   type ErpRatesState,
 } from "@/app/actions/erp-rates";
+import { childRateFromAdult } from "@/lib/child-packages";
 import type { RateMatrixRow, RoomTypeLite, SeasonWindow } from "@/lib/room-rates-data";
 import { formatBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 import { useActionState, useCallback, useMemo, useState } from "react";
 
 const SEASONS = ["peak", "lean", "off"] as const;
@@ -39,10 +41,13 @@ export function RoomRatesSheet({
   rows,
   roomTypes,
   seasons,
+  ratesInclusiveOfGstSc = false,
 }: {
   rows: RateMatrixRow[];
   roomTypes: RoomTypeLite[];
   seasons: SeasonWindow[];
+  /** Property policy: sheet Nu inclusive of GST + SC. */
+  ratesInclusiveOfGstSc?: boolean;
 }) {
   const guestRooms = roomTypes.filter((r) => r.inventory_kind === "sellable_guest");
   const [activeTier, setActiveTier] = useState<string>("public");
@@ -122,6 +127,33 @@ export function RoomRatesSheet({
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <span
+          className={cn(
+            "inline-flex items-center rounded-md border px-2.5 py-1 text-[11px] font-semibold tracking-wide uppercase",
+            ratesInclusiveOfGstSc
+              ? "border-emerald-600/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
+              : "border-input bg-muted text-muted-foreground",
+          )}
+          title={
+            ratesInclusiveOfGstSc
+              ? "Sheet Nu is guest all-in (GST + SC when SC default is on)"
+              : "Sheet Nu is exclusive of GST and SC — posting adds them"
+          }
+        >
+          {ratesInclusiveOfGstSc ? "Inc. GST+SC" : "Excl. GST+SC"}
+        </span>
+        <span className="inline-flex items-center rounded-md border border-input bg-muted/50 px-2.5 py-1 text-[11px] text-muted-foreground">
+          Child package: 0–6 free · 6–12 = 50% adult (auto)
+        </span>
+        <Link
+          href="/erp/settings?tab=commercial"
+          className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+        >
+          Change in Rates &amp; meals
+        </Link>
+      </div>
+
       <div className="flex flex-wrap gap-2">
         {TIERS.map((tier) => (
           <button
@@ -202,11 +234,34 @@ export function RoomRatesSheet({
                           )}
                         />
                       </div>
-                      {saved != null && saved > 0 && !isDirty ? (
-                        <p className="mt-0.5 text-[10px] text-muted-foreground">
-                          {formatBtn(saved)}/night
-                        </p>
-                      ) : null}
+                      {(() => {
+                        const adultNum =
+                          draft.trim() === ""
+                            ? (saved ?? 0)
+                            : Number(draft);
+                        if (!Number.isFinite(adultNum) || adultNum <= 0) {
+                          return saved != null && saved > 0 && !isDirty ? (
+                            <p className="mt-0.5 text-[10px] text-muted-foreground">
+                              {formatBtn(saved)}/night adult
+                            </p>
+                          ) : null;
+                        }
+                        const childHalf = childRateFromAdult(adultNum);
+                        return (
+                          <div className="mt-1 space-y-0.5 text-[10px] leading-snug text-muted-foreground">
+                            <p className="tabular-nums text-foreground/80">
+                              Adult {formatBtn(adultNum)}
+                            </p>
+                            <p className="tabular-nums">
+                              6–12 {formatBtn(childHalf)}{" "}
+                              <span className="text-muted-foreground">
+                                (50%)
+                              </span>
+                            </p>
+                            <p>0–6 free</p>
+                          </div>
+                        );
+                      })()}
                     </td>
                   );
                 })}

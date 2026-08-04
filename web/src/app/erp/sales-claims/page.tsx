@@ -48,26 +48,32 @@ export default async function SalesClaimsPage({
   const propertyId = await requireDeskPropertyId();
   const commissionPct = await loadStaffSalesCommissionPct(admin, propertyId);
 
-  let query = admin
-    .from("bookings")
-    .select(
-      `id, contact_name, check_in, check_out, quoted_total_btn, sales_claim_status,
-       sales_claim_note, sales_verified_at, sold_by_staff_id, agent_id,
-       agents(company_name),
-       sold_by:staff_members!sold_by_staff_id(full_name)`,
-    )
-    .eq("property_id", propertyId)
-    .not("sold_by_staff_id", "is", null)
-    .order("check_in", { ascending: false })
-    .limit(200);
+  // Separate chains avoid Supabase generic "Type instantiation is excessively deep".
+  const selectCols =
+    "id, contact_name, check_in, check_out, quoted_total_btn, sales_claim_status, sales_claim_note, sales_verified_at, sold_by_staff_id, agent_id, agents(company_name), sold_by:staff_members!sold_by_staff_id(full_name)";
 
-  if (statusFilter !== "all") {
-    query = query.eq("sales_claim_status", statusFilter);
+  let rows: Array<Record<string, unknown>> | null = null;
+  if (statusFilter === "all") {
+    const { data } = await admin
+      .from("bookings")
+      .select(selectCols)
+      .eq("property_id", propertyId)
+      .not("sold_by_staff_id", "is", null)
+      .not("sales_claim_status", "is", null)
+      .order("check_in", { ascending: false })
+      .limit(200);
+    rows = (data as Array<Record<string, unknown>> | null) ?? null;
   } else {
-    query = query.not("sales_claim_status", "is", null);
+    const { data } = await admin
+      .from("bookings")
+      .select(selectCols)
+      .eq("property_id", propertyId)
+      .not("sold_by_staff_id", "is", null)
+      .eq("sales_claim_status", statusFilter)
+      .order("check_in", { ascending: false })
+      .limit(200);
+    rows = (data as Array<Record<string, unknown>> | null) ?? null;
   }
-
-  const { data: rows } = await query;
 
   const tabs: { id: StatusFilter; label: string }[] = [
     { id: "claimed", label: "Pending" },

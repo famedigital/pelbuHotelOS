@@ -1,13 +1,17 @@
 import { roundBtn } from "@/lib/pricing";
+import { effectiveChildNightRate } from "@/lib/child-packages";
 
 export const MAX_CHILDREN = 12;
 export const MAX_EXTRA_BEDS = 2;
+/** Infants (0–5 years) who share free — separate from chargeable children. */
+export const MAX_INFANTS = 12;
 
 /**
  * Meal stay total: adult_rate × adults × nights + child_rate × children × nights.
  * - null adult rate → null (label-only; no folio money)
- * - null child rate → 0 for children (free kids when plan is priced for adults)
- * 0 adult rate (EP) → 0
+ * - null child rate → auto 50% of adult (child package 6–12 years)
+ * - 0 adult rate (EP) → 0
+ * Infants (0–6 free band) are not included in `children` — they are free.
  */
 export function computeMealStayTotalBtn(
   amountPerAdultNight: number | null | undefined,
@@ -21,8 +25,10 @@ export function computeMealStayTotalBtn(
   const safeNights = Math.max(1, nights);
   const safeChildren = Math.max(0, children);
   const adultPart = Number(amountPerAdultNight) * safeAdults * safeNights;
-  const childRate =
-    amountPerChildNight == null ? 0 : Number(amountPerChildNight);
+  const childRate = effectiveChildNightRate(
+    amountPerAdultNight,
+    amountPerChildNight,
+  );
   const childPart = childRate * safeChildren * safeNights;
   return roundBtn(adultPart + childPart);
 }

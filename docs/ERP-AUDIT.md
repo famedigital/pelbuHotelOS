@@ -181,15 +181,15 @@ This proves routes compile and auth gates work. It does **not** prove money corr
 
 ### §5.1 GST and rounding policy (AC-05)
 
-Pelbu uses **GST exclusive-add** (Bhutan standard for B2B hotel folios):
+Pelbu default is **GST exclusive-add** for room rates stored on `room_rates` (Bhutan B2B folio style). Property policy **`property_policies.rates_inclusive_of_gst_sc`** (Settings → Rates & meals) flips room rates to **all-in**:
 
-- **Catalog / rate prices** are stored **exclusive** of GST unless a row explicitly flags `gst_applicable` on a folio line.
-- **GST amount** = `roundBtn(net × gst_rate)` where `gst_rate` comes from property seed (default 5%).
-- **Line total** = `roundBtn(net + gst)` for GST-applicable charges; laundry/POS/folio gateways call `roundBtn` on every BTN field before insert.
-- **Inclusive back-out** (when a total already includes GST): `net = roundBtn(gross / (1 + rate))`, `gst = roundBtn(gross - net)` — used in split-GST helpers only, not desk forms.
+- **Exclusive (default):** folio net = sheet Nu; SC (if default on) = net × sc_rate; GST = (net + SC) × gst_rate; total = net + SC + GST. Public/agent quotes show the guest all-in total.
+- **Inclusive:** sheet Nu is guest total; reverse-out `net = roundBtn(total / ((1+sc)×(1+gst)))`, SC on net; GST residual so net + SC + GST = total (`calculateRoomNightTax` in `lib/pricing`).
+- **Catalog / POS menu prices** are unchanged by this flag (still exclusive-add via `calculateOrderTotals`).
+- **Line total** = net + SC + GST with `roundBtn` on every BTN field before insert.
 - **Never** compute GST in React components; always use server gateways (`postFolioCharge`, laundry confirm RPC, POS settle).
 
-Property setting: `properties.gst_rate` (seeded). Future: per-outlet inclusive menu flag — not shipped.
+Property rates: `properties.gst_rate`, `properties.service_charge_rate` / `service_charge_default_on`. Room inclusive flag: `property_policies.rates_inclusive_of_gst_sc`.
 
 ### Phase C — Chain / SaaS
 

@@ -18,6 +18,8 @@ type Props = {
   extraBedTotalBtn?: number | null;
   totalBtn: number | null;
   currency: "BTN";
+  /** Property policy: room sheet rates are all-in (inc GST + SC). */
+  ratesInclusiveOfGstSc?: boolean;
 };
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -65,6 +67,7 @@ export function BookingSummary({
   extraBedTotalBtn,
   totalBtn,
   currency,
+  ratesInclusiveOfGstSc = false,
 }: Props) {
   const nightsLabel = `${nights} night${nights === 1 ? "" : "s"}`;
   const roomsLabel = `${rooms} room${rooms === 1 ? "" : "s"}`;
@@ -101,7 +104,14 @@ export function BookingSummary({
         ) : null}
         <Row label="Room type" value={selectedName ?? "Not selected yet"} />
         {perNightBtn != null ? (
-          <Row label="Per night" value={formatBtn(perNightBtn)} />
+          <Row
+            label={
+              ratesInclusiveOfGstSc
+                ? "Per night (inc. GST+SC)"
+                : "Per night (incl. tax)"
+            }
+            value={formatBtn(perNightBtn)}
+          />
         ) : null}
         {mealTotalBtn != null && mealTotalBtn > 0 ? (
           <Row label="Meals" value={formatBtn(mealTotalBtn)} />

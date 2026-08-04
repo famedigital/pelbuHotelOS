@@ -1,11 +1,11 @@
 import "server-only";
-import { DEFAULT_GST_RATE } from "@/lib/property-settings";
 import { postFolioCharge } from "@/lib/folio/post-charge";
 import {
   applyDiscountPct,
   resolveBookingPartnerDiscountPct,
 } from "@/lib/partners/discount";
-import { roundBtn } from "@/lib/pricing";
+import { calculateRoomNightTax, roundBtn } from "@/lib/pricing";
+import { loadRoomRateTaxSettings } from "@/lib/room-rate-tax";
 import {
   agentRateTier,
   lookupRoomRateBtn,
@@ -26,19 +26,6 @@ function rateTierFromSource(source: string): RateTier {
   if (source === "mou_agent") return "mou_agents";
   if (source === "agent") return "agents";
   return "public";
-}
-
-async function loadPropertyPricing(admin: Admin, propertyId: string) {
-  const { data } = await admin
-    .from("properties")
-    .select("gst_rate, service_charge_rate, service_charge_default_on")
-    .eq("id", propertyId)
-    .maybeSingle();
-  return {
-    gstRate: Number(data?.gst_rate ?? DEFAULT_GST_RATE),
-    serviceChargeRate: Number(data?.service_charge_rate ?? 0),
-    serviceChargeDefaultOn: Boolean(data?.service_charge_default_on),
-  };
 }
 
 async function ensureOpenFolio(
@@ -115,7 +102,7 @@ export async function postRoomNightsForDate(
   businessDate: string,
   opts?: { bookingId?: string },
 ): Promise<RoomNightPostResult> {
-  const pricing = await loadPropertyPricing(admin, propertyId);
+  const taxSettings = await loadRoomRateTaxSettings(admin, propertyId);
   const seasonKind = await resolveSeasonKind(admin, propertyId, businessDate);
 
   const { data: assignments, error: assignError } = await admin
@@ -253,22 +240,25 @@ export async function postRoomNightsForDate(
       continue;
     }
 
-    let amountBtn = roundBtn(rate);
+    // Promo + partner discounts apply to the stored room_rates figure, then tax split.
+    let listedAmountBtn = roundBtn(rate);
     if (room.promoDiscountPct > 0) {
-      amountBtn = roundBtn(amountBtn * (1 - Math.min(100, room.promoDiscountPct) / 100));
+      listedAmountBtn = roundBtn(
+        listedAmountBtn * (1 - Math.min(100, room.promoDiscountPct) / 100),
+      );
     }
-    // Partner discount applied on room nights
     const partner = await resolveBookingPartnerDiscountPct(admin, room.bookingId);
     if (partner.pct > 0) {
-      amountBtn = applyDiscountPct(amountBtn, partner.pct);
+      listedAmountBtn = applyDiscountPct(listedAmountBtn, partner.pct);
     }
 
-    const serviceChargeApplied = pricing.serviceChargeDefaultOn;
-    const serviceChargeRate = serviceChargeApplied ? pricing.serviceChargeRate : 0;
-    const serviceChargeBtn = roundBtn(amountBtn * serviceChargeRate);
-    const gstBase = amountBtn + serviceChargeBtn;
-    const gstBtn = roundBtn(gstBase * pricing.gstRate);
-    const totalBtn = roundBtn(amountBtn + serviceChargeBtn + gstBtn);
+    const tax = calculateRoomNightTax(listedAmountBtn, taxSettings);
+    const amountBtn = tax.amountBtn;
+    const serviceChargeRate = tax.serviceChargeRate;
+    const serviceChargeBtn = tax.serviceChargeBtn;
+    const serviceChargeApplied = tax.serviceChargeApplied;
+    const gstBtn = tax.gstBtn;
+    const totalBtn = tax.totalBtn;
 
     const folioLabel = `${room.contactName} · Room ${room.roomLabel}`;
     let folioId: string;

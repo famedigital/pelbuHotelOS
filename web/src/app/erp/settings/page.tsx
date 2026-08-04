@@ -727,6 +727,14 @@ export default async function ErpSettingsPage({
                 ? null
                 : Number(policyResult.data.staff_sales_commission_pct)
             }
+            ratesInclusiveOfGstSc={Boolean(
+              (
+                policyResult.data as
+                  | { rates_inclusive_of_gst_sc?: boolean }
+                  | null
+                  | undefined
+              )?.rates_inclusive_of_gst_sc,
+            )}
           />
         </TabsContent>
 

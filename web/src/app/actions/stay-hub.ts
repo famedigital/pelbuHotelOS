@@ -6,13 +6,15 @@ import type {
 } from "@/components/erp/CheckInForm";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/desk-property";
-import { roundBtn } from "@/lib/pricing";
+import { listNcReasonCodes } from "@/lib/marketing/nc";
+import { calculateRoomNightTax, roundBtn } from "@/lib/pricing";
 import {
   agentRateTier,
   lookupRoomRateBtn,
   nightsBetween,
   resolveSeasonKind,
 } from "@/lib/rates";
+import { loadRoomRateTaxSettings } from "@/lib/room-rate-tax";
 import { loadCheckInRoomOptions } from "@/lib/room-assignments";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -69,6 +71,10 @@ export type StayHubSummary = {
   isLocked: boolean;
   earlyCheckoutFeeBtn: number | null;
   lateCheckoutFeeBtn: number | null;
+  /** Room assignment chargeable flag (false = NC). */
+  chargeable: boolean;
+  ncReasonCode: string | null;
+  roomNcReasons: { code: string; label: string }[];
 };
 
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -94,6 +100,7 @@ export async function fetchStayHubSummary(
       sold_by_staff:staff_members!sold_by_staff_id(full_name),
       booking_guests(full_name, passport_or_cid, nationality, sdf_ref),
       room_assignments(id, room_unit_id, is_locked, from_date, to_date,
+        chargeable, nc_reason_code,
         room_units(id, label, room_type_id, room_types(id, name))),
       folios(id, status, folio_lines(total_btn, status, source_type))
     `,
@@ -104,6 +111,10 @@ export async function fetchStayHubSummary(
 
   if (error) return { ok: false, error: error.message };
   if (!data) return { ok: false, error: "Booking not found" };
+
+  const roomNcReasons = (
+    await listNcReasonCodes(admin, propertyId, "room")
+  ).map((r) => ({ code: r.code, label: r.label }));
 
   const agentRaw = data.agents as
     | { company_name?: string }
@@ -137,6 +148,8 @@ export async function fetchStayHubSummary(
           id: string;
           room_unit_id: string;
           is_locked?: boolean;
+          chargeable?: boolean;
+          nc_reason_code?: string | null;
           room_units:
             | {
                 id?: string;
@@ -244,6 +257,9 @@ export async function fetchStayHubSummary(
       folioId: openFolio?.id ?? null,
       folioBalance: balance,
       isLocked: Boolean(preferred?.is_locked),
+      chargeable: preferred?.chargeable !== false,
+      ncReasonCode: (preferred?.nc_reason_code as string | null) ?? null,
+      roomNcReasons,
       earlyCheckoutFeeBtn:
         policy?.early_checkout_fee_btn == null
           ? null
@@ -268,7 +284,7 @@ export async function fetchStayHubCheckIn(
   const { data, error } = await admin
     .from("bookings")
     .select(
-      `id, contact_name, contact_phone, check_in, check_out, status, guest_origin, guide_number, guide_id, driver_id, payment_mode, adults, rooms, agent_id,
+      `id, contact_name, contact_phone, check_in, check_out, status, guest_origin, guide_number, guide_id, driver_id, payment_mode, adults, rooms, agent_id, quoted_total_btn,
        agents(company_name, credit_limit),
        booking_rooms(qty, inventory_kind, room_type_id, room_types(name, code)),
        booking_guests(full_name, nationality, passport_or_cid, sdf_ref, sdf_doc_url, sort_order),
@@ -311,37 +327,47 @@ export async function fetchStayHubCheckIn(
     const limit = Number(agent?.credit_limit ?? 0);
     creditAvailable = roundBtn(Math.max(0, limit - balance));
 
-    const rooms =
-      (data.booking_rooms as
-        | { qty: number; inventory_kind: string; room_type_id: string }[]
-        | null) ?? [];
-    const nights = nightsBetween(
-      data.check_in as string,
-      data.check_out as string,
-    );
-    const season = await resolveSeasonKind(
-      admin,
-      propertyId,
-      data.check_in as string,
-    );
-    const { data: agentRow } = await admin
-      .from("agents")
-      .select("rate_tier")
-      .eq("id", agentId)
-      .maybeSingle();
-    const tier = agentRateTier(agentRow?.rate_tier as string | undefined);
-    let estimate = 0;
-    for (const line of rooms) {
-      if (line.inventory_kind !== "sellable_guest") continue;
-      const rate = await lookupRoomRateBtn(admin, {
+    const quoted =
+      data.quoted_total_btn != null ? Number(data.quoted_total_btn) : null;
+    if (quoted != null && Number.isFinite(quoted) && quoted > 0) {
+      stayEstimate = roundBtn(quoted);
+    } else {
+      const rooms =
+        (data.booking_rooms as
+          | { qty: number; inventory_kind: string; room_type_id: string }[]
+          | null) ?? [];
+      const nights = nightsBetween(
+        data.check_in as string,
+        data.check_out as string,
+      );
+      const season = await resolveSeasonKind(
+        admin,
         propertyId,
-        roomTypeId: line.room_type_id,
-        seasonKind: season,
-        rateTier: tier,
-      });
-      if (rate != null) estimate += rate * Number(line.qty) * nights;
+        data.check_in as string,
+      );
+      const taxSettings = await loadRoomRateTaxSettings(admin, propertyId);
+      const { data: agentRow } = await admin
+        .from("agents")
+        .select("rate_tier")
+        .eq("id", agentId)
+        .maybeSingle();
+      const tier = agentRateTier(agentRow?.rate_tier as string | undefined);
+      let estimate = 0;
+      for (const line of rooms) {
+        if (line.inventory_kind !== "sellable_guest") continue;
+        const rate = await lookupRoomRateBtn(admin, {
+          propertyId,
+          roomTypeId: line.room_type_id,
+          seasonKind: season,
+          rateTier: tier,
+        });
+        if (rate != null) {
+          const nightAllIn = calculateRoomNightTax(rate, taxSettings).totalBtn;
+          estimate += nightAllIn * Number(line.qty) * nights;
+        }
+      }
+      stayEstimate = roundBtn(estimate);
     }
-    stayEstimate = roundBtn(estimate);
   }
 
   const guests = (

@@ -78,6 +78,7 @@ export function absoluteUrl(path = "/"): string {
 export const PUBLIC_INDEXABLE_ROUTES = [
   "/",
   "/rooms",
+  "/rates",
   "/book",
   "/menu",
   "/cafe",

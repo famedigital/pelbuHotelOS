@@ -1,9 +1,11 @@
+import { calculateRoomNightTax } from "@/lib/pricing";
 import {
   lookupRoomRateBtn,
   resolveSeasonKind,
   type RateTier,
   type SeasonKind,
 } from "@/lib/rates";
+import { loadRoomRateTaxSettings } from "@/lib/room-rate-tax";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
@@ -106,14 +108,18 @@ export async function computeTokenRequiredBtn(
   if (rule.mode === "fixed") {
     modeAmount = rule.floor_btn;
   } else if (rule.mode === "percent") {
+    // Prefer wizard/agent stay quote (all-in) when present.
     const stay =
-      args.estimatedStayTotalBtn ??
-      (await estimateOneNightTotal(admin, {
-        propertyId: args.propertyId,
-        seasonKind,
-        tier,
-        roomLines: args.roomLines,
-      })) * 2;
+      args.estimatedStayTotalBtn != null &&
+      Number.isFinite(args.estimatedStayTotalBtn) &&
+      args.estimatedStayTotalBtn > 0
+        ? Number(args.estimatedStayTotalBtn)
+        : (await estimateOneNightTotal(admin, {
+            propertyId: args.propertyId,
+            seasonKind,
+            tier,
+            roomLines: args.roomLines,
+          })) * 2;
     const pct = rule.percent ?? 20;
     modeAmount = (stay * pct) / 100;
   } else {
@@ -128,6 +134,7 @@ export async function computeTokenRequiredBtn(
   return Math.max(rule.floor_btn, Math.round(modeAmount * 100) / 100);
 }
 
+/** First-night guest-facing room total (GST/SC via property rate tax settings). */
 async function estimateOneNightTotal(
   admin: Admin,
   args: {
@@ -137,6 +144,7 @@ async function estimateOneNightTotal(
     roomLines: { roomTypeId: string; qty: number }[];
   },
 ): Promise<number> {
+  const taxSettings = await loadRoomRateTaxSettings(admin, args.propertyId);
   let total = 0;
   for (const line of args.roomLines) {
     const rate = await lookupRoomRateBtn(admin, {
@@ -145,7 +153,9 @@ async function estimateOneNightTotal(
       seasonKind: args.seasonKind,
       rateTier: args.tier,
     });
-    total += (rate ?? 0) * line.qty;
+    if (rate == null) continue;
+    const nightAllIn = calculateRoomNightTax(rate, taxSettings).totalBtn;
+    total += nightAllIn * line.qty;
   }
   return total;
 }

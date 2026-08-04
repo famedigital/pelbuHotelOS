@@ -1,8 +1,17 @@
 "use server";
 
 import { writeAuditEvent } from "@/lib/audit";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import {
+  isDeskAuthenticated,
+  requireDeskRole,
+  type DeskRole,
+} from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/desk-property";
+import {
+  MARKETING_EMAIL_BATCH_MAX,
+  sendMarketingBroadcast,
+} from "@/lib/marketing/email-broadcast";
+import { getMetaTokenConfig, postFacebookPageFeed } from "@/lib/marketing/meta-share";
 import { recordNcEvent } from "@/lib/marketing/nc";
 import {
   previewPromoCode,
@@ -11,6 +20,13 @@ import {
   type PromoDomain,
 } from "@/lib/marketing/promo";
 import { verifyManagerPinForProperty } from "@/lib/manager-pin";
+import {
+  agentRateTier,
+  lookupRoomRateBtn,
+  nightsBetween,
+  resolveSeasonKind,
+  type RateTier,
+} from "@/lib/rates";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
@@ -21,6 +37,8 @@ export type MarketingState = {
   id?: string;
   message?: string;
 };
+
+const OWNER_GM: DeskRole[] = ["owner", "gm"];
 
 async function requireDesk() {
   if (!(await isDeskAuthenticated())) {
@@ -34,6 +52,10 @@ function parseCsvList(raw: FormDataEntryValue | null, fallback: string[]): strin
     .split(/[,|]/)
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+function parseTags(raw: FormDataEntryValue | null): string[] {
+  return parseCsvList(raw, []).map((t) => t.toLowerCase().replace(/\s+/g, "_"));
 }
 
 function revalidateMarketing() {
@@ -66,6 +88,10 @@ export async function upsertCampaign(
     if (budget != null && (!Number.isFinite(budget) || budget < 0)) {
       throw new Error("Budget must be a non-negative number.");
     }
+    const metaPostUrl = optionalTrim(formData.get("meta_post_url"));
+    const igHandle = optionalTrim(formData.get("ig_handle"));
+    const metaPostedAt = optionalTrim(formData.get("meta_posted_at"));
+    const metaPostNotes = optionalTrim(formData.get("meta_post_notes"));
 
     const payload = {
       property_id: propertyId,
@@ -77,6 +103,10 @@ export async function upsertCampaign(
       notes,
       influencer_label: influencerLabel,
       budget_btn: budget,
+      meta_post_url: metaPostUrl,
+      ig_handle: igHandle,
+      meta_posted_at: metaPostedAt ? new Date(metaPostedAt).toISOString() : null,
+      meta_post_notes: metaPostNotes,
       updated_at: new Date().toISOString(),
     };
 
@@ -175,7 +205,11 @@ export async function upsertPromoCode(
       "desk_pos",
     ]);
     const stackable = formData.get("stackable_with_partner") === "1";
-    const active = formData.get("active") !== "off";
+    const activeRaw = formData.get("active");
+    const active =
+      activeRaw == null || activeRaw === ""
+        ? true
+        : activeRaw !== "0" && activeRaw !== "off";
     const notes = optionalTrim(formData.get("notes"));
 
     const payload = {
@@ -254,7 +288,11 @@ export async function upsertNcReason(
     const domains = parseCsvList(formData.get("domains"), ["pos", "room"]);
     const requiresRole =
       optionalTrim(formData.get("requires_role")) ?? "manager";
-    const active = formData.get("active") !== "off";
+    const activeRaw = formData.get("active");
+    const active =
+      activeRaw == null || activeRaw === ""
+        ? true
+        : activeRaw !== "0" && activeRaw !== "off";
     const sortOrder = Number(optionalTrim(formData.get("sort_order")) ?? "100");
     const notes = optionalTrim(formData.get("notes"));
 
@@ -334,6 +372,22 @@ export async function setRoomAssignmentNc(
         });
     }
 
+    const { data: before, error: loadErr } = await admin
+      .from("room_assignments")
+      .select(
+        `
+        id, booking_id, room_unit_id, from_date, to_date, chargeable,
+        room_units(room_type_id),
+        bookings(check_in, check_out, agent_id, agents(rate_tier))
+      `,
+      )
+      .eq("id", assignmentId)
+      .eq("property_id", propertyId)
+      .maybeSingle();
+    if (loadErr || !before) {
+      throw new Error(loadErr?.message ?? "Assignment not found.");
+    }
+
     const { data: assignment, error } = await admin
       .from("room_assignments")
       .update({
@@ -350,11 +404,45 @@ export async function setRoomAssignmentNc(
     }
 
     if (!chargeable && reasonCode) {
+      const listValueBtn = await resolveRoomNcListValueBtn(admin, {
+        propertyId,
+        fromDate: (before.from_date as string) ?? null,
+        toDate: (before.to_date as string) ?? null,
+        roomTypeId: (() => {
+          const unit = before.room_units as
+            | { room_type_id?: string }
+            | { room_type_id?: string }[]
+            | null;
+          const u = Array.isArray(unit) ? unit[0] : unit;
+          return (u?.room_type_id as string | undefined) ?? null;
+        })(),
+        booking: before.bookings as
+          | {
+              check_in?: string;
+              check_out?: string;
+              agent_id?: string | null;
+              agents?:
+                | { rate_tier?: string | null }
+                | { rate_tier?: string | null }[]
+                | null;
+            }
+          | {
+              check_in?: string;
+              check_out?: string;
+              agent_id?: string | null;
+              agents?:
+                | { rate_tier?: string | null }
+                | { rate_tier?: string | null }[]
+                | null;
+            }[]
+          | null,
+      });
+
       await recordNcEvent(admin, {
         propertyId,
         domain: "room",
         reasonCode,
-        listValueBtn: 0,
+        listValueBtn,
         bookingId: assignment.booking_id as string,
         roomAssignmentId: assignmentId,
         description: "Room assignment marked non-chargeable",
@@ -374,6 +462,7 @@ export async function setRoomAssignmentNc(
 
     revalidatePath("/erp/calendar");
     revalidatePath("/erp/folios");
+    revalidatePath("/erp");
     revalidateMarketing();
     return {
       ok: true,
@@ -387,6 +476,71 @@ export async function setRoomAssignmentNc(
       error: err instanceof Error ? err.message : "Something went wrong.",
     };
   }
+}
+
+async function resolveRoomNcListValueBtn(
+  admin: ReturnType<typeof createSupabaseAdminClient>,
+  args: {
+    propertyId: string;
+    fromDate: string | null;
+    toDate: string | null;
+    roomTypeId: string | null;
+    booking:
+      | {
+          check_in?: string;
+          check_out?: string;
+          agent_id?: string | null;
+          agents?:
+            | { rate_tier?: string | null }
+            | { rate_tier?: string | null }[]
+            | null;
+        }
+      | {
+          check_in?: string;
+          check_out?: string;
+          agent_id?: string | null;
+          agents?:
+            | { rate_tier?: string | null }
+            | { rate_tier?: string | null }[]
+            | null;
+        }[]
+      | null;
+  },
+): Promise<number> {
+  const booking = Array.isArray(args.booking)
+    ? args.booking[0]
+    : args.booking;
+  const from =
+    args.fromDate ??
+    (booking?.check_in as string | undefined) ??
+    new Date().toISOString().slice(0, 10);
+  const to =
+    args.toDate ??
+    (booking?.check_out as string | undefined) ??
+    from;
+  const nights = nightsBetween(from.slice(0, 10), to.slice(0, 10));
+  if (!args.roomTypeId) return 0;
+
+  let tier: RateTier = "public";
+  const agentRaw = booking?.agents;
+  const agent = Array.isArray(agentRaw) ? agentRaw[0] : agentRaw;
+  if (booking?.agent_id) {
+    tier = agentRateTier(agent?.rate_tier ?? null);
+  }
+
+  const season = await resolveSeasonKind(
+    admin,
+    args.propertyId,
+    from.slice(0, 10),
+  );
+  const nightRate = await lookupRoomRateBtn(admin, {
+    propertyId: args.propertyId,
+    roomTypeId: args.roomTypeId,
+    seasonKind: season,
+    rateTier: tier,
+  });
+  if (nightRate == null || !Number.isFinite(nightRate)) return 0;
+  return Math.max(0, nightRate * nights);
 }
 
 export type PreviewPromoState = {
@@ -433,7 +587,6 @@ export async function previewPromoAction(
   }
 }
 
-/** Apply promo at folio charge time for spa/laundry/guest_service domains. */
 export async function applyPromoToAmount(
   args: {
     propertyId: string;
@@ -499,4 +652,258 @@ export async function applyPromoToAmount(
     discountBtn: Number(p.discount_btn ?? 0),
     promoCodeId: p.promo_code_id ?? null,
   };
+}
+
+const CONTACT_TYPES = new Set([
+  "guest",
+  "agent",
+  "influencer",
+  "media",
+  "other",
+]);
+
+export async function upsertMarketingContact(
+  _prev: MarketingState,
+  formData: FormData,
+): Promise<MarketingState> {
+  try {
+    await requireDesk();
+    const admin = createSupabaseAdminClient();
+    const propertyId = await requireDeskPropertyId();
+    const id = optionalTrim(formData.get("contact_id"));
+    const fullName = trimRequired(formData.get("full_name"), "Name");
+    const email = optionalTrim(formData.get("email"));
+    const phone = optionalTrim(formData.get("phone"));
+    const whatsapp = optionalTrim(formData.get("whatsapp"));
+    const contactType = optionalTrim(formData.get("contact_type")) ?? "other";
+    if (!CONTACT_TYPES.has(contactType)) {
+      throw new Error("Invalid contact type.");
+    }
+    const tags = parseTags(formData.get("tags"));
+    const notes = optionalTrim(formData.get("notes"));
+    const source = optionalTrim(formData.get("source"));
+    const campaignId = optionalTrim(formData.get("campaign_id"));
+    const agentId = optionalTrim(formData.get("agent_id"));
+
+    if (email && !email.includes("@")) {
+      throw new Error("Email looks invalid.");
+    }
+
+    const payload = {
+      property_id: propertyId,
+      full_name: fullName,
+      email: email ?? null,
+      phone: phone ?? null,
+      whatsapp: whatsapp ?? null,
+      contact_type: contactType,
+      tags,
+      notes: notes ?? null,
+      source: source ?? null,
+      campaign_id: campaignId,
+      agent_id: agentId,
+      last_touched_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    let contactId = id;
+    if (id) {
+      const { error } = await admin
+        .from("marketing_contacts")
+        .update(payload)
+        .eq("id", id)
+        .eq("property_id", propertyId);
+      if (error) throw new Error(error.message);
+    } else {
+      const { data, error } = await admin
+        .from("marketing_contacts")
+        .insert(payload)
+        .select("id")
+        .single();
+      if (error || !data) throw new Error(error?.message ?? "Insert failed.");
+      contactId = data.id as string;
+    }
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: id ? "marketing.contact.update" : "marketing.contact.create",
+      entityType: "marketing_contacts",
+      entityId: contactId!,
+      summary: `${id ? "Updated" : "Created"} contact ${fullName}`,
+    });
+
+    revalidateMarketing();
+    return {
+      ok: true,
+      id: contactId ?? undefined,
+      message: "Contact saved.",
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Something went wrong.",
+    };
+  }
+}
+
+export async function sendMarketingEmailCampaign(
+  _prev: MarketingState,
+  formData: FormData,
+): Promise<MarketingState> {
+  try {
+    await requireDeskRole(OWNER_GM);
+    const admin = createSupabaseAdminClient();
+    const propertyId = await requireDeskPropertyId();
+    const subject = trimRequired(formData.get("subject"), "Subject");
+    const bodyText = trimRequired(formData.get("body_text"), "Body");
+    const bodyHtml = optionalTrim(formData.get("body_html"));
+    const campaignId = optionalTrim(formData.get("campaign_id"));
+    const tagFilter = optionalTrim(formData.get("tag_filter"));
+    const contactIdsRaw = optionalTrim(formData.get("contact_ids"));
+    const selectedIds = contactIdsRaw
+      ? contactIdsRaw
+          .split(/[,|\s]+/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
+
+    let query = admin
+      .from("marketing_contacts")
+      .select("id, full_name, email, tags")
+      .eq("property_id", propertyId)
+      .not("email", "is", null)
+      .limit(MARKETING_EMAIL_BATCH_MAX + 1);
+
+    if (selectedIds.length > 0) {
+      query = query.in("id", selectedIds);
+    } else if (tagFilter) {
+      query = query.contains("tags", [tagFilter.toLowerCase()]);
+    } else {
+      throw new Error(
+        "Select contacts (checkboxes) or enter a tag filter to build a list.",
+      );
+    }
+
+    const { data: rows, error } = await query;
+    if (error) throw new Error(error.message);
+    if (!rows?.length) {
+      throw new Error("No contacts matched with a usable email.");
+    }
+    if (rows.length > MARKETING_EMAIL_BATCH_MAX) {
+      throw new Error(
+        `Batch limit is ${MARKETING_EMAIL_BATCH_MAX}. Narrow the selection or tag.`,
+      );
+    }
+
+    const { data: property } = await admin
+      .from("properties")
+      .select("name")
+      .eq("id", propertyId)
+      .maybeSingle();
+
+    const result = await sendMarketingBroadcast(admin, {
+      propertyId,
+      propertyName: (property?.name as string) ?? "Pelbu Suites",
+      subject,
+      bodyText,
+      bodyHtml,
+      campaignId,
+      recipients: rows.map((r) => ({
+        contactId: r.id as string,
+        email: String(r.email ?? ""),
+        fullName: String(r.full_name ?? "there"),
+      })),
+      createdBy: "desk_marketing",
+    });
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "marketing.email.broadcast",
+      entityType: "marketing_email_sends",
+      summary: `Broadcast “${subject}” · sent ${result.sent} · failed ${result.failed}`,
+      meta: {
+        campaign_id: campaignId,
+        sent: result.sent,
+        failed: result.failed,
+        skipped: result.skipped,
+      },
+    });
+
+    revalidateMarketing();
+    const errNote =
+      result.errors.length > 0
+        ? ` First error: ${result.errors[0]}`
+        : "";
+    if (result.sent === 0 && result.failed > 0) {
+      return {
+        ok: false,
+        error: result.errors[0] ?? "All sends failed.",
+        message: `Sent 0, failed ${result.failed}.${errNote}`,
+      };
+    }
+    return {
+      ok: true,
+      message: `Sent ${result.sent}, failed ${result.failed}, skipped ${result.skipped}.${errNote}`,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Something went wrong.",
+    };
+  }
+}
+
+export async function tryMetaGraphPost(
+  _prev: MarketingState,
+  formData: FormData,
+): Promise<MarketingState> {
+  try {
+    await requireDeskRole(OWNER_GM);
+    const cfg = getMetaTokenConfig();
+    if (!cfg.graphEnabled) {
+      return {
+        ok: false,
+        error:
+          "Page Graph post needs FACEBOOK_PAGE_ACCESS_TOKEN + FACEBOOK_PAGE_ID. Use Share hub (Facebook sharer + copy IG caption) without App Review.",
+      };
+    }
+    const message = trimRequired(formData.get("caption"), "Caption");
+    const link = optionalTrim(formData.get("link"));
+    const campaignId = optionalTrim(formData.get("campaign_id"));
+    const result = await postFacebookPageFeed({ message, link });
+    if (!result.ok) {
+      return { ok: false, error: result.error };
+    }
+
+    const admin = createSupabaseAdminClient();
+    const propertyId = await requireDeskPropertyId();
+    if (campaignId) {
+      await admin
+        .from("marketing_campaigns")
+        .update({
+          meta_post_url: `https://www.facebook.com/${result.postId}`,
+          meta_posted_at: new Date().toISOString(),
+          meta_post_notes: `Graph post ${result.postId}`,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", campaignId)
+        .eq("property_id", propertyId);
+    }
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "marketing.meta.graph_post",
+      entityType: "marketing_campaigns",
+      entityId: campaignId,
+      summary: `Facebook Graph post ${result.postId}`,
+    });
+    revalidateMarketing();
+    return {
+      ok: true,
+      message: `Posted to Page (id ${result.postId}).`,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Something went wrong.",
+    };
+  }
 }

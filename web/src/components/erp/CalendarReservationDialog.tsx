@@ -375,7 +375,7 @@ export function CalendarReservationDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="children">Children</Label>
+              <Label htmlFor="children">Children (6–12)</Label>
               <Input
                 id="children"
                 name="children"
@@ -387,6 +387,9 @@ export function CalendarReservationDialog({
                   updateDraft("children", event.target.value)
                 }
               />
+              <p className="text-[11px] text-muted-foreground">
+                Half meal · 0–6 free
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="extra_beds">Extra beds</Label>

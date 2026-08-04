@@ -188,11 +188,11 @@ export async function resolveStayAddonsForBook(
       args.children,
     ) ?? 0;
 
+  // Blank child rate now auto-fills at 50% of adult (child package 6–12).
+  // True unpriced only when meal plan is label-only but children were entered.
   const childrenUnpriced =
     args.children > 0 &&
-    mealResolved.amountPerChildNight == null &&
-    mealResolved.amountPerAdultNight != null &&
-    Number(mealResolved.amountPerAdultNight) > 0;
+    mealResolved.amountPerAdultNight == null;
 
   const extraPolicy = await loadExtraBedPolicy(admin, propertyId);
   let extraBeds = Math.max(

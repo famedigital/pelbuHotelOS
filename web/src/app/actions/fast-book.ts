@@ -8,10 +8,12 @@ import {
   MAX_EXTRA_BEDS,
   resolveStayAddonsForBook,
 } from "@/lib/meal-plans";
+import { redeemPromoCode } from "@/lib/marketing/promo";
+import { stayLevelPromoDiscountPct } from "@/lib/marketing/promo-math";
 import { notifyNewBooking } from "@/lib/notify";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { writeAuditEvent } from "@/lib/audit";
-import { roundBtn } from "@/lib/pricing";
+import { calculateRoomNightTax, roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import {
   buildSalesClaimInsert,
@@ -24,6 +26,7 @@ import {
   resolveSeasonKind,
   type RateTier,
 } from "@/lib/rates";
+import { loadRoomRateTaxSettings } from "@/lib/room-rate-tax";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   assertOptionalEmail,
@@ -233,8 +236,39 @@ export async function createFastBooking(
     }
 
     let creditChargeBtn = 0;
+    let quotedRoomsBtn = 0;
+    {
+      const season = await resolveSeasonKind(
+        admin,
+        property.id as string,
+        checkIn,
+      );
+      const taxSettings = await loadRoomRateTaxSettings(
+        admin,
+        property.id as string,
+      );
+      for (const line of lines) {
+        if (line.inventory_kind !== "sellable_guest") continue;
+        const rate = await lookupRoomRateBtn(admin, {
+          propertyId: property.id as string,
+          roomTypeId: line.room_type_id,
+          seasonKind: season,
+          rateTier: tier,
+        });
+        if (rate != null) {
+          const nightAllIn = calculateRoomNightTax(rate, taxSettings).totalBtn;
+          quotedRoomsBtn += nightAllIn * line.qty * nights;
+        }
+      }
+      quotedRoomsBtn = roundBtn(quotedRoomsBtn);
+    }
+
     if (paymentMode === "on_credit" && agentId) {
       const season = await resolveSeasonKind(admin, property.id as string, checkIn);
+      const taxSettings = await loadRoomRateTaxSettings(
+        admin,
+        property.id as string,
+      );
       let estimate = 0;
       for (const line of lines) {
         if (line.inventory_kind !== "sellable_guest") continue;
@@ -249,13 +283,16 @@ export async function createFastBooking(
             "No room rate for this season/tier. Set rates before on-credit booking.",
           );
         }
-        estimate += rate * line.qty * nights;
+        const nightAllIn = calculateRoomNightTax(rate, taxSettings).totalBtn;
+        estimate += nightAllIn * line.qty * nights;
       }
       creditChargeBtn = roundBtn(estimate);
       if (creditChargeBtn <= 0) {
         throw new Error("Could not estimate on-credit amount from rates.");
       }
     }
+
+    const promoCodeRaw = optionalTrim(formData.get("promo_code"));
 
     const { data: booking, error: bookingError } = await admin
       .from("bookings")
@@ -285,6 +322,14 @@ export async function createFastBooking(
         extra_bed_amount_btn: extraBedAmountBtn,
         sold_by_staff_id: salesClaim.sold_by_staff_id,
         sales_claim_status: salesClaim.sales_claim_status,
+        quoted_total_btn:
+          quotedRoomsBtn > 0
+            ? roundBtn(
+                quotedRoomsBtn +
+                  (mealPlanAmountBtn ?? 0) +
+                  (extraBedAmountBtn ?? 0),
+              )
+            : null,
       })
       .select("id")
       .single();
@@ -292,6 +337,57 @@ export async function createFastBooking(
     if (bookingError || !booking) {
       console.error("createFastBooking insert failed", bookingError);
       throw new Error("Could not save booking. Check schema migration is applied.");
+    }
+
+    if (promoCodeRaw) {
+      if (quotedRoomsBtn <= 0) {
+        await admin.from("bookings").delete().eq("id", booking.id);
+        throw new Error(
+          "Room rates required to apply a promo on Fast Book. Set rates first.",
+        );
+      }
+      const preDiscount = roundBtn(
+        quotedRoomsBtn +
+          (mealPlanAmountBtn ?? 0) +
+          (extraBedAmountBtn ?? 0),
+      );
+      const redeemed = await redeemPromoCode(admin, {
+        propertyId: property.id as string,
+        code: promoCodeRaw,
+        channel: "desk_folio",
+        domain: "rooms",
+        preDiscountBtn: preDiscount,
+        guestKey: contactPhone,
+        bookingId: booking.id as string,
+        minNights: nights,
+        createdBy: "desk_fast_book",
+      });
+      if (!redeemed.ok) {
+        await admin.from("bookings").delete().eq("id", booking.id);
+        throw new Error(redeemed.error ?? "Promo code rejected.");
+      }
+      const promoDiscountBtn = Number(redeemed.discount_btn ?? 0);
+      const post = roundBtn(
+        Number(redeemed.post_discount_btn ?? preDiscount - promoDiscountBtn),
+      );
+      // Persist stay-level % for nightly room + meal posters (fixed promo amortized).
+      const promoDiscountPct = stayLevelPromoDiscountPct({
+        benefitType: redeemed.benefit_type,
+        benefitValue: redeemed.benefit_value,
+        discountBtn: promoDiscountBtn,
+        preDiscountBtn: preDiscount,
+      });
+      await admin
+        .from("bookings")
+        .update({
+          promo_code_id: redeemed.promo_code_id ?? null,
+          promo_discount_pct: promoDiscountPct,
+          promo_discount_btn: promoDiscountBtn,
+          promo_code_snapshot:
+            redeemed.code ?? promoCodeRaw.toUpperCase(),
+          quoted_total_btn: post,
+        })
+        .eq("id", booking.id);
     }
 
     if (soldByStaffId) {

@@ -25,12 +25,21 @@ export default async function RoomRatesPage() {
   const admin = createSupabaseAdminClient();
   const propertyId = await requireDeskPropertyId();
 
-  const [{ rows, roomTypes, seasons }, mealPlans, defaultMealPlanCode] =
+  const [{ rows, roomTypes, seasons }, mealPlans, defaultMealPlanCode, policyResult] =
     await Promise.all([
       loadRoomRatesMatrix(admin, propertyId),
       loadActiveMealPlans(admin, propertyId),
       loadPropertyDefaultMealPlanCode(admin, propertyId),
+      admin
+        .from("property_policies")
+        .select("rates_inclusive_of_gst_sc")
+        .eq("property_id", propertyId)
+        .maybeSingle(),
     ]);
+
+  const ratesInclusiveOfGstSc = Boolean(
+    policyResult.data?.rates_inclusive_of_gst_sc,
+  );
 
   const seasonRows = seasons
     .filter((s) => Boolean(s.id))
@@ -60,6 +69,14 @@ export default async function RoomRatesPage() {
           >
             Agent partners →
           </Link>
+          <a
+            href="/rates"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
+          >
+            Public rate card →
+          </a>
         </div>
       }
     >
@@ -74,10 +91,22 @@ export default async function RoomRatesPage() {
             Rows are room categories; columns are peak, lean, and off seasons.
             Switch tier tabs for public rack, agent, MOU, friends, and family
             rates. Each agent&apos;s tier on their profile selects which column
-            group applies at booking time.
+            group applies at booking time. Under each adult Nu, the sheet shows
+            the <strong className="font-medium text-foreground">child package</strong>
+            : 0–6 free and 6–12 auto at 50% of adult. Amounts are{" "}
+            {ratesInclusiveOfGstSc
+              ? "inclusive of GST and SC (when SC is on by default)"
+              : "exclusive of GST and SC"}
+            {" — "}
+            change under Settings → Rates &amp; meals.
           </p>
         </header>
-        <RoomRatesSheet rows={rows} roomTypes={roomTypes} seasons={seasons} />
+        <RoomRatesSheet
+          rows={rows}
+          roomTypes={roomTypes}
+          seasons={seasons}
+          ratesInclusiveOfGstSc={ratesInclusiveOfGstSc}
+        />
       </section>
 
       <MealPlansRatesSummary
@@ -88,6 +117,20 @@ export default async function RoomRatesPage() {
       <section className="rounded-lg border border-dashed bg-muted/30 px-4 py-4 text-sm text-muted-foreground">
         <p className="font-medium text-foreground">How quoting works</p>
         <ul className="mt-2 list-inside list-disc space-y-1">
+          <li>
+            <strong className="font-medium text-foreground">Tax basis</strong>{" "}
+            —{" "}
+            {ratesInclusiveOfGstSc ? (
+              <>
+                sheet = guest all-in (Inc. GST+SC); folio reverse-outs base / SC
+                / GST
+              </>
+            ) : (
+              <>
+                sheet = exclusive net (Excl. GST+SC); folio adds SC then GST
+              </>
+            )}
+          </li>
           <li>
             <strong className="font-medium text-foreground">Public site</strong>{" "}
             — <code className="font-mono text-xs">public</code> tier +
@@ -103,9 +146,15 @@ export default async function RoomRatesPage() {
             fast book / calendar use public unless an agent is attached
           </li>
           <li>
+            <strong className="font-medium text-foreground">Child package</strong>{" "}
+            — ages 0–6 free; ages 6–12 = 50% of adult rate (auto from the adult
+            room / meal amount). Count ages 6–12 only in booking children;
+            infants under 6 do not pay.
+          </li>
+          <li>
             <strong className="font-medium text-foreground">Meals</strong> —
-            adult rate × adults × nights + child rate × children × nights
-            (blank child rate = free for kids)
+            adult rate × adults × nights + child package × children (6–12) ×
+            nights (blank child meal in Settings = auto 50% of adult meal rate)
           </li>
           <li>
             <strong className="font-medium text-foreground">Extra beds</strong> —

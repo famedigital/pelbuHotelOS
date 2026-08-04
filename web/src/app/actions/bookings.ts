@@ -11,7 +11,8 @@ import { soldQtyByRoomType } from "@/lib/inventory-availability";
 import { notifyNewBooking } from "@/lib/notify";
 import { applyDiscountPct } from "@/lib/partners/discount";
 import { redeemPromoCode } from "@/lib/marketing/promo";
-import { roundBtn } from "@/lib/pricing";
+import { stayLevelPromoDiscountPct } from "@/lib/marketing/promo-math";
+import { calculateRoomNightTax, roundBtn } from "@/lib/pricing";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 import {
   loadExtraBedPolicy,
@@ -19,6 +20,7 @@ import {
   MAX_EXTRA_BEDS,
   resolveStayAddonsForBook,
 } from "@/lib/meal-plans";
+import { loadRoomRateTaxSettings } from "@/lib/room-rate-tax";
 import {
   lookupRoomRateBtn,
   nightsBetween,
@@ -53,6 +55,7 @@ export type RoomOption = {
   name: string;
   capacity: number;
   remaining: number;
+  /** Guest-facing all-in room Nu / night (includes GST+SC when exclusive rates add them). */
   perNightBtn: number | null;
   totalBtn: number | null;
   available: boolean;
@@ -85,6 +88,8 @@ export type StayPreview = {
   season: SeasonKind;
   currency: "BTN";
   rooms: number;
+  /** When true, sheet rates are all-in; when false, quote shows exclusive + GST/SC. */
+  ratesInclusiveOfGstSc: boolean;
   options: RoomOption[];
   mealPlans: MealPlanOption[];
   extraBed: ExtraBedOption;
@@ -124,6 +129,7 @@ export async function previewStayCost(
     const propertyId = property.id as string;
     const season = await resolveSeasonKind(admin, propertyId, checkIn);
     const nights = nightsBetween(checkIn, checkOut);
+    const taxSettings = await loadRoomRateTaxSettings(admin, propertyId);
 
     const { data: roomTypes } = await admin
       .from("room_types")
@@ -153,14 +159,19 @@ export async function previewStayCost(
         seasonKind: season,
         rateTier: "public",
       });
+      const perNight =
+        rate == null
+          ? null
+          : calculateRoomNightTax(rate, taxSettings).totalBtn;
       options.push({
         roomTypeId,
         code: rt.code as string,
         name: (rt.name as string) || (rt.code as string),
         capacity,
         remaining,
-        perNightBtn: rate,
-        totalBtn: rate == null ? null : roundBtn(rate * nights * rooms),
+        perNightBtn: perNight,
+        totalBtn:
+          perNight == null ? null : roundBtn(perNight * nights * rooms),
         available: remaining >= rooms,
       });
     }
@@ -201,6 +212,7 @@ export async function previewStayCost(
         season,
         currency: "BTN",
         rooms,
+        ratesInclusiveOfGstSc: Boolean(taxSettings.inclusiveOfGstSc),
         options,
         mealPlans,
         extraBed: {
@@ -349,11 +361,6 @@ export async function createBooking(
       checkIn,
     );
     const holdExpiresAt = holdExpiresAtFromNow(hours);
-    const tokenRequired = await computeTokenRequiredBtn(admin, {
-      propertyId,
-      checkIn,
-      roomLines: [{ roomTypeId: assignedTypeId, qty: rooms }],
-    });
 
     let resolvedGuideId: string | null = null;
     if (guideNumber) {
@@ -376,8 +383,17 @@ export async function createBooking(
       }
     }
 
-    // quoted_total_btn from the wizard already includes room + meal + extra bed.
-    // Apply guide partner discount to the full stay quote when present.
+    // quoted_total_btn from the wizard already includes room + meal + extra bed (+ guide disc.).
+    // Token / deposit uses that figure for percent rules; one_night uses tax-all-in sheet rates.
+    const tokenRequired = await computeTokenRequiredBtn(admin, {
+      propertyId,
+      checkIn,
+      roomLines: [{ roomTypeId: assignedTypeId, qty: rooms }],
+      estimatedStayTotalBtn:
+        quotedTotalBtn != null && Number.isFinite(quotedTotalBtn)
+          ? quotedTotalBtn
+          : undefined,
+    });
 
     const promoCodeRaw = optionalTrim(formData.get("promo_code"));
 
@@ -445,10 +461,13 @@ export async function createBooking(
       const promoDiscountBtn = Number(redeemed.discount_btn ?? 0);
       const promoCodeId = redeemed.promo_code_id ?? null;
       const promoCodeSnapshot = redeemed.code ?? promoCodeRaw.toUpperCase();
-      const promoDiscountPct =
-        redeemed.benefit_type === "pct"
-          ? Number(redeemed.benefit_value ?? 0)
-          : null;
+      // Persist stay-level % (pct as-is; fixed_btn amortized) so room-night + meal posts cascade.
+      const promoDiscountPct = stayLevelPromoDiscountPct({
+        benefitType: redeemed.benefit_type,
+        benefitValue: redeemed.benefit_value,
+        discountBtn: promoDiscountBtn,
+        preDiscountBtn: quotedTotalBtn,
+      });
       quotedTotalBtn = roundBtn(
         Number(redeemed.post_discount_btn ?? quotedTotalBtn - promoDiscountBtn),
       );

@@ -334,6 +334,9 @@ export function BookingWizard({
                 error={previewError}
                 nights={nights}
                 rooms={rooms}
+                ratesInclusiveOfGstSc={
+                  preview?.ratesInclusiveOfGstSc ?? false
+                }
               />
             ) : null}
 
@@ -356,6 +359,7 @@ export function BookingWizard({
         extraBedTotalBtn={extraBedTotalBtn > 0 ? extraBedTotalBtn : null}
         totalBtn={selectedTotal}
         currency="BTN"
+        ratesInclusiveOfGstSc={preview?.ratesInclusiveOfGstSc ?? false}
       />
 
       {/* Keeps content clear of the fixed mobile action bar. */}

@@ -83,7 +83,8 @@ export function GuestServiceForm({
           Guest service
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Taxi, shop, or other charge to a folio.
+          Taxi, shop, spa treatment, or other charge to a folio. Prefer Spa kind
+          for spa promos (applies domain spa).
         </p>
       </div>
 
@@ -119,6 +120,7 @@ export function GuestServiceForm({
           >
             <option value="taxi">Taxi</option>
             <option value="shop">Shop</option>
+            <option value="spa">Spa treatment</option>
             <option value="other">Other</option>
           </select>
         </div>

@@ -102,6 +102,15 @@ export function PostMinibarChargeForm({
           />
         </div>
       </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="minibar_promo">Promo code (optional)</Label>
+        <Input
+          id="minibar_promo"
+          name="promo_code"
+          placeholder="e.g. WELCOME10"
+          className="h-10 font-mono uppercase"
+        />
+      </div>
       <Button type="submit" disabled={pending || !selectedId} className="h-10">
         {pending ? "Posting…" : "Post to folio"}
       </Button>

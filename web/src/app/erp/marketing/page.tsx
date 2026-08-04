@@ -1,15 +1,28 @@
 import {
-  upsertCampaign,
-  upsertNcReason,
-  upsertPromoCode,
-} from "@/app/actions/erp-marketing";
+  CampaignForm,
+  CampaignTable,
+  NcReasonForm,
+  NcReasonTable,
+  PromoForm,
+  PromoTable,
+  RoiExportButton,
+  type CampaignRow,
+  type NcReasonRow,
+  type PromoRow,
+} from "@/components/marketing/MarketingAdminForms";
+import {
+  ContactForm,
+  ContactTable,
+  EmailBroadcastForm,
+  type ContactRow,
+} from "@/components/marketing/MarketingCrmForms";
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { MarketingCataloguesPanel } from "@/components/marketing/MarketingCataloguesPanel";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { MarketingShareHub } from "@/components/marketing/MarketingShareHub";
+import { getDeskRole, isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/desk-property";
 import { listCataloguesForProperty } from "@/lib/marketing/catalogue";
+import { getMetaTokenConfig } from "@/lib/marketing/meta-share";
 import { formatBtn } from "@/lib/pricing";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
@@ -21,45 +34,58 @@ export const metadata = {
 };
 export const dynamic = "force-dynamic";
 
-async function createCampaignAction(formData: FormData) {
-  "use server";
-  await upsertCampaign({ ok: false }, formData);
-}
-
-async function createPromoAction(formData: FormData) {
-  "use server";
-  await upsertPromoCode({ ok: false }, formData);
-}
-
-async function createNcReasonAction(formData: FormData) {
-  "use server";
-  await upsertNcReason({ ok: false }, formData);
+function parseDays(raw: string | undefined): number {
+  const n = Number(raw ?? "90");
+  if (!Number.isFinite(n) || n < 1) return 90;
+  return Math.min(365, Math.floor(n));
 }
 
 export default async function MarketingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{
+    tab?: string;
+    promo_id?: string;
+    campaign_id?: string;
+    reason_id?: string;
+    contact_id?: string;
+    days?: string;
+    q?: string;
+  }>;
 }) {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
   const sp = await searchParams;
   const tab = sp.tab ?? "dashboard";
+  const roiDays = parseDays(sp.days);
+  const since = new Date();
+  since.setUTCDate(since.getUTCDate() - roiDays);
+  const sinceIso = since.toISOString();
 
   const admin = createSupabaseAdminClient();
   const propertyId = await requireDeskPropertyId();
+  const deskRole = await getDeskRole();
+  const canEmail = deskRole === "owner" || deskRole === "gm";
+  const metaCfg = getMetaTokenConfig();
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://pelbusuites.bt";
 
   const [
-    { data: campaigns },
-    { data: promos },
-    { data: reasons },
-    { data: redemptions },
-    { data: ncEvents },
+    { data: campaignsRaw },
+    { data: promosRaw },
+    { data: reasonsRaw },
+    { data: redemptionsRecent },
+    { data: ncEventsRecent },
+    { data: redemptionsRange },
+    { data: ncEventsRange },
     catalogues,
+    { data: contactsRaw },
+    { data: agentsRaw },
+    { data: emailSendsRaw },
   ] = await Promise.all([
     admin
       .from("marketing_campaigns")
       .select(
-        "id, name, objective, status, influencer_label, starts_at, ends_at, budget_btn, created_at",
+        "id, name, objective, status, influencer_label, starts_at, ends_at, budget_btn, notes, meta_post_url, ig_handle, meta_posted_at, meta_post_notes, created_at",
       )
       .eq("property_id", propertyId)
       .order("created_at", { ascending: false })
@@ -67,7 +93,7 @@ export default async function MarketingPage({
     admin
       .from("promo_codes")
       .select(
-        "id, code, name, benefit_type, benefit_value, max_redemptions, redeemed_count, active, starts_at, ends_at, applies_to, channels, campaign_id",
+        "id, code, name, benefit_type, benefit_value, max_redemptions, redeemed_count, active, starts_at, ends_at, applies_to, channels, campaign_id, max_per_guest, min_spend_btn, min_nights, max_discount_btn, stackable_with_partner, notes",
       )
       .eq("property_id", propertyId)
       .order("code")
@@ -75,7 +101,7 @@ export default async function MarketingPage({
     admin
       .from("nc_reason_codes")
       .select(
-        "id, code, label, domains, requires_role, active, sort_order",
+        "id, code, label, domains, requires_role, active, sort_order, notes",
       )
       .eq("property_id", propertyId)
       .order("sort_order")
@@ -83,7 +109,9 @@ export default async function MarketingPage({
       .limit(100),
     admin
       .from("promo_redemptions")
-      .select("id, discount_btn, pre_discount_btn, channel, applies_domain, created_at, promo_codes(code)")
+      .select(
+        "id, discount_btn, pre_discount_btn, channel, applies_domain, created_at, promo_codes(code)",
+      )
       .eq("property_id", propertyId)
       .order("created_at", { ascending: false })
       .limit(30),
@@ -93,20 +121,86 @@ export default async function MarketingPage({
       .eq("property_id", propertyId)
       .order("created_at", { ascending: false })
       .limit(30),
+    admin
+      .from("promo_redemptions")
+      .select(
+        "id, discount_btn, pre_discount_btn, channel, applies_domain, created_at, promo_code_id, promo_codes(code, campaign_id)",
+      )
+      .eq("property_id", propertyId)
+      .gte("created_at", sinceIso)
+      .order("created_at", { ascending: false })
+      .limit(5000),
+    admin
+      .from("nc_events")
+      .select("id, domain, reason_code, list_value_btn, description, created_at")
+      .eq("property_id", propertyId)
+      .gte("created_at", sinceIso)
+      .order("created_at", { ascending: false })
+      .limit(5000),
     listCataloguesForProperty(admin, propertyId).catch(() => []),
+    admin
+      .from("marketing_contacts")
+      .select(
+        "id, full_name, email, phone, whatsapp, contact_type, tags, notes, source, last_touched_at, campaign_id, agent_id",
+      )
+      .eq("property_id", propertyId)
+      .order("last_touched_at", { ascending: false })
+      .limit(200),
+    admin
+      .from("agents")
+      .select("id, company_name")
+      .eq("status", "approved")
+      .order("company_name")
+      .limit(100),
+    admin
+      .from("marketing_email_sends")
+      .select("id, to_email, subject, status, created_at, error")
+      .eq("property_id", propertyId)
+      .order("created_at", { ascending: false })
+      .limit(40),
   ]);
 
-  const activePromos = (promos ?? []).filter((p) => p.active);
+  const campaigns = (campaignsRaw ?? []) as CampaignRow[];
+  const promos = (promosRaw ?? []) as PromoRow[];
+  const reasons = (reasonsRaw ?? []) as NcReasonRow[];
+  const contacts = (contactsRaw ?? []) as ContactRow[];
+  const agents = (agentsRaw ?? []) as { id: string; company_name: string }[];
+  const emailSends = (emailSendsRaw ?? []) as {
+    id: string;
+    to_email: string;
+    subject: string;
+    status: string;
+    created_at: string;
+    error: string | null;
+  }[];
+
+  const editCampaign = sp.campaign_id
+    ? (campaigns.find((c) => c.id === sp.campaign_id) ?? null)
+    : null;
+  const editPromo = sp.promo_id
+    ? (promos.find((p) => p.id === sp.promo_id) ?? null)
+    : null;
+  const editReason = sp.reason_id
+    ? (reasons.find((r) => r.id === sp.reason_id) ?? null)
+    : null;
+  const editContact = sp.contact_id
+    ? (contacts.find((c) => c.id === sp.contact_id) ?? null)
+    : null;
+
+  const activePromos = promos.filter((p) => p.active);
   const nearCap = activePromos.filter(
     (p) =>
       p.max_redemptions != null &&
       Number(p.redeemed_count) >= Number(p.max_redemptions) * 0.8,
   );
-  const discountBurn = (redemptions ?? []).reduce(
+
+  const rangeRedemptions = redemptionsRange ?? [];
+  const rangeNc = ncEventsRange ?? [];
+  const discountBurn = rangeRedemptions.reduce(
     (s, r) => s + Number(r.discount_btn ?? 0),
     0,
   );
-  const ncBurn = (ncEvents ?? []).reduce(
+  const ncBurn = rangeNc.reduce(
     (s, r) => s + Number(r.list_value_btn ?? 0),
     0,
   );
@@ -115,11 +209,29 @@ export default async function MarketingPage({
     0,
   );
 
+  const discountByCampaign = new Map<string, number>();
+  for (const r of rangeRedemptions) {
+    const promo = r.promo_codes as
+      | { campaign_id?: string | null; code?: string }
+      | { campaign_id?: string | null; code?: string }[]
+      | null;
+    const p = Array.isArray(promo) ? promo[0] : promo;
+    const cid = p?.campaign_id;
+    if (!cid) continue;
+    discountByCampaign.set(
+      cid,
+      (discountByCampaign.get(cid) ?? 0) + Number(r.discount_btn ?? 0),
+    );
+  }
+
   const tabs = [
     { id: "dashboard", label: "Dashboard" },
     { id: "catalogues", label: "Catalogues" },
     { id: "campaigns", label: "Campaigns" },
     { id: "coupons", label: "Coupons" },
+    { id: "contacts", label: "Contacts" },
+    { id: "email", label: "Email" },
+    { id: "share", label: "Share / Meta" },
     { id: "nc", label: "NC policies" },
     { id: "roi", label: "ROI" },
   ] as const;
@@ -128,7 +240,7 @@ export default async function MarketingPage({
     <DeskListShell
       eyebrow="Channels"
       heading="Sales & Marketing"
-      blurb="Campaigns, discount coupons (first-N caps, time windows), and non-chargeable (NC) reason policies. Desk executes NC on POS / rooms; commercials live here."
+      blurb="Campaigns, coupons, CRM contacts, email broadcast (owner/GM), Meta share hub, catalogues, and NC policies. Desk promo reprice cascades to room nights + meals."
       filters={
         <nav className="flex flex-wrap gap-2">
           {tabs.map((t) => (
@@ -157,30 +269,27 @@ export default async function MarketingPage({
             <StatCard
               label="Active campaigns"
               value={String(
-                (campaigns ?? []).filter((c) => c.status === "active").length,
+                campaigns.filter((c) => c.status === "active").length,
               )}
             />
             <StatCard
               label="Live coupons"
               value={String(activePromos.length)}
             />
+            <StatCard label="CRM contacts" value={String(contacts.length)} />
             <StatCard
-              label="Catalogue views"
-              value={String(catalogueViews)}
+              label={`NC list value (${roiDays}d)`}
+              value={formatBtn(ncBurn)}
             />
-            <StatCard label="Recent NC list value" value={formatBtn(ncBurn)} />
           </div>
           {nearCap.length > 0 ? (
             <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm">
               <p className="font-medium text-foreground">Near redemption cap</p>
               <ul className="mt-2 space-y-1 text-muted-foreground">
                 {nearCap.map((p) => (
-                  <li key={p.id as string}>
-                    <span className="font-mono text-foreground">
-                      {p.code as string}
-                    </span>{" "}
-                    {String(p.redeemed_count)}/
-                    {String(p.max_redemptions)}
+                  <li key={p.id}>
+                    <span className="font-mono text-foreground">{p.code}</span>{" "}
+                    {p.redeemed_count}/{p.max_redemptions}
                   </li>
                 ))}
               </ul>
@@ -190,14 +299,17 @@ export default async function MarketingPage({
             <h2 className="text-sm font-semibold text-foreground">
               Latest redemptions
             </h2>
-            <RedemptionTable rows={redemptions ?? []} />
+            <RedemptionTable rows={redemptionsRecent ?? []} />
           </section>
           <section className="space-y-2">
             <h2 className="text-sm font-semibold text-foreground">
               Latest NC events
             </h2>
-            <NcTable rows={ncEvents ?? []} />
+            <NcTable rows={ncEventsRecent ?? []} />
           </section>
+          <p className="text-xs text-muted-foreground">
+            Catalogue views (all-time): {catalogueViews}
+          </p>
         </div>
       ) : null}
 
@@ -205,294 +317,205 @@ export default async function MarketingPage({
         <MarketingCataloguesPanel
           catalogues={catalogues}
           promos={activePromos.map((p) => ({
-            id: p.id as string,
-            code: p.code as string,
-            name: (p.name as string) ?? (p.code as string),
+            id: p.id,
+            code: p.code,
+            name: p.name ?? p.code,
           }))}
         />
       ) : null}
 
       {tab === "campaigns" ? (
         <div className="space-y-6">
-          <form
-            action={createCampaignAction}
-            className="grid gap-3 rounded-lg border bg-card p-4 sm:grid-cols-2 lg:grid-cols-3"
-          >
-            <p className="sm:col-span-2 lg:col-span-3 text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
-              New campaign
-            </p>
-            <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">Name</span>
-              <Input
-                name="name"
-                required
-                placeholder="TikTok spring fill"
-                className="h-10"
-              />
-            </label>
-            <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">Objective</span>
-              <select
-                name="objective"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                defaultValue="influencer"
-              >
-                <option value="influencer">Influencer</option>
-                <option value="ota_match">OTA match</option>
-                <option value="season_fill">Season fill</option>
-                <option value="staff_welfare">Staff welfare</option>
-                <option value="service_recovery">Service recovery</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
-            <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">Influencer label</span>
-              <Input
-                name="influencer_label"
-                placeholder="TikTok @handle"
-                className="h-10"
-              />
-            </label>
-            <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">Starts</span>
-              <Input name="starts_at" type="datetime-local" className="h-10" />
-            </label>
-            <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">Ends</span>
-              <Input name="ends_at" type="datetime-local" className="h-10" />
-            </label>
-            <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">Budget (Nu)</span>
-              <Input name="budget_btn" type="number" min={0} step="0.01" className="h-10" />
-            </label>
-            <label className="space-y-1.5 text-sm sm:col-span-2">
-              <span className="text-muted-foreground">Notes</span>
-              <Input name="notes" placeholder="Brief" className="h-10" />
-            </label>
-            <input type="hidden" name="status" value="active" />
-            <div className="flex items-end">
-              <Button type="submit">Save campaign</Button>
-            </div>
-          </form>
-          <CampaignTable rows={campaigns ?? []} />
+          <CampaignForm campaign={editCampaign} />
+          <CampaignTable rows={campaigns} editId={editCampaign?.id} />
         </div>
       ) : null}
 
       {tab === "coupons" ? (
         <div className="space-y-6">
-          <form
-            action={createPromoAction}
-            className="grid gap-3 rounded-lg border bg-card p-4 sm:grid-cols-2 lg:grid-cols-3"
-          >
-            <p className="sm:col-span-2 lg:col-span-3 text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
-              New coupon (e.g. TIKTOK50 · first 100 · 50%)
-            </p>
-            <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">Code</span>
-              <Input
-                name="code"
-                required
-                placeholder="TIKTOK50"
-                className="h-10 uppercase"
-              />
-            </label>
-            <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">Name</span>
-              <Input
-                name="name"
-                required
-                placeholder="TikTok first 100"
-                className="h-10"
-              />
-            </label>
-            <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">Campaign</span>
-              <select
-                name="campaign_id"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                defaultValue=""
-              >
-                <option value="">— none —</option>
-                {(campaigns ?? []).map((c) => (
-                  <option key={c.id as string} value={c.id as string}>
-                    {c.name as string}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">Benefit type</span>
-              <select
-                name="benefit_type"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                defaultValue="pct"
-              >
-                <option value="pct">Percent off</option>
-                <option value="fixed_btn">Fixed Nu off</option>
-              </select>
-            </label>
-            <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">Benefit value</span>
-              <Input
-                name="benefit_value"
-                type="number"
-                required
-                defaultValue={50}
-                min={0}
-                step="0.01"
-                className="h-10"
-              />
-            </label>
-            <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">Max redemptions</span>
-              <Input
-                name="max_redemptions"
-                type="number"
-                min={1}
-                placeholder="100"
-                className="h-10"
-              />
-            </label>
-            <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">Max per guest</span>
-              <Input
-                name="max_per_guest"
-                type="number"
-                min={1}
-                placeholder="1"
-                className="h-10"
-              />
-            </label>
-            <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">Min spend Nu</span>
-              <Input
-                name="min_spend_btn"
-                type="number"
-                min={0}
-                defaultValue={0}
-                className="h-10"
-              />
-            </label>
-            <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">Min nights</span>
-              <Input
-                name="min_nights"
-                type="number"
-                min={0}
-                defaultValue={0}
-                className="h-10"
-              />
-            </label>
-            <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">Starts</span>
-              <Input name="starts_at" type="datetime-local" className="h-10" />
-            </label>
-            <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">Ends</span>
-              <Input name="ends_at" type="datetime-local" className="h-10" />
-            </label>
-            <label className="space-y-1.5 text-sm sm:col-span-2">
-              <span className="text-muted-foreground">
-                Applies to (comma)
-              </span>
-              <Input
-                name="applies_to"
-                defaultValue="rooms,pos,spa,laundry,guest_service,meal_plan"
-                className="h-10"
-              />
-            </label>
-            <label className="space-y-1.5 text-sm sm:col-span-2">
-              <span className="text-muted-foreground">Channels (comma)</span>
-              <Input
-                name="channels"
-                defaultValue="public_book,desk_pos,desk_folio"
-                className="h-10"
-              />
-            </label>
-            <label className="flex items-center gap-2 text-sm sm:col-span-2">
-              <input type="checkbox" name="stackable_with_partner" value="1" />
-              Stackable with partner discount
-            </label>
-            <div className="flex items-end">
-              <Button type="submit">Save coupon</Button>
-            </div>
-          </form>
-          <PromoTable rows={promos ?? []} />
+          <PromoForm
+            promo={editPromo}
+            campaigns={campaigns.map((c) => ({ id: c.id, name: c.name }))}
+          />
+          <PromoTable rows={promos} editId={editPromo?.id} />
         </div>
+      ) : null}
+
+      {tab === "contacts" ? (
+        <div className="space-y-6">
+          <ContactForm
+            contact={editContact}
+            campaigns={campaigns.map((c) => ({ id: c.id, name: c.name }))}
+            agents={agents}
+          />
+          <ContactSearchForm defaultQ={sp.q ?? ""} />
+          <ContactTable
+            rows={contacts}
+            editId={editContact?.id}
+            q={sp.q}
+          />
+        </div>
+      ) : null}
+
+      {tab === "email" ? (
+        <EmailBroadcastForm
+          contacts={contacts}
+          campaigns={campaigns.map((c) => ({ id: c.id, name: c.name }))}
+          canSend={canEmail}
+          recentSends={emailSends}
+        />
+      ) : null}
+
+      {tab === "share" ? (
+        <MarketingShareHub
+          catalogueLinks={catalogues
+            .filter((c) => c.status === "published")
+            .map((c) => ({
+              id: c.id,
+              title: c.title,
+              publicPath: `/c/${c.slug}`,
+            }))}
+          campaigns={campaigns.map((c) => ({ id: c.id, name: c.name }))}
+          graphEnabled={metaCfg.graphEnabled}
+          siteUrl={siteUrl}
+        />
       ) : null}
 
       {tab === "nc" ? (
         <div className="space-y-6">
           <p className="text-sm text-muted-foreground">
-            NC policies define reason codes and authority. Staff mark lines NC
-            on POS (manager PIN) or room assignments via desk calendar/folio.
-            Stock and KOT still run; bill is Nu 0.
+            NC policies define reason codes and authority. Staff mark lines NC on
+            POS (manager PIN) or room assignments via StayHub (Reserve / Stay
+            Money). Stock and KOT still run; bill is Nu 0.
           </p>
-          <form
-            action={createNcReasonAction}
-            className="grid gap-3 rounded-lg border bg-card p-4 sm:grid-cols-2 lg:grid-cols-3"
-          >
-            <p className="sm:col-span-2 lg:col-span-3 text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
-              Add NC reason
-            </p>
-            <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">Code</span>
-              <Input name="code" required placeholder="owner_house" className="h-10" />
-            </label>
-            <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">Label</span>
-              <Input name="label" required placeholder="Owner / house use" className="h-10" />
-            </label>
-            <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">Requires role</span>
-              <select
-                name="requires_role"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                defaultValue="manager"
-              >
-                <option value="supervisor">Supervisor</option>
-                <option value="manager">Manager</option>
-                <option value="owner">Owner</option>
-              </select>
-            </label>
-            <label className="space-y-1.5 text-sm sm:col-span-2">
-              <span className="text-muted-foreground">Domains (comma)</span>
-              <Input
-                name="domains"
-                defaultValue="pos,room"
-                className="h-10"
-              />
-            </label>
-            <div className="flex items-end">
-              <Button type="submit">Save reason</Button>
-            </div>
-          </form>
-          <NcReasonTable rows={reasons ?? []} />
+          <NcReasonForm reason={editReason} />
+          <NcReasonTable rows={reasons} editId={editReason?.id} />
         </div>
       ) : null}
 
       {tab === "roi" ? (
         <div className="space-y-6">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <StatCard label="Discount equity (sample)" value={formatBtn(discountBurn)} />
-            <StatCard label="NC list value (sample)" value={formatBtn(ncBurn)} />
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-sm text-muted-foreground">
+              Property totals for the last{" "}
+              <span className="font-medium text-foreground">{roiDays}</span>{" "}
+              days (not the 30-row sample below).
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {[30, 90, 180].map((d) => (
+                <Link
+                  key={d}
+                  href={`/erp/marketing?tab=roi&days=${d}`}
+                  className={
+                    roiDays === d
+                      ? "rounded-md bg-accent px-2.5 py-1 text-xs font-medium"
+                      : "rounded-md border px-2.5 py-1 text-xs text-muted-foreground hover:bg-secondary"
+                  }
+                >
+                  {d}d
+                </Link>
+              ))}
+            </div>
+            <RoiExportButton
+              redemptions={(rangeRedemptions as Record<string, unknown>[]) ?? []}
+              ncEvents={(rangeNc as Record<string, unknown>[]) ?? []}
+            />
           </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <StatCard
+              label={`Promo discount burn (${roiDays}d)`}
+              value={formatBtn(discountBurn)}
+            />
+            <StatCard
+              label={`NC list value (${roiDays}d)`}
+              value={formatBtn(ncBurn)}
+            />
+            <StatCard
+              label="Redemptions + NC events"
+              value={String(rangeRedemptions.length + rangeNc.length)}
+            />
+          </div>
+
           <section className="space-y-2">
-            <h2 className="text-sm font-semibold">Redemptions</h2>
-            <RedemptionTable rows={redemptions ?? []} />
+            <h2 className="text-sm font-semibold">Campaign vs budget</h2>
+            {campaigns.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No campaigns yet.</p>
+            ) : (
+              <div className="overflow-x-auto rounded-lg border">
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b bg-secondary/40 text-xs text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2 font-medium">Campaign</th>
+                      <th className="px-3 py-2 font-medium">Status</th>
+                      <th className="px-3 py-2 font-medium">Discount redeemed</th>
+                      <th className="px-3 py-2 font-medium">Budget</th>
+                      <th className="px-3 py-2 font-medium">Vs budget</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {campaigns.map((c) => {
+                      const spent = discountByCampaign.get(c.id) ?? 0;
+                      const budget =
+                        c.budget_btn != null ? Number(c.budget_btn) : null;
+                      const pct =
+                        budget != null && budget > 0
+                          ? Math.round((spent / budget) * 100)
+                          : null;
+                      return (
+                        <tr key={c.id}>
+                          <td className="px-3 py-2 font-medium">{c.name}</td>
+                          <td className="px-3 py-2">{c.status}</td>
+                          <td className="px-3 py-2 tabular-nums">
+                            {formatBtn(spent)}
+                          </td>
+                          <td className="px-3 py-2 tabular-nums text-muted-foreground">
+                            {budget != null ? formatBtn(budget) : "—"}
+                          </td>
+                          <td className="px-3 py-2 tabular-nums text-muted-foreground">
+                            {pct != null ? `${pct}%` : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold">
+              Recent redemptions (sample)
+            </h2>
+            <RedemptionTable rows={redemptionsRecent ?? []} />
           </section>
           <section className="space-y-2">
-            <h2 className="text-sm font-semibold">NC ledger</h2>
-            <NcTable rows={ncEvents ?? []} />
+            <h2 className="text-sm font-semibold">Recent NC ledger (sample)</h2>
+            <NcTable rows={ncEventsRecent ?? []} />
           </section>
-          <p className="text-xs text-muted-foreground">
-            Export path for CSV can plug into{" "}
-            <code className="rounded bg-secondary px-1">/api/erp/export</code>{" "}
-            later. Figures above are the latest 30 events, not full history.
-          </p>
         </div>
       ) : null}
     </DeskListShell>
+  );
+}
+
+function ContactSearchForm({ defaultQ }: { defaultQ: string }) {
+  return (
+    <form className="flex flex-wrap gap-2" action="/erp/marketing" method="get">
+      <input type="hidden" name="tab" value="contacts" />
+      <input
+        name="q"
+        defaultValue={defaultQ}
+        placeholder="Search name, email, tags…"
+        className="h-10 min-w-[16rem] flex-1 rounded-md border border-input bg-background px-3 text-sm"
+      />
+      <button
+        type="submit"
+        className="h-10 rounded-md border px-3 text-sm hover:bg-secondary"
+      >
+        Search
+      </button>
+    </form>
   );
 }
 
@@ -505,131 +528,6 @@ function StatCard({ label, value }: { label: string; value: string }) {
       <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
         {value}
       </p>
-    </div>
-  );
-}
-
-function CampaignTable({
-  rows,
-}: {
-  rows: Record<string, unknown>[];
-}) {
-  if (!rows.length) {
-    return <p className="text-sm text-muted-foreground">No campaigns yet.</p>;
-  }
-  return (
-    <div className="overflow-x-auto rounded-lg border">
-      <table className="w-full text-left text-sm">
-        <thead className="border-b bg-secondary/40 text-xs text-muted-foreground">
-          <tr>
-            <th className="px-3 py-2 font-medium">Name</th>
-            <th className="px-3 py-2 font-medium">Objective</th>
-            <th className="px-3 py-2 font-medium">Status</th>
-            <th className="px-3 py-2 font-medium">Influencer</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          {rows.map((r) => (
-            <tr key={String(r.id)}>
-              <td className="px-3 py-2 font-medium">{String(r.name)}</td>
-              <td className="px-3 py-2 text-muted-foreground">
-                {String(r.objective)}
-              </td>
-              <td className="px-3 py-2">{String(r.status)}</td>
-              <td className="px-3 py-2 text-muted-foreground">
-                {String(r.influencer_label ?? "—")}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function PromoTable({ rows }: { rows: Record<string, unknown>[] }) {
-  if (!rows.length) {
-    return <p className="text-sm text-muted-foreground">No coupons yet.</p>;
-  }
-  return (
-    <div className="overflow-x-auto rounded-lg border">
-      <table className="w-full text-left text-sm">
-        <thead className="border-b bg-secondary/40 text-xs text-muted-foreground">
-          <tr>
-            <th className="px-3 py-2 font-medium">Code</th>
-            <th className="px-3 py-2 font-medium">Benefit</th>
-            <th className="px-3 py-2 font-medium">Redeemed</th>
-            <th className="px-3 py-2 font-medium">Active</th>
-            <th className="px-3 py-2 font-medium">Scope</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          {rows.map((r) => (
-            <tr key={String(r.id)}>
-              <td className="px-3 py-2 font-mono font-medium">
-                {String(r.code)}
-              </td>
-              <td className="px-3 py-2">
-                {r.benefit_type === "pct"
-                  ? `${r.benefit_value}%`
-                  : formatBtn(Number(r.benefit_value))}
-              </td>
-              <td className="px-3 py-2 tabular-nums">
-                {String(r.redeemed_count)}
-                {r.max_redemptions != null
-                  ? ` / ${String(r.max_redemptions)}`
-                  : ""}
-              </td>
-              <td className="px-3 py-2">{r.active ? "Yes" : "No"}</td>
-              <td className="px-3 py-2 text-xs text-muted-foreground">
-                {Array.isArray(r.applies_to)
-                  ? (r.applies_to as string[]).join(", ")
-                  : "—"}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function NcReasonTable({ rows }: { rows: Record<string, unknown>[] }) {
-  if (!rows.length) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        No NC reasons. Seed runs with migration / create one above.
-      </p>
-    );
-  }
-  return (
-    <div className="overflow-x-auto rounded-lg border">
-      <table className="w-full text-left text-sm">
-        <thead className="border-b bg-secondary/40 text-xs text-muted-foreground">
-          <tr>
-            <th className="px-3 py-2 font-medium">Code</th>
-            <th className="px-3 py-2 font-medium">Label</th>
-            <th className="px-3 py-2 font-medium">Role</th>
-            <th className="px-3 py-2 font-medium">Domains</th>
-            <th className="px-3 py-2 font-medium">Active</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          {rows.map((r) => (
-            <tr key={String(r.id)}>
-              <td className="px-3 py-2 font-mono">{String(r.code)}</td>
-              <td className="px-3 py-2">{String(r.label)}</td>
-              <td className="px-3 py-2">{String(r.requires_role)}</td>
-              <td className="px-3 py-2 text-xs text-muted-foreground">
-                {Array.isArray(r.domains)
-                  ? (r.domains as string[]).join(", ")
-                  : "—"}
-              </td>
-              <td className="px-3 py-2">{r.active ? "Yes" : "No"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }

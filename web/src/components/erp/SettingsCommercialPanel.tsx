@@ -26,6 +26,7 @@ export function SettingsCommercialPanel({
   extraBedRateBtn,
   extraBedActive,
   staffSalesCommissionPct,
+  ratesInclusiveOfGstSc,
 }: {
   propertyId: string;
   defaultMealPlanCode: string;
@@ -33,6 +34,7 @@ export function SettingsCommercialPanel({
   extraBedRateBtn: number | null;
   extraBedActive: boolean;
   staffSalesCommissionPct: number | null;
+  ratesInclusiveOfGstSc: boolean;
 }) {
   const [state, action, pending] = useActionState(updateCommercialSettings, initial);
   useActionToast(state, { successMessage: "Rates & meals saved" });
@@ -48,9 +50,12 @@ export function SettingsCommercialPanel({
             Rates &amp; meals
           </h2>
           <p className="max-w-2xl text-sm text-muted-foreground">
-            Toggle meal plans, set Nu per adult / child per night, extra bed
-            rate, and the desk default for fast book. Blank child amount = free
-            for children; blank adult amount on paid plans = label only.
+            Toggle meal plans, set Nu per adult per night, and optional child
+            override. Blank child amount ={" "}
+            <strong className="font-medium text-foreground">
+              auto 50% of adult (ages 6–12)
+            </strong>
+            ; ages 0–6 stay free. Extra bed rate and desk default live here too.
           </p>
         </div>
         <Link
@@ -69,6 +74,43 @@ export function SettingsCommercialPanel({
 
       <form action={action}>
         <input type="hidden" name="property_id" value={propertyId} />
+
+        <div className="mb-6 rounded-lg border p-4">
+          <p className="text-sm font-medium text-foreground">
+            Room rates · GST &amp; service charge
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Controls how matrix rates on{" "}
+            <Link href="/erp/rates" className="text-accent underline">
+              Room rates
+            </Link>{" "}
+            are interpreted for public book quotes and folio room-night posts.
+            Tax % still come from Settings → Tax.
+          </p>
+          <div className="mt-4 flex min-h-11 items-start gap-3 rounded-lg border px-4 py-3">
+            <Checkbox
+              id="rates_inclusive_of_gst_sc"
+              name="rates_inclusive_of_gst_sc"
+              value="on"
+              defaultChecked={ratesInclusiveOfGstSc}
+              className="mt-0.5"
+            />
+            <div className="space-y-1">
+              <Label
+                htmlFor="rates_inclusive_of_gst_sc"
+                className="text-sm font-medium text-foreground"
+              >
+                Room rates are inclusive of GST &amp; SC
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Off (default): sheet Nu is exclusive — desk posts base, then SC
+                (when default on), then GST. On: sheet Nu is the guest all-in
+                price; posting reverse-outs base / SC / GST. Does not change POS
+                menu pricing.
+              </p>
+            </div>
+          </div>
+        </div>
 
         <div className="space-y-4">
           {mealPlans.map((plan) => (
@@ -119,14 +161,14 @@ export function SettingsCommercialPanel({
                   htmlFor={`meal_child_amount_${plan.code}`}
                   className="text-xs"
                 >
-                  Nu / child / night
+                  Nu / child 6–12 / night
                 </Label>
                 <Input
                   id={`meal_child_amount_${plan.code}`}
                   name={`meal_child_amount_${plan.code}`}
                   type="text"
                   inputMode="decimal"
-                  placeholder="free"
+                  placeholder="auto 50%"
                   defaultValue={
                     plan.amount_btn_per_child_night == null
                       ? ""
@@ -139,7 +181,7 @@ export function SettingsCommercialPanel({
                   id={`meal_child_hint_${plan.code}`}
                   className="text-[11px] text-muted-foreground"
                 >
-                  Blank = free for children
+                  Blank = auto 50% adult; ages 0–6 free
                 </p>
               </div>
               <div className="flex items-center text-xs text-muted-foreground">
@@ -149,10 +191,10 @@ export function SettingsCommercialPanel({
                     ? "Nu 0"
                     : `${formatBtn(plan.amount_btn_per_adult_night)}/adult`}
                 {plan.amount_btn_per_child_night != null
-                  ? ` · ${formatBtn(plan.amount_btn_per_child_night)}/child`
+                  ? ` · ${formatBtn(plan.amount_btn_per_child_night)}/child 6–12`
                   : plan.amount_btn_per_adult_night != null &&
                       plan.amount_btn_per_adult_night > 0
-                    ? " · kids free"
+                    ? " · child 6–12 auto 50%"
                     : ""}
               </div>
             </div>

@@ -23,12 +23,17 @@ describe("meal-plans-calc", () => {
     assert.equal(mealPlanHasMoney(500), true);
   });
 
-  it("children with null child rate are free", () => {
-    assert.equal(computeMealStayTotalBtn(500, 2, 3, null, 2), 3000);
+  it("children with null child rate auto-use 50% of adult", () => {
+    // 500×2×3 adults + 250×2×3 children = 3000 + 1500
+    assert.equal(computeMealStayTotalBtn(500, 2, 3, null, 2), 4500);
   });
 
   it("children with child rate add child_rate × children × nights", () => {
     assert.equal(computeMealStayTotalBtn(500, 2, 3, 250, 2), 4500);
+  });
+
+  it("explicit child 0 still free", () => {
+    assert.equal(computeMealStayTotalBtn(500, 2, 3, 0, 2), 3000);
   });
 
   it("minimum 1 adult and 1 night", () => {

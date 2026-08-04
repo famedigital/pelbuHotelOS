@@ -886,6 +886,9 @@ export async function updateCommercialSettings(
       staffSalesCommissionPct = n;
     }
 
+    const ratesInclusiveOfGstSc =
+      formData.get("rates_inclusive_of_gst_sc") === "on";
+
     const { error: propError } = await admin
       .from("properties")
       .update({ default_meal_plan_code: defaultMealPlan })
@@ -904,6 +907,7 @@ export async function updateCommercialSettings(
           extra_bed_active: extraBedActive,
           extra_bed_rate_btn: extraBedRate,
           staff_sales_commission_pct: staffSalesCommissionPct,
+          rates_inclusive_of_gst_sc: ratesInclusiveOfGstSc,
           updated_at: new Date().toISOString(),
         })
         .eq("property_id", propertyId);
@@ -914,6 +918,7 @@ export async function updateCommercialSettings(
         extra_bed_active: extraBedActive,
         extra_bed_rate_btn: extraBedRate,
         staff_sales_commission_pct: staffSalesCommissionPct,
+        rates_inclusive_of_gst_sc: ratesInclusiveOfGstSc,
       });
       if (policyError) throw new Error("Could not save commercial policy settings.");
     }
@@ -924,9 +929,11 @@ export async function updateCommercialSettings(
       entityType: "properties",
       entityId: propertyId,
       summary: "Updated rates & meals settings",
+      meta: { rates_inclusive_of_gst_sc: ratesInclusiveOfGstSc },
     });
 
     revalidatePath("/erp/settings");
+    revalidatePath("/erp/rates");
     revalidatePath("/erp/fast-book");
     revalidatePath("/book");
     return { ok: true, message: "Rates & meals saved." };

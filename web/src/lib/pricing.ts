@@ -124,3 +124,82 @@ export function formatBtn(amount: number): string {
     maximumFractionDigits: 2,
   })}`;
 }
+
+/** Options for room-night GST + service charge (property-level rates). */
+export type RoomNightTaxOptions = {
+  gstRate: number;
+  serviceChargeRate: number;
+  applyServiceCharge: boolean;
+  /**
+   * When true, `listedAmountBtn` from `room_rates` is all-in (GST + SC when SC applies).
+   * When false (default), listed amount is exclusive net and SC + GST are added.
+   */
+  inclusiveOfGstSc?: boolean;
+};
+
+export type RoomNightTaxBreakdown = {
+  /** Net room amount posted on the folio line (pre SC + GST). */
+  amountBtn: number;
+  serviceChargeBtn: number;
+  serviceChargeRate: number;
+  serviceChargeApplied: boolean;
+  gstBtn: number;
+  /** Guest-facing all-in night total. */
+  totalBtn: number;
+  inclusiveOfGstSc: boolean;
+};
+
+/**
+ * Split a stored room rate into net / SC / GST for folio posting and guest display.
+ *
+ * Exclusive (default): total = net × (1 + sc) × (1 + gst) with roundBtn at each step.
+ * Inclusive: listed amount is total; reverse-out net = total / ((1+sc)×(1+gst)), then SC; GST absorbs rounding residual so net + SC + GST = total.
+ */
+export function calculateRoomNightTax(
+  listedAmountBtn: number,
+  options: RoomNightTaxOptions,
+): RoomNightTaxBreakdown {
+  const gstRate = Math.max(0, Number(options.gstRate ?? 0));
+  const scRateRaw = Math.max(0, Number(options.serviceChargeRate ?? 0));
+  const applySc = Boolean(options.applyServiceCharge) && scRateRaw > 0;
+  const scRate = applySc ? scRateRaw : 0;
+  const inclusive = Boolean(options.inclusiveOfGstSc);
+  const listed = roundBtn(Math.max(0, Number(listedAmountBtn) || 0));
+
+  if (!inclusive) {
+    const amountBtn = listed;
+    const serviceChargeBtn = roundBtn(amountBtn * scRate);
+    const gstBtn = roundBtn((amountBtn + serviceChargeBtn) * gstRate);
+    const totalBtn = roundBtn(amountBtn + serviceChargeBtn + gstBtn);
+    return {
+      amountBtn,
+      serviceChargeBtn,
+      serviceChargeRate: scRate,
+      serviceChargeApplied: applySc,
+      gstBtn,
+      totalBtn,
+      inclusiveOfGstSc: false,
+    };
+  }
+
+  // Inclusive: listed is all-in. total = net * (1+sc) * (1+gst)
+  const totalBtn = listed;
+  const divisor = (1 + scRate) * (1 + gstRate);
+  let amountBtn = divisor > 0 ? roundBtn(totalBtn / divisor) : totalBtn;
+  const serviceChargeBtn = roundBtn(amountBtn * scRate);
+  let gstBtn = roundBtn(totalBtn - amountBtn - serviceChargeBtn);
+  // Absorb rare negative residual into net so components sum cleanly
+  if (gstBtn < 0) {
+    amountBtn = roundBtn(amountBtn + gstBtn);
+    gstBtn = 0;
+  }
+  return {
+    amountBtn,
+    serviceChargeBtn,
+    serviceChargeRate: scRate,
+    serviceChargeApplied: applySc,
+    gstBtn,
+    totalBtn,
+    inclusiveOfGstSc: true,
+  };
+}

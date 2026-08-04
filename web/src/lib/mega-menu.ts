@@ -95,6 +95,7 @@ export function buildFooterColumns(rooms: PublicRoom[]): FooterColumn[] {
         ...stayLinks,
         { href: "/book", label: "Book a stay" },
         { href: "/rooms", label: "All rooms" },
+        { href: "/rates", label: "Room rates" },
         { href: "/stay/olakha-thimphu", label: "Staying in Olakha" },
       ],
     },
@@ -166,6 +167,13 @@ export function buildMegaMenus(rooms: PublicRoom[]): MegaMenu[] {
                 "Deluxe, superior and twin rooms side by side before you book.",
               publicId: BRAND_CLOUDINARY.roomsLiving,
             },
+            {
+              href: "/rates",
+              title: "Room rates",
+              description:
+                "Public rack rates by season at Pelbu Suites, Olakha — book direct for BAR.",
+              publicId: BRAND_CLOUDINARY.roomsSuiteAlt,
+            },
           ],
         },
       ],
@@ -173,6 +181,7 @@ export function buildMegaMenus(rooms: PublicRoom[]): MegaMenu[] {
         {
           heading: "Good to know",
           items: [
+            { href: "/rates", title: "Room rates" },
             { href: "/faq", title: "FAQ" },
             { href: "/services", title: "Hotel services" },
             { href: "/gallery", title: "Photo gallery" },
@@ -395,6 +404,7 @@ export function buildMegaMenus(rooms: PublicRoom[]): MegaMenu[] {
           items: [
             { href: "/book", title: "Book room nights" },
             { href: "/rooms", title: "Room categories" },
+            { href: "/rates", title: "Public rate card" },
             { href: "/menu", title: "Catering menu" },
           ],
         },

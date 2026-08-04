@@ -5,6 +5,8 @@ Use before cutting over from Excel. Desk PIN: `DESK_PIN`. Property slug: `pelbu-
 ## Public site
 - [ ] Home / rooms / dine / spa / meeting / FAQ / Olakha guide / agents / contact load at 375px and 1440px
 - [ ] Only the homepage has a cinematic hero; task routes open directly on their engine
+- [ ] `/rates` shows public rack rates only without login; Inc./Excl. GST+SC badge matches Settings
+- [ ] `/rates` partner section requires email + WhatsApp; agent/MoU amounts appear only after gate; row lands in `rate_card_access_log`
 - [ ] Book dates/nights, room, and meal plan produce the correct live quote
 - [ ] Book request creates a live `held` booking with the configured hold expiry
 - [ ] Cafe/restaurant order creates KOT ticket on `/erp`
@@ -85,6 +87,26 @@ Use before cutting over from Excel. Desk PIN: `DESK_PIN`. Property slug: `pelbu-
 - [ ] Set `CHANNEX_API_KEY` + external property id
 - [ ] Queue 90d ARI → flush in staging
 - [ ] Pull booking feed → ack after import
+
+## Desk — Sales & Marketing (`/erp/marketing`)
+- [ ] Coupons: create TIKTOK50 (e.g. 50% · max 100 · channels include `public_book` + `desk_folio`) → list shows redeemed/max, ends, channels
+- [ ] Coupon row Edit prefills form; Deactivate/Activate updates `active`
+- [ ] Campaign: create → edit status (active/paused/ended) + budget; coupon can link to campaign; Meta post URL / IG handle save
+- [ ] Public book: apply TIKTOK50 at checkout → redemption appears on dashboard / ROI
+- [ ] Fast Book: optional promo code field redeems on `desk_folio` / rooms (coupon must allow that channel)
+- [ ] **Desk promo reprice:** after Fast Book with room promo, booking has `promo_discount_pct` (fixed_btn → amortized %); check-in day-1 room night line shows promo note and reduced rate; meal plan post inherits same %
+- [ ] Fixed Nu coupon (e.g. Nu 500 off stay) still sets non-null `promo_discount_pct` so nightly posts discount (not quote-only)
+- [ ] POS: promo + line NC with manager PIN still works
+- [ ] NC policies: edit reason + deactivate; room domain reasons available
+- [ ] StayHub (Reserve or Stay/Money with assigned room): Mark room NC + reason + manager PIN → ledger list value > 0 when rates exist; Clear NC restores chargeable
+- [ ] Catalogues: create/publish → open `/c/{slug}`; edit title/status; archive; social pack open increments download count
+- [ ] **Contacts:** create influencer contact with email + tags → search/edit; optional campaign + agent link
+- [ ] **Email:** owner/GM only; select ≤50 contacts (or tag filter) → send; rows in send log; missing `RESEND_API_KEY` shows clear error
+- [ ] **Share / Meta:** compose caption → Facebook sharer opens; copy IG caption works; Graph post button only when tokens set (else honest copy, no dead tab)
+- [ ] Minibar folio form: optional promo code redeems on `desk_folio` / pos
+- [ ] Laundry confirm: inherits stay promo %; optional promo code field on staff board
+- [ ] Guest service: Spa kind posts with spa promo domain
+- [ ] ROI tab: 30/90/180d totals for promo discount burn + NC list value; campaign vs budget; Export CSV
 
 ## Sign-off
 | Role | Name | Date |

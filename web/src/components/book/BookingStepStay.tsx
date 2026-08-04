@@ -56,7 +56,7 @@ export function BookingStepStay({
 
   const selectedPlan =
     mealPlans.find((p) => p.code === mealPlanCode) ?? null;
-  const showChildrenFreeHint =
+  const showChildrenHalfHint =
     children > 0 &&
     selectedPlan != null &&
     selectedPlan.amountPerAdultNight != null &&
@@ -109,11 +109,12 @@ export function BookingStepStay({
           onChange={onAdults}
         />
         <Stepper
-          label="Children"
+          label="Children (6–12)"
           value={children}
           min={0}
           max={MAX_CHILDREN}
           onChange={onChildren}
+          hint="Half meal package. Ages 0–6 free — do not count here."
         />
         <Stepper
           label="Rooms"
@@ -138,9 +139,10 @@ export function BookingStepStay({
         ) : null}
       </div>
 
-      {showChildrenFreeHint ? (
+      {showChildrenHalfHint ? (
         <p className="text-xs text-muted-foreground" role="status">
-          Children meals are included at no extra charge on this meal plan.
+          Child meals (6–12) auto-priced at 50% of the adult meal rate. Ages 0–6
+          free.
         </p>
       ) : null}
 
@@ -188,9 +190,9 @@ export function BookingStepStay({
                         ? "Included with room"
                         : `${formatBtn(plan.amountPerAdultNight)} / adult / night`}
                       {plan.amountPerChildNight != null
-                        ? ` · ${formatBtn(plan.amountPerChildNight)} / child`
+                        ? ` · ${formatBtn(plan.amountPerChildNight)} / child 6–12`
                         : plan.amountPerAdultNight > 0
-                          ? " · children free"
+                          ? " · child 6–12 @ 50% adult"
                           : ""}
                     </span>
                   ) : null}

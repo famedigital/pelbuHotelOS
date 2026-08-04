@@ -245,7 +245,7 @@ export function FastBookForm({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="children">Children</Label>
+              <Label htmlFor="children">Children (6–12)</Label>
               <Input
                 id="children"
                 type="number"
@@ -255,6 +255,9 @@ export function FastBookForm({
                 defaultValue={0}
                 inputMode="numeric"
               />
+              <p className="text-[11px] text-muted-foreground">
+                Half meal package · 0–6 free (omit)
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="extra_beds">Extra beds</Label>

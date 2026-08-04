@@ -6,7 +6,7 @@ import { soldQtyByRoomType } from "@/lib/inventory-availability";
 import {
   resolveStayAddonsForBook,
 } from "@/lib/meal-plans";
-import { roundBtn } from "@/lib/pricing";
+import { calculateRoomNightTax, roundBtn } from "@/lib/pricing";
 import {
   agentRateTier,
   lookupRoomRateBtn,
@@ -14,6 +14,7 @@ import {
   pelbuPropertyId,
   resolveSeasonKind,
 } from "@/lib/rates";
+import { loadRoomRateTaxSettings } from "@/lib/room-rate-tax";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   assertStayDates,
@@ -59,6 +60,7 @@ export async function previewAgentStay(input: {
     const season = await resolveSeasonKind(admin, propertyId, checkIn);
     const nights = nightsBetween(checkIn, checkOut);
     const tier = agentRateTier(session.rateTier);
+    const taxSettings = await loadRoomRateTaxSettings(admin, propertyId);
 
     const { data: roomTypes } = await admin
       .from("room_types")
@@ -80,13 +82,18 @@ export async function previewAgentStay(input: {
         seasonKind: season,
         rateTier: tier,
       });
+      const perNight =
+        rate == null
+          ? null
+          : calculateRoomNightTax(rate, taxSettings).totalBtn;
       options.push({
         roomTypeId,
         code: rt.code as string,
         name: (rt.name as string) || (rt.code as string),
         remaining,
-        perNightBtn: rate,
-        totalBtn: rate == null ? null : roundBtn(rate * nights * rooms),
+        perNightBtn: perNight,
+        totalBtn:
+          perNight == null ? null : roundBtn(perNight * nights * rooms),
         available: remaining >= rooms,
       });
     }
@@ -168,7 +175,13 @@ export async function createAgentBooking(
       seasonKind: season,
       rateTier: tier,
     });
-    const roomTotalBtn = rate == null ? null : roundBtn(rate * nights * rooms);
+    const taxSettings = await loadRoomRateTaxSettings(admin, propertyId);
+    const roomTotalBtn =
+      rate == null
+        ? null
+        : roundBtn(
+            calculateRoomNightTax(rate, taxSettings).totalBtn * nights * rooms,
+          );
 
     const mealPlanCodeRaw = optionalTrim(formData.get("meal_plan_code")) ?? "EP";
     const addons = await resolveStayAddonsForBook(admin, propertyId, {

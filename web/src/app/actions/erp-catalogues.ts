@@ -216,3 +216,20 @@ export async function archiveCatalogue(
     };
   }
 }
+
+/** Increment social crop download counter (public or desk). */
+export async function recordCatalogueSocialDlAction(
+  catalogueId: string,
+): Promise<{ ok: boolean }> {
+  try {
+    if (!catalogueId?.trim()) return { ok: false };
+    const admin = createSupabaseAdminClient();
+    const { recordCatalogueSocialDl } = await import(
+      "@/lib/marketing/catalogue"
+    );
+    await recordCatalogueSocialDl(admin, catalogueId.trim());
+    return { ok: true };
+  } catch {
+    return { ok: false };
+  }
+}

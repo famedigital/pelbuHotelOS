@@ -303,6 +303,15 @@ function ReceiptForm({
           placeholder="Existing stain, delicate fabric, missing button…"
         />
       </div>
+      <div className="space-y-1.5">
+        <Label htmlFor={`promo-${order.id}`}>Promo code (optional)</Label>
+        <Input
+          id={`promo-${order.id}`}
+          name="promo_code"
+          placeholder="Or inherits stay-level % from booking"
+          className="font-mono uppercase"
+        />
+      </div>
       {state.error ? (
         <Alert variant="destructive">
           <AlertDescription>{state.error}</AlertDescription>

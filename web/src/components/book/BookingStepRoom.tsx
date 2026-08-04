@@ -11,6 +11,7 @@ type Props = {
   error: string | null;
   nights: number;
   rooms: number;
+  ratesInclusiveOfGstSc?: boolean;
 };
 
 export function BookingStepRoom({
@@ -21,6 +22,7 @@ export function BookingStepRoom({
   error,
   nights,
   rooms,
+  ratesInclusiveOfGstSc = false,
 }: Props) {
   if (loading) {
     return (
@@ -120,6 +122,11 @@ export function BookingStepRoom({
                 {o.perNightBtn == null
                   ? "Rate on request"
                   : `${formatBtn(o.perNightBtn)} / night`}
+                {o.perNightBtn != null && ratesInclusiveOfGstSc
+                  ? " · inc. GST+SC"
+                  : o.perNightBtn != null
+                    ? " · incl. tax"
+                    : ""}
               </span>
               <span className="mt-1 text-lg font-semibold tabular-nums text-ink">
                 {o.totalBtn == null ? "—" : formatBtn(o.totalBtn)}

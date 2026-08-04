@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { applyPromoBenefit } from "@/lib/marketing/promo-math";
+import {
+  applyPromoBenefit,
+  stayLevelPromoDiscountPct,
+} from "@/lib/marketing/promo-math";
 import { calculateOrderTotals } from "@/lib/pricing";
 
 describe("calculateOrderTotals NC lines", () => {
@@ -34,5 +37,40 @@ describe("applyPromoBenefit", () => {
   });
   it("caps fixed discount to amount", () => {
     assert.equal(applyPromoBenefit(100, "fixed_btn", 150), 100);
+  });
+});
+
+describe("stayLevelPromoDiscountPct", () => {
+  it("stores pct benefit as stay-level %", () => {
+    assert.equal(
+      stayLevelPromoDiscountPct({
+        benefitType: "pct",
+        benefitValue: 50,
+        discountBtn: 500,
+        preDiscountBtn: 1000,
+      }),
+      50,
+    );
+  });
+  it("amortizes fixed_btn as equivalent % of stay quote", () => {
+    assert.equal(
+      stayLevelPromoDiscountPct({
+        benefitType: "fixed_btn",
+        benefitValue: 1000,
+        discountBtn: 1000,
+        preDiscountBtn: 15000,
+      }),
+      6.67,
+    );
+  });
+  it("returns null when fixed has no base", () => {
+    assert.equal(
+      stayLevelPromoDiscountPct({
+        benefitType: "fixed_btn",
+        discountBtn: 100,
+        preDiscountBtn: 0,
+      }),
+      null,
+    );
   });
 });

@@ -1,9 +1,13 @@
+"use client";
+
 import {
   archiveCatalogue,
   upsertCatalogue,
+  type CatalogueActionState,
 } from "@/app/actions/erp-catalogues";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useActionToast } from "@/hooks/use-action-toast";
 import type { MarketingCatalogueRow } from "@/lib/marketing/catalogue";
 import {
   listCatalogueTemplates,
@@ -11,15 +15,22 @@ import {
 } from "@/lib/marketing/catalogue-templates";
 import { absoluteUrl } from "@/lib/site";
 import Link from "next/link";
+import { useActionState, useState } from "react";
 
-async function createCatalogueAction(formData: FormData) {
-  "use server";
-  await upsertCatalogue({ ok: false }, formData);
-}
+const initial: CatalogueActionState = { ok: false };
 
-async function archiveCatalogueAction(formData: FormData) {
-  "use server";
-  await archiveCatalogue({ ok: false }, formData);
+function Feedback({ state }: { state: CatalogueActionState }) {
+  if (!state.error && !state.message) return null;
+  return (
+    <p
+      role="status"
+      className={`text-sm sm:col-span-2 lg:col-span-3 ${
+        state.error ? "text-destructive" : "text-emerald-700"
+      }`}
+    >
+      {state.error ?? state.message}
+    </p>
+  );
 }
 
 export function MarketingCataloguesPanel({
@@ -30,6 +41,15 @@ export function MarketingCataloguesPanel({
   promos: { id: string; code: string; name: string }[];
 }) {
   const templates = listCatalogueTemplates();
+  const [createState, createAction, createPending] = useActionState(
+    upsertCatalogue,
+    initial,
+  );
+  useActionToast(createState, { successMessage: "Catalogue saved" });
+  const [editId, setEditId] = useState<string | null>(null);
+  const editRow = editId
+    ? (catalogues.find((c) => c.id === editId) ?? null)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -39,174 +59,196 @@ export function MarketingCataloguesPanel({
         template first — no freestyle layout.
       </p>
 
-      <form
-        action={createCatalogueAction}
-        className="grid gap-3 rounded-lg border bg-card p-4 sm:grid-cols-2 lg:grid-cols-3"
-      >
-        <p className="sm:col-span-2 lg:col-span-3 text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
-          New catalogue
-        </p>
+      {editRow ? (
+        <EditCatalogueForm
+          catalogue={editRow}
+          promos={promos}
+          onCancel={() => setEditId(null)}
+        />
+      ) : (
+        <form
+          action={createAction}
+          className="grid gap-3 rounded-lg border bg-card p-4 sm:grid-cols-2 lg:grid-cols-3"
+        >
+          <p className="sm:col-span-2 lg:col-span-3 text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
+            New catalogue
+          </p>
 
-        <label className="space-y-1.5 text-sm sm:col-span-2 lg:col-span-3">
-          <span className="text-muted-foreground">Template</span>
-          <div className="grid gap-2 sm:grid-cols-3">
-            {templates.map((t) => (
-              <label
-                key={t.code}
-                className="flex cursor-pointer flex-col gap-1 rounded-md border p-3 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50"
-              >
-                <span className="flex items-center gap-2">
+          <label className="space-y-1.5 text-sm sm:col-span-2 lg:col-span-3">
+            <span className="text-muted-foreground">Template</span>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {templates.map((t) => (
+                <label
+                  key={t.code}
+                  className="flex cursor-pointer flex-col gap-1 rounded-md border p-3 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50"
+                >
+                  <span className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="template_code"
+                      value={t.code}
+                      defaultChecked={t.code === "flagship_stay"}
+                      required
+                    />
+                    <span className="font-medium">{t.name}</span>
+                  </span>
+                  <span className="text-xs text-muted-foreground">{t.blurb}</span>
+                </label>
+              ))}
+            </div>
+          </label>
+
+          <label className="space-y-1.5 text-sm">
+            <span className="text-muted-foreground">Title</span>
+            <Input
+              name="title"
+              required
+              placeholder="Olakha summer stay pack"
+              className="h-10"
+            />
+          </label>
+          <label className="space-y-1.5 text-sm">
+            <span className="text-muted-foreground">Slug (share URL)</span>
+            <Input
+              name="slug"
+              placeholder="olakha-summer"
+              className="h-10 font-mono text-sm"
+            />
+          </label>
+          <label className="space-y-1.5 text-sm">
+            <span className="text-muted-foreground">Season label</span>
+            <Input
+              name="season_label"
+              placeholder="Summer 2026"
+              className="h-10"
+            />
+          </label>
+          <label className="space-y-1.5 text-sm">
+            <span className="text-muted-foreground">Audience</span>
+            <select
+              name="audience"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              defaultValue="public"
+            >
+              <option value="public">Public (IG/FB)</option>
+              <option value="agents">Agents</option>
+              <option value="media_press">Media / press</option>
+            </select>
+          </label>
+          <label className="space-y-1.5 text-sm">
+            <span className="text-muted-foreground">Cover Cloudinary ID</span>
+            <Input
+              name="cover_public_id"
+              placeholder="pelbu/hotel/..."
+              className="h-10 font-mono text-xs"
+            />
+          </label>
+          <label className="space-y-1.5 text-sm">
+            <span className="text-muted-foreground">Promo code (optional)</span>
+            <select
+              name="promo_code_id"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              defaultValue=""
+            >
+              <option value="">— none —</option>
+              {promos.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.code} · {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-1.5 text-sm sm:col-span-2">
+            <span className="text-muted-foreground">Intro blurb</span>
+            <Input
+              name="intro_blurb"
+              placeholder="Quiet rooms above Olakha · guided groups welcome"
+              className="h-10"
+            />
+          </label>
+          <label className="space-y-1.5 text-sm sm:col-span-2 lg:col-span-3">
+            <span className="text-muted-foreground">IG feed caption</span>
+            <Input
+              name="caption_feed"
+              placeholder="Caption for Instagram / Facebook posts"
+              className="h-10"
+            />
+          </label>
+          <label className="space-y-1.5 text-sm sm:col-span-2">
+            <span className="text-muted-foreground">Hashtags</span>
+            <Input
+              name="hashtags"
+              placeholder="#PelbuSuites #Thimphu #Bhutan"
+              className="h-10"
+            />
+          </label>
+          <label className="space-y-1.5 text-sm">
+            <span className="text-muted-foreground">CTA</span>
+            <select
+              name="cta_kind"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              defaultValue="book"
+            >
+              <option value="book">Book stay</option>
+              <option value="order">Order F&B</option>
+              <option value="contact">Contact</option>
+              <option value="custom">Custom URL</option>
+            </select>
+          </label>
+
+          <fieldset className="sm:col-span-2 lg:col-span-3 space-y-2">
+            <legend className="text-xs font-medium text-muted-foreground">
+              Sections (defaults from template; check to include)
+            </legend>
+            <div className="flex flex-wrap gap-3 text-sm">
+              {(
+                [
+                  "cover",
+                  "gallery",
+                  "rooms",
+                  "fnb",
+                  "spa",
+                  "meeting",
+                  "rates",
+                  "contact",
+                ] as const
+              ).map((type) => (
+                <label key={type} className="inline-flex items-center gap-1.5">
                   <input
-                    type="radio"
-                    name="template_code"
-                    value={t.code}
-                    defaultChecked={t.code === "flagship_stay"}
-                    required
+                    type="checkbox"
+                    name={`section_${type}`}
+                    value="1"
+                    defaultChecked={type !== "rates" && type !== "meeting"}
                   />
-                  <span className="font-medium">{t.name}</span>
-                </span>
-                <span className="text-xs text-muted-foreground">{t.blurb}</span>
-              </label>
-            ))}
+                  <span className="capitalize">{type}</span>
+                </label>
+              ))}
+            </div>
+            <input type="hidden" name="sections" value="[]" />
+          </fieldset>
+
+          <Feedback state={createState} />
+          <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-3">
+            <Button
+              type="submit"
+              name="status"
+              value="draft"
+              disabled={createPending}
+            >
+              {createPending ? "Saving…" : "Save draft"}
+            </Button>
+            <Button
+              type="submit"
+              name="status"
+              value="published"
+              variant="citrus"
+              disabled={createPending}
+            >
+              Publish
+            </Button>
           </div>
-        </label>
-
-        <label className="space-y-1.5 text-sm">
-          <span className="text-muted-foreground">Title</span>
-          <Input
-            name="title"
-            required
-            placeholder="Olakha summer stay pack"
-            className="h-10"
-          />
-        </label>
-        <label className="space-y-1.5 text-sm">
-          <span className="text-muted-foreground">Slug (share URL)</span>
-          <Input
-            name="slug"
-            placeholder="olakha-summer"
-            className="h-10 font-mono text-sm"
-          />
-        </label>
-        <label className="space-y-1.5 text-sm">
-          <span className="text-muted-foreground">Season label</span>
-          <Input name="season_label" placeholder="Summer 2026" className="h-10" />
-        </label>
-        <label className="space-y-1.5 text-sm">
-          <span className="text-muted-foreground">Audience</span>
-          <select
-            name="audience"
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-            defaultValue="public"
-          >
-            <option value="public">Public (IG/FB)</option>
-            <option value="agents">Agents</option>
-            <option value="media_press">Media / press</option>
-          </select>
-        </label>
-        <label className="space-y-1.5 text-sm">
-          <span className="text-muted-foreground">Cover Cloudinary ID</span>
-          <Input
-            name="cover_public_id"
-            placeholder="pelbu/hotel/..."
-            className="h-10 font-mono text-xs"
-          />
-        </label>
-        <label className="space-y-1.5 text-sm">
-          <span className="text-muted-foreground">Promo code (optional)</span>
-          <select
-            name="promo_code_id"
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-            defaultValue=""
-          >
-            <option value="">— none —</option>
-            {promos.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.code} · {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="space-y-1.5 text-sm sm:col-span-2">
-          <span className="text-muted-foreground">Intro blurb</span>
-          <Input
-            name="intro_blurb"
-            placeholder="Quiet rooms above Olakha · guided groups welcome"
-            className="h-10"
-          />
-        </label>
-        <label className="space-y-1.5 text-sm sm:col-span-2 lg:col-span-3">
-          <span className="text-muted-foreground">IG feed caption</span>
-          <Input
-            name="caption_feed"
-            placeholder="Caption for Instagram / Facebook posts"
-            className="h-10"
-          />
-        </label>
-        <label className="space-y-1.5 text-sm sm:col-span-2">
-          <span className="text-muted-foreground">Hashtags</span>
-          <Input
-            name="hashtags"
-            placeholder="#PelbuSuites #Thimphu #Bhutan"
-            className="h-10"
-          />
-        </label>
-        <label className="space-y-1.5 text-sm">
-          <span className="text-muted-foreground">CTA</span>
-          <select
-            name="cta_kind"
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-            defaultValue="book"
-          >
-            <option value="book">Book stay</option>
-            <option value="order">Order F&B</option>
-            <option value="contact">Contact</option>
-            <option value="custom">Custom URL</option>
-          </select>
-        </label>
-
-        <fieldset className="sm:col-span-2 lg:col-span-3 space-y-2">
-          <legend className="text-xs font-medium text-muted-foreground">
-            Sections (defaults from template; check to include)
-          </legend>
-          <div className="flex flex-wrap gap-3 text-sm">
-            {(
-              [
-                "cover",
-                "gallery",
-                "rooms",
-                "fnb",
-                "spa",
-                "meeting",
-                "rates",
-                "contact",
-              ] as const
-            ).map((type) => (
-              <label key={type} className="inline-flex items-center gap-1.5">
-                <input
-                  type="checkbox"
-                  name={`section_${type}`}
-                  value="1"
-                  defaultChecked={
-                    type !== "rates" && type !== "meeting"
-                  }
-                />
-                <span className="capitalize">{type}</span>
-              </label>
-            ))}
-          </div>
-          <input type="hidden" name="sections" value="[]" />
-        </fieldset>
-
-        <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-3">
-          <Button type="submit" name="status" value="draft">
-            Save draft
-          </Button>
-          <Button type="submit" name="status" value="published" variant="citrus">
-            Publish
-          </Button>
-        </div>
-      </form>
+        </form>
+      )}
 
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full text-left text-sm">
@@ -262,14 +304,19 @@ export function MarketingCataloguesPanel({
                       "—"
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="px-3 py-2 text-right whitespace-nowrap">
                     {c.status !== "archived" ? (
-                      <form action={archiveCatalogueAction}>
-                        <input type="hidden" name="catalogue_id" value={c.id} />
-                        <Button type="submit" variant="ghost" size="sm">
-                          Archive
+                      <>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditId(c.id)}
+                        >
+                          Edit
                         </Button>
-                      </form>
+                        <ArchiveForm id={c.id} />
+                      </>
                     ) : null}
                   </td>
                 </tr>
@@ -279,6 +326,125 @@ export function MarketingCataloguesPanel({
         </table>
       </div>
     </div>
+  );
+}
+
+function EditCatalogueForm({
+  catalogue,
+  promos,
+  onCancel,
+}: {
+  catalogue: MarketingCatalogueRow;
+  promos: { id: string; code: string; name: string }[];
+  onCancel: () => void;
+}) {
+  const [state, action, pending] = useActionState(upsertCatalogue, initial);
+  useActionToast(state, { successMessage: "Catalogue updated" });
+
+  return (
+    <form
+      action={action}
+      className="grid gap-3 rounded-lg border border-sky-500/40 bg-card p-4 sm:grid-cols-2 lg:grid-cols-3"
+    >
+      <input type="hidden" name="catalogue_id" value={catalogue.id} />
+      <input type="hidden" name="template_code" value={catalogue.template_code} />
+      <input
+        type="hidden"
+        name="sections"
+        value={JSON.stringify(catalogue.sections ?? [])}
+      />
+      <p className="sm:col-span-2 lg:col-span-3 text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
+        Edit catalogue · {catalogue.title}
+      </p>
+      <button
+        type="button"
+        onClick={onCancel}
+        className="sm:col-span-2 lg:col-span-3 text-left text-xs text-muted-foreground underline"
+      >
+        Cancel edit
+      </button>
+      <label className="space-y-1.5 text-sm">
+        <span className="text-muted-foreground">Title</span>
+        <Input
+          name="title"
+          required
+          defaultValue={catalogue.title}
+          className="h-10"
+        />
+      </label>
+      <label className="space-y-1.5 text-sm">
+        <span className="text-muted-foreground">Slug</span>
+        <Input
+          name="slug"
+          defaultValue={catalogue.slug}
+          className="h-10 font-mono text-sm"
+        />
+      </label>
+      <label className="space-y-1.5 text-sm">
+        <span className="text-muted-foreground">Status</span>
+        <select
+          name="status"
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+          defaultValue={catalogue.status === "archived" ? "draft" : catalogue.status}
+        >
+          <option value="draft">Draft</option>
+          <option value="published">Published</option>
+        </select>
+      </label>
+      <label className="space-y-1.5 text-sm">
+        <span className="text-muted-foreground">Promo code</span>
+        <select
+          name="promo_code_id"
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+          defaultValue={catalogue.promo_code_id ?? ""}
+        >
+          <option value="">— none —</option>
+          {promos.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.code} · {p.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="space-y-1.5 text-sm sm:col-span-2">
+        <span className="text-muted-foreground">Intro blurb</span>
+        <Input
+          name="intro_blurb"
+          defaultValue={catalogue.intro_blurb ?? ""}
+          className="h-10"
+        />
+      </label>
+      <label className="space-y-1.5 text-sm sm:col-span-2 lg:col-span-3">
+        <span className="text-muted-foreground">IG feed caption</span>
+        <Input
+          name="caption_feed"
+          defaultValue={catalogue.caption_feed ?? ""}
+          className="h-10"
+        />
+      </label>
+      <Feedback state={state} />
+      <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-3">
+        <Button type="submit" disabled={pending}>
+          {pending ? "Saving…" : "Update catalogue"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function ArchiveForm({ id }: { id: string }) {
+  const [state, action, pending] = useActionState(archiveCatalogue, initial);
+  useActionToast(state, { successMessage: "Catalogue archived" });
+  return (
+    <form action={action} className="inline">
+      <input type="hidden" name="catalogue_id" value={id} />
+      {state.error ? (
+        <span className="mr-1 text-xs text-destructive">{state.error}</span>
+      ) : null}
+      <Button type="submit" variant="ghost" size="sm" disabled={pending}>
+        {pending ? "…" : "Archive"}
+      </Button>
+    </form>
   );
 }
 

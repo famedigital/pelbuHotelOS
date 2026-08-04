@@ -47,7 +47,7 @@ const PAY_METHODS = new Set([
   "pay_bt",
   "deposit",
 ]);
-const GUEST_SERVICES = new Set(["taxi", "shop", "other"]);
+const GUEST_SERVICES = new Set(["taxi", "shop", "spa", "other"]);
 const VOID_REASONS = new Set<string>(POS_VOID_REASON_CODES);
 const TENDER_METHODS = new Set<string>(POS_TENDER_METHODS);
 const TABLE_STATUSES = new Set(["free", "occupied", "reserved", "dirty"]);
@@ -1100,7 +1100,7 @@ export async function postGuestServiceCharge(
     const bookingId = trimRequired(formData.get("booking_id"), "Booking");
     const kind = trimRequired(formData.get("service_kind"), "Service kind");
     if (!GUEST_SERVICES.has(kind)) {
-      throw new Error("Choose taxi, shop, or other.");
+      throw new Error("Choose taxi, shop, spa, or other.");
     }
 
     const description = trimRequired(formData.get("description"), "Description");
@@ -1147,11 +1147,13 @@ export async function postGuestServiceCharge(
     const listAmount = amountBtn;
 
     if (!isNc && promoCode) {
+      const promoDomain =
+        kind === "spa" ? ("spa" as const) : ("guest_service" as const);
       const redeemed = await redeemPromoCode(admin, {
         propertyId: property_id,
         code: promoCode,
         channel: "desk_folio",
-        domain: "guest_service",
+        domain: promoDomain,
         preDiscountBtn: amountBtn,
         bookingId,
       });

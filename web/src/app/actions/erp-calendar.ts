@@ -14,7 +14,7 @@ import {
   MAX_EXTRA_BEDS,
   resolveStayAddonsForBook,
 } from "@/lib/meal-plans";
-import { roundBtn } from "@/lib/pricing";
+import { calculateRoomNightTax, roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import {
   agentRateTier,
@@ -23,6 +23,7 @@ import {
   resolveSeasonKind,
   type RateTier,
 } from "@/lib/rates";
+import { loadRoomRateTaxSettings } from "@/lib/room-rate-tax";
 import { assignRoomsForBooking } from "@/lib/room-assignments";
 import {
   buildSalesClaimInsert,
@@ -111,6 +112,7 @@ async function estimateAndChargeCredit(
   const tier = agentRateTier(agent.rate_tier as string) ?? rateTierFromSource(args.source);
   const season = await resolveSeasonKind(admin, args.propertyId, args.checkIn);
   const nights = nightsBetween(args.checkIn, args.checkOut);
+  const taxSettings = await loadRoomRateTaxSettings(admin, args.propertyId);
   let estimate = 0;
   for (const roomTypeId of args.roomTypeIds) {
     const rate = await lookupRoomRateBtn(admin, {
@@ -124,7 +126,8 @@ async function estimateAndChargeCredit(
         "No room rate for this season/tier. Set rates before on-credit booking.",
       );
     }
-    estimate += rate * nights;
+    const nightAllIn = calculateRoomNightTax(rate, taxSettings).totalBtn;
+    estimate += nightAllIn * nights;
   }
   const partnerPct = await resolvePartnerDiscountByIds(admin, {
     guideId: args.guideId,
@@ -1156,17 +1159,26 @@ export async function previewCalendarCrossTypeMove(
       seasonKind: season,
       rateTier: tier,
     });
+    const taxSettings = await loadRoomRateTaxSettings(admin, propertyId);
+    const fromAllIn =
+      fromRate == null
+        ? null
+        : calculateRoomNightTax(fromRate, taxSettings).totalBtn;
+    const toAllIn =
+      toRate == null
+        ? null
+        : calculateRoomNightTax(toRate, taxSettings).totalBtn;
     const sameType = fromUnit.room_type_id === toUnit.room_type_id;
     const delta =
-      fromRate != null && toRate != null
-        ? roundBtn((toRate - fromRate) * nights)
+      fromAllIn != null && toAllIn != null
+        ? roundBtn((toAllIn - fromAllIn) * nights)
         : null;
     return {
       ok: true,
       fromTypeName: fromTypeName ?? "Current category",
       toTypeName: toTypeName ?? "New category",
-      fromRateBtn: fromRate,
-      toRateBtn: toRate,
+      fromRateBtn: fromAllIn,
+      toRateBtn: toAllIn,
       nights,
       deltaBtn: delta,
       sameType,

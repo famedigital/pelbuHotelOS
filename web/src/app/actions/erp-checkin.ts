@@ -12,7 +12,7 @@ import {
 } from "@/lib/checkin-rules";
 import { isDeskAuthenticated, requireMoneyDesk } from "@/lib/desk-auth";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
-import { roundBtn } from "@/lib/pricing";
+import { calculateRoomNightTax, roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import {
   agentRateTier,
@@ -20,6 +20,7 @@ import {
   nightsBetween,
   resolveSeasonKind,
 } from "@/lib/rates";
+import { loadRoomRateTaxSettings } from "@/lib/room-rate-tax";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   assertPhone,
@@ -176,7 +177,7 @@ export async function confirmCheckIn(
     const { data: booking, error: bookingError } = await admin
       .from("bookings")
       .select(
-        "id, status, contact_name, check_in, check_out, agent_id, payment_mode, guest_origin, booked_by_role, meal_plan_code, meal_plan_amount_btn, extra_beds, extra_bed_amount_btn, property_id, booking_rooms(qty, inventory_kind, room_type_id)",
+        "id, status, contact_name, check_in, check_out, agent_id, payment_mode, guest_origin, booked_by_role, meal_plan_code, meal_plan_amount_btn, extra_beds, extra_bed_amount_btn, quoted_total_btn, property_id, booking_rooms(qty, inventory_kind, room_type_id)",
       )
       .eq("id", bookingId)
       .single();
@@ -244,36 +245,47 @@ export async function confirmCheckIn(
         .maybeSingle();
 
       if (!priorCharge) {
-        const { data: agent } = await admin
-          .from("agents")
-          .select("rate_tier")
-          .eq("id", agentId)
-          .single();
-        const tier = agentRateTier(agent?.rate_tier as string | undefined);
         const nights = nightsBetween(
           booking.check_in as string,
           booking.check_out as string,
         );
-        const season = await resolveSeasonKind(
-          admin,
-          property_id,
-          booking.check_in as string,
-        );
-        let estimate = 0;
-        for (const line of rooms) {
-          if (line.inventory_kind !== "sellable_guest") continue;
-          const rate = await lookupRoomRateBtn(admin, {
-            propertyId: property_id,
-            roomTypeId: line.room_type_id,
-            seasonKind: season,
-            rateTier: tier,
-          });
-          if (rate == null) {
-            throw new Error("Missing room rate for on-credit check-in.");
+        const quoted =
+          booking.quoted_total_btn != null
+            ? Number(booking.quoted_total_btn)
+            : null;
+        let amount = 0;
+        if (quoted != null && Number.isFinite(quoted) && quoted > 0) {
+          amount = roundBtn(quoted);
+        } else {
+          const { data: agent } = await admin
+            .from("agents")
+            .select("rate_tier")
+            .eq("id", agentId)
+            .single();
+          const tier = agentRateTier(agent?.rate_tier as string | undefined);
+          const season = await resolveSeasonKind(
+            admin,
+            property_id,
+            booking.check_in as string,
+          );
+          const taxSettings = await loadRoomRateTaxSettings(admin, property_id);
+          let estimate = 0;
+          for (const line of rooms) {
+            if (line.inventory_kind !== "sellable_guest") continue;
+            const rate = await lookupRoomRateBtn(admin, {
+              propertyId: property_id,
+              roomTypeId: line.room_type_id,
+              seasonKind: season,
+              rateTier: tier,
+            });
+            if (rate == null) {
+              throw new Error("Missing room rate for on-credit check-in.");
+            }
+            const nightAllIn = calculateRoomNightTax(rate, taxSettings).totalBtn;
+            estimate += nightAllIn * Number(line.qty) * nights;
           }
-          estimate += rate * Number(line.qty) * nights;
+          amount = roundBtn(estimate);
         }
-        const amount = roundBtn(estimate);
         if (amount > 0) {
           await chargeAgentCredit(admin, {
             agentId,
