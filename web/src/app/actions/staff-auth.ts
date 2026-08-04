@@ -12,7 +12,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { trimRequired } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 export type StaffLoginState = {
@@ -75,6 +75,31 @@ export async function staffLogin(
       return { ok: false, error: "Incorrect employee code or PIN." };
     }
 
+    // Confirm session materialised on this request before redirect (cookies
+    // are written via createSupabaseServerClient setAll on SIGNED_IN).
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return {
+        ok: false,
+        error: "Signed in but session cookie was not set. Try again.",
+      };
+    }
+
+    // getUser() can succeed from in-memory client state even when Set-Cookie
+    // failed; middleware only sees real request cookies.
+    const jar = await cookies();
+    const sessionCookiePresent = jar
+      .getAll()
+      .some((c) => c.name.startsWith("sb-") && c.name.includes("-auth-token"));
+    if (!sessionCookiePresent) {
+      return {
+        ok: false,
+        error: "Session cookie could not be saved. Check browser cookies and try again.",
+      };
+    }
+
     await admin
       .from("staff_members")
       .update({ last_login_at: new Date().toISOString() })
@@ -90,6 +115,7 @@ export async function staffLogin(
       meta: { canAccessDesk: Boolean(member.can_access_desk) },
     });
 
+    revalidatePath("/", "layout");
     redirect(member.can_access_desk ? "/erp" : "/staff");
   } catch (error) {
     if (

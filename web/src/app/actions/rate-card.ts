@@ -80,12 +80,10 @@ export async function requestAgentRateView(
       user_agent: userAgent,
     });
 
+    // Soft-fail audit only: desk still needs migration for durable logs, but
+    // the cookie gate must work once the SQL is pending or partially applied.
     if (logError) {
       console.error("rate_card_access_log insert failed", logError);
-      return {
-        ok: false,
-        error: "Could not verify access right now. Please try again.",
-      };
     }
 
     await setAgentRateViewCookie(propertyId, email);

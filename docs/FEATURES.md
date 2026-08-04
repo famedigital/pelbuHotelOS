@@ -1,6 +1,6 @@
 # Pelbu Suites — Feature status
 
-Last updated: **2026-08-02** (**v1.0 + Olakha residual Phases A–C**).
+Last updated: **2026-08-04** (**v1.0 + Sales & Marketing residual close**).
 Property #1: `pelbu-suites-olakha` (`template_id` 1). Work login supports staff Auth with desk access; `DESK_PIN` remains a temporary single-hotel fallback — **never share across hotels**.
 
 **Verdict:** **v1.0 ready** for single-hotel Pelbu Olakha — see **[RELEASE-v1.md](RELEASE-v1.md)**. Core desk OS + public conversion PWA are **built**. Residual FO/money pack (journals proof, Playwright smoke, minibar, immigration SDF CSV, seasons editor, guest history) landed after N+1. Day-1 ops: **[GO-LIVE-TOMORROW.md](GO-LIVE-TOMORROW.md)**; cutover: **[LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md)** (real initials). Not chain-SaaS complete — Stripe self-serve, full SEC-01 admin purge, and **live** Channex certification remain post-v1.

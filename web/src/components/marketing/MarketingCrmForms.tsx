@@ -429,13 +429,10 @@ export function EmailBroadcastForm({
         </div>
 
         <Feedback state={state} />
-        <Button
-          type="submit"
-          disabled={pending || (selectedCount === 0 && !true)}
-        >
+        <Button type="submit" disabled={pending}>
           {pending
             ? "Sending…"
-            : `Send to ${selectedCount || "tag list"} (max ${MARKETING_EMAIL_BATCH_MAX})`}
+            : `Send${selectedCount > 0 ? ` (${selectedCount})` : " / tag"} · max ${MARKETING_EMAIL_BATCH_MAX}`}
         </Button>
       </form>
 

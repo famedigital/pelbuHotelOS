@@ -6,6 +6,12 @@ const INSTALL_PATHS = new Set(["/", "/book", "/menu", "/spa", "/meeting"]);
 /** Mirrors DESK_COOKIE_NAME in lib/desk-auth (that module imports next/headers). */
 const DESK_COOKIE = "pelbu_desk_session";
 
+/**
+ * Supabase Auth session cookies for @supabase/ssr / supabase-js.
+ * Base name: `sb-<project-ref>-auth-token`
+ * Chunks:     `sb-<project-ref>-auth-token.0`, `.1`, …
+ * PKCE:       `sb-<project-ref>-auth-token-code-verifier`
+ */
 function hasSupabaseAuthCookie(request: NextRequest): boolean {
   return request.cookies
     .getAll()
@@ -25,18 +31,30 @@ function hasValidDeskPinCookie(request: NextRequest): boolean {
   return request.cookies.get(DESK_COOKIE)?.value === `ok:${pin}`;
 }
 
+function isErpLoginPath(pathname: string): boolean {
+  return pathname === "/erp/login" || pathname.startsWith("/erp/login/");
+}
+
 /**
  * Presence-only credential check for /erp. Authorisation still happens in each
  * page via isDeskAuthenticated() — desk-capable staff need a `can_access_desk`
  * lookup that is too expensive to run here. This gate exists so a page that
  * forgets its own guard fails closed instead of rendering to anonymous callers.
+ *
+ * Staff Auth cookies always count, even when DESK_PIN is unset or unavailable
+ * in the Edge Middleware env. Forcing a DESK_PIN-shaped early return in prod
+ * ignored sb-* cookies and caused login → /erp → /erp/login loops.
  */
 function erpCredentialsPresent(request: NextRequest): boolean {
+  if (hasSupabaseAuthCookie(request)) return true;
+  if (hasValidDeskPinCookie(request)) return true;
+
   // Matches hasDeskPinSession(): no PIN configured means open access off prod.
   if (!process.env.DESK_PIN?.trim()) {
     return process.env.NODE_ENV !== "production";
   }
-  return hasValidDeskPinCookie(request) || hasSupabaseAuthCookie(request);
+
+  return false;
 }
 
 /**
@@ -48,7 +66,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isErp = pathname === "/erp" || pathname.startsWith("/erp/");
 
-  if (isErp && pathname !== "/erp/login" && !erpCredentialsPresent(request)) {
+  if (isErp && !isErpLoginPath(pathname) && !erpCredentialsPresent(request)) {
     return NextResponse.redirect(new URL("/erp/login", request.url));
   }
 

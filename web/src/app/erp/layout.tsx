@@ -59,7 +59,7 @@ export default async function ErpLayout({
     headerList.get("x-invoke-path") ??
     headerList.get("x-pathname") ??
     "";
-  if (pathname === "/erp/login") {
+  if (pathname === "/erp/login" || pathname.startsWith("/erp/login/")) {
     return (
       <>
         {children}
