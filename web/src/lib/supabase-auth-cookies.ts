@@ -22,3 +22,17 @@ export function hasSupabaseAuthSessionCookie(
   }
   return false;
 }
+
+type MutableCookieJar = {
+  getAll(): { name: string }[];
+  delete(name: string): void;
+};
+
+/** Drop stale sb-* session chunks before a fresh staff sign-in. */
+export function clearSupabaseAuthSessionCookies(jar: MutableCookieJar): void {
+  for (const cookie of jar.getAll()) {
+    if (isSupabaseAuthSessionCookieName(cookie.name)) {
+      jar.delete(cookie.name);
+    }
+  }
+}

@@ -50,3 +50,29 @@ describe("hasSupabaseAuthSessionCookie", () => {
     );
   });
 });
+
+describe("clearSupabaseAuthSessionCookies", () => {
+  it("deletes session chunks but keeps unrelated cookies", async () => {
+    const { clearSupabaseAuthSessionCookies } = await import(
+      "./supabase-auth-cookies"
+    );
+    const jar = {
+      cookies: [
+        { name: "sb-umrpibwhxpzsfdyypiuf-auth-token.0" },
+        { name: "sb-umrpibwhxpzsfdyypiuf-auth-token.1" },
+        { name: "pelbu_desk_session" },
+      ],
+      getAll() {
+        return this.cookies;
+      },
+      delete(name: string) {
+        this.cookies = this.cookies.filter((c) => c.name !== name);
+      },
+    };
+    clearSupabaseAuthSessionCookies(jar);
+    assert.deepEqual(
+      jar.getAll().map((c) => c.name),
+      ["pelbu_desk_session"],
+    );
+  });
+});

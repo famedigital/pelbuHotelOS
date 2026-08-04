@@ -46,7 +46,7 @@ export async function getStaffSession(): Promise<StaffSession | null> {
   if (!user) return null;
 
   const admin = createSupabaseAdminClient();
-  const { data } = await admin
+  const { data, error } = await admin
     .from("staff_members")
     .select(
       "id, property_id, employee_code, full_name, role_label, access_level, department, status, can_login, can_access_desk, desk_role, desk_module_keys",
@@ -54,31 +54,47 @@ export async function getStaffSession(): Promise<StaffSession | null> {
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
+  // Migration 20260816100000 may not be applied yet — fall back without the column
+  // so staff login still resolves can_access_desk for /erp.
+  let row = data;
+  if (error?.message?.includes("desk_module_keys")) {
+    const fallback = await admin
+      .from("staff_members")
+      .select(
+        "id, property_id, employee_code, full_name, role_label, access_level, department, status, can_login, can_access_desk, desk_role",
+      )
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+    row = fallback.data;
+  } else if (error) {
+    return null;
+  }
+
   if (
-    !data ||
-    !data.can_login ||
-    !["active", "on_leave"].includes(data.status as string)
+    !row ||
+    !row.can_login ||
+    !["active", "on_leave"].includes(row.status as string)
   ) {
     return null;
   }
 
-  const rawKeys = data.desk_module_keys as string[] | null | undefined;
+  const rawKeys = (row as { desk_module_keys?: string[] | null }).desk_module_keys;
   const deskModuleKeys =
     Array.isArray(rawKeys) && rawKeys.length > 0
       ? rawKeys.map(String)
       : null;
 
   return {
-    staffId: data.id as string,
-    propertyId: data.property_id as string,
+    staffId: row.id as string,
+    propertyId: row.property_id as string,
     authUserId: user.id,
-    employeeCode: data.employee_code as string,
-    fullName: data.full_name as string,
-    roleLabel: data.role_label as string,
-    accessLevel: data.access_level as string,
-    department: (data.department as string | null) ?? null,
-    canAccessDesk: Boolean(data.can_access_desk),
-    deskRole: (data.desk_role as string | null) ?? null,
+    employeeCode: row.employee_code as string,
+    fullName: row.full_name as string,
+    roleLabel: row.role_label as string,
+    accessLevel: row.access_level as string,
+    department: (row.department as string | null) ?? null,
+    canAccessDesk: Boolean(row.can_access_desk),
+    deskRole: (row.desk_role as string | null) ?? null,
     deskModuleKeys,
   };
 }
