@@ -88,6 +88,12 @@ export default async function DeskLoginPage() {
         >
           Use a different workspace
         </Link>
+        <p className="pt-2 text-center font-mono text-[10px] tracking-wide text-muted-foreground/70">
+          build {process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "local"}
+          {process.env.VERCEL_DEPLOYMENT_ID
+            ? ` · ${process.env.VERCEL_DEPLOYMENT_ID.replace(/^dpl_/, "").slice(0, 8)}`
+            : ""}
+        </p>
       </div>
     </main>
   );

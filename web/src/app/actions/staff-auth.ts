@@ -19,6 +19,8 @@ import { redirect } from "next/navigation";
 export type StaffLoginState = {
   ok: boolean;
   error?: string;
+  /** Full-page destination after cookies land (hard nav on client). */
+  redirectTo?: string;
 };
 
 export async function staffLogin(
@@ -113,12 +115,14 @@ export async function staffLogin(
       meta: { canAccessDesk: Boolean(member.can_access_desk) },
     });
 
-    // Scope revalidation to the post-login surface only. Full-site layout
-    // revalidate races soft navigation and is unnecessary for auth stickiness
-    // (cookies are set above; middleware must not strip Set-Cookie on this action).
-    const destination = member.can_access_desk ? "/erp" : "/staff";
-    revalidatePath(destination, "layout");
-    redirect(destination);
+    // Soft redirect() races RSC prefetches before Set-Cookie commits on Vercel.
+    // Return the destination and let the client do window.location.assign so
+    // the auth cookie is on the next full document request.
+    // Do not revalidatePath here — it can trigger /erp RSC while session is mid-write.
+    return {
+      ok: true,
+      redirectTo: member.can_access_desk ? "/erp" : "/staff",
+    };
   } catch (error) {
     if (
       error &&

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { TriangleAlertIcon } from "lucide-react";
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 
 const loginInitial: StaffLoginState = { ok: false };
 const pinInitial = { ok: false as boolean, error: undefined as string | undefined, message: undefined as string | undefined };
@@ -16,6 +16,16 @@ const selectClass =
 
 export function StaffLoginForm() {
   const [state, action, pending] = useActionState(staffLogin, loginInitial);
+
+  // Hard navigation after cookies land. Soft App Router redirects can fetch
+  // /erp RSC before the browser applies Set-Cookie from the action response.
+  useEffect(() => {
+    if (state.ok && state.redirectTo) {
+      window.location.assign(state.redirectTo);
+    }
+  }, [state.ok, state.redirectTo]);
+
+  const redirecting = Boolean(state.ok && state.redirectTo);
 
   return (
     <form action={action} className="space-y-4" noValidate>
@@ -29,6 +39,7 @@ export function StaffLoginForm() {
           placeholder="EMP-0001"
           required
           className="h-11"
+          disabled={pending || redirecting}
         />
       </div>
       <div className="space-y-1.5">
@@ -43,6 +54,7 @@ export function StaffLoginForm() {
           maxLength={8}
           required
           className="h-11"
+          disabled={pending || redirecting}
         />
       </div>
       {state.error ? (
@@ -51,8 +63,26 @@ export function StaffLoginForm() {
           <AlertDescription>{state.error}</AlertDescription>
         </Alert>
       ) : null}
-      <Button type="submit" variant="citrus" disabled={pending} className="h-11 w-full">
-        {pending ? "Signing in…" : "Sign in"}
+      {redirecting ? (
+        <p className="text-sm text-muted-foreground">
+          Signed in. Opening desk…
+          {state.redirectTo ? (
+            <>
+              {" "}
+              <a href={state.redirectTo} className="underline underline-offset-4">
+                Continue
+              </a>
+            </>
+          ) : null}
+        </p>
+      ) : null}
+      <Button
+        type="submit"
+        variant="citrus"
+        disabled={pending || redirecting}
+        className="h-11 w-full"
+      >
+        {redirecting ? "Opening…" : pending ? "Signing in…" : "Sign in"}
       </Button>
     </form>
   );

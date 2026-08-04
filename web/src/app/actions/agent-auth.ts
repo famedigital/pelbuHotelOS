@@ -19,6 +19,7 @@ import { redirect } from "next/navigation";
 export type AgentLoginState = {
   ok: boolean;
   error?: string;
+  redirectTo?: string;
 };
 
 function isRedirect(error: unknown): boolean {
@@ -85,8 +86,8 @@ export async function agentLogin(
       .update({ last_login_at: new Date().toISOString() })
       .eq("id", agent.id);
 
-    revalidatePath("/", "layout");
-    redirect("/agents/app");
+    // Hard-nav on the client after Set-Cookie; avoid soft-redirect races.
+    return { ok: true, redirectTo: "/agents/app" };
   } catch (error) {
     if (isRedirect(error)) throw error;
     return {

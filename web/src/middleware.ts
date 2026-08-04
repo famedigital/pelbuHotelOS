@@ -83,15 +83,21 @@ async function applyTenantHeaders(
  * installation is possible; middleware cannot invoke the native install prompt.
  *
  * CRITICAL (Vercel / Next production login):
- * Never attach Set-Cookie on Server Action responses from middleware.
- * Middleware cookie writes (set *or* delete) can drop Set-Cookie headers from
- * the subsequent Server Action — so signInWithPassword succeeds and audit
- * logs write, but the browser never stores `sb-*-auth-token`, and GET /erp
- * bounces back to /erp/login (POST /erp/login status 0 soft-nav abort).
+ * Never attach Set-Cookie on mutation or Server Action responses from
+ * middleware. Middleware cookie writes (set *or* delete) can drop Set-Cookie
+ * headers from the subsequent Server Action — so signInWithPassword succeeds
+ * and audit logs write, but the browser never stores `sb-*-auth-token`, and
+ * GET /erp bounces back to /erp/login (POST /erp/login status 0 soft-nav abort).
+ *
+ * Relying only on the `next-action` header is insufficient: some form POSTs and
+ * progressive-enhancement paths omit it. Skip cookie mutation for all
+ * non-GET/HEAD requests.
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isErp = pathname === "/erp" || pathname.startsWith("/erp/");
+  const method = request.method.toUpperCase();
+  const isRead = method === "GET" || method === "HEAD";
   const isServerAction = Boolean(request.headers.get("next-action"));
 
   if (isErp && !isErpLoginPath(pathname) && !erpCredentialsPresent(request)) {
@@ -100,9 +106,9 @@ export async function middleware(request: NextRequest) {
 
   const requestHeaders = applyRequestHints(request);
 
-  // Server Actions: forward pathname only. No tenant lookup, no auth refresh
-  // cookie writes, no install-hint cookie mutation.
-  if (isServerAction) {
+  // Mutations + Server Actions: pathname hint only. No tenant lookup, no auth
+  // refresh cookie writes, no install-hint cookie mutation.
+  if (!isRead || isServerAction) {
     return NextResponse.next({
       request: {
         headers: requestHeaders,
@@ -117,6 +123,16 @@ export async function middleware(request: NextRequest) {
       headers: requestHeaders,
     },
   });
+
+  // Help verify which Git commit production serves (Vercel sets at runtime).
+  const commit = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7);
+  if (commit) {
+    response.headers.set("x-pelbu-commit", commit);
+  }
+  const deploymentId = process.env.VERCEL_DEPLOYMENT_ID;
+  if (deploymentId) {
+    response.headers.set("x-pelbu-deployment", deploymentId);
+  }
 
   const needsAuthRefresh =
     pathname.startsWith("/staff") ||
@@ -156,6 +172,10 @@ export async function middleware(request: NextRequest) {
                   options?.secure ?? process.env.NODE_ENV === "production",
               });
             });
+            if (commit) response.headers.set("x-pelbu-commit", commit);
+            if (deploymentId) {
+              response.headers.set("x-pelbu-deployment", deploymentId);
+            }
           },
         },
       });
@@ -164,30 +184,31 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const userAgent = request.headers.get("user-agent") ?? "";
-  const mobile = /android|iphone|ipad|ipod|mobile/i.test(userAgent);
-  const shouldHint =
-    mobile &&
-    INSTALL_PATHS.has(pathname) &&
-    !request.cookies.has("pelbu_pwa") &&
-    !request.cookies.has("pelbu_pwa_dismiss");
+  // Never write install-hint cookies on /erp — login/actions must keep sole
+  // control of Set-Cookie on those routes.
+  if (!isErp) {
+    const userAgent = request.headers.get("user-agent") ?? "";
+    const mobile = /android|iphone|ipad|ipod|mobile/i.test(userAgent);
+    const shouldHint =
+      mobile &&
+      INSTALL_PATHS.has(pathname) &&
+      !request.cookies.has("pelbu_pwa") &&
+      !request.cookies.has("pelbu_pwa_dismiss");
 
-  if (shouldHint) {
-    response.cookies.set("pelbu_install_hint", "1", {
-      path: "/",
-      maxAge: 60 * 60,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-    });
-    response.headers.set("x-pelbu-install", "1");
-  } else if (
-    // Only clear the hint on the public install surface when it is present.
-    // Never touch cookies on /erp (incl. /erp/login) so login Server Actions
-    // keep their Set-Cookie headers intact.
-    INSTALL_PATHS.has(pathname) &&
-    request.cookies.has("pelbu_install_hint")
-  ) {
-    response.cookies.delete("pelbu_install_hint");
+    if (shouldHint) {
+      response.cookies.set("pelbu_install_hint", "1", {
+        path: "/",
+        maxAge: 60 * 60,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      });
+      response.headers.set("x-pelbu-install", "1");
+    } else if (
+      INSTALL_PATHS.has(pathname) &&
+      request.cookies.has("pelbu_install_hint")
+    ) {
+      response.cookies.delete("pelbu_install_hint");
+    }
   }
 
   return response;
