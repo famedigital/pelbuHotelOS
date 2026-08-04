@@ -1,5 +1,9 @@
 import { AgentsAccordionTable } from "@/components/erp/AgentsAccordionTable";
 import { AgentPinProvisionForm } from "@/components/erp/AgentAuthForms";
+import { DeskEmptyState } from "@/components/erp/DeskEmptyState";
+import { DeskListShell } from "@/components/erp/DeskListShell";
+import { DeskMetricRow } from "@/components/erp/DeskMetricRow";
+import { DeskViewSwitcher } from "@/components/erp/DeskViewSwitcher";
 import {
   Card,
   CardContent,
@@ -188,7 +192,9 @@ export default async function ErpAgentsPage({
     // Directory bulk view skips document hydrate for performance.
     const docsRes = await admin
       .from("agent_documents")
-      .select("id, kind, doc_url, doc_name, notes, uploaded_by, created_at, agent_id")
+      .select(
+        "id, kind, doc_url, doc_name, notes, uploaded_by, created_at, agent_id",
+      )
       .in("agent_id", agentIds)
       .order("created_at", { ascending: false });
     if (docsRes.error) {
@@ -222,163 +228,137 @@ export default async function ErpAgentsPage({
   const emptyByView: Record<ViewFilter, string> = {
     trade: "No trade partners or applications yet.",
     pending: "No pending applications.",
-    directory:
-      "No TCB directory operators yet. Run from web/: node --env-file=.env.local scripts/import-tcb-tour-operators.mjs after migrating status=directory.",
+    directory: "No TCB directory operators yet.",
     all: "No agents yet.",
   };
 
   return (
-    <div className="erp mx-auto w-full max-w-[1200px] space-y-10 p-4 md:p-6">
-      <section className="grid gap-3 sm:grid-cols-3">
-        <SummaryCard label="Pending applications" value={String(pendingCount)} />
-        <SummaryCard
-          label="Approved credit"
-          value={formatBtn(totalApprovedCredit)}
-        />
-        <SummaryCard
-          label="Outstanding used"
-          value={formatBtn(totalUsedCredit)}
-          tone="destructive"
-        />
-      </section>
-
-      <section className="space-y-4">
-        <header className="space-y-1.5">
-          <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-            Trade partners
-          </p>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            Approve applications, set MoU/demo status, credit limits, and record
-            credit payments. Markets: Bhutan, Jaigaon, India. TCB directory
-            operators are searchable on bookings but are not credit partners
-            until you Approve.
-          </p>
-        </header>
-
-        <nav
-          className="flex flex-wrap gap-2"
-          aria-label="Agent list filters"
-        >
-          {filterTabs.map((tab) => {
-            const active = view === tab.key;
-            const href =
+    <DeskListShell
+      eyebrow="Channels"
+      heading="Agents"
+      subtitle="Trade partners, credit, and TCB directory"
+      blurb="Approve applications, set MoU/demo status, credit limits, and record credit payments. Markets: Bhutan, Jaigaon, India. TCB directory operators are searchable on bookings but are not credit partners until you Approve."
+      filters={
+        <DeskViewSwitcher
+          label="Agent list filters"
+          items={filterTabs.map((tab) => ({
+            href:
               tab.key === "trade"
                 ? "/erp/agents"
-                : `/erp/agents?view=${tab.key}`;
-            return (
-              <Link
-                key={tab.key}
-                href={href}
-                className={
-                  active
-                    ? "inline-flex h-9 items-center rounded-md bg-espresso px-3 text-sm font-medium text-ivory"
-                    : "inline-flex h-9 items-center rounded-md border border-border bg-card px-3 text-sm font-medium text-foreground hover:bg-muted"
-                }
-                aria-current={active ? "page" : undefined}
-              >
-                {tab.label}
-                {tab.count != null ? (
-                  <span
-                    className={
-                      active
-                        ? "ml-2 tabular-nums text-ivory/80"
-                        : "ml-2 tabular-nums text-muted-foreground"
-                    }
-                  >
-                    {tab.count}
-                  </span>
-                ) : null}
-              </Link>
-            );
-          })}
-        </nav>
+                : `/erp/agents?view=${tab.key}`,
+            label: tab.label,
+            count: tab.count,
+            active: view === tab.key,
+          }))}
+        />
+      }
+      metrics={
+        <DeskMetricRow
+          metrics={[
+            {
+              label: "Pending applications",
+              value: String(pendingCount),
+              href: "/erp/agents?view=pending",
+            },
+            {
+              label: "Approved credit",
+              value: formatBtn(totalApprovedCredit),
+            },
+            {
+              label: "Outstanding used",
+              value: formatBtn(totalUsedCredit),
+              tone: "destructive",
+            },
+          ]}
+        />
+      }
+    >
+      {agents.length === 0 ? (
+        <DeskEmptyState
+          title={emptyByView[view]}
+          description={
+            view === "directory"
+              ? "Import TCB tour operators after migrating status=directory."
+              : "Applications and approved partners will appear here."
+          }
+        />
+      ) : (
+        <Suspense
+          fallback={
+            <p className="rounded-lg border border-border bg-card px-4 py-6 text-sm text-muted-foreground">
+              Loading agents…
+            </p>
+          }
+        >
+          <AgentsAccordionTable
+            filter={view}
+            data={agents.map((row) => ({
+              ...row,
+              documents: (docsByAgent.get(row.id) ?? []).map((d) => ({
+                id: d.id,
+                agent_id: d.agent_id,
+                kind: d.kind,
+                doc_url: d.doc_url,
+                doc_name: d.doc_name,
+                notes: d.notes,
+                uploaded_by: d.uploaded_by,
+                created_at: d.created_at,
+              })),
+            }))}
+            emptyMessage={emptyByView[view]}
+          />
+        </Suspense>
+      )}
 
-        {agents.length === 0 ? (
-          <Card>
-            <CardContent className="py-6 text-sm text-muted-foreground">
-              {emptyByView[view]}
-            </CardContent>
-          </Card>
-        ) : (
-          <Suspense
-            fallback={
-              <p className="rounded-xl border border-border bg-card px-4 py-6 text-sm text-muted-foreground">
-                Loading agents…
-              </p>
-            }
+      <Card>
+        <CardHeader>
+          <CardTitle>Agent app login</CardTitle>
+          <CardDescription>
+            Issue an agent code + PIN so an approved partner can sign into the
+            installable Work app at{" "}
+            <code className="font-mono text-xs">/agents/app</code> to book on
+            their rate and see their own bookings. PINs are stored only in
+            Supabase Auth. Directory listings are not eligible.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AgentPinProvisionForm
+            agents={(pinAgentsRes.data ?? []).map((a) => ({
+              id: a.id as string,
+              label: `${a.company_name as string} · ${a.market as string}`,
+            }))}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Agent rates</CardTitle>
+          <CardDescription>
+            Per-agent <code className="font-mono text-xs">rate_tier</code>{" "}
+            (agents, mou_agents, etc.) selects which column group applies at
+            booking. Base Nu amounts live on the Room rates sheet — not here.
+            Directory operators use public rates until approved.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Link
+            href="/erp/rates"
+            className="inline-flex h-9 items-center rounded-md border px-4 text-sm font-medium text-foreground hover:bg-muted"
           >
-            <AgentsAccordionTable
-              filter={view}
-              data={agents.map((row) => ({
-                ...row,
-                documents: (docsByAgent.get(row.id) ?? []).map((d) => ({
-                  id: d.id,
-                  agent_id: d.agent_id,
-                  kind: d.kind,
-                  doc_url: d.doc_url,
-                  doc_name: d.doc_name,
-                  notes: d.notes,
-                  uploaded_by: d.uploaded_by,
-                  created_at: d.created_at,
-                })),
-              }))}
-              emptyMessage={emptyByView[view]}
-            />
-          </Suspense>
-        )}
-      </section>
-
-      <section className="space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Agent app login</CardTitle>
-            <CardDescription>
-              Issue an agent code + PIN so an approved partner can sign into the
-              installable Work app at{" "}
-              <code className="font-mono text-xs">/agents/app</code> to book on
-              their rate and see their own bookings. PINs are stored only in
-              Supabase Auth. Directory listings are not eligible.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <AgentPinProvisionForm
-              agents={(pinAgentsRes.data ?? []).map((a) => ({
-                id: a.id as string,
-                label: `${a.company_name as string} · ${a.market as string}`,
-              }))}
-            />
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Agent rates</CardTitle>
-            <CardDescription>
-              Per-agent <code className="font-mono text-xs">rate_tier</code>{" "}
-              (agents, mou_agents, etc.) selects which column group applies at
-              booking. Base Nu amounts live on the Room rates sheet — not here.
-              Directory operators use public rates until approved.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link
-              href="/erp/rates"
-              className="inline-flex h-10 items-center rounded-md border px-4 text-sm font-medium text-foreground hover:bg-muted"
-            >
-              Open room rates sheet →
-            </Link>
-          </CardContent>
-        </Card>
-      </section>
+            Open room rates sheet →
+          </Link>
+        </CardContent>
+      </Card>
 
       <section className="space-y-3">
-        <header className="space-y-1.5">
-          <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+        <header className="space-y-0.5">
+          <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
             Credit ledger
           </p>
-          <p className="text-sm text-muted-foreground">Recent charges and payments.</p>
+          <p className="text-sm text-muted-foreground">
+            Recent charges and payments.
+          </p>
         </header>
         <Card>
           <CardHeader className="sr-only">
@@ -434,33 +414,6 @@ export default async function ErpAgentsPage({
           </CardContent>
         </Card>
       </section>
-    </div>
-  );
-}
-
-function SummaryCard({
-  label,
-  value,
-  tone = "default",
-}: {
-  label: string;
-  value: string;
-  tone?: "default" | "destructive";
-}) {
-  return (
-    <Card className="gap-2 py-5">
-      <CardContent>
-        <p className="text-[11px] tracking-[0.18em] text-muted-foreground uppercase">
-          {label}
-        </p>
-        <p
-          className={`mt-1.5 text-2xl font-semibold tracking-tight ${
-            tone === "destructive" ? "text-destructive" : "text-foreground"
-          }`}
-        >
-          {value}
-        </p>
-      </CardContent>
-    </Card>
+    </DeskListShell>
   );
 }

@@ -1,6 +1,7 @@
 import { deskLogout } from "@/app/actions/desk";
 import { AppSidebar } from "@/components/erp/app-sidebar";
 import { CalendarHeaderTabs } from "@/components/erp/CalendarHeaderTabs";
+import { DeskHelpHint } from "@/components/erp/DeskHelpHint";
 import { DeskMobileNav } from "@/components/erp/DeskMobileNav";
 import { ErpCommandPalette } from "@/components/erp/ErpCommandPalette";
 import { ModuleTabs } from "@/components/erp/ModuleTabs";
@@ -98,7 +99,7 @@ export function DeskShell({
   );
 }
 
-/** Compact top-of-page title strip for non-dashboard ERP pages. */
+/** Compact top-of-page title strip — same grammar as DeskListShell (non-list pages). */
 export function DeskPageTitle({
   eyebrow,
   title,
@@ -110,24 +111,41 @@ export function DeskPageTitle({
   description?: string;
   actions?: ReactNode;
 }) {
+  // Re-export pattern via lazy import would cycle; keep layout in sync with DeskListShell.
+  const short =
+    description && description.length <= 96 ? description : undefined;
+  const long =
+    description && description.length > 96 ? description : undefined;
+
   return (
-    <div className="flex flex-wrap items-end justify-between gap-4 px-4 pt-6 md:px-6">
-      <div className="space-y-1">
-        {eyebrow ? (
-          <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
-            {eyebrow}
-          </p>
-        ) : null}
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          {title}
-        </h1>
-        {description ? (
-          <p className="max-w-prose text-sm text-muted-foreground">
-            {description}
-          </p>
+    <div className="erp sticky top-14 z-20 border-b border-border/80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+      <div className="mx-auto flex w-full max-w-[1200px] flex-wrap items-start justify-between gap-3 px-4 py-3 md:px-6 md:py-3.5">
+        <div className="min-w-0 flex-1 space-y-1">
+          {eyebrow ? (
+            <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
+              {eyebrow}
+            </p>
+          ) : null}
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">
+              {title}
+            </h1>
+            {long ? (
+              <DeskHelpHint>
+                <p>{long}</p>
+              </DeskHelpHint>
+            ) : null}
+          </div>
+          {short ? (
+            <p className="max-w-2xl text-sm leading-snug text-muted-foreground line-clamp-1">
+              {short}
+            </p>
+          ) : null}
+        </div>
+        {actions ? (
+          <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
         ) : null}
       </div>
-      {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
     </div>
   );
 }

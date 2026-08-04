@@ -1,3 +1,4 @@
+import { DeskHelpHint } from "@/components/erp/DeskHelpHint";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,50 +13,115 @@ import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 import Link from "next/link";
 
+const BLURB_INLINE_MAX = 96;
+
 /**
- * ERP list page layout — renders only the page body (the sidebar shell is
- * provided by web/src/app/erp/layout.tsx). Keeps the same prop surface so
- * existing ERP pages keep compiling.
+ * Global ERP section chrome — every list/ops page should use this (or
+ * DeskPageTitle for odd one-offs) so ModuleTabs → sticky section bar →
+ * workspace feels systematic.
+ *
+ * Hierarchy:
+ * 1. ModuleTabs (destinations) — shell
+ * 2. Sticky title + actions + optional 1-line blurb / help
+ * 3. `filters` slot — views, search (DeskViewSwitcher, DeskSearchForm)
+ * 4. `metrics` slot — thin DeskMetricRow (optional)
+ * 5. children — workspace only
  */
 export function DeskListShell({
   eyebrow,
   heading,
   blurb,
+  subtitle,
+  help,
   children,
   filters,
+  metrics,
   headerAside,
+  className,
 }: {
   /** Kept for backward compat. Ignored — title is now in the shell header. */
   title?: string;
-  eyebrow: string;
+  eyebrow?: string;
   heading: string;
+  /** Longer copy → help popover. Short copy may render as one-line subtitle. */
   blurb?: string;
+  /** Explicit one-line under the title (preferred over long blurb). */
+  subtitle?: string;
+  /** Override help body when `blurb` is used only as subtitle. */
+  help?: ReactNode;
   filters?: ReactNode;
-  /** Live badge, CTAs, etc. — aligned top-right of the page header. */
+  metrics?: ReactNode;
+  /** Live badge, CTAs, etc. — aligned top-right of the section bar. */
   headerAside?: ReactNode;
   children: ReactNode;
+  className?: string;
 }) {
+  const shortLine =
+    subtitle?.trim() ||
+    (blurb && blurb.trim().length <= BLURB_INLINE_MAX ? blurb.trim() : null);
+
+  const helpBody =
+    help ??
+    (blurb && blurb.trim().length > BLURB_INLINE_MAX ? blurb.trim() : null);
+
   return (
-    <div className="erp mx-auto w-full max-w-[1200px] space-y-8 p-4 md:p-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1.5">
-          <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
-            {eyebrow}
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            {heading}
-          </h1>
-          {blurb ? (
-            <p className="max-w-prose text-sm text-muted-foreground">{blurb}</p>
+    <div
+      className={cn(
+        "erp mx-auto flex w-full max-w-[1200px] flex-col",
+        className,
+      )}
+    >
+      <header className="sticky top-14 z-20 border-b border-border/80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+        <div className="flex flex-col gap-3 px-4 py-3 md:px-6 md:py-3.5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 flex-1 space-y-1">
+              {eyebrow ? (
+                <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
+                  {eyebrow}
+                </p>
+              ) : null}
+              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">
+                  {heading}
+                </h1>
+                {helpBody ? (
+                  <DeskHelpHint>
+                    {typeof helpBody === "string" ? (
+                      <p>{helpBody}</p>
+                    ) : (
+                      helpBody
+                    )}
+                  </DeskHelpHint>
+                ) : null}
+              </div>
+              {shortLine ? (
+                <p className="max-w-2xl text-sm leading-snug text-muted-foreground line-clamp-1">
+                  {shortLine}
+                </p>
+              ) : null}
+            </div>
+            {headerAside ? (
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                {headerAside}
+              </div>
+            ) : null}
+          </div>
+
+          {filters ? (
+            <div className="flex flex-wrap items-center gap-2">{filters}</div>
           ) : null}
+
+          {metrics ? <div className="min-w-0">{metrics}</div> : null}
         </div>
-        {headerAside}
       </header>
-      {filters}
-      {children}
+
+      <div className="flex flex-col gap-6 p-4 md:gap-8 md:p-6">{children}</div>
     </div>
   );
 }
+
+/** Alias — same component; prefer this name in new code. */
+export const DeskSectionChrome = DeskListShell;
 
 export function DeskSearchForm({
   action,
@@ -70,11 +136,11 @@ export function DeskSearchForm({
 }) {
   return (
     <form
-      className="flex flex-wrap items-center gap-2"
+      className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
       action={action}
       method="get"
     >
-      <div className="min-w-[220px] flex-1">
+      <div className="min-w-[180px] max-w-sm flex-1">
         <label htmlFor="q" className="sr-only">
           Search
         </label>
@@ -84,11 +150,11 @@ export function DeskSearchForm({
           name="q"
           defaultValue={q ?? ""}
           placeholder={placeholder}
-          className="h-10"
+          className="h-9"
         />
       </div>
       {children}
-      <Button type="submit" variant="outline" className="h-10">
+      <Button type="submit" variant="outline" className="h-9">
         Search
       </Button>
     </form>
@@ -185,7 +251,7 @@ export function DeskShellActionLink({
   children: ReactNode;
 }) {
   return (
-    <Button asChild>
+    <Button asChild size="sm" className="h-9">
       <Link href={href}>{children}</Link>
     </Button>
   );

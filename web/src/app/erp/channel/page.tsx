@@ -5,6 +5,8 @@ import {
   ChannelQueueActions,
   ChannelStatusForm,
 } from "@/components/erp/ChannelForms";
+import { DeskListShell } from "@/components/erp/DeskListShell";
+import { DeskMetricRow } from "@/components/erp/DeskMetricRow";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ensureChannexConnection } from "@/lib/channel/ari-queue";
 import { getChannexConfig } from "@/lib/channel/channex-client";
@@ -100,35 +102,44 @@ export default async function ErpChannelPage() {
   });
 
   return (
-    <div className="erp mx-auto w-full max-w-[1200px] space-y-10 p-4 md:p-6">
-      <section className="space-y-3">
-        <div className="space-y-1">
-          <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-            Channex · {property.name}
-          </p>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            Event-driven ARI outbox (availability, public rates, min-stay /
-            stop-sell) + booking revision inbox for the active desk property.
-            Certification needs staging credentials, room/rate maps, then
-            flush/ack against Channex.
-          </p>
+    <DeskListShell
+      eyebrow="Channels"
+      heading="Channel"
+      subtitle={`Channex · ${property.name}`}
+      blurb="Event-driven ARI outbox (availability, public rates, min-stay / stop-sell) + booking revision inbox for the active desk property. Certification needs staging credentials, room/rate maps, then flush/ack against Channex."
+      metrics={
+        <DeskMetricRow
+          metrics={[
+            {
+              label: "Connection",
+              value: (conn?.status as string) ?? "missing",
+            },
+            {
+              label: "API key",
+              value: apiReady ? "set" : "missing",
+              tone: apiReady ? "default" : "destructive",
+            },
+            { label: "Pending ARI", value: String(pendingAri) },
+            {
+              label: "Failed ARI",
+              value: String(failedAri),
+              tone: failedAri > 0 ? "destructive" : "default",
+            },
+          ]}
+        />
+      }
+    >
+      {conn?.notes || conn?.last_ari_push_at ? (
+        <div className="space-y-1 text-xs text-muted-foreground">
+          {conn?.notes ? <p>{conn.notes as string}</p> : null}
+          {conn?.last_ari_push_at ? (
+            <p>
+              Last ARI push:{" "}
+              {String(conn.last_ari_push_at).slice(0, 16).replace("T", " ")} UTC
+            </p>
+          ) : null}
         </div>
-        <div className="grid gap-4 sm:grid-cols-4">
-          <Stat label="Connection" value={(conn?.status as string) ?? "missing"} />
-          <Stat label="API key" value={apiReady ? "set" : "missing"} />
-          <Stat label="Pending ARI" value={String(pendingAri)} />
-          <Stat label="Failed ARI" value={String(failedAri)} />
-        </div>
-        {conn?.notes ? (
-          <p className="text-xs text-muted-foreground">{conn.notes as string}</p>
-        ) : null}
-        {conn?.last_ari_push_at ? (
-          <p className="text-xs text-muted-foreground">
-            Last ARI push:{" "}
-            {String(conn.last_ari_push_at).slice(0, 16).replace("T", " ")} UTC
-          </p>
-        ) : null}
-      </section>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
         <ChannelStatusForm
@@ -250,19 +261,6 @@ export default async function ErpChannelPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <Card className="gap-2 py-4">
-      <CardContent>
-        <p className="text-[10px] font-semibold tracking-[0.18em] text-accent uppercase">
-          {label}
-        </p>
-        <p className="mt-2 text-lg font-semibold text-foreground">{value}</p>
-      </CardContent>
-    </Card>
+    </DeskListShell>
   );
 }

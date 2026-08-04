@@ -1,0 +1,25 @@
+------PelbuCurl
+Content-Disposition: form-data; name="$ACTION_REF_2"
+
+
+------PelbuCurl
+Content-Disposition: form-data; name="$ACTION_2:0"
+
+{"id":"600c15eda1b07704f5536925f947be7448921205e1","bound":"$@1"}
+------PelbuCurl
+Content-Disposition: form-data; name="$ACTION_2:1"
+
+[{"ok":false}]
+------PelbuCurl
+Content-Disposition: form-data; name="$ACTION_KEY"
+
+k5e36744084f0be442bffe176b3d2668a
+------PelbuCurl
+Content-Disposition: form-data; name="employee_code"
+
+gm-01
+------PelbuCurl
+Content-Disposition: form-data; name="pin"
+
+0519
+------PelbuCurl--

@@ -17,6 +17,7 @@ import {
   type ContactRow,
 } from "@/components/marketing/MarketingCrmForms";
 import { DeskListShell } from "@/components/erp/DeskListShell";
+import { DeskViewSwitcher } from "@/components/erp/DeskViewSwitcher";
 import { MarketingCataloguesPanel } from "@/components/marketing/MarketingCataloguesPanel";
 import { MarketingShareHub } from "@/components/marketing/MarketingShareHub";
 import { BOOKABLE_AGENT_STATUSES } from "@/lib/agents/status";
@@ -248,27 +249,20 @@ export default async function MarketingPage({
     <DeskListShell
       eyebrow="Channels"
       heading="Sales & Marketing"
+      subtitle="Campaigns, coupons, CRM, catalogues, and NC"
       blurb="Campaigns, coupons, CRM contacts, email broadcast (owner/GM), Meta share hub, catalogues, and NC policies. Desk promo reprice cascades to room nights + meals."
       filters={
-        <nav className="flex flex-wrap gap-2">
-          {tabs.map((t) => (
-            <Link
-              key={t.id}
-              href={
-                t.id === "dashboard"
-                  ? "/erp/marketing"
-                  : `/erp/marketing?tab=${t.id}`
-              }
-              className={
-                tab === t.id
-                  ? "rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground"
-                  : "rounded-md border px-3 py-1.5 text-sm text-muted-foreground hover:bg-secondary"
-              }
-            >
-              {t.label}
-            </Link>
-          ))}
-        </nav>
+        <DeskViewSwitcher
+          label="Marketing sections"
+          items={tabs.map((t) => ({
+            href:
+              t.id === "dashboard"
+                ? "/erp/marketing"
+                : `/erp/marketing?tab=${t.id}`,
+            label: t.label,
+            active: tab === t.id,
+          }))}
+        />
       }
     >
       {tab === "dashboard" ? (

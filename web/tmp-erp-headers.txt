@@ -1,0 +1,12 @@
+HTTP/1.1 307 Temporary Redirect
+Vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept-Encoding
+link: </_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2>; rel=preload; as="font"; crossorigin=""; type="font/woff2", </_next/static/media/a343f882a40d2cc9-s.p.1sj6eobyi31rd.woff2>; rel=preload; as="font"; crossorigin=""; type="font/woff2", </_next/static/media/b67966e0b83b2cd0-s.p.0fuf3937kiol3.woff2>; rel=preload; as="font"; crossorigin=""; type="font/woff2", </_next/static/chunks/%5Broot-of-the-server%5D__1hlzfsh._.css>; rel=preload; as="style"
+location: /erp/login
+Cache-Control: no-cache, must-revalidate
+X-Powered-By: Next.js
+Content-Type: text/html; charset=utf-8
+Date: Tue, 04 Aug 2026 12:05:26 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
