@@ -40,7 +40,9 @@ export function AgentDeskCard({
         ? "border-destructive/40 bg-destructive/5 text-destructive"
         : agent.status === "demo"
           ? "border-accent/30 bg-accent/10 text-accent"
-          : "border-border text-muted-foreground";
+          : agent.status === "directory"
+            ? "border-border bg-muted/80 text-foreground/80"
+            : "border-border text-muted-foreground";
 
   return (
     <Card className="erp gap-0 p-5">

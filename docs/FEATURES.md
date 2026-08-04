@@ -62,7 +62,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Desk shift gate | **Default OFF** — any staff with `can_login` + `can_access_desk` may open `/erp` any time. Optional Settings → Identity → **Restrict hotel desk to scheduled shifts** limits non-management staff to a covering published `staff_shifts` (Thimphu); Owner/GM/manager + DESK_PIN bypass. Not POS cashier shifts. |
 | **F&B IA (fixed)** | **No standalone F&B sidebar.** Sell/settle = POS register + menu + KDS; daily ops = **Kitchen board** `/erp/kitchen` (F&B ops home); property FO/GM home = Dashboard `/erp`. Do not merge kitchen into `/erp` or add a duplicate F&B root. |
 | Property switcher | Header; multi-property helpers + wizard exist |
-| Settings | `/erp/settings` — Identity · Commercial · Policies · Tax · Documents · Rooms · Compliance · Finance imports · **Danger zone** (owner WIPE). Plan `erp_settings_page_41e5deb4` |
+| Settings | `/erp/settings` — **Hub** (dual mode: setup readiness vs mature directory) · Finance-style top grouped nav (Hotel profile, Inventory, Tax, Meals, Policies, Documents, Compliance, Finance imports, owner Danger). Deep links `?tab=` keys preserved (`identity`, `commercial`, `policies`, `tax`, `documents`, `rooms`, `compliance`, `finance-imports`, `danger`; default/no tab = overview). Plans `erp_settings_page_41e5deb4` · settings hub redesign |
 | **Training LMS** | `/erp/training` — role-filtered manuals + checklist (local progress) |
 | **DOT assessment** | `/erp/dot-assessment` — HCS 2024 3★/4★ digital checklist (Trade · BFDA · DOT), entry gate, M/Q/P scoring, photos, print pack |
 | Loading UX | Top **NavigationProgress** on desk nav · `usePendingFeedback` + sonner on mutating actions (rota publish, danger wipe) |
@@ -84,7 +84,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Folio | `/erp/folios/[id]` (+ `/receipt`) | Payments, void, comp, deposit links; **tax invoice + fiscal receipt issue**; **day-1 room post at check-in** + manual Post room night / day-1 charges; **stay money process strip** |
 | **Kitchen board** (F&B ops dashboard) | `/erp/kitchen` (+ `/food-cost`) | Covers · staff on shift · publish BF/lunch/dinner to FO/POS (`kitchen_meal_services`) · gas/stock/expiry · food cost COGS · **Events & groups** (banquet cards: menu, time window, pax, venue, package rate/deposit/balance, link/post to folio) — **chef/F&B supervisor home**, not FO Dashboard |
 | Invoices / payments | `/erp/invoices`, `/erp/payments` | **Invoices:** issued fiscal tax invoice list (INV-YYYY-####) only — not POS tickets. Settle/paid/on-room under **POS → Closed today** |
-| Agents | `/erp/agents` (+ `/erp/agents/[id]` dossier) | Approve, credit, rates matrix, documents; **click agent → 360° dossier** (bookings, guests, rooms, money/AR, rates/allotments) |
+| Agents | `/erp/agents` (+ `/erp/agents/[id]` dossier) | Approve, credit, rates matrix, documents; **click agent → 360° dossier**; **TCB directory** import (`status=directory`, no credit/portal) via `web/scripts/import-tcb-tour-operators.mjs` — searchable on FO pickers A–Z; filter tabs Trade / Pending / Directory |
 | Finance + bank recon | `/erp/finance` | **Hotel accountant** — Vault (cash/bank/holdings) · Money in · Money out (expenses + AP bills + payroll link) · Banking · GST · Journals · Reports · Setup & month close; walk-in POS + payroll payout journals; bank create-from-line; Settings → Finance imports |
 | GST | `/erp/gst` (+ `/erp/finance/gst`) | Returns / summaries + ledger GST input/output |
 | Partners | `/erp/partners` | Guides + drivers master, visit counts, search |
@@ -103,7 +103,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Guests | `/erp/guests`, `/erp/guests/[id]` | Directory + **profile stay history**; SDF incomplete badge; immigration CSV export |
 | Room rates | `/erp/rates` | **Public package card** (room + meal packages) primary; public room Nu edit + advanced market tiers; season date-range editor; meal plan strip → Settings |
 | Folio | `/erp/folios/[id]` | Payments, void, comp, minibar/amenity quick charge, damage; day-1 post; stay money strip |
-| Settings | `/erp/settings` | Identity · Tax & service · Documents · Rooms (see shell table) |
+| Settings | `/erp/settings` | Hub + dual mode · staff group nav · `?tab=` deep links (Identity, Tax, Rooms, etc.) |
 | **DOT assessment** | `/erp/dot-assessment` | HCS 2024 3★/4★ digital checklist (Trade · BFDA · DOT), entry gate, M/Q/P scores, photos, print pack |
 
 ### Calendar / room rack (plan `calendar_drag_booking_64bad6ba`)

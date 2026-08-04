@@ -4,6 +4,9 @@ import { NewReservationLauncher } from "@/components/erp/NewReservationLauncher"
 import { ReservationsAccordionTable } from "@/components/erp/ReservationsAccordionTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  BOOKABLE_AGENT_STATUSES,
+} from "@/lib/agents/status";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { matchesQuery } from "@/lib/erp-lists";
 import { requireDeskPropertyId } from "@/lib/desk-property";
@@ -83,7 +86,7 @@ export default async function ReservationsPage({
     admin
       .from("agents")
       .select("id, company_name, market, status")
-      .in("status", ["approved", "demo"])
+      .in("status", [...BOOKABLE_AGENT_STATUSES])
       .order("company_name"),
     sp.room_unit_id && property
       ? admin

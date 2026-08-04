@@ -359,7 +359,13 @@ function buildSnapshot(
   const agentId = get("agent_id");
   const agent = agents.find((a) => a.id === agentId);
   const agentLabel = agent
-    ? `${agent.company_name} (${agent.market}${agent.status === "demo" ? ", demo" : ""})`
+    ? `${agent.company_name} (${agent.market}${
+        agent.status === "demo"
+          ? ", demo"
+          : agent.status === "directory"
+            ? ", directory"
+            : ""
+      })`
     : undefined;
 
   const lines = roomTypes

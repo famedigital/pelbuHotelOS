@@ -19,6 +19,7 @@ import {
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { MarketingCataloguesPanel } from "@/components/marketing/MarketingCataloguesPanel";
 import { MarketingShareHub } from "@/components/marketing/MarketingShareHub";
+import { BOOKABLE_AGENT_STATUSES } from "@/lib/agents/status";
 import { getDeskRole, isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/desk-property";
 import { listCataloguesForProperty } from "@/lib/marketing/catalogue";
@@ -148,10 +149,10 @@ export default async function MarketingPage({
       .limit(200),
     admin
       .from("agents")
-      .select("id, company_name")
-      .eq("status", "approved")
+      .select("id, company_name, status")
+      .in("status", [...BOOKABLE_AGENT_STATUSES])
       .order("company_name")
-      .limit(100),
+      .limit(1000),
     admin
       .from("marketing_email_sends")
       .select("id, to_email, subject, status, created_at, error")

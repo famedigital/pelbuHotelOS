@@ -53,10 +53,27 @@ type AgentRaw = {
   portal_token: string | null;
 };
 
-export default async function ErpAgentsPage() {
+type ViewFilter = "trade" | "directory" | "pending" | "all";
+
+function parseFilter(raw: string | string[] | undefined): ViewFilter {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  if (v === "directory" || v === "pending" || v === "all" || v === "trade") {
+    return v;
+  }
+  return "trade";
+}
+
+export default async function ErpAgentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string; id?: string }>;
+}) {
   if (!(await isDeskAuthenticated())) {
     redirect("/erp/login");
   }
+
+  const sp = await searchParams;
+  const view = parseFilter(sp.view);
 
   const admin = createSupabaseAdminClient();
   const { data: property } = await admin
@@ -67,13 +84,40 @@ export default async function ErpAgentsPage() {
 
   const propertyId = property?.id as string | undefined;
 
-  const agentsQ = admin
+  // Scoped loads so directory bulk does not crowd out trade partners.
+  let agentsQ = admin
     .from("agents")
     .select(
       "id, company_name, market, contact_name, contact_phone, contact_email, license_url, notes, status, rate_tier, credit_limit, credit_used, wants_mou, approved_at, created_at, portal_token",
-    )
-    .order("created_at", { ascending: false })
-    .limit(80);
+    );
+
+  if (view === "directory") {
+    agentsQ = agentsQ
+      .eq("status", "directory")
+      .order("company_name", { ascending: true })
+      .limit(1200);
+  } else if (view === "pending") {
+    agentsQ = agentsQ
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(200);
+  } else if (view === "all") {
+    agentsQ = agentsQ
+      .order("company_name", { ascending: true })
+      .limit(1200);
+  } else {
+    agentsQ = agentsQ
+      .in("status", ["pending", "approved", "demo", "rejected"])
+      .order("created_at", { ascending: false })
+      .limit(200);
+  }
+
+  const pinAgentsQ = admin
+    .from("agents")
+    .select("id, company_name, market, status")
+    .in("status", ["approved", "demo"])
+    .order("company_name")
+    .limit(200);
 
   const ledgerQ = propertyId
     ? admin
@@ -86,11 +130,35 @@ export default async function ErpAgentsPage() {
         .limit(30)
     : Promise.resolve({ data: [] as Record<string, unknown>[], error: null });
 
-  const [agentsRes, ledgerRes] = await Promise.all([agentsQ, ledgerQ]);
+  const countsQ = Promise.all([
+    admin
+      .from("agents")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending"),
+    admin
+      .from("agents")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "directory"),
+    admin
+      .from("agents")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["approved", "demo"]),
+  ]);
+
+  const [agentsRes, ledgerRes, countRes, pinAgentsRes] = await Promise.all([
+    agentsQ,
+    ledgerQ,
+    countsQ,
+    pinAgentsQ,
+  ]);
 
   if (agentsRes.error) {
     console.error("erp/agents agents query failed", agentsRes.error);
   }
+
+  const pendingCount = countRes[0].count ?? 0;
+  const directoryCount = countRes[1].count ?? 0;
+  const tradeCount = countRes[2].count ?? 0;
 
   const agentRows = (agentsRes.data ?? []) as unknown as AgentRaw[];
   const ledger = ledgerRes.data ?? [];
@@ -116,7 +184,8 @@ export default async function ErpAgentsPage() {
 
   const agentIds = agents.map((a) => a.id);
   let docRows: AgentDocRaw[] = [];
-  if (agentIds.length) {
+  if (agentIds.length && view !== "directory") {
+    // Directory bulk view skips document hydrate for performance.
     const docsRes = await admin
       .from("agent_documents")
       .select("id, kind, doc_url, doc_name, notes, uploaded_by, created_at, agent_id")
@@ -136,13 +205,27 @@ export default async function ErpAgentsPage() {
     docsByAgent.set(doc.agent_id, arr);
   }
 
-  const pendingCount = agents.filter((a) => a.status === "pending").length;
   const totalApprovedCredit = agents
     .filter((a) => a.status === "approved" || a.status === "demo")
     .reduce((sum, a) => sum + a.credit_limit, 0);
   const totalUsedCredit = agents
     .filter((a) => a.status === "approved" || a.status === "demo")
     .reduce((sum, a) => sum + a.credit_used, 0);
+
+  const filterTabs: { key: ViewFilter; label: string; count?: number }[] = [
+    { key: "trade", label: "Trade partners", count: tradeCount + pendingCount },
+    { key: "pending", label: "Pending", count: pendingCount },
+    { key: "directory", label: "TCB directory", count: directoryCount },
+    { key: "all", label: "All" },
+  ];
+
+  const emptyByView: Record<ViewFilter, string> = {
+    trade: "No trade partners or applications yet.",
+    pending: "No pending applications.",
+    directory:
+      "No TCB directory operators yet. Run from web/: node --env-file=.env.local scripts/import-tcb-tour-operators.mjs after migrating status=directory.",
+    all: "No agents yet.",
+  };
 
   return (
     <div className="erp mx-auto w-full max-w-[1200px] space-y-10 p-4 md:p-6">
@@ -166,14 +249,54 @@ export default async function ErpAgentsPage() {
           </p>
           <p className="max-w-2xl text-sm text-muted-foreground">
             Approve applications, set MoU/demo status, credit limits, and record
-            credit payments. Markets: Bhutan, Jaigaon, India.
+            credit payments. Markets: Bhutan, Jaigaon, India. TCB directory
+            operators are searchable on bookings but are not credit partners
+            until you Approve.
           </p>
         </header>
+
+        <nav
+          className="flex flex-wrap gap-2"
+          aria-label="Agent list filters"
+        >
+          {filterTabs.map((tab) => {
+            const active = view === tab.key;
+            const href =
+              tab.key === "trade"
+                ? "/erp/agents"
+                : `/erp/agents?view=${tab.key}`;
+            return (
+              <Link
+                key={tab.key}
+                href={href}
+                className={
+                  active
+                    ? "inline-flex h-9 items-center rounded-md bg-espresso px-3 text-sm font-medium text-ivory"
+                    : "inline-flex h-9 items-center rounded-md border border-border bg-card px-3 text-sm font-medium text-foreground hover:bg-muted"
+                }
+                aria-current={active ? "page" : undefined}
+              >
+                {tab.label}
+                {tab.count != null ? (
+                  <span
+                    className={
+                      active
+                        ? "ml-2 tabular-nums text-ivory/80"
+                        : "ml-2 tabular-nums text-muted-foreground"
+                    }
+                  >
+                    {tab.count}
+                  </span>
+                ) : null}
+              </Link>
+            );
+          })}
+        </nav>
 
         {agents.length === 0 ? (
           <Card>
             <CardContent className="py-6 text-sm text-muted-foreground">
-              No agent applications yet.
+              {emptyByView[view]}
             </CardContent>
           </Card>
         ) : (
@@ -185,6 +308,7 @@ export default async function ErpAgentsPage() {
             }
           >
             <AgentsAccordionTable
+              filter={view}
               data={agents.map((row) => ({
                 ...row,
                 documents: (docsByAgent.get(row.id) ?? []).map((d) => ({
@@ -198,7 +322,7 @@ export default async function ErpAgentsPage() {
                   created_at: d.created_at,
                 })),
               }))}
-              emptyMessage="No agent applications yet."
+              emptyMessage={emptyByView[view]}
             />
           </Suspense>
         )}
@@ -213,17 +337,15 @@ export default async function ErpAgentsPage() {
               installable Work app at{" "}
               <code className="font-mono text-xs">/agents/app</code> to book on
               their rate and see their own bookings. PINs are stored only in
-              Supabase Auth.
+              Supabase Auth. Directory listings are not eligible.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <AgentPinProvisionForm
-              agents={agents
-                .filter((a) => a.status === "approved" || a.status === "demo")
-                .map((a) => ({
-                  id: a.id,
-                  label: `${a.company_name} · ${a.market}`,
-                }))}
+              agents={(pinAgentsRes.data ?? []).map((a) => ({
+                id: a.id as string,
+                label: `${a.company_name as string} · ${a.market as string}`,
+              }))}
             />
           </CardContent>
         </Card>
@@ -237,6 +359,7 @@ export default async function ErpAgentsPage() {
               Per-agent <code className="font-mono text-xs">rate_tier</code>{" "}
               (agents, mou_agents, etc.) selects which column group applies at
               booking. Base Nu amounts live on the Room rates sheet — not here.
+              Directory operators use public rates until approved.
             </CardDescription>
           </CardHeader>
           <CardContent>

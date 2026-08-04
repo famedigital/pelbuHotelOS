@@ -8,6 +8,9 @@ import {
 } from "@/components/erp/RoomRackGrid";
 import { DeskOfflineQueueStrip } from "@/components/erp/DeskOfflineQueueStrip";
 import type { CalendarAgent } from "@/components/erp/CalendarReservationDialog";
+import {
+  BOOKABLE_AGENT_STATUSES,
+} from "@/lib/agents/status";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { thimphuToday } from "@/lib/erp-lists";
 import { requireDeskPropertyId } from "@/lib/desk-property";
@@ -92,7 +95,7 @@ export default async function CalendarPage({ searchParams }: Props) {
       admin
         .from("agents")
         .select("id, company_name, market, status")
-        .in("status", ["approved", "demo"])
+        .in("status", [...BOOKABLE_AGENT_STATUSES])
         .order("company_name"),
       admin
         .from("bookings")

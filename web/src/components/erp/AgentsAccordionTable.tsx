@@ -26,7 +26,9 @@ function StatusPill({ status }: { status: string }) {
         ? "border-destructive/40 bg-destructive/5 text-destructive"
         : status === "demo"
           ? "border-accent/30 bg-accent/10 text-accent"
-          : "border-border bg-muted text-muted-foreground";
+          : status === "directory"
+            ? "border-border bg-muted/80 text-foreground/80"
+            : "border-border bg-muted text-muted-foreground";
   return (
     <span
       className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase whitespace-nowrap ${tone}`}
@@ -108,15 +110,34 @@ function MobileRowSummary({ row }: { row: AgentAccordionRow }) {
 export function AgentsAccordionTable({
   data,
   emptyMessage = "No agents match.",
+  filter = "trade",
 }: {
   data: AgentAccordionRow[];
   emptyMessage?: string;
+  /** trade = non-directory default desk view; directory = TCB listings only; all = no filter */
+  filter?: "trade" | "directory" | "pending" | "all";
 }) {
   const searchParams = useSearchParams();
   const deepLinkId = searchParams.get("id");
+
+  const filtered = (() => {
+    if (filter === "all") return data;
+    if (filter === "directory") {
+      return data.filter((r) => r.status === "directory");
+    }
+    if (filter === "pending") {
+      return data.filter((r) => r.status === "pending");
+    }
+    // trade partners: applications + approved/demo — not mass directory
+    return data.filter((r) => r.status !== "directory");
+  })();
+
   const matchedDeepLink =
-    deepLinkId && data.some((r) => r.id === deepLinkId || r.id.startsWith(deepLinkId))
-      ? data.find((r) => r.id === deepLinkId || r.id.startsWith(deepLinkId))?.id
+    deepLinkId &&
+    filtered.some((r) => r.id === deepLinkId || r.id.startsWith(deepLinkId))
+      ? filtered.find(
+          (r) => r.id === deepLinkId || r.id.startsWith(deepLinkId),
+        )?.id
       : undefined;
 
   const [openId, setOpenId] = useState<string | undefined>(matchedDeepLink);
@@ -125,7 +146,7 @@ export function AgentsAccordionTable({
     if (matchedDeepLink) setOpenId(matchedDeepLink);
   }, [matchedDeepLink]);
 
-  if (data.length === 0) {
+  if (filtered.length === 0) {
     return (
       <p className="rounded-xl border border-border bg-card px-4 py-6 text-sm text-muted-foreground">
         {emptyMessage}
@@ -153,7 +174,7 @@ export function AgentsAccordionTable({
         <span className="hidden xl:inline">Action</span>
       </div>
 
-      {data.map((row) => (
+      {filtered.map((row) => (
         <AccordionItem
           key={row.id}
           value={row.id}

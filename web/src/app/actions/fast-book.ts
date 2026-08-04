@@ -1,6 +1,10 @@
 "use server";
 
 import { chargeAgentCredit } from "@/app/actions/erp-agents";
+import {
+  isBookableAgentStatus,
+  isCreditAgentStatus,
+} from "@/lib/agents/status";
 import { enqueueAfterBookingChange } from "@/lib/channel/ari-queue";
 import { soldQtyByRoomType } from "@/lib/inventory-availability";
 import {
@@ -229,8 +233,18 @@ export async function createFastBooking(
         .select("id, status, rate_tier")
         .eq("id", agentId)
         .maybeSingle();
-      if (!agent || !["approved", "demo"].includes(agent.status as string)) {
-        throw new Error("Agent must be approved (or demo) to book.");
+      if (!agent || !isBookableAgentStatus(agent.status as string)) {
+        throw new Error(
+          "Agent must be approved, demo, or directory to attach to a booking.",
+        );
+      }
+      if (
+        paymentMode === "on_credit" &&
+        !isCreditAgentStatus(agent.status as string)
+      ) {
+        throw new Error(
+          "On-credit stays require an approved or demo trade partner (directory listings have no credit).",
+        );
       }
       tier = agentRateTier(agent.rate_tier as string);
     }

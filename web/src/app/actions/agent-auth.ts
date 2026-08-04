@@ -8,6 +8,7 @@ import {
   provisionAgentAuthUser,
   validateAgentPin,
 } from "@/lib/agent-auth";
+import { CREDIT_AGENT_STATUSES, isCreditAgentStatus } from "@/lib/agents/status";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { trimRequired } from "@/lib/validation";
@@ -43,7 +44,7 @@ export async function agentLogin(
       .from("agents")
       .select("id, company_name, login_code, auth_user_id, can_login, status")
       .eq("login_code", loginCode)
-      .in("status", ["approved", "demo"])
+      .in("status", [...CREDIT_AGENT_STATUSES])
       .maybeSingle();
 
     if (error) throw new Error("Could not look up agent login.");
@@ -109,7 +110,7 @@ export async function setAgentPortalPin(
       .eq("id", agentId)
       .maybeSingle();
     if (error || !agent) throw new Error("Agent not found.");
-    if (!["approved", "demo"].includes(agent.status as string)) {
+    if (!isCreditAgentStatus(agent.status as string)) {
       throw new Error("Only approved or demo agents can receive a login PIN.");
     }
 

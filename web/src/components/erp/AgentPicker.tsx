@@ -315,7 +315,14 @@ export function AgentPicker({
   const options = merged.map((a) => ({
     value: a.id,
     label: a.company_name,
-    hint: [a.market, a.status === "demo" ? "demo" : null]
+    hint: [
+      a.market,
+      a.status === "demo"
+        ? "demo"
+        : a.status === "directory"
+          ? "directory"
+          : null,
+    ]
       .filter(Boolean)
       .join(" · "),
   }));

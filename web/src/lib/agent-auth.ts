@@ -1,3 +1,4 @@
+import { isCreditAgentStatus } from "@/lib/agents/status";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
@@ -54,7 +55,7 @@ export async function getAgentSession(): Promise<AgentSession | null> {
   if (
     !data ||
     !data.can_login ||
-    !["approved", "demo"].includes(data.status as string)
+    !isCreditAgentStatus(data.status as string)
   ) {
     return null;
   }

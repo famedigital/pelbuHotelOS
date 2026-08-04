@@ -1,6 +1,10 @@
 "use server";
 
 import { chargeAgentCredit } from "@/app/actions/erp-agents";
+import {
+  isBookableAgentStatus,
+  isCreditAgentStatus,
+} from "@/lib/agents/status";
 import { writeAuditEvent } from "@/lib/audit";
 import { enqueueAfterBookingChange } from "@/lib/channel/ari-queue";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
@@ -85,6 +89,32 @@ function rateTierFromSource(source: string): RateTier {
   return "public";
 }
 
+async function assertAgentAttachable(
+  admin: ReturnType<typeof createSupabaseAdminClient>,
+  agentId: string | null,
+  paymentMode: string,
+) {
+  if (!agentId) return;
+  const { data: agent } = await admin
+    .from("agents")
+    .select("id, status")
+    .eq("id", agentId)
+    .maybeSingle();
+  if (!agent || !isBookableAgentStatus(agent.status as string)) {
+    throw new Error(
+      "Agent must be approved, demo, or directory to attach to a booking.",
+    );
+  }
+  if (
+    paymentMode === "on_credit" &&
+    !isCreditAgentStatus(agent.status as string)
+  ) {
+    throw new Error(
+      "On-credit stays require an approved or demo trade partner (directory listings have no credit).",
+    );
+  }
+}
+
 async function estimateAndChargeCredit(
   admin: ReturnType<typeof createSupabaseAdminClient>,
   args: {
@@ -106,7 +136,7 @@ async function estimateAndChargeCredit(
     .select("id, status, rate_tier")
     .eq("id", args.agentId)
     .maybeSingle();
-  if (!agent || !["approved", "demo"].includes(agent.status as string)) {
+  if (!agent || !isCreditAgentStatus(agent.status as string)) {
     throw new Error("Agent must be approved (or demo) to book on credit.");
   }
   const tier = agentRateTier(agent.rate_tier as string) ?? rateTierFromSource(args.source);
@@ -271,7 +301,7 @@ function parseCommon(formData: FormData): CommonFields {
       : "cash";
 
   if ((source === "agent" || source === "mou_agent") && !agentId) {
-    throw new Error("Select an approved agent for agent bookings.");
+    throw new Error("Select an agent for agent bookings.");
   }
   if (guestOrigin === "international" && !guideNumber) {
     throw new Error(
@@ -345,6 +375,7 @@ export async function createCalendarReservation(
 
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
+    await assertAgentAttachable(admin, common.agentId, common.paymentMode);
     const soldByStaffId = await resolveSoldByStaffId(
       admin,
       propertyId,
@@ -544,6 +575,7 @@ export async function createCalendarGroupReservation(
     }
 
     const propertyId = await resolveActivePropertyId(admin);
+    await assertAgentAttachable(admin, common.agentId, common.paymentMode);
     const soldByStaffId = await resolveSoldByStaffId(
       admin,
       propertyId,
@@ -1403,7 +1435,7 @@ export async function updateCalendarReservationDetails(
     const adults = Math.max(1, Math.min(48, Math.floor(Number(input.adults))));
     if (!Number.isFinite(adults)) throw new Error("Adults must be a number.");
     if ((source === "agent" || source === "mou_agent") && !agentId) {
-      throw new Error("Select an approved agent for agent bookings.");
+      throw new Error("Select an agent for agent bookings.");
     }
     if (input.guestOrigin === "international" && !guideNumber) {
       throw new Error("Guide number is required for international tourists.");
@@ -1427,8 +1459,10 @@ export async function updateCalendarReservationDetails(
         .select("status")
         .eq("id", agentId)
         .maybeSingle();
-      if (!agent || !["approved", "demo"].includes(agent.status as string)) {
-        throw new Error("Agent must be approved (or demo).");
+      if (!agent || !isBookableAgentStatus(agent.status as string)) {
+        throw new Error(
+          "Agent must be approved, demo, or directory to attach to a booking.",
+        );
       }
     }
 

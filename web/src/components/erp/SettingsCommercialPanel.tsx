@@ -42,27 +42,34 @@ export function SettingsCommercialPanel({
   return (
     <section className="rounded-xl border bg-card p-5 md:p-6">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-            Commercial
+            Money defaults
           </p>
           <h2 className="text-xl font-semibold tracking-tight text-foreground">
-            Rates &amp; meals
+            Meals &amp; desk defaults
           </h2>
           <p className="max-w-2xl text-sm text-muted-foreground">
-            Toggle meal plans, set Nu per adult per night, and optional child
-            override. Blank child amount ={" "}
+            Desk meal plans, extra bed, commission, and whether quote rates
+            include GST + service charge. Room package prices live on the rates
+            sheet — not here.
+          </p>
+          <p className="max-w-2xl text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">
+              What this controls:{" "}
+            </span>
+            default meal on new stays, child meal Nu (blank child ={" "}
             <strong className="font-medium text-foreground">
-              auto 50% of adult (ages 6–12)
+              50% of adult ages 6–12
             </strong>
-            ; ages 0–6 stay free. Extra bed rate and desk default live here too.
+            ; 0–6 free), and GST inclusion flag on quotes.
           </p>
         </div>
         <Link
           href="/erp/rates"
-          className="inline-flex h-10 items-center rounded-md border px-4 text-sm text-foreground hover:bg-muted"
+          className="inline-flex h-10 items-center rounded-md border border-accent/30 bg-accent/5 px-4 text-sm font-medium text-foreground hover:bg-accent/10"
         >
-          Room rates sheet →
+          Edit room rates →
         </Link>
       </div>
 

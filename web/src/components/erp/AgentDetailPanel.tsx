@@ -62,6 +62,7 @@ function StatusForm({ agent, compact }: { agent: DeskAgentRow; compact?: boolean
             <option value="pending">Pending</option>
             <option value="approved">Approved</option>
             <option value="demo">Demo</option>
+            <option value="directory">Directory (TCB listing)</option>
             <option value="rejected">Rejected</option>
           </select>
         </label>

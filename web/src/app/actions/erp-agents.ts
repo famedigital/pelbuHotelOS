@@ -1,5 +1,9 @@
 "use server";
 
+import {
+  isAgentStatus,
+  isCreditAgentStatus,
+} from "@/lib/agents/status";
 import { isDeskAuthenticated, requireMoneyDesk } from "@/lib/desk-auth";
 import { postFolioPaymentRecord, rollbackFolioPaymentRecord } from "@/lib/folio/post-payment";
 import { roundBtn } from "@/lib/pricing";
@@ -8,7 +12,6 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired, assertOptionalEmail, assertPhone } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
 
-const STATUSES = new Set(["pending", "approved", "rejected", "demo"]);
 const RATE_TIERS = new Set([
   "public",
   "friends",
@@ -196,8 +199,10 @@ export async function updateAgentDeskStatus(
     const admin = createSupabaseAdminClient();
     const agentId = trimRequired(formData.get("agent_id"), "Agent");
     const status = trimRequired(formData.get("status"), "Status").toLowerCase();
-    if (!STATUSES.has(status)) {
-      throw new Error("Status must be pending, approved, rejected, or demo.");
+    if (!isAgentStatus(status)) {
+      throw new Error(
+        "Status must be pending, approved, rejected, demo, or directory.",
+      );
     }
 
     const rateTierRaw = optionalTrim(formData.get("rate_tier"));
@@ -245,10 +250,15 @@ export async function setAgentCreditLimit(
 
     const { data: agent, error: fetchError } = await admin
       .from("agents")
-      .select("id, credit_used, credit_limit")
+      .select("id, credit_used, credit_limit, status")
       .eq("id", agentId)
       .single();
     if (fetchError || !agent) throw new Error("Agent not found.");
+    if (!isCreditAgentStatus(agent.status as string)) {
+      throw new Error(
+        "Credit limits apply only to approved or demo trade partners. Approve this agent first.",
+      );
+    }
 
     const used = Number(agent.credit_used ?? 0);
     if (creditLimit < used) {
@@ -413,7 +423,7 @@ export async function chargeAgentCredit(
     .single();
   if (error || !agent) throw new Error("Agent not found for credit charge.");
 
-  if (!["approved", "demo"].includes(agent.status as string)) {
+  if (!isCreditAgentStatus(agent.status as string)) {
     throw new Error("Agent must be approved or demo to use credit.");
   }
 

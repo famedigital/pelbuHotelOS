@@ -3,6 +3,9 @@ import {
   BookingGroupCreateForm,
 } from "@/components/erp/P9OpsForms";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  BOOKABLE_AGENT_STATUSES,
+} from "@/lib/agents/status";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { fmtDate } from "@/lib/erp-lists";
 import { requireDeskPropertyId } from "@/lib/desk-property";
@@ -63,10 +66,10 @@ export default async function GroupDeskPage() {
       .limit(50),
     admin
       .from("agents")
-      .select("id, company_name")
-      .eq("status", "approved")
+      .select("id, company_name, status")
+      .in("status", [...BOOKABLE_AGENT_STATUSES])
       .order("company_name")
-      .limit(80),
+      .limit(1000),
     admin
       .from("bookings")
       .select("id, contact_name, check_in, status")

@@ -62,16 +62,23 @@ export function SettingsPoliciesPanel({
   return (
     <div className="space-y-6">
       <section className="rounded-xl border bg-card p-5 md:p-6">
-        <div className="mb-5 space-y-1">
+        <div className="mb-5 space-y-1.5">
           <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-            Policies
+            Guest stay
           </p>
           <h2 className="text-xl font-semibold tracking-tight text-foreground">
-            Booking &amp; house rules
+            Policies &amp; Wi‑Fi
           </h2>
           <p className="max-w-2xl text-sm text-muted-foreground">
-            Prebuilt Olakha defaults — edit anytime. MoU agents get free cancel
-            when enabled below.
+            Stay times, Wi‑Fi credentials, cancel rules, and guest pack copy.
+            Edit anytime — MoU agents get free cancel when enabled below.
+          </p>
+          <p className="max-w-2xl text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">
+              What this controls:{" "}
+            </span>
+            check-in board messaging, guest WhatsApp pack, and cancel / fee
+            enforcement at the desk
           </p>
         </div>
 
@@ -84,155 +91,178 @@ export function SettingsPoliciesPanel({
         <form action={action}>
           <input type="hidden" name="property_id" value={propertyId} />
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="free_cancel_days">Free cancel (direct, days before)</Label>
-              <Input
-                id="free_cancel_days"
-                name="free_cancel_days"
-                type="number"
-                min={0}
-                defaultValue={policy.free_cancel_days}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="no_show_nights">No-show charge (nights)</Label>
-              <Input
-                id="no_show_nights"
-                name="no_show_nights"
-                type="number"
-                min={0}
-                defaultValue={policy.no_show_nights}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="early_checkout_fee_btn">
-                Early checkout fee (Nu)
-              </Label>
-              <Input
-                id="early_checkout_fee_btn"
-                name="early_checkout_fee_btn"
-                type="number"
-                min={0}
-                step="0.01"
-                defaultValue={policy.early_checkout_fee_btn ?? ""}
-                placeholder="0"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="late_checkout_fee_btn">
-                Late checkout fee (Nu)
-              </Label>
-              <Input
-                id="late_checkout_fee_btn"
-                name="late_checkout_fee_btn"
-                type="number"
-                min={0}
-                step="0.01"
-                defaultValue={policy.late_checkout_fee_btn ?? ""}
-                placeholder="0"
-              />
-            </div>
-          </div>
+          <div className="space-y-8">
+            <fieldset className="space-y-4">
+              <legend className="text-sm font-semibold text-foreground">
+                Stay times &amp; Wi‑Fi
+              </legend>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="check_in_time">Check-in time</Label>
+                  <Input
+                    id="check_in_time"
+                    name="check_in_time"
+                    defaultValue={policy.check_in_time ?? ""}
+                    placeholder="14:00"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="check_out_time">Check-out time</Label>
+                  <Input
+                    id="check_out_time"
+                    name="check_out_time"
+                    defaultValue={policy.check_out_time ?? ""}
+                    placeholder="11:00"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="quiet_hours">Quiet hours</Label>
+                  <Input
+                    id="quiet_hours"
+                    name="quiet_hours"
+                    defaultValue={policy.quiet_hours ?? ""}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="wifi_name">Wi‑Fi name</Label>
+                  <Input
+                    id="wifi_name"
+                    name="wifi_name"
+                    defaultValue={policy.wifi_name ?? ""}
+                  />
+                </div>
+                <div className="space-y-1.5 md:col-span-2">
+                  <Label htmlFor="wifi_password">Wi‑Fi password</Label>
+                  <Input
+                    id="wifi_password"
+                    name="wifi_password"
+                    defaultValue={policy.wifi_password ?? ""}
+                  />
+                </div>
+              </div>
+            </fieldset>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <PolicyToggle
-              id="late_cancel_forfeit_deposit"
-              name="late_cancel_forfeit_deposit"
-              label="Late cancel forfeits deposit"
-              defaultChecked={policy.late_cancel_forfeit_deposit}
-            />
-            <PolicyToggle
-              id="mou_free_cancel"
-              name="mou_free_cancel"
-              label="MoU agents — free cancel anytime"
-              defaultChecked={policy.mou_free_cancel}
-            />
-            <PolicyToggle
-              id="mou_waive_no_show"
-              name="mou_waive_no_show"
-              label="MoU agents — waive no-show fee"
-              defaultChecked={policy.mou_waive_no_show}
-            />
-          </div>
+            <fieldset className="space-y-4 border-t pt-6">
+              <legend className="text-sm font-semibold text-foreground">
+                Cancel &amp; fees
+              </legend>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="free_cancel_days">
+                    Free cancel (direct, days before)
+                  </Label>
+                  <Input
+                    id="free_cancel_days"
+                    name="free_cancel_days"
+                    type="number"
+                    min={0}
+                    defaultValue={policy.free_cancel_days}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="no_show_nights">No-show charge (nights)</Label>
+                  <Input
+                    id="no_show_nights"
+                    name="no_show_nights"
+                    type="number"
+                    min={0}
+                    defaultValue={policy.no_show_nights}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="early_checkout_fee_btn">
+                    Early checkout fee (Nu)
+                  </Label>
+                  <Input
+                    id="early_checkout_fee_btn"
+                    name="early_checkout_fee_btn"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    defaultValue={policy.early_checkout_fee_btn ?? ""}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="late_checkout_fee_btn">
+                    Late checkout fee (Nu)
+                  </Label>
+                  <Input
+                    id="late_checkout_fee_btn"
+                    name="late_checkout_fee_btn"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    defaultValue={policy.late_checkout_fee_btn ?? ""}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <PolicyToggle
+                  id="late_cancel_forfeit_deposit"
+                  name="late_cancel_forfeit_deposit"
+                  label="Late cancel forfeits deposit"
+                  defaultChecked={policy.late_cancel_forfeit_deposit}
+                />
+                <PolicyToggle
+                  id="mou_free_cancel"
+                  name="mou_free_cancel"
+                  label="MoU agents — free cancel anytime"
+                  defaultChecked={policy.mou_free_cancel}
+                />
+                <PolicyToggle
+                  id="mou_waive_no_show"
+                  name="mou_waive_no_show"
+                  label="MoU agents — waive no-show fee"
+                  defaultChecked={policy.mou_waive_no_show}
+                />
+              </div>
+            </fieldset>
 
-          <div className="mt-4 space-y-1.5">
-            <Label htmlFor="guest_summary">Guest policy summary</Label>
-            <Textarea
-              id="guest_summary"
-              name="guest_summary"
-              rows={3}
-              defaultValue={policy.guest_summary ?? ""}
-            />
-          </div>
-          <div className="mt-4 space-y-1.5">
-            <Label htmlFor="house_rules">House rules</Label>
-            <Textarea
-              id="house_rules"
-              name="house_rules"
-              rows={3}
-              defaultValue={policy.house_rules ?? ""}
-            />
-          </div>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="dos">Do&apos;s</Label>
-              <Textarea id="dos" name="dos" rows={4} defaultValue={policy.dos ?? ""} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="donts">Don&apos;ts</Label>
-              <Textarea
-                id="donts"
-                name="donts"
-                rows={4}
-                defaultValue={policy.donts ?? ""}
-              />
-            </div>
-          </div>
-
-          <div className="mt-4 grid gap-4 md:grid-cols-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="check_in_time">Check-in time</Label>
-              <Input
-                id="check_in_time"
-                name="check_in_time"
-                defaultValue={policy.check_in_time ?? ""}
-                placeholder="14:00"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="check_out_time">Check-out time</Label>
-              <Input
-                id="check_out_time"
-                name="check_out_time"
-                defaultValue={policy.check_out_time ?? ""}
-                placeholder="11:00"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="quiet_hours">Quiet hours</Label>
-              <Input
-                id="quiet_hours"
-                name="quiet_hours"
-                defaultValue={policy.quiet_hours ?? ""}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="wifi_name">Wi‑Fi name</Label>
-              <Input
-                id="wifi_name"
-                name="wifi_name"
-                defaultValue={policy.wifi_name ?? ""}
-              />
-            </div>
-            <div className="space-y-1.5 md:col-span-2">
-              <Label htmlFor="wifi_password">Wi‑Fi password</Label>
-              <Input
-                id="wifi_password"
-                name="wifi_password"
-                defaultValue={policy.wifi_password ?? ""}
-              />
-            </div>
+            <fieldset className="space-y-4 border-t pt-6">
+              <legend className="text-sm font-semibold text-foreground">
+                Guest pack
+              </legend>
+              <div className="space-y-1.5">
+                <Label htmlFor="guest_summary">Guest policy summary</Label>
+                <Textarea
+                  id="guest_summary"
+                  name="guest_summary"
+                  rows={3}
+                  defaultValue={policy.guest_summary ?? ""}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="house_rules">House rules</Label>
+                <Textarea
+                  id="house_rules"
+                  name="house_rules"
+                  rows={3}
+                  defaultValue={policy.house_rules ?? ""}
+                />
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="dos">Do&apos;s</Label>
+                  <Textarea
+                    id="dos"
+                    name="dos"
+                    rows={4}
+                    defaultValue={policy.dos ?? ""}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="donts">Don&apos;ts</Label>
+                  <Textarea
+                    id="donts"
+                    name="donts"
+                    rows={4}
+                    defaultValue={policy.donts ?? ""}
+                  />
+                </div>
+              </div>
+            </fieldset>
           </div>
 
           <Button type="submit" className="mt-6 h-11" disabled={pending}>
@@ -243,10 +273,15 @@ export function SettingsPoliciesPanel({
 
       <section className="rounded-xl border bg-card p-5 md:p-6">
         <div className="mb-5 space-y-1">
-          <h3 className="text-lg font-semibold text-foreground">Damage catalog</h3>
+          <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+            Damage
+          </p>
+          <h3 className="text-lg font-semibold text-foreground">
+            Damage catalog
+          </h3>
           <p className="text-sm text-muted-foreground">
-            Nu placeholders for folio Post damage and guest pack. Blank = manager
-            prices on the spot.
+            Nu placeholders for folio Post damage and guest pack. Blank =
+            manager prices on the spot.
           </p>
         </div>
         <ul className="divide-y rounded-lg border">
