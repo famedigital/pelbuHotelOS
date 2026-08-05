@@ -351,6 +351,14 @@ export async function upsertStaffRolesAccess(
 
     const editorRole = await getDeskRole();
     const moduleKeysUpdate = parseDeskModuleKeysForUpdate(formData);
+
+    // Custom modules + desk off used to succeed while discarding keys — silent fail.
+    if (!canAccessDesk && Array.isArray(moduleKeysUpdate)) {
+      throw new Error(
+        "Turn on “Allow hotel desk (/erp)” and pick a desk role before saving ERP modules (e.g. POS).",
+      );
+    }
+
     // Module matrix fields are Owner/GM only; non-managers omit via module_mode=omit.
     if (moduleKeysUpdate !== undefined) {
       try {
@@ -400,7 +408,7 @@ export async function upsertStaffRolesAccess(
       .update(update)
       .eq("id", staffId)
       .eq("property_id", propertyId)
-      .select("id, full_name")
+      .select("id, full_name, can_access_desk, desk_role, desk_module_keys")
       .single();
     if (error || !data) {
       const detail = error?.message?.trim();
@@ -428,7 +436,18 @@ export async function upsertStaffRolesAccess(
     });
 
     refreshHr(staffId);
-    return { ok: true, message: "Desk access saved.", staffId };
+    const modulesMsg = !canAccessDesk
+      ? " Desk off — staff use /staff only (laundry, leave, payslips)."
+      : moduleKeysUpdate === null
+        ? " ERP modules: role defaults."
+        : Array.isArray(moduleKeysUpdate)
+          ? ` ERP modules: ${moduleKeysUpdate.join(", ")}.`
+          : "";
+    return {
+      ok: true,
+      message: `Desk access saved.${modulesMsg}`,
+      staffId,
+    };
   } catch (error) {
     return {
       ok: false,

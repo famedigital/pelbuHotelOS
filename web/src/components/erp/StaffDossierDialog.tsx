@@ -898,6 +898,29 @@ function ProfileStep({
 
 /* ─── Access ──────────────────────────────────────────────────────────── */
 
+function suggestDeskRoleFromOperational(
+  roleLabel: string | null | undefined,
+): DeskRole | "" {
+  const r = (roleLabel ?? "").toLowerCase();
+  if (
+    r === "fnb" ||
+    r === "kitchen" ||
+    r === "front_desk" ||
+    r === "cashier" ||
+    r === "hk" ||
+    r === "laundry" ||
+    r === "owner" ||
+    r === "gm"
+  ) {
+    return r as DeskRole;
+  }
+  if (r === "housekeeping") return "hk";
+  if (r === "manager") return "gm";
+  if (r === "barista" || r === "bar" || r === "waiter" || r === "server")
+    return "fnb";
+  return "";
+}
+
 function AccessStep({
   member,
   canEditModules,
@@ -908,16 +931,27 @@ function AccessStep({
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [resetPin, setResetPin] = useState(false);
-  const roleForDefaults = (member.deskRole as DeskRole | null) ?? "front_desk";
+  const [deskOn, setDeskOn] = useState(member.canAccessDesk);
+  const [deskRoleSelect, setDeskRoleSelect] = useState(
+    member.deskRole ?? suggestDeskRoleFromOperational(member.role) ?? "",
+  );
   const isOwner =
     member.accessLevel === "owner" || member.deskRole === "owner";
+  // Live preview of role defaults from the desk role being edited (not stale null→front_desk).
+  const roleForDefaults = (
+    isOwner
+      ? "owner"
+      : deskRoleSelect ||
+        member.deskRole ||
+        suggestDeskRoleFromOperational(member.role) ||
+        "front_desk"
+  ) as DeskRole;
   // Memoize: defaultModulesForDeskRole returns a new array every call.
   // Putting a fresh array in useEffect deps re-render-looped Access edit
   // (“Saving…” forever, browser thrash) whenever desk_module_keys is NULL.
   const roleDefaults = useMemo(
-    () =>
-      defaultModulesForDeskRole(isOwner ? "owner" : roleForDefaults),
-    [isOwner, roleForDefaults],
+    () => defaultModulesForDeskRole(roleForDefaults),
+    [roleForDefaults],
   );
   const [useDefaults, setUseDefaults] = useState(
     member.deskModuleKeys == null,
@@ -966,19 +1000,35 @@ function AccessStep({
 
   /** Seed form defaults only when opening edit — never in a render-looping effect. */
   function openAccessEdit() {
+    const suggested =
+      member.deskRole ||
+      suggestDeskRoleFromOperational(member.role) ||
+      "";
+    setDeskOn(member.canAccessDesk);
+    setDeskRoleSelect(suggested);
     setUseDefaults(member.deskModuleKeys == null);
+    const defaults = defaultModulesForDeskRole(
+      (isOwner
+        ? "owner"
+        : suggested || "front_desk") as DeskRole,
+    );
     setModuleKeys(
       member.deskModuleKeys != null
         ? [...member.deskModuleKeys]
-        : [...roleDefaults],
+        : [...defaults],
     );
     setResetPin(false);
     setEditing(true);
   }
 
-  const moduleSummary =
-    member.deskModuleKeys == null
-      ? `Role defaults (${roleDefaults.join(", ")})`
+  // ERP modules only apply on /erp when hotel desk is on. With desk off,
+  // role-default strings mislead HR into thinking staff PWA shows those items.
+  const moduleSummary = !member.canAccessDesk
+    ? "Not used — hotel desk is off (staff use /staff: laundry, leave, payslips)"
+    : member.deskModuleKeys == null
+      ? `Role defaults (${defaultModulesForDeskRole(
+          (isOwner ? "owner" : (member.deskRole as DeskRole) || "front_desk"),
+        ).join(", ")})`
       : member.deskModuleKeys.join(", ");
 
   const rows = [
@@ -1022,7 +1072,7 @@ function AccessStep({
     <div>
       <SectionToolbar
         title="Access"
-        description="Roles, desk dual-auth, modules, and portal PIN"
+        description="Roles, hotel desk (/erp), ERP modules, and portal PIN. Staff PWA (/staff) is separate: laundry, leave, payslips."
       >
         {!editing && !resetPin ? (
           <>
@@ -1088,14 +1138,32 @@ function AccessStep({
               <input
                 type="checkbox"
                 name="can_access_desk"
-                defaultChecked={member.canAccessDesk}
+                checked={deskOn}
+                onChange={(e) => {
+                  const on = e.target.checked;
+                  setDeskOn(on);
+                  if (on && !deskRoleSelect) {
+                    const s = suggestDeskRoleFromOperational(member.role);
+                    if (s) {
+                      setDeskRoleSelect(s);
+                      if (useDefaults) {
+                        setModuleKeys(
+                          defaultModulesForDeskRole(
+                            isOwner ? "owner" : s,
+                          ),
+                        );
+                      }
+                    }
+                  }
+                }}
                 className="mt-1 size-4 rounded border"
               />
               <span>
                 <span className="font-medium">Allow hotel desk (/erp)</span>
                 <span className="mt-1 block text-muted-foreground">
-                  Front desk / cashier / HK / F&amp;B need this on plus a desk
-                  role and portal PIN. Without it they can only use /staff.
+                  Required for POS, front desk, rooms, money. Without it they
+                  only use /staff (laundry, leave, payslips). Check this on
+                  before customizing ERP modules.
                 </span>
               </span>
             </label>
@@ -1103,7 +1171,19 @@ function AccessStep({
               <select
                 id="a_desk_role"
                 name="desk_role"
-                defaultValue={member.deskRole ?? ""}
+                value={deskRoleSelect}
+                disabled={!deskOn}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setDeskRoleSelect(next);
+                  if (useDefaults && next) {
+                    setModuleKeys(
+                      defaultModulesForDeskRole(
+                        (isOwner ? "owner" : next) as DeskRole,
+                      ),
+                    );
+                  }
+                }}
                 className={selectClass}
               >
                 <option value="">— none —</option>
@@ -1117,74 +1197,92 @@ function AccessStep({
                 <option value="laundry">Laundry</option>
               </select>
             </Field>
+            {deskOn && deskRoleSelect === "fnb" && useDefaults ? (
+              <p className="text-xs text-muted-foreground">
+                F&amp;B role defaults include <span className="font-medium">dashboard</span>{" "}
+                and <span className="font-medium">pos</span>.
+              </p>
+            ) : null}
 
             {canEditModules ? (
-              <div className="space-y-2 rounded-md border p-3">
-                <p className="text-sm font-medium">ERP modules</p>
-                <p className="text-xs text-muted-foreground">
-                  Owner / GM only. Full matrix on Team → Module access.
-                </p>
-                <input
-                  type="hidden"
-                  name="module_mode"
-                  value={useDefaults ? "defaults" : "custom"}
-                />
-                {!useDefaults
-                  ? moduleKeys.map((k) => (
-                      <input
-                        key={k}
-                        type="hidden"
-                        name="module_key"
-                        value={k}
-                      />
-                    ))
-                  : null}
-                <label className="flex min-h-10 items-center gap-2 text-sm">
+              deskOn ? (
+                <div className="space-y-2 rounded-md border p-3">
+                  <p className="text-sm font-medium">ERP modules</p>
+                  <p className="text-xs text-muted-foreground">
+                    Owner / GM only. Full matrix on Team → Module access.
+                  </p>
                   <input
-                    type="checkbox"
-                    checked={useDefaults}
-                    onChange={(e) => {
-                      setUseDefaults(e.target.checked);
-                      if (e.target.checked) setModuleKeys(roleDefaults);
-                    }}
-                    className="size-4 rounded border"
+                    type="hidden"
+                    name="module_mode"
+                    value={useDefaults ? "defaults" : "custom"}
                   />
-                  Use role defaults
-                </label>
-                <div
-                  className={`grid gap-2 sm:grid-cols-2 ${
-                    useDefaults ? "opacity-50" : ""
-                  }`}
-                >
-                  {DESK_MODULE_CATALOG.map((mod) => {
-                    const checked = useDefaults
-                      ? roleDefaults.includes(mod.key)
-                      : moduleKeys.includes(mod.key);
-                    return (
-                      <label
-                        key={mod.key}
-                        className="flex min-h-10 items-center gap-2 text-sm"
-                      >
+                  {!useDefaults
+                    ? moduleKeys.map((k) => (
                         <input
-                          type="checkbox"
-                          checked={checked}
-                          disabled={useDefaults || mod.key === "dashboard"}
-                          onChange={() => {
-                            if (mod.key === "dashboard") return;
-                            setModuleKeys((prev) =>
-                              prev.includes(mod.key)
-                                ? prev.filter((x) => x !== mod.key)
-                                : [...prev, mod.key],
-                            );
-                          }}
-                          className="size-4 rounded border"
+                          key={k}
+                          type="hidden"
+                          name="module_key"
+                          value={k}
                         />
-                        {mod.title}
-                      </label>
-                    );
-                  })}
+                      ))
+                    : null}
+                  <label className="flex min-h-10 items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={useDefaults}
+                      onChange={(e) => {
+                        setUseDefaults(e.target.checked);
+                        if (e.target.checked) setModuleKeys(roleDefaults);
+                      }}
+                      className="size-4 rounded border"
+                    />
+                    Use role defaults
+                  </label>
+                  <div
+                    className={`grid gap-2 sm:grid-cols-2 ${
+                      useDefaults ? "opacity-50" : ""
+                    }`}
+                  >
+                    {DESK_MODULE_CATALOG.map((mod) => {
+                      const checked = useDefaults
+                        ? roleDefaults.includes(mod.key)
+                        : moduleKeys.includes(mod.key);
+                      return (
+                        <label
+                          key={mod.key}
+                          className="flex min-h-10 items-center gap-2 text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={useDefaults || mod.key === "dashboard"}
+                            onChange={() => {
+                              if (mod.key === "dashboard") return;
+                              setModuleKeys((prev) =>
+                                prev.includes(mod.key)
+                                  ? prev.filter((x) => x !== mod.key)
+                                  : [...prev, mod.key],
+                              );
+                            }}
+                            className="size-4 rounded border"
+                          />
+                          {mod.title}
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  {/* Keep column unchanged while desk is off; prevent silent discard. */}
+                  <input type="hidden" name="module_mode" value="omit" />
+                  <p className="rounded-md border border-dashed px-3 py-3 text-xs text-muted-foreground">
+                    Turn on hotel desk and pick a desk role to set ERP modules
+                    (POS etc.). Leaving desk off keeps this person on the{" "}
+                    <span className="font-medium">/staff</span> app only.
+                  </p>
+                </>
+              )
             ) : (
               <input type="hidden" name="module_mode" value="omit" />
             )}
@@ -1250,7 +1348,7 @@ function AccessStep({
                 className="h-11 min-w-[8rem]"
                 disabled={pinPending}
               >
-                {pinPending ? "Saving…" : "Set PIN"}
+                {pinPending ? "Saving…" : "Save PIN"}
               </Button>
             </div>
           </form>
@@ -1292,7 +1390,7 @@ function AccessStep({
                           size="icon"
                           className="size-8"
                           aria-label={`Edit ${row.label}`}
-                          onClick={() => setEditing(true)}
+                          onClick={openAccessEdit}
                         >
                           <PencilIcon className="size-3.5" />
                         </Button>
