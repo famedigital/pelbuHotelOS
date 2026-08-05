@@ -3,7 +3,8 @@ export const SITE_NAME = "Pelbu Suites";
 export const SITE_DESCRIPTION =
   "Hotel in Olakha, Thimphu, Bhutan — quiet rooms, direct rates, live availability, restaurant, cafe, spa and meeting under one roof. A practical place to stay sleep and eat well.";
 
-const PRODUCTION_CANONICAL = "https://pelbusuites.bt";
+/** Public marketing origin for sitemap, robots, JSON-LD, metadataBase. */
+export const PRODUCTION_CANONICAL = "https://pelbusuites.bt";
 
 function isLocalHostHostname(hostname: string): boolean {
   const host = hostname.toLowerCase();
@@ -15,6 +16,11 @@ function isLocalHostHostname(hostname: string): boolean {
   );
 }
 
+/** Vercel deployment hosts must never appear in sitemap / GSC / schema. */
+function isVercelDeploymentHostname(hostname: string): boolean {
+  return hostname.toLowerCase().endsWith(".vercel.app");
+}
+
 function isLocalHostUrl(value: string): boolean {
   try {
     return isLocalHostHostname(new URL(value).hostname);
@@ -23,57 +29,69 @@ function isLocalHostUrl(value: string): boolean {
   }
 }
 
-function vercelOrigin(): string | null {
-  const raw = process.env.VERCEL_URL?.trim();
-  if (!raw) return null;
-  return raw.startsWith("http") ? raw : `https://${raw}`;
+function isVercelDeploymentUrl(value: string): boolean {
+  try {
+    return isVercelDeploymentHostname(new URL(value).hostname);
+  } catch {
+    return false;
+  }
 }
 
-function configuredOrigins(): string[] {
-  return [
-    process.env.NEXT_PUBLIC_APP_URL?.trim(),
-    process.env.NEXT_PUBLIC_SITE_URL?.trim(),
-    vercelOrigin(),
-  ].filter((value): value is string => Boolean(value));
+function onVercel(): boolean {
+  return Boolean(process.env.VERCEL || process.env.VERCEL_URL);
 }
 
-function pickOrigin(candidates: string[]): string | null {
-  const onVercel = Boolean(process.env.VERCEL || process.env.VERCEL_URL);
-  const inProduction = process.env.NODE_ENV === "production" || onVercel;
-  for (const candidate of candidates) {
-    if (inProduction && isLocalHostUrl(candidate)) continue;
+/**
+ * Origins that may be used for absolute public links.
+ * Rejects localhost on Vercel and always rejects *.vercel.app so sitemap
+ * never lists preview deployment URLs (GSC "URL not allowed").
+ */
+function firstUsableOrigin(candidates: Array<string | null | undefined>): string | null {
+  const vercel = onVercel();
+  for (const raw of candidates) {
+    const value = raw?.trim();
+    if (!value) continue;
+    if (isVercelDeploymentUrl(value)) continue;
+    if (vercel && isLocalHostUrl(value)) continue;
     try {
-      return new URL(candidate).origin;
+      return new URL(value).origin;
     } catch {
-      // Fall through to the next candidate.
+      // Fall through.
     }
   }
   return null;
 }
 
-/** Canonical public site origin — never localhost in production builds. */
+/**
+ * Canonical public site origin (sitemap / metadataBase / SEO).
+ * Prefer NEXT_PUBLIC_SITE_URL; never a Vercel deployment hostname.
+ */
 export function getSiteUrl(): URL {
   const origin =
-    pickOrigin(configuredOrigins()) ??
-    (typeof window !== "undefined" &&
-    !isLocalHostHostname(window.location.hostname)
-      ? window.location.origin
-      : PRODUCTION_CANONICAL);
+    firstUsableOrigin([
+      process.env.NEXT_PUBLIC_SITE_URL,
+      process.env.NEXT_PUBLIC_APP_URL,
+      typeof window !== "undefined" ? window.location.origin : null,
+    ]) ??
+    (onVercel() || process.env.NODE_ENV === "production"
+      ? PRODUCTION_CANONICAL
+      : "http://localhost:3000");
   return new URL(origin);
 }
 
-/** Absolute URL for QR codes, sitemap, and share links. */
+/**
+ * Absolute URL for QR codes, sitemap, share links, and schema.
+ * Prefer APP_URL when it is a real custom host; never *.vercel.app.
+ */
 export function absoluteUrl(path = "/"): string {
-  if (typeof window !== "undefined") {
-    const runtimeOrigin = pickOrigin([
-      ...configuredOrigins(),
-      window.location.origin,
-    ]);
-    if (runtimeOrigin) {
-      return new URL(path, runtimeOrigin).toString();
-    }
-  }
-  return new URL(path, getSiteUrl()).toString();
+  const origin =
+    firstUsableOrigin([
+      typeof window !== "undefined" ? null : process.env.NEXT_PUBLIC_APP_URL,
+      process.env.NEXT_PUBLIC_SITE_URL,
+      process.env.NEXT_PUBLIC_APP_URL,
+      typeof window !== "undefined" ? window.location.origin : null,
+    ]) ?? getSiteUrl().origin;
+  return new URL(path, origin).toString();
 }
 
 export const PUBLIC_INDEXABLE_ROUTES = [

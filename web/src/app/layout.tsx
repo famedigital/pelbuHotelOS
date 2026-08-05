@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Geist_Mono, Manrope } from "next/font/google";
+import { Suspense } from "react";
 import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 import { resolveShareImage } from "@/lib/og-share";
+import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 import { BrandSplash } from "@/components/pwa/BrandSplash";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { PwaRegistrar } from "@/components/pwa/PwaRegistrar";
@@ -124,6 +126,9 @@ export default function RootLayout({
       <body
         className={`${fontSans.variable} ${fontDisplay.variable} ${fontMono.variable} antialiased`}
       >
+        <Suspense fallback={null}>
+          <GoogleAnalytics />
+        </Suspense>
         <BrandSplash />
         <ThemeProvider
           attribute="class"

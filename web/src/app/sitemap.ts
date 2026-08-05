@@ -1,7 +1,4 @@
-import {
-  absoluteUrl,
-  PUBLIC_INDEXABLE_ROUTES,
-} from "@/lib/site";
+import { getSiteUrl, PUBLIC_INDEXABLE_ROUTES } from "@/lib/site";
 import { loadGuidePosts, loadPublicRooms } from "@/lib/public-content";
 import type { MetadataRoute } from "next";
 
@@ -30,6 +27,11 @@ const PRIORITY: Partial<Record<(typeof PUBLIC_INDEXABLE_ROUTES)[number], number>
     "/careers": 0.65,
   };
 
+/** Always brand domain — never VERCEL_URL / *.vercel.app for GSC. */
+function sitemapUrl(path: string): string {
+  return new URL(path, getSiteUrl()).toString();
+}
+
 /**
  * XML sitemap at /sitemap.xml for Google Search Console.
  * Only indexable public URLs — ERP/staff/pay stay out via robots + omission here.
@@ -43,7 +45,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const staticRoutes: MetadataRoute.Sitemap = PUBLIC_INDEXABLE_ROUTES.map(
     (path) => ({
-      url: absoluteUrl(path),
+      url: sitemapUrl(path),
       lastModified: now,
       changeFrequency:
         path === "/" || path === "/rooms" || path === "/rates" || path === "/menu"
@@ -56,7 +58,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   );
 
   const roomRoutes: MetadataRoute.Sitemap = rooms.map((room) => ({
-    url: absoluteUrl(`/rooms/${room.slug}`),
+    url: sitemapUrl(`/rooms/${room.slug}`),
     lastModified: now,
     changeFrequency: "weekly" as const,
     priority: 0.85,
@@ -64,7 +66,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   const guideRoutes: MetadataRoute.Sitemap = guides.map((post) => ({
-    url: absoluteUrl(`/guide/${post.slug}`),
+    url: sitemapUrl(`/guide/${post.slug}`),
     lastModified: new Date(post.updatedAt),
     changeFrequency: "monthly" as const,
     priority: 0.7,
