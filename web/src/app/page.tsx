@@ -1,6 +1,13 @@
+import { HomeAgents } from "@/components/home/HomeAgents";
+import { HomeFaqTeaser } from "@/components/home/HomeFaqTeaser";
 import { HomeHero } from "@/components/home/HomeHero";
+import { HomeInHouse } from "@/components/home/HomeInHouse";
+import { HomeProof } from "@/components/home/HomeProof";
 import { HomeRooms } from "@/components/home/HomeRooms";
 import { HomeStorySection } from "@/components/home/HomeStorySection";
+import { HomeTrustStrip } from "@/components/home/HomeTrustStrip";
+import { HomeWhy } from "@/components/home/HomeWhy";
+import { CmsContentSections } from "@/components/site/CmsContentSections";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { PublicSiteHeader } from "@/components/site/PublicSiteHeader";
 import { HOME_HERO_SLIDES } from "@/lib/brand";
@@ -10,48 +17,35 @@ import {
 } from "@/lib/cloudinary";
 import { loadCmsGallery, loadCmsPage } from "@/lib/cms";
 import { loadHomeShowcase } from "@/lib/home-content";
-import { loadHomepageStory, DEFAULT_HOMEPAGE_STORY } from "@/lib/home-story";
+import {
+  loadHomepageStory,
+  DEFAULT_HOMEPAGE_STORY,
+} from "@/lib/home-story";
 import { formatBtn } from "@/lib/pricing";
 import { loadPublicPropertyProfile } from "@/lib/public-property";
 import { loadPublicRoomsWithRates } from "@/lib/public-room-rates";
 import { safePublic } from "@/lib/public-safe";
 import { staySecondaryCta } from "@/lib/stay-conversion";
 import {
+  faqJsonLd,
   hotelJsonLd,
   serializeJsonLd,
   websiteJsonLd,
 } from "@/lib/structured-data";
-import { shareSocialMeta } from "@/lib/og-share";
+import { PAGE_SEO, metadataFromCms } from "@/lib/seo";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   const page = await safePublic("home-meta", () => loadCmsPage("home"), null);
-  const title =
-    page?.seo_title ?? "Pelbu Suites Olakha | Hotel in Thimphu, Bhutan";
-  const description =
-    page?.meta_description ??
-    "Book rooms direct at Pelbu Suites in Olakha, Thimphu — cafe, restaurant, spa and meeting under one roof.";
-  const social = shareSocialMeta({
-    title: page?.seo_title ?? "Pelbu Suites Olakha | Hotel in Thimphu",
-    description:
-      page?.meta_description ??
-      "A calm Olakha base for stays, meals and recovery — direct rates, live availability.",
+  return metadataFromCms(page, {
+    title: PAGE_SEO.home.title,
+    description: PAGE_SEO.home.description,
     path: "/",
-    publicId: page?.og_public_id,
-    alt: "Pelbu Suites hotel in Olakha, Thimphu",
   });
-
-  return {
-    title,
-    description,
-    alternates: { canonical: "/" },
-    ...social,
-  };
 }
 
-/** Alt text doubles as the on-slide caption, so keep the leading phrase short. */
 function heroLabel(alt: string, fallback: string): string {
   const lead = alt.split(/[—,·|]/)[0]?.trim();
   return lead && lead.length <= 40 ? lead : fallback;
@@ -63,8 +57,13 @@ function digitsPhone(value: string | null | undefined): string | null {
   return d || null;
 }
 
+/**
+ * Conversion spine (aabdcaa) + optional ERP story bands:
+ * Hero → Trust → Proof → [About] → Rooms → Why → In-house →
+ * [Restaurant / Lunch / Cafe / Spa deep-dives] → FAQ → Agents
+ */
 export default async function HomePage() {
-  const [page, property, rateRooms, heroMedia, story, showcase] =
+  const [page, property, rateRooms, heroMedia, story, showcase, faqPage] =
     await Promise.all([
       safePublic("home-cms", () => loadCmsPage("home"), null),
       safePublic("home-property", () => loadPublicPropertyProfile(), null),
@@ -102,9 +101,15 @@ export default async function HomePage() {
           orderable: 0,
         },
       }),
+      safePublic("home-faq", () => loadCmsPage("faq"), null),
     ]);
 
   const homepageStory = story;
+  const funnel = homepageStory.funnel;
+  const faqItems = faqPage?.faq_json ?? [];
+  const ratesMissing =
+    rateRooms.rooms.length === 0 ||
+    rateRooms.rooms.every((r) => r.fromPriceBtn == null);
 
   const desktopHero = heroMedia.filter(
     (item) => item.kind === "hero" && (item.src || item.public_id),
@@ -115,16 +120,11 @@ export default async function HomePage() {
 
   const slides = desktopHero.length
     ? desktopHero.map((item, i) => {
-        const mobile =
-          mobileHero[i] ??
-          mobileHero[0] ??
-          null;
+        const mobile = mobileHero[i] ?? mobileHero[0] ?? null;
         const focal = normalizeFocal(item.focal_x, item.focal_y);
         const mobileFocal = mobile
           ? normalizeFocal(mobile.focal_x, mobile.focal_y)
           : focal;
-        // Always rebuild retina crop URLs so the loader has a real w×h aspect
-        // (cms `src` alone is often width-only and re-cuts soft).
         const desktopSrc =
           item.resource_type === "video"
             ? (item.src ?? undefined)
@@ -133,7 +133,9 @@ export default async function HomePage() {
                 height: 2160,
                 crop: "fill",
                 gravity: focal,
-              }) ?? item.src ?? undefined;
+              }) ??
+              item.src ??
+              undefined;
 
         const mobileSrc =
           (mobile?.resource_type === "video" ? mobile.src : null) ??
@@ -221,6 +223,9 @@ export default async function HomePage() {
     }),
     websiteJsonLd(),
   ];
+  if (faqItems.length > 0 && funnel.faq) {
+    jsonLd.push(faqJsonLd(faqItems));
+  }
 
   const waDigits = digitsPhone(property?.whatsapp ?? property?.phone);
   const lunch = homepageStory.lunch;
@@ -259,10 +264,21 @@ export default async function HomePage() {
           theme={page?.hero_theme}
         />
 
-        <HomeStorySection
-          id="about"
-          block={homepageStory.about}
-        />
+        {funnel.trust ? (
+          <HomeTrustStrip
+            property={property}
+            fromPriceBtn={rateRooms.lowestFromBtn}
+            seasonName={rateRooms.seasonName}
+            taxInclusive={rateRooms.taxInclusive}
+            ratesMissing={ratesMissing}
+          />
+        ) : null}
+
+        {funnel.proof ? <HomeProof /> : null}
+
+        {homepageStory.about.enabled ? (
+          <HomeStorySection id="about" block={homepageStory.about} />
+        ) : null}
 
         {homepageStory.rooms.enabled ? (
           <HomeRooms
@@ -275,6 +291,11 @@ export default async function HomePage() {
           />
         ) : null}
 
+        {funnel.why ? <HomeWhy /> : null}
+
+        {funnel.inHouse ? <HomeInHouse /> : null}
+
+        {/* Optional ERP deep-dives (magazine bands) — after clustered in-house */}
         <HomeStorySection
           id="restaurant"
           block={homepageStory.restaurant}
@@ -299,6 +320,19 @@ export default async function HomePage() {
         />
 
         <HomeStorySection id="spa" block={homepageStory.spa} />
+
+        {funnel.faq ? <HomeFaqTeaser items={faqItems} /> : null}
+
+        {page?.sections_json?.length ? (
+          <section className="bg-gradient-to-b from-background to-sky-50/50 px-5 py-12 md:px-8 md:py-16">
+            <CmsContentSections
+              sections={page.sections_json}
+              className="mx-auto max-w-[1120px]"
+            />
+          </section>
+        ) : null}
+
+        {funnel.agents ? <HomeAgents /> : null}
       </main>
       <SiteFooter profile={property} />
     </>

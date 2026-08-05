@@ -8,12 +8,12 @@ import {
   serializeJsonLd,
 } from "@/lib/structured-data";
 
-export const metadata = {
-  title: "Cafe & Pastry | Pelbu Suites",
-  description:
-    "Cafe and pastry at Pelbu Suites — order from the live menu for pickup or taxi delivery in Thimphu.",
-  alternates: { canonical: "/cafe" },
-};
+import { PAGE_SEO, buildPageMetadata } from "@/lib/seo";
+
+export const metadata = buildPageMetadata({
+  ...PAGE_SEO.cafe,
+  path: "/cafe",
+});
 
 export const dynamic = "force-dynamic";
 

@@ -22,9 +22,24 @@ export type StoryBlock = {
   focal_y: number;
 };
 
+/** Conversion-spine toggles (aabdcaa order). */
+export type FunnelModules = {
+  trust: boolean;
+  proof: boolean;
+  why: boolean;
+  inHouse: boolean;
+  faq: boolean;
+  agents: boolean;
+};
+
 export type HomepageStory = {
+  /** Guest funnel modules — trust, rooms, FAQ, agents, etc. */
+  funnel: FunnelModules;
+  /** Optional brand story band (after proof). */
   about: StoryBlock;
+  /** Headers / toggles for the live room cards section. */
   rooms: StoryBlock;
+  /** Optional deep story after In-house strip. */
   restaurant: StoryBlock;
   lunch: StoryBlock;
   cafe: StoryBlock;
@@ -62,10 +77,11 @@ function strings(value: unknown): string[] {
   );
 }
 
-function block(
-  raw: unknown,
-  defaults: StoryBlock,
-): StoryBlock {
+function bool(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function block(raw: unknown, defaults: StoryBlock): StoryBlock {
   const r =
     raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   return {
@@ -91,9 +107,19 @@ function block(
   };
 }
 
+export const DEFAULT_FUNNEL: FunnelModules = {
+  trust: true,
+  proof: true,
+  why: true,
+  inHouse: true,
+  faq: true,
+  agents: true,
+};
+
 export const DEFAULT_HOMEPAGE_STORY: HomepageStory = {
+  funnel: { ...DEFAULT_FUNNEL },
   about: {
-    enabled: true,
+    enabled: false,
     eyebrow: "The name",
     title: "Pelbu — one of the eight lucky signs",
     body: "Pelbu is one of Bhutan's eight auspicious symbols (lucky signs). We rebranded from Seven Suites to Pelbu Suites so the hotel carries that blessing into every stay in Olakha — new management, same welcome.",
@@ -112,7 +138,7 @@ export const DEFAULT_HOMEPAGE_STORY: HomepageStory = {
   rooms: {
     enabled: true,
     eyebrow: "Rooms",
-    title: "Suites built for the Thimphu road",
+    title: "Suites built for the Thimphu road.",
     body: "Quiet rooms in Olakha with live availability and direct rack rates. Guide and driver beds are complimentary on agent groups.",
     public_id: "pelbu/rooms/deluxe",
     gallery_public_ids: [],
@@ -126,8 +152,9 @@ export const DEFAULT_HOMEPAGE_STORY: HomepageStory = {
     focal_x: 0.5,
     focal_y: 0.5,
   },
+  // Deep story bands after In-house — off by default so homepage stays conversion-first.
   restaurant: {
-    enabled: true,
+    enabled: false,
     eyebrow: "In-house restaurant",
     title: "Kitchen led by two seasoned chefs",
     body: "Chief chef Jigme Chaeda — 15 years as a chef — alongside a seasoned Indian chef. Indian, Bhutanese and multicuisine for regional and international guests. The dining room seats up to 50.",
@@ -161,7 +188,7 @@ export const DEFAULT_HOMEPAGE_STORY: HomepageStory = {
     focal_y: 0.5,
   },
   cafe: {
-    enabled: true,
+    enabled: false,
     eyebrow: "New on property",
     title: "PELBU ZONE",
     body: "Our all-day café — where Thimphu mornings meet Filipino-inspired flavours, craft coffee, and oven-fresh pastry. Perfect pit-stop for guests, guides, and friends of the house.",
@@ -178,7 +205,7 @@ export const DEFAULT_HOMEPAGE_STORY: HomepageStory = {
     focal_y: 0.45,
   },
   spa: {
-    enabled: true,
+    enabled: false,
     eyebrow: "Wellness on site",
     title: "Spa & Steam",
     body: "Unwind after a day of sightseeing with a warming steam experience. The jacuzzi is exclusive to our one Suite room only — not available with Double or Twin.",
@@ -196,17 +223,65 @@ export const DEFAULT_HOMEPAGE_STORY: HomepageStory = {
   },
 };
 
-export function parseHomepageStory(raw: unknown): HomepageStory {
+function parseFunnel(raw: unknown): FunnelModules {
   const r =
     raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   return {
-    about: block(r.about, DEFAULT_HOMEPAGE_STORY.about),
-    rooms: block(r.rooms, DEFAULT_HOMEPAGE_STORY.rooms),
-    restaurant: block(r.restaurant, DEFAULT_HOMEPAGE_STORY.restaurant),
-    lunch: block(r.lunch, DEFAULT_HOMEPAGE_STORY.lunch),
-    cafe: block(r.cafe, DEFAULT_HOMEPAGE_STORY.cafe),
-    spa: block(r.spa, DEFAULT_HOMEPAGE_STORY.spa),
+    trust: bool(r.trust, DEFAULT_FUNNEL.trust),
+    proof: bool(r.proof, DEFAULT_FUNNEL.proof),
+    why: bool(r.why, DEFAULT_FUNNEL.why),
+    inHouse: bool(r.inHouse, DEFAULT_FUNNEL.inHouse),
+    faq: bool(r.faq, DEFAULT_FUNNEL.faq),
+    agents: bool(r.agents, DEFAULT_FUNNEL.agents),
   };
+}
+
+/**
+ * When old magazine-era JSON has no `funnel` key, prefer conversion layout:
+ * spine ON, deep restaurant/café/spa story bands OFF (in-house strip covers them).
+ * About stays opt-in; lunch package stays on if already true or defaults true.
+ */
+function migrateMagazineToFunnel(raw: Record<string, unknown>): {
+  funnel: FunnelModules;
+  about: StoryBlock;
+  rooms: StoryBlock;
+  restaurant: StoryBlock;
+  lunch: StoryBlock;
+  cafe: StoryBlock;
+  spa: StoryBlock;
+} {
+  const hasFunnel = raw.funnel != null && typeof raw.funnel === "object";
+  const funnel = hasFunnel
+    ? parseFunnel(raw.funnel)
+    : { ...DEFAULT_FUNNEL };
+
+  const about = block(raw.about, DEFAULT_HOMEPAGE_STORY.about);
+  const rooms = block(raw.rooms, DEFAULT_HOMEPAGE_STORY.rooms);
+  const restaurant = block(raw.restaurant, DEFAULT_HOMEPAGE_STORY.restaurant);
+  const lunch = block(raw.lunch, DEFAULT_HOMEPAGE_STORY.lunch);
+  const cafe = block(raw.cafe, DEFAULT_HOMEPAGE_STORY.cafe);
+  const spa = block(raw.spa, DEFAULT_HOMEPAGE_STORY.spa);
+
+  if (!hasFunnel) {
+    // One-shot soft migrate: keep copy, dial back story-wall defaults.
+    return {
+      funnel,
+      about: { ...about, enabled: false },
+      rooms: { ...rooms, enabled: true },
+      restaurant: { ...restaurant, enabled: false },
+      lunch: { ...lunch, enabled: true },
+      cafe: { ...cafe, enabled: false },
+      spa: { ...spa, enabled: false },
+    };
+  }
+
+  return { funnel, about, rooms, restaurant, lunch, cafe, spa };
+}
+
+export function parseHomepageStory(raw: unknown): HomepageStory {
+  const r =
+    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  return migrateMagazineToFunnel(r);
 }
 
 export function storyBlockToRecord(block: StoryBlock): Record<string, unknown> {
@@ -231,6 +306,7 @@ export function storyBlockToRecord(block: StoryBlock): Record<string, unknown> {
 
 export function homepageStoryToJson(story: HomepageStory): Record<string, unknown> {
   return {
+    funnel: { ...story.funnel },
     about: storyBlockToRecord(story.about),
     rooms: storyBlockToRecord(story.rooms),
     restaurant: storyBlockToRecord(story.restaurant),
@@ -276,7 +352,6 @@ export async function loadHomepageStoryAdmin(
     .maybeSingle();
 
   if (!setting) {
-    // Ensure row exists for first-time desk edit.
     const { data: inserted, error } = await admin
       .from("cms_site_settings")
       .insert({

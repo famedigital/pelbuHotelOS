@@ -2,9 +2,10 @@
 
 import { writeAuditEvent } from "@/lib/audit";
 import {
+  DEFAULT_FUNNEL,
   DEFAULT_HOMEPAGE_STORY,
   homepageStoryToJson,
-  parseHomepageStory,
+  type FunnelModules,
   type HomepageStory,
   type StoryAccent,
   type StoryBlock,
@@ -23,14 +24,26 @@ export type HomepageStoryState = {
 const EMPTY: HomepageStoryState = { ok: false };
 
 const ACCENTS: StoryAccent[] = ["sky", "citrus", "mint", "spa", "espresso"];
-const KEYS: (keyof HomepageStory)[] = [
+
+const STORY_KEYS = [
   "about",
   "rooms",
   "restaurant",
   "lunch",
   "cafe",
   "spa",
-];
+] as const satisfies ReadonlyArray<keyof HomepageStory>;
+
+const FUNNEL_KEYS = [
+  "trust",
+  "proof",
+  "why",
+  "inHouse",
+  "faq",
+  "agents",
+] as const satisfies ReadonlyArray<keyof FunnelModules>;
+
+type StoryKey = (typeof STORY_KEYS)[number];
 
 async function requireDesk() {
   if (!(await isDeskAuthenticated())) {
@@ -38,17 +51,13 @@ async function requireDesk() {
   }
 }
 
-function field(
-  formData: FormData,
-  key: string,
-  section: string,
-): string {
+function field(formData: FormData, key: string, section: string): string {
   return String(formData.get(`${section}.${key}`) ?? "").trim();
 }
 
 function parseBlock(
   formData: FormData,
-  section: keyof HomepageStory,
+  section: StoryKey,
   fallback: StoryBlock,
 ): StoryBlock {
   const accentRaw = field(formData, "accent", section);
@@ -64,13 +73,12 @@ function parseBlock(
         ? Number(amountRaw)
         : fallback.amount_btn;
 
+  // Empty string means “no extras” (user cleared the list), not fall back to defaults.
   const galleryRaw = field(formData, "gallery_public_ids", section);
   const gallery = galleryRaw
-    ? galleryRaw
-        .split(/[\n,]/)
-        .map((s) => s.trim())
-        .filter(Boolean)
-    : fallback.gallery_public_ids;
+    .split(/[\n,]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   const fx = Number(field(formData, "focal_x", section) || fallback.focal_x);
   const fy = Number(field(formData, "focal_y", section) || fallback.focal_y);
@@ -95,10 +103,20 @@ function parseBlock(
   };
 }
 
+function parseFunnelFromForm(formData: FormData): FunnelModules {
+  const out = { ...DEFAULT_FUNNEL };
+  for (const key of FUNNEL_KEYS) {
+    out[key] = formData.get(`funnel.${key}`) === "1";
+  }
+  return out;
+}
+
 function storyFromForm(formData: FormData): HomepageStory {
   const base = DEFAULT_HOMEPAGE_STORY;
-  const out = {} as HomepageStory;
-  for (const key of KEYS) {
+  const out = {
+    funnel: parseFunnelFromForm(formData),
+  } as HomepageStory;
+  for (const key of STORY_KEYS) {
     out[key] = parseBlock(formData, key, base[key]);
   }
   return out;
@@ -184,16 +202,8 @@ export async function publishHomepageStory(
     const propertyId = await resolveActivePropertyId(admin);
     const setting = await ensureSetting(propertyId);
 
-    // Publish draft if present, else publish form payload.
-    const { data: draft } = await admin
-      .from("cms_site_setting_drafts")
-      .select("content")
-      .eq("setting_id", setting.id)
-      .maybeSingle();
-
-    const story = draft?.content
-      ? parseHomepageStory(draft.content)
-      : storyFromForm(formData);
+    // Prefer form so funnel checkboxes + story blocks publish together.
+    const story = storyFromForm(formData);
     const content = homepageStoryToJson(story);
     const nextRevision = Number(setting.revision) + 1;
 

@@ -23,6 +23,9 @@ const PRIORITY: Partial<Record<(typeof PUBLIC_INDEXABLE_ROUTES)[number], number>
     "/services": 0.7,
     "/salon": 0.65,
     "/stay/olakha-thimphu": 0.85,
+    "/stay/hotels-in-thimphu": 0.9,
+    "/stay/food-in-thimphu": 0.85,
+    "/stay/facilities-service": 0.8,
     "/agents": 0.6,
     "/careers": 0.65,
   };

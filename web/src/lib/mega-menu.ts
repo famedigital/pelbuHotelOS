@@ -93,7 +93,9 @@ export function buildFooterColumns(rooms: PublicRoom[]): FooterColumn[] {
         { href: "/book", label: "Book a stay" },
         { href: "/rooms", label: "All rooms" },
         { href: "/rates", label: "Room rates" },
+        { href: "/stay/hotels-in-thimphu", label: "Hotels in Thimphu" },
         { href: "/stay/olakha-thimphu", label: "Staying in Olakha" },
+        { href: "/stay/facilities-service", label: "Facilities & service" },
       ],
     },
     {
@@ -103,6 +105,7 @@ export function buildFooterColumns(rooms: PublicRoom[]): FooterColumn[] {
         { href: "/order", label: "Order online" },
         { href: "/restaurant", label: "Restaurant" },
         { href: "/cafe", label: "Cafe" },
+        { href: "/stay/food-in-thimphu", label: "Food in Thimphu" },
         { href: "/menu?outlet=pastry", label: "Pastry" },
         { href: "/bar", label: "Bar" },
       ],
@@ -137,12 +140,152 @@ export function buildFooterColumns(rooms: PublicRoom[]): FooterColumn[] {
   ];
 }
 
+/** CMS / ERP image overrides for mega menu thumbs and promo tiles. */
+export type MegaMenuMediaOverrides = {
+  /** Right-rail feature image by top-level menu label (Stay, Menu, …). */
+  features: Record<string, string>;
+  /** Primary-row image keyed `"MenuLabel::/href"`. */
+  items: Record<string, string>;
+};
+
+export const EMPTY_MEGA_MENU_MEDIA: MegaMenuMediaOverrides = {
+  features: {},
+  items: {},
+};
+
+export function megaItemKey(menuLabel: string, href: string): string {
+  return `${menuLabel}::${href}`;
+}
+
+export function parseMegaMenuMedia(raw: unknown): MegaMenuMediaOverrides {
+  const r =
+    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const featuresIn =
+    r.features && typeof r.features === "object"
+      ? (r.features as Record<string, unknown>)
+      : {};
+  const itemsIn =
+    r.items && typeof r.items === "object"
+      ? (r.items as Record<string, unknown>)
+      : {};
+
+  const features: Record<string, string> = {};
+  for (const [k, v] of Object.entries(featuresIn)) {
+    if (typeof v === "string" && v.trim()) features[k] = v.trim();
+  }
+  const items: Record<string, string> = {};
+  for (const [k, v] of Object.entries(itemsIn)) {
+    if (typeof v === "string" && v.trim()) items[k] = v.trim();
+  }
+  return { features, items };
+}
+
+export function megaMenuMediaToJson(
+  media: MegaMenuMediaOverrides,
+): Record<string, unknown> {
+  return {
+    features: { ...media.features },
+    items: { ...media.items },
+  };
+}
+
+export function applyMegaMenuMedia(
+  menus: MegaMenu[],
+  media: MegaMenuMediaOverrides,
+): MegaMenu[] {
+  return menus.map((menu) => {
+    const featureId = media.features[menu.label];
+    return {
+      ...menu,
+      primary: menu.primary.map((group) => ({
+        ...group,
+        items: group.items.map((item) => {
+          const override = media.items[megaItemKey(menu.label, item.href)];
+          return override
+            ? { ...item, publicId: override }
+            : item;
+        }),
+      })),
+      feature: featureId
+        ? { ...menu.feature, publicId: featureId }
+        : menu.feature,
+    };
+  });
+}
+
+/** Flat list of every image the ERP can change (for editors). */
+export type MegaMediaSlot = {
+  menuLabel: string;
+  kind: "feature" | "primary";
+  href: string;
+  title: string;
+  description?: string;
+  publicId: string | null;
+  /** Form / state key */
+  key: string;
+  /** Suggested Cloudinary folder for new uploads. */
+  uploadFolder: string;
+};
+
+function folderForMenu(label: string): string {
+  switch (label) {
+    case "Stay":
+      return "pelbu/rooms";
+    case "Menu":
+      return "pelbu/restaurant";
+    case "Wellness":
+      return "pelbu/spa";
+    case "Business":
+      return "pelbu/hotel";
+    case "About":
+      return "pelbu/hotel";
+    default:
+      return "pelbu/brand";
+  }
+}
+
+export function collectMegaMediaSlots(menus: MegaMenu[]): MegaMediaSlot[] {
+  const slots: MegaMediaSlot[] = [];
+  for (const menu of menus) {
+    const folder = folderForMenu(menu.label);
+    slots.push({
+      menuLabel: menu.label,
+      kind: "feature",
+      href: menu.feature.href,
+      title: menu.feature.title,
+      description: menu.feature.description,
+      publicId: menu.feature.publicId ?? null,
+      key: `feature::${menu.label}`,
+      uploadFolder: folder,
+    });
+    for (const group of menu.primary) {
+      for (const item of group.items) {
+        slots.push({
+          menuLabel: menu.label,
+          kind: "primary",
+          href: item.href,
+          title: item.title,
+          description: item.description,
+          publicId: item.publicId ?? null,
+          key: megaItemKey(menu.label, item.href),
+          uploadFolder: folder,
+        });
+      }
+    }
+  }
+  return slots;
+}
+
 /**
  * Builds the five public mega menus. Stay room rows come from sellable
  * `room_types`; everything else is static conversion destinations.
+ * Pass CMS overrides to swap thumbnails without a deploy.
  */
-export function buildMegaMenus(rooms: PublicRoom[]): MegaMenu[] {
-  return [
+export function buildMegaMenus(
+  rooms: PublicRoom[],
+  media: MegaMenuMediaOverrides = EMPTY_MEGA_MENU_MEDIA,
+): MegaMenu[] {
+  const menus: MegaMenu[] = [
     {
       label: "Stay",
       primary: [
@@ -514,4 +657,6 @@ export function buildMegaMenus(rooms: PublicRoom[]): MegaMenu[] {
       },
     },
   ];
+
+  return applyMegaMenuMedia(menus, media);
 }

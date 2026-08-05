@@ -8,6 +8,7 @@ import { loadCmsGallery, loadCmsPage } from "@/lib/cms";
 import { formatBtn } from "@/lib/pricing";
 import { loadPublicRoomsWithRates } from "@/lib/public-room-rates";
 import { safePublic } from "@/lib/public-safe";
+import { PAGE_SEO, metadataFromCms } from "@/lib/seo";
 import {
   breadcrumbJsonLd,
   hotelRoomJsonLd,
@@ -16,13 +17,16 @@ import {
 } from "@/lib/structured-data";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { resolvePublicPropertyId } from "@/lib/tenant/resolve-public-property";
+import type { Metadata } from "next";
 
-export const metadata = {
-  title: "Rooms | Pelbu Suites Olakha, Thimphu",
-  description:
-    "Book guest rooms at Pelbu Suites in Olakha, Thimphu — direct rates, live availability, plus complimentary guide and driver beds for agent groups.",
-  alternates: { canonical: "/rooms" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const page = await safePublic("rooms-seo", () => loadCmsPage("rooms"), null);
+  return metadataFromCms(page, {
+    title: PAGE_SEO.rooms.title,
+    description: PAGE_SEO.rooms.description,
+    path: "/rooms",
+  });
+}
 
 export const dynamic = "force-dynamic";
 

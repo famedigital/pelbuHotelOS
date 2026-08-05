@@ -8,12 +8,12 @@ import {
   serializeJsonLd,
 } from "@/lib/structured-data";
 
-export const metadata = {
-  title: "Bar | Pelbu Suites",
-  description:
-    "Weekend bar menu at Pelbu Suites, Olakha Thimphu — calm pours for guests and locals.",
-  alternates: { canonical: "/bar" },
-};
+import { PAGE_SEO, buildPageMetadata } from "@/lib/seo";
+
+export const metadata = buildPageMetadata({
+  ...PAGE_SEO.bar,
+  path: "/bar",
+});
 
 export const dynamic = "force-dynamic";
 

@@ -1,6 +1,7 @@
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { loadCmsPage } from "@/lib/cms";
 import { buildMegaMenus } from "@/lib/mega-menu";
+import { loadMegaMenuMedia } from "@/lib/nav-mega-menu";
 import { loadPublicLogoLayout } from "@/lib/public-logo";
 import { loadPublicRooms } from "@/lib/public-content";
 import { safePublic } from "@/lib/public-safe";
@@ -24,7 +25,7 @@ export async function PublicSiteHeader({
   variant = "solid",
   heroTheme,
 }: Props) {
-  const [rooms, logoLayout, homeTheme] = await Promise.all([
+  const [rooms, logoLayout, homeTheme, megaMedia] = await Promise.all([
     loadPublicRooms(),
     loadPublicLogoLayout(),
     variant === "hero" && heroTheme == null
@@ -34,6 +35,10 @@ export async function PublicSiteHeader({
           null,
         )
       : Promise.resolve(heroTheme ?? null),
+    safePublic("mega-menu-media", () => loadMegaMenuMedia(), {
+      features: {},
+      items: {},
+    }),
   ]);
   return (
     <SiteHeader
@@ -44,7 +49,7 @@ export async function PublicSiteHeader({
       logoShiftXRem={logoLayout.shiftXRem}
       variant={variant}
       heroTheme={homeTheme}
-      menus={buildMegaMenus(rooms)}
+      menus={buildMegaMenus(rooms, megaMedia)}
     />
   );
 }

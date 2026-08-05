@@ -10,12 +10,12 @@ import {
   serializeJsonLd,
 } from "@/lib/structured-data";
 
-export const metadata = {
-  title: "Menu & order | Pelbu Suites",
-  description:
-    "Browse the live cafe, pastry, restaurant, and bar menu at Pelbu Suites, Olakha Thimphu — add dishes and order for pickup or taxi delivery on one page.",
-  alternates: { canonical: "/menu" },
-};
+import { PAGE_SEO, buildPageMetadata } from "@/lib/seo";
+
+export const metadata = buildPageMetadata({
+  ...PAGE_SEO.menu,
+  path: "/menu",
+});
 
 export const dynamic = "force-dynamic";
 

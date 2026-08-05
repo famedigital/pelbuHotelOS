@@ -37,23 +37,53 @@ const defaultShare = resolveShareImage(
   "Pelbu Suites hotel in Olakha, Thimphu",
 );
 
+const googleVerify = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim();
+const bingVerify = process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION?.trim();
+
 export const metadata: Metadata = {
   metadataBase: getSiteUrl(),
-  title: "Pelbu Suites | Hotel in Olakha, Thimphu",
+  title: {
+    default: "Pelbu Suites | Hotel in Olakha, Thimphu, Bhutan",
+    template: "%s | Pelbu Suites",
+  },
   description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  category: "travel",
+  // Indexable by default; ERP/staff layouts set noindex.
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+  ...(googleVerify || bingVerify
+    ? {
+        verification: {
+          ...(googleVerify ? { google: googleVerify } : {}),
+          ...(bingVerify
+            ? { other: { "msvalidate.01": bingVerify } }
+            : {}),
+        },
+      }
+    : {}),
   manifest: "/manifest.webmanifest",
   openGraph: {
     type: "website",
     locale: "en_BT",
     siteName: SITE_NAME,
-    title: "Pelbu Suites | Hotel in Olakha, Thimphu",
+    title: "Pelbu Suites | Hotel in Olakha, Thimphu, Bhutan",
     description: SITE_DESCRIPTION,
     url: "/",
     images: [defaultShare],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Pelbu Suites | Hotel in Olakha, Thimphu",
+    title: "Pelbu Suites | Hotel in Olakha, Thimphu, Bhutan",
     description: SITE_DESCRIPTION,
     images: [defaultShare.url],
   },

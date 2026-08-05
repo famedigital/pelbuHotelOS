@@ -1,5 +1,6 @@
 import { PublicAnswerPage } from "@/components/site/PublicAnswerPage";
 import { loadCmsPage } from "@/lib/cms";
+import { PAGE_SEO, metadataFromCms } from "@/lib/seo";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -7,15 +8,11 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   const page = await loadCmsPage("olakha-thimphu");
-  return {
-    title: page?.seo_title ?? "Stay in Olakha, Thimphu | Pelbu Suites",
-    description:
-      page?.meta_description ??
-      "Plan a practical Olakha base for a stay in Thimphu.",
-    alternates: {
-      canonical: page?.canonical_path ?? "/stay/olakha-thimphu",
-    },
-  };
+  return metadataFromCms(page, {
+    title: PAGE_SEO.stayOlakha.title,
+    description: PAGE_SEO.stayOlakha.description,
+    path: "/stay/olakha-thimphu",
+  });
 }
 
 export default async function OlakhaThimphuPage() {

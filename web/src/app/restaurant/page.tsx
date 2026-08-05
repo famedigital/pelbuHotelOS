@@ -8,12 +8,12 @@ import {
   serializeJsonLd,
 } from "@/lib/structured-data";
 
-export const metadata = {
-  title: "Restaurant | Pelbu Suites",
-  description:
-    "Indian, Bhutanese, and multicuisine restaurant at Pelbu Suites, Olakha Thimphu — order for the table, pickup, or taxi delivery.",
-  alternates: { canonical: "/restaurant" },
-};
+import { PAGE_SEO, buildPageMetadata } from "@/lib/seo";
+
+export const metadata = buildPageMetadata({
+  ...PAGE_SEO.restaurant,
+  path: "/restaurant",
+});
 
 export const dynamic = "force-dynamic";
 

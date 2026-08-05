@@ -10,12 +10,12 @@ import {
   serviceJsonLd,
 } from "@/lib/structured-data";
 
-export const metadata = {
-  title: "Spa & Steam | Pelbu Suites",
-  description:
-    "Book a spa treatment or steam session at Pelbu Suites, Olakha Thimphu — open to hotel guests and day visitors.",
-  alternates: { canonical: "/spa" },
-};
+import { PAGE_SEO, buildPageMetadata } from "@/lib/seo";
+
+export const metadata = buildPageMetadata({
+  ...PAGE_SEO.spa,
+  path: "/spa",
+});
 
 export const dynamic = "force-dynamic";
 

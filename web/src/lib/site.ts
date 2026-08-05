@@ -1,6 +1,7 @@
 export const SITE_NAME = "Pelbu Suites";
+/** Default SERP / social blurb — hotel + local intent, no invented claims. */
 export const SITE_DESCRIPTION =
-  "Book rooms direct at Pelbu Suites in Olakha, Thimphu, Bhutan — cafe, restaurant, spa and meeting under one roof.";
+  "Hotel in Olakha, Thimphu, Bhutan — quiet rooms, direct rates, live availability, restaurant, cafe, spa and meeting under one roof. A practical place to stay sleep and eat well.";
 
 const PRODUCTION_CANONICAL = "https://pelbusuites.bt";
 
@@ -92,6 +93,9 @@ export const PUBLIC_INDEXABLE_ROUTES = [
   "/contact",
   "/faq",
   "/stay/olakha-thimphu",
+  "/stay/hotels-in-thimphu",
+  "/stay/food-in-thimphu",
+  "/stay/facilities-service",
   "/guide",
   "/agents",
   "/careers",

@@ -19,13 +19,13 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { resolvePublicPropertyId } from "@/lib/tenant/resolve-public-property";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Room rates | Pelbu Suites",
-  description:
-    "Public rack rates and meal packages at Pelbu Suites, Olakha Thimphu — peak, lean and off seasons. Book direct or ask your agent about trade terms.",
-  alternates: { canonical: "/rates" },
+import { PAGE_SEO, buildPageMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildPageMetadata({
+  ...PAGE_SEO.rates,
+  path: "/rates",
   robots: { index: true, follow: true },
-};
+});
 
 export const dynamic = "force-dynamic";
 

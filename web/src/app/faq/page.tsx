@@ -1,5 +1,6 @@
 import { PublicAnswerPage } from "@/components/site/PublicAnswerPage";
 import { loadCmsPage } from "@/lib/cms";
+import { PAGE_SEO, metadataFromCms } from "@/lib/seo";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -7,13 +8,11 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   const page = await loadCmsPage("faq");
-  return {
-    title: page?.seo_title ?? "Pelbu Suites FAQ",
-    description:
-      page?.meta_description ??
-      "Practical answers for booking and visiting Pelbu Suites in Olakha.",
-    alternates: { canonical: page?.canonical_path ?? "/faq" },
-  };
+  return metadataFromCms(page, {
+    title: PAGE_SEO.faq.title,
+    description: PAGE_SEO.faq.description,
+    path: "/faq",
+  });
 }
 
 export default async function FaqPage() {

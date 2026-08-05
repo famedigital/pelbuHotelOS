@@ -83,12 +83,29 @@ export default async function FrontPublicPage() {
               Homepage story
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Brochure bands: About, Rooms, Restaurant, lunch package, Cafe,
-              Spa — editable without a deploy.
+              Conversion spine toggles, rooms headers, lunch package, and
+              optional deep-dive story bands — no deploy.
             </p>
           </div>
           <Button asChild>
             <Link href="/erp/front-public/homepage">Edit homepage story</Link>
+          </Button>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold text-foreground">
+              Mega menu photos
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Dropdown row thumbnails and promo tiles — library, upload, or
+              camera capture.
+            </p>
+          </div>
+          <Button asChild>
+            <Link href="/erp/front-public/navigation">Edit mega menu</Link>
           </Button>
         </div>
       </section>
@@ -173,8 +190,15 @@ export default async function FrontPublicPage() {
           {[
             {
               title: "Homepage story",
-              description: "About, rooms, F&B, lunch price, spa copy.",
+              description: "Funnel modules, rooms, lunch, optional story bands.",
               href: "/erp/front-public/homepage",
+              icon: LayoutTemplateIcon,
+              ready: true,
+            },
+            {
+              title: "Mega menu photos",
+              description: "Nav row thumbs and promo tiles — pick / upload / capture.",
+              href: "/erp/front-public/navigation",
               icon: LayoutTemplateIcon,
               ready: true,
             },
@@ -198,13 +222,6 @@ export default async function FrontPublicPage() {
               href: "/erp/front-public/media",
               icon: ImageIcon,
               ready: true,
-            },
-            {
-              title: "Navigation and footer",
-              description: "Desktop mega menu and mobile tabs.",
-              href: "#",
-              icon: LayoutTemplateIcon,
-              ready: false,
             },
             {
               title: "Guides",

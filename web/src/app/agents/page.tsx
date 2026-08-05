@@ -6,12 +6,12 @@ import {
   serializeJsonLd,
 } from "@/lib/structured-data";
 
-export const metadata = {
-  title: "Travel Agent Partners | Pelbu Suites",
-  description:
-    "Apply as a Bhutan, Jaigaon, or India travel trade partner — agent rates, MoU credit, and complimentary guide and driver beds.",
-  alternates: { canonical: "/agents" },
-};
+import { PAGE_SEO, buildPageMetadata } from "@/lib/seo";
+
+export const metadata = buildPageMetadata({
+  ...PAGE_SEO.agents,
+  path: "/agents",
+});
 
 export default function AgentsPage() {
   return (

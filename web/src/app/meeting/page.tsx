@@ -10,12 +10,12 @@ import {
   serviceJsonLd,
 } from "@/lib/structured-data";
 
-export const metadata = {
-  title: "Meeting Hall | Pelbu Suites",
-  description:
-    "A focused meeting hall for up to 25 people at Pelbu Suites, Olakha Thimphu — with cafe catering on request.",
-  alternates: { canonical: "/meeting" },
-};
+import { PAGE_SEO, buildPageMetadata } from "@/lib/seo";
+
+export const metadata = buildPageMetadata({
+  ...PAGE_SEO.meeting,
+  path: "/meeting",
+});
 
 export const dynamic = "force-dynamic";
 

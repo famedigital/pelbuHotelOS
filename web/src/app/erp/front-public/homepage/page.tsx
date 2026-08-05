@@ -34,7 +34,7 @@ export default async function HomepageStoryPage() {
       <DeskPageTitle
         eyebrow="Website CMS"
         title="Homepage story"
-        description="Edit About, Rooms, Restaurant, lunch package, Cafe, and Spa bands on the public homepage. Save a draft, then publish when ready."
+        description="Guest funnel modules (trust, proof, rooms, why, in-house, FAQ, agents) plus optional story bands and lunch package. Toggle, edit copy, save draft, then publish."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Badge
