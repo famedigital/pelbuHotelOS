@@ -10,11 +10,13 @@ function NavigationMenu({
   children,
   viewport = true,
   viewportClassName,
+  viewportStyle,
   ...props
 }: React.ComponentProps<typeof NavigationMenuPrimitive.Root> & {
   viewport?: boolean;
   /** Theme the dropdown surface to match the bar it drops out of. */
   viewportClassName?: string;
+  viewportStyle?: React.CSSProperties;
 }) {
   return (
     <NavigationMenuPrimitive.Root
@@ -27,7 +29,12 @@ function NavigationMenu({
       {...props}
     >
       {children}
-      {viewport ? <NavigationMenuViewport className={viewportClassName} /> : null}
+      {viewport ? (
+        <NavigationMenuViewport
+          className={viewportClassName}
+          style={viewportStyle}
+        />
+      ) : null}
     </NavigationMenuPrimitive.Root>
   );
 }

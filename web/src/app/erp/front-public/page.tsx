@@ -81,13 +81,18 @@ export default async function FrontPublicPage() {
           <h2 className="text-xl font-semibold text-foreground">Pages</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Hero copy, calls to action, search metadata, FAQ and social image.
+                    Homepage photo colours and nav glass live only on the{" "}
+                    <span className="font-medium text-foreground">home</span>{" "}
+                    page editor.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {pages.map((page) => (
             <article
               key={page.id}
-              className="flex min-h-40 flex-col rounded-xl border bg-card p-5"
+              className={`flex min-h-40 flex-col rounded-xl border bg-card p-5${
+                page.slug === "home" ? " border-accent/30" : ""
+              }`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -105,15 +110,25 @@ export default async function FrontPublicPage() {
                 </Badge>
               </div>
               <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                {page.draft.body}
+                {page.slug === "home"
+                  ? "Stay landing — Hero colours, gradient direction, and nav glass."
+                  : page.draft.body}
               </p>
-              <div className="mt-auto flex items-center gap-3 pt-5">
+              <div className="mt-auto flex flex-wrap items-center gap-3 pt-5">
                 <Link
                   href={`/erp/front-public/pages/${page.slug}`}
                   className="text-sm font-semibold text-accent hover:underline"
                 >
                   Edit page
                 </Link>
+                {page.slug === "home" ? (
+                  <Link
+                    href="/erp/front-public/pages/home#hero-nav-glass"
+                    className="text-sm font-semibold text-foreground hover:underline"
+                  >
+                    Nav glass
+                  </Link>
+                ) : null}
                 <Link
                   href={publicPathForSlug(page.slug)}
                   target="_blank"

@@ -18,6 +18,12 @@ export type PropertyDocumentDesign = {
 
 export type PropertySettings = {
   logo_public_id: string | null;
+  /** Public header logo size in rem (desktop mark). Default 6.5. */
+  logo_nav_size_rem: number;
+  /** Vertical hang offset as % of logo height for translateY. Default 42. */
+  logo_nav_offset_pct: number;
+  /** Gap between logo mark and hotel name in rem. Default 0.75. */
+  logo_nav_gap_rem: number;
   legal_name: string | null;
   address: string | null;
   phone: string | null;
@@ -32,6 +38,29 @@ export type PropertySettings = {
   doc_receipt: PropertyDocumentDesign;
   doc_voucher: PropertyDocumentDesign;
 };
+
+export const DEFAULT_LOGO_NAV_SIZE_REM = 6.5;
+export const DEFAULT_LOGO_NAV_OFFSET_PCT = 42;
+/** Matches previous Tailwind `gap-3` (0.75rem) on the brand lockup. */
+export const DEFAULT_LOGO_NAV_GAP_REM = 0.75;
+
+function clampLogoSize(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return DEFAULT_LOGO_NAV_SIZE_REM;
+  return Math.min(12, Math.max(4, Math.round(n * 100) / 100));
+}
+
+function clampLogoOffset(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return DEFAULT_LOGO_NAV_OFFSET_PCT;
+  return Math.min(70, Math.max(20, Math.round(n * 10) / 10));
+}
+
+export function clampLogoGap(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return DEFAULT_LOGO_NAV_GAP_REM;
+  return Math.min(3, Math.max(0, Math.round(n * 100) / 100));
+}
 
 function clampRate(value: unknown, fallback: number): number {
   const num = Number(value);
@@ -102,6 +131,9 @@ export function mapDocumentDesign(
 export function mapPropertySettings(row: Record<string, unknown>): PropertySettings {
   return {
     logo_public_id: asText(row.logo_public_id),
+    logo_nav_size_rem: clampLogoSize(row.logo_nav_size_rem),
+    logo_nav_offset_pct: clampLogoOffset(row.logo_nav_offset_pct),
+    logo_nav_gap_rem: clampLogoGap(row.logo_nav_gap_rem),
     legal_name: asText(row.legal_name),
     address: asText(row.address),
     phone: asText(row.phone),

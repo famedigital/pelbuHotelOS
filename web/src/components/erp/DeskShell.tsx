@@ -118,7 +118,8 @@ export function DeskShell({
 }
 
 
-/** Compact top-of-page title strip — same grammar as DeskListShell (non-list pages). */
+/** Compact top-of-page title strip — same grammar as DeskListShell (non-list pages).
+ *  Horizontal inset cancels parent page padding so title lines up with body content. */
 export function DeskPageTitle({
   eyebrow,
   title,
@@ -137,8 +138,8 @@ export function DeskPageTitle({
     description && description.length > 96 ? description : undefined;
 
   return (
-    <div className="erp sticky top-14 z-20 border-b border-border/80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
-      <div className="mx-auto flex w-full max-w-[1200px] flex-wrap items-start justify-between gap-3 px-4 py-3 md:px-6 md:py-3.5">
+    <div className="erp sticky top-14 z-20 -mx-4 border-b border-border/80 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/85 md:-mx-6 md:px-6">
+      <div className="flex flex-wrap items-start justify-between gap-3 py-3 md:py-3.5">
         <div className="min-w-0 flex-1 space-y-1">
           {eyebrow ? (
             <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">

@@ -1,5 +1,10 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { resolvePublicPropertyId } from "@/lib/tenant/resolve-public-property";
+import {
+  DEFAULT_LOGO_NAV_GAP_REM,
+  DEFAULT_LOGO_NAV_OFFSET_PCT,
+  DEFAULT_LOGO_NAV_SIZE_REM,
+} from "@/lib/property-settings";
 
 export type PublicPropertyProfile = {
   name: string;
@@ -13,6 +18,12 @@ export type PublicPropertyProfile = {
   tiktok: string | null;
   /** Cloudinary public_id from Settings → Identity; drives public-site brand logo. */
   logoPublicId: string | null;
+  /** Header logo size in rem (desktop). */
+  logoNavSizeRem: number;
+  /** Header logo vertical hang (translateY %). */
+  logoNavOffsetPct: number;
+  /** Space between logo and hotel name (rem). */
+  logoNavGapRem: number;
   checkInTime: string | null;
   checkOutTime: string | null;
   starRating: number | null;
@@ -78,7 +89,7 @@ export async function loadPublicPropertyProfile(): Promise<PublicPropertyProfile
     admin
       .from("properties")
       .select(
-        "name, phone, email, address, whatsapp, maps_url, instagram_handle, facebook_url, tiktok_url, logo_public_id",
+        "name, phone, email, address, whatsapp, maps_url, instagram_handle, facebook_url, tiktok_url, logo_public_id, logo_nav_size_rem, logo_nav_offset_pct, logo_nav_gap_rem",
       )
       .eq("id", propertyId)
       .maybeSingle(),
@@ -100,6 +111,10 @@ export async function loadPublicPropertyProfile(): Promise<PublicPropertyProfile
 
   const amenities = amenitiesList(facts?.amenities_json);
 
+  const sizeRaw = Number(data.logo_nav_size_rem);
+  const offsetRaw = Number(data.logo_nav_offset_pct);
+  const gapRaw = Number(data.logo_nav_gap_rem);
+
   return {
     name: (data.name as string) || "Pelbu Suites",
     phone,
@@ -111,6 +126,15 @@ export async function loadPublicPropertyProfile(): Promise<PublicPropertyProfile
     facebook: (data.facebook_url as string | null) ?? null,
     tiktok: (data.tiktok_url as string | null) ?? null,
     logoPublicId: (data.logo_public_id as string | null) ?? null,
+    logoNavSizeRem: Number.isFinite(sizeRaw)
+      ? Math.min(12, Math.max(4, sizeRaw))
+      : DEFAULT_LOGO_NAV_SIZE_REM,
+    logoNavOffsetPct: Number.isFinite(offsetRaw)
+      ? Math.min(70, Math.max(20, offsetRaw))
+      : DEFAULT_LOGO_NAV_OFFSET_PCT,
+    logoNavGapRem: Number.isFinite(gapRaw)
+      ? Math.min(3, Math.max(0, Math.round(gapRaw * 100) / 100))
+      : DEFAULT_LOGO_NAV_GAP_REM,
     checkInTime:
       formatClockTime(
         (facts?.check_in_time as string | null | undefined) ?? null,

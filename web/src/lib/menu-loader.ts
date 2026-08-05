@@ -59,13 +59,40 @@ export async function loadMenuByOutlets(
     rows.map((row) => row.id as string),
   );
 
+  const itemIds = rows.map((row) => row.id as string);
+  const trustImages = new Map<string, string>();
+  if (itemIds.length > 0) {
+    try {
+      const { data: trust } = await admin
+        .from("property_media")
+        .select("scope_id, public_id, is_primary, sort_order")
+        .eq("property_id", propertyId)
+        .eq("scope", "menu_item")
+        .eq("is_published", true)
+        .eq("resource_type", "image")
+        .in("scope_id", itemIds)
+        .order("is_primary", { ascending: false })
+        .order("sort_order", { ascending: true });
+      for (const row of trust ?? []) {
+        const sid = row.scope_id as string;
+        if (sid && !trustImages.has(sid)) {
+          trustImages.set(sid, row.public_id as string);
+        }
+      }
+    } catch {
+      // Table may not be migrated yet on older envs.
+    }
+  }
+
   return rows.map((row) => {
+    const id = row.id as string;
     const imagePublicId = resolveMenuImageId(
-      (row.image_public_id as string | null) ?? null,
+      trustImages.get(id) ??
+        ((row.image_public_id as string | null) ?? null),
     );
-    const itemStock = stock.get(row.id as string);
+    const itemStock = stock.get(id);
     return {
-      id: row.id as string,
+      id,
       outlet: row.outlet as string,
       category: row.category as string,
       name: row.name as string,

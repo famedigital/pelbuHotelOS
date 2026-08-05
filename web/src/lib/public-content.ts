@@ -4,6 +4,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { resolvePublicPropertyId } from "@/lib/tenant/resolve-public-property";
 
 export type PublicRoom = {
+  id: string;
   code: string;
   slug: string;
   name: string;
@@ -38,7 +39,7 @@ export async function loadPublicRooms(): Promise<PublicRoom[]> {
   const admin = createSupabaseAdminClient();
   const { data } = await admin
     .from("room_types")
-    .select("code, name, blurb, image_public_id")
+    .select("id, code, name, blurb, image_public_id")
     .eq("property_id", propertyId)
     .eq("inventory_kind", "sellable_guest")
     .order("code");
@@ -52,6 +53,7 @@ export async function loadPublicRooms(): Promise<PublicRoom[]> {
       imagePublicId: (row.image_public_id as string | null) ?? null,
     });
     return {
+      id: row.id as string,
       code,
       slug: publicRoomSlug(code),
       name,

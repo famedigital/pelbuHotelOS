@@ -117,12 +117,40 @@ export function cloudinaryMediaThumbUrl(
   return cloudinaryUrl(publicId, transform);
 }
 
+/**
+ * Trust photography delivery: f_auto + q_auto (+ optional mild improve).
+ * Prefer this for public room / gallery pages when you want a light refine.
+ */
+export function cloudinaryTrustUrl(
+  publicId: string,
+  transform: CloudinaryTransform & { improve?: boolean } = {},
+): string | null {
+  const cloud = getCloudinaryCloudName();
+  if (!cloud || !publicId) return null;
+  const {
+    width,
+    height,
+    crop = "fill",
+    quality = "auto",
+    format = "auto",
+    dpr = "auto",
+    improve = false,
+  } = transform;
+  const parts: string[] = [`f_${format}`, `q_${quality}`, `dpr_${dpr}`];
+  if (improve) parts.push("e_improve");
+  if (width) parts.push(`w_${width}`);
+  if (height) parts.push(`h_${height}`);
+  if (width || height) parts.push(`c_${crop}`);
+  return `https://res.cloudinary.com/${cloud}/image/upload/${parts.join(",")}/${cleanPublicId(publicId)}`;
+}
+
 /** Tiny blurred placeholder for next/image blurDataURL. */
 export function cloudinaryBlur(publicId: string): string | null {
   const cloud = getCloudinaryCloudName();
   if (!cloud || !publicId) return null;
   return `https://res.cloudinary.com/${cloud}/image/upload/f_jpg,q_10,w_24,e_blur:400/${cleanPublicId(publicId)}`;
 }
+
 
 /**
  * Recover the cloud + public_id from a Cloudinary delivery URL so a baked-in

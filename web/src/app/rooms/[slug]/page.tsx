@@ -1,4 +1,4 @@
-import { RoomGallery } from "@/components/rooms/RoomGallery";
+import { TrustFacetsGallery } from "@/components/media/TrustFacetsGallery";
 import { EngineShell } from "@/components/site/EngineShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { resolveRoomImagePublicId, ROOM_GALLERY_BY_CODE } from "@/lib/brand";
 import { loadPublicRoom } from "@/lib/public-content";
 import { loadPublicRoomsWithRates } from "@/lib/public-room-rates";
+import { loadPublicPropertyMedia } from "@/lib/property-media-loader";
 import {
   breadcrumbJsonLd,
   hotelRoomJsonLd,
@@ -59,15 +60,19 @@ export default async function RoomDetailPage({
     name: room.name,
     imagePublicId: room.imagePublicId,
   });
-  const gallery = ROOM_GALLERY_BY_CODE[room.code] ?? [
-    lead,
-    "pelbu/seven-suites/official-room",
-    "pelbu/seven-suites/official-img6236",
-    "pelbu/seven-suites/official-dsc08154",
-    "pelbu/seven-suites/official-img6256",
-  ];
-  // Ensure the lead hero appears first even if the stored id differs.
-  const images = [lead, ...gallery.filter((id) => id !== lead)];
+
+  const trustMedia = await loadPublicPropertyMedia({
+    scope: "room_type",
+    scopeId: room.id,
+  });
+
+  const fallback =
+    trustMedia.length === 0
+      ? [
+          lead,
+          ...(ROOM_GALLERY_BY_CODE[room.code] ?? []).filter((id) => id !== lead),
+        ]
+      : [];
 
   return (
     <>
@@ -117,7 +122,11 @@ export default async function RoomDetailPage({
       >
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="space-y-8">
-            <RoomGallery title={room.name} images={images} />
+            <TrustFacetsGallery
+              title={room.name}
+              media={trustMedia}
+              fallbackPublicIds={fallback}
+            />
             <section className="space-y-4">
               <h2 className="font-display text-2xl text-foreground">
                 What to expect

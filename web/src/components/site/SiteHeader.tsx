@@ -12,6 +12,14 @@ import {
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
 import type { MegaLink, MegaMenu } from "@/lib/mega-menu";
+import {
+  DEFAULT_HERO_THEME,
+  heroNavBarStyle,
+  heroNavPanelStyle,
+  hexAlpha,
+  parseHeroTheme,
+  type HeroTheme,
+} from "@/lib/hero-theme";
 import { cn } from "@/lib/utils";
 import { ArrowRightIcon, ChevronRightIcon } from "lucide-react";
 import Link from "next/link";
@@ -20,38 +28,20 @@ import { useEffect, useState } from "react";
 type Variant = "hero" | "solid";
 
 /**
- * Trigger styling while the header floats over the hero photo. Keep the
- * labels plain (no frosted pill) — the top veil + text shadow carry contrast.
+ * Trigger shell while floating over the hero — colour comes from CMS
+ * `navText` via inline style so editors can go light or dark.
  */
 const HERO_TRIGGER =
-  "bg-transparent text-white [text-shadow:0_1px_3px_rgb(8_47_73/0.55)] hover:bg-transparent hover:text-citrus-soft focus:bg-transparent focus:text-white data-[state=open]:bg-transparent data-[state=open]:text-citrus-soft";
+  "bg-transparent [text-shadow:0_1px_2px_rgb(0_0_0/0.35)] hover:bg-white/10 focus:bg-white/10 data-[state=open]:bg-white/12";
 
 type Tone = "hero" | "solid";
 
-/**
- * Bar glass. This lives on a layer *inside* the header rather than on the
- * `<header>` itself: the dropdown is a descendant, and an ancestor carrying
- * `backdrop-filter` makes its own backdrop-filter sample an empty backdrop, so
- * the panel would come out unblurred. As a sibling layer it blurs the page and
- * leaves the panel free to blur it too.
- */
-const BAR_SURFACE: Record<Tone, string> = {
-  hero: "border-b border-white/15 bg-sky-ink/55 shadow-[inset_0_1px_0_0_rgb(255_255_255/0.18)] backdrop-blur-2xl backdrop-saturate-[1.8]",
-  solid:
-    "border-b border-border/70 bg-background/90 shadow-sm backdrop-blur-xl",
-};
+/** Solid-page chrome only. Hero bar/panel styles are CMS inline glass. */
+const BAR_SURFACE_SOLID =
+  "border-b border-border/70 bg-background/90 shadow-sm backdrop-blur-xl";
 
-/**
- * Dropdown surface, matched to the bar it drops out of. These must set a
- * background *colour*: the shadcn viewport ships an opaque `bg-popover`, and a
- * `bg-gradient-*` only paints an image over it, so the panel would stay opaque
- * and read as a card floating apart from the hero.
- */
-const PANEL_SURFACE: Record<Tone, string> = {
-  hero: "border-white/15 bg-sky-ink/80 text-white backdrop-blur-3xl backdrop-saturate-[1.8] shadow-[inset_0_1px_0_0_rgb(255_255_255/0.16),0_30px_70px_-35px_rgb(8_47_73/0.9)]",
-  solid:
-    "border-sky-100 bg-white/92 text-foreground backdrop-blur-3xl shadow-[0_30px_80px_-45px_rgb(8_47_73/0.45)]",
-};
+const PANEL_SURFACE_SOLID =
+  "border-sky-100 bg-white/92 text-foreground backdrop-blur-3xl shadow-[0_30px_80px_-45px_rgb(8_47_73/0.45)]";
 
 /**
  * Shared card surface for the feature tile and the list rows. The hover state
@@ -333,18 +323,28 @@ function MegaPanel({ menu, tone }: { menu: MegaMenu; tone: Tone }) {
   );
 }
 
-/** Sticky frosted mega menu. Transparent only over the homepage hero. */
+/** Sticky frosted mega menu. Glass over homepage hero is CMS-editable. */
 export function SiteHeader({
   logoSrc,
+  logoSizeRem,
+  logoOffsetPct,
+  logoGapRem,
   variant = "solid",
   menus,
+  heroTheme,
 }: {
   logoSrc?: string | null;
+  logoSizeRem?: number;
+  logoOffsetPct?: number;
+  logoGapRem?: number;
   variant?: Variant;
   menus: MegaMenu[];
+  /** From home CMS `hero_theme` — only used while variant is `hero`. */
+  heroTheme?: HeroTheme | null;
 }) {
   const logo = logoSrc;
   const [scrolled, setScrolled] = useState(false);
+  const chrome = parseHeroTheme(heroTheme ?? DEFAULT_HERO_THEME);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -355,47 +355,53 @@ export function SiteHeader({
 
   const overHero = variant === "hero" && !scrolled;
   const tone: Tone = overHero ? "hero" : "solid";
+  const navText = chrome.navText;
 
   return (
     <header
       className={cn(
-        // overflow-visible so the brand can hang outside the slim glass strip
         "z-40 overflow-visible",
-        // Fixed on the homepage so the hero runs to the very top of the page
-        // and the bar floats over the photograph. Position is keyed to
-        // `variant`, not `overHero`, so it does not change on scroll.
         variant === "hero" ? "fixed inset-x-0 top-0" : "sticky top-0",
-        overHero ? "text-white" : "text-foreground",
+        overHero ? undefined : "text-foreground",
       )}
+      style={overHero ? { color: navText } : undefined}
     >
-      {/* Slim strip only — brand mark hangs outside this band. */}
       <div className="relative h-12 overflow-visible md:h-[3.25rem]">
-        {/* Liquid-glass material: sky-ink dusk tint, heavy blur and a saturation
-            lift so the photograph refracts through in colour instead of going
-            grey, finished with a specular highlight along the top edge. */}
+        {/* Sibling layer so mega-menu backdrop-filter still samples the page. */}
         <div
           className={cn(
-            "pointer-events-none absolute inset-0 transition-colors duration-300",
-            BAR_SURFACE[tone],
+            "pointer-events-none absolute inset-0 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300",
+            overHero ? undefined : BAR_SURFACE_SOLID,
           )}
+          style={overHero ? heroNavBarStyle(chrome) : undefined}
           aria-hidden
         />
         <div className="relative mx-auto flex h-full max-w-[1200px] items-center justify-between gap-4 px-5 md:px-8">
-          <BrandLockup logoSrc={logo} tone={tone} />
+          <BrandLockup
+            logoSrc={logo}
+            tone={tone}
+            sizeRem={logoSizeRem}
+            offsetPct={logoOffsetPct}
+            gapRem={logoGapRem}
+            color={overHero ? navText : undefined}
+          />
 
           <NavigationMenu
             className="relative z-10 hidden lg:flex"
             viewport
-            viewportClassName={PANEL_SURFACE[tone]}
+            viewportClassName={
+              overHero
+                ? "border bg-transparent text-inherit backdrop-blur-none"
+                : PANEL_SURFACE_SOLID
+            }
+            viewportStyle={overHero ? heroNavPanelStyle(chrome) : undefined}
           >
             <NavigationMenuList>
               {menus.map((menu) => (
                 <NavigationMenuItem key={menu.label}>
                   <NavigationMenuTrigger
-                    className={cn(
-                      "h-9",
-                      overHero ? HERO_TRIGGER : undefined,
-                    )}
+                    className={cn("h-9", overHero ? HERO_TRIGGER : undefined)}
+                    style={overHero ? { color: navText } : undefined}
                   >
                     {menu.label}
                   </NavigationMenuTrigger>
@@ -413,9 +419,20 @@ export function SiteHeader({
               className={cn(
                 "inline-flex h-9 items-center justify-center rounded-lg px-3 text-[13px] font-semibold transition-colors",
                 overHero
-                  ? "border border-white/35 bg-white/10 text-white [text-shadow:0_1px_3px_rgb(8_47_73/0.55)] hover:bg-white/18"
+                  ? "[text-shadow:0_1px_2px_rgb(0_0_0/0.3)] shadow-[inset_0_1px_0_0_rgb(255_255_255/0.35)] backdrop-blur-md hover:opacity-90"
                   : "border border-border bg-background/80 text-foreground hover:bg-muted",
               )}
+              style={
+                overHero
+                  ? {
+                      color: navText,
+                      borderWidth: 1,
+                      borderStyle: "solid",
+                      borderColor: hexAlpha(navText, 0.4),
+                      backgroundColor: hexAlpha(navText, 0.12),
+                    }
+                  : undefined
+              }
             >
               Login
             </Link>

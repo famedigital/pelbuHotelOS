@@ -1,6 +1,6 @@
 import { BookingCheckoutShell } from "@/components/book/BookingCheckoutShell";
 import { BookingWizard } from "@/components/book/BookingWizard";
-import { resolveLogoSrc } from "@/lib/public-logo";
+import { resolveLogoSrc } from "@/lib/logo-src";
 import { loadPublicPropertyProfile } from "@/lib/public-property";
 import { parseStaySearch } from "@/lib/stay-dates";
 

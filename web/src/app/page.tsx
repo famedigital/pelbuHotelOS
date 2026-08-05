@@ -154,7 +154,7 @@ export default async function HomePage() {
           __html: serializeJsonLd(jsonLd),
         }}
       />
-      <PublicSiteHeader variant="hero" />
+      <PublicSiteHeader variant="hero" heroTheme={page?.hero_theme} />
       <main>
         <HomeHero
           slides={slides}

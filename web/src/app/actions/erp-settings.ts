@@ -457,6 +457,63 @@ export async function setPropertyLogo(
   }
 }
 
+/** Public header mark size, hang under the nav rail, and gap to hotel name. */
+export async function setPropertyLogoNavLayout(
+  _prev: PropertyWizardState,
+  formData: FormData,
+): Promise<PropertyWizardState> {
+  try {
+    await requireDesk();
+    const admin = createSupabaseAdminClient();
+    const propertyId = trimRequired(formData.get("property_id"), "Property");
+    const sizeRaw = Number(String(formData.get("logo_nav_size_rem") ?? "").trim());
+    const offsetRaw = Number(
+      String(formData.get("logo_nav_offset_pct") ?? "").trim(),
+    );
+    const gapRaw = Number(String(formData.get("logo_nav_gap_rem") ?? "").trim());
+    if (!Number.isFinite(sizeRaw) || sizeRaw < 4 || sizeRaw > 12) {
+      throw new Error("Logo size must be between 4 and 12 rem.");
+    }
+    if (!Number.isFinite(offsetRaw) || offsetRaw < 20 || offsetRaw > 70) {
+      throw new Error("Logo offset must be between 20% and 70%.");
+    }
+    if (!Number.isFinite(gapRaw) || gapRaw < 0 || gapRaw > 3) {
+      throw new Error("Logo–title gap must be between 0 and 3 rem.");
+    }
+    const logo_nav_size_rem = Math.round(sizeRaw * 100) / 100;
+    const logo_nav_offset_pct = Math.round(offsetRaw * 10) / 10;
+    const logo_nav_gap_rem = Math.round(gapRaw * 100) / 100;
+
+    const { error } = await admin
+      .from("properties")
+      .update({ logo_nav_size_rem, logo_nav_offset_pct, logo_nav_gap_rem })
+      .eq("id", propertyId);
+    if (error) throw new Error(error.message);
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "property.settings.logo_layout",
+      entityType: "properties",
+      entityId: propertyId,
+      summary: `Logo layout size ${logo_nav_size_rem}rem, offset ${logo_nav_offset_pct}%, gap ${logo_nav_gap_rem}rem`,
+      meta: { logo_nav_size_rem, logo_nav_offset_pct, logo_nav_gap_rem },
+    });
+
+    revalidatePath("/erp/settings");
+    revalidatePath("/", "layout");
+    return {
+      ok: true,
+      propertyId,
+      message: "Header logo size, position, and gap saved.",
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not save logo layout.",
+    };
+  }
+}
+
 export async function updatePropertyTaxSettings(
   _prev: PropertyWizardState,
   formData: FormData,

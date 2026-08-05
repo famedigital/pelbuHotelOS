@@ -7,7 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { buildFooterColumns } from "@/lib/mega-menu";
 import { loadPublicRooms } from "@/lib/public-content";
-import { resolveLogoSrc } from "@/lib/public-logo";
+import { resolveLogoSrc } from "@/lib/logo-src";
 import {
   loadPublicPropertyProfile,
   type PublicPropertyProfile,
@@ -91,6 +91,9 @@ export async function SiteFooter({
   const columns = buildFooterColumns(rooms);
   const socials = socialLinks(property);
   const logoSrc = resolveLogoSrc(property?.logoPublicId);
+  const logoSizeRem = property?.logoNavSizeRem;
+  const logoOffsetPct = property?.logoNavOffsetPct;
+  const logoGapRem = property?.logoNavGapRem;
 
   return (
     <footer className="relative overflow-hidden bg-gradient-to-br from-sky-ink via-sky-ink to-sky-800 text-white">
@@ -114,6 +117,9 @@ export async function SiteFooter({
               logoSrc={logoSrc}
               tone="hero"
               className="!text-white"
+              sizeRem={logoSizeRem}
+              offsetPct={logoOffsetPct}
+              gapRem={logoGapRem}
             />
             <p className="max-w-xs text-sm leading-relaxed text-white/60">
               {property?.address ??

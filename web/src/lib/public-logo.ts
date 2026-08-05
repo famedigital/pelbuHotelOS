@@ -1,26 +1,36 @@
-import { BRAND_ICONS } from "@/lib/brand";
-import { cloudinaryUrl } from "@/lib/cloudinary";
+import { resolveLogoSrc } from "@/lib/logo-src";
 import { loadPublicPropertyProfile } from "@/lib/public-property";
+import {
+  DEFAULT_LOGO_NAV_GAP_REM,
+  DEFAULT_LOGO_NAV_OFFSET_PCT,
+  DEFAULT_LOGO_NAV_SIZE_REM,
+} from "@/lib/property-settings";
 
 /**
- * Public chrome logo: Settings → Identity Cloudinary logo when set,
- * otherwise the versioned local PWA mark under `web/public/icons`.
+ * Server-only logo loaders. For client-safe URL resolution use `@/lib/logo-src`.
+ * Do not import this module from `"use client"` files — it pulls `next/headers`.
  */
-export function resolveLogoSrc(logoPublicId: string | null | undefined): string {
-  if (logoPublicId?.trim()) {
-    return (
-      cloudinaryUrl(logoPublicId.trim(), {
-        width: 192,
-        height: 192,
-        crop: "fit",
-      }) ?? BRAND_ICONS.mark
-    );
-  }
-  return BRAND_ICONS.mark;
+
+export type PublicLogoLayout = {
+  src: string;
+  sizeRem: number;
+  offsetPct: number;
+  gapRem: number;
+};
+
+/** Load logo + nav hang layout for public shells. */
+export async function loadPublicLogoLayout(): Promise<PublicLogoLayout> {
+  const property = await loadPublicPropertyProfile();
+  return {
+    src: resolveLogoSrc(property?.logoPublicId),
+    sizeRem: property?.logoNavSizeRem ?? DEFAULT_LOGO_NAV_SIZE_REM,
+    offsetPct: property?.logoNavOffsetPct ?? DEFAULT_LOGO_NAV_OFFSET_PCT,
+    gapRem: property?.logoNavGapRem ?? DEFAULT_LOGO_NAV_GAP_REM,
+  };
 }
 
 /** Load the property logo for public shells (header / footer fallbacks). */
 export async function loadPublicLogoSrc(): Promise<string> {
-  const property = await loadPublicPropertyProfile();
-  return resolveLogoSrc(property?.logoPublicId);
+  const layout = await loadPublicLogoLayout();
+  return layout.src;
 }

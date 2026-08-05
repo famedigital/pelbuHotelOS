@@ -34,7 +34,11 @@ export default async function FrontPublicPageEditor({
       <DeskPageTitle
         eyebrow="Front Public · Pages"
         title={page.draft.title}
-        description={`Edit /${slug === "home" ? "" : slug}. Draft changes stay private until Publish is pressed.`}
+        description={
+          slug === "home"
+            ? "Stay landing copy, CTAs, SEO — and Hero colours (photo scrim + type). Draft stays private until Publish."
+            : `Edit /${slug}. Draft changes stay private until Publish is pressed.`
+        }
         actions={
           <Button asChild variant="outline">
             <Link href="/erp/front-public">

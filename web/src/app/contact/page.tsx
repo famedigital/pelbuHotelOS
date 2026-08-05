@@ -2,6 +2,7 @@ import { ContactForm } from "@/components/contact/ContactForm";
 import { CloudinaryImage } from "@/components/media/CloudinaryImage";
 import { MediaCard } from "@/components/site/MediaCard";
 import { CmsContentSections } from "@/components/site/CmsContentSections";
+import { MeetTheTeam } from "@/components/site/MeetTheTeam";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { PublicSiteHeader } from "@/components/site/PublicSiteHeader";
 import { SiteBreadcrumbs } from "@/components/site/SiteBreadcrumbs";
@@ -10,6 +11,7 @@ import { BRAND_CLOUDINARY } from "@/lib/brand";
 import { loadCmsPage } from "@/lib/cms";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { loadPublicPropertyProfile } from "@/lib/public-property";
+import { loadPublicTeamMembers } from "@/lib/property-media-loader";
 import {
   aboutPageJsonLd,
   breadcrumbJsonLd,
@@ -71,9 +73,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ContactPage() {
-  const [page, property] = await Promise.all([
+  const [page, property, team] = await Promise.all([
     loadCmsPage("contact"),
     loadPublicPropertyProfile(),
+    loadPublicTeamMembers(),
   ]);
 
   const storyImage =
@@ -282,6 +285,7 @@ export default async function ContactPage() {
             </div>
           </div>
         </section>
+        <MeetTheTeam members={team} />
       </main>
       <SiteFooter profile={property} />
     </>

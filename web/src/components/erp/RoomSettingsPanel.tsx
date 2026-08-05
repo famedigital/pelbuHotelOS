@@ -664,6 +664,15 @@ function CategoryTableRow({
                 Clear
               </Button>
             ) : null}
+            {type.id ? (
+              <Button asChild size="sm" variant="outline" className="h-8">
+                <a
+                  href={`/erp/front-public/media?tab=room_type&id=${encodeURIComponent(type.id)}`}
+                >
+                  Trust photos
+                </a>
+              </Button>
+            ) : null}
           </div>
         </div>
         <CloudinaryPicker

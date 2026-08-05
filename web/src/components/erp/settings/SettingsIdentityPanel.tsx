@@ -8,6 +8,7 @@ import {
 } from "@/app/actions/erp-settings";
 import { PropertyWizardForm } from "@/components/erp/PropertyWizardForms";
 import { LogoUploadForm } from "@/components/erp/LogoUploadForm";
+import { LogoNavLayoutForm } from "@/components/erp/settings/LogoNavLayoutForm";
 import { SettingsDeskSecurityPanel } from "@/components/erp/settings/SettingsDeskSecurityPanel";
 import { SettingsSection } from "@/components/erp/settings/SettingsSection";
 import { Button } from "@/components/ui/button";
@@ -39,13 +40,29 @@ export function SettingsIdentityPanel({
       <SettingsSection
         eyebrow="Logo"
         title="Hotel logo"
-        description="Used on the desk header and printed documents. Pick from the media gallery or upload a new one."
-        blastRadius="guest-facing brand mark on invoices, receipts, and the ERP header"
+        description="Used on the public site header, desk header, and printed documents. Pick from the media gallery or upload a new one."
+        blastRadius="guest-facing brand mark on the website, invoices, receipts, and the ERP header"
         status={property.logo_public_id ? "ready" : "attention"}
       >
         <LogoUploadForm
           propertyId={property.id}
           currentLogoPublicId={property.logo_public_id}
+        />
+      </SettingsSection>
+
+      <SettingsSection
+        eyebrow="Public header"
+        title="Logo size & position"
+        description="Tune mark size, hang under the glass bar, and space between the logo and hotel name."
+        blastRadius="public site header and footer brand lockup only"
+        status="ready"
+      >
+        <LogoNavLayoutForm
+          propertyId={property.id}
+          logoPublicId={property.logo_public_id}
+          sizeRem={property.logo_nav_size_rem}
+          offsetPct={property.logo_nav_offset_pct}
+          gapRem={property.logo_nav_gap_rem}
         />
       </SettingsSection>
 

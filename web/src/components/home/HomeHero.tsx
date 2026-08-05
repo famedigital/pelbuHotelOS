@@ -164,11 +164,12 @@ export function HomeHero({
             <div className="mt-4 flex flex-wrap items-center gap-4 md:mt-6">
               <Link
                 href={secondaryHref}
-                className="inline-flex h-11 items-center rounded-xl border px-5 text-sm font-semibold backdrop-blur transition-opacity hover:opacity-90"
+                className="inline-flex h-11 items-center rounded-xl border px-5 text-sm font-semibold backdrop-blur-md transition-opacity hover:opacity-95"
                 style={{
                   color: theme.button,
-                  borderColor: hexAlpha(theme.button, 0.35),
-                  backgroundColor: hexAlpha(theme.button, 0.12),
+                  borderColor: hexAlpha(theme.button, 0.5),
+                  backgroundColor: hexAlpha(theme.button, 0.14),
+                  boxShadow: `inset 0 1px 0 0 ${hexAlpha(theme.button, 0.28)}, 0 8px 24px -12px ${hexAlpha(theme.scrimBottom, 0.55)}`,
                 }}
               >
                 {secondaryLabel}
