@@ -1,5 +1,9 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { cloudinaryMediaThumbUrl } from "@/lib/cloudinary";
+import {
+  cloudinaryHeroUrl,
+  cloudinaryMediaThumbUrl,
+  normalizeFocal,
+} from "@/lib/cloudinary";
 import {
   DEFAULT_HERO_THEME,
   parseHeroTheme,
@@ -58,6 +62,8 @@ export type CmsMediaItem = {
   sort_order: number;
   resource_type: "image" | "video";
   poster_public_id: string | null;
+  focal_x: number;
+  focal_y: number;
   /** Resolved Cloudinary image URL / video poster, or null if cloud env missing */
   src: string | null;
 };
@@ -137,6 +143,7 @@ export function pickHeroSrc(items: CmsMediaItem[]): string | null {
 export async function loadCmsGallery(
   pageSlug: string,
   width = 960,
+  options?: { height?: number; heroQuality?: boolean },
 ): Promise<CmsMediaItem[]> {
   const propertyId = await resolvePublicPropertyId();
   if (!propertyId) return [];
@@ -145,7 +152,7 @@ export async function loadCmsGallery(
   const { data } = await admin
     .from("cms_media")
     .select(
-      "id, public_id, alt, kind, sort_order, resource_type, poster_public_id",
+      "id, public_id, alt, kind, sort_order, resource_type, poster_public_id, focal_x, focal_y",
     )
     .eq("property_id", propertyId)
     .eq("page_slug", pageSlug)
@@ -157,20 +164,41 @@ export async function loadCmsGallery(
     const resourceType =
       row.resource_type === "video" ? ("video" as const) : ("image" as const);
     const poster = (row.poster_public_id as string | null) ?? null;
+    const focal = normalizeFocal(
+      row.focal_x == null ? 0.5 : Number(row.focal_x),
+      row.focal_y == null ? 0.5 : Number(row.focal_y),
+    );
+    const kind = row.kind as string;
+    const isHero = kind === "hero" || kind === "hero_mobile";
+    const transform = {
+      width,
+      height: options?.height,
+      crop: "fill" as const,
+      gravity: focal,
+      ...(isHero && options?.heroQuality
+        ? { quality: "auto:best" as const, improve: true, sharpen: true }
+        : {}),
+    };
+    const assetId = poster || publicId;
+    const src =
+      isHero && options?.heroQuality && resourceType === "image" && !poster
+        ? cloudinaryHeroUrl(publicId, transform)
+        : cloudinaryMediaThumbUrl(
+            assetId,
+            poster ? "image" : resourceType,
+            transform,
+          );
     return {
       id: row.id as string,
       public_id: publicId,
       alt: (row.alt as string) || "",
-      kind: row.kind as string,
+      kind,
       sort_order: Number(row.sort_order),
       resource_type: resourceType,
       poster_public_id: poster,
-      // Poster frames are images; fall back to a video still from the clip.
-      src: cloudinaryMediaThumbUrl(
-        poster || publicId,
-        poster ? "image" : resourceType,
-        { width, crop: "fill" },
-      ),
+      focal_x: focal.x,
+      focal_y: focal.y,
+      src,
     };
   });
 }

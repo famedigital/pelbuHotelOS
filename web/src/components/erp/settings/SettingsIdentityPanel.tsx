@@ -53,7 +53,7 @@ export function SettingsIdentityPanel({
       <SettingsSection
         eyebrow="Public header"
         title="Logo size & position"
-        description="Tune mark size, hang under the glass bar, and space between the logo and hotel name."
+        description="Tune mark size, vertical hang, horizontal shift, and space between the logo and hotel name."
         blastRadius="public site header and footer brand lockup only"
         status="ready"
       >
@@ -63,6 +63,7 @@ export function SettingsIdentityPanel({
           sizeRem={property.logo_nav_size_rem}
           offsetPct={property.logo_nav_offset_pct}
           gapRem={property.logo_nav_gap_rem}
+          shiftXRem={property.logo_nav_shift_x_rem}
         />
       </SettingsSection>
 

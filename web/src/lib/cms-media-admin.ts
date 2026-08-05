@@ -1,7 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CloudinaryResourceType } from "@/lib/cloudinary";
 
-export const CMS_MEDIA_KINDS = ["hero", "gallery", "thumb"] as const;
+export const CMS_MEDIA_KINDS = [
+  "hero",
+  "hero_mobile",
+  "gallery",
+  "thumb",
+] as const;
 export type CmsMediaKind = (typeof CMS_MEDIA_KINDS)[number];
 
 export type CmsMediaRow = {
@@ -19,6 +24,8 @@ export type CmsMediaRow = {
   width: number | null;
   height: number | null;
   format: string | null;
+  focal_x: number;
+  focal_y: number;
 };
 
 export type CmsMediaGroup = {
@@ -36,6 +43,12 @@ function toResourceType(value: unknown): CloudinaryResourceType {
   return value === "video" ? "video" : "image";
 }
 
+function toFocal(value: unknown, fallback: number): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(1, Math.max(0, n));
+}
+
 /**
  * Every media row for the property, grouped by the public page it belongs to.
  * Page slugs come from `cms_pages` as well as `cms_media`, so a page with no
@@ -49,7 +62,7 @@ export async function loadCmsMediaGroups(
     admin
       .from("cms_media")
       .select(
-        "id, page_slug, public_id, alt, kind, sort_order, is_published, resource_type, poster_public_id, duration_sec, bytes, width, height, format",
+        "id, page_slug, public_id, alt, kind, sort_order, is_published, resource_type, poster_public_id, duration_sec, bytes, width, height, format, focal_x, focal_y",
       )
       .eq("property_id", propertyId)
       .order("page_slug")
@@ -88,6 +101,8 @@ export async function loadCmsMediaGroups(
       width: row.width == null ? null : Number(row.width),
       height: row.height == null ? null : Number(row.height),
       format: (row.format as string | null) ?? null,
+      focal_x: toFocal(row.focal_x, 0.5),
+      focal_y: toFocal(row.focal_y, 0.5),
     });
     groups.set(slug, list);
   }

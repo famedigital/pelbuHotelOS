@@ -42,7 +42,8 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 
 const KIND_LABELS: Record<CmsMediaKind, string> = {
-  hero: "Hero",
+  hero: "Hero (desktop)",
+  hero_mobile: "Hero (mobile)",
   gallery: "Gallery",
   thumb: "Thumbnail",
 };
@@ -56,11 +57,20 @@ function thumb(
   publicId: string,
   resourceType: CloudinaryResourceType = "image",
   posterPublicId?: string | null,
+  focalX = 0.5,
+  focalY = 0.5,
+  width = 400,
+  height = 260,
 ): string | null {
   return cloudinaryMediaThumbUrl(
     posterPublicId || publicId,
     posterPublicId ? "image" : resourceType,
-    { width: 400, height: 260, crop: "fill" },
+    {
+      width,
+      height,
+      crop: "fill",
+      gravity: { x: focalX, y: focalY },
+    },
   );
 }
 
@@ -76,12 +86,16 @@ function MediaCardRow({ item }: { item: CmsMediaRow }) {
   const [pendingType, setPendingType] = useState<CloudinaryResourceType>(
     item.resource_type,
   );
+  const [focalX, setFocalX] = useState(item.focal_x);
+  const [focalY, setFocalY] = useState(item.focal_y);
   const [isRefreshing, startRefresh] = useTransition();
 
   useEffect(() => {
     setPendingId(item.public_id);
     setPendingType(item.resource_type);
-  }, [item.public_id, item.resource_type]);
+    setFocalX(item.focal_x);
+    setFocalY(item.focal_y);
+  }, [item.public_id, item.resource_type, item.focal_x, item.focal_y]);
 
   useEffect(() => {
     if (replaceState.ok) {
@@ -89,9 +103,50 @@ function MediaCardRow({ item }: { item: CmsMediaRow }) {
     }
   }, [replaceState.ok, router]);
 
-  const src = thumb(pendingId, pendingType, item.poster_public_id);
+  const src = thumb(
+    pendingId,
+    pendingType,
+    item.poster_public_id,
+    focalX,
+    focalY,
+  );
+  const fullSrc = thumb(
+    pendingId,
+    pendingType,
+    item.poster_public_id,
+    0.5,
+    0.5,
+    800,
+    500,
+  );
+  const deskPreview = thumb(
+    pendingId,
+    pendingType,
+    item.poster_public_id,
+    focalX,
+    focalY,
+    480,
+    270,
+  );
+  const phonePreview = thumb(
+    pendingId,
+    pendingType,
+    item.poster_public_id,
+    focalX,
+    focalY,
+    270,
+    480,
+  );
   const isVideo = pendingType === "video";
   const busy = pending || replacePending || isRefreshing;
+
+  function onFocalClick(event: React.MouseEvent<HTMLDivElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = (event.clientX - rect.left) / rect.width;
+    const y = (event.clientY - rect.top) / rect.height;
+    setFocalX(Math.min(1, Math.max(0, Math.round(x * 1000) / 1000)));
+    setFocalY(Math.min(1, Math.max(0, Math.round(y * 1000) / 1000)));
+  }
 
   return (
     <li className="flex flex-col overflow-hidden rounded-xl border bg-card">
@@ -133,6 +188,8 @@ function MediaCardRow({ item }: { item: CmsMediaRow }) {
 
       <form action={formAction} className="flex flex-1 flex-col gap-3 p-3">
         <input type="hidden" name="media_id" value={item.id} />
+        <input type="hidden" name="focal_x" value={focalX} />
+        <input type="hidden" name="focal_y" value={focalY} />
         <p
           className="truncate font-mono text-[11px] text-muted-foreground"
           title={pendingId}
@@ -143,7 +200,7 @@ function MediaCardRow({ item }: { item: CmsMediaRow }) {
         <div className="grid gap-1.5">
           <Label htmlFor={`alt-${item.id}`} className="text-xs">
             Alt text
-            {item.kind === "hero" ? (
+            {item.kind === "hero" || item.kind === "hero_mobile" ? (
               <span className="ml-1 font-normal text-muted-foreground">
                 (hero caption)
               </span>
@@ -157,6 +214,84 @@ function MediaCardRow({ item }: { item: CmsMediaRow }) {
             placeholder="Describe the photo or clip for screen readers"
           />
         </div>
+
+        {!isVideo ? (
+          <div className="grid gap-2 rounded-lg border border-border/70 bg-muted/30 p-2">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-xs">Focal point · tap image</Label>
+              <button
+                type="button"
+                className="text-[11px] font-medium text-sky-700 hover:underline"
+                onClick={() => {
+                  setFocalX(0.5);
+                  setFocalY(0.5);
+                }}
+              >
+                Reset centre
+              </button>
+            </div>
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={onFocalClick}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") e.preventDefault();
+              }}
+              className="relative aspect-[3/2] cursor-crosshair overflow-hidden rounded-md bg-muted"
+              title="Click to set the crop centre"
+            >
+              {fullSrc ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={fullSrc}
+                  alt=""
+                  className="h-full w-full object-contain"
+                  draggable={false}
+                />
+              ) : null}
+              <span
+                className="pointer-events-none absolute size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-sky-500 shadow"
+                style={{ left: `${focalX * 100}%`, top: `${focalY * 100}%` }}
+                aria-hidden
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Desktop 16:9
+                </p>
+                <div className="aspect-video overflow-hidden rounded bg-muted">
+                  {deskPreview ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={deskPreview}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : null}
+                </div>
+              </div>
+              <div>
+                <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Phone 9:16
+                </p>
+                <div className="mx-auto aspect-[9/16] max-h-28 overflow-hidden rounded bg-muted">
+                  {phonePreview ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={phonePreview}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : null}
+                </div>
+              </div>
+            </div>
+            <p className="font-mono text-[10px] text-muted-foreground">
+              x {focalX.toFixed(2)} · y {focalY.toFixed(2)}
+            </p>
+          </div>
+        ) : null}
 
         <div className="grid grid-cols-2 gap-2">
           <div className="grid gap-1.5">

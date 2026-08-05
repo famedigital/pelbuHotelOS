@@ -19,6 +19,9 @@ export type HomeHeroSlide = HeroSlide & {
   src?: string;
   resourceType?: CloudinaryResourceType;
   posterPublicId?: string | null;
+  /** Pre-resolved portrait mobile URL when dual art-direction is used. */
+  mobileSrc?: string;
+  mobilePublicId?: string;
 };
 
 type Props = {
@@ -59,7 +62,6 @@ export function HomeHero({
   const activeIsVideo = active?.resourceType === "video";
 
   useEffect(() => {
-    // Hold on video slides so the clip can play; photos keep rotating.
     if (slideCount < 2 || paused || activeIsVideo || reduceMotion) return;
     const id = window.setInterval(() => {
       setIndex((current) => (current + 1) % slideCount);
@@ -67,8 +69,6 @@ export function HomeHero({
     return () => window.clearInterval(id);
   }, [slideCount, intervalMs, paused, activeIsVideo, reduceMotion]);
 
-  // Browsers throttle timers in background tabs, which leaves the hero frozen
-  // on one frame when the guest comes back. Restart the rotation on return.
   useEffect(() => {
     const onVisibility = () => setPaused(document.visibilityState === "hidden");
     document.addEventListener("visibilitychange", onVisibility);
@@ -79,61 +79,77 @@ export function HomeHero({
     ? { initial: false as const, animate: { opacity: 1 } }
     : { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 } };
 
-  // `svh` rather than `vh`: on mobile Safari and Chrome, `100vh` is the
-  // viewport with the browser chrome retracted, so a full-height hero gets
-  // clipped behind the address bar until you scroll.
+  function renderMedia(
+    slide: HomeHeroSlide,
+    i: number,
+    mode: "desktop" | "mobile",
+  ) {
+    const isVideo = slide.resourceType === "video";
+    const publicId =
+      mode === "mobile" && slide.mobilePublicId
+        ? slide.mobilePublicId
+        : slide.publicId;
+    const src =
+      mode === "mobile" && slide.mobileSrc
+        ? slide.mobileSrc
+        : slide.src;
+    // Ken Burns only on desktop photos — mobile zoom softens hero bitmaps.
+    const kenBurns =
+      !isVideo && !reduceMotion && mode === "desktop";
+
+    return (
+      <div
+        key={`${mode}-${slide.publicId}-${i}`}
+        className={cn(
+          "absolute inset-0 transition-opacity duration-[1400ms] ease-out",
+          i === index ? "opacity-100" : "opacity-0",
+        )}
+      >
+        <CloudinaryMedia
+          publicId={publicId}
+          src={src}
+          alt=""
+          resourceType={slide.resourceType ?? "image"}
+          posterPublicId={slide.posterPublicId}
+          fill
+          priority={i === 0}
+          sizes={
+            mode === "mobile"
+              ? "100vw"
+              : "100vw"
+          }
+          cinematic={isVideo}
+          active={i === index}
+          imgClassName={cn(
+            "object-cover",
+            kenBurns && "transition-transform duration-[9000ms] ease-linear",
+            kenBurns && (i === index ? "scale-110" : "scale-100"),
+          )}
+        />
+      </div>
+    );
+  }
+
   return (
     <section
       className="relative isolate min-h-svh overflow-hidden"
       style={{ backgroundColor: theme.scrimBottom }}
     >
-      <div className="absolute inset-0" aria-hidden>
-        {safeSlides.map((slide, i) => {
-          const isVideo = slide.resourceType === "video";
-          return (
-            <div
-              key={`${slide.publicId}-${i}`}
-              className={cn(
-                "absolute inset-0 transition-opacity duration-[1400ms] ease-out",
-                i === index ? "opacity-100" : "opacity-0",
-              )}
-            >
-              <CloudinaryMedia
-                publicId={slide.publicId}
-                src={slide.src}
-                alt=""
-                resourceType={slide.resourceType ?? "image"}
-                posterPublicId={slide.posterPublicId}
-                fill
-                priority={i === 0}
-                sizes="100vw"
-                cinematic={isVideo}
-                active={i === index}
-                imgClassName={cn(
-                  "object-cover",
-                  // Slow drift on photo frames only — video already moves.
-                  !isVideo &&
-                    !reduceMotion &&
-                    "transition-transform duration-[9000ms] ease-linear",
-                  !isVideo &&
-                    !reduceMotion &&
-                    (i === index ? "scale-110" : "scale-100"),
-                )}
-              />
-            </div>
-          );
-        })}
+      {/* Desktop landscape hero stack */}
+      <div className="absolute inset-0 hidden md:block" aria-hidden>
+        {safeSlides.map((slide, i) => renderMedia(slide, i, "desktop"))}
+      </div>
+      {/* Mobile portrait hero stack */}
+      <div className="absolute inset-0 md:hidden" aria-hidden>
+        {safeSlides.map((slide, i) => renderMedia(slide, i, "mobile"))}
       </div>
 
-      {/* Overlay colours come from Front Public → home hero theme. */}
       <div
         className="absolute inset-0"
         style={{ backgroundImage: heroScrimGradient(theme) }}
         aria-hidden
       />
 
-      {/* Mobile: photo-first — copy mid-stack, compact booking docked to viewport bottom.
-          Desktop: copy left, search right (unchanged). */}
       <div className="relative mx-auto flex min-h-svh max-w-[1200px] flex-col justify-end px-5 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-24 sm:pb-10 md:px-8 md:pb-16 md:pt-32">
         <div className="grid gap-3 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)] lg:items-end lg:gap-12">
           <motion.div
@@ -155,7 +171,6 @@ export function HomeHero({
               {title}
             </h1>
 
-            {/* Description off mobile hero — frees photo; desktop keeps full story. */}
             <p
               className="mt-3 hidden max-w-lg line-clamp-3 text-base leading-relaxed md:mt-5 md:block"
               style={{ color: hexAlpha(theme.body, 0.82) }}

@@ -3,7 +3,6 @@ import { Fraunces, Geist_Mono, Manrope } from "next/font/google";
 import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 import { resolveShareImage } from "@/lib/og-share";
 import { BrandSplash } from "@/components/pwa/BrandSplash";
-import { FaviconAnimator } from "@/components/pwa/FaviconAnimator";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { PwaRegistrar } from "@/components/pwa/PwaRegistrar";
 import { SplashController } from "@/components/pwa/SplashController";
@@ -65,9 +64,9 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: BRAND_ICONS.favicon, sizes: "32x32" },
-      { url: BRAND_ICONS.favicon16, sizes: "16x16", type: "image/png" },
       { url: BRAND_ICONS.favicon32, sizes: "32x32", type: "image/png" },
+      { url: BRAND_ICONS.favicon16, sizes: "16x16", type: "image/png" },
+      { url: BRAND_ICONS.favicon, sizes: "any" },
       { url: BRAND_ICONS.mark, sizes: "192x192", type: "image/png" },
       { url: BRAND_ICONS.markLg, sizes: "512x512", type: "image/png" },
     ],
@@ -106,7 +105,6 @@ export default function RootLayout({
           <PublicMobileNav />
           <BackToTop />
           <PwaRegistrar />
-          <FaviconAnimator />
           <SplashController />
           <InstallPrompt />
           <Toaster position="top-right" richColors closeButton />

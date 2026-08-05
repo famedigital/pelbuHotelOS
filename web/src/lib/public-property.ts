@@ -3,7 +3,9 @@ import { resolvePublicPropertyId } from "@/lib/tenant/resolve-public-property";
 import {
   DEFAULT_LOGO_NAV_GAP_REM,
   DEFAULT_LOGO_NAV_OFFSET_PCT,
+  DEFAULT_LOGO_NAV_SHIFT_X_REM,
   DEFAULT_LOGO_NAV_SIZE_REM,
+  clampLogoShiftX,
 } from "@/lib/property-settings";
 
 export type PublicPropertyProfile = {
@@ -24,6 +26,8 @@ export type PublicPropertyProfile = {
   logoNavOffsetPct: number;
   /** Space between logo and hotel name (rem). */
   logoNavGapRem: number;
+  /** Horizontal nudge of header mark (rem). */
+  logoNavShiftXRem: number;
   checkInTime: string | null;
   checkOutTime: string | null;
   starRating: number | null;
@@ -89,7 +93,7 @@ export async function loadPublicPropertyProfile(): Promise<PublicPropertyProfile
     admin
       .from("properties")
       .select(
-        "name, phone, email, address, whatsapp, maps_url, instagram_handle, facebook_url, tiktok_url, logo_public_id, logo_nav_size_rem, logo_nav_offset_pct, logo_nav_gap_rem",
+        "name, phone, email, address, whatsapp, maps_url, instagram_handle, facebook_url, tiktok_url, logo_public_id, logo_nav_size_rem, logo_nav_offset_pct, logo_nav_gap_rem, logo_nav_shift_x_rem",
       )
       .eq("id", propertyId)
       .maybeSingle(),
@@ -114,6 +118,7 @@ export async function loadPublicPropertyProfile(): Promise<PublicPropertyProfile
   const sizeRaw = Number(data.logo_nav_size_rem);
   const offsetRaw = Number(data.logo_nav_offset_pct);
   const gapRaw = Number(data.logo_nav_gap_rem);
+  const shiftRaw = Number(data.logo_nav_shift_x_rem);
 
   return {
     name: (data.name as string) || "Pelbu Suites",
@@ -135,6 +140,9 @@ export async function loadPublicPropertyProfile(): Promise<PublicPropertyProfile
     logoNavGapRem: Number.isFinite(gapRaw)
       ? Math.min(3, Math.max(0, Math.round(gapRaw * 100) / 100))
       : DEFAULT_LOGO_NAV_GAP_REM,
+    logoNavShiftXRem: Number.isFinite(shiftRaw)
+      ? clampLogoShiftX(shiftRaw)
+      : DEFAULT_LOGO_NAV_SHIFT_X_REM,
     checkInTime:
       formatClockTime(
         (facts?.check_in_time as string | null | undefined) ?? null,

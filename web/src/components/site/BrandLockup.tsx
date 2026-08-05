@@ -3,6 +3,7 @@ import { SITE_NAME } from "@/lib/site";
 import {
   DEFAULT_LOGO_NAV_GAP_REM,
   DEFAULT_LOGO_NAV_OFFSET_PCT,
+  DEFAULT_LOGO_NAV_SHIFT_X_REM,
   DEFAULT_LOGO_NAV_SIZE_REM,
 } from "@/lib/property-settings";
 import { cn } from "@/lib/utils";
@@ -23,13 +24,15 @@ type Props = {
   offsetPct?: number;
   /** Horizontal gap between mark and hotel name (rem). */
   gapRem?: number;
+  /** Horizontal nudge of the mark (rem). Positive moves right. */
+  shiftXRem?: number;
   /** Override text colour (CMS hero nav text). */
   color?: string;
 };
 
 /**
  * Public brand lockup: hotel name stays on the slim rail midline.
- * Mark hangs relative to the glass strip. Size / offset / gap from ERP Settings.
+ * Mark hangs relative to the glass strip. Size / hang / shift / gap from ERP.
  */
 export function BrandLockup({
   logoSrc,
@@ -39,6 +42,7 @@ export function BrandLockup({
   sizeRem = DEFAULT_LOGO_NAV_SIZE_REM,
   offsetPct = DEFAULT_LOGO_NAV_OFFSET_PCT,
   gapRem = DEFAULT_LOGO_NAV_GAP_REM,
+  shiftXRem = DEFAULT_LOGO_NAV_SHIFT_X_REM,
   color,
 }: Props) {
   const logo = logoSrc?.trim() || BRAND_ICONS.mark;
@@ -54,7 +58,10 @@ export function BrandLockup({
     : mobile;
   const offset = Math.min(70, Math.max(20, offsetPct));
   const gap = Math.min(3, Math.max(0, gapRem));
-  const slotRem = Math.max(2.75, Math.round(displaySize * 0.5 * 100) / 100);
+  const shiftX = Math.min(3, Math.max(-1.5, shiftXRem));
+  // Slot at least as wide as the mark so the centre anchor does not push
+  // half the logo past the left page edge.
+  const slotRem = Math.max(displayMobile, displaySize);
 
   const vars = {
     ["--logo-size"]: `${displaySize}rem`,
@@ -62,6 +69,7 @@ export function BrandLockup({
     ["--logo-offset"]: `${offset}%`,
     ["--logo-slot"]: `${slotRem}rem`,
     ["--logo-gap"]: `${gap}rem`,
+    ["--logo-shift-x"]: `${shiftX}rem`,
     ...(color ? { color } : {}),
   } as CSSProperties;
 
@@ -90,12 +98,12 @@ export function BrandLockup({
           alt=""
           className={cn(
             "pointer-events-none absolute left-1/2 top-1/2 h-[var(--logo-size-m)] w-[var(--logo-size-m)] object-contain md:h-[var(--logo-size)] md:w-[var(--logo-size)]",
-            "-translate-x-1/2",
             "drop-shadow-[0_8px_18px_rgb(8_47_73/0.28)]",
             hero && "drop-shadow-[0_6px_16px_rgb(0_0_0/0.45)]",
           )}
           style={{
-            transform: `translate(-50%, calc(-1 * var(--logo-offset)))`,
+            transform:
+              "translate(calc(-50% + var(--logo-shift-x)), calc(-1 * var(--logo-offset)))",
           }}
           width={Math.round(displaySize * 16)}
           height={Math.round(displaySize * 16)}

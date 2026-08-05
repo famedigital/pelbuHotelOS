@@ -7,7 +7,7 @@
  * Bump when replacing files under `web/public/icons` so browsers/PWA drop stale caches.
  * Keep in sync with `?v=` on icons in `*.webmanifest` and SW precache lists.
  */
-export const BRAND_ICON_VERSION = "20260804";
+export const BRAND_ICON_VERSION = "20260805";
 
 function iconPath(path: string): string {
   return `${path}?v=${BRAND_ICON_VERSION}`;
@@ -64,6 +64,10 @@ export const BRAND_CLOUDINARY = {
  *  in `20260731000006_remap_broken_menu_images.sql` and `menu-loader.ts`. */
 export const OUTLET_SHOWCASE_PHOTOS = {
   restaurant: [
+    {
+      publicId: "pelbu/restaurant/uuy1ycprinlbhm7lvkli",
+      alt: "Pelbu Suites restaurant dining room",
+    },
     { publicId: "pelbu/restaurant/dining-room", alt: "Pelbu Suites dining room" },
     { publicId: "pelbu/restaurant/signature-plate", alt: "Signature restaurant plate" },
     { publicId: "pelbu/menu/cafe-ema-datshi-rice-bowl", alt: "Ema datshi rice bowl" },
@@ -71,6 +75,10 @@ export const OUTLET_SHOWCASE_PHOTOS = {
     { publicId: "pelbu/menu/cafe-chicken-momos", alt: "Chicken momos" },
   ],
   cafe: [
+    {
+      publicId: "pelbu/cafe/v7d8ba1cszstrkfosyax",
+      alt: "PELBU ZONE café lounge",
+    },
     { publicId: "pelbu/cafe/morning-pastry", alt: "Morning coffee and pastry" },
     { publicId: "pelbu/menu/cafe-suja-khabzay", alt: "Suja and khabzay" },
     { publicId: "pelbu/menu/cafe-himalayan-oats-bowl", alt: "Himalayan oats bowl" },

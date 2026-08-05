@@ -77,6 +77,23 @@ export default async function FrontPublicPage() {
       </section>
 
       <section className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold text-foreground">
+              Homepage story
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Brochure bands: About, Rooms, Restaurant, lunch package, Cafe,
+              Spa — editable without a deploy.
+            </p>
+          </div>
+          <Button asChild>
+            <Link href="/erp/front-public/homepage">Edit homepage story</Link>
+          </Button>
+        </div>
+      </section>
+
+      <section className="space-y-4">
         <div>
           <h2 className="text-xl font-semibold text-foreground">Pages</h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -155,6 +172,13 @@ export default async function FrontPublicPage() {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {[
             {
+              title: "Homepage story",
+              description: "About, rooms, F&B, lunch price, spa copy.",
+              href: "/erp/front-public/homepage",
+              icon: LayoutTemplateIcon,
+              ready: true,
+            },
+            {
               title: "Menus and prices",
               description: "Cafe, pastry, restaurant and bar.",
               href: "/erp/menu",
@@ -170,7 +194,7 @@ export default async function FrontPublicPage() {
             },
             {
               title: "Media library",
-              description: "Page galleries, hero slides and image ordering.",
+              description: "Hero, mobile hero, galleries and focal points.",
               href: "/erp/front-public/media",
               icon: ImageIcon,
               ready: true,

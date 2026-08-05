@@ -471,22 +471,34 @@ export async function setPropertyLogoNavLayout(
       String(formData.get("logo_nav_offset_pct") ?? "").trim(),
     );
     const gapRaw = Number(String(formData.get("logo_nav_gap_rem") ?? "").trim());
+    const shiftRaw = Number(
+      String(formData.get("logo_nav_shift_x_rem") ?? "0").trim(),
+    );
     if (!Number.isFinite(sizeRaw) || sizeRaw < 4 || sizeRaw > 12) {
       throw new Error("Logo size must be between 4 and 12 rem.");
     }
     if (!Number.isFinite(offsetRaw) || offsetRaw < 20 || offsetRaw > 70) {
-      throw new Error("Logo offset must be between 20% and 70%.");
+      throw new Error("Logo vertical hang must be between 20% and 70%.");
     }
     if (!Number.isFinite(gapRaw) || gapRaw < 0 || gapRaw > 3) {
       throw new Error("Logo–title gap must be between 0 and 3 rem.");
     }
+    if (!Number.isFinite(shiftRaw) || shiftRaw < -1.5 || shiftRaw > 3) {
+      throw new Error("Logo horizontal shift must be between −1.5 and 3 rem.");
+    }
     const logo_nav_size_rem = Math.round(sizeRaw * 100) / 100;
     const logo_nav_offset_pct = Math.round(offsetRaw * 10) / 10;
     const logo_nav_gap_rem = Math.round(gapRaw * 100) / 100;
+    const logo_nav_shift_x_rem = Math.round(shiftRaw * 100) / 100;
 
     const { error } = await admin
       .from("properties")
-      .update({ logo_nav_size_rem, logo_nav_offset_pct, logo_nav_gap_rem })
+      .update({
+        logo_nav_size_rem,
+        logo_nav_offset_pct,
+        logo_nav_gap_rem,
+        logo_nav_shift_x_rem,
+      })
       .eq("id", propertyId);
     if (error) throw new Error(error.message);
 
@@ -495,8 +507,13 @@ export async function setPropertyLogoNavLayout(
       action: "property.settings.logo_layout",
       entityType: "properties",
       entityId: propertyId,
-      summary: `Logo layout size ${logo_nav_size_rem}rem, offset ${logo_nav_offset_pct}%, gap ${logo_nav_gap_rem}rem`,
-      meta: { logo_nav_size_rem, logo_nav_offset_pct, logo_nav_gap_rem },
+      summary: `Logo layout size ${logo_nav_size_rem}rem, hang ${logo_nav_offset_pct}%, shift ${logo_nav_shift_x_rem}rem, gap ${logo_nav_gap_rem}rem`,
+      meta: {
+        logo_nav_size_rem,
+        logo_nav_offset_pct,
+        logo_nav_gap_rem,
+        logo_nav_shift_x_rem,
+      },
     });
 
     revalidatePath("/erp/settings");
@@ -504,7 +521,7 @@ export async function setPropertyLogoNavLayout(
     return {
       ok: true,
       propertyId,
-      message: "Header logo size, position, and gap saved.",
+      message: "Header logo size, hang, shift, and gap saved.",
     };
   } catch (e) {
     return {

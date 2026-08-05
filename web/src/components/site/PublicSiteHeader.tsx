@@ -41,6 +41,7 @@ export async function PublicSiteHeader({
       logoSizeRem={logoLayout.sizeRem}
       logoOffsetPct={logoLayout.offsetPct}
       logoGapRem={logoLayout.gapRem}
+      logoShiftXRem={logoLayout.shiftXRem}
       variant={variant}
       heroTheme={homeTheme}
       menus={buildMegaMenus(rooms)}

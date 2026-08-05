@@ -3,6 +3,7 @@ import { loadPublicPropertyProfile } from "@/lib/public-property";
 import {
   DEFAULT_LOGO_NAV_GAP_REM,
   DEFAULT_LOGO_NAV_OFFSET_PCT,
+  DEFAULT_LOGO_NAV_SHIFT_X_REM,
   DEFAULT_LOGO_NAV_SIZE_REM,
 } from "@/lib/property-settings";
 
@@ -16,6 +17,7 @@ export type PublicLogoLayout = {
   sizeRem: number;
   offsetPct: number;
   gapRem: number;
+  shiftXRem: number;
 };
 
 /** Load logo + nav hang layout for public shells. */
@@ -26,6 +28,7 @@ export async function loadPublicLogoLayout(): Promise<PublicLogoLayout> {
     sizeRem: property?.logoNavSizeRem ?? DEFAULT_LOGO_NAV_SIZE_REM,
     offsetPct: property?.logoNavOffsetPct ?? DEFAULT_LOGO_NAV_OFFSET_PCT,
     gapRem: property?.logoNavGapRem ?? DEFAULT_LOGO_NAV_GAP_REM,
+    shiftXRem: property?.logoNavShiftXRem ?? DEFAULT_LOGO_NAV_SHIFT_X_REM,
   };
 }
 

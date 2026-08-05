@@ -10,9 +10,19 @@ type Props = {
   rooms: PublicRoomWithRate[];
   seasonName?: string | null;
   taxInclusive?: boolean;
+  eyebrow?: string;
+  title?: string;
+  description?: string;
 };
 
-export function HomeRooms({ rooms, seasonName, taxInclusive }: Props) {
+export function HomeRooms({
+  rooms,
+  seasonName,
+  taxInclusive,
+  eyebrow = "Rooms",
+  title = "Suites built for the Thimphu road.",
+  description = "Quiet rooms in Olakha with live availability and direct rack rates. Guide and driver beds are complimentary on agent groups.",
+}: Props) {
   if (rooms.length === 0) {
     return (
       <section
@@ -21,9 +31,9 @@ export function HomeRooms({ rooms, seasonName, taxInclusive }: Props) {
       >
         <div className="mx-auto max-w-[1200px] px-5 md:px-8">
           <HomeSectionHead
-            eyebrow="Rooms"
-            title="Check live inventory next."
-            description="Room types did not load on this pass. Open the book flow or rate card — the desk inventory is the source of truth."
+            eyebrow={eyebrow}
+            title={title}
+            description={description}
             accent="sky"
             link={{ href: "/book", label: "Book dates" }}
           />
@@ -60,9 +70,9 @@ export function HomeRooms({ rooms, seasonName, taxInclusive }: Props) {
       <div className="mx-auto max-w-[1200px] px-5 md:px-8">
         <Reveal>
           <HomeSectionHead
-            eyebrow="Rooms"
-            title="Suites built for the Thimphu road."
-            description="Quiet rooms in Olakha with live availability and direct rack rates. Guide and driver beds are complimentary on agent groups."
+            eyebrow={eyebrow}
+            title={title}
+            description={description}
             accent="sky"
             link={{ href: "/rooms", label: "All rooms" }}
           />

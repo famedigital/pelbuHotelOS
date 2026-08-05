@@ -27,9 +27,17 @@ async function requireDesk() {
 function parseKind(value: FormDataEntryValue | null): CmsMediaKind {
   const raw = String(value ?? "gallery").trim();
   if (!CMS_MEDIA_KINDS.includes(raw as CmsMediaKind)) {
-    throw new Error("Media role must be hero, gallery, or thumb.");
+    throw new Error("Media role must be hero, hero mobile, gallery, or thumb.");
   }
   return raw as CmsMediaKind;
+}
+
+function parseFocal(value: FormDataEntryValue | null, fallback: number): number {
+  const raw = String(value ?? "").trim();
+  if (!raw) return fallback;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(1, Math.max(0, Math.round(n * 10000) / 10000));
 }
 
 function parseResourceType(
@@ -145,6 +153,8 @@ export async function updateCmsMedia(
     const isPublished = formData.get("is_published") === "1";
     const posterPublicId =
       optionalTrim(formData.get("poster_public_id"))?.slice(0, 300) ?? null;
+    const focalX = parseFocal(formData.get("focal_x"), 0.5);
+    const focalY = parseFocal(formData.get("focal_y"), 0.5);
 
     // Optional asset swap (Change photo / video on an existing card).
     const publicId = optionalTrim(formData.get("public_id"))?.slice(0, 300);
@@ -163,6 +173,8 @@ export async function updateCmsMedia(
       kind,
       is_published: isPublished,
       poster_public_id: posterPublicId,
+      focal_x: focalX,
+      focal_y: focalY,
     };
     if (publicId && resourceType) {
       patch.public_id = publicId;

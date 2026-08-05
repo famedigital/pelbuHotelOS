@@ -30,6 +30,7 @@ import { toast } from "sonner";
 
 const KIND_LABELS: Record<CmsMediaKind, string> = {
   hero: "Hero / banner",
+  hero_mobile: "Hero (mobile)",
   gallery: "Gallery",
   thumb: "Thumbnail",
 };

@@ -329,6 +329,7 @@ export function SiteHeader({
   logoSizeRem,
   logoOffsetPct,
   logoGapRem,
+  logoShiftXRem,
   variant = "solid",
   menus,
   heroTheme,
@@ -337,6 +338,7 @@ export function SiteHeader({
   logoSizeRem?: number;
   logoOffsetPct?: number;
   logoGapRem?: number;
+  logoShiftXRem?: number;
   variant?: Variant;
   menus: MegaMenu[];
   /** From home CMS `hero_theme` — only used while variant is `hero`. */
@@ -383,6 +385,7 @@ export function SiteHeader({
             sizeRem={logoSizeRem}
             offsetPct={logoOffsetPct}
             gapRem={logoGapRem}
+            shiftXRem={logoShiftXRem}
             color={overHero ? navText : undefined}
           />
 
