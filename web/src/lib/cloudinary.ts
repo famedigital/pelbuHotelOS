@@ -19,7 +19,7 @@ export type CloudinaryTransform = {
   width?: number;
   height?: number;
   crop?: "fill" | "fit" | "limit" | "scale";
-  quality?: "auto" | "auto:best" | number;
+  quality?: "auto" | "auto:best" | "auto:good" | "auto:eco" | "auto:low" | number;
   format?: "auto" | "webp" | "jpg" | "png";
   dpr?: "auto" | number;
   /** Relative fill anchor; maps to g_xy_center,x,y */
