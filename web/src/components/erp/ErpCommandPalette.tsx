@@ -16,6 +16,13 @@ import {
 import { ERP_MODULES, ERP_QUICK_ACTIONS } from "@/lib/erp-nav";
 import { resolveModule } from "@/lib/erp-nav";
 
+/** Custom event so mobile More / buttons can open the palette without keyboard. */
+export const ERP_OPEN_COMMAND_PALETTE = "erp:open-command-palette";
+
+export function openErpCommandPalette() {
+  document.dispatchEvent(new CustomEvent(ERP_OPEN_COMMAND_PALETTE));
+}
+
 /**
  * Desk command palette — Ctrl+K / Cmd+K jumps to any allowed module tab.
  */
@@ -33,8 +40,13 @@ export function ErpCommandPalette({
       event.preventDefault();
       setOpen((value) => !value);
     };
+    const onOpen = () => setOpen(true);
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    document.addEventListener(ERP_OPEN_COMMAND_PALETTE, onOpen);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener(ERP_OPEN_COMMAND_PALETTE, onOpen);
+    };
   }, []);
 
   const allow = React.useMemo(() => {

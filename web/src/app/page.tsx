@@ -23,27 +23,33 @@ import {
   serializeJsonLd,
   websiteJsonLd,
 } from "@/lib/structured-data";
+import { shareSocialMeta } from "@/lib/og-share";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   const page = await safePublic("home-meta", () => loadCmsPage("home"), null);
-  return {
-    title:
-      page?.seo_title ?? "Pelbu Suites Olakha | Hotel in Thimphu, Bhutan",
+  const title =
+    page?.seo_title ?? "Pelbu Suites Olakha | Hotel in Thimphu, Bhutan";
+  const description =
+    page?.meta_description ??
+    "Book rooms direct at Pelbu Suites in Olakha, Thimphu — cafe, restaurant, spa and meeting under one roof.";
+  const social = shareSocialMeta({
+    title: page?.seo_title ?? "Pelbu Suites Olakha | Hotel in Thimphu",
     description:
       page?.meta_description ??
-      "Book rooms direct at Pelbu Suites in Olakha, Thimphu — cafe, restaurant, spa and meeting under one roof.",
+      "A calm Olakha base for stays, meals and recovery — direct rates, live availability.",
+    path: "/",
+    publicId: page?.og_public_id,
+    alt: "Pelbu Suites hotel in Olakha, Thimphu",
+  });
+
+  return {
+    title,
+    description,
     alternates: { canonical: "/" },
-    openGraph: {
-      title: page?.seo_title ?? "Pelbu Suites Olakha | Hotel in Thimphu",
-      description:
-        page?.meta_description ??
-        "A calm Olakha base for stays, meals and recovery — direct rates, live availability.",
-      type: "website",
-      url: "/",
-    },
+    ...social,
   };
 }
 

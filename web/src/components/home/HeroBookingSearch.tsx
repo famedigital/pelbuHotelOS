@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { useMemo, useState } from "react";
 
 const selectClass =
-  "h-11 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
+  "h-9 w-full rounded-lg border border-input bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] sm:h-11 sm:rounded-xl sm:px-3";
 
 type Props = {
   className?: string;
@@ -25,6 +25,7 @@ type Props = {
 /**
  * Airbnb-style stay search for the homepage hero. Submits to /book with
  * dates and party size so the booking wizard opens prefilled.
+ * Mobile: compact dock at the bottom so the hero photo stays primary.
  */
 export function HeroBookingSearch({
   className,
@@ -45,6 +46,10 @@ export function HeroBookingSearch({
     fromPriceBtn != null && fromPriceBtn > 0
       ? `From ${formatBtn(fromPriceBtn)} / night · live rates, no OTA markup`
       : "Live rates — no OTA markup.";
+  const priceHintShort =
+    fromPriceBtn != null && fromPriceBtn > 0
+      ? `From ${formatBtn(fromPriceBtn)}/nt`
+      : "Live rates";
 
   function onCheckInChange(value: string) {
     setCheckIn(value);
@@ -58,27 +63,36 @@ export function HeroBookingSearch({
       action="/book"
       method="get"
       className={cn(
-        "rounded-2xl border border-white/25 bg-white/95 p-4 text-sky-ink shadow-[0_24px_60px_-28px_rgba(8,47,73,0.55)] backdrop-blur-md sm:p-5",
+        "rounded-xl border border-white/25 bg-white/95 p-3 text-sky-ink shadow-[0_16px_40px_-24px_rgba(8,47,73,0.5)] backdrop-blur-md sm:rounded-2xl sm:p-5 sm:shadow-[0_24px_60px_-28px_rgba(8,47,73,0.55)]",
         className,
       )}
       aria-label="Check room availability"
     >
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
-        Direct booking
-      </p>
-      <p className="mt-1 text-sm text-sky-ink/70">
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-sky-700 sm:text-xs sm:tracking-[0.18em]">
+          Direct booking
+        </p>
+        <p className="truncate text-[11px] text-sky-ink/65 sm:hidden">
+          {priceHintShort}
+          {taxInclusive && fromPriceBtn != null && fromPriceBtn > 0
+            ? " · tax"
+            : ""}
+        </p>
+      </div>
+      <p className="mt-1 hidden text-sm text-sky-ink/70 sm:block">
         {priceHint}
         {taxInclusive && fromPriceBtn != null && fromPriceBtn > 0
           ? " · inc. tax"
           : ""}
       </p>
 
-      {/* items-start keeps both columns content-height so the two date inputs
-          share a baseline; the nights hint lives below the row, not inside a
-          column, so it can never offset one field against the other. */}
-      <div className="mt-4 grid items-start gap-3 sm:grid-cols-2">
-        <div className="grid gap-1.5">
-          <Label htmlFor="hero-check-in" className="text-xs text-sky-ink/80">
+      {/* Mobile: tight 2×2; sm+: dates row then guests/rooms. */}
+      <div className="mt-2.5 grid grid-cols-2 items-start gap-2 sm:mt-4 sm:gap-3 sm:grid-cols-2">
+        <div className="grid gap-1">
+          <Label
+            htmlFor="hero-check-in"
+            className="text-[11px] text-sky-ink/80 sm:text-xs"
+          >
             Check-in
           </Label>
           <Input
@@ -89,11 +103,14 @@ export function HeroBookingSearch({
             min={minCheckIn}
             required
             onChange={(event) => onCheckInChange(event.target.value)}
-            className="h-11 rounded-xl border-sky-200 bg-white text-base sm:text-sm"
+            className="h-9 rounded-lg border-sky-200 bg-white text-sm sm:h-11 sm:rounded-xl sm:text-base md:text-sm"
           />
         </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="hero-check-out" className="text-xs text-sky-ink/80">
+        <div className="grid gap-1">
+          <Label
+            htmlFor="hero-check-out"
+            className="text-[11px] text-sky-ink/80 sm:text-xs"
+          >
             Check-out
           </Label>
           <Input
@@ -104,20 +121,14 @@ export function HeroBookingSearch({
             min={minCheckout}
             required
             onChange={(event) => setCheckOut(event.target.value)}
-            className="h-11 rounded-xl border-sky-200 bg-white text-base sm:text-sm"
+            className="h-9 rounded-lg border-sky-200 bg-white text-sm sm:h-11 sm:rounded-xl sm:text-base md:text-sm"
           />
         </div>
-      </div>
-
-      <p className="mt-2 text-xs text-sky-ink/55" aria-live="polite">
-        {datesValid
-          ? `${nights} night${nights === 1 ? "" : "s"}`
-          : "Choose a later check-out"}
-      </p>
-
-      <div className="mt-3 grid grid-cols-2 items-start gap-3">
-        <div className="grid gap-1.5">
-          <Label htmlFor="hero-adults" className="text-xs text-sky-ink/80">
+        <div className="grid gap-1">
+          <Label
+            htmlFor="hero-adults"
+            className="text-[11px] text-sky-ink/80 sm:text-xs"
+          >
             Guests
           </Label>
           <select
@@ -135,8 +146,11 @@ export function HeroBookingSearch({
             ))}
           </select>
         </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="hero-rooms" className="text-xs text-sky-ink/80">
+        <div className="grid gap-1">
+          <Label
+            htmlFor="hero-rooms"
+            className="text-[11px] text-sky-ink/80 sm:text-xs"
+          >
             Rooms
           </Label>
           <select
@@ -156,15 +170,26 @@ export function HeroBookingSearch({
         </div>
       </div>
 
-      <Button
-        type="submit"
-        variant="citrus"
-        size="lg"
-        className="mt-4 h-12 w-full rounded-xl text-base font-semibold"
-        disabled={!datesValid}
-      >
-        Check availability
-      </Button>
+      <div className="mt-2 flex items-center gap-2 sm:mt-3 sm:block">
+        <p
+          className="min-w-0 flex-1 truncate text-[11px] text-sky-ink/55 sm:mb-0 sm:text-xs"
+          aria-live="polite"
+        >
+          {datesValid
+            ? `${nights} night${nights === 1 ? "" : "s"}`
+            : "Choose a later check-out"}
+        </p>
+        <Button
+          type="submit"
+          variant="citrus"
+          size="lg"
+          className="h-9 shrink-0 rounded-lg px-4 text-sm font-semibold sm:mt-4 sm:h-12 sm:w-full sm:rounded-xl sm:text-base"
+          disabled={!datesValid}
+        >
+          <span className="sm:hidden">Check dates</span>
+          <span className="hidden sm:inline">Check availability</span>
+        </Button>
+      </div>
     </form>
   );
 }

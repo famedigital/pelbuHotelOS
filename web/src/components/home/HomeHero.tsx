@@ -132,39 +132,41 @@ export function HomeHero({
         aria-hidden
       />
 
-      <div className="relative mx-auto flex min-h-svh max-w-[1200px] flex-col justify-end px-5 pb-10 pt-24 md:px-8 md:pb-16 md:pt-32">
-        {/* Mobile: booking box first (higher conversion); desktop: copy left, box right. */}
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)] lg:items-end lg:gap-12">
+      {/* Mobile: photo-first — copy mid-stack, compact booking docked to viewport bottom.
+          Desktop: copy left, search right (unchanged). */}
+      <div className="relative mx-auto flex min-h-svh max-w-[1200px] flex-col justify-end px-5 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-24 sm:pb-10 md:px-8 md:pb-16 md:pt-32">
+        <div className="grid gap-3 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)] lg:items-end lg:gap-12">
           <motion.div
-            className="order-2 min-w-0 lg:order-1"
+            className="order-1 min-w-0 lg:order-1"
             {...settle}
             transition={{ duration: 0.5, ease: "easeOut" }}
           >
             <p
-              className="text-xs font-semibold uppercase tracking-[0.24em]"
+              className="text-[10px] font-semibold uppercase tracking-[0.24em] sm:text-xs"
               style={{ color: theme.eyebrow }}
             >
               {eyebrow}
             </p>
 
             <h1
-              className="mt-2 max-w-3xl font-display text-3xl leading-[1.08] sm:text-4xl md:mt-4 md:text-6xl"
+              className="mt-1.5 max-w-3xl font-display text-[1.65rem] leading-[1.08] sm:mt-2 sm:text-4xl md:mt-4 md:text-6xl"
               style={{ color: theme.title }}
             >
               {title}
             </h1>
 
+            {/* Description off mobile hero — frees photo; desktop keeps full story. */}
             <p
-              className="mt-3 max-w-lg line-clamp-2 text-[15px] leading-relaxed md:mt-5 md:line-clamp-3 md:text-base"
+              className="mt-3 hidden max-w-lg line-clamp-3 text-base leading-relaxed md:mt-5 md:block"
               style={{ color: hexAlpha(theme.body, 0.82) }}
             >
               {description}
             </p>
 
-            <div className="mt-4 flex flex-wrap items-center gap-4 md:mt-6">
+            <div className="mt-3 flex flex-wrap items-center gap-3 sm:mt-4 sm:gap-4 md:mt-6">
               <Link
                 href={secondaryHref}
-                className="inline-flex h-11 items-center rounded-xl border px-5 text-sm font-semibold backdrop-blur-md transition-opacity hover:opacity-95"
+                className="inline-flex h-9 items-center rounded-xl border px-4 text-xs font-semibold backdrop-blur-md transition-opacity hover:opacity-95 sm:h-11 sm:px-5 sm:text-sm"
                 style={{
                   color: theme.button,
                   borderColor: hexAlpha(theme.button, 0.5),
@@ -194,7 +196,7 @@ export function HomeHero({
                         onClick={() => setIndex(i)}
                         className={cn(
                           "h-1.5 rounded-full transition-all duration-300",
-                          i === index ? "w-10" : "w-5 hover:opacity-80",
+                          i === index ? "w-8 sm:w-10" : "w-4 sm:w-5 hover:opacity-80",
                         )}
                         style={{
                           backgroundColor:
@@ -218,7 +220,7 @@ export function HomeHero({
           </motion.div>
 
           <motion.div
-            className="order-1 w-full lg:order-2 lg:self-end"
+            className="order-2 w-full lg:self-end"
             {...settle}
             transition={{ duration: 0.55, ease: "easeOut", delay: 0.08 }}
           >

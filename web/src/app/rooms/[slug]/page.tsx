@@ -7,6 +7,7 @@ import { resolveRoomImagePublicId, ROOM_GALLERY_BY_CODE } from "@/lib/brand";
 import { loadPublicRoom } from "@/lib/public-content";
 import { loadPublicRoomsWithRates } from "@/lib/public-room-rates";
 import { loadPublicPropertyMedia } from "@/lib/property-media-loader";
+import { resolveShareImage } from "@/lib/og-share";
 import {
   breadcrumbJsonLd,
   hotelRoomJsonLd,
@@ -29,6 +30,10 @@ export async function generateMetadata({
   const description =
     room.blurb ??
     `View ${room.name} at Pelbu Suites in Olakha, Thimphu and check live availability.`;
+  const share = resolveShareImage(
+    room.imagePublicId,
+    `${room.name} at Pelbu Suites`,
+  );
   return {
     title: `${room.name} | Pelbu Suites Thimphu`,
     description,
@@ -37,7 +42,13 @@ export async function generateMetadata({
       title: `${room.name} | Pelbu Suites`,
       description,
       url: `/rooms/${room.slug}`,
-      images: room.imageSrc ? [{ url: room.imageSrc }] : undefined,
+      images: [share],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${room.name} | Pelbu Suites`,
+      description,
+      images: [share.url],
     },
   };
 }

@@ -41,6 +41,8 @@ export type CmsPage = {
   meta_description: string | null;
   seo_title: string | null;
   canonical_path: string | null;
+  /** Cloudinary public_id for link-share / Open Graph image. */
+  og_public_id: string | null;
   summary: string | null;
   faq_json: Array<{ question: string; answer: string }>;
   sections_json: CmsContentSection[];
@@ -92,7 +94,7 @@ export async function loadCmsPage(slug: string): Promise<CmsPage | null> {
   const { data } = await admin
     .from("cms_pages")
     .select(
-      "slug, eyebrow, title, body, hours_note, primary_cta_href, primary_cta_label, secondary_cta_href, secondary_cta_label, meta_description, seo_title, canonical_path, summary, faq_json, sections_json, hero_theme",
+      "slug, eyebrow, title, body, hours_note, primary_cta_href, primary_cta_label, secondary_cta_href, secondary_cta_label, meta_description, seo_title, canonical_path, og_public_id, summary, faq_json, sections_json, hero_theme",
     )
     .eq("property_id", propertyId)
     .eq("slug", slug)
@@ -113,6 +115,7 @@ export async function loadCmsPage(slug: string): Promise<CmsPage | null> {
     meta_description: (data.meta_description as string | null) ?? null,
     seo_title: (data.seo_title as string | null) ?? null,
     canonical_path: (data.canonical_path as string | null) ?? null,
+    og_public_id: (data.og_public_id as string | null) ?? null,
     summary: (data.summary as string | null) ?? null,
     faq_json: Array.isArray(data.faq_json)
       ? (data.faq_json as Array<{ question: string; answer: string }>)

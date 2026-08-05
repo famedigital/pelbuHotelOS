@@ -1,8 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Geist_Mono, Manrope } from "next/font/google";
-import { BRAND_CLOUDINARY, BRAND_ICONS } from "@/lib/brand";
-import { cloudinaryUrl } from "@/lib/cloudinary";
 import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
+import { resolveShareImage } from "@/lib/og-share";
 import { BrandSplash } from "@/components/pwa/BrandSplash";
 import { FaviconAnimator } from "@/components/pwa/FaviconAnimator";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
@@ -12,6 +11,7 @@ import { BackToTop } from "@/components/site/BackToTop";
 import { PublicMobileNav } from "@/components/site/PublicMobileNav";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { BRAND_ICONS } from "@/lib/brand";
 import "./globals.css";
 
 const fontSans = Manrope({
@@ -33,6 +33,11 @@ const fontMono = Geist_Mono({
   display: "swap",
 });
 
+const defaultShare = resolveShareImage(
+  null,
+  "Pelbu Suites hotel in Olakha, Thimphu",
+);
+
 export const metadata: Metadata = {
   metadataBase: getSiteUrl(),
   title: "Pelbu Suites | Hotel in Olakha, Thimphu",
@@ -45,24 +50,13 @@ export const metadata: Metadata = {
     title: "Pelbu Suites | Hotel in Olakha, Thimphu",
     description: SITE_DESCRIPTION,
     url: "/",
-    images: [
-      {
-        url:
-          cloudinaryUrl(BRAND_CLOUDINARY.roomsSuiteAlt, {
-            width: 1200,
-            height: 630,
-            crop: "fill",
-          }) ?? BRAND_ICONS.markLg,
-        width: 1200,
-        height: 630,
-        alt: "Suite at Pelbu Suites in Olakha, Thimphu",
-      },
-    ],
+    images: [defaultShare],
   },
   twitter: {
     card: "summary_large_image",
     title: "Pelbu Suites | Hotel in Olakha, Thimphu",
     description: SITE_DESCRIPTION,
+    images: [defaultShare.url],
   },
   appleWebApp: {
     capable: true,
