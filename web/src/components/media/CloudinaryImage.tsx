@@ -22,6 +22,13 @@ type Props = {
   width?: number;
   height?: number;
   fill?: boolean;
+  /**
+   * Next → Cloudinary quality. Default 85 (maps to auto:best for large widths).
+   * Heroes should pass 90–95 for dense retina.
+   */
+  quality?: number;
+  /** Skip blur-up placeholder (preferred for full-bleed heroes). */
+  disableBlur?: boolean;
 };
 
 const RATIO_CLASS: Record<NonNullable<Props["ratio"]>, string> = {
@@ -34,7 +41,7 @@ const RATIO_CLASS: Record<NonNullable<Props["ratio"]>, string> = {
 
 /**
  * Public photography component. Cloudinary public IDs go through the custom
- * loader (srcset + dpr). Absolute/local URLs pass through unchanged.
+ * loader (srcset + dense retina widths). Absolute/local URLs pass through.
  */
 export function CloudinaryImage({
   publicId,
@@ -48,15 +55,20 @@ export function CloudinaryImage({
   width = 1200,
   height = 800,
   fill,
+  quality = 85,
+  disableBlur = false,
 }: Props) {
   const resolved = (src || publicId || "").trim();
   if (!resolved) return null;
 
   const onCloudinary = isCloudinarySource(resolved);
-  const blurId = resolved.startsWith("http")
-    ? (parseCloudinaryUrl(resolved)?.publicId ?? null)
-    : onCloudinary
-      ? resolved
+  const blurId =
+    !disableBlur && !priority
+      ? resolved.startsWith("http")
+        ? (parseCloudinaryUrl(resolved)?.publicId ?? null)
+        : onCloudinary
+          ? resolved
+          : null
       : null;
   const blur = blurId ? (cloudinaryBlur(blurId) ?? undefined) : undefined;
   const useFill = Boolean(fill || ratio);
@@ -68,6 +80,7 @@ export function CloudinaryImage({
       loader={onCloudinary ? cloudinaryImageLoader : undefined}
       unoptimized={!onCloudinary}
       sizes={sizes}
+      quality={quality}
       priority={priority}
       placeholder={blur ? "blur" : "empty"}
       blurDataURL={blur}

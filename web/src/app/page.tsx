@@ -123,13 +123,24 @@ export default async function HomePage() {
         const mobileFocal = mobile
           ? normalizeFocal(mobile.focal_x, mobile.focal_y)
           : focal;
-        // Portrait fallback from same asset when no dedicated mobile rows.
+        // Always rebuild retina crop URLs so the loader has a real w×h aspect
+        // (cms `src` alone is often width-only and re-cuts soft).
+        const desktopSrc =
+          item.resource_type === "video"
+            ? (item.src ?? undefined)
+            : cloudinaryHeroUrl(item.public_id, {
+                width: 3840,
+                height: 2160,
+                crop: "fill",
+                gravity: focal,
+              }) ?? item.src ?? undefined;
+
         const mobileSrc =
-          mobile?.src ??
-          (item.resource_type === "image"
-            ? cloudinaryHeroUrl(item.public_id, {
-                width: 1080,
-                height: 1920,
+          (mobile?.resource_type === "video" ? mobile.src : null) ??
+          (item.resource_type === "image" || !item.resource_type
+            ? cloudinaryHeroUrl(mobile?.public_id ?? item.public_id, {
+                width: 1440,
+                height: 2560,
                 crop: "fill",
                 gravity: mobileFocal,
               })
@@ -139,15 +150,7 @@ export default async function HomePage() {
           publicId: item.public_id,
           alt: item.alt || "Pelbu Suites",
           label: heroLabel(item.alt, "Pelbu Suites"),
-          src:
-            item.src ??
-            cloudinaryHeroUrl(item.public_id, {
-              width: 2400,
-              height: 1350,
-              crop: "fill",
-              gravity: focal,
-            }) ??
-            undefined,
+          src: desktopSrc,
           resourceType: item.resource_type,
           posterPublicId: item.poster_public_id,
           mobilePublicId: mobile?.public_id ?? item.public_id,
@@ -159,15 +162,15 @@ export default async function HomePage() {
         resourceType: "image" as const,
         src:
           cloudinaryHeroUrl(slide.publicId, {
-            width: 2400,
-            height: 1350,
+            width: 3840,
+            height: 2160,
             crop: "fill",
             gravity: "auto",
           }) ?? undefined,
         mobileSrc:
           cloudinaryHeroUrl(slide.publicId, {
-            width: 1080,
-            height: 1920,
+            width: 1440,
+            height: 2560,
             crop: "fill",
             gravity: "auto",
           }) ?? undefined,

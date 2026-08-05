@@ -171,12 +171,18 @@ export async function loadCmsGallery(
     const kind = row.kind as string;
     const isHero = kind === "hero" || kind === "hero_mobile";
     const transform = {
-      width,
+      width: isHero && options?.heroQuality
+        ? Math.max(width, 2880)
+        : width,
       height: options?.height,
       crop: "fill" as const,
       gravity: focal,
       ...(isHero && options?.heroQuality
-        ? { quality: "auto:best" as const, improve: true, sharpen: true }
+        ? {
+            quality: "auto:best" as const,
+            sharpen: true,
+            improve: false,
+          }
         : {}),
     };
     const assetId = poster || publicId;

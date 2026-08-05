@@ -93,7 +93,7 @@ export function HomeHero({
       mode === "mobile" && slide.mobileSrc
         ? slide.mobileSrc
         : slide.src;
-    // Ken Burns only on desktop photos — mobile zoom softens hero bitmaps.
+    // Light pan only — heavy scale-110 forced low-res zoom and looked soft.
     const kenBurns =
       !isVideo && !reduceMotion && mode === "desktop";
 
@@ -113,17 +113,16 @@ export function HomeHero({
           posterPublicId={slide.posterPublicId}
           fill
           priority={i === 0}
-          sizes={
-            mode === "mobile"
-              ? "100vw"
-              : "100vw"
-          }
+          quality={95}
+          disableBlur
+          /* Full viewport CSS size — next/image multiplies by DPR for dense srcset. */
+          sizes="100vw"
           cinematic={isVideo}
           active={i === index}
           imgClassName={cn(
             "object-cover",
-            kenBurns && "transition-transform duration-[9000ms] ease-linear",
-            kenBurns && (i === index ? "scale-110" : "scale-100"),
+            kenBurns && "transition-transform duration-[12000ms] ease-linear",
+            kenBurns && (i === index ? "scale-[1.04]" : "scale-100"),
           )}
         />
       </div>

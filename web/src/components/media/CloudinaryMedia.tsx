@@ -22,6 +22,8 @@ type Props = {
   controls?: boolean;
   /** Pause inactive carousel slides. */
   active?: boolean;
+  quality?: number;
+  disableBlur?: boolean;
 };
 
 const RATIO_CLASS: Record<NonNullable<Props["ratio"]>, string> = {
@@ -51,6 +53,8 @@ export function CloudinaryMedia({
   cinematic = false,
   controls,
   active = true,
+  quality,
+  disableBlur,
 }: Props) {
   const isVideo = resourceType === "video";
   const resolvedId = (publicId || "").trim();
@@ -91,6 +95,8 @@ export function CloudinaryMedia({
       sizes={sizes}
       priority={priority}
       fill={fill}
+      quality={quality}
+      disableBlur={disableBlur}
     />
   );
 }

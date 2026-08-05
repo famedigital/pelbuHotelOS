@@ -26,6 +26,8 @@ export function HomeSectionHead({
   link?: { href: string; label: string };
   className?: string;
 }) {
+  const centered = Boolean(className?.includes("text-center"));
+
   return (
     <div
       className={cn(
@@ -33,7 +35,7 @@ export function HomeSectionHead({
         className,
       )}
     >
-      <div className="max-w-2xl">
+      <div className={cn("max-w-2xl", centered && "mx-auto w-full max-w-2xl")}>
         <p
           className={cn(
             "bg-gradient-to-r bg-clip-text text-xs font-semibold uppercase tracking-[0.24em] text-transparent",
@@ -54,7 +56,10 @@ export function HomeSectionHead({
       {link ? (
         <Link
           href={link.href}
-          className="shrink-0 text-sm font-semibold text-sky-700 underline-offset-4 hover:underline"
+          className={cn(
+            "shrink-0 text-sm font-semibold text-sky-700 underline-offset-4 hover:underline",
+            centered && "self-center",
+          )}
         >
           {link.label} →
         </Link>

@@ -43,6 +43,11 @@ export function normalizeFocal(
   };
 }
 
+/**
+ * Cloudinary g_xy_center expects x/y as percentage offsets 0–100 integers
+ * (or absolute px). Fractional 0–1 values (e.g. x_0.5) return HTTP 400 and
+ * blank every image that uses a focal point — including homepage story.
+ */
 function gravityParts(
   gravity: CloudinaryTransform["gravity"],
 ): string[] {
@@ -50,7 +55,10 @@ function gravityParts(
   if (gravity === "auto") return ["g_auto"];
   if (gravity === "center") return ["g_center"];
   const { x, y } = normalizeFocal(gravity.x, gravity.y);
-  return [`g_xy_center`, `x_${x}`, `y_${y}`];
+  // Store focal as 0–1 in CMS; emit percent for the CDN URL.
+  const px = Math.round(x * 100);
+  const py = Math.round(y * 100);
+  return ["g_xy_center", `x_${px}`, `y_${py}`];
 }
 
 function buildTransform(transform: CloudinaryTransform = {}): string {
@@ -102,9 +110,10 @@ export function cloudinaryHeroUrl(
   transform: CloudinaryTransform = {},
 ): string | null {
   return cloudinaryUrl(publicId, {
-    quality: "auto:best",
-    improve: true,
+    // Defaults first; call-site can still force improve if needed.
+    improve: false,
     sharpen: true,
+    quality: "auto:best",
     ...transform,
   });
 }
@@ -197,11 +206,15 @@ export type ParsedCloudinaryUrl = {
   cloud: string;
   publicId: string;
   gravity?: CloudinaryFocal | "auto" | "center";
+  /** Intrinsic crop box from the original delivery URL (CSS pixels). */
+  width?: number;
   height?: number;
+  improve?: boolean;
+  sharpen?: boolean;
 };
 
 /**
- * Recover cloud + public_id (+ optional gravity) from a Cloudinary delivery URL.
+ * Recover cloud + public_id (+ gravity + crop box) from a Cloudinary delivery URL.
  */
 export function parseCloudinaryUrl(url: string): ParsedCloudinaryUrl | null {
   const match = /^https?:\/\/res\.cloudinary\.com\/([^/]+)\/image\/upload\/(.+)$/.exec(
@@ -211,31 +224,50 @@ export function parseCloudinaryUrl(url: string): ParsedCloudinaryUrl | null {
   const [, cloud, rest] = match;
   const segments = rest.split("/");
   let gravity: ParsedCloudinaryUrl["gravity"];
+  let width: number | undefined;
   let height: number | undefined;
+  let improve = false;
+  let sharpen = false;
 
-  // Drop the leading transform segment and capture gravity if present.
+  // Drop the leading transform segment and capture crop/gravity tokens.
   if (segments.length > 1 && /(^|,)[a-z]{1,3}_[^,/]+/.test(segments[0])) {
     const transform = segments.shift()!;
     const tokens = transform.split(",");
-    if (tokens.includes("g_auto")) gravity = "auto";
-    else if (tokens.includes("g_center")) gravity = "center";
-    else if (tokens.includes("g_xy_center")) {
+    if (tokens.includes("g_auto") || tokens.some((t) => t.startsWith("g_auto:"))) {
+      gravity = "auto";
+    } else if (tokens.includes("g_center")) {
+      gravity = "center";
+    } else if (tokens.includes("g_xy_center")) {
       const xTok = tokens.find((t) => t.startsWith("x_") && !t.startsWith("x_w"));
       const yTok = tokens.find((t) => t.startsWith("y_"));
-      const x = xTok ? Number(xTok.slice(2)) : 0.5;
-      const y = yTok ? Number(yTok.slice(2)) : 0.5;
+      // URLs use 0–100 percent; store back as 0–1 for normalizeFocal.
+      const xRaw = xTok ? Number(xTok.slice(2)) : 50;
+      const yRaw = yTok ? Number(yTok.slice(2)) : 50;
+      const x = xRaw > 1 ? xRaw / 100 : xRaw;
+      const y = yRaw > 1 ? yRaw / 100 : yRaw;
       gravity = normalizeFocal(x, y);
     }
+    const wTok = tokens.find((t) => t.startsWith("w_"));
     const hTok = tokens.find((t) => t.startsWith("h_"));
+    if (wTok) {
+      const w = Number(wTok.slice(2));
+      if (Number.isFinite(w) && w > 0) width = w;
+    }
     if (hTok) {
       const h = Number(hTok.slice(2));
-      if (Number.isFinite(h)) height = h;
+      if (Number.isFinite(h) && h > 0) height = h;
+    }
+    if (tokens.some((t) => t === "e_improve" || t.startsWith("e_improve:"))) {
+      improve = true;
+    }
+    if (tokens.some((t) => t.startsWith("e_sharpen"))) {
+      sharpen = true;
     }
   }
   if (segments.length > 1 && /^v\d+$/.test(segments[0])) segments.shift();
   const publicId = segments.join("/");
   if (!publicId) return null;
-  return { cloud, publicId, gravity, height };
+  return { cloud, publicId, gravity, width, height, improve, sharpen };
 }
 
 /** True when next/image can route this source through the Cloudinary loader. */
@@ -247,10 +279,48 @@ export function isCloudinarySource(value: string): boolean {
 }
 
 /**
+ * Next.js default `quality={75}` made retina sources mushy (`q_75`).
+ * Map to Cloudinary auto tiers; heroes / large photos use `auto:best`.
+ */
+function resolveLoaderQuality(
+  quality: number | undefined,
+  pixelWidth: number,
+): CloudinaryTransform["quality"] {
+  if (quality == null) {
+    return pixelWidth >= 1200 ? "auto:best" : "auto:good";
+  }
+  if (quality >= 85) return "auto:best";
+  if (quality >= 70) return pixelWidth >= 1600 ? "auto:best" : "auto:good";
+  return quality;
+}
+
+/**
+ * Scale fill height so Next width steps keep the original crop ratio.
+ * Without h_, fill crops are soft / wrong and retina screens look "blurred".
+ */
+function proportionalHeight(
+  sourceW: number | undefined,
+  sourceH: number | undefined,
+  requestW: number,
+): number | undefined {
+  if (!requestW || requestW <= 0) return undefined;
+  if (sourceW && sourceH && sourceW > 0) {
+    return Math.max(1, Math.round((sourceH / sourceW) * requestW));
+  }
+  if (sourceH && !sourceW) {
+    // Legacy URLs only stored h — assume 16:9 landscape.
+    return Math.max(1, Math.round(requestW * (9 / 16)));
+  }
+  return undefined;
+}
+
+/**
  * Next.js custom image loader — keeps transforms on Cloudinary so Vercel
- * image optimization is never billed for photography. The loader must honour
- * `width`, otherwise next/image cannot build a srcset.
- * Gravity from an already-baked Cloudinary URL is preserved on re-cut.
+ * image optimization is never billed for photography.
+ *
+ * Retina path: next/image requests width ≈ CSS width × DPR (up to 3840).
+ * We emit that exact pixel size with q_auto:best + mild sharpen, dpr=1
+ * (pixels already doubled — never stack dpr_auto).
  */
 export function cloudinaryImageLoader({
   src,
@@ -261,42 +331,42 @@ export function cloudinaryImageLoader({
   width: number;
   quality?: number;
 }): string {
-  // next/image already picks a density-appropriate width, so pin dpr to 1
-  // instead of letting Cloudinary scale a second time.
+  // Cap at 4K long edge — full-bleed heroes on 3× phones still look crisp.
+  const w = Math.min(Math.max(1, Math.round(width)), 3840);
+  const q = resolveLoaderQuality(quality, w);
+
   if (src.startsWith("http://") || src.startsWith("https://")) {
     const parsed = parseCloudinaryUrl(src);
     if (!parsed) return src;
-    const transform: CloudinaryTransform = {
-      width,
-      height: parsed.height
-        ? Math.round((parsed.height / (width || 1)) * width) || undefined
-        : undefined,
-      crop: "fill",
-      quality: quality ?? "auto",
-      dpr: 1,
-      gravity: parsed.gravity,
-    };
-    // Preserve aspect if original had height ratio from first request
-    if (parsed.height && width) {
-      // height was absolute in the original URL — keep proportional crop height
-      // when we only re-width; if h was set on original for fill, re-scale it.
-    }
-    return `https://res.cloudinary.com/${parsed.cloud}/image/upload/${buildTransform({
-      width,
-      crop: "fill",
-      quality: quality ?? "auto",
-      dpr: 1,
-      gravity: parsed.gravity,
-    })}/${parsed.publicId}`;
+    const h = proportionalHeight(parsed.width, parsed.height, w);
+    // Prefer original framing quality; always sharpen large deliveries.
+    const useImprove = Boolean(parsed.improve);
+    const useSharpen = w >= 1000 || Boolean(parsed.sharpen);
+
+    return (
+      `https://res.cloudinary.com/${parsed.cloud}/image/upload/` +
+      `${buildTransform({
+        width: w,
+        height: h,
+        crop: h ? "fill" : "limit",
+        quality: q,
+        dpr: 1,
+        gravity: parsed.gravity ?? (h ? "auto" : undefined),
+        improve: useImprove,
+        sharpen: useSharpen,
+      })}/${parsed.publicId}`
+    );
   }
   if (src.startsWith("/")) return src;
 
   return (
     cloudinaryUrl(src, {
-      width,
-      crop: "fill",
-      quality: quality ?? "auto",
+      width: w,
+      crop: "limit",
+      quality: q,
       dpr: 1,
+      sharpen: w >= 1000,
     }) ?? src
   );
 }
+

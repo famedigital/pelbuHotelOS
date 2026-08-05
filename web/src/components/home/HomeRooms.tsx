@@ -31,13 +31,14 @@ export function HomeRooms({
       >
         <div className="mx-auto max-w-[1200px] px-5 md:px-8">
           <HomeSectionHead
+            className="mx-auto max-w-2xl flex-col items-center text-center md:flex-col md:items-center"
             eyebrow={eyebrow}
             title={title}
             description={description}
             accent="sky"
             link={{ href: "/book", label: "Book dates" }}
           />
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link
               href="/book"
               className="inline-flex h-12 items-center rounded-xl bg-gradient-to-r from-sky-600 to-sky-500 px-6 text-sm font-semibold text-white"
@@ -62,6 +63,15 @@ export function HomeRooms({
     );
   }
 
+  const colClass =
+    rooms.length === 1
+      ? "max-w-md mx-auto grid-cols-1"
+      : rooms.length === 2
+        ? "max-w-3xl mx-auto sm:grid-cols-2"
+        : rooms.length === 3
+          ? "max-w-5xl mx-auto sm:grid-cols-2 lg:grid-cols-3"
+          : "sm:grid-cols-2 lg:grid-cols-4";
+
   return (
     <section
       id="rooms"
@@ -70,6 +80,7 @@ export function HomeRooms({
       <div className="mx-auto max-w-[1200px] px-5 md:px-8">
         <Reveal>
           <HomeSectionHead
+            className="mx-auto max-w-2xl flex-col items-center text-center md:flex-col md:items-center"
             eyebrow={eyebrow}
             title={title}
             description={description}
@@ -78,7 +89,9 @@ export function HomeRooms({
           />
         </Reveal>
 
-        <ul className="mt-10 grid auto-rows-fr gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <ul
+          className={`mt-10 grid auto-rows-fr justify-center gap-6 ${colClass}`}
+        >
           {rooms.map((room, index) => (
             <li key={room.code} className="h-full">
               <Reveal delay={Math.min(index, 3) * 0.06} className="h-full">
@@ -124,7 +137,7 @@ export function HomeRooms({
           ))}
         </ul>
 
-        <div className="mt-10 flex flex-wrap gap-3">
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
           <Link
             href="/book"
             className="inline-flex h-12 items-center rounded-xl bg-gradient-to-r from-sky-600 to-sky-500 px-6 text-sm font-semibold text-white shadow-[0_16px_40px_-18px_rgba(2,132,199,0.9)] transition-transform motion-safe:hover:-translate-y-0.5"
