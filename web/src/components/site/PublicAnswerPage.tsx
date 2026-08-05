@@ -26,6 +26,9 @@ export function PublicAnswerPage({
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(schema) }}
       />
       <EngineShell
+        breadcrumbs={breadcrumbs.map((item, i, arr) =>
+          i === arr.length - 1 ? { name: item.name } : item,
+        )}
         eyebrow={page.eyebrow}
         title={page.title}
         description={page.body}

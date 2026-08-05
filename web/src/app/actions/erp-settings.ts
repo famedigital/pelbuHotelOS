@@ -63,6 +63,7 @@ export async function updatePropertyIdentity(
       legal_name: legalName,
       address: optionalTrim(formData.get("address")),
       phone: optionalTrim(formData.get("phone")),
+      whatsapp: optionalTrim(formData.get("whatsapp")),
       email: optionalTrim(formData.get("email")),
       tax_id: optionalTrim(formData.get("tax_id")),
       logo_public_id: optionalTrim(formData.get("logo_public_id")),
@@ -81,6 +82,9 @@ export async function updatePropertyIdentity(
 
     revalidatePath("/erp");
     revalidatePath("/erp/settings");
+    revalidatePath("/");
+    revalidatePath("/contact");
+    revalidatePath("/rates");
     return { ok: true, propertyId, message: "Identity saved." };
   } catch (e) {
     return {
@@ -433,6 +437,13 @@ export async function setPropertyLogo(
     // Layout scope: the sidebar brand mark lives in the /erp layout, so every
     // desk route needs the new logo, not just the settings page.
     revalidatePath("/erp", "layout");
+    // Public chrome (header, footer, book shell) reads logo_public_id per request.
+    revalidatePath("/", "layout");
+    revalidatePath("/book");
+    revalidatePath("/contact");
+    revalidatePath("/menu");
+    revalidatePath("/rooms");
+    revalidatePath("/rates");
     return {
       ok: true,
       propertyId: id,
@@ -599,6 +610,9 @@ export async function saveRoomTypeSettings(
     }
 
     let nextRoomTypeId = roomTypeId;
+    const imagePublicId = optionalTrim(formData.get("image_public_id"));
+    const blurb = optionalTrim(formData.get("blurb"));
+
     if (roomTypeId) {
       const { error } = await admin
         .from("room_types")
@@ -607,6 +621,8 @@ export async function saveRoomTypeSettings(
           name,
           inventory_kind: inventoryKind,
           unit_count: unitCountRaw,
+          image_public_id: imagePublicId,
+          blurb,
         })
         .eq("id", roomTypeId)
         .eq("property_id", propertyId);
@@ -620,6 +636,8 @@ export async function saveRoomTypeSettings(
           name,
           inventory_kind: inventoryKind,
           unit_count: unitCountRaw,
+          image_public_id: imagePublicId,
+          blurb,
         })
         .select("id")
         .single();
@@ -635,11 +653,19 @@ export async function saveRoomTypeSettings(
       entityType: "room_types",
       entityId: nextRoomTypeId,
       summary: `Saved room category ${name}`,
-      meta: { code, inventory_kind: inventoryKind, unit_count: unitCountRaw },
+      meta: {
+        code,
+        inventory_kind: inventoryKind,
+        unit_count: unitCountRaw,
+        image_public_id: imagePublicId,
+      },
     });
 
     revalidatePath("/erp/settings");
     revalidatePath("/erp/rooms");
+    revalidatePath("/");
+    revalidatePath("/rooms");
+    revalidatePath(`/rooms/${code}`);
     return { ok: true, propertyId, message: "Room category saved." };
   } catch (e) {
     return {

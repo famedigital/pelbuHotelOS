@@ -28,8 +28,8 @@ const REASONS = [
   },
   {
     icon: ClockIcon,
-    title: "Run in real time",
-    body: "Availability, kitchen tickets and housekeeping run live, so what you see is what the desk sees.",
+    title: "Live availability",
+    body: "What you see is what the desk sees — rooms, kitchen tickets and housekeeping in real time.",
     tone: "from-sky-500 to-mint-500",
   },
 ];
@@ -48,14 +48,11 @@ export function HomeWhy() {
           accent="citrus"
         />
 
-        <ul className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {REASONS.map((reason) => {
             const Icon = reason.icon;
             return (
-              <li
-                key={reason.title}
-                className="rounded-2xl border border-white/70 bg-white/80 p-6 shadow-[0_20px_50px_-40px_rgba(8,47,73,0.8)] backdrop-blur"
-              >
+              <li key={reason.title} className="min-w-0">
                 <span
                   className={`inline-flex size-11 items-center justify-center rounded-xl bg-gradient-to-br ${reason.tone} text-white`}
                 >
@@ -72,23 +69,23 @@ export function HomeWhy() {
           })}
         </ul>
 
-        <div className="relative mt-14 overflow-hidden rounded-[2rem] bg-gradient-to-r from-sky-600 via-mint-500 to-citrus p-[1px] shadow-[0_40px_100px_-60px_rgba(2,132,199,0.9)]">
-          <div className="relative flex flex-col gap-6 rounded-[calc(2rem-1px)] bg-sky-ink px-6 py-12 md:flex-row md:items-center md:justify-between md:px-12">
-            <div
-              className="absolute -left-10 top-0 size-72 rounded-full bg-sky-500/30 blur-[100px]"
-              aria-hidden
-            />
-            <div
-              className="absolute -right-10 bottom-0 size-72 rounded-full bg-citrus/25 blur-[100px]"
-              aria-hidden
-            />
-            <div className="relative max-w-xl">
+        <div className="relative mt-14 overflow-hidden rounded-[2rem] bg-sky-ink px-6 py-12 md:px-12">
+          <div
+            className="absolute -left-10 top-0 size-72 rounded-full bg-sky-500/30 blur-[100px]"
+            aria-hidden
+          />
+          <div
+            className="absolute -right-10 bottom-0 size-72 rounded-full bg-citrus/20 blur-[100px]"
+            aria-hidden
+          />
+          <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div className="max-w-xl">
               <h2 className="font-display text-3xl leading-tight text-white md:text-4xl">
                 Ready when you are.
               </h2>
               <p className="mt-3 text-[15px] leading-relaxed text-white/75">
-                Check live rooms, order a meal, or ask the desk a question — all
-                three take under a minute.
+                Check live rooms and confirm direct — or message the desk if you
+                need a group or meal plan sorted first.
               </p>
             </div>
             <div className="relative flex flex-wrap gap-3">

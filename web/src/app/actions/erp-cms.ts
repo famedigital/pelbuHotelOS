@@ -3,6 +3,7 @@
 import { writeAuditEvent } from "@/lib/audit";
 import type { CmsPageDraftContent } from "@/lib/cms-admin";
 import { publicPathForSlug } from "@/lib/cms-routes";
+import { parseHeroThemeFromForm } from "@/lib/hero-theme";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -176,6 +177,7 @@ function parsePageContent(formData: FormData): CmsPageDraftContent {
     summary: limited(formData.get("summary"), "Summary", 500),
     faq_json: parseFaq(formData.get("faq_json")),
     sections_json: parseSections(formData.get("sections_json")),
+    hero_theme: parseHeroThemeFromForm(formData),
     author_name: limited(formData.get("author_name"), "Author", 120),
     source_note: limited(formData.get("source_note"), "Source note", 500),
     last_verified_at:
@@ -287,6 +289,7 @@ export async function publishCmsPage(
         summary: content.summary,
         faq_json: content.faq_json,
         sections_json: content.sections_json,
+        hero_theme: content.hero_theme,
         author_name: content.author_name,
         source_note: content.source_note,
         last_verified_at: content.last_verified_at,

@@ -15,7 +15,13 @@ import { usePathname } from "next/navigation";
 const ITEMS = [
   { href: "/", label: "Home", icon: HomeIcon, match: "exact" as const },
   { href: "/rooms", label: "Rooms", icon: ConciergeBellIcon, match: "prefix" as const },
-  { href: "/book", label: "Book", icon: CalendarDaysIcon, match: "prefix" as const },
+  {
+    href: "/book",
+    label: "Book",
+    icon: CalendarDaysIcon,
+    match: "prefix" as const,
+    emphasize: true,
+  },
   { href: "/menu", label: "Menu", icon: SoupIcon, match: "prefix" as const },
   { href: "/spa", label: "Spa", icon: SparklesIcon, match: "prefix" as const },
 ] as const;
@@ -44,6 +50,7 @@ export function PublicMobileNav() {
           {ITEMS.map((item) => {
             const active = isActive(pathname, item.href, item.match);
             const Icon = item.icon;
+            const emphasize = "emphasize" in item && item.emphasize;
             return (
               <Link
                 key={item.href}
@@ -52,11 +59,24 @@ export function PublicMobileNav() {
                 className={cn(
                   "relative flex min-h-11 flex-col items-center justify-center gap-1 text-[11px] font-medium text-muted-foreground",
                   active && "text-sky-700",
+                  emphasize && !active && "text-sky-800",
                 )}
               >
-                <Icon className="size-5" strokeWidth={active ? 2.4 : 1.8} />
-                <span>{item.label}</span>
-                {active ? (
+                <span
+                  className={cn(
+                    emphasize &&
+                      "flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-citrus-soft to-citrus text-sky-ink shadow-sm -mt-3 mb-0.5",
+                  )}
+                >
+                  <Icon
+                    className={cn("size-5", emphasize && "size-[1.15rem]")}
+                    strokeWidth={active || emphasize ? 2.4 : 1.8}
+                  />
+                </span>
+                <span className={cn(emphasize && "font-semibold text-sky-900")}>
+                  {item.label}
+                </span>
+                {active && !emphasize ? (
                   <span
                     aria-hidden
                     className="absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-citrus"

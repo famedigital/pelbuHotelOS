@@ -14,29 +14,23 @@ import { KitchenTicketStrip } from "@/components/erp/pos/KitchenTicketStrip";
 import { MenuGrid } from "@/components/erp/pos/MenuGrid";
 import { ModifierDialog } from "@/components/erp/pos/ModifierDialog";
 import { OpenTicketsDrawer } from "@/components/erp/pos/OpenTicketsDrawer";
-import { PosFloorPlan } from "@/components/erp/pos/PosFloorPlan";
-import { PosFullscreenToggle } from "@/components/erp/pos/PosFullscreenToggle";
+import { PosFloorPlan, type FloorKey } from "@/components/erp/pos/PosFloorPlan";
 import { PosHowToSheet } from "@/components/erp/pos/PosHowToSheet";
+import { PosRegisterHeaderChrome } from "@/components/erp/pos/PosRegisterHeaderChrome";
 import { PosClosingPanel } from "@/components/erp/pos/PosClosingPanel";
+import {
+  PosSaleStartGate,
+  type PosSaleKind,
+} from "@/components/erp/pos/PosSaleStartGate";
 import { PosSearch } from "@/components/erp/pos/PosSearch";
 import { PosStockPanel } from "@/components/erp/pos/PosStockPanel";
 import { SettlePanel } from "@/components/erp/pos/SettlePanel";
 import { TicketHeader } from "@/components/erp/pos/TicketHeader";
 import { VoidReasonDialog } from "@/components/erp/pos/VoidReasonDialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
   useKeyboardShortcuts,
@@ -45,16 +39,22 @@ import {
 import { cn } from "@/lib/utils";
 import { calculateOrderTotals, formatBtn } from "@/lib/pricing";
 import {
-  CircleHelpIcon,
-  ConciergeBellIcon,
-  BoxesIcon,
-  ListOrderedIcon,
-  LockKeyholeIcon,
-  MoreHorizontalIcon,
-  TriangleAlertIcon,
-} from "lucide-react";
-import Link from "next/link";
-import { startTransition, useActionState, useCallback, useMemo, useState } from "react";
+  readPosFloorPref,
+  readPosLastKind,
+  readPosMenuOutletPref,
+  writePosFloorPref,
+  writePosLastKind,
+  writePosMenuOutletPref,
+} from "@/lib/pos-prefs";
+import { TriangleAlertIcon } from "lucide-react";
+import {
+  startTransition,
+  useActionState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   type CartLine,
   type PosLayoutProps,
@@ -111,6 +111,14 @@ export function PosLayout({
     [outlets],
   );
   const defaultOutletCode = posOutlets[0]?.value ?? "cafe";
+  /** Which outlet floor the plan is showing (null = Shared tables). */
+  const [floorOutlet, setFloorOutlet] = useState<FloorKey>(defaultOutletCode);
+  /** null = Table / Room / Counter start gate (menu locked). */
+  const [saleKind, setSaleKind] = useState<PosSaleKind | null>(null);
+  /** Let staff mix floors on a table seat when needed. */
+  const [menuUnlocked, setMenuUnlocked] = useState(false);
+  const [lastKindPref, setLastKindPref] = useState<PosSaleKind | null>(null);
+  const [prefsReady, setPrefsReady] = useState(false);
   const [section, setSection] = useState<PosSection>("menu");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [settleMode, setSettleMode] = useState<"cash" | "room_charge">("cash");
@@ -153,25 +161,180 @@ export function PosLayout({
   const [cssFullscreen, setCssFullscreen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
+  const roomCount = useMemo(
+    () => bookings.reduce((n, b) => n + b.rooms.length, 0),
+    [bookings],
+  );
+
+  // Hydrate floor / last path prefs once on mount (client only).
+  useEffect(() => {
+    const floor = readPosFloorPref(defaultOutletCode);
+    if (floor === null || posOutlets.some((o) => o.value === floor)) {
+      setFloorOutlet(floor);
+    }
+    setLastKindPref(readPosLastKind());
+    setMenuOutlet(readPosMenuOutletPref("all"));
+    setPrefsReady(true);
+  }, [defaultOutletCode, posOutlets]);
+
+  useEffect(() => {
+    if (!prefsReady) return;
+    writePosFloorPref(floorOutlet);
+  }, [floorOutlet, prefsReady]);
+
+  useEffect(() => {
+    if (!prefsReady) return;
+    writePosMenuOutletPref(menuOutlet);
+  }, [menuOutlet, prefsReady]);
+
+  /** Menu / cart only after context is ready for this sale kind. */
+  const saleReady =
+    saleKind === "counter" ||
+    (saleKind === "table" && Boolean(tableId)) ||
+    (saleKind === "room" && Boolean(roomUnitId));
+
   const openTicketsDrawer = useCallback(() => setTicketsOpen(true), []);
   const toggleFullscreen = useCallback(
     () => setCssFullscreen((v) => !v),
     [],
   );
 
+  function startSaleKind(kind: PosSaleKind) {
+    setSaleKind(kind);
+    setMenuUnlocked(false);
+    writePosLastKind(kind);
+    setLastKindPref(kind);
+    if (kind === "table") {
+      setSettleMode("cash");
+      setRoomUnitId("");
+      setBookingId("");
+      setBookingGuestId("");
+      setSection("floor");
+      return;
+    }
+    if (kind === "room") {
+      setSettleMode("room_charge");
+      setTableId("");
+      setCovers("");
+      if (!customerName.trim()) setCustomerName("In-house guest");
+      setSection("menu");
+      return;
+    }
+    // Counter
+    setSettleMode("cash");
+    setTableId("");
+    setCovers("");
+    setRoomUnitId("");
+    setBookingId("");
+    setBookingGuestId("");
+    if (!customerName.trim()) setCustomerName("Walk-in");
+    setMenuOutlet(readPosMenuOutletPref("all"));
+    setCategory("all");
+    setSection("menu");
+  }
+
+  /**
+   * Soft switch between Table / Room / Counter — keeps cart when possible so
+   * staff can re-tag a walking-party without re-tapping dishes.
+   */
+  function softSwitchSaleKind(kind: PosSaleKind) {
+    if (kind === saleKind) return;
+    setSaleKind(kind);
+    setMenuUnlocked(false);
+    writePosLastKind(kind);
+    setLastKindPref(kind);
+    if (kind === "table") {
+      setSettleMode("cash");
+      setSection(tableId ? "menu" : "floor");
+      return;
+    }
+    if (kind === "room") {
+      setSettleMode("room_charge");
+      if (!customerName.trim() || customerName.startsWith("Table ")) {
+        setCustomerName("In-house guest");
+      }
+      setSection("menu");
+      return;
+    }
+    setSettleMode("cash");
+    if (!customerName.trim() || customerName.startsWith("Table ")) {
+      setCustomerName("Walk-in");
+    }
+    setSection("menu");
+  }
+
+  function resetSaleContext() {
+    setSaleKind(null);
+    setMenuUnlocked(false);
+    setTableId("");
+    setCovers("");
+    setRoomUnitId("");
+    setBookingId("");
+    setBookingGuestId("");
+    setSettleMode("cash");
+    setSection("menu");
+    setCart([]);
+    setSearch("");
+    setCategory("all");
+    setPromoCode("");
+    setManagerPin("");
+  }
+
   const shortcuts = useMemo<ShortcutBinding[]>(
     () => [
       {
+        key: "t",
+        label: saleKind ? "Open tickets drawer" : "Start Table sale",
+        display: "T",
+        handler: () => {
+          if (!saleKind) startSaleKind("table");
+          else openTicketsDrawer();
+        },
+      },
+      {
+        key: "r",
+        label: saleKind ? "Switch to Room path" : "Start Room sale",
+        display: "R",
+        handler: () => {
+          if (!saleKind) {
+            if (roomCount > 0) startSaleKind("room");
+            return;
+          }
+          softSwitchSaleKind("room");
+        },
+      },
+      {
+        key: "c",
+        label: saleKind ? "Switch to Counter path" : "Start Counter sale",
+        display: "C",
+        handler: () => {
+          if (!saleKind) startSaleKind("counter");
+          else softSwitchSaleKind("counter");
+        },
+      },
+      {
+        key: "n",
+        label: "New ticket (clear cart)",
+        display: "N",
+        handler: () => resetSaleContext(),
+      },
+      {
         key: "1",
-        label: "Go to Menu tab",
+        label: "Sell / menu",
         display: "1",
-        handler: () => setSection("menu"),
+        handler: () => {
+          if (!saleKind) return;
+          setSection("menu");
+        },
       },
       {
         key: "2",
-        label: "Go to Floor plan tab",
+        label: "Floor plan (table sale)",
         display: "2",
-        handler: () => setSection("floor"),
+        handler: () => {
+          if (saleKind !== "table") softSwitchSaleKind("table");
+          else setSection("floor");
+        },
       },
       {
         key: "3",
@@ -196,17 +359,12 @@ export function PosLayout({
         label: "Focus menu search",
         display: "/",
         handler: () => {
+          if (!saleReady) return;
           const el = document.querySelector<HTMLInputElement>(
             'input[type="search"][placeholder*="earch"]',
           );
           el?.focus();
         },
-      },
-      {
-        key: "t",
-        label: "Open tickets drawer",
-        display: "T",
-        handler: openTicketsDrawer,
       },
       {
         key: "f",
@@ -230,20 +388,46 @@ export function PosLayout({
         },
       },
     ],
-    [openTicketsDrawer, toggleFullscreen],
+    // handlers close over latest state
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [openTicketsDrawer, toggleFullscreen, saleKind, saleReady, roomCount],
   );
   useKeyboardShortcuts(shortcuts);
 
   const [state, action, pending] = useActionState(createDeskOrder, initial);
   useActionToast(state);
 
-  const menuItems = useMemo(
-    () =>
-      menuOutlet === "all"
-        ? items
-        : items.filter((item) => item.outlet === menuOutlet),
-    [items, menuOutlet],
-  );
+  /**
+   * Table sales lock the sell menu to that table's floor (cafe table → cafe
+   * items only). Unlock lets staff pull any floor when the guest orders a mix.
+   * Shared tables and Counter/Room keep the full chip filter.
+   */
+  const lockedMenuOutlet = useMemo(() => {
+    if (menuUnlocked) return null;
+    if (saleKind !== "table" || !tableId) return null;
+    const table = tables.find((t) => t.id === tableId);
+    return table?.outlet ?? null;
+  }, [menuUnlocked, saleKind, tableId, tables]);
+
+  const effectiveMenuOutlet = lockedMenuOutlet ?? menuOutlet;
+
+  const menuItems = useMemo(() => {
+    if (effectiveMenuOutlet === "all" || !effectiveMenuOutlet) {
+      return items;
+    }
+    return items.filter((item) => item.outlet === effectiveMenuOutlet);
+  }, [items, effectiveMenuOutlet]);
+
+  const lockedMenuLabel =
+    lockedMenuOutlet != null
+      ? (posOutlets.find((o) => o.value === lockedMenuOutlet)?.label ??
+        lockedMenuOutlet)
+      : null;
+
+  const naturalTableOutlet =
+    saleKind === "table" && tableId
+      ? (tables.find((t) => t.id === tableId)?.outlet ?? null)
+      : null;
 
   const groupsByItem = useMemo(() => {
     const map = new Map<string, typeof modifierGroups>();
@@ -266,8 +450,20 @@ export function PosLayout({
   const allTables = tables;
 
   function setMenuOutletFilter(next: string) {
+    if (lockedMenuOutlet) return;
     setMenuOutlet(next);
     setCategory("all");
+  }
+
+  /** Drop cart lines that don't belong on the active menu floor. */
+  function pruneCartToOutlet(outlet: string | null) {
+    if (!outlet || outlet === "all") return;
+    setCart((prev) =>
+      prev.filter((line) => {
+        const item = items.find((m) => m.id === line.menuItemId);
+        return !item || item.outlet === outlet;
+      }),
+    );
   }
 
   function addItemQuick(menuItemId: string) {
@@ -358,8 +554,29 @@ export function PosLayout({
       setCovers("");
       return;
     }
+    if (!saleKind) setSaleKind("table");
+    else if (saleKind === "counter" || saleKind === "room") {
+      // Seating from floor under non-table sale: switch context to table.
+      setSaleKind("table");
+      setSettleMode("cash");
+    }
     setTableId(nextTableId);
     if (!covers) setCovers(String(seats));
+    const table = tables.find((t) => t.id === nextTableId);
+    if (table?.outlet) {
+      setMenuOutlet(table.outlet);
+      setCategory("all");
+      setMenuUnlocked(false);
+      setFloorOutlet(table.outlet);
+      pruneCartToOutlet(table.outlet);
+    }
+    if (
+      !customerName.trim() ||
+      customerName === "Walk-in" ||
+      customerName === "In-house guest"
+    ) {
+      setCustomerName(table?.name ? `Table ${table.name}` : "Table guest");
+    }
     setSection("menu");
   }
 
@@ -390,6 +607,9 @@ export function PosLayout({
     }
     setTableId("");
     setCovers("");
+    if (saleKind === "table") {
+      setSection("floor");
+    }
   }
 
   function selectRoom(nextRoomUnitId: string) {
@@ -399,6 +619,8 @@ export function PosLayout({
       setBookingGuestId("");
       return;
     }
+    if (!saleKind) setSaleKind("room");
+    setSettleMode("room_charge");
     const booking = bookings.find((candidate) =>
       candidate.rooms.some((room) => room.id === nextRoomUnitId),
     );
@@ -407,8 +629,7 @@ export function PosLayout({
     setBookingGuestId("");
     setCustomerName(booking.contact_name ?? "In-house guest");
     setPhone(booking.contact_phone ?? "");
-    // Room selection identifies the guest but never changes who pays.
-    // Cash/guest payment remains selected until the cashier explicitly taps Room.
+    setSection("menu");
   }
 
   function selectBookingGuest(nextGuestId: string) {
@@ -421,6 +642,20 @@ export function PosLayout({
     if (!guest) return;
     setCustomerName(guest.full_name);
     setPhone(guest.phone ?? booking.contact_phone ?? "");
+  }
+
+  function handleHeaderSection(next: PosSection) {
+    if (next === "floor") {
+      if (saleKind !== "table") startSaleKind("table");
+      else setSection("floor");
+      return;
+    }
+    if (next === "menu" && !saleKind) {
+      // Stay on gate — section menu with no kind still shows the start cards.
+      setSection("menu");
+      return;
+    }
+    setSection(next);
   }
 
   const cartPayload = useMemo(
@@ -532,8 +767,9 @@ export function PosLayout({
         target={tableFormTarget}
         onOpenChange={(open) => !open && setTableFormTarget(null)}
         defaultOutlet={
-          posOutlets.find((o) => o.value === menuOutlet)?.value ??
-          defaultOutletCode
+          floorOutlet === null
+            ? "__shared__"
+            : floorOutlet || defaultOutletCode
         }
         outlets={posOutlets}
         existingNames={tables.map((t) => t.name)}
@@ -541,141 +777,27 @@ export function PosLayout({
     </>
   );
 
-  const toolbar = (
-    <div className="flex flex-wrap items-center gap-2">
-      <TabsList className="h-9">
-        <TabsTrigger value="menu" className="px-3">
-          Sell
-        </TabsTrigger>
-        <TabsTrigger value="floor" className="px-3">
-          Floor
-          {allTables.length > 0 ? (
-            <span className="ml-1 text-[10px] tabular-nums text-muted-foreground">
-              {allTables.length}
-            </span>
-          ) : null}
-        </TabsTrigger>
-      </TabsList>
-
-      <div className="ml-auto flex flex-wrap items-center gap-1.5">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-9"
-          onClick={() => setTicketsOpen(true)}
-        >
-          <ListOrderedIcon className="size-4" />
-          <span className="hidden sm:inline">Tickets</span>
-          {openTickets.length > 0 ? (
-            <Badge variant="secondary" className="ml-1 tabular-nums">
-              {openTickets.length}
-            </Badge>
-          ) : null}
-        </Button>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button type="button" variant="outline" size="sm" className="h-9">
-              <MoreHorizontalIcon className="size-4" />
-              <span className="hidden sm:inline">More</span>
-              {shift ? (
-                <span className="ml-1 size-2 rounded-full bg-emerald-500" />
-              ) : null}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="erp w-52">
-            <DropdownMenuLabel>Register ops</DropdownMenuLabel>
-            <DropdownMenuGroup>
-              <DropdownMenuItem onSelect={() => setSection("stock")}>
-                <BoxesIcon className="size-4" />
-                Stock
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setSection("closing")}>
-                <LockKeyholeIcon className="size-4" />
-                Closing
-                {shiftCloseSummary && shiftCloseSummary.openCount > 0 ? (
-                  <Badge
-                    variant="destructive"
-                    className="ml-auto tabular-nums"
-                  >
-                    {shiftCloseSummary.openCount}
-                  </Badge>
-                ) : shift ? (
-                  <span className="ml-auto size-2 rounded-full bg-emerald-500" />
-                ) : null}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setSection("service")}>
-                <ConciergeBellIcon className="size-4" />
-                Guest service
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Kitchen &amp; setup</DropdownMenuLabel>
-            <DropdownMenuGroup>
-              <DropdownMenuItem asChild>
-                <Link href="/erp/kitchen">Kitchen board</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/erp/kds">Kitchen TV</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/erp/kitchen/food-cost">Food cost</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/erp/menu">CMS menu</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/erp/pos/recipe-cost">Recipe cost</Link>
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-9 px-2"
-          onClick={() => setShortcutsOpen(true)}
-          aria-label="How to sell and shortcuts"
-          title="How to sell (?)"
-        >
-          <CircleHelpIcon className="size-4" />
-        </Button>
-        <PosFullscreenToggle
-          active={cssFullscreen}
-          onChange={setCssFullscreen}
-        />
-      </div>
-    </div>
+  const registerChrome = (
+    <PosRegisterHeaderChrome
+      section={section}
+      onSection={handleHeaderSection}
+      tableCount={allTables.length}
+      openTicketsCount={openTickets.length}
+      onOpenTickets={() => setTicketsOpen(true)}
+      shiftOpen={Boolean(shift)}
+      closingOpenCount={shiftCloseSummary?.openCount ?? 0}
+      onOpenHelp={() => setShortcutsOpen(true)}
+      cssFullscreen={cssFullscreen}
+      onCssFullscreenChange={setCssFullscreen}
+      saleActive={Boolean(saleKind)}
+    />
   );
 
   // Success strip — mirrors the legacy "order on the KOT board" state.
   if (state.ok && state.orderId) {
     return (
       <div className={shellClass}>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9"
-            onClick={() => setTicketsOpen(true)}
-          >
-            <ListOrderedIcon className="size-4" />
-            Tickets
-            {openTickets.length > 0 ? (
-              <Badge variant="secondary" className="ml-1 tabular-nums">
-                {openTickets.length}
-              </Badge>
-            ) : null}
-          </Button>
-          <PosFullscreenToggle
-            active={cssFullscreen}
-            onChange={setCssFullscreen}
-          />
-        </div>
+        {registerChrome}
         {openTickets.length > 0 ? (
           <KitchenTicketStrip
             openTickets={openTickets}
@@ -731,7 +853,7 @@ export function PosLayout({
         onValueChange={(v) => setSection(v as PosSection)}
         className="gap-4"
       >
-        {toolbar}
+        {registerChrome}
 
         {section === "stock" || section === "closing" || section === "service" ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -749,323 +871,478 @@ export function PosLayout({
         ) : null}
 
         <div className={cn("space-y-4", !sellMode && "hidden")}>
-          <TicketHeader
-            customerName={customerName}
-            onCustomerNameChange={setCustomerName}
-            phone={phone}
-            onPhoneChange={setPhone}
-            settleMode={settleMode}
-            onSettleModeChange={setSettleMode}
-            bookingId={bookingId}
-            roomUnitId={roomUnitId}
-            onRoomUnitIdChange={selectRoom}
-            bookingGuestId={bookingGuestId}
-            onBookingGuestIdChange={selectBookingGuest}
-            bookings={bookings}
-            notes={notes}
-            onNotesChange={setNotes}
-            tables={tables}
-            tableId={tableId}
-            onTableIdChange={setTableId}
-            covers={covers}
-            onCoversChange={setCovers}
-            courseCount={courseCount}
-            onCourseCountChange={setCourseCount}
-            staff={staff}
-            serverStaffId={serverStaffId}
-            onServerStaffIdChange={setServerStaffId}
-            onReleaseTable={releaseTable}
-            hasOpenTicketOnTable={Boolean(openTicketOnTable)}
-          />
-
-          {openTickets.length > 0 ? (
-            <KitchenTicketStrip
-              openTickets={openTickets}
+          {!saleKind ? (
+            <PosSaleStartGate
+              onPick={startSaleKind}
+              tableCount={allTables.length}
+              roomCount={roomCount}
+              openTicketCount={openTickets.length}
               onOpenTickets={() => setTicketsOpen(true)}
+              lastKind={lastKindPref}
+              onOpenHelp={() => setShortcutsOpen(true)}
             />
-          ) : null}
+          ) : (
+            <>
+              <TicketHeader
+                saleKind={saleKind}
+                customerName={customerName}
+                onCustomerNameChange={setCustomerName}
+                phone={phone}
+                onPhoneChange={setPhone}
+                settleMode={settleMode}
+                onSettleModeChange={setSettleMode}
+                bookingId={bookingId}
+                roomUnitId={roomUnitId}
+                onRoomUnitIdChange={selectRoom}
+                bookingGuestId={bookingGuestId}
+                onBookingGuestIdChange={selectBookingGuest}
+                bookings={bookings}
+                notes={notes}
+                onNotesChange={setNotes}
+                tables={tables}
+                tableId={tableId}
+                onTableIdChange={setTableId}
+                covers={covers}
+                onCoversChange={setCovers}
+                courseCount={courseCount}
+                onCourseCountChange={setCourseCount}
+                staff={staff}
+                serverStaffId={serverStaffId}
+                onServerStaffIdChange={setServerStaffId}
+                onReleaseTable={releaseTable}
+                hasOpenTicketOnTable={Boolean(openTicketOnTable)}
+                onChangeSaleKind={resetSaleContext}
+                onSwitchSaleKind={softSwitchSaleKind}
+              />
 
-          <form action={action} className="block">
-            {/* Hidden inputs — contract must match createDeskOrder */}
-            <input type="hidden" name="cart" value={JSON.stringify(cartPayload)} />
-            <input type="hidden" name="settle_mode" value={settleMode} />
-            <input
-              type="hidden"
-              name="booking_id"
-              value={bookingId}
-            />
-            <input type="hidden" name="room_unit_id" value={roomUnitId} />
-            <input
-              type="hidden"
-              name="booking_guest_id"
-              value={bookingGuestId}
-            />
-            <input type="hidden" name="table_id" value={tableId} />
-            <input type="hidden" name="covers" value={covers} />
-            <input type="hidden" name="course_count" value={courseCount} />
-            <input type="hidden" name="server_staff_id" value={serverStaffId} />
-            <input type="hidden" name="customer_name" value={customerName} />
-            <input type="hidden" name="phone" value={phone} />
-            <input type="hidden" name="notes" value={notes} />
-            <input
-              type="hidden"
-              name="service_charge_applied"
-              value={applyServiceCharge ? "1" : "0"}
-            />
-            <input type="hidden" name="service_charge_rate" value={servicePercent} />
-            <input
-              type="hidden"
-              name="service_charge_reason"
-              value={serviceReason}
-            />
-            <input type="hidden" name="promo_code" value={promoCode} />
-            <input type="hidden" name="manager_pin" value={managerPin} />
-
-            {cart.some((l) => l.isNc) || promoCode ? (
-              <div className="mb-3 grid gap-2 rounded-lg border bg-card p-3 sm:grid-cols-2">
-                <label className="space-y-1 text-xs">
-                  <span className="text-muted-foreground">Promo code</span>
-                  <input
-                    type="text"
-                    value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                    placeholder="TIKTOK50"
-                    className="flex h-9 w-full rounded-md border border-input bg-background px-2 font-mono text-sm uppercase"
-                  />
-                </label>
-                <label className="space-y-1 text-xs">
-                  <span className="text-muted-foreground">
-                    Manager PIN{cart.some((l) => l.isNc) ? " (required for NC)" : ""}
-                  </span>
-                  <input
-                    type="password"
-                    value={managerPin}
-                    onChange={(e) => setManagerPin(e.target.value)}
-                    autoComplete="off"
-                    className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-                  />
-                </label>
-              </div>
-            ) : (
-              <div className="mb-3">
-                <label className="flex max-w-xs flex-col gap-1 text-xs">
-                  <span className="text-muted-foreground">Promo code (optional)</span>
-                  <input
-                    type="text"
-                    value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                    placeholder="Have a code?"
-                    className="flex h-9 w-full rounded-md border border-input bg-background px-2 font-mono text-sm uppercase"
-                  />
-                </label>
-              </div>
-            )}
-
-            {state.error ? (
-              <Alert variant="destructive" className="mb-4">
-                <TriangleAlertIcon />
-                <AlertDescription>{state.error}</AlertDescription>
-              </Alert>
-            ) : null}
-
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_clamp(320px,30vw,440px)]">
-              <div className="min-w-0">
-                <TabsContent
-                  value="menu"
-                  forceMount
-                  className="data-[state=inactive]:hidden"
-                >
-                  <div className="grid gap-4 lg:grid-cols-[160px_minmax(0,1fr)]">
-                    <aside className="hidden lg:flex lg:flex-col lg:gap-3">
-                      <PosSearch value={search} onChange={setSearch} />
-                      <nav
-                        className="flex flex-col gap-1"
-                        aria-label="Menu categories"
-                      >
-                        <CategoryButton
-                          active={category === "all"}
-                          onClick={() => setCategory("all")}
-                          label="All"
-                          count={menuItems.length}
-                        />
-                        {categories.map((cat) => (
-                          <CategoryButton
-                            key={cat}
-                            active={category === cat}
-                            onClick={() => setCategory(cat)}
-                            label={cat}
-                            count={
-                              menuItems.filter((i) => i.category === cat).length
-                            }
-                          />
-                        ))}
-                      </nav>
-                    </aside>
-
-                    <div className="min-w-0">
-                      <div className="mb-3 flex flex-col gap-2 lg:hidden">
-                        <PosSearch value={search} onChange={setSearch} />
-                        <div className="flex flex-wrap gap-1.5">
-                          <OutletChip
-                            active={menuOutlet === "all"}
-                            onClick={() => setMenuOutletFilter("all")}
-                            label="All"
-                          />
-                          {posOutlets.map((o) => (
-                            <OutletChip
-                              key={o.value}
-                              active={menuOutlet === o.value}
-                              onClick={() => setMenuOutletFilter(o.value)}
-                              label={o.label}
-                            />
-                          ))}
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          <CategoryChip
-                            active={category === "all"}
-                            onClick={() => setCategory("all")}
-                            label="All"
-                          />
-                          {categories.map((cat) => (
-                            <CategoryChip
-                              key={cat}
-                              active={category === cat}
-                              onClick={() => setCategory(cat)}
-                              label={cat}
-                            />
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="mb-3 hidden flex-wrap gap-1.5 lg:flex">
-                        <OutletChip
-                          active={menuOutlet === "all"}
-                          onClick={() => setMenuOutletFilter("all")}
-                          label="All outlets"
-                        />
-                        {posOutlets.map((o) => (
-                          <OutletChip
-                            key={o.value}
-                            active={menuOutlet === o.value}
-                            onClick={() => setMenuOutletFilter(o.value)}
-                            label={o.label}
-                          />
-                        ))}
-                      </div>
-
-                      <MenuGrid
-                        items={menuItems}
-                        category={category}
-                        search={search}
-                        onAdd={addItemQuick}
-                        onEditLine={editLine}
-                      />
-                    </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent
-                  value="floor"
-                  forceMount
-                  className="data-[state=inactive]:hidden"
-                >
-                  <PosFloorPlan
-                    outlet={null}
-                    tables={tables}
-                    openTickets={openTickets}
-                    selectedTableId={tableId}
-                    onSelectTable={selectTable}
-                    onAddTable={() => setTableFormTarget({ mode: "create" })}
-                    onEditTable={(table) =>
-                      setTableFormTarget({ mode: "edit", table })
-                    }
-                    onOpenTicket={(orderId) => setSettleTarget(orderId)}
-                  />
-                </TabsContent>
-              </div>
-
-              <aside className="hidden lg:sticky lg:top-3 lg:block lg:self-start">
-                <CartPanel
-                  cart={cart}
-                  totals={totals}
-                  lineCount={lineCount}
-                  pending={pending}
-                  gstRate={gstRate}
-                  servicePercent={servicePercent}
-                  serviceReason={serviceReason}
-                  applyServiceCharge={applyServiceCharge}
-                  serviceChargeDefaultOn={serviceChargeDefaultOn}
-                  onApplyServiceChargeChange={setApplyServiceCharge}
-                  onServicePercentChange={setServicePercent}
-                  onServiceReasonChange={setServiceReason}
-                  onInc={(key) => stepLine(key, 1)}
-                  onDec={(key) => stepLine(key, -1)}
-                  onRemove={removeLine}
-                  onClear={clearCart}
-                  onEditLine={editLine}
-                  onToggleNc={toggleNc}
-                  ncReasons={ncReasons}
-                  idPrefix="cart_desktop"
+              {openTickets.length > 0 ? (
+                <KitchenTicketStrip
+                  openTickets={openTickets}
+                  onOpenTickets={() => setTicketsOpen(true)}
                 />
-              </aside>
-            </div>
+              ) : null}
 
-            {/* Mobile — cart trigger bar + bottom sheet */}
-            <div className="lg:hidden">
-              <button
-                type="button"
-                onClick={() => setCartSheetOpen(true)}
-                className="fixed inset-x-3 bottom-3 z-30 flex h-14 items-center justify-between rounded-xl bg-primary px-4 text-primary-foreground shadow-lg"
-                aria-label="Open cart"
-              >
-                <span className="flex items-center gap-2 text-sm font-medium">
-                  <span className="inline-flex size-6 items-center justify-center rounded-full bg-primary-foreground/20 text-xs tabular-nums">
-                    {lineCount}
-                  </span>
-                  View ticket
-                </span>
-                <span className="text-sm font-semibold tabular-nums">
-                  {formatBtn(totals.totalBtn)}
-                </span>
-              </button>
+              {/* Table path without seat: floor takes the whole workspace. */}
+              {saleKind === "table" && !tableId ? (
+                <PosFloorPlan
+                  floor={floorOutlet}
+                  onFloorChange={setFloorOutlet}
+                  outlets={posOutlets}
+                  tables={tables}
+                  openTickets={openTickets}
+                  selectedTableId={tableId}
+                  onSelectTable={selectTable}
+                  onAddTable={() => setTableFormTarget({ mode: "create" })}
+                  onEditTable={(table) =>
+                    setTableFormTarget({ mode: "edit", table })
+                  }
+                  onOpenTicket={(orderId) => setSettleTarget(orderId)}
+                />
+              ) : null}
 
-              <Sheet open={cartSheetOpen} onOpenChange={setCartSheetOpen}>
-                <SheetContent
-                  side="bottom"
-                  portal={false}
-                  className="erp p-0 sm:max-w-full"
-                >
-                  <SheetHeader className="sr-only">
-                    <SheetTitle>Ticket</SheetTitle>
-                  </SheetHeader>
-                  <div className="max-h-[85dvh] overflow-hidden p-4">
-                    <CartPanel
-                      cart={cart}
-                      totals={totals}
-                      lineCount={lineCount}
-                      pending={pending}
-                      gstRate={gstRate}
-                      servicePercent={servicePercent}
-                      serviceReason={serviceReason}
-                      applyServiceCharge={applyServiceCharge}
-                      serviceChargeDefaultOn={serviceChargeDefaultOn}
-                      onApplyServiceChargeChange={setApplyServiceCharge}
-                      onServicePercentChange={setServicePercent}
-                      onServiceReasonChange={setServiceReason}
-                      onInc={(key) => stepLine(key, 1)}
-                      onDec={(key) => stepLine(key, -1)}
-                      onRemove={removeLine}
-                      onClear={clearCart}
-                      onEditLine={editLine}
-                      onToggleNc={toggleNc}
-                      ncReasons={ncReasons}
-                      idPrefix="cart_mobile"
-                    />
+              {saleReady ? (
+                <form action={action} className="block">
+                  {/* Hidden inputs — contract must match createDeskOrder */}
+                  <input
+                    type="hidden"
+                    name="cart"
+                    value={JSON.stringify(cartPayload)}
+                  />
+                  <input type="hidden" name="settle_mode" value={settleMode} />
+                  <input type="hidden" name="booking_id" value={bookingId} />
+                  <input type="hidden" name="room_unit_id" value={roomUnitId} />
+                  <input
+                    type="hidden"
+                    name="booking_guest_id"
+                    value={bookingGuestId}
+                  />
+                  <input type="hidden" name="table_id" value={tableId} />
+                  <input type="hidden" name="covers" value={covers} />
+                  <input type="hidden" name="course_count" value={courseCount} />
+                  <input
+                    type="hidden"
+                    name="server_staff_id"
+                    value={serverStaffId}
+                  />
+                  <input
+                    type="hidden"
+                    name="customer_name"
+                    value={customerName}
+                  />
+                  <input type="hidden" name="phone" value={phone} />
+                  <input type="hidden" name="notes" value={notes} />
+                  <input
+                    type="hidden"
+                    name="service_charge_applied"
+                    value={applyServiceCharge ? "1" : "0"}
+                  />
+                  <input
+                    type="hidden"
+                    name="service_charge_rate"
+                    value={servicePercent}
+                  />
+                  <input
+                    type="hidden"
+                    name="service_charge_reason"
+                    value={serviceReason}
+                  />
+                  <input type="hidden" name="promo_code" value={promoCode} />
+                  <input type="hidden" name="manager_pin" value={managerPin} />
+
+                  {cart.some((l) => l.isNc) || promoCode ? (
+                    <div className="mb-3 grid gap-2 rounded-lg border bg-card p-3 sm:grid-cols-2">
+                      <label className="space-y-1 text-xs">
+                        <span className="text-muted-foreground">Promo code</span>
+                        <input
+                          type="text"
+                          value={promoCode}
+                          onChange={(e) =>
+                            setPromoCode(e.target.value.toUpperCase())
+                          }
+                          placeholder="TIKTOK50"
+                          className="flex h-9 w-full rounded-md border border-input bg-background px-2 font-mono text-sm uppercase"
+                        />
+                      </label>
+                      <label className="space-y-1 text-xs">
+                        <span className="text-muted-foreground">
+                          Manager PIN
+                          {cart.some((l) => l.isNc)
+                            ? " (required for NC)"
+                            : ""}
+                        </span>
+                        <input
+                          type="password"
+                          value={managerPin}
+                          onChange={(e) => setManagerPin(e.target.value)}
+                          autoComplete="off"
+                          className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="mb-3">
+                      <label className="flex max-w-xs flex-col gap-1 text-xs">
+                        <span className="text-muted-foreground">
+                          Promo code (optional)
+                        </span>
+                        <input
+                          type="text"
+                          value={promoCode}
+                          onChange={(e) =>
+                            setPromoCode(e.target.value.toUpperCase())
+                          }
+                          placeholder="Have a code?"
+                          className="flex h-9 w-full rounded-md border border-input bg-background px-2 font-mono text-sm uppercase"
+                        />
+                      </label>
+                    </div>
+                  )}
+
+                  {state.error ? (
+                    <Alert variant="destructive" className="mb-4">
+                      <TriangleAlertIcon />
+                      <AlertDescription>{state.error}</AlertDescription>
+                    </Alert>
+                  ) : null}
+
+                  {/* Cart: compact rail (~17–19.5rem). Menu gets the leftover width. */}
+                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_clamp(17rem,20vw,19.5rem)]">
+                    <div className="min-w-0">
+                      <TabsContent
+                        value="menu"
+                        forceMount
+                        className="data-[state=inactive]:hidden"
+                      >
+                        <div className="grid gap-3 lg:grid-cols-[9.5rem_minmax(0,1fr)]">
+                          <aside className="hidden lg:flex lg:flex-col lg:gap-3">
+                            <PosSearch value={search} onChange={setSearch} />
+                            <nav
+                              className="flex flex-col gap-1"
+                              aria-label="Menu categories"
+                            >
+                              <CategoryButton
+                                active={category === "all"}
+                                onClick={() => setCategory("all")}
+                                label="All"
+                                count={menuItems.length}
+                              />
+                              {categories.map((cat) => (
+                                <CategoryButton
+                                  key={cat}
+                                  active={category === cat}
+                                  onClick={() => setCategory(cat)}
+                                  label={cat}
+                                  count={
+                                    menuItems.filter((i) => i.category === cat)
+                                      .length
+                                  }
+                                />
+                              ))}
+                            </nav>
+                          </aside>
+
+                          <div className="min-w-0">
+                            <div className="mb-3 flex flex-col gap-2 lg:hidden">
+                              <PosSearch value={search} onChange={setSearch} />
+                              {lockedMenuOutlet ? (
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground">
+                                    <span className="font-medium text-foreground">
+                                      {lockedMenuLabel}
+                                    </span>{" "}
+                                    only
+                                  </p>
+                                  <button
+                                    type="button"
+                                    className="text-xs font-medium text-accent underline-offset-4 hover:underline"
+                                    onClick={() => {
+                                      setMenuUnlocked(true);
+                                      setMenuOutlet("all");
+                                    }}
+                                  >
+                                    Show all
+                                  </button>
+                                </div>
+                              ) : naturalTableOutlet && menuUnlocked ? (
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="text-xs text-amber-800/90">
+                                    Full menu unlocked
+                                  </p>
+                                  <button
+                                    type="button"
+                                    className="text-xs font-medium text-accent underline-offset-4 hover:underline"
+                                    onClick={() => {
+                                      setMenuUnlocked(false);
+                                      setMenuOutlet(naturalTableOutlet);
+                                      setCategory("all");
+                                      pruneCartToOutlet(naturalTableOutlet);
+                                    }}
+                                  >
+                                    Lock floor
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex flex-wrap gap-1.5">
+                                  <OutletChip
+                                    active={menuOutlet === "all"}
+                                    onClick={() => setMenuOutletFilter("all")}
+                                    label="All"
+                                  />
+                                  {posOutlets.map((o) => (
+                                    <OutletChip
+                                      key={o.value}
+                                      active={menuOutlet === o.value}
+                                      onClick={() =>
+                                        setMenuOutletFilter(o.value)
+                                      }
+                                      label={o.label}
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                              <div className="flex flex-wrap gap-1.5">
+                                <CategoryChip
+                                  active={category === "all"}
+                                  onClick={() => setCategory("all")}
+                                  label="All"
+                                />
+                                {categories.map((cat) => (
+                                  <CategoryChip
+                                    key={cat}
+                                    active={category === cat}
+                                    onClick={() => setCategory(cat)}
+                                    label={cat}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+
+                            {lockedMenuOutlet ? (
+                              <div className="mb-3 hidden flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground lg:flex">
+                                <p className="min-w-0 flex-1">
+                                  Showing{" "}
+                                  <span className="font-medium text-foreground">
+                                    {lockedMenuLabel}
+                                  </span>{" "}
+                                  menu only (this table’s floor).
+                                </p>
+                                <button
+                                  type="button"
+                                  className="shrink-0 font-medium text-accent underline-offset-4 hover:underline"
+                                  onClick={() => {
+                                    setMenuUnlocked(true);
+                                    setMenuOutlet("all");
+                                  }}
+                                >
+                                  Show all menus
+                                </button>
+                              </div>
+                            ) : naturalTableOutlet && menuUnlocked ? (
+                              <div className="mb-3 hidden flex-wrap items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground lg:flex">
+                                <p className="min-w-0 flex-1">
+                                  Full menu unlocked for this table.
+                                </p>
+                                <button
+                                  type="button"
+                                  className="shrink-0 font-medium text-accent underline-offset-4 hover:underline"
+                                  onClick={() => {
+                                    setMenuUnlocked(false);
+                                    setMenuOutlet(naturalTableOutlet);
+                                    setCategory("all");
+                                    pruneCartToOutlet(naturalTableOutlet);
+                                  }}
+                                >
+                                  Lock to{" "}
+                                  {posOutlets.find(
+                                    (o) => o.value === naturalTableOutlet,
+                                  )?.label ?? naturalTableOutlet}
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="mb-3 hidden flex-wrap gap-1.5 lg:flex">
+                                <OutletChip
+                                  active={menuOutlet === "all"}
+                                  onClick={() => setMenuOutletFilter("all")}
+                                  label="All outlets"
+                                />
+                                {posOutlets.map((o) => (
+                                  <OutletChip
+                                    key={o.value}
+                                    active={menuOutlet === o.value}
+                                    onClick={() =>
+                                      setMenuOutletFilter(o.value)
+                                    }
+                                    label={o.label}
+                                  />
+                                ))}
+                              </div>
+                            )}
+
+                            <MenuGrid
+                              items={menuItems}
+                              category={category}
+                              search={search}
+                              onAdd={addItemQuick}
+                              onEditLine={editLine}
+                            />
+                          </div>
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent
+                        value="floor"
+                        forceMount
+                        className="data-[state=inactive]:hidden"
+                      >
+                        <PosFloorPlan
+                          floor={floorOutlet}
+                          onFloorChange={setFloorOutlet}
+                          outlets={posOutlets}
+                          tables={tables}
+                          openTickets={openTickets}
+                          selectedTableId={tableId}
+                          onSelectTable={selectTable}
+                          onAddTable={() =>
+                            setTableFormTarget({ mode: "create" })
+                          }
+                          onEditTable={(table) =>
+                            setTableFormTarget({ mode: "edit", table })
+                          }
+                          onOpenTicket={(orderId) => setSettleTarget(orderId)}
+                        />
+                      </TabsContent>
+                    </div>
+
+                    <aside className="hidden lg:sticky lg:top-3 lg:block lg:self-start">
+                      <CartPanel
+                        cart={cart}
+                        totals={totals}
+                        lineCount={lineCount}
+                        pending={pending}
+                        gstRate={gstRate}
+                        servicePercent={servicePercent}
+                        serviceReason={serviceReason}
+                        applyServiceCharge={applyServiceCharge}
+                        serviceChargeDefaultOn={serviceChargeDefaultOn}
+                        onApplyServiceChargeChange={setApplyServiceCharge}
+                        onServicePercentChange={setServicePercent}
+                        onServiceReasonChange={setServiceReason}
+                        onInc={(key) => stepLine(key, 1)}
+                        onDec={(key) => stepLine(key, -1)}
+                        onRemove={removeLine}
+                        onClear={clearCart}
+                        onEditLine={editLine}
+                        onToggleNc={toggleNc}
+                        ncReasons={ncReasons}
+                        idPrefix="cart_desktop"
+                      />
+                    </aside>
                   </div>
-                </SheetContent>
-              </Sheet>
-            </div>
-          </form>
+
+                  {/* Mobile — cart trigger bar + bottom sheet */}
+                  <div className="lg:hidden">
+                    <button
+                      type="button"
+                      onClick={() => setCartSheetOpen(true)}
+                      className="fixed inset-x-3 bottom-3 z-30 flex h-14 items-center justify-between rounded-xl bg-primary px-4 text-primary-foreground shadow-lg"
+                      aria-label="Open cart"
+                    >
+                      <span className="flex items-center gap-2 text-sm font-medium">
+                        <span className="inline-flex size-6 items-center justify-center rounded-full bg-primary-foreground/20 text-xs tabular-nums">
+                          {lineCount}
+                        </span>
+                        View ticket
+                      </span>
+                      <span className="text-sm font-semibold tabular-nums">
+                        {formatBtn(totals.totalBtn)}
+                      </span>
+                    </button>
+
+                    <Sheet open={cartSheetOpen} onOpenChange={setCartSheetOpen}>
+                      <SheetContent
+                        side="bottom"
+                        portal={false}
+                        className="erp p-0 sm:max-w-full"
+                      >
+                        <SheetHeader className="sr-only">
+                          <SheetTitle>Ticket</SheetTitle>
+                        </SheetHeader>
+                        <div className="max-h-[85dvh] overflow-hidden p-4">
+                          <CartPanel
+                            cart={cart}
+                            totals={totals}
+                            lineCount={lineCount}
+                            pending={pending}
+                            gstRate={gstRate}
+                            servicePercent={servicePercent}
+                            serviceReason={serviceReason}
+                            applyServiceCharge={applyServiceCharge}
+                            serviceChargeDefaultOn={serviceChargeDefaultOn}
+                            onApplyServiceChargeChange={setApplyServiceCharge}
+                            onServicePercentChange={setServicePercent}
+                            onServiceReasonChange={setServiceReason}
+                            onInc={(key) => stepLine(key, 1)}
+                            onDec={(key) => stepLine(key, -1)}
+                            onRemove={removeLine}
+                            onClear={clearCart}
+                            onEditLine={editLine}
+                            onToggleNc={toggleNc}
+                            ncReasons={ncReasons}
+                            idPrefix="cart_mobile"
+                          />
+                        </div>
+                      </SheetContent>
+                    </Sheet>
+                  </div>
+                </form>
+              ) : saleKind === "room" && !roomUnitId ? (
+                <p className="rounded-lg border border-dashed bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
+                  Choose an in-house room in the context bar — then the menu
+                  opens for room charge.
+                </p>
+              ) : null}
+            </>
+          )}
         </div>
 
         <TabsContent value="stock">

@@ -68,6 +68,11 @@ export default async function GuidePostPage({
         }}
       />
       <EngineShell
+        breadcrumbs={[
+          { name: "Home", path: "/" },
+          { name: "Guide", path: "/guide" },
+          { name: post.title },
+        ]}
         eyebrow="Pelbu guide"
         title={post.title}
         description={post.excerpt}

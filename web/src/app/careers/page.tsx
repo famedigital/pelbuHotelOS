@@ -1,6 +1,7 @@
 import { CareersInterestForm } from "@/components/careers/CareersInterestForm";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { PublicSiteHeader } from "@/components/site/PublicSiteHeader";
+import { SiteBreadcrumbs } from "@/components/site/SiteBreadcrumbs";
 import { Button } from "@/components/ui/button";
 import { cloudinaryOriginalUrl, cloudinaryUrl } from "@/lib/cloudinary";
 import { loadPublicPropertyProfile } from "@/lib/public-property";
@@ -8,6 +9,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { resolvePublicPropertyId } from "@/lib/tenant/resolve-public-property";
 import {
   breadcrumbJsonLd,
+  jobPostingJsonLd,
   serializeJsonLd,
 } from "@/lib/structured-data";
 import type { Metadata } from "next";
@@ -181,12 +183,25 @@ export default async function CareersPage() {
     byDept.set(o.department, list);
   }
 
-  const jsonLd = serializeJsonLd(
+  const jsonLd = serializeJsonLd([
     breadcrumbJsonLd([
       { name: "Home", path: "/" },
       { name: "Careers", path: "/careers" },
     ]),
-  );
+    ...openings.map((o) =>
+      jobPostingJsonLd({
+        id: o.id,
+        title: o.title,
+        description:
+          o.torSummary?.trim() ||
+          o.postingNote?.trim() ||
+          `${o.title} at Pelbu Suites, Olakha, Thimphu.`,
+        employmentType: o.employmentType,
+        validThrough: o.closesOn,
+        department: o.department,
+      }),
+    ),
+  ]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -198,6 +213,13 @@ export default async function CareersPage() {
       <main>
         <section className="border-b border-border/60 bg-gradient-to-b from-sky-50/80 to-background">
           <div className="mx-auto max-w-[900px] px-5 py-12 md:px-8 md:py-16">
+            <SiteBreadcrumbs
+              items={[
+                { name: "Home", path: "/" },
+                { name: "Careers" },
+              ]}
+              className="mb-4"
+            />
             <p className="text-xs font-semibold tracking-[0.2em] text-accent uppercase">
               Careers
             </p>

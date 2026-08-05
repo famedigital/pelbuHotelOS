@@ -1,3 +1,4 @@
+import { BrandLockup } from "@/components/site/BrandLockup";
 import {
   FacebookGlyph,
   InstagramGlyph,
@@ -109,20 +110,11 @@ export async function SiteFooter({
       <div className="relative mx-auto max-w-[1200px] px-5 py-14 md:px-8 md:py-16">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,3.2fr)_minmax(0,1.15fr)] lg:gap-8">
           <div className="space-y-4">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2.5 text-sm font-semibold"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={logoSrc}
-                alt=""
-                className="h-9 w-9 object-contain"
-                width={36}
-                height={36}
-              />
-              Pelbu Suites
-            </Link>
+            <BrandLockup
+              logoSrc={logoSrc}
+              tone="hero"
+              className="!text-white"
+            />
             <p className="max-w-xs text-sm leading-relaxed text-white/60">
               {property?.address ??
                 "Olakha, Thimphu — rooms, cafe, restaurant, bar, spa and meeting under one roof."}

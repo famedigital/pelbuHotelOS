@@ -1,4 +1,4 @@
-import { BRAND_CLOUDINARY } from "@/lib/brand";
+import { BRAND_CLOUDINARY, resolveRoomImagePublicId } from "@/lib/brand";
 import type { PublicRoom } from "@/lib/public-content";
 
 export type MegaLink = {
@@ -39,12 +39,6 @@ export type MegaMenu = {
   contact: MegaCard;
 };
 
-const ROOM_IMAGE_FALLBACK: Record<string, string> = {
-  deluxe: BRAND_CLOUDINARY.roomsDeluxe,
-  superior: BRAND_CLOUDINARY.roomsSuperior,
-  twin: BRAND_CLOUDINARY.roomsTwin,
-};
-
 function roomDescription(room: PublicRoom): string {
   const text = (room.blurb ?? "").trim();
   if (!text) {
@@ -54,9 +48,12 @@ function roomDescription(room: PublicRoom): string {
   return `${text.slice(0, 93).trimEnd()}…`;
 }
 
-function roomPublicId(room: PublicRoom): string | undefined {
-  if (room.imagePublicId) return room.imagePublicId;
-  return ROOM_IMAGE_FALLBACK[room.code] ?? BRAND_CLOUDINARY.roomsDeluxe;
+function roomPublicId(room: PublicRoom): string {
+  return resolveRoomImagePublicId({
+    code: room.code,
+    name: room.name,
+    imagePublicId: room.imagePublicId,
+  });
 }
 
 /** Deluxe leads the room list; the remaining categories keep DB order. */

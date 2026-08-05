@@ -1,5 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CmsContentSection } from "@/lib/cms";
+import {
+  parseHeroTheme,
+  type HeroTheme,
+} from "@/lib/hero-theme";
 
 export type CmsPageDraftContent = {
   eyebrow: string;
@@ -17,6 +21,7 @@ export type CmsPageDraftContent = {
   summary: string | null;
   faq_json: Array<{ question: string; answer: string }>;
   sections_json: CmsContentSection[];
+  hero_theme: HeroTheme;
   author_name: string | null;
   source_note: string | null;
   last_verified_at: string | null;
@@ -54,6 +59,7 @@ type CmsPageRow = {
   summary: string | null;
   faq_json: unknown;
   sections_json: unknown;
+  hero_theme: unknown;
   author_name: string | null;
   source_note: string | null;
   last_verified_at: string | null;
@@ -64,7 +70,7 @@ type CmsPageRow = {
 };
 
 const PAGE_COLUMNS =
-  "id, property_id, slug, eyebrow, title, body, hours_note, primary_cta_href, primary_cta_label, secondary_cta_href, secondary_cta_label, seo_title, meta_description, canonical_path, og_public_id, summary, faq_json, sections_json, author_name, source_note, last_verified_at, is_published, revision, published_at, updated_at";
+  "id, property_id, slug, eyebrow, title, body, hours_note, primary_cta_href, primary_cta_label, secondary_cta_href, secondary_cta_label, seo_title, meta_description, canonical_path, og_public_id, summary, faq_json, sections_json, hero_theme, author_name, source_note, last_verified_at, is_published, revision, published_at, updated_at";
 
 function nullableText(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value : null;
@@ -165,6 +171,10 @@ export function normalizeCmsPageContent(
     sections_json: Array.isArray(data.sections_json)
       ? sectionItems(data.sections_json)
       : fallback.sections_json,
+    hero_theme:
+      data.hero_theme && typeof data.hero_theme === "object"
+        ? parseHeroTheme(data.hero_theme)
+        : fallback.hero_theme,
     author_name:
       data.author_name === null
         ? null
@@ -201,6 +211,7 @@ function rowContent(row: CmsPageRow): CmsPageDraftContent {
     summary: row.summary,
     faq_json: faqItems(row.faq_json),
     sections_json: sectionItems(row.sections_json),
+    hero_theme: parseHeroTheme(row.hero_theme),
     author_name: row.author_name,
     source_note: row.source_note,
     last_verified_at: row.last_verified_at,

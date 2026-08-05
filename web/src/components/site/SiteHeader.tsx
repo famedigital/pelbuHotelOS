@@ -1,5 +1,6 @@
 "use client";
 
+import { BrandLockup } from "@/components/site/BrandLockup";
 import { CloudinaryImage } from "@/components/media/CloudinaryImage";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -10,7 +11,6 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
-import { BRAND_ICONS } from "@/lib/brand";
 import type { MegaLink, MegaMenu } from "@/lib/mega-menu";
 import { cn } from "@/lib/utils";
 import { ArrowRightIcon, ChevronRightIcon } from "lucide-react";
@@ -24,7 +24,7 @@ type Variant = "hero" | "solid";
  * labels plain (no frosted pill) — the top veil + text shadow carry contrast.
  */
 const HERO_TRIGGER =
-  "bg-transparent text-white [text-shadow:0_1px_3px_rgb(5_59_47/0.55)] hover:bg-transparent hover:text-citrus-soft focus:bg-transparent focus:text-white data-[state=open]:bg-transparent data-[state=open]:text-citrus-soft";
+  "bg-transparent text-white [text-shadow:0_1px_3px_rgb(8_47_73/0.55)] hover:bg-transparent hover:text-citrus-soft focus:bg-transparent focus:text-white data-[state=open]:bg-transparent data-[state=open]:text-citrus-soft";
 
 type Tone = "hero" | "solid";
 
@@ -36,7 +36,7 @@ type Tone = "hero" | "solid";
  * leaves the panel free to blur it too.
  */
 const BAR_SURFACE: Record<Tone, string> = {
-  hero: "border-b border-white/15 bg-mint-ink/55 shadow-[inset_0_1px_0_0_rgb(255_255_255/0.18)] backdrop-blur-2xl backdrop-saturate-[1.8]",
+  hero: "border-b border-white/15 bg-sky-ink/55 shadow-[inset_0_1px_0_0_rgb(255_255_255/0.18)] backdrop-blur-2xl backdrop-saturate-[1.8]",
   solid:
     "border-b border-border/70 bg-background/90 shadow-sm backdrop-blur-xl",
 };
@@ -48,7 +48,7 @@ const BAR_SURFACE: Record<Tone, string> = {
  * and read as a card floating apart from the hero.
  */
 const PANEL_SURFACE: Record<Tone, string> = {
-  hero: "border-white/15 bg-mint-ink/80 text-white backdrop-blur-3xl backdrop-saturate-[1.8] shadow-[inset_0_1px_0_0_rgb(255_255_255/0.16),0_30px_70px_-35px_rgb(5_59_47/0.9)]",
+  hero: "border-white/15 bg-sky-ink/80 text-white backdrop-blur-3xl backdrop-saturate-[1.8] shadow-[inset_0_1px_0_0_rgb(255_255_255/0.16),0_30px_70px_-35px_rgb(8_47_73/0.9)]",
   solid:
     "border-sky-100 bg-white/92 text-foreground backdrop-blur-3xl shadow-[0_30px_80px_-45px_rgb(8_47_73/0.45)]",
 };
@@ -343,7 +343,7 @@ export function SiteHeader({
   variant?: Variant;
   menus: MegaMenu[];
 }) {
-  const logo = logoSrc || BRAND_ICONS.mark;
+  const logo = logoSrc;
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -359,7 +359,8 @@ export function SiteHeader({
   return (
     <header
       className={cn(
-        "z-40",
+        // overflow-visible so the brand can hang outside the slim glass strip
+        "z-40 overflow-visible",
         // Fixed on the homepage so the hero runs to the very top of the page
         // and the bar floats over the photograph. Position is keyed to
         // `variant`, not `overHero`, so it does not change on scroll.
@@ -367,81 +368,69 @@ export function SiteHeader({
         overHero ? "text-white" : "text-foreground",
       )}
     >
-      {/* Liquid-glass material: mint-ink tint, heavy blur and a saturation lift
-          so the photograph refracts through in colour instead of going grey,
-          finished with a specular highlight along the top edge. */}
-      <div
-        className={cn(
-          "pointer-events-none absolute inset-0 transition-colors duration-300",
-          BAR_SURFACE[tone],
-        )}
-        aria-hidden
-      />
-      <div className="relative mx-auto flex max-w-[1200px] items-center justify-between gap-4 px-5 py-3 md:px-8">
-        <Link
-          href="/"
+      {/* Slim strip only — brand mark hangs outside this band. */}
+      <div className="relative h-12 overflow-visible md:h-[3.25rem]">
+        {/* Liquid-glass material: sky-ink dusk tint, heavy blur and a saturation
+            lift so the photograph refracts through in colour instead of going
+            grey, finished with a specular highlight along the top edge. */}
+        <div
           className={cn(
-            "flex items-center gap-2.5 text-[13px] font-semibold",
-            overHero
-              ? "text-white [text-shadow:0_1px_3px_rgb(5_59_47/0.55)]"
-              : "text-foreground",
+            "pointer-events-none absolute inset-0 transition-colors duration-300",
+            BAR_SURFACE[tone],
           )}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={logo}
-            alt="Pelbu Suites"
-            className="h-8 w-8 object-contain"
-            width={32}
-            height={32}
-          />
-          <span>Pelbu Suites</span>
-        </Link>
+          aria-hidden
+        />
+        <div className="relative mx-auto flex h-full max-w-[1200px] items-center justify-between gap-4 px-5 md:px-8">
+          <BrandLockup logoSrc={logo} tone={tone} />
 
-        <NavigationMenu
-          className="hidden lg:flex"
-          viewport
-          viewportClassName={PANEL_SURFACE[tone]}
-        >
-          <NavigationMenuList>
-            {menus.map((menu) => (
-              <NavigationMenuItem key={menu.label}>
-                <NavigationMenuTrigger
-                  className={overHero ? HERO_TRIGGER : undefined}
-                >
-                  {menu.label}
-                </NavigationMenuTrigger>
-                <NavigationMenuContent>
-                  <MegaPanel menu={menu} tone={tone} />
-                </NavigationMenuContent>
-              </NavigationMenuItem>
-            ))}
-          </NavigationMenuList>
-        </NavigationMenu>
+          <NavigationMenu
+            className="relative z-10 hidden lg:flex"
+            viewport
+            viewportClassName={PANEL_SURFACE[tone]}
+          >
+            <NavigationMenuList>
+              {menus.map((menu) => (
+                <NavigationMenuItem key={menu.label}>
+                  <NavigationMenuTrigger
+                    className={cn(
+                      "h-9",
+                      overHero ? HERO_TRIGGER : undefined,
+                    )}
+                  >
+                    {menu.label}
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <MegaPanel menu={menu} tone={tone} />
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+              ))}
+            </NavigationMenuList>
+          </NavigationMenu>
 
-        <div className="flex shrink-0 items-center gap-2">
-          <Link
-            href="/login"
-            className={cn(
-              "inline-flex min-h-11 items-center justify-center rounded-xl px-3.5 text-[13px] font-semibold transition-colors",
-              overHero
-                ? "border border-white/35 bg-white/10 text-white [text-shadow:0_1px_3px_rgb(5_59_47/0.55)] hover:bg-white/18"
-                : "border border-border bg-background/80 text-foreground hover:bg-muted",
-            )}
-          >
-            Login
-          </Link>
-          <Link
-            href="/book"
-            className={cn(
-              "inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-[13px] font-semibold transition-colors",
-              overHero
-                ? "bg-citrus text-sky-ink hover:bg-citrus-soft"
-                : "bg-primary text-primary-foreground hover:bg-primary/90",
-            )}
-          >
-            Book
-          </Link>
+          <div className="relative z-10 flex shrink-0 items-center gap-2">
+            <Link
+              href="/login"
+              className={cn(
+                "inline-flex h-9 items-center justify-center rounded-lg px-3 text-[13px] font-semibold transition-colors",
+                overHero
+                  ? "border border-white/35 bg-white/10 text-white [text-shadow:0_1px_3px_rgb(8_47_73/0.55)] hover:bg-white/18"
+                  : "border border-border bg-background/80 text-foreground hover:bg-muted",
+              )}
+            >
+              Login
+            </Link>
+            <Link
+              href="/book"
+              className={cn(
+                "inline-flex h-9 items-center justify-center rounded-lg px-3.5 text-[13px] font-semibold transition-colors",
+                overHero
+                  ? "bg-citrus text-sky-ink hover:bg-citrus-soft"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90",
+              )}
+            >
+              Book
+            </Link>
+          </div>
         </div>
       </div>
     </header>

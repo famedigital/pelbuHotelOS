@@ -42,6 +42,10 @@ export default async function GalleryPage() {
         }}
       />
       <EngineShell
+        breadcrumbs={[
+          { name: "Home", path: "/" },
+          { name: "Gallery" },
+        ]}
         eyebrow={page?.eyebrow ?? "Photo gallery"}
         title={page?.title ?? "See Pelbu Suites before you arrive."}
         description={

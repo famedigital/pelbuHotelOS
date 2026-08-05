@@ -4,6 +4,11 @@ import { EngineShell } from "@/components/site/EngineShell";
 import { Button } from "@/components/ui/button";
 import { loadCmsPage } from "@/lib/cms";
 import { loadServiceOfferings } from "@/lib/service-offerings";
+import {
+  breadcrumbJsonLd,
+  serializeJsonLd,
+  serviceJsonLd,
+} from "@/lib/structured-data";
 
 export const metadata = {
   title: "Spa & Steam | Pelbu Suites",
@@ -20,24 +25,49 @@ export default async function SpaPage() {
     loadCmsPage("spa"),
   ]);
 
+  const title = page?.title ?? "Choose how you want to recover.";
+  const description =
+    page?.body ??
+    "Select an experience and a preferred time. We confirm therapist and room availability before the slot is final.";
+
   return (
-    <EngineShell
-      eyebrow={page?.eyebrow ?? "Spa & steam"}
-      title={page?.title ?? "Choose how you want to recover."}
-      description={
-        page?.body ??
-        "Select an experience and a preferred time. We confirm therapist and room availability before the slot is final."
-      }
-      actions={
-        <Button asChild variant="outline">
-          <a href="/book">Add a stay</a>
-        </Button>
-      }
-    >
-      <div className="space-y-8">
-        <CmsContentSections sections={page?.sections_json} />
-        <ServiceRequestForm kind="spa" offerings={offerings} />
-      </div>
-    </EngineShell>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: serializeJsonLd([
+            breadcrumbJsonLd([
+              { name: "Home", path: "/" },
+              { name: "Spa & steam", path: "/spa" },
+            ]),
+            serviceJsonLd({
+              name: "Spa & steam at Pelbu Suites",
+              path: "/spa",
+              description,
+              serviceType: "Spa",
+            }),
+          ]),
+        }}
+      />
+      <EngineShell
+        breadcrumbs={[
+          { name: "Home", path: "/" },
+          { name: "Spa & steam" },
+        ]}
+        eyebrow={page?.eyebrow ?? "Spa & steam"}
+        title={title}
+        description={description}
+        actions={
+          <Button asChild variant="outline">
+            <a href="/book">Add a stay</a>
+          </Button>
+        }
+      >
+        <div className="space-y-8">
+          <CmsContentSections sections={page?.sections_json} />
+          <ServiceRequestForm kind="spa" offerings={offerings} />
+        </div>
+      </EngineShell>
+    </>
   );
 }

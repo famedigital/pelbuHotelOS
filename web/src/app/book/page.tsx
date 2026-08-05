@@ -1,5 +1,6 @@
 import { BookingCheckoutShell } from "@/components/book/BookingCheckoutShell";
 import { BookingWizard } from "@/components/book/BookingWizard";
+import { resolveLogoSrc } from "@/lib/public-logo";
 import { loadPublicPropertyProfile } from "@/lib/public-property";
 import { parseStaySearch } from "@/lib/stay-dates";
 
@@ -41,7 +42,10 @@ export default async function BookPage({
   });
 
   return (
-    <BookingCheckoutShell phone={property?.phone}>
+    <BookingCheckoutShell
+      phone={property?.phone}
+      logoSrc={resolveLogoSrc(property?.logoPublicId)}
+    >
       <BookingWizard initialStay={initialStay} />
     </BookingCheckoutShell>
   );

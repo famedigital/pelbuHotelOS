@@ -191,25 +191,46 @@ function SidebarModuleItem({
 
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton
-        isActive={moduleActive}
-        tooltip={module.title}
-        onClick={moduleActive ? undefined : onToggle}
-        aria-expanded={expanded}
-        aria-controls={`sidebar-sub-${module.key}`}
-      >
-        <Icon />
-        <span>{module.title}</span>
-        <ChevronRightIcon
+      <div className="flex w-full items-center gap-0.5">
+        <SidebarMenuButton
+          asChild
+          isActive={moduleActive}
+          tooltip={module.title}
+          className="min-w-0 flex-1"
+        >
+          <Link href={module.href}>
+            <Icon />
+            <span>{module.title}</span>
+          </Link>
+        </SidebarMenuButton>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onToggle();
+          }}
+          aria-expanded={expanded}
+          aria-controls={`sidebar-sub-${module.key}`}
+          aria-label={`${expanded ? "Collapse" : "Expand"} ${module.title} sections`}
           className={cn(
-            "ml-auto size-4 shrink-0 transition-transform duration-200",
-            expanded && "rotate-90",
-            moduleActive && "opacity-50",
+            "inline-flex size-8 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 outline-none ring-sidebar-ring transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 group-data-[collapsible=icon]:hidden",
+            moduleActive && "text-sidebar-accent-foreground",
           )}
-        />
-      </SidebarMenuButton>
+        >
+          <ChevronRightIcon
+            className={cn(
+              "size-4 transition-transform duration-200",
+              expanded && "rotate-90",
+            )}
+          />
+        </button>
+      </div>
       {expanded ? (
-        <SidebarMenuSub id={`sidebar-sub-${module.key}`} className="mx-0 border-l-sidebar-border/70 px-0">
+        <SidebarMenuSub
+          id={`sidebar-sub-${module.key}`}
+          className="mx-0 border-l-sidebar-border/70 px-0 group-data-[collapsible=icon]:hidden"
+        >
           {module.tabs.map((tab) => {
             const tabActive = activeMatch?.tab.href === tab.href;
             return (

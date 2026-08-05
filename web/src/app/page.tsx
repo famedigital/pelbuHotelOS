@@ -1,18 +1,24 @@
 import { HomeAgents } from "@/components/home/HomeAgents";
+import { HomeFaqTeaser } from "@/components/home/HomeFaqTeaser";
 import { HomeHero } from "@/components/home/HomeHero";
-import { HomeMarketplace } from "@/components/home/HomeMarketplace";
-import { HomeOutletSection } from "@/components/home/HomeOutletSection";
+import { HomeInHouse } from "@/components/home/HomeInHouse";
+import { HomeProof } from "@/components/home/HomeProof";
 import { HomeRooms } from "@/components/home/HomeRooms";
+import { HomeTrustStrip } from "@/components/home/HomeTrustStrip";
 import { HomeWhy } from "@/components/home/HomeWhy";
 import { CmsContentSections } from "@/components/site/CmsContentSections";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { PublicSiteHeader } from "@/components/site/PublicSiteHeader";
-import { HOME_HERO_SLIDES, OUTLET_SHOWCASE_PHOTOS } from "@/lib/brand";
+import { HOME_HERO_SLIDES } from "@/lib/brand";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { loadCmsGallery, loadCmsPage } from "@/lib/cms";
-import { loadHomeShowcase } from "@/lib/home-content";
+import { formatBtn } from "@/lib/pricing";
 import { loadPublicPropertyProfile } from "@/lib/public-property";
+import { loadPublicRoomsWithRates } from "@/lib/public-room-rates";
+import { safePublic } from "@/lib/public-safe";
+import { staySecondaryCta } from "@/lib/stay-conversion";
 import {
+  faqJsonLd,
   hotelJsonLd,
   serializeJsonLd,
   websiteJsonLd,
@@ -21,29 +27,20 @@ import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 
-const HERO_PRODUCTS = [
-  { href: "/rooms", label: "Rooms", hint: "Stay" },
-  { href: "/restaurant", label: "Restaurant", hint: "Dinner" },
-  { href: "/cafe", label: "Cafe", hint: "From 6:30" },
-  { href: "/menu?outlet=pastry", label: "Pastry", hint: "Fresh daily" },
-  { href: "/menu", label: "Order online", hint: "Pickup or taxi" },
-  { href: "/spa", label: "Spa & steam", hint: "Recover" },
-  { href: "/meeting", label: "Meeting", hint: "Host" },
-];
-
 export async function generateMetadata(): Promise<Metadata> {
-  const page = await loadCmsPage("home");
+  const page = await safePublic("home-meta", () => loadCmsPage("home"), null);
   return {
-    title: page?.seo_title ?? "Pelbu Suites Olakha | Hotel in Thimphu",
+    title:
+      page?.seo_title ?? "Pelbu Suites Olakha | Hotel in Thimphu, Bhutan",
     description:
       page?.meta_description ??
-      "Stay, dine, meet, and recover at Pelbu Suites in Olakha, Thimphu.",
+      "Book rooms direct at Pelbu Suites in Olakha, Thimphu — cafe, restaurant, spa and meeting under one roof.",
     alternates: { canonical: "/" },
     openGraph: {
-      title: page?.seo_title ?? "Pelbu Suites Olakha",
+      title: page?.seo_title ?? "Pelbu Suites Olakha | Hotel in Thimphu",
       description:
         page?.meta_description ??
-        "A practical, warm base in Olakha for stays, meals, meetings, and recovery.",
+        "A calm Olakha base for stays, meals and recovery — direct rates, live availability.",
       type: "website",
       url: "/",
     },
@@ -57,15 +54,23 @@ function heroLabel(alt: string, fallback: string): string {
 }
 
 export default async function HomePage() {
-  const [page, property, showcase, cafePage, restaurantPage, heroMedia] =
-    await Promise.all([
-      loadCmsPage("home"),
-      loadPublicPropertyProfile(),
-      loadHomeShowcase(),
-      loadCmsPage("cafe"),
-      loadCmsPage("restaurant"),
-      loadCmsGallery("home", 2400),
-    ]);
+  const [page, property, rateRooms, heroMedia, faqPage] = await Promise.all([
+    safePublic("home-cms", () => loadCmsPage("home"), null),
+    safePublic("home-property", () => loadPublicPropertyProfile(), null),
+    safePublic(
+      "home-rooms-rates",
+      () => loadPublicRoomsWithRates(),
+      {
+        rooms: [],
+        lowestFromBtn: null,
+        seasonKind: null,
+        seasonName: null,
+        taxInclusive: false,
+      },
+    ),
+    safePublic("home-hero-media", () => loadCmsGallery("home", 2400), []),
+    safePublic("home-faq", () => loadCmsPage("faq"), null),
+  ]);
 
   const cmsHero = heroMedia.filter(
     (item) => item.kind === "hero" && (item.src || item.public_id),
@@ -89,20 +94,64 @@ export default async function HomePage() {
           }) ?? undefined,
       }));
 
+  const sameAs = [
+    property?.facebook,
+    property?.instagram,
+    property?.tiktok,
+    property?.mapsUrl,
+  ].filter((v): v is string => Boolean(v));
+
+  const priceRange =
+    rateRooms.lowestFromBtn != null
+      ? `${formatBtn(rateRooms.lowestFromBtn)}+`
+      : null;
+
+  const secondary = staySecondaryCta(page);
+  const faqItems = faqPage?.faq_json ?? [];
+  const ratesMissing =
+    rateRooms.rooms.length === 0 ||
+    rateRooms.rooms.every((r) => r.fromPriceBtn == null);
+
+  const jsonLd = [
+    hotelJsonLd({
+      image: slides[0]?.src,
+      telephone: property?.phone,
+      email: property?.email,
+      address: property?.address,
+      mapsUrl: property?.mapsUrl,
+      latitude: property?.latitude,
+      longitude: property?.longitude,
+      checkInTime: property?.checkInTime,
+      checkOutTime: property?.checkOutTime,
+      starRating: property?.starRating,
+      roomCount: property?.roomCount,
+      priceRange,
+      sameAs,
+      amenities: property?.amenities,
+      roomOffers: rateRooms.rooms
+        .filter(
+          (r): r is typeof r & { fromPriceBtn: number } =>
+            r.fromPriceBtn != null && r.fromPriceBtn > 0,
+        )
+        .map((r) => ({
+          name: r.name,
+          path: `/rooms/${r.slug}`,
+          priceBtn: r.fromPriceBtn,
+          image: r.imageSrc,
+        })),
+    }),
+    websiteJsonLd(),
+  ];
+  if (faqItems.length > 0) {
+    jsonLd.push(faqJsonLd(faqItems));
+  }
+
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: serializeJsonLd([
-            hotelJsonLd({
-              image: slides[0]?.src,
-              telephone: property?.phone,
-              email: property?.email,
-              address: property?.address,
-            }),
-            websiteJsonLd(),
-          ]),
+          __html: serializeJsonLd(jsonLd),
         }}
       />
       <PublicSiteHeader variant="hero" />
@@ -110,75 +159,53 @@ export default async function HomePage() {
         <HomeHero
           slides={slides}
           eyebrow={page?.eyebrow ?? "Olakha · Thimphu · Bhutan"}
-          title={page?.title ?? "Stay close to the city. Come home to calm."}
+          title={
+            page?.title ??
+            "Hotel in Olakha — stay close to the city, come home to calm."
+          }
           description={
             page?.body ??
-            "Rooms, a cafe that opens before the city does, a multicuisine restaurant, fresh pastry, and an online kitchen that delivers across Thimphu."
+            "Quiet rooms at Pelbu Suites with direct rates, live availability, and cafe, restaurant and spa under one roof in Thimphu."
           }
-          secondaryHref={page?.secondary_cta_href ?? "/menu"}
-          secondaryLabel={page?.secondary_cta_label ?? "Order food online"}
-          products={HERO_PRODUCTS}
+          secondaryHref={secondary.href}
+          secondaryLabel={secondary.label}
+          fromPriceBtn={rateRooms.lowestFromBtn}
+          taxInclusive={rateRooms.taxInclusive}
+          theme={page?.hero_theme}
         />
 
-        <HomeRooms rooms={showcase.rooms} />
-
-        <HomeOutletSection
-          id="restaurant"
-          eyebrow="Restaurant"
-          title="Indian, Bhutanese and multicuisine."
-          description={
-            restaurantPage?.body ??
-            "Breakfast, lunch and dinner cooked to order, with signature plates you will not find on every Thimphu corner."
-          }
-          note={restaurantPage?.hours_note}
-          photos={[...OUTLET_SHOWCASE_PHOTOS.restaurant]}
-          items={showcase.restaurant}
-          accent="sky"
-          primary={{ href: "/menu?outlet=restaurant", label: "Order from the kitchen" }}
-          secondary={{ href: "/restaurant", label: "Restaurant page" }}
+        <HomeTrustStrip
+          property={property}
+          fromPriceBtn={rateRooms.lowestFromBtn}
+          seasonName={rateRooms.seasonName}
+          taxInclusive={rateRooms.taxInclusive}
+          ratesMissing={ratesMissing}
         />
 
-        <HomeOutletSection
-          id="cafe"
-          eyebrow="Cafe"
-          title="Coffee before the city wakes up."
-          description={
-            cafePage?.body ??
-            "Breakfast, espresso and all-day plates from early morning — eat in, collect at the counter, or send it by taxi."
-          }
-          note={cafePage?.hours_note}
-          photos={[...OUTLET_SHOWCASE_PHOTOS.cafe]}
-          items={showcase.cafe}
-          accent="citrus"
-          reverse
-          primary={{ href: "/menu?outlet=cafe", label: "Order cafe items" }}
-          secondary={{ href: "/cafe", label: "Cafe page" }}
+        <HomeProof />
+
+        <HomeRooms
+          rooms={rateRooms.rooms}
+          seasonName={rateRooms.seasonName}
+          taxInclusive={rateRooms.taxInclusive}
         />
-
-        <HomeOutletSection
-          id="pastry"
-          eyebrow="Pastry"
-          title="Baked in-house, sold until it runs out."
-          description="Croissants, cakes and Bhutanese-favourite bakes from our own pastry section — perfect for an office run or a gift box."
-          photos={[...OUTLET_SHOWCASE_PHOTOS.pastry]}
-          items={showcase.pastry}
-          accent="mint"
-          primary={{ href: "/menu?outlet=pastry", label: "See today’s pastry" }}
-          secondary={{ href: "/menu", label: "Full menu" }}
-        />
-
-        <HomeMarketplace dishCount={showcase.counts.orderable} />
-
-        <HomeAgents />
-
-        <section className="bg-gradient-to-b from-background to-sky-50/50 px-5 py-16 md:px-8 md:py-20">
-          <CmsContentSections
-            sections={page?.sections_json}
-            className="mx-auto max-w-[1120px]"
-          />
-        </section>
 
         <HomeWhy />
+
+        <HomeInHouse />
+
+        <HomeFaqTeaser items={faqItems} />
+
+        {page?.sections_json?.length ? (
+          <section className="bg-gradient-to-b from-background to-sky-50/50 px-5 py-12 md:px-8 md:py-16">
+            <CmsContentSections
+              sections={page.sections_json}
+              className="mx-auto max-w-[1120px]"
+            />
+          </section>
+        ) : null}
+
+        <HomeAgents />
       </main>
       <SiteFooter profile={property} />
     </>

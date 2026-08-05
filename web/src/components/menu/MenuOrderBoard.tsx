@@ -11,11 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -386,129 +381,94 @@ function MenuTile({
   const orderable = isOrderable(item);
 
   return (
-    <HoverCard openDelay={160} closeDelay={80}>
-      <HoverCardTrigger asChild>
-        <li
-          id={`item-${item.id}`}
-          className={cn(
-            "media-card flex scroll-mt-40 flex-col overflow-hidden rounded-xl border bg-card",
-            highlighted
-              ? "border-sky-600 ring-2 ring-sky-600/25"
-              : "border-border",
-          )}
-        >
-          <div className="relative">
-            <CloudinaryImage
-              publicId={item.image_public_id}
-              src={item.image_src}
-              alt={item.name}
-              ratio="4/3"
-              sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, (max-width: 1536px) 22vw, 16vw"
-            />
-            {qty > 0 ? (
-              <span className="absolute left-2 top-2 inline-flex size-7 items-center justify-center rounded-full bg-sky-600 text-xs font-semibold text-white shadow-sm">
-                {qty}
-              </span>
-            ) : null}
-            {item.is_popular ? (
-              <span className="absolute right-2 top-2 rounded-full bg-citrus px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-ink">
-                Popular
-              </span>
-            ) : null}
-          </div>
-          <div className="flex flex-1 flex-col p-2.5">
-            <p className="line-clamp-2 text-[13px] font-medium leading-snug text-foreground">
-              {item.name}
-            </p>
-            {item.description ? (
-              <span className="sr-only">{item.description}</span>
-            ) : null}
-            <div className="mt-auto flex items-center justify-between gap-2 pt-2">
-              <span className="text-[13px] font-semibold tabular-nums text-sky-700">
-                {formatBtn(item.price_btn)}
-              </span>
-              {item.sold_out ? (
-                <span className="rounded-lg border border-destructive/30 bg-destructive/5 px-2 py-1 text-[11px] font-semibold text-destructive">
-                  Sold out
-                </span>
-              ) : !orderable ? (
-                <Link
-                  href="/contact"
-                  className="rounded-lg border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
-                >
-                  Ask desk
-                </Link>
-              ) : qty === 0 ? (
-                <button
-                  type="button"
-                  aria-label={`Add ${item.name}`}
-                  onClick={onAdd}
-                  className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-citrus text-sky-ink transition-colors hover:bg-citrus-soft"
-                >
-                  <PlusIcon className="size-4" />
-                </button>
-              ) : (
-                <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border">
-                  <button
-                    type="button"
-                    aria-label={`Remove one ${item.name}`}
-                    onClick={onDecrease}
-                    className="inline-flex size-7 items-center justify-center rounded-md text-foreground hover:bg-secondary"
-                  >
-                    <MinusIcon className="size-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`Add one ${item.name}`}
-                    onClick={onAdd}
-                    className="inline-flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground"
-                  >
-                    <PlusIcon className="size-3.5" />
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </li>
-      </HoverCardTrigger>
-      <HoverCardContent
-        side="top"
-        align="start"
-        className="hidden w-72 overflow-hidden p-0 lg:block"
-      >
+    <li
+      id={`item-${item.id}`}
+      className={cn(
+        "media-card flex scroll-mt-40 flex-col overflow-hidden rounded-xl border bg-card",
+        highlighted
+          ? "border-sky-600 ring-2 ring-sky-600/25"
+          : "border-border",
+      )}
+    >
+      <div className="relative">
         <CloudinaryImage
           publicId={item.image_public_id}
           src={item.image_src}
-          alt=""
-          ratio="16/10"
-          sizes="288px"
+          alt={item.name}
+          ratio="4/3"
+          sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, (max-width: 1536px) 22vw, 16vw"
         />
-        <div className="space-y-2 p-3">
-          <div className="flex items-start justify-between gap-3">
-            <p className="text-sm font-semibold leading-snug text-foreground">
-              {item.name}
-            </p>
-            <p className="shrink-0 text-sm font-semibold tabular-nums text-sky-700">
-              {formatBtn(item.price_btn)}
-            </p>
-          </div>
-          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-            {item.outlet} · {item.category}
-            {item.gst_applicable ? " · +GST" : ""}
+        {qty > 0 ? (
+          <span className="absolute left-2 top-2 inline-flex size-7 items-center justify-center rounded-full bg-sky-600 text-xs font-semibold text-white shadow-sm">
+            {qty}
+          </span>
+        ) : null}
+        {item.is_popular ? (
+          <span className="absolute right-2 top-2 rounded-full bg-citrus px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-ink">
+            Popular
+          </span>
+        ) : null}
+      </div>
+      <div className="flex flex-1 flex-col p-2.5">
+        <p className="line-clamp-2 text-[13px] font-medium leading-snug text-foreground">
+          {item.name}
+        </p>
+        {item.description ? (
+          <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-muted-foreground">
+            {item.description}
           </p>
-          {item.description ? (
-            <p className="text-sm leading-6 text-muted-foreground">
-              {item.description}
-            </p>
-          ) : null}
-          {!orderable ? (
-            <p className="text-xs text-muted-foreground">
-              Bar service is handled at the desk, not through online ordering.
-            </p>
-          ) : null}
+        ) : null}
+        <p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+          {item.category}
+          {item.gst_applicable ? " · +GST" : ""}
+        </p>
+        <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+          <span className="text-[13px] font-semibold tabular-nums text-sky-700">
+            {formatBtn(item.price_btn)}
+          </span>
+          {item.sold_out ? (
+            <span className="rounded-lg border border-destructive/30 bg-destructive/5 px-2 py-1 text-[11px] font-semibold text-destructive">
+              Sold out
+            </span>
+          ) : !orderable ? (
+            <Link
+              href="/contact"
+              className="rounded-lg border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+            >
+              Ask desk
+            </Link>
+          ) : qty === 0 ? (
+            <button
+              type="button"
+              aria-label={`Add ${item.name}`}
+              onClick={onAdd}
+              className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-citrus text-sky-ink transition-colors hover:bg-citrus-soft"
+            >
+              <PlusIcon className="size-4" />
+            </button>
+          ) : (
+            <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border">
+              <button
+                type="button"
+                aria-label={`Remove one ${item.name}`}
+                onClick={onDecrease}
+                className="inline-flex size-7 items-center justify-center rounded-md text-foreground hover:bg-secondary"
+              >
+                <MinusIcon className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                aria-label={`Add one ${item.name}`}
+                onClick={onAdd}
+                className="inline-flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground"
+              >
+                <PlusIcon className="size-3.5" />
+              </button>
+            </div>
+          )}
         </div>
-      </HoverCardContent>
-    </HoverCard>
+      </div>
+    </li>
   );
 }
 

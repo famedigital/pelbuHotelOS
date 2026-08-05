@@ -85,6 +85,10 @@ export default async function RestaurantPage() {
         title={copy.title}
         description={copy.body}
         hoursNote={copy.hours_note}
+        breadcrumbs={[
+          { name: "Home", path: "/" },
+          { name: "Restaurant" },
+        ]}
         primaryCta={{
           href: copy.primary_cta_href ?? "/menu?outlet=restaurant",
           label: copy.primary_cta_label ?? "Order restaurant food",

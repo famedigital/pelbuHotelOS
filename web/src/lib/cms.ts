@@ -1,5 +1,10 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { cloudinaryMediaThumbUrl } from "@/lib/cloudinary";
+import {
+  DEFAULT_HERO_THEME,
+  parseHeroTheme,
+  type HeroTheme,
+} from "@/lib/hero-theme";
 import { resolvePublicPropertyId } from "@/lib/tenant/resolve-public-property";
 
 /** Same remap as menu-loader — keep gallery thumbs off broken seed IDs. */
@@ -39,6 +44,8 @@ export type CmsPage = {
   summary: string | null;
   faq_json: Array<{ question: string; answer: string }>;
   sections_json: CmsContentSection[];
+  /** Homepage hero palette (ignored on other slugs). */
+  hero_theme: HeroTheme;
 };
 
 export type CmsMediaItem = {
@@ -85,7 +92,7 @@ export async function loadCmsPage(slug: string): Promise<CmsPage | null> {
   const { data } = await admin
     .from("cms_pages")
     .select(
-      "slug, eyebrow, title, body, hours_note, primary_cta_href, primary_cta_label, secondary_cta_href, secondary_cta_label, meta_description, seo_title, canonical_path, summary, faq_json, sections_json",
+      "slug, eyebrow, title, body, hours_note, primary_cta_href, primary_cta_label, secondary_cta_href, secondary_cta_label, meta_description, seo_title, canonical_path, summary, faq_json, sections_json, hero_theme",
     )
     .eq("property_id", propertyId)
     .eq("slug", slug)
@@ -111,6 +118,7 @@ export async function loadCmsPage(slug: string): Promise<CmsPage | null> {
       ? (data.faq_json as Array<{ question: string; answer: string }>)
       : [],
     sections_json: contentSections(data.sections_json),
+    hero_theme: parseHeroTheme(data.hero_theme ?? DEFAULT_HERO_THEME),
   };
 }
 

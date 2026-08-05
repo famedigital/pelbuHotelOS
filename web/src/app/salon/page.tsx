@@ -5,6 +5,7 @@ import { loadCmsPage } from "@/lib/cms";
 import {
   breadcrumbJsonLd,
   serializeJsonLd,
+  serviceJsonLd,
 } from "@/lib/structured-data";
 import type { Metadata } from "next";
 
@@ -23,27 +24,37 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function SalonPage() {
   const page = await loadCmsPage("salon");
+  const description =
+    page?.body ??
+    "Ask the Pelbu Suites desk about currently available hair, nail, beauty, and personal-care appointments.";
 
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: serializeJsonLd(
+          __html: serializeJsonLd([
             breadcrumbJsonLd([
               { name: "Home", path: "/" },
               { name: "Salon", path: "/salon" },
             ]),
-          ),
+            serviceJsonLd({
+              name: "Salon at Pelbu Suites",
+              path: "/salon",
+              description,
+              serviceType: "Beauty salon",
+            }),
+          ]),
         }}
       />
       <EngineShell
+        breadcrumbs={[
+          { name: "Home", path: "/" },
+          { name: "Salon" },
+        ]}
         eyebrow={page?.eyebrow ?? "Salon"}
         title={page?.title ?? "Personal care in a comfortable hotel setting."}
-        description={
-          page?.body ??
-          "Ask the Pelbu Suites desk about currently available hair, nail, beauty, and personal-care appointments."
-        }
+        description={description}
         actions={
           <>
             <Button asChild variant="citrus">

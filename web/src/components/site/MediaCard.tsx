@@ -75,7 +75,7 @@ export function MediaCard({
             <ArrowUpRightIcon className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-sky-700" />
           </div>
           <p className="line-clamp-2 min-h-12 text-sm leading-6 text-muted-foreground">
-            {description}
+            {description?.trim() ? description : "\u00a0"}
           </p>
           {meta ? <div className="mt-auto pt-3">{meta}</div> : null}
         </CardContent>

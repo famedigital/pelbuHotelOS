@@ -1056,16 +1056,11 @@ function CashierBoard({ snap }: { snap: RoleDashboardSnapshot }) {
 export function RoleDashboard({
   view,
   snap,
-  sessionRole,
 }: {
   view: DashboardView;
   snap: RoleDashboardSnapshot;
   sessionRole: DeskRole | null;
 }) {
-  const canPreview = sessionRole === "owner" || sessionRole === "gm";
-  const homeView = sessionRole
-    ? deskRoleToDashboardView(sessionRole)
-    : "front_desk";
   const body =
     view === "owner" ? (
       <OwnerBoard snap={snap} />
@@ -1087,11 +1082,7 @@ export function RoleDashboard({
 
   return (
     <div className="erp space-y-4 p-4 md:p-6">
-      <DashboardViewSwitcher
-        active={view}
-        canPreview={canPreview}
-        homeView={homeView}
-      />
+      {/* Department boards are ModuleHeaderTabs in DeskShell (first header row). */}
       {body}
     </div>
   );

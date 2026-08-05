@@ -5,6 +5,7 @@ import {
   saveRoomTypeSettings,
   saveRoomUnitSettings,
 } from "@/app/actions/erp-settings";
+import { CloudinaryPicker } from "@/components/erp/CloudinaryPicker";
 import { LiveRefreshBadge } from "@/components/erp/LiveRefreshBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,9 +22,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { cloudinaryUrl } from "@/lib/cloudinary";
 import { cn } from "@/lib/utils";
 import {
   ChevronsUpDownIcon,
+  ImageIcon,
   LayoutGridIcon,
   PlusIcon,
   RotateCcwIcon,
@@ -40,6 +43,8 @@ export type RoomTypeOption = {
   name: string;
   inventory_kind: string;
   unit_count: number;
+  image_public_id: string | null;
+  blurb: string | null;
 };
 
 export type RoomUnitRow = {
@@ -106,9 +111,15 @@ function roomRowKey(unit: RoomUnitRow): string {
 }
 
 function roomTypeRowKey(type: RoomTypeOption): string {
-  return [type.id, type.code, type.name, type.inventory_kind, type.unit_count].join(
-    "|",
-  );
+  return [
+    type.id,
+    type.code,
+    type.name,
+    type.inventory_kind,
+    type.unit_count,
+    type.image_public_id ?? "",
+    type.blurb ?? "",
+  ].join("|");
 }
 
 type RoomDraft = {
@@ -524,6 +535,8 @@ type CategoryDraft = {
   name: string;
   inventory_kind: string;
   unit_count: string;
+  image_public_id: string;
+  blurb: string;
 };
 
 const CATEGORY_FIELDS = [
@@ -531,6 +544,8 @@ const CATEGORY_FIELDS = [
   "name",
   "inventory_kind",
   "unit_count",
+  "image_public_id",
+  "blurb",
 ] as const;
 
 function CategoryTableRow({
@@ -548,10 +563,20 @@ function CategoryTableRow({
     name: type.name,
     inventory_kind: type.inventory_kind,
     unit_count: String(type.unit_count),
+    image_public_id: type.image_public_id ?? "",
+    blurb: type.blurb ?? "",
   };
   const [draft, setDraft] = useState<CategoryDraft>(base);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const dirty = CATEGORY_FIELDS.some((field) => draft[field] !== base[field]);
+  const previewSrc = draft.image_public_id
+    ? cloudinaryUrl(draft.image_public_id, {
+        width: 160,
+        height: 120,
+        crop: "fill",
+      })
+    : null;
 
   function setField(field: keyof CategoryDraft, value: string) {
     setDraft((prev) => ({ ...prev, [field]: value }));
@@ -585,6 +610,8 @@ function CategoryTableRow({
       formData.set("name", draft.name.trim());
       formData.set("inventory_kind", draft.inventory_kind);
       formData.set("unit_count", String(nextCount));
+      formData.set("image_public_id", draft.image_public_id.trim());
+      formData.set("blurb", draft.blurb.trim());
       const result = await saveRoomTypeSettings({ ok: false }, formData);
       if (result.ok) {
         toast.success(result.message ?? "Room category saved");
@@ -602,7 +629,57 @@ function CategoryTableRow({
 
   return (
     <TableRow data-state={dirty ? "selected" : undefined}>
-      <TableCell className="px-3 py-2">
+      <TableCell className="px-3 py-2 align-top">
+        <div className="flex flex-col items-start gap-2">
+          <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-secondary">
+            {previewSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={previewSrc}
+                alt=""
+                className="size-full object-cover"
+              />
+            ) : (
+              <ImageIcon className="size-4 text-muted-foreground" />
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => setPickerOpen(true)}
+            >
+              {draft.image_public_id ? "Photo" : "Set photo"}
+            </Button>
+            {draft.image_public_id ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 text-muted-foreground"
+                onClick={() => setField("image_public_id", "")}
+              >
+                Clear
+              </Button>
+            ) : null}
+          </div>
+        </div>
+        <CloudinaryPicker
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          onSelect={(id) => {
+            setField("image_public_id", id);
+            setPickerOpen(false);
+          }}
+          uploadFolder="pelbu/rooms"
+          title="Room category photo"
+          description="Pick a room interior for the public site cards. Avoid bar, restaurant, or people shots."
+          acceptVideo={false}
+        />
+      </TableCell>
+      <TableCell className="px-3 py-2 align-top">
         <Input
           value={draft.code}
           onChange={(event) => setField("code", event.target.value)}
@@ -611,16 +688,26 @@ function CategoryTableRow({
           required
         />
       </TableCell>
-      <TableCell className="px-3 py-2">
-        <Input
-          value={draft.name}
-          onChange={(event) => setField("name", event.target.value)}
-          aria-label={`Name for ${type.name}`}
-          className="h-9 w-full min-w-[180px] font-medium"
-          required
-        />
+      <TableCell className="px-3 py-2 align-top">
+        <div className="space-y-2">
+          <Input
+            value={draft.name}
+            onChange={(event) => setField("name", event.target.value)}
+            aria-label={`Name for ${type.name}`}
+            className="h-9 w-full min-w-[160px] font-medium"
+            required
+          />
+          <Textarea
+            value={draft.blurb}
+            onChange={(event) => setField("blurb", event.target.value)}
+            aria-label={`Public blurb for ${type.name}`}
+            placeholder="Short public description for the website card"
+            rows={2}
+            className="min-h-[4.5rem] min-w-[200px] resize-y text-sm"
+          />
+        </div>
       </TableCell>
-      <TableCell className="px-3 py-2">
+      <TableCell className="px-3 py-2 align-top">
         <select
           value={draft.inventory_kind}
           onChange={(event) => setField("inventory_kind", event.target.value)}
@@ -634,7 +721,7 @@ function CategoryTableRow({
           ))}
         </select>
       </TableCell>
-      <TableCell className="px-3 py-2">
+      <TableCell className="px-3 py-2 align-top">
         <div className="flex items-center gap-2">
           <Input
             value={draft.unit_count}
@@ -652,7 +739,7 @@ function CategoryTableRow({
           </span>
         </div>
       </TableCell>
-      <TableCell className="px-3 py-2 text-right">
+      <TableCell className="px-3 py-2 align-top text-right">
         <Button
           type="button"
           size="sm"
@@ -974,8 +1061,9 @@ export function RoomSettingsPanel({
             Room categories and inventory
           </h2>
           <p className="max-w-2xl text-sm text-muted-foreground">
-            Edit inline and save the row. Changing the count auto-adds or retires
-            physical rooms; “live” is what exists right now.
+            Edit photo, blurb, and count on each row, then Save. The public home
+            and /rooms cards use these fields. Changing count auto-adds or
+            retires physical rooms; “live” is what exists right now.
           </p>
         </div>
 
@@ -985,10 +1073,13 @@ export function RoomSettingsPanel({
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead className="h-10 bg-muted/40 px-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                  Photo
+                </TableHead>
+                <TableHead className="h-10 bg-muted/40 px-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                   Code
                 </TableHead>
                 <TableHead className="h-10 bg-muted/40 px-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  Category
+                  Category + blurb
                 </TableHead>
                 <TableHead className="h-10 bg-muted/40 px-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                   Inventory kind

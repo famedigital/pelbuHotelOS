@@ -4,66 +4,65 @@ import { EngineShell } from "@/components/site/EngineShell";
 import { MediaCard } from "@/components/site/MediaCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cloudinaryUrl } from "@/lib/cloudinary";
 import { loadCmsGallery, loadCmsPage } from "@/lib/cms";
-import { PELBU_PROPERTY_SLUG } from "@/lib/property";
-import { publicRoomSlug } from "@/lib/public-content";
+import { formatBtn } from "@/lib/pricing";
+import { loadPublicRoomsWithRates } from "@/lib/public-room-rates";
+import { safePublic } from "@/lib/public-safe";
 import {
   breadcrumbJsonLd,
   hotelRoomJsonLd,
+  itemListJsonLd,
   serializeJsonLd,
 } from "@/lib/structured-data";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { resolvePublicPropertyId } from "@/lib/tenant/resolve-public-property";
 
 export const metadata = {
-  title: "Rooms | Pelbu Suites",
+  title: "Rooms | Pelbu Suites Olakha, Thimphu",
   description:
-    "Book rooms at Pelbu Suites, Olakha Thimphu — guest suites plus complimentary guide and driver beds for agent groups.",
+    "Book guest rooms at Pelbu Suites in Olakha, Thimphu — direct rates, live availability, plus complimentary guide and driver beds for agent groups.",
   alternates: { canonical: "/rooms" },
 };
 
 export const dynamic = "force-dynamic";
 
-async function loadRooms() {
+async function loadCompBeds() {
+  const propertyId = await resolvePublicPropertyId();
+  if (!propertyId) return [];
   const admin = createSupabaseAdminClient();
-  const { data: property } = await admin
-    .from("properties")
-    .select("id")
-    .eq("slug", PELBU_PROPERTY_SLUG)
-    .single();
-  if (!property) return [];
-
   const { data } = await admin
     .from("room_types")
-    .select("code, name, inventory_kind, image_public_id, blurb")
-    .eq("property_id", property.id)
+    .select("code, name, inventory_kind, blurb")
+    .eq("property_id", propertyId)
+    .in("inventory_kind", ["guide_comp", "driver_comp"])
     .order("code");
-
-  return (data ?? []).map((row) => {
-    const imagePublicId = (row.image_public_id as string | null) ?? null;
-    return {
-      code: row.code as string,
-      name: row.name as string,
-      inventory_kind: row.inventory_kind as string,
-      blurb: (row.blurb as string | null) ?? null,
-      image_public_id: imagePublicId,
-      image_src: imagePublicId
-        ? cloudinaryUrl(imagePublicId, { width: 1400, crop: "fill" })
-        : null,
-    };
-  });
+  return (data ?? []).map((row) => ({
+    code: row.code as string,
+    name: row.name as string,
+    inventory_kind: row.inventory_kind as string,
+    blurb: (row.blurb as string | null) ?? null,
+  }));
 }
 
 export default async function RoomsPage() {
-  const [page, gallery, rooms] = await Promise.all([
-    loadCmsPage("rooms"),
-    loadCmsGallery("rooms"),
-    loadRooms(),
+  const [page, gallery, rateCtx, compBeds] = await Promise.all([
+    safePublic("rooms-cms", () => loadCmsPage("rooms"), null),
+    safePublic("rooms-gallery", () => loadCmsGallery("rooms"), []),
+    safePublic(
+      "rooms-rates",
+      () => loadPublicRoomsWithRates(),
+      {
+        rooms: [],
+        lowestFromBtn: null,
+        seasonKind: null,
+        seasonName: null,
+        taxInclusive: false,
+      },
+    ),
+    safePublic("rooms-comp", () => loadCompBeds(), []),
   ]);
-  const guestRooms = rooms.filter((r) => r.inventory_kind === "sellable_guest");
-  const compBeds = rooms.filter((r) =>
-    ["guide_comp", "driver_comp"].includes(r.inventory_kind),
-  );
+
+  const guestRooms = rateCtx.rooms;
 
   return (
     <>
@@ -75,58 +74,105 @@ export default async function RoomsPage() {
               { name: "Home", path: "/" },
               { name: "Rooms", path: "/rooms" },
             ]),
+            itemListJsonLd({
+              name: "Rooms at Pelbu Suites",
+              path: "/rooms",
+              items: guestRooms.map((room) => ({
+                name: room.name,
+                path: `/rooms/${room.slug}`,
+                image: room.imageSrc,
+              })),
+            }),
             ...guestRooms.map((room) =>
               hotelRoomJsonLd({
                 name: room.name,
-                image: room.image_src,
-                path: `/rooms/${publicRoomSlug(room.code)}`,
+                image: room.imageSrc,
+                path: `/rooms/${room.slug}`,
+                priceBtn: room.fromPriceBtn,
+                description: room.blurb,
               }),
             ),
           ]),
         }}
       />
       <EngineShell
+        breadcrumbs={[
+          { name: "Home", path: "/" },
+          { name: "Rooms" },
+        ]}
         eyebrow={page?.eyebrow ?? "Rooms"}
         title={page?.title ?? "Rest in Olakha."}
         description={
           page?.body ??
-          "Quiet suites for guests traveling Bhutan. Book direct, or ask your agent to reserve with guide and driver beds."
+          "Quiet suites for guests travelling Thimphu. Book direct for live rates, or ask your agent to reserve with guide and driver beds."
         }
         actions={
-          <Button asChild variant="citrus">
-            <a href="/book">Check live availability</a>
-          </Button>
+          <>
+            <Button asChild variant="citrus">
+              <a href="/book">Check live availability</a>
+            </Button>
+            <Button asChild variant="outline">
+              <a href="/rates">Rate card</a>
+            </Button>
+          </>
         }
       >
         <div className="space-y-12">
           <CmsContentSections sections={page?.sections_json} />
           <section>
-            <div className="flex items-end justify-between gap-4">
-              <h2 className="font-display text-2xl text-foreground">Guest rooms</h2>
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <h2 className="font-display text-2xl text-foreground">
+                Guest rooms
+              </h2>
               <p className="text-sm text-muted-foreground">
                 {guestRooms.length} categories
+                {rateCtx.seasonName
+                  ? ` · ${rateCtx.seasonName} rates`
+                  : ""}
+                {rateCtx.lowestFromBtn != null
+                  ? ` · from ${formatBtn(rateCtx.lowestFromBtn)}`
+                  : ""}
               </p>
             </div>
             {guestRooms.length === 0 ? (
               <p className="mt-3 text-sm text-muted-foreground">
-                Room types loading — call the desk.
+                Room types loading — call the desk or try again shortly.
               </p>
             ) : (
               <ul className="mt-6 grid auto-rows-fr gap-6 sm:grid-cols-2 xl:grid-cols-3">
                 {guestRooms.map((room, index) => (
                   <li key={room.code} className="h-full">
                     <MediaCard
-                      href={`/rooms/${publicRoomSlug(room.code)}`}
+                      href={`/rooms/${room.slug}`}
                       title={room.name}
                       description={room.blurb ?? `Room type ${room.code}`}
-                      publicId={room.image_public_id}
+                      publicId={room.imagePublicId}
+                      src={room.imageSrc}
                       ratio="16/10"
                       priority={index < 2}
                       badge={<Badge variant="sky">Guest room</Badge>}
                       meta={
-                        <span className="text-sm font-medium text-sky-700">
-                          Check dates →
-                        </span>
+                        room.fromPriceBtn != null ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-sm font-semibold text-sky-800">
+                              From {formatBtn(room.fromPriceBtn)}
+                              <span className="font-medium text-muted-foreground">
+                                {" "}
+                                / night
+                              </span>
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              Room only
+                              {rateCtx.taxInclusive ? " · inc. GST+SC" : ""}
+                              {" · "}
+                              Book →
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-sm font-medium text-sky-700">
+                            Check dates →
+                          </span>
+                        )
                       }
                     />
                   </li>

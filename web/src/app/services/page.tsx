@@ -79,6 +79,10 @@ export default async function ServicesPage() {
         }}
       />
       <EngineShell
+        breadcrumbs={[
+          { name: "Home", path: "/" },
+          { name: "Services" },
+        ]}
         eyebrow={page?.eyebrow ?? "Hotel services"}
         title={page?.title ?? "The useful parts of a Thimphu stay, together."}
         description={

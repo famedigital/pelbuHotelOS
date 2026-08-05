@@ -37,12 +37,15 @@ export const BRAND_CLOUDINARY = {
   logoLegacy: "pelbu/brand/logo-primary",
   logoFlat: "pelbu/brand/logo-flat",
   logoWordmark: "pelbu/brand/logo-wordmark",
-  roomsDeluxe: "pelbu/seven-suites/official-img6149",
-  roomsSuperior: "pelbu/seven-suites/official-img6194",
-  roomsTwin: "pelbu/seven-suites/official-img6256",
-  roomsSuiteAlt: "pelbu/seven-suites/official-dsc08154",
-  roomsSuiteView: "pelbu/seven-suites/official-room",
-  roomsLiving: "pelbu/seven-suites/official-img6236",
+  /** Named room-category heroes (`pelbu/rooms/*`) — not the “official-img*”
+   * gallery dump (bar / F&B / people), which was remapped onto room categories by
+   * mistake and showed wrong cards on the public site. */
+  roomsDeluxe: "pelbu/rooms/deluxe",
+  roomsSuperior: "pelbu/rooms/superior",
+  roomsTwin: "pelbu/rooms/twin",
+  roomsSuiteAlt: "pelbu/rooms/suite-alt",
+  roomsSuiteView: "pelbu/rooms/suite-view",
+  roomsLiving: "pelbu/rooms/superior-living",
   cafePastry: "pelbu/cafe/morning-pastry",
   pastryKhabzay: "pelbu/menu/cafe-suja-khabzay",
   restaurantPlate: "pelbu/restaurant/signature-plate",
@@ -135,20 +138,19 @@ export const HOME_HERO_SLIDES: readonly HeroSlide[] = [
   },
 ] as const;
 
-/** Room detail mosaic tiles keyed by room code slug. */
+/** Room detail mosaic tiles keyed by room code (live codes + legacy slugs). */
 export const ROOM_GALLERY_BY_CODE: Record<string, readonly string[]> = {
   deluxe: [
     BRAND_CLOUDINARY.roomsDeluxe,
     BRAND_CLOUDINARY.roomsSuiteView,
     BRAND_CLOUDINARY.roomsLiving,
     BRAND_CLOUDINARY.roomsSuiteAlt,
-    "pelbu/seven-suites/official-img6170",
+    BRAND_CLOUDINARY.roomsSuperior,
   ],
   superior: [
     BRAND_CLOUDINARY.roomsSuperior,
     BRAND_CLOUDINARY.roomsLiving,
     BRAND_CLOUDINARY.roomsSuiteView,
-    "pelbu/seven-suites/official-img6254",
     BRAND_CLOUDINARY.roomsDeluxe,
   ],
   twin: [
@@ -165,4 +167,76 @@ export const ROOM_GALLERY_BY_CODE: Record<string, readonly string[]> = {
     BRAND_CLOUDINARY.roomsLiving,
     BRAND_CLOUDINARY.roomsSuperior,
   ],
+  /** Live sellable codes at Pelbu Suites Olakha. */
+  dd: [
+    BRAND_CLOUDINARY.roomsSuperior,
+    BRAND_CLOUDINARY.roomsLiving,
+    BRAND_CLOUDINARY.roomsSuiteView,
+    BRAND_CLOUDINARY.roomsDeluxe,
+  ],
+  ds: [
+    BRAND_CLOUDINARY.roomsSuiteAlt,
+    BRAND_CLOUDINARY.roomsDeluxe,
+    BRAND_CLOUDINARY.roomsSuiteView,
+    BRAND_CLOUDINARY.roomsLiving,
+  ],
+  dt: [
+    BRAND_CLOUDINARY.roomsTwin,
+    BRAND_CLOUDINARY.roomsSuperior,
+    BRAND_CLOUDINARY.roomsSuiteAlt,
+    BRAND_CLOUDINARY.roomsLiving,
+  ],
+  "d&g": [
+    BRAND_CLOUDINARY.roomsLiving,
+    BRAND_CLOUDINARY.roomsSuiteView,
+    BRAND_CLOUDINARY.roomsSuperior,
+  ],
 };
+
+/** Primary hero photo by room code when CMS/DB has no image_public_id. */
+const ROOM_HERO_BY_CODE: Record<string, string> = {
+  deluxe: BRAND_CLOUDINARY.roomsDeluxe,
+  superior: BRAND_CLOUDINARY.roomsSuperior,
+  twin: BRAND_CLOUDINARY.roomsTwin,
+  "deluxe-suite": BRAND_CLOUDINARY.roomsSuiteAlt,
+  dd: BRAND_CLOUDINARY.roomsSuperior,
+  ds: BRAND_CLOUDINARY.roomsSuiteAlt,
+  dt: BRAND_CLOUDINARY.roomsTwin,
+  "d&g": BRAND_CLOUDINARY.roomsLiving,
+  guide: BRAND_CLOUDINARY.roomsSuiteView,
+  driver: BRAND_CLOUDINARY.roomsLiving,
+};
+
+/**
+ * Resolve a Cloudinary public_id for a room type card or gallery lead.
+ * DB `image_public_id` wins; otherwise map known codes / name heuristics
+ * onto curated Pelbu photography so public lists never render text-only.
+ */
+export function resolveRoomImagePublicId(args: {
+  code: string;
+  name?: string | null;
+  imagePublicId?: string | null;
+}): string {
+  const stored = args.imagePublicId?.trim();
+  if (stored) return stored;
+
+  const code = args.code.trim().toLowerCase();
+  if (ROOM_HERO_BY_CODE[code]) return ROOM_HERO_BY_CODE[code];
+
+  const galleryLead = ROOM_GALLERY_BY_CODE[code]?.[0];
+  if (galleryLead) return galleryLead;
+
+  const name = (args.name ?? "").toLowerCase();
+  if (name.includes("suite")) return BRAND_CLOUDINARY.roomsSuiteAlt;
+  if (name.includes("twin")) return BRAND_CLOUDINARY.roomsTwin;
+  if (name.includes("double") || name.includes("superior")) {
+    return BRAND_CLOUDINARY.roomsSuperior;
+  }
+  if (name.includes("deluxe")) return BRAND_CLOUDINARY.roomsDeluxe;
+  if (name.includes("guide") || name.includes("driver")) {
+    return BRAND_CLOUDINARY.roomsLiving;
+  }
+
+  return BRAND_CLOUDINARY.roomsDeluxe;
+}
+

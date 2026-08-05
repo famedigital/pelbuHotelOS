@@ -3,8 +3,9 @@ import { EngineShell } from "@/components/site/EngineShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BRAND_CLOUDINARY, ROOM_GALLERY_BY_CODE } from "@/lib/brand";
+import { resolveRoomImagePublicId, ROOM_GALLERY_BY_CODE } from "@/lib/brand";
 import { loadPublicRoom } from "@/lib/public-content";
+import { loadPublicRoomsWithRates } from "@/lib/public-room-rates";
 import {
   breadcrumbJsonLd,
   hotelRoomJsonLd,
@@ -46,20 +47,27 @@ export default async function RoomDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const room = await loadPublicRoom(slug);
+  const [room, rateCtx] = await Promise.all([
+    loadPublicRoom(slug),
+    loadPublicRoomsWithRates(),
+  ]);
   if (!room) notFound();
+  const priced = rateCtx.rooms.find((r) => r.slug === room.slug);
 
-  const gallery =
-    ROOM_GALLERY_BY_CODE[room.code] ??
-    [
-      room.code.includes("deluxe")
-        ? BRAND_CLOUDINARY.roomsDeluxe
-        : BRAND_CLOUDINARY.roomsSuperior,
-      BRAND_CLOUDINARY.roomsSuiteView,
-      BRAND_CLOUDINARY.roomsLiving,
-      BRAND_CLOUDINARY.roomsSuiteAlt,
-      BRAND_CLOUDINARY.roomsTwin,
-    ].filter(Boolean);
+  const lead = resolveRoomImagePublicId({
+    code: room.code,
+    name: room.name,
+    imagePublicId: room.imagePublicId,
+  });
+  const gallery = ROOM_GALLERY_BY_CODE[room.code] ?? [
+    lead,
+    "pelbu/seven-suites/official-room",
+    "pelbu/seven-suites/official-img6236",
+    "pelbu/seven-suites/official-dsc08154",
+    "pelbu/seven-suites/official-img6256",
+  ];
+  // Ensure the lead hero appears first even if the stored id differs.
+  const images = [lead, ...gallery.filter((id) => id !== lead)];
 
   return (
     <>
@@ -76,11 +84,18 @@ export default async function RoomDetailPage({
               name: room.name,
               image: room.imageSrc,
               path: `/rooms/${room.slug}`,
+              priceBtn: priced?.fromPriceBtn,
+              description: room.blurb,
             }),
           ]),
         }}
       />
       <EngineShell
+        breadcrumbs={[
+          { name: "Home", path: "/" },
+          { name: "Rooms", path: "/rooms" },
+          { name: room.name },
+        ]}
         eyebrow="Rooms at Pelbu"
         title={room.name}
         description={
@@ -102,7 +117,7 @@ export default async function RoomDetailPage({
       >
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="space-y-8">
-            <RoomGallery title={room.name} images={[...gallery]} />
+            <RoomGallery title={room.name} images={images} />
             <section className="space-y-4">
               <h2 className="font-display text-2xl text-foreground">
                 What to expect

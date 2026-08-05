@@ -1,3 +1,4 @@
+import { resolveRoomImagePublicId } from "@/lib/brand";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { resolvePublicPropertyId } from "@/lib/tenant/resolve-public-property";
@@ -43,17 +44,20 @@ export async function loadPublicRooms(): Promise<PublicRoom[]> {
     .order("code");
 
   return (data ?? []).map((row) => {
-    const publicId = (row.image_public_id as string | null) ?? null;
     const code = row.code as string;
+    const name = row.name as string;
+    const publicId = resolveRoomImagePublicId({
+      code,
+      name,
+      imagePublicId: (row.image_public_id as string | null) ?? null,
+    });
     return {
       code,
       slug: publicRoomSlug(code),
-      name: row.name as string,
+      name,
       blurb: (row.blurb as string | null) ?? null,
       imagePublicId: publicId,
-      imageSrc: publicId
-        ? cloudinaryUrl(publicId, { width: 1400, crop: "fill" })
-        : null,
+      imageSrc: cloudinaryUrl(publicId, { width: 1400, crop: "fill" }),
     };
   });
 }

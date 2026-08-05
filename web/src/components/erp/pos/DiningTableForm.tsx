@@ -32,7 +32,6 @@ import {
 } from "@/lib/pos-tables";
 import { TriangleAlertIcon } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
-import type { OutletCode } from "./types";
 
 const initial: DiningTableState = { ok: false };
 
@@ -53,7 +52,8 @@ export function DiningTableForm({
 }: {
   target: TableFormTarget;
   onOpenChange: (open: boolean) => void;
-  defaultOutlet: OutletCode;
+  /** Outlet code, or `__shared__` for shared-across-floors tables. */
+  defaultOutlet: string;
   outlets: { value: string; label: string }[];
   existingNames: string[];
 }) {
@@ -123,8 +123,8 @@ export function DiningTableForm({
           <DialogTitle>{editing ? "Edit table" : "Add table"}</DialogTitle>
           <DialogDescription>
             {editing
-              ? "Rename, move, or change how many this table seats."
-              : "Tables let servers open a ticket against a seated party instead of a walk-in."}
+              ? "Rename, move between floors, change seats, or delete."
+              : "Tables belong to one floor (outlet). Cafe / restaurant / bar each get their own layout."}
           </DialogDescription>
         </DialogHeader>
 
@@ -202,7 +202,7 @@ export function DiningTableForm({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="dt_outlet">Outlet</Label>
+              <Label htmlFor="dt_outlet">Floor / outlet</Label>
               <Select value={outlet} onValueChange={setOutlet}>
                 <SelectTrigger id="dt_outlet" className="w-full">
                   <SelectValue />
@@ -213,7 +213,7 @@ export function DiningTableForm({
                       {o.label}
                     </SelectItem>
                   ))}
-                  <SelectItem value={SHARED}>Shared (all outlets)</SelectItem>
+                  <SelectItem value={SHARED}>Shared (all floors)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

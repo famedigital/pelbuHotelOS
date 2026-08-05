@@ -126,13 +126,28 @@ export function KitchenDisplayBoard({
       preparing: [],
       ready: [],
     };
-    for (const t of tickets) {
+    /** Cook line: kitchen / grill / cold / pastry. Bar items stay off /erp/kds. */
+    const COOK_STATIONS = new Set(["kitchen", "grill", "cold", "pastry"]);
+
+    for (const raw of tickets) {
       if (
-        t.order_source === "public" &&
-        (!t.confirmed_at || !t.payment_recorded_at)
+        raw.order_source === "public" &&
+        (!raw.confirmed_at || !raw.payment_recorded_at)
       ) {
         continue;
       }
+
+      let t = raw;
+      // Kitchen TV only shows dishes prepared on the cook line. Pass sees full
+      // tickets so expo can plate + serve everything ordered.
+      if (!isPass) {
+        const cookLines = raw.order_items.filter((item) =>
+          COOK_STATIONS.has(item.prep_station || "kitchen"),
+        );
+        if (cookLines.length === 0) continue;
+        t = { ...raw, order_items: cookLines };
+      }
+
       if (t.kot_status in map) {
         map[t.kot_status].push(t);
       }
@@ -144,7 +159,7 @@ export function KitchenDisplayBoard({
       );
     }
     return map;
-  }, [tickets]);
+  }, [tickets, isPass]);
 
   const counts = useMemo(
     () => ({

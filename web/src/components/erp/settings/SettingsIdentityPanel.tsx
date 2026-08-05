@@ -52,8 +52,8 @@ export function SettingsIdentityPanel({
       <SettingsSection
         eyebrow="Identity"
         title="Hotel brand and legal details"
-        description="How guests and invoices know you — name, address, phone, and tax ID."
-        blastRadius="ERP header text and document printouts"
+        description="How guests and invoices know you — name, address, phone, WhatsApp, and tax ID."
+        blastRadius="ERP header text, public site contact links, and document printouts"
       >
         <PropertyWizardForm action={updatePropertyIdentity}>
           <input type="hidden" name="property_id" value={property.id} />
@@ -91,6 +91,19 @@ export function SettingsIdentityPanel({
             <div className="space-y-1.5">
               <Label htmlFor="phone">Phone</Label>
               <Input id="phone" name="phone" defaultValue={property.phone ?? ""} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="whatsapp">WhatsApp</Label>
+              <Input
+                id="whatsapp"
+                name="whatsapp"
+                defaultValue={property.whatsapp ?? property.phone ?? ""}
+                placeholder="+975…"
+              />
+              <p className="text-xs text-muted-foreground">
+                Public site chat link. Uses digits for wa.me — country code
+                required. Leave matching phone if guests use the same number.
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="email">Email</Label>

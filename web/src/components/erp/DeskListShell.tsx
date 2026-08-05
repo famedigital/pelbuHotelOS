@@ -17,11 +17,10 @@ const BLURB_INLINE_MAX = 96;
 
 /**
  * Global ERP section chrome — every list/ops page should use this (or
- * DeskPageTitle for odd one-offs) so ModuleTabs → sticky section bar →
- * workspace feels systematic.
+ * DeskPageTitle for odd one-offs) so title → filters → workspace feels systematic.
  *
  * Hierarchy:
- * 1. ModuleTabs (destinations) — shell
+ * 1. Sidebar module tree (destinations) — shell
  * 2. Sticky title + actions + optional 1-line blurb / help
  * 3. `filters` slot — views, search (DeskViewSwitcher, DeskSearchForm)
  * 4. `metrics` slot — thin DeskMetricRow (optional)

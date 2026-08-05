@@ -12,6 +12,7 @@ import {
 } from "@/lib/rate-card";
 import {
   breadcrumbJsonLd,
+  roomRatesOfferJsonLd,
   serializeJsonLd,
 } from "@/lib/structured-data";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -55,20 +56,49 @@ export default async function RatesPage() {
     ? `Current season in Thimphu: ${seasonLabel(card.currentSeasonKind)}.`
     : null;
 
+  const publicRoomPrices = card
+    ? card.publicTier.rooms
+        .map((row) => row.amounts[card.currentSeasonKind])
+        .filter((n): n is number => typeof n === "number" && n > 0)
+    : [];
+  const lowPrice = publicRoomPrices.length
+    ? Math.min(...publicRoomPrices)
+    : null;
+  const highPrice = publicRoomPrices.length
+    ? Math.max(...publicRoomPrices)
+    : null;
+
+  const schema = [
+    breadcrumbJsonLd([
+      { name: "Home", path: "/" },
+      { name: "Room rates", path: "/rates" },
+    ]),
+  ];
+  if (lowPrice != null) {
+    schema.push(
+      roomRatesOfferJsonLd({
+        lowPriceBtn: lowPrice,
+        highPriceBtn: highPrice,
+        description: seasonNote
+          ? `Public rack rates by season. ${seasonNote}`
+          : undefined,
+      }),
+    );
+  }
+
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: serializeJsonLd(
-            breadcrumbJsonLd([
-              { name: "Home", path: "/" },
-              { name: "Room rates", path: "/rates" },
-            ]),
-          ),
+          __html: serializeJsonLd(schema),
         }}
       />
       <EngineShell
+        breadcrumbs={[
+          { name: "Home", path: "/" },
+          { name: "Room rates" },
+        ]}
         eyebrow={propertyName}
         title="Room rates"
         description={

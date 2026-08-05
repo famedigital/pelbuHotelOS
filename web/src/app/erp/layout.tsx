@@ -3,9 +3,14 @@ import { WorkPwaRegistrar } from "@/components/pwa/WorkPwaRegistrar";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import {
   getDeskModuleKeys,
+  getDeskRole,
   isDeskAuthenticated,
 } from "@/lib/desk-auth";
 import { pathnameAllowedForModules } from "@/lib/erp/desk-modules";
+import {
+  canPreviewDashboards,
+  deskRoleToDashboardView,
+} from "@/lib/erp/role-dashboard";
 import {
   listProperties,
   loadProperty,
@@ -88,6 +93,11 @@ export default async function ErpLayout({
   }
 
   const allowedModuleKeys = await getDeskModuleKeys();
+  const deskRole = await getDeskRole();
+  const canPreview = canPreviewDashboards(deskRole);
+  const homeDashboardView = deskRole
+    ? deskRoleToDashboardView(deskRole)
+    : "front_desk";
 
   if (
     pathname &&
@@ -120,6 +130,8 @@ export default async function ErpLayout({
       activePropertyId={propertyId}
       logoSrc={logoSrc}
       allowedModuleKeys={allowedModuleKeys}
+      canPreviewDashboards={canPreview}
+      homeDashboardView={homeDashboardView}
     >
       {children}
       <WorkPwaRegistrar />

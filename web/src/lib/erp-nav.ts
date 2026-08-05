@@ -41,9 +41,9 @@ export type ErpModule = {
 };
 
 /**
- * Desk information architecture: modules each open on their first tab.
- * Sub-pages are tabs rather than sidebar entries so the shift path stays short
- * and related screens sit next to each other.
+ * Desk information architecture: modules in the sidebar; section links for the
+ * active module sit **inline in the single sticky header** (ModuleHeaderTabs),
+ * never a second full-width menu row under it.
  *
  * F&B is not a separate sidebar module. Cafe/bar/restaurant lives under `pos`
  * (register, menu, recipe cost, kitchen board, food cost, KDS). Chef/F&B

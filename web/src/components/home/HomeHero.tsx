@@ -4,6 +4,12 @@ import { HeroBookingSearch } from "@/components/home/HeroBookingSearch";
 import { CloudinaryMedia } from "@/components/media/CloudinaryMedia";
 import { type HeroSlide } from "@/lib/brand";
 import type { CloudinaryResourceType } from "@/lib/cloudinary";
+import {
+  DEFAULT_HERO_THEME,
+  heroScrimGradient,
+  hexAlpha,
+  type HeroTheme,
+} from "@/lib/hero-theme";
 import { cn } from "@/lib/utils";
 import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
@@ -15,12 +21,6 @@ export type HomeHeroSlide = HeroSlide & {
   posterPublicId?: string | null;
 };
 
-export type HeroProduct = {
-  href: string;
-  label: string;
-  hint: string;
-};
-
 type Props = {
   slides: HomeHeroSlide[];
   eyebrow: string;
@@ -28,7 +28,11 @@ type Props = {
   description: string;
   secondaryHref: string;
   secondaryLabel: string;
-  products: HeroProduct[];
+  /** Lowest room-only rack for the current season — shown on the search card. */
+  fromPriceBtn?: number | null;
+  taxInclusive?: boolean;
+  /** From Front Public → home hero colours. */
+  theme?: HeroTheme | null;
   intervalMs?: number;
 };
 
@@ -40,9 +44,12 @@ export function HomeHero({
   description,
   secondaryHref,
   secondaryLabel,
-  products,
+  fromPriceBtn,
+  taxInclusive,
+  theme: themeProp,
   intervalMs = 6500,
 }: Props) {
+  const theme = themeProp ?? DEFAULT_HERO_THEME;
   const safeSlides = slides.filter((slide) => slide.src || slide.publicId);
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -76,7 +83,10 @@ export function HomeHero({
   // viewport with the browser chrome retracted, so a full-height hero gets
   // clipped behind the address bar until you scroll.
   return (
-    <section className="relative isolate min-h-svh overflow-hidden bg-sky-900">
+    <section
+      className="relative isolate min-h-svh overflow-hidden"
+      style={{ backgroundColor: theme.scrimBottom }}
+    >
       <div className="absolute inset-0" aria-hidden>
         {safeSlides.map((slide, i) => {
           const isVideo = slide.resourceType === "video";
@@ -115,112 +125,106 @@ export function HomeHero({
         })}
       </div>
 
-      {/* Dark at the very top, fully clear by the midpoint: the glass nav sits
-          on the dark end so it stays legible, and the photograph is untouched
-          through the middle of the frame. From the midpoint down it ramps back
-          into ink so the eyebrow, headline and buttons keep contrast on bright
-          slides. The top half is mint-ink so the glass chrome reads green
-          rather than fighting a blue scrim underneath it; the bottom half stays
-          sky-ink. The two never blend — they meet at 50% at zero alpha, which
-          is also why there is no visible band where they join. */}
+      {/* Overlay colours come from Front Public → home hero theme. */}
       <div
-        className="absolute inset-0 bg-gradient-to-b from-mint-ink/75 via-transparent via-50% to-sky-ink/90"
+        className="absolute inset-0"
+        style={{ backgroundImage: heroScrimGradient(theme) }}
         aria-hidden
       />
 
-      <div className="relative mx-auto flex min-h-svh max-w-[1200px] flex-col justify-end px-5 pb-14 pt-24 md:px-8 md:pb-20 md:pt-32">
-        <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)] lg:items-end lg:gap-12">
+      <div className="relative mx-auto flex min-h-svh max-w-[1200px] flex-col justify-end px-5 pb-10 pt-24 md:px-8 md:pb-16 md:pt-32">
+        {/* Mobile: booking box first (higher conversion); desktop: copy left, box right. */}
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)] lg:items-end lg:gap-12">
           <motion.div
-            className="min-w-0"
+            className="order-2 min-w-0 lg:order-1"
             {...settle}
             transition={{ duration: 0.5, ease: "easeOut" }}
           >
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-citrus-soft">
+            <p
+              className="text-xs font-semibold uppercase tracking-[0.24em]"
+              style={{ color: theme.eyebrow }}
+            >
               {eyebrow}
             </p>
 
-            <h1 className="mt-4 max-w-3xl font-display text-4xl leading-[1.05] text-white md:text-6xl">
+            <h1
+              className="mt-2 max-w-3xl font-display text-3xl leading-[1.08] sm:text-4xl md:mt-4 md:text-6xl"
+              style={{ color: theme.title }}
+            >
               {title}
             </h1>
 
-            <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-white/80 md:text-base">
+            <p
+              className="mt-3 max-w-lg line-clamp-2 text-[15px] leading-relaxed md:mt-5 md:line-clamp-3 md:text-base"
+              style={{ color: hexAlpha(theme.body, 0.82) }}
+            >
               {description}
             </p>
-          </motion.div>
 
-          {/* Single widget: under copy on mobile, right column on desktop. */}
-          <motion.div
-            className="w-full lg:row-span-2 lg:self-end"
-            {...settle}
-            transition={{ duration: 0.55, ease: "easeOut", delay: 0.12 }}
-          >
-            <HeroBookingSearch />
-          </motion.div>
+            <div className="mt-4 flex flex-wrap items-center gap-4 md:mt-6">
+              <Link
+                href={secondaryHref}
+                className="inline-flex h-11 items-center rounded-xl border px-5 text-sm font-semibold backdrop-blur transition-opacity hover:opacity-90"
+                style={{
+                  color: theme.button,
+                  borderColor: hexAlpha(theme.button, 0.35),
+                  backgroundColor: hexAlpha(theme.button, 0.12),
+                }}
+              >
+                {secondaryLabel}
+              </Link>
 
-          <motion.div
-            className="min-w-0 lg:col-start-1"
-            {...settle}
-            transition={{ duration: 0.5, ease: "easeOut", delay: 0.18 }}
-          >
-            <Link
-              href={secondaryHref}
-              className="inline-flex h-11 items-center rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/20"
-            >
-              {secondaryLabel}
-            </Link>
-
-            <ul className="mt-8 flex flex-wrap gap-x-5 gap-y-2">
-              {products.map((product) => (
-                <li key={product.href + product.label}>
-                  <Link
-                    href={product.href}
-                    className="group inline-flex items-baseline gap-2 py-1 text-sm text-white transition-colors hover:text-citrus-soft"
+              {slideCount > 1 ? (
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex gap-1.5"
+                    role="tablist"
+                    aria-label="Hero media"
+                    onMouseEnter={() => setPaused(true)}
+                    onMouseLeave={() => setPaused(false)}
                   >
-                    <span className="font-semibold underline-offset-4 group-hover:underline">
-                      {product.label}
-                    </span>
-                    <span className="text-xs text-white/55 group-hover:text-white/75">
-                      {product.hint}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-
-            {slideCount > 1 ? (
-              <div className="mt-8 flex items-center gap-4">
-                <div
-                  className="flex gap-1.5"
-                  role="tablist"
-                  aria-label="Hero media"
-                  onMouseEnter={() => setPaused(true)}
-                  onMouseLeave={() => setPaused(false)}
-                >
-                  {safeSlides.map((slide, i) => (
-                    <button
-                      key={`${slide.publicId}-dot-${i}`}
-                      type="button"
-                      role="tab"
-                      aria-selected={i === index}
-                      aria-label={slide.label}
-                      onClick={() => setIndex(i)}
-                      className={cn(
-                        "h-1.5 rounded-full transition-all duration-300",
-                        i === index
-                          ? "w-10 bg-gradient-to-r from-citrus-soft to-citrus"
-                          : "w-5 bg-white/30 hover:bg-white/50",
-                      )}
-                    />
-                  ))}
+                    {safeSlides.map((slide, i) => (
+                      <button
+                        key={`${slide.publicId}-dot-${i}`}
+                        type="button"
+                        role="tab"
+                        aria-selected={i === index}
+                        aria-label={slide.label}
+                        onClick={() => setIndex(i)}
+                        className={cn(
+                          "h-1.5 rounded-full transition-all duration-300",
+                          i === index ? "w-10" : "w-5 hover:opacity-80",
+                        )}
+                        style={{
+                          backgroundColor:
+                            i === index
+                              ? theme.accent
+                              : hexAlpha(theme.button, 0.35),
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <p
+                    className="hidden text-xs font-medium tracking-wide sm:block"
+                    style={{ color: hexAlpha(theme.body, 0.72) }}
+                    aria-live="polite"
+                  >
+                    {safeSlides[index]?.label}
+                  </p>
                 </div>
-                <p
-                  className="text-xs font-medium tracking-wide text-white/70"
-                  aria-live="polite"
-                >
-                  {safeSlides[index]?.label}
-                </p>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
+          </motion.div>
+
+          <motion.div
+            className="order-1 w-full lg:order-2 lg:self-end"
+            {...settle}
+            transition={{ duration: 0.55, ease: "easeOut", delay: 0.08 }}
+          >
+            <HeroBookingSearch
+              fromPriceBtn={fromPriceBtn}
+              taxInclusive={taxInclusive}
+            />
           </motion.div>
         </div>
       </div>

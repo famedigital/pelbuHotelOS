@@ -22,6 +22,7 @@ import {
   TABLE_STATUS_VALUES,
   type TableStatus,
 } from "@/lib/pos-tables";
+import { cn } from "@/lib/utils";
 import {
   EllipsisVerticalIcon,
   PencilIcon,
@@ -40,15 +41,17 @@ import {
 
 const initial: PosActionState = { ok: false };
 
+/** `null` = Shared (no outlet) · string = property outlet code. */
+export type FloorKey = string | null;
+
 /**
- * Visual floor plan. Tables are positioned absolutely inside a 16:9 canvas —
- * `pos_x`/`pos_y` are percentages (0–100) so the same layout scales to any
- * screen size. Drag a table to move it; the new position is persisted via
- * `saveTablePosition`. New tables auto-flow onto the canvas with a sensible
- * default so the first paint never overlaps.
+ * Visual floor plan — one outlet floor at a time (Restaurant, Cafe, Bar…).
+ * Staff create/edit tables per floor; drag to reposition on the canvas.
  */
 export function PosFloorPlan({
-  outlet,
+  floor,
+  onFloorChange,
+  outlets,
   tables,
   openTickets,
   selectedTableId,
@@ -57,7 +60,9 @@ export function PosFloorPlan({
   onEditTable,
   onOpenTicket,
 }: {
-  outlet: string | null;
+  floor: FloorKey;
+  onFloorChange: (floor: FloorKey) => void;
+  outlets: { value: string; label: string }[];
   tables: DiningTable[];
   openTickets: OpenPosTicket[];
   selectedTableId: string;
@@ -72,13 +77,42 @@ export function PosFloorPlan({
   );
   useActionToast(statusState, { successMessage: "Table updated" });
 
+  const floorTabs = useMemo(() => {
+    const tabs = outlets.map((o) => ({
+      key: o.value as FloorKey,
+      label: o.label,
+      count: tables.filter((t) => t.outlet === o.value).length,
+      free: tables.filter((t) => t.outlet === o.value && t.status === "free")
+        .length,
+    }));
+    tabs.push({
+      key: null,
+      label: "Shared",
+      count: tables.filter((t) => t.outlet == null).length,
+      free: tables.filter((t) => t.outlet == null && t.status === "free")
+        .length,
+    });
+    return tabs;
+  }, [outlets, tables]);
+
+  useEffect(() => {
+    if (floor === null) return;
+    if (outlets.some((o) => o.value === floor)) return;
+    onFloorChange(outlets[0]?.value ?? null);
+  }, [floor, outlets, onFloorChange]);
+
   const outletTables = useMemo(
     () =>
-      outlet === null
-        ? tables
-        : tables.filter((t) => t.outlet === null || t.outlet === outlet),
-    [tables, outlet],
+      floor === null
+        ? tables.filter((t) => t.outlet == null)
+        : tables.filter((t) => t.outlet === floor),
+    [tables, floor],
   );
+
+  const floorLabel =
+    floor === null
+      ? "Shared"
+      : (outlets.find((o) => o.value === floor)?.label ?? floor);
 
   const ticketByTable = useMemo(() => {
     const map = new Map<string, OpenPosTicket>();
@@ -326,16 +360,51 @@ export function PosFloorPlan({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
+      <nav aria-label="Floors" className="flex flex-wrap items-center gap-1.5">
+        {floorTabs.map((tab) => {
+          const active = tab.key === floor;
+          return (
+            <button
+              key={tab.key ?? "__shared__"}
+              type="button"
+              onClick={() => onFloorChange(tab.key)}
+              className={cn(
+                "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors",
+                active
+                  ? "border-accent/40 bg-accent text-accent-foreground shadow-sm"
+                  : "border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground",
+              )}
+              aria-current={active ? "page" : undefined}
+            >
+              {tab.label}
+              <span
+                className={cn(
+                  "tabular-nums text-[11px]",
+                  active ? "opacity-90" : "text-muted-foreground",
+                )}
+              >
+                {tab.count}
+              </span>
+              {tab.free > 0 && !active ? (
+                <span className="text-[10px] text-emerald-700">
+                  · {tab.free} free
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
+      </nav>
+
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3">
         <div className="space-y-0.5">
           <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-            Floor plan
+            {floorLabel} floor
           </p>
           <p className="text-sm text-muted-foreground">
             {counts.total === 0
-              ? "No tables yet for this outlet."
-              : `${counts.total} tables · ${counts.seatsTotal} seats · ${counts.occupied} occupied · ${counts.free} free · drag tables to reposition`}
+              ? `No tables on ${floorLabel} yet — add one for this floor.`
+              : `${counts.total} tables · ${counts.seatsTotal} seats · ${counts.occupied} occupied · ${counts.free} free · drag to reposition · ··· to edit`}
           </p>
         </div>
         <Button
@@ -353,11 +422,11 @@ export function PosFloorPlan({
       {counts.total === 0 ? (
         <div className="rounded-xl border border-dashed bg-card px-6 py-12 text-center">
           <p className="text-sm font-medium text-foreground">
-            Set up your first table
+            Set up {floorLabel} tables
           </p>
           <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-            Add the tables in this outlet so servers can open a ticket against a
-            seated party, track covers, and settle to the right check.
+            Create tables for this floor only. Cafe and restaurant keep separate
+            layouts — switch floor tab, add tables, drag seats, edit anytime.
           </p>
           <Button
             type="button"
@@ -366,7 +435,7 @@ export function PosFloorPlan({
             onClick={onAddTable}
           >
             <PlusIcon className="size-4" />
-            Add table
+            Add {floorLabel} table
           </Button>
         </div>
       ) : (
@@ -382,7 +451,6 @@ export function PosFloorPlan({
                 x={table.x}
                 y={table.y}
                 dragging={dragId === table.id}
-                showOutlet={outlet === null}
                 ticket={ticketByTable.get(table.id) ?? null}
                 selected={selectedTableId === table.id}
                 busy={statusPending}
@@ -393,7 +461,9 @@ export function PosFloorPlan({
                 onPointerMove={moveDrag}
                 onPointerUp={(e) => {
                   const fromControls = Boolean(
-                    (e.target as HTMLElement | null)?.closest?.("[data-no-drag]"),
+                    (e.target as HTMLElement | null)?.closest?.(
+                      "[data-no-drag]",
+                    ),
                   );
                   endDrag(table.id, table.seats, { fromControls });
                 }}
@@ -418,7 +488,6 @@ function TableChip({
   x,
   y,
   dragging,
-  showOutlet,
   ticket,
   selected,
   busy,
@@ -433,7 +502,6 @@ function TableChip({
   x: number;
   y: number;
   dragging: boolean;
-  showOutlet: boolean;
   ticket: OpenPosTicket | null;
   selected: boolean;
   busy: boolean;
@@ -476,11 +544,6 @@ function TableChip({
           <span className="truncate text-xs font-semibold text-foreground">
             {table.name}
           </span>
-          {showOutlet && table.outlet ? (
-            <span className="shrink-0 rounded bg-secondary px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-              {table.outlet}
-            </span>
-          ) : null}
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

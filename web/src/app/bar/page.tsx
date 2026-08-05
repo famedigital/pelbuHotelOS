@@ -98,6 +98,10 @@ export default async function BarPage() {
         title={copy.title}
         description={copy.body}
         hoursNote={copy.hours_note}
+        breadcrumbs={[
+          { name: "Home", path: "/" },
+          { name: "Bar" },
+        ]}
         primaryCta={{
           href: copy.primary_cta_href ?? "/menu?outlet=bar",
           label: copy.primary_cta_label ?? "Bar menu",

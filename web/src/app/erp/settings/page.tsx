@@ -100,7 +100,7 @@ export default async function ErpSettingsPage({
     loadTenantForProperty(admin, propertyId),
     admin
       .from("room_types")
-      .select("id, code, name, inventory_kind, unit_count")
+      .select("id, code, name, inventory_kind, unit_count, image_public_id, blurb")
       .eq("property_id", propertyId)
       .order("code"),
     admin
@@ -141,7 +141,12 @@ export default async function ErpSettingsPage({
   if (!property) notFound();
 
   const roomTypes = ((roomTypesResult.data ?? []) as RoomTypeOption[]).map(
-    (type) => ({ ...type, unit_count: Number(type.unit_count ?? 0) }),
+    (type) => ({
+      ...type,
+      unit_count: Number(type.unit_count ?? 0),
+      image_public_id: type.image_public_id ?? null,
+      blurb: type.blurb ?? null,
+    }),
   );
   const roomUnits = ((roomUnitsResult.data ?? []) as RoomUnitRow[]).map(
     (unit) => ({

@@ -1,10 +1,9 @@
 import { deskLogout } from "@/app/actions/desk";
 import { AppSidebar } from "@/components/erp/app-sidebar";
-import { CalendarHeaderTabs } from "@/components/erp/CalendarHeaderTabs";
+import { ModuleHeaderTabs } from "@/components/erp/ModuleHeaderTabs";
 import { DeskHelpHint } from "@/components/erp/DeskHelpHint";
 import { DeskMobileNav } from "@/components/erp/DeskMobileNav";
 import { ErpCommandPalette } from "@/components/erp/ErpCommandPalette";
-import { ModuleTabs } from "@/components/erp/ModuleTabs";
 import { NavigationProgress } from "@/components/erp/NavigationProgress";
 import { DeskSearchHint } from "@/components/erp/DeskSearchHint";
 import { PropertySwitcher } from "@/components/erp/PropertySwitcher";
@@ -18,12 +17,13 @@ import {
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import type { PropertyRow } from "@/lib/property-types";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 
 /**
- * ERP dashboard shell — shadcn Sidebar (icon-collapsible) + SidebarInset with a
- * top header carrying the collapse trigger, page title, property switcher,
- * and sign out. Wraps every /erp route via the layout.
+ * ERP shell: icon sidebar + single sticky header row.
+ * Module sub-destinations sit **in that header** (compact segment control), not
+ * a second menu row under it — keeps desk workspace tall. POS register portals
+ * Sell | Floor + ticket actions into the same row.
  */
 export function DeskShell({
   title,
@@ -31,6 +31,8 @@ export function DeskShell({
   activePropertyId,
   logoSrc,
   allowedModuleKeys,
+  canPreviewDashboards,
+  homeDashboardView,
   children,
 }: {
   title?: string;
@@ -39,6 +41,9 @@ export function DeskShell({
   logoSrc?: string | null;
   /** ERP_MODULES keys the session may open. */
   allowedModuleKeys?: readonly string[];
+  /** Owner/GM: department boards as first-row tabs on `/erp`. */
+  canPreviewDashboards?: boolean;
+  homeDashboardView?: import("@/lib/erp/role-dashboard").DashboardView;
   children: ReactNode;
 }) {
   return (
@@ -60,15 +65,29 @@ export function DeskShell({
                 className="mr-1 hidden h-4! md:block"
               />
               {title ? (
-                <h1 className="truncate text-sm font-medium text-muted-foreground">
+                <h1 className="hidden max-w-[8rem] truncate text-sm font-medium text-muted-foreground lg:max-w-[12rem] xl:block">
                   {title}
                 </h1>
               ) : null}
-              <CalendarHeaderTabs />
+              <Suspense fallback={null}>
+                <ModuleHeaderTabs
+                  canPreviewDashboards={canPreviewDashboards}
+                  homeDashboardView={homeDashboardView}
+                />
+              </Suspense>
+              {/* POS register portals Sell | Floor here (see PosRegisterHeaderChrome). */}
+              <div
+                data-slot="erp-header-pos-modes"
+                className="flex min-w-0 items-center empty:hidden"
+              />
 
-              <DeskSearchHint />
-
-              <div className="ml-auto flex items-center gap-2">
+              <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+                {/* POS register portals Tickets / More / help / FS here. */}
+                <div
+                  data-slot="erp-header-pos-actions"
+                  className="flex shrink-0 items-center gap-1.5 empty:hidden"
+                />
+                <DeskSearchHint />
                 {properties && properties.length > 0 && activePropertyId ? (
                   <PropertySwitcher
                     properties={properties}
@@ -87,7 +106,6 @@ export function DeskShell({
                 </form>
               </div>
             </header>
-            <ModuleTabs />
             <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
               {children}
             </div>
@@ -98,6 +116,7 @@ export function DeskShell({
     </div>
   );
 }
+
 
 /** Compact top-of-page title strip — same grammar as DeskListShell (non-list pages). */
 export function DeskPageTitle({

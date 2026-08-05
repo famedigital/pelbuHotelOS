@@ -12,11 +12,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const HOW_TO = [
   {
-    title: "Walk-in sell",
+    title: "Start every sale — fast",
     steps: [
-      "Enter guest name (phone if useful).",
-      "Leave bill on Pay now.",
-      "Tap dishes, Send ticket.",
+      "T / R / C keys (or cards): Table · Room · Counter.",
+      "Continue as… uses your last path (one tap).",
+      "Switch mid-sale with Table|Room|Counter on the context bar (cart kept).",
+      "N = New ticket (clears cart). T while selling opens Tickets.",
+    ],
+  },
+  {
+    title: "Menus follow the floor — flexible when needed",
+    steps: [
+      "Cafe table → cafe dishes only; restaurant → restaurant.",
+      "Need a mix? “Show all menus” unlocks, then “Lock to …” re-seals.",
+      "Edit dishes anytime: Menu admin · outlet + prep station.",
+      "Tables: floor tab → Add ··· Edit · drag.",
+    ],
+  },
+  {
+    title: "Counter (walk-in)",
+    steps: [
+      "Counter → tap dishes → Send ticket.",
+      "Name defaults to Walk-in (editable in Details).",
       "Tickets → Settle when they pay (cash/card/etc.).",
     ],
   },
@@ -30,17 +47,18 @@ const HOW_TO = [
     ],
   },
   {
-    title: "Seat a table",
+    title: "Table service",
     steps: [
-      "Open Floor → tap the table (seats the ticket, jumps to Sell).",
-      "Add dishes and Send. Table becomes Occupied only after Send.",
-      "Settle or void later from Open tickets.",
+      "Table → pick floor tab (Restaurant / Cafe / Bar…).",
+      "Tap a free table on that floor (or Add table ··· Edit for setup).",
+      "Menu opens locked to that floor — unlock if guest orders across floors.",
+      "New clears for the next party. Settle from Tickets.",
     ],
   },
   {
     title: "Guest walks away (no order)",
     steps: [
-      "On Sell: tap Release next to the table chip — clears the seat.",
+      "Context bar → Release next to the table — clears the seat.",
       "Or tap the same table again on Floor.",
       "If a ticket was already sent: Open tickets → Void (table frees).",
       "Status stuck Occupied with no ticket: Floor ··· → Set status Free.",
@@ -49,8 +67,8 @@ const HOW_TO = [
   {
     title: "Charge to room",
     steps: [
-      "Bill mode → Room.",
-      "Pick the in-house room (guest list optional).",
+      "Room → pick in-house room (guest list optional in Details).",
+      "Menu unlocks after room is selected.",
       "Send — amount posts to the guest folio.",
     ],
   },

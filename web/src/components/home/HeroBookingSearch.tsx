@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatBtn } from "@/lib/pricing";
 import {
   addDaysIso,
   nightsBetween,
@@ -15,11 +16,21 @@ import { useMemo, useState } from "react";
 const selectClass =
   "h-11 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
 
+type Props = {
+  className?: string;
+  fromPriceBtn?: number | null;
+  taxInclusive?: boolean;
+};
+
 /**
  * Airbnb-style stay search for the homepage hero. Submits to /book with
  * dates and party size so the booking wizard opens prefilled.
  */
-export function HeroBookingSearch({ className }: { className?: string }) {
+export function HeroBookingSearch({
+  className,
+  fromPriceBtn,
+  taxInclusive,
+}: Props) {
   const defaults = useMemo(() => parseStaySearch(), []);
   const [checkIn, setCheckIn] = useState(defaults.checkIn);
   const [checkOut, setCheckOut] = useState(defaults.checkOut);
@@ -30,6 +41,10 @@ export function HeroBookingSearch({ className }: { className?: string }) {
   const minCheckout = checkIn ? addDaysIso(checkIn, 1) : addDaysIso(todayIso(), 1);
   const nights = nightsBetween(checkIn, checkOut);
   const datesValid = nights >= 1;
+  const priceHint =
+    fromPriceBtn != null && fromPriceBtn > 0
+      ? `From ${formatBtn(fromPriceBtn)} / night · live rates, no OTA markup`
+      : "Live rates — no OTA markup.";
 
   function onCheckInChange(value: string) {
     setCheckIn(value);
@@ -52,7 +67,10 @@ export function HeroBookingSearch({ className }: { className?: string }) {
         Direct booking
       </p>
       <p className="mt-1 text-sm text-sky-ink/70">
-        Live rates — no OTA markup.
+        {priceHint}
+        {taxInclusive && fromPriceBtn != null && fromPriceBtn > 0
+          ? " · inc. tax"
+          : ""}
       </p>
 
       {/* items-start keeps both columns content-height so the two date inputs

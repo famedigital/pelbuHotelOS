@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { CmsAdminPage } from "@/lib/cms-admin";
 import { publicPathForSlug } from "@/lib/cms-routes";
 import { cloudinaryUrl } from "@/lib/cloudinary";
+import { DEFAULT_HERO_THEME, type HeroTheme } from "@/lib/hero-theme";
 import { ExternalLinkIcon, ImageIcon } from "lucide-react";
 import Link from "next/link";
 import { useActionState, useState } from "react";
@@ -46,6 +47,168 @@ function Field({
   );
 }
 
+function ColorField({
+  label,
+  name,
+  value,
+  onChange,
+  hint,
+}: {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (next: string) => void;
+  hint?: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={name}>{label}</Label>
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          id={`${name}-swatch`}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="size-10 shrink-0 cursor-pointer rounded-md border border-border bg-transparent p-0.5"
+          aria-label={`${label} swatch`}
+        />
+        <Input
+          id={name}
+          name={name}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          maxLength={7}
+          className="font-mono uppercase"
+          pattern="#?[0-9A-Fa-f]{3,6}"
+        />
+      </div>
+      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+    </div>
+  );
+}
+
+function HeroThemeFields({
+  theme,
+  onChange,
+}: {
+  theme: HeroTheme;
+  onChange: (next: HeroTheme) => void;
+}) {
+  function setKey(key: keyof HeroTheme, value: string) {
+    onChange({ ...theme, [key]: value });
+  }
+
+  return (
+    <section className="space-y-5 rounded-xl border bg-card p-5 md:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent">
+            Homepage hero
+          </p>
+          <h2 className="mt-1 text-xl font-semibold text-foreground">
+            Hero colours
+          </h2>
+          <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+            Controls the dark scrim and type over the hero photos. Save draft
+            then Publish to update the live site.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-9"
+          onClick={() => onChange({ ...DEFAULT_HERO_THEME })}
+        >
+          Reset defaults
+        </Button>
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <ColorField
+          label="Overlay top"
+          name="hero_theme_scrim_top"
+          value={theme.scrimTop}
+          onChange={(v) => setKey("scrimTop", v)}
+          hint="Behind the nav — keep dark for white glass"
+        />
+        <ColorField
+          label="Overlay bottom"
+          name="hero_theme_scrim_bottom"
+          value={theme.scrimBottom}
+          onChange={(v) => setKey("scrimBottom", v)}
+          hint="Behind the booking panel"
+        />
+        <ColorField
+          label="Eyebrow"
+          name="hero_theme_eyebrow"
+          value={theme.eyebrow}
+          onChange={(v) => setKey("eyebrow", v)}
+        />
+        <ColorField
+          label="Headline"
+          name="hero_theme_title"
+          value={theme.title}
+          onChange={(v) => setKey("title", v)}
+        />
+        <ColorField
+          label="Supporting text"
+          name="hero_theme_body"
+          value={theme.body}
+          onChange={(v) => setKey("body", v)}
+        />
+        <ColorField
+          label="Accent"
+          name="hero_theme_accent"
+          value={theme.accent}
+          onChange={(v) => setKey("accent", v)}
+          hint="Carousel dash + highlights"
+        />
+        <ColorField
+          label="Secondary button"
+          name="hero_theme_button"
+          value={theme.button}
+          onChange={(v) => setKey("button", v)}
+          hint="Outline CTA on the photo"
+        />
+      </div>
+
+      <div
+        className="relative overflow-hidden rounded-xl border border-border p-6"
+        style={{
+          background: `linear-gradient(135deg, ${theme.scrimTop}, ${theme.scrimBottom})`,
+        }}
+      >
+        <p
+          className="text-xs font-semibold uppercase tracking-[0.2em]"
+          style={{ color: theme.eyebrow }}
+        >
+          Preview eyebrow
+        </p>
+        <p
+          className="mt-2 font-display text-2xl leading-tight"
+          style={{ color: theme.title }}
+        >
+          Stay close to the city.
+        </p>
+        <p className="mt-2 max-w-sm text-sm" style={{ color: theme.body }}>
+          Sample supporting line — pick colours guests can read on your photos.
+        </p>
+        <span
+          className="mt-4 inline-flex h-9 items-center rounded-lg border px-4 text-sm font-semibold"
+          style={{ borderColor: theme.button, color: theme.button }}
+        >
+          See room rates
+        </span>
+        <span
+          className="ml-2 mt-4 inline-block h-1.5 w-10 rounded-full"
+          style={{ background: theme.accent }}
+          aria-hidden
+        />
+      </div>
+    </section>
+  );
+}
+
 export function CmsPageEditor({ page }: { page: CmsAdminPage }) {
   const [draftState, draftAction, draftPending] = useActionState(
     saveCmsPageDraft,
@@ -57,6 +220,9 @@ export function CmsPageEditor({ page }: { page: CmsAdminPage }) {
   );
   const [pickerOpen, setPickerOpen] = useState(false);
   const [ogPublicId, setOgPublicId] = useState(page.draft.og_public_id ?? "");
+  const [heroTheme, setHeroTheme] = useState<HeroTheme>(
+    page.draft.hero_theme ?? DEFAULT_HERO_THEME,
+  );
   const previewSrc = ogPublicId
     ? cloudinaryUrl(ogPublicId, { width: 360, height: 190, crop: "fill" })
     : null;
@@ -188,6 +354,44 @@ export function CmsPageEditor({ page }: { page: CmsAdminPage }) {
             maxLength={500}
           />
         </section>
+
+        {page.slug === "home" ? (
+          <HeroThemeFields theme={heroTheme} onChange={setHeroTheme} />
+        ) : (
+          <>
+            <input
+              type="hidden"
+              name="hero_theme_scrim_top"
+              value={heroTheme.scrimTop}
+            />
+            <input
+              type="hidden"
+              name="hero_theme_scrim_bottom"
+              value={heroTheme.scrimBottom}
+            />
+            <input
+              type="hidden"
+              name="hero_theme_eyebrow"
+              value={heroTheme.eyebrow}
+            />
+            <input
+              type="hidden"
+              name="hero_theme_title"
+              value={heroTheme.title}
+            />
+            <input type="hidden" name="hero_theme_body" value={heroTheme.body} />
+            <input
+              type="hidden"
+              name="hero_theme_accent"
+              value={heroTheme.accent}
+            />
+            <input
+              type="hidden"
+              name="hero_theme_button"
+              value={heroTheme.button}
+            />
+          </>
+        )}
 
         <section className="space-y-5 rounded-xl border bg-card p-5 md:p-6">
           <div>

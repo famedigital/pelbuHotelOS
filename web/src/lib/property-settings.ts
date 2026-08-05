@@ -21,6 +21,8 @@ export type PropertySettings = {
   legal_name: string | null;
   address: string | null;
   phone: string | null;
+  /** Guest WhatsApp for public site wa.me links. Falls back to phone if empty. */
+  whatsapp: string | null;
   email: string | null;
   tax_id: string | null;
   gst_rate: number;
@@ -103,6 +105,7 @@ export function mapPropertySettings(row: Record<string, unknown>): PropertySetti
     legal_name: asText(row.legal_name),
     address: asText(row.address),
     phone: asText(row.phone),
+    whatsapp: asText(row.whatsapp),
     email: asText(row.email),
     tax_id: asText(row.tax_id),
     gst_rate: clampRate(row.gst_rate, DEFAULT_GST_RATE),

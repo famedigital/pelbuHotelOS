@@ -4,6 +4,7 @@ import { MediaCard } from "@/components/site/MediaCard";
 import { CmsContentSections } from "@/components/site/CmsContentSections";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { PublicSiteHeader } from "@/components/site/PublicSiteHeader";
+import { SiteBreadcrumbs } from "@/components/site/SiteBreadcrumbs";
 import { Button } from "@/components/ui/button";
 import { BRAND_CLOUDINARY } from "@/lib/brand";
 import { loadCmsPage } from "@/lib/cms";
@@ -115,6 +116,13 @@ export default async function ContactPage() {
         <section className="border-b border-border bg-gradient-to-b from-sky-100/40 to-background">
           <div className="mx-auto grid max-w-[1120px] gap-10 px-5 py-14 md:grid-cols-2 md:items-center md:px-8 md:py-20">
             <div>
+              <SiteBreadcrumbs
+                items={[
+                  { name: "Home", path: "/" },
+                  { name: "About & contact" },
+                ]}
+                className="mb-3"
+              />
               <p className="text-sm font-medium text-sky-700">{eyebrow}</p>
               <h1 className="mt-3 font-display text-4xl leading-tight text-foreground md:text-5xl">
                 {title}

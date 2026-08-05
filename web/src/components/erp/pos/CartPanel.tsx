@@ -107,12 +107,12 @@ export function CartPanel({
 
   return (
     <div className="erp flex max-h-[calc(85dvh-2rem)] w-full flex-col overflow-hidden rounded-xl border bg-card lg:max-h-[calc(100dvh-1.5rem)]">
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b px-3 py-2.5">
-        <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b px-2.5 py-2">
+        <div className="flex min-w-0 items-center gap-1.5">
           <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
             Ticket
           </p>
-          <span className="text-xs text-muted-foreground">
+          <span className="truncate text-xs text-muted-foreground">
             {lineCount > 0 ? `${lineCount} items` : "Empty"}
           </span>
         </div>
@@ -120,7 +120,7 @@ export function CartPanel({
           <button
             type="button"
             onClick={onClear}
-            className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
             <Trash2Icon className="size-3.5" />
             Clear
@@ -144,18 +144,18 @@ export function CartPanel({
               return (
                 <li
                   key={line.key}
-                  className={dense ? "px-3 py-1.5" : "px-3 py-2"}
+                  className={dense ? "px-2.5 py-1.5" : "px-2.5 py-2"}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 items-start gap-1.5">
                     <button
                       type="button"
                       onClick={() => onEditLine(line.key)}
                       className="min-w-0 flex-1 text-left"
                     >
-                      <p className="truncate text-sm font-medium text-foreground hover:text-accent">
+                      <p className="truncate text-sm font-medium leading-snug text-foreground hover:text-accent">
                         {line.name}
                         {isNc ? (
-                          <span className="ml-1.5 text-[10px] font-semibold tracking-wide text-amber-700 uppercase">
+                          <span className="ml-1 text-[10px] font-semibold tracking-wide text-amber-700 uppercase">
                             NC
                           </span>
                         ) : null}
@@ -164,18 +164,29 @@ export function CartPanel({
                         Course {line.courseNo}
                         {line.seatNo ? ` · Seat ${line.seatNo}` : ""}
                         {isNc
-                          ? ` · ${line.ncReasonCode ?? "nc"} · list ${unit.toLocaleString("en-BT", { maximumFractionDigits: 2 })} Nu`
+                          ? ` · ${line.ncReasonCode ?? "nc"} · list ${unit.toLocaleString("en-BT", { maximumFractionDigits: 2 })}`
                           : ` · ${unit.toLocaleString("en-BT", {
                               maximumFractionDigits: 2,
-                            })} Nu each`}
+                            })} ea`}
                       </p>
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => onRemove(line.key)}
+                      className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-destructive transition-colors hover:bg-destructive/5"
+                      aria-label={`Remove ${line.name}`}
+                      title="Remove"
+                    >
+                      <Trash2Icon className="size-3.5" />
+                    </button>
+                  </div>
 
+                  <div className="mt-1.5 flex items-center gap-1">
                     {onToggleNc && ncReasons.length > 0 ? (
                       <button
                         type="button"
                         onClick={() => onToggleNc(line.key)}
-                        className={`inline-flex h-8 shrink-0 items-center rounded-md border px-1.5 text-[10px] font-semibold ${
+                        className={`inline-flex h-7 shrink-0 items-center rounded-md border px-1.5 text-[10px] font-semibold ${
                           isNc
                             ? "border-amber-600/50 bg-amber-500/10 text-amber-800"
                             : "border-input text-muted-foreground hover:bg-secondary"
@@ -190,13 +201,13 @@ export function CartPanel({
                       <button
                         type="button"
                         onClick={() => onDec(line.key)}
-                        className="inline-flex size-8 items-center justify-center rounded-md border border-input text-foreground transition-colors hover:bg-secondary"
+                        className="inline-flex size-7 items-center justify-center rounded-md border border-input text-foreground transition-colors hover:bg-secondary"
                         aria-label={`Decrease ${line.name}`}
                       >
                         <MinusIcon className="size-3.5" />
                       </button>
                       <span
-                        className="w-6 text-center text-sm tabular-nums text-foreground"
+                        className="w-5 text-center text-sm tabular-nums text-foreground"
                         aria-live="polite"
                       >
                         {line.qty}
@@ -204,30 +215,20 @@ export function CartPanel({
                       <button
                         type="button"
                         onClick={() => onInc(line.key)}
-                        className="inline-flex size-8 items-center justify-center rounded-md border border-input text-foreground transition-colors hover:bg-secondary"
+                        className="inline-flex size-7 items-center justify-center rounded-md border border-input text-foreground transition-colors hover:bg-secondary"
                         aria-label={`Increase ${line.name}`}
                       >
                         <PlusIcon className="size-3.5" />
                       </button>
                     </div>
 
-                    <span className="w-16 shrink-0 text-right text-sm font-semibold tabular-nums text-foreground">
+                    <span className="min-w-0 flex-1 truncate text-right text-sm font-semibold tabular-nums text-foreground">
                       {isNc
                         ? "0"
                         : (unit * line.qty).toLocaleString("en-BT", {
                             maximumFractionDigits: 2,
                           })}
                     </span>
-
-                    <button
-                      type="button"
-                      onClick={() => onRemove(line.key)}
-                      className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-destructive transition-colors hover:bg-destructive/5"
-                      aria-label={`Remove ${line.name}`}
-                      title="Remove"
-                    >
-                      <Trash2Icon className="size-3.5" />
-                    </button>
                   </div>
 
                   {line.modifierSnapshots.length > 0 ? (
@@ -256,15 +257,15 @@ export function CartPanel({
         )}
       </div>
 
-      <div className="shrink-0 space-y-2.5 border-t bg-card px-3 py-3">
+      <div className="shrink-0 space-y-2 border-t bg-card px-2.5 py-2.5">
         <div className="rounded-md border bg-muted/30">
           <button
             type="button"
             onClick={() => setServiceOpen((v) => !v)}
-            className="flex h-9 w-full items-center justify-between gap-2 px-3 text-left text-sm text-foreground"
+            className="flex h-8 w-full items-center justify-between gap-2 px-2.5 text-left text-sm text-foreground"
             aria-expanded={serviceOpen}
           >
-            <span>
+            <span className="min-w-0 truncate">
               {applyServiceCharge
                 ? `Service ${servicePct}%`
                 : "Service waived"}
@@ -282,7 +283,7 @@ export function CartPanel({
           </button>
 
           {serviceOpen ? (
-            <div className="space-y-2 border-t px-3 py-2.5">
+            <div className="space-y-2 border-t px-2.5 py-2">
               <div className="flex h-9 items-center gap-2">
                 <Checkbox
                   id={applyId}
@@ -295,7 +296,7 @@ export function CartPanel({
                   Apply service charge
                 </Label>
               </div>
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid gap-2">
                 <div className="space-y-1">
                   <Label
                     htmlFor={pctId}

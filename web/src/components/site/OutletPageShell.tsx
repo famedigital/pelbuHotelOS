@@ -7,6 +7,10 @@ import {
 import { CmsContentSections } from "@/components/site/CmsContentSections";
 import { MenuSections } from "@/components/site/MenuSections";
 import { PublicSiteHeader } from "@/components/site/PublicSiteHeader";
+import {
+  SiteBreadcrumbs,
+  type BreadcrumbItem,
+} from "@/components/site/SiteBreadcrumbs";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { buttonVariants } from "@/components/ui/button";
 import type { CmsContentSection, CmsMediaItem } from "@/lib/cms";
@@ -39,6 +43,8 @@ type Props = {
   galleryLabel: string;
   sisters?: OutletSister[];
   accent?: "sky" | "citrus" | "mint";
+  /** Visible trail for Google SEO — pair with breadcrumbJsonLd in the page. */
+  breadcrumbs?: BreadcrumbItem[];
   children?: ReactNode;
 };
 
@@ -74,6 +80,7 @@ export function OutletPageShell({
   galleryLabel,
   sisters = [],
   accent = "sky",
+  breadcrumbs,
   children,
 }: Props) {
   const hasMenu = byCategory.size > 0;
@@ -90,6 +97,9 @@ export function OutletPageShell({
         >
           <div className="mx-auto grid max-w-[1200px] items-center gap-8 px-5 py-10 md:px-8 md:py-14 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-12">
             <div className="max-w-xl">
+              {breadcrumbs && breadcrumbs.length >= 2 ? (
+                <SiteBreadcrumbs items={breadcrumbs} className="mb-4" />
+              ) : null}
               <p
                 className={cn(
                   "text-sm font-semibold uppercase tracking-[0.16em]",

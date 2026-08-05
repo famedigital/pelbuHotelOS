@@ -1,6 +1,6 @@
 export const SITE_NAME = "Pelbu Suites";
 export const SITE_DESCRIPTION =
-  "Stay, dine and unwind at Pelbu Suites in Olakha, Thimphu, Bhutan.";
+  "Book rooms direct at Pelbu Suites in Olakha, Thimphu, Bhutan — cafe, restaurant, spa and meeting under one roof.";
 
 const PRODUCTION_CANONICAL = "https://pelbusuites.bt";
 
@@ -79,7 +79,7 @@ export const PUBLIC_INDEXABLE_ROUTES = [
   "/",
   "/rooms",
   "/rates",
-  "/book",
+  // /book is noindex (funnel page) — keep it out of the sitemap
   "/menu",
   "/cafe",
   "/restaurant",

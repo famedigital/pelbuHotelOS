@@ -1,6 +1,10 @@
 import { absoluteUrl } from "@/lib/site";
 import type { MetadataRoute } from "next";
 
+/**
+ * robots.txt + sitemap pointer for Google Search Console.
+ * Submit: https://pelbusuites.bt/sitemap.xml
+ */
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
@@ -16,10 +20,13 @@ export default function robots(): MetadataRoute.Robots {
           "/agents/login",
           "/login",
           "/pay/",
+          "/guest/",
+          "/laundry",
+          "/c/",
         ],
       },
     ],
     sitemap: absoluteUrl("/sitemap.xml"),
-    host: absoluteUrl("/"),
+    host: absoluteUrl("/").replace(/\/$/, ""),
   };
 }
