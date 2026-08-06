@@ -39,8 +39,9 @@ type Props = {
 };
 
 /**
- * Phone-first homepage hero: full-viewport portrait art; book dock sits
- * above the public bottom tab bar (not under it).
+ * Phone-first homepage hero: true full-viewport photo, slim book dock above
+ * public tabs. Header Book is suppressed on mobile hero so this dock + tab
+ * Book remain the only primary book affordances.
  */
 export function MobileHomeHero({
   slides,
@@ -81,7 +82,7 @@ export function MobileHomeHero({
 
   return (
     <section
-      className="relative isolate h-[100svh] max-h-[100dvh] w-full overflow-hidden md:hidden"
+      className="relative isolate h-[100dvh] min-h-[100svh] w-full overflow-hidden md:hidden"
       style={{ backgroundColor: theme.scrimBottom }}
     >
       {/* Full-viewport media */}
@@ -121,21 +122,22 @@ export function MobileHomeHero({
         })}
       </div>
 
-      {/* Bottom third scrim only */}
+      {/* Light bottom scrim — photo stays dominant */}
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-[48%]"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-[36%]"
         style={{
-          background: `linear-gradient(to top, ${hexAlpha(theme.scrimBottom, 0.9)} 0%, ${hexAlpha(theme.scrimBottom, 0.4)} 50%, transparent 100%)`,
+          background: `linear-gradient(to top, ${hexAlpha(theme.scrimBottom, 0.82)} 0%, ${hexAlpha(theme.scrimBottom, 0.28)} 55%, transparent 100%)`,
         }}
         aria-hidden
       />
 
-      {/* Title + rooms CTA — clear of header and of book dock + tab bar */}
+      {/* Title + rooms CTA — cleared for header, slim dock, tab bar */}
       <div
-        className="absolute inset-x-0 bottom-0 flex flex-col justify-end px-5 pt-20"
+        className="absolute inset-x-0 bottom-0 flex flex-col justify-end px-5"
         style={{
-          // Book dock (~4rem) + gap + public tab bar (4rem + safe)
-          paddingBottom: `calc(${TAB_BAR_OFFSET} + 5rem)`,
+          paddingTop: "max(3rem, calc(env(safe-area-inset-top) + 2.75rem))",
+          // Slim dock (~3.25rem) + gap + tab bar
+          paddingBottom: `calc(${TAB_BAR_OFFSET} + 3.75rem)`,
         }}
       >
         <motion.div
@@ -149,15 +151,16 @@ export function MobileHomeHero({
             {eyebrow}
           </p>
           <h1
-            className="mt-1.5 max-w-[18ch] font-display text-[1.75rem] leading-[1.08] line-clamp-3"
+            className="mt-1.5 max-w-[20ch] font-display text-[1.65rem] leading-[1.08] line-clamp-2"
             style={{ color: theme.title }}
+            title={title}
           >
             {title}
           </h1>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
+          <div className="mt-2.5 flex flex-wrap items-center gap-2.5">
             <Link
               href={secondaryHref}
-              className="inline-flex h-10 items-center rounded-xl border px-4 text-xs font-semibold backdrop-blur-md transition-opacity hover:opacity-95"
+              className="inline-flex h-9 items-center rounded-lg border px-3.5 text-xs font-semibold backdrop-blur-md transition-opacity hover:opacity-95"
               style={{
                 color: theme.button,
                 borderColor: hexAlpha(theme.button, 0.5),
@@ -182,7 +185,7 @@ export function MobileHomeHero({
                     onClick={() => setIndex(i)}
                     className={cn(
                       "h-1.5 rounded-full transition-all duration-300",
-                      i === index ? "w-8" : "w-3.5",
+                      i === index ? "w-7" : "w-3",
                     )}
                     style={{
                       backgroundColor:
@@ -198,31 +201,31 @@ export function MobileHomeHero({
         </motion.div>
       </div>
 
-      {/* Book dock — inside hero frame, lifted above public tab bar (not under it). */}
+      {/* Slim book dock above PublicMobileNav */}
       <div
         className="absolute inset-x-0 z-10 px-3"
         style={{
-          bottom: `calc(${TAB_BAR_OFFSET} + 0.4rem)`,
+          bottom: `calc(${TAB_BAR_OFFSET} + 0.35rem)`,
         }}
       >
         <button
           type="button"
           onClick={() => setBookOpen(true)}
-          className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/20 bg-sky-ink/95 px-4 py-3 text-left text-ivory shadow-[0_12px_40px_-16px_rgba(8,47,73,0.65)] backdrop-blur-md"
+          className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/20 bg-sky-ink/95 px-3.5 py-2.5 text-left text-ivory shadow-[0_10px_32px_-14px_rgba(8,47,73,0.7)] backdrop-blur-md"
           aria-label="Open date search to book stay"
         >
           <span className="min-w-0">
-            <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-ivory/70">
+            <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ivory/70">
               Book direct
             </span>
-            <span className="mt-0.5 block truncate text-sm font-medium">
+            <span className="mt-0.5 block truncate text-[13px] font-medium leading-snug">
               Check dates · {priceHint}
               {taxInclusive && fromPriceBtn != null && fromPriceBtn > 0
                 ? " · tax"
                 : ""}
             </span>
           </span>
-          <span className="inline-flex h-11 shrink-0 items-center rounded-xl bg-citrus px-4 text-sm font-semibold text-espresso">
+          <span className="inline-flex h-10 shrink-0 items-center rounded-lg bg-citrus px-3.5 text-sm font-semibold text-espresso">
             Book
           </span>
         </button>

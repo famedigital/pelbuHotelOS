@@ -38,7 +38,7 @@ export function HomeWhy() {
   return (
     <section
       id="why"
-      className="bg-gradient-to-b from-background to-frost-2/70 py-16 md:py-24"
+      className="bg-gradient-to-b from-background to-frost-2/70 py-10 md:py-24"
     >
       <div className="mx-auto max-w-[1200px] px-5 md:px-8">
         <HomeSectionHead
@@ -48,20 +48,20 @@ export function HomeWhy() {
           accent="citrus"
         />
 
-        <ul className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="mt-6 grid gap-5 sm:grid-cols-2 md:mt-10 md:gap-8 lg:grid-cols-4">
           {REASONS.map((reason) => {
             const Icon = reason.icon;
             return (
               <li key={reason.title} className="min-w-0">
                 <span
-                  className={`inline-flex size-11 items-center justify-center rounded-xl bg-gradient-to-br ${reason.tone} text-white`}
+                  className={`inline-flex size-10 items-center justify-center rounded-xl bg-gradient-to-br ${reason.tone} text-white md:size-11`}
                 >
                   <Icon className="size-5" />
                 </span>
-                <p className="mt-4 font-semibold text-foreground">
+                <p className="mt-3 font-semibold text-foreground md:mt-4">
                   {reason.title}
                 </p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                <p className="mt-1.5 line-clamp-3 text-sm leading-6 text-muted-foreground md:mt-2 md:line-clamp-none">
                   {reason.body}
                 </p>
               </li>
@@ -69,7 +69,7 @@ export function HomeWhy() {
           })}
         </ul>
 
-        <div className="relative mt-14 overflow-hidden rounded-[2rem] bg-sky-ink px-6 py-12 md:px-12">
+        <div className="relative mt-10 overflow-hidden rounded-2xl bg-sky-ink px-5 py-9 md:mt-14 md:rounded-[2rem] md:px-12 md:py-12">
           <div
             className="absolute -left-10 top-0 size-72 rounded-full bg-sky-500/30 blur-[100px]"
             aria-hidden
@@ -78,12 +78,12 @@ export function HomeWhy() {
             className="absolute -right-10 bottom-0 size-72 rounded-full bg-citrus/20 blur-[100px]"
             aria-hidden
           />
-          <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div className="relative flex flex-col gap-5 md:flex-row md:items-center md:justify-between md:gap-6">
             <div className="max-w-xl">
-              <h2 className="font-display text-3xl leading-tight text-white md:text-4xl">
+              <h2 className="font-display text-2xl leading-tight text-white md:text-4xl">
                 Ready when you are.
               </h2>
-              <p className="mt-3 text-[15px] leading-relaxed text-white/75">
+              <p className="mt-2 line-clamp-2 text-[15px] leading-relaxed text-white/75 md:mt-3 md:line-clamp-none">
                 Check live rooms and confirm direct — or message the desk if you
                 need a group or meal plan sorted first.
               </p>
@@ -91,13 +91,13 @@ export function HomeWhy() {
             <div className="relative flex flex-wrap gap-3">
               <Link
                 href="/book"
-                className="inline-flex h-12 items-center rounded-xl bg-gradient-to-r from-citrus-soft to-citrus px-6 text-sm font-semibold text-sky-ink shadow-[0_16px_40px_-16px_rgba(245,158,11,0.9)] transition-transform motion-safe:hover:-translate-y-0.5"
+                className="inline-flex h-11 items-center rounded-xl bg-gradient-to-r from-citrus-soft to-citrus px-5 text-sm font-semibold text-sky-ink shadow-[0_16px_40px_-16px_rgba(245,158,11,0.9)] transition-transform motion-safe:hover:-translate-y-0.5 md:h-12 md:px-6"
               >
                 Book a stay
               </Link>
               <Link
                 href="/contact"
-                className="inline-flex h-12 items-center rounded-xl border border-white/30 bg-white/10 px-6 text-sm font-semibold text-white backdrop-blur hover:bg-white/20"
+                className="inline-flex h-11 items-center rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white backdrop-blur hover:bg-white/20 md:h-12 md:px-6"
               >
                 Talk to the desk
               </Link>

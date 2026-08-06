@@ -420,7 +420,7 @@ export function SiteHeader({
             <Link
               href="/login"
               className={cn(
-                "inline-flex h-9 items-center justify-center rounded-lg px-3 text-[13px] font-semibold transition-colors",
+                "inline-flex h-8 items-center justify-center rounded-lg px-2.5 text-[12px] font-semibold transition-colors md:h-9 md:px-3 md:text-[13px]",
                 overHero
                   ? "[text-shadow:0_1px_2px_rgb(0_0_0/0.3)] shadow-[inset_0_1px_0_0_rgb(255_255_255/0.35)] backdrop-blur-md hover:opacity-90"
                   : "border border-border bg-background/80 text-foreground hover:bg-muted",
@@ -439,13 +439,14 @@ export function SiteHeader({
             >
               Login
             </Link>
+            {/* Hero+mobile: Book lives on hero dock + tab bar — hide duplicate header CTA. */}
             <Link
               href="/book"
               className={cn(
-                "inline-flex h-9 items-center justify-center rounded-lg px-3.5 text-[13px] font-semibold transition-colors",
+                "h-9 items-center justify-center rounded-lg px-3.5 text-[13px] font-semibold transition-colors",
                 overHero
-                  ? "bg-citrus text-sky-ink hover:bg-citrus-soft"
-                  : "bg-primary text-primary-foreground hover:bg-primary/90",
+                  ? "hidden bg-citrus text-sky-ink hover:bg-citrus-soft md:inline-flex"
+                  : "inline-flex bg-primary text-primary-foreground hover:bg-primary/90",
               )}
             >
               Book
