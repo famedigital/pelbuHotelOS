@@ -1,0 +1,24 @@
+{
+  "dryRun": false,
+  "activeOnly": false,
+  "propertyId": "c22c44c1-547c-4351-b1ec-608f6590e340",
+  "totalRows": 459,
+  "inserted": 459,
+  "skippedExisting": 0,
+  "skippedInvalid": 0,
+  "errors": [],
+  "agentMatched": 218,
+  "agentUnmatchedSources": {
+    "Amazing Dragon Holidays": 80,
+    "Druk Sakura Tours": 15,
+    "BHUTAN DAGO": 5,
+    "Experince Bhutan": 30,
+    "Bhutan Pema Yoedling": 26,
+    "Ecclesia Tours": 6,
+    "Kuensay Tours": 1
+  },
+  "byStatus": {
+    "confirmed": 404,
+    "cancelled": 55
+  }
+}
