@@ -1,6 +1,7 @@
 import { BookingLifecycleActions } from "@/components/erp/BookingLifecycleActions";
 import { DeskLiveRefresh } from "@/components/erp/DeskLiveRefresh";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -8,7 +9,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import type { DeskRole } from "@/lib/desk-auth";
+import {
+  formatForecastMonthLabel,
+  shiftMonthYm,
+} from "@/lib/erp/guest-forecast";
 import {
   DASHBOARD_VIEWS,
   deskRoleToDashboardView,
@@ -20,6 +26,8 @@ import { formatBtn } from "@/lib/pricing";
 import {
   BedDoubleIcon,
   CalendarClockIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   ClipboardListIcon,
   HotelIcon,
   ReceiptTextIcon,
@@ -29,10 +37,28 @@ import {
   SparklesIcon,
   UsersIcon,
   WalletIcon,
+  PhoneIcon,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+
+/** Build `/erp` query while preserving department preview + forecast month. */
+function erpDashboardHref(opts: {
+  view?: DashboardView;
+  homeView?: DashboardView;
+  forecastMonthYm?: string;
+}): string {
+  const params = new URLSearchParams();
+  if (opts.view && opts.homeView && opts.view !== opts.homeView) {
+    params.set("view", opts.view);
+  }
+  if (opts.forecastMonthYm) {
+    params.set("forecastMonth", opts.forecastMonthYm);
+  }
+  const q = params.toString();
+  return q ? `/erp?${q}` : "/erp";
+}
 
 function Kpi({
   href,
@@ -83,19 +109,83 @@ function Kpi({
   );
 }
 
-function GuestForecastPanel({ snap }: { snap: RoleDashboardSnapshot }) {
+function GuestForecastPanel({
+  snap,
+  view,
+  homeView,
+}: {
+  snap: RoleDashboardSnapshot;
+  view: DashboardView;
+  homeView: DashboardView;
+}) {
   const f = snap.guestForecast;
+  const monthYm = f.monthYm;
+  const monthLabel = formatForecastMonthLabel(monthYm);
+  const currentYm = f.businessDate.slice(0, 7);
+  const prevYm = shiftMonthYm(monthYm, -1);
+  const nextYm = shiftMonthYm(monthYm, 1);
+  const prevHref = erpDashboardHref({
+    view,
+    homeView,
+    forecastMonthYm: prevYm !== currentYm ? prevYm : undefined,
+  });
+  const nextHref = erpDashboardHref({
+    view,
+    homeView,
+    forecastMonthYm: nextYm !== currentYm ? nextYm : undefined,
+  });
+  const horizonEndLabel = formatForecastMonthLabel(
+    f.horizon[f.horizon.length - 1]?.monthYm ?? monthYm,
+  );
   const wd = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
   function weekday(iso: string): string {
     const d = new Date(`${iso}T12:00:00Z`);
     return wd[d.getUTCDay()] ?? "";
   }
-  const maxRoom = Math.max(1, ...f.weekly.map((d) => d.rooms), ...f.monthly.map((d) => d.rooms));
+  const inventory = Math.max(1, f.totalRooms);
+  const maxRoom = Math.max(
+    inventory,
+    ...f.weekly.map((d) => d.rooms),
+    ...f.monthly.map((d) => d.rooms),
+  );
+  const maxHorizonOcc = Math.max(
+    1,
+    ...f.horizon.map((m) => m.occupancyPct),
+    100,
+  );
+
+  function StatTile({
+    label,
+    value,
+    hint,
+    tone,
+  }: {
+    label: string;
+    value: string | number;
+    hint?: string;
+    tone?: "default" | "citrus";
+  }) {
+    return (
+      <div className="rounded-lg border px-2.5 py-2">
+        <p className="text-[10px] text-muted-foreground uppercase">{label}</p>
+        <p
+          className={`text-lg font-semibold tabular-nums ${
+            tone === "citrus" ? "text-citrus" : ""
+          }`}
+        >
+          {value}
+        </p>
+        {hint ? (
+          <p className="mt-0.5 text-[10px] text-muted-foreground">{hint}</p>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <section
       className="rounded-xl border bg-card p-4"
-      aria-label="Guest forecast weekly and monthly"
+      aria-label="Guest forecast weekly, monthly, and six-month"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
@@ -103,7 +193,8 @@ function GuestForecastPanel({ snap }: { snap: RoleDashboardSnapshot }) {
             Guest forecast
           </p>
           <p className="text-xs text-muted-foreground">
-            From held, confirmed, and in-house bookings · {fmtDate(f.businessDate)}
+            Held, confirmed, and in-house · {fmtDate(f.businessDate)} ·{" "}
+            {f.totalRooms} total rooms
           </p>
         </div>
         <Link
@@ -114,6 +205,36 @@ function GuestForecastPanel({ snap }: { snap: RoleDashboardSnapshot }) {
         </Link>
       </div>
 
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+        <StatTile label="Total rooms" value={f.totalRooms} />
+        <StatTile
+          label="Week occ"
+          value={`${f.weekTotals.occupancyPct}%`}
+          hint={`avg ${f.weekTotals.avgRooms} rms`}
+        />
+        <StatTile
+          label={`${monthLabel} occ`}
+          value={`${f.monthTotals.occupancyPct}%`}
+          hint={`${f.monthTotals.roomNights} room-nights`}
+          tone="citrus"
+        />
+        <StatTile
+          label="6-mo occ"
+          value={`${f.horizonTotals.occupancyPct}%`}
+          hint={`${f.horizonTotals.roomNights} room-nights`}
+        />
+        <StatTile
+          label="6-mo peak rooms"
+          value={f.horizonTotals.peakRooms}
+          hint={`of ${f.totalRooms}`}
+        />
+        <StatTile
+          label="6-mo peak guests"
+          value={f.horizonTotals.peakGuests}
+          tone="citrus"
+        />
+      </div>
+
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <div>
           <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
@@ -122,111 +243,372 @@ function GuestForecastPanel({ snap }: { snap: RoleDashboardSnapshot }) {
             </p>
             <p className="text-xs tabular-nums text-muted-foreground">
               Arr {f.weekTotals.arrivals} · Dep {f.weekTotals.departures} · peak{" "}
-              {f.weekTotals.peakGuests} guests / {f.weekTotals.peakRooms} rms
+              {f.weekTotals.peakGuests} guests / {f.weekTotals.peakRooms} rms ·{" "}
+              {f.weekTotals.occupancyPct}% occ
             </p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[280px] border-collapse text-left text-xs">
+            <table className="w-full min-w-[320px] border-collapse text-left text-xs">
               <thead>
                 <tr className="border-b text-[10px] tracking-wide text-muted-foreground uppercase">
                   <th className="py-1.5 pr-2 font-medium">Day</th>
                   <th className="py-1.5 pr-2 font-medium tabular-nums">Arr</th>
                   <th className="py-1.5 pr-2 font-medium tabular-nums">Dep</th>
                   <th className="py-1.5 pr-2 font-medium tabular-nums">Rooms</th>
+                  <th className="py-1.5 pr-2 font-medium tabular-nums">
+                    Free
+                  </th>
                   <th className="py-1.5 font-medium tabular-nums">Guests</th>
                 </tr>
               </thead>
               <tbody>
-                {f.weekly.map((day) => (
-                  <tr
-                    key={day.date}
-                    className={`border-b border-border/50 ${
-                      day.date === f.businessDate ? "bg-muted/40" : ""
-                    }`}
-                  >
-                    <td className="py-1.5 pr-2 whitespace-nowrap">
-                      <span className="font-medium">{weekday(day.date)}</span>
-                      <span className="ml-1 text-muted-foreground">
-                        {day.date.slice(8)}
-                      </span>
-                    </td>
-                    <td className="py-1.5 pr-2 tabular-nums">{day.arrivals}</td>
-                    <td className="py-1.5 pr-2 tabular-nums">{day.departures}</td>
-                    <td className="py-1.5 pr-2 tabular-nums">{day.rooms}</td>
-                    <td className="py-1.5 tabular-nums font-medium">{day.guests}</td>
-                  </tr>
-                ))}
+                {f.weekly.map((day) => {
+                  const free =
+                    f.totalRooms > 0
+                      ? Math.max(0, f.totalRooms - day.rooms)
+                      : 0;
+                  return (
+                    <tr
+                      key={day.date}
+                      className={`border-b border-border/50 ${
+                        day.date === f.businessDate ? "bg-muted/40" : ""
+                      }`}
+                    >
+                      <td className="py-1.5 pr-2 whitespace-nowrap">
+                        <span className="font-medium">{weekday(day.date)}</span>
+                        <span className="ml-1 text-muted-foreground">
+                          {day.date.slice(8)}
+                        </span>
+                      </td>
+                      <td className="py-1.5 pr-2 tabular-nums">{day.arrivals}</td>
+                      <td className="py-1.5 pr-2 tabular-nums">
+                        {day.departures}
+                      </td>
+                      <td className="py-1.5 pr-2 tabular-nums">{day.rooms}</td>
+                      <td className="py-1.5 pr-2 tabular-nums text-muted-foreground">
+                        {f.totalRooms > 0 ? free : "—"}
+                      </td>
+                      <td className="py-1.5 tabular-nums font-medium">
+                        {day.guests}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
 
         <div>
-          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-            <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-              This month
-            </p>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+                Month
+              </p>
+              <div className="flex flex-wrap items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="size-8 rounded-lg"
+                  asChild
+                >
+                  <Link
+                    href={prevHref}
+                    aria-label={`Previous month, ${formatForecastMonthLabel(prevYm)}`}
+                  >
+                    <ChevronLeftIcon className="size-3.5" />
+                  </Link>
+                </Button>
+                <form
+                  className="flex flex-wrap items-center gap-1"
+                  action="/erp"
+                  method="get"
+                >
+                  {view !== homeView ? (
+                    <input type="hidden" name="view" value={view} />
+                  ) : null}
+                  <Input
+                    id="forecast-month"
+                    type="month"
+                    name="forecastMonth"
+                    defaultValue={monthYm}
+                    aria-label="Forecast month"
+                    className="h-8 w-[9.5rem] px-2 text-xs"
+                  />
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2 text-xs"
+                  >
+                    Go
+                  </Button>
+                </form>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="size-8 rounded-lg"
+                  asChild
+                >
+                  <Link
+                    href={nextHref}
+                    aria-label={`Next month, ${formatForecastMonthLabel(nextYm)}`}
+                  >
+                    <ChevronRightIcon className="size-3.5" />
+                  </Link>
+                </Button>
+                {monthYm !== currentYm ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-xs"
+                    asChild
+                  >
+                    <Link
+                      href={erpDashboardHref({ view, homeView })}
+                      aria-label="Back to current month"
+                    >
+                      Today
+                    </Link>
+                  </Button>
+                ) : null}
+              </div>
+            </div>
             <p className="text-xs tabular-nums text-muted-foreground">
-              Arr {f.monthTotals.arrivals} · Dep {f.monthTotals.departures} · avg{" "}
-              {f.monthTotals.avgGuests} guests / {f.monthTotals.avgRooms} rms
+              {monthLabel} · Arr {f.monthTotals.arrivals} · Dep{" "}
+              {f.monthTotals.departures} · avg {f.monthTotals.avgGuests} guests
+              / {f.monthTotals.avgRooms} rms · {f.monthTotals.occupancyPct}%
             </p>
           </div>
           <div
             className="flex h-24 items-end gap-px"
             role="img"
-            aria-label="Daily in-house rooms for the calendar month"
+            aria-label={`Daily in-house rooms for ${monthLabel}`}
           >
             {f.monthly.map((day) => {
               const h = Math.max(4, Math.round((day.rooms / maxRoom) * 100));
               const isToday = day.date === f.businessDate;
+              const over =
+                f.totalRooms > 0 && day.rooms > f.totalRooms;
               return (
                 <div
                   key={day.date}
-                  title={`${day.date}: ${day.guests} guests, ${day.rooms} rooms, ${day.arrivals} arr / ${day.departures} dep`}
+                  title={`${day.date}: ${day.guests} guests, ${day.rooms}/${f.totalRooms || "?"} rooms, ${day.arrivals} arr / ${day.departures} dep`}
                   className={`min-w-0 flex-1 rounded-t-sm ${
                     isToday
                       ? "bg-accent"
-                      : day.rooms > 0
-                        ? "bg-accent/45"
-                        : "bg-muted"
+                      : over
+                        ? "bg-destructive/70"
+                        : day.rooms > 0
+                          ? "bg-accent/45"
+                          : "bg-muted"
                   }`}
                   style={{ height: `${h}%` }}
                 />
               );
             })}
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <div className="rounded-lg border px-2.5 py-2">
-              <p className="text-[10px] text-muted-foreground uppercase">Arrivals</p>
-              <p className="text-lg font-semibold tabular-nums">
-                {f.monthTotals.arrivals}
-              </p>
-            </div>
-            <div className="rounded-lg border px-2.5 py-2">
-              <p className="text-[10px] text-muted-foreground uppercase">
-                Departures
-              </p>
-              <p className="text-lg font-semibold tabular-nums">
-                {f.monthTotals.departures}
-              </p>
-            </div>
-            <div className="rounded-lg border px-2.5 py-2">
-              <p className="text-[10px] text-muted-foreground uppercase">
-                Peak guests
-              </p>
-              <p className="text-lg font-semibold tabular-nums text-citrus">
-                {f.monthTotals.peakGuests}
-              </p>
-            </div>
-            <div className="rounded-lg border px-2.5 py-2">
-              <p className="text-[10px] text-muted-foreground uppercase">
-                Peak rooms
-              </p>
-              <p className="text-lg font-semibold tabular-nums">
-                {f.monthTotals.peakRooms}
-              </p>
-            </div>
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            <StatTile label="Arrivals" value={f.monthTotals.arrivals} />
+            <StatTile label="Departures" value={f.monthTotals.departures} />
+            <StatTile
+              label="Peak guests"
+              value={f.monthTotals.peakGuests}
+              tone="citrus"
+            />
+            <StatTile
+              label="Peak rooms"
+              value={f.monthTotals.peakRooms}
+              hint={
+                f.totalRooms > 0
+                  ? `${Math.max(0, f.totalRooms - f.monthTotals.peakRooms)} free at peak`
+                  : undefined
+              }
+            />
+            <StatTile
+              label="Room-nights"
+              value={f.monthTotals.roomNights}
+              hint={
+                f.monthTotals.availableRoomNights > 0
+                  ? `of ${f.monthTotals.availableRoomNights}`
+                  : undefined
+              }
+            />
+            <StatTile
+              label="Occupancy"
+              value={`${f.monthTotals.occupancyPct}%`}
+              tone="citrus"
+            />
           </div>
+        </div>
+      </div>
+
+      <div className="mt-5 border-t pt-4">
+        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+          <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+            6 months · {monthLabel} – {horizonEndLabel}
+          </p>
+          <p className="text-xs tabular-nums text-muted-foreground">
+            Arr {f.horizonTotals.arrivals} · Dep {f.horizonTotals.departures} ·{" "}
+            {f.horizonTotals.roomNights} room-nights · avg{" "}
+            {f.horizonTotals.avgRooms} rms · {f.horizonTotals.occupancyPct}% occ
+            {f.totalRooms > 0 ? ` · ${f.totalRooms} rooms` : ""}
+          </p>
+        </div>
+
+        <div
+          className="mb-3 flex h-16 items-end gap-1.5"
+          role="img"
+          aria-label={`Monthly occupancy ${monthLabel} through ${horizonEndLabel}`}
+        >
+          {f.horizon.map((m) => {
+            const h = Math.max(
+              6,
+              Math.round((m.occupancyPct / maxHorizonOcc) * 100),
+            );
+            const isSelected = m.monthYm === monthYm;
+            return (
+              <Link
+                key={m.monthYm}
+                href={erpDashboardHref({
+                  view,
+                  homeView,
+                  forecastMonthYm:
+                    m.monthYm !== currentYm ? m.monthYm : undefined,
+                })}
+                title={`${formatForecastMonthLabel(m.monthYm)}: ${m.occupancyPct}% occ, peak ${m.peakRooms} rooms / ${m.peakGuests} guests`}
+                className="group flex min-w-0 flex-1 flex-col items-center gap-1 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+              >
+                <div
+                  className={`w-full max-w-[3rem] rounded-t-sm transition-colors ${
+                    isSelected
+                      ? "bg-accent"
+                      : m.occupancyPct >= 90
+                        ? "bg-destructive/60 group-hover:bg-destructive/80"
+                        : m.occupancyPct > 0
+                          ? "bg-accent/40 group-hover:bg-accent/60"
+                          : "bg-muted group-hover:bg-muted-foreground/20"
+                  }`}
+                  style={{ height: `${h}%` }}
+                />
+                <span
+                  className={`text-[10px] tabular-nums ${
+                    isSelected
+                      ? "font-semibold text-foreground"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {formatForecastMonthLabel(m.monthYm).split(" ")[0]}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] border-collapse text-left text-xs">
+            <thead>
+              <tr className="border-b text-[10px] tracking-wide text-muted-foreground uppercase">
+                <th className="py-1.5 pr-2 font-medium">Month</th>
+                <th className="py-1.5 pr-2 font-medium tabular-nums">Arr</th>
+                <th className="py-1.5 pr-2 font-medium tabular-nums">Dep</th>
+                <th className="py-1.5 pr-2 font-medium tabular-nums">
+                  Peak rms
+                </th>
+                <th className="py-1.5 pr-2 font-medium tabular-nums">
+                  Free@peak
+                </th>
+                <th className="py-1.5 pr-2 font-medium tabular-nums">
+                  Peak guests
+                </th>
+                <th className="py-1.5 pr-2 font-medium tabular-nums">Avg rms</th>
+                <th className="py-1.5 pr-2 font-medium tabular-nums">
+                  Room-nts
+                </th>
+                <th className="py-1.5 font-medium tabular-nums">Occ %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {f.horizon.map((m) => {
+                const freeAtPeak =
+                  f.totalRooms > 0
+                    ? Math.max(0, f.totalRooms - m.peakRooms)
+                    : null;
+                const isSelected = m.monthYm === monthYm;
+                return (
+                  <tr
+                    key={m.monthYm}
+                    className={`border-b border-border/50 ${
+                      isSelected ? "bg-muted/40" : ""
+                    }`}
+                  >
+                    <td className="py-1.5 pr-2 whitespace-nowrap">
+                      <Link
+                        href={erpDashboardHref({
+                          view,
+                          homeView,
+                          forecastMonthYm:
+                            m.monthYm !== currentYm ? m.monthYm : undefined,
+                        })}
+                        className="font-medium text-accent underline-offset-2 hover:underline"
+                      >
+                        {formatForecastMonthLabel(m.monthYm)}
+                      </Link>
+                    </td>
+                    <td className="py-1.5 pr-2 tabular-nums">{m.arrivals}</td>
+                    <td className="py-1.5 pr-2 tabular-nums">{m.departures}</td>
+                    <td className="py-1.5 pr-2 tabular-nums">{m.peakRooms}</td>
+                    <td className="py-1.5 pr-2 tabular-nums text-muted-foreground">
+                      {freeAtPeak ?? "—"}
+                    </td>
+                    <td className="py-1.5 pr-2 tabular-nums font-medium">
+                      {m.peakGuests}
+                    </td>
+                    <td className="py-1.5 pr-2 tabular-nums">{m.avgRooms}</td>
+                    <td className="py-1.5 pr-2 tabular-nums">{m.roomNights}</td>
+                    <td
+                      className={`py-1.5 tabular-nums font-medium ${
+                        m.occupancyPct >= 90 ? "text-destructive" : ""
+                      }`}
+                    >
+                      {m.occupancyPct}%
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="border-t text-xs font-medium">
+                <td className="py-2 pr-2">6-month total</td>
+                <td className="py-2 pr-2 tabular-nums">
+                  {f.horizonTotals.arrivals}
+                </td>
+                <td className="py-2 pr-2 tabular-nums">
+                  {f.horizonTotals.departures}
+                </td>
+                <td className="py-2 pr-2 tabular-nums">
+                  {f.horizonTotals.peakRooms}
+                </td>
+                <td className="py-2 pr-2 tabular-nums text-muted-foreground">
+                  {f.totalRooms > 0
+                    ? Math.max(0, f.totalRooms - f.horizonTotals.peakRooms)
+                    : "—"}
+                </td>
+                <td className="py-2 pr-2 tabular-nums">
+                  {f.horizonTotals.peakGuests}
+                </td>
+                <td className="py-2 pr-2 tabular-nums">
+                  {f.horizonTotals.avgRooms}
+                </td>
+                <td className="py-2 pr-2 tabular-nums">
+                  {f.horizonTotals.roomNights}
+                </td>
+                <td className="py-2 tabular-nums text-citrus">
+                  {f.horizonTotals.occupancyPct}%
+                </td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       </div>
     </section>
@@ -500,11 +882,15 @@ function Shell({
   title,
   subtitle,
   snap,
+  view,
+  homeView,
   children,
 }: {
   title: string;
   subtitle: string;
   snap: RoleDashboardSnapshot;
+  view: DashboardView;
+  homeView: DashboardView;
   children: ReactNode;
 }) {
   return (
@@ -521,18 +907,28 @@ function Shell({
         </div>
         <DeskLiveRefresh />
       </header>
-      <GuestForecastPanel snap={snap} />
+      <GuestForecastPanel snap={snap} view={view} homeView={homeView} />
       {children}
     </div>
   );
 }
 
-function OwnerBoard({ snap }: { snap: RoleDashboardSnapshot }) {
+function OwnerBoard({
+  snap,
+  view,
+  homeView,
+}: {
+  snap: RoleDashboardSnapshot;
+  view: DashboardView;
+  homeView: DashboardView;
+}) {
   return (
     <Shell
       title="Owner"
       subtitle={`${snap.propertyName ?? "Property"} · ${snap.businessDate}`}
       snap={snap}
+      view={view}
+      homeView={homeView}
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
@@ -586,6 +982,7 @@ function OwnerBoard({ snap }: { snap: RoleDashboardSnapshot }) {
             links={[
               { href: "/erp/reports/performance", label: "Performance" },
               { href: "/erp/finance", label: "Finance" },
+              { href: "/erp/agents/call-tasks", label: "Agent call tasks" },
               { href: "/erp/settings", label: "Settings" },
               { href: "/erp/night-audit", label: "Night audit" },
             ]}
@@ -618,12 +1015,22 @@ function OwnerBoard({ snap }: { snap: RoleDashboardSnapshot }) {
   );
 }
 
-function ManagerBoard({ snap }: { snap: RoleDashboardSnapshot }) {
+function ManagerBoard({
+  snap,
+  view,
+  homeView,
+}: {
+  snap: RoleDashboardSnapshot;
+  view: DashboardView;
+  homeView: DashboardView;
+}) {
   return (
     <Shell
       title="Manager"
       subtitle={`Duty board · ${snap.businessDate}`}
       snap={snap}
+      view={view}
+      homeView={homeView}
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
@@ -691,23 +1098,38 @@ function ManagerBoard({ snap }: { snap: RoleDashboardSnapshot }) {
           <OpenKotList snap={snap} />
         </Section>
       </div>
-      <QuickLinks
-        links={[
-          { href: "/erp/calendar", label: "Calendar" },
-          { href: "/erp/night-audit", label: "Night audit" },
-          { href: "/erp/finance", label: "Finance" },
-          { href: "/erp/hr/rota", label: "Rota" },
-          { href: "/erp/reports", label: "Flash reports" },
-        ]}
-      />
+          <QuickLinks
+            links={[
+              { href: "/erp/calendar", label: "Calendar" },
+              { href: "/erp/night-audit", label: "Night audit" },
+              { href: "/erp/finance", label: "Finance" },
+              { href: "/erp/hr/rota", label: "Rota" },
+              { href: "/erp/agents/call-tasks", label: "Agent call tasks" },
+              { href: "/erp/reports", label: "Flash reports" },
+            ]}
+          />
     </Shell>
   );
 }
 
-function FrontDeskBoard({ snap }: { snap: RoleDashboardSnapshot }) {
+function FrontDeskBoard({
+  snap,
+  view,
+  homeView,
+}: {
+  snap: RoleDashboardSnapshot;
+  view: DashboardView;
+  homeView: DashboardView;
+}) {
   return (
-    <Shell title="Front desk" subtitle={`Shift home · ${snap.businessDate}`} snap={snap}>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <Shell
+      title="Front desk"
+      subtitle={`Shift home · ${snap.businessDate}`}
+      snap={snap}
+      view={view}
+      homeView={homeView}
+    >
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Kpi
           href="/erp/arrivals"
           icon={ClipboardListIcon}
@@ -734,6 +1156,18 @@ function FrontDeskBoard({ snap }: { snap: RoleDashboardSnapshot }) {
           value={String(snap.holdsCount)}
           tone={snap.holdsCount > 0 ? "destructive" : "accent"}
         />
+        <Kpi
+          href="/erp/agents/call-tasks"
+          icon={PhoneIcon}
+          label="Agent calls due"
+          value={String(snap.agentCallPending)}
+          hint={
+            snap.agentCallTasksDue > 0
+              ? `${snap.agentCallTasksDue} list${snap.agentCallTasksDue === 1 ? "" : "s"} due`
+              : "No open call tasks due"
+          }
+          tone={snap.agentCallPending > 0 ? "destructive" : "accent"}
+        />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <Section title="Holds awaiting token">
@@ -752,6 +1186,7 @@ function FrontDeskBoard({ snap }: { snap: RoleDashboardSnapshot }) {
                 { href: "/erp/folios", label: "City ledger" },
                 { href: "/erp/payments", label: "Payments" },
                 { href: "/erp/calendar", label: "Room rack" },
+                { href: "/erp/agents/call-tasks", label: "Agent call tasks" },
                 { href: "/erp/reservations?new=1", label: "New reservation" },
               ]}
             />
@@ -763,9 +1198,23 @@ function FrontDeskBoard({ snap }: { snap: RoleDashboardSnapshot }) {
   );
 }
 
-function FnbBoard({ snap }: { snap: RoleDashboardSnapshot }) {
+function FnbBoard({
+  snap,
+  view,
+  homeView,
+}: {
+  snap: RoleDashboardSnapshot;
+  view: DashboardView;
+  homeView: DashboardView;
+}) {
   return (
-    <Shell title="F&B" subtitle={`Register & service · ${snap.businessDate}`} snap={snap}>
+    <Shell
+      title="F&B"
+      subtitle={`Register & service · ${snap.businessDate}`}
+      snap={snap}
+      view={view}
+      homeView={homeView}
+    >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
           href="/erp/pos"
@@ -832,12 +1281,22 @@ function FnbBoard({ snap }: { snap: RoleDashboardSnapshot }) {
   );
 }
 
-function KitchenBoard({ snap }: { snap: RoleDashboardSnapshot }) {
+function KitchenBoard({
+  snap,
+  view,
+  homeView,
+}: {
+  snap: RoleDashboardSnapshot;
+  view: DashboardView;
+  homeView: DashboardView;
+}) {
   return (
     <Shell
       title="Kitchen"
       subtitle={`Cook line · pax & tickets · ${snap.businessDate}`}
       snap={snap}
+      view={view}
+      homeView={homeView}
     >
       <MealPaxStrip snap={snap} emphasize />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -892,9 +1351,23 @@ function KitchenBoard({ snap }: { snap: RoleDashboardSnapshot }) {
   );
 }
 
-function HkBoard({ snap }: { snap: RoleDashboardSnapshot }) {
+function HkBoard({
+  snap,
+  view,
+  homeView,
+}: {
+  snap: RoleDashboardSnapshot;
+  view: DashboardView;
+  homeView: DashboardView;
+}) {
   return (
-    <Shell title="Housekeeping" subtitle={`Rooms · ${snap.businessDate}`} snap={snap}>
+    <Shell
+      title="Housekeeping"
+      subtitle={`Rooms · ${snap.businessDate}`}
+      snap={snap}
+      view={view}
+      homeView={homeView}
+    >
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <Kpi
           href="/erp/housekeeping"
@@ -951,9 +1424,23 @@ function HkBoard({ snap }: { snap: RoleDashboardSnapshot }) {
   );
 }
 
-function LaundryBoard({ snap }: { snap: RoleDashboardSnapshot }) {
+function LaundryBoard({
+  snap,
+  view,
+  homeView,
+}: {
+  snap: RoleDashboardSnapshot;
+  view: DashboardView;
+  homeView: DashboardView;
+}) {
   return (
-    <Shell title="Laundry" subtitle={`Pipeline · ${snap.businessDate}`} snap={snap}>
+    <Shell
+      title="Laundry"
+      subtitle={`Pipeline · ${snap.businessDate}`}
+      snap={snap}
+      view={view}
+      homeView={homeView}
+    >
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <Kpi
           href="/erp/laundry"
@@ -1005,9 +1492,23 @@ function LaundryBoard({ snap }: { snap: RoleDashboardSnapshot }) {
   );
 }
 
-function CashierBoard({ snap }: { snap: RoleDashboardSnapshot }) {
+function CashierBoard({
+  snap,
+  view,
+  homeView,
+}: {
+  snap: RoleDashboardSnapshot;
+  view: DashboardView;
+  homeView: DashboardView;
+}) {
   return (
-    <Shell title="Cashier" subtitle={`POS settle path · ${snap.businessDate}`} snap={snap}>
+    <Shell
+      title="Cashier"
+      subtitle={`POS settle path · ${snap.businessDate}`}
+      snap={snap}
+      view={view}
+      homeView={homeView}
+    >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
           href="/erp/pos"
@@ -1056,28 +1557,33 @@ function CashierBoard({ snap }: { snap: RoleDashboardSnapshot }) {
 export function RoleDashboard({
   view,
   snap,
+  sessionRole,
 }: {
   view: DashboardView;
   snap: RoleDashboardSnapshot;
   sessionRole: DeskRole | null;
 }) {
+  const homeView = sessionRole
+    ? deskRoleToDashboardView(sessionRole)
+    : "front_desk";
+  const boardProps = { snap, view, homeView } as const;
   const body =
     view === "owner" ? (
-      <OwnerBoard snap={snap} />
+      <OwnerBoard {...boardProps} />
     ) : view === "gm" ? (
-      <ManagerBoard snap={snap} />
+      <ManagerBoard {...boardProps} />
     ) : view === "front_desk" ? (
-      <FrontDeskBoard snap={snap} />
+      <FrontDeskBoard {...boardProps} />
     ) : view === "fnb" ? (
-      <FnbBoard snap={snap} />
+      <FnbBoard {...boardProps} />
     ) : view === "kitchen" ? (
-      <KitchenBoard snap={snap} />
+      <KitchenBoard {...boardProps} />
     ) : view === "hk" ? (
-      <HkBoard snap={snap} />
+      <HkBoard {...boardProps} />
     ) : view === "laundry" ? (
-      <LaundryBoard snap={snap} />
+      <LaundryBoard {...boardProps} />
     ) : (
-      <CashierBoard snap={snap} />
+      <CashierBoard {...boardProps} />
     );
 
   return (

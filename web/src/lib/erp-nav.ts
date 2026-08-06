@@ -8,7 +8,9 @@ import {
   HotelIcon,
   ImageIcon,
   LayoutDashboardIcon,
+  MapIcon,
   MonitorIcon,
+  PhoneIcon,
   ReceiptTextIcon,
   ScrollTextIcon,
   SettingsIcon,
@@ -101,6 +103,11 @@ export const ERP_MODULES: ErpModule[] = [
         href: "/erp/group",
         icon: HotelIcon,
       },
+      {
+        title: "Agent call tasks",
+        href: "/erp/agents/call-tasks",
+        icon: PhoneIcon,
+      },
     ],
   },
   {
@@ -110,6 +117,11 @@ export const ERP_MODULES: ErpModule[] = [
     href: "/erp/rooms",
     tabs: [
       { title: "Rooms", href: "/erp/rooms", icon: HotelIcon },
+      {
+        title: "Floor map",
+        href: "/erp/rooms/layout",
+        icon: MapIcon,
+      },
       {
         title: "Housekeeping",
         href: "/erp/housekeeping",
@@ -165,6 +177,16 @@ export const ERP_MODULES: ErpModule[] = [
     tabs: [
       { title: "Agents", href: "/erp/agents", icon: UsersIcon },
       {
+        title: "Confirmed call list",
+        href: "/erp/agents/confirmed",
+        icon: PhoneIcon,
+      },
+      {
+        title: "Agent call tasks",
+        href: "/erp/agents/call-tasks",
+        icon: PhoneIcon,
+      },
+      {
         title: "Rate downloads",
         href: "/erp/agents/rate-downloads",
         icon: ReceiptTextIcon,
@@ -210,6 +232,11 @@ export const ERP_MODULES: ErpModule[] = [
         icon: ClipboardListIcon,
       },
       { title: "Leave", href: "/erp/hr/leave", icon: ScrollTextIcon },
+      {
+        title: "ISR / Labour",
+        href: "/erp/hr/isr",
+        icon: ScrollTextIcon,
+      },
       { title: "Payroll", href: "/erp/hr/payroll", icon: WalletIcon },
     ],
   },

@@ -269,6 +269,18 @@ export default async function ErpAgentsPage({
               value: formatBtn(totalUsedCredit),
               tone: "destructive",
             },
+            {
+              label: "Confirmed call list",
+              value: "→",
+              href: "/erp/agents/confirmed",
+              hint: "Phone & email for agents with rooms",
+            },
+            {
+              label: "Call tasks",
+              value: "→",
+              href: "/erp/agents/call-tasks",
+              hint: "FO call-down lists with tick-off",
+            },
           ]}
         />
       }

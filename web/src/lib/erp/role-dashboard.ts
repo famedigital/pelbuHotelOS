@@ -1,4 +1,5 @@
 import type { DeskRole } from "@/lib/desk-auth";
+import { countOpenCallItemsDueToday } from "@/lib/erp/agent-call-tasks";
 import {
   loadGuestForecast,
   type GuestForecast,
@@ -132,11 +133,15 @@ export type RoleDashboardSnapshot = {
   gstFiledThisMonth: boolean;
   /** Weekly + calendar-month guest/room forecast for all department boards. */
   guestForecast: GuestForecast;
+  /** Agent call-downs due today or earlier (FO work). */
+  agentCallTasksDue: number;
+  agentCallPending: number;
 };
 
 export async function loadRoleDashboardSnapshot(
   admin: Admin,
   propertyId: string,
+  options?: { forecastMonthYm?: string | null },
 ): Promise<RoleDashboardSnapshot> {
   const today = thimphuToday();
   const monthStart = `${today.slice(0, 7)}-01`;
@@ -156,9 +161,12 @@ export async function loadRoleDashboardSnapshot(
     { data: gasRows },
     { data: nightAudit },
     { data: openFolios },
+    agentCall,
   ] = await Promise.all([
     computeMealCovers(admin, propertyId, today),
-    loadGuestForecast(admin, propertyId),
+    loadGuestForecast(admin, propertyId, {
+      monthYm: options?.forecastMonthYm,
+    }),
     admin
       .from("properties")
       .select("name, setup_completed_at, tax_id, bank_accounts")
@@ -240,6 +248,7 @@ export async function loadRoleDashboardSnapshot(
       .eq("property_id", propertyId)
       .eq("status", "open")
       .limit(80),
+    countOpenCallItemsDueToday(admin, propertyId, today),
   ]);
 
   const bookingRows = bookings ?? [];
@@ -386,5 +395,7 @@ export async function loadRoleDashboardSnapshot(
     bankOnFile: Array.isArray(bankAccounts) && bankAccounts.length > 0,
     gstFiledThisMonth: gstPack?.status === "filed",
     guestForecast,
+    agentCallTasksDue: agentCall.tasksDue,
+    agentCallPending: agentCall.pendingCalls,
   };
 }
