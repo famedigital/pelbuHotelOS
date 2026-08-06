@@ -66,11 +66,11 @@ export function BookingCheckoutShell({
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-[1160px] flex-1 px-4 pb-6 pt-8 md:px-6 md:pb-10 md:pt-12">
+      <main className="mx-auto w-full max-w-[1160px] flex-1 px-4 pb-6 pt-5 md:px-6 md:pb-10 md:pt-12">
         {children}
       </main>
 
-      <footer className="border-t border-border bg-background">
+      <footer className="hidden border-t border-border bg-background lg:block">
         <div className="mx-auto flex max-w-[1160px] flex-col gap-2 px-4 py-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between md:px-6">
           <p>Rates in BTN. Rooms are held while the desk confirms payment.</p>
           <nav className="flex items-center gap-4" aria-label="Booking help">

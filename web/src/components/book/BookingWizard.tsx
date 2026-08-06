@@ -266,7 +266,7 @@ export function BookingWizard({
     <form
       ref={formRef}
       action={action}
-      className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_352px] lg:gap-8"
+      className="grid items-start gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_352px] lg:gap-8"
     >
       {/* Hidden fields posted on submit regardless of which step is visible. */}
       <input type="hidden" name="check_in" value={checkIn} />
@@ -292,7 +292,7 @@ export function BookingWizard({
         ) : null}
 
         <Card className="gap-0 overflow-hidden py-0">
-          <div className="border-b border-border px-5 py-4 md:px-6">
+          <div className="border-b border-border px-4 py-4 sm:px-5 md:px-6">
             <h2 className="text-base font-semibold text-foreground">
               {STEP_COPY[step].title}
             </h2>
@@ -301,7 +301,7 @@ export function BookingWizard({
             </p>
           </div>
 
-          <div className="px-5 py-5 md:px-6">
+          <div className="px-4 py-5 sm:px-5 md:px-6">
             {step === 1 ? (
               <BookingStepStay
                 checkIn={checkIn}
@@ -346,6 +346,7 @@ export function BookingWizard({
       </div>
 
       <BookingSummary
+        className="hidden lg:block"
         checkIn={checkIn}
         checkOut={checkOut}
         nights={nights}
@@ -362,17 +363,33 @@ export function BookingWizard({
         ratesInclusiveOfGstSc={preview?.ratesInclusiveOfGstSc ?? false}
       />
 
-      {/* Keeps content clear of the fixed mobile action bar. */}
-      <div className="col-span-full h-16 lg:hidden" aria-hidden />
+      {step === 3 ? (
+        <div className="rounded-xl border border-border bg-frost-2/50 px-4 py-3 text-sm lg:hidden">
+          <p className="font-medium text-foreground">
+            {selectedOption?.name ?? "Room selected"}
+          </p>
+          <p className="mt-0.5 text-muted-foreground tabular-nums">
+            {nights} night{nights === 1 ? "" : "s"} · {rooms} room
+            {rooms === 1 ? "" : "s"}
+            {selectedTotal != null ? ` · ${formatBtn(selectedTotal)}` : ""}
+          </p>
+        </div>
+      ) : null}
+
+      {/* Keeps content clear of the fixed mobile action bar + home indicator. */}
+      <div
+        className="col-span-full h-[calc(5rem+env(safe-area-inset-bottom))] lg:hidden"
+        aria-hidden
+      />
 
       {/* One action row: fixed bottom bar on mobile, inline on desktop. */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur lg:static lg:col-start-1 lg:row-start-2 lg:border-0 lg:bg-transparent lg:p-0">
         <div className="mx-auto flex max-w-[1160px] items-center gap-3 lg:max-w-none">
-          <div className="lg:hidden">
+          <div className="min-w-0 lg:hidden">
             <p className="text-[11px] leading-none text-muted-foreground">
               {selectedTotal == null ? "Total" : "Estimated total"}
             </p>
-            <p className="mt-1 text-sm font-semibold leading-none tabular-nums text-foreground">
+            <p className="mt-1 truncate text-sm font-semibold leading-none tabular-nums text-foreground">
               {selectedTotal == null ? "—" : formatBtn(selectedTotal)}
             </p>
           </div>
@@ -383,6 +400,7 @@ export function BookingWizard({
                 type="button"
                 variant="outline"
                 size="lg"
+                className="min-h-11 min-w-11 px-4"
                 onClick={() => setStep((s) => Math.max(1, s - 1) as Step)}
               >
                 Back
@@ -394,6 +412,7 @@ export function BookingWizard({
                 type="button"
                 variant="citrus"
                 size="lg"
+                className="min-h-11 min-w-[7.5rem] px-5"
                 onClick={() => {
                   if (canNext) setStep((s) => Math.min(3, s + 1) as Step);
                 }}
@@ -406,6 +425,7 @@ export function BookingWizard({
                 type="submit"
                 variant="citrus"
                 size="lg"
+                className="min-h-11 min-w-[8.5rem] px-5"
                 disabled={pending}
               >
                 {pending ? "Holding rooms…" : "Request booking"}

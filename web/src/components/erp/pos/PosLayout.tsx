@@ -466,6 +466,14 @@ export function PosLayout({
     );
   }
 
+  /** Mobile (<lg) uses a bottom sheet for the ticket; open it after adds. */
+  function openCartOnMobile() {
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(max-width: 1023px)").matches) {
+      setCartSheetOpen(true);
+    }
+  }
+
   function addItemQuick(menuItemId: string) {
     const item = items.find((m) => m.id === menuItemId);
     if (!item) return;
@@ -505,6 +513,7 @@ export function PosLayout({
         },
       ];
     });
+    openCartOnMobile();
   }
 
   function upsertLine(line: CartLine) {
@@ -517,6 +526,7 @@ export function PosLayout({
       }
       return [...prev, line];
     });
+    openCartOnMobile();
   }
 
   function setLineQty(key: string, qty: number) {
@@ -1284,7 +1294,7 @@ export function PosLayout({
                     <button
                       type="button"
                       onClick={() => setCartSheetOpen(true)}
-                      className="fixed inset-x-3 bottom-3 z-30 flex h-14 items-center justify-between rounded-xl bg-primary px-4 text-primary-foreground shadow-lg"
+                      className="fixed inset-x-3 z-30 flex h-14 items-center justify-between rounded-xl bg-primary px-4 text-primary-foreground shadow-lg bottom-[max(0.75rem,env(safe-area-inset-bottom))]"
                       aria-label="Open cart"
                     >
                       <span className="flex items-center gap-2 text-sm font-medium">

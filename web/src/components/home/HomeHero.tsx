@@ -1,6 +1,7 @@
 "use client";
 
 import { HeroBookingSearch } from "@/components/home/HeroBookingSearch";
+import { MobileHomeHero } from "@/components/home/MobileHomeHero";
 import { CloudinaryMedia } from "@/components/media/CloudinaryMedia";
 import { type HeroSlide } from "@/lib/brand";
 import type { CloudinaryResourceType } from "@/lib/cloudinary";
@@ -45,7 +46,7 @@ type Props = {
   intervalMs?: number;
 };
 
-/** Cinematic homepage hero with Airbnb-style stay search on the conversion side. */
+/** Desktop cinematic hero; phones use the separate photo-first MobileHomeHero. */
 export function HomeHero({
   slides,
   eyebrow,
@@ -85,53 +86,31 @@ export function HomeHero({
     ? { initial: false as const, animate: { opacity: 1 } }
     : { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 } };
 
-  function renderMedia(
-    slide: HomeHeroSlide,
-    i: number,
-    mode: "desktop" | "mobile",
-  ) {
+  function renderDesktopMedia(slide: HomeHeroSlide, i: number) {
     const isVideo = slide.resourceType === "video";
-    const publicId =
-      mode === "mobile" && slide.mobilePublicId
-        ? slide.mobilePublicId
-        : slide.publicId;
-    const src =
-      mode === "mobile" && slide.mobileSrc
-        ? slide.mobileSrc
-        : slide.src;
-    // Light pan only — heavy scale-110 forced low-res zoom and looked soft.
-    const kenBurns =
-      !isVideo && !reduceMotion && mode === "desktop";
-
-    const fx =
-      mode === "mobile"
-        ? (slide.mobileFocalX ?? slide.focalX ?? 0.5)
-        : (slide.focalX ?? 0.5);
-    const fy =
-      mode === "mobile"
-        ? (slide.mobileFocalY ?? slide.focalY ?? 0.42)
-        : (slide.focalY ?? 0.5);
+    const kenBurns = !isVideo && !reduceMotion;
+    const fx = slide.focalX ?? 0.5;
+    const fy = slide.focalY ?? 0.5;
     const objectPosition = `${fx * 100}% ${fy * 100}%`;
 
     return (
       <div
-        key={`${mode}-${slide.publicId}-${i}`}
+        key={`desktop-${slide.publicId}-${i}`}
         className={cn(
           "absolute inset-0 transition-opacity duration-[1400ms] ease-out",
           i === index ? "opacity-100" : "opacity-0",
         )}
       >
         <CloudinaryMedia
-          publicId={publicId}
-          src={src}
+          publicId={slide.publicId}
+          src={slide.src}
           alt=""
           resourceType={slide.resourceType ?? "image"}
           posterPublicId={slide.posterPublicId}
           fill
           priority={i === 0}
-          quality={mode === "mobile" ? 92 : 95}
+          quality={95}
           disableBlur
-          /* Full viewport CSS size — next/image multiplies by DPR for dense srcset. */
           sizes="100vw"
           cinematic={isVideo}
           active={i === index}
@@ -147,121 +126,131 @@ export function HomeHero({
   }
 
   return (
-    <section
-      className="relative isolate min-h-svh overflow-hidden"
-      style={{ backgroundColor: theme.scrimBottom }}
-    >
-      {/* Desktop landscape hero stack */}
-      <div className="absolute inset-0 hidden md:block" aria-hidden>
-        {safeSlides.map((slide, i) => renderMedia(slide, i, "desktop"))}
-      </div>
-      {/* Mobile portrait hero stack */}
-      <div className="absolute inset-0 md:hidden" aria-hidden>
-        {safeSlides.map((slide, i) => renderMedia(slide, i, "mobile"))}
-      </div>
-
-      <div
-        className="absolute inset-0"
-        style={{ backgroundImage: heroScrimGradient(theme) }}
-        aria-hidden
+    <>
+      <MobileHomeHero
+        slides={safeSlides}
+        eyebrow={eyebrow}
+        title={title}
+        secondaryHref={secondaryHref}
+        secondaryLabel={secondaryLabel}
+        fromPriceBtn={fromPriceBtn}
+        taxInclusive={taxInclusive}
+        theme={theme}
+        intervalMs={intervalMs}
       />
 
-      <div className="relative mx-auto flex min-h-svh max-w-[1200px] flex-col justify-end px-5 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-24 sm:pb-10 md:px-8 md:pb-16 md:pt-32">
-        <div className="grid gap-3 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)] lg:items-end lg:gap-12">
-          <motion.div
-            className="order-1 min-w-0 lg:order-1"
-            {...settle}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-          >
-            <p
-              className="text-[10px] font-semibold uppercase tracking-[0.24em] sm:text-xs"
-              style={{ color: theme.eyebrow }}
-            >
-              {eyebrow}
-            </p>
-
-            <h1
-              className="mt-1.5 max-w-3xl font-display text-[1.65rem] leading-[1.08] sm:mt-2 sm:text-4xl md:mt-4 md:text-6xl"
-              style={{ color: theme.title }}
-            >
-              {title}
-            </h1>
-
-            <p
-              className="mt-3 hidden max-w-lg line-clamp-3 text-base leading-relaxed md:mt-5 md:block"
-              style={{ color: hexAlpha(theme.body, 0.82) }}
-            >
-              {description}
-            </p>
-
-            <div className="mt-3 flex flex-wrap items-center gap-3 sm:mt-4 sm:gap-4 md:mt-6">
-              <Link
-                href={secondaryHref}
-                className="inline-flex h-9 items-center rounded-xl border px-4 text-xs font-semibold backdrop-blur-md transition-opacity hover:opacity-95 sm:h-11 sm:px-5 sm:text-sm"
-                style={{
-                  color: theme.button,
-                  borderColor: hexAlpha(theme.button, 0.5),
-                  backgroundColor: hexAlpha(theme.button, 0.14),
-                  boxShadow: `inset 0 1px 0 0 ${hexAlpha(theme.button, 0.28)}, 0 8px 24px -12px ${hexAlpha(theme.scrimBottom, 0.55)}`,
-                }}
-              >
-                {secondaryLabel}
-              </Link>
-
-              {slideCount > 1 ? (
-                <div className="flex items-center gap-3">
-                  <div
-                    className="flex gap-1.5"
-                    role="tablist"
-                    aria-label="Hero media"
-                    onMouseEnter={() => setPaused(true)}
-                    onMouseLeave={() => setPaused(false)}
-                  >
-                    {safeSlides.map((slide, i) => (
-                      <button
-                        key={`${slide.publicId}-dot-${i}`}
-                        type="button"
-                        role="tab"
-                        aria-selected={i === index}
-                        aria-label={slide.label}
-                        onClick={() => setIndex(i)}
-                        className={cn(
-                          "h-1.5 rounded-full transition-all duration-300",
-                          i === index ? "w-8 sm:w-10" : "w-4 sm:w-5 hover:opacity-80",
-                        )}
-                        style={{
-                          backgroundColor:
-                            i === index
-                              ? theme.accent
-                              : hexAlpha(theme.button, 0.35),
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <p
-                    className="hidden text-xs font-medium tracking-wide sm:block"
-                    style={{ color: hexAlpha(theme.body, 0.72) }}
-                    aria-live="polite"
-                  >
-                    {safeSlides[index]?.label}
-                  </p>
-                </div>
-              ) : null}
-            </div>
-          </motion.div>
-
-          <motion.div
-            className="order-2 w-full lg:self-end"
-            {...settle}
-            transition={{ duration: 0.55, ease: "easeOut", delay: 0.08 }}
-          >
-            <HeroBookingSearch
-              fromPriceBtn={fromPriceBtn}
-              taxInclusive={taxInclusive}
-            />
-          </motion.div>
+      <section
+        className="relative isolate hidden min-h-svh overflow-hidden md:block"
+        style={{ backgroundColor: theme.scrimBottom }}
+      >
+        <div className="absolute inset-0" aria-hidden>
+          {safeSlides.map((slide, i) => renderDesktopMedia(slide, i))}
         </div>
-      </div>
-    </section>
+
+        <div
+          className="absolute inset-0"
+          style={{ backgroundImage: heroScrimGradient(theme) }}
+          aria-hidden
+        />
+
+        <div className="relative mx-auto flex min-h-svh max-w-[1200px] flex-col justify-end px-8 pb-16 pt-32">
+          <div className="grid items-end gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
+            <motion.div
+              className="min-w-0"
+              {...settle}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+            >
+              <p
+                className="text-xs font-semibold uppercase tracking-[0.24em]"
+                style={{ color: theme.eyebrow }}
+              >
+                {eyebrow}
+              </p>
+
+              <h1
+                className="mt-4 max-w-3xl font-display text-4xl leading-[1.08] md:text-6xl"
+                style={{ color: theme.title }}
+              >
+                {title}
+              </h1>
+
+              <p
+                className="mt-5 max-w-lg line-clamp-3 text-base leading-relaxed"
+                style={{ color: hexAlpha(theme.body, 0.82) }}
+              >
+                {description}
+              </p>
+
+              <div className="mt-6 flex flex-wrap items-center gap-4">
+                <Link
+                  href={secondaryHref}
+                  className="inline-flex h-11 items-center rounded-xl border px-5 text-sm font-semibold backdrop-blur-md transition-opacity hover:opacity-95"
+                  style={{
+                    color: theme.button,
+                    borderColor: hexAlpha(theme.button, 0.5),
+                    backgroundColor: hexAlpha(theme.button, 0.14),
+                    boxShadow: `inset 0 1px 0 0 ${hexAlpha(theme.button, 0.28)}, 0 8px 24px -12px ${hexAlpha(theme.scrimBottom, 0.55)}`,
+                  }}
+                >
+                  {secondaryLabel}
+                </Link>
+
+                {slideCount > 1 ? (
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="flex gap-1.5"
+                      role="tablist"
+                      aria-label="Hero media"
+                      onMouseEnter={() => setPaused(true)}
+                      onMouseLeave={() => setPaused(false)}
+                    >
+                      {safeSlides.map((slide, i) => (
+                        <button
+                          key={`${slide.publicId}-dot-${i}`}
+                          type="button"
+                          role="tab"
+                          aria-selected={i === index}
+                          aria-label={slide.label}
+                          onClick={() => setIndex(i)}
+                          className={cn(
+                            "h-1.5 rounded-full transition-all duration-300",
+                            i === index ? "w-10" : "w-5 hover:opacity-80",
+                          )}
+                          style={{
+                            backgroundColor:
+                              i === index
+                                ? theme.accent
+                                : hexAlpha(theme.button, 0.35),
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <p
+                      className="text-xs font-medium tracking-wide"
+                      style={{ color: hexAlpha(theme.body, 0.72) }}
+                      aria-live="polite"
+                    >
+                      {safeSlides[index]?.label}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            </motion.div>
+
+            <motion.div
+              className="w-full self-end"
+              {...settle}
+              transition={{ duration: 0.55, ease: "easeOut", delay: 0.08 }}
+            >
+              <HeroBookingSearch
+                variant="card"
+                fromPriceBtn={fromPriceBtn}
+                taxInclusive={taxInclusive}
+              />
+            </motion.div>
+          </div>
+        </div>
+      </section>
+    </>
   );
 }

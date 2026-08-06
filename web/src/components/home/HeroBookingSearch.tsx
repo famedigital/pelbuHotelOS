@@ -14,23 +14,31 @@ import { cn } from "@/lib/utils";
 import { useMemo, useState } from "react";
 
 const selectClass =
-  "h-9 w-full rounded-lg border border-input bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] sm:h-11 sm:rounded-xl sm:px-3";
+  "h-11 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
 
 type Props = {
   className?: string;
   fromPriceBtn?: number | null;
   taxInclusive?: boolean;
+  /**
+   * `card` — desktop hero white card.
+   * `sheet` — bare form for the mobile book sheet (no outer chrome).
+   */
+  variant?: "card" | "sheet";
+  /** Prefix for field ids when multiple forms exist on the page. */
+  idPrefix?: string;
 };
 
 /**
- * Airbnb-style stay search for the homepage hero. Submits to /book with
- * dates and party size so the booking wizard opens prefilled.
- * Mobile: compact dock at the bottom so the hero photo stays primary.
+ * Airbnb-style stay search → GET /book.
+ * Desktop uses the opaque card; mobile sheet uses bare fields inside a drawer.
  */
 export function HeroBookingSearch({
   className,
   fromPriceBtn,
   taxInclusive,
+  variant = "card",
+  idPrefix = "hero",
 }: Props) {
   const defaults = useMemo(() => parseStaySearch(), []);
   const [checkIn, setCheckIn] = useState(defaults.checkIn);
@@ -39,17 +47,16 @@ export function HeroBookingSearch({
   const [rooms, setRooms] = useState(defaults.rooms);
 
   const minCheckIn = defaults.checkIn;
-  const minCheckout = checkIn ? addDaysIso(checkIn, 1) : addDaysIso(todayIso(), 1);
+  const minCheckout = checkIn
+    ? addDaysIso(checkIn, 1)
+    : addDaysIso(todayIso(), 1);
   const nights = nightsBetween(checkIn, checkOut);
   const datesValid = nights >= 1;
   const priceHint =
     fromPriceBtn != null && fromPriceBtn > 0
       ? `From ${formatBtn(fromPriceBtn)} / night · live rates, no OTA markup`
       : "Live rates — no OTA markup.";
-  const priceHintShort =
-    fromPriceBtn != null && fromPriceBtn > 0
-      ? `From ${formatBtn(fromPriceBtn)}/nt`
-      : "Live rates";
+  const isSheet = variant === "sheet";
 
   function onCheckInChange(value: string) {
     setCheckIn(value);
@@ -58,81 +65,82 @@ export function HeroBookingSearch({
     }
   }
 
-  return (
-    <form
-      action="/book"
-      method="get"
-      className={cn(
-        "rounded-xl border border-white/25 bg-white/95 p-3 text-sky-ink shadow-[0_16px_40px_-24px_rgba(8,47,73,0.5)] backdrop-blur-md sm:rounded-2xl sm:p-5 sm:shadow-[0_24px_60px_-28px_rgba(8,47,73,0.55)]",
-        className,
-      )}
-      aria-label="Check room availability"
-    >
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-sky-700 sm:text-xs sm:tracking-[0.18em]">
-          Direct booking
-        </p>
-        <p className="truncate text-[11px] text-sky-ink/65 sm:hidden">
-          {priceHintShort}
+  const fields = (
+    <>
+      {!isSheet ? (
+        <>
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
+              Direct booking
+            </p>
+          </div>
+          <p className="mt-1 text-sm text-sky-ink/70">
+            {priceHint}
+            {taxInclusive && fromPriceBtn != null && fromPriceBtn > 0
+              ? " · inc. tax"
+              : ""}
+          </p>
+        </>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          {priceHint}
           {taxInclusive && fromPriceBtn != null && fromPriceBtn > 0
-            ? " · tax"
+            ? " · inc. tax"
             : ""}
         </p>
-      </div>
-      <p className="mt-1 hidden text-sm text-sky-ink/70 sm:block">
-        {priceHint}
-        {taxInclusive && fromPriceBtn != null && fromPriceBtn > 0
-          ? " · inc. tax"
-          : ""}
-      </p>
+      )}
 
-      {/* Mobile: tight 2×2; sm+: dates row then guests/rooms. */}
-      <div className="mt-2.5 grid grid-cols-2 items-start gap-2 sm:mt-4 sm:gap-3 sm:grid-cols-2">
-        <div className="grid gap-1">
+      <div
+        className={cn(
+          "grid grid-cols-2 items-start gap-3",
+          isSheet ? "mt-4" : "mt-4",
+        )}
+      >
+        <div className="grid gap-1.5">
           <Label
-            htmlFor="hero-check-in"
-            className="text-[11px] text-sky-ink/80 sm:text-xs"
+            htmlFor={`${idPrefix}-check-in`}
+            className="text-xs text-sky-ink/80"
           >
             Check-in
           </Label>
           <Input
-            id="hero-check-in"
+            id={`${idPrefix}-check-in`}
             name="checkIn"
             type="date"
             value={checkIn}
             min={minCheckIn}
             required
             onChange={(event) => onCheckInChange(event.target.value)}
-            className="h-9 rounded-lg border-sky-200 bg-white text-sm sm:h-11 sm:rounded-xl sm:text-base md:text-sm"
+            className="h-11 rounded-xl border-sky-200 bg-white text-base md:text-sm"
           />
         </div>
-        <div className="grid gap-1">
+        <div className="grid gap-1.5">
           <Label
-            htmlFor="hero-check-out"
-            className="text-[11px] text-sky-ink/80 sm:text-xs"
+            htmlFor={`${idPrefix}-check-out`}
+            className="text-xs text-sky-ink/80"
           >
             Check-out
           </Label>
           <Input
-            id="hero-check-out"
+            id={`${idPrefix}-check-out`}
             name="checkOut"
             type="date"
             value={checkOut}
             min={minCheckout}
             required
             onChange={(event) => setCheckOut(event.target.value)}
-            className="h-9 rounded-lg border-sky-200 bg-white text-sm sm:h-11 sm:rounded-xl sm:text-base md:text-sm"
+            className="h-11 rounded-xl border-sky-200 bg-white text-base md:text-sm"
           />
         </div>
-        <div className="grid gap-1">
+        <div className="grid gap-1.5">
           <Label
-            htmlFor="hero-adults"
-            className="text-[11px] text-sky-ink/80 sm:text-xs"
+            htmlFor={`${idPrefix}-adults`}
+            className="text-xs text-sky-ink/80"
           >
             Guests
           </Label>
           <select
-            id="hero-adults"
+            id={`${idPrefix}-adults`}
             name="adults"
             value={adults}
             onChange={(event) => setAdults(Number(event.target.value))}
@@ -146,15 +154,15 @@ export function HeroBookingSearch({
             ))}
           </select>
         </div>
-        <div className="grid gap-1">
+        <div className="grid gap-1.5">
           <Label
-            htmlFor="hero-rooms"
-            className="text-[11px] text-sky-ink/80 sm:text-xs"
+            htmlFor={`${idPrefix}-rooms`}
+            className="text-xs text-sky-ink/80"
           >
             Rooms
           </Label>
           <select
-            id="hero-rooms"
+            id={`${idPrefix}-rooms`}
             name="rooms"
             value={rooms}
             onChange={(event) => setRooms(Number(event.target.value))}
@@ -170,9 +178,9 @@ export function HeroBookingSearch({
         </div>
       </div>
 
-      <div className="mt-2 flex items-center gap-2 sm:mt-3 sm:block">
+      <div className={cn(isSheet ? "mt-5" : "mt-3")}>
         <p
-          className="min-w-0 flex-1 truncate text-[11px] text-sky-ink/55 sm:mb-0 sm:text-xs"
+          className="mb-3 text-xs text-sky-ink/55"
           aria-live="polite"
         >
           {datesValid
@@ -183,13 +191,28 @@ export function HeroBookingSearch({
           type="submit"
           variant="citrus"
           size="lg"
-          className="h-9 shrink-0 rounded-lg px-4 text-sm font-semibold sm:mt-4 sm:h-12 sm:w-full sm:rounded-xl sm:text-base"
+          className="h-12 w-full rounded-xl text-base font-semibold"
           disabled={!datesValid}
         >
-          <span className="sm:hidden">Check dates</span>
-          <span className="hidden sm:inline">Check availability</span>
+          Check availability
         </Button>
       </div>
+    </>
+  );
+
+  return (
+    <form
+      action="/book"
+      method="get"
+      className={cn(
+        isSheet
+          ? "text-sky-ink"
+          : "rounded-2xl border border-white/25 bg-white/95 p-5 text-sky-ink shadow-[0_24px_60px_-28px_rgba(8,47,73,0.55)] backdrop-blur-md",
+        className,
+      )}
+      aria-label="Check room availability"
+    >
+      {fields}
     </form>
   );
 }

@@ -2,6 +2,7 @@
 
 import { Card } from "@/components/ui/card";
 import { formatBtn } from "@/lib/pricing";
+import { cn } from "@/lib/utils";
 import { CheckIcon } from "lucide-react";
 
 type Props = {
@@ -20,6 +21,7 @@ type Props = {
   currency: "BTN";
   /** Property policy: room sheet rates are all-in (inc GST + SC). */
   ratesInclusiveOfGstSc?: boolean;
+  className?: string;
 };
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -68,6 +70,7 @@ export function BookingSummary({
   totalBtn,
   currency,
   ratesInclusiveOfGstSc = false,
+  className,
 }: Props) {
   const nightsLabel = `${nights} night${nights === 1 ? "" : "s"}`;
   const roomsLabel = `${rooms} room${rooms === 1 ? "" : "s"}`;
@@ -78,7 +81,10 @@ export function BookingSummary({
 
   return (
     <Card
-      className="gap-0 overflow-hidden py-0 lg:sticky lg:top-20"
+      className={cn(
+        "gap-0 overflow-hidden py-0 lg:sticky lg:top-20",
+        className,
+      )}
       aria-label="Booking summary"
     >
       <div className="border-b border-border bg-frost-2/60 px-5 py-4">
