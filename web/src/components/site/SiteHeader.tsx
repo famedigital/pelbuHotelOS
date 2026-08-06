@@ -16,7 +16,6 @@ import {
   DEFAULT_HERO_THEME,
   heroNavBarStyle,
   heroNavPanelStyle,
-  hexAlpha,
   parseHeroTheme,
   type HeroTheme,
 } from "@/lib/hero-theme";
@@ -369,24 +368,32 @@ export function SiteHeader({
       style={overHero ? { color: navText } : undefined}
     >
       <div className="relative h-12 overflow-visible md:h-[3.25rem]">
-        {/* Sibling layer so mega-menu backdrop-filter still samples the page. */}
+        {/* Glass strip: desktop only over hero. Mobile is free-float (no second bar). */}
         <div
           className={cn(
             "pointer-events-none absolute inset-0 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300",
-            overHero ? undefined : BAR_SURFACE_SOLID,
+            overHero
+              ? "hidden md:block"
+              : BAR_SURFACE_SOLID,
           )}
           style={overHero ? heroNavBarStyle(chrome) : undefined}
           aria-hidden
         />
-        <div className="relative mx-auto flex h-full max-w-[1200px] items-center justify-between gap-4 px-5 md:px-8">
+        <div className="relative mx-auto flex h-full max-w-[1200px] items-center justify-between gap-3 px-4 md:gap-4 md:px-8">
           <BrandLockup
             logoSrc={logo}
             tone={tone}
-            sizeRem={logoSizeRem}
-            offsetPct={logoOffsetPct}
-            gapRem={logoGapRem}
-            shiftXRem={logoShiftXRem}
+            /* Hero mobile: large mark + title, centered in rail (no deep hang bar). */
+            sizeRem={overHero ? Math.max(logoSizeRem ?? 6.5, 6.5) : logoSizeRem}
+            offsetPct={overHero ? Math.min(logoOffsetPct ?? 35, 32) : logoOffsetPct}
+            gapRem={overHero ? Math.max(logoGapRem ?? 0.55, 0.5) : logoGapRem}
+            shiftXRem={overHero ? Math.min(logoShiftXRem ?? 0, 0.25) : logoShiftXRem}
             color={overHero ? navText : undefined}
+            className={cn(
+              "min-w-0",
+              overHero && "max-w-[min(78vw,22rem)] md:max-w-none",
+            )}
+            flushMobile={overHero}
           />
 
           <NavigationMenu
@@ -420,22 +427,11 @@ export function SiteHeader({
             <Link
               href="/login"
               className={cn(
-                "inline-flex h-8 items-center justify-center rounded-lg px-2.5 text-[12px] font-semibold transition-colors md:h-9 md:px-3 md:text-[13px]",
+                "inline-flex min-h-11 items-center justify-center rounded-lg px-3.5 text-[13px] font-semibold transition-colors md:h-9 md:min-h-0 md:px-3 md:text-[13px]",
                 overHero
-                  ? "[text-shadow:0_1px_2px_rgb(0_0_0/0.3)] shadow-[inset_0_1px_0_0_rgb(255_255_255/0.35)] backdrop-blur-md hover:opacity-90"
+                  ? "bg-gradient-to-br from-citrus-soft to-citrus text-sky-ink shadow-[0_8px_20px_-10px_rgba(245,158,11,0.9)] hover:brightness-105"
                   : "border border-border bg-background/80 text-foreground hover:bg-muted",
               )}
-              style={
-                overHero
-                  ? {
-                      color: navText,
-                      borderWidth: 1,
-                      borderStyle: "solid",
-                      borderColor: hexAlpha(navText, 0.4),
-                      backgroundColor: hexAlpha(navText, 0.12),
-                    }
-                  : undefined
-              }
             >
               Login
             </Link>

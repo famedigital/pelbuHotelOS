@@ -59,7 +59,11 @@ export async function loadPublicRooms(): Promise<PublicRoom[]> {
       name,
       blurb: (row.blurb as string | null) ?? null,
       imagePublicId: publicId,
-      imageSrc: cloudinaryUrl(publicId, { width: 1400, crop: "fill" }),
+      imageSrc: cloudinaryUrl(publicId, {
+        width: 1400,
+        height: 900,
+        crop: "fill",
+      }),
     };
   });
 }

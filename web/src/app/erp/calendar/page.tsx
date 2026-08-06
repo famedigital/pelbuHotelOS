@@ -160,7 +160,7 @@ export default async function CalendarPage({ searchParams }: Props) {
                sold_by_staff_id, sales_claim_status,
                agents(company_name),
                sold_by_staff:staff_members!sold_by_staff_id(full_name),
-               booking_group_members(booking_groups(name))`,
+               booking_group_members(group_id, booking_groups(name))`,
             )
             .eq("property_id", propertyId)
             .in("id", assignBookingIds),
@@ -181,6 +181,18 @@ export default async function CalendarPage({ searchParams }: Props) {
   const bookingById = new Map(
     (rackBookings ?? []).map((b) => [b.id as string, b]),
   );
+
+  /** Formal party size: room count shown on each child rack bar. */
+  const groupRoomCountById = new Map<string, number>();
+  for (const b of rackBookings ?? []) {
+    const mems = b.booking_group_members as
+      | { group_id?: string }[]
+      | null;
+    const gid = mems?.[0]?.group_id;
+    if (!gid) continue;
+    groupRoomCountById.set(gid, (groupRoomCountById.get(gid) ?? 0) + 1);
+  }
+
   const foliosByBooking = new Map<
     string,
     {
@@ -300,15 +312,22 @@ export default async function CalendarPage({ searchParams }: Props) {
       }
 
       const members = booking.booking_group_members as
-        | { booking_groups?: { name?: string } | { name?: string }[] | null }[]
+        | {
+            group_id?: string;
+            booking_groups?: { name?: string } | { name?: string }[] | null;
+          }[]
         | null;
       let groupName: string | null = null;
+      let groupId: string | null = null;
       const firstMember = members?.[0];
       if (firstMember?.booking_groups) {
         const g = Array.isArray(firstMember.booking_groups)
           ? firstMember.booking_groups[0]
           : firstMember.booking_groups;
         groupName = g?.name ?? null;
+      }
+      if (firstMember?.group_id) {
+        groupId = firstMember.group_id as string;
       }
 
       const ru = a.room_units as
@@ -374,6 +393,9 @@ export default async function CalendarPage({ searchParams }: Props) {
           return s?.full_name ?? null;
         })(),
         group_name: groupName,
+        group_room_count: groupId
+          ? (groupRoomCountById.get(groupId) ?? null)
+          : null,
         folio_id: openFolio?.id ?? null,
         folio_balance: folioBalance,
         folio_has_charges: folioHasCharges,

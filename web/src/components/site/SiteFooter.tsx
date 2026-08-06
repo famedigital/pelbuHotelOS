@@ -160,12 +160,12 @@ export async function SiteFooter({
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-citrus-soft">
                   {column.heading}
                 </p>
-                <ul className="space-y-2 text-sm text-white/65">
+                <ul className="space-y-0.5 text-sm text-white/65">
                   {column.links.map((link) => (
                     <li key={`${column.heading}-${link.href}`}>
                       <Link
                         href={link.href}
-                        className="transition-colors hover:text-white"
+                        className="inline-flex min-h-11 items-center transition-colors hover:text-white"
                       >
                         {link.label}
                       </Link>

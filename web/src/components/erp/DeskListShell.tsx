@@ -21,10 +21,14 @@ const BLURB_INLINE_MAX = 96;
  *
  * Hierarchy:
  * 1. Sidebar module tree (destinations) — shell
- * 2. Sticky title + actions + optional 1-line blurb / help
+ * 2. Section title + actions (+ optional 1-line blurb / help)
  * 3. `filters` slot — views, search (DeskViewSwitcher, DeskSearchForm)
  * 4. `metrics` slot — thin DeskMetricRow (optional)
  * 5. children — workspace only
+ *
+ * Sticky: desktop sticks under the ERP shell row; on mobile the section header
+ * is **not** sticky so header CTAs (Phone upload, New…) never cover filter chips
+ * or list rows when the shell wraps taller than one row.
  */
 export function DeskListShell({
   eyebrow,
@@ -67,12 +71,21 @@ export function DeskListShell({
     <div
       className={cn(
         "erp mx-auto flex w-full max-w-[1200px] flex-col",
+        // Clear DeskMobileNav when pages end with sticky action bars
+        "pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-0",
         className,
       )}
     >
-      <header className="sticky top-14 z-20 border-b border-border/80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+      <header
+        className={cn(
+          "border-b border-border/80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85",
+          // Sticky only when shell is a single clean row (md+). Avoid top-14
+          // collision when ModuleHeaderTabs + aside wrap on small screens.
+          "md:sticky md:top-14 md:z-20",
+        )}
+      >
         <div className="flex flex-col gap-3 px-4 py-3 md:px-6 md:py-3.5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 flex-1 space-y-1">
               {eyebrow ? (
                 <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
@@ -94,27 +107,31 @@ export function DeskListShell({
                 ) : null}
               </div>
               {shortLine ? (
-                <p className="max-w-2xl text-sm leading-snug text-muted-foreground line-clamp-1">
+                <p className="max-w-2xl text-sm leading-snug text-muted-foreground line-clamp-2 sm:line-clamp-1">
                   {shortLine}
                 </p>
               ) : null}
             </div>
             {headerAside ? (
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
                 {headerAside}
               </div>
             ) : null}
           </div>
 
           {filters ? (
-            <div className="flex flex-wrap items-center gap-2">{filters}</div>
+            <div className="relative z-0 flex min-w-0 flex-wrap items-center gap-2">
+              {filters}
+            </div>
           ) : null}
 
-          {metrics ? <div className="min-w-0">{metrics}</div> : null}
+          {metrics ? <div className="relative z-0 min-w-0">{metrics}</div> : null}
         </div>
       </header>
 
-      <div className="flex flex-col gap-6 p-4 md:gap-8 md:p-6">{children}</div>
+      <div className="relative z-0 flex flex-col gap-6 p-4 md:gap-8 md:p-6">
+        {children}
+      </div>
     </div>
   );
 }

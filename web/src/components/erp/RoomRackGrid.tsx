@@ -114,6 +114,8 @@ export type RackStay = {
   sold_by_name?: string | null;
   sales_claim_status?: string | null;
   group_name: string | null;
+  /** Sibling member count on formal group (rooming list size). */
+  group_room_count?: number | null;
   folio_id: string | null;
   /** Net open folio balance (BTN); >0 means guest owes. */
   folio_balance?: number;
@@ -614,12 +616,27 @@ function StayHoverCard({
               <span
                 className="size-1.5 shrink-0 rounded-full"
                 style={{ backgroundColor: groupTint(stay.group_name) }}
-                title={stay.group_name}
+                title={
+                  stay.group_room_count && stay.group_room_count > 1
+                    ? `${stay.group_name} · ${stay.group_room_count} rooms`
+                    : stay.group_name
+                }
               />
             ) : null}
             <span className="min-w-0 truncate text-[11px] font-semibold tracking-tight md:text-[12px]">
-              {stay.contact_name ?? "Guest"}
+              {stay.group_name &&
+              stay.group_room_count &&
+              stay.group_room_count > 1
+                ? stay.group_name
+                : (stay.contact_name ?? "Guest")}
             </span>
+            {stay.group_name &&
+            stay.group_room_count &&
+            stay.group_room_count > 1 ? (
+              <span className="shrink-0 rounded bg-background/40 px-1 text-[9px] font-medium tabular-nums">
+                {stay.group_room_count}rm
+              </span>
+            ) : null}
             {stay.is_locked ? (
               <span
                 className="ml-auto shrink-0 text-[8px] opacity-80"

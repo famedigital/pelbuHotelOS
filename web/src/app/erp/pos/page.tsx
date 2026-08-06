@@ -70,9 +70,15 @@ export default async function ErpPosPage() {
               "id, contact_name, contact_phone, check_in, check_out, status, source, agents(company_name), booking_guests(id, full_name, sort_order), room_assignments(room_unit_id, room_units(id, label))",
             )
             .eq("property_id", property.id)
-            .lte("check_in", today)
-            .gt("check_out", today)
-            .in("status", ["confirmed", "checked_in"])
+            /**
+             * Room charge must list guests still under roof, not only “nights generating
+             * a room night.” After midnight of departure day check_out === today while
+             * status is still checked_in — `.gt(check_out, today)` greyed Room to zero.
+             * Desk truth: all checked_in always; confirmed still covering today inclusive.
+             */
+            .or(
+              `status.eq.checked_in,and(status.eq.confirmed,check_in.lte.${today},check_out.gte.${today})`,
+            )
             .order("check_out")
             .limit(80)
         : Promise.resolve({ data: [] }),

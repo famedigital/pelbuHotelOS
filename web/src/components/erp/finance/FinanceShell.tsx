@@ -79,10 +79,10 @@ export function FinanceShell({
     description && description.length > 96 ? description : undefined;
 
   return (
-    <div className="erp mx-auto flex w-full max-w-[1200px] flex-col">
-      <header className="sticky top-14 z-20 border-b border-border/80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+    <div className="erp mx-auto flex w-full max-w-[1200px] flex-col pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-0">
+      <header className="border-b border-border/80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85 md:sticky md:top-14 md:z-20">
         <div className="flex flex-col gap-3 px-4 py-3 md:px-6 md:py-3.5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 flex-1 space-y-1">
               <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
                 Hotel accountant
@@ -98,13 +98,13 @@ export function FinanceShell({
                 ) : null}
               </div>
               {short ? (
-                <p className="max-w-2xl text-sm leading-snug text-muted-foreground line-clamp-1">
+                <p className="max-w-2xl text-sm leading-snug text-muted-foreground line-clamp-2 sm:line-clamp-1">
                   {short}
                 </p>
               ) : null}
             </div>
             {actions ? (
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
                 {actions}
               </div>
             ) : null}

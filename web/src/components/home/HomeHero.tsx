@@ -131,6 +131,7 @@ export function HomeHero({
         slides={safeSlides}
         eyebrow={eyebrow}
         title={title}
+        description={description}
         secondaryHref={secondaryHref}
         secondaryLabel={secondaryLabel}
         fromPriceBtn={fromPriceBtn}

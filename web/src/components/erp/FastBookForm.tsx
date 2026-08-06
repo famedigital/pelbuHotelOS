@@ -205,7 +205,7 @@ export function FastBookForm({
         }
       }}
       className={cn(
-        "erp grid grid-cols-1 gap-6",
+        "erp grid min-w-0 grid-cols-1 gap-5 md:gap-6",
         embedded
           ? "md:grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px]"
           : "md:grid-cols-[minmax(0,1fr)_360px]",
@@ -221,8 +221,8 @@ export function FastBookForm({
         </Alert>
       ) : null}
 
-      <div className="space-y-6">
-        <div className="space-y-4 rounded-lg border bg-card p-5">
+      <div className="min-w-0 space-y-5 md:space-y-6">
+        <div className="space-y-4 rounded-lg border bg-card p-4 md:p-5">
           <StayDatesField
             minCheckIn={minCheckIn}
             defaultMode="nights"
@@ -243,8 +243,8 @@ export function FastBookForm({
               inputMode="numeric"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="children">Children (6–12)</Label>
               <Input
                 id="children"
@@ -255,11 +255,11 @@ export function FastBookForm({
                 defaultValue={0}
                 inputMode="numeric"
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-[11px] leading-snug text-muted-foreground">
                 Half meal package · 0–6 free (omit)
               </p>
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="extra_beds">Extra beds</Label>
               <Input
                 id="extra_beds"
@@ -270,17 +270,17 @@ export function FastBookForm({
                 defaultValue={0}
                 inputMode="numeric"
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-[11px] leading-snug text-muted-foreground">
                 Max 2 · rate from Rates &amp; meals settings
               </p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-lg border bg-card p-5">
+        <div className="min-w-0 space-y-4 rounded-lg border bg-card p-4 md:p-5">
           {selectedGuestCategories.length > 0 ? (
             <div
-              className={`mb-4 rounded-md border p-3 ${
+              className={`rounded-md border p-3 ${
                 hasMixedGuestCategories
                   ? "border-amber-300 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-950/20"
                   : "bg-muted/30"

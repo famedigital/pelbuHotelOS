@@ -560,30 +560,31 @@ export function CmsMediaManager({ groups }: { groups: CmsMediaGroup[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-3">
-        <div className="flex items-start gap-2.5">
+      <div className="flex flex-col gap-3 rounded-xl border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-start gap-2.5">
           <SmartphoneIcon
             className="mt-0.5 size-4 shrink-0 text-muted-foreground"
             aria-hidden
           />
-          <div className="text-sm">
+          <div className="min-w-0 text-sm">
             <p className="font-medium text-foreground">Phone capture</p>
             <p className="text-muted-foreground">
               Open on a phone to shoot high-res photos or video straight into
-              Cloudinary, then arrange them here on desktop.
+              Cloudinary, then arrange them here on desktop. Header has the same
+              link.
             </p>
           </div>
         </div>
-        <Button asChild variant="citrus" size="sm">
+        <Button asChild variant="outline" size="sm" className="shrink-0 self-start sm:self-center">
           <Link href="/erp/front-public/media/upload">
             <VideoIcon className="size-4" aria-hidden />
-            Open phone upload
+            Phone upload
           </Link>
         </Button>
       </div>
 
       <div
-        className="flex flex-wrap gap-1.5"
+        className="relative z-0 flex flex-wrap gap-1.5"
         role="tablist"
         aria-label="Public pages"
       >

@@ -40,7 +40,7 @@ export function HomeInHouse() {
   return (
     <section
       id="in-house"
-      className="bg-gradient-to-b from-background via-sky-50/40 to-background py-16 md:py-20"
+      className="bg-gradient-to-b from-background via-sky-50/40 to-background py-12 md:py-20"
     >
       <div className="mx-auto max-w-[1200px] px-5 md:px-8">
         <Reveal>

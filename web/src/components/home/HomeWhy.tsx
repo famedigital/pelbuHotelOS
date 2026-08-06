@@ -1,44 +1,16 @@
 import { HomeSectionHead } from "@/components/home/HomeSectionHead";
-import {
-  BadgeCheckIcon,
-  ClockIcon,
-  MapPinIcon,
-  SparklesIcon,
-} from "lucide-react";
+import { HomeWhyReasons } from "@/components/home/HomeWhyReasons";
 import Link from "next/link";
 
-const REASONS = [
-  {
-    icon: BadgeCheckIcon,
-    title: "Direct rates, no middle layer",
-    body: "Book on this site and you get the desk rate with instant confirmation — no channel markup.",
-    tone: "from-sky-600 to-sky-500",
-  },
-  {
-    icon: MapPinIcon,
-    title: "Olakha, close to everything",
-    body: "Minutes from the expressway, offices and the city core, with parking and calm evenings.",
-    tone: "from-mint-500 to-mint-600",
-  },
-  {
-    icon: SparklesIcon,
-    title: "One roof, five services",
-    body: "Rooms, cafe, restaurant, bar and spa share a desk — one bill, one team, one place.",
-    tone: "from-citrus-soft to-citrus",
-  },
-  {
-    icon: ClockIcon,
-    title: "Live availability",
-    body: "What you see is what the desk sees — rooms, kitchen tickets and housekeeping in real time.",
-    tone: "from-sky-500 to-mint-500",
-  },
-];
-
+/**
+ * Why book Pelbu — interactive reasons (accordion on phone, tabs on desktop)
+ * plus a soft CTA band to convert.
+ */
 export function HomeWhy() {
   return (
     <section
       id="why"
-      className="bg-gradient-to-b from-background to-frost-2/70 py-10 md:py-24"
+      className="bg-gradient-to-b from-background via-frost-2/50 to-background py-12 md:py-20"
     >
       <div className="mx-auto max-w-[1200px] px-5 md:px-8">
         <HomeSectionHead
@@ -48,26 +20,9 @@ export function HomeWhy() {
           accent="citrus"
         />
 
-        <ul className="mt-6 grid gap-5 sm:grid-cols-2 md:mt-10 md:gap-8 lg:grid-cols-4">
-          {REASONS.map((reason) => {
-            const Icon = reason.icon;
-            return (
-              <li key={reason.title} className="min-w-0">
-                <span
-                  className={`inline-flex size-10 items-center justify-center rounded-xl bg-gradient-to-br ${reason.tone} text-white md:size-11`}
-                >
-                  <Icon className="size-5" />
-                </span>
-                <p className="mt-3 font-semibold text-foreground md:mt-4">
-                  {reason.title}
-                </p>
-                <p className="mt-1.5 line-clamp-3 text-sm leading-6 text-muted-foreground md:mt-2 md:line-clamp-none">
-                  {reason.body}
-                </p>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="mt-7 md:mt-10">
+          <HomeWhyReasons />
+        </div>
 
         <div className="relative mt-10 overflow-hidden rounded-2xl bg-sky-ink px-5 py-9 md:mt-14 md:rounded-[2rem] md:px-12 md:py-12">
           <div
@@ -83,7 +38,7 @@ export function HomeWhy() {
               <h2 className="font-display text-2xl leading-tight text-white md:text-4xl">
                 Ready when you are.
               </h2>
-              <p className="mt-2 line-clamp-2 text-[15px] leading-relaxed text-white/75 md:mt-3 md:line-clamp-none">
+              <p className="mt-2 text-[15px] leading-relaxed text-white/75 md:mt-3">
                 Check live rooms and confirm direct — or message the desk if you
                 need a group or meal plan sorted first.
               </p>

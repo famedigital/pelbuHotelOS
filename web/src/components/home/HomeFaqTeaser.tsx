@@ -10,7 +10,7 @@ export function HomeFaqTeaser({ items }: { items: Item[] }) {
   return (
     <section
       id="answers"
-      className="bg-gradient-to-b from-sky-50/50 to-background py-16 md:py-20"
+      className="bg-gradient-to-b from-sky-50/50 to-background py-12 md:py-20"
     >
       <div className="mx-auto max-w-[800px] px-5 md:px-8">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700">

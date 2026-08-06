@@ -73,20 +73,40 @@ type ReservationDraft = {
   mealPlanCode: string;
   notes: string;
   mixAcknowledged: boolean;
+  /** User edited party name manually — stop auto-rename. */
+  groupNameTouched: boolean;
 };
+
+/** Party master name: agent company if set, else guest lead, + room count. */
+export function buildPartyGroupName(input: {
+  agentName?: string | null;
+  contactName?: string | null;
+  roomCount: number;
+  checkIn?: string | null;
+}): string {
+  const n = Math.max(1, input.roomCount);
+  const party =
+    input.agentName?.trim() ||
+    input.contactName?.trim() ||
+    "Party";
+  const base = `${party} · ${n} room${n === 1 ? "" : "s"}`;
+  if (input.checkIn?.trim()) return `${base} · ${input.checkIn.trim()}`;
+  return base;
+}
 
 function draftForSelection(
   selection: CalendarSelection,
   defaultMealPlanCode: string,
   defaultSoldByStaffId = "",
 ): ReservationDraft {
+  const n = selection.units.length;
   return {
-    groupName: `Group · ${selection.units.length} rooms · ${selection.checkIn}`,
+    groupName: n > 1 ? `Party · ${n} rooms · ${selection.checkIn}` : "",
     contactName: "",
     contactPhone: "",
     phoneLater: false,
     contactEmail: "",
-    adults: String(Math.max(1, selection.units.length)),
+    adults: String(Math.max(1, n)),
     children: "0",
     extraBeds: "0",
     guideNumber: "",
@@ -98,6 +118,7 @@ function draftForSelection(
     mealPlanCode: defaultMealPlanCode,
     notes: "",
     mixAcknowledged: false,
+    groupNameTouched: false,
   };
 }
 
@@ -209,6 +230,35 @@ export function CalendarReservationDialog({
   );
   const mixedCategories = categoryMix.length > 1;
 
+  const agentName = useMemo(() => {
+    if (!draft?.agentId) return null;
+    return (
+      agents.find((a) => a.id === draft.agentId)?.company_name?.trim() || null
+    );
+  }, [agents, draft?.agentId]);
+
+  // Auto party name from agent or guest + room count (industry group block pattern).
+  useEffect(() => {
+    if (!selection || !draft || !isGroup || draft.groupNameTouched) return;
+    const next = buildPartyGroupName({
+      agentName,
+      contactName: draft.contactName,
+      roomCount: selection.units.length,
+      checkIn: selection.checkIn,
+    });
+    if (next !== draft.groupName) {
+      setDraft((d) => (d ? { ...d, groupName: next } : d));
+    }
+  }, [
+    selection,
+    draft?.agentId,
+    draft?.contactName,
+    draft?.groupNameTouched,
+    draft?.groupName,
+    agentName,
+    isGroup,
+  ]);
+
   if (!selection || !draft) return null;
 
   const unitIds = selection.units.map((u) => u.id).join(",");
@@ -222,18 +272,43 @@ export function CalendarReservationDialog({
       <DialogContent className="erp max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>
-            {isGroup ? "Group reservation" : "New reservation"}
+            {isGroup ? "Party reservation" : "New reservation"}
           </DialogTitle>
           <DialogDescription>
-            {selection.checkIn} → {checkOut || selection.checkOut} · {nightCount} night
-            {nightCount === 1 ? "" : "s"} · {selection.units.length} room
+            {selection.checkIn} → {checkOut || selection.checkOut} · {nightCount}{" "}
+            night{nightCount === 1 ? "" : "s"} · {selection.units.length} room
             {selection.units.length === 1 ? "" : "s"}
+            {isGroup
+              ? " — one group master, all rooms under the party"
+              : ""}
           </DialogDescription>
         </DialogHeader>
 
+        {isGroup ? (
+          <div className="rounded-md border border-accent/30 bg-accent/5 px-3 py-2.5 text-sm">
+            <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+              Single party
+            </p>
+            <p className="mt-1 font-medium text-foreground">
+              {draft.groupName ||
+                buildPartyGroupName({
+                  agentName,
+                  contactName: draft.contactName,
+                  roomCount: selection.units.length,
+                  checkIn: selection.checkIn,
+                })}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {selection.units.length} rooms linked under this group
+              {agentName ? ` · agent ${agentName}` : ""} — rooming list for
+              assign + guests later.
+            </p>
+          </div>
+        ) : null}
+
         <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
           <p className="text-[11px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-            Selected rooms by category
+            {isGroup ? "Rooms in this party" : "Selected rooms by category"}
           </p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {categoryMix.map((category) => (
@@ -314,16 +389,29 @@ export function CalendarReservationDialog({
 
           {isGroup ? (
             <div className="space-y-1.5">
-              <Label htmlFor="group_name">Group name</Label>
+              <Label htmlFor="group_name">
+                Party name (agent or guest · room count)
+              </Label>
               <Input
                 id="group_name"
                 name="group_name"
                 required
                 value={draft.groupName}
                 onChange={(event) =>
-                  updateDraft("groupName", event.target.value)
+                  setDraft((d) =>
+                    d
+                      ? {
+                          ...d,
+                          groupName: event.target.value,
+                          groupNameTouched: true,
+                        }
+                      : d,
+                  )
                 }
               />
+              <p className="text-[11px] text-muted-foreground">
+                Auto-fills from agent company or lead guest name. Edit any time.
+              </p>
             </div>
           ) : null}
 
@@ -480,7 +568,20 @@ export function CalendarReservationDialog({
                 name="agent_id"
                 agents={agents}
                 value={draft.agentId}
-                onValueChange={(next) => updateDraft("agentId", next)}
+                onValueChange={(next) => {
+                  setDraft((d) => {
+                    if (!d) return d;
+                    const source =
+                      next && d.source === "reservation"
+                        ? "agent"
+                        : d.source;
+                    return {
+                      ...d,
+                      agentId: next,
+                      source,
+                    };
+                  });
+                }}
                 className="bg-background"
               />
             </div>
@@ -584,7 +685,7 @@ export function CalendarReservationDialog({
               {pending
                 ? "Saving…"
                 : isGroup
-                  ? `Book ${selection.units.length} rooms`
+                  ? `Book party · ${selection.units.length} rooms`
                   : "Save reservation"}
             </Button>
           </div>

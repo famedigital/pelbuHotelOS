@@ -102,7 +102,9 @@ export function PosSaleStartGate({
           title="Room"
           blurb="In-house guest — bill posts to folio."
           meta={
-            roomCount > 0 ? `${roomCount} in-house` : "No stayovers checked in"
+            roomCount > 0
+              ? `${roomCount} in-house`
+              : "No checked-in guests"
           }
           kbd="R"
           onClick={() => onPick("room")}

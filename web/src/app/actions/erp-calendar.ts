@@ -607,7 +607,7 @@ export async function createCalendarGroupReservation(
   try {
     await requireDesk();
     const common = parseCommon(formData);
-    const groupName = trimRequired(formData.get("group_name"), "Group name");
+    const groupNameRaw = optionalTrim(formData.get("group_name"));
     const unitIds = parseUnitIds(
       trimRequired(formData.get("room_unit_ids"), "Rooms"),
     );
@@ -641,6 +641,24 @@ export async function createCalendarGroupReservation(
       common.checkOut,
     );
 
+    let agentCompany: string | null = null;
+    if (common.agentId) {
+      const { data: agentRow } = await admin
+        .from("agents")
+        .select("company_name")
+        .eq("id", common.agentId)
+        .maybeSingle();
+      agentCompany = (agentRow?.company_name as string | null) ?? null;
+    }
+
+    const partyLabel =
+      agentCompany?.trim() ||
+      common.contactName?.trim() ||
+      "Party";
+    const groupName =
+      groupNameRaw?.trim() ||
+      `${partyLabel} · ${units.length} rooms · ${common.checkIn}`;
+
     const { data: group, error: groupError } = await admin
       .from("booking_groups")
       .insert({
@@ -649,7 +667,7 @@ export async function createCalendarGroupReservation(
         agent_id: common.agentId,
         check_in: common.checkIn,
         check_out: common.checkOut,
-        notes: common.notes,
+        notes: `${groupName} · ${units.length} rooms${common.notes ? ` · ${common.notes}` : ""}`,
         status: "confirmed",
       })
       .select("id")
@@ -695,7 +713,7 @@ export async function createCalendarGroupReservation(
           guide_number: common.guideNumber,
           guest_origin: common.guestOrigin,
           payment_mode: common.paymentMode,
-          notes: `${groupName} · ${unit.label}${common.notes ? ` · ${common.notes}` : ""}`,
+          notes: `${groupName} · room ${unit.label}${common.notes ? ` · ${common.notes}` : ""}`,
           meal_plan_code: meal.mealPlanCode,
           meal_plan_amount_btn: unitMealAmount,
           extra_bed_amount_btn: unitExtraBedAmount,
@@ -790,7 +808,7 @@ export async function createCalendarGroupReservation(
       ok: true,
       groupId,
       bookingId: createdBookingIds[0],
-      message: `Group “${groupName}” — ${units.length} rooms booked.`,
+      message: `Party “${groupName}” — ${units.length} rooms under one group.`,
     };
   } catch (e) {
     // Best-effort rollback

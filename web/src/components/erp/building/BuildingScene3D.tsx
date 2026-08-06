@@ -42,6 +42,14 @@ type Props = {
   onOpenRoom: (unitId: string) => void;
   layout?: PropertyBuildingLayout | null;
   spaces?: Array<BuildingSpace & { id: string }>;
+  /** Highlight selected units (public multi-pick). */
+  selectedUnitIds?: string[];
+  /**
+   * Public booking tour: green free / rose sold, no guest names.
+   * Desk default uses housekeeper status colours.
+   */
+  mode?: "desk" | "public";
+  legendHint?: string | null;
 };
 
 const SPACE_COLOR: Record<string, string> = {
@@ -83,6 +91,9 @@ export function BuildingScene3D({
   onOpenRoom,
   layout = null,
   spaces = [],
+  selectedUnitIds = [],
+  mode = "desk",
+  legendHint = null,
 }: Props) {
   const params = layout?.params ?? DEFAULT_BUILDING_PARAMS;
   const corridorAxis = layout?.corridor_axis ?? "ew";
@@ -146,6 +157,11 @@ export function BuildingScene3D({
     });
   }, [spaces, floorKeysSorted, params]);
 
+  const selectedSet = useMemo(
+    () => new Set(selectedUnitIds),
+    [selectedUnitIds],
+  );
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -185,19 +201,38 @@ export function BuildingScene3D({
       </div>
 
       <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="size-2.5 rounded-sm bg-emerald-500" /> Clean
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="size-2.5 rounded-sm bg-indigo-600" /> Occupied
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="size-2.5 rounded-sm bg-teal-700" /> Amenities
-        </span>
+        {mode === "public" ? (
+          <>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 rounded-sm bg-emerald-500" /> Available
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 rounded-sm bg-rose-500" /> Sold / blocked
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 rounded-sm bg-amber-400" /> Selected
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 rounded-sm bg-emerald-500" /> Clean
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 rounded-sm bg-indigo-600" /> Occupied
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 rounded-sm bg-teal-700" /> Amenities
+            </span>
+          </>
+        )}
         <span>
-          Drag to orbit · right-drag pan · scroll zoom · click room · rearrange
-          in Plan
+          Drag to orbit · right-drag pan · scroll zoom · click room
+          {mode === "public" ? " to select" : ""}
         </span>
+        {legendHint ? (
+          <span className="font-medium text-foreground">{legendHint}</span>
+        ) : null}
         {hoveredLabel ? (
           <span className="font-medium text-foreground">{hoveredLabel}</span>
         ) : null}
@@ -247,6 +282,8 @@ export function BuildingScene3D({
               onOpenRoom={onOpenRoom}
               onOpenSpace={setSelectedSpace}
               setHoveredLabel={setHoveredLabel}
+              mode={mode}
+              selectedSet={selectedSet}
             />
           </Canvas>
         </Suspense>
@@ -290,6 +327,8 @@ function SceneContents({
   onOpenRoom,
   onOpenSpace,
   setHoveredLabel,
+  mode,
+  selectedSet,
 }: {
   floorKeysSorted: string[];
   floorFilter: string;
@@ -304,6 +343,8 @@ function SceneContents({
   onOpenRoom: (id: string) => void;
   onOpenSpace: (s: BuildingSpace & { id: string }) => void;
   setHoveredLabel: (label: string | null) => void;
+  mode: "desk" | "public";
+  selectedSet: Set<string>;
 }) {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const { camera } = useThree();

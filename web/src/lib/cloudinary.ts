@@ -321,6 +321,9 @@ function proportionalHeight(
  * Retina path: next/image requests width ≈ CSS width × DPR (up to 3840).
  * We emit that exact pixel size with q_auto:best + mild sharpen, dpr=1
  * (pixels already doubled — never stack dpr_auto).
+ *
+ * CRITICAL: never return a bare public_id. Browsers treat it as a relative
+ * path and every card/gallery shows a broken image icon.
  */
 export function cloudinaryImageLoader({
   src,
@@ -334,6 +337,7 @@ export function cloudinaryImageLoader({
   // Cap at 4K long edge — full-bleed heroes on 3× phones still look crisp.
   const w = Math.min(Math.max(1, Math.round(width)), 3840);
   const q = resolveLoaderQuality(quality, w);
+  const cloud = getCloudinaryCloudName();
 
   if (src.startsWith("http://") || src.startsWith("https://")) {
     const parsed = parseCloudinaryUrl(src);
@@ -351,7 +355,13 @@ export function cloudinaryImageLoader({
         crop: h ? "fill" : "limit",
         quality: q,
         dpr: 1,
-        gravity: parsed.gravity ?? (h ? "auto" : undefined),
+        // Drop xy gravity when we no longer know a crop box — g_auto is safer
+        // than replaying percent coords without height (can soft-fail poorly).
+        gravity: h
+          ? (parsed.gravity ?? "auto")
+          : parsed.gravity === "auto" || parsed.gravity === "center"
+            ? parsed.gravity
+            : undefined,
         improve: useImprove,
         sharpen: useSharpen,
       })}/${parsed.publicId}`
@@ -359,14 +369,21 @@ export function cloudinaryImageLoader({
   }
   if (src.startsWith("/")) return src;
 
-  return (
-    cloudinaryUrl(src, {
-      width: w,
-      crop: "limit",
-      quality: q,
-      dpr: 1,
-      sharpen: w >= 1000,
-    }) ?? src
-  );
+  // Bare public_id — must become an absolute CDN URL.
+  const built = cloudinaryUrl(src, {
+    width: w,
+    crop: "limit",
+    quality: q,
+    dpr: 1,
+    sharpen: w >= 1000,
+  });
+  if (built) return built;
+
+  // Last resort: try embedding cloud from env string only; else transparent 1×1.
+  if (cloud) {
+    return `https://res.cloudinary.com/${cloud}/image/upload/f_auto,q_auto,w_${w},c_limit/${cleanPublicId(src)}`;
+  }
+  // Avoid relative public_id paths that always 404 on the app origin.
+  return "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 }
 

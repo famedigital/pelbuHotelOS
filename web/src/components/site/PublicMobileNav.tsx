@@ -1,5 +1,6 @@
 "use client";
 
+import { useStaySearchOptional } from "@/components/site/PublicStaySearch";
 import { hidesPublicChrome } from "@/lib/public-chrome";
 import { cn } from "@/lib/utils";
 import {
@@ -14,13 +15,19 @@ import { usePathname } from "next/navigation";
 
 const ITEMS = [
   { href: "/", label: "Home", icon: HomeIcon, match: "exact" as const },
-  { href: "/rooms", label: "Rooms", icon: ConciergeBellIcon, match: "prefix" as const },
+  {
+    href: "/rooms",
+    label: "Rooms",
+    icon: ConciergeBellIcon,
+    match: "prefix" as const,
+  },
   {
     href: "/book",
     label: "Book",
     icon: CalendarDaysIcon,
     match: "prefix" as const,
     emphasize: true,
+    openSheet: true,
   },
   { href: "/menu", label: "Menu", icon: SoupIcon, match: "prefix" as const },
   { href: "/spa", label: "Spa", icon: SparklesIcon, match: "prefix" as const },
@@ -34,34 +41,38 @@ function isActive(pathname: string, href: string, match: "exact" | "prefix") {
 /** App-like public footer tabs — mobile only; desktop keeps SiteHeader nav. */
 export function PublicMobileNav() {
   const pathname = usePathname();
+  const staySearch = useStaySearchOptional();
   if (hidesPublicChrome(pathname)) return null;
 
   return (
     <>
       <div
-        className="h-[calc(4rem+env(safe-area-inset-bottom))] md:hidden"
+        className="h-[calc(4rem_+_env(safe-area-inset-bottom,0px))] md:hidden"
         aria-hidden
       />
       <nav
         aria-label="Primary"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_28px_-18px_rgba(8,47,73,0.28)] backdrop-blur-md md:hidden"
       >
         <div className="mx-auto grid h-16 max-w-lg grid-cols-5">
           {ITEMS.map((item) => {
-            const active = isActive(pathname, item.href, item.match);
             const Icon = item.icon;
             const emphasize = "emphasize" in item && item.emphasize;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "relative flex min-h-11 flex-col items-center justify-center gap-1 text-[11px] font-medium text-muted-foreground",
-                  active && "text-sky-700",
-                  emphasize && !active && "text-sky-800",
-                )}
-              >
+            const openSheet = "openSheet" in item && item.openSheet;
+            const pathActive = isActive(pathname, item.href, item.match);
+            const active =
+              openSheet && staySearch
+                ? staySearch.open || pathActive
+                : pathActive;
+
+            const className = cn(
+              "relative flex min-h-11 flex-col items-center justify-center gap-1 text-[11px] font-medium text-muted-foreground",
+              active && "text-sky-700",
+              emphasize && !active && "text-sky-800",
+            );
+
+            const content = (
+              <>
                 <span
                   className={cn(
                     emphasize &&
@@ -82,6 +93,33 @@ export function PublicMobileNav() {
                     className="absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-citrus"
                   />
                 ) : null}
+              </>
+            );
+
+            if (openSheet) {
+              return (
+                <button
+                  key={item.href}
+                  type="button"
+                  className={className}
+                  aria-current={active ? "page" : undefined}
+                  aria-haspopup="dialog"
+                  aria-expanded={staySearch?.open ?? false}
+                  onClick={() => staySearch?.openStaySearch()}
+                >
+                  {content}
+                </button>
+              );
+            }
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={className}
+              >
+                {content}
               </Link>
             );
           })}

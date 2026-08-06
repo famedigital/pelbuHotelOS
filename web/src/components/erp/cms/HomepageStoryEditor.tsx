@@ -10,6 +10,7 @@ import {
   type CloudinaryUploadIntent,
 } from "@/components/erp/CloudinaryPicker";
 import { ImageFramePanEditor } from "@/components/erp/cms/ImageFramePanEditor";
+import { DeskStickyActionBar } from "@/components/erp/DeskStickyActionBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -653,14 +654,14 @@ export function HomepageStoryEditor({
         ))}
       </div>
 
-      <div className="sticky bottom-4 flex justify-end gap-2 rounded-xl border bg-card/95 p-3 shadow-lg backdrop-blur">
+      <DeskStickyActionBar>
         <Button type="submit" disabled={busy}>
           {savePending ? "Saving…" : "Save draft"}
         </Button>
         <Button type="submit" formAction={publishAction} disabled={busy}>
           {publishPending ? "Publishing…" : "Publish live"}
         </Button>
-      </div>
+      </DeskStickyActionBar>
     </form>
   );
 }

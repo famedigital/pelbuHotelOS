@@ -38,9 +38,11 @@ export default async function InHousePage() {
          folios(status, folio_lines(total_btn, status))`,
       )
       .eq("property_id", propertyId)
-      .lte("check_in", today)
-      .gt("check_out", today)
-      .in("status", ["checked_in", "confirmed"])
+      // Same rule as POS room charge: stay after midnight of departure day until
+      // status is no longer checked_in (checkout), not calendar occupancy only.
+      .or(
+        `status.eq.checked_in,and(status.eq.confirmed,check_in.lte.${today},check_out.gte.${today})`,
+      )
       .order("check_out")
       .limit(200),
     admin

@@ -140,6 +140,11 @@ export function pickHeroSrc(items: CmsMediaItem[]): string | null {
   );
 }
 
+/**
+ * Prefer filling with known aspect: height derived from width so Next image
+ * loader rewrites keep a real c_fill + gravity pair (width-only fill URLs
+ * leave height undefined and the loader dropped gravity — soft crops).
+ */
 export async function loadCmsGallery(
   pageSlug: string,
   width = 960,
@@ -170,11 +175,14 @@ export async function loadCmsGallery(
     );
     const kind = row.kind as string;
     const isHero = kind === "hero" || kind === "hero_mobile";
+    const outW = isHero && options?.heroQuality ? Math.max(width, 2880) : width;
+    // 4:3 default for gallery thumbs; hero freer 16:10 so fill always has height.
+    const outH =
+      options?.height ??
+      (isHero ? Math.round(outW * (10 / 16)) : Math.round(outW * (3 / 4)));
     const transform = {
-      width: isHero && options?.heroQuality
-        ? Math.max(width, 2880)
-        : width,
-      height: options?.height,
+      width: outW,
+      height: outH,
       crop: "fill" as const,
       gravity: focal,
       ...(isHero && options?.heroQuality
@@ -208,3 +216,4 @@ export async function loadCmsGallery(
     };
   });
 }
+

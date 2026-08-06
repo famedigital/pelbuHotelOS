@@ -2,7 +2,7 @@ import type { BookingRow } from "@/components/erp/BookingsTable";
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { DeskMetricRow } from "@/components/erp/DeskMetricRow";
 import { NewReservationLauncher } from "@/components/erp/NewReservationLauncher";
-import { ReservationsAccordionTable } from "@/components/erp/ReservationsAccordionTable";
+import { ReservationsPartyBoard } from "@/components/erp/ReservationsPartyBoard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BOOKABLE_AGENT_STATUSES } from "@/lib/agents/status";
@@ -15,6 +15,10 @@ import {
   roomsNeeded,
   roomFitBadgeLabel,
 } from "@/lib/erp/booking-room-fit";
+import {
+  buildReservationParties,
+  type BookingGroupMembership,
+} from "@/lib/erp/reservation-party";
 import { requireDeskPropertyId } from "@/lib/desk-property";
 import { matchesQuery } from "@/lib/erp-lists";
 import { loadProperty } from "@/lib/property-context";
@@ -111,6 +115,7 @@ export default async function ReservationsPage({
     { data: mealPlans },
     { data: propertyDefaults },
     { data: staffRows },
+    { data: groupMemberRows },
   ] = await Promise.all([
     (() => {
       let req = admin
@@ -174,6 +179,12 @@ export default async function ReservationsPage({
           .order("full_name")
           .limit(300)
       : Promise.resolve({ data: [] }),
+    admin
+      .from("booking_group_members")
+      .select(
+        "booking_id, group_id, booking_groups(id, name, status, property_id)",
+      )
+      .limit(2000),
   ]);
 
   const qtyByCode: Record<string, number> = {};
@@ -281,6 +292,31 @@ export default async function ReservationsPage({
     .filter((r) => matchesRoomFilter(r.room_fit ?? "n_a", roomFilter))
     .sort((a, b) => compareReservations(a, b, sort));
 
+  const memberships: BookingGroupMembership[] = [];
+  for (const row of groupMemberRows ?? []) {
+    const gRaw = row.booking_groups as
+      | { id?: string; name?: string; status?: string; property_id?: string }
+      | {
+          id?: string;
+          name?: string;
+          status?: string;
+          property_id?: string;
+        }[]
+      | null;
+    const g = Array.isArray(gRaw) ? gRaw[0] : gRaw;
+    if (!g?.id || g.property_id !== propertyId) continue;
+    memberships.push({
+      bookingId: row.booking_id as string,
+      groupId: g.id,
+      groupName: (g.name as string) || "Group",
+      groupStatus: (g.status as string | null) ?? null,
+    });
+  }
+
+  const parties = buildReservationParties(filtered, memberships);
+  const partyCount = parties.filter((p) => p.kind === "group").length;
+  const suggestedCount = parties.filter((p) => p.kind === "suggested").length;
+
   const staffSession = await getStaffSession();
   const fastBookForm = {
     roomTypes: (roomTypes ?? []).map((r) => ({
@@ -355,7 +391,7 @@ export default async function ReservationsPage({
     <DeskListShell
       eyebrow="Bookings"
       heading="All reservations"
-      blurb="Every booking at this property. Room column shows assigned units (PMS-style). Filter Needs room / Partial to find stays without room numbers. Assign on the calendar rack or StayHub. Today’s arrivals / in-house / departures have dedicated boards."
+      blurb="Party-style board: same-agent multi-room stays roll up, link as a formal group, then open rooming list to assign unit numbers and guest details per room. Calendar rack and StayHub still work for drag-assign and check-in."
       headerAside={
         <Suspense
           fallback={
@@ -401,9 +437,24 @@ export default async function ReservationsPage({
               hint: "Fully assigned",
             },
             {
-              label: "Shown",
-              value: String(filtered.length),
+              label: "Parties",
+              value: String(partyCount),
+              href: "/erp/group",
+              tone: "accent",
+              hint: "Formal groups",
+            },
+            {
+              label: "Suggested",
+              value: String(suggestedCount),
               href: buildReservationsQs({ ...filterBase, room: "all" }),
+              tone: suggestedCount > 0 ? "destructive" : "default",
+              hint: "Same agent + dates",
+            },
+            {
+              label: "Shown",
+              value: String(parties.length),
+              href: buildReservationsQs({ ...filterBase, room: "all" }),
+              hint: `${filtered.length} booking rows`,
             },
           ]}
         />
@@ -533,17 +584,30 @@ export default async function ReservationsPage({
     >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <p>
-          {filtered.length} shown
-          {roomFilter !== "all" ? ` · room filter: ${roomFilter.replace(/_/g, " ")}` : ""}
+          {parties.length} parties · {filtered.length} reservations
+          {roomFilter !== "all"
+            ? ` · room filter: ${roomFilter.replace(/_/g, " ")}`
+            : ""}
+          {suggestedCount > 0
+            ? ` · ${suggestedCount} suggested multi-room`
+            : ""}
         </p>
-        {needsRoomFilter || needsOnly > 0 ? (
+        <div className="flex flex-wrap gap-3">
+          {needsRoomFilter || needsOnly > 0 ? (
+            <Link
+              href="/erp/calendar"
+              className="font-medium text-accent underline-offset-4 hover:underline"
+            >
+              Assign on calendar →
+            </Link>
+          ) : null}
           <Link
-            href="/erp/calendar"
+            href="/erp/group"
             className="font-medium text-accent underline-offset-4 hover:underline"
           >
-            Assign on calendar →
+            Groups desk →
           </Link>
-        ) : null}
+        </div>
       </div>
       <Suspense
         fallback={
@@ -552,8 +616,8 @@ export default async function ReservationsPage({
           </p>
         }
       >
-        <ReservationsAccordionTable
-          data={filtered}
+        <ReservationsPartyBoard
+          parties={parties}
           emptyMessage="No reservations match these filters."
         />
       </Suspense>

@@ -6,6 +6,7 @@ import {
   type CmsEditorState,
 } from "@/app/actions/erp-cms";
 import { CloudinaryPicker } from "@/components/erp/CloudinaryPicker";
+import { DeskStickyActionBar } from "@/components/erp/DeskStickyActionBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -845,7 +846,7 @@ export function CmsPageEditor({ page }: { page: CmsAdminPage }) {
           </label>
         </section>
 
-        <div className="sticky bottom-4 z-10 flex justify-end gap-2 rounded-xl border bg-background/90 p-3 shadow-lg backdrop-blur">
+        <DeskStickyActionBar>
           <Button
             type="submit"
             variant="outline"
@@ -861,7 +862,7 @@ export function CmsPageEditor({ page }: { page: CmsAdminPage }) {
           >
             {publishPending ? "Publishing…" : "Publish changes"}
           </Button>
-        </div>
+        </DeskStickyActionBar>
       </form>
 
       <CloudinaryPicker

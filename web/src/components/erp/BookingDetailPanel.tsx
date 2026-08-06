@@ -2,6 +2,7 @@
 
 import { AgentNameLink } from "@/components/erp/AgentNameLink";
 import { BookingLifecycleActions } from "@/components/erp/BookingLifecycleActions";
+import { RoomingListPanel } from "@/components/erp/RoomingListPanel";
 import { StayMoneyCycleLegend } from "@/components/erp/StayMoneyCycleLegend";
 import { StayMoneyProcessStrip } from "@/components/erp/StayMoneyProcessStrip";
 import { Button } from "@/components/ui/button";
@@ -294,14 +295,16 @@ export function BookingDetailPanel({
 
       {!compact ? <StayMoneyCycleLegend compact /> : null}
 
+      <RoomingListPanel bookingId={data.id} compact={compact} />
+
       <section className="rounded-lg border bg-card p-3 sm:p-4">
         <h3 className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-          Rooms &amp; guests
+          Booked types &amp; guests on file
         </h3>
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
           <div>
             <h4 className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-              Booked room types
+              Room types sold
             </h4>
             <ul className="mt-1.5 space-y-0.5 text-sm">
               {data.room_lines.length === 0 ? (
@@ -326,7 +329,7 @@ export function BookingDetailPanel({
             </h4>
             {data.guests.length === 0 ? (
               <p className="mt-1.5 text-xs text-muted-foreground">
-                Collected at check-in.
+                Add per room above, or complete at check-in.
               </p>
             ) : (
               <ul className="mt-1.5 space-y-0.5 text-sm">

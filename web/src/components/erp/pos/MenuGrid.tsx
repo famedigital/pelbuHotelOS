@@ -2,6 +2,7 @@
 
 import { MenuTile } from "@/components/erp/pos/MenuTile";
 import type { MenuItem } from "@/lib/menu";
+import { cn } from "@/lib/utils";
 import { useMemo } from "react";
 
 type Props = {
@@ -9,10 +10,17 @@ type Props = {
   category: string;
   search: string;
   onAdd: (menuItemId: string) => void;
-  onEditLine: (key: string) => void;
+  onEditLine?: (key: string) => void;
+  className?: string;
 };
 
-export function MenuGrid({ items, category, search, onAdd }: Props) {
+export function MenuGrid({
+  items,
+  category,
+  search,
+  onAdd,
+  className,
+}: Props) {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return items.filter((item) => {
@@ -36,7 +44,12 @@ export function MenuGrid({ items, category, search, onAdd }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+    <div
+      className={cn(
+        "grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4",
+        className,
+      )}
+    >
       {filtered.map((item) => (
         <MenuTile
           key={item.id}

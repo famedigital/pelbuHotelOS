@@ -27,7 +27,7 @@ export function HomeRooms({
     return (
       <section
         id="rooms"
-        className="bg-gradient-to-b from-background via-sky-100/50 to-background py-16 md:py-24"
+        className="bg-gradient-to-b from-background via-sky-100/50 to-background py-12 md:py-20"
       >
         <div className="mx-auto max-w-[1200px] px-5 md:px-8">
           <HomeSectionHead
@@ -75,7 +75,7 @@ export function HomeRooms({
   return (
     <section
       id="rooms"
-      className="bg-gradient-to-b from-background via-sky-100/50 to-background py-16 md:py-24"
+      className="bg-gradient-to-b from-background via-sky-100/50 to-background py-12 md:py-20"
     >
       <div className="mx-auto max-w-[1200px] px-5 md:px-8">
         <Reveal>

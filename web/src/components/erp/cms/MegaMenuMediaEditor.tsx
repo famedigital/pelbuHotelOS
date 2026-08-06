@@ -9,6 +9,7 @@ import {
   CloudinaryPicker,
   type CloudinaryUploadIntent,
 } from "@/components/erp/CloudinaryPicker";
+import { DeskStickyActionBar } from "@/components/erp/DeskStickyActionBar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cloudinaryUrl } from "@/lib/cloudinary";
@@ -259,14 +260,14 @@ export function MegaMenuMediaEditor({
         </section>
       ))}
 
-      <div className="sticky bottom-4 flex justify-end gap-2 rounded-xl border bg-card/95 p-3 shadow-lg backdrop-blur">
+      <DeskStickyActionBar>
         <Button type="submit" disabled={busy}>
           {savePending ? "Saving…" : "Save draft"}
         </Button>
         <Button type="submit" formAction={publishAction} disabled={busy}>
           {publishPending ? "Publishing…" : "Publish live"}
         </Button>
-      </div>
+      </DeskStickyActionBar>
 
       <CloudinaryPicker
         open={picker != null}

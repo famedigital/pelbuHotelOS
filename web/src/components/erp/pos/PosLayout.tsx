@@ -147,6 +147,8 @@ export function PosLayout({
   const [category, setCategory] = useState<string>("all");
 
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
+  /** Bumps animation on each add so staff see the cart bar acknowledge the tap. */
+  const [cartBump, setCartBump] = useState(0);
   const [ticketsOpen, setTicketsOpen] = useState(false);
   const [settleTarget, setSettleTarget] = useState<string | null>(null);
   const [voidTarget, setVoidTarget] = useState<string | null>(null);
@@ -506,6 +508,8 @@ export function PosLayout({
         },
       ];
     });
+    // Flash cart bar so staff see the add without auto-opening the full sheet.
+    setCartBump((n) => n + 1);
   }
 
   function upsertLine(line: CartLine) {
@@ -518,6 +522,7 @@ export function PosLayout({
       }
       return [...prev, line];
     });
+    setCartBump((n) => n + 1);
   }
 
   function setLineQty(key: string, qty: number) {
@@ -1225,6 +1230,7 @@ export function PosLayout({
                               search={search}
                               onAdd={addItemQuick}
                               onEditLine={editLine}
+                              className="pb-[calc(5.5rem_+_4rem_+_env(safe-area-inset-bottom,0px))] lg:pb-0"
                             />
                           </div>
                         </div>
@@ -1280,35 +1286,46 @@ export function PosLayout({
                     </aside>
                   </div>
 
-                  {/* Mobile — cart trigger bar + bottom sheet */}
+                  {/*
+                    Mobile cart dock — MUST sit above DeskMobileNav (h-16 + safe).
+                    Prior bug: bottom ~0.75rem + z-30 hid the bar under z-40 tabs.
+                  */}
                   <div className="lg:hidden">
-                    <button
-                      type="button"
-                      onClick={() => setCartSheetOpen(true)}
-                      className="fixed inset-x-3 z-30 flex h-14 items-center justify-between rounded-xl bg-primary px-4 text-primary-foreground shadow-lg bottom-[max(0.75rem,env(safe-area-inset-bottom))]"
-                      aria-label="Open cart"
-                    >
-                      <span className="flex items-center gap-2 text-sm font-medium">
-                        <span className="inline-flex size-6 items-center justify-center rounded-full bg-primary-foreground/20 text-xs tabular-nums">
-                          {lineCount}
+                    {lineCount > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setCartSheetOpen(true)}
+                        key={cartBump}
+                        className={cn(
+                          "fixed inset-x-3 z-[45] flex h-14 items-center justify-between rounded-xl bg-primary px-4 text-primary-foreground shadow-[0_12px_32px_-12px_rgba(8,47,73,0.55)]",
+                          // Above desk tab bar (4rem + safe) + 0.5rem gap
+                          "bottom-[calc(4rem_+_env(safe-area-inset-bottom,0px)+_0.5rem)]",
+                          "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-200",
+                        )}
+                        aria-label={`Open ticket, ${lineCount} item${lineCount === 1 ? "" : "s"}, ${formatBtn(totals.totalBtn)}`}
+                      >
+                        <span className="flex items-center gap-2 text-sm font-medium">
+                          <span className="inline-flex size-7 items-center justify-center rounded-full bg-primary-foreground/20 text-xs font-semibold tabular-nums">
+                            {lineCount}
+                          </span>
+                          View ticket
                         </span>
-                        View ticket
-                      </span>
-                      <span className="text-sm font-semibold tabular-nums">
-                        {formatBtn(totals.totalBtn)}
-                      </span>
-                    </button>
+                        <span className="text-sm font-semibold tabular-nums">
+                          {formatBtn(totals.totalBtn)}
+                        </span>
+                      </button>
+                    ) : null}
 
                     <Sheet open={cartSheetOpen} onOpenChange={setCartSheetOpen}>
                       <SheetContent
                         side="bottom"
                         portal={false}
-                        className="erp p-0 sm:max-w-full"
+                        className="erp z-[60] max-h-[min(90dvh,calc(100dvh_-_4.5rem))] rounded-t-2xl p-0 sm:max-w-full"
                       >
                         <SheetHeader className="sr-only">
                           <SheetTitle>Ticket</SheetTitle>
                         </SheetHeader>
-                        <div className="max-h-[85dvh] overflow-hidden p-4">
+                        <div className="max-h-[min(85dvh,calc(100dvh_-_5rem))] overflow-y-auto overscroll-contain p-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))]">
                           <CartPanel
                             cart={cart}
                             totals={totals}

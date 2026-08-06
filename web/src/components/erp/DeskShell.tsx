@@ -139,8 +139,8 @@ export function DeskPageTitle({
     description && description.length > 96 ? description : undefined;
 
   return (
-    <div className="erp sticky top-14 z-20 -mx-4 border-b border-border/80 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/85 md:-mx-6 md:px-6">
-      <div className="flex flex-wrap items-start justify-between gap-3 py-3 md:py-3.5">
+    <div className="erp border-b border-border/80 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/85 md:sticky md:top-14 md:z-20 md:-mx-6 md:px-6 -mx-4">
+      <div className="flex flex-col gap-3 py-3 sm:flex-row sm:items-start sm:justify-between md:py-3.5">
         <div className="min-w-0 flex-1 space-y-1">
           {eyebrow ? (
             <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
@@ -158,13 +158,15 @@ export function DeskPageTitle({
             ) : null}
           </div>
           {short ? (
-            <p className="max-w-2xl text-sm leading-snug text-muted-foreground line-clamp-1">
+            <p className="max-w-2xl text-sm leading-snug text-muted-foreground line-clamp-2 sm:line-clamp-1">
               {short}
             </p>
           ) : null}
         </div>
         {actions ? (
-          <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
+          <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+            {actions}
+          </div>
         ) : null}
       </div>
     </div>

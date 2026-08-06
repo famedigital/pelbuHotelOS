@@ -10,6 +10,7 @@ import { PwaRegistrar } from "@/components/pwa/PwaRegistrar";
 import { SplashController } from "@/components/pwa/SplashController";
 import { BackToTop } from "@/components/site/BackToTop";
 import { PublicMobileNav } from "@/components/site/PublicMobileNav";
+import { PublicStaySearchProvider } from "@/components/site/PublicStaySearch";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { BRAND_ICONS } from "@/lib/brand";
@@ -113,7 +114,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0b1020",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f7fbfd" },
+    { media: "(prefers-color-scheme: dark)", color: "#082f49" },
+  ],
+  colorScheme: "light",
 };
 
 export default function RootLayout({
@@ -136,13 +141,15 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
-          {children}
-          <PublicMobileNav />
-          <BackToTop />
-          <PwaRegistrar />
-          <SplashController />
-          <InstallPrompt />
-          <Toaster position="top-right" richColors closeButton />
+          <PublicStaySearchProvider>
+            {children}
+            <PublicMobileNav />
+            <BackToTop />
+            <PwaRegistrar />
+            <SplashController />
+            <InstallPrompt />
+            <Toaster position="top-right" richColors closeButton />
+          </PublicStaySearchProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -54,7 +54,7 @@ export function BackToTop() {
         "transition-[opacity,transform] duration-300 ease-out",
         "hover:border-sky-200 hover:bg-white hover:text-sky-700",
         "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40",
-        "bottom-[calc(4.75rem+env(safe-area-inset-bottom))] md:bottom-6 md:right-6",
+        "bottom-[calc(4.75rem_+_env(safe-area-inset-bottom,0px))] md:bottom-6 md:right-6",
         visible
           ? "pointer-events-auto opacity-100"
           : "pointer-events-none translate-y-2 opacity-0",
