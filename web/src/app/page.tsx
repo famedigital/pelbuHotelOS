@@ -129,10 +129,9 @@ export default async function HomePage() {
           item.resource_type === "video"
             ? (item.src ?? undefined)
             : cloudinaryHeroUrl(item.public_id, {
+                // Wide source — CSS object-position frames live; avoid forced crop soft blobs.
                 width: 3840,
-                height: 2160,
-                crop: "fill",
-                gravity: focal,
+                crop: "limit",
               }) ??
               item.src ??
               undefined;
@@ -141,10 +140,9 @@ export default async function HomePage() {
           (mobile?.resource_type === "video" ? mobile.src : null) ??
           (item.resource_type === "image" || !item.resource_type
             ? cloudinaryHeroUrl(mobile?.public_id ?? item.public_id, {
-                width: 1440,
-                height: 2560,
-                crop: "fill",
-                gravity: mobileFocal,
+                // Tall phone source at high quality; framing via object-position on device.
+                width: 1600,
+                crop: "limit",
               })
             : item.src);
 
@@ -157,6 +155,10 @@ export default async function HomePage() {
           posterPublicId: item.poster_public_id,
           mobilePublicId: mobile?.public_id ?? item.public_id,
           mobileSrc: mobileSrc ?? undefined,
+          focalX: focal.x,
+          focalY: focal.y,
+          mobileFocalX: mobileFocal.x,
+          mobileFocalY: mobileFocal.y,
         };
       })
     : HOME_HERO_SLIDES.map((slide) => ({
@@ -165,18 +167,18 @@ export default async function HomePage() {
         src:
           cloudinaryHeroUrl(slide.publicId, {
             width: 3840,
-            height: 2160,
-            crop: "fill",
-            gravity: "auto",
+            crop: "limit",
           }) ?? undefined,
         mobileSrc:
           cloudinaryHeroUrl(slide.publicId, {
-            width: 1440,
-            height: 2560,
-            crop: "fill",
-            gravity: "auto",
+            width: 1600,
+            crop: "limit",
           }) ?? undefined,
         mobilePublicId: slide.publicId,
+        focalX: 0.5,
+        focalY: 0.45,
+        mobileFocalX: 0.5,
+        mobileFocalY: 0.4,
       }));
 
   const sameAs = [

@@ -12,6 +12,7 @@ import {
   CloudinaryPicker,
   type CloudinaryPickerSelection,
 } from "@/components/erp/CloudinaryPicker";
+import { ImageFramePanEditor } from "@/components/erp/cms/ImageFramePanEditor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,7 @@ import {
 } from "@/lib/cms-media-admin";
 import {
   cloudinaryMediaThumbUrl,
+  cloudinaryUrl,
   type CloudinaryResourceType,
 } from "@/lib/cloudinary";
 import { cn } from "@/lib/utils";
@@ -110,43 +112,18 @@ function MediaCardRow({ item }: { item: CmsMediaRow }) {
     focalX,
     focalY,
   );
-  const fullSrc = thumb(
-    pendingId,
-    pendingType,
-    item.poster_public_id,
-    0.5,
-    0.5,
-    800,
-    500,
-  );
-  const deskPreview = thumb(
-    pendingId,
-    pendingType,
-    item.poster_public_id,
-    focalX,
-    focalY,
-    480,
-    270,
-  );
-  const phonePreview = thumb(
-    pendingId,
-    pendingType,
-    item.poster_public_id,
-    focalX,
-    focalY,
-    270,
-    480,
-  );
+  const panSource =
+    pendingType === "video"
+      ? thumb(pendingId, pendingType, item.poster_public_id, 0.5, 0.5, 900, 1200)
+      : cloudinaryUrl(item.poster_public_id || pendingId, {
+          width: 1400,
+          crop: "limit",
+          quality: "auto:good",
+        });
   const isVideo = pendingType === "video";
   const busy = pending || replacePending || isRefreshing;
-
-  function onFocalClick(event: React.MouseEvent<HTMLDivElement>) {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = (event.clientX - rect.left) / rect.width;
-    const y = (event.clientY - rect.top) / rect.height;
-    setFocalX(Math.min(1, Math.max(0, Math.round(x * 1000) / 1000)));
-    setFocalY(Math.min(1, Math.max(0, Math.round(y * 1000) / 1000)));
-  }
+  const isMobileHero = item.kind === "hero_mobile";
+  const isDeskHero = item.kind === "hero";
 
   return (
     <li className="flex flex-col overflow-hidden rounded-xl border bg-card">
@@ -157,6 +134,9 @@ function MediaCardRow({ item }: { item: CmsMediaRow }) {
             src={src}
             alt={item.alt || pendingId}
             className="h-full w-full object-cover"
+            style={{
+              objectPosition: `${focalX * 100}% ${focalY * 100}%`,
+            }}
             loading="lazy"
           />
         ) : (
@@ -216,80 +196,50 @@ function MediaCardRow({ item }: { item: CmsMediaRow }) {
         </div>
 
         {!isVideo ? (
-          <div className="grid gap-2 rounded-lg border border-border/70 bg-muted/30 p-2">
-            <div className="flex items-center justify-between gap-2">
-              <Label className="text-xs">Focal point · tap image</Label>
-              <button
-                type="button"
-                className="text-[11px] font-medium text-sky-700 hover:underline"
-                onClick={() => {
-                  setFocalX(0.5);
-                  setFocalY(0.5);
-                }}
-              >
-                Reset centre
-              </button>
-            </div>
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={onFocalClick}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") e.preventDefault();
-              }}
-              className="relative aspect-[3/2] cursor-crosshair overflow-hidden rounded-md bg-muted"
-              title="Click to set the crop centre"
-            >
-              {fullSrc ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={fullSrc}
-                  alt=""
-                  className="h-full w-full object-contain"
-                  draggable={false}
-                />
-              ) : null}
-              <span
-                className="pointer-events-none absolute size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-sky-500 shadow"
-                style={{ left: `${focalX * 100}%`, top: `${focalY * 100}%` }}
-                aria-hidden
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                  Desktop 16:9
-                </p>
-                <div className="aspect-video overflow-hidden rounded bg-muted">
-                  {deskPreview ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={deskPreview}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : null}
-                </div>
-              </div>
-              <div>
-                <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                  Phone 9:16
-                </p>
-                <div className="mx-auto aspect-[9/16] max-h-28 overflow-hidden rounded bg-muted">
-                  {phonePreview ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={phonePreview}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : null}
-                </div>
-              </div>
-            </div>
-            <p className="font-mono text-[10px] text-muted-foreground">
-              x {focalX.toFixed(2)} · y {focalY.toFixed(2)}
+          <div className="space-y-3 rounded-lg border border-border/70 bg-muted/30 p-3">
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              {isMobileHero
+                ? "Mobile hero: drag the photo up/down (like Android) so the right face of the image sits in the phone frame. Saves live on the public site after you hit Save."
+                : isDeskHero
+                  ? "Desktop hero: drag inside the wide frame so the right part of the landscape shows on large screens."
+                  : "Drag inside the frame to choose what stays visible when the photo is cropped on the site."}
             </p>
+            {isMobileHero || (!isDeskHero && !isMobileHero) ? (
+              <ImageFramePanEditor
+                imageSrc={panSource}
+                focalX={focalX}
+                focalY={focalY}
+                onChange={(x, y) => {
+                  setFocalX(x);
+                  setFocalY(y);
+                }}
+                aspect="9/16"
+                label={isMobileHero ? "Phone frame · slide to crop" : "Tall crop"}
+                hint="Drag image · slider · arrow keys"
+                phoneChrome={isMobileHero}
+                verticalBias
+              />
+            ) : null}
+            {isDeskHero || (!isDeskHero && !isMobileHero) ? (
+              <ImageFramePanEditor
+                imageSrc={panSource}
+                focalX={focalX}
+                focalY={focalY}
+                onChange={(x, y) => {
+                  setFocalX(x);
+                  setFocalY(y);
+                }}
+                aspect="16/9"
+                label={isDeskHero ? "Desktop frame · slide to crop" : "Wide crop"}
+                hint="Same numbers power both frames if you only set one"
+              />
+            ) : null}
+            {isMobileHero ? (
+              <p className="text-[11px] text-muted-foreground">
+                Tip: keep a separate <strong>Hero (mobile)</strong> asset when
+                phone and desktop need different photos or framing.
+              </p>
+            ) : null}
           </div>
         ) : null}
 

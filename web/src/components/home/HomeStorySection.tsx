@@ -79,14 +79,12 @@ export function HomeStorySection({
   const lead = photos[0];
   const leadSrc = lead
     ? cloudinaryUrl(lead, {
-        width: 1200,
-        height: 900,
-        crop: "fill",
-        gravity: focal,
+        width: 1400,
+        crop: "limit",
         quality: "auto:best",
-        improve: true,
       })
     : null;
+  const objectPosition = `${focal.x * 100}% ${focal.y * 100}%`;
 
   return (
     <section
@@ -107,15 +105,14 @@ export function HomeStorySection({
               fill
               sizes="(max-width: 1024px) 100vw, 560px"
               className="object-cover"
+              style={{ objectPosition }}
             />
             {photos.length > 1 ? (
               <ul className="absolute inset-x-3 bottom-3 flex gap-2 overflow-x-auto">
                 {photos.slice(1, 4).map((pid) => {
                   const thumb = cloudinaryUrl(pid, {
-                    width: 200,
-                    height: 140,
-                    crop: "fill",
-                    gravity: focal,
+                    width: 280,
+                    crop: "limit",
                   });
                   if (!thumb) return null;
                   return (
@@ -128,6 +125,7 @@ export function HomeStorySection({
                         src={thumb}
                         alt=""
                         className="h-full w-full object-cover"
+                        style={{ objectPosition }}
                       />
                     </li>
                   );

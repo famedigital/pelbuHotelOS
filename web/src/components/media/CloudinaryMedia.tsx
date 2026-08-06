@@ -14,6 +14,7 @@ type Props = {
   ratio?: "16/10" | "16/9" | "4/3" | "3/2" | "1/1";
   className?: string;
   imgClassName?: string;
+  objectPosition?: string;
   sizes?: string;
   priority?: boolean;
   fill?: boolean;
@@ -47,6 +48,7 @@ export function CloudinaryMedia({
   ratio,
   className,
   imgClassName,
+  objectPosition,
   sizes,
   priority,
   fill,
@@ -92,6 +94,7 @@ export function CloudinaryMedia({
       ratio={ratio}
       className={className}
       imgClassName={imgClassName}
+      objectPosition={objectPosition}
       sizes={sizes}
       priority={priority}
       fill={fill}

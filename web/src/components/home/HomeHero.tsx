@@ -22,6 +22,12 @@ export type HomeHeroSlide = HeroSlide & {
   /** Pre-resolved portrait mobile URL when dual art-direction is used. */
   mobileSrc?: string;
   mobilePublicId?: string;
+  /** 0–1 focus for desktop crop (object-position). */
+  focalX?: number;
+  focalY?: number;
+  /** 0–1 focus for mobile tall frame. */
+  mobileFocalX?: number;
+  mobileFocalY?: number;
 };
 
 type Props = {
@@ -97,6 +103,16 @@ export function HomeHero({
     const kenBurns =
       !isVideo && !reduceMotion && mode === "desktop";
 
+    const fx =
+      mode === "mobile"
+        ? (slide.mobileFocalX ?? slide.focalX ?? 0.5)
+        : (slide.focalX ?? 0.5);
+    const fy =
+      mode === "mobile"
+        ? (slide.mobileFocalY ?? slide.focalY ?? 0.42)
+        : (slide.focalY ?? 0.5);
+    const objectPosition = `${fx * 100}% ${fy * 100}%`;
+
     return (
       <div
         key={`${mode}-${slide.publicId}-${i}`}
@@ -113,12 +129,13 @@ export function HomeHero({
           posterPublicId={slide.posterPublicId}
           fill
           priority={i === 0}
-          quality={95}
+          quality={mode === "mobile" ? 92 : 95}
           disableBlur
           /* Full viewport CSS size — next/image multiplies by DPR for dense srcset. */
           sizes="100vw"
           cinematic={isVideo}
           active={i === index}
+          objectPosition={objectPosition}
           imgClassName={cn(
             "object-cover",
             kenBurns && "transition-transform duration-[12000ms] ease-linear",

@@ -8,6 +8,7 @@ import {
 } from "@/lib/cloudinary";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import type { CSSProperties } from "react";
 
 type Props = {
   /** Cloudinary public_id, absolute URL, or local path. */
@@ -17,6 +18,8 @@ type Props = {
   ratio?: "16/10" | "16/9" | "4/3" | "3/2" | "1/1";
   className?: string;
   imgClassName?: string;
+  /** CSS object-position for fill/cover heroes (e.g. "50% 20%"). */
+  objectPosition?: string;
   sizes?: string;
   priority?: boolean;
   width?: number;
@@ -50,6 +53,7 @@ export function CloudinaryImage({
   ratio,
   className,
   imgClassName,
+  objectPosition,
   sizes = "(max-width: 768px) 100vw, 50vw",
   priority,
   width = 1200,
@@ -72,6 +76,9 @@ export function CloudinaryImage({
       : null;
   const blur = blurId ? (cloudinaryBlur(blurId) ?? undefined) : undefined;
   const useFill = Boolean(fill || ratio);
+  const style: CSSProperties | undefined = objectPosition
+    ? { objectPosition }
+    : undefined;
 
   const image = (
     <Image
@@ -85,6 +92,7 @@ export function CloudinaryImage({
       placeholder={blur ? "blur" : "empty"}
       blurDataURL={blur}
       className={cn(useFill && "object-cover", imgClassName)}
+      style={style}
       {...(useFill
         ? { fill: true as const }
         : { width, height })}

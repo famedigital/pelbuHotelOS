@@ -9,6 +9,7 @@ import {
   CloudinaryPicker,
   type CloudinaryUploadIntent,
 } from "@/components/erp/CloudinaryPicker";
+import { ImageFramePanEditor } from "@/components/erp/cms/ImageFramePanEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -128,17 +129,13 @@ const ACCENTS: StoryAccent[] = ["sky", "citrus", "mint", "spa", "espresso"];
 
 function previewUrl(
   publicId: string | null,
-  focalX: number,
-  focalY: number,
-  width = 640,
-  height = 360,
+  width = 1200,
 ): string | null {
   if (!publicId) return null;
   return cloudinaryUrl(publicId, {
     width,
-    height,
-    crop: "fill",
-    gravity: { x: focalX, y: focalY },
+    crop: "limit",
+    quality: "auto:good",
   });
 }
 
@@ -163,17 +160,8 @@ function StoryImageFields({
   const [focalY, setFocalY] = useState(block.focal_y);
   const [picker, setPicker] = useState<PickerMode>(null);
 
-  const leadPreview = previewUrl(leadId || null, focalX, focalY);
+  const leadPreview = previewUrl(leadId || null);
   const pickerOpen = picker != null;
-
-  function onFocalClick(event: React.MouseEvent<HTMLDivElement>) {
-    if (!leadId) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = (event.clientX - rect.left) / rect.width;
-    const y = (event.clientY - rect.top) / rect.height;
-    setFocalX(Math.min(1, Math.max(0, Math.round(x * 1000) / 1000)));
-    setFocalY(Math.min(1, Math.max(0, Math.round(y * 1000) / 1000)));
-  }
 
   function openPicker(
     target: "lead" | "gallery",
@@ -196,47 +184,23 @@ function StoryImageFields({
       <div>
         <p className="text-sm font-medium text-foreground">Lead photo</p>
         <p className="text-xs text-muted-foreground">
-          Library pick, file upload, or camera. Click the preview to set crop
-          focus.
+          Drag the photo in the frame (slide up/down) so the subject stays
+          visible after crop. Live WYSIWYG.
         </p>
       </div>
 
-      <div
-        role={leadId ? "button" : undefined}
-        tabIndex={leadId ? 0 : undefined}
-        onClick={onFocalClick}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-          }
+      <ImageFramePanEditor
+        imageSrc={leadPreview}
+        focalX={focalX}
+        focalY={focalY}
+        onChange={(x, y) => {
+          setFocalX(x);
+          setFocalY(y);
         }}
-        className={cn(
-          "relative aspect-[16/9] w-full max-w-lg overflow-hidden rounded-lg border bg-muted",
-          leadId && "cursor-crosshair",
-        )}
-        title={leadId ? "Click to set crop focus" : undefined}
-      >
-        {leadPreview ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={leadPreview}
-            alt=""
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
-            <ImagePlusIcon className="size-8 opacity-60" aria-hidden />
-            <span className="text-sm">No lead photo</span>
-          </div>
-        )}
-        {leadId ? (
-          <span
-            className="pointer-events-none absolute size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-primary shadow"
-            style={{ left: `${focalX * 100}%`, top: `${focalY * 100}%` }}
-            aria-hidden
-          />
-        ) : null}
-      </div>
+        aspect="16/9"
+        label="Lead photo frame"
+        hint="Drag · sliders · arrow keys"
+      />
 
       <div className="flex flex-wrap gap-2">
         <Button
@@ -332,7 +296,7 @@ function StoryImageFields({
         ) : (
           <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
             {gallery.map((id) => {
-              const src = previewUrl(id, 0.5, 0.5, 200, 140);
+              const src = previewUrl(id, 280);
               return (
                 <li
                   key={id}
