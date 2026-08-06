@@ -4,6 +4,9 @@ import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 /**
  * Resolve property id from request Host header.
  * Falls back to flagship slug when no public_host / desk_host match.
+ *
+ * Prefer a single round-trip when host is set (or-filter) then flagship —
+ * still used from pages when middleware skips headers on deadline.
  */
 export async function resolvePropertyIdFromHost(
   hostHeader: string | null,
@@ -15,29 +18,28 @@ export async function resolvePropertyIdFromHost(
   const admin = createSupabaseAdminClient();
 
   if (host) {
-    const { data: byPublic } = await admin
+    // Quote host for PostgREST (dots in domain names).
+    const q = `"${host.replace(/"/g, "")}"`;
+    const { data: matches, error } = await admin
       .from("properties")
-      .select("id, slug")
-      .ilike("public_host", host)
-      .maybeSingle();
-    if (byPublic?.id) {
-      return {
-        propertyId: byPublic.id as string,
-        slug: byPublic.slug as string,
-        via: "host",
-      };
-    }
-    const { data: byDesk } = await admin
-      .from("properties")
-      .select("id, slug")
-      .ilike("desk_host", host)
-      .maybeSingle();
-    if (byDesk?.id) {
-      return {
-        propertyId: byDesk.id as string,
-        slug: byDesk.slug as string,
-        via: "host",
-      };
+      .select("id, slug, public_host, desk_host")
+      .or(`public_host.ilike.${q},desk_host.ilike.${q}`)
+      .limit(4);
+
+    if (!error && matches?.length) {
+      const exact = matches.find(
+        (row) =>
+          (row.public_host as string | null)?.toLowerCase() === host ||
+          (row.desk_host as string | null)?.toLowerCase() === host,
+      );
+      const hit = exact ?? matches[0];
+      if (hit?.id) {
+        return {
+          propertyId: hit.id as string,
+          slug: hit.slug as string,
+          via: "host",
+        };
+      }
     }
   }
 
@@ -45,8 +47,8 @@ export async function resolvePropertyIdFromHost(
     .from("properties")
     .select("id, slug")
     .eq("slug", PELBU_PROPERTY_SLUG)
-    .single();
-  if (!flagship) {
+    .maybeSingle();
+  if (!flagship?.id) {
     throw new Error("Flagship property is not configured.");
   }
   return {

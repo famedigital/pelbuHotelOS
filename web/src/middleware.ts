@@ -6,6 +6,9 @@ const INSTALL_PATHS = new Set(["/", "/book", "/menu", "/spa", "/meeting"]);
 /** Mirrors DESK_COOKIE_NAME in lib/desk-auth (that module imports next/headers). */
 const DESK_COOKIE = "pelbu_desk_session";
 
+/** Keep well under Vercel middleware 25s invokation budget. */
+const MIDDLEWARE_NET_MS = 2_500;
+
 function hasSupabaseAuthCookie(request: NextRequest): boolean {
   return request.cookies
     .getAll()
@@ -39,10 +42,34 @@ function erpCredentialsPresent(request: NextRequest): boolean {
   return hasValidDeskPinCookie(request) || hasSupabaseAuthCookie(request);
 }
 
+/** Race network work so Supabase 522 / hang cannot take the whole middleware. */
+async function withDeadline<T>(
+  work: Promise<T>,
+  ms: number,
+): Promise<{ ok: true; value: T } | { ok: false }> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const value = await Promise.race([
+      work,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("middleware_deadline")), ms);
+      }),
+    ]);
+    return { ok: true, value };
+  } catch {
+    return { ok: false };
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 /**
  * Gate /erp, refresh staff Auth cookies, and emit a short-lived install hint
  * for eligible public mobile visits. The browser still decides whether
  * installation is possible; middleware cannot invoke the native install prompt.
+ *
+ * Network calls must fail-open with a short deadline — Supabase Auth outages
+ * (522) previously held every request until MIDDLEWARE_INVOCATION_TIMEOUT.
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -63,10 +90,16 @@ export async function middleware(request: NextRequest) {
       const { resolvePropertyIdFromHost } = await import(
         "@/lib/tenant/resolve-host"
       );
-      const resolved = await resolvePropertyIdFromHost(host);
-      requestHeaders.set("x-pelbu-property-id", resolved.propertyId);
-      requestHeaders.set("x-pelbu-property-slug", resolved.slug);
-      requestHeaders.set("x-pelbu-tenant-via", resolved.via);
+      const resolved = await withDeadline(
+        resolvePropertyIdFromHost(host),
+        MIDDLEWARE_NET_MS,
+      );
+      if (resolved.ok) {
+        requestHeaders.set("x-pelbu-property-id", resolved.value.propertyId);
+        requestHeaders.set("x-pelbu-property-slug", resolved.value.slug);
+        requestHeaders.set("x-pelbu-tenant-via", resolved.value.via);
+      }
+      // On timeout / Supabase outage: leave unset; pages resolve flagship themselves.
     }
   } catch {
     // Never block the request on tenant resolution failure.
@@ -91,28 +124,41 @@ export async function middleware(request: NextRequest) {
     const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
 
     if (url && anon) {
-      const supabase = createServerClient(url, anon, {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll();
+      try {
+        const supabase = createServerClient(url, anon, {
+          cookies: {
+            getAll() {
+              return request.cookies.getAll();
+            },
+            setAll(cookiesToSet) {
+              cookiesToSet.forEach(({ name, value }) => {
+                request.cookies.set(name, value);
+              });
+              response = NextResponse.next({
+                request: {
+                  headers: requestHeaders,
+                },
+              });
+              cookiesToSet.forEach(({ name, value, options }) => {
+                response.cookies.set(name, value, options);
+              });
+            },
           },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value }) => {
-              request.cookies.set(name, value);
-            });
-            response = NextResponse.next({
-              request: {
-                headers: requestHeaders,
-              },
-            });
-            cookiesToSet.forEach(({ name, value, options }) => {
-              response.cookies.set(name, value, options);
-            });
-          },
-        },
-      });
+        });
 
-      await supabase.auth.getUser();
+        // Fail-open: session refresh is best-effort. Auth 522 must not 504 the site.
+        const refreshed = await withDeadline(
+          supabase.auth.getUser(),
+          MIDDLEWARE_NET_MS,
+        );
+        if (!refreshed.ok) {
+          console.warn(
+            "[middleware] supabase.auth.getUser deadline — continuing without refresh",
+          );
+        }
+      } catch (err) {
+        console.warn("[middleware] auth refresh failed open", err);
+      }
     }
   }
 
