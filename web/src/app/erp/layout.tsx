@@ -10,7 +10,7 @@ import { pathnameAllowedForModules } from "@/lib/erp/desk-modules";
 import {
   canPreviewDashboards,
   deskRoleToDashboardView,
-} from "@/lib/erp/role-dashboard";
+} from "@/lib/erp/dashboard-views";
 import {
   listProperties,
   loadProperty,

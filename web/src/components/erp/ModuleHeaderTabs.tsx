@@ -4,7 +4,7 @@ import {
   DASHBOARD_VIEWS,
   parseDashboardView,
   type DashboardView,
-} from "@/lib/erp/role-dashboard";
+} from "@/lib/erp/dashboard-views";
 import { resolveModule } from "@/lib/erp-nav";
 import { cn } from "@/lib/utils";
 import Link from "next/link";

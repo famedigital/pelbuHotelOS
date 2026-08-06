@@ -4,7 +4,7 @@ import {
   completeAgentCallTaskItem,
   type AgentCallActionState,
 } from "@/app/actions/erp-agent-call-tasks";
-import type { AgentCallTaskItemRow } from "@/lib/erp/agent-call-tasks";
+import type { AgentCallTaskItemRow } from "@/lib/erp/agent-call-task-types";
 import { agentDossierHref } from "@/lib/erp/agent-links";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";

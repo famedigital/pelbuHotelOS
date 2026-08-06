@@ -19,8 +19,8 @@ import {
   DASHBOARD_VIEWS,
   deskRoleToDashboardView,
   type DashboardView,
-  type RoleDashboardSnapshot,
-} from "@/lib/erp/role-dashboard";
+} from "@/lib/erp/dashboard-views";
+import type { RoleDashboardSnapshot } from "@/lib/erp/role-dashboard";
 import { fmtDate } from "@/lib/erp-lists";
 import { formatBtn } from "@/lib/pricing";
 import {
