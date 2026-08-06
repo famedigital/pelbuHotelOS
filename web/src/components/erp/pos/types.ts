@@ -51,6 +51,8 @@ export type CartLine = {
   /** Non-chargeable — still served; Nu 0 on bill. */
   isNc?: boolean;
   ncReasonCode?: string;
+  /** Where the line is prepared — drives "Send to bar" vs kitchen CTA. */
+  prepStation?: string;
 };
 
 /** Wire shape for the hidden `cart` JSON input consumed by `createDeskOrder`. */

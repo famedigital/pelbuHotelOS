@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { fireOrderLabel } from "@/lib/kot";
 import { ChevronDownIcon, MinusIcon, PlusIcon, Trash2Icon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CartLine } from "./types";
 
 type Totals = {
@@ -82,6 +83,14 @@ export function CartPanel({
   const dense = cart.length >= 6;
   const listRef = useRef<HTMLDivElement>(null);
   const prevCountRef = useRef(cart.length);
+
+  const sendLabel = useMemo(
+    () =>
+      cart.length === 0
+        ? "Add items to send"
+        : fireOrderLabel(cart.map((l) => l.prepStation)),
+    [cart],
+  );
 
   const serviceOverridden =
     Boolean(serviceReason.trim()) ||
@@ -374,7 +383,7 @@ export function CartPanel({
               ? "Sending…"
               : cart.length === 0
                 ? "Add items to send"
-                : "Send to kitchen"}
+                : sendLabel}
           </Button>
           <Button
             type="submit"

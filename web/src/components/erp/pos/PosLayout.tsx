@@ -466,14 +466,6 @@ export function PosLayout({
     );
   }
 
-  /** Mobile (<lg) uses a bottom sheet for the ticket; open it after adds. */
-  function openCartOnMobile() {
-    if (typeof window === "undefined") return;
-    if (window.matchMedia("(max-width: 1023px)").matches) {
-      setCartSheetOpen(true);
-    }
-  }
-
   function addItemQuick(menuItemId: string) {
     const item = items.find((m) => m.id === menuItemId);
     if (!item) return;
@@ -510,10 +502,10 @@ export function PosLayout({
           courseNo: 1,
           seatNo: undefined,
           lineNotes: undefined,
+          prepStation: item.prep_station ?? "kitchen",
         },
       ];
     });
-    openCartOnMobile();
   }
 
   function upsertLine(line: CartLine) {
@@ -526,7 +518,6 @@ export function PosLayout({
       }
       return [...prev, line];
     });
-    openCartOnMobile();
   }
 
   function setLineQty(key: string, qty: number) {
@@ -827,7 +818,7 @@ export function PosLayout({
           <h2 className="mt-3 text-2xl font-semibold tracking-tight text-foreground">
             {state.settleMode === "room_charge" && state.folioId
               ? "On the guest folio"
-              : "Order is on the KOT board"}
+              : "Order sent to prep"}
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
             Ref{" "}

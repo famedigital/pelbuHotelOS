@@ -42,6 +42,31 @@ export function prepStationLabel(station: string | null | undefined): string {
   return PREP_STATION_LABELS[station] ?? station;
 }
 
+/**
+ * POS send CTA from cart prep stations.
+ * Bar-only → "Send to bar"; kitchen+bar → "Send to kitchen & bar"; etc.
+ */
+export function fireOrderLabel(
+  stations: Array<string | null | undefined>,
+): string {
+  const unique = sortPrepStations([
+    ...new Set(
+      stations.map((s) => {
+        const t = (s ?? "kitchen").trim().toLowerCase();
+        return t || "kitchen";
+      }),
+    ),
+  ]);
+  if (unique.length === 0) return "Send order";
+  if (unique.length === 1) {
+    return `Send to ${prepStationLabel(unique[0]).toLowerCase()}`;
+  }
+  if (unique.length === 2) {
+    return `Send to ${prepStationLabel(unique[0]).toLowerCase()} & ${prepStationLabel(unique[1]).toLowerCase()}`;
+  }
+  return "Send to stations";
+}
+
 /** Sort stations in the canonical order; unknowns go last, alphabetically. */
 export function sortPrepStations(
   stations: string[],

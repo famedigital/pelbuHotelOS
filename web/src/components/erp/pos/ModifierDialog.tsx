@@ -208,6 +208,7 @@ export function ModifierDialog({
       courseNo: Math.max(1, courseNo),
       seatNo: seat,
       lineNotes: lineNotes.trim() ? lineNotes.trim().slice(0, 280) : undefined,
+      prepStation: item!.prep_station ?? "kitchen",
     };
     line.key = buildLineKey({
       menuItemId: line.menuItemId,
