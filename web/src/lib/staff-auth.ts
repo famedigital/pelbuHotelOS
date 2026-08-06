@@ -33,7 +33,8 @@ export type StaffSession = {
   /** RBAC desk role for ERP money / FO gates. */
   deskRole: string | null;
   /**
-   * Explicit ERP module allowlist. Null means inherit desk_role defaults.
+   * Explicit ERP grants. Null means inherit desk_role defaults.
+   * Values are module keys and/or tab hrefs (e.g. money, /erp/hr/payroll).
    * @see resolveDeskModules
    */
   deskModuleKeys: string[] | null;

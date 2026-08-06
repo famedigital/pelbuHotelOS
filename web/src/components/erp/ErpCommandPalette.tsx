@@ -14,7 +14,10 @@ import {
   CommandShortcut,
 } from "@/components/ui/command";
 import { ERP_MODULES, ERP_QUICK_ACTIONS } from "@/lib/erp-nav";
-import { resolveModule } from "@/lib/erp-nav";
+import {
+  filterErpNavByGrants,
+  pathnameAllowedForModules,
+} from "@/lib/erp/desk-modules";
 
 /** Custom event so mobile More / buttons can open the palette without keyboard. */
 export const ERP_OPEN_COMMAND_PALETTE = "erp:open-command-palette";
@@ -51,21 +54,19 @@ export function ErpCommandPalette({
 
   const allow = React.useMemo(() => {
     if (!allowedModuleKeys || allowedModuleKeys.length === 0) return null;
-    return new Set(allowedModuleKeys);
+    return allowedModuleKeys;
   }, [allowedModuleKeys]);
 
   const modules = React.useMemo(() => {
     if (!allow) return ERP_MODULES;
-    return ERP_MODULES.filter((m) => allow.has(m.key));
+    return filterErpNavByGrants(ERP_MODULES, allow);
   }, [allow]);
 
   const quick = React.useMemo(() => {
     if (!allow) return ERP_QUICK_ACTIONS;
-    return ERP_QUICK_ACTIONS.filter((action) => {
-      const match = resolveModule(action.href);
-      if (!match) return true;
-      return allow.has(match.module.key);
-    });
+    return ERP_QUICK_ACTIONS.filter((action) =>
+      pathnameAllowedForModules(action.href, allow),
+    );
   }, [allow]);
 
   const navigate = React.useCallback(

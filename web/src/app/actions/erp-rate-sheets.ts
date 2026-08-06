@@ -6,7 +6,6 @@ import { requireDeskPropertyId } from "@/lib/desk-property";
 import {
   mapRateSheetRow,
   normalizeRateSheetDocument,
-  publicPeakRateSheetDocument,
   slugifyRateSheetTitle,
   type MarketingRateSheetRow,
   type RateSheetAudience,
@@ -14,7 +13,16 @@ import {
   type RateSheetDocument,
   type RateSheetStatus,
 } from "@/lib/marketing/rate-sheet";
+import {
+  buildRateSheetDocumentFromMatrix,
+  LIVE_RATE_SHEET_SPECS,
+  seasonLabelFromWindows,
+  type MatrixRateCell,
+  type MatrixRoomType,
+  type MatrixSeasonWindow,
+} from "@/lib/marketing/rate-sheet-from-matrix";
 import { cloudinaryUrl } from "@/lib/cloudinary";
+import { loadActiveMealPlans } from "@/lib/meal-plans";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
@@ -255,8 +263,12 @@ export async function upsertRateSheet(
   }
 }
 
-/** Seed public peak card from marketing/rate-public (one click). */
-export async function seedPublicRateSheet(
+/**
+ * Beta: hard-delete existing marketing rate sheets for this property, then
+ * rebuild one published-style card per rate tier from live `room_rates`.
+ * Hotel → Room rates remains the only Nu source of truth.
+ */
+export async function rebuildRateSheetsFromMatrix(
   _prev: RateSheetActionState,
   _formData: FormData,
 ): Promise<RateSheetActionState> {
@@ -264,70 +276,127 @@ export async function seedPublicRateSheet(
     await requireDesk();
     const admin = createSupabaseAdminClient();
     const propertyId = await requireDeskPropertyId();
-    const slug = "public-peak-2026";
-    const document = publicPeakRateSheetDocument();
     const now = new Date().toISOString();
 
-    const { data: existing } = await admin
-      .from("marketing_rate_sheets")
-      .select("id")
-      .eq("property_id", propertyId)
-      .eq("slug", slug)
-      .maybeSingle();
+    const [ratesRes, roomsRes, seasonsRes, mealPlans, policyRes] =
+      await Promise.all([
+        admin
+          .from("room_rates")
+          .select(
+            "room_type_id, season_kind, rate_tier, amount_btn, amount_single_btn",
+          )
+          .eq("property_id", propertyId)
+          .limit(2000),
+        admin
+          .from("room_types")
+          .select("id, code, name, inventory_kind")
+          .eq("property_id", propertyId)
+          .order("name"),
+        admin
+          .from("seasons")
+          .select("kind, starts_on, ends_on")
+          .eq("property_id", propertyId)
+          .order("starts_on"),
+        loadActiveMealPlans(admin, propertyId),
+        admin
+          .from("property_policies")
+          .select("rates_inclusive_of_gst_sc")
+          .eq("property_id", propertyId)
+          .maybeSingle(),
+      ]);
 
-    if (existing?.id) {
-      const { error } = await admin
+    if (ratesRes.error) throw new Error(ratesRes.error.message);
+    if (roomsRes.error) throw new Error(roomsRes.error.message);
+
+    const rates = (ratesRes.data ?? []) as MatrixRateCell[];
+    const roomTypes = (roomsRes.data ?? []) as MatrixRoomType[];
+    const seasons = (seasonsRes.data ?? []) as MatrixSeasonWindow[];
+    const inclusiveOfGstSc = Boolean(
+      policyRes.data?.rates_inclusive_of_gst_sc,
+    );
+    const mealInputs = mealPlans
+      .filter((p) => p.is_active)
+      .map((p) => ({
+        code: p.code,
+        name: p.name,
+        blurb: p.blurb,
+        amount_btn_per_adult_night: p.amount_btn_per_adult_night,
+        amount_btn_per_child_night: p.amount_btn_per_child_night,
+      }));
+    const seasonLabel = seasonLabelFromWindows(seasons);
+
+    const { error: delError } = await admin
+      .from("marketing_rate_sheets")
+      .delete()
+      .eq("property_id", propertyId);
+    if (delError) throw new Error(delError.message);
+
+    let publicSheetId: string | undefined;
+    for (const spec of LIVE_RATE_SHEET_SPECS) {
+      const document = buildRateSheetDocumentFromMatrix({
+        rateTier: spec.rateTier,
+        tierLabel: spec.tierLabel,
+        roomTypes,
+        rates,
+        seasons,
+        mealPlans: mealInputs,
+        inclusiveOfGstSc,
+      });
+
+      const { data, error } = await admin
         .from("marketing_rate_sheets")
-        .update({
-          title: "Public room rates — Peak 2026",
-          audience: "public",
+        .insert({
+          property_id: propertyId,
+          slug: spec.slug,
+          title: spec.title,
+          audience: spec.audience,
           status: "draft",
-          season_label: "Season 2 · Peak Sep–Nov 2026",
+          season_label: seasonLabel,
           document,
-          updated_at: now,
           notes:
-            "Seeded from marketing/rate-public.html peak table. Edit freely.",
+            "Generated from Hotel → Room rates matrix. Beta: rebuild overwrites all sheets.",
+          updated_at: now,
         })
-        .eq("id", existing.id);
+        .select("id")
+        .single();
+
       if (error) throw new Error(error.message);
-      revalidateSheets();
-      return {
-        ok: true,
-        message: "Public rate sheet refreshed from seed",
-        id: existing.id,
-      };
+      if (spec.rateTier === "public") publicSheetId = data.id as string;
     }
 
-    const { data, error } = await admin
-      .from("marketing_rate_sheets")
-      .insert({
-        property_id: propertyId,
-        slug,
-        title: "Public room rates — Peak 2026",
-        audience: "public",
-        status: "draft",
-        season_label: "Season 2 · Peak Sep–Nov 2026",
-        document,
-        notes:
-          "Seeded from marketing/rate-public.html peak table. Edit freely.",
-        updated_at: now,
-      })
-      .select("id")
-      .single();
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "marketing.rate_sheets.rebuild",
+      entityType: "marketing_rate_sheets",
+      entityId: publicSheetId ?? null,
+      summary: `Rebuilt ${LIVE_RATE_SHEET_SPECS.length} rate sheets from room_rates`,
+      meta: { source: "room_rates", sheets: LIVE_RATE_SHEET_SPECS.length },
+    });
 
-    if (error) throw new Error(error.message);
     revalidateSheets();
+    revalidatePath("/erp/rates");
     return {
       ok: true,
-      message: "Public rate sheet created from seed",
-      id: data.id,
+      message: `Rebuilt ${LIVE_RATE_SHEET_SPECS.length} rate sheets from Hotel → Room rates (old sheets deleted)`,
+      id: publicSheetId,
     };
   } catch (err) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "Could not seed rate sheet.",
+      error:
+        err instanceof Error
+          ? err.message
+          : "Could not rebuild rate sheets from matrix.",
     };
   }
+}
+
+/** @deprecated Use rebuildRateSheetsFromMatrix — kept for any stale form post. */
+export async function seedPublicRateSheet(
+  prev: RateSheetActionState,
+  formData: FormData,
+): Promise<RateSheetActionState> {
+  return rebuildRateSheetsFromMatrix(prev, formData);
 }
 
 export async function archiveRateSheet(

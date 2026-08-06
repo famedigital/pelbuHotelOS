@@ -1,6 +1,7 @@
 "use client";
 
 import type { BookingRow } from "@/components/erp/BookingsTable";
+import { AgentNameLink } from "@/components/erp/AgentNameLink";
 import { BookingDetailPanelLoader } from "@/components/erp/BookingDetailPanelLoader";
 import {
   Accordion,
@@ -81,7 +82,13 @@ function RowSummary({ row }: { row: BookingRow }) {
       <div className="hidden shrink-0 text-sm text-muted-foreground md:block md:w-[8rem]">
         <span className="text-foreground">{row.source ?? "—"}</span>
         {row.agent_name ? (
-          <span className="block truncate">{row.agent_name}</span>
+          <span className="block truncate">
+            <AgentNameLink
+              agentId={row.agent_id}
+              name={row.agent_name}
+              className="text-sm"
+            />
+          </span>
         ) : null}
       </div>
       <div className="hidden shrink-0 text-sm tabular-nums lg:block lg:w-[6rem]">
@@ -123,7 +130,16 @@ function MobileRowSummary({ row }: { row: BookingRow }) {
       </p>
       <p className="text-sm text-muted-foreground">
         {row.source ?? "—"}
-        {row.agent_name ? ` · ${row.agent_name}` : ""}
+        {row.agent_name ? (
+          <>
+            {" · "}
+            <AgentNameLink
+              agentId={row.agent_id}
+              name={row.agent_name}
+              className="text-sm"
+            />
+          </>
+        ) : null}
       </p>
       <p className="text-sm tabular-nums text-muted-foreground">
         {Number(row.rooms ?? 0)} rooms / {Number(row.adults ?? 0)} pax

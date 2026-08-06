@@ -50,9 +50,11 @@ import {
   cloudinaryOriginalUrl,
   cloudinaryUrl,
 } from "@/lib/cloudinary";
+import { StaffAccessGrantPicker } from "@/components/erp/StaffAccessGrantPicker";
 import {
-  DESK_MODULE_CATALOG,
   defaultModulesForDeskRole,
+  expandGrantsForEditor,
+  summarizeDeskGrants,
 } from "@/lib/erp/desk-modules";
 import type { DeskRole } from "@/lib/desk-auth";
 import { cn } from "@/lib/utils";
@@ -126,7 +128,14 @@ export type StaffPrivateProfile = {
   taxIdentifier: string | null;
   providentFundNumber: string | null;
   baseWageBtn: number | null;
+  /** HC rate as % of basic (0–100). Source of truth when set. */
+  healthContributionPct: number | null;
+  /** Cached Nu amount from basic × pct. */
   healthContributionBtn: number | null;
+  /** Employee NPPF % of basic (0–100). Null = property payroll rule default. */
+  pfEmployeePct: number | null;
+  /** Employer NPPF % of basic (0–100). Null = property payroll rule default. */
+  pfEmployerPct: number | null;
   serviceChargeEligible: boolean;
   serviceChargeShareBtn: number | null;
   photoPublicId: string | null;
@@ -956,8 +965,8 @@ function AccessStep({
   const [useDefaults, setUseDefaults] = useState(
     member.deskModuleKeys == null,
   );
-  const [moduleKeys, setModuleKeys] = useState<string[]>(
-    () => member.deskModuleKeys ?? roleDefaults,
+  const [grantSelected, setGrantSelected] = useState<Set<string>>(() =>
+    expandGrantsForEditor(member.deskModuleKeys, roleDefaults).selected,
   );
   const [accessState, accessAction, accessPending] = useActionState(
     upsertStaffRolesAccess,
@@ -1012,10 +1021,8 @@ function AccessStep({
         ? "owner"
         : suggested || "front_desk") as DeskRole,
     );
-    setModuleKeys(
-      member.deskModuleKeys != null
-        ? [...member.deskModuleKeys]
-        : [...defaults],
+    setGrantSelected(
+      expandGrantsForEditor(member.deskModuleKeys, defaults).selected,
     );
     setResetPin(false);
     setEditing(true);
@@ -1025,11 +1032,13 @@ function AccessStep({
   // role-default strings mislead HR into thinking staff PWA shows those items.
   const moduleSummary = !member.canAccessDesk
     ? "Not used — hotel desk is off (staff use /staff: laundry, leave, payslips)"
-    : member.deskModuleKeys == null
-      ? `Role defaults (${defaultModulesForDeskRole(
-          (isOwner ? "owner" : (member.deskRole as DeskRole) || "front_desk"),
-        ).join(", ")})`
-      : member.deskModuleKeys.join(", ");
+    : summarizeDeskGrants(
+        member.deskModuleKeys,
+        isOwner
+          ? "owner"
+          : ((member.deskRole as DeskRole) || "front_desk"),
+        { isOwner },
+      );
 
   const rows = [
     { label: "Operational role", value: titleCase(member.role) },
@@ -1072,7 +1081,7 @@ function AccessStep({
     <div>
       <SectionToolbar
         title="Access"
-        description="Roles, hotel desk (/erp), ERP modules, and portal PIN. Staff PWA (/staff) is separate: laundry, leave, payslips."
+        description="Roles, hotel desk (/erp), per-screen grants, and portal PIN. Grant Money without Team › Payroll when salary should stay private. Staff PWA (/staff) is separate."
       >
         {!editing && !resetPin ? (
           <>
@@ -1108,33 +1117,37 @@ function AccessStep({
           title="Edit access"
           onCancel={() => setEditing(false)}
         >
-          <form action={accessAction} className="space-y-3">
+          <form action={accessAction} className="space-y-5">
             <input type="hidden" name="staff_id" value={member.id} />
-            <Field label="Operational role" htmlFor="a_role">
-              <select
-                id="a_role"
-                name="role_label"
-                defaultValue={member.role}
-                className={selectClass}
-              >
-                <RoleOptions />
-              </select>
-            </Field>
-            <Field label="HR access level" htmlFor="a_access">
-              <select
-                id="a_access"
-                name="access_level"
-                defaultValue={member.accessLevel}
-                className={selectClass}
-              >
-                <option value="employee">Employee</option>
-                <option value="supervisor">Supervisor</option>
-                <option value="hr_admin">HR admin</option>
-                <option value="payroll_admin">Payroll admin</option>
-                <option value="owner">Owner</option>
-              </select>
-            </Field>
-            <label className="flex min-h-11 items-start gap-3 rounded-md border bg-background px-3 py-3 text-sm">
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Operational role" htmlFor="a_role">
+                <select
+                  id="a_role"
+                  name="role_label"
+                  defaultValue={member.role}
+                  className={selectClass}
+                >
+                  <RoleOptions />
+                </select>
+              </Field>
+              <Field label="HR access level" htmlFor="a_access">
+                <select
+                  id="a_access"
+                  name="access_level"
+                  defaultValue={member.accessLevel}
+                  className={selectClass}
+                >
+                  <option value="employee">Employee</option>
+                  <option value="supervisor">Supervisor</option>
+                  <option value="hr_admin">HR admin</option>
+                  <option value="payroll_admin">Payroll admin</option>
+                  <option value="owner">Owner</option>
+                </select>
+              </Field>
+            </div>
+
+            <label className="flex min-h-12 cursor-pointer items-start gap-3 rounded-2xl border bg-gradient-to-br from-muted/30 to-background px-4 py-3.5 text-sm transition-colors hover:border-accent/40">
               <input
                 type="checkbox"
                 name="can_access_desk"
@@ -1147,10 +1160,11 @@ function AccessStep({
                     if (s) {
                       setDeskRoleSelect(s);
                       if (useDefaults) {
-                        setModuleKeys(
-                          defaultModulesForDeskRole(
-                            isOwner ? "owner" : s,
-                          ),
+                        setGrantSelected(
+                          expandGrantsForEditor(
+                            null,
+                            defaultModulesForDeskRole(isOwner ? "owner" : s),
+                          ).selected,
                         );
                       }
                     }
@@ -1159,14 +1173,17 @@ function AccessStep({
                 className="mt-1 size-4 rounded border"
               />
               <span>
-                <span className="font-medium">Allow hotel desk (/erp)</span>
-                <span className="mt-1 block text-muted-foreground">
-                  Required for POS, front desk, rooms, money. Without it they
-                  only use /staff (laundry, leave, payslips). Check this on
-                  before customizing ERP modules.
+                <span className="font-semibold tracking-tight">
+                  Allow hotel desk (/erp)
+                </span>
+                <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                  Required for POS, front desk, rooms, money. Off = /staff
+                  app only (laundry, leave, own payslips). Turn on before
+                  customizing screens.
                 </span>
               </span>
             </label>
+
             <Field label="Desk RBAC role" htmlFor="a_desk_role">
               <select
                 id="a_desk_role"
@@ -1177,10 +1194,13 @@ function AccessStep({
                   const next = e.target.value;
                   setDeskRoleSelect(next);
                   if (useDefaults && next) {
-                    setModuleKeys(
-                      defaultModulesForDeskRole(
-                        (isOwner ? "owner" : next) as DeskRole,
-                      ),
+                    setGrantSelected(
+                      expandGrantsForEditor(
+                        null,
+                        defaultModulesForDeskRole(
+                          (isOwner ? "owner" : next) as DeskRole,
+                        ),
+                      ).selected,
                     );
                   }
                 }}
@@ -1197,89 +1217,45 @@ function AccessStep({
                 <option value="laundry">Laundry</option>
               </select>
             </Field>
-            {deskOn && deskRoleSelect === "fnb" && useDefaults ? (
-              <p className="text-xs text-muted-foreground">
-                F&amp;B role defaults include <span className="font-medium">dashboard</span>{" "}
-                and <span className="font-medium">pos</span>.
-              </p>
-            ) : null}
 
             {canEditModules ? (
               deskOn ? (
-                <div className="space-y-2 rounded-md border p-3">
-                  <p className="text-sm font-medium">ERP modules</p>
-                  <p className="text-xs text-muted-foreground">
-                    Owner / GM only. Full matrix on Team → Module access.
-                  </p>
-                  <input
-                    type="hidden"
-                    name="module_mode"
-                    value={useDefaults ? "defaults" : "custom"}
-                  />
-                  {!useDefaults
-                    ? moduleKeys.map((k) => (
-                        <input
-                          key={k}
-                          type="hidden"
-                          name="module_key"
-                          value={k}
-                        />
-                      ))
-                    : null}
-                  <label className="flex min-h-10 items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={useDefaults}
-                      onChange={(e) => {
-                        setUseDefaults(e.target.checked);
-                        if (e.target.checked) setModuleKeys(roleDefaults);
-                      }}
-                      className="size-4 rounded border"
-                    />
-                    Use role defaults
-                  </label>
-                  <div
-                    className={`grid gap-2 sm:grid-cols-2 ${
-                      useDefaults ? "opacity-50" : ""
-                    }`}
-                  >
-                    {DESK_MODULE_CATALOG.map((mod) => {
-                      const checked = useDefaults
-                        ? roleDefaults.includes(mod.key)
-                        : moduleKeys.includes(mod.key);
-                      return (
-                        <label
-                          key={mod.key}
-                          className="flex min-h-10 items-center gap-2 text-sm"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            disabled={useDefaults || mod.key === "dashboard"}
-                            onChange={() => {
-                              if (mod.key === "dashboard") return;
-                              setModuleKeys((prev) =>
-                                prev.includes(mod.key)
-                                  ? prev.filter((x) => x !== mod.key)
-                                  : [...prev, mod.key],
-                              );
-                            }}
-                            className="size-4 rounded border"
-                          />
-                          {mod.title}
-                        </label>
+                <StaffAccessGrantPicker
+                  compact
+                  useDefaults={useDefaults}
+                  onUseDefaultsChange={(next) => {
+                    setUseDefaults(next);
+                    if (next) {
+                      setGrantSelected(
+                        expandGrantsForEditor(null, roleDefaults).selected,
                       );
-                    })}
-                  </div>
-                </div>
+                    } else if (member.deskModuleKeys == null) {
+                      setGrantSelected(
+                        expandGrantsForEditor(null, roleDefaults).selected,
+                      );
+                    } else {
+                      setGrantSelected(
+                        expandGrantsForEditor(
+                          member.deskModuleKeys,
+                          roleDefaults,
+                        ).selected,
+                      );
+                    }
+                  }}
+                  selected={grantSelected}
+                  onSelectedChange={setGrantSelected}
+                  roleDefaults={roleDefaults}
+                  disabled={isOwner}
+                />
               ) : (
                 <>
-                  {/* Keep column unchanged while desk is off; prevent silent discard. */}
                   <input type="hidden" name="module_mode" value="omit" />
-                  <p className="rounded-md border border-dashed px-3 py-3 text-xs text-muted-foreground">
-                    Turn on hotel desk and pick a desk role to set ERP modules
-                    (POS etc.). Leaving desk off keeps this person on the{" "}
-                    <span className="font-medium">/staff</span> app only.
+                  <p className="rounded-2xl border border-dashed px-4 py-3.5 text-xs leading-relaxed text-muted-foreground">
+                    Turn on hotel desk and pick a desk role to set ERP screens
+                    (e.g. Money without Payroll). Leaving desk off keeps this
+                    person on the{" "}
+                    <span className="font-medium text-foreground">/staff</span>{" "}
+                    app only.
                   </p>
                 </>
               )
@@ -1287,7 +1263,7 @@ function AccessStep({
               <input type="hidden" name="module_mode" value="omit" />
             )}
 
-            <div className="flex flex-wrap items-center gap-2 pt-1">
+            <div className="flex flex-wrap items-center gap-2 border-t pt-4">
               <Result state={accessState} />
               <Button
                 type="submit"
@@ -1421,6 +1397,38 @@ function CompensationStep({
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [wageDraft, setWageDraft] = useState(
+    privateProfile?.baseWageBtn != null
+      ? String(privateProfile.baseWageBtn)
+      : "",
+  );
+  const [hcPctDraft, setHcPctDraft] = useState(
+    privateProfile?.healthContributionPct != null
+      ? String(privateProfile.healthContributionPct)
+      : privateProfile?.healthContributionBtn != null &&
+          privateProfile?.baseWageBtn
+        ? String(
+            Math.round(
+              ((privateProfile.healthContributionBtn /
+                privateProfile.baseWageBtn) *
+                100) *
+                100,
+            ) / 100,
+          )
+        : "",
+  );
+  /** Bhutan NPPF defaults when staff has no override yet. */
+  const DEFAULT_PF_PCT = "5";
+  const [pfEmployeePctDraft, setPfEmployeePctDraft] = useState(
+    privateProfile?.pfEmployeePct != null
+      ? String(privateProfile.pfEmployeePct)
+      : DEFAULT_PF_PCT,
+  );
+  const [pfEmployerPctDraft, setPfEmployerPctDraft] = useState(
+    privateProfile?.pfEmployerPct != null
+      ? String(privateProfile.pfEmployerPct)
+      : DEFAULT_PF_PCT,
+  );
   const [profileState, profileAction, profilePending] = useActionState(
     upsertStaffPrivateProfile,
     initialHr,
@@ -1450,14 +1458,125 @@ function CompensationStep({
   }, [delState.ok, router]);
 
   const hasSalary = privateProfile?.baseWageBtn != null;
+  const wageNum = Number(wageDraft);
+  const hcPctNum = Number(hcPctDraft);
+  const pfEmpPctNum = Number(pfEmployeePctDraft);
+  const pfErPctNum = Number(pfEmployerPctDraft);
+  const hcAmountPreview =
+    Number.isFinite(wageNum) &&
+    wageNum > 0 &&
+    Number.isFinite(hcPctNum) &&
+    hcPctNum >= 0
+      ? Math.round(((wageNum * hcPctNum) / 100) * 100) / 100
+      : null;
+  const pfEmployeePreview =
+    Number.isFinite(wageNum) &&
+    wageNum > 0 &&
+    Number.isFinite(pfEmpPctNum) &&
+    pfEmpPctNum >= 0
+      ? Math.round(((wageNum * pfEmpPctNum) / 100) * 100) / 100
+      : null;
+  const pfEmployerPreview =
+    Number.isFinite(wageNum) &&
+    wageNum > 0 &&
+    Number.isFinite(pfErPctNum) &&
+    pfErPctNum >= 0
+      ? Math.round(((wageNum * pfErPctNum) / 100) * 100) / 100
+      : null;
+
+  function openCompensationEdit() {
+    setWageDraft(
+      privateProfile?.baseWageBtn != null
+        ? String(privateProfile.baseWageBtn)
+        : "",
+    );
+    if (privateProfile?.healthContributionPct != null) {
+      setHcPctDraft(String(privateProfile.healthContributionPct));
+    } else if (
+      privateProfile?.healthContributionBtn != null &&
+      privateProfile?.baseWageBtn &&
+      privateProfile.baseWageBtn > 0
+    ) {
+      setHcPctDraft(
+        String(
+          Math.round(
+            ((privateProfile.healthContributionBtn /
+              privateProfile.baseWageBtn) *
+              100) *
+              100,
+          ) / 100,
+        ),
+      );
+    } else {
+      setHcPctDraft("");
+    }
+    setPfEmployeePctDraft(
+      privateProfile?.pfEmployeePct != null
+        ? String(privateProfile.pfEmployeePct)
+        : DEFAULT_PF_PCT,
+    );
+    setPfEmployerPctDraft(
+      privateProfile?.pfEmployerPct != null
+        ? String(privateProfile.pfEmployerPct)
+        : DEFAULT_PF_PCT,
+    );
+    setEditing(true);
+  }
+
+  function pctOfBasicDisplay(
+    pct: number | null | undefined,
+    fallbackPct: number,
+  ): string {
+    const rate = pct != null ? pct : fallbackPct;
+    if (privateProfile?.baseWageBtn != null && privateProfile.baseWageBtn > 0) {
+      const amt =
+        Math.round(
+          ((privateProfile.baseWageBtn * rate) / 100) * 100,
+        ) / 100;
+      return `${rate}% · ${money(amt)}`;
+    }
+    return `${rate}% of basic`;
+  }
+
+  const hcDisplay = (() => {
+    if (privateProfile?.healthContributionPct != null) {
+      const amt =
+        privateProfile.healthContributionBtn != null
+          ? money(privateProfile.healthContributionBtn)
+          : privateProfile.baseWageBtn != null
+            ? money(
+                Math.round(
+                  ((privateProfile.baseWageBtn *
+                    privateProfile.healthContributionPct) /
+                    100) *
+                    100,
+                ) / 100,
+              )
+            : "—";
+      return `${privateProfile.healthContributionPct}% · ${amt}`;
+    }
+    if (privateProfile?.healthContributionBtn != null) {
+      return money(privateProfile.healthContributionBtn);
+    }
+    return "—";
+  })();
+
   const payRows = [
     {
       label: "Pay schedule",
       value: titleCase(privateProfile?.paySchedule ?? "monthly"),
     },
     {
+      label: "Employee PF (NPPF)",
+      value: pctOfBasicDisplay(privateProfile?.pfEmployeePct, 5),
+    },
+    {
+      label: "Employer PF (NPPF)",
+      value: pctOfBasicDisplay(privateProfile?.pfEmployerPct, 5),
+    },
+    {
       label: "Health contribution (HC)",
-      value: money(privateProfile?.healthContributionBtn),
+      value: hcDisplay,
     },
     {
       label: "Service charge eligible",
@@ -1508,7 +1627,7 @@ function CompensationStep({
               variant="outline"
               size="sm"
               className="h-9 gap-1.5"
-              onClick={() => setEditing(true)}
+              onClick={openCompensationEdit}
             >
               <PencilIcon className="size-3.5" />
               {hasSalary ? "Edit salary" : "Set salary"}
@@ -1539,6 +1658,13 @@ function CompensationStep({
                 to save.
               </p>
             )}
+            {hasSalary ? (
+              <p className="mt-2 text-xs tabular-nums text-muted-foreground">
+                PF emp {pctOfBasicDisplay(privateProfile?.pfEmployeePct, 5)} ·
+                er {pctOfBasicDisplay(privateProfile?.pfEmployerPct, 5)}
+                {hcDisplay !== "—" ? ` · HC ${hcDisplay}` : ""}
+              </p>
+            ) : null}
             <p className="mt-1 text-xs text-muted-foreground">
               Basic pay for payroll · {titleCase(privateProfile?.paySchedule ?? "monthly")}
             </p>
@@ -1565,13 +1691,15 @@ function CompensationStep({
                     type="number"
                     min={0}
                     step="0.01"
-                    defaultValue={privateProfile?.baseWageBtn ?? ""}
+                    value={wageDraft}
+                    onChange={(e) => setWageDraft(e.target.value)}
                     className="h-11"
                     placeholder="e.g. 15000"
                     autoFocus
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Basic pay used for payroll / PF / NPPF. Requires money desk.
+                    Basic pay used for payroll / PF / NPPF / HC. Requires money
+                    desk.
                   </p>
                 </Field>
                 <Field label="Pay schedule" htmlFor="c_schedule">
@@ -1588,15 +1716,112 @@ function CompensationStep({
                 </Field>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Health contribution HC (Nu)" htmlFor="c_hc">
-                  <Input
-                    id="c_hc"
+                <Field label="Employee PF (%)" htmlFor="c_pf_emp">
+                  <div className="relative">
+                    <Input
+                      id="c_pf_emp"
+                      name="pf_employee_pct"
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="0.01"
+                      value={pfEmployeePctDraft}
+                      onChange={(e) => setPfEmployeePctDraft(e.target.value)}
+                      className="h-11 pr-10"
+                      placeholder="5"
+                    />
+                    <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-muted-foreground">
+                      %
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Of monthly salary (NPPF employee).
+                    {pfEmployeePreview != null ? (
+                      <>
+                        {" "}
+                        Deduction:{" "}
+                        <span className="font-medium tabular-nums text-foreground">
+                          {money(pfEmployeePreview)}
+                        </span>
+                      </>
+                    ) : (
+                      " Enter salary to see Nu."
+                    )}
+                  </p>
+                </Field>
+                <Field label="Employer PF (%)" htmlFor="c_pf_er">
+                  <div className="relative">
+                    <Input
+                      id="c_pf_er"
+                      name="pf_employer_pct"
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="0.01"
+                      value={pfEmployerPctDraft}
+                      onChange={(e) => setPfEmployerPctDraft(e.target.value)}
+                      className="h-11 pr-10"
+                      placeholder="5"
+                    />
+                    <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-muted-foreground">
+                      %
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Of monthly salary (employer cost).
+                    {pfEmployerPreview != null ? (
+                      <>
+                        {" "}
+                        Cost:{" "}
+                        <span className="font-medium tabular-nums text-foreground">
+                          {money(pfEmployerPreview)}
+                        </span>
+                      </>
+                    ) : (
+                      " Enter salary to see Nu."
+                    )}
+                  </p>
+                </Field>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Health contribution HC (%)" htmlFor="c_hc_pct">
+                  <div className="relative">
+                    <Input
+                      id="c_hc_pct"
+                      name="health_contribution_pct"
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="0.01"
+                      value={hcPctDraft}
+                      onChange={(e) => setHcPctDraft(e.target.value)}
+                      className="h-11 pr-10"
+                      placeholder="e.g. 1"
+                    />
+                    <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-muted-foreground">
+                      %
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Of monthly salary.
+                    {hcAmountPreview != null ? (
+                      <>
+                        {" "}
+                        Deduction:{" "}
+                        <span className="font-medium tabular-nums text-foreground">
+                          {money(hcAmountPreview)}
+                        </span>
+                      </>
+                    ) : (
+                      " Enter salary and % to see Nu."
+                    )}
+                  </p>
+                  <input
+                    type="hidden"
                     name="health_contribution_btn"
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    defaultValue={privateProfile?.healthContributionBtn ?? ""}
-                    className="h-11"
+                    value={
+                      hcAmountPreview != null ? String(hcAmountPreview) : ""
+                    }
                   />
                 </Field>
                 <Field label="SC fixed share (Nu)" htmlFor="c_sc_share">

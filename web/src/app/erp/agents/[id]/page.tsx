@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { agentDossierMonthPresets } from "@/lib/erp/agent-links";
 import { fmtDate, thimphuToday } from "@/lib/erp-lists";
 import { requireDeskPropertyId } from "@/lib/desk-property";
 import { formatBtn } from "@/lib/pricing";
@@ -105,6 +106,30 @@ export default async function AgentDossierPage({ params, searchParams }: Props) 
           <Button type="submit" size="sm" className="h-9">
             Apply
           </Button>
+          <div className="flex flex-wrap gap-1">
+            {agentDossierMonthPresets(today).map((p) => (
+              <Button
+                key={p.id}
+                asChild
+                type="button"
+                size="sm"
+                variant={
+                  from === p.from && to === p.to ? "secondary" : "outline"
+                }
+                className="h-9"
+              >
+                <Link
+                  href={`/erp/agents/${id}?tab=${tab}&from=${p.from}&to=${p.to}${
+                    statusFilter
+                      ? `&status=${encodeURIComponent(statusFilter)}`
+                      : ""
+                  }`}
+                >
+                  {p.label}
+                </Link>
+              </Button>
+            ))}
+          </div>
           <Button asChild type="button" variant="outline" size="sm" className="h-9">
             <Link href="/erp/agents">← Agents</Link>
           </Button>

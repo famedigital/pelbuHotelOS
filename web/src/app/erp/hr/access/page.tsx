@@ -67,9 +67,9 @@ export default async function ErpHrAccessPage() {
             Module access
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Grant each desk staffer which sidebar modules they can open.
-            Owner and GM always see every module. Shared DESK_PIN sessions act
-            as GM.
+            Grant each desk staffer modules or individual screens. Example:
+            full Money, but not Team › Payroll so salary stays private. Owner
+            and GM always see every screen. Shared DESK_PIN sessions act as GM.
           </p>
         </div>
         <Button asChild variant="outline" className="min-h-11">
@@ -87,7 +87,7 @@ export default async function ErpHrAccessPage() {
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">
-          You can edit module grants. Money mutations still follow desk role
+          You can edit grants. Money mutations still follow desk role
           (`requireMoneyDesk`) even if Money is visible.
         </p>
       )}
@@ -96,8 +96,9 @@ export default async function ErpHrAccessPage() {
         <CardHeader>
           <CardTitle>Desk-capable staff</CardTitle>
           <CardDescription>
-            Only staff with hotel desk enabled appear here. Leave &quot;Use
-            role defaults&quot; on unless they need a custom mix.
+            Only staff with hotel desk enabled appear here. Leave &quot;Role
+            defaults&quot; on unless they need a custom mix of modules and
+            screens (e.g. hide payroll).
           </CardDescription>
         </CardHeader>
         <CardContent>

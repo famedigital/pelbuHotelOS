@@ -4,6 +4,7 @@ import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
@@ -73,7 +74,15 @@ export default async function ErpRoomsPage() {
             marks rooms dirty automatically.
           </p>
         </div>
-        <FrontDeskLiveRefresh />
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/erp/rooms/layout"
+            className="rounded-md border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+          >
+            Floor map
+          </Link>
+          <FrontDeskLiveRefresh />
+        </div>
       </header>
 
       <section>

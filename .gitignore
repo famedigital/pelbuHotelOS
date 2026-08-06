@@ -50,3 +50,6 @@ ref/
 web/eslint-pass.json
 web/eslint-pos.json
 web/home.html
+# One-shot eZee parse dumps — do not commit
+marketing/old bookings/reservation-list-parsed.json
+marketing/old bookings/*.json

@@ -60,6 +60,7 @@ export type BookingDetailData = {
   children: number;
   extra_beds: number;
   extra_bed_amount_btn: number | null;
+  agent_id: string | null;
   agent_name: string | null;
   is_mou_agent: boolean;
   cancel_policy_summary: string;
@@ -239,6 +240,7 @@ export async function loadBookingDetail(
       data.extra_bed_amount_btn != null
         ? Number(data.extra_bed_amount_btn)
         : null,
+    agent_id: (data.agent_id as string | null) ?? null,
     agent_name: agentRow?.company_name ?? null,
     is_mou_agent: isMouAgent,
     cancel_policy_summary: cancelCtx.summary,

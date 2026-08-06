@@ -236,7 +236,7 @@ export async function calculatePayrollRun(
     const { data: profiles } = await admin
       .from("staff_private_profiles")
       .select(
-        "staff_id, base_wage_btn, bank_name, bank_account_number, provident_fund_number, tax_identifier, health_contribution_btn, service_charge_eligible, service_charge_share_btn",
+        "staff_id, base_wage_btn, bank_name, bank_account_number, provident_fund_number, tax_identifier, health_contribution_btn, health_contribution_pct, pf_employee_pct, pf_employer_pct, service_charge_eligible, service_charge_share_btn",
       )
       .in("staff_id", staffIds);
     const profileByStaff = new Map(
@@ -302,12 +302,22 @@ export async function calculatePayrollRun(
         else deductions.push({ ...component, taxable: false });
       }
 
-      // Health contribution (HC) and optional fixed service-charge share (SC).
-      const hc = Number(profile?.health_contribution_btn ?? 0);
+      // Health contribution (HC): % of basic when set, else fixed Nu cache.
+      const hcPct =
+        profile?.health_contribution_pct != null
+          ? Number(profile.health_contribution_pct)
+          : null;
+      const hc =
+        hcPct != null && hcPct > 0
+          ? Math.round(((basicWage * hcPct) / 100) * 100) / 100
+          : Number(profile?.health_contribution_btn ?? 0);
       if (hc > 0) {
         deductions.push({
           code: "HC",
-          label: "Health contribution",
+          label:
+            hcPct != null && hcPct > 0
+              ? `Health contribution (${hcPct}%)`
+              : "Health contribution",
           amount: hc,
           taxable: false,
         });
@@ -336,7 +346,17 @@ export async function calculatePayrollRun(
       }
 
       const input: PayrollItemInput = { basicWage, earnings, deductions };
-      const result = computePayrollItem(input, rules);
+      // Per-staff PF % of basic when set; else property NPPF rule rates (e.g. 5%+5%).
+      const staffRules = { ...rules };
+      if (profile?.pf_employee_pct != null) {
+        staffRules.pfEmployeeRate =
+          Number(profile.pf_employee_pct) / 100;
+      }
+      if (profile?.pf_employer_pct != null) {
+        staffRules.pfEmployerRate =
+          Number(profile.pf_employer_pct) / 100;
+      }
+      const result = computePayrollItem(input, staffRules);
 
       headcount += 1;
       grossTotal = round2(grossTotal + result.gross);

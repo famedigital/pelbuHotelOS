@@ -1,5 +1,6 @@
 "use client";
 
+import { AgentNameLink } from "@/components/erp/AgentNameLink";
 import { BookingLifecycleActions } from "@/components/erp/BookingLifecycleActions";
 import { StayMoneyCycleLegend } from "@/components/erp/StayMoneyCycleLegend";
 import { StayMoneyProcessStrip } from "@/components/erp/StayMoneyProcessStrip";
@@ -162,7 +163,20 @@ export function BookingDetailPanel({
                 null
               }
             />
-            <DetailField label="Agent" value={data.agent_name} />
+            <div className="min-w-0">
+              <dt className="text-xs text-muted-foreground">Agent</dt>
+              <dd className="text-sm break-words text-foreground">
+                {data.agent_id || data.agent_name ? (
+                  <AgentNameLink
+                    agentId={data.agent_id}
+                    name={data.agent_name}
+                    className="text-sm"
+                  />
+                ) : (
+                  "—"
+                )}
+              </dd>
+            </div>
             <DetailField label="Origin" value={data.guest_origin} />
             <DetailField label="Guide #" value={data.guide_number} />
             <DetailField label="Payment mode" value={data.payment_mode} />

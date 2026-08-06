@@ -30,6 +30,7 @@ export type RatesWorkspaceRateRow = {
   season_kind: string;
   rate_tier: string;
   amount_btn: number;
+  amount_single_btn: number | null;
 };
 
 export type RatesWorkspaceSeason = {
@@ -179,9 +180,12 @@ export function RatePackagesWorkspace({
           <p className="max-w-3xl text-sm text-muted-foreground">
             Primary sheet is{" "}
             <strong className="font-medium text-foreground">public / rack</strong>
-            . Open Advanced market tiers for agents, MOU, friends, and family —
-            booking still uses those tiers when selected on the agent or desk
-            flow. Amounts are{" "}
+            . Each season cell has <strong className="font-medium text-foreground">double</strong>{" "}
+            (2 adults) and{" "}
+            <strong className="font-medium text-foreground">single</strong>{" "}
+            (1 adult) room-only Nu. Package totals above still use double for
+            meal packages. Open Advanced market tiers for agents, MOU, friends,
+            and family. Amounts are{" "}
             {ratesInclusiveOfGstSc
               ? "inclusive of GST and SC (when SC is on by default)"
               : "exclusive of GST and SC"}

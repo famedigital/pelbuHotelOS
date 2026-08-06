@@ -39,18 +39,40 @@ export async function lookupRoomRateBtn(
     roomTypeId: string;
     seasonKind: SeasonKind;
     rateTier: RateTier;
+    /**
+     * When `single` and a single rate is stored, return that.
+     * Default `double` keeps existing desk behaviour.
+     */
+    occupancy?: "single" | "double";
+    /** Convenience: adults === 1 selects single when available. */
+    adults?: number;
   },
 ): Promise<number | null> {
   const { data } = await admin
     .from("room_rates")
-    .select("amount_btn")
+    .select("amount_btn, amount_single_btn")
     .eq("property_id", args.propertyId)
     .eq("room_type_id", args.roomTypeId)
     .eq("season_kind", args.seasonKind)
     .eq("rate_tier", args.rateTier)
     .maybeSingle();
 
-  if (data?.amount_btn == null) return null;
+  if (data?.amount_btn == null && data?.amount_single_btn == null) return null;
+
+  const wantSingle =
+    args.occupancy === "single" ||
+    (args.occupancy !== "double" &&
+      args.adults != null &&
+      Number(args.adults) === 1);
+
+  if (wantSingle) {
+    const single = data.amount_single_btn;
+    if (single != null && Number.isFinite(Number(single))) {
+      return Number(single);
+    }
+  }
+
+  if (data.amount_btn == null) return null;
   return Number(data.amount_btn);
 }
 

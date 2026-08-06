@@ -74,6 +74,7 @@ type OccupiedRoom = {
   ncReasonCode: string | null;
   promoDiscountPct: number;
   promoCodeId: string | null;
+  adults: number;
 };
 
 /**
@@ -112,7 +113,7 @@ export async function postRoomNightsForDate(
        room_units(id, label, room_type_id, room_types(inventory_kind)),
        bookings!inner(
          id, status, check_in, check_out, contact_name, source, agent_id,
-         promo_discount_pct, promo_code_id,
+         adults, promo_discount_pct, promo_code_id,
          agents(rate_tier)
        )`,
     )
@@ -135,6 +136,7 @@ export async function postRoomNightsForDate(
           contact_name: string | null;
           source: string | null;
           agent_id: string | null;
+          adults?: number | null;
           agents?:
             | { rate_tier?: string | null }
             | { rate_tier?: string | null }[]
@@ -148,6 +150,7 @@ export async function postRoomNightsForDate(
           contact_name: string | null;
           source: string | null;
           agent_id: string | null;
+          adults?: number | null;
           agents?:
             | { rate_tier?: string | null }
             | { rate_tier?: string | null }[]
@@ -211,6 +214,7 @@ export async function postRoomNightsForDate(
         ((booking as { promo_code_id?: string | null }).promo_code_id as
           | string
           | null) ?? null,
+      adults: Math.max(1, Number(booking.adults ?? 2)),
     });
   }
 
@@ -234,6 +238,7 @@ export async function postRoomNightsForDate(
       roomTypeId: room.roomTypeId,
       seasonKind,
       rateTier: tier,
+      adults: room.adults,
     });
     if (rate == null) {
       errors.push(`Room ${room.roomLabel}: no rate for ${tier}/${seasonKind}.`);

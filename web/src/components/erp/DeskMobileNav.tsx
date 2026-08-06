@@ -3,6 +3,10 @@
 import { deskLogout } from "@/app/actions/desk";
 import { openErpCommandPalette } from "@/components/erp/ErpCommandPalette";
 import { ERP_MODULES, NAV_SECTIONS } from "@/lib/erp-nav";
+import {
+  filterErpNavByGrants,
+  tabVisibleFromGrants,
+} from "@/lib/erp/desk-modules";
 import { Input } from "@/components/ui/input";
 import {
   Sheet,
@@ -68,15 +72,16 @@ export function DeskMobileNav({
 
   const allow = useMemo(() => {
     if (!allowedModuleKeys || allowedModuleKeys.length === 0) return null;
-    return new Set(allowedModuleKeys);
+    return allowedModuleKeys;
   }, [allowedModuleKeys]);
 
-  const primary = PRIMARY_ITEMS.filter(
-    (item) => !allow || allow.has(item.moduleKey),
-  );
+  const primary = PRIMARY_ITEMS.filter((item) => {
+    if (!allow) return true;
+    return tabVisibleFromGrants(item.moduleKey, item.href, allow);
+  });
   const sections = useMemo(() => {
     if (!allow) return NAV_SECTIONS;
-    return ERP_MODULES.filter((m) => allow.has(m.key)).map((m) => ({
+    return filterErpNavByGrants(ERP_MODULES, allow).map((m) => ({
       label: m.title,
       items: m.tabs,
     }));

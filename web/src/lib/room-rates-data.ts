@@ -17,7 +17,10 @@ export type RateMatrixRow = {
   room_type_name: string;
   season_kind: string;
   rate_tier: string;
+  /** Double occupancy (2 adults) — default / historical. */
   amount_btn: number;
+  /** Single occupancy (1 adult); null when not set. */
+  amount_single_btn: number | null;
 };
 
 export type SeasonWindow = {
@@ -39,7 +42,7 @@ export async function loadRoomRatesMatrix(
     admin
       .from("room_rates")
       .select(
-        "id, season_kind, rate_tier, amount_btn, room_type_id, room_types(id, code, name, inventory_kind)",
+        "id, season_kind, rate_tier, amount_btn, amount_single_btn, room_type_id, room_types(id, code, name, inventory_kind)",
       )
       .eq("property_id", propertyId)
       .order("season_kind")
@@ -62,6 +65,7 @@ export async function loadRoomRatesMatrix(
     season_kind: string;
     rate_tier: string;
     amount_btn: number;
+    amount_single_btn?: number | null;
     room_type_id?: string;
     room_types?:
       | { id: string; code: string; name: string; inventory_kind: string }
@@ -75,6 +79,9 @@ export async function loadRoomRatesMatrix(
   const rows: RateMatrixRow[] = rateRows.map((r) => {
     const rt = r.room_types;
     const room = Array.isArray(rt) ? rt[0] : rt;
+    const singleRaw = r.amount_single_btn;
+    const single =
+      singleRaw == null ? null : Number(singleRaw);
     return {
       id: r.id,
       room_type_id: (r.room_type_id ?? room?.id) as string,
@@ -82,6 +89,8 @@ export async function loadRoomRatesMatrix(
       season_kind: r.season_kind,
       rate_tier: r.rate_tier,
       amount_btn: Number(r.amount_btn ?? 0),
+      amount_single_btn:
+        single != null && Number.isFinite(single) ? single : null,
     };
   });
 

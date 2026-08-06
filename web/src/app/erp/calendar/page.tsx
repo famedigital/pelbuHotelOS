@@ -43,7 +43,10 @@ export default async function CalendarPage({ searchParams }: Props) {
   const today = thimphuToday();
 
   const windowDaysRaw = Number(sp.days ?? 30);
-  const windowDays = [30, 60, 90].includes(windowDaysRaw) ? windowDaysRaw : 30;
+  /** 30 / 60 / 90 days, or ~6 months (180). */
+  const windowDays = [30, 60, 90, 180].includes(windowDaysRaw)
+    ? windowDaysRaw
+    : 30;
   const start =
     sp.start && /^\d{4}-\d{2}-\d{2}$/.test(sp.start) ? sp.start : today;
   const days = Array.from({ length: windowDays }, (_, i) => addDays(start, i));
@@ -111,7 +114,7 @@ export default async function CalendarPage({ searchParams }: Props) {
         .lt("check_in", endExclusive)
         .gt("check_out", start)
         .in("status", ["held", "pending", "confirmed", "checked_in"])
-        .limit(500),
+        .limit(2000),
       admin
         .from("room_blocks")
         .select("id, room_unit_id, block_kind, from_date, to_date, reason")
@@ -442,30 +445,35 @@ export default async function CalendarPage({ searchParams }: Props) {
       : "";
 
   return (
-    <div className="space-y-3">
-      <DeskOfflineQueueStrip defaultKind="hold_draft" />
-      <RoomRackGrid
-        units={units}
-        stays={stays}
-        start={start}
-        days={days}
-        today={today}
-        windowDays={windowDays}
-        agents={agents}
-        staff={staff}
-        defaultSoldByStaffId={defaultSoldByStaffId}
-        unassigned={unassigned}
-        blocks={blocks}
-        allotments={allotments}
-        propertyId={propertyId}
-        mealPlans={(mealPlanRows ?? []).map((m) => ({
-          code: m.code as string,
-          name: m.name as string,
-        }))}
-        defaultMealPlanCode={
-          (propertyDefaults?.default_meal_plan_code as string | undefined) ?? "EP"
-        }
-      />
+    <div className="flex min-h-0 flex-col overflow-hidden max-md:h-[calc(100svh-3.5rem-4rem-env(safe-area-inset-bottom,0px))] md:h-[calc(100svh-3.5rem)]">
+      <div className="shrink-0">
+        <DeskOfflineQueueStrip defaultKind="hold_draft" />
+      </div>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <RoomRackGrid
+          units={units}
+          stays={stays}
+          start={start}
+          days={days}
+          today={today}
+          windowDays={windowDays}
+          agents={agents}
+          staff={staff}
+          defaultSoldByStaffId={defaultSoldByStaffId}
+          unassigned={unassigned}
+          blocks={blocks}
+          allotments={allotments}
+          propertyId={propertyId}
+          mealPlans={(mealPlanRows ?? []).map((m) => ({
+            code: m.code as string,
+            name: m.name as string,
+          }))}
+          defaultMealPlanCode={
+            (propertyDefaults?.default_meal_plan_code as string | undefined) ??
+            "EP"
+          }
+        />
+      </div>
     </div>
   );
 }

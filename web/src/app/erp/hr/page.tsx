@@ -106,7 +106,7 @@ export default async function ErpHrPage() {
     admin
       .from("staff_private_profiles")
       .select(
-        "staff_id, cid_number, date_of_birth, address, emergency_contact_name, emergency_contact_phone, bank_name, bank_account_number, tax_identifier, provident_fund_number, base_wage_btn, health_contribution_btn, service_charge_eligible, service_charge_share_btn, photo_public_id, pay_schedule",
+        "staff_id, cid_number, date_of_birth, address, emergency_contact_name, emergency_contact_phone, bank_name, bank_account_number, tax_identifier, provident_fund_number, base_wage_btn, health_contribution_btn, health_contribution_pct, pf_employee_pct, pf_employer_pct, service_charge_eligible, service_charge_share_btn, photo_public_id, pay_schedule",
       )
       .eq("property_id", propertyId),
     admin
@@ -197,10 +197,18 @@ export default async function ErpHrPage() {
     providentFundNumber: (row.provident_fund_number as string | null) ?? null,
     baseWageBtn:
       row.base_wage_btn != null ? Number(row.base_wage_btn) : null,
+    healthContributionPct:
+      row.health_contribution_pct != null
+        ? Number(row.health_contribution_pct)
+        : null,
     healthContributionBtn:
       row.health_contribution_btn != null
         ? Number(row.health_contribution_btn)
         : null,
+    pfEmployeePct:
+      row.pf_employee_pct != null ? Number(row.pf_employee_pct) : null,
+    pfEmployerPct:
+      row.pf_employer_pct != null ? Number(row.pf_employer_pct) : null,
     serviceChargeEligible: Boolean(row.service_charge_eligible),
     serviceChargeShareBtn:
       row.service_charge_share_btn != null
@@ -624,11 +632,14 @@ export default async function ErpHrPage() {
               <CardHeader>
                 <CardTitle>Policies &amp; payroll</CardTitle>
                 <CardDescription>
-                  Leave policies and Bhutan payroll (NPPF + PIT + HC/SC from
-                  personnel files).
+                  ISR for Labour filing, leave policies, and Bhutan payroll
+                  (NPPF + PIT + HC/SC).
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2">
+                <Button asChild variant="outline" className="h-11">
+                  <Link href="/erp/hr/isr">Internal Service Rules →</Link>
+                </Button>
                 <Button asChild variant="outline" className="h-11">
                   <Link href="/erp/hr/leave">Leave management</Link>
                 </Button>

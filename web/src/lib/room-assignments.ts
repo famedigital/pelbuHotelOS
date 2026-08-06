@@ -72,10 +72,53 @@ export function isAssignableInventoryKind(kind: string): boolean {
   return ASSIGNABLE_KINDS.has(kind);
 }
 
+/** Pull preferred room numbers/labels from booking notes (eZee import, desk notes). */
+export function extractPreferredRoomLabels(notes: string | null | undefined): string[] {
+  if (!notes) return [];
+  const found: string[] = [];
+  const push = (raw: string) => {
+    const t = raw.trim();
+    if (!t || found.includes(t)) return;
+    found.push(t);
+  };
+  // eZee import: "eZee room: 201"
+  for (const m of notes.matchAll(/ezee\s*room\s*:\s*([A-Za-z0-9\-]+)/gi)) {
+    push(m[1]);
+  }
+  // Free-text: "room 201", "#302", "rm:403"
+  for (const m of notes.matchAll(
+    /(?:\broom\b|\brm\b|#)\s*[:\-]?\s*([A-Za-z]?\d{2,4}[A-Za-z]?)/gi,
+  )) {
+    push(m[1]);
+  }
+  return found;
+}
+
+function unitMatchesPreferredLabel(
+  unitLabel: string,
+  preferred: string[],
+): boolean {
+  if (!preferred.length) return false;
+  const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, "");
+  const digits = (s: string) => s.replace(/\D/g, "");
+  const ul = norm(unitLabel);
+  const ud = digits(unitLabel);
+  for (const p of preferred) {
+    const pl = norm(p);
+    const pd = digits(p);
+    if (!pl) continue;
+    if (ul === pl) return true;
+    if (ul.endsWith(pl) || pl.endsWith(ul)) return true;
+    if (pd && ud && pd === ud) return true;
+  }
+  return false;
+}
+
 /**
  * Packs a booking onto free physical room_units for [checkIn, checkOut).
  * Assigns sellable guest rooms and guide/driver complimentary beds.
  * preferredUnitIds are tried first (calendar drag selection), then preferredUnitId.
+ * preferredLabels (e.g. eZee "201") match by unit label / trailing digits.
  */
 export async function assignRoomsForBooking(
   admin: Admin,
@@ -87,6 +130,7 @@ export async function assignRoomsForBooking(
     lines: BookingRoomLine[];
     preferredUnitId?: string | null;
     preferredUnitIds?: string[] | null;
+    preferredLabels?: string[] | null;
   },
 ): Promise<{ assigned: number; shortfall: number }> {
   const { propertyId, bookingId, checkIn, checkOut } = args;
@@ -94,6 +138,7 @@ export async function assignRoomsForBooking(
     ...(args.preferredUnitIds ?? []),
     ...(args.preferredUnitId ? [args.preferredUnitId] : []),
   ].filter(Boolean);
+  const preferredLabels = (args.preferredLabels ?? []).filter(Boolean);
 
   if (!checkIn || !checkOut || checkOut <= checkIn) {
     return { assigned: 0, shortfall: 0 };
@@ -166,10 +211,10 @@ export async function assignRoomsForBooking(
     }
   }
 
-  const byType = new Map<string, { id: string }[]>();
+  const byType = new Map<string, { id: string; label: string }[]>();
   for (const u of units ?? []) {
     const list = byType.get(u.room_type_id as string) ?? [];
-    list.push({ id: u.id as string });
+    list.push({ id: u.id as string, label: String(u.label ?? "") });
     byType.set(u.room_type_id as string, list);
   }
 
@@ -187,6 +232,17 @@ export async function assignRoomsForBooking(
     const pool = (byType.get(roomTypeId) ?? []).filter(
       (u) => !occupied.has(u.id),
     );
+    // Preferred labels (legacy room no) first, then preferred unit ids.
+    if (preferredLabels.length) {
+      const prefer = pool.filter((u) =>
+        unitMatchesPreferredLabel(u.label, preferredLabels),
+      );
+      const rest = pool.filter(
+        (u) => !unitMatchesPreferredLabel(u.label, preferredLabels),
+      );
+      pool.length = 0;
+      pool.push(...prefer, ...rest);
+    }
     for (let p = preferredIds.length - 1; p >= 0; p--) {
       const prefIdx = pool.findIndex((u) => u.id === preferredIds[p]);
       if (prefIdx > 0) {
@@ -410,6 +466,317 @@ export async function loadCheckInRoomOptions(
 }
 
 /**
+ * Fill only shortfall slots for a booking (does not delete existing assignments).
+ * Returns how many new rows were inserted and remaining shortfall.
+ */
+export async function fillMissingRoomAssignments(
+  admin: Admin,
+  args: {
+    propertyId: string;
+    bookingId: string;
+    checkIn: string;
+    checkOut: string;
+    lines: BookingRoomLine[];
+    preferredLabels?: string[] | null;
+    preferredUnitIds?: string[] | null;
+  },
+): Promise<{ inserted: number; shortfall: number; preferredHit: number }> {
+  const { propertyId, bookingId, checkIn, checkOut } = args;
+  if (!checkIn || !checkOut || checkOut <= checkIn) {
+    return { inserted: 0, shortfall: 0, preferredHit: 0 };
+  }
+
+  const demandByType = new Map<string, number>();
+  for (const line of args.lines) {
+    if (!ASSIGNABLE_KINDS.has(line.inventory_kind) || line.qty <= 0) continue;
+    demandByType.set(
+      line.room_type_id,
+      (demandByType.get(line.room_type_id) ?? 0) + line.qty,
+    );
+  }
+  if (demandByType.size === 0) {
+    return { inserted: 0, shortfall: 0, preferredHit: 0 };
+  }
+
+  const typeIds = [...demandByType.keys()];
+  const preferredLabels = (args.preferredLabels ?? []).filter(Boolean);
+  const preferredIds = (args.preferredUnitIds ?? []).filter(Boolean);
+
+  const [{ data: units }, { data: busy }, { data: current }] = await Promise.all([
+    admin
+      .from("room_units")
+      .select("id, room_type_id, sort_order, label")
+      .eq("property_id", propertyId)
+      .in("room_type_id", typeIds)
+      .order("sort_order", { ascending: true })
+      .order("label", { ascending: true }),
+    admin
+      .from("room_assignments")
+      .select("room_unit_id, from_date, to_date, booking_id")
+      .eq("property_id", propertyId)
+      .lt("from_date", checkOut)
+      .gt("to_date", checkIn),
+    admin
+      .from("room_assignments")
+      .select("room_unit_id, room_units(room_type_id)")
+      .eq("booking_id", bookingId),
+  ]);
+
+  const occupied = new Set<string>();
+  for (const row of busy ?? []) {
+    if (
+      rangesOverlap(
+        checkIn,
+        checkOut,
+        row.from_date as string,
+        row.to_date as string,
+      )
+    ) {
+      occupied.add(row.room_unit_id as string);
+    }
+  }
+
+  const assignedByType = new Map<string, number>();
+  for (const row of current ?? []) {
+    const rawUnit = row.room_units as
+      | { room_type_id?: string }
+      | { room_type_id?: string }[]
+      | null;
+    const unit = Array.isArray(rawUnit) ? rawUnit[0] : rawUnit;
+    if (!unit?.room_type_id) continue;
+    assignedByType.set(
+      unit.room_type_id,
+      (assignedByType.get(unit.room_type_id) ?? 0) + 1,
+    );
+  }
+
+  const byType = new Map<string, { id: string; label: string }[]>();
+  for (const u of units ?? []) {
+    const list = byType.get(u.room_type_id as string) ?? [];
+    list.push({ id: u.id as string, label: String(u.label ?? "") });
+    byType.set(u.room_type_id as string, list);
+  }
+
+  const inserts: Array<{
+    property_id: string;
+    booking_id: string;
+    room_unit_id: string;
+    from_date: string;
+    to_date: string;
+  }> = [];
+  let shortfall = 0;
+  let preferredHit = 0;
+
+  for (const [roomTypeId, demand] of demandByType) {
+    const already = assignedByType.get(roomTypeId) ?? 0;
+    const needed = Math.max(0, demand - already);
+    if (needed === 0) continue;
+
+    const pool = (byType.get(roomTypeId) ?? []).filter(
+      (u) => !occupied.has(u.id),
+    );
+    if (preferredLabels.length) {
+      const prefer = pool.filter((u) =>
+        unitMatchesPreferredLabel(u.label, preferredLabels),
+      );
+      const rest = pool.filter(
+        (u) => !unitMatchesPreferredLabel(u.label, preferredLabels),
+      );
+      pool.length = 0;
+      pool.push(...prefer, ...rest);
+    }
+    for (let p = preferredIds.length - 1; p >= 0; p--) {
+      const prefIdx = pool.findIndex((u) => u.id === preferredIds[p]);
+      if (prefIdx > 0) {
+        const [pref] = pool.splice(prefIdx, 1);
+        pool.unshift(pref);
+      }
+    }
+
+    const take = Math.min(needed, pool.length);
+    shortfall += Math.max(0, needed - take);
+    for (let i = 0; i < take; i++) {
+      const pick = pool[i];
+      if (unitMatchesPreferredLabel(pick.label, preferredLabels)) preferredHit++;
+      occupied.add(pick.id);
+      inserts.push({
+        property_id: propertyId,
+        booking_id: bookingId,
+        room_unit_id: pick.id,
+        from_date: checkIn,
+        to_date: checkOut,
+      });
+    }
+  }
+
+  if (inserts.length) {
+    const { error } = await admin.from("room_assignments").insert(inserts);
+    if (error) {
+      console.error("fillMissingRoomAssignments insert failed", error);
+      // Exclusion constraint race — treat as shortfall, do not throw hard.
+      if (
+        /exclusion|overlap|conflict|room_assignments/i.test(error.message ?? "")
+      ) {
+        return {
+          inserted: 0,
+          shortfall: shortfall + inserts.length,
+          preferredHit: 0,
+        };
+      }
+      throw new Error("Could not assign rooms (overlap check failed).");
+    }
+  }
+
+  return { inserted: inserts.length, shortfall, preferredHit };
+}
+
+export type BulkAutoAssignResult = {
+  processed: number;
+  fullyAssigned: number;
+  partial: number;
+  alreadyComplete: number;
+  skippedInvalid: number;
+  insertedAssignments: number;
+  preferredHits: number;
+  shortfalls: Array<{
+    bookingId: string;
+    contactName: string | null;
+    checkIn: string;
+    checkOut: string;
+    shortfall: number;
+    externalRef: string | null;
+  }>;
+};
+
+/**
+ * Auto-assign free rooms for every under-assigned active booking.
+ * Order: check-in, then check-out, then external_ref — so early stays pack first.
+ * Never double-books a unit (exclusion constraint + in-query occupancy).
+ */
+export async function bulkAutoAssignUnassignedBookings(
+  admin: Admin,
+  args: {
+    propertyId: string;
+    /** When set, only bookings overlapping this window. */
+    windowStart?: string | null;
+    windowEndExclusive?: string | null;
+    limit?: number;
+  },
+): Promise<BulkAutoAssignResult> {
+  const { propertyId } = args;
+  const limit = Math.min(Math.max(args.limit ?? 2000, 1), 5000);
+
+  let q = admin
+    .from("bookings")
+    .select(
+      "id, contact_name, check_in, check_out, notes, external_ref, booking_rooms(room_type_id, qty, inventory_kind)",
+    )
+    .eq("property_id", propertyId)
+    .in("status", ["held", "pending", "confirmed", "checked_in"])
+    .order("check_in", { ascending: true })
+    .order("check_out", { ascending: true })
+    .limit(limit);
+
+  if (args.windowStart) {
+    q = q.gt("check_out", args.windowStart);
+  }
+  if (args.windowEndExclusive) {
+    q = q.lt("check_in", args.windowEndExclusive);
+  }
+
+  const { data: bookings, error } = await q;
+  if (error) throw new Error(error.message);
+  if (!bookings?.length) {
+    return {
+      processed: 0,
+      fullyAssigned: 0,
+      partial: 0,
+      alreadyComplete: 0,
+      skippedInvalid: 0,
+      insertedAssignments: 0,
+      preferredHits: 0,
+      shortfalls: [],
+    };
+  }
+
+  const result: BulkAutoAssignResult = {
+    processed: 0,
+    fullyAssigned: 0,
+    partial: 0,
+    alreadyComplete: 0,
+    skippedInvalid: 0,
+    insertedAssignments: 0,
+    preferredHits: 0,
+    shortfalls: [],
+  };
+
+  for (const b of bookings) {
+    result.processed++;
+    const checkIn = b.check_in as string;
+    const checkOut = b.check_out as string;
+    if (!checkIn || !checkOut || checkOut <= checkIn) {
+      result.skippedInvalid++;
+      continue;
+    }
+    const lines = (b.booking_rooms as BookingRoomLine[] | null) ?? [];
+    if (!lines.some((l) => ASSIGNABLE_KINDS.has(l.inventory_kind) && l.qty > 0)) {
+      result.skippedInvalid++;
+      continue;
+    }
+
+    const preferredLabels = extractPreferredRoomLabels(
+      (b.notes as string | null) ?? null,
+    );
+
+    try {
+      const fill = await fillMissingRoomAssignments(admin, {
+        propertyId,
+        bookingId: b.id as string,
+        checkIn,
+        checkOut,
+        lines,
+        preferredLabels,
+      });
+      result.insertedAssignments += fill.inserted;
+      result.preferredHits += fill.preferredHit;
+
+      if (fill.shortfall === 0 && fill.inserted === 0) {
+        // Either already full, or nothing to do.
+        // Re-check assignment completeness cheaply via demand when shortfall is 0 after fill=0.
+        result.alreadyComplete++;
+        continue;
+      }
+      if (fill.shortfall === 0) {
+        result.fullyAssigned++;
+      } else {
+        result.partial++;
+        result.shortfalls.push({
+          bookingId: b.id as string,
+          contactName: (b.contact_name as string | null) ?? null,
+          checkIn,
+          checkOut,
+          shortfall: fill.shortfall,
+          externalRef: (b.external_ref as string | null) ?? null,
+        });
+      }
+    } catch (e) {
+      result.partial++;
+      result.shortfalls.push({
+        bookingId: b.id as string,
+        contactName: (b.contact_name as string | null) ?? null,
+        checkIn,
+        checkOut,
+        shortfall: -1,
+        externalRef: (b.external_ref as string | null) ?? null,
+      });
+      console.error("bulkAutoAssign failed", b.id, e);
+    }
+  }
+
+  return result;
+}
+
+/**
  * Backfill assignments for active bookings in a date window that lack them.
  * Safe to call on calendar page load.
  */
@@ -419,42 +786,10 @@ export async function ensureAssignmentsInWindow(
   windowStart: string,
   windowEndExclusive: string,
 ): Promise<void> {
-  const { data: bookings } = await admin
-    .from("bookings")
-    .select(
-      "id, check_in, check_out, booking_rooms(room_type_id, qty, inventory_kind)",
-    )
-    .eq("property_id", propertyId)
-    .lt("check_in", windowEndExclusive)
-    .gt("check_out", windowStart)
-    .in("status", ["held", "pending", "confirmed", "checked_in"])
-    .limit(300);
-
-  if (!bookings?.length) return;
-
-  const bookingIds = bookings.map((b) => b.id as string);
-  const { data: existing } = await admin
-    .from("room_assignments")
-    .select("booking_id")
-    .in("booking_id", bookingIds);
-
-  const hasAssign = new Set(
-    (existing ?? []).map((r) => r.booking_id as string),
-  );
-
-  for (const b of bookings) {
-    if (hasAssign.has(b.id as string)) continue;
-    const lines = (b.booking_rooms as BookingRoomLine[] | null) ?? [];
-    try {
-      await assignRoomsForBooking(admin, {
-        propertyId,
-        bookingId: b.id as string,
-        checkIn: b.check_in as string,
-        checkOut: b.check_out as string,
-        lines,
-      });
-    } catch (e) {
-      console.error("ensureAssignmentsInWindow failed", b.id, e);
-    }
-  }
+  await bulkAutoAssignUnassignedBookings(admin, {
+    propertyId,
+    windowStart,
+    windowEndExclusive,
+    limit: 300,
+  });
 }

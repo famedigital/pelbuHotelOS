@@ -28,7 +28,11 @@ import {
   type RateTier,
 } from "@/lib/rates";
 import { loadRoomRateTaxSettings } from "@/lib/room-rate-tax";
-import { assignRoomsForBooking } from "@/lib/room-assignments";
+import {
+  assignRoomsForBooking,
+  bulkAutoAssignUnassignedBookings,
+  type BulkAutoAssignResult,
+} from "@/lib/room-assignments";
 import {
   buildSalesClaimInsert,
   buildSalesClaimWrite,
@@ -829,6 +833,67 @@ export async function assignCalendarBookingRoom(
     return {
       ok: false,
       error: e instanceof Error ? e.message : "Could not assign room.",
+    };
+  }
+}
+
+export type BulkAutoAssignState = {
+  ok: boolean;
+  error?: string;
+  result?: BulkAutoAssignResult;
+  message?: string;
+};
+
+/**
+ * Pack every under-assigned active booking onto free physical rooms.
+ * No overlaps (DB exclusion + occupancy checks). Prefers room numbers in notes (eZee).
+ */
+export async function autoAssignAllUnassignedRooms(input?: {
+  windowStart?: string;
+  windowEndExclusive?: string;
+}): Promise<BulkAutoAssignState> {
+  try {
+    await requireDesk();
+    const admin = createSupabaseAdminClient();
+    const propertyId = await resolveActivePropertyId(admin);
+
+    const result = await bulkAutoAssignUnassignedBookings(admin, {
+      propertyId,
+      windowStart: input?.windowStart ?? null,
+      windowEndExclusive: input?.windowEndExclusive ?? null,
+      limit: 2500,
+    });
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "calendar.room.bulk_auto_assign",
+      entityType: "bookings",
+      entityId: propertyId,
+      summary: `Bulk auto-assign · +${result.insertedAssignments} assignment(s) · ${result.fullyAssigned} filled · ${result.partial} short`,
+      meta: {
+        processed: result.processed,
+        fullyAssigned: result.fullyAssigned,
+        partial: result.partial,
+        alreadyComplete: result.alreadyComplete,
+        preferredHits: result.preferredHits,
+        shortfallCount: result.shortfalls.length,
+      },
+    });
+
+    revalidateCalendar();
+    const shortN = result.shortfalls.length;
+    return {
+      ok: true,
+      result,
+      message:
+        shortN === 0
+          ? `Assigned ${result.insertedAssignments} room(s) across ${result.fullyAssigned || result.alreadyComplete} stay(s). No shortfalls.`
+          : `Assigned ${result.insertedAssignments} room(s). ${shortN} stay(s) still short on inventory (see calendar unassigned).`,
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Bulk auto-assign failed.",
     };
   }
 }

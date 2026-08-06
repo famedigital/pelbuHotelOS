@@ -268,6 +268,7 @@ export async function createFastBooking(
           roomTypeId: line.room_type_id,
           seasonKind: season,
           rateTier: tier,
+          adults,
         });
         if (rate != null) {
           const nightAllIn = calculateRoomNightTax(rate, taxSettings).totalBtn;
@@ -291,6 +292,7 @@ export async function createFastBooking(
           roomTypeId: line.room_type_id,
           seasonKind: season,
           rateTier: tier,
+          adults,
         });
         if (rate == null) {
           throw new Error(

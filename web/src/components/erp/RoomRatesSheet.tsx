@@ -17,6 +17,7 @@ export type RateMatrixRow = {
   season_kind: string;
   rate_tier: string;
   amount_btn: number;
+  amount_single_btn: number | null;
 };
 
 export type RoomTypeLite = {
@@ -62,6 +63,13 @@ function formatSeasonDates(seasons: SeasonWindow[], kind: string): string {
 const PRIMARY_TIERS = TIERS.filter((t) => t.code === "public");
 const ADVANCED_TIERS = TIERS.filter((t) => t.code !== "public");
 
+type SavedAmounts = { double: number; single: number | null };
+
+function parseDraft(raw: string): number {
+  if (raw.trim() === "") return 0;
+  return Number(raw);
+}
+
 export function RoomRatesSheet({
   rows,
   roomTypes,
@@ -73,14 +81,8 @@ export function RoomRatesSheet({
   rows: RateMatrixRow[];
   roomTypes: RoomTypeLite[];
   seasons: SeasonWindow[];
-  /** Property policy: sheet Nu inclusive of GST + SC. */
   ratesInclusiveOfGstSc?: boolean;
-  /** Initial market tier tab. */
   defaultTier?: string;
-  /**
-   * When true, public is primary; other market tiers are behind a disclosure
-   * so small hotels are not forced through six tabs on first open.
-   */
   advancedTiersDisclosure?: boolean;
 }) {
   const guestRooms = roomTypes.filter((r) => r.inventory_kind === "sellable_guest");
@@ -88,30 +90,60 @@ export function RoomRatesSheet({
   const [showAdvancedTiers, setShowAdvancedTiers] = useState(false);
 
   const savedByKey = useMemo(() => {
-    const map = new Map<CellKey, number>();
+    const map = new Map<CellKey, SavedAmounts>();
     for (const row of rows) {
-      map.set(cellKey(row.room_type_id, row.season_kind, row.rate_tier), row.amount_btn);
+      map.set(cellKey(row.room_type_id, row.season_kind, row.rate_tier), {
+        double: row.amount_btn,
+        single: row.amount_single_btn,
+      });
     }
     return map;
   }, [rows]);
 
-  const [draftByKey, setDraftByKey] = useState<Map<CellKey, string>>(() => new Map());
+  const [doubleDraft, setDoubleDraft] = useState<Map<CellKey, string>>(
+    () => new Map(),
+  );
+  const [singleDraft, setSingleDraft] = useState<Map<CellKey, string>>(
+    () => new Map(),
+  );
   const [state, action, pending] = useActionState(batchUpsertRoomRates, initial);
 
-  const getDraft = useCallback(
+  const getDouble = useCallback(
     (roomTypeId: string, season: string, tier: string): string => {
       const key = cellKey(roomTypeId, season, tier);
-      if (draftByKey.has(key)) return draftByKey.get(key)!;
-      const saved = savedByKey.get(key);
+      if (doubleDraft.has(key)) return doubleDraft.get(key)!;
+      const saved = savedByKey.get(key)?.double;
       return saved != null && saved > 0 ? String(saved) : "";
     },
-    [draftByKey, savedByKey],
+    [doubleDraft, savedByKey],
   );
 
-  const setDraft = useCallback(
+  const getSingle = useCallback(
+    (roomTypeId: string, season: string, tier: string): string => {
+      const key = cellKey(roomTypeId, season, tier);
+      if (singleDraft.has(key)) return singleDraft.get(key)!;
+      const saved = savedByKey.get(key)?.single;
+      return saved != null && saved > 0 ? String(saved) : "";
+    },
+    [singleDraft, savedByKey],
+  );
+
+  const setDouble = useCallback(
     (roomTypeId: string, season: string, tier: string, value: string) => {
       const key = cellKey(roomTypeId, season, tier);
-      setDraftByKey((prev) => {
+      setDoubleDraft((prev) => {
+        const next = new Map(prev);
+        next.set(key, value);
+        return next;
+      });
+    },
+    [],
+  );
+
+  const setSingle = useCallback(
+    (roomTypeId: string, season: string, tier: string, value: string) => {
+      const key = cellKey(roomTypeId, season, tier);
+      setSingleDraft((prev) => {
         const next = new Map(prev);
         next.set(key, value);
         return next;
@@ -126,30 +158,59 @@ export function RoomRatesSheet({
       season_kind: string;
       rate_tier: string;
       amount_btn: number;
+      amount_single_btn: number | null;
     }> = [];
 
-    for (const rt of guestRooms) {
-      for (const season of SEASONS) {
-        const key = cellKey(rt.id, season, activeTier);
-        if (!draftByKey.has(key)) continue;
+    const keys = new Set<CellKey>();
+    for (const k of doubleDraft.keys()) keys.add(k);
+    for (const k of singleDraft.keys()) keys.add(k);
 
-        const draftRaw = draftByKey.get(key) ?? "";
-        const draftNum = draftRaw.trim() === "" ? 0 : Number(draftRaw);
-        const saved = savedByKey.get(key) ?? 0;
+    for (const key of keys) {
+      const [roomTypeId, season, tier] = key.split(":") as [
+        string,
+        string,
+        string,
+      ];
+      if (tier !== activeTier) continue;
+      if (!guestRooms.some((r) => r.id === roomTypeId)) continue;
 
-        if (!Number.isFinite(draftNum) || draftNum < 0) continue;
-        if (draftNum !== saved) {
-          changes.push({
-            room_type_id: rt.id,
-            season_kind: season,
-            rate_tier: activeTier,
-            amount_btn: draftNum,
-          });
-        }
-      }
+      const saved = savedByKey.get(key) ?? { double: 0, single: null };
+      const dRaw = doubleDraft.has(key)
+        ? doubleDraft.get(key)!
+        : saved.double > 0
+          ? String(saved.double)
+          : "";
+      const sRaw = singleDraft.has(key)
+        ? singleDraft.get(key)!
+        : saved.single != null && saved.single > 0
+          ? String(saved.single)
+          : "";
+
+      const dNum = parseDraft(dRaw);
+      const sNum = sRaw.trim() === "" ? null : parseDraft(sRaw);
+
+      if (!Number.isFinite(dNum) || dNum < 0) continue;
+      if (sNum != null && (!Number.isFinite(sNum) || sNum < 0)) continue;
+
+      const doubleChanged = dNum !== (saved.double ?? 0);
+      const singleChanged =
+        (sNum ?? null) !==
+        (saved.single != null && Number.isFinite(saved.single)
+          ? saved.single
+          : null);
+
+      if (!doubleChanged && !singleChanged) continue;
+
+      changes.push({
+        room_type_id: roomTypeId,
+        season_kind: season,
+        rate_tier: tier,
+        amount_btn: dNum,
+        amount_single_btn: sNum,
+      });
     }
     return changes;
-  }, [activeTier, draftByKey, guestRooms, savedByKey]);
+  }, [activeTier, doubleDraft, guestRooms, savedByKey, singleDraft]);
 
   if (guestRooms.length === 0) {
     return (
@@ -170,22 +231,17 @@ export function RoomRatesSheet({
               ? "border-emerald-600/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
               : "border-input bg-muted text-muted-foreground",
           )}
-          title={
-            ratesInclusiveOfGstSc
-              ? "Sheet Nu is guest all-in (GST + SC when SC default is on)"
-              : "Sheet Nu is exclusive of GST and SC — posting adds them"
-          }
         >
           {ratesInclusiveOfGstSc ? "Inc. GST+SC" : "Excl. GST+SC"}
         </span>
         <span className="inline-flex items-center rounded-md border border-input bg-muted/50 px-2.5 py-1 text-[11px] text-muted-foreground">
-          Child package: 0–6 free · 6–12 = 50% adult (auto)
+          Double = 2 adults · Single = 1 adult room only
         </span>
         <Link
           href="/erp/settings?tab=commercial"
           className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
         >
-          Change in Rates &amp; meals
+          Change tax basis in Rates &amp; meals
         </Link>
       </div>
 
@@ -257,13 +313,6 @@ export function RoomRatesSheet({
         )}
       </div>
 
-      {advancedTiersDisclosure && !showAdvancedTiers && activeTier !== "public" ? (
-        <p className="text-xs text-muted-foreground">
-          Showing {TIERS.find((t) => t.code === activeTier)?.label ?? activeTier}
-          . Open Advanced market tiers to switch.
-        </p>
-      ) : null}
-
       <div className="overflow-x-auto rounded-lg border bg-card">
         <table className="min-w-full text-left text-sm">
           <thead className="border-b text-xs tracking-wide text-muted-foreground uppercase">
@@ -272,7 +321,7 @@ export function RoomRatesSheet({
                 Room category
               </th>
               {SEASONS.map((season) => (
-                <th key={season} className="min-w-[8.5rem] px-3 py-3 font-medium">
+                <th key={season} className="min-w-[11rem] px-3 py-3 font-medium">
                   <span className="block">{season}</span>
                   {formatSeasonDates(seasons, season) ? (
                     <span className="mt-0.5 block text-[10px] font-normal normal-case tracking-normal text-muted-foreground">
@@ -286,7 +335,7 @@ export function RoomRatesSheet({
           <tbody>
             {guestRooms.map((rt) => (
               <tr key={rt.id} className="border-b last:border-0">
-                <td className="sticky left-0 z-10 bg-card px-4 py-2.5 align-middle">
+                <td className="sticky left-0 z-10 bg-card px-4 py-3 align-top">
                   <span className="font-medium text-foreground">{rt.name}</span>
                   <span className="ml-2 font-mono text-[10px] text-muted-foreground">
                     {rt.code}
@@ -295,65 +344,107 @@ export function RoomRatesSheet({
                 {SEASONS.map((season) => {
                   const key = cellKey(rt.id, season, activeTier);
                   const saved = savedByKey.get(key);
-                  const draft = getDraft(rt.id, season, activeTier);
-                  const isDirty =
-                    draftByKey.has(key) &&
-                    (draft.trim() === "" ? 0 : Number(draft)) !== (saved ?? 0);
+                  const dVal = getDouble(rt.id, season, activeTier);
+                  const sVal = getSingle(rt.id, season, activeTier);
+                  const dDirty =
+                    doubleDraft.has(key) &&
+                    parseDraft(dVal) !== (saved?.double ?? 0);
+                  const sDirty =
+                    singleDraft.has(key) &&
+                    (sVal.trim() === ""
+                      ? null
+                      : parseDraft(sVal)) !==
+                      (saved?.single ?? null);
 
                   return (
-                    <td key={season} className="px-3 py-2 align-middle">
-                      <label className="sr-only" htmlFor={key}>
-                        {rt.name} {season} {activeTier}
-                      </label>
-                      <div className="flex items-stretch">
-                        <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-2 text-xs text-muted-foreground">
-                          Nu
-                        </span>
-                        <input
-                          id={key}
-                          type="number"
-                          inputMode="numeric"
-                          step="0.01"
-                          min={0}
-                          value={draft}
-                          onChange={(e) =>
-                            setDraft(rt.id, season, activeTier, e.target.value)
-                          }
-                          placeholder="—"
-                          className={cn(
-                            "w-full min-w-[5.5rem] rounded-r-md border border-input bg-background px-2 py-1.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-                            isDirty && "border-amber-500/70 bg-amber-50/40 dark:bg-amber-950/20",
-                          )}
-                        />
-                      </div>
-                      {(() => {
-                        const adultNum =
-                          draft.trim() === ""
-                            ? (saved ?? 0)
-                            : Number(draft);
-                        if (!Number.isFinite(adultNum) || adultNum <= 0) {
-                          return saved != null && saved > 0 && !isDirty ? (
-                            <p className="mt-0.5 text-[10px] text-muted-foreground">
-                              {formatBtn(saved)}/night adult
-                            </p>
-                          ) : null;
-                        }
-                        const childHalf = childRateFromAdult(adultNum);
-                        return (
-                          <div className="mt-1 space-y-0.5 text-[10px] leading-snug text-muted-foreground">
-                            <p className="tabular-nums text-foreground/80">
-                              Adult {formatBtn(adultNum)}
-                            </p>
-                            <p className="tabular-nums">
-                              6–12 {formatBtn(childHalf)}{" "}
-                              <span className="text-muted-foreground">
-                                (50%)
-                              </span>
-                            </p>
-                            <p>0–6 free</p>
+                    <td key={season} className="px-3 py-2.5 align-top">
+                      <div className="space-y-2">
+                        <div>
+                          <label
+                            className="mb-0.5 block text-[10px] font-semibold tracking-wide text-muted-foreground uppercase"
+                            htmlFor={`${key}-dbl`}
+                          >
+                            Double
+                          </label>
+                          <div className="flex items-stretch">
+                            <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-2 text-xs text-muted-foreground">
+                              Nu
+                            </span>
+                            <input
+                              id={`${key}-dbl`}
+                              type="number"
+                              inputMode="numeric"
+                              step="0.01"
+                              min={0}
+                              value={dVal}
+                              onChange={(e) =>
+                                setDouble(
+                                  rt.id,
+                                  season,
+                                  activeTier,
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="—"
+                              className={cn(
+                                "w-full min-w-[5rem] rounded-r-md border border-input bg-background px-2 py-1.5 text-sm tabular-nums outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+                                dDirty &&
+                                  "border-amber-500/70 bg-amber-50/40 dark:bg-amber-950/20",
+                              )}
+                            />
                           </div>
-                        );
-                      })()}
+                        </div>
+                        <div>
+                          <label
+                            className="mb-0.5 block text-[10px] font-semibold tracking-wide text-muted-foreground uppercase"
+                            htmlFor={`${key}-sgl`}
+                          >
+                            Single
+                          </label>
+                          <div className="flex items-stretch">
+                            <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-2 text-xs text-muted-foreground">
+                              Nu
+                            </span>
+                            <input
+                              id={`${key}-sgl`}
+                              type="number"
+                              inputMode="numeric"
+                              step="0.01"
+                              min={0}
+                              value={sVal}
+                              onChange={(e) =>
+                                setSingle(
+                                  rt.id,
+                                  season,
+                                  activeTier,
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="—"
+                              className={cn(
+                                "w-full min-w-[5rem] rounded-r-md border border-input bg-background px-2 py-1.5 text-sm tabular-nums outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+                                sDirty &&
+                                  "border-amber-500/70 bg-amber-50/40 dark:bg-amber-950/20",
+                              )}
+                            />
+                          </div>
+                        </div>
+                        {(() => {
+                          const adultNum =
+                            dVal.trim() === ""
+                              ? (saved?.double ?? 0)
+                              : Number(dVal);
+                          if (!Number.isFinite(adultNum) || adultNum <= 0) {
+                            return null;
+                          }
+                          const childHalf = childRateFromAdult(adultNum);
+                          return (
+                            <p className="text-[10px] leading-snug text-muted-foreground">
+                              Double meal half (child 6–12): {formatBtn(childHalf)}
+                            </p>
+                          );
+                        })()}
+                      </div>
                     </td>
                   );
                 })}
@@ -387,7 +478,7 @@ export function RoomRatesSheet({
           <span className="text-sm text-destructive">{state.error}</span>
         ) : (
           <span className="text-xs text-muted-foreground">
-            Tab between cells · edit inline · save batch when ready
+            Enter double and single Nu per season · empty single = not set
           </span>
         )}
       </form>

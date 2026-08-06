@@ -7,7 +7,11 @@ import {
   requireDeskRole,
   requireMoneyDesk,
 } from "@/lib/desk-auth";
-import { isDeskModuleKey } from "@/lib/erp/desk-modules";
+import {
+  compressDeskGrants,
+  isDeskGrantKey,
+  isDeskModuleKey,
+} from "@/lib/erp/desk-modules";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
@@ -115,10 +119,13 @@ function refreshHr(_staffId?: string): void {
 }
 
 /**
- * Parse module keys from form fields:
+ * Parse desk grants from form fields:
  * - module_mode=defaults → store NULL (role defaults)
- * - module_mode=custom → require checked module_key[] including dashboard
+ * - module_mode=custom → module_key[] (full modules) and/or tab_key[] (tab hrefs)
  * - module_mode absent or omit → undefined (do not change column)
+ *
+ * Hyper-specific example: money + team staff screens without payroll →
+ * module_key=money, tab_key=/erp/hr, … (omit /erp/hr/payroll).
  */
 function parseDeskModuleKeysForUpdate(
   formData: FormData,
@@ -129,19 +136,20 @@ function parseDeskModuleKeysForUpdate(
   if (mode !== "custom") {
     throw new Error("Invalid module access mode.");
   }
-  const keys = [
-    ...new Set(
-      formData
-        .getAll("module_key")
-        .map((v) => String(v).trim())
-        .filter((k) => isDeskModuleKey(k)),
-    ),
-  ];
+  const modules = formData
+    .getAll("module_key")
+    .map((v) => String(v).trim())
+    .filter((k) => isDeskModuleKey(k));
+  const tabs = formData
+    .getAll("tab_key")
+    .map((v) => String(v).trim())
+    .filter((k) => isDeskGrantKey(k) && !isDeskModuleKey(k));
+  const keys = compressDeskGrants([...modules, ...tabs]);
   if (!keys.includes("dashboard")) {
-    throw new Error("Dashboard must stay enabled when customizing modules.");
+    throw new Error("Dashboard must stay enabled when customizing access.");
   }
   if (keys.length === 0) {
-    throw new Error("Select at least one module, or use role defaults.");
+    throw new Error("Select at least one module or screen, or use role defaults.");
   }
   return keys;
 }
@@ -170,6 +178,27 @@ function parseMoney(value: FormDataEntryValue | null, label: string): number | n
   const n = Number(raw);
   if (!Number.isFinite(n) || n < 0) throw new Error(`${label} must be a non-negative number.`);
   return Math.round(n * 100) / 100;
+}
+
+/** HC rate 0–100 % of basic salary. */
+function parsePercent(value: FormDataEntryValue | null, label: string): number | null {
+  const raw = optionalTrim(value);
+  if (!raw) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0 || n > 100) {
+    throw new Error(`${label} must be between 0 and 100.`);
+  }
+  return Math.round(n * 100) / 100;
+}
+
+function hcAmountFromBasic(
+  baseWage: number | null,
+  pct: number | null,
+): number | null {
+  if (pct == null) return null;
+  if (pct === 0) return 0;
+  if (baseWage == null || baseWage <= 0) return 0;
+  return Math.round(((baseWage * pct) / 100) * 100) / 100;
 }
 
 function parseCsv(text: string): string[][] {
@@ -569,13 +598,37 @@ export async function upsertStaffPrivateProfile(
       formData.get("base_wage_btn"),
       "Monthly salary",
     );
-    const healthContribution = parseMoney(
+    // Prefer % of basic (modern form). Legacy fixed-Nu still accepted for older clients.
+    let healthContributionPct = parsePercent(
+      formData.get("health_contribution_pct"),
+      "Health contribution %",
+    );
+    let healthContribution = parseMoney(
       formData.get("health_contribution_btn"),
       "Health contribution",
     );
+    if (healthContributionPct != null) {
+      healthContribution = hcAmountFromBasic(baseWage, healthContributionPct);
+    } else if (
+      healthContribution != null &&
+      baseWage != null &&
+      baseWage > 0
+    ) {
+      // Reverse-derive when only Nu was posted (should be rare).
+      healthContributionPct =
+        Math.round(((healthContribution / baseWage) * 100) * 100) / 100;
+    }
     const scShare = parseMoney(
       formData.get("service_charge_share_btn"),
       "Service charge share",
+    );
+    const pfEmployeePct = parsePercent(
+      formData.get("pf_employee_pct"),
+      "Employee PF %",
+    );
+    const pfEmployerPct = parsePercent(
+      formData.get("pf_employer_pct"),
+      "Employer PF %",
     );
     const paySchedule = (
       optionalTrim(formData.get("pay_schedule")) ?? "monthly"
@@ -597,7 +650,10 @@ export async function upsertStaffPrivateProfile(
       tax_identifier: optionalTrim(formData.get("tax_identifier")),
       provident_fund_number: optionalTrim(formData.get("provident_fund_number")),
       base_wage_btn: baseWage,
+      health_contribution_pct: healthContributionPct,
       health_contribution_btn: healthContribution,
+      pf_employee_pct: pfEmployeePct,
+      pf_employer_pct: pfEmployerPct,
       service_charge_eligible: formData.get("service_charge_eligible") === "on",
       service_charge_share_btn: scShare,
       photo_public_id: optionalTrim(formData.get("photo_public_id")),

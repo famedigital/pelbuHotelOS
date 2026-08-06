@@ -1,5 +1,6 @@
 "use client";
 
+import { AgentNameLink } from "@/components/erp/AgentNameLink";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { useStayHubOptional } from "@/components/erp/StayHubProvider";
@@ -18,6 +19,7 @@ export type BookingRow = {
   check_in: string | null;
   check_out: string | null;
   source: string | null;
+  agent_id?: string | null;
   agent_name: string | null;
   adults: number | null;
   rooms: number | null;
@@ -151,7 +153,13 @@ export function BookingsTable({
         <div className="text-sm text-muted-foreground">
           <span className="text-foreground">{row.original.source ?? "—"}</span>
           {row.original.agent_name ? (
-            <span className="block">{row.original.agent_name}</span>
+            <span className="block">
+              <AgentNameLink
+                agentId={row.original.agent_id}
+                name={row.original.agent_name}
+                className="text-sm"
+              />
+            </span>
           ) : null}
         </div>
       ),
@@ -257,7 +265,16 @@ export function BookingsTable({
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
                 {row.source ?? "—"}
-                {row.agent_name ? ` · ${row.agent_name}` : ""}
+                {row.agent_name ? (
+                  <>
+                    {" · "}
+                    <AgentNameLink
+                      agentId={row.agent_id}
+                      name={row.agent_name}
+                      className="text-sm"
+                    />
+                  </>
+                ) : null}
               </p>
               <p className="mt-1 text-sm tabular-nums text-muted-foreground">
                 {Number(row.rooms ?? 0)} rooms / {Number(row.adults ?? 0)} pax

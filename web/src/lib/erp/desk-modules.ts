@@ -1,29 +1,87 @@
 import type { DeskRole } from "@/lib/desk-auth";
-import { ERP_MODULES, resolveModule } from "@/lib/erp-nav";
+import {
+  ERP_MODULES,
+  resolveModule,
+  type ErpModule,
+  type ErpNavLeaf,
+} from "@/lib/erp-nav";
+
+/**
+ * Desk access grants stored in `staff_members.desk_module_keys`.
+ *
+ * - Module key (e.g. `money`) → every tab under that module
+ * - Tab href (e.g. `/erp/hr/payroll`) → that screen only
+ *
+ * NULL column / role defaults → whole modules from `defaultModulesForDeskRole`.
+ * Example: Money full + Team without salary → `["dashboard","money","/erp/hr","/erp/hr/leave",…]`
+ * (omit `/erp/hr/payroll`).
+ */
 
 /** Keys match `ERP_MODULES[].key`. */
 export const DESK_MODULE_CATALOG = ERP_MODULES.map((m) => ({
   key: m.key,
   title: m.title,
-})) as ReadonlyArray<{ key: string; title: string }>;
+  tabs: m.tabs.map((t) => ({
+    title: t.title,
+    href: t.href,
+    /** Screens that expose pay / wage data — call out in access UI. */
+    sensitive: isSensitiveTab(m.key, t),
+  })),
+})) as ReadonlyArray<{
+  key: string;
+  title: string;
+  tabs: ReadonlyArray<{
+    title: string;
+    href: string;
+    sensitive: boolean;
+  }>;
+}>;
 
 export const DESK_MODULE_KEYS = DESK_MODULE_CATALOG.map((m) => m.key);
 
 export type DeskModuleKey = (typeof DESK_MODULE_KEYS)[number];
 
-const KEY_SET = new Set(DESK_MODULE_KEYS);
+/** Every known tab landing href across ERP modules. */
+export const DESK_TAB_HREFS = DESK_MODULE_CATALOG.flatMap((m) =>
+  m.tabs.map((t) => t.href),
+);
+
+const MODULE_KEY_SET = new Set(DESK_MODULE_KEYS);
+const TAB_HREF_SET = new Set(DESK_TAB_HREFS);
+
+function isSensitiveTab(moduleKey: string, tab: ErpNavLeaf): boolean {
+  if (moduleKey === "team" && tab.href.includes("/payroll")) return true;
+  if (moduleKey === "team" && tab.title.toLowerCase().includes("payroll"))
+    return true;
+  return false;
+}
 
 export function isDeskModuleKey(raw: string): boolean {
-  return KEY_SET.has(raw);
+  return MODULE_KEY_SET.has(raw);
+}
+
+export function isDeskTabHref(raw: string): boolean {
+  return TAB_HREF_SET.has(raw);
+}
+
+/** Valid stored token: module key or exact catalog tab href. */
+export function isDeskGrantKey(raw: string): boolean {
+  const k = raw.trim();
+  return isDeskModuleKey(k) || isDeskTabHref(k);
 }
 
 export function allDeskModuleKeys(): string[] {
   return [...DESK_MODULE_KEYS];
 }
 
+/** Full catalog as module-level grants (every screen). */
+export function allDeskGrants(): string[] {
+  return allDeskModuleKeys();
+}
+
 /**
  * Role defaults when `staff_members.desk_module_keys` is NULL.
- * Owner/GM get everything; departments get a short ops set.
+ * Owner/GM get everything; departments get a short ops set (full modules).
  */
 export function defaultModulesForDeskRole(
   role: DeskRole | null | undefined,
@@ -47,10 +105,58 @@ export function defaultModulesForDeskRole(
 }
 
 /**
- * Resolve visible modules for a desk session.
- * Owner / GM (and PIN → gm) always get the full catalog.
- * Non-null stored keys are an explicit allowlist (must still be catalog keys).
- * NULL keys → role defaults.
+ * Normalize + validate grants. Drops unknowns. Ensures `dashboard` when non-empty.
+ * Does not compress (caller may pass mix of modules + tabs).
+ */
+export function sanitizeDeskGrants(raw: readonly string[]): string[] {
+  const cleaned = [
+    ...new Set(
+      raw
+        .map((k) => k.trim())
+        .filter((k) => k.length > 0 && isDeskGrantKey(k)),
+    ),
+  ];
+  if (cleaned.length === 0) return cleaned;
+  // Desk home always stays available when any custom grant is set.
+  if (!cleaned.includes("dashboard")) {
+    cleaned.unshift("dashboard");
+  }
+  return cleaned;
+}
+
+/**
+ * Collapse full-module tab lists into module keys for compact storage.
+ * Partial modules stay as individual hrefs.
+ */
+export function compressDeskGrants(raw: readonly string[]): string[] {
+  const sanitized = sanitizeDeskGrants(raw);
+  const modules = new Set(sanitized.filter(isDeskModuleKey));
+  const tabs = sanitized.filter(isDeskTabHref);
+
+  for (const mod of DESK_MODULE_CATALOG) {
+    if (modules.has(mod.key)) continue;
+    const tabHrefs = mod.tabs.map((t) => t.href);
+    const hasAll =
+      tabHrefs.length > 0 && tabHrefs.every((href) => tabs.includes(href));
+    if (hasAll) {
+      modules.add(mod.key);
+    }
+  }
+
+  const out = [...modules];
+  for (const href of tabs) {
+    const parent = DESK_MODULE_CATALOG.find((m) =>
+      m.tabs.some((t) => t.href === href),
+    );
+    if (parent && modules.has(parent.key)) continue;
+    out.push(href);
+  }
+
+  return sanitizeDeskGrants(out);
+}
+
+/**
+ * Expand role-default / stored grants into an explicit allow-check shape.
  */
 export function resolveDeskModules(opts: {
   deskRole: DeskRole | null | undefined;
@@ -58,21 +164,12 @@ export function resolveDeskModules(opts: {
 }): string[] {
   const role = opts.deskRole ?? null;
   if (role === "owner" || role === "gm") {
-    return allDeskModuleKeys();
+    return allDeskGrants();
   }
 
   const raw = opts.deskModuleKeys;
   if (raw != null) {
-    const cleaned = [
-      ...new Set(
-        raw
-          .map((k) => k.trim())
-          .filter((k) => isDeskModuleKey(k)),
-      ),
-    ];
-    if (!cleaned.includes("dashboard")) {
-      cleaned.unshift("dashboard");
-    }
+    const cleaned = sanitizeDeskGrants(raw);
     if (cleaned.length > 0) return cleaned;
   }
 
@@ -86,13 +183,93 @@ export function canEditDeskModuleAccess(
   return role === "owner" || role === "gm";
 }
 
+function moduleFullyGranted(
+  moduleKey: string,
+  grants: readonly string[],
+): boolean {
+  return grants.includes(moduleKey);
+}
+
+function tabHrefGranted(href: string, grants: readonly string[]): boolean {
+  if (grants.includes(href)) return true;
+  const parent = DESK_MODULE_CATALOG.find((m) =>
+    m.tabs.some((t) => t.href === href),
+  );
+  if (parent && grants.includes(parent.key)) return true;
+  // Dashboard module is only `/erp`.
+  if (href === "/erp" && grants.includes("dashboard")) return true;
+  return false;
+}
+
+/** Module shows in sidebar if any tab is granted (or whole module). */
+export function moduleVisibleFromGrants(
+  moduleKey: string,
+  grants: readonly string[] | null | undefined,
+): boolean {
+  if (!grants || grants.length === 0) return true;
+  if (moduleFullyGranted(moduleKey, grants)) return true;
+  const mod = DESK_MODULE_CATALOG.find((m) => m.key === moduleKey);
+  if (!mod) return false;
+  return mod.tabs.some((t) => grants.includes(t.href));
+}
+
+export function tabVisibleFromGrants(
+  moduleKey: string,
+  tabHref: string,
+  grants: readonly string[] | null | undefined,
+): boolean {
+  if (!grants || grants.length === 0) return true;
+  if (moduleFullyGranted(moduleKey, grants)) return true;
+  return grants.includes(tabHref);
+}
+
+/** First allowed landing for a module (for sidebar primary link). */
+export function firstAllowedHrefForModule(
+  module: ErpModule,
+  grants: readonly string[] | null | undefined,
+): string {
+  if (!grants || grants.length === 0) return module.href;
+  if (moduleFullyGranted(module.key, grants)) return module.href;
+  for (const tab of module.tabs) {
+    if (grants.includes(tab.href)) return tab.href;
+  }
+  return module.href;
+}
+
+/**
+ * Filter modules + tabs to only granted screens.
+ * Empty grants / omit → everything (PIN / legacy full access).
+ */
+export function filterErpNavByGrants(
+  modules: readonly ErpModule[],
+  grants: readonly string[] | null | undefined,
+): ErpModule[] {
+  if (!grants || grants.length === 0) {
+    return modules.map((m) => ({ ...m, tabs: [...m.tabs] }));
+  }
+  return modules
+    .map((m) => {
+      if (moduleFullyGranted(m.key, grants)) {
+        return { ...m, tabs: [...m.tabs] };
+      }
+      const tabs = m.tabs.filter((t) => grants.includes(t.href));
+      if (tabs.length === 0) return null;
+      return {
+        ...m,
+        href: tabs[0]?.href ?? m.href,
+        tabs,
+      };
+    })
+    .filter((m): m is ErpModule => m != null);
+}
+
 /**
  * Soft product ACL for deep links. Unmapped routes stay allowed so ad-hoc
  * screens (check-in, folio detail) are not hard-blocked by partial nav maps.
  */
 export function pathnameAllowedForModules(
   pathname: string | null | undefined,
-  moduleKeys: readonly string[],
+  grants: readonly string[],
 ): boolean {
   if (!pathname) return true;
   if (pathname === "/erp" || pathname === "/erp/") return true;
@@ -111,13 +288,108 @@ export function pathnameAllowedForModules(
 
   const match = resolveModule(pathname);
   if (!match) return true;
-  return moduleKeys.includes(match.module.key);
+  return tabVisibleFromGrants(match.module.key, match.tab.href, grants);
 }
 
 export function filterModulesByKeys<T extends { key: string }>(
   modules: readonly T[],
   moduleKeys: readonly string[],
 ): T[] {
-  const allow = new Set(moduleKeys);
-  return modules.filter((m) => allow.has(m.key));
+  return modules.filter((m) => moduleVisibleFromGrants(m.key, moduleKeys));
+}
+
+/**
+ * Expand stored grants to checkbox state for the access UI.
+ * Module checked = whole module; otherwise individual tab hrefs.
+ */
+export function expandGrantsForEditor(
+  grants: readonly string[] | null,
+  roleDefaults: readonly string[],
+): { useDefaults: boolean; selected: Set<string> } {
+  if (grants == null) {
+    return {
+      useDefaults: true,
+      selected: new Set(expandModulesToAllTabTokens(roleDefaults)),
+    };
+  }
+  const selected = new Set<string>();
+  for (const g of sanitizeDeskGrants(grants)) {
+    if (isDeskModuleKey(g)) {
+      selected.add(g);
+      const mod = DESK_MODULE_CATALOG.find((m) => m.key === g);
+      if (mod) {
+        for (const t of mod.tabs) selected.add(t.href);
+      }
+    } else {
+      selected.add(g);
+    }
+  }
+  return { useDefaults: false, selected };
+}
+
+/** All tab hrefs + module keys for modules that are fully present. */
+function expandModulesToAllTabTokens(moduleKeys: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const key of moduleKeys) {
+    if (!isDeskModuleKey(key)) continue;
+    out.push(key);
+    const mod = DESK_MODULE_CATALOG.find((m) => m.key === key);
+    if (mod) {
+      for (const t of mod.tabs) out.push(t.href);
+    }
+  }
+  return out;
+}
+
+/**
+ * From editor Set of module keys + tab hrefs, produce storage grant list.
+ * Whole module if every tab selected; else individual tab hrefs.
+ */
+export function grantsFromEditorSelection(
+  selected: ReadonlySet<string>,
+): string[] {
+  const raw: string[] = [];
+  for (const mod of DESK_MODULE_CATALOG) {
+    const tabHrefs = mod.tabs.map((t) => t.href);
+    if (tabHrefs.length === 0) {
+      if (selected.has(mod.key)) raw.push(mod.key);
+      continue;
+    }
+    const selectedTabs = tabHrefs.filter((h) => selected.has(h));
+    if (selectedTabs.length === 0) continue;
+    if (selectedTabs.length === tabHrefs.length) {
+      raw.push(mod.key);
+    } else {
+      raw.push(...selectedTabs);
+    }
+  }
+  return compressDeskGrants(raw);
+}
+
+/** Human summary for dossier / matrix display. */
+export function summarizeDeskGrants(
+  grants: string[] | null | undefined,
+  role: DeskRole | null | undefined,
+  opts?: { isOwner?: boolean },
+): string {
+  if (opts?.isOwner) return "Owner — full catalog";
+  if (grants == null) {
+    const defaults = defaultModulesForDeskRole(role);
+    return `Role defaults (${defaults.join(", ")})`;
+  }
+  const modules = grants.filter(isDeskModuleKey);
+  const tabs = grants.filter(isDeskTabHref);
+  const parts: string[] = [];
+  if (modules.length) parts.push(modules.join(", "));
+  if (tabs.length) {
+    const labels = tabs.map((href) => {
+      for (const m of DESK_MODULE_CATALOG) {
+        const t = m.tabs.find((x) => x.href === href);
+        if (t) return `${m.title} › ${t.title}`;
+      }
+      return href;
+    });
+    parts.push(labels.join("; "));
+  }
+  return parts.length ? parts.join(" · ") : "No modules selected";
 }

@@ -12,6 +12,11 @@ import {
 } from "@/app/actions/erp-calendar";
 import { CalendarLiveRefresh } from "@/components/erp/CalendarLiveRefresh";
 import { CalendarRoomBlockDialog } from "@/components/erp/CalendarRoomBlockDialog";
+import {
+  AssignUnassignedRoomDialog,
+  type AssignGuideMode,
+} from "@/components/erp/AssignUnassignedRoomDialog";
+import { AgentNameLink } from "@/components/erp/AgentNameLink";
 import { RoomDayBoard } from "@/components/erp/RoomDayBoard";
 import { useStayHubOptional } from "@/components/erp/StayHubProvider";
 import { CalendarRoomUnitEditDialog } from "@/components/erp/CalendarRoomUnitEditDialog";
@@ -42,7 +47,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { BanIcon, MoreHorizontalIcon, PencilIcon, PlusIcon } from "lucide-react";
+import {
+  BanIcon,
+  MoreHorizontalIcon,
+  PencilIcon,
+  PlusIcon,
+  WandSparklesIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -669,12 +680,12 @@ function StayHoverCard({
               </span>
             ) : null}
             {stay.agent_name ? (
-              <span
-                className="min-w-0 truncate opacity-75"
+              <AgentNameLink
+                agentId={stay.agent_id}
+                name={stay.agent_name}
+                className="min-w-0 truncate opacity-90"
                 title={stay.agent_name}
-              >
-                {stay.agent_name}
-              </span>
+              />
             ) : null}
           </span>
         </button>
@@ -695,7 +706,16 @@ function StayHoverCard({
             </p>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
               {sourceLabel(stay)}
-              {stay.agent_name ? ` · ${stay.agent_name}` : ""}
+              {stay.agent_name ? (
+                <>
+                  {" · "}
+                  <AgentNameLink
+                    agentId={stay.agent_id}
+                    name={stay.agent_name}
+                    className="text-[11px]"
+                  />
+                </>
+              ) : null}
               {` · ${tone.lifeLabel}`}
             </p>
             {tone.dues ? (
@@ -790,6 +810,15 @@ function StayHoverCard({
               Folio
             </Link>
           ) : null}
+          {stay.agent_id ? (
+            <Link
+              href={`/erp/agents/${stay.agent_id}?tab=bookings`}
+              className="inline-flex h-8 items-center rounded-md border px-2.5 text-xs text-accent"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Agent dossier
+            </Link>
+          ) : null}
           {checkedIn ? (
             <Link
               href={`/erp/check-in?id=${stay.booking_id}`}
@@ -843,9 +872,16 @@ export function RoomRackGrid({
   const isMdUp = useMediaQuery("(min-width: 768px)");
   const stayHub = useStayHubOptional();
   const leftWidth = useLeftPaneWidth();
-  const [cellZoom, setCellZoom] = useState<CellZoom>("md");
+  const [cellZoom, setCellZoom] = useState<CellZoom>(
+    windowDays >= 180 ? "sm" : "md",
+  );
   const CELL = cellWidthForZoom(cellZoom);
   const endExclusive = addDays(start, days.length);
+
+  useEffect(() => {
+    // Compact day columns for the 6-month horizon so the rack stays usable.
+    if (windowDays >= 180) setCellZoom("sm");
+  }, [windowDays]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const [draft, setDraft] = useState<DragSel | null>(null);
@@ -856,6 +892,7 @@ export function RoomRackGrid({
   const [selectedPool, setSelectedPool] = useState<UnassignedBooking | null>(
     null,
   );
+  const [assignGuide, setAssignGuide] = useState<AssignGuideMode | null>(null);
   const [assignMessage, setAssignMessage] = useState<string | null>(null);
   const [assigning, startAssigning] = useTransition();
   const [selectedStayId, setSelectedStayId] = useState<string | null>(null);
@@ -1519,14 +1556,15 @@ export function RoomRackGrid({
   );
 
   // Phone: Day board (not pinch Gantt). Desktop/tablet keep full rack.
+  // Height fills DeskShell content (header + bottom-nav padding already accounted for).
   if (!isMdUp) {
     return (
-      <div className="erp flex h-[calc(100dvh-3.5rem)] min-h-0 min-w-0 flex-col overflow-hidden">
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b px-3 py-2">
-          <div>
+      <div className="erp flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b px-3 py-1.5">
+          <div className="min-w-0">
             <p className="text-sm font-medium">Day board</p>
-            <p className="text-[11px] text-muted-foreground">
-              Tap a room or guest · FAB to book
+            <p className="text-[10px] text-muted-foreground">
+              Tap room or guest · Needs room → assign
             </p>
           </div>
           <CalendarLiveRefresh />
@@ -1541,6 +1579,9 @@ export function RoomRackGrid({
           onDateChange={setDayBoardDate}
           onOpenStay={openStay}
           onBookVacant={openVacantBook}
+          onAssignUnassigned={(item) =>
+            setAssignGuide({ kind: "single", item })
+          }
           onBookFab={() => {
             setSelection({
               checkIn: dayBoardDate,
@@ -1548,6 +1589,20 @@ export function RoomRackGrid({
               units: [],
             });
             setDialogOpen(true);
+          }}
+        />
+        <AssignUnassignedRoomDialog
+          guide={assignGuide}
+          open={assignGuide != null}
+          onOpenChange={(open) => {
+            if (!open) setAssignGuide(null);
+          }}
+          units={units}
+          stays={stays}
+          blocks={blocks}
+          onAssigned={() => {
+            setSelectedPool(null);
+            setAssignGuide(null);
           }}
         />
         <CalendarReservationDialog
@@ -1565,12 +1620,17 @@ export function RoomRackGrid({
   }
 
   return (
-    <div className="erp flex h-[calc(100dvh-3.5rem)] min-h-0 min-w-0 flex-col overflow-hidden">
+    <div className="erp flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
       <div
         className="flex shrink-0 flex-wrap items-center gap-1.5 border-b bg-background px-2"
         style={{ minHeight: TOOLBAR_H }}
       >
-        {[30, 60, 90].map((n) => (
+        {[
+          { n: 30, label: "30d" },
+          { n: 60, label: "60d" },
+          { n: 90, label: "90d" },
+          { n: 180, label: "6m" },
+        ].map(({ n, label }) => (
           <Link
             key={n}
             href={`/erp/calendar?days=${n}&start=${start}`}
@@ -1580,8 +1640,9 @@ export function RoomRackGrid({
                 ? "border-accent bg-accent/10 text-accent"
                 : "bg-card text-muted-foreground hover:bg-muted/50",
             )}
+            title={n === 180 ? "6 months (~180 days)" : `${n} days`}
           >
-            {n}d
+            {label}
           </Link>
         ))}
         <Popover>
@@ -1916,6 +1977,23 @@ export function RoomRackGrid({
           <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">
             Unassigned {unassigned.reduce((n, item) => n + item.missing_rooms, 0)}
           </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            disabled={
+              assigning || (assignGuide != null && assignGuide.kind === "bulk")
+            }
+            className="h-7 shrink-0 gap-1 px-2 text-[11px]"
+            title="Fill free rooms for every unassigned stay. No overlaps. Prefers eZee room numbers in notes when labels match."
+            onClick={() => {
+              setAssignGuide({ kind: "bulk", items: unassigned });
+              setAssignMessage(null);
+            }}
+          >
+            <WandSparklesIcon className="size-3.5" aria-hidden />
+            Auto-assign all
+          </Button>
           <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
             {unassigned.map((item) => {
               const selected = selectedPool?.id === item.id;
@@ -1925,11 +2003,10 @@ export function RoomRackGrid({
                   type="button"
                   aria-pressed={selected}
                   onClick={() => {
-                    setSelectedPool(selected ? null : item);
+                    setAssignGuide({ kind: "single", item });
+                    setSelectedPool(item);
                     setAssignMessage(
-                      selected
-                        ? null
-                        : `Now click a free ${item.room_type_name} room.`,
+                      `Guided assign open — or click an amber ${item.room_type_name} cell on the grid.`,
                     );
                   }}
                   className={cn(
@@ -1945,7 +2022,10 @@ export function RoomRackGrid({
                   <span className="ml-1 text-muted-foreground">
                     {item.room_type_code || item.room_type_name} · {item.check_in}
                     →{item.check_out}
-                    {item.missing_rooms > 1 ? ` · ${item.missing_rooms} rooms` : ""}
+                    {item.missing_rooms > 1
+                      ? ` · ${item.missing_rooms} rooms`
+                      : ""}
+                    {" · Assign"}
                   </span>
                 </button>
               );
@@ -1954,7 +2034,7 @@ export function RoomRackGrid({
           {assignMessage ? (
             <span
               aria-live="polite"
-              className="max-w-64 shrink-0 truncate text-[11px] text-muted-foreground"
+              className="max-w-72 shrink-0 truncate text-[11px] text-muted-foreground"
             >
               {assignMessage}
             </span>
@@ -2538,6 +2618,21 @@ export function RoomRackGrid({
         defaultSoldByStaffId={defaultSoldByStaffId}
         mealPlans={mealPlans}
         defaultMealPlanCode={defaultMealPlanCode}
+      />
+      <AssignUnassignedRoomDialog
+        guide={assignGuide}
+        open={assignGuide != null}
+        onOpenChange={(open) => {
+          if (!open) setAssignGuide(null);
+        }}
+        units={units}
+        stays={stays}
+        blocks={blocks}
+        onAssigned={() => {
+          setSelectedPool(null);
+          setAssignGuide(null);
+          setAssignMessage(null);
+        }}
       />
       <CalendarRoomBlockDialog
         unit={blockUnit}

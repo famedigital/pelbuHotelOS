@@ -27,10 +27,13 @@ function tabClass(active: boolean) {
 export function ModuleHeaderTabs({
   canPreviewDashboards = false,
   homeDashboardView = "front_desk",
+  allowedModuleKeys,
 }: {
   /** Owner/GM: show department boards in the first-row header. */
   canPreviewDashboards?: boolean;
   homeDashboardView?: DashboardView;
+  /** Filter visible tabs when partial screen grants are set. */
+  allowedModuleKeys?: readonly string[];
 } = {}) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -49,6 +52,7 @@ export function ModuleHeaderTabs({
   if (onDashboard && canPreviewDashboards) {
     const requested = parseDashboardView(searchParams.get("view"));
     const active: DashboardView = requested ?? homeDashboardView;
+    const forecastMonth = searchParams.get("forecastMonth");
 
     return (
       <nav
@@ -57,10 +61,15 @@ export function ModuleHeaderTabs({
       >
         {DASHBOARD_VIEWS.map((v) => {
           const isActive = v.id === active;
-          const href =
-            v.id === homeDashboardView
-              ? "/erp"
-              : `/erp?view=${encodeURIComponent(v.id)}`;
+          const params = new URLSearchParams();
+          if (v.id !== homeDashboardView) {
+            params.set("view", v.id);
+          }
+          if (forecastMonth && /^\d{4}-\d{2}$/.test(forecastMonth)) {
+            params.set("forecastMonth", forecastMonth);
+          }
+          const q = params.toString();
+          const href = q ? `/erp?${q}` : "/erp";
           return (
             <Link
               key={v.id}
@@ -77,14 +86,23 @@ export function ModuleHeaderTabs({
     );
   }
 
-  if (match.module.tabs.length < 2) return null;
+  const tabs =
+    allowedModuleKeys && allowedModuleKeys.length > 0
+      ? match.module.tabs.filter(
+          (tab) =>
+            allowedModuleKeys.includes(match.module.key) ||
+            allowedModuleKeys.includes(tab.href),
+        )
+      : match.module.tabs;
+
+  if (tabs.length < 2) return null;
 
   return (
     <nav
       aria-label={`${match.module.title} sections`}
       className="ml-1 flex min-w-0 max-w-[min(100%,52rem)] items-center gap-0.5 overflow-x-auto rounded-md border bg-muted/40 p-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
-      {match.module.tabs.map((tab) => {
+      {tabs.map((tab) => {
         const active = tab.href === match.tab.href;
         return (
           <Link

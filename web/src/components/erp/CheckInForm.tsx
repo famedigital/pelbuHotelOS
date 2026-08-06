@@ -6,6 +6,7 @@ import {
   type CheckInState,
   type CheckOutState,
 } from "@/app/actions/erp-checkin";
+import { AgentNameLink } from "@/components/erp/AgentNameLink";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -399,9 +400,15 @@ export function CheckInForm({
           </span>{" "}
           · {booking.adults} adults · {booking.rooms} rooms
         </p>
-        {booking.agent_name ? (
+        {booking.agent_name || booking.agent_id ? (
           <p className="mt-1 text-xs">
-            Agent {booking.agent_name}
+            Agent{" "}
+            <AgentNameLink
+              agentId={booking.agent_id}
+              name={booking.agent_name}
+              className="text-xs"
+              tab="money"
+            />
             {booking.credit_available_btn != null
               ? ` · credit available ${formatBtn(booking.credit_available_btn)}`
               : ""}

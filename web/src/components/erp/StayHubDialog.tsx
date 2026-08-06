@@ -16,6 +16,7 @@ import {
 } from "@/app/actions/stay-hub";
 import type { CalendarAgent } from "@/components/erp/CalendarReservationDialog";
 import { AgentPicker } from "@/components/erp/AgentPicker";
+import { AgentNameLink } from "@/components/erp/AgentNameLink";
 import { StaffPicker, type BookableStaff } from "@/components/erp/StaffPicker";
 import { AgentVoucherEmailButton } from "@/components/erp/AgentVoucherEmailButton";
 import { BookingLifecycleActions } from "@/components/erp/BookingLifecycleActions";
@@ -852,6 +853,7 @@ export function StayHubDialog({
                 {showContextRail ? (
                   <StayHubSummaryCard
                     balanceDue={dues}
+                    agentId={money?.agentId || summary.agentId}
                     agentName={money?.agentName || summary.agentName}
                     paymentMode={money?.paymentMode ?? summary.paymentMode}
                     folioId={folioId}
@@ -1018,8 +1020,24 @@ export function StayHubDialog({
                             </p>
                             <p className="mt-1.5 text-sm font-medium">
                               {money?.agentName ||
-                                summary.agentName ||
-                                "No agent"}
+                              summary.agentName ||
+                              money?.agentId ||
+                              summary.agentId ? (
+                                <AgentNameLink
+                                  agentId={
+                                    money?.agentId || summary.agentId
+                                  }
+                                  name={
+                                    money?.agentName ||
+                                    summary.agentName ||
+                                    "Agent"
+                                  }
+                                  tab="money"
+                                  className="text-sm"
+                                />
+                              ) : (
+                                "No agent"
+                              )}
                             </p>
                             <p className="mt-0.5 text-xs text-muted-foreground">
                               Mode:{" "}

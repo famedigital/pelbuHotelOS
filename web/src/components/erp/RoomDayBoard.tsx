@@ -1,6 +1,12 @@
 "use client";
 
-import type { RackStay, RackUnit, RoomBlock, UnassignedBooking } from "@/components/erp/RoomRackGrid";
+import type {
+  RackStay,
+  RackUnit,
+  RoomBlock,
+  UnassignedBooking,
+} from "@/components/erp/RoomRackGrid";
+import { AgentNameLink } from "@/components/erp/AgentNameLink";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -8,6 +14,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   PlusIcon,
+  SearchIcon,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -91,6 +98,7 @@ const STATUS_LABEL: Record<RoomRowStatus, string> = {
 
 /**
  * Phone-first calendar surface: one date × rooms list (not a 30-day Gantt).
+ * Compact chrome so short phones still show the room list.
  */
 export function RoomDayBoard({
   units,
@@ -102,6 +110,7 @@ export function RoomDayBoard({
   onDateChange,
   onOpenStay,
   onBookVacant,
+  onAssignUnassigned,
   onBookFab,
 }: {
   units: RackUnit[];
@@ -113,10 +122,12 @@ export function RoomDayBoard({
   onDateChange: (date: string) => void;
   onOpenStay: (stay: RackStay) => void;
   onBookVacant: (unit: RackUnit, date: string) => void;
+  onAssignUnassigned: (item: UnassignedBooking) => void;
   onBookFab: () => void;
 }) {
   const [filter, setFilter] = useState<DayFilter>("all");
   const [query, setQuery] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
 
   const groups = useMemo(() => {
     const byType = new Map<
@@ -137,6 +148,12 @@ export function RoomDayBoard({
     return [...byType.values()];
   }, [units]);
 
+  /** ±3 days strip for quick jump without opening a huge window */
+  const weekStrip = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDays(selectedDate, i - 3)),
+    [selectedDate],
+  );
+
   const q = query.trim().toLowerCase();
 
   const needsRoom = unassigned.filter(
@@ -144,60 +161,103 @@ export function RoomDayBoard({
   );
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col">
-      <div className="sticky top-0 z-10 space-y-2 border-b bg-background px-3 py-2">
-        <div className="flex items-center gap-2">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="shrink-0 space-y-1.5 border-b bg-background px-3 py-1.5">
+        <div className="flex items-center gap-1.5">
           <Button
             type="button"
             variant="outline"
             size="icon"
-            className="size-11 shrink-0"
+            className="size-10 shrink-0"
             aria-label="Previous day"
             onClick={() => onDateChange(addDays(selectedDate, -1))}
           >
             <ChevronLeftIcon className="size-4" />
           </Button>
           <div className="min-w-0 flex-1 text-center">
-            <p className="text-sm font-semibold">{fmtDay(selectedDate)}</p>
+            <p className="text-sm font-semibold leading-tight">
+              {fmtDay(selectedDate)}
+            </p>
             {selectedDate !== today ? (
               <button
                 type="button"
                 className="text-[11px] text-accent underline-offset-2 hover:underline"
                 onClick={() => onDateChange(today)}
               >
-                Jump to today
+                Today
               </button>
             ) : (
-              <p className="text-[11px] text-muted-foreground">Today</p>
+              <p className="text-[10px] text-muted-foreground">Today</p>
             )}
           </div>
           <Button
             type="button"
             variant="outline"
             size="icon"
-            className="size-11 shrink-0"
+            className="size-10 shrink-0"
             aria-label="Next day"
             onClick={() => onDateChange(addDays(selectedDate, 1))}
           >
             <ChevronRightIcon className="size-4" />
           </Button>
+          <Input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => {
+              if (e.target.value) onDateChange(e.target.value);
+            }}
+            className="h-10 w-[7.5rem] shrink-0 px-1.5 text-xs"
+            aria-label="Go to date"
+          />
+          <Button
+            type="button"
+            variant={showSearch || q ? "secondary" : "outline"}
+            size="icon"
+            className="size-10 shrink-0"
+            aria-label="Search"
+            aria-pressed={showSearch}
+            onClick={() => setShowSearch((v) => !v)}
+          >
+            <SearchIcon className="size-4" />
+          </Button>
         </div>
-        <Input
-          type="date"
-          value={selectedDate}
-          onChange={(e) => {
-            if (e.target.value) onDateChange(e.target.value);
-          }}
-          className="h-11"
-          aria-label="Go to date"
-        />
+
+        {/* Horizontal day chips — fits phones without a Gantt */}
+        <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5">
+          {weekStrip.map((d) => {
+            const active = d === selectedDate;
+            const isToday = d === today;
+            const short = new Date(`${d}T12:00:00`).toLocaleDateString("en-BT", {
+              weekday: "narrow",
+              day: "numeric",
+              timeZone: "Asia/Thimphu",
+            });
+            return (
+              <button
+                key={d}
+                type="button"
+                onClick={() => onDateChange(d)}
+                className={cn(
+                  "flex h-9 min-w-10 shrink-0 flex-col items-center justify-center rounded-md border px-1.5 text-[10px] leading-none",
+                  active
+                    ? "border-accent bg-accent/15 font-semibold text-accent"
+                    : "bg-card text-muted-foreground",
+                  isToday && !active && "border-accent/40",
+                )}
+              >
+                {short}
+              </button>
+            );
+          })}
+        </div>
+
         <div className="flex gap-1 overflow-x-auto pb-0.5">
           {(
             [
               ["all", "All"],
-              ["arrivals", "Arrivals"],
-              ["departures", "Departures"],
-              ["vacant", "Vacant"],
+              ["arrivals", "In"],
+              ["departures", "Out"],
+              ["vacant", "Free"],
               ["ooo", "OOO"],
             ] as const
           ).map(([key, label]) => (
@@ -206,7 +266,7 @@ export function RoomDayBoard({
               type="button"
               onClick={() => setFilter(key)}
               className={cn(
-                "min-h-9 shrink-0 rounded-md border px-3 text-xs font-medium",
+                "h-8 shrink-0 rounded-md border px-2.5 text-xs font-medium",
                 filter === key
                   ? "border-accent bg-accent/10 text-accent"
                   : "bg-card text-muted-foreground",
@@ -216,31 +276,41 @@ export function RoomDayBoard({
             </button>
           ))}
         </div>
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Guest, phone, room…"
-          className="h-11"
-        />
+
+        {showSearch || q ? (
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Guest, phone, room…"
+            className="h-9"
+            autoFocus={showSearch}
+          />
+        ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 pb-24">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2 pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
         {needsRoom.length > 0 ? (
-          <section className="mb-4 rounded-lg border border-amber-500/30 bg-amber-50/40 p-3 dark:bg-amber-950/20">
+          <section className="mb-3 rounded-lg border border-amber-500/30 bg-amber-50/40 p-2.5 dark:bg-amber-950/20">
             <h2 className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-              Needs room
+              Needs room ({needsRoom.length})
             </h2>
-            <ul className="mt-2 space-y-2">
+            <ul className="mt-1.5 space-y-1.5">
               {needsRoom.map((u) => (
-                <li
-                  key={u.id}
-                  className="rounded-md border bg-background px-3 py-2.5 text-sm"
-                >
-                  <p className="font-medium">{u.contact_name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {u.room_type_name} · {u.missing_rooms} missing ·{" "}
-                    {u.check_in} → {u.check_out}
-                  </p>
+                <li key={u.id}>
+                  <button
+                    type="button"
+                    onClick={() => onAssignUnassigned(u)}
+                    className="w-full rounded-md border bg-background px-3 py-2 text-left text-sm active:bg-muted/50"
+                  >
+                    <p className="font-medium">{u.contact_name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {u.room_type_name} · {u.missing_rooms} missing ·{" "}
+                      {u.check_in} → {u.check_out}
+                    </p>
+                    <p className="mt-0.5 text-[11px] font-medium text-amber-800 dark:text-amber-200">
+                      Tap to assign →
+                    </p>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -276,8 +346,8 @@ export function RoomDayBoard({
           if (rows.length === 0) return null;
 
           return (
-            <section key={group.name} className="mb-4">
-              <h2 className="sticky top-0 z-[1] bg-background/95 py-1.5 text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase backdrop-blur">
+            <section key={group.name} className="mb-3">
+              <h2 className="sticky top-0 z-[1] bg-background/95 py-1 text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase backdrop-blur">
                 {group.name}
               </h2>
               <ul className="space-y-1">
@@ -290,9 +360,9 @@ export function RoomDayBoard({
                         else if (status === "vacant" || status === "dirty")
                           onBookVacant(unit, selectedDate);
                       }}
-                      className="flex min-h-14 w-full items-center gap-3 rounded-lg border bg-card px-3 py-2 text-left active:bg-muted/40"
+                      className="flex min-h-12 w-full items-center gap-2.5 rounded-lg border bg-card px-2.5 py-2 text-left active:bg-muted/40"
                     >
-                      <span className="w-12 shrink-0 text-base font-semibold tabular-nums">
+                      <span className="w-11 shrink-0 text-base font-semibold tabular-nums">
                         {unit.label}
                       </span>
                       <span
@@ -309,7 +379,12 @@ export function RoomDayBoard({
                         {stay?.agent_name ? (
                           <span className="text-muted-foreground">
                             {" "}
-                            · {stay.agent_name}
+                            ·{" "}
+                            <AgentNameLink
+                              agentId={stay.agent_id}
+                              name={stay.agent_name}
+                              className="text-sm"
+                            />
                           </span>
                         ) : null}
                       </span>
@@ -321,17 +396,23 @@ export function RoomDayBoard({
             </section>
           );
         })}
+
+        {units.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            No rooms on this property yet.
+          </p>
+        ) : null}
       </div>
 
       <Button
         type="button"
         variant="citrus"
         size="icon"
-        className="fixed right-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 size-14 rounded-full shadow-lg md:hidden"
+        className="fixed right-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 size-12 rounded-full shadow-lg md:hidden"
         aria-label="Book stay"
         onClick={onBookFab}
       >
-        <PlusIcon className="size-6" />
+        <PlusIcon className="size-5" />
       </Button>
     </div>
   );

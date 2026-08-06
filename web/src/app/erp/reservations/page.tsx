@@ -148,6 +148,7 @@ export default async function ReservationsPage({
       check_in: (r.check_in as string) ?? null,
       check_out: (r.check_out as string) ?? null,
       source: (r.source as string) ?? null,
+      agent_id: (r.agent_id as string | null) ?? null,
       agent_name: agentName,
       adults: (r.adults as number) ?? null,
       rooms: (r.rooms as number) ?? null,

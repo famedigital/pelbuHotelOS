@@ -27,7 +27,13 @@ type RateCellInput = {
   room_type_id: string;
   season_kind: string;
   rate_tier: string;
+  /** Double occupancy. */
   amount_btn: number;
+  /**
+   * Single occupancy. undefined = leave existing; null = clear;
+   * number = set.
+   */
+  amount_single_btn?: number | null;
 };
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
@@ -60,13 +66,28 @@ function parseRateCells(raw: unknown): RateCellInput[] {
       continue;
     }
     if (!Number.isFinite(amount) || amount < 0) {
-      throw new Error("Each rate must be a non-negative number.");
+      throw new Error("Each double rate must be a non-negative number.");
     }
+
+    let amountSingle: number | null | undefined = undefined;
+    if ("amount_single_btn" in row) {
+      if (row.amount_single_btn == null || row.amount_single_btn === "") {
+        amountSingle = null;
+      } else {
+        const s = roundBtn(Number(row.amount_single_btn));
+        if (!Number.isFinite(s) || s < 0) {
+          throw new Error("Each single rate must be a non-negative number.");
+        }
+        amountSingle = s;
+      }
+    }
+
     cells.push({
       room_type_id: roomTypeId,
       season_kind: seasonKind,
       rate_tier: rateTier,
       amount_btn: amount,
+      amount_single_btn: amountSingle,
     });
   }
   if (cells.length === 0) {
@@ -89,10 +110,17 @@ async function upsertOne(
     .eq("rate_tier", cell.rate_tier)
     .maybeSingle();
 
+  const patch: Record<string, unknown> = {
+    amount_btn: cell.amount_btn,
+  };
+  if (cell.amount_single_btn !== undefined) {
+    patch.amount_single_btn = cell.amount_single_btn;
+  }
+
   if (existing?.id) {
     const { error } = await admin
       .from("room_rates")
-      .update({ amount_btn: cell.amount_btn })
+      .update(patch)
       .eq("id", existing.id);
     if (error) {
       console.error("batchUpsertRoomRates update failed", error);
@@ -107,6 +135,8 @@ async function upsertOne(
     season_kind: cell.season_kind,
     rate_tier: cell.rate_tier,
     amount_btn: cell.amount_btn,
+    amount_single_btn:
+      cell.amount_single_btn === undefined ? null : cell.amount_single_btn,
   });
   if (error) {
     console.error("batchUpsertRoomRates insert failed", error);
@@ -171,6 +201,7 @@ export async function upsertRoomRate(
       .toLowerCase();
     const rateTier = String(formData.get("rate_tier") ?? "").trim().toLowerCase();
     const amountRaw = String(formData.get("amount_btn") ?? "").trim();
+    const singleRaw = String(formData.get("amount_single_btn") ?? "").trim();
 
     if (!roomTypeId) throw new Error("Room type is required.");
     if (!SEASONS.has(seasonKind)) {
@@ -181,7 +212,15 @@ export async function upsertRoomRate(
     }
     const amount = roundBtn(Number(amountRaw));
     if (!Number.isFinite(amount) || amount < 0) {
-      throw new Error("Amount must be a non-negative number.");
+      throw new Error("Double amount must be a non-negative number.");
+    }
+
+    let amountSingle: number | null = null;
+    if (singleRaw !== "") {
+      amountSingle = roundBtn(Number(singleRaw));
+      if (!Number.isFinite(amountSingle) || amountSingle < 0) {
+        throw new Error("Single amount must be a non-negative number.");
+      }
     }
 
     await upsertOne(admin, propertyId, {
@@ -189,10 +228,16 @@ export async function upsertRoomRate(
       season_kind: seasonKind,
       rate_tier: rateTier,
       amount_btn: amount,
+      amount_single_btn: amountSingle,
     });
 
     revalidateRates();
-    return { ok: true, message: `Rate saved — Nu ${amount}.` };
+    return {
+      ok: true,
+      message: `Rate saved — double Nu ${amount}${
+        amountSingle != null ? ` · single Nu ${amountSingle}` : ""
+      }.`,
+    };
   } catch (err) {
     return {
       ok: false,

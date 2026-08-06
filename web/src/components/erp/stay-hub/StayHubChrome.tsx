@@ -1,5 +1,6 @@
 "use client";
 
+import { AgentNameLink } from "@/components/erp/AgentNameLink";
 import { Badge } from "@/components/ui/badge";
 import { StayProgressStrip } from "@/components/erp/StayProgressStrip";
 import {
@@ -141,6 +142,7 @@ function statusBadgeVariant(
 
 export function StayHubSummaryCard({
   balanceDue,
+  agentId,
   agentName,
   paymentMode,
   nextAction,
@@ -149,6 +151,7 @@ export function StayHubSummaryCard({
   roomTypeName,
 }: {
   balanceDue: number;
+  agentId?: string | null;
   agentName?: string | null;
   paymentMode?: string | null;
   nextAction: string;
@@ -173,9 +176,15 @@ export function StayHubSummaryCard({
             ? "Clear"
             : `Nu ${Math.round(balanceDue).toLocaleString()}`}
         </p>
-        {agentName ? (
+        {agentName || agentId ? (
           <p className="mt-1 text-xs text-muted-foreground">
-            Agent · {agentName}
+            Agent ·{" "}
+            <AgentNameLink
+              agentId={agentId}
+              name={agentName}
+              className="text-xs"
+              tab="money"
+            />
           </p>
         ) : null}
         {paymentMode ? (

@@ -73,6 +73,7 @@ export function DeskShell({
                 <ModuleHeaderTabs
                   canPreviewDashboards={canPreviewDashboards}
                   homeDashboardView={homeDashboardView}
+                  allowedModuleKeys={allowedModuleKeys}
                 />
               </Suspense>
               {/* POS register portals Sell | Floor here (see PosRegisterHeaderChrome). */}
@@ -106,7 +107,7 @@ export function DeskShell({
                 </form>
               </div>
             </header>
-            <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
               {children}
             </div>
             <DeskMobileNav allowedModuleKeys={allowedModuleKeys} />

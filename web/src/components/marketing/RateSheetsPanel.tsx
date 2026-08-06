@@ -3,7 +3,7 @@
 import {
   archiveRateSheet,
   createBlankRateSheet,
-  seedPublicRateSheet,
+  rebuildRateSheetsFromMatrix,
   upsertRateSheet,
   type RateSheetActionState,
 } from "@/app/actions/erp-rate-sheets";
@@ -1080,8 +1080,8 @@ export function RateSheetsPanel({
     ? (sheets.find((s) => s.id === editId) ?? null)
     : null;
 
-  const [seedState, seedAction, seedPending] = useActionState(
-    seedPublicRateSheet,
+  const [rebuildState, rebuildAction, rebuildPending] = useActionState(
+    rebuildRateSheetsFromMatrix,
     initial,
   );
   const [blankState, blankAction, blankPending] = useActionState(
@@ -1093,16 +1093,18 @@ export function RateSheetsPanel({
     initial,
   );
 
-  useActionToast(seedState);
+  useActionToast(rebuildState);
   useActionToast(blankState);
   useActionToast(archiveState);
 
   useEffect(() => {
-    if (seedState.ok && seedState.id) {
-      setEditId(seedState.id);
+    if (rebuildState.ok && rebuildState.id) {
+      setEditId(rebuildState.id);
+      router.refresh();
+    } else if (rebuildState.ok) {
       router.refresh();
     }
-  }, [seedState.ok, seedState.id, router]);
+  }, [rebuildState.ok, rebuildState.id, router]);
 
   useEffect(() => {
     if (blankState.ok && blankState.id) {
@@ -1134,8 +1136,16 @@ export function RateSheetsPanel({
       <div className="max-w-2xl space-y-2">
         <h3 className="text-base font-semibold tracking-tight">Rate cards</h3>
         <p className="text-sm text-muted-foreground">
-          Load the public rate card, edit tables and copy, or start a free
-          design. Logo, hotel name, phone, email, and address always come from{" "}
+          Print/share cards only. All Nu comes from{" "}
+          <Link
+            href="/erp/rates"
+            className="font-medium text-sky-700 underline-offset-2 hover:underline"
+          >
+            Hotel → Room rates
+          </Link>{" "}
+          (public, agents, friends, seasons, single/double). Rebuild deletes old
+          sheets (beta) and regenerates from the live matrix. Logo and contact
+          always come from{" "}
           <Link
             href={brand.settingsHref}
             className="font-medium text-sky-700 underline-offset-2 hover:underline"
@@ -1168,11 +1178,11 @@ export function RateSheetsPanel({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <form action={seedAction}>
-          <Button type="submit" disabled={seedPending} variant="citrus">
-            {seedPending
-              ? "Loading…"
-              : "Import public rate card (peak 2026)"}
+        <form action={rebuildAction}>
+          <Button type="submit" disabled={rebuildPending} variant="citrus">
+            {rebuildPending
+              ? "Rebuilding…"
+              : "Rebuild from Room rates (delete old)"}
           </Button>
         </form>
         <form action={blankAction}>
@@ -1181,15 +1191,21 @@ export function RateSheetsPanel({
             {blankPending ? "Creating…" : "New free design"}
           </Button>
         </form>
+        <Link
+          href="/erp/rates"
+          className="inline-flex h-9 items-center rounded-md border border-input px-3 text-sm hover:bg-muted"
+        >
+          Edit Nu on Room rates →
+        </Link>
       </div>
 
-      <Feedback state={seedState} />
+      <Feedback state={rebuildState} />
       <Feedback state={blankState} />
 
       {sheets.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
-          No rate sheets yet. Import the public peak card or create a free
-          design.
+          No rate sheets yet. Rebuild from Room rates, or create a free design
+          for one-off layouts.
         </p>
       ) : (
         <ul className="divide-y divide-border rounded-lg border border-border bg-card">

@@ -28,6 +28,10 @@ import {
   type ErpModule,
   resolveModule,
 } from "@/lib/erp-nav";
+import {
+  filterErpNavByGrants,
+  firstAllowedHrefForModule,
+} from "@/lib/erp/desk-modules";
 import { cn } from "@/lib/utils";
 
 export { NAV_SECTIONS } from "@/lib/erp-nav";
@@ -41,7 +45,10 @@ export function AppSidebar({
   brandName?: string;
   /** Cloudinary logo from settings; falls back to the local knot mark. */
   logoSrc?: string | null;
-  /** ERP_MODULES keys the session may open; omit = all. */
+  /**
+   * Desk grants: module keys and/or tab hrefs the session may open.
+   * Omit / empty = all (legacy full access).
+   */
   allowedModuleKeys?: readonly string[];
 } = {}) {
   const pathname = usePathname();
@@ -50,13 +57,12 @@ export function AppSidebar({
     if (!allowedModuleKeys || allowedModuleKeys.length === 0) {
       return ERP_MODULES;
     }
-    const allow = new Set(allowedModuleKeys);
-    return ERP_MODULES.filter((m) => allow.has(m.key));
+    return filterErpNavByGrants(ERP_MODULES, allowedModuleKeys);
   }, [allowedModuleKeys]);
   const showSettings =
     !allowedModuleKeys ||
     allowedModuleKeys.length === 0 ||
-    allowedModuleKeys.includes("hotel");
+    modules.some((m) => m.key === "hotel");
 
   const [browseExpanded, setBrowseExpanded] = React.useState<Set<string>>(
     () => new Set(),
@@ -127,6 +133,11 @@ export function AppSidebar({
                   activeMatch={activeMatch}
                   expanded={isModuleExpanded(module.key)}
                   onToggle={() => toggleExpanded(module.key)}
+                  landingHref={
+                    allowedModuleKeys && allowedModuleKeys.length > 0
+                      ? firstAllowedHrefForModule(module, allowedModuleKeys)
+                      : module.href
+                  }
                 />
               ))}
             </SidebarMenu>
@@ -162,11 +173,13 @@ function SidebarModuleItem({
   activeMatch,
   expanded,
   onToggle,
+  landingHref,
 }: {
   module: ErpModule;
   activeMatch: ReturnType<typeof resolveModule>;
   expanded: boolean;
   onToggle: () => void;
+  landingHref: string;
 }) {
   const moduleActive = activeMatch?.module.key === module.key;
   const Icon = module.icon;
@@ -180,7 +193,7 @@ function SidebarModuleItem({
           isActive={moduleActive}
           tooltip={module.title}
         >
-          <Link href={module.href}>
+          <Link href={landingHref}>
             <Icon />
             <span>{module.title}</span>
           </Link>
@@ -198,7 +211,7 @@ function SidebarModuleItem({
           tooltip={module.title}
           className="min-w-0 flex-1"
         >
-          <Link href={module.href}>
+          <Link href={landingHref}>
             <Icon />
             <span>{module.title}</span>
           </Link>

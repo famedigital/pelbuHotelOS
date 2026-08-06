@@ -53,7 +53,7 @@ export default async function RoomRatesPage() {
     <DeskListShell
       eyebrow="Hotel"
       heading="Room rates & meal packages"
-      blurb="One public package card for everyday use (room only + BB / MAP totals at double occupancy), plus season windows and trade market tiers when you need them. Website /rates reads the same public package math."
+      blurb="Public package card (room only + BB / MAP at double) plus season matrix with single and double occupancy room Nu. Website /rates uses the double package math unless a single path is added later."
       filters={
         <div className="flex flex-wrap gap-2">
           <Link
