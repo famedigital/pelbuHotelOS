@@ -14,6 +14,7 @@ import {
   type StayHubMoneyPayload,
   type StayHubSummary,
 } from "@/app/actions/stay-hub";
+import { undoCheckIn } from "@/app/actions/erp-checkin";
 import type { CalendarAgent } from "@/components/erp/CalendarReservationDialog";
 import { AgentPicker } from "@/components/erp/AgentPicker";
 import { AgentNameLink } from "@/components/erp/AgentNameLink";
@@ -91,6 +92,7 @@ export type StayHubSeedStay = RackStay;
 type Draft = {
   contactName: string;
   contactPhone: string;
+  phoneLater: boolean;
   contactEmail: string;
   adults: string;
   guideNumber: string;
@@ -175,9 +177,11 @@ function summaryFromSeed(stay: StayHubSeedStay): StayHubSummary {
 }
 
 function draftFromSummary(s: StayHubSummary): Draft {
+  const phone = s.contactPhone ?? "";
   return {
     contactName: s.contactName ?? "",
-    contactPhone: s.contactPhone ?? "",
+    contactPhone: phone,
+    phoneLater: !phone.trim(),
     contactEmail: s.contactEmail ?? "",
     adults: String(s.adults),
     guideNumber: s.guideNumber ?? "",
@@ -508,7 +512,7 @@ export function StayHubDialog({
     }
   }, [open, bookingId, summary, panel, board]);
 
-  // Lazy-load panels
+  // Lazy-load money panel; prefetch check-in as soon as hub opens for confirmed stays
   useEffect(() => {
     if (!open || !bookingId) return;
     if (panel === "stay_money" || panel === "check_out") {
@@ -516,20 +520,28 @@ export function StayHubDialog({
         if (r.ok) setMoney(r.data);
       });
     }
-    if (
-      (panel === "arrival" || panel === "check_in") &&
-      summary &&
-      ["pending", "confirmed"].includes(summary.status)
-    ) {
-      setCheckInLoading(true);
-      fetchStayHubCheckIn(bookingId)
-        .then((r) => {
-          if (r.ok) setCheckInPayload(r.data);
-          else setCheckInPayload(null);
-        })
-        .finally(() => setCheckInLoading(false));
-    }
-  }, [open, bookingId, panel, summary?.status]);
+  }, [open, bookingId, panel]);
+
+  useEffect(() => {
+    if (!open || !bookingId || !summary) return;
+    const st = summary.status;
+    if (!["pending", "confirmed"].includes(st)) return;
+    // Prefetch when hub opens (not only when CI step clicked)
+    let cancelled = false;
+    setCheckInLoading(true);
+    fetchStayHubCheckIn(bookingId)
+      .then((r) => {
+        if (cancelled) return;
+        if (r.ok) setCheckInPayload(r.data);
+        else setCheckInPayload(null);
+      })
+      .finally(() => {
+        if (!cancelled) setCheckInLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, bookingId, summary?.status]);
 
   const steps = useMemo(() => {
     if (!summary) return [];
@@ -582,6 +594,7 @@ export function StayHubDialog({
     value: draft ?? {
       contactName: "",
       contactPhone: "",
+      phoneLater: true,
       contactEmail: "",
       adults: "1",
       guideNumber: "",
@@ -600,7 +613,7 @@ export function StayHubDialog({
       const result = await updateCalendarReservationDetails({
         bookingId: summary.bookingId,
         contactName: d.contactName,
-        contactPhone: d.contactPhone,
+        contactPhone: d.phoneLater ? "" : d.contactPhone,
         contactEmail: d.contactEmail,
         adults: Number(d.adults) || 1,
         guideNumber: d.guideNumber,
@@ -612,8 +625,7 @@ export function StayHubDialog({
       });
       if (result.ok) {
         draftDirtyRef.current = false;
-        // Soft refresh lists without flicker storm
-        router.refresh();
+        // Keep StayHub local; refresh calendar when dialog closes
       }
       return {
         ok: Boolean(result.ok),
@@ -700,6 +712,33 @@ export function StayHubDialog({
     });
   };
 
+  const handleClose = () => {
+    onOpenChange(false);
+    router.refresh();
+  };
+
+  const handleUndoCheckIn = () => {
+    if (!summary) return;
+    startTransition(async () => {
+      const result = await undoCheckIn(summary.bookingId);
+      if (result.ok) {
+        toast.success(result.message ?? "Check-in reversed");
+        const next = await fetchStayHubSummary(
+          summary.bookingId,
+          summary.assignmentId,
+        );
+        if (next.ok) {
+          applySummary(next.data, true, "check_in");
+        }
+        setPanel("check_in");
+        setMoney(null);
+        router.refresh();
+      } else {
+        toast.error(result.error ?? "Could not undo check-in");
+      }
+    });
+  };
+
   const primaryCta = (() => {
     if (!summary) return null;
 
@@ -709,44 +748,101 @@ export function StayHubDialog({
     }
 
     if (panel === "check_in" || panel === "arrival") {
+      if (["pending", "confirmed"].includes(summary.status)) {
+        if (checkInLoading || !checkInPayload) {
+          return (
+            <Button
+              type="button"
+              variant="citrus"
+              className="min-h-11 flex-1 sm:flex-none"
+              disabled
+            >
+              Loading check-in…
+            </Button>
+          );
+        }
+        return (
+          <Button
+            type="submit"
+            form="stay-hub-checkin-form"
+            variant="citrus"
+            className="min-h-11 flex-1 sm:flex-none"
+          >
+            Confirm check-in
+          </Button>
+        );
+      }
+      if (summary.status === "checked_in") {
+        return (
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-11 flex-1 sm:flex-none"
+            disabled={busy}
+            onClick={handleUndoCheckIn}
+          >
+            Undo check-in
+          </Button>
+        );
+      }
       return null;
     }
 
     if (panel === "stay_money" && isInHouse) {
+      const undoBtn = (
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-11 flex-1 sm:flex-none"
+          disabled={busy}
+          onClick={handleUndoCheckIn}
+        >
+          Undo check-in
+        </Button>
+      );
       if (folioId && !money?.hasCharges) {
         return (
-          <Button
-            type="button"
-            variant="citrus"
-            className="min-h-11 flex-1 sm:flex-none"
-            onClick={scrollToPostCharges}
-          >
-            Post charges
-          </Button>
+          <>
+            {undoBtn}
+            <Button
+              type="button"
+              variant="citrus"
+              className="min-h-11 flex-1 sm:flex-none"
+              onClick={scrollToPostCharges}
+            >
+              Post charges
+            </Button>
+          </>
         );
       }
       if (dues > 0.5) {
         return (
+          <>
+            {undoBtn}
+            <Button
+              type="button"
+              variant="citrus"
+              className="min-h-11 flex-1 sm:flex-none"
+              onClick={scrollToCollect}
+              disabled={!folioId}
+            >
+              Collect payment
+            </Button>
+          </>
+        );
+      }
+      return (
+        <>
+          {undoBtn}
           <Button
             type="button"
             variant="citrus"
             className="min-h-11 flex-1 sm:flex-none"
-            onClick={scrollToCollect}
-            disabled={!folioId}
+            onClick={() => setPanel("check_out")}
           >
-            Collect payment
+            Check out
           </Button>
-        );
-      }
-      return (
-        <Button
-          type="button"
-          variant="citrus"
-          className="min-h-11 flex-1 sm:flex-none"
-          onClick={() => setPanel("check_out")}
-        >
-          Check out
-        </Button>
+        </>
       );
     }
 
@@ -800,7 +896,10 @@ export function StayHubDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={(next) => {
+        if (!next) router.refresh();
+        onOpenChange(next);
+      }}>
         <DialogContent
           showCloseButton
           className={cn(
@@ -966,6 +1065,27 @@ export function StayHubDialog({
 
                   {(panel === "arrival" || panel === "check_in") && (
                     <div className="space-y-4">
+                      {!terminal &&
+                      ["pending", "held", "confirmed", "checked_in"].includes(
+                        summary.status,
+                      ) ? (
+                        <WorkSection title="Cancel / no-show">
+                          <BookingLifecycleActions
+                            bookingId={summary.bookingId}
+                            status={summary.status}
+                          />
+                        </WorkSection>
+                      ) : null}
+
+                      {(summary.contactPhone ?? draft?.contactPhone ?? "")
+                        .trim() === "" &&
+                      ["pending", "confirmed"].includes(summary.status) ? (
+                        <Callout tone="muted" title="Phone not collected">
+                          Walk-in can check in with name only. Collect phone
+                          before settle when possible.
+                        </Callout>
+                      ) : null}
+
                       <WorkSection
                         title={
                           panel === "arrival" ? "Arrival readiness" : "Check-in"
@@ -978,7 +1098,16 @@ export function StayHubDialog({
                             </p>
                           ) : checkInPayload ? (
                             <CheckInForm
-                              booking={checkInPayload.booking}
+                              key={`${summary.bookingId}-${checkInPayload.booking.adults}-${draft?.adults ?? ""}`}
+                              booking={{
+                                ...checkInPayload.booking,
+                                adults: Math.max(
+                                  1,
+                                  Number(draft?.adults) ||
+                                    checkInPayload.booking.adults ||
+                                    1,
+                                ),
+                              }}
                               guides={checkInPayload.guides}
                               drivers={checkInPayload.drivers}
                               slots={checkInPayload.slots}
@@ -994,7 +1123,8 @@ export function StayHubDialog({
                         ) : summary.status === "checked_in" ? (
                           <p className="text-sm text-muted-foreground">
                             Already checked in. Continue on Stay / Money or
-                            Check-out.
+                            Check-out. Use Undo check-in if this was a mistake
+                            and the folio is still simple.
                           </p>
                         ) : (
                           <p className="text-sm text-muted-foreground">
@@ -1280,7 +1410,7 @@ export function StayHubDialog({
           {/* —— C. Sticky footer —— */}
           <StayHubFooterBar
             panelLabel={panelLabel}
-            onClose={() => onOpenChange(false)}
+            onClose={handleClose}
             primaryCta={primaryCta}
           />
         </DialogContent>
@@ -1380,9 +1510,23 @@ function GuestIdentityFields({
         <Input
           id="hub_contact_phone"
           className="min-h-11 sm:min-h-9"
-          value={draft.contactPhone}
+          disabled={draft.phoneLater}
+          value={draft.phoneLater ? "" : draft.contactPhone}
           onChange={(e) => onUpdate("contactPhone", e.target.value)}
         />
+        <label className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={draft.phoneLater}
+            onChange={(e) => {
+              const on = e.target.checked;
+              onUpdate("phoneLater", on);
+              if (on) onUpdate("contactPhone", "");
+            }}
+            className="size-3.5 accent-foreground"
+          />
+          Phone later — collect before settle
+        </label>
       </Field>
       <Field label="Email" id="hub_contact_email">
         <Input

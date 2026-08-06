@@ -1,4 +1,8 @@
 import {
+  loadBuildingLayout,
+  loadBuildingSpaces,
+} from "@/app/actions/erp-building-layout";
+import {
   RoomMapShell,
   type RoomMapUnit,
 } from "@/components/erp/RoomMapShell";
@@ -25,16 +29,20 @@ export default async function RoomFloorMapPage() {
   const propertyId = await requireDeskPropertyId();
   const today = thimphuToday();
 
-  const { data: units } = await admin
-    .from("room_units")
-    .select(
-      `id, label, floor_label, view_label, facade_side, has_balcony, hk_status,
-       pos_x, pos_y,
-       room_types(code, name, inventory_kind)`,
-    )
-    .eq("property_id", propertyId)
-    .order("label")
-    .limit(200);
+  const [{ data: units }, layout, spaces] = await Promise.all([
+    admin
+      .from("room_units")
+      .select(
+        `id, label, floor_label, view_label, facade_side, has_balcony, hk_status,
+         pos_x, pos_y,
+         room_types(code, name, inventory_kind)`,
+      )
+      .eq("property_id", propertyId)
+      .order("label")
+      .limit(200),
+    loadBuildingLayout(propertyId),
+    loadBuildingSpaces(propertyId),
+  ]);
 
   const unitIds = (units ?? []).map((u) => u.id as string);
 
@@ -67,7 +75,11 @@ export default async function RoomFloorMapPage() {
     .filter((u) => {
       const rt = u.room_types as { inventory_kind?: string } | null;
       const kind = rt?.inventory_kind ?? "sellable_guest";
-      return kind === "sellable_guest" || kind === "guide_comp" || kind === "driver_comp";
+      return (
+        kind === "sellable_guest" ||
+        kind === "guide_comp" ||
+        kind === "driver_comp"
+      );
     })
     .map((u) => {
       const rt = u.room_types as {
@@ -108,8 +120,9 @@ export default async function RoomFloorMapPage() {
             Floor map
           </h1>
           <p className="max-w-prose text-sm text-muted-foreground">
-            Building (3D) or Plan (2D) — same room data. Click any room for stay,
-            guests, photos, amenities, and flags. Drag rooms only in Plan mode.
+            Building setup → 2D plan (front/back wings + corridor) → 3D massing
+            from the same layout. Click rooms for stay dossiers; amenities are
+            map-only.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -125,10 +138,11 @@ export default async function RoomFloorMapPage() {
 
       {mapUnits.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No room units on this property yet.
+          No room units on this property yet. Add rooms under Settings, then run
+          Building setup.
         </p>
       ) : (
-        <RoomMapShell units={mapUnits} />
+        <RoomMapShell units={mapUnits} layout={layout} spaces={spaces} />
       )}
     </div>
   );

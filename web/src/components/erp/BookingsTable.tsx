@@ -25,6 +25,10 @@ export type BookingRow = {
   rooms: number | null;
   status: string | null;
   room_labels?: string | null;
+  /** Assigned physical units vs sold room count. */
+  assigned_count?: number;
+  room_fit?: "none" | "partial" | "full" | "n_a";
+  created_at?: string | null;
   badges?: ArrivalBadge[];
   action_label?: string;
 };

@@ -239,7 +239,7 @@ export function FastBookForm({
               required
               min={1}
               max={24}
-              defaultValue={2}
+              defaultValue={1}
               inputMode="numeric"
             />
           </div>

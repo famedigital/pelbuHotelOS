@@ -65,6 +65,36 @@ function BadgePill({ badge }: { badge: ArrivalBadge }) {
   );
 }
 
+function RoomCell({ row }: { row: BookingRow }) {
+  const fit = row.room_fit ?? "n_a";
+  const labels = row.room_labels?.trim() || "";
+  if (fit === "none") {
+    return (
+      <span className="font-medium text-destructive">No room</span>
+    );
+  }
+  if (fit === "partial") {
+    const n = Number(row.rooms ?? 1);
+    const a = Number(row.assigned_count ?? 0);
+    return (
+      <span className="text-amber-800 dark:text-amber-200">
+        <span className="font-medium">Partial ({a}/{Math.max(1, n)})</span>
+        {labels ? (
+          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+            {labels}
+          </span>
+        ) : null}
+      </span>
+    );
+  }
+  if (labels) {
+    return (
+      <span className="font-medium tabular-nums text-foreground">{labels}</span>
+    );
+  }
+  return <span className="text-muted-foreground">—</span>;
+}
+
 function RowSummary({ row }: { row: BookingRow }) {
   return (
     <div className="flex w-full min-w-0 flex-col gap-2 pr-2 text-left sm:flex-row sm:items-center sm:gap-4">
@@ -91,8 +121,11 @@ function RowSummary({ row }: { row: BookingRow }) {
           </span>
         ) : null}
       </div>
-      <div className="hidden shrink-0 text-sm tabular-nums lg:block lg:w-[6rem]">
-        {Number(row.rooms ?? 0)} / {Number(row.adults ?? 0)} pax
+      <div className="hidden shrink-0 text-sm lg:block lg:w-[7.5rem]">
+        <RoomCell row={row} />
+        <p className="text-[10px] tabular-nums text-muted-foreground">
+          {Number(row.rooms ?? 0)} sold · {Number(row.adults ?? 0)} pax
+        </p>
       </div>
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1 sm:justify-end">
         <StatusPill value={row.status ?? ""} />
@@ -141,10 +174,12 @@ function MobileRowSummary({ row }: { row: BookingRow }) {
           </>
         ) : null}
       </p>
-      <p className="text-sm tabular-nums text-muted-foreground">
-        {Number(row.rooms ?? 0)} rooms / {Number(row.adults ?? 0)} pax
-        {row.room_labels ? ` · ${row.room_labels}` : ""}
-      </p>
+      <div className="text-sm">
+        <RoomCell row={row} />
+        <p className="text-xs tabular-nums text-muted-foreground">
+          {Number(row.rooms ?? 0)} rooms / {Number(row.adults ?? 0)} pax
+        </p>
+      </div>
       {(row.badges?.length ?? 0) > 0 ? (
         <div className="flex flex-wrap gap-1">
           {row.badges?.map((badge) => (
@@ -193,15 +228,15 @@ export function ReservationsAccordionTable({
       className="rounded-xl border border-border bg-card"
     >
       <div
-        className="hidden border-b bg-muted/30 px-4 py-2 text-xs font-medium tracking-wide text-muted-foreground uppercase sm:grid sm:grid-cols-[1fr_10rem_8rem_6rem_auto] sm:gap-4 md:grid-cols-[14rem_10rem_8rem_6rem_1fr_auto]"
+        className="hidden border-b bg-muted/30 px-4 py-2 text-xs font-medium tracking-wide text-muted-foreground uppercase sm:grid sm:grid-cols-[1fr_10rem_8rem_7.5rem_auto] sm:gap-4 md:grid-cols-[14rem_10rem_8rem_7.5rem_1fr_auto]"
         aria-hidden
       >
         <span>Guest</span>
         <span className="hidden sm:inline">Dates</span>
         <span className="hidden md:inline">Source</span>
-        <span className="hidden lg:inline">Rooms</span>
+        <span className="hidden lg:inline">Room #</span>
         <span className="hidden sm:inline sm:col-span-1 md:col-span-1">
-          Readiness
+          Status
         </span>
         <span className="hidden xl:inline">Action</span>
       </div>

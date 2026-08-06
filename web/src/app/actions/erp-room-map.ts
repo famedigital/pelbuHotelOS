@@ -30,13 +30,28 @@ export async function saveRoomMapPosition(formData: FormData): Promise<void> {
     if (!Number.isFinite(xRaw) || !Number.isFinite(yRaw)) return;
     const pos_x = Math.max(0, Math.min(100, xRaw));
     const pos_y = Math.max(0, Math.min(100, yRaw));
+    const facade = optionalTrim(formData.get("facade_side"));
+    const allowed = new Set([
+      "north",
+      "south",
+      "east",
+      "west",
+      "courtyard",
+      "internal",
+      "",
+    ]);
 
     const admin = createSupabaseAdminClient();
     const propertyId = await requireDeskPropertyId();
 
+    const patch: Record<string, unknown> = { pos_x, pos_y };
+    if (facade != null && allowed.has(facade) && facade !== "") {
+      patch.facade_side = facade;
+    }
+
     await admin
       .from("room_units")
-      .update({ pos_x, pos_y })
+      .update(patch)
       .eq("id", unitId)
       .eq("property_id", propertyId);
 

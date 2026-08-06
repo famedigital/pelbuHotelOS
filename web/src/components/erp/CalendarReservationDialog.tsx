@@ -59,6 +59,7 @@ type ReservationDraft = {
   groupName: string;
   contactName: string;
   contactPhone: string;
+  phoneLater: boolean;
   contactEmail: string;
   adults: string;
   children: string;
@@ -83,8 +84,9 @@ function draftForSelection(
     groupName: `Group · ${selection.units.length} rooms · ${selection.checkIn}`,
     contactName: "",
     contactPhone: "",
+    phoneLater: false,
     contactEmail: "",
-    adults: String(Math.max(2, selection.units.length)),
+    adults: String(Math.max(1, selection.units.length)),
     children: "0",
     extraBeds: "0",
     guideNumber: "",
@@ -152,7 +154,7 @@ export function CalendarReservationDialog({
       if (state.bookingId && stayHub) {
         stayHub.openStayHub({
           bookingId: state.bookingId,
-          step: "reserve",
+          step: isGroup ? "reserve" : "check_in",
           agents,
           staff,
         });
@@ -168,6 +170,7 @@ export function CalendarReservationDialog({
     stayHub,
     agents,
     staff,
+    isGroup,
   ]);
 
   // A new drag selection starts a fresh draft; a rejected submit keeps whatever
@@ -342,12 +345,35 @@ export function CalendarReservationDialog({
               <Input
                 id="contact_phone"
                 name="contact_phone"
-                required
-                value={draft.contactPhone}
+                required={!draft.phoneLater}
+                disabled={draft.phoneLater}
+                value={draft.phoneLater ? "" : draft.contactPhone}
                 onChange={(event) =>
                   updateDraft("contactPhone", event.target.value)
                 }
               />
+              <label className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  name="phone_later"
+                  value="1"
+                  checked={draft.phoneLater}
+                  onChange={(event) => {
+                    const on = event.target.checked;
+                    setDraft((d) =>
+                      d
+                        ? {
+                            ...d,
+                            phoneLater: on,
+                            contactPhone: on ? "" : d.contactPhone,
+                          }
+                        : d,
+                    );
+                  }}
+                  className="size-3.5 accent-foreground"
+                />
+                Phone later — collect before settle
+              </label>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="contact_email">Email</Label>

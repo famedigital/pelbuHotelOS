@@ -374,7 +374,13 @@ export function CheckInForm({
   return (
     <form
       action={action}
-      className="erp space-y-8 rounded-lg border bg-card p-4 sm:p-6"
+      className={cn(
+        "erp space-y-8",
+        embedded
+          ? "space-y-6 rounded-none border-0 bg-transparent p-0"
+          : "rounded-lg border bg-card p-4 sm:p-6",
+      )}
+      id={embedded ? "stay-hub-checkin-form" : undefined}
     >
       <input type="hidden" name="booking_id" value={booking.id} />
       <input type="hidden" name="payment_mode" value={paymentMode} />
@@ -876,7 +882,13 @@ export function CheckInForm({
         </div>
       </fieldset>
 
-      <Button type="submit" variant="citrus" disabled={pending} className="h-11 px-6">
+      <Button
+        type="submit"
+        variant="citrus"
+        disabled={pending}
+        className={cn("h-11 px-6", embedded && "sr-only")}
+        tabIndex={embedded ? -1 : undefined}
+      >
         {pending ? "Checking in…" : "Confirm check-in"}
       </Button>
 

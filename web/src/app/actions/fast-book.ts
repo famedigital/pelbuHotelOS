@@ -88,8 +88,19 @@ export async function createFastBooking(
     }
 
     const contactName = trimRequired(formData.get("contact_name"), "Guest name");
-    const contactPhone = trimRequired(formData.get("contact_phone"), "Phone");
-    assertPhone(contactPhone);
+    const phoneRaw = optionalTrim(formData.get("contact_phone")) ?? "";
+    const phoneDeferred =
+      formData.get("phone_later") === "1" ||
+      formData.get("phone_deferred") === "1" ||
+      formData.get("phone_later") === "on";
+    let contactPhone = "";
+    if (phoneRaw) {
+      assertPhone(phoneRaw);
+      contactPhone = phoneRaw;
+    } else if (!phoneDeferred) {
+      // Blank allowed for walk-in (phone later) — same as calendar
+      contactPhone = "";
+    }
 
     const contactEmail = optionalTrim(formData.get("contact_email"));
     assertOptionalEmail(contactEmail);

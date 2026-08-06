@@ -13,7 +13,7 @@ import {
   PlusIcon,
   SearchIcon,
 } from "lucide-react";
-import { startTransition, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import { MenuItemForm, type MenuItemFormTarget } from "./MenuItemForm";
 import { MenuOutletManager } from "./MenuOutletManager";
 
@@ -30,12 +30,18 @@ function formatBtn(n: number): string {
 }
 
 export function MenuAdminGrid({
-  items,
+  items: serverItems,
   outlets,
 }: {
   items: MenuItem[];
   outlets: PropertyOutlet[];
 }) {
+  /** Local catalog so saves don’t force a full RSC remount/reload of this page. */
+  const [items, setItems] = useState(serverItems);
+  useEffect(() => {
+    setItems(serverItems);
+  }, [serverItems]);
+
   const activeOutlets = useMemo(
     () => outlets.filter((o) => o.is_active),
     [outlets],
@@ -89,10 +95,29 @@ export function MenuAdminGrid({
   }, [items]);
 
   function toggle(item: MenuItem, next: boolean) {
+    setItems((prev) =>
+      prev.map((row) =>
+        row.id === item.id ? { ...row, is_available: next } : row,
+      ),
+    );
     const fd = new FormData();
     fd.set("item_id", item.id);
     fd.set("is_available", next ? "1" : "0");
     startTransition(() => toggleMenuItemAvailable(fd));
+  }
+
+  function upsertItem(item: MenuItem) {
+    setItems((prev) => {
+      const idx = prev.findIndex((row) => row.id === item.id);
+      if (idx < 0) return [item, ...prev];
+      const next = [...prev];
+      next[idx] = { ...prev[idx], ...item };
+      return next;
+    });
+  }
+
+  function removeItem(itemId: string) {
+    setItems((prev) => prev.filter((row) => row.id !== itemId));
   }
 
   return (
@@ -303,9 +328,18 @@ export function MenuAdminGrid({
       )}
 
       <MenuItemForm
+        key={
+          target?.mode === "edit"
+            ? `edit-${target.item.id}`
+            : target?.mode === "create"
+              ? "create"
+              : "closed"
+        }
         target={target}
         outlets={outlets}
         onOpenChange={(o) => !o && setTarget(null)}
+        onSaved={upsertItem}
+        onDeleted={removeItem}
       />
     </div>
   );

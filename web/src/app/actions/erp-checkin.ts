@@ -5,6 +5,11 @@ import { writeAuditEvent } from "@/lib/audit";
 import { postExtraBedFolioLine } from "@/lib/folio/extra-bed";
 import { postMealPlanFolioLine } from "@/lib/folio/meal-plan";
 import { postRoomNightsForBooking } from "@/lib/folio/room-night";
+import { voidFolioLineWithReversal } from "@/lib/folio/void-line";
+import {
+  assertUndoCheckInLinesSafe,
+  UNDO_CI_SAFE_SOURCE_TYPES,
+} from "@/lib/checkin-undo";
 import { nationalityRequired } from "@/lib/countries";
 import {
   normalizeGuestOrigin,
@@ -632,6 +637,126 @@ export async function confirmCheckIn(
     return {
       ok: false,
       error: err instanceof Error ? err.message : "Something went wrong.",
+    };
+  }
+}
+
+/** Day-1 check-in auto posts only these source types (safe to reverse). */
+export type UndoCheckInState = {
+  ok: boolean;
+  bookingId?: string;
+  error?: string;
+  message?: string;
+};
+
+/**
+ * Reverse accidental check-in when the folio is still simple.
+ * Blocks if payments exist or non day-1 auto charges (SPA, laundry, etc.) are posted.
+ */
+export async function undoCheckIn(
+  bookingId: string,
+): Promise<UndoCheckInState> {
+  try {
+    await requireDesk();
+    if (!bookingId?.trim()) throw new Error("Booking is required.");
+
+    const admin = createSupabaseAdminClient();
+    const property_id = await propertyId(admin);
+
+    const { data: booking, error: bookingError } = await admin
+      .from("bookings")
+      .select("id, status, contact_name, property_id, check_in, checked_out_at")
+      .eq("id", bookingId)
+      .maybeSingle();
+
+    if (bookingError || !booking) throw new Error("Booking not found.");
+    assertDeskProperty(property_id, booking.property_id as string, "Booking");
+
+    if ((booking.status as string) !== "checked_in") {
+      throw new Error("Only checked-in bookings can undo check-in.");
+    }
+    if (booking.checked_out_at) {
+      throw new Error("Checkout already recorded — undo check-in is blocked.");
+    }
+
+    const { data: openFolios } = await admin
+      .from("folios")
+      .select("id, status")
+      .eq("booking_id", bookingId)
+      .eq("property_id", property_id)
+      .eq("status", "open");
+
+    const folioIds = (openFolios ?? []).map((f) => f.id as string);
+
+    if (folioIds.length > 0) {
+      const { data: payments } = await admin
+        .from("payments")
+        .select("id")
+        .or(
+          `booking_id.eq.${bookingId},folio_id.in.(${folioIds.join(",")})`,
+        )
+        .limit(1);
+
+      const { data: lines } = await admin
+        .from("folio_lines")
+        .select("id, source_type, status, business_date")
+        .in("folio_id", folioIds)
+        .eq("status", "posted");
+
+      const posted = lines ?? [];
+      const guard = assertUndoCheckInLinesSafe(posted, {
+        hasPayments: Boolean(payments?.length),
+      });
+      if (guard) throw new Error(guard);
+
+      for (const line of posted) {
+        if (!UNDO_CI_SAFE_SOURCE_TYPES.has(String(line.source_type ?? ""))) {
+          continue;
+        }
+        await voidFolioLineWithReversal(admin, property_id, {
+          lineId: line.id as string,
+          reason: "Undo check-in",
+          voidedBy: "desk",
+        });
+      }
+    }
+
+    const { error: statusError } = await admin
+      .from("bookings")
+      .update({
+        status: "confirmed",
+        checked_in_at: null,
+      })
+      .eq("id", bookingId)
+      .eq("property_id", property_id)
+      .eq("status", "checked_in");
+
+    if (statusError) {
+      throw new Error("Could not reverse check-in status.");
+    }
+
+    await writeAuditEvent(admin, {
+      propertyId: property_id,
+      action: "checkin.undo",
+      entityType: "bookings",
+      entityId: bookingId,
+      summary: `Undo check-in · ${booking.contact_name ?? "Guest"}`,
+      meta: {
+        check_in: booking.check_in,
+        voided_safe_lines: true,
+      },
+    });
+
+    revalidateCheckIn();
+    return {
+      ok: true,
+      bookingId,
+      message: "Check-in reversed — booking is confirmed again.",
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Could not undo check-in.",
     };
   }
 }

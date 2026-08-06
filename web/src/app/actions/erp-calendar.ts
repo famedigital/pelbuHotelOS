@@ -77,7 +77,7 @@ async function requireDesk() {
   }
 }
 
-function revalidateCalendar() {
+function revalidateCalendarHeavy() {
   revalidatePath("/erp");
   revalidatePath("/erp/calendar");
   revalidatePath("/erp/group");
@@ -85,6 +85,43 @@ function revalidateCalendar() {
   revalidatePath("/erp/reservations");
   revalidatePath("/erp/fast-book");
   revalidatePath("/erp/channel");
+}
+
+/** @deprecated Prefer revalidateCalendarHeavy for structural rack changes. */
+function revalidateCalendar() {
+  revalidateCalendarHeavy();
+}
+
+/**
+ * Phone optional when blank or phone_later/phone_deferred flag set.
+ * Non-empty values must still pass assertPhone.
+ */
+function parseContactPhone(formData: FormData): string {
+  const raw = optionalTrim(formData.get("contact_phone")) ?? "";
+  const deferred =
+    formData.get("phone_later") === "1" ||
+    formData.get("phone_deferred") === "1" ||
+    formData.get("phone_later") === "on";
+  if (!raw) {
+    // Walk-in FO: collect name first, phone later
+    return "";
+  }
+  if (deferred && !raw) return "";
+  assertPhone(raw);
+  return raw;
+}
+
+function parseContactPhoneFromString(
+  value: string | null | undefined,
+  opts?: { allowEmpty?: boolean },
+): string {
+  const raw = (value ?? "").trim();
+  if (!raw) {
+    if (opts?.allowEmpty !== false) return "";
+    throw new Error("Phone is required.");
+  }
+  assertPhone(raw);
+  return raw;
 }
 
 function rateTierFromSource(source: string): RateTier {
@@ -268,8 +305,7 @@ function parseCommon(formData: FormData): CommonFields {
   if (!SOURCES.has(source)) throw new Error("Invalid booked-by role.");
 
   const contactName = trimRequired(formData.get("contact_name"), "Guest name");
-  const contactPhone = trimRequired(formData.get("contact_phone"), "Phone");
-  assertPhone(contactPhone);
+  const contactPhone = parseContactPhone(formData);
   const contactEmail = optionalTrim(formData.get("contact_email"));
   assertOptionalEmail(contactEmail);
 
@@ -518,10 +554,11 @@ export async function createCalendarReservation(
       summary: `${common.contactName} · ${unit.label} · ${common.checkIn}→${common.checkOut}${creditNote}`,
     });
 
-    await notifyNewBooking({
+    // Don't block FO response on notify/ARI
+    void notifyNewBooking({
       bookingId: booking.id as string,
       contactName: common.contactName,
-      contactPhone: common.contactPhone,
+      contactPhone: common.contactPhone || "—",
       contactEmail: common.contactEmail,
       checkIn: common.checkIn,
       checkOut: common.checkOut,
@@ -531,17 +568,17 @@ export async function createCalendarReservation(
       notes: common.notes
         ? `[CALENDAR ${common.source}] ${common.notes}`
         : `[CALENDAR ${common.source}]`,
-    });
+    }).catch((err) => console.error("notifyNewBooking calendar", err));
 
-    await enqueueAfterBookingChange(
+    void enqueueAfterBookingChange(
       admin,
       propertyId,
       common.checkIn,
       common.checkOut,
       "calendar.create",
-    );
+    ).catch((err) => console.error("enqueueAfterBookingChange calendar", err));
 
-    revalidateCalendar();
+    revalidateCalendarHeavy();
     return {
       ok: true,
       bookingId: booking.id as string,
@@ -1485,8 +1522,9 @@ export async function updateCalendarReservationDetails(
     await requireDesk();
     if (!UUID_RE.test(input.bookingId)) throw new Error("Invalid booking.");
     const contactName = trimRequired(input.contactName, "Guest name");
-    const contactPhone = trimRequired(input.contactPhone, "Phone");
-    assertPhone(contactPhone);
+    const contactPhone = parseContactPhoneFromString(input.contactPhone, {
+      allowEmpty: true,
+    });
     const contactEmail = optionalTrim(input.contactEmail);
     assertOptionalEmail(contactEmail);
     const guideNumber = optionalTrim(input.guideNumber);
@@ -1592,7 +1630,7 @@ export async function updateCalendarReservationDetails(
         sold_by_staff_id: soldByStaffId,
       },
     });
-    revalidateCalendar();
+    // Identity auto-save: no rack revalidate — StayHub local state + refresh on close.
     return { ok: true, bookingId: input.bookingId, message: "Reservation updated." };
   } catch (e) {
     return {

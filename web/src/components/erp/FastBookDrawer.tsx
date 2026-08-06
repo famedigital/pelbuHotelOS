@@ -61,6 +61,7 @@ function DrawerBody({
   defaultMealPlanCode: string;
   defaultGuestOrigin: string;
 }) {
+  const [phoneLater, setPhoneLater] = useState(false);
   return (
     <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
       {!hasQty ? (
@@ -92,9 +93,21 @@ function DrawerBody({
               id="contact_phone"
               type="tel"
               name="contact_phone"
-              required
+              required={!phoneLater}
+              disabled={phoneLater}
               inputMode="tel"
             />
+            <label className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                name="phone_later"
+                value="1"
+                checked={phoneLater}
+                onChange={(e) => setPhoneLater(e.target.checked)}
+                className="size-3.5 accent-foreground"
+              />
+              Phone later — collect before settle
+            </label>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="contact_email">Email</Label>

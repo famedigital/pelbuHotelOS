@@ -1,6 +1,18 @@
 "use client";
 
 import { saveRoomMapPosition } from "@/app/actions/erp-room-map";
+import { BuildingSpaceSheet } from "@/components/erp/building/BuildingSpaceSheet";
+import {
+  floorStructure,
+  snapToWing,
+  structureBandStyle,
+} from "@/lib/building/geometry";
+import type {
+  BuildingSpace,
+  CorridorAxis,
+  PropertyBuildingLayout,
+} from "@/lib/building/types";
+import { DEFAULT_BUILDING_PARAMS } from "@/lib/building/types";
 import { Button } from "@/components/ui/button";
 import {
   FACADE_RING,
@@ -25,24 +37,78 @@ export type { RoomMapUnit } from "@/components/erp/room-map-shared";
 type Props = {
   units: RoomMapUnit[];
   onOpenRoom: (unitId: string) => void;
+  layout?: PropertyBuildingLayout | null;
+  spaces?: Array<BuildingSpace & { id: string }>;
+  snapToCorridor?: boolean;
+};
+
+const SPACE_FILL: Record<string, string> = {
+  lobby: "bg-teal-700/80 text-white",
+  restaurant: "bg-orange-800/75 text-white",
+  cafe: "bg-amber-700/75 text-white",
+  bar: "bg-violet-800/75 text-white",
+  reception: "bg-sky-800/75 text-white",
+  spa: "bg-cyan-800/70 text-white",
+  gym: "bg-slate-700/75 text-white",
+  meeting: "bg-indigo-800/70 text-white",
+  stair: "bg-zinc-600/80 text-white",
+  lift: "bg-zinc-500/80 text-white",
+  service: "bg-stone-600/75 text-white",
+  attic: "bg-stone-700/70 text-white",
+  other: "bg-muted text-foreground",
 };
 
 /**
- * Digital building map — POS table canvas pattern.
+ * Digital building map — corridor structure + amenity blocks + drag rooms.
  * Floor tabs · drag rooms · click opens dossier (parent owns sheet).
  */
-export function RoomFloorPlan({ units, onOpenRoom }: Props) {
-  const floors = useMemo(() => listFloors(units), [units]);
+export function RoomFloorPlan({
+  units,
+  onOpenRoom,
+  layout = null,
+  spaces = [],
+  snapToCorridor = true,
+}: Props) {
+  const layoutFloors = layout?.floors ?? [];
+  const floors = useMemo(() => {
+    if (layoutFloors.length) {
+      return ["All", ...layoutFloors.map((f) => f.key)];
+    }
+    return listFloors(units);
+  }, [layoutFloors, units]);
 
-  const [floor, setFloor] = useState<string>("All");
+  const defaultFloor =
+    layoutFloors.find((f) => f.kind === "guest")?.key ??
+    floors.find((f) => f !== "All") ??
+    "All";
+
+  const [floor, setFloor] = useState<string>(defaultFloor);
   const [optimistic, setOptimistic] = useState<
     Record<string, { x: number; y: number }>
   >({});
+  const [selectedSpace, setSelectedSpace] = useState<
+    (BuildingSpace & { id: string }) | null
+  >(null);
+
+  const axis: CorridorAxis = layout?.corridor_axis ?? "ew";
+  const params = layout?.params ?? DEFAULT_BUILDING_PARAMS;
+  const structure = useMemo(
+    () => floorStructure(axis, params),
+    [axis, params],
+  );
 
   const floorUnits = useMemo(
     () =>
       floor === "All" ? units : units.filter((u) => floorKey(u) === floor),
     [units, floor],
+  );
+
+  const floorSpaces = useMemo(
+    () =>
+      floor === "All"
+        ? spaces
+        : spaces.filter((s) => s.floor_key === floor),
+    [spaces, floor],
   );
 
   const positioned = useMemo(() => {
@@ -76,7 +142,12 @@ export function RoomFloorPlan({ units, onOpenRoom }: Props) {
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
-  const livePosRef = useRef<{ id: string; x: number; y: number } | null>(null);
+  const livePosRef = useRef<{
+    id: string;
+    x: number;
+    y: number;
+    facade?: string;
+  } | null>(null);
   const draggedNodeRef = useRef<HTMLDivElement | null>(null);
   const downRef = useRef<{ x: number; y: number } | null>(null);
   const movedRef = useRef(false);
@@ -117,18 +188,32 @@ export function RoomFloorPlan({ units, onOpenRoom }: Props) {
       }
       if (!movedRef.current) return;
       const rect = canvasRef.current.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
-      livePosRef.current = {
-        id: livePosRef.current.id,
-        x: Math.max(0, Math.min(96, x)),
-        y: Math.max(0, Math.min(94, y)),
-      };
+      let x = ((e.clientX - rect.left) / rect.width) * 100;
+      let y = ((e.clientY - rect.top) / rect.height) * 100;
+      x = Math.max(0, Math.min(96, x));
+      y = Math.max(0, Math.min(94, y));
+      if (snapToCorridor && layout) {
+        const snapped = snapToWing(x, y, structure);
+        x = snapped.pos_x;
+        y = snapped.pos_y;
+        livePosRef.current = {
+          id: livePosRef.current.id,
+          x,
+          y,
+          facade: snapped.facade_side,
+        };
+      } else {
+        livePosRef.current = {
+          id: livePosRef.current.id,
+          x,
+          y,
+        };
+      }
       if (rafRef.current == null) {
         rafRef.current = requestAnimationFrame(flushDragTransform);
       }
     },
-    [flushDragTransform],
+    [flushDragTransform, layout, snapToCorridor, structure],
   );
 
   const endDrag = useCallback(
@@ -159,6 +244,7 @@ export function RoomFloorPlan({ units, onOpenRoom }: Props) {
         fd.set("unit_id", unitId);
         fd.set("pos_x", String(Math.round(pos.x * 100) / 100));
         fd.set("pos_y", String(Math.round(pos.y * 100) / 100));
+        if (pos.facade) fd.set("facade_side", pos.facade);
         startTransition(() => {
           void saveRoomMapPosition(fd);
         });
@@ -172,6 +258,8 @@ export function RoomFloorPlan({ units, onOpenRoom }: Props) {
     [onOpenRoom],
   );
 
+  const showStructure = Boolean(layout) && floor !== "All";
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -180,6 +268,7 @@ export function RoomFloorPlan({ units, onOpenRoom }: Props) {
             f === "All"
               ? units.length
               : units.filter((u) => floorKey(u) === f).length;
+          const meta = layoutFloors.find((lf) => lf.key === f);
           return (
             <Button
               key={f}
@@ -189,7 +278,9 @@ export function RoomFloorPlan({ units, onOpenRoom }: Props) {
               className="h-8"
               onClick={() => setFloor(f)}
             >
-              {f === "All" ? "All floors" : `Floor ${f}`}
+              {f === "All"
+                ? "All floors"
+                : meta?.label ?? `Floor ${f}`}
               <span className="ml-1.5 tabular-nums opacity-70">{count}</span>
             </Button>
           );
@@ -206,12 +297,17 @@ export function RoomFloorPlan({ units, onOpenRoom }: Props) {
         <span className="inline-flex items-center gap-1.5">
           <span className="size-2.5 rounded-sm bg-amber-500" /> Dirty
         </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="size-2.5 rounded-sm bg-rose-600" /> OOO
-        </span>
-        <span>
-          Ring color = facade (W/E/S/N). Drag to lay out · click for dossier.
-        </span>
+        {showStructure ? (
+          <span>
+            Front / back wings · corridor center · drag snaps to wing · click
+            room for dossier
+          </span>
+        ) : (
+          <span>
+            Drag to lay out · click for dossier. Run Building setup for corridor
+            structure.
+          </span>
+        )}
       </div>
 
       <div
@@ -225,19 +321,77 @@ export function RoomFloorPlan({ units, onOpenRoom }: Props) {
           if (dragId) endDrag(dragId);
         }}
       >
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-[12%] rounded-lg border border-dashed border-foreground/10"
-        />
-        <p className="pointer-events-none absolute top-2 left-1/2 -translate-x-1/2 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-          {floor === "All" ? "Building overview" : `Floor ${floor} plan`}
+        {showStructure ? (
+          <>
+            <div
+              aria-hidden
+              className="pointer-events-none absolute rounded-sm border border-dashed border-sky-500/30 bg-sky-500/5"
+              style={structureBandStyle(structure, "front")}
+            >
+              <span className="absolute top-1 left-2 text-[9px] font-medium text-sky-800/80 dark:text-sky-200/80">
+                Front
+              </span>
+            </div>
+            <div
+              aria-hidden
+              className="pointer-events-none absolute rounded-sm border border-dashed border-amber-600/35 bg-amber-500/10"
+              style={structureBandStyle(structure, "corridor")}
+            >
+              <span className="absolute top-1 left-2 text-[9px] font-medium text-amber-900/80 dark:text-amber-100/80">
+                Corridor
+              </span>
+            </div>
+            <div
+              aria-hidden
+              className="pointer-events-none absolute rounded-sm border border-dashed border-violet-500/30 bg-violet-500/5"
+              style={structureBandStyle(structure, "back")}
+            >
+              <span className="absolute top-1 left-2 text-[9px] font-medium text-violet-900/80 dark:text-violet-100/80">
+                Back
+              </span>
+            </div>
+          </>
+        ) : (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-[12%] rounded-lg border border-dashed border-foreground/10"
+          />
+        )}
+
+        <p className="pointer-events-none absolute top-2 left-1/2 z-[5] -translate-x-1/2 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+          {floor === "All"
+            ? "Building overview"
+            : `${layoutFloors.find((f) => f.key === floor)?.label ?? `Floor ${floor}`} plan`}
         </p>
-        <span className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-[10px] text-muted-foreground">
+        <span className="pointer-events-none absolute top-1/2 left-2 z-[5] -translate-y-1/2 text-[10px] text-muted-foreground">
           W
         </span>
-        <span className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-[10px] text-muted-foreground">
+        <span className="pointer-events-none absolute top-1/2 right-2 z-[5] -translate-y-1/2 text-[10px] text-muted-foreground">
           E
         </span>
+
+        {floorSpaces.map((space) => (
+          <button
+            key={space.id}
+            type="button"
+            data-no-drag
+            className={cn(
+              "absolute z-[6] -translate-x-1/2 -translate-y-1/2 rounded-md border border-white/20 px-1.5 py-1 text-center shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-accent",
+              SPACE_FILL[space.kind] ?? SPACE_FILL.other,
+            )}
+            style={{
+              left: `${space.pos_x}%`,
+              top: `${space.pos_y}%`,
+              width: `${Math.max(8, space.width_pct * 0.85)}%`,
+              minHeight: `${Math.max(6, space.depth_pct * 0.55)}%`,
+            }}
+            onClick={() => setSelectedSpace(space)}
+          >
+            <span className="block text-[9px] leading-tight font-semibold">
+              {space.label}
+            </span>
+          </button>
+        ))}
 
         {positioned.map((unit) => {
           const fill = HK_FILL[unit.hk_status] ?? "bg-muted text-foreground";
@@ -249,7 +403,7 @@ export function RoomFloorPlan({ units, onOpenRoom }: Props) {
               tabIndex={0}
               aria-label={`Room ${unit.label}`}
               className={cn(
-                "absolute flex min-w-[3.25rem] -translate-x-1/2 -translate-y-1/2 cursor-grab flex-col items-center rounded-lg px-2 py-1.5 text-center shadow-sm ring-2 select-none active:cursor-grabbing",
+                "absolute z-10 flex min-w-[3.25rem] -translate-x-1/2 -translate-y-1/2 cursor-grab flex-col items-center rounded-lg px-2 py-1.5 text-center shadow-sm ring-2 select-none active:cursor-grabbing",
                 fill,
                 ring,
                 dragId === unit.id && "z-20 scale-105 shadow-md",
@@ -281,6 +435,11 @@ export function RoomFloorPlan({ units, onOpenRoom }: Props) {
           );
         })}
       </div>
+
+      <BuildingSpaceSheet
+        space={selectedSpace}
+        onClose={() => setSelectedSpace(null)}
+      />
     </div>
   );
 }

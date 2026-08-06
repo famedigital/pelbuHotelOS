@@ -31,7 +31,7 @@ import { cloudinaryUrl } from "@/lib/cloudinary";
 import type { MenuItem } from "@/lib/menu";
 import type { PropertyOutlet } from "@/lib/outlets";
 import { ImageIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react";
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 
 const initial: MenuAdminState = { ok: false };
 
@@ -52,10 +52,14 @@ export function MenuItemForm({
   target,
   outlets,
   onOpenChange,
+  onSaved,
+  onDeleted,
 }: {
   target: MenuItemFormTarget;
   outlets: PropertyOutlet[];
   onOpenChange: (open: boolean) => void;
+  onSaved?: (item: MenuItem) => void;
+  onDeleted?: (itemId: string) => void;
 }) {
   const open = target !== null;
   const editing = target?.mode === "edit" ? target.item : null;
@@ -98,6 +102,9 @@ export function MenuItemForm({
   const [sortOrder, setSortOrder] = useState("0");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  /** Ignore a stale previous ok so reopening “Add” doesn’t auto-close. */
+  const handledSaveSig = useRef<string>("");
+  const handledDeleteSig = useRef<string>("");
 
   useEffect(() => {
     if (!open) return;
@@ -130,8 +137,38 @@ export function MenuItemForm({
   }, [open, editing, target, activeOutlets]);
 
   useEffect(() => {
-    if (saveState.ok || deleteState.ok) onOpenChange(false);
-  }, [saveState.ok, deleteState.ok, onOpenChange]);
+    if (!saveState.ok || !saveState.itemId) return;
+    const sig = `${saveState.itemId}:${saveState.item?.name ?? ""}:${saveState.item?.price_btn ?? ""}`;
+    if (sig === handledSaveSig.current) return;
+    handledSaveSig.current = sig;
+
+    if (saveState.item) {
+      const snap = saveState.item;
+      onSaved?.({
+        id: snap.id,
+        name: snap.name,
+        outlet: snap.outlet,
+        category: snap.category,
+        description: snap.description,
+        price_btn: snap.price_btn,
+        gst_applicable: snap.gst_applicable,
+        is_available: snap.is_available,
+        is_popular: snap.is_popular,
+        prep_station: snap.prep_station,
+        sort_order: snap.sort_order,
+        image_public_id: snap.image_public_id,
+      });
+    }
+    onOpenChange(false);
+  }, [saveState, onOpenChange, onSaved]);
+
+  useEffect(() => {
+    if (!deleteState.ok || !deleteState.itemId) return;
+    if (deleteState.itemId === handledDeleteSig.current) return;
+    handledDeleteSig.current = deleteState.itemId;
+    onDeleted?.(deleteState.itemId);
+    onOpenChange(false);
+  }, [deleteState.ok, deleteState.itemId, onDeleted, onOpenChange]);
 
   if (!open) return null;
 

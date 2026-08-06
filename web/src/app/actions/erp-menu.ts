@@ -29,6 +29,21 @@ export type MenuPrepStation = (typeof MENU_PREP_STATIONS)[number];
 export type MenuAdminState = {
   ok: boolean;
   itemId?: string;
+  /** Snapshot for client list update without remounting the admin page. */
+  item?: {
+    id: string;
+    name: string;
+    outlet: string;
+    category: string;
+    description: string | null;
+    price_btn: number;
+    gst_applicable: boolean;
+    is_available: boolean;
+    is_popular: boolean;
+    prep_station: MenuPrepStation;
+    sort_order: number;
+    image_public_id: string | null;
+  };
   error?: string;
 };
 
@@ -45,8 +60,13 @@ async function requireDesk() {
   }
 }
 
-function revalidateOutletSurfaces() {
-  revalidatePath("/erp/menu");
+function revalidateOutletSurfaces(opts?: { refreshAdmin?: boolean }) {
+  // Avoid revalidating /erp/menu on every menu item write — remounts the catalog
+  // while staff are still in the add/edit dialog (reads as a full page reload).
+  // Outlet create/archive may set refreshAdmin so the outlet tabs update.
+  if (opts?.refreshAdmin) {
+    revalidatePath("/erp/menu");
+  }
   revalidatePath("/erp/pos");
   revalidatePath("/menu");
   revalidatePath("/cafe");
@@ -141,6 +161,21 @@ export async function saveMenuItem(
       image_public_id: imagePublicId,
     };
 
+    const snapshot = {
+      id: itemId ?? "",
+      name,
+      outlet,
+      category,
+      description: description ?? null,
+      price_btn: priceBtn,
+      gst_applicable: gstApplicable,
+      is_available: isAvailable,
+      is_popular: isPopular,
+      prep_station: prepStation,
+      sort_order: sortOrder,
+      image_public_id: imagePublicId,
+    };
+
     if (itemId) {
       const { error } = await admin
         .from("menu_items")
@@ -163,7 +198,7 @@ export async function saveMenuItem(
         meta: payload,
       });
       revalidateOutletSurfaces();
-      return { ok: true, itemId };
+      return { ok: true, itemId, item: { ...snapshot, id: itemId } };
     }
 
     const { data: created, error } = await admin
@@ -187,7 +222,11 @@ export async function saveMenuItem(
       meta: payload,
     });
     revalidateOutletSurfaces();
-    return { ok: true, itemId: created.id as string };
+    return {
+      ok: true,
+      itemId: created.id as string,
+      item: { ...snapshot, id: created.id as string },
+    };
   } catch (err) {
     return {
       ok: false,
@@ -230,7 +269,7 @@ export async function deleteMenuItem(
       summary: `Deleted ${item.name as string} (${item.outlet as string})`,
     });
     revalidateOutletSurfaces();
-    return { ok: true };
+    return { ok: true, itemId };
   } catch (err) {
     return {
       ok: false,
@@ -310,7 +349,7 @@ export async function createPropertyOutlet(
       summary: `Created outlet ${name} (${code})`,
       meta: { code, name, sortOrder },
     });
-    revalidateOutletSurfaces();
+    revalidateOutletSurfaces({ refreshAdmin: true });
     return {
       ok: true,
       outletId: created.id as string,
@@ -371,7 +410,7 @@ export async function archivePropertyOutlet(
       entityId: outletId,
       summary: `Archived outlet ${outlet.name as string} (${outlet.code as string})`,
     });
-    revalidateOutletSurfaces();
+    revalidateOutletSurfaces({ refreshAdmin: true });
     return {
       ok: true,
       message: `${outlet.name as string} archived. Items stay hidden from POS until you restore it.`,
@@ -418,7 +457,7 @@ export async function restorePropertyOutlet(
       entityId: outletId,
       summary: `Restored outlet ${outlet.name as string} (${outlet.code as string})`,
     });
-    revalidateOutletSurfaces();
+    revalidateOutletSurfaces({ refreshAdmin: true });
     return {
       ok: true,
       message: `${outlet.name as string} restored.`,
