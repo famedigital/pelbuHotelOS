@@ -20,12 +20,14 @@ import { DeskListShell } from "@/components/erp/DeskListShell";
 import { DeskViewSwitcher } from "@/components/erp/DeskViewSwitcher";
 import { MarketingCataloguesPanel } from "@/components/marketing/MarketingCataloguesPanel";
 import { MarketingShareHub } from "@/components/marketing/MarketingShareHub";
+import { RateSheetsPanel } from "@/components/marketing/RateSheetsPanel";
 import { BOOKABLE_AGENT_STATUSES } from "@/lib/agents/status";
 import { getDeskRole, isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/desk-property";
 import { listCataloguesForProperty } from "@/lib/marketing/catalogue";
 import { getMetaTokenConfig } from "@/lib/marketing/meta-share";
 import { formatBtn } from "@/lib/pricing";
+import { listRateSheetsForProperty, loadRateSheetBrand } from "@/app/actions/erp-rate-sheets";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -80,6 +82,8 @@ export default async function MarketingPage({
     { data: redemptionsRange },
     { data: ncEventsRange },
     catalogues,
+    rateSheets,
+    rateSheetBrand,
     { data: contactsRaw },
     { data: agentsRaw },
     { data: emailSendsRaw },
@@ -140,6 +144,20 @@ export default async function MarketingPage({
       .order("created_at", { ascending: false })
       .limit(5000),
     listCataloguesForProperty(admin, propertyId).catch(() => []),
+    listRateSheetsForProperty(propertyId).catch(() => []),
+    loadRateSheetBrand(propertyId).catch(() => ({
+      name: "Hotel",
+      legalName: null,
+      logoPublicId: null,
+      logoSrc: null,
+      phone: null,
+      whatsapp: null,
+      email: null,
+      address: null,
+      webUrl: null,
+      webLabel: null,
+      settingsHref: "/erp/settings?tab=identity",
+    })),
     admin
       .from("marketing_contacts")
       .select(
@@ -235,6 +253,7 @@ export default async function MarketingPage({
 
   const tabs = [
     { id: "dashboard", label: "Dashboard" },
+    { id: "rate-sheets", label: "Rate sheets" },
     { id: "catalogues", label: "Catalogues" },
     { id: "campaigns", label: "Campaigns" },
     { id: "coupons", label: "Coupons" },
@@ -249,8 +268,8 @@ export default async function MarketingPage({
     <DeskListShell
       eyebrow="Channels"
       heading="Sales & Marketing"
-      subtitle="Campaigns, coupons, CRM, catalogues, and NC"
-      blurb="Campaigns, coupons, CRM contacts, email broadcast (owner/GM), Meta share hub, catalogues, and NC policies. Desk promo reprice cascades to room nights + meals."
+      subtitle="Campaigns, coupons, rate sheets, CRM, catalogues, and NC"
+      blurb="Campaigns, coupons, editable public rate cards, CRM contacts, email broadcast (owner/GM), Meta share hub, catalogues, and NC policies."
       filters={
         <DeskViewSwitcher
           label="Marketing sections"
@@ -313,6 +332,10 @@ export default async function MarketingPage({
             Catalogue views (all-time): {catalogueViews}
           </p>
         </div>
+      ) : null}
+
+      {tab === "rate-sheets" ? (
+        <RateSheetsPanel sheets={rateSheets} brand={rateSheetBrand} />
       ) : null}
 
       {tab === "catalogues" ? (

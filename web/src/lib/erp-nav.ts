@@ -164,6 +164,11 @@ export const ERP_MODULES: ErpModule[] = [
     href: "/erp/agents",
     tabs: [
       { title: "Agents", href: "/erp/agents", icon: UsersIcon },
+      {
+        title: "Rate downloads",
+        href: "/erp/agents/rate-downloads",
+        icon: ReceiptTextIcon,
+      },
       { title: "Marketing", href: "/erp/marketing", icon: TagsIcon },
       { title: "Rate plans", href: "/erp/rate-plans", icon: ReceiptTextIcon },
       { title: "Partners", href: "/erp/partners", icon: UsersIcon },

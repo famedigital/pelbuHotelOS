@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pelbu Suites — Room Rates · Season 2 2026</title>
+  <title>Pelbu Suites — Public Room Rates · Season 2 2026</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -215,7 +215,7 @@
     .room-photo img {
       display: block;
       width: 100%;
-      height: 36mm;
+      height: 26mm;
       object-fit: cover;
       object-position: center;
     }
@@ -250,162 +250,192 @@
 
     /* Peak special */
     .peak-banner {
-      margin: 0 0 3mm;
-      padding: 7px 10px 8px;
+      margin: 0 0 2mm;
+      padding: 5px 9px 6px;
       text-align: center;
-      border-radius: 8px;
+      border-radius: 7px;
       background: linear-gradient(105deg, #5c2a14 0%, #c45c26 48%, #e8a838 100%);
       color: #fffaf3;
       box-shadow: 0 4px 14px rgba(92, 42, 20, 0.22);
     }
 
     .peak-banner .eyebrow {
-      font-size: 8px;
+      font-size: 7.5px;
       font-weight: 700;
-      letter-spacing: 0.18em;
+      letter-spacing: 0.16em;
       text-transform: uppercase;
       opacity: 0.9;
-      margin-bottom: 2px;
+      margin-bottom: 1px;
     }
 
     .peak-banner h3 {
       font-family: "Cormorant Garamond", Georgia, serif;
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 700;
-      line-height: 1.15;
+      line-height: 1.1;
       letter-spacing: 0.01em;
     }
 
     .peak-banner .months {
-      margin-top: 3px;
-      font-size: 11px;
+      margin-top: 2px;
+      font-size: 10px;
       font-weight: 700;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.03em;
     }
 
     .peak-banner .months span {
       display: inline-block;
-      margin: 0 3px;
-      padding: 1px 7px;
+      margin: 0 2px;
+      padding: 1px 6px;
       border-radius: 999px;
       background: rgba(255, 250, 243, 0.18);
       border: 1px solid rgba(255, 250, 243, 0.35);
     }
 
     .peak-banner .fine {
-      margin-top: 3px;
-      font-size: 8.5px;
-      line-height: 1.35;
+      margin-top: 2px;
+      font-size: 8px;
+      line-height: 1.3;
       opacity: 0.92;
     }
 
-    /* Rate table */
+    /* Rate table — Room | Occupancy | meal plans */
     .rates {
       width: 100%;
       border-collapse: collapse;
-      font-size: 11px;
+      font-size: 10.5px;
     }
 
     .rates thead th {
-      font-size: 9px;
+      font-size: 8.5px;
       font-weight: 700;
-      letter-spacing: 0.12em;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
       color: var(--cream);
       background: var(--ink);
-      padding: 7px 8px;
+      padding: 6px 7px;
       text-align: center;
+      border: 1px solid rgba(26, 15, 10, 0.25);
+    }
+
+    .rates thead th.cat-head,
+    .rates thead th.occ-head {
+      text-align: left;
+      padding-left: 9px;
+      background: #5c2a14;
+    }
+
+    .rates thead th.plan {
+      width: 16%;
+      background: #1a0f0a;
     }
 
     .rates thead th:first-child {
-      text-align: left;
       border-radius: 6px 0 0 0;
-      padding-left: 10px;
     }
 
     .rates thead th:last-child {
       border-radius: 0 6px 0 0;
     }
 
-    .rates thead th.plan {
-      width: 18%;
-    }
-
     .rates tbody td {
-      padding: 6px 8px;
+      padding: 3.5px 6px;
       text-align: center;
-      border-bottom: 1px solid var(--line);
+      border: 1px solid var(--line);
       vertical-align: middle;
       background: #fff;
     }
 
-    .rates tbody tr:nth-child(even) td {
+    .rates tbody tr.pair-top td {
+      border-bottom-color: #f0e4d4;
+    }
+
+    .rates tbody tr.pair-bottom td {
       background: #fffdf8;
     }
 
-    .rates tbody td:first-child {
+    .rates tbody td.cat {
       text-align: left;
-      padding-left: 10px;
-    }
-
-    .room-name {
+      padding-left: 9px;
       font-family: "Cormorant Garamond", Georgia, serif;
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 700;
-      line-height: 1.1;
+      line-height: 1.15;
+      vertical-align: middle;
+      width: 28%;
     }
 
-    .room-name.double { color: var(--copper); }
-    .room-name.twin { color: var(--teal-deep); }
-    .room-name.suite { color: var(--ink); }
+    .rates tbody td.cat.double { color: var(--copper); }
+    .rates tbody td.cat.twin { color: var(--teal-deep); }
+    .rates tbody td.cat.suite { color: var(--ink); }
 
-    .room-occupancy {
+    .rates tbody td.cat .meta {
+      display: block;
       margin-top: 2px;
-      font-size: 9.5px;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      color: var(--ink);
-      line-height: 1.3;
+      font-family: "Outfit", "Segoe UI", Arial, sans-serif;
+      font-size: 8px;
+      font-weight: 500;
+      color: var(--muted);
+      letter-spacing: 0;
+      text-transform: none;
     }
 
-    .room-meta {
-      margin-top: 1px;
-      font-size: 9px;
-      color: var(--muted);
-      line-height: 1.35;
+    .rates tbody td.occ {
+      text-align: left;
+      padding-left: 9px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--body);
+      width: 14%;
+      white-space: nowrap;
+    }
+
+    .rates tbody td.occ .label {
+      display: block;
+      letter-spacing: 0.04em;
     }
 
     .price {
-      font-size: 15px;
+      font-size: 13px;
       font-weight: 700;
       font-variant-numeric: tabular-nums;
       letter-spacing: -0.01em;
     }
 
     .price .cur {
-      font-size: 8.5px;
+      font-size: 7.5px;
       font-weight: 600;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.05em;
       color: var(--muted);
-      display: block;
-      margin-bottom: 1px;
+      margin-right: 2px;
     }
 
-    .rates tbody tr.suite-row td {
-      background: linear-gradient(90deg, #fff4d4 0%, #fffaf0 50%, #fff8e6 100%);
-      border-bottom: none;
+    .price-na {
+      font-size: 9.5px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.02em;
     }
 
-    .rates tbody tr.suite-row td:first-child {
-      border-left: 3px solid var(--gold);
+    .rates tbody tr.suite-pair td {
+      background: linear-gradient(90deg, #fff4d4 0%, #fffaf0 55%, #fff8e6 100%);
+    }
+
+    .rates tbody tr.group-start td.cat {
+      border-top: 1.5px solid rgba(26, 15, 10, 0.16);
+    }
+
+    .rates tbody tr.group-start td.occ,
+    .rates tbody tr.group-start td.price-cell {
+      border-top: 1.5px solid rgba(26, 15, 10, 0.16);
     }
 
     /* Meal key */
     .meal-key {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
-      margin: 3.5mm 0 3mm;
+      gap: 5px;
+      margin: 2mm 0 2mm;
     }
 
     .meal-card {
@@ -435,13 +465,13 @@
     .benefits {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 6px;
-      margin-bottom: 3mm;
+      gap: 5px;
+      margin-bottom: 2mm;
     }
 
     .benefit {
-      border-radius: 8px;
-      padding: 6px 9px;
+      border-radius: 7px;
+      padding: 5px 8px;
     }
 
     .benefit.foc {
@@ -751,11 +781,11 @@
 </head>
 <body>
   <div class="print-bar no-print">
-    <span>Pelbu Suites · A4 rates + terms (2 pages) · Season 2 · 2026</span>
+    <span>Pelbu Suites · Public rates + guest terms (2 pages) · Season 2 · 2026</span>
     <button type="button" onclick="window.print()">Print / PDF</button>
   </div>
 
-  <article class="sheet" aria-label="Pelbu Suites room rates A4">
+  <article class="sheet" aria-label="Pelbu Suites public room rates A4">
     <div class="inner">
       <div class="top-bar" aria-hidden="true"></div>
 
@@ -773,22 +803,23 @@
           </div>
         </div>
         <div class="season-badge">
-          <p class="label">B2B partner · Peak special</p>
+          <p class="label">Public rates · Peak special</p>
           <p class="title">Season 2 — 2026</p>
-          <p class="sub">Sep · Oct · Nov · BTN</p>
+          <p class="sub">Sep · Oct · Nov · Direct book</p>
         </div>
       </header>
 
       <div class="intro">
         <div>
-          <h2>Room rates for travel partners</h2>
+          <h2>Public room rates</h2>
           <p>
-            Exclusive rates for registered Bhutanese travel agents.
-            Per room, per night. All figures include applicable taxes &amp; service charge.
+            Transparent rates for walk-in, locals, and guests booking direct.
+            Per room, per night. All figures below are <strong>all-in</strong>
+            (include <strong>10% service charge</strong> and <strong>5% GST</strong>).
           </p>
         </div>
         <div class="meta-pills">
-          <span class="pill pill-gold">As per category occupancy</span>
+          <span class="pill pill-gold">By occupancy as tabled</span>
           <span class="pill pill-teal">27 rooms · EP / CP / MAP</span>
         </div>
       </div>
@@ -803,7 +834,7 @@
           />
           <figcaption>
             <div class="cat">Deluxe Queen</div>
-            <div class="meta">12 rooms · 1 queen bed</div>
+            <div class="meta">12 rooms · 1 queen · single &amp; double</div>
           </figcaption>
         </figure>
         <figure class="room-photo twin">
@@ -815,7 +846,7 @@
           />
           <figcaption>
             <div class="cat">Twin</div>
-            <div class="meta">14 rooms · 2 single beds</div>
+            <div class="meta">14 rooms · 2 singles · double occ.</div>
           </figcaption>
         </figure>
         <figure class="room-photo suite">
@@ -827,13 +858,13 @@
           />
           <figcaption>
             <div class="cat">Suite</div>
-            <div class="meta">1 only · private jacuzzi</div>
+            <div class="meta">1 only · jacuzzi · double occ.</div>
           </figcaption>
         </figure>
       </div>
 
       <div class="peak-banner" role="note">
-        <p class="eyebrow">Special discounted rates · Peak season 2026</p>
+        <p class="eyebrow">Peak season · Special rate 2026</p>
         <h3>Valid for stays in peak months</h3>
         <p class="months">
           <span>September</span>
@@ -841,67 +872,60 @@
           <span>November</span>
         </p>
         <p class="fine">
-          2026 · B2B partner tariff · Per room / night · Tax &amp; SC included · Subject to availability
+          All-in BTN (10% SC + 5% GST included) · Occupancy as tabled · Subject to availability
         </p>
       </div>
 
-      <table class="rates">
+      <table class="rates" aria-label="Peak season public rates">
         <thead>
           <tr>
-            <th scope="col">Room category</th>
+            <th scope="col" class="cat-head">Room category</th>
+            <th scope="col" class="occ-head">Occupancy</th>
             <th scope="col" class="plan">EP</th>
             <th scope="col" class="plan">CP</th>
             <th scope="col" class="plan">MAP</th>
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>
-              <div class="room-name double">Deluxe Queen</div>
-              <div class="room-occupancy">Single occupancy</div>
-              <div class="room-meta">12 rooms · 1 queen bed</div>
+          <tr class="pair-top group-start">
+            <td class="cat double" rowspan="2">
+              Deluxe Queen
+              <span class="meta">12 rooms · 1 queen bed</span>
             </td>
-            <td>
-              <div class="price"><span class="cur">BTN</span>3,000</div>
-            </td>
-            <td>
-              <div class="price"><span class="cur">BTN</span>3,400</div>
-            </td>
-            <td>
-              <div class="price"><span class="cur">BTN</span>4,400</div>
-            </td>
+            <td class="occ"><span class="label">Single</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>3,000</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>3,400</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>4,400</span></td>
           </tr>
-          <tr>
-            <td>
-              <div class="room-name twin">Twin</div>
-              <div class="room-occupancy">Double occupancy</div>
-              <div class="room-meta">14 rooms · 2 single beds</div>
-            </td>
-            <td>
-              <div class="price"><span class="cur">BTN</span>3,600</div>
-            </td>
-            <td>
-              <div class="price"><span class="cur">BTN</span>4,600</div>
-            </td>
-            <td>
-              <div class="price"><span class="cur">BTN</span>6,400</div>
-            </td>
+          <tr class="pair-bottom">
+            <td class="occ"><span class="label">Double</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>3,600</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>4,600</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>6,400</span></td>
           </tr>
-          <tr class="suite-row">
-            <td>
-              <div class="room-name suite">Suite</div>
-              <div class="room-occupancy">Double occupancy</div>
-              <div class="room-meta">1 suite only · private jacuzzi</div>
+          <tr class="pair-bottom group-start">
+            <td class="cat twin">
+              Twin
+              <span class="meta">14 rooms · 2 single beds · double only</span>
             </td>
-            <td>
-              <div class="price"><span class="cur">BTN</span>7,900</div>
+            <td class="occ"><span class="label">Double</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>3,600</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>4,600</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>6,400</span></td>
+          </tr>
+          <tr class="pair-top group-start suite-pair">
+            <td class="cat suite" rowspan="2">
+              Suite
+              <span class="meta">1 suite only · private jacuzzi</span>
             </td>
-            <td>
-              <div class="price"><span class="cur">BTN</span>9,000</div>
-            </td>
-            <td>
-              <div class="price"><span class="cur">BTN</span>10,700</div>
-            </td>
+            <td class="occ"><span class="label">Single</span></td>
+            <td class="price-cell" colspan="3"><span class="price-na">On request</span></td>
+          </tr>
+          <tr class="pair-bottom suite-pair">
+            <td class="occ"><span class="label">Double</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>7,900</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>9,000</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>10,700</span></td>
           </tr>
         </tbody>
       </table>
@@ -909,41 +933,39 @@
       <div class="meal-key">
         <div class="meal-card">
           <strong>EP</strong>
-          <span>European Plan — room only</span>
+          <span>European Plan — room only (all-in)</span>
         </div>
         <div class="meal-card">
           <strong>CP</strong>
-          <span>Continental Plan — breakfast</span>
+          <span>Room + breakfast for the priced occupancy</span>
         </div>
         <div class="meal-card">
           <strong>MAP</strong>
-          <span>Modified American — breakfast + dinner</span>
+          <span>Room + breakfast + dinner for the priced occupancy</span>
         </div>
       </div>
 
       <div class="benefits">
         <div class="benefit foc">
-          <p class="eyebrow">Group FOC</p>
-          <h3>Every <span>10 rooms</span>, the <span>11th is free</span></h3>
-          <p>Same stay dates; confirm category &amp; meal plan when booking.</p>
+          <p class="eyebrow">Book direct</p>
+          <h3>Live availability on <span>pelbusuites.bt</span></h3>
+          <p>Check rooms online, then finish by phone or WhatsApp if you prefer.</p>
         </div>
         <div class="benefit mou">
-          <p class="eyebrow">MOU partners</p>
-          <h3>Preferential rates &amp; <span>privileges</span></h3>
-          <p>Visit us to sign an MOU for rates beyond Season 2 published tariffs.</p>
+          <p class="eyebrow">Taxes clear</p>
+          <h3>All rates include <span>SC + GST</span></h3>
+          <p>10% service charge and 5% GST already in the figures — no add-on at check-in for these plans.</p>
         </div>
       </div>
 
       <p class="notes">
-        <strong>Peak special</strong> (Sep · Oct · Nov 2026) as tabled above.
-        Rates priced as shown: <strong>Deluxe Queen = single occupancy</strong>; <strong>Twin &amp; Suite = double occupancy</strong>.
-        Other months / occupancy / allotments / guide &amp; driver beds — contact reservations.
-        Free cancel: <strong>7 days</strong> standard · <strong>14 days</strong> peak season (see page&nbsp;2). Confidential partner pricing.
+        Published peak rates: <strong>Sep · Oct · Nov 2026</strong>. Other months on request / as confirmed at booking.
+        Twin is double occupancy only. Suite single on request. Free cancel: <strong>7 days</strong> standard · <strong>14 days</strong> peak (page&nbsp;2). Subject to availability.
       </p>
 
       <footer class="footer">
         <div class="contact">
-          <h3>Reservations &amp; B2B</h3>
+          <h3>Reservations</h3>
           <p>
             WhatsApp / Phone
             <a href="https://wa.me/97516193410">+975 1619 3410</a><br />
@@ -957,17 +979,17 @@
         <div class="qr-block">
           <strong>Book direct</strong>
           pelbusuites.bt/book<br />
-          New management from 1 Aug 2026<br />
-          <span style="margin-top:4px; display:inline-block;">Page 1 of 2 · Rates</span>
+          Public rate card · Season 2 2026<br />
+          <span style="margin-top:4px; display:inline-block;">Page 1 of 2 · Public rates</span>
         </div>
       </footer>
 
-      <p class="confidential">Confidential · Travel partners · Season 2 2026 · Pelbu Suites</p>
+      <p class="confidential">Public rates · Season 2 2026 · Pelbu Suites · Olakha, Thimphu</p>
     </div>
   </article>
 
-  <!-- ===================== PAGE 2 — TERMS & POLICIES ===================== -->
-  <article class="sheet terms-sheet" aria-label="Pelbu Suites terms and policies A4">
+  <!-- ===================== PAGE 2 — GUEST TERMS ===================== -->
+  <article class="sheet terms-sheet" aria-label="Pelbu Suites guest stay terms A4">
     <div class="inner">
       <div class="top-bar" aria-hidden="true"></div>
 
@@ -985,28 +1007,27 @@
           </div>
         </div>
         <div class="season-badge">
-          <p class="label">Partner handbook</p>
-          <p class="title">Terms &amp; policies</p>
+          <p class="label">Guest handbook</p>
+          <p class="title">Stay policies</p>
           <p class="sub">Season 2 · 2026 · Page 2 of 2</p>
         </div>
       </header>
 
-      <p class="page-tag">Applies to B2B bookings against Season 2 partner rates</p>
-      <h2 class="terms-title">Terms &amp; conditions · House policies</h2>
+      <p class="page-tag">Applies to guests booking at public Season 2 rates (web, walk-in, phone)</p>
+      <h2 class="terms-title">Stay terms &amp; house policies</h2>
       <p class="terms-lead">
-        By confirming a reservation (email, WhatsApp, allotment, or platform), the travel partner accepts these terms on behalf of the guest(s).
-        MOU partners may hold additional privileges as set out in their signed agreement.
+        By confirming a reservation (website, WhatsApp, phone, or walk-in deposit), you accept these terms.
+        Live availability and final confirmation always take priority for the booked dates.
       </p>
 
       <div class="policy-grid">
         <section class="policy-block">
           <h3>1. Rates &amp; validity</h3>
           <ul>
-            <li>Rates on page&nbsp;1 are in <strong>BTN</strong>, <strong>per room / per night</strong>, and include applicable taxes &amp; service charge unless stated otherwise in writing.</li>
-            <li>The published tariff is a <strong>special discounted peak-season rate</strong> valid for stays with nights falling in <strong>September, October, and/or November 2026</strong>.</li>
-            <li>Quoted rates follow category occupancy: <strong>Deluxe Queen</strong> = single occupancy; <strong>Twin</strong> and <strong>Suite</strong> = double occupancy. Triple, extra bed, and child rates on request.</li>
-            <li>Valid for registered travel partners. Outside peak months, standard season tariffs apply — confirm with the desk. Confirmed bookings keep the agreed rate.</li>
-            <li>Rates are <strong>confidential</strong> — not for public websites or guest-facing leaflets without hotel approval.</li>
+            <li>Rates on page&nbsp;1 are in <strong>BTN</strong>, <strong>per room / per night</strong>, and are <strong>all-in</strong>: they already include <strong>10% service charge</strong> and <strong>5% GST</strong>. No further SC/GST is stacked on these published plan totals at the desk for the same components.</li>
+            <li><strong>Published rates</strong> on page&nbsp;1 apply for <strong>peak</strong> stays in <strong>Sep–Nov 2026</strong>. Rates outside this window are on request or as confirmed in writing at booking.</li>
+            <li><strong>Deluxe Queen</strong> is published for <strong>single and double</strong>. <strong>Twin</strong> is <strong>double only</strong> (no single rate). <strong>Suite</strong> is double as priced; single on request.</li>
+            <li>Confirmed bookings keep the agreed rate. Travel agents: use the agent rate card or pelbusuites.bt/agents.</li>
           </ul>
         </section>
 
@@ -1014,8 +1035,8 @@
           <h3>2. Meal plans</h3>
           <ul>
             <li><strong>EP</strong> — room only.</li>
-            <li><strong>CP</strong> — room + breakfast for two adults.</li>
-            <li><strong>MAP</strong> — room + breakfast + dinner for two adults.</li>
+            <li><strong>CP</strong> — room + breakfast for the priced occupancy.</li>
+            <li><strong>MAP</strong> — room + breakfast + dinner for the priced occupancy.</li>
             <li>Meals are for registered in-house guests unless a day package is booked separately.</li>
             <li>Special diets: notify the kitchen at least <strong>24 hours</strong> before arrival.</li>
           </ul>
@@ -1024,9 +1045,8 @@
         <section class="policy-block">
           <h3>3. Confirmation &amp; payment</h3>
           <ul>
-            <li>A booking is confirmed only after Pelbu Suites issues written acknowledgment (email / system Voucher).</li>
-            <li>Unless credit / agent ledger terms apply: deposit or full prepayment as requested at confirmation.</li>
-            <li>Agent-credit partners settle per approved credit terms. Overdue accounts may pause new bookings.</li>
+            <li>A booking is confirmed only after Pelbu Suites issues written acknowledgment (email / system voucher).</li>
+            <li>Deposit or full prepayment may be requested at confirmation for peak dates.</li>
             <li>Accepted: cash (BTN), bank transfer, and approved digital / card methods at desk.</li>
             <li>Invoices are in BTN. Bank charges, if any, are borne by the payer.</li>
           </ul>
@@ -1036,86 +1056,70 @@
           <h3>4. Cancellation &amp; no-show</h3>
           <ul>
             <li><strong>Standard season</strong> — free cancellation up to <strong>7 full days</strong> before the check-in date (local Bhutan time).</li>
-            <li><strong>Peak season</strong> — free cancellation up to <strong>14 full days</strong> before check-in. Peak windows include (and are not limited to) major tshechus, festivals, high tourist blocks, and dates the hotel publishes as peak; if in doubt, ask at confirmation.</li>
-            <li>Notices must be received in writing (email / WhatsApp) within business hours. The earlier peak window always applies when any night of the stay falls in a peak period.</li>
-            <li><strong>Late cancellation</strong> (after the free-cancel window opens): hotel may forfeit deposit and/or charge up to the full reserved stay for the affected room(s).</li>
-            <li><strong>No-show</strong>: charge equal to <strong>1 night</strong> minimum (room + confirmed meal plan) per reserved room; peak / group holds may be charged for <strong>the full stay</strong> as stated on the voucher.</li>
-            <li><strong>MOU partners</strong>: longer free-cancel windows or fee waivers apply only if written in the MOU.</li>
-            <li>Group blocks / allotments: cancellation may be stricter (e.g. 21–30 days) — as stated on the group contract.</li>
+            <li><strong>Peak season</strong> — free cancellation up to <strong>14 full days</strong> before check-in (tshechus, festivals, high tourist blocks, and hotel-declared peak).</li>
+            <li>Notices must be received in writing (email / WhatsApp). The earlier peak window applies when any night is peak.</li>
+            <li><strong>Late cancellation</strong>: hotel may forfeit deposit and/or charge up to the full reserved stay.</li>
+            <li><strong>No-show</strong>: charge equal to <strong>1 night</strong> minimum (room + meal plan) per reserved room; peak as per voucher.</li>
           </ul>
         </section>
 
         <section class="policy-block">
           <h3>5. Check-in &amp; check-out</h3>
           <ul>
-            <li><strong>Check-in</strong> from <strong>14:00</strong>. Early arrival is subject to room readiness; may carry a charge if confirmed early occupancy.</li>
-            <li><strong>Check-out</strong> by <strong>12:00</strong> noon. Late check-out only with prior desk approval; fees may apply.</li>
-            <li>Valid government-issued ID / passport of each adult guest is required at arrival.</li>
-            <li>International tourists: guide details must be provided where required by law or hotel policy.</li>
+            <li><strong>Check-in</strong> from <strong>14:00</strong>. Early arrival subject to readiness; fees may apply if confirmed early.</li>
+            <li><strong>Check-out</strong> by <strong>12:00</strong> noon. Late check-out only with prior desk approval.</li>
+            <li>Valid government-issued ID / passport for each adult at arrival.</li>
+            <li>International guests: guide details where required by law or hotel policy.</li>
           </ul>
         </section>
 
         <section class="policy-block teal">
           <h3>6. Occupancy &amp; categories</h3>
           <ul>
-            <li><strong>Deluxe Queen</strong> — 12 rooms · 1 queen · <strong>single occupancy</strong> (as priced).</li>
-            <li><strong>Twin</strong> — 14 rooms · 2 singles · <strong>double occupancy</strong>.</li>
-            <li><strong>Suite</strong> — <strong>1 room only</strong> · private jacuzzi · <strong>double occupancy</strong> (Suite exclusive; not offered with Deluxe Queen / Twin).</li>
-            <li>Room category is confirmed on allotment; upgrades subject to availability and rate difference.</li>
-            <li>Maximum occupancy per fire / safety capacity — advise party size at booking.</li>
+            <li><strong>Deluxe Queen</strong> — 12 rooms · 1 queen · <strong>single &amp; double</strong> rates published as tabled.</li>
+            <li><strong>Twin</strong> — 14 rooms · 2 singles · <strong>double occupancy only</strong> (no single rate).</li>
+            <li><strong>Suite</strong> — <strong>1 room only</strong> · private jacuzzi · <strong>double occupancy</strong> (as priced); single on request. Suite exclusive amenity.</li>
+            <li>Category confirmed at booking; upgrades subject to availability and rate difference.</li>
           </ul>
         </section>
 
         <section class="policy-block">
-          <h3>7. Group FOC (10 + 1)</h3>
+          <h3>7. Dining &amp; facilities</h3>
           <ul>
-            <li>For every <strong>10 paying rooms</strong> on the <strong>same stay dates</strong>, the <strong>11th room</strong> may be FOC (free of charge).</li>
-            <li>FOC category and meal plan must match an agreed paying room or as confirmed by the hotel in writing.</li>
-            <li>FOC does not automatically stack across split dates or mixed unconfirmed categories.</li>
-            <li>No-show or late cancel of paying rooms may reduce or cancel FOC entitlement.</li>
+            <li>Restaurant, cafe, spa &amp; steam subject to posted hours.</li>
+            <li>Day dining / lunch packages for non-staying guests — schedule in advance when possible.</li>
+            <li>Jacuzzi is exclusive to the Suite room only.</li>
           </ul>
         </section>
 
         <section class="policy-block teal">
-          <h3>8. Partner &amp; guest conduct</h3>
+          <h3>8. Guest conduct</h3>
           <ul>
-            <li>Partners must share accurate guest names, arrival times, meal plan, and special needs before arrival.</li>
-            <li>Damage, loss of keys, or excessive cleaning may be charged to the guest / agent folio.</li>
-            <li>Quiet hours and house rules apply; the hotel may refuse service for misconduct or illegal activity.</li>
-            <li>Smoking only in designated outdoor areas (if any). In-room smoking may attract a cleaning fee.</li>
-            <li>Pets: only with prior written approval.</li>
+            <li>Damage, key loss, or excess cleaning may be charged to the folio.</li>
+            <li>Quiet hours and house rules apply; service may be refused for misconduct.</li>
+            <li>Smoking only in designated outdoor areas (if any). Pets only with prior written approval.</li>
           </ul>
         </section>
 
         <section class="policy-block span-2 ink">
-          <h3>9. Liability, force majeure &amp; general</h3>
+          <h3>9. Liability &amp; general</h3>
           <ul>
-            <li>The hotel is not liable for guest valuables left unsecured; use of in-room storage / desk safe advice is recommended.</li>
-            <li>Service may be limited by circumstances beyond reasonable control (road blocks, power, weather, government order, epidemic). In such cases the hotel will assist with rebooking or fair alternatives where possible without guaranteeing compensation beyond local law.</li>
-            <li>These terms, the confirmed voucher, and any MOU govern the booking. If they conflict, the MOU and written voucher take precedence for that partner.</li>
-            <li>Disputes: amicable resolution first; otherwise subject to the laws of Bhutan and competent courts in Thimphu, unless the MOU states otherwise.</li>
-            <li>Hotel may update published partner tariffs for future seasons; ongoing confirmed stays are not retroactively repriced except by mutual written agreement.</li>
-            <li>Questions: WhatsApp <strong>+975 1619 3410</strong> · <strong>pelbusuites@gmail.com</strong> · www.pelbusuites.bt</li>
+            <li>Hotel is not liable for valuables left unsecured. Force majeure may limit service; the hotel will assist reasonably without guaranteeing compensation beyond local law.</li>
+            <li>These terms and the confirmed voucher govern the stay. Questions: WhatsApp <strong>+975 1619 3410</strong> · <strong>pelbusuites@gmail.com</strong> · www.pelbusuites.bt</li>
           </ul>
         </section>
       </div>
 
       <div class="accept-box">
         <strong>Acceptance.</strong>
-        Confirming a booking constitutes acceptance of these terms &amp; the Season&nbsp;2 rate sheet.
-        Free cancel: <strong>7 days</strong> standard · <strong>14 days</strong> peak (earlier if group contract says so).
-        For MOU negotiations or written exceptions, contact the hotel before the free-cancellation deadline of the relevant stay.
-      </div>
-
-      <div class="sign-row" aria-hidden="true">
-        <div class="sign-field">Agency name / stamp</div>
-        <div class="sign-field">Authorised signatory</div>
-        <div class="sign-field">Date</div>
+        Confirming a booking constitutes acceptance of these terms &amp; the Season&nbsp;2 public rate sheet.
+        Free cancel: <strong>7 days</strong> standard · <strong>14 days</strong> peak.
+        Book online at <strong>pelbusuites.bt/book</strong> or contact the desk.
       </div>
 
       <div class="sheet-footer-mini">
         <span>Pelbu Suites · Formerly Seven Suites at Olakha · Next to Number 7 / Asha Bakery</span>
-        <span>Page 2 of 2 · Confidential partner terms · Season 2 2026</span>
+        <span>Page 2 of 2 · Public stay terms · Season 2 2026</span>
       </div>
     </div>
   </article>
