@@ -1,18 +1,14 @@
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { getLaundryGuestSession } from "@/lib/laundry-session";
 import { resolveActivePropertyId } from "@/lib/property-context";
-import {
-  attachSseLifecycle,
-  encodeSse,
-  SSE_FUNCTION_MAX_SEC,
-} from "@/lib/sse/server-stream";
+import { attachSseLifecycle, encodeSse } from "@/lib/sse/server-stream";
 import { getStaffSession } from "@/lib/staff-auth";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-/** Stream rotates before this — see attachSseLifecycle. */
-export const maxDuration = SSE_FUNCTION_MAX_SEC;
+/** Must be a literal for Next segment config. Stream rotates ~50s (see lib/sse). */
+export const maxDuration = 60;
 
 type StreamScope =
   | { kind: "property"; propertyId: string }

@@ -1,16 +1,12 @@
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { resolveActivePropertyId } from "@/lib/property-context";
-import {
-  attachSseLifecycle,
-  encodeSse,
-  SSE_FUNCTION_MAX_SEC,
-} from "@/lib/sse/server-stream";
+import { attachSseLifecycle, encodeSse } from "@/lib/sse/server-stream";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-/** Matches Hobby hard cap; stream rotates before this via attachSseLifecycle. */
-export const maxDuration = SSE_FUNCTION_MAX_SEC;
+/** Must be a literal for Next segment config. Stream rotates ~50s (see lib/sse). */
+export const maxDuration = 60;
 
 /**
  * Desk-auth SSE bridge to Supabase Realtime on `orders`.
