@@ -2,19 +2,21 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { safetyPollMs as freeTierSafetyPollMs } from "@/lib/free-tier";
 
 /**
  * POS / desk inbox live badge. Push via KOT SSE (no 2s Vercel poll).
- * On order change → debounced router.refresh(). Safety: 60s version poll.
+ * On order change → debounced router.refresh(). Safety poll is free-tier paced.
  */
 export function DeskLiveRefresh({
   label = "Live",
-  safetyPollMs = 60_000,
+  safetyPollMs,
 }: {
   label?: string;
-  /** Backup poll only — keep high to protect Vercel limits. */
+  /** Backup poll only — high to protect free Vercel limits. */
   safetyPollMs?: number;
 }) {
+  const pollMs = safetyPollMs ?? freeTierSafetyPollMs();
   const router = useRouter();
   const [live, setLive] = useState(false);
   const [error, setError] = useState(false);
@@ -57,6 +59,7 @@ export function DeskLiveRefresh({
 
     const connect = () => {
       if (cancelled) return;
+      if (document.visibilityState === "hidden") return;
       es = new EventSource("/api/erp/kot/stream");
       es.addEventListener("ready", () => {
         if (!cancelled) {
@@ -92,25 +95,29 @@ export function DeskLiveRefresh({
         }
         es?.close();
         es = null;
-        if (!cancelled) {
+        if (!cancelled && document.visibilityState === "visible") {
           reconnectTimer = setTimeout(connect, 2_500);
         }
       };
     };
 
+    const onVis = () => {
+      if (document.visibilityState === "hidden") {
+        es?.close();
+        es = null;
+        return;
+      }
+      if (!es && !cancelled) connect();
+      void pullParkedBadge();
+      scheduleRefresh();
+    };
+
+    document.addEventListener("visibilitychange", onVis);
     connect();
     safetyTimer = setInterval(() => {
       void pullParkedBadge();
       if (document.visibilityState === "visible") scheduleRefresh();
-    }, safetyPollMs);
-
-    const onVis = () => {
-      if (document.visibilityState === "visible") {
-        void pullParkedBadge();
-        scheduleRefresh();
-      }
-    };
-    document.addEventListener("visibilitychange", onVis);
+    }, pollMs);
 
     return () => {
       cancelled = true;
@@ -120,7 +127,7 @@ export function DeskLiveRefresh({
       document.removeEventListener("visibilitychange", onVis);
       es?.close();
     };
-  }, [router, safetyPollMs]);
+  }, [router, pollMs]);
 
   const connectedLabel =
     parked != null && parked > 0 ? `${label} · ${parked} parked` : label;

@@ -1,14 +1,11 @@
 /**
- * Vercel serverless SSE lifecycle.
- * Hobby (and default maxDuration) kill after 60s — open connections must
- * rotate *before* that, or logs fill with "Task timed out after 60 seconds".
- * Clients reconnect via EventSource onerror / `reconnect` event.
+ * Vercel serverless SSE lifecycle (Hobby maxDuration 60s).
+ * Rotate before kill; heartbeat less often on free to cut data.
  */
 
 export const SSE_FUNCTION_MAX_SEC = 60;
-/** Leave headroom for cleanup before platform kill. */
 export const SSE_ROTATE_MS = 50_000;
-export const SSE_HEARTBEAT_MS = 15_000;
+export const SSE_HEARTBEAT_MS = 25_000;
 
 const encoder = new TextEncoder();
 
@@ -20,10 +17,6 @@ export function encodeSseComment(line: string): Uint8Array {
   return encoder.encode(`: ${line}\n\n`);
 }
 
-/**
- * Heartbeat + soft close before maxDuration.
- * Call returned disposer from stream close/cancel.
- */
 export function attachSseLifecycle(args: {
   controller: ReadableStreamDefaultController<Uint8Array>;
   close: () => void | Promise<void>;
@@ -48,7 +41,7 @@ export function attachSseLifecycle(args: {
         }),
       );
     } catch {
-      // Already closed.
+      // closed
     }
     void close();
   }, SSE_ROTATE_MS);

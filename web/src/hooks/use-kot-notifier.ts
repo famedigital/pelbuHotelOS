@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { safetyPollMs as freeTierSafetyPollMs } from "@/lib/free-tier";
 
 type KotVersionResponse = {
   version: string;
@@ -29,20 +30,20 @@ export type KotBoardCounts = {
  * not a 1.5s poll that hammers Vercel.
  *
  * - Primary: EventSource `/api/erp/kot/stream` → on `kot` fetch counts once
- * - Safety: version poll every 60s + on tab focus
+ * - Safety: version poll every 90s (free-tier) + on tab focus
  * - Siren/voice when counts move in the expected direction
  */
 export function useKotNotifier({
-  safetyPollMs = 60_000,
+  safetyPollMs: safetyPollMsOpt,
   speak = true,
   preferReadyAlert = false,
 }: {
-  /** Backup poll only (default 60s). Do not set under ~15s in production. */
+  /** Backup poll only. Free-tier default 90s. */
   safetyPollMs?: number;
   speak?: boolean;
-  /** Pass/Expo: alert only when Ready count increases. */
   preferReadyAlert?: boolean;
 } = {}) {
+  const safetyPollMs = safetyPollMsOpt ?? freeTierSafetyPollMs();
   const [status, setStatus] = useState<KotNotifierStatus>("idle");
   const [muted, setMuted] = useState(false);
   const [armed, setArmed] = useState(false);
@@ -279,6 +280,7 @@ export function useKotNotifier({
 
     const connect = () => {
       if (stopped) return;
+      if (document.visibilityState === "hidden") return;
       es = new EventSource("/api/erp/kot/stream");
       es.addEventListener("ready", () => {
         setStatus("live");
@@ -303,15 +305,26 @@ export function useKotNotifier({
         setStatus("offline");
         es?.close();
         es = null;
-        if (!stopped) {
+        if (!stopped && document.visibilityState === "visible") {
           reconnectTimer = setTimeout(connect, 2_500);
         }
       };
     };
 
+    const onVis = () => {
+      if (document.visibilityState === "hidden") {
+        es?.close();
+        es = null;
+      } else if (!es && !stopped) {
+        connect();
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVis);
     connect();
     return () => {
       stopped = true;
+      document.removeEventListener("visibilitychange", onVis);
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (fetchDebounceRef.current) clearTimeout(fetchDebounceRef.current);
       es?.close();

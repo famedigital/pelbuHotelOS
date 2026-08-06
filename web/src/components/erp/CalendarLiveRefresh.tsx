@@ -1,20 +1,18 @@
 "use client";
 
 import { LiveRefreshBadge } from "@/components/erp/LiveRefreshBadge";
+import { calendarPollMs } from "@/lib/free-tier";
 
-/** Polls assignment/block fingerprints and refreshes the calendar rack.
- * Browser Realtime is intentionally avoided on desk (service-role fingerprint
- * endpoint); poll interval keeps the rack live without exposing admin keys.
- */
+/** Polls assignment/block fingerprints. Free-tier default ~15s. */
 export function CalendarLiveRefresh({
-  intervalMs = 4000,
+  intervalMs,
 }: {
   intervalMs?: number;
 }) {
   return (
     <LiveRefreshBadge
       endpoint="/api/erp/calendar-version"
-      intervalMs={intervalMs}
+      intervalMs={intervalMs ?? calendarPollMs()}
       title="Live poll for room / booking changes"
     />
   );

@@ -1,18 +1,17 @@
 "use client";
 
+import { deskPollMs } from "@/lib/free-tier";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 /**
- * Polls a fingerprint endpoint and refreshes the route when the version moves.
- *
- * The endpoint must return `{ version: string }` for the active property.
- * Browser Realtime is intentionally avoided on desk (no service-role keys).
+ * Fingerprint poll → route refresh. Free-tier slower to protect Vercel+Supabase.
+ * Skips network while the tab is hidden.
  */
 export function LiveRefreshBadge({
   endpoint,
-  intervalMs = 5000,
+  intervalMs,
   title = "Polling for changes",
   className = "text-[10px] font-medium tracking-[0.14em] text-muted-foreground uppercase",
   toastOnChange = true,
@@ -21,13 +20,13 @@ export function LiveRefreshBadge({
   intervalMs?: number;
   title?: string;
   className?: string;
-  /** Sonner toast when the fingerprint moves (poll substitute for Realtime). */
   toastOnChange?: boolean;
 }) {
   const router = useRouter();
   const lastVersion = useRef<string | null>(null);
   const [live, setLive] = useState(false);
   const [error, setError] = useState(false);
+  const pollMs = intervalMs ?? deskPollMs();
 
   useEffect(() => {
     let cancelled = false;
@@ -35,7 +34,7 @@ export function LiveRefreshBadge({
 
     async function tick() {
       if (document.visibilityState === "hidden") {
-        timer = setTimeout(tick, intervalMs);
+        timer = setTimeout(tick, pollMs);
         return;
       }
       try {
@@ -48,7 +47,7 @@ export function LiveRefreshBadge({
             setLive(false);
             setError(true);
           }
-          timer = setTimeout(tick, intervalMs * 2);
+          timer = setTimeout(tick, pollMs * 2);
           return;
         }
         const body = (await res.json()) as { version?: string };
@@ -73,7 +72,7 @@ export function LiveRefreshBadge({
           setError(true);
         }
       }
-      if (!cancelled) timer = setTimeout(tick, intervalMs);
+      if (!cancelled) timer = setTimeout(tick, pollMs);
     }
 
     void tick();
@@ -81,7 +80,7 @@ export function LiveRefreshBadge({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [endpoint, intervalMs, router, toastOnChange]);
+  }, [endpoint, pollMs, router, toastOnChange]);
 
   return (
     <span
