@@ -44,14 +44,14 @@ export function LaundryBagLabelPrinter({
   const [staffId, setStaffId] = useState(staffOptions?.[0]?.id ?? "");
   const countById = new Map(bags.map((bag) => [bag.id, bag]));
 
-  function generate() {
+  function generate(rotate: boolean) {
     setError(null);
     setMessage(null);
     startTransition(async () => {
       const result =
         mode === "desk"
-          ? await issueDeskLaundryBagLabelTokens(orderId, staffId)
-          : await issueLaundryBagLabelTokens(orderId);
+          ? await issueDeskLaundryBagLabelTokens(orderId, staffId, { rotate })
+          : await issueLaundryBagLabelTokens(orderId, { rotate });
       if (!result.ok || !result.bags?.length) {
         setError(result.error ?? "Could not issue print codes.");
         return;
@@ -110,11 +110,30 @@ export function LaundryBagLabelPrinter({
           disabled={
             pending || !bags.length || (mode === "desk" && !staffId)
           }
-          onClick={generate}
+          onClick={() => generate(false)}
         >
-          {pending ? "Preparing codes…" : "Generate & print labels"}
+          {pending ? "Preparing codes…" : "Print labels"}
         </Button>
         {labels.length ? <PrintButton label="Print again" /> : null}
+        <Button
+          type="button"
+          variant="outline"
+          disabled={
+            pending || !bags.length || (mode === "desk" && !staffId)
+          }
+          onClick={() => {
+            if (
+              !window.confirm(
+                "Create new scan codes? Any stickers already printed will stop working.",
+              )
+            ) {
+              return;
+            }
+            generate(true);
+          }}
+        >
+          New codes (invalidates old)
+        </Button>
       </div>
       {error ? (
         <Alert variant="destructive" className="print:hidden">
@@ -135,7 +154,7 @@ export function LaundryBagLabelPrinter({
       ) : (
         <p className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground print:hidden">
           {bags.length
-            ? "Generate print codes when stickers are ready. Each print rotates the scan token so older stickers stop working."
+            ? "Print labels reuses the same QR when possible so existing stickers keep working. Use “New codes” only if a sticker was lost or compromised."
             : "Prepare bags on the laundry board first, then return here to print stickers."}
         </p>
       )}

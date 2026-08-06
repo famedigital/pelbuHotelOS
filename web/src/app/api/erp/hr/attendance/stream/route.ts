@@ -1,21 +1,23 @@
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { resolveActivePropertyId } from "@/lib/property-context";
+import {
+  attachSseLifecycle,
+  encodeSse,
+  SSE_FUNCTION_MAX_SEC,
+} from "@/lib/sse/server-stream";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-export const maxDuration = 60;
-
-const encoder = new TextEncoder();
-
-function sse(event: string, data: unknown): Uint8Array {
-  return encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-}
+/** Stream rotates before this — see attachSseLifecycle. */
+export const maxDuration = SSE_FUNCTION_MAX_SEC;
 
 /**
  * Authenticated server-side bridge to Supabase Realtime.
  * The service key never reaches the browser; only the active property's
  * attendance change signal is streamed to the desk.
+ *
+ * Vercel function budget: soft-close ~50s; client EventSource reconnects.
  */
 export async function GET(request: Request): Promise<Response> {
   if (!(await isDeskAuthenticated())) {
@@ -25,7 +27,7 @@ export async function GET(request: Request): Promise<Response> {
   const admin = createSupabaseAdminClient();
   const propertyId = await resolveActivePropertyId(admin);
   let channel: ReturnType<typeof admin.channel> | null = null;
-  let heartbeat: ReturnType<typeof setInterval> | null = null;
+  let disposeLifecycle: (() => void) | null = null;
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -33,8 +35,10 @@ export async function GET(request: Request): Promise<Response> {
       const close = async () => {
         if (closed) return;
         closed = true;
-        if (heartbeat) clearInterval(heartbeat);
+        disposeLifecycle?.();
+        disposeLifecycle = null;
         if (channel) await admin.removeChannel(channel);
+        channel = null;
         try {
           controller.close();
         } catch {
@@ -42,14 +46,8 @@ export async function GET(request: Request): Promise<Response> {
         }
       };
 
-      controller.enqueue(sse("ready", { propertyId }));
-      heartbeat = setInterval(() => {
-        try {
-          controller.enqueue(encoder.encode(": keep-alive\n\n"));
-        } catch {
-          void close();
-        }
-      }, 15_000);
+      controller.enqueue(encodeSse("ready", { propertyId }));
+      disposeLifecycle = attachSseLifecycle({ controller, close });
 
       channel = admin
         .channel(`desk-attendance-${propertyId}-${crypto.randomUUID()}`)
@@ -64,7 +62,7 @@ export async function GET(request: Request): Promise<Response> {
           (payload) => {
             try {
               controller.enqueue(
-                sse("attendance", {
+                encodeSse("attendance", {
                   eventType: payload.eventType,
                   occurredAt: new Date().toISOString(),
                 }),
@@ -76,10 +74,12 @@ export async function GET(request: Request): Promise<Response> {
         )
         .subscribe();
 
-      request.signal.addEventListener("abort", () => void close(), { once: true });
+      request.signal.addEventListener("abort", () => void close(), {
+        once: true,
+      });
     },
     cancel() {
-      if (heartbeat) clearInterval(heartbeat);
+      disposeLifecycle?.();
       if (channel) void admin.removeChannel(channel);
     },
   });

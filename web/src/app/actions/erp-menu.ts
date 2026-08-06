@@ -13,17 +13,18 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
 
-/** @deprecated Prefer property_outlets — kept for older imports. */
-export const MENU_OUTLETS = ["cafe", "pastry", "restaurant", "bar"] as const;
-export type MenuOutlet = string;
+// Values in "use server" files must not be exported (Next only allows async
+// functions). Prep station list stays private to this module.
 
-export const MENU_PREP_STATIONS = [
+const MENU_PREP_STATIONS = [
   "kitchen",
   "bar",
   "pastry",
   "grill",
   "cold",
 ] as const;
+
+export type MenuOutlet = string;
 export type MenuPrepStation = (typeof MENU_PREP_STATIONS)[number];
 
 export type MenuAdminState = {

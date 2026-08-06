@@ -182,7 +182,7 @@ Target desk path: **click room today → name (phone optional) → StayHub Check
 |------|--------|--------|
 | **Menu editor no full remount** | **Done** | Item save/toggle skips `revalidatePath("/erp/menu")`; grid keeps local catalog + `onSaved` |
 | **Reservations list filters** | **Done** | Room fit / date range / sort + room column (`booking-room-fit.ts`) |
-| **Building layout (rooms map)** | **Done / early** | Migration `building_layout`; wizard + 3D/floor tools under rooms layout — for property setup fidelity, not FO walk-in |
+| **Building layout (rooms map)** | **Done / improved** | Migration `building_layout`; Plan = 2D editor; **Building = WebGL (R3F) SketchUp-style orbit/pan/zoom**, floor tabs, room click dossier — [`BuildingScene3D.tsx`](web/src/components/erp/building/BuildingScene3D.tsx). Not BIM / CAD modeler. |
 
 ---
 

@@ -90,17 +90,45 @@ export function LiveDutyBoard({ data }: { data: DutyBoardRow[] }) {
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    const stream = new EventSource("/api/erp/hr/attendance/stream");
+    let stream: EventSource | null = null;
     let refreshTimer: ReturnType<typeof setTimeout> | null = null;
-    stream.addEventListener("ready", () => setConnected(true));
-    stream.addEventListener("attendance", () => {
-      if (refreshTimer) clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(() => router.refresh(), 250);
-    });
-    stream.onerror = () => setConnected(false);
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let stopped = false;
+
+    const connect = () => {
+      if (stopped) return;
+      stream = new EventSource("/api/erp/hr/attendance/stream");
+      stream.addEventListener("ready", () => setConnected(true));
+      stream.addEventListener("attendance", () => {
+        if (refreshTimer) clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(() => router.refresh(), 250);
+      });
+      stream.addEventListener("reconnect", () => {
+        setConnected(true);
+        stream?.close();
+        stream = null;
+        if (!stopped) {
+          if (reconnectTimer) clearTimeout(reconnectTimer);
+          reconnectTimer = setTimeout(connect, 200);
+        }
+      });
+      stream.onerror = () => {
+        setConnected(false);
+        stream?.close();
+        stream = null;
+        if (!stopped) {
+          if (reconnectTimer) clearTimeout(reconnectTimer);
+          reconnectTimer = setTimeout(connect, 2_500);
+        }
+      };
+    };
+
+    connect();
     return () => {
+      stopped = true;
       if (refreshTimer) clearTimeout(refreshTimer);
-      stream.close();
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      stream?.close();
     };
   }, [router]);
 

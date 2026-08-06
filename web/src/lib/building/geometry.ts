@@ -1,6 +1,7 @@
 /**
- * Shared geometry for dual-corridor 2D canvas + CSS 3D massing.
+ * Shared geometry for dual-corridor 2D canvas + 3D massing (CSS legacy + WebGL).
  * Percent canvas: origin top-left, x right, y down (same as Plan).
+ * Three.js world: X right, Y up (floor height), Z depth (plan Y maps to +Z).
  */
 
 import type {
@@ -35,6 +36,10 @@ export type FloorStructure = {
   alongMin: number;
   alongMax: number;
 };
+
+export type Vec3 = { x: number; y: number; z: number };
+
+export type BoxSize = { w: number; d: number; h: number };
 
 /** Compute wing + corridor bands for a dual-corridor floor plan. */
 export function floorStructure(
@@ -180,13 +185,16 @@ export function snapToWing(
   };
 }
 
-/** Percent plan position → CSS 3D world (slab-centered). */
+/**
+ * Percent plan position → world (slab-centered).
+ * Y = floor base elevation (Three.js up). Place box center at y + h/2.
+ */
 export function planToWorld3d(
   posX: number,
   posY: number,
   floorTier: number,
   params: BuildingLayoutParams = DEFAULT_BUILDING_PARAMS,
-): { x: number; y: number; z: number } {
+): Vec3 {
   const along = ((posX - 50) / 50) * (params.slabW * 0.42);
   const depth = ((posY - 50) / 50) * (params.slabD * 0.38);
   return {
@@ -196,29 +204,99 @@ export function planToWorld3d(
   };
 }
 
+/** Slab footprint in world units (floor plate). */
+export function floorSlabSize(
+  params: BuildingLayoutParams = DEFAULT_BUILDING_PARAMS,
+): { w: number; d: number; thickness: number } {
+  return {
+    w: params.slabW,
+    d: params.slabD,
+    thickness: Math.max(2, params.floorHeight * 0.06),
+  };
+}
+
+/** Room mass size from slab + story height (consistent footprint family). */
+export function roomFootprint3d(
+  params: BuildingLayoutParams = DEFAULT_BUILDING_PARAMS,
+): BoxSize {
+  return {
+    w: Math.max(28, params.slabW * 0.1),
+    d: Math.max(24, params.slabD * 0.14),
+    h: Math.max(22, params.floorHeight * 0.78),
+  };
+}
+
 /** World size for amenity mass from width/depth %. */
 export function amenityFootprint3d(
   space: Pick<BuildingSpace, "width_pct" | "depth_pct" | "kind">,
   params: BuildingLayoutParams = DEFAULT_BUILDING_PARAMS,
-): { w: number; d: number; h: number } {
+): BoxSize {
   const w = Math.max(28, (space.width_pct / 100) * params.slabW * 0.85);
   const d = Math.max(24, (space.depth_pct / 100) * params.slabD * 0.85);
   const hByKind: Record<string, number> = {
-    lobby: 42,
-    restaurant: 32,
-    cafe: 28,
-    bar: 28,
-    reception: 30,
-    spa: 30,
-    gym: 30,
-    meeting: 30,
-    stair: 22,
-    lift: 22,
-    service: 24,
-    attic: 20,
-    other: 28,
+    lobby: Math.max(36, params.floorHeight * 0.9),
+    restaurant: Math.max(28, params.floorHeight * 0.75),
+    cafe: Math.max(26, params.floorHeight * 0.7),
+    bar: Math.max(26, params.floorHeight * 0.7),
+    reception: Math.max(28, params.floorHeight * 0.72),
+    spa: Math.max(28, params.floorHeight * 0.72),
+    gym: Math.max(28, params.floorHeight * 0.72),
+    meeting: Math.max(28, params.floorHeight * 0.72),
+    stair: Math.max(20, params.floorHeight * 0.55),
+    lift: Math.max(20, params.floorHeight * 0.55),
+    service: Math.max(22, params.floorHeight * 0.6),
+    attic: Math.max(18, params.floorHeight * 0.5),
+    other: Math.max(26, params.floorHeight * 0.68),
   };
-  return { w, d, h: hByKind[space.kind] ?? 28 };
+  return {
+    w,
+    d,
+    h: hByKind[space.kind] ?? Math.max(26, params.floorHeight * 0.68),
+  };
+}
+
+/** Corridor ribbon on a floor slab (world size, at slab center). */
+export function corridorRibbonSize(
+  axis: CorridorAxis,
+  params: BuildingLayoutParams = DEFAULT_BUILDING_PARAMS,
+): { w: number; d: number } {
+  if (axis === "ew") {
+    return {
+      w: params.slabW * 0.88,
+      d: params.slabD * 0.12,
+    };
+  }
+  return {
+    w: params.slabW * 0.12,
+    d: params.slabD * 0.88,
+  };
+}
+
+/**
+ * Default SketchUp-like camera for OrbitControls.
+ * Position looks from southern-east corner down onto the stack.
+ */
+export function defaultCameraPose(
+  floorCount: number,
+  params: BuildingLayoutParams = DEFAULT_BUILDING_PARAMS,
+): { position: [number, number, number]; target: [number, number, number] } {
+  const floors = Math.max(1, floorCount);
+  const stackH =
+    (floors - 1) * params.floorHeight + roomFootprint3d(params).h;
+  const midY = stackH * 0.4;
+  const dist = Math.max(params.slabW, params.slabD) * 1.15 + stackH * 0.35;
+  return {
+    position: [dist * 0.72, midY + dist * 0.48, dist * 0.78],
+    target: [0, midY * 0.85, 0],
+  };
+}
+
+/** Floor base Y for a tier (optional explode retained for future). */
+export function floorBaseY(
+  floorTier: number,
+  params: BuildingLayoutParams = DEFAULT_BUILDING_PARAMS,
+): number {
+  return floorTier * params.floorHeight;
 }
 
 export function facadeWingLabel(

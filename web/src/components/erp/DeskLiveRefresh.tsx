@@ -73,6 +73,18 @@ export function DeskLiveRefresh({
         scheduleRefresh();
         void pullParkedBadge();
       });
+      es.addEventListener("reconnect", () => {
+        if (!cancelled) {
+          setLive(true);
+          setError(false);
+        }
+        es?.close();
+        es = null;
+        if (!cancelled) {
+          if (reconnectTimer) clearTimeout(reconnectTimer);
+          reconnectTimer = setTimeout(connect, 200);
+        }
+      });
       es.onerror = () => {
         if (!cancelled) {
           setLive(false);

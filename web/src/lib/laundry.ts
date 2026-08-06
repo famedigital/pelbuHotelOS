@@ -110,13 +110,20 @@ export function canWorkLaundry(session: {
   roleLabel: string;
   accessLevel: string;
 }): boolean {
+  const dept = (session.department ?? "").toLowerCase();
+  const role = session.roleLabel.toLowerCase();
   return (
-    ["laundry", "housekeeping"].includes(
-      (session.department ?? "").toLowerCase(),
+    ["laundry", "housekeeping", "front_desk", "reception", "front office"].includes(
+      dept,
     ) ||
-    ["laundry", "housekeeping", "laundry maid"].includes(
-      session.roleLabel.toLowerCase(),
-    ) ||
+    [
+      "laundry",
+      "housekeeping",
+      "laundry maid",
+      "reception",
+      "front desk",
+      "front office",
+    ].includes(role) ||
     ["supervisor", "hr_admin", "owner"].includes(session.accessLevel)
   );
 }

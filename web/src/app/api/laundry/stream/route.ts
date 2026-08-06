@@ -1,16 +1,18 @@
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { getLaundryGuestSession } from "@/lib/laundry-session";
 import { resolveActivePropertyId } from "@/lib/property-context";
+import {
+  attachSseLifecycle,
+  encodeSse,
+  SSE_FUNCTION_MAX_SEC,
+} from "@/lib/sse/server-stream";
 import { getStaffSession } from "@/lib/staff-auth";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-export const maxDuration = 60;
-
-const encoder = new TextEncoder();
-const sse = (event: string, data: unknown) =>
-  encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+/** Stream rotates before this — see attachSseLifecycle. */
+export const maxDuration = SSE_FUNCTION_MAX_SEC;
 
 type StreamScope =
   | { kind: "property"; propertyId: string }
@@ -43,7 +45,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const admin = createSupabaseAdminClient();
   let channel: ReturnType<typeof admin.channel> | null = null;
-  let heartbeat: ReturnType<typeof setInterval> | null = null;
+  let disposeLifecycle: (() => void) | null = null;
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -51,7 +53,7 @@ export async function GET(request: Request): Promise<Response> {
       const push = (source: string) => {
         try {
           controller.enqueue(
-            sse("laundry", {
+            encodeSse("laundry", {
               source,
               occurredAt: new Date().toISOString(),
             }),
@@ -63,8 +65,10 @@ export async function GET(request: Request): Promise<Response> {
       const close = async () => {
         if (closed) return;
         closed = true;
-        if (heartbeat) clearInterval(heartbeat);
+        disposeLifecycle?.();
+        disposeLifecycle = null;
         if (channel) await admin.removeChannel(channel);
+        channel = null;
         try {
           controller.close();
         } catch {
@@ -73,21 +77,16 @@ export async function GET(request: Request): Promise<Response> {
       };
 
       controller.enqueue(
-        sse("ready", {
+        encodeSse("ready", {
           propertyId: scope.propertyId,
           scope: scope.kind,
         }),
       );
+      disposeLifecycle = attachSseLifecycle({ controller, close });
 
-      heartbeat = setInterval(() => {
-        try {
-          controller.enqueue(encoder.encode(": keep-alive\n\n"));
-        } catch {
-          void close();
-        }
-      }, 15_000);
-
-      channel = admin.channel(`laundry-${scope.propertyId}-${crypto.randomUUID()}`);
+      channel = admin.channel(
+        `laundry-${scope.propertyId}-${crypto.randomUUID()}`,
+      );
 
       if (scope.kind === "guest") {
         channel.on(
@@ -130,7 +129,7 @@ export async function GET(request: Request): Promise<Response> {
       });
     },
     cancel() {
-      if (heartbeat) clearInterval(heartbeat);
+      disposeLifecycle?.();
       if (channel) void admin.removeChannel(channel);
     },
   });

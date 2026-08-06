@@ -148,6 +148,11 @@ export async function autoPrepareDefaultBag(
   });
   if (error) return { ok: false, error: error.message };
 
+  const { sealPreparedBagTokens } = await import("@/lib/laundry-issue-labels");
+  await sealPreparedBagTokens(admin, propertyId, [
+    { id: prepared.id, rawToken: prepared.rawToken },
+  ]);
+
   return {
     ok: true,
     bags: [

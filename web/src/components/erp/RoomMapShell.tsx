@@ -1,6 +1,5 @@
 "use client";
 
-import { RoomBuilding3D } from "@/components/erp/RoomBuilding3D";
 import { RoomDossierSheet } from "@/components/erp/RoomDossierSheet";
 import { RoomFloorPlan } from "@/components/erp/RoomFloorPlan";
 import { BuildingWizard } from "@/components/erp/building/BuildingWizard";
@@ -10,9 +9,25 @@ import type {
   PropertyBuildingLayout,
 } from "@/lib/building/types";
 import { Button } from "@/components/ui/button";
+import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 
 export type { RoomMapUnit } from "@/components/erp/room-map-shared";
+
+const BuildingScene3D = dynamic(
+  () =>
+    import("@/components/erp/building/BuildingScene3D").then(
+      (m) => m.BuildingScene3D,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[min(70vh,560px)] items-center justify-center rounded-xl border bg-muted/20 text-sm text-muted-foreground">
+        Loading 3D building…
+      </div>
+    ),
+  },
+);
 
 type ViewMode = "building" | "plan";
 
@@ -62,13 +77,13 @@ export function RoomMapShell({
         </div>
         <p className="text-xs text-muted-foreground">
           {mode === "building"
-            ? "Isometric massing — orbit and click. Rearrange in Plan."
+            ? "3D massing — orbit 360°, pan, zoom. Floor tabs isolate storeys. Rearrange rooms in Plan."
             : "Top-down plan — front/back wings, corridor, amenities; drag rooms to place."}
         </p>
       </div>
 
       {mode === "building" ? (
-        <RoomBuilding3D
+        <BuildingScene3D
           units={units}
           onOpenRoom={setSelectedId}
           layout={layout}

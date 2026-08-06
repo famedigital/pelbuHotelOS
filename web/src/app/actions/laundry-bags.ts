@@ -143,6 +143,15 @@ export async function prepareLaundryBags(
     });
     if (error) throw new Error(error.message);
 
+    const { sealPreparedBagTokens } = await import(
+      "@/lib/laundry-issue-labels"
+    );
+    await sealPreparedBagTokens(
+      admin,
+      session.propertyId,
+      prepared.map((bag) => ({ id: bag.id, rawToken: bag.rawToken })),
+    );
+
     refreshBags(orderId);
     return {
       ok: true,
@@ -167,55 +176,27 @@ export async function prepareLaundryBags(
 
 export async function issueLaundryBagLabelTokens(
   orderId: string,
+  options?: { rotate?: boolean },
 ): Promise<LaundryBagState> {
   try {
     const session = await requireLaundryStaff();
     const admin = createSupabaseAdminClient();
-    const { data: bags } = await admin
-      .from("laundry_order_bags")
-      .select("id, bag_seq, public_code, status")
-      .eq("order_id", orderId)
-      .eq("property_id", session.propertyId)
-      .neq("status", "voided")
-      .order("bag_seq");
-    if (!bags?.length) throw new Error("No active bags to print.");
-
-    const issued = [];
-    for (const bag of bags) {
-      const rawToken = createLaundryToken();
-      const { error } = await admin
-        .from("laundry_order_bags")
-        .update({
-          scan_token_hash: hashLaundryToken(rawToken),
-          label_printed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", bag.id)
-        .eq("property_id", session.propertyId);
-      if (error) throw new Error("Could not rotate bag scan token.");
-      await admin.from("laundry_bag_events").insert({
-        property_id: session.propertyId,
-        bag_id: bag.id,
-        order_id: orderId,
-        event_type: "label_printed",
-        notes: "Scan token rotated for label print",
-        actor_kind: "staff",
-        actor_staff_id: session.staffId,
-      });
-      issued.push({
-        id: bag.id as string,
-        bagSeq: Number(bag.bag_seq),
-        publicCode: bag.public_code as string,
-        rawToken,
-        scanPath: laundryBagScanPath(bag.id as string, rawToken),
-      });
-    }
+    const { issueOrderBagLabelTokens } = await import(
+      "@/lib/laundry-issue-labels"
+    );
+    const issued = await issueOrderBagLabelTokens(admin, {
+      propertyId: session.propertyId,
+      orderId,
+      staffId: session.staffId,
+      actorKind: "staff",
+      rotate: options?.rotate === true,
+    });
     refreshBags(orderId);
     return {
       ok: true,
       orderId,
-      message: `Print codes ready for ${issued.length} bag(s). Previous stickers are invalidated.`,
-      bags: issued,
+      message: issued.message,
+      bags: issued.bags,
     };
   } catch (error) {
     return {

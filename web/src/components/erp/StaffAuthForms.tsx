@@ -16,15 +16,19 @@ const selectClass =
 
 export function StaffLoginForm({
   workspace = "staff",
+  nextPath,
 }: {
   /** desk: require can_access_desk; staff: staff portal is enough */
   workspace?: "staff" | "desk";
+  /** Safe relative path to open after sign-in (e.g. scanned bag QR). */
+  nextPath?: string | null;
 }) {
   const [state, action, pending] = useActionState(staffLogin, loginInitial);
 
   return (
     <form action={action} className="space-y-4" noValidate>
       <input type="hidden" name="workspace" value={workspace} />
+      {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
       <div className="space-y-1.5">
         <Label htmlFor="employee_code">Employee code</Label>
         <Input

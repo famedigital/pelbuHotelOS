@@ -289,6 +289,16 @@ export function useKotNotifier({
         // Always bump board consumers; siren uses version/counts diff.
         scheduleFetch(true);
       });
+      // Server soft-closes ~50s (Vercel maxDuration) — reconnect fast, no offline flash.
+      es.addEventListener("reconnect", () => {
+        setStatus("live");
+        es?.close();
+        es = null;
+        if (!stopped) {
+          if (reconnectTimer) clearTimeout(reconnectTimer);
+          reconnectTimer = setTimeout(connect, 200);
+        }
+      });
       es.onerror = () => {
         setStatus("offline");
         es?.close();

@@ -23,10 +23,18 @@ export default async function StaffLaundryBagPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ t?: string }>;
 }) {
-  const session = await getStaffSession();
-  if (!session) redirect("/staff/login");
   const { id } = await params;
   const { t: rawToken } = await searchParams;
+  const bagScanPath = rawToken
+    ? `/staff/laundry/bags/${id}?t=${encodeURIComponent(rawToken)}`
+    : `/staff/laundry/bags/${id}`;
+
+  const session = await getStaffSession();
+  if (!session) {
+    redirect(
+      `/staff/login?next=${encodeURIComponent(bagScanPath)}`,
+    );
+  }
 
   if (!canWorkLaundry(session)) {
     return (
@@ -34,7 +42,8 @@ export default async function StaffLaundryBagPage({
         <Alert variant="destructive">
           <AlertTitle>Laundry access required</AlertTitle>
           <AlertDescription>
-            Only laundry, housekeeping, or supervisors can open bag labels.
+            Only laundry, housekeeping, front desk, or supervisors can open bag
+            labels. Ask HR to set your department if you handle laundry bags.
           </AlertDescription>
         </Alert>
       </StaffAppShell>

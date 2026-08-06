@@ -171,7 +171,7 @@ export function AppSidebar({
 function SidebarModuleItem({
   module,
   activeMatch,
-  expanded,
+  expanded: clickExpanded,
   onToggle,
   landingHref,
 }: {
@@ -184,6 +184,35 @@ function SidebarModuleItem({
   const moduleActive = activeMatch?.module.key === module.key;
   const Icon = module.icon;
   const hasSubmenu = module.tabs.length > 1;
+  const [hoverOpen, setHoverOpen] = React.useState(false);
+  const leaveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  const clearLeaveTimer = React.useCallback(() => {
+    if (leaveTimerRef.current != null) {
+      clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
+  }, []);
+
+  React.useEffect(() => () => clearLeaveTimer(), [clearLeaveTimer]);
+
+  const openSubmenu = React.useCallback(() => {
+    clearLeaveTimer();
+    setHoverOpen(true);
+  }, [clearLeaveTimer]);
+
+  const scheduleCloseSubmenu = React.useCallback(() => {
+    clearLeaveTimer();
+    leaveTimerRef.current = setTimeout(() => {
+      setHoverOpen(false);
+      leaveTimerRef.current = null;
+    }, 140);
+  }, [clearLeaveTimer]);
+
+  // Active route stays open; hover peeks; click locks open while browsing.
+  const expanded = moduleActive || clickExpanded || hoverOpen;
 
   if (!hasSubmenu) {
     return (
@@ -203,7 +232,16 @@ function SidebarModuleItem({
   }
 
   return (
-    <SidebarMenuItem>
+    <SidebarMenuItem
+      onMouseEnter={openSubmenu}
+      onMouseLeave={scheduleCloseSubmenu}
+      onFocusCapture={openSubmenu}
+      onBlurCapture={(event) => {
+        const next = event.relatedTarget as Node | null;
+        if (next && event.currentTarget.contains(next)) return;
+        scheduleCloseSubmenu();
+      }}
+    >
       <div className="flex w-full items-center gap-0.5">
         <SidebarMenuButton
           asChild

@@ -713,6 +713,15 @@ export async function prepareDeskLaundryBags(
     });
     if (error) throw new Error(error.message);
 
+    const { sealPreparedBagTokens } = await import(
+      "@/lib/laundry-issue-labels"
+    );
+    await sealPreparedBagTokens(
+      admin,
+      propertyId,
+      prepared.map((bag) => ({ id: bag.id, rawToken: bag.rawToken })),
+    );
+
     await writeAuditEvent(admin, {
       propertyId,
       action: "laundry.bags.prepare",
@@ -747,6 +756,7 @@ export async function prepareDeskLaundryBags(
 export async function issueDeskLaundryBagLabelTokens(
   orderId: string,
   staffId: string,
+  options?: { rotate?: boolean },
 ): Promise<LaundryBagState> {
   try {
     await requireDesk();
@@ -760,51 +770,23 @@ export async function issueDeskLaundryBagLabelTokens(
       .in("status", ["active", "on_leave"])
       .maybeSingle();
     if (!staff) throw new Error("Select a valid staff member for the audit trail.");
-    const { data: bags } = await admin
-      .from("laundry_order_bags")
-      .select("id, bag_seq, public_code")
-      .eq("order_id", orderId)
-      .eq("property_id", propertyId)
-      .neq("status", "voided")
-      .order("bag_seq");
-    if (!bags?.length) throw new Error("No active bags to print.");
-    const issued = [];
-    for (const bag of bags) {
-      const rawToken = createLaundryToken();
-      const { error } = await admin
-        .from("laundry_order_bags")
-        .update({
-          scan_token_hash: hashLaundryToken(rawToken),
-          label_printed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", bag.id)
-        .eq("property_id", propertyId);
-      if (error) throw new Error("Could not rotate bag scan token.");
-      await admin.from("laundry_bag_events").insert({
-        property_id: propertyId,
-        bag_id: bag.id,
-        order_id: orderId,
-        event_type: "label_printed",
-        notes: "Scan token rotated for label print",
-        actor_kind: "front_desk",
-        actor_staff_id: staffId,
-      });
-      issued.push({
-        id: bag.id as string,
-        bagSeq: Number(bag.bag_seq),
-        publicCode: bag.public_code as string,
-        rawToken,
-        scanPath: laundryBagScanPath(bag.id as string, rawToken),
-      });
-    }
+    const { issueOrderBagLabelTokens } = await import(
+      "@/lib/laundry-issue-labels"
+    );
+    const issued = await issueOrderBagLabelTokens(admin, {
+      propertyId,
+      orderId,
+      staffId,
+      actorKind: "front_desk",
+      rotate: options?.rotate === true,
+    });
     refreshLaundry();
     revalidatePath(`/erp/laundry/orders/${orderId}/labels`);
     return {
       ok: true,
       orderId,
-      message: `Print codes ready for ${issued.length} bag(s). Previous stickers are invalidated.`,
-      bags: issued,
+      message: issued.message,
+      bags: issued.bags,
     };
   } catch (error) {
     return {

@@ -41,6 +41,8 @@ export async function staffLogin(
       .toUpperCase()
       .replace(/\s+/g, "-");
     const pin = validateStaffPin(String(formData.get("pin") ?? ""));
+    const { safeStaffNextPath } = await import("@/lib/safe-staff-next");
+    const returnNext = safeStaffNextPath(String(formData.get("next") ?? ""));
 
     const admin = createSupabaseAdminClient();
     const { data: staff, error } = await admin
@@ -127,10 +129,12 @@ export async function staffLogin(
         canAccessDesk: Boolean(member.can_access_desk),
         deskOpened: mayOpenDesk,
         workspace: wantsDesk ? "desk" : "staff",
+        returnNext: returnNext ?? null,
       },
     });
 
-    redirect(mayOpenDesk ? "/erp" : "/staff");
+    // Prefer return URL (bag QR scan) over default desk/staff home.
+    redirect(returnNext ?? (mayOpenDesk ? "/erp" : "/staff"));
   } catch (error) {
     if (
       error &&
