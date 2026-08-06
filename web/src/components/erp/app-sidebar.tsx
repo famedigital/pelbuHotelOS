@@ -32,6 +32,7 @@ import {
   filterErpNavByGrants,
   firstAllowedHrefForModule,
 } from "@/lib/erp/desk-modules";
+import { pushErpRecent } from "@/lib/erp-recents";
 import { cn } from "@/lib/utils";
 
 export { NAV_SECTIONS } from "@/lib/erp-nav";
@@ -291,7 +292,12 @@ function SidebarModuleItem({
                   isActive={tabActive}
                   className="relative w-full pl-6 text-[13px]"
                 >
-                  <Link href={tab.href}>
+                  <Link
+                    href={tab.href}
+                    onClick={() =>
+                      pushErpRecent({ href: tab.href, title: tab.title })
+                    }
+                  >
                     <span>{tab.title}</span>
                   </Link>
                 </SidebarMenuSubButton>

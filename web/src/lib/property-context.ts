@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 import { mapPropertySettings } from "@/lib/property-settings";
@@ -7,7 +8,7 @@ import {
   type IncomeStreams,
   type PropertyRow,
 } from "@/lib/property-types";
-import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
 
@@ -21,10 +22,8 @@ export type {
 } from "@/lib/property-types";
 export { DEFAULT_INCOME_STREAMS } from "@/lib/property-types";
 
-/** Active property for desk session; falls back to Host header then flagship slug. */
-export async function resolveActivePropertyId(
-  admin: Admin,
-): Promise<string> {
+const resolveActivePropertyIdImpl = cache(async (): Promise<string> => {
+  const admin = createSupabaseAdminClient();
   const jar = await cookies();
   const cookieId = jar.get(ACTIVE_PROPERTY_COOKIE)?.value?.trim();
   if (cookieId) {
@@ -51,10 +50,25 @@ export async function resolveActivePropertyId(
     // headers() unavailable outside request scope
   }
 
-  return propertyIdBySlug(admin, PELBU_PROPERTY_SLUG);
+  return propertyIdBySlugUncached(admin, PELBU_PROPERTY_SLUG);
+});
+
+/** Active property for desk session; falls back to Host header then flagship slug. */
+export async function resolveActivePropertyId(
+  admin: Admin,
+): Promise<string> {
+  void admin;
+  return resolveActivePropertyIdImpl();
 }
 
 export async function propertyIdBySlug(
+  admin: Admin,
+  slug: string,
+): Promise<string> {
+  return propertyIdBySlugUncached(admin, slug);
+}
+
+async function propertyIdBySlugUncached(
   admin: Admin,
   slug: string,
 ): Promise<string> {
@@ -69,19 +83,27 @@ export async function propertyIdBySlug(
   return data.id as string;
 }
 
+const loadPropertyCached = cache(
+  async (id: string): Promise<PropertyRow | null> => {
+    const admin = createSupabaseAdminClient();
+    const { data } = await admin
+      .from("properties")
+      .select(
+        "id, slug, name, template_id, timezone, setup_step, setup_completed_at, income_streams, bank_accounts, logo_public_id, logo_nav_size_rem, logo_nav_offset_pct, logo_nav_gap_rem, logo_nav_shift_x_rem, legal_name, address, phone, whatsapp, email, tax_id, gst_rate, service_charge_rate, service_charge_default_on, post_day1_room_at_checkin, doc_invoice, doc_receipt, doc_voucher, public_host, desk_host, night_audit_close_time, public_host_cert_status, desk_host_cert_status, host_verify_token",
+      )
+      .eq("id", id)
+      .maybeSingle();
+    if (!data) return null;
+    return mapProperty(data);
+  },
+);
+
 export async function loadProperty(
   admin: Admin,
   id: string,
 ): Promise<PropertyRow | null> {
-  const { data } = await admin
-    .from("properties")
-    .select(
-      "id, slug, name, template_id, timezone, setup_step, setup_completed_at, income_streams, bank_accounts, logo_public_id, logo_nav_size_rem, logo_nav_offset_pct, logo_nav_gap_rem, logo_nav_shift_x_rem, legal_name, address, phone, whatsapp, email, tax_id, gst_rate, service_charge_rate, service_charge_default_on, post_day1_room_at_checkin, doc_invoice, doc_receipt, doc_voucher, public_host, desk_host, night_audit_close_time, public_host_cert_status, desk_host_cert_status, host_verify_token",
-    )
-    .eq("id", id)
-    .maybeSingle();
-  if (!data) return null;
-  return mapProperty(data);
+  void admin;
+  return loadPropertyCached(id);
 }
 
 export async function listProperties(admin: Admin): Promise<PropertyRow[]> {

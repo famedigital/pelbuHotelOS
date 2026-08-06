@@ -1,7 +1,7 @@
 import { AgentsAccordionTable } from "@/components/erp/AgentsAccordionTable";
 import { AgentPinProvisionForm } from "@/components/erp/AgentAuthForms";
 import { DeskEmptyState } from "@/components/erp/DeskEmptyState";
-import { DeskListShell } from "@/components/erp/DeskListShell";
+import { DeskListShell, DeskSearchForm } from "@/components/erp/DeskListShell";
 import { DeskMetricRow } from "@/components/erp/DeskMetricRow";
 import { DeskViewSwitcher } from "@/components/erp/DeskViewSwitcher";
 import {
@@ -70,7 +70,7 @@ function parseFilter(raw: string | string[] | undefined): ViewFilter {
 export default async function ErpAgentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; id?: string }>;
+  searchParams: Promise<{ view?: string; id?: string; q?: string }>;
 }) {
   if (!(await isDeskAuthenticated())) {
     redirect("/erp/login");
@@ -78,6 +78,7 @@ export default async function ErpAgentsPage({
 
   const sp = await searchParams;
   const view = parseFilter(sp.view);
+  const searchQuery = (sp.q ?? "").trim().toLowerCase();
 
   const admin = createSupabaseAdminClient();
   const { data: property } = await admin
@@ -186,7 +187,24 @@ export default async function ErpAgentsPage({
     portal_token: row.portal_token ?? null,
   }));
 
-  const agentIds = agents.map((a) => a.id);
+  const visibleAgents = searchQuery
+    ? agents.filter((a) => {
+        const hay = [
+          a.company_name,
+          a.market,
+          a.contact_name,
+          a.contact_phone,
+          a.contact_email,
+          a.notes,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return hay.includes(searchQuery);
+      })
+    : agents;
+
+  const agentIds = visibleAgents.map((a) => a.id);
   let docRows: AgentDocRaw[] = [];
   if (agentIds.length && view !== "directory") {
     // Directory bulk view skips document hydrate for performance.
@@ -211,10 +229,10 @@ export default async function ErpAgentsPage({
     docsByAgent.set(doc.agent_id, arr);
   }
 
-  const totalApprovedCredit = agents
+  const totalApprovedCredit = visibleAgents
     .filter((a) => a.status === "approved" || a.status === "demo")
     .reduce((sum, a) => sum + a.credit_limit, 0);
-  const totalUsedCredit = agents
+  const totalUsedCredit = visibleAgents
     .filter((a) => a.status === "approved" || a.status === "demo")
     .reduce((sum, a) => sum + a.credit_used, 0);
 
@@ -239,18 +257,29 @@ export default async function ErpAgentsPage({
       subtitle="Trade partners, credit, and TCB directory"
       blurb="Approve applications, set MoU/demo status, credit limits, and record credit payments. Markets: Bhutan, Jaigaon, India. TCB directory operators are searchable on bookings but are not credit partners until you Approve."
       filters={
-        <DeskViewSwitcher
-          label="Agent list filters"
-          items={filterTabs.map((tab) => ({
-            href:
-              tab.key === "trade"
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+          <DeskSearchForm
+            action={
+              view === "trade"
                 ? "/erp/agents"
-                : `/erp/agents?view=${tab.key}`,
-            label: tab.label,
-            count: tab.count,
-            active: view === tab.key,
-          }))}
-        />
+                : `/erp/agents?view=${view}`
+            }
+            q={sp.q}
+            placeholder="Company, contact, phone, email…"
+          />
+          <DeskViewSwitcher
+            label="Agent list filters"
+            items={filterTabs.map((tab) => ({
+              href:
+                tab.key === "trade"
+                  ? "/erp/agents"
+                  : `/erp/agents?view=${tab.key}`,
+              label: tab.label,
+              count: tab.count,
+              active: view === tab.key,
+            }))}
+          />
+        </div>
       }
       metrics={
         <DeskMetricRow
@@ -285,9 +314,9 @@ export default async function ErpAgentsPage({
         />
       }
     >
-      {agents.length === 0 ? (
+      {visibleAgents.length === 0 ? (
         <DeskEmptyState
-          title={emptyByView[view]}
+          title={searchQuery ? "No agents match your search." : emptyByView[view]}
           description={
             view === "directory"
               ? "Import TCB tour operators after migrating status=directory."
@@ -304,7 +333,7 @@ export default async function ErpAgentsPage({
         >
           <AgentsAccordionTable
             filter={view}
-            data={agents.map((row) => ({
+            data={visibleAgents.map((row) => ({
               ...row,
               documents: (docsByAgent.get(row.id) ?? []).map((d) => ({
                 id: d.id,

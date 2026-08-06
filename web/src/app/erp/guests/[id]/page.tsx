@@ -1,4 +1,5 @@
 import { DeskListShell } from "@/components/erp/DeskListShell";
+import { ErpDetailBack } from "@/components/erp/ErpDetailBack";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/desk-property";
 import { formatBtn } from "@/lib/pricing";
@@ -136,12 +137,7 @@ export default async function GuestProfilePage({ params }: Props) {
       blurb="Stay history matched by passport/CID when present, otherwise by name on this property."
       filters={
         <div className="flex flex-wrap gap-2">
-          <Link
-            href="/erp/guests"
-            className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
-          >
-            ← Guest list
-          </Link>
+          <ErpDetailBack href="/erp/guests" label="Guest list" />
           <Link
             href={`/erp/reservations?booking=${booking.id}`}
             className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"

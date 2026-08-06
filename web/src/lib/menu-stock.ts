@@ -22,6 +22,28 @@ const UNTRACKED: MenuStockSnapshot = {
   soldOut: false,
 };
 
+/** Human label for remaining stock (peks / bottles / generic servings). */
+export function formatMenuStockLabel(
+  availableSales: number | null | undefined,
+  sellSize?: "pek" | "bottle" | "single" | "case" | null,
+  mode?: MenuStockSnapshot["mode"],
+): string | null {
+  if (availableSales == null) return null;
+  if (sellSize === "pek") {
+    return `${availableSales} pek${availableSales === 1 ? "" : "s"} left`;
+  }
+  if (sellSize === "bottle") {
+    return `${availableSales} bottle${availableSales === 1 ? "" : "s"} left`;
+  }
+  if (sellSize === "single" || sellSize === "case") {
+    return `${availableSales} left`;
+  }
+  if (mode && mode !== "untracked") {
+    return `${availableSales} left`;
+  }
+  return null;
+}
+
 /** Compute menu availability from the inventory ledger without duplicating stock. */
 export async function loadMenuStockMap(
   admin: Admin,

@@ -80,7 +80,8 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Check-in / out | StayHub panels + `/erp/check-in` | Physical room allocation; sticky **Confirm check-in** footer; after CI lands Stay/Money; **Undo check-in** when folio still simple; checkout → dirty |
 | Arrivals / in-house / departures | `/erp/arrivals` etc. | Boards open StayHub (CI / Stay-Money / CO); today’s worklists only for A/D |
 | Reservations / guests | `/erp/reservations`, `/erp/guests` | **New reservation** CTA → Fast Book modal; filters (room / dates / sort) + room column via `booking-room-fit`; metric chips |
-| **POS / F&B** | `/erp/pos` (+ tabs) | **F&B product surface** (sidebar title remains POS): Register · Menu · Recipe cost · **Kitchen board** · Food cost · Kitchen TV. Cashier → folio; floor plan; shifts; **Open tickets + Closed today** |
+| **POS / F&B** | `/erp/pos` (+ tabs) | **F&B product surface** (sidebar title remains POS): Register · Menu · Recipe cost · **Kitchen board** · Food cost · Kitchen TV. Cashier → folio; floor plan; shifts; **Open tickets + Closed today**. **Bar packs** (below) share pour stock between pek & bottle tiles. |
+| **Menu (catalog + bar)** | `/erp/menu` | Catalog · **Bar packs** (spirit pek+bottle, beer case receive, waste/spill) · Stock & recipes · **Categories** manager. Spirits ledger in **ml**; default **30 ml pek**. See bar packs note below. |
 | **Laundry** | `/erp/laundry` (+ `/qr`, `/orders/[id]/labels`) · guest `/laundry` · staff `/staff/laundry` (+ bag scan/labels) | Guest QR room+name intake · reception photo intake · maid mobile board · **Amazon-style bag QR labels** (1–N bags, per-bag garments, staff-secured scan) · maid-confirmed counts → atomic folio post · printable room + bag stickers |
 | Folio | `/erp/folios/[id]` (+ `/receipt`) | Payments, void, comp, deposit links; **tax invoice + fiscal receipt issue**; **day-1 room post at check-in** + manual Post room night / day-1 charges; **stay money process strip** |
 | **Kitchen board** (F&B ops dashboard) | `/erp/kitchen` (+ `/food-cost`) | Covers · staff on shift · publish BF/lunch/dinner to FO/POS (`kitchen_meal_services`) · gas/stock/expiry · food cost COGS · **Events & groups** (banquet cards: menu, time window, pax, venue, package rate/deposit/balance, link/post to folio) — **chef/F&B supervisor home**, not FO Dashboard |
@@ -183,6 +184,30 @@ Target desk path: **click room today → name (phone optional) → StayHub Check
 | **Menu editor no full remount** | **Done** | Item save/toggle skips `revalidatePath("/erp/menu")`; grid keeps local catalog + `onSaved` |
 | **Reservations list filters** | **Done** | Room fit / date range / sort + room column (`booking-room-fit.ts`) |
 | **Building layout (rooms map)** | **Done / improved** | Migration `building_layout`; Plan = 2D editor; **Building = WebGL (R3F) SketchUp-style orbit/pan/zoom**, floor tabs, room click dossier — [`BuildingScene3D.tsx`](web/src/components/erp/building/BuildingScene3D.tsx). Not BIM / CAD modeler. |
+
+### Bar pour packs (2026-08-06)
+
+Spirits / beer share **one inventory ledger** across multiple sell sizes. Checkout still uses existing `pos_apply_order_stock` (`qty_per_sale` only).
+
+| Setting | Old Monk worked example |
+|---------|-------------------------|
+| Pour (pek) | 30 ml (property `bar_standard_pour_ml`, default 30) |
+| Bottle | 300 ml |
+| Auto | **10 peks / bottle** (`peksPerBottle`) |
+| Receive 2 bottles | +600 ml on hand |
+| Sell 3 peks | −90 ml → 510 ml left (~17 peks / 1 full bottle + 210 ml) |
+| Sell 1 bottle | −300 ml |
+
+**Acceptance matrix (manual desk check)**
+
+- [ ] Create Old Monk 300 ml → Pek + Bottle rows; UI shows 10 peks/bottle
+- [ ] Receive 1 bottle → POS: 10 peks / 1 bottle left on paired tiles
+- [ ] Sell pek then bottle; both drain the same ml balance (no double stock)
+- [ ] Beer: receive 1×24 case → 24 bottle availability
+- [ ] Waste 2 peks reduces pek count without a sale
+- [ ] Categories tab: add “House pours”, assign on item form
+
+**Key files:** migration `20260806230000_bar_pour_packs.sql`; `web/src/lib/bar-packaging.ts`; actions in `erp-menu.ts`; UI `BarPackPanel`, `MenuCategoryManager`; POS labels via `formatMenuStockLabel` / `stock_label`.
 
 ---
 

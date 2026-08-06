@@ -4,9 +4,14 @@ import { deskLogout } from "@/app/actions/desk";
 import { openErpCommandPalette } from "@/components/erp/ErpCommandPalette";
 import { ERP_MODULES, NAV_SECTIONS } from "@/lib/erp-nav";
 import {
+  erpNavMatchesQuery,
+  erpNavSearchHaystack,
+} from "@/lib/erp-nav-search";
+import {
   filterErpNavByGrants,
   tabVisibleFromGrants,
 } from "@/lib/erp/desk-modules";
+import { pushErpRecent } from "@/lib/erp-recents";
 import { Input } from "@/components/ui/input";
 import {
   Sheet,
@@ -88,15 +93,21 @@ export function DeskMobileNav({
   }, [allow]);
 
   const filteredSections = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     if (!q) return sections;
     return sections
       .map((section) => ({
         ...section,
-        items: section.items.filter(
-          (item) =>
-            item.title.toLowerCase().includes(q) ||
-            section.label.toLowerCase().includes(q),
+        items: section.items.filter((item) =>
+          erpNavMatchesQuery(
+            erpNavSearchHaystack({
+              title: item.title,
+              href: item.href,
+              context: section.label,
+              keywords: item.keywords,
+            }),
+            q,
+          ),
         ),
       }))
       .filter((section) => section.items.length > 0);
@@ -218,6 +229,12 @@ export function DeskMobileNav({
                           <SheetClose asChild key={item.href}>
                             <Link
                               href={item.href}
+                              onClick={() =>
+                                pushErpRecent({
+                                  href: item.href,
+                                  title: item.title,
+                                })
+                              }
                               className={cn(
                                 "flex min-h-12 items-center gap-3 rounded-xl border border-border bg-card px-3 text-sm",
                                 active && "border-primary/40 bg-primary/5",

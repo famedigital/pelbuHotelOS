@@ -32,9 +32,11 @@ function formatBtn(n: number): string {
 export function MenuAdminGrid({
   items: serverItems,
   outlets,
+  categories = [],
 }: {
   items: MenuItem[];
   outlets: PropertyOutlet[];
+  categories?: { id: string; name: string; sort_order?: number }[];
 }) {
   /** Local catalog so saves don’t force a full RSC remount/reload of this page. */
   const [items, setItems] = useState(serverItems);
@@ -337,6 +339,7 @@ export function MenuAdminGrid({
         }
         target={target}
         outlets={outlets}
+        categories={categories}
         onOpenChange={(o) => !o && setTarget(null)}
         onSaved={upsertItem}
         onDeleted={removeItem}

@@ -35,6 +35,7 @@ import {
   optionalTrim,
   trimRequired,
 } from "@/lib/validation";
+import { captureServerError } from "@/lib/observability";
 import { revalidatePath } from "next/cache";
 
 const KOT_STATUSES = new Set(["new", "preparing", "ready", "served", "cancelled"]);
@@ -1335,6 +1336,7 @@ export async function postFolioPayment(
     revalidatePath("/erp/finance");
     return { ok: true, paymentId: pay.paymentId };
   } catch (err) {
+    await captureServerError(err, { action: "postFolioPayment" });
     return {
       ok: false,
       error: err instanceof Error ? err.message : "Something went wrong.",

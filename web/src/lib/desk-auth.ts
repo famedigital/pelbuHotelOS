@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { cache } from "react";
 
 const COOKIE = "pelbu_desk_session";
 
@@ -128,6 +129,10 @@ export function mapDepartmentToDeskRole(
  * PIN sessions act as `gm` (full desk) when allowed.
  */
 export async function getDeskRole(): Promise<DeskRole | null> {
+  return getDeskRoleCached();
+}
+
+const getDeskRoleCached = cache(async (): Promise<DeskRole | null> => {
   if (await hasDeskPinSession()) return "gm";
   try {
     const { getStaffSession } = await import("@/lib/staff-auth");
@@ -141,7 +146,7 @@ export async function getDeskRole(): Promise<DeskRole | null> {
   } catch {
     return null;
   }
-}
+});
 
 export function mapAccessLevelToDeskRole(
   accessLevel: string | null | undefined,
@@ -180,6 +185,10 @@ export async function requireMoneyDesk(): Promise<DeskRole> {
  * PIN sessions (gm) receive the full catalog.
  */
 export async function getDeskModuleKeys(): Promise<string[]> {
+  return getDeskModuleKeysCached();
+}
+
+const getDeskModuleKeysCached = cache(async (): Promise<string[]> => {
   const { allDeskModuleKeys, resolveDeskModules } = await import(
     "@/lib/erp/desk-modules"
   );
@@ -203,7 +212,7 @@ export async function getDeskModuleKeys(): Promise<string[]> {
   } catch {
     return allDeskModuleKeys();
   }
-}
+});
 
 export function deskCookieValue(pin: string): string {
   return `ok:${pin.trim()}`;

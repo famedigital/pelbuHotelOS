@@ -38,7 +38,20 @@ export function MenuTile({
       aria-label={
         soldOut
           ? `${item.name}, sold out`
-          : `Add ${item.name}, ${formatBtn(item.price_btn)}`
+          : item.stock_label
+            ? `Add ${item.name}, ${formatBtn(item.price_btn)}, ${item.stock_label}`
+            : `Add ${item.name}, ${formatBtn(item.price_btn)}`
+      }
+      title={
+        !soldOut && item.stock_label
+          ? item.stock_label
+          : !soldOut && item.sell_size
+            ? item.sell_size === "pek"
+              ? "Single pour (shared bottle stock)"
+              : item.sell_size === "bottle"
+                ? "Full bottle (shared pour stock)"
+                : undefined
+            : undefined
       }
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-secondary">
@@ -69,9 +82,9 @@ export function MenuTile({
             Sold out
           </span>
         ) : item.stock_mode !== "untracked" &&
-          item.stock_on_hand != null ? (
+          (item.stock_label || item.stock_on_hand != null) ? (
           <span className="absolute bottom-2 right-2 rounded-full bg-background/90 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-foreground shadow-sm">
-            {item.stock_on_hand} left
+            {item.stock_label ?? `${item.stock_on_hand} left`}
           </span>
         ) : null}
       </div>

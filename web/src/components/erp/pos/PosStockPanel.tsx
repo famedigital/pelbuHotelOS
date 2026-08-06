@@ -49,8 +49,19 @@ export function PosStockPanel({ items }: { items: MenuItem[] }) {
               {item.sold_out ? (
                 <Badge variant="destructive">Sold out</Badge>
               ) : (
-                <Badge variant="outline" className="tabular-nums">
-                  {item.stock_on_hand ?? "—"} left
+                <Badge
+                  variant="outline"
+                  className="tabular-nums"
+                  title={
+                    item.sell_size === "pek" || item.sell_size === "bottle"
+                      ? "Shared bottle stock with the paired pack size"
+                      : undefined
+                  }
+                >
+                  {item.stock_label ??
+                    (item.stock_on_hand != null
+                      ? `${item.stock_on_hand} left`
+                      : "—")}
                 </Badge>
               )}
             </div>

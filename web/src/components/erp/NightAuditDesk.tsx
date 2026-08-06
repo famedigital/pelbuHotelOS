@@ -224,6 +224,25 @@ export function NightAuditDesk({
           </p>
         </div>
 
+        <div className="rounded-md border border-accent/30 bg-accent/5 p-3">
+          <p className="text-[10px] font-semibold tracking-[0.18em] text-accent uppercase">
+            Hotel continuity backup
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Download the Excel pack for any business date — the same file stored
+            after night close. Keep a weekly copy off-site; disaster recovery uses
+            Supabase PITR plus engineer import (see OPS-RUNBOOK).
+          </p>
+          <Button asChild variant="outline" size="sm" className="mt-3 h-9">
+            <a
+              href={`/api/erp/night-audit/continuity?date=${encodeURIComponent(businessDate)}`}
+              download
+            >
+              Download backup for {businessDate}
+            </a>
+          </Button>
+        </div>
+
         <div className="rounded-md border bg-muted/30 p-3">
           <p className="text-[10px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
             Before you run

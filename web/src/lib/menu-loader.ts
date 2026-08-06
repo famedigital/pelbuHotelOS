@@ -2,7 +2,10 @@ import type { MenuItem } from "@/lib/menu";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { loadMenuStockMap } from "@/lib/menu-stock";
+import {
+  formatMenuStockLabel,
+  loadMenuStockMap,
+} from "@/lib/menu-stock";
 
 /**
  * Seed IDs that were never uploaded to Cloudinary. Keep in sync with
@@ -45,7 +48,7 @@ export async function loadMenuByOutlets(
   const { data } = await admin
     .from("menu_items")
     .select(
-      "id, outlet, category, name, description, price_btn, gst_applicable, sort_order, image_public_id, is_popular, prep_station",
+      "id, outlet, category, name, description, price_btn, gst_applicable, sort_order, image_public_id, is_popular, prep_station, family_id, sell_size",
     )
     .eq("property_id", propertyId)
     .eq("is_available", true)
@@ -91,6 +94,7 @@ export async function loadMenuByOutlets(
         ((row.image_public_id as string | null) ?? null),
     );
     const itemStock = stock.get(id);
+    const sellSize = (row.sell_size as MenuItem["sell_size"]) ?? null;
     return {
       id,
       outlet: row.outlet as string,
@@ -112,6 +116,13 @@ export async function loadMenuByOutlets(
       sold_out: itemStock?.soldOut ?? false,
       stock_inventory_item_id: itemStock?.inventoryItemId ?? null,
       stock_qty_per_sale: itemStock?.qtyPerSale ?? 1,
+      family_id: (row.family_id as string | null) ?? null,
+      sell_size: sellSize,
+      stock_label: formatMenuStockLabel(
+        itemStock?.availableSales,
+        sellSize,
+        itemStock?.mode,
+      ),
     };
   });
 }

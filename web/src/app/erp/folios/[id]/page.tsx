@@ -4,6 +4,8 @@ import {
   VoidLineButton,
 } from "@/components/erp/FolioOpsForms";
 import { FolioActionsPanel } from "@/components/erp/FolioActionsPanel";
+import { ErpDetailBack } from "@/components/erp/ErpDetailBack";
+import { FolioStaleRefreshBanner } from "@/components/erp/FolioStaleRefreshBanner";
 import { StayMoneyCycleLegend } from "@/components/erp/StayMoneyCycleLegend";
 import { StayMoneyProcessStrip } from "@/components/erp/StayMoneyProcessStrip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +20,7 @@ import { netFolioBalance } from "@/lib/folio/balance";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { cn } from "@/lib/utils";
+import { folioVersionFingerprint } from "@/lib/folio/version-fingerprint";
 import { notFound, redirect } from "next/navigation";
 
 export const metadata = {
@@ -103,86 +106,91 @@ export default async function FolioDetailPage({ params }: Props) {
     notFound();
   }
 
-  const { data: links } = await admin
-    .from("payment_links")
-    .select("id, token, amount_btn, status, purpose, created_at, payee_name")
-    .eq("folio_id", id)
-    .order("created_at", { ascending: false })
-    .limit(10);
-
-  const { data: invoiceDoc } = await admin
-    .from("fiscal_documents")
-    .select("id, doc_no")
-    .eq("folio_id", id)
-    .eq("doc_kind", "invoice")
-    .eq("status", "issued")
-    .maybeSingle();
-
   const bookingId = (folio.booking_id as string | null) ?? null;
-  const { data: booking } = bookingId
-    ? await admin
-        .from("bookings")
-        .select(
-          "id, status, check_in, check_out, contact_name, meal_plan_code, meal_plan_amount_btn, agent_id, payment_mode, agents(company_name)",
-        )
-        .eq("id", bookingId)
-        .maybeSingle()
-    : { data: null };
 
-  const { data: siblingFolios } = bookingId
-    ? await admin
-        .from("folios")
-        .select("id, label, status")
-        .eq("property_id", activePropertyId)
-        .eq("booking_id", bookingId)
-        .eq("status", "open")
-        .neq("id", id)
-        .limit(20)
-    : { data: [] as { id: string; label: string; status: string }[] };
-
-  const transferTargets = (siblingFolios ?? []).map((f) => ({
-    id: f.id as string,
-    label: (f.label as string) || (f.id as string).slice(0, 8),
-  }));
-
-  const { data: masterRows } = await admin
-    .from("folios")
-    .select("id, label")
-    .eq("property_id", activePropertyId)
-    .eq("status", "open")
-    .eq("folio_type", "master")
-    .neq("id", id)
-    .order("created_at", { ascending: false })
-    .limit(40);
-  const masterCandidates = (masterRows ?? []).map((f) => ({
-    id: f.id as string,
-    label: (f.label as string) || (f.id as string).slice(0, 8),
-  }));
-
-  const { data: damageItems } = await admin
-    .from("property_damage_items")
-    .select("id, label, amount_btn")
-    .eq("property_id", activePropertyId)
-    .eq("is_active", true)
-    .order("sort_order");
-
-  const { data: minibarItems } = await admin
-    .from("property_minibar_items")
-    .select("id, label, amount_btn, category")
-    .eq("property_id", activePropertyId)
-    .eq("is_active", true)
-    .order("sort_order");
-
-  const { data: childFolios } =
+  const [
+    { data: links },
+    { data: invoiceDoc },
+    { data: booking },
+    { data: siblingFolios },
+    { data: masterRows },
+    { data: damageItems },
+    { data: minibarItems },
+    { data: childFolios },
+  ] = await Promise.all([
+    admin
+      .from("payment_links")
+      .select("id, token, amount_btn, status, purpose, created_at, payee_name")
+      .eq("folio_id", id)
+      .order("created_at", { ascending: false })
+      .limit(10),
+    admin
+      .from("fiscal_documents")
+      .select("id, doc_no")
+      .eq("folio_id", id)
+      .eq("doc_kind", "invoice")
+      .eq("status", "issued")
+      .maybeSingle(),
+    bookingId
+      ? admin
+          .from("bookings")
+          .select(
+            "id, status, check_in, check_out, contact_name, meal_plan_code, meal_plan_amount_btn, agent_id, payment_mode, agents(company_name)",
+          )
+          .eq("id", bookingId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    bookingId
+      ? admin
+          .from("folios")
+          .select("id, label, status")
+          .eq("property_id", activePropertyId)
+          .eq("booking_id", bookingId)
+          .eq("status", "open")
+          .neq("id", id)
+          .limit(20)
+      : Promise.resolve({ data: [] as { id: string; label: string; status: string }[] }),
+    admin
+      .from("folios")
+      .select("id, label")
+      .eq("property_id", activePropertyId)
+      .eq("status", "open")
+      .eq("folio_type", "master")
+      .neq("id", id)
+      .order("created_at", { ascending: false })
+      .limit(40),
+    admin
+      .from("property_damage_items")
+      .select("id, label, amount_btn")
+      .eq("property_id", activePropertyId)
+      .eq("is_active", true)
+      .order("sort_order"),
+    admin
+      .from("property_minibar_items")
+      .select("id, label, amount_btn, category")
+      .eq("property_id", activePropertyId)
+      .eq("is_active", true)
+      .order("sort_order"),
     (folio.folio_type as string) === "master"
-      ? await admin
+      ? admin
           .from("folios")
           .select("id, label, status")
           .eq("property_id", activePropertyId)
           .eq("master_folio_id", id)
           .order("created_at", { ascending: true })
           .limit(40)
-      : { data: [] as { id: string; label: string; status: string }[] };
+      : Promise.resolve({ data: [] as { id: string; label: string; status: string }[] }),
+  ]);
+
+  const transferTargets = (siblingFolios ?? []).map((f) => ({
+    id: f.id as string,
+    label: (f.label as string) || (f.id as string).slice(0, 8),
+  }));
+
+  const masterCandidates = (masterRows ?? []).map((f) => ({
+    id: f.id as string,
+    label: (f.label as string) || (f.id as string).slice(0, 8),
+  }));
 
   const lines = ((folio.folio_lines as FolioLine[] | null) ?? []).sort(
     (a, b) =>
@@ -297,8 +305,25 @@ export default async function FolioDetailPage({ params }: Props) {
     (booking?.contact_name as string | undefined)?.trim() ||
     (folio.label as string);
 
+  const folioVersion = folioVersionFingerprint({
+    status: folioStatus,
+    lines,
+  });
+
   return (
     <div className="erp mx-auto w-full max-w-[1100px] p-4 md:p-6">
+      <div className="mb-4 flex flex-wrap gap-2">
+        <ErpDetailBack href="/erp/folios" label="City ledger" />
+        {bookingId ? (
+          <a
+            href={`/erp/reservations?booking=${bookingId}&step=stay_money`}
+            className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
+          >
+            Stay hub
+          </a>
+        ) : null}
+      </div>
+      <FolioStaleRefreshBanner folioId={id} initialVersion={folioVersion} />
       {/* Sticky identity + next action */}
       <div className="sticky top-0 z-20 -mx-4 mb-5 border-b bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/85 md:-mx-6 md:px-6">
         <div className="flex flex-wrap items-start justify-between gap-3">

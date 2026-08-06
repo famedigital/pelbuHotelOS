@@ -51,12 +51,14 @@ export type MenuItemFormTarget =
 export function MenuItemForm({
   target,
   outlets,
+  categories = [],
   onOpenChange,
   onSaved,
   onDeleted,
 }: {
   target: MenuItemFormTarget;
   outlets: PropertyOutlet[];
+  categories?: { id: string; name: string }[];
   onOpenChange: (open: boolean) => void;
   onSaved?: (item: MenuItem) => void;
   onDeleted?: (itemId: string) => void;
@@ -92,6 +94,7 @@ export function MenuItemForm({
   const [name, setName] = useState("");
   const [outlet, setOutlet] = useState<string>("cafe");
   const [category, setCategory] = useState("");
+  const [categoryMode, setCategoryMode] = useState<"pick" | "new">("pick");
   const [description, setDescription] = useState("");
   const [priceBtn, setPriceBtn] = useState("");
   const [prepStation, setPrepStation] = useState<string>("kitchen");
@@ -113,6 +116,14 @@ export function MenuItemForm({
       setName(editing.name);
       setOutlet(editing.outlet);
       setCategory(editing.category);
+      if (categories.length === 0) {
+        setCategoryMode("new");
+      } else {
+        const known = categories.some(
+          (c) => c.name.toLowerCase() === editing.category.toLowerCase(),
+        );
+        setCategoryMode(known ? "pick" : "new");
+      }
       setDescription(editing.description ?? "");
       setPriceBtn(String(editing.price_btn));
       setPrepStation(editing.prep_station ?? "kitchen");
@@ -124,7 +135,8 @@ export function MenuItemForm({
     } else if (target?.mode === "create") {
       setName("");
       setOutlet(target.defaultOutlet ?? activeOutlets[0]?.code ?? "cafe");
-      setCategory("");
+      setCategory(categories[0]?.name ?? "");
+      setCategoryMode(categories.length > 0 ? "pick" : "new");
       setDescription("");
       setPriceBtn("");
       setPrepStation("kitchen");
@@ -134,7 +146,7 @@ export function MenuItemForm({
       setIsPopular(false);
       setSortOrder("0");
     }
-  }, [open, editing, target, activeOutlets]);
+  }, [open, editing, target, activeOutlets, categories]);
 
   useEffect(() => {
     if (!saveState.ok || !saveState.itemId) return;
@@ -262,26 +274,63 @@ export function MenuItemForm({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="mi_category">Category</Label>
-              <Input
-                id="mi_category"
-                name="category"
-                required
-                maxLength={40}
-                autoComplete="off"
-                placeholder="Coffee · Mains · Beer"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                list="mi_category_suggestions"
-              />
-              <datalist id="mi_category_suggestions">
-                <option value="Coffee" />
-                <option value="Tea" />
-                <option value="Mains" />
-                <option value="Snacks" />
-                <option value="Desserts" />
-                <option value="Beer" />
-                <option value="Spirits" />
-              </datalist>
+              {categories.length > 0 && categoryMode === "pick" ? (
+                <>
+                  <Select
+                    value={
+                      categories.some((c) => c.name === category)
+                        ? category
+                        : categories[0]?.name ?? ""
+                    }
+                    onValueChange={(v) => {
+                      if (v === "__new__") {
+                        setCategoryMode("new");
+                        setCategory("");
+                      } else {
+                        setCategory(v);
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="mi_category" className="w-full">
+                      <SelectValue placeholder="Choose category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((c) => (
+                        <SelectItem key={c.id} value={c.name}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="__new__">+ New category…</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <input type="hidden" name="category" value={category} />
+                </>
+              ) : (
+                <>
+                  <Input
+                    id="mi_category"
+                    name="category"
+                    required
+                    maxLength={40}
+                    autoComplete="off"
+                    placeholder="Coffee · Mains · Spirits"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                  />
+                  {categories.length > 0 ? (
+                    <button
+                      type="button"
+                      className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+                      onClick={() => {
+                        setCategoryMode("pick");
+                        setCategory(categories[0]?.name ?? "");
+                      }}
+                    >
+                      Choose from list
+                    </button>
+                  ) : null}
+                </>
+              )}
             </div>
           </div>
 

@@ -31,6 +31,8 @@ export type ErpNavLeaf = {
   title: string;
   href: string;
   icon: LucideIcon;
+  /** Ops slang for Ctrl+K / mobile More search (hk, billing, walk-in, …). */
+  keywords?: string[];
 };
 
 export type ErpModule = {
@@ -42,18 +44,88 @@ export type ErpModule = {
   tabs: ErpNavLeaf[];
 };
 
+/** Extra search aliases keyed by tab href (merged into palette / mobile search). */
+export const ERP_NAV_KEYWORDS: Record<string, string[]> = {
+  "/erp": ["home", "dashboard", "desk"],
+  "/erp/calendar": ["rack", "room rack", "grid", "availability"],
+  "/erp/calendar/day-sheet": ["day sheet", "daily", "occupancy"],
+  "/erp/arrivals": ["ci", "checkin", "check-in", "arrival", "walk-in", "walkin"],
+  "/erp/in-house": ["inhouse", "in house", "stay", "guests in house"],
+  "/erp/departures": ["co", "checkout", "check-out", "departure", "leave"],
+  "/erp/reservations": ["booking", "book", "reservation", "hold"],
+  "/erp/sales-claims": ["sales", "claim", "commission"],
+  "/erp/guests": ["guest", "directory", "passport", "sdf", "profile"],
+  "/erp/loyalty": ["loyalty", "points", "repeat"],
+  "/erp/group": ["group", "group hotel", "block", "tour group"],
+  "/erp/rooms": ["room", "inventory", "units"],
+  "/erp/rooms/layout": ["floor", "map", "layout"],
+  "/erp/housekeeping": ["hk", "housekeeping", "clean", "dirty", "maid"],
+  "/erp/lost-found": ["lost", "found", "left behind"],
+  "/erp/maintenance": ["maintenance", "repair", "ooo", "oos"],
+  "/erp/laundry": ["laundry", "wash", "press"],
+  "/erp/pos": ["pos", "register", "sell", "fnb", "food"],
+  "/erp/menu": ["menu", "fnb", "food", "items"],
+  "/erp/pos/recipe-cost": ["recipe", "cost", "food cost"],
+  "/erp/kitchen": ["kitchen", "kds", "kot", "cook", "chef"],
+  "/erp/kitchen/food-cost": ["food cost", "cogs"],
+  "/erp/kds": ["kds", "kitchen tv", "pass", "expo"],
+  "/erp/payments": ["payment", "pay", "cash", "collect", "money"],
+  "/erp/invoices": ["invoice", "tax", "billing", "gst invoice"],
+  "/erp/folios": ["folio", "city ledger", "billing", "balance", "ledger"],
+  "/erp/night-audit": ["night audit", "close day", "na", "roll"],
+  "/erp/finance": ["finance", "vault", "accounting", "books"],
+  "/erp/finance/banking": ["bank", "banking", "recon", "statement"],
+  "/erp/finance/expenses": ["expense", "expenses", "bills", "payables"],
+  "/erp/finance/gst": ["gst", "tax", "vat"],
+  "/erp/reports": ["report", "flash", "performance"],
+  "/erp/agents": ["agent", "dmc", "tour operator", "b2b"],
+  "/erp/agents/confirmed": ["confirmed", "call list", "phone list"],
+  "/erp/agents/call-tasks": ["call task", "callback", "phone task"],
+  "/erp/agents/rate-downloads": ["rate sheet", "download rates"],
+  "/erp/marketing": ["marketing", "campaign", "promo"],
+  "/erp/rate-plans": ["rate plan", "pricing", "season"],
+  "/erp/partners": ["partner", "supplier"],
+  "/erp/allotments": ["allotment", "block release"],
+  "/erp/channel": ["channel", "ota", "channex"],
+  "/erp/hr": ["hr", "staff", "team", "employee"],
+  "/erp/hr/access": ["access", "permissions", "modules"],
+  "/erp/hr/positions": ["position", "job title"],
+  "/erp/hr/vacancies": ["vacancy", "hiring"],
+  "/erp/hr/recruitment": ["recruitment", "applicant"],
+  "/erp/hr/rota": ["rota", "roster", "schedule", "shift"],
+  "/erp/hr/attendance": ["attendance", "clock in", "punch"],
+  "/erp/hr/leave": ["leave", "holiday", "time off"],
+  "/erp/hr/isr": ["isr", "labour", "labour bureau"],
+  "/erp/hr/payroll": ["payroll", "salary", "wages"],
+  "/erp/inventory": ["inventory", "stock", "store"],
+  "/erp/settings": ["settings", "config", "property"],
+  "/erp/rates": ["rates", "room rate", "pricing"],
+  "/erp/training": ["training", "help", "how to"],
+  "/erp/dot-assessment": ["dot", "assessment", "tourism"],
+};
+
+function leaf(
+  title: string,
+  href: string,
+  icon: LucideIcon,
+  extraKeywords?: string[],
+): ErpNavLeaf {
+  const merged = [
+    ...(ERP_NAV_KEYWORDS[href] ?? []),
+    ...(extraKeywords ?? []),
+  ];
+  return {
+    title,
+    href,
+    icon,
+    keywords: merged.length > 0 ? merged : undefined,
+  };
+}
+
 /**
  * Desk information architecture: modules in the sidebar; section links for the
  * active module sit **inline in the single sticky header** (ModuleHeaderTabs),
  * never a second full-width menu row under it.
- *
- * F&B is not a separate sidebar module. Cafe/bar/restaurant lives under `pos`
- * (register, menu, recipe cost, kitchen board, food cost, KDS). Chef/F&B
- * ops home is `/erp/kitchen`; FO/GM property home stays `dashboard` (`/erp`).
- * Do not add a parallel `fnb` root that only re-links these routes.
- *
- * Routes are unchanged — this is navigation only, so deep links and
- * revalidatePath calls elsewhere keep working.
  */
 export const ERP_MODULES: ErpModule[] = [
   {
@@ -61,7 +133,7 @@ export const ERP_MODULES: ErpModule[] = [
     title: "Dashboard",
     icon: LayoutDashboardIcon,
     href: "/erp",
-    tabs: [{ title: "Dashboard", href: "/erp", icon: LayoutDashboardIcon }],
+    tabs: [leaf("Dashboard", "/erp", LayoutDashboardIcon)],
   },
   {
     key: "calendar",
@@ -69,12 +141,8 @@ export const ERP_MODULES: ErpModule[] = [
     icon: CalendarClockIcon,
     href: "/erp/calendar",
     tabs: [
-      { title: "Room rack", href: "/erp/calendar", icon: CalendarClockIcon },
-      {
-        title: "Day sheet",
-        href: "/erp/calendar/day-sheet",
-        icon: ScrollTextIcon,
-      },
+      leaf("Room rack", "/erp/calendar", CalendarClockIcon),
+      leaf("Day sheet", "/erp/calendar/day-sheet", ScrollTextIcon),
     ],
   },
   {
@@ -83,31 +151,14 @@ export const ERP_MODULES: ErpModule[] = [
     icon: UsersIcon,
     href: "/erp/arrivals",
     tabs: [
-      { title: "Arrivals", href: "/erp/arrivals", icon: ClipboardListIcon },
-      { title: "In-house", href: "/erp/in-house", icon: BedDoubleIcon },
-      { title: "Departures", href: "/erp/departures", icon: ScrollTextIcon },
-      {
-        title: "Reservations",
-        href: "/erp/reservations",
-        icon: ReceiptTextIcon,
-      },
-      {
-        title: "Sales claims",
-        href: "/erp/sales-claims",
-        icon: ReceiptTextIcon,
-      },
-      { title: "Guests", href: "/erp/guests", icon: UsersIcon },
-      { title: "Loyalty", href: "/erp/loyalty", icon: SparklesIcon },
-      {
-        title: "Groups",
-        href: "/erp/group",
-        icon: HotelIcon,
-      },
-      {
-        title: "Agent call tasks",
-        href: "/erp/agents/call-tasks",
-        icon: PhoneIcon,
-      },
+      leaf("Arrivals", "/erp/arrivals", ClipboardListIcon),
+      leaf("In-house", "/erp/in-house", BedDoubleIcon),
+      leaf("Departures", "/erp/departures", ScrollTextIcon),
+      leaf("Reservations", "/erp/reservations", ReceiptTextIcon),
+      leaf("Sales claims", "/erp/sales-claims", ReceiptTextIcon),
+      leaf("Guests", "/erp/guests", UsersIcon),
+      leaf("Loyalty", "/erp/loyalty", SparklesIcon),
+      leaf("Group hotels", "/erp/group", HotelIcon),
     ],
   },
   {
@@ -116,43 +167,26 @@ export const ERP_MODULES: ErpModule[] = [
     icon: HotelIcon,
     href: "/erp/rooms",
     tabs: [
-      { title: "Rooms", href: "/erp/rooms", icon: HotelIcon },
-      {
-        title: "Floor map",
-        href: "/erp/rooms/layout",
-        icon: MapIcon,
-      },
-      {
-        title: "Housekeeping",
-        href: "/erp/housekeeping",
-        icon: SparklesIcon,
-      },
-      { title: "Lost & found", href: "/erp/lost-found", icon: ClipboardListIcon },
-      { title: "Maintenance", href: "/erp/maintenance", icon: WrenchIcon },
-      { title: "Laundry", href: "/erp/laundry", icon: ShirtIcon },
+      leaf("Rooms", "/erp/rooms", HotelIcon),
+      leaf("Floor map", "/erp/rooms/layout", MapIcon),
+      leaf("Housekeeping", "/erp/housekeeping", SparklesIcon),
+      leaf("Lost & found", "/erp/lost-found", ClipboardListIcon),
+      leaf("Maintenance", "/erp/maintenance", WrenchIcon),
+      leaf("Laundry", "/erp/laundry", ShirtIcon),
     ],
   },
   {
-    /** F&B sell + kitchen ops (not a separate `fnb` module). */
     key: "pos",
     title: "POS",
     icon: ShoppingCartIcon,
     href: "/erp/pos",
     tabs: [
-      { title: "Register", href: "/erp/pos", icon: ShoppingCartIcon },
-      { title: "Menu", href: "/erp/menu", icon: SoupIcon },
-      {
-        title: "Recipe cost",
-        href: "/erp/pos/recipe-cost",
-        icon: ReceiptTextIcon,
-      },
-      { title: "Kitchen board", href: "/erp/kitchen", icon: SoupIcon },
-      {
-        title: "Food cost",
-        href: "/erp/kitchen/food-cost",
-        icon: ReceiptTextIcon,
-      },
-      { title: "Kitchen TV", href: "/erp/kds", icon: MonitorIcon },
+      leaf("Register", "/erp/pos", ShoppingCartIcon),
+      leaf("Menu", "/erp/menu", SoupIcon),
+      leaf("Recipe cost", "/erp/pos/recipe-cost", ReceiptTextIcon),
+      leaf("Kitchen board", "/erp/kitchen", SoupIcon),
+      leaf("Food cost", "/erp/kitchen/food-cost", ReceiptTextIcon),
+      leaf("Kitchen TV", "/erp/kds", MonitorIcon),
     ],
   },
   {
@@ -161,12 +195,15 @@ export const ERP_MODULES: ErpModule[] = [
     icon: WalletIcon,
     href: "/erp/payments",
     tabs: [
-      { title: "Payments", href: "/erp/payments", icon: CreditCardIcon },
-      { title: "Invoices", href: "/erp/invoices", icon: ReceiptTextIcon },
-      { title: "City ledger", href: "/erp/folios", icon: WalletIcon },
-      { title: "Night audit", href: "/erp/night-audit", icon: ScrollTextIcon },
-      { title: "Finance", href: "/erp/finance", icon: WalletIcon },
-      { title: "Flash reports", href: "/erp/reports", icon: ScrollTextIcon },
+      leaf("Payments", "/erp/payments", CreditCardIcon),
+      leaf("Invoices", "/erp/invoices", ReceiptTextIcon),
+      leaf("City ledger", "/erp/folios", WalletIcon),
+      leaf("Night audit", "/erp/night-audit", ScrollTextIcon),
+      leaf("Banking", "/erp/finance/banking", CreditCardIcon),
+      leaf("Expenses", "/erp/finance/expenses", ReceiptTextIcon),
+      leaf("GST", "/erp/finance/gst", ScrollTextIcon),
+      leaf("Finance", "/erp/finance", WalletIcon),
+      leaf("Flash reports", "/erp/reports", ScrollTextIcon),
     ],
   },
   {
@@ -175,27 +212,15 @@ export const ERP_MODULES: ErpModule[] = [
     icon: TruckIcon,
     href: "/erp/agents",
     tabs: [
-      { title: "Agents", href: "/erp/agents", icon: UsersIcon },
-      {
-        title: "Confirmed call list",
-        href: "/erp/agents/confirmed",
-        icon: PhoneIcon,
-      },
-      {
-        title: "Agent call tasks",
-        href: "/erp/agents/call-tasks",
-        icon: PhoneIcon,
-      },
-      {
-        title: "Rate downloads",
-        href: "/erp/agents/rate-downloads",
-        icon: ReceiptTextIcon,
-      },
-      { title: "Marketing", href: "/erp/marketing", icon: TagsIcon },
-      { title: "Rate plans", href: "/erp/rate-plans", icon: ReceiptTextIcon },
-      { title: "Partners", href: "/erp/partners", icon: UsersIcon },
-      { title: "Allotments", href: "/erp/allotments", icon: ClipboardListIcon },
-      { title: "Channel", href: "/erp/channel", icon: TruckIcon },
+      leaf("Agents", "/erp/agents", UsersIcon),
+      leaf("Confirmed call list", "/erp/agents/confirmed", PhoneIcon),
+      leaf("Agent call tasks", "/erp/agents/call-tasks", PhoneIcon),
+      leaf("Rate downloads", "/erp/agents/rate-downloads", ReceiptTextIcon),
+      leaf("Marketing", "/erp/marketing", TagsIcon),
+      leaf("Rate plans", "/erp/rate-plans", ReceiptTextIcon),
+      leaf("Partners", "/erp/partners", UsersIcon),
+      leaf("Allotments", "/erp/allotments", ClipboardListIcon),
+      leaf("Channel", "/erp/channel", TruckIcon),
     ],
   },
   {
@@ -204,40 +229,16 @@ export const ERP_MODULES: ErpModule[] = [
     icon: UsersIcon,
     href: "/erp/hr",
     tabs: [
-      { title: "Staff", href: "/erp/hr", icon: UsersIcon },
-      {
-        title: "Module access",
-        href: "/erp/hr/access",
-        icon: SettingsIcon,
-      },
-      {
-        title: "Positions",
-        href: "/erp/hr/positions",
-        icon: ClipboardListIcon,
-      },
-      {
-        title: "Vacancies",
-        href: "/erp/hr/vacancies",
-        icon: ReceiptTextIcon,
-      },
-      {
-        title: "Recruitment",
-        href: "/erp/hr/recruitment",
-        icon: ClipboardListIcon,
-      },
-      { title: "Rota", href: "/erp/hr/rota", icon: CalendarClockIcon },
-      {
-        title: "Attendance",
-        href: "/erp/hr/attendance",
-        icon: ClipboardListIcon,
-      },
-      { title: "Leave", href: "/erp/hr/leave", icon: ScrollTextIcon },
-      {
-        title: "ISR / Labour",
-        href: "/erp/hr/isr",
-        icon: ScrollTextIcon,
-      },
-      { title: "Payroll", href: "/erp/hr/payroll", icon: WalletIcon },
+      leaf("Staff", "/erp/hr", UsersIcon),
+      leaf("Module access", "/erp/hr/access", SettingsIcon),
+      leaf("Positions", "/erp/hr/positions", ClipboardListIcon),
+      leaf("Vacancies", "/erp/hr/vacancies", ReceiptTextIcon),
+      leaf("Recruitment", "/erp/hr/recruitment", ClipboardListIcon),
+      leaf("Rota", "/erp/hr/rota", CalendarClockIcon),
+      leaf("Attendance", "/erp/hr/attendance", ClipboardListIcon),
+      leaf("Leave", "/erp/hr/leave", ScrollTextIcon),
+      leaf("ISR / Labour", "/erp/hr/isr", ScrollTextIcon),
+      leaf("Payroll", "/erp/hr/payroll", WalletIcon),
     ],
   },
   {
@@ -246,28 +247,12 @@ export const ERP_MODULES: ErpModule[] = [
     icon: BoxesIcon,
     href: "/erp/inventory",
     tabs: [
-      { title: "Items", href: "/erp/inventory", icon: BoxesIcon },
-      {
-        title: "Locations",
-        href: "/erp/inventory/locations",
-        icon: HotelIcon,
-      },
-      {
-        title: "Moves",
-        href: "/erp/inventory/moves",
-        icon: ScrollTextIcon,
-      },
-      {
-        title: "Assessment",
-        href: "/erp/inventory/audits",
-        icon: ClipboardListIcon,
-      },
-      {
-        title: "POs",
-        href: "/erp/inventory/purchase-orders",
-        icon: ReceiptTextIcon,
-      },
-      { title: "Assets", href: "/erp/inventory/assets", icon: WrenchIcon },
+      leaf("Items", "/erp/inventory", BoxesIcon),
+      leaf("Locations", "/erp/inventory/locations", HotelIcon),
+      leaf("Moves", "/erp/inventory/moves", ScrollTextIcon),
+      leaf("Assessment", "/erp/inventory/audits", ClipboardListIcon),
+      leaf("POs", "/erp/inventory/purchase-orders", ReceiptTextIcon),
+      leaf("Assets", "/erp/inventory/assets", WrenchIcon),
     ],
   },
   {
@@ -276,26 +261,14 @@ export const ERP_MODULES: ErpModule[] = [
     icon: Globe2Icon,
     href: "/erp/settings",
     tabs: [
-      { title: "Settings", href: "/erp/settings", icon: SettingsIcon },
-      { title: "Room rates", href: "/erp/rates", icon: TagsIcon },
-      { title: "Website CMS", href: "/erp/front-public", icon: Globe2Icon },
-      {
-        title: "Media",
-        href: "/erp/front-public/media",
-        icon: ImageIcon,
-      },
-      {
-        title: "Phone upload",
-        href: "/erp/front-public/media/upload",
-        icon: SmartphoneIcon,
-      },
-      { title: "Add hotel", href: "/erp/properties/new", icon: HotelIcon },
-      {
-        title: "DOT assessment",
-        href: "/erp/dot-assessment",
-        icon: ClipboardListIcon,
-      },
-      { title: "Training", href: "/erp/training", icon: ScrollTextIcon },
+      leaf("Settings", "/erp/settings", SettingsIcon),
+      leaf("Room rates", "/erp/rates", TagsIcon),
+      leaf("Website CMS", "/erp/front-public", Globe2Icon),
+      leaf("Media", "/erp/front-public/media", ImageIcon),
+      leaf("Phone upload", "/erp/front-public/media/upload", SmartphoneIcon),
+      leaf("Add hotel", "/erp/properties/new", HotelIcon),
+      leaf("DOT assessment", "/erp/dot-assessment", ClipboardListIcon),
+      leaf("Training", "/erp/training", ScrollTextIcon),
     ],
   },
 ];
@@ -308,16 +281,49 @@ export const NAV_SECTIONS = ERP_MODULES.map((m) => ({
 
 /** Frequent desk jumps for Ctrl+K — subset of module tabs, no duplicate nav source. */
 export const ERP_QUICK_ACTIONS: ErpNavLeaf[] = [
-  { title: "Check-in", href: "/erp/check-in", icon: UsersIcon },
-  { title: "Check-out", href: "/erp/check-out", icon: WalletIcon },
-  { title: "POS register", href: "/erp/pos", icon: ShoppingCartIcon },
-  { title: "Night audit", href: "/erp/night-audit", icon: ScrollTextIcon },
-  { title: "Settings", href: "/erp/settings", icon: SettingsIcon },
-  { title: "Training", href: "/erp/training", icon: ScrollTextIcon },
+  leaf("Check-in", "/erp/arrivals", UsersIcon, ["ci", "arrival", "walk-in"]),
+  leaf("Check-out", "/erp/departures", WalletIcon, ["co", "departure"]),
+  leaf("POS register", "/erp/pos", ShoppingCartIcon, ["pos", "fnb"]),
+  leaf("Night audit", "/erp/night-audit", ScrollTextIcon, ["na", "close day"]),
+  leaf("Settings", "/erp/settings", SettingsIcon),
+  leaf("Training", "/erp/training", ScrollTextIcon),
+  leaf("DOT assessment", "/erp/dot-assessment", ClipboardListIcon),
+];
+
+/** Deep detail routes → parent module tab when longest-prefix tab match fails. */
+const DEEP_ROUTE_RULES: ReadonlyArray<{
+  test: (pathname: string) => boolean;
+  moduleKey: string;
+  tabHref: string;
+}> = [
   {
-    title: "DOT assessment",
-    href: "/erp/dot-assessment",
-    icon: ClipboardListIcon,
+    test: (p) => /^\/erp\/guests\/[^/]+/.test(p),
+    moduleKey: "front-desk",
+    tabHref: "/erp/guests",
+  },
+  {
+    test: (p) => p.startsWith("/erp/folios/"),
+    moduleKey: "money",
+    tabHref: "/erp/folios",
+  },
+  {
+    test: (p) => /^\/erp\/agents\/call-tasks\/[^/]+/.test(p),
+    moduleKey: "channels",
+    tabHref: "/erp/agents/call-tasks",
+  },
+  {
+    test: (p) =>
+      /^\/erp\/agents\/[^/]+/.test(p) &&
+      !p.startsWith("/erp/agents/call-tasks") &&
+      !p.startsWith("/erp/agents/confirmed") &&
+      !p.startsWith("/erp/agents/rate-downloads"),
+    moduleKey: "channels",
+    tabHref: "/erp/agents",
+  },
+  {
+    test: (p) => p.startsWith("/erp/finance/"),
+    moduleKey: "money",
+    tabHref: "/erp/finance",
   },
 ];
 
@@ -332,7 +338,8 @@ export function isNavActive(
 
 /**
  * Longest-prefix match so `/erp/calendar/day-sheet` resolves to the day sheet
- * tab rather than the rack it sits under.
+ * tab rather than the rack it sits under. Deep detail routes fall back to
+ * parent module tabs (guest profile, folio, agent dossier, finance children).
  */
 export function resolveModule(pathname: string | null): {
   module: ErpModule;
@@ -348,5 +355,27 @@ export function resolveModule(pathname: string | null): {
       }
     }
   }
-  return best;
+  if (best) return best;
+
+  for (const rule of DEEP_ROUTE_RULES) {
+    if (!rule.test(pathname)) continue;
+    const module = ERP_MODULES.find((m) => m.key === rule.moduleKey);
+    if (!module) continue;
+    const tab =
+      module.tabs.find((t) => t.href === rule.tabHref) ?? module.tabs[0];
+    if (!tab) continue;
+    return { module, tab };
+  }
+
+  return null;
+}
+
+/** Haystack string for Ctrl+K / mobile search on a nav leaf. */
+export function erpNavLeafHaystack(
+  tab: ErpNavLeaf,
+  moduleTitle?: string,
+): string {
+  return [tab.title, moduleTitle, tab.href, ...(tab.keywords ?? [])]
+    .filter(Boolean)
+    .join(" ");
 }

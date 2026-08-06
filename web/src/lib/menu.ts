@@ -19,4 +19,8 @@ export type MenuItem = {
   sold_out?: boolean;
   stock_inventory_item_id?: string | null;
   stock_qty_per_sale?: number;
+  family_id?: string | null;
+  sell_size?: "pek" | "bottle" | "single" | "case" | null;
+  /** Human label for remaining stock (peks / bottles). */
+  stock_label?: string | null;
 };

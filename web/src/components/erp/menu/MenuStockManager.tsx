@@ -115,8 +115,9 @@ export function MenuStockManager({
         </p>
         <h2 className="mt-1 text-lg font-semibold">Link menu to stock</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Purchased pastries consume finished units. Prepared dishes consume
-          recipe ingredients.
+          Pastries use finished units. Cocktails use recipe ingredients (spirit
+          ml + mixers). Prefer the same spirit SKU as a pek pack so pours and
+          cocktails share one bottle inventory.
         </p>
 
         {configureState.error ? (

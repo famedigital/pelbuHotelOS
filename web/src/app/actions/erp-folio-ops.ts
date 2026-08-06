@@ -26,6 +26,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 import { createHash, randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
+import { captureServerError } from "@/lib/observability";
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
 
@@ -362,6 +363,7 @@ export async function markDepositLinkPaid(
       throw e;
     }
   } catch (e) {
+    await captureServerError(e, { action: "markDepositLinkPaid" });
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
   }
 }
@@ -866,6 +868,7 @@ export async function confirmPendingBankPayment(
         : "Payment confirmed.",
     };
   } catch (e) {
+    await captureServerError(e, { action: "confirmPendingBankPayment" });
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
   }
 }

@@ -62,95 +62,154 @@ export default async function CalendarPage({ searchParams }: Props) {
     { data: mealPlanRows },
     { data: propertyDefaults },
     { data: staffRows },
-  ] =
-    await Promise.all([
-      admin
-        .from("room_units")
-        .select(
-          "id, label, floor_label, view_label, has_balcony, sort_order, room_type_id, hk_status, service_requested_at, connecting_room_unit_id, room_types!inner(code, name, inventory_kind)",
-        )
-        .eq("property_id", propertyId)
-        .eq("room_types.inventory_kind", "sellable_guest")
-        .order("sort_order")
-        .order("label")
-        .limit(120),
-      admin
-        .from("room_assignments")
-        .select(
-          `id, booking_id, room_unit_id, from_date, to_date, is_locked, lock_reason,
-           room_units(label, room_type_id, room_types(name)),
-           bookings!inner(
-             contact_name, contact_phone, contact_email, status,
-             check_in, check_out, adults, rooms, guide_number,
-             payment_mode, notes, agent_id, source, booked_by_role, guest_origin,
-             sold_by_staff_id, sales_claim_status,
-             agents(company_name),
-             sold_by_staff:staff_members!sold_by_staff_id(full_name),
-             folios(id, status, folio_lines(id, total_btn, status, source_type, reverses_line_id)),
-             booking_group_members(booking_groups(name)),
-             booking_guests(passport_or_cid, sdf_ref)
-           )`,
-        )
-        .eq("property_id", propertyId)
-        .lt("from_date", endExclusive)
-        .gt("to_date", start)
-        .limit(5000),
-      admin
-        .from("agents")
-        .select("id, company_name, market, status")
-        .in("status", [...BOOKABLE_AGENT_STATUSES])
-        .order("company_name"),
-      admin
-        .from("bookings")
-        .select(
-          `id, contact_name, contact_phone, status, check_in, check_out,
-           agents(company_name),
-           booking_rooms(
-             room_type_id, qty, inventory_kind,
-             room_types(code, name)
-           )`,
-        )
-        .eq("property_id", propertyId)
-        .lt("check_in", endExclusive)
-        .gt("check_out", start)
-        .in("status", ["held", "pending", "confirmed", "checked_in"])
-        .limit(2000),
-      admin
-        .from("room_blocks")
-        .select("id, room_unit_id, block_kind, from_date, to_date, reason")
-        .eq("property_id", propertyId)
-        .is("released_at", null)
-        .lt("from_date", endExclusive)
-        .gt("to_date", start)
-        .limit(500),
-      admin
-        .from("agent_allotments")
-        .select(
-          "id, room_type_id, rooms_per_week, valid_from, valid_to, agents(company_name)",
-        )
-        .eq("property_id", propertyId)
-        .lte("valid_from", endExclusive)
-        .gte("valid_to", start)
-        .limit(200),
-      admin
-        .from("meal_plans")
-        .select("code, name")
-        .eq("property_id", propertyId)
-        .eq("is_active", true)
-        .order("sort_order"),
-      admin
-        .from("properties")
-        .select("default_meal_plan_code")
-        .eq("id", propertyId)
-        .maybeSingle(),
-      admin
-        .from("staff_members")
-        .select("id, full_name, employee_code, role_label")
-        .eq("property_id", propertyId)
-        .in("status", ["active", "on_leave"])
-        .order("full_name")
-        .limit(300),
-    ]);
+  ] = await Promise.all([
+    admin
+      .from("room_units")
+      .select(
+        "id, label, floor_label, view_label, has_balcony, sort_order, room_type_id, hk_status, service_requested_at, connecting_room_unit_id, room_types!inner(code, name, inventory_kind)",
+      )
+      .eq("property_id", propertyId)
+      .eq("room_types.inventory_kind", "sellable_guest")
+      .order("sort_order")
+      .order("label")
+      .limit(120),
+    admin
+      .from("room_assignments")
+      .select(
+        `id, booking_id, room_unit_id, from_date, to_date, is_locked, lock_reason,
+         room_units(label, room_type_id, room_types(name))`,
+      )
+      .eq("property_id", propertyId)
+      .lt("from_date", endExclusive)
+      .gt("to_date", start)
+      .limit(5000),
+    admin
+      .from("agents")
+      .select("id, company_name, market, status")
+      .in("status", [...BOOKABLE_AGENT_STATUSES])
+      .order("company_name"),
+    admin
+      .from("bookings")
+      .select(
+        `id, contact_name, contact_phone, status, check_in, check_out,
+         agents(company_name),
+         booking_rooms(
+           room_type_id, qty, inventory_kind,
+           room_types(code, name)
+         )`,
+      )
+      .eq("property_id", propertyId)
+      .lt("check_in", endExclusive)
+      .gt("check_out", start)
+      .in("status", ["held", "pending", "confirmed", "checked_in"])
+      .limit(2000),
+    admin
+      .from("room_blocks")
+      .select("id, room_unit_id, block_kind, from_date, to_date, reason")
+      .eq("property_id", propertyId)
+      .is("released_at", null)
+      .lt("from_date", endExclusive)
+      .gt("to_date", start)
+      .limit(500),
+    admin
+      .from("agent_allotments")
+      .select(
+        "id, room_type_id, rooms_per_week, valid_from, valid_to, agents(company_name)",
+      )
+      .eq("property_id", propertyId)
+      .lte("valid_from", endExclusive)
+      .gte("valid_to", start)
+      .limit(200),
+    admin
+      .from("meal_plans")
+      .select("code, name")
+      .eq("property_id", propertyId)
+      .eq("is_active", true)
+      .order("sort_order"),
+    admin
+      .from("properties")
+      .select("default_meal_plan_code")
+      .eq("id", propertyId)
+      .maybeSingle(),
+    admin
+      .from("staff_members")
+      .select("id, full_name, employee_code, role_label")
+      .eq("property_id", propertyId)
+      .in("status", ["active", "on_leave"])
+      .order("full_name")
+      .limit(300),
+  ]);
+
+  const assignBookingIds = [
+    ...new Set(
+      (assignRows ?? [])
+        .map((row) => row.booking_id as string)
+        .filter(Boolean),
+    ),
+  ];
+
+  const [{ data: rackBookings }, { data: rackFolios }, { data: rackGuests }] =
+    assignBookingIds.length > 0
+      ? await Promise.all([
+          admin
+            .from("bookings")
+            .select(
+              `id, contact_name, contact_phone, contact_email, status,
+               check_in, check_out, adults, rooms, guide_number,
+               payment_mode, notes, agent_id, source, booked_by_role, guest_origin,
+               sold_by_staff_id, sales_claim_status,
+               agents(company_name),
+               sold_by_staff:staff_members!sold_by_staff_id(full_name),
+               booking_group_members(booking_groups(name))`,
+            )
+            .eq("property_id", propertyId)
+            .in("id", assignBookingIds),
+          admin
+            .from("folios")
+            .select(
+              "id, booking_id, status, folio_lines(id, total_btn, status, source_type, reverses_line_id)",
+            )
+            .eq("property_id", propertyId)
+            .in("booking_id", assignBookingIds),
+          admin
+            .from("booking_guests")
+            .select("booking_id, passport_or_cid, sdf_ref")
+            .in("booking_id", assignBookingIds),
+        ])
+      : [{ data: [] }, { data: [] }, { data: [] }];
+
+  const bookingById = new Map(
+    (rackBookings ?? []).map((b) => [b.id as string, b]),
+  );
+  const foliosByBooking = new Map<
+    string,
+    {
+      id: string;
+      status: string;
+      folio_lines?: {
+        total_btn: number;
+        status: string;
+        source_type?: string;
+        reverses_line_id?: string | null;
+      }[];
+    }[]
+  >();
+  for (const folio of rackFolios ?? []) {
+    const bid = folio.booking_id as string;
+    const list = foliosByBooking.get(bid) ?? [];
+    list.push(folio);
+    foliosByBooking.set(bid, list);
+  }
+  const guestsByBooking = new Map<
+    string,
+    { booking_id: string; passport_or_cid?: string | null; sdf_ref?: string | null }[]
+  >();
+  for (const guest of rackGuests ?? []) {
+    const bid = guest.booking_id as string;
+    const list = guestsByBooking.get(bid) ?? [];
+    list.push(guest);
+    guestsByBooking.set(bid, list);
+  }
 
   const units: RackUnit[] = (unitRows ?? [])
     .map((u) => {
@@ -195,8 +254,7 @@ export default async function CalendarPage({ searchParams }: Props) {
 
   const stays = (assignRows ?? [])
     .map((a) => {
-      const b = a.bookings as Record<string, unknown> | Record<string, unknown>[] | null;
-      const booking = Array.isArray(b) ? b[0] : b;
+      const booking = bookingById.get(a.booking_id as string);
       if (!booking) return null;
       const status = booking.status as string;
       if (!["held", "pending", "confirmed", "checked_in"].includes(status)) {
@@ -209,26 +267,27 @@ export default async function CalendarPage({ searchParams }: Props) {
         | null;
       const agentObj = Array.isArray(agent) ? agent[0] : agent;
 
-      const folios = booking.folios as
-        | {
-            id: string;
-            status: string;
-            folio_lines?: {
-              id: string;
-              total_btn: number;
-              status: string;
-              source_type?: string;
-              reverses_line_id?: string | null;
-            }[];
-          }[]
-        | null;
-      const openFolio = (folios ?? []).find((f) => f.status === "open");
+      const folios = foliosByBooking.get(a.booking_id as string) ?? [];
+      const openFolio = folios.find((f) => f.status === "open");
       let folioBalance = 0;
       let folioHasCharges = false;
-      for (const f of folios ?? []) {
+      for (const f of folios) {
         if (f.status === "settled") continue;
-        folioBalance += netFolioBalance(f.folio_lines ?? []);
-        for (const line of f.folio_lines ?? []) {
+        folioBalance += netFolioBalance(
+          (f.folio_lines as {
+            id: string;
+            total_btn: number;
+            status: string;
+            source_type?: string;
+            reverses_line_id?: string | null;
+          }[]) ?? [],
+        );
+        for (const line of (f.folio_lines as {
+          id: string;
+          total_btn: number;
+          status: string;
+          source_type?: string;
+        }[]) ?? []) {
           if (
             line.status === "posted" &&
             line.source_type !== "payment" &&
@@ -262,9 +321,7 @@ export default async function CalendarPage({ searchParams }: Props) {
       const fallback = unitLabelById.get(a.room_unit_id as string);
 
       const guests =
-        (booking.booking_guests as
-          | { passport_or_cid?: string | null; sdf_ref?: string | null }[]
-          | null) ?? [];
+        guestsByBooking.get(a.booking_id as string) ?? [];
       const origin = (booking.guest_origin as string | null) ?? null;
       const needsSdf =
         origin === "international" ||

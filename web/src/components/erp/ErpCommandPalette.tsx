@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { ClockIcon, UserIcon, BedDoubleIcon, ReceiptTextIcon } from "lucide-react";
 
 import {
   CommandDialog,
@@ -13,11 +14,24 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from "@/components/ui/command";
-import { ERP_MODULES, ERP_QUICK_ACTIONS } from "@/lib/erp-nav";
+import {
+  ERP_MODULES,
+  ERP_QUICK_ACTIONS,
+  erpNavLeafHaystack,
+} from "@/lib/erp-nav";
+import {
+  erpNavFilterScore,
+  erpNavSearchHaystack,
+} from "@/lib/erp-nav-search";
 import {
   filterErpNavByGrants,
   pathnameAllowedForModules,
 } from "@/lib/erp/desk-modules";
+import {
+  pushErpRecent,
+  readErpRecents,
+  type ErpRecentRoute,
+} from "@/lib/erp-recents";
 
 /** Custom event so mobile More / buttons can open the palette without keyboard. */
 export const ERP_OPEN_COMMAND_PALETTE = "erp:open-command-palette";
@@ -25,6 +39,21 @@ export const ERP_OPEN_COMMAND_PALETTE = "erp:open-command-palette";
 export function openErpCommandPalette() {
   document.dispatchEvent(new CustomEvent(ERP_OPEN_COMMAND_PALETTE));
 }
+
+type EntityHit = {
+  kind: "guest" | "room" | "booking" | "invoice";
+  id: string;
+  label: string;
+  href: string;
+  meta?: string;
+};
+
+const ENTITY_ICONS = {
+  guest: UserIcon,
+  room: BedDoubleIcon,
+  booking: ReceiptTextIcon,
+  invoice: ReceiptTextIcon,
+} as const;
 
 /**
  * Desk command palette — Ctrl+K / Cmd+K jumps to any allowed module tab.
@@ -35,6 +64,10 @@ export function ErpCommandPalette({
   allowedModuleKeys?: readonly string[];
 } = {}) {
   const [open, setOpen] = React.useState(false);
+  const [recents, setRecents] = React.useState<ErpRecentRoute[]>([]);
+  const [entityQuery, setEntityQuery] = React.useState("");
+  const [entityHits, setEntityHits] = React.useState<EntityHit[]>([]);
+  const [entityLoading, setEntityLoading] = React.useState(false);
   const router = useRouter();
 
   React.useEffect(() => {
@@ -51,6 +84,36 @@ export function ErpCommandPalette({
       document.removeEventListener(ERP_OPEN_COMMAND_PALETTE, onOpen);
     };
   }, []);
+
+  React.useEffect(() => {
+    if (open) setRecents(readErpRecents());
+  }, [open]);
+
+  React.useEffect(() => {
+    const q = entityQuery.trim();
+    if (q.length < 2) {
+      setEntityHits([]);
+      setEntityLoading(false);
+      return;
+    }
+
+    setEntityLoading(true);
+    const handle = window.setTimeout(() => {
+      void fetch(`/api/erp/desk-search?q=${encodeURIComponent(q)}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (!data || !Array.isArray(data.results)) {
+            setEntityHits([]);
+            return;
+          }
+          setEntityHits(data.results as EntityHit[]);
+        })
+        .catch(() => setEntityHits([]))
+        .finally(() => setEntityLoading(false));
+    }, 280);
+
+    return () => window.clearTimeout(handle);
+  }, [entityQuery]);
 
   const allow = React.useMemo(() => {
     if (!allowedModuleKeys || allowedModuleKeys.length === 0) return null;
@@ -69,8 +132,15 @@ export function ErpCommandPalette({
     );
   }, [allow]);
 
+  const allowedRecents = React.useMemo(() => {
+    if (!allow) return recents;
+    return recents.filter((r) => pathnameAllowedForModules(r.href, allow));
+  }, [allow, recents]);
+
   const navigate = React.useCallback(
-    (href: string) => {
+    (href: string, title: string) => {
+      pushErpRecent({ href, title });
+      setRecents(readErpRecents());
       setOpen(false);
       router.push(href);
     },
@@ -83,10 +153,70 @@ export function ErpCommandPalette({
       onOpenChange={setOpen}
       title="Desk command palette"
       description="Search modules and jump to a screen"
+      commandProps={{ filter: erpNavFilterScore }}
     >
-      <CommandInput placeholder="Jump to a screen…" aria-label="Search desk screens" />
+      <CommandInput
+        placeholder="Jump to a screen, guest, room…"
+        aria-label="Search desk screens"
+        onValueChange={setEntityQuery}
+      />
       <CommandList>
         <CommandEmpty>No matching screen.</CommandEmpty>
+        {entityLoading ? (
+          <p className="px-3 py-2 text-xs text-muted-foreground">
+            Searching guests and rooms…
+          </p>
+        ) : null}
+        {entityHits.length > 0 ? (
+          <>
+            <CommandGroup heading="Records">
+              {entityHits.map((hit) => {
+                const Icon = ENTITY_ICONS[hit.kind];
+                return (
+                  <CommandItem
+                    key={`${hit.kind}-${hit.id}`}
+                    value={erpNavSearchHaystack({
+                      title: hit.label,
+                      href: hit.href,
+                      context: hit.kind,
+                      keywords: hit.meta ? [hit.meta] : undefined,
+                    })}
+                    keywords={[hit.kind, hit.meta ?? ""].filter(Boolean)}
+                    onSelect={() => navigate(hit.href, hit.label)}
+                  >
+                    <Icon />
+                    <span>{hit.label}</span>
+                    {hit.meta ? (
+                      <CommandShortcut>{hit.meta}</CommandShortcut>
+                    ) : null}
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+            <CommandSeparator />
+          </>
+        ) : null}
+        {allowedRecents.length > 0 ? (
+          <>
+            <CommandGroup heading="Recent">
+              {allowedRecents.map((recent) => (
+                <CommandItem
+                  key={recent.href}
+                  value={erpNavSearchHaystack({
+                    title: recent.title,
+                    href: recent.href,
+                    context: "recent",
+                  })}
+                  onSelect={() => navigate(recent.href, recent.title)}
+                >
+                  <ClockIcon />
+                  <span>{recent.title}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+            <CommandSeparator />
+          </>
+        ) : null}
         {quick.length > 0 ? (
           <>
             <CommandGroup heading="Quick actions">
@@ -95,8 +225,9 @@ export function ErpCommandPalette({
                 return (
                   <CommandItem
                     key={action.href}
-                    value={`${action.title} ${action.href}`}
-                    onSelect={() => navigate(action.href)}
+                    value={erpNavLeafHaystack(action)}
+                    keywords={action.keywords}
+                    onSelect={() => navigate(action.href, action.title)}
                   >
                     <Icon />
                     <span>{action.title}</span>
@@ -114,8 +245,9 @@ export function ErpCommandPalette({
               return (
                 <CommandItem
                   key={tab.href}
-                  value={`${module.title} ${tab.title} ${tab.href}`}
-                  onSelect={() => navigate(tab.href)}
+                  value={erpNavLeafHaystack(tab, module.title)}
+                  keywords={tab.keywords}
+                  onSelect={() => navigate(tab.href, tab.title)}
                 >
                   <Icon />
                   <span>{tab.title}</span>
@@ -131,3 +263,6 @@ export function ErpCommandPalette({
     </CommandDialog>
   );
 }
+
+/** cmdk filter wired at dialog level — re-export for Command wrapper if needed. */
+export { erpNavFilterScore as erpCommandFilter };

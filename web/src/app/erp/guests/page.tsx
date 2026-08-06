@@ -1,5 +1,6 @@
 import { DeskListShell, DeskSearchForm } from "@/components/erp/DeskListShell";
 import { GuestsTable, type GuestStay } from "@/components/erp/GuestsTable";
+import { Button } from "@/components/ui/button";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { matchesQuery } from "@/lib/erp-lists";
 import { requireDeskPropertyId } from "@/lib/desk-property";
@@ -13,26 +14,44 @@ export const metadata = {
 };
 export const dynamic = "force-dynamic";
 
+const PAGE_SIZE = 75;
+
+function ilikePattern(q: string): string {
+  return `%${q.replace(/[%_\\]/g, "")}%`;
+}
+
 export default async function GuestsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; page?: string }>;
 }) {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
-  const { q } = await searchParams;
-  const query = (q ?? "").trim();
+  const sp = await searchParams;
+  const query = (sp.q ?? "").trim();
+  const page = Math.max(1, Number(sp.page ?? 1) || 1);
   const admin = createSupabaseAdminClient();
   const propertyId = await requireDeskPropertyId();
 
-  const { data: bookings } = await admin
+  let bookingsQ = admin
     .from("bookings")
     .select(
       `id, contact_name, contact_phone, check_in, check_out, status, guest_origin,
        booking_guests(id, full_name, nationality, passport_or_cid, sdf_ref, sdf_doc_url, blacklisted, blacklist_reason)`,
+      { count: query ? undefined : "exact" },
     )
     .eq("property_id", propertyId)
-    .order("check_in", { ascending: false })
-    .limit(300);
+    .order("check_in", { ascending: false });
+
+  if (query) {
+    bookingsQ = bookingsQ.or(
+      `contact_name.ilike.${ilikePattern(query)},contact_phone.ilike.${ilikePattern(query)}`,
+    ).limit(250);
+  } else {
+    const from = (page - 1) * PAGE_SIZE;
+    bookingsQ = bookingsQ.range(from, from + PAGE_SIZE - 1);
+  }
+
+  const { data: bookings, count: bookingCount } = await bookingsQ;
 
   const stays: GuestStay[] = [];
   for (const b of bookings ?? []) {
@@ -87,15 +106,24 @@ export default async function GuestsPage({
     }
   }
 
-  const filtered = stays.filter((s) =>
-    matchesQuery(
-      [s.full_name, s.nationality, s.passport_or_cid, s.sdf_ref, s.contact_phone, s.booking_id],
-      query,
-    ),
-  );
+  const filtered = query
+    ? stays.filter((s) =>
+        matchesQuery(
+          [
+            s.full_name,
+            s.nationality,
+            s.passport_or_cid,
+            s.sdf_ref,
+            s.contact_phone,
+            s.booking_id,
+          ],
+          query,
+        ),
+      )
+    : stays;
 
   const stayCount = new Map<string, number>();
-  for (const s of stays) {
+  for (const s of filtered) {
     const key = (s.passport_or_cid || s.full_name).toLowerCase();
     stayCount.set(key, (stayCount.get(key) ?? 0) + 1);
   }
@@ -103,6 +131,10 @@ export default async function GuestsPage({
     const key = (s.passport_or_cid || s.full_name).toLowerCase();
     s.stay_count = stayCount.get(key) ?? 1;
   }
+
+  const totalPages = query
+    ? 1
+    : Math.max(1, Math.ceil((bookingCount ?? filtered.length) / PAGE_SIZE));
 
   return (
     <DeskListShell
@@ -113,7 +145,7 @@ export default async function GuestsPage({
         <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <DeskSearchForm
             action="/erp/guests"
-            q={q}
+            q={sp.q}
             placeholder="Name, passport/CID, SDF, phone…"
           />
           <div className="flex flex-wrap gap-2">
@@ -133,8 +165,27 @@ export default async function GuestsPage({
         </div>
       }
     >
-      <p className="text-xs text-muted-foreground">{filtered.length} shown</p>
+      <p className="text-xs text-muted-foreground">
+        {filtered.length} shown
+        {!query && totalPages > 1
+          ? ` · page ${page} of ${totalPages}`
+          : null}
+      </p>
       <GuestsTable data={filtered} />
+      {!query && totalPages > 1 ? (
+        <div className="flex flex-wrap items-center gap-2 pt-2">
+          {page > 1 ? (
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/erp/guests?page=${page - 1}`}>Previous</Link>
+            </Button>
+          ) : null}
+          {page < totalPages ? (
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/erp/guests?page=${page + 1}`}>Next</Link>
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </DeskListShell>
   );
 }
