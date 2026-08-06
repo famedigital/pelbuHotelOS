@@ -1,6 +1,6 @@
 # Whiteboard — Pelbu Suites live system
 
-Last updated: 2026-08-01 (**v1.0**). This is the single desk-side map of what is live, how it is hosted, and what is next. Release package: [RELEASE-v1.md](RELEASE-v1.md). Detail: [FEATURES.md](FEATURES.md), [PLATFORM.md](PLATFORM.md), audit docs below.
+Last updated: 2026-08-06 (**v1.0 + StayHub walk-in** · `8ba9342`). This is the single desk-side map of what is live, how it is hosted, and what is next. Release package: [RELEASE-v1.md](RELEASE-v1.md). Detail: [FEATURES.md](FEATURES.md), [PLATFORM.md](PLATFORM.md), audit docs below.
 
 ---
 
@@ -93,6 +93,19 @@ Launch cutover: [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md) · Finance pack: [FIN
 | Icon-collapsed sidebar | `sidebar.tsx` + `DeskShell` | Default collapsed; 13rem expanded; hover peek; cookie `sidebar_state_v2` |
 | Property logo in nav | `AppSidebar` + Settings Identity | Cloudinary logo from `/erp/settings` |
 
+### 2026-08-06 — StayHub walk-in FO
+
+| Fix | Route / component | What changed |
+|-----|-------------------|--------------|
+| Phone later | calendar create · StayHub · Fast Book | Empty phone allowed; still validates when filled |
+| Identity save perf | `updateCalendarReservationDetails` · StayHub | No 7-path revalidate / per-keystroke `router.refresh` |
+| Sticky CI CTA | `StayHubDialog` + `CheckInForm` | Footer **Confirm check-in** via `form="stay-hub-checkin-form"` |
+| Walk-in land | rack create | Single room opens StayHub on **check_in**; adults default 1 |
+| Undo / lifecycle | `undoCheckIn` · CI panel | Cancel/no-show on CI; undo → confirmed when folio simple |
+| Reservations filters | `/erp/reservations` | Room fit / dates / sort |
+| Menu save UX | POS menu admin | Item save does not remount whole menu page |
+| Building layout | rooms layout + migration | Setup tools for building floor map (early) |
+
 ### 2026-07-31 — Front desk process UX
 
 | Fix | Route / component | What changed |
@@ -112,7 +125,8 @@ Full severity register: [ERP-AUDIT.md](ERP-AUDIT.md).
 
 | Gap | Why engineers will call it “vibe coded” | Target standard | Status |
 |-----|------------------------------------------|-----------------|--------|
-| Empty folio after check-in | Room nights post on night-audit cron, not at check-in; balance Nu 0 with 0 lines until roll | Clear copy + optional same-day post | **Partial** — cron + posting + copy shipped; optional day-one post still open |
+| Empty folio after check-in | Room nights post on night-audit cron, not at check-in; balance Nu 0 with 0 lines until roll | Clear copy + optional same-day post | **Fixed 2026-08-02** — day-1 post at CI (default on); night audit remaining nights |
+| Walk-in phone + slow StayHub | Phone required; auto-save revalidated whole ERP; Confirm CI buried | Phone later + light auto-save + sticky CI footer + undo | **Fixed 2026-08-06** — [FEATURES StayHub](FEATURES.md) |
 | Laundry money integrity | GST / reversal / cancel paths | Fix GST form post; reverseJournal on correction; block cancel without void | **Largely fixed 2026-08-01** — see ERP-AUDIT §7.1 |
 | Service-role bypass | Most desk writes use admin client; RLS is a second fence, not the primary one | AuthZ at action + RLS for non-admin clients | **Partial** — Wave 2 money gates + `assertDeskProperty`; staff-scoped client rewrite open |
 | RLS enabled, 0 policies | Several booking/order tables | Add policies or document admin-only | **Fixed 2026-08-01** — service_role policies migration |

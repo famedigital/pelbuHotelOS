@@ -45,6 +45,16 @@ Use before cutting over from Excel. Desk PIN: `DESK_PIN`. Property slug: `pelbu-
 - [ ] Monthly occupancy cards + Today rooms update; Live badge refreshes on change
 - [ ] Day sheet print: `/erp/calendar/day-sheet`
 
+## Desk — StayHub walk-in FO (2026-08-06)
+- [ ] Click free room for **today** → create with **guest name only** + **Phone later** (phone blank) → saves without multi-second freeze
+- [ ] After single-room create, StayHub opens on **Check-in** with room # visible
+- [ ] Sticky footer shows **Confirm check-in** (no need to scroll the long form)
+- [ ] Guest docs start with **1** row when adults=1; change adults on Reserve → docs rows match
+- [ ] From Check-in step: **No-show** and **Cancel booking** without going back to Reserve
+- [ ] Accidental check-in: **Undo check-in** returns status to **confirmed**, room still assigned (simple folio only)
+- [ ] Undo blocked with clear message when payments or laundry/F&B (non day-1) charges exist
+- [ ] Typing guest name/phone in StayHub auto-saves without remounting the whole calendar rack
+
 ## Desk — shell / settings
 - [ ] Sidebar groups navigate; property switcher changes active hotel
 - [ ] Mobile footer tabs: Calendar / Book / Stay / POS / More; no top hamburger

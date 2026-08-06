@@ -26,12 +26,13 @@ All Pelbu OS docs live in this folder (`C:\GitHub\pelbusuites\docs`).
 | [../design/mockups/README.md](../design/mockups/README.md) | UX mockup index |
 | [../scripts/bank-recon/README.md](../scripts/bank-recon/README.md) | Bhutan bank PDF → JSON recon |
 
-## Latest product truth (2026-08-01 — v1.0)
+## Latest product truth (2026-08-06 — v1.0 + StayHub walk-in)
 
 - **Release:** boutique single-hotel **v1.0** — [RELEASE-v1.md](RELEASE-v1.md)
 - Desk palette: **Sky & Citrus** — sky-500 `#0ea5e9` + amber-500 `#f59e0b`
 - Shell: `DeskShell` + shadcn **Sidebar**; Groups under **Front desk**
 - Calendar: `/erp/calendar` rack (density, stay colors, connecting rooms, virtualization)
+- **StayHub walk-in (2026-08-06):** phone later · fast identity auto-save · sticky Confirm check-in · undo check-in · cancel/no-show on CI — [FEATURES.md § StayHub](FEATURES.md) · commit `8ba9342`
 - Agents: `/erp/agents/[id]` dossier · Reports catalog at `/erp/reports`
 - Money: folio gateways, night-audit cron + `close_time`, fiscal INV/RCP/CN
 - Public: Himalayan Dusk conversion + `/book` hold funnel

@@ -1,9 +1,9 @@
 # Pelbu Suites — Feature status
 
-Last updated: **2026-08-04** (**v1.0 + Sales & Marketing residual close**).
+Last updated: **2026-08-06** (**StayHub walk-in FO fix + desk polish** · commit `8ba9342`).
 Property #1: `pelbu-suites-olakha` (`template_id` 1). Work login supports staff Auth with desk access; `DESK_PIN` remains a temporary single-hotel fallback — **never share across hotels**.
 
-**Verdict:** **v1.0 ready** for single-hotel Pelbu Olakha — see **[RELEASE-v1.md](RELEASE-v1.md)**. Core desk OS + public conversion PWA are **built**. Residual FO/money pack (journals proof, Playwright smoke, minibar, immigration SDF CSV, seasons editor, guest history) landed after N+1. Day-1 ops: **[GO-LIVE-TOMORROW.md](GO-LIVE-TOMORROW.md)**; cutover: **[LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md)** (real initials). Not chain-SaaS complete — Stripe self-serve, full SEC-01 admin purge, and **live** Channex certification remain post-v1.
+**Verdict:** **v1.0 ready** for single-hotel Pelbu Olakha — see **[RELEASE-v1.md](RELEASE-v1.md)**. Core desk OS + public conversion PWA are **built**. Residual FO/money pack (journals proof, Playwright smoke, minibar, immigration SDF CSV, seasons editor, guest history) landed after N+1. **2026-08-06:** StayHub walk-in path (phone later, fast identity save, sticky Confirm check-in, undo check-in) shipped — plan `stayhub_walk-in_ux_4eb64b91`. Day-1 ops: **[GO-LIVE-TOMORROW.md](GO-LIVE-TOMORROW.md)**; cutover: **[LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md)** (real initials). Not chain-SaaS complete — Stripe self-serve, full SEC-01 admin purge, and **live** Channex certification remain post-v1.
 
 **Palette (FINAL):** **Sky & Citrus** — sky-500 `#0ea5e9` accent + amber-500 `#f59e0b` citrus. Shipped on the desk (`.erp` scope). Pelbu-pink / Bubblegum is **retired**.
 
@@ -75,10 +75,11 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | **Dashboard** (role home) | `/erp` | **Per desk role:** Owner · Manager · Front desk · F&B · Kitchen (**BF/L/D pax** + event pax) · HK · Laundry · Cashier — each board shows **weekly + monthly guest forecast** (arr/dep/rooms/guests from bookings). Owner/GM can preview all via `?view=`. Assign role on Staff → Access. |
 | **Calendar / Timeline** | `/erp/calendar` | **v1–v2 shipped (2026-07-29)** — see below |
 | Calendar day sheet | `/erp/calendar/day-sheet` | Printable arrivals / departures / stayovers / blocks |
-| Fast book | Modal on `/erp/reservations?new=1` (deeplink `/erp/fast-book` redirects) | Create path is modal → StayHub at Reserve; form still has qty grid + drawer |
-| Check-in / out | StayHub panels + `/erp/check-in` | Physical room allocation; after check-in StayHub lands Stay/Money; checkout → dirty |
+| Fast book | Modal on `/erp/reservations?new=1` (deeplink `/erp/fast-book` redirects) | Qty grid + drawer; default **adults = 1**; **Phone later**; success → StayHub |
+| **StayHub (FO hub)** | Modal from calendar / boards / reservations | One surface: Reserve → Confirm → Arrival → Check-in → Stay/Money → Check-out — see **StayHub walk-in** below |
+| Check-in / out | StayHub panels + `/erp/check-in` | Physical room allocation; sticky **Confirm check-in** footer; after CI lands Stay/Money; **Undo check-in** when folio still simple; checkout → dirty |
 | Arrivals / in-house / departures | `/erp/arrivals` etc. | Boards open StayHub (CI / Stay-Money / CO); today’s worklists only for A/D |
-| Reservations / guests | `/erp/reservations`, `/erp/guests` | **New reservation** CTA → Fast Book modal; list all bookings |
+| Reservations / guests | `/erp/reservations`, `/erp/guests` | **New reservation** CTA → Fast Book modal; filters (room / dates / sort) + room column via `booking-room-fit`; metric chips |
 | **POS / F&B** | `/erp/pos` (+ tabs) | **F&B product surface** (sidebar title remains POS): Register · Menu · Recipe cost · **Kitchen board** · Food cost · Kitchen TV. Cashier → folio; floor plan; shifts; **Open tickets + Closed today** |
 | **Laundry** | `/erp/laundry` (+ `/qr`, `/orders/[id]/labels`) · guest `/laundry` · staff `/staff/laundry` (+ bag scan/labels) | Guest QR room+name intake · reception photo intake · maid mobile board · **Amazon-style bag QR labels** (1–N bags, per-bag garments, staff-secured scan) · maid-confirmed counts → atomic folio post · printable room + bag stickers |
 | Folio | `/erp/folios/[id]` (+ `/receipt`) | Payments, void, comp, deposit links; **tax invoice + fiscal receipt issue**; **day-1 room post at check-in** + manual Post room night / day-1 charges; **stay money process strip** |
@@ -114,6 +115,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | **v1.5** Unassigned pool + assign, lock, edit modal, same-type move + 60s undo, OOO/OOS/hold + HK column, search, day filters, source chips | **Done** |
 | **v2** Cross-type move rate Continue/Override, split stay, resize via modal, live **poll** refresh (`/api/erp/calendar-version`), group tint, print day sheet, Bhutan badges (guide / on-credit) | **Done with gaps** |
 | Monthly occupancy cards + today rooms | **Done** (Occupancy popover in toolbar) |
+| **Walk-in FO path (2026-08-06)** | **Done** — single-room create → StayHub **Check-in**; phone later; no auto-save cache thrash; adults default 1 — plan `stayhub_walk-in_ux_4eb64b91` |
 | Mixed-category selection ack (modal + Fast Book) | **Done** |
 | Multi-cell drag (e.g. rooms 4–6 × Aug 2–4) | **Fixed** — window pointer tracking + geometry fallback (no `setPointerCapture`) |
 | Slim left room column + **category** group headers | **Done** (2026-08 density pass; floor groups retired) |
@@ -148,11 +150,39 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Bank recon parsers | `scripts/bank-recon/` — BoB, BNB, TBank, DrukPNB |
 | Audit trail | `audit_events` on money/ops actions |
 | Booking holds | TTL by source/season; cron `expire-holds` |
-| Cancel / no-show | Frees `room_assignments`; queues ARI when channel mapped |
+| Cancel / no-show | Frees `room_assignments`; queues ARI when channel mapped; visible on StayHub **Check-in** step (not only Reserve) |
+| **Undo check-in** | `undoCheckIn` — status → `confirmed`, keep room assignment; voids day-1 room/meal/extra_bed only; **blocks** if payments or other charges posted; audit `checkin.undo` |
 | Accounting CSV | `/api/erp/export?kind=payments\|expenses\|folio_lines\|immigration\|agent-production\|agent-commission` |
 | Playwright desk smoke | `web/e2e/money-path.spec.ts` — skips without `PLAYWRIGHT_*` secrets |
 | UAT checklist | `docs/UAT-CHECKLIST.md` |
 | Brand assets | `design/brand/` + favicons/PWA icons |
+
+### StayHub walk-in FO (plan `stayhub_walk-in_ux_4eb64b91` · **shipped 2026-08-06**)
+
+Target desk path: **click room today → name (phone optional) → StayHub Check-in → Confirm check-in in footer**.
+
+| Slice | Status | Notes |
+|-------|--------|--------|
+| **Phone later** | **Done** | Empty / deferred phone on calendar create + StayHub auto-save + Fast Book; filled numbers still `assertPhone`. Soft banner on CI when phone missing (no hard block). |
+| **Fast identity save** | **Done** | `updateCalendarReservationDetails` does **not** call heavy multi-path `revalidatePath`; client drops per-keystroke `router.refresh()` — refresh on hub close / create / CI / undo. Create still uses `revalidateCalendarHeavy` once; notify/ARI fire-and-forget. |
+| **Sticky Confirm check-in** | **Done** | Footer submits `form="stay-hub-checkin-form"`; embedded form `id` on `CheckInForm`; body submit hidden when embedded; loading CTA while payload pending. |
+| **Open on Check-in** | **Done** | Single-room rack create opens StayHub `step: "check_in"` (group → Reserve). |
+| **Adults default 1** | **Done** | Single / multi unit: adults = unit count (min 1); Fast Book default 1; CI guest rows follow adults (remount key). |
+| **Cancel / no-show on CI** | **Done** | `BookingLifecycleActions` on arrival/check-in panels. |
+| **Undo check-in** | **Done** | Footer on post-CI Check-in + Stay/Money; `web/src/lib/checkin-undo.ts` guards + tests. |
+| **Prefetch CI form** | **Done** | `fetchStayHubCheckIn` when hub opens for pending/confirmed. |
+
+**Key files:** `erp-calendar.ts`, `erp-checkin.ts`, `StayHubDialog.tsx`, `CheckInForm.tsx`, `CalendarReservationDialog.tsx`, `FastBookForm` / `FastBookDrawer`, `checkin-undo.ts`.
+
+**Known residual (not this pass):** create still has multiple serial Supabase writes + one heavy revalidate (expect ~1s+, not 4–5s freeze from remount thrash). Full Opera worklist redesign / multi-property out of scope.
+
+### Desk polish bundled same push (`8ba9342`)
+
+| Item | Status | Notes |
+|------|--------|--------|
+| **Menu editor no full remount** | **Done** | Item save/toggle skips `revalidatePath("/erp/menu")`; grid keeps local catalog + `onSaved` |
+| **Reservations list filters** | **Done** | Room fit / date range / sort + room column (`booking-room-fit.ts`) |
+| **Building layout (rooms map)** | **Done / early** | Migration `building_layout`; wizard + 3D/floor tools under rooms layout — for property setup fidelity, not FO walk-in |
 
 ---
 
@@ -245,11 +275,12 @@ See also: [RELEASE-v1.md](RELEASE-v1.md) · [WHITEBOARD.md](WHITEBOARD.md) · [E
 
 ## Front-desk stay money cycle (FO)
 
-1. **Book / assign rates** — calendar, fast book, or public `/book`. Room Nu from `room_rates` (`/erp/rates`); meal plan snapshot on booking.
-2. **Check-in** — opens guest folio; by default posts **day-1 room rent** (toggle: Settings → Tax → *Post day-1 room rent at check-in*) and **meal plan** when `meal_plan_amount_btn > 0`.
-3. **Post charges** — further nights via **night audit** (cron midnight Thimphu or `/erp/night-audit`). Manual: folio → **Post day-1 room + meals** / **Post room night**.
-4. **Invoice / pay** — collect payment, deposit link, issue tax invoice.
-5. **Checkout** when balance is zero (`/erp/check-out`).
+1. **Book / assign rates** — calendar (walk-in: room click → create), fast book, or public `/book`. Room Nu from `room_rates` (`/erp/rates`); meal plan snapshot on booking. **Phone later** allowed for desk walk-ins.
+2. **StayHub** — single-room rack create lands on **Check-in** with room # visible; sticky **Confirm check-in** in footer.
+3. **Check-in** — opens guest folio; by default posts **day-1 room rent** (toggle: Settings → Tax → *Post day-1 room rent at check-in*) and **meal plan** when `meal_plan_amount_btn > 0`. Accidental CI: **Undo check-in** (if folio still simple).
+4. **Post charges** — further nights via **night audit** (cron midnight Thimphu or `/erp/night-audit`). Manual: folio → **Post day-1 room + meals** / **Post room night**.
+5. **Invoice / pay** — collect payment, deposit link, issue tax invoice. Collect **phone before settle** when deferred at book.
+6. **Checkout** when balance is zero (`/erp/check-out`).
 
 Empty Nu 0 after check-in historically meant no day-1 post + night audit not yet run (FO-01). Fixed 2026-08-02.
 
