@@ -657,7 +657,7 @@ function OrderCart({
 }: {
   cartLines: { menuItemId: string; qty: number }[];
   items: MenuItem[];
-  totals: ReturnType<typeof calculateOrderTotals>;
+  totals: ReturnType<typeof withGuestFacingTotal>;
   gstRate: number;
   ticket: Ticket | null;
   onQty: (id: string, next: number) => void;
