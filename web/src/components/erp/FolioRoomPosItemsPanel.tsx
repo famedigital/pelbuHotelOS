@@ -5,8 +5,11 @@ import {
   voidOrderItem,
   type PosActionState,
 } from "@/app/actions/erp-pos";
-import type { RoomChargePosOrder } from "@/lib/folio/room-pos-orders";
-import { POS_VOID_REASON_CODES, type PosVoidReasonCode } from "@/lib/pos";
+import type { RoomChargePosOrder } from "@/lib/folio/room-pos-orders-types";
+import {
+  POS_VOID_REASON_CODES,
+  type PosVoidReasonCode,
+} from "@/lib/pos-void-reasons";
 import { formatBtn } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -337,3 +340,4 @@ export function FolioRoomPosItemsPanel({
 }
 
 export type { RoomChargePosOrder, PosVoidReasonCode };
+

@@ -1,49 +1,15 @@
 import "server-only";
-import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import type {
+  RoomChargePosItem,
+  RoomChargePosOrder,
+} from "@/lib/folio/room-pos-orders-types";
 import { KOT_LABEL } from "@/lib/kot";
 import { roundBtn } from "@/lib/pricing";
+import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
+
+export type { RoomChargePosItem, RoomChargePosOrder };
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
-
-export type RoomChargePosItem = {
-  id: string;
-  orderId: string;
-  name: string;
-  qty: number;
-  unitPriceBtn: number;
-  lineTotalBtn: number;
-  voidedAt: string | null;
-  voidReason: string | null;
-  kotStatus: string;
-  kotLabel: string;
-  servedAt: string | null;
-  servedBy: string | null;
-  readyAt: string | null;
-  readyBy: string | null;
-  lineNotes: string | null;
-};
-
-export type RoomChargePosOrder = {
-  orderId: string;
-  outlet: string;
-  customerName: string;
-  createdAt: string;
-  kotStatus: string;
-  kotLabel: string;
-  totalBtn: number;
-  postedToFolioAt: string | null;
-  settledAt: string | null;
-  servedAt: string | null;
-  servedBy: string | null;
-  readyAt: string | null;
-  readyBy: string | null;
-  voidedAt: string | null;
-  items: RoomChargePosItem[];
-  /** Live lines not voided — guest still billed for these. */
-  activeItemCount: number;
-  /** True when any live line is not yet marked served. */
-  hasUnservedLive: boolean;
-};
 
 /**
  * Room-charge POS tickets for a stay — item-level so front desk money can
@@ -83,9 +49,12 @@ export async function loadRoomChargePosOrders(
     const itemsRaw = (o.order_items as Array<Record<string, unknown>> | null) ?? [];
     const items: RoomChargePosItem[] = itemsRaw
       .map((item) => {
-        const mods = (item.modifiers as Array<{ priceBtn?: number; qty?: number }> | null) ?? [];
+        const mods =
+          (item.modifiers as Array<{ priceBtn?: number; qty?: number }> | null) ??
+          [];
         const modUnit = mods.reduce(
-          (s, m) => s + Number(m.priceBtn ?? 0) * Math.max(1, Number(m.qty ?? 1)),
+          (s, m) =>
+            s + Number(m.priceBtn ?? 0) * Math.max(1, Number(m.qty ?? 1)),
           0,
         );
         const qty = Math.max(1, Number(item.qty ?? 1));

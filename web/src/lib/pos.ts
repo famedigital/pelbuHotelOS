@@ -134,18 +134,10 @@ export type OpenPosTicket = {
 /** Settled / closed tickets for the business-day history lane. */
 export type SettledPosTicket = OpenPosTicket;
 
-export const POS_VOID_REASON_CODES = [
-  "guest_change",
-  "kitchen_error",
-  "wrong_item",
-  "comp",
-  "manager_comp",
-  "duplicate",
-  "training",
-  "other",
-] as const;
-
-export type PosVoidReasonCode = (typeof POS_VOID_REASON_CODES)[number];
+export {
+  POS_VOID_REASON_CODES,
+  type PosVoidReasonCode,
+} from "@/lib/pos-void-reasons";
 
 export const POS_TENDER_METHODS = [
   "cash",

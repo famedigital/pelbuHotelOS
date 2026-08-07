@@ -39,7 +39,7 @@ export type StayHubMoneyPayload = {
   agentName: string | null;
   paymentMode: string | null;
   /** Room-charge F&B tickets with item-level serve / void audit. */
-  roomPosOrders: import("@/lib/folio/room-pos-orders").RoomChargePosOrder[];
+  roomPosOrders: import("@/lib/folio/room-pos-orders-types").RoomChargePosOrder[];
 };
 
 export type StayHubSummary = {
