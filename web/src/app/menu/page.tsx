@@ -1,3 +1,4 @@
+import { MenuImmersiveShell } from "@/components/menu/MenuImmersiveShell";
 import { MenuOrderBoard } from "@/components/menu/MenuOrderBoard";
 import { PublicSiteHeader } from "@/components/site/PublicSiteHeader";
 import { SiteBreadcrumbs } from "@/components/site/SiteBreadcrumbs";
@@ -84,10 +85,10 @@ export default async function MenuPage({
           ]),
         }}
       />
-      <PublicSiteHeader variant="solid" />
-      <main className="min-h-[70dvh] bg-background pb-28 lg:pb-10">
-        <div className="mx-auto w-full max-w-[1760px] px-4 sm:px-6 lg:px-8 2xl:px-12">
-          <div className="space-y-2 border-b border-border/70 py-3 md:py-4">
+      <MenuImmersiveShell
+        header={<PublicSiteHeader variant="solid" />}
+        titleBlock={
+          <div className="space-y-2">
             <SiteBreadcrumbs
               items={breadcrumbs.map((item, i, arr) =>
                 i === arr.length - 1 ? { name: item.name } : item,
@@ -109,22 +110,23 @@ export default async function MenuPage({
               ) : null}
             </div>
           </div>
-          {items.length === 0 ? (
-            <p className="mt-6 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-4 text-sm text-destructive">
-              Menu is temporarily unavailable. Contact the desk or try again
-              shortly.
-            </p>
-          ) : (
-            <div className="pt-4 md:pt-5">
-              <MenuOrderBoard
-                items={items}
-                initialOutlet={initialOutlet}
-                preferRoomDelivery={preferRoomDelivery}
-              />
-            </div>
-          )}
-        </div>
-      </main>
+        }
+      >
+        {items.length === 0 ? (
+          <p className="mt-6 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-4 text-sm text-destructive">
+            Menu is temporarily unavailable. Contact the desk or try again
+            shortly.
+          </p>
+        ) : (
+          <div className="pt-4 md:pt-5 lg:pt-5">
+            <MenuOrderBoard
+              items={items}
+              initialOutlet={initialOutlet}
+              preferRoomDelivery={preferRoomDelivery}
+            />
+          </div>
+        )}
+      </MenuImmersiveShell>
     </>
   );
 }

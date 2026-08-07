@@ -9,6 +9,7 @@ import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { PwaRegistrar } from "@/components/pwa/PwaRegistrar";
 import { SplashController } from "@/components/pwa/SplashController";
 import { BackToTop } from "@/components/site/BackToTop";
+import { PublicMenuChromeProvider } from "@/components/site/public-menu-chrome";
 import { PublicMobileNav } from "@/components/site/PublicMobileNav";
 import { PublicStaySearchProvider } from "@/components/site/PublicStaySearch";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -142,13 +143,15 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <PublicStaySearchProvider>
-            {children}
-            <PublicMobileNav />
-            <BackToTop />
-            <PwaRegistrar />
-            <SplashController />
-            <InstallPrompt />
-            <Toaster position="top-right" richColors closeButton />
+            <PublicMenuChromeProvider>
+              {children}
+              <PublicMobileNav />
+              <BackToTop />
+              <PwaRegistrar />
+              <SplashController />
+              <InstallPrompt />
+              <Toaster position="top-right" richColors closeButton />
+            </PublicMenuChromeProvider>
           </PublicStaySearchProvider>
         </ThemeProvider>
       </body>

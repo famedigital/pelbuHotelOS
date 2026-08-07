@@ -782,7 +782,8 @@ export async function createCalendarGroupReservation(
       meta: { booking_ids: createdBookingIds, unit_ids: unitIds },
     });
 
-    await notifyNewBooking({
+    // Don't block FO on WhatsApp/email or channel ARI
+    void notifyNewBooking({
       bookingId: createdBookingIds[0]!,
       contactName: common.contactName,
       contactPhone: common.contactPhone,
@@ -793,14 +794,16 @@ export async function createCalendarGroupReservation(
       rooms: units.length,
       guideNumber: common.guideNumber,
       notes: `[CALENDAR GROUP ${groupName}] ${units.length} rooms`,
-    });
+    }).catch((err) => console.error("notifyNewBooking calendar.group", err));
 
-    await enqueueAfterBookingChange(
+    void enqueueAfterBookingChange(
       admin,
       propertyId,
       common.checkIn,
       common.checkOut,
       "calendar.group.create",
+    ).catch((err) =>
+      console.error("enqueueAfterBookingChange calendar.group", err),
     );
 
     revalidateCalendar();
