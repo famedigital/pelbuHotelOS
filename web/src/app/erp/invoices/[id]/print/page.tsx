@@ -3,8 +3,12 @@ import { FiscalDocEmailForm } from "@/components/erp/FiscalDocEmailForm";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
-import { formatBtn } from "@/lib/pricing";
 import { guestVisibleBalanceLines } from "@/lib/folio/balance";
+import {
+  formatBtn,
+  isGuestRateAdjDescription,
+  roundBtn,
+} from "@/lib/pricing";
 import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
 import { nightsBetween } from "@/lib/rates";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -49,11 +53,9 @@ function firstOf<T>(value: MaybeList<T>): T | null {
   return Array.isArray(value) ? (value[0] ?? null) : value;
 }
 
-/** Calendar stay dates (YYYY-MM-DD) and issue timestamps → hotel en-GB in Asia/Thimphu. */
 function fmtHotelDate(iso: string): string {
   const raw = String(iso).trim();
   if (!raw) return "—";
-  // Date-only: noon UTC avoids DST edge noise when formatting in Asia/Thimphu.
   const d = /^\d{4}-\d{2}-\d{2}$/.test(raw)
     ? new Date(`${raw}T12:00:00Z`)
     : new Date(raw);
@@ -87,7 +89,29 @@ function formatRoomProductLine(row: BookingRoomRow): string {
   return kind ? `${base} · ${kind}` : base;
 }
 
-/** Printable fiscal invoice (browser Print → PDF) + email. */
+type LineGroup = "room" | "pos" | "hotel_adj" | "other";
+
+function classifyInvoiceLine(line: {
+  source_type: string;
+  description: string;
+}): LineGroup {
+  if (isGuestRateAdjDescription(line.description)) return "hotel_adj";
+  const st = (line.source_type ?? "").toLowerCase();
+  if (["room", "meal_plan", "extra_bed"].includes(st)) return "room";
+  if (["order", "pos", "laundry"].includes(st)) return "pos";
+  if (st === "comp" || st === "adjustment") return "hotel_adj";
+  return "other";
+}
+
+function sumLines(rows: FolioLine[]): number {
+  return roundBtn(rows.reduce((s, l) => s + Number(l.total_btn ?? 0), 0));
+}
+
+function sumGst(rows: FolioLine[]): number {
+  return roundBtn(rows.reduce((s, l) => s + Number(l.gst_btn ?? 0), 0));
+}
+
+/** Printable fiscal invoice — compact room / POS sections + grand total. */
 export default async function FiscalInvoicePrintPage({ params }: Props) {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
 
@@ -95,7 +119,6 @@ export default async function FiscalInvoicePrintPage({ params }: Props) {
   const admin = createSupabaseAdminClient();
   const activePropertyId = await resolveActivePropertyId(admin);
 
-  // fiscal_documents has no total_btn/gst_btn columns — amounts come from folio lines.
   const { data: doc, error: docError } = await admin
     .from("fiscal_documents")
     .select(
@@ -136,10 +159,6 @@ export default async function FiscalInvoicePrintPage({ params }: Props) {
   let stayNights: number | null = null;
   let roomProductLines: string[] = [];
   let roomUnitLabels: string[] = [];
-  let quotedTotalBtn: number | null = null;
-  let mealPlanCode: string | null = null;
-  let mealPlanAmountBtn: number | null = null;
-  let bookingRoomsCount: number | null = null;
 
   const bookingId = folio?.booking_id as string | null | undefined;
   if (bookingId) {
@@ -147,7 +166,6 @@ export default async function FiscalInvoicePrintPage({ params }: Props) {
       .from("bookings")
       .select(
         `contact_email, contact_name, check_in, check_out, rooms,
-         quoted_total_btn, meal_plan_code, meal_plan_amount_btn, agent_id,
          agents(company_name),
          booking_rooms(qty, inventory_kind, room_types(name, code)),
          room_assignments(room_units(label))`,
@@ -181,26 +199,6 @@ export default async function FiscalInvoicePrintPage({ params }: Props) {
       )
         .map((row) => firstOf(row.room_units)?.label?.trim())
         .filter((label): label is string => Boolean(label));
-
-      const qt = booking.quoted_total_btn;
-      if (qt != null && Number.isFinite(Number(qt))) {
-        quotedTotalBtn = Number(qt);
-      }
-
-      mealPlanCode =
-        typeof booking.meal_plan_code === "string" &&
-        booking.meal_plan_code.trim()
-          ? booking.meal_plan_code.trim()
-          : null;
-      const mealAmt = booking.meal_plan_amount_btn;
-      if (mealAmt != null && Number.isFinite(Number(mealAmt)) && Number(mealAmt) > 0) {
-        mealPlanAmountBtn = Number(mealAmt);
-      }
-
-      const roomsField = booking.rooms;
-      if (roomsField != null && Number(roomsField) > 0) {
-        bookingRoomsCount = Number(roomsField);
-      }
     }
   }
 
@@ -216,10 +214,19 @@ export default async function FiscalInvoicePrintPage({ params }: Props) {
     (l) => l.source_type !== "payment" && l.source_type !== "deposit",
   );
 
-  const totalBtn = lines.reduce((s, l) => s + Number(l.total_btn ?? 0), 0);
-  const gstBtn = lines.reduce((s, l) => s + Number(l.gst_btn ?? 0), 0);
-  /** GST exclusive-add: line total = net + GST. */
-  const netBtn = totalBtn - gstBtn;
+  const roomLines = lines.filter((l) => classifyInvoiceLine(l) === "room");
+  const posLines = lines.filter((l) => classifyInvoiceLine(l) === "pos");
+  const hotelAdjLines = lines.filter(
+    (l) => classifyInvoiceLine(l) === "hotel_adj",
+  );
+  const otherLines = lines.filter((l) => classifyInvoiceLine(l) === "other");
+
+  const roomSub = sumLines(roomLines);
+  const posSub = sumLines(posLines);
+  const hotelAdjSub = sumLines(hotelAdjLines);
+  const otherSub = sumLines(otherLines);
+  const totalBtn = roundBtn(roomSub + posSub + hotelAdjSub + otherSub);
+  const gstBtn = sumGst(lines);
 
   const kind = doc.doc_kind as string;
   const kindLabel =
@@ -249,32 +256,85 @@ export default async function FiscalInvoicePrintPage({ params }: Props) {
   const hotelName = property?.name ?? "Hotel";
   const legalName = property?.legal_name?.trim() || null;
   const logoSrc = property?.logo_public_id
-    ? cloudinaryUrl(property.logo_public_id, { width: 200, crop: "fit" })
+    ? cloudinaryUrl(property.logo_public_id, { width: 160, crop: "fit" })
     : null;
   const issueDate = fmtHotelDate(String(doc.issued_at));
   const folioLabel = (folio?.label as string | null) ?? null;
 
-  const hasStaySummary = Boolean(
-    bookingId &&
-      (checkIn ||
-        checkOut ||
-        stayNights != null ||
-        agentName ||
-        roomProductLines.length > 0 ||
-        roomUnitLabels.length > 0 ||
-        quotedTotalBtn != null ||
-        mealPlanCode ||
-        bookingRoomsCount != null),
-  );
+  const stayBits = [
+    checkIn && checkOut
+      ? `${fmtHotelDate(checkIn)} → ${fmtHotelDate(checkOut)}`
+      : checkIn
+        ? `In ${fmtHotelDate(checkIn)}`
+        : null,
+    stayNights != null
+      ? `${stayNights} ${stayNights === 1 ? "night" : "nights"}`
+      : null,
+    roomUnitLabels.length
+      ? `Rm ${roomUnitLabels.join(", ")}`
+      : roomProductLines[0] ?? null,
+    agentName ? `Agent ${agentName}` : null,
+  ].filter(Boolean);
+
+  function SectionTable({
+    title,
+    rows,
+    subtotalLabel,
+    subtotal,
+  }: {
+    title: string;
+    rows: FolioLine[];
+    subtotalLabel: string;
+    subtotal: number;
+  }) {
+    if (rows.length === 0) return null;
+    return (
+      <section className="mt-4">
+        <p className="border-b border-neutral-900 pb-1 text-[10px] font-semibold tracking-[0.16em] text-neutral-700 uppercase">
+          {title}
+        </p>
+        <table className="w-full border-collapse text-[13px]">
+          <tbody>
+            {rows.map((line) => (
+              <tr
+                key={line.id}
+                className="border-b border-neutral-150 border-neutral-200/80"
+              >
+                <td className="py-1.5 pr-2 align-top text-neutral-900">
+                  {line.description}
+                  {Number(line.gst_btn) > 0.009 ? (
+                    <span className="mt-0.5 block text-[11px] text-neutral-500">
+                      incl. GST {formatBtn(Number(line.gst_btn))}
+                    </span>
+                  ) : null}
+                </td>
+                <td className="w-[6.5rem] py-1.5 pl-2 text-right align-top font-mono tabular-nums text-neutral-900">
+                  {formatBtn(Number(line.total_btn))}
+                </td>
+              </tr>
+            ))}
+            <tr>
+              <td className="pt-2 pr-2 text-right text-[12px] font-medium text-neutral-700">
+                {subtotalLabel}
+              </td>
+              <td className="pt-2 pl-2 text-right font-mono text-[13px] font-semibold tabular-nums text-neutral-950">
+                {formatBtn(subtotal)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    );
+  }
 
   return (
-    <div className="erp mx-auto max-w-[860px] space-y-6 p-4 md:p-6">
+    <div className="erp mx-auto max-w-[820px] space-y-4 p-4 md:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
         <div>
           <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
             {kindLabel} print
           </p>
-          <h1 className="mt-1 font-mono text-2xl font-semibold text-foreground">
+          <h1 className="mt-1 font-mono text-xl font-semibold text-foreground">
             {doc.doc_no as string}
           </h1>
         </div>
@@ -282,14 +342,14 @@ export default async function FiscalInvoicePrintPage({ params }: Props) {
           {folioId ? (
             <a
               href={`/erp/folios/${folioId}`}
-              className="inline-flex h-10 items-center rounded-md border px-4 text-sm hover:bg-muted"
+              className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
             >
               Back to folio
             </a>
           ) : null}
           <a
             href="/erp/invoices"
-            className="inline-flex h-10 items-center rounded-md border px-4 text-sm hover:bg-muted"
+            className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
           >
             All invoices
           </a>
@@ -310,341 +370,200 @@ export default async function FiscalInvoicePrintPage({ params }: Props) {
       ) : null}
 
       <article
-        className="fiscal-invoice-sheet doc-print-sheet mx-auto max-w-[720px] border border-neutral-300 bg-white px-8 py-9 text-neutral-900 shadow-sm print:border-0 print:p-0 print:shadow-none"
+        className="fiscal-invoice-sheet doc-print-sheet mx-auto max-w-[640px] border border-neutral-300 bg-white px-6 py-6 text-neutral-900 shadow-sm print:border-0 print:px-0 print:py-0 print:shadow-none"
         aria-label={`${kindLabel} ${doc.doc_no as string}`}
       >
-        {/* Letterhead */}
-        <header className="fiscal-invoice-letterhead flex items-start justify-between gap-6 border-b-2 border-neutral-900 pb-5">
+        <header className="flex items-start justify-between gap-4 border-b border-neutral-900 pb-3">
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold tracking-[0.22em] text-neutral-500 uppercase">
-              {legalName && legalName !== hotelName ? hotelName : "Hotel tax invoice"}
-            </p>
-            <h1 className="mt-1 text-[1.65rem] leading-tight font-semibold tracking-tight text-neutral-950">
+            <h1 className="text-xl font-semibold tracking-tight text-neutral-950">
               {hotelName}
             </h1>
             {legalName && legalName !== hotelName ? (
-              <p className="mt-1 text-sm text-neutral-600">{legalName}</p>
+              <p className="text-[12px] text-neutral-600">{legalName}</p>
             ) : null}
-            <div className="mt-3 space-y-0.5 text-[12.5px] leading-relaxed text-neutral-600">
+            <div className="mt-1.5 space-y-0.5 text-[11px] leading-snug text-neutral-600">
               {property?.address ? <p>{property.address}</p> : null}
-              <p className="flex flex-wrap gap-x-3 gap-y-0.5">
-                {property?.phone ? <span>Tel {property.phone}</span> : null}
-                {property?.email ? <span>{property.email}</span> : null}
+              <p className="flex flex-wrap gap-x-2">
+                {property?.phone ? <span>T {property.phone}</span> : null}
+                {property?.tax_id ? (
+                  <span className="font-mono">TPN {property.tax_id}</span>
+                ) : null}
               </p>
-              {property?.tax_id ? (
-                <p className="pt-1 font-medium text-neutral-800">
-                  <span className="text-[10px] font-semibold tracking-[0.14em] text-neutral-500 uppercase">
-                    TPN / Tax ID
-                  </span>{" "}
-                  <span className="font-mono tabular-nums">{property.tax_id}</span>
-                </p>
-              ) : null}
             </div>
           </div>
           {logoSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element -- Cloudinary print asset; next/image unnecessary for static print
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={logoSrc}
-              alt={`${hotelName} logo`}
-              className="h-16 w-auto shrink-0 object-contain print:h-14"
+              alt=""
+              className="h-12 w-auto shrink-0 object-contain"
             />
           ) : null}
         </header>
 
-        {/* Document banner + meta */}
-        <div className="mt-6 flex flex-wrap items-end justify-between gap-4 border-b border-neutral-300 pb-5">
+        <div className="mt-3 flex flex-wrap items-end justify-between gap-3 border-b border-neutral-200 pb-3">
           <div>
-            <p className="text-[11px] font-semibold tracking-[0.28em] text-neutral-500 uppercase">
-              Fiscal document
-            </p>
-            <p className="mt-1 text-2xl font-semibold tracking-[0.04em] text-neutral-950 uppercase">
+            <p className="text-[10px] font-semibold tracking-[0.2em] text-neutral-500 uppercase">
               {kindTitle}
             </p>
-          </div>
-          <dl className="grid min-w-[12rem] grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-right text-sm">
-            <dt className="text-[10px] font-semibold tracking-[0.16em] text-neutral-500 uppercase">
-              Document no.
-            </dt>
-            <dd className="font-mono text-[15px] font-semibold tabular-nums text-neutral-950">
+            <p className="font-mono text-base font-semibold tabular-nums">
               {doc.doc_no as string}
-            </dd>
-            <dt className="text-[10px] font-semibold tracking-[0.16em] text-neutral-500 uppercase">
-              Issue date
-            </dt>
-            <dd className="tabular-nums text-neutral-800">{issueDate}</dd>
-            <dt className="text-[10px] font-semibold tracking-[0.16em] text-neutral-500 uppercase">
-              Status
-            </dt>
-            <dd className="text-neutral-800 capitalize">
-              {String(doc.status)}
-            </dd>
-          </dl>
+            </p>
+          </div>
+          <div className="text-right text-[12px] text-neutral-700">
+            <p>
+              <span className="text-neutral-500">Date </span>
+              {issueDate}
+            </p>
+            {folioLabel ? <p className="text-neutral-600">{folioLabel}</p> : null}
+          </div>
         </div>
 
-        {/* Guest / folio identity */}
-        {(guestName || folioLabel || bookingId) && (
-          <section
-            className="mt-5 grid gap-4 border-b border-neutral-200 pb-5 sm:grid-cols-2"
-            aria-label="Bill to"
-          >
-            <div>
-              <p className="text-[10px] font-semibold tracking-[0.18em] text-neutral-500 uppercase">
-                Bill to
-              </p>
-              <p className="mt-1.5 text-base font-medium text-neutral-950">
-                {guestName?.trim() || "Guest"}
-              </p>
-              {guestEmail ? (
-                <p className="mt-0.5 text-sm text-neutral-600">{guestEmail}</p>
-              ) : null}
-              {agentName ? (
-                <p className="mt-2 text-sm text-neutral-700">
-                  <span className="text-[10px] font-semibold tracking-[0.14em] text-neutral-500 uppercase">
-                    Agent
-                  </span>{" "}
-                  {agentName}
-                </p>
-              ) : null}
-            </div>
+        <div className="mt-3 grid gap-1 border-b border-neutral-200 pb-3 text-[13px] sm:grid-cols-2">
+          <div>
+            <p className="text-[10px] font-semibold tracking-[0.14em] text-neutral-500 uppercase">
+              Bill to
+            </p>
+            <p className="font-medium text-neutral-950">
+              {guestName?.trim() || "Guest"}
+            </p>
+            {guestEmail ? (
+              <p className="text-[12px] text-neutral-600">{guestEmail}</p>
+            ) : null}
+          </div>
+          {stayBits.length > 0 ? (
             <div className="sm:text-right">
-              <p className="text-[10px] font-semibold tracking-[0.18em] text-neutral-500 uppercase">
-                Folio
+              <p className="text-[10px] font-semibold tracking-[0.14em] text-neutral-500 uppercase">
+                Stay
               </p>
-              <p className="mt-1.5 text-sm font-medium text-neutral-900">
-                {folioLabel ?? "—"}
+              <p className="text-[12px] leading-snug text-neutral-800">
+                {stayBits.join(" · ")}
               </p>
-              {bookingId ? (
-                <p className="mt-0.5 font-mono text-xs text-neutral-500">
-                  Booking {bookingId.slice(0, 8)}
-                </p>
-              ) : null}
             </div>
-          </section>
-        )}
+          ) : null}
+        </div>
 
-        {/* Stay summary — hotel tax-invoice identity (not POS slip) */}
-        {hasStaySummary ? (
-          <section
-            className="fiscal-invoice-stay mt-5 border-b border-neutral-200 pb-5"
-            aria-label="Stay summary"
-          >
-            <p className="text-[10px] font-semibold tracking-[0.18em] text-neutral-500 uppercase">
-              Stay summary
+        <SectionTable
+          title="Room charges"
+          rows={roomLines}
+          subtotalLabel="Room subtotal"
+          subtotal={roomSub}
+        />
+        <SectionTable
+          title="Food & beverage (POS)"
+          rows={posLines}
+          subtotalLabel="POS subtotal"
+          subtotal={posSub}
+        />
+        <SectionTable
+          title="Other charges"
+          rows={otherLines}
+          subtotalLabel="Other subtotal"
+          subtotal={otherSub}
+        />
+
+        {hotelAdjLines.length > 0 ? (
+          <section className="mt-4">
+            <p className="border-b border-neutral-900 pb-1 text-[10px] font-semibold tracking-[0.16em] text-neutral-700 uppercase">
+              Hotel adjustment (not charged to guest)
             </p>
-            <dl className="mt-3 grid gap-x-8 gap-y-2.5 sm:grid-cols-2">
-              {checkIn ? (
-                <div className="flex items-baseline justify-between gap-4 sm:block">
-                  <dt className="text-[10px] font-semibold tracking-[0.14em] text-neutral-500 uppercase">
-                    Check-in
-                  </dt>
-                  <dd className="text-sm tabular-nums text-neutral-900 sm:mt-0.5">
-                    {fmtHotelDate(checkIn)}
-                  </dd>
-                </div>
-              ) : null}
-              {checkOut ? (
-                <div className="flex items-baseline justify-between gap-4 sm:block">
-                  <dt className="text-[10px] font-semibold tracking-[0.14em] text-neutral-500 uppercase">
-                    Check-out
-                  </dt>
-                  <dd className="text-sm tabular-nums text-neutral-900 sm:mt-0.5">
-                    {fmtHotelDate(checkOut)}
-                  </dd>
-                </div>
-              ) : null}
-              {stayNights != null ? (
-                <div className="flex items-baseline justify-between gap-4 sm:block">
-                  <dt className="text-[10px] font-semibold tracking-[0.14em] text-neutral-500 uppercase">
-                    Total nights
-                  </dt>
-                  <dd className="text-sm tabular-nums text-neutral-900 sm:mt-0.5">
-                    {stayNights} {stayNights === 1 ? "night" : "nights"}
-                  </dd>
-                </div>
-              ) : null}
-              {agentName ? (
-                <div className="flex items-baseline justify-between gap-4 sm:block">
-                  <dt className="text-[10px] font-semibold tracking-[0.14em] text-neutral-500 uppercase">
-                    Travel agent
-                  </dt>
-                  <dd className="text-sm text-neutral-900 sm:mt-0.5">
-                    {agentName}
-                  </dd>
-                </div>
-              ) : null}
-              {roomProductLines.length > 0 ? (
-                <div className="sm:col-span-2">
-                  <dt className="text-[10px] font-semibold tracking-[0.14em] text-neutral-500 uppercase">
-                    Room product
-                  </dt>
-                  <dd className="mt-0.5 space-y-0.5 text-sm text-neutral-900">
-                    {roomProductLines.map((line) => (
-                      <p key={line}>{line}</p>
-                    ))}
-                  </dd>
-                </div>
-              ) : bookingRoomsCount != null ? (
-                <div className="flex items-baseline justify-between gap-4 sm:block">
-                  <dt className="text-[10px] font-semibold tracking-[0.14em] text-neutral-500 uppercase">
-                    Rooms
-                  </dt>
-                  <dd className="text-sm tabular-nums text-neutral-900 sm:mt-0.5">
-                    {bookingRoomsCount}
-                  </dd>
-                </div>
-              ) : null}
-              {roomUnitLabels.length > 0 ? (
-                <div className="sm:col-span-2">
-                  <dt className="text-[10px] font-semibold tracking-[0.14em] text-neutral-500 uppercase">
-                    Assigned rooms
-                  </dt>
-                  <dd className="mt-0.5 text-sm text-neutral-900">
-                    {roomUnitLabels.join(", ")}
-                  </dd>
-                </div>
-              ) : null}
-              {mealPlanCode ? (
-                <div className="flex items-baseline justify-between gap-4 sm:block">
-                  <dt className="text-[10px] font-semibold tracking-[0.14em] text-neutral-500 uppercase">
-                    Meal plan
-                  </dt>
-                  <dd className="text-sm text-neutral-900 sm:mt-0.5">
-                    {mealPlanCode}
-                    {mealPlanAmountBtn != null
-                      ? ` · ${formatBtn(mealPlanAmountBtn)} / day`
-                      : null}
-                  </dd>
-                </div>
-              ) : null}
-              {quotedTotalBtn != null ? (
-                <div className="flex items-baseline justify-between gap-4 sm:block">
-                  <dt className="text-[10px] font-semibold tracking-[0.14em] text-neutral-500 uppercase">
-                    Quoted stay
-                  </dt>
-                  <dd className="font-mono text-sm tabular-nums text-neutral-900 sm:mt-0.5">
-                    {formatBtn(quotedTotalBtn)}
-                  </dd>
-                </div>
-              ) : null}
-            </dl>
-            <p className="fiscal-invoice-stay-note mt-3 text-[11px] leading-relaxed text-neutral-500">
-              Posted room and package charges appear in the lines below. Stay
-              figures above identify the booking period and inventory only.
+            <p className="mt-1 text-[11px] leading-snug text-neutral-500">
+              Rounding to Nu figures ending in 0 or 5 is absorbed from hotel
+              rates — guest is not billed the difference.
             </p>
+            <table className="mt-1 w-full border-collapse text-[13px]">
+              <tbody>
+                {hotelAdjLines.map((line) => (
+                  <tr
+                    key={line.id}
+                    className="border-b border-neutral-200/80"
+                  >
+                    <td className="py-1.5 pr-2 align-top text-neutral-800">
+                      {line.description}
+                    </td>
+                    <td className="w-[6.5rem] py-1.5 pl-2 text-right align-top font-mono tabular-nums text-neutral-800">
+                      {formatBtn(Number(line.total_btn))}
+                    </td>
+                  </tr>
+                ))}
+                <tr>
+                  <td className="pt-2 pr-2 text-right text-[12px] font-medium text-neutral-700">
+                    Hotel adj subtotal
+                  </td>
+                  <td className="pt-2 pl-2 text-right font-mono text-[13px] font-semibold tabular-nums">
+                    {formatBtn(hotelAdjSub)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </section>
         ) : null}
 
-        {/* Line items */}
-        <table className="fiscal-invoice-lines mt-6 w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b-2 border-neutral-900">
-              <th
-                scope="col"
-                className="py-2.5 pr-3 text-left text-[10px] font-semibold tracking-[0.16em] text-neutral-600 uppercase"
-              >
-                Description
-              </th>
-              <th
-                scope="col"
-                className="w-[7.5rem] py-2.5 pl-2 text-right text-[10px] font-semibold tracking-[0.16em] text-neutral-600 uppercase"
-              >
-                GST
-              </th>
-              <th
-                scope="col"
-                className="w-[8.5rem] py-2.5 pl-2 text-right text-[10px] font-semibold tracking-[0.16em] text-neutral-600 uppercase"
-              >
-                Amount
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {lines.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={3}
-                  className="py-8 text-center text-sm text-neutral-500"
-                >
-                  No posted charge lines on this folio.
-                </td>
-              </tr>
-            ) : (
-              lines.map((line, i) => (
-                <tr
-                  key={i}
-                  className="border-b border-neutral-200 last:border-neutral-300"
-                >
-                  <td className="py-2.5 pr-3 align-top text-neutral-900">
-                    {line.description}
-                  </td>
-                  <td className="py-2.5 pl-2 text-right align-top font-mono text-[13px] tabular-nums text-neutral-700">
-                    {formatBtn(Number(line.gst_btn))}
-                  </td>
-                  <td className="py-2.5 pl-2 text-right align-top font-mono text-[13px] tabular-nums text-neutral-900">
-                    {formatBtn(Number(line.total_btn))}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+        {lines.length === 0 ? (
+          <p className="mt-6 text-center text-sm text-neutral-500">
+            No posted charge lines on this folio.
+          </p>
+        ) : null}
 
-        {/* Totals hierarchy */}
-        <div className="mt-6 flex justify-end">
-          <div className="w-full max-w-[16rem] space-y-1.5 text-sm">
-            <div className="flex items-baseline justify-between gap-6 text-neutral-600">
-              <span>Subtotal (excl. GST)</span>
-              <span className="font-mono tabular-nums text-neutral-800">
-                {formatBtn(netBtn)}
-              </span>
-            </div>
+        <div className="mt-5 border-t-2 border-neutral-900 pt-3">
+          <div className="ml-auto w-full max-w-[15rem] space-y-1 text-[13px]">
             {gstBtn !== 0 ? (
-              <div className="flex items-baseline justify-between gap-6 text-neutral-600">
-                <span>GST</span>
-                <span className="font-mono tabular-nums text-neutral-800">
-                  {formatBtn(gstBtn)}
+              <div className="flex justify-between gap-4 text-neutral-600">
+                <span>GST included in lines</span>
+                <span className="font-mono tabular-nums">{formatBtn(gstBtn)}</span>
+              </div>
+            ) : null}
+            {roomLines.length > 0 ? (
+              <div className="flex justify-between gap-4 text-neutral-600">
+                <span>Room</span>
+                <span className="font-mono tabular-nums">{formatBtn(roomSub)}</span>
+              </div>
+            ) : null}
+            {posLines.length > 0 ? (
+              <div className="flex justify-between gap-4 text-neutral-600">
+                <span>POS</span>
+                <span className="font-mono tabular-nums">{formatBtn(posSub)}</span>
+              </div>
+            ) : null}
+            {hotelAdjLines.length > 0 ? (
+              <div className="flex justify-between gap-4 text-neutral-600">
+                <span>Hotel adj</span>
+                <span className="font-mono tabular-nums">
+                  {formatBtn(hotelAdjSub)}
                 </span>
               </div>
             ) : null}
-            <div className="mt-1 flex items-baseline justify-between gap-6 border-t-2 border-neutral-900 pt-2.5">
-              <span className="text-[11px] font-semibold tracking-[0.14em] text-neutral-950 uppercase">
-                Total due
+            <div className="flex items-baseline justify-between gap-4 border-t border-neutral-400 pt-2">
+              <span className="text-[11px] font-semibold tracking-[0.12em] text-neutral-950 uppercase">
+                Grand total
               </span>
               <span className="font-mono text-lg font-semibold tabular-nums text-neutral-950">
                 {formatBtn(totalBtn)}
               </span>
             </div>
-            <p className="text-right text-[11px] text-neutral-500">
-              Amounts in BTN · GST exclusive-add
+            <p className="text-right text-[10px] text-neutral-500">
+              BTN · guest due ends on Nu 0 or 5 (hotel absorbs remainder)
             </p>
           </div>
         </div>
 
         {memo ? (
-          <div className="mt-6 border-t border-neutral-200 pt-4">
-            <p className="text-[10px] font-semibold tracking-[0.16em] text-neutral-500 uppercase">
+          <div className="mt-4 border-t border-neutral-200 pt-3">
+            <p className="text-[10px] font-semibold tracking-[0.14em] text-neutral-500 uppercase">
               Notes
             </p>
-            <p className="mt-1.5 text-sm leading-relaxed text-neutral-700">
+            <p className="mt-1 text-[12px] leading-relaxed text-neutral-700">
               {memo}
             </p>
           </div>
         ) : null}
 
-        <footer className="mt-10 space-y-1.5 border-t border-neutral-300 pt-4 text-[11px] leading-relaxed text-neutral-500">
+        <footer className="mt-6 space-y-1 border-t border-neutral-200 pt-3 text-[10px] leading-relaxed text-neutral-500">
           <p>
-            This is a computer-generated tax document. No signature is required
-            when issued under the property’s authorised fiscal sequence.
+            Computer-generated tax document. Gapless document no. per property.
+            Print → Save as PDF for records.
           </p>
-          <p>
-            Document numbers are gapless per property via{" "}
-            <span className="font-mono text-neutral-600">property_sequences</span>
-            . Retain this copy for GST and guest records. Use Print → Save as
-            PDF for archival filing.
-          </p>
-          <p className="pt-1 text-neutral-400">
-            Thank you for staying with {hotelName}.
-          </p>
+          <p className="text-neutral-400">Thank you for staying with {hotelName}.</p>
         </footer>
       </article>
     </div>

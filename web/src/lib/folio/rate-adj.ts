@@ -5,6 +5,7 @@ import { postFolioCharge } from "@/lib/folio/post-charge";
 import {
   GUEST_RATE_ADJ_DESCRIPTION,
   guestRateAbsorbBtn,
+  isGuestRateAdjDescription,
   roundBtn,
   roundGuestWholeBtn,
 } from "@/lib/pricing";
@@ -12,13 +13,7 @@ import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
 
-export { GUEST_RATE_ADJ_DESCRIPTION };
-
-export function isGuestRateAdjDescription(
-  description: string | null | undefined,
-): boolean {
-  return (description ?? "").trim() === GUEST_RATE_ADJ_DESCRIPTION;
-}
+export { GUEST_RATE_ADJ_DESCRIPTION, isGuestRateAdjDescription };
 
 /**
  * One-shot: absorb leftover pennies on open folio charges so net charges

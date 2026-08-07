@@ -36,29 +36,42 @@ export function roundBtn(amount: number): number {
 }
 
 /**
- * Guest-facing whole Nu total after GST/SC.
- * Uses nearest Nu, but never above the accurate tax total (guest does not pay up).
+ * Guest-facing round figure after GST/SC — always ends in 0 or 5 Nu.
+ * Floors so the guest never pays more than the accurate tax total
+ * (hotel absorbs the difference as rate adj).
  */
 export function roundGuestWholeBtn(amount: number): number {
   const a = roundBtn(amount);
-  if (!Number.isFinite(a)) return 0;
-  const nearest = Math.round(a);
-  if (nearest > a + 1e-9) return Math.floor(a + 1e-9);
-  return nearest;
+  if (!Number.isFinite(a) || a <= 0) return 0;
+  // Nearest lower multiple of 5 (…0 or …5).
+  return Math.floor((a + 1e-9) / 5) * 5;
 }
 
 /**
- * Hotel-absorbed credit (≤ 0) so guest-facing sum is whole Nu.
- * Zero when already a whole figure.
+ * Hotel-absorbed credit (≤ 0) so guest-facing sum ends on Nu 0 or 5.
+ * Zero when already a clean 0/5 figure.
  */
 export function guestRateAbsorbBtn(accurateTotal: number): number {
   const accurate = roundBtn(accurateTotal);
   return roundBtn(roundGuestWholeBtn(accurate) - accurate);
 }
 
-/** Folio/invoice label for the absorb line (hotel rates, not guest discount marketing). */
+/**
+ * Folio/invoice label — hotel absorbs rounding; not a guest discount/comp promo.
+ */
 export const GUEST_RATE_ADJ_DESCRIPTION =
-  "Adj · deducted from our rates (round figure)";
+  "Adj · hotel absorbs (round to Nu 0 or 5)";
+
+export function isGuestRateAdjDescription(
+  description: string | null | undefined,
+): boolean {
+  const d = (description ?? "").trim();
+  if (!d) return false;
+  if (d === GUEST_RATE_ADJ_DESCRIPTION) return true;
+  if (d.startsWith("Adj · hotel absorbs")) return true;
+  if (d.startsWith("Adj · deducted from our rates")) return true;
+  return false;
+}
 
 /** Sum of modifier unit prices for one cart line (qty of line applied outside). */
 export function modifierUnitTotal(modifiers: LineModifierForGst[] | undefined): number {

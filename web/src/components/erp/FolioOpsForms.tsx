@@ -132,9 +132,9 @@ export function GuestRoundFigureForm({ folioId }: { folioId: string }) {
       <p className="text-xs text-muted-foreground">
         GST + service charge can leave chetrum decimals. This posts{" "}
         <span className="font-medium text-foreground">
-          Adj · deducted from our rates (round figure)
+          Adj · hotel absorbs (round to Nu 0 or 5)
         </span>{" "}
-        so the guest pays a whole Nu — hotel absorbs the pennies.
+        so the guest pays a figure ending in 0 or 5 — hotel absorbs the rest.
       </p>
       <input type="hidden" name="folio_id" value={folioId} />
       <Button
