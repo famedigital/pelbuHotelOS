@@ -2,6 +2,7 @@
 
 import { BrandLockup } from "@/components/site/BrandLockup";
 import { CloudinaryImage } from "@/components/media/CloudinaryImage";
+import { usePublicMenuChromeOptional } from "@/components/site/public-menu-chrome";
 import { buttonVariants } from "@/components/ui/button";
 import {
   NavigationMenu,
@@ -345,7 +346,19 @@ export function SiteHeader({
 }) {
   const logo = logoSrc;
   const [scrolled, setScrolled] = useState(false);
+  const [isLg, setIsLg] = useState(false);
   const chrome = parseHeroTheme(heroTheme ?? DEFAULT_HERO_THEME);
+  const menuChrome = usePublicMenuChromeOptional();
+  const hideForMenuMobile =
+    Boolean(menuChrome?.hideChrome) && !isLg;
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setIsLg(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -364,10 +377,20 @@ export function SiteHeader({
         "z-40 overflow-visible",
         variant === "hero" ? "fixed inset-x-0 top-0" : "sticky top-0",
         overHero ? undefined : "text-foreground",
+        hideForMenuMobile &&
+          "pointer-events-none border-0 shadow-none",
       )}
       style={overHero ? { color: navText } : undefined}
+      aria-hidden={hideForMenuMobile || undefined}
     >
-      <div className="relative h-12 overflow-visible md:h-[3.25rem]">
+      <div
+        className={cn(
+          "relative overflow-visible transition-[height,max-height,opacity,transform] duration-200 ease-out motion-reduce:transition-none",
+          hideForMenuMobile
+            ? "h-0 max-h-0 -translate-y-full opacity-0 overflow-hidden"
+            : "h-12 md:h-[3.25rem]",
+        )}
+      >
         {/* Glass strip: desktop only over hero. Mobile is free-float (no second bar). */}
         <div
           className={cn(

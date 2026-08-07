@@ -7,6 +7,7 @@ import {
   type VerifyGuestRoomState,
 } from "@/app/actions/guest-room-order";
 import { CloudinaryImage } from "@/components/media/CloudinaryImage";
+import { usePublicMenuChromeOptional } from "@/components/site/public-menu-chrome";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -75,6 +76,7 @@ export function MenuOrderBoard({
   preferRoomDelivery?: boolean;
 }) {
   const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const menuChrome = usePublicMenuChromeOptional();
   const [query, setQuery] = useState("");
   const [outlet, setOutlet] = useState<OutletId>(initialOutlet ?? "all");
   const [category, setCategory] = useState("all");
@@ -199,6 +201,13 @@ export function MenuOrderBoard({
 
   const cartCount = cartLines.reduce((sum, line) => sum + line.qty, 0);
 
+  useEffect(() => {
+    menuChrome?.setCartActive(cartCount > 0);
+    return () => {
+      menuChrome?.setCartActive(false);
+    };
+  }, [cartCount, menuChrome?.setCartActive]);
+
   function setQty(id: string, next: number) {
     setCart((prev) => {
       const copy = { ...prev };
@@ -275,7 +284,12 @@ export function MenuOrderBoard({
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
       <section className="min-w-0" aria-label="Menu">
-        <div className="sticky top-[3.75rem] z-20 -mx-4 space-y-2.5 border-b border-border bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:mx-0 lg:rounded-xl lg:border lg:px-3 lg:py-2.5">
+        <div
+          className={cn(
+            "sticky z-20 -mx-4 space-y-2.5 border-b border-border bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:mx-0 lg:rounded-xl lg:border lg:px-3 lg:py-2.5",
+            menuChrome?.hideChrome ? "top-0 lg:top-[3.75rem]" : "top-[3.75rem]",
+          )}
+        >
           <div className="relative">
             <SearchIcon
               aria-hidden
@@ -358,7 +372,7 @@ export function MenuOrderBoard({
       ) : (
         <>
           {cartCount > 0 ? (
-            <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-border bg-background px-5 py-3 shadow-[0_-8px_30px_rgba(8,47,73,0.12)] lg:hidden">
+            <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] shadow-[0_-8px_30px_rgba(8,47,73,0.12)] lg:hidden">
               <Button
                 type="button"
                 variant="citrus"

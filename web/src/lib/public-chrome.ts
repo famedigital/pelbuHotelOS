@@ -23,8 +23,8 @@ export function hidesPublicChrome(pathname: string): boolean {
 
 /**
  * Routes that already park something at the bottom of a small screen — the
- * menu board keeps a sticky cart there, so the floating button would land on
- * top of it. Desktop has room for both.
+ * menu board keeps a sticky cart there when items are selected (immersive
+ * mode also hides the tab bar while scrolling). Desktop has room for both.
  */
 const MOBILE_BOTTOM_BAR_PREFIXES = ["/menu"] as const;
 

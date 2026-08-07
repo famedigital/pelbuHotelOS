@@ -479,7 +479,8 @@ export async function createFastBooking(
       full_name: contactName,
     });
 
-    await notifyNewBooking({
+    // Don't block FO on WhatsApp/email or channel ARI (calendar single-room already does this).
+    void notifyNewBooking({
       bookingId: booking.id,
       contactName,
       contactPhone,
@@ -490,21 +491,20 @@ export async function createFastBooking(
       rooms: guestRooms,
       guideNumber,
       notes: notes ? `[FAST-BOOK ${source}] ${notes}` : `[FAST-BOOK ${source}]`,
-    });
+    }).catch((err) => console.error("notifyNewBooking fast_book", err));
 
-    await enqueueAfterBookingChange(
+    void enqueueAfterBookingChange(
       admin,
       property.id as string,
       checkIn,
       checkOut,
       "fast_book.create",
-    );
+    ).catch((err) => console.error("enqueueAfterBookingChange fast_book", err));
 
     revalidatePath("/erp");
-    revalidatePath("/erp/agents");
-    revalidatePath("/erp/fast-book");
-    revalidatePath("/erp/channel");
     revalidatePath("/erp/calendar");
+    revalidatePath("/erp/reservations");
+    if (agentId) revalidatePath("/erp/agents");
 
     return { ok: true, bookingId: booking.id };
   } catch (err) {

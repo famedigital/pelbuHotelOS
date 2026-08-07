@@ -1,5 +1,6 @@
 "use client";
 
+import { usePublicMenuChromeOptional } from "@/components/site/public-menu-chrome";
 import { useStaySearchOptional } from "@/components/site/PublicStaySearch";
 import { hidesPublicChrome } from "@/lib/public-chrome";
 import { cn } from "@/lib/utils";
@@ -42,7 +43,11 @@ function isActive(pathname: string, href: string, match: "exact" | "prefix") {
 export function PublicMobileNav() {
   const pathname = usePathname();
   const staySearch = useStaySearchOptional();
+  const menuChrome = usePublicMenuChromeOptional();
   if (hidesPublicChrome(pathname)) return null;
+
+  // Immersive /menu browse or active cart: full screen dishes / cart bar only.
+  if (menuChrome?.hideChrome) return null;
 
   return (
     <>
