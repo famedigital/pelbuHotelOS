@@ -199,34 +199,15 @@ export async function postFolioCharge(
     input.source_type === "adjustment";
 
   if (!skipAdj) {
-    const absorbBtn = guestRateAbsorbBtn(totalPosted);
-    if (absorbBtn < -0.009) {
-      try {
-        // Second insert — negative credit uses postCompCredit path above.
-        await postFolioCharge(admin, propertyId, {
-          folio_id: input.folio_id,
-          booking_id: input.booking_id ?? null,
-          source_type: "adjustment",
-          source_id: line.id as string,
-          description: GUEST_RATE_ADJ_DESCRIPTION,
-          qty: 1,
-          unit_price_btn: absorbBtn,
-          amount_btn: absorbBtn,
-          gst_applicable: false,
-          gst_btn: 0,
-          total_btn: absorbBtn,
-          bill_to: billTo,
-          period_guard: input.period_guard,
-          skip_guest_rate_adj: true,
-        });
-      } catch (adjErr) {
-        throw new Error(
-          adjErr instanceof Error
-            ? `Charge posted, but rate round adj failed: ${adjErr.message}`
-            : "Charge posted, but rate round adj failed.",
-        );
-      }
-    }
+    await tryPostGuestRateRoundAdj(admin, propertyId, {
+      folioId: input.folio_id,
+      bookingId: input.booking_id ?? null,
+      chargeLineId: line.id as string,
+      chargeTotalBtn: totalPosted,
+      billTo,
+      journalDate: input.journal_date ?? (line.created_at as string),
+      periodGuard: input.period_guard,
+    });
   }
 
   return {
@@ -238,4 +219,80 @@ export async function postFolioCharge(
     gst_btn: Number(line.gst_btn),
     created_at: line.created_at as string,
   };
+}
+
+/**
+ * Hotel-funded whole-Nu absorb line after a sellable charge.
+ * Never throws — charge already succeeded; guest balance still gets the credit
+ * even if GL rule is missing for pennies.
+ */
+async function tryPostGuestRateRoundAdj(
+  admin: Admin,
+  propertyId: string,
+  args: {
+    folioId: string;
+    bookingId: string | null;
+    chargeLineId: string;
+    chargeTotalBtn: number;
+    billTo: FolioBillTo;
+    journalDate: string;
+    periodGuard?: PeriodGuardOptions;
+  },
+): Promise<void> {
+  const absorbBtn = guestRateAbsorbBtn(args.chargeTotalBtn);
+  // Credit only (guest never pays up); skip if already whole Nu.
+  if (!(absorbBtn < -0.009)) return;
+
+  const creditAmt = Math.abs(absorbBtn); // positive Nu for GL (always > 0.009)
+  if (!(creditAmt > 0.009)) return;
+
+  const { data: adjLine, error: adjInsertError } = await admin
+    .from("folio_lines")
+    .insert({
+      folio_id: args.folioId,
+      booking_id: args.bookingId,
+      source_type: "adjustment",
+      source_id: args.chargeLineId,
+      description: GUEST_RATE_ADJ_DESCRIPTION,
+      qty: 1,
+      unit_price_btn: -creditAmt,
+      amount_btn: -creditAmt,
+      service_charge_rate: 0,
+      service_charge_btn: 0,
+      service_charge_applied: false,
+      gst_applicable: false,
+      gst_btn: 0,
+      total_btn: -creditAmt,
+      status: "posted",
+      is_comp: false,
+      bill_to: args.billTo,
+    })
+    .select("id, total_btn, created_at")
+    .single();
+
+  if (adjInsertError || !adjLine) {
+    console.error(
+      "rate round adj folio insert failed",
+      adjInsertError?.message ?? "no row",
+    );
+    return;
+  }
+
+  // Allowance journal: abs amount + folio_line.comp rules (deb expense / credit AR).
+  const glAdj = await postCompCredit(admin, propertyId, {
+    id: adjLine.id as string,
+    description: GUEST_RATE_ADJ_DESCRIPTION,
+    total_btn: -creditAmt,
+    created_at: args.journalDate,
+    period_guard: args.periodGuard,
+  });
+
+  if (!glAdj.ok) {
+    // Keep guest-facing credit even if GL posting rule is missing — do not fail charge.
+    console.error(
+      "rate round adj GL failed (folio credit kept)",
+      glAdj.error,
+      { lineId: adjLine.id, creditAmt },
+    );
+  }
 }

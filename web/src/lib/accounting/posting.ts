@@ -30,6 +30,18 @@ export async function postFolioLine(
     bill_to?: "agent" | "guest" | null;
   } & PostingPeriodGuard,
 ): Promise<PostingResult> {
+  const total = Number(line.total_btn);
+  // Credits (hotel rate absorb, negative adjustments) — GL sales posts need abs $.
+  if (total < 0) {
+    return postCompCredit(admin, propertyId, {
+      id: line.id,
+      description: line.description,
+      total_btn: total,
+      created_at: line.created_at,
+      period_guard: line.period_guard,
+    });
+  }
+
   const source = line.source_type;
   const base =
     source === "room"
@@ -49,7 +61,7 @@ export async function postFolioLine(
     sourceTable: "folio_lines",
     sourceId: line.id,
     journalDate: todayIso(line.created_at),
-    amountBtn: Number(line.total_btn),
+    amountBtn: total,
     gstBtn: Number(line.gst_btn ?? 0),
     memo: line.description ?? eventType,
     journalKind: "sales",
@@ -101,8 +113,11 @@ export async function postCompCredit(
     created_at?: string;
   } & PostingPeriodGuard,
 ): Promise<PostingResult> {
+  // GL always takes a positive magnitude; sign lives on the folio line.
   const amountBtn = Math.abs(Number(line.total_btn));
-  if (amountBtn <= 0) return { ok: false, error: "Comp amount must be positive." };
+  if (!Number.isFinite(amountBtn) || amountBtn < 0.005) {
+    return { ok: false, error: "Comp amount must be positive." };
+  }
 
   return postSimpleEvent(admin, propertyId, {
     eventType: "folio_line.comp",
