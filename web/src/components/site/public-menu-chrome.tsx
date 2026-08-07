@@ -12,7 +12,7 @@ import {
 import { usePathname } from "next/navigation";
 
 type PublicMenuChromeValue = {
-  /** True while scroll-down browsing on /menu (mobile). */
+  /** True while scrolled past the top on /menu (mobile). */
   immersive: boolean;
   /** True when the mobile cart has at least one line. */
   cartActive: boolean;
@@ -30,10 +30,15 @@ function isMenuPath(pathname: string) {
 }
 
 const LG_MQ = "(min-width: 1024px)";
+/** Must reach document top (small slack for rubber-band / subpixel). */
+const TOP_EXIT_PX = 8;
+/** Distance before we lock immersive and hide chrome. */
+const ENTER_PX = 56;
 
 /**
  * Root-level provider so `/menu` content and `PublicMobileNav` share chrome
- * state. Scroll immersion only applies on menu routes below the `lg` breakpoint.
+ * state. Immersive only clears when the guest is at the top of the page — not
+ * on scroll-up (that caused title/header flicker).
  */
 export function PublicMenuChromeProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -55,7 +60,6 @@ export function PublicMenuChromeProvider({ children }: { children: ReactNode }) 
   useEffect(() => {
     if (!onMenu) return;
 
-    let lastY = typeof window !== "undefined" ? window.scrollY : 0;
     let frame = 0;
 
     const onScroll = () => {
@@ -64,18 +68,15 @@ export function PublicMenuChromeProvider({ children }: { children: ReactNode }) 
         frame = 0;
         if (window.matchMedia(LG_MQ).matches) {
           setImmersive(false);
-          lastY = window.scrollY;
           return;
         }
         const y = window.scrollY;
-        if (y < 48) {
+        // Latch: stay fullscreen until truly at top — never unhide mid-scroll.
+        if (y <= TOP_EXIT_PX) {
           setImmersive(false);
-        } else if (y > lastY && y > 56) {
+        } else if (y >= ENTER_PX) {
           setImmersive(true);
-        } else if (y < lastY - 12) {
-          setImmersive(false);
         }
-        lastY = y;
       });
     };
 

@@ -5,6 +5,7 @@ import { useStaySearchOptional } from "@/components/site/PublicStaySearch";
 import { hidesPublicChrome } from "@/lib/public-chrome";
 import { cn } from "@/lib/utils";
 import {
+  ArrowUpIcon,
   CalendarDaysIcon,
   ConciergeBellIcon,
   HomeIcon,
@@ -39,6 +40,11 @@ function isActive(pathname: string, href: string, match: "exact" | "prefix") {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function scrollDocumentToTop() {
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
+}
+
 /** App-like public footer tabs — mobile only; desktop keeps SiteHeader nav. */
 export function PublicMobileNav() {
   const pathname = usePathname();
@@ -46,8 +52,31 @@ export function PublicMobileNav() {
   const menuChrome = usePublicMenuChromeOptional();
   if (hidesPublicChrome(pathname)) return null;
 
-  // Immersive /menu browse or active cart: full screen dishes / cart bar only.
-  if (menuChrome?.hideChrome) return null;
+  // Cart owns the bottom bar on mobile /menu.
+  if (menuChrome?.cartActive) return null;
+
+  // Immersive browse: slim footer with back-to-top (header only at absolute top).
+  if (menuChrome?.immersive) {
+    return (
+      <>
+        <div
+          className="h-[calc(3.25rem_+_env(safe-area-inset-bottom,0px))] md:hidden"
+          aria-hidden
+        />
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_28px_-18px_rgba(8,47,73,0.28)] backdrop-blur-md md:hidden">
+          <button
+            type="button"
+            onClick={scrollDocumentToTop}
+            className="mx-auto flex h-12 w-full max-w-lg items-center justify-center gap-2 text-sm font-semibold text-sky-800"
+            aria-label="Back to top"
+          >
+            <ArrowUpIcon className="size-4" aria-hidden />
+            Back to top
+          </button>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

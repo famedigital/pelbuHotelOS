@@ -385,9 +385,9 @@ export function SiteHeader({
     >
       <div
         className={cn(
-          "relative overflow-visible transition-[height,max-height,opacity,transform] duration-200 ease-out motion-reduce:transition-none",
+          "relative overflow-hidden",
           hideForMenuMobile
-            ? "h-0 max-h-0 -translate-y-full opacity-0 overflow-hidden"
+            ? "h-0 max-h-0 opacity-0"
             : "h-12 md:h-[3.25rem]",
         )}
       >
