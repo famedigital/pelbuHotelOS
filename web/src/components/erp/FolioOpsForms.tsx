@@ -130,11 +130,10 @@ export function GuestRoundFigureForm({ folioId }: { folioId: string }) {
         Round figure (rate adj)
       </h3>
       <p className="text-xs text-muted-foreground">
-        GST + service charge can leave chetrum decimals. This posts{" "}
-        <span className="font-medium text-foreground">
-          Adj · hotel absorbs (round to Nu 0 or 5)
-        </span>{" "}
-        so the guest pays a figure ending in 0 or 5 — hotel absorbs the rest.
+        Rounds Master, Room, and F&amp;B charge streams to whole Nu ending in{" "}
+        <span className="font-medium text-foreground">0 or 5</span> (no
+        decimals). Posts hotel absorb adj — guest never pays the chetrum
+        remainder.
       </p>
       <input type="hidden" name="folio_id" value={folioId} />
       <Button
@@ -143,7 +142,7 @@ export function GuestRoundFigureForm({ folioId }: { folioId: string }) {
         disabled={pending}
         className="h-10 w-full"
       >
-        {pending ? "Posting…" : "Round charges to whole Nu"}
+        {pending ? "Posting…" : "Round Master / Room / F&B to Nu 0 or 5"}
       </Button>
       <PeriodOverrideFields idPrefix={`round-${folioId.slice(0, 8)}`} />
       <Flash state={state} />
@@ -357,19 +356,36 @@ export function IssueInvoiceButton({
         </p>
         <p className="mt-2 font-mono font-medium text-foreground">{invoiceNo}</p>
         {invoiceDocId ? (
-          <div className="mt-2 flex flex-wrap gap-3 text-xs">
-            <a
-              href={`/erp/invoices/${invoiceDocId}/print`}
-              className="font-medium text-accent underline-offset-4 hover:underline"
-            >
-              Print / email invoice
-            </a>
-            <a
-              href={`/erp/folios/${folioId}/receipt`}
-              className="text-muted-foreground underline-offset-4 hover:underline"
-            >
-              Receipt
-            </a>
+          <div className="mt-2 space-y-2 text-xs">
+            <p className="text-muted-foreground">
+              Print process: Master → Room → F&amp;B (whole Nu, ends 0 or 5)
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href={`/erp/invoices/${invoiceDocId}/print?bill=master`}
+                className="font-medium text-accent underline-offset-4 hover:underline"
+              >
+                Master bill
+              </a>
+              <a
+                href={`/erp/invoices/${invoiceDocId}/print?bill=room`}
+                className="font-medium text-accent underline-offset-4 hover:underline"
+              >
+                Room bill
+              </a>
+              <a
+                href={`/erp/invoices/${invoiceDocId}/print?bill=fnb`}
+                className="font-medium text-accent underline-offset-4 hover:underline"
+              >
+                F&amp;B bill
+              </a>
+              <a
+                href={`/erp/folios/${folioId}/receipt`}
+                className="text-muted-foreground underline-offset-4 hover:underline"
+              >
+                Receipt
+              </a>
+            </div>
           </div>
         ) : null}
       </div>

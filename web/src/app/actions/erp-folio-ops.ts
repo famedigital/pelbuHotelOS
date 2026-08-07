@@ -23,7 +23,7 @@ import {
   claimPaymentLinkOpen,
   releasePaymentLinkClaim,
 } from "@/lib/payments/claim-link";
-import { GUEST_RATE_ADJ_DESCRIPTION, roundBtn } from "@/lib/pricing";
+import { roundBtn } from "@/lib/pricing";
 import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
@@ -155,7 +155,7 @@ export async function postGuestRoundFigureAdj(
       revalidateFolio(folioId);
       return {
         ok: true,
-        message: "Charges already on a whole Nu figure — no rate adj needed.",
+        message: "Already whole Nu ending 0 or 5 — no rate adj needed.",
       };
     }
 
@@ -164,19 +164,20 @@ export async function postGuestRoundFigureAdj(
       action: "folio.rate_round_adj",
       entityType: "folio_lines",
       entityId: result.lineId,
-      summary: `${GUEST_RATE_ADJ_DESCRIPTION} · ${result.absorbBtn} Nu (charges ${result.chargesSumBtn} → ${result.targetBtn})`,
+      summary: `Rate adj · ${result.absorbBtn} Nu (charges ${result.chargesSumBtn} → ${result.targetBtn})`,
       meta: {
         folioId,
         absorbBtn: result.absorbBtn,
         chargesSumBtn: result.chargesSumBtn,
         targetBtn: result.targetBtn,
+        streams: result.streams,
       },
     });
 
     revalidateFolio(folioId);
     return {
       ok: true,
-      message: `Rate round adj ${result.absorbBtn} Nu · guest charges now Nu ${result.targetBtn}.`,
+      message: `Rounded Master / Room / F&B · adj ${result.absorbBtn} Nu · guest now Nu ${result.targetBtn}.`,
     };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };

@@ -1,3 +1,5 @@
+export type StayState = "vacant" | "arriving" | "in_house" | "departing";
+
 export type RoomMapUnit = {
   id: string;
   label: string;
@@ -5,12 +7,19 @@ export type RoomMapUnit = {
   view_label: string | null;
   facade_side: string | null;
   has_balcony: boolean;
+  /** True DB housekeeper status — never overwritten by stay. */
   hk_status: string;
   pos_x: number | null;
   pos_y: number | null;
   room_type_code: string;
   room_type_name: string;
   is_comp: boolean;
+  /** Derived ops layer. */
+  stay_state: StayState;
+  person_count: number | null;
+  has_open_maintenance: boolean;
+  /** Missing core photo facets (0–5). Null if not loaded. */
+  photos_missing?: number | null;
   occupied_tonight?: boolean;
   guest_name?: string | null;
 };
@@ -24,7 +33,7 @@ export const FACADE_RING: Record<string, string> = {
   internal: "ring-muted-foreground/30",
 };
 
-/** Edge accent for extruded Building blocks */
+/** Edge accent for extruded Building blocks (facade ring on 2D). */
 export const FACADE_EDGE: Record<string, string> = {
   north: "border-sky-400",
   south: "border-amber-400",
@@ -49,6 +58,49 @@ export const HK_SOLID: Record<string, string> = {
   occupied: "#4f46e5",
   ooo: "#e11d48",
 };
+
+/** Stay-state edge / strip colors (desk dual paint). */
+export const STAY_SOLID: Record<StayState, string> = {
+  vacant: "#94a3b8",
+  arriving: "#3b82f6",
+  in_house: "#4f46e5",
+  departing: "#f59e0b",
+};
+
+export const STAY_RING: Record<StayState, string> = {
+  vacant: "ring-slate-400/50",
+  arriving: "ring-blue-500",
+  in_house: "ring-indigo-600",
+  departing: "ring-amber-500",
+};
+
+/** Stable palette for public massing by room type code. */
+export const TYPE_SOLID_PALETTE = [
+  "#0f766e",
+  "#9a3412",
+  "#0369a1",
+  "#7c3aed",
+  "#b45309",
+  "#0e7490",
+  "#be123c",
+  "#365314",
+] as const;
+
+export function typeSolidColor(typeCode: string): string {
+  const key = typeCode.trim() || "room";
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return TYPE_SOLID_PALETTE[h % TYPE_SOLID_PALETTE.length] ?? "#0f766e";
+}
+
+/** Core room areas staff should photograph per physical unit. */
+export const ROOM_MAP_CORE_FACETS = [
+  "overview",
+  "beds",
+  "bathroom",
+  "view",
+  "amenities",
+] as const;
 
 export function floorKey(unit: RoomMapUnit): string {
   if (unit.floor_label?.trim()) return unit.floor_label.trim();
@@ -81,4 +133,38 @@ export function listFloors(units: RoomMapUnit[]): string[] {
       return a.localeCompare(b);
     }),
   ];
+}
+
+export function deriveStayState(input: {
+  fromDate: string;
+  toDate: string;
+  today: string;
+  bookingStatus: string;
+  checkOut: string | null;
+}): StayState {
+  const { fromDate, toDate, today, bookingStatus, checkOut } = input;
+  if (fromDate > today || toDate <= today) return "vacant";
+  const status = bookingStatus.toLowerCase();
+  if (status === "cancelled") return "vacant";
+  const checkout = checkOut ?? toDate;
+  if (checkout === today && (status === "checked_in" || fromDate < today)) {
+    return "departing";
+  }
+  if (fromDate === today && status !== "checked_in") {
+    return "arriving";
+  }
+  return "in_house";
+}
+
+export function deskHoverLabel(unit: RoomMapUnit): string {
+  const parts = [`Room ${unit.label}`, unit.hk_status];
+  if (unit.stay_state !== "vacant") {
+    parts.push(unit.stay_state.replace("_", " "));
+  }
+  if (unit.person_count != null && unit.person_count > 0) {
+    parts.push(`${unit.person_count} pax`);
+  }
+  if (unit.has_open_maintenance) parts.push("maint");
+  if (unit.guest_name) parts.push(unit.guest_name);
+  return parts.join(" · ");
 }

@@ -3,9 +3,13 @@
 import { BuildingSpaceSheet } from "@/components/erp/building/BuildingSpaceSheet";
 import {
   HK_SOLID,
+  STAY_SOLID,
+  deskHoverLabel,
   floorKey,
+  typeSolidColor,
   unitPlanPosition,
   type RoomMapUnit,
+  type StayState,
 } from "@/components/erp/room-map-shared";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,11 +49,13 @@ type Props = {
   /** Highlight selected units (public multi-pick). */
   selectedUnitIds?: string[];
   /**
-   * Public booking tour: green free / rose sold, no guest names.
-   * Desk default uses housekeeper status colours.
+   * Public marketing: type-colour massing, no guest/HK/pax.
+   * Desk default uses dual HK fill + stay edge.
    */
   mode?: "desk" | "public";
   legendHint?: string | null;
+  /** Public: map room type code → detail path for click. */
+  typeHrefByCode?: Record<string, string>;
 };
 
 const SPACE_COLOR: Record<string, string> = {
@@ -94,6 +100,7 @@ export function BuildingScene3D({
   selectedUnitIds = [],
   mode = "desk",
   legendHint = null,
+  typeHrefByCode,
 }: Props) {
   const params = layout?.params ?? DEFAULT_BUILDING_PARAMS;
   const corridorAxis = layout?.corridor_axis ?? "ew";
@@ -162,6 +169,16 @@ export function BuildingScene3D({
     [selectedUnitIds],
   );
 
+  const publicTypeLegend = useMemo(() => {
+    if (mode !== "public") return [];
+    const seen = new Map<string, string>();
+    for (const u of units) {
+      const code = u.room_type_code || u.room_type_name || "Room";
+      if (!seen.has(code)) seen.set(code, u.room_type_name || code);
+    }
+    return [...seen.entries()].slice(0, 8);
+  }, [mode, units]);
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -203,14 +220,17 @@ export function BuildingScene3D({
       <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
         {mode === "public" ? (
           <>
+            {publicTypeLegend.map(([code, name]) => (
+              <span key={code} className="inline-flex items-center gap-1.5">
+                <span
+                  className="size-2.5 rounded-sm"
+                  style={{ backgroundColor: typeSolidColor(code) }}
+                />
+                {name}
+              </span>
+            ))}
             <span className="inline-flex items-center gap-1.5">
-              <span className="size-2.5 rounded-sm bg-emerald-500" /> Available
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="size-2.5 rounded-sm bg-rose-500" /> Sold / blocked
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="size-2.5 rounded-sm bg-amber-400" /> Selected
+              <span className="size-2.5 rounded-sm bg-teal-700" /> Amenities
             </span>
           </>
         ) : (
@@ -219,7 +239,43 @@ export function BuildingScene3D({
               <span className="size-2.5 rounded-sm bg-emerald-500" /> Clean
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="size-2.5 rounded-sm bg-indigo-600" /> Occupied
+              <span className="size-2.5 rounded-sm bg-amber-500" /> Dirty
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 rounded-sm bg-sky-500" /> Inspect
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 rounded-sm bg-rose-600" /> OOO
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className="size-2.5 rounded-sm ring-2 ring-blue-500"
+                style={{ backgroundColor: "#10b981" }}
+              />{" "}
+              Arriving edge
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className="size-2.5 rounded-sm ring-2 ring-indigo-600"
+                style={{ backgroundColor: "#10b981" }}
+              />{" "}
+              In-house edge
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className="size-2.5 rounded-sm ring-2 ring-amber-500"
+                style={{ backgroundColor: "#10b981" }}
+              />{" "}
+              Departing edge
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="inline-flex size-2.5 items-center justify-center rounded-full bg-indigo-600 text-[7px] font-bold text-white">
+                #
+              </span>{" "}
+              Pax
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 rounded-sm bg-rose-700" /> Maint
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span className="size-2.5 rounded-sm bg-teal-700" /> Amenities
@@ -228,7 +284,7 @@ export function BuildingScene3D({
         )}
         <span>
           Drag to orbit · right-drag pan · scroll zoom · click room
-          {mode === "public" ? " to select" : ""}
+          {mode === "public" ? " to explore" : " for dossier"}
         </span>
         {legendHint ? (
           <span className="font-medium text-foreground">{legendHint}</span>
@@ -284,6 +340,7 @@ export function BuildingScene3D({
               setHoveredLabel={setHoveredLabel}
               mode={mode}
               selectedSet={selectedSet}
+              typeHrefByCode={typeHrefByCode}
             />
           </Canvas>
         </Suspense>
@@ -329,6 +386,7 @@ function SceneContents({
   setHoveredLabel,
   mode,
   selectedSet,
+  typeHrefByCode,
 }: {
   floorKeysSorted: string[];
   floorFilter: string;
@@ -345,6 +403,7 @@ function SceneContents({
   setHoveredLabel: (label: string | null) => void;
   mode: "desk" | "public";
   selectedSet: Set<string>;
+  typeHrefByCode?: Record<string, string>;
 }) {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const { camera } = useThree();
@@ -457,29 +516,58 @@ function SceneContents({
 
       {placeRooms.map(({ unit, world, size, fk }) => {
         if (floorFilter !== "All" && fk !== floorFilter) return null;
-        const fill = HK_SOLID[unit.hk_status] ?? "#64748b";
-        const edgeHex = FACADE_HEX[unit.facade_side ?? ""] ?? "#cbd5e1";
-        const subtitle =
-          unit.occupied_tonight && unit.guest_name
-            ? unit.guest_name
-            : unit.room_type_code || unit.room_type_name;
+
+        const isPublic = mode === "public";
+        const typeCode = unit.room_type_code || unit.room_type_name || "Room";
+        const fill = isPublic
+          ? typeSolidColor(typeCode)
+          : (HK_SOLID[unit.hk_status] ?? "#64748b");
+        const selected = selectedSet.has(unit.id);
+        const stay = (unit.stay_state ?? "vacant") as StayState;
+        const stayEdge =
+          isPublic
+            ? selected
+              ? "#fbbf24"
+              : (FACADE_HEX[unit.facade_side ?? ""] ?? "#cbd5e1")
+            : stay === "vacant"
+              ? (FACADE_HEX[unit.facade_side ?? ""] ?? "#cbd5e1")
+              : (STAY_SOLID[stay] ?? STAY_SOLID.vacant);
+
+        const hoverText = isPublic
+          ? `Room ${unit.label} · ${unit.room_type_name || typeCode}`
+          : deskHoverLabel(unit);
+
+        const badgeParts: string[] = [];
+        if (!isPublic) {
+          if (unit.person_count != null && unit.person_count > 0) {
+            badgeParts.push(String(unit.person_count));
+          }
+          if (unit.has_open_maintenance) badgeParts.push("M");
+          if (unit.photos_missing != null && unit.photos_missing > 0) {
+            badgeParts.push(`P${unit.photos_missing}`);
+          }
+        }
+
         return (
           <MassBox
             key={unit.id}
             position={[world.x, world.y + size.h / 2 + 1, world.z]}
             size={size}
             color={fill}
-            opacity={unit.is_comp ? 0.82 : 1}
-            edgeColor={edgeHex}
-            onClick={() => onOpenRoom(unit.id)}
-            onHover={(on) =>
-              setHoveredLabel(
-                on
-                  ? `Room ${unit.label}${subtitle ? ` · ${subtitle}` : ""}`
-                  : null,
-              )
-            }
+            opacity={unit.is_comp && !isPublic ? 0.82 : selected ? 0.95 : 1}
+            edgeColor={stayEdge}
+            edgeEmphasis={!isPublic && stay !== "vacant"}
+            onClick={() => {
+              if (isPublic && typeHrefByCode?.[typeCode]) {
+                window.location.href = typeHrefByCode[typeCode]!;
+                return;
+              }
+              onOpenRoom(unit.id);
+            }}
+            onHover={(on) => setHoveredLabel(on ? hoverText : null)}
             label={showLabels ? unit.label : null}
+            badge={badgeParts.length > 0 ? badgeParts.join(" · ") : null}
+            badgeTone={unit.has_open_maintenance ? "danger" : "default"}
           />
         );
       })}
@@ -508,18 +596,24 @@ function MassBox({
   color,
   opacity = 1,
   edgeColor,
+  edgeEmphasis = false,
   onClick,
   onHover,
   label,
+  badge = null,
+  badgeTone = "default",
 }: {
   position: [number, number, number];
   size: { w: number; d: number; h: number };
   color: string;
   opacity?: number;
   edgeColor: string;
+  edgeEmphasis?: boolean;
   onClick: () => void;
   onHover: (on: boolean) => void;
   label: string | null;
+  badge?: string | null;
+  badgeTone?: "default" | "danger";
 }) {
   const [hovered, setHovered] = useState(false);
   const edgesGeo = useMemo(
@@ -568,19 +662,46 @@ function MassBox({
         <lineBasicMaterial
           color={edgeColor}
           transparent
-          opacity={hovered ? 0.95 : 0.45}
+          opacity={hovered || edgeEmphasis ? 0.95 : 0.45}
+          linewidth={1}
         />
       </lineSegments>
-      {label ? (
+      {edgeEmphasis ? (
+        <mesh position={[0, size.h / 2 + 1.2, 0]}>
+          <boxGeometry args={[size.w * 0.88, 2.2, size.d * 0.88]} />
+          <meshStandardMaterial
+            color={edgeColor}
+            roughness={0.4}
+            metalness={0.1}
+            emissive={edgeColor}
+            emissiveIntensity={0.25}
+          />
+        </mesh>
+      ) : null}
+      {label || badge ? (
         <Html
           center
           position={[0, size.h * 0.15, 0]}
           distanceFactor={220}
           style={{ pointerEvents: "none" }}
         >
-          <span className="rounded bg-black/55 px-1 py-0.5 text-[10px] font-semibold text-white shadow">
-            {label}
-          </span>
+          <div className="flex flex-col items-center gap-0.5">
+            {label ? (
+              <span className="rounded bg-black/55 px-1 py-0.5 text-[10px] font-semibold text-white shadow">
+                {label}
+              </span>
+            ) : null}
+            {badge ? (
+              <span
+                className={cn(
+                  "rounded px-1 py-0.5 text-[9px] font-bold text-white shadow",
+                  badgeTone === "danger" ? "bg-rose-700" : "bg-indigo-700",
+                )}
+              >
+                {badge}
+              </span>
+            ) : null}
+          </div>
         </Html>
       ) : null}
     </group>

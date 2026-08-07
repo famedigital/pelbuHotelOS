@@ -1,6 +1,7 @@
 "use client";
 
 import { AgentNameLink } from "@/components/erp/AgentNameLink";
+import { RoomUnitPhotoPrompts } from "@/components/erp/RoomUnitPhotoPrompts";
 import {
   loadRoomDossier,
   type RoomDossier,
@@ -15,10 +16,9 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cloudinaryUrl } from "@/lib/cloudinary";
 import type { RoomMapUnit } from "@/components/erp/room-map-shared";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type Props = {
   unitId: string | null;
@@ -30,6 +30,11 @@ export function RoomDossierSheet({ unitId, units, onClose }: Props) {
   const [dossier, setDossier] = useState<RoomDossier | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const reload = useCallback(() => {
+    setReloadKey((k) => k + 1);
+  }, []);
 
   useEffect(() => {
     if (!unitId) {
@@ -54,10 +59,16 @@ export function RoomDossierSheet({ unitId, units, onClose }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [unitId]);
+  }, [unitId, reloadKey]);
 
-  const fallbackLabel =
-    units.find((u) => u.id === unitId)?.label ?? dossier?.unit.label;
+  const mapUnit = units.find((u) => u.id === unitId);
+  const fallbackLabel = mapUnit?.label ?? dossier?.unit.label;
+
+  const paxFromOccupants = dossier?.occupants.length ?? 0;
+  const paxFromBooking =
+    (dossier?.current?.adults ?? 0) + (dossier?.current?.children ?? 0);
+  const paxDisplay =
+    paxFromOccupants > 0 ? paxFromOccupants : paxFromBooking > 0 ? paxFromBooking : null;
 
   return (
     <Sheet
@@ -86,6 +97,19 @@ export function RoomDossierSheet({ unitId, units, onClose }: Props) {
             <div className="flex flex-wrap gap-2">
               <Badge variant="secondary">{dossier.unit.room_type_name}</Badge>
               <Badge variant="outline">{dossier.unit.hk_status}</Badge>
+              {mapUnit?.stay_state && mapUnit.stay_state !== "vacant" ? (
+                <Badge variant="outline">
+                  {mapUnit.stay_state.replace("_", " ")}
+                </Badge>
+              ) : (
+                <Badge variant="outline">Empty</Badge>
+              )}
+              {paxDisplay != null ? (
+                <Badge variant="outline">{paxDisplay} pax</Badge>
+              ) : null}
+              {mapUnit?.has_open_maintenance ? (
+                <Badge variant="destructive">Maintenance</Badge>
+              ) : null}
               {dossier.unit.floor_label ? (
                 <Badge variant="outline">Floor {dossier.unit.floor_label}</Badge>
               ) : null}
@@ -118,8 +142,30 @@ export function RoomDossierSheet({ unitId, units, onClose }: Props) {
                       {dossier.current.check_in} → {dossier.current.check_out} ·{" "}
                       {dossier.current.status}
                     </p>
+                    <p className="mt-1 text-muted-foreground">
+                      Party: {dossier.current.adults} adult
+                      {dossier.current.adults === 1 ? "" : "s"}
+                      {dossier.current.children > 0
+                        ? ` · ${dossier.current.children} child${dossier.current.children === 1 ? "" : "ren"}`
+                        : ""}
+                      {paxFromOccupants > 0
+                        ? ` · ${paxFromOccupants} named on bed`
+                        : ""}
+                    </p>
+                    {dossier.occupants.length > 0 ? (
+                      <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                        {dossier.occupants.map((o, i) => (
+                          <li key={`${o.display_name}-${i}`}>
+                            <span className="font-medium text-foreground">
+                              {o.display_name}
+                            </span>{" "}
+                            · {o.kind}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                     {dossier.current.agent_name || dossier.current.agent_id ? (
-                      <p className="text-muted-foreground">
+                      <p className="mt-1 text-muted-foreground">
                         Agent:{" "}
                         <AgentNameLink
                           agentId={dossier.current.agent_id}
@@ -137,7 +183,7 @@ export function RoomDossierSheet({ unitId, units, onClose }: Props) {
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    No guest in this room today.
+                    No guest in this room today — vacant / empty for the map.
                   </p>
                 )}
 
@@ -185,28 +231,13 @@ export function RoomDossierSheet({ unitId, units, onClose }: Props) {
               </TabsContent>
 
               <TabsContent value="photos" className="mt-3">
-                {dossier.photoPublicIds.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No room-type photos tagged yet. Add under Front public →
-                    media / room types.
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-2 gap-2">
-                    {dossier.photoPublicIds.map((id) => {
-                      const src = cloudinaryUrl(id, { width: 400 });
-                      if (!src) return null;
-                      return (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          key={id}
-                          src={src}
-                          alt=""
-                          className="aspect-[4/3] w-full rounded-md object-cover"
-                        />
-                      );
-                    })}
-                  </div>
-                )}
+                <RoomUnitPhotoPrompts
+                  unitId={dossier.unit.id}
+                  unitLabel={dossier.unit.label}
+                  unitPhotos={dossier.unitPhotos}
+                  typePhotoPublicIds={dossier.photoPublicIds}
+                  onUploaded={reload}
+                />
               </TabsContent>
 
               <TabsContent value="history" className="mt-3 space-y-2">

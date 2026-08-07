@@ -1,7 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AgentPicker, type BookableAgent } from "@/components/erp/AgentPicker";
+import {
+  CreditAgentPromotePanel,
+  needsCreditPromote,
+} from "@/components/erp/CreditAgentPromotePanel";
 import { StaffPicker, type BookableStaff } from "@/components/erp/StaffPicker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -62,6 +66,54 @@ function DrawerBody({
   defaultGuestOrigin: string;
 }) {
   const [phoneLater, setPhoneLater] = useState(false);
+  /** Agent stays are almost always on credit; walk-in → cash. */
+  const [paymentMode, setPaymentMode] = useState("cash");
+  /** Local status patches after in-flow promote (directory → approved). */
+  const [agentPatches, setAgentPatches] = useState<
+    Record<string, BookableAgent>
+  >({});
+
+  const handleAgentChange = useCallback(
+    (next: string) => {
+      setAgentId(next);
+      if (next) {
+        setPaymentMode("on_credit");
+      } else if (paymentMode === "on_credit") {
+        setPaymentMode("cash");
+      }
+    },
+    [paymentMode, setAgentId],
+  );
+
+  const displayAgents = useMemo(() => {
+    return agents.map((a) => agentPatches[a.id] ?? a);
+  }, [agents, agentPatches]);
+
+  const extrasFromPromote = useMemo(
+    () =>
+      Object.values(agentPatches).filter(
+        (p) => !agents.some((a) => a.id === p.id),
+      ),
+    [agentPatches, agents],
+  );
+
+  const pickerAgents = useMemo(
+    () => [...displayAgents, ...extrasFromPromote],
+    [displayAgents, extrasFromPromote],
+  );
+
+  const selectedAgent = useMemo(
+    () => pickerAgents.find((a) => a.id === agentId) ?? null,
+    [pickerAgents, agentId],
+  );
+
+  const blockCredit =
+    needsCreditPromote(paymentMode, selectedAgent) && Boolean(agentId);
+
+  const onPromoted = useCallback((agent: BookableAgent) => {
+    setAgentPatches((prev) => ({ ...prev, [agent.id]: agent }));
+  }, []);
+
   return (
     <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
       {!hasQty ? (
@@ -157,7 +209,11 @@ function DrawerBody({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="guest_origin">Guest origin</Label>
-            <Select name="guest_origin" defaultValue={defaultGuestOrigin} required>
+            <Select
+              name="guest_origin"
+              defaultValue={defaultGuestOrigin}
+              required
+            >
               <SelectTrigger id="guest_origin">
                 <SelectValue placeholder="Select origin" />
               </SelectTrigger>
@@ -176,7 +232,11 @@ function DrawerBody({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="meal_plan_code">Meal plan</Label>
-            <Select name="meal_plan_code" defaultValue={defaultMealPlanCode} required>
+            <Select
+              name="meal_plan_code"
+              defaultValue={defaultMealPlanCode}
+              required
+            >
               <SelectTrigger id="meal_plan_code">
                 <SelectValue placeholder="Select meal plan" />
               </SelectTrigger>
@@ -193,12 +253,46 @@ function DrawerBody({
             <Label>Agent</Label>
             <AgentPicker
               name="agent_id"
-              agents={agents}
+              agents={pickerAgents}
               value={agentId}
-              onValueChange={setAgentId}
+              onValueChange={handleAgentChange}
               className="bg-background"
+              creditMode
             />
+            <p className="text-[11px] text-muted-foreground">
+              Agent stays default to on credit. Walk-in clear → cash.
+            </p>
           </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="payment_mode">Payment</Label>
+            <Select
+              name="payment_mode"
+              value={paymentMode}
+              onValueChange={setPaymentMode}
+            >
+              <SelectTrigger id="payment_mode">
+                <SelectValue placeholder="Select payment" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="on_credit">On credit</SelectItem>
+                <SelectItem value="cash">Cash</SelectItem>
+                <SelectItem value="prepaid">Prepaid</SelectItem>
+                <SelectItem value="partial">Partial</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {blockCredit && selectedAgent ? (
+            <CreditAgentPromotePanel
+              agent={selectedAgent}
+              onPromoted={onPromoted}
+              onUseCash={() => setPaymentMode("cash")}
+            />
+          ) : null}
+          {paymentMode === "on_credit" && !agentId ? (
+            <p className="text-xs text-amber-800 dark:text-amber-200">
+              Select an agent for on-credit stays.
+            </p>
+          ) : null}
           <div className="space-y-1.5">
             <Label>Sold by (staff)</Label>
             <StaffPicker
@@ -225,30 +319,20 @@ function DrawerBody({
               Required for international tourists only.
             </p>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="payment_mode">Payment</Label>
-            <Select name="payment_mode" defaultValue="cash">
-              <SelectTrigger id="payment_mode">
-                <SelectValue placeholder="Select payment" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="cash">Cash</SelectItem>
-                <SelectItem value="prepaid">Prepaid</SelectItem>
-                <SelectItem value="partial">Partial</SelectItem>
-                <SelectItem value="on_credit">On credit</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </div>
       </fieldset>
 
       <Button
         type="submit"
         variant="citrus"
-        disabled={pending || !hasQty}
+        disabled={pending || !hasQty || blockCredit}
         className="h-11 w-full"
       >
-        {pending ? "Saving…" : "Save booking"}
+        {pending
+          ? "Saving…"
+          : blockCredit
+            ? "Approve trade partner above to save"
+            : "Save booking"}
       </Button>
     </div>
   );
@@ -269,6 +353,10 @@ export function FastBookDrawer({
   // Pickers are type-to-search Comboboxes; we mirror values into hidden form fields.
   const [agentId, setAgentId] = useState<string>("");
   const [soldByStaffId, setSoldByStaffId] = useState(defaultSoldByStaffId);
+
+  useEffect(() => {
+    setSoldByStaffId(defaultSoldByStaffId);
+  }, [defaultSoldByStaffId]);
 
   // Switch between the desktop rail (static column in the form grid) and the
   // mobile bottom Sheet based on viewport. Only one body is rendered at a

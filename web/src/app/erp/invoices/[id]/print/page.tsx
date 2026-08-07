@@ -3,9 +3,17 @@ import { FiscalDocEmailForm } from "@/components/erp/FiscalDocEmailForm";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
+import {
+  BILL_KIND_LABELS,
+  BILL_KIND_TITLES,
+  type BillKind,
+  classifyBillLine,
+  lineBelongsOnBill,
+  parseBillKind,
+} from "@/lib/folio/bill-kinds";
 import { guestVisibleBalanceLines } from "@/lib/folio/balance";
 import {
-  formatBtn,
+  formatGuestBtn,
   isGuestRateAdjDescription,
   roundBtn,
 } from "@/lib/pricing";
@@ -21,7 +29,10 @@ export const metadata = {
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ id: string }> };
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ bill?: string }>;
+};
 
 type FolioLine = {
   id: string;
@@ -89,20 +100,6 @@ function formatRoomProductLine(row: BookingRoomRow): string {
   return kind ? `${base} · ${kind}` : base;
 }
 
-type LineGroup = "room" | "pos" | "hotel_adj" | "other";
-
-function classifyInvoiceLine(line: {
-  source_type: string;
-  description: string;
-}): LineGroup {
-  if (isGuestRateAdjDescription(line.description)) return "hotel_adj";
-  const st = (line.source_type ?? "").toLowerCase();
-  if (["room", "meal_plan", "extra_bed"].includes(st)) return "room";
-  if (["order", "pos", "laundry"].includes(st)) return "pos";
-  if (st === "comp" || st === "adjustment") return "hotel_adj";
-  return "other";
-}
-
 function sumLines(rows: FolioLine[]): number {
   return roundBtn(rows.reduce((s, l) => s + Number(l.total_btn ?? 0), 0));
 }
@@ -111,11 +108,16 @@ function sumGst(rows: FolioLine[]): number {
   return roundBtn(rows.reduce((s, l) => s + Number(l.gst_btn ?? 0), 0));
 }
 
-/** Printable fiscal invoice — compact room / POS sections + grand total. */
-export default async function FiscalInvoicePrintPage({ params }: Props) {
+/** Printable fiscal invoice — Master / Room / F&B bills; totals whole Nu 0 or 5. */
+export default async function FiscalInvoicePrintPage({
+  params,
+  searchParams,
+}: Props) {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
 
   const { id } = await params;
+  const sp = await searchParams;
+  const bill: BillKind = parseBillKind(sp.bill);
   const admin = createSupabaseAdminClient();
   const activePropertyId = await resolveActivePropertyId(admin);
 
@@ -214,19 +216,42 @@ export default async function FiscalInvoicePrintPage({ params }: Props) {
     (l) => l.source_type !== "payment" && l.source_type !== "deposit",
   );
 
-  const roomLines = lines.filter((l) => classifyInvoiceLine(l) === "room");
-  const posLines = lines.filter((l) => classifyInvoiceLine(l) === "pos");
-  const hotelAdjLines = lines.filter(
-    (l) => classifyInvoiceLine(l) === "hotel_adj",
-  );
-  const otherLines = lines.filter((l) => classifyInvoiceLine(l) === "other");
+  const onBill = lines.filter((l) => lineBelongsOnBill(l, bill));
 
-  const roomSub = sumLines(roomLines);
-  const posSub = sumLines(posLines);
-  const hotelAdjSub = sumLines(hotelAdjLines);
+  const roomLines = onBill.filter((l) => classifyBillLine(l) === "room");
+  const fnbLines = onBill.filter((l) => classifyBillLine(l) === "fnb");
+  const hotelAdjLines = onBill.filter(
+    (l) => classifyBillLine(l) === "hotel_adj",
+  );
+  const otherLines = onBill.filter((l) => classifyBillLine(l) === "other");
+
+  // Stream rate adj counted with their bill when not master-only hotel_adj
+  const streamAdjRoom = onBill.filter(
+    (l) =>
+      isGuestRateAdjDescription(l.description) &&
+      (l.description ?? "").toLowerCase().includes("room bill"),
+  );
+  const streamAdjFnb = onBill.filter(
+    (l) =>
+      isGuestRateAdjDescription(l.description) &&
+      ((l.description ?? "").toLowerCase().includes("f&b") ||
+        (l.description ?? "").toLowerCase().includes("fnb")),
+  );
+
+  const roomSub = sumLines([...roomLines, ...streamAdjRoom]);
+  const fnbSub = sumLines([...fnbLines, ...streamAdjFnb]);
+  const hotelAdjShown =
+    bill === "master"
+      ? hotelAdjLines.filter(
+          (l) =>
+            !streamAdjRoom.some((a) => a.id === l.id) &&
+            !streamAdjFnb.some((a) => a.id === l.id),
+        )
+      : [];
+  const hotelAdjSub = sumLines(hotelAdjShown);
   const otherSub = sumLines(otherLines);
-  const totalBtn = roundBtn(roomSub + posSub + hotelAdjSub + otherSub);
-  const gstBtn = sumGst(lines);
+  const totalBtn = sumLines(onBill);
+  const gstBtn = sumGst(onBill);
 
   const kind = doc.doc_kind as string;
   const kindLabel =
@@ -234,13 +259,13 @@ export default async function FiscalInvoicePrintPage({ params }: Props) {
       ? "Receipt"
       : kind === "credit_note"
         ? "Credit note"
-        : "Tax invoice";
+        : BILL_KIND_LABELS[bill];
   const kindTitle =
     kind === "receipt"
       ? "RECEIPT"
       : kind === "credit_note"
         ? "CREDIT NOTE"
-        : "TAX INVOICE";
+        : BILL_KIND_TITLES[bill];
 
   const meta =
     doc.meta && typeof doc.meta === "object"
@@ -304,12 +329,12 @@ export default async function FiscalInvoicePrintPage({ params }: Props) {
                   {line.description}
                   {Number(line.gst_btn) > 0.009 ? (
                     <span className="mt-0.5 block text-[11px] text-neutral-500">
-                      incl. GST {formatBtn(Number(line.gst_btn))}
+                      incl. GST {formatGuestBtn(Number(line.gst_btn))}
                     </span>
                   ) : null}
                 </td>
                 <td className="w-[6.5rem] py-1.5 pl-2 text-right align-top font-mono tabular-nums text-neutral-900">
-                  {formatBtn(Number(line.total_btn))}
+                  {formatGuestBtn(Number(line.total_btn))}
                 </td>
               </tr>
             ))}
@@ -318,7 +343,7 @@ export default async function FiscalInvoicePrintPage({ params }: Props) {
                 {subtotalLabel}
               </td>
               <td className="pt-2 pl-2 text-right font-mono text-[13px] font-semibold tabular-nums text-neutral-950">
-                {formatBtn(subtotal)}
+                {formatGuestBtn(subtotal)}
               </td>
             </tr>
           </tbody>
@@ -326,6 +351,13 @@ export default async function FiscalInvoicePrintPage({ params }: Props) {
       </section>
     );
   }
+
+  const basePrintHref = `/erp/invoices/${id}/print`;
+  const billLinks: { kind: BillKind; label: string }[] = [
+    { kind: "master", label: "Master bill" },
+    { kind: "room", label: "Room bill" },
+    { kind: "fnb", label: "F&B bill" },
+  ];
 
   return (
     <div className="erp mx-auto max-w-[820px] space-y-4 p-4 md:p-5">
@@ -337,6 +369,10 @@ export default async function FiscalInvoicePrintPage({ params }: Props) {
           <h1 className="mt-1 font-mono text-xl font-semibold text-foreground">
             {doc.doc_no as string}
           </h1>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Process: Master bill → Room bill → F&amp;B bill · guest totals whole
+            Nu ending 0 or 5
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {folioId ? (
@@ -356,6 +392,24 @@ export default async function FiscalInvoicePrintPage({ params }: Props) {
           <DocPrintControls defaultSize="a4" printLabel="Print / PDF" />
         </div>
       </div>
+
+      {kind === "invoice" || kind === "receipt" ? (
+        <div className="print:hidden flex flex-wrap gap-2">
+          {billLinks.map((b) => (
+            <a
+              key={b.kind}
+              href={`${basePrintHref}?bill=${b.kind}`}
+              className={
+                bill === b.kind
+                  ? "inline-flex h-9 items-center rounded-md bg-foreground px-3 text-sm font-medium text-background"
+                  : "inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
+              }
+            >
+              {b.label}
+            </a>
+          ))}
+        </div>
+      ) : null}
 
       {folioId && (kind === "invoice" || kind === "receipt") ? (
         <div className="print:hidden">
@@ -443,37 +497,43 @@ export default async function FiscalInvoicePrintPage({ params }: Props) {
           ) : null}
         </div>
 
-        <SectionTable
-          title="Room charges"
-          rows={roomLines}
-          subtotalLabel="Room subtotal"
-          subtotal={roomSub}
-        />
-        <SectionTable
-          title="Food & beverage (POS)"
-          rows={posLines}
-          subtotalLabel="POS subtotal"
-          subtotal={posSub}
-        />
-        <SectionTable
-          title="Other charges"
-          rows={otherLines}
-          subtotalLabel="Other subtotal"
-          subtotal={otherSub}
-        />
+        {(bill === "master" || bill === "room") && (
+          <SectionTable
+            title="Room charges"
+            rows={[...roomLines, ...streamAdjRoom]}
+            subtotalLabel="Room bill subtotal"
+            subtotal={roomSub}
+          />
+        )}
+        {(bill === "master" || bill === "fnb") && (
+          <SectionTable
+            title="Food & beverage"
+            rows={[...fnbLines, ...streamAdjFnb]}
+            subtotalLabel="F&B bill subtotal"
+            subtotal={fnbSub}
+          />
+        )}
+        {bill === "master" ? (
+          <SectionTable
+            title="Other charges"
+            rows={otherLines}
+            subtotalLabel="Other subtotal"
+            subtotal={otherSub}
+          />
+        ) : null}
 
-        {hotelAdjLines.length > 0 ? (
+        {hotelAdjShown.length > 0 ? (
           <section className="mt-4">
             <p className="border-b border-neutral-900 pb-1 text-[10px] font-semibold tracking-[0.16em] text-neutral-700 uppercase">
               Hotel adjustment (not charged to guest)
             </p>
             <p className="mt-1 text-[11px] leading-snug text-neutral-500">
-              Rounding to Nu figures ending in 0 or 5 is absorbed from hotel
-              rates — guest is not billed the difference.
+              Rounding to whole Nu ending in 0 or 5 is absorbed from hotel rates
+              — guest is not billed the difference.
             </p>
             <table className="mt-1 w-full border-collapse text-[13px]">
               <tbody>
-                {hotelAdjLines.map((line) => (
+                {hotelAdjShown.map((line) => (
                   <tr
                     key={line.id}
                     className="border-b border-neutral-200/80"
@@ -482,7 +542,7 @@ export default async function FiscalInvoicePrintPage({ params }: Props) {
                       {line.description}
                     </td>
                     <td className="w-[6.5rem] py-1.5 pl-2 text-right align-top font-mono tabular-nums text-neutral-800">
-                      {formatBtn(Number(line.total_btn))}
+                      {formatGuestBtn(Number(line.total_btn))}
                     </td>
                   </tr>
                 ))}
@@ -491,7 +551,7 @@ export default async function FiscalInvoicePrintPage({ params }: Props) {
                     Hotel adj subtotal
                   </td>
                   <td className="pt-2 pl-2 text-right font-mono text-[13px] font-semibold tabular-nums">
-                    {formatBtn(hotelAdjSub)}
+                    {formatGuestBtn(hotelAdjSub)}
                   </td>
                 </tr>
               </tbody>
@@ -499,9 +559,9 @@ export default async function FiscalInvoicePrintPage({ params }: Props) {
           </section>
         ) : null}
 
-        {lines.length === 0 ? (
+        {onBill.length === 0 ? (
           <p className="mt-6 text-center text-sm text-neutral-500">
-            No posted charge lines on this folio.
+            No posted charge lines for this bill.
           </p>
         ) : null}
 
@@ -510,39 +570,49 @@ export default async function FiscalInvoicePrintPage({ params }: Props) {
             {gstBtn !== 0 ? (
               <div className="flex justify-between gap-4 text-neutral-600">
                 <span>GST included in lines</span>
-                <span className="font-mono tabular-nums">{formatBtn(gstBtn)}</span>
+                <span className="font-mono tabular-nums">
+                  {formatGuestBtn(gstBtn)}
+                </span>
               </div>
             ) : null}
-            {roomLines.length > 0 ? (
+            {bill === "master" && roomLines.length + streamAdjRoom.length > 0 ? (
               <div className="flex justify-between gap-4 text-neutral-600">
-                <span>Room</span>
-                <span className="font-mono tabular-nums">{formatBtn(roomSub)}</span>
+                <span>Room bill</span>
+                <span className="font-mono tabular-nums">
+                  {formatGuestBtn(roomSub)}
+                </span>
               </div>
             ) : null}
-            {posLines.length > 0 ? (
+            {bill === "master" && fnbLines.length + streamAdjFnb.length > 0 ? (
               <div className="flex justify-between gap-4 text-neutral-600">
-                <span>POS</span>
-                <span className="font-mono tabular-nums">{formatBtn(posSub)}</span>
+                <span>F&amp;B bill</span>
+                <span className="font-mono tabular-nums">
+                  {formatGuestBtn(fnbSub)}
+                </span>
               </div>
             ) : null}
-            {hotelAdjLines.length > 0 ? (
+            {hotelAdjShown.length > 0 ? (
               <div className="flex justify-between gap-4 text-neutral-600">
                 <span>Hotel adj</span>
                 <span className="font-mono tabular-nums">
-                  {formatBtn(hotelAdjSub)}
+                  {formatGuestBtn(hotelAdjSub)}
                 </span>
               </div>
             ) : null}
             <div className="flex items-baseline justify-between gap-4 border-t border-neutral-400 pt-2">
               <span className="text-[11px] font-semibold tracking-[0.12em] text-neutral-950 uppercase">
-                Grand total
+                {bill === "master"
+                  ? "Master total"
+                  : bill === "room"
+                    ? "Room bill total"
+                    : "F&B bill total"}
               </span>
               <span className="font-mono text-lg font-semibold tabular-nums text-neutral-950">
-                {formatBtn(totalBtn)}
+                {formatGuestBtn(totalBtn)}
               </span>
             </div>
             <p className="text-right text-[10px] text-neutral-500">
-              BTN · guest due ends on Nu 0 or 5 (hotel absorbs remainder)
+              BTN · whole Nu · ends on 0 or 5 (hotel absorbs remainder)
             </p>
           </div>
         </div>

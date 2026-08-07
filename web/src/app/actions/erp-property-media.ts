@@ -58,6 +58,8 @@ function optionalNumber(value: FormDataEntryValue | null): number | null {
 function revalidateTrustPaths() {
   revalidatePath("/erp/front-public/media");
   revalidatePath("/erp/front-public");
+  revalidatePath("/erp/rooms/layout");
+  revalidatePath("/erp/rooms");
   revalidatePath("/rooms");
   revalidatePath("/gallery");
   revalidatePath("/contact");

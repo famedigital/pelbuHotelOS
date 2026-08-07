@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pelbu Suites — Magazine Menu · A4 Booklet</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,500;1,600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #1a0f0a;
+      --cream: #fffaf3;
+      --gold: #e8a838;
+      --brass: #d4a84b;
+      --copper: #c45c26;
+      --espresso: #0a0705;
+      --cut: 5mm; /* print-house safe / cut margin */
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
+
+    html, body {
+      background: #1a1410;
+      color: var(--cream);
+      font-family: "Outfit", "Segoe UI", Arial, sans-serif;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .print-bar {
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 18px;
+      background: #0c0806;
+      border-bottom: 1px solid rgba(232, 168, 56, 0.25);
+      font-size: 12.5px;
+    }
+
+    .print-bar strong {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .print-bar .meta {
+      opacity: 0.8;
+      font-size: 11px;
+      max-width: 58ch;
+      line-height: 1.45;
+    }
+
+    .print-bar button {
+      border: 0;
+      cursor: pointer;
+      font: 700 11px/1 "Outfit", sans-serif;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 11px 18px;
+      background: linear-gradient(135deg, var(--copper), var(--gold));
+      color: var(--ink);
+    }
+
+    .stage {
+      padding: 18px 12px 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .side-tag {
+      width: 210mm;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(255, 250, 243, 0.45);
+    }
+
+    /* A4 trim — photos go edge-to-edge; text stays in 5mm safe */
+    .sheet {
+      width: 210mm;
+      height: 297mm;
+      position: relative;
+      overflow: hidden;
+      background: #0a0705;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+    }
+
+    .cut-guide {
+      position: absolute;
+      inset: var(--cut);
+      border: 0.35px dashed rgba(255, 250, 243, 0.22);
+      pointer-events: none;
+      z-index: 50;
+    }
+
+    .safe-pad {
+      /* helper: horizontal/vertical inset for type blocks */
+      padding-left: var(--cut);
+      padding-right: var(--cut);
+    }
+
+    /* ——— FULL PAGE HERO (cover, divider, feature) ——— */
+    .hero {
+      position: absolute;
+      inset: 0;
+    }
+
+    .hero img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center center;
+      display: block;
+    }
+
+    /* Dish features: full plate visible (no mid-food crop) */
+    .hero.feature {
+      background: var(--espresso);
+    }
+
+    .hero.feature img {
+      object-fit: contain;
+      object-position: center 42%;
+    }
+
+    .hero .scrim {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(10, 7, 5, 0.42) 0%, rgba(10, 7, 5, 0.06) 36%, rgba(10, 7, 5, 0.12) 58%, rgba(10, 7, 5, 0.9) 100%),
+        linear-gradient(90deg, rgba(10, 7, 5, 0.28) 0%, transparent 58%);
+    }
+
+    .hero .scrim.top-heavy {
+      background:
+        linear-gradient(180deg, rgba(10, 7, 5, 0.58) 0%, rgba(10, 7, 5, 0.08) 44%, rgba(10, 7, 5, 0.86) 100%);
+    }
+
+    /* Strong read only under type — plate stays clear mid-frame */
+    .hero .scrim.bottom-heavy {
+      background: linear-gradient(
+        0deg,
+        rgba(10, 7, 5, 0.96) 0%,
+        rgba(10, 7, 5, 0.62) 22%,
+        rgba(10, 7, 5, 0.12) 48%,
+        transparent 68%
+      );
+    }
+
+    .hero-content {
+      position: absolute;
+      z-index: 2;
+      left: var(--cut);
+      right: var(--cut);
+      bottom: var(--cut);
+      top: var(--cut);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .hero-content.bottom-only {
+      justify-content: flex-end;
+    }
+
+    .brand-line {
+      display: flex;
+      align-items: center;
+      gap: 3.5mm;
+    }
+
+    .brand-line img {
+      width: 14mm;
+      height: 14mm;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.45));
+    }
+
+    .brand-line .nm {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 9mm;
+      font-weight: 700;
+      line-height: 0.95;
+      text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55);
+    }
+
+    .brand-line .nm em {
+      font-style: normal;
+      color: var(--gold);
+    }
+
+    .brand-line .loc {
+      margin-top: 1mm;
+      font-size: 2.4mm;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: rgba(255, 250, 243, 0.78);
+    }
+
+    .eyebrow {
+      font-size: 2.6mm;
+      font-weight: 600;
+      letter-spacing: 0.36em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 3mm;
+      text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
+    }
+
+    .display {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-weight: 700;
+      line-height: 0.92;
+      letter-spacing: 0.01em;
+      text-shadow: 0 3px 28px rgba(0, 0, 0, 0.55);
+    }
+
+    .display.xl { font-size: 22mm; }
+    .display.lg { font-size: 16mm; }
+    .display.md { font-size: 15mm; }
+
+    .display em {
+      font-style: italic;
+      font-weight: 500;
+      color: #f0c66a;
+    }
+
+    /* Gold hairline under feature dish titles */
+    .copy-block .display::after {
+      content: "";
+      display: block;
+      width: 14mm;
+      height: 0.35mm;
+      margin-top: 2.8mm;
+      background: linear-gradient(90deg, var(--gold), var(--brass) 60%, transparent);
+      opacity: 0.9;
+    }
+
+    .lede {
+      margin-top: 4mm;
+      font-size: 3.4mm;
+      line-height: 1.45;
+      max-width: 140mm;
+      color: rgba(255, 250, 243, 0.9);
+      text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    .meta-row {
+      margin-top: 5mm;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2mm 4mm;
+      align-items: center;
+    }
+
+    .meta-row span {
+      font-size: 2.2mm;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(255, 250, 243, 0.82);
+    }
+
+    .meta-row span.rule {
+      width: 8mm;
+      height: 0.35mm;
+      background: var(--gold);
+      opacity: 0.85;
+    }
+
+    .hero-foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 6mm;
+    }
+
+    .hero-foot .phone {
+      font-size: 3.4mm;
+      font-weight: 600;
+    }
+
+    .hero-foot .web {
+      margin-top: 1mm;
+      font-size: 2.4mm;
+      opacity: 0.78;
+    }
+
+    .hero-foot .note {
+      text-align: right;
+      font-size: 2.2mm;
+      line-height: 1.4;
+      opacity: 0.78;
+      max-width: 72mm;
+    }
+
+    /* ——— MAGAZINE HALF-PAGES (2 dishes per sheet) ——— */
+    .stack {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      background: var(--espresso);
+    }
+
+    .panel img.bg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      /* Full plate: contain, never mid-food crop */
+      object-fit: contain;
+      object-position: center 40%;
+      background: var(--espresso);
+      /* no transform scale — crops edges */
+    }
+
+    .panel .scrim {
+      position: absolute;
+      inset: 0;
+      /* Soft top; stronger gradient only under type at bottom */
+      background: linear-gradient(
+        0deg,
+        rgba(8, 5, 4, 0.96) 0%,
+        rgba(8, 5, 4, 0.78) 18%,
+        rgba(8, 5, 4, 0.28) 38%,
+        rgba(8, 5, 4, 0.04) 58%,
+        transparent 72%
+      );
+    }
+
+    .panel.tone-a .scrim {
+      background: linear-gradient(
+        0deg,
+        rgba(8, 5, 4, 0.96) 0%,
+        rgba(8, 5, 4, 0.78) 20%,
+        rgba(8, 5, 4, 0.3) 40%,
+        rgba(8, 5, 4, 0.06) 58%,
+        transparent 74%
+      );
+    }
+
+    .panel.tone-b .scrim {
+      background: linear-gradient(
+        0deg,
+        rgba(8, 5, 4, 0.97) 0%,
+        rgba(8, 5, 4, 0.8) 22%,
+        rgba(8, 5, 4, 0.32) 42%,
+        rgba(8, 5, 4, 0.06) 60%,
+        transparent 76%
+      );
+    }
+
+    .panel .copy {
+      position: absolute;
+      z-index: 2;
+      left: var(--cut);
+      right: var(--cut);
+      bottom: var(--cut);
+      /* when two panels, each panel's bottom also needs to clear mid-split — bottom is already panel edge */
+      max-width: 170mm;
+    }
+
+    .panel.top .copy {
+      /* keep type above the mid cut into lower panel */
+      bottom: 4mm;
+      padding-bottom: 0;
+    }
+
+    .panel.bottom .copy {
+      bottom: var(--cut);
+    }
+
+    .panel .tag {
+      font-size: 2.1mm;
+      font-weight: 600;
+      letter-spacing: 0.34em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 1.8mm;
+      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
+    }
+
+    .panel h3 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 12mm;
+      font-weight: 700;
+      line-height: 0.96;
+      letter-spacing: 0.005em;
+      text-shadow: 0 2px 18px rgba(0, 0, 0, 0.6);
+    }
+
+    .panel h3::after {
+      content: "";
+      display: block;
+      width: 11mm;
+      height: 0.3mm;
+      margin-top: 2.2mm;
+      background: linear-gradient(90deg, var(--gold), rgba(232, 168, 56, 0.15));
+    }
+
+    .panel .desc {
+      margin-top: 2.4mm;
+      font-size: 3.7mm;
+      line-height: 1.42;
+      color: rgba(255, 250, 243, 0.92);
+      max-width: 150mm;
+      text-shadow: 0 1px 10px rgba(0, 0, 0, 0.55);
+    }
+
+    .panel .price-row {
+      margin-top: 3.2mm;
+      display: flex;
+      align-items: baseline;
+      gap: 3.5mm;
+    }
+
+    .panel .price {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 10mm;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--cream);
+      letter-spacing: 0.01em;
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    .panel .price .cur {
+      font-family: "Outfit", sans-serif;
+      font-size: 2.6mm;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      color: var(--gold);
+      margin-right: 1.6mm;
+      vertical-align: 1.4mm;
+    }
+
+    .panel .plus {
+      font-size: 2.4mm;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--brass);
+      opacity: 0.85;
+    }
+
+    /* mid rule between panels — brass hairline */
+    .stack::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 0;
+      border-top: 0.35px solid rgba(232, 168, 56, 0.35);
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    /* page corner folio */
+    .folio {
+      position: absolute;
+      z-index: 10;
+      right: var(--cut);
+      top: var(--cut);
+      font-size: 2mm;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(255, 250, 243, 0.72);
+      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+      mix-blend-mode: normal;
+    }
+
+    .folio.bottom {
+      top: auto;
+      bottom: var(--cut);
+    }
+
+    /* —— Feature single dish (full page) ——
+       Copy sits in .hero-content (sibling of .hero.feature), not inside .feature */
+    .copy-block {
+      max-width: 170mm;
+    }
+
+    .copy-block .display {
+      font-size: 16mm;
+    }
+
+    .copy-block .price-row {
+      margin-top: 4.5mm;
+      display: flex;
+      align-items: baseline;
+      gap: 4mm;
+    }
+
+    .copy-block .price {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 12mm;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      text-shadow: 0 2px 16px rgba(0, 0, 0, 0.55);
+    }
+
+    .copy-block .price .cur {
+      font-family: "Outfit", sans-serif;
+      font-size: 3.2mm;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      color: var(--gold);
+      margin-right: 2mm;
+      vertical-align: 1.8mm;
+    }
+
+    .copy-block .desc {
+      margin-top: 3.5mm;
+      font-size: 4.2mm;
+      line-height: 1.45;
+      max-width: 150mm;
+      color: rgba(255, 250, 243, 0.94);
+      text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    .copy-block .plus,
+    .hero-content .plus {
+      font-size: 2.6mm;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--brass);
+      opacity: 0.9;
+    }
+
+    /* Dish openers that use menu plate photography */
+    .hero.dish {
+      background: var(--espresso);
+    }
+
+    .hero.dish img {
+      object-fit: contain;
+      object-position: center 42%;
+    }
+
+    /* back cover qr pill */
+    .qr-glass {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2mm;
+      background: rgba(255, 250, 243, 0.95);
+      color: var(--ink);
+      padding: 3.5mm;
+      border-radius: 1.5mm;
+    }
+
+    .qr-glass img {
+      width: 26mm;
+      height: 26mm;
+      display: block;
+    }
+
+    .qr-glass span {
+      font-size: 1.8mm;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #5c4033;
+    }
+
+    .spec {
+      max-width: 210mm;
+      width: 100%;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #3d2a22;
+      background: #fffaf3;
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+
+    .spec h3 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 18px;
+      margin-bottom: 6px;
+    }
+
+    .spec ul { margin-left: 1.1em; }
+    .spec li { margin: 3px 0; }
+
+    @media print {
+      html, body { background: #fff; }
+      .no-print { display: none !important; }
+      .stage { padding: 0; gap: 0; }
+      .sheet {
+        box-shadow: none;
+        page-break-after: always;
+        break-after: page;
+      }
+      .sheet:last-of-type {
+        page-break-after: auto;
+        break-after: auto;
+      }
+      .side-tag { display: none; }
+      .cut-guide { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-bar no-print">
+    <div>
+      <strong>Pelbu Suites · Magazine menu</strong><br />
+      <span class="meta">
+        A4 booklet · full-bleed photos · type over imagery.
+        Safe type margin <b>5&nbsp;mm</b> all sides for print cut.
+        Chrome → Print → A4 · margins none · background graphics ON.
+      </span>
+    </div>
+    <button type="button" onclick="window.print()">Print / PDF</button>
+  </div>
+
+  <div class="stage" id="book"></div>
+
+  <aside class="spec no-print" style="margin: 0 auto 40px;">
+    <h3>Print-house · magazine menu</h3>
+    <ul>
+      <li><strong>File:</strong> <code>marketing/print/menu-booklet-a4.html</code> + <code>qr-web.png</code></li>
+      <li><strong>Trim:</strong> A4 210×297 mm · photos <strong>full bleed</strong> to edge</li>
+      <li><strong>Cut / type safe:</strong> <strong>5 mm</strong> inset — all titles, descriptions, prices inside this zone</li>
+      <li><strong>Style:</strong> magazine stacks (2 dishes per page) + full-page features and section openers</li>
+      <li><strong>Duplex:</strong> flip long edge for front/back booklet pairs</li>
+    </ul>
+  </aside>
+
+  <script>
+    const C = "https://res.cloudinary.com/hkkchsfy/image/upload";
+    const logo = `${C}/w_180,h_180,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1`;
+    /* Full plate in frame: pad to size on espresso (shows bowl/plate edges) */
+    const photo = (id, w = 1600, h = 1200) =>
+      `${C}/w_${w},h_${h},c_pad,b_rgb:0a0705,g_center,e_improve:indoor:22,e_sharpen:35,f_jpg,q_auto:best/${id}`;
+    /* Atmospheric cover/opener only — full-bleed crop OK */
+    const scene = (id, w = 1600, h = 2200) =>
+      `${C}/w_${w},h_${h},c_fill,g_center,e_improve:indoor:20,f_jpg,q_auto:best/${id}`;
+
+    const ITEMS = [
+      { cat: "Cafe snacks", name: "Crispy chilli potato", desc: "Golden cubes, chilli gloss, spring onion — shareable heat for the café table.", price: 200, image: "pelbu/menu/cafe-crispy-chilli-potato", tag: "House favourite", feature: true },
+      { cat: "Cafe snacks", name: "French fries", desc: "Straight-cut, sea salt, served blistering from the fryer.", price: 180, image: "pelbu/menu/cafe-french-fries" },
+      { cat: "Cafe snacks", name: "Salted cashewnut", desc: "Warm cashews, light salt — a quiet nibble with mountain light.", price: 250, image: "pelbu/menu/cafe-salted-nuts" },
+      { cat: "Cafe snacks", name: "Salted almond", desc: "Toasted almonds, clean mineral finish.", price: 250, image: "pelbu/menu/cafe-salted-nuts" },
+      { cat: "Cafe snacks", name: "Peanut masala", desc: "Roasted peanuts through house masala spice.", price: 200, image: "pelbu/menu/cafe-salted-nuts" },
+      { cat: "Cafe snacks", name: "Onion fritters", desc: "Six to seven golden fritters, soft onion heart, crisp lace.", price: 200, image: "pelbu/menu/cafe-onion-fritters", tag: "6–7 pcs" },
+      { cat: "Cafe snacks", name: "Chilli cheese nuggets", desc: "Melted cheese centres, chilli-kissed crust.", price: 250, image: "pelbu/menu/cafe-chilli-cheese-nuggets", tag: "Popular", feature: true },
+      { cat: "Cafe snacks", name: "Chicken lollipop", desc: "Lacquered heat on the bone — fire and crunch.", price: 300, image: "pelbu/menu/cafe-chicken-lollipop", tag: "Popular" },
+      { cat: "Cafe snacks", name: "Fried chicken", desc: "Drumstick, wing or breast — golden café crunch.", price: 300, image: "pelbu/menu/cafe-fried-chicken", tag: "Choice of cut" },
+      { cat: "Burgers", name: "Beef burger", desc: "House beef, soft bun, melt and greens — griddle classic.", price: 350, image: "pelbu/menu/cafe-beef-burger", tag: "Popular", feature: true },
+      { cat: "Burgers", name: "Chicken burger", desc: "Seasoned chicken, lettuce, clean mayo finish.", price: 300, image: "pelbu/menu/cafe-chicken-burger", tag: "Popular" },
+      { cat: "Burgers", name: "Potato burger", desc: "Crisp potato patty for a full vegetarian hold.", price: 300, image: "pelbu/menu/cafe-potato-burger", tag: "Vegetarian" },
+      { cat: "Sandwiches", name: "Veg sandwich", desc: "Garden layers, soft bread, light spread.", price: 200, image: "pelbu/menu/cafe-veg-sandwich", tag: "Vegetarian" },
+      { cat: "Sandwiches", name: "Hotdog", desc: "Classic sausage, soft roll, mustard and ketchup.", price: 250, image: "pelbu/menu/cafe-hotdog" },
+      { cat: "Sandwiches", name: "Club sandwich", desc: "The Olakha club stack — layered for long Thimphu days.", price: 300, image: "pelbu/menu/cafe-olakha-club-sandwich", tag: "Popular", feature: true },
+      { cat: "Sandwiches", name: "Tuna sandwich", desc: "Tuna, greens, soft crumb — protein without noise.", price: 300, image: "pelbu/menu/cafe-tuna-sandwich" },
+      { cat: "Soup", name: "Lentil soup", desc: "Silky dal comfort, earthy glow, soft spice.", price: 140, image: "pelbu/menu/restaurant-soup-bowl" },
+      { cat: "Soup", name: "Pumpkin soup", desc: "Roasted pumpkin purée, gentle cream, autumn sweetness.", price: 140, image: "pelbu/menu/restaurant-soup-bowl" },
+      { cat: "Soup", name: "Italian soup", desc: "Herb-led Italian broth with garden vegetables.", price: 150, image: "pelbu/menu/restaurant-soup-bowl" },
+      { cat: "Soup", name: "Potato leek soup", desc: "White, refined leek and potato — quiet luxury.", price: 140, image: "pelbu/menu/restaurant-soup-bowl" },
+      { cat: "Soup", name: "Minestrone soup", desc: "Full vegetable body, Italian herbs, slow simmer.", price: 160, image: "pelbu/menu/restaurant-soup-bowl" },
+      { cat: "Soup", name: "French onion soup", desc: "Caramelised onion, broth, gratin soul.", price: 140, image: "pelbu/menu/restaurant-french-onion-soup", tag: "Signature", feature: true },
+      { cat: "Soup", name: "Mint and green peas soup", desc: "Bright pea and mint when the season opens.", price: 160, image: "pelbu/menu/restaurant-soup-bowl", tag: "Season time" },
+      { cat: "Soup", name: "Tom yum soup", desc: "Lemongrass, chilli heat, aromatic stock. Pre-order.", price: 180, image: "pelbu/menu/restaurant-tom-yum", tag: "Pre-order", feature: true },
+      { cat: "Soup", name: "Winter special Schezwan soup (chicken)", desc: "Red Schezwan warmth with chicken for highland winters.", price: 200, image: "pelbu/menu/restaurant-szechuan-soup", tag: "Pre-order" },
+      { cat: "Salad", name: "Garden salad", desc: "Seasonal greens, cucumber, tomato — dressed clean.", price: 180, image: "pelbu/menu/restaurant-garden-salad" },
+      { cat: "Salad", name: "Greek salad", desc: "Feta, olive, cucumber, oregano oil — Mediterranean altitude.", price: 180, image: "pelbu/menu/restaurant-greek-salad", tag: "Popular", feature: true },
+      { cat: "Salad", name: "Chopped salad", desc: "Fine-cut vegetables, structured bite in every fork.", price: 180, image: "pelbu/menu/restaurant-garden-salad" },
+      { cat: "Salad", name: "Waldorf salad", desc: "Apple, celery, walnut — cream-bound classic.", price: 200, image: "pelbu/menu/restaurant-waldorf-salad" },
+      { cat: "Salad", name: "Glass noodle salad", desc: "Silken noodles, herbs, light Asian acid.", price: 180, image: "pelbu/menu/restaurant-glass-noodle-salad" },
+      { cat: "Salad", name: "Compound salad with lemon vinaigrette", desc: "Composed leaves lifted with lemon vinaigrette.", price: 180, image: "pelbu/menu/restaurant-garden-salad" },
+      { cat: "Salad", name: "Red wine vinaigrette dressing salad", desc: "Greens in a rounder red-wine vinaigrette.", price: 180, image: "pelbu/menu/restaurant-garden-salad" },
+      { cat: "Salad", name: "Kimchi salad (Korean)", desc: "Fermented heat and tang as a sharp side plate.", price: 180, image: "pelbu/menu/restaurant-kimchi-salad", tag: "Korean" },
+      { cat: "Salad", name: "Russian salad", desc: "Olivier-style potato salad — banquet comfort. Pre-order.", price: 180, image: "pelbu/menu/restaurant-russian-salad", tag: "Pre-order" },
+      { cat: "Main course", name: "Roasted potato", desc: "Herb-butter roast — gold outside, soft heart.", price: 180, image: "pelbu/menu/restaurant-roasted-veg" },
+      { cat: "Main course", name: "Roasted eggplant", desc: "Slow-roasted aubergine, aromatic finish.", price: 200, image: "pelbu/menu/restaurant-roasted-eggplant", tag: "Chef special" },
+      { cat: "Main course", name: "Skillet zucchini and mushroom", desc: "Butter, garlic, woodland umami — when in season.", price: 220, image: "pelbu/menu/restaurant-skillet-veg", tag: "Season" },
+      { cat: "Main course", name: "Asparagus garlic butter fry", desc: "Tender spears seared in garlic butter.", price: 250, image: "pelbu/menu/restaurant-asparagus", tag: "Season" },
+      { cat: "Main course", name: "Mixed veg medley", desc: "Colour plate of vegetables — pre-order for tables.", price: 220, image: "pelbu/menu/restaurant-mixed-veg", tag: "Pre-order" },
+      { cat: "Main course", name: "Mixed veg creamy", desc: "Garden mix in soft cream sauce.", price: 220, image: "pelbu/menu/restaurant-mixed-veg-creamy" },
+      { cat: "Main course", name: "Grilled chicken or pork", desc: "Char-kissed grill — choose chicken or pork. Pre-order.", price: 450, image: "pelbu/menu/restaurant-grilled-protein", tag: "Pre-order", feature: true },
+      { cat: "Main course", name: "Chicken schnitzel", desc: "Golden cutlet, lemon at the side — continental crunch.", price: 450, image: "pelbu/menu/restaurant-chicken-schnitzel", tag: "Popular", feature: true },
+      { cat: "Main course", name: "Braised chicken with wine and mushroom sauce", desc: "Slow braise, red wine, forest mushrooms.", price: 450, image: "pelbu/menu/restaurant-braised-chicken", tag: "Popular" },
+      { cat: "Main course", name: "Chicken breast", desc: "Pan-seared breast, herb finish, no clutter.", price: 400, image: "pelbu/menu/restaurant-chicken-breast" },
+      { cat: "Main course", name: "Chicken, pork or beef stew", desc: "Hearty gravy — choose your protein.", price: 400, image: "pelbu/menu/restaurant-meat-stew", tag: "Choose protein" },
+      { cat: "Main course", name: "Cowboy beef stew", desc: "Chunky beef, rustic vegetables, deep pot.", price: 450, image: "pelbu/menu/restaurant-cowboy-stew", tag: "Pre-order" },
+      { cat: "Main course", name: "Sesame chicken", desc: "Glossy glaze, toasted sesame, green onion.", price: 400, image: "pelbu/menu/restaurant-sesame-chicken" },
+      { cat: "Main course", name: "Pork chops Italian", desc: "Thick herb-forward pork chops. Pre-order.", price: 450, image: "pelbu/menu/restaurant-pork-chops", tag: "Pre-order" },
+      { cat: "Main course", name: "Ants climbing tree", desc: "Minced meat, glass noodles, chilli warmth.", price: 400, image: "pelbu/menu/restaurant-ants-climbing", tag: "Choose protein" },
+      { cat: "Main course", name: "Greek sweet and sour pork or chicken", desc: "Sweet-sour glaze with a Greek kitchen turn.", price: 400, image: "pelbu/menu/restaurant-sweet-sour" },
+      { cat: "Main course", name: "Sweet and sour pork or chicken", desc: "Classic red glaze, pineapple, peppers.", price: 400, image: "pelbu/menu/restaurant-sweet-sour" },
+      { cat: "Main course", name: "Roasted chicken or pork", desc: "Chef special — dry roast or gravy path.", price: 450, image: "pelbu/menu/restaurant-roasted-protein", tag: "Chef special", feature: true },
+      { cat: "Main course", name: "Braised pork belly with egg", desc: "Long-cook pork belly, soft egg, lacquer depth.", price: 450, image: "pelbu/menu/restaurant-pork-belly", tag: "Pre-order" },
+      { cat: "Main course", name: "Steamed fish", desc: "Normal size whole fish, ginger-scallion steam. Pre-order.", price: 700, image: "pelbu/menu/restaurant-steamed-fish", tag: "Pre-order", feature: true },
+      { cat: "Main course", name: "Fish fillet with red wine", desc: "Fillet through a red-wine reduction.", price: 300, image: "pelbu/menu/restaurant-fish-red-wine" },
+      { cat: "Asian main course", name: "Mixed veg tempura", desc: "Light batter, seasonal vegetables, dipping sauce.", price: 200, image: "pelbu/menu/restaurant-veg-tempura" },
+      { cat: "Asian main course", name: "Eggplant tempura", desc: "Soft centre, shatter-crisp shell.", price: 180, image: "pelbu/menu/restaurant-veg-tempura" },
+      { cat: "Asian main course", name: "Spring veg stir fry", desc: "High-heat wok, garlic, clean oil, snap.", price: 200, image: "pelbu/menu/restaurant-stir-fry-veg" },
+      { cat: "Asian main course", name: "Shanghai steam veg", desc: "Gentle steam — Shanghai style when produce peaks.", price: 200, image: "pelbu/menu/restaurant-steam-veg", tag: "Season" },
+      { cat: "Asian main course", name: "Baguio beans", desc: "Tender beans, wok finish — simple green luxury.", price: 220, image: "pelbu/menu/restaurant-stir-fry-veg" },
+      { cat: "Asian main course", name: "Stir fry cauliflower", desc: "Nutty edges at the wok rim.", price: 220, image: "pelbu/menu/restaurant-stir-fry-veg" },
+      { cat: "Asian main course", name: "Stir fry cabbage with egg", desc: "Soft cabbage, silky egg ribbons.", price: 280, image: "pelbu/menu/restaurant-stir-fry-veg" },
+      { cat: "Asian main course", name: "Stir fry asparagus with mushroom", desc: "Green spears and mushroom umami — season only.", price: 270, image: "pelbu/menu/restaurant-asparagus", tag: "Season" },
+      { cat: "Asian main course", name: "Three treasures", desc: "Three vegetable jewels in glossy house sauce.", price: 250, image: "pelbu/menu/restaurant-three-treasures", tag: "Chef special" },
+      { cat: "Asian main course", name: "Kung pao chicken", desc: "Sichuan fire, peanuts, dried chilli.", price: 400, image: "pelbu/menu/restaurant-kung-pao", tag: "Popular", feature: true },
+      { cat: "Asian main course", name: "Thai curry chicken, pork or beef", desc: "Green or red coconut curry — choose protein.", price: 450, image: "pelbu/menu/restaurant-thai-curry", tag: "Green · red", feature: true },
+      { cat: "Asian main course", name: "Stir fried beef with green chilli", desc: "Beef seared hard with green chilli heat.", price: 450, image: "pelbu/menu/restaurant-beef-chilli", tag: "Popular" },
+      { cat: "Asian main course", name: "Stir fried meat with green pepper", desc: "Chicken, pork or beef with green pepper.", price: 480, image: "pelbu/menu/restaurant-pepper-stir-fry" },
+      { cat: "Asian main course", name: "Chicken or pork oyster sauce", desc: "Classic oyster-sauce gloss at the wok.", price: 400, image: "pelbu/menu/restaurant-oyster-sauce" },
+      { cat: "Asian main course", name: "Tonkatsu chicken or pork", desc: "Breaded cutlet, cabbage, tonkatsu sauce.", price: 450, image: "pelbu/menu/restaurant-tonkatsu", tag: "Popular", feature: true },
+      { cat: "Asian main course", name: "Teriyaki chicken or pork", desc: "Sweet-savoury glaze, rice-ready.", price: 400, image: "pelbu/menu/restaurant-teriyaki" },
+      { cat: "Asian main course", name: "Nikujaga", desc: "Japanese meat and potato stew — home warmth.", price: 400, image: "pelbu/menu/restaurant-nikujaga" },
+      { cat: "Asian main course", name: "Omurice", desc: "Soft omelette over fried rice.", price: 400, image: "pelbu/menu/restaurant-omurice", tag: "Popular" },
+      { cat: "Asian main course", name: "Gyudon", desc: "Simmered beef and onion over rice.", price: 450, image: "pelbu/menu/restaurant-gyudon", tag: "Popular", feature: true },
+      { cat: "Asian main course", name: "Katsu don", desc: "Chicken cutlet, egg, rice bowl.", price: 450, image: "pelbu/menu/restaurant-katsu-don", tag: "Popular" },
+      { cat: "Asian main course", name: "Tsukune", desc: "Japanese chicken meatballs — glazed, savoury.", price: 450, image: "pelbu/menu/restaurant-tsukune" },
+      { cat: "Asian main course", name: "Chilli chicken, pork, beef or fish", desc: "Dry chilli heat — pick your protein.", price: 400, image: "pelbu/menu/restaurant-chilli-protein" },
+      { cat: "Asian main course", name: "Sweet and sour whole fish", desc: "Statement whole fish under sweet-sour glaze.", price: 750, image: "pelbu/menu/restaurant-sweet-sour-fish", tag: "Chef special", feature: true },
+      { cat: "Asian main course", name: "Prawn tempura", desc: "Shatter-shell prawns, light batter.", price: 600, image: "pelbu/menu/restaurant-prawn-tempura", tag: "Popular", feature: true },
+      { cat: "Asian main course", name: "Ramen", desc: "Noodles in aromatic broth — egg, steam, depth.", price: 200, image: "pelbu/menu/restaurant-ramen", tag: "Popular" },
+    ];
+
+    const OPENERS = {
+      "Cafe snacks": {
+        title: "Café",
+        italic: "bites",
+        eyebrow: "Café · Olakha",
+        lede: "Crisp snacks, burgers and sandwiches — full-frame plates for walk-ins and hotel guests.",
+        hero: `${C}/w_1600,h_2200,c_fill,g_center,f_jpg,q_auto:best/v1785925446/pelbu/cafe/v7d8ba1cszstrkfosyax`,
+      },
+      Soup: {
+        title: "Soup",
+        italic: "course",
+        eyebrow: "Restaurant · continental",
+        lede: "From French onion to tom yum — bowls shot full page, plated to warm highland weather.",
+        hero: photo("pelbu/menu/restaurant-french-onion-soup", 1600, 2200),
+        dish: true,
+      },
+      Salad: {
+        title: "Salad",
+        italic: "board",
+        eyebrow: "Cold kitchen",
+        lede: "Garden, Greek, kimchi and more — bright compositions over full photography.",
+        hero: photo("pelbu/menu/restaurant-greek-salad", 1600, 2200),
+        dish: true,
+      },
+      "Main course": {
+        title: "Main",
+        italic: "course",
+        eyebrow: "Kitchen · grill & braise",
+        lede: "Schnitzel, stews, chef specials and steamed fish — the heart of the continental card.",
+        hero: photo("pelbu/menu/restaurant-chicken-schnitzel", 1600, 2200),
+        dish: true,
+      },
+      "Asian main course": {
+        title: "Asian",
+        italic: "kitchen",
+        eyebrow: "Wok · table · bowl",
+        lede: "Tempura, Thai curry, tonkatsu, gyudon — the wok board as a photo essay.",
+        hero: photo("pelbu/menu/restaurant-thai-curry", 1600, 2200),
+        dish: true,
+      },
+    };
+
+    function esc(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function priceHtml(n) {
+      return `<span class="cur">BTN</span>${Number(n).toLocaleString("en-US")}`;
+    }
+
+    let page = 0;
+    const html = [];
+
+    function tag(t) {
+      html.push(`<p class="side-tag no-print">${esc(t)}</p>`);
+    }
+
+    function sheet(inner) {
+      page += 1;
+      return `<article class="sheet" aria-label="Page ${page}">
+        <div class="cut-guide no-print" aria-hidden="true"></div>
+        ${inner}
+      </article>`;
+    }
+
+    // Cover
+    tag("Cover");
+    html.push(sheet(`
+      <div class="hero">
+        <img src="${C}/w_1600,h_2200,c_fill,g_center,f_jpg,q_auto:best/v1785925486/pelbu/restaurant/uuy1ycprinlbhm7lvkli" alt="" />
+        <div class="scrim"></div>
+      </div>
+      <div class="hero-content">
+        <div class="brand-line">
+          <img src="${logo}" alt="Pelbu Suites" />
+          <div>
+            <div class="nm">Pelbu <em>Suites</em></div>
+            <p class="loc">Olakha · Thimphu · Bhutan</p>
+          </div>
+        </div>
+        <div>
+          <p class="eyebrow">Magazine menu · Café &amp; Restaurant</p>
+          <h1 class="display xl">Taste the<br /><em>mountain</em><br />table</h1>
+          <p class="lede">
+            Full-bleed plates · café snacks to Asian kitchen.
+            Every dish photographed. Prices in BTN base · ++ at the bill.
+          </p>
+          <div class="meta-row">
+            <span class="rule"></span>
+            <span>Image menu</span>
+            <span class="rule"></span>
+            <span>A4 booklet</span>
+            <span class="rule"></span>
+            <span>2026</span>
+          </div>
+        </div>
+        <div class="hero-foot">
+          <div>
+            <p class="phone">+975 1619 3410</p>
+            <p class="web">www.pelbusuites.bt</p>
+          </div>
+          <p class="note">Guests &amp; walk-ins welcome<br />Next to Number 7 / Asha Bakery</p>
+        </div>
+      </div>
+    `));
+
+    // Group order
+    const order = ["Cafe snacks", "Burgers", "Sandwiches", "Soup", "Salad", "Main course", "Asian main course"];
+
+    // Track burgers/sandwiches under café — only café opener once
+    let cafeOpened = false;
+
+    for (const cat of order) {
+      const items = ITEMS.filter((i) => i.cat === cat);
+
+      // Section opener for major keys; burgers/sandwich use café opener once
+      if (OPENERS[cat] || (["Burgers", "Sandwiches"].includes(cat) && !cafeOpened)) {
+        if (cat === "Cafe snacks" || ["Burgers", "Sandwiches"].includes(cat)) {
+          if (!cafeOpened) {
+            cafeOpened = true;
+            const op = OPENERS["Cafe snacks"];
+            tag(`Opener · ${op.title}`);
+            html.push(sheet(`
+              <div class="hero${op.dish ? " dish" : ""}">
+                <img src="${op.hero}" alt="" />
+                <div class="scrim top-heavy"></div>
+              </div>
+              <div class="hero-content">
+                <div class="brand-line">
+                  <img src="${logo}" alt="" />
+                  <div>
+                    <div class="nm" style="font-size:7mm">Pelbu <em>Suites</em></div>
+                    <p class="loc">${esc(op.eyebrow)}</p>
+                  </div>
+                </div>
+                <div>
+                  <p class="eyebrow">${esc(op.eyebrow)}</p>
+                  <h2 class="display lg">${esc(op.title)} <em>${esc(op.italic)}</em></h2>
+                  <p class="lede">${esc(op.lede)}</p>
+                </div>
+                <div class="hero-foot">
+                  <div><p class="phone">+975 1619 3410</p><p class="web">www.pelbusuites.bt</p></div>
+                  <p class="note">Magazine layout · full plate</p>
+                </div>
+              </div>
+            `));
+          }
+        } else if (OPENERS[cat]) {
+          const op = OPENERS[cat];
+          tag(`Opener · ${op.title}`);
+          html.push(sheet(`
+            <div class="hero${op.dish ? " dish" : ""}">
+              <img src="${op.hero}" alt="" />
+              <div class="scrim top-heavy"></div>
+            </div>
+            <div class="hero-content">
+              <div class="brand-line">
+                <img src="${logo}" alt="" />
+                <div>
+                  <div class="nm" style="font-size:7mm">Pelbu <em>Suites</em></div>
+                  <p class="loc">${esc(op.eyebrow)}</p>
+                </div>
+              </div>
+              <div>
+                <p class="eyebrow">${esc(op.eyebrow)}</p>
+                <h2 class="display lg">${esc(op.title)} <em>${esc(op.italic)}</em></h2>
+                <p class="lede">${esc(op.lede)}</p>
+              </div>
+              <div class="hero-foot">
+                <div><p class="phone">+975 1619 3410</p><p class="web">www.pelbusuites.bt</p></div>
+                <p class="note">${items.length} dishes in this chapter</p>
+              </div>
+            </div>
+          `));
+        }
+      }
+
+      // Features first as full pages, then remaining as 2-up stacks
+      const features = items.filter((i) => i.feature);
+      const rest = items.filter((i) => !i.feature);
+
+      for (const item of features) {
+        tag(`Feature · ${item.name}`);
+        html.push(sheet(`
+          <div class="hero feature">
+            <img src="${photo(item.image, 1600, 2200)}" alt="${esc(item.name)}" />
+            <div class="scrim bottom-heavy"></div>
+          </div>
+          <p class="folio">${esc(item.cat)} · ${esc(item.tag || "Feature")}</p>
+          <div class="hero-content bottom-only">
+            <div class="copy-block">
+              <p class="eyebrow">${esc(item.tag || item.cat)}</p>
+              <h2 class="display md">${esc(item.name)}</h2>
+              <p class="desc">${esc(item.desc)}</p>
+              <div class="price-row">
+                <span class="price">${priceHtml(item.price)}</span>
+                <span class="plus">++</span>
+              </div>
+            </div>
+          </div>
+        `));
+      }
+
+      for (let i = 0; i < rest.length; i += 2) {
+        const a = rest[i];
+        const b = rest[i + 1];
+        tag(`${cat} · ${a.name}${b ? " / " + b.name : ""}`);
+
+        if (!b) {
+          // single leftover as full feature-style panel
+          html.push(sheet(`
+            <div class="hero feature">
+              <img src="${photo(a.image, 1600, 2200)}" alt="${esc(a.name)}" />
+              <div class="scrim bottom-heavy"></div>
+            </div>
+            <p class="folio">${esc(a.cat)}</p>
+            <div class="hero-content bottom-only">
+              <div class="copy-block">
+                <p class="eyebrow">${esc(a.tag || a.cat)}</p>
+                <h2 class="display md">${esc(a.name)}</h2>
+                <p class="desc">${esc(a.desc)}</p>
+                <div class="price-row">
+                  <span class="price">${priceHtml(a.price)}</span>
+                  <span class="plus">++</span>
+                </div>
+              </div>
+            </div>
+          `));
+          continue;
+        }
+
+        html.push(sheet(`
+          <div class="stack">
+            <div class="panel top tone-a">
+              <img class="bg" src="${photo(a.image, 1600, 1000)}" alt="${esc(a.name)}" />
+              <div class="scrim"></div>
+              <p class="folio">${esc(a.cat)}</p>
+              <div class="copy">
+                <p class="tag">${esc(a.tag || a.cat)}</p>
+                <h3>${esc(a.name)}</h3>
+                <p class="desc">${esc(a.desc)}</p>
+                <div class="price-row">
+                  <span class="price">${priceHtml(a.price)}</span>
+                  <span class="plus">++</span>
+                </div>
+              </div>
+            </div>
+            <div class="panel bottom tone-b">
+              <img class="bg" src="${photo(b.image, 1600, 1000)}" alt="${esc(b.name)}" />
+              <div class="scrim"></div>
+              <div class="copy">
+                <p class="tag">${esc(b.tag || b.cat)}</p>
+                <h3>${esc(b.name)}</h3>
+                <p class="desc">${esc(b.desc)}</p>
+                <div class="price-row">
+                  <span class="price">${priceHtml(b.price)}</span>
+                  <span class="plus">++</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `));
+      }
+    }
+
+    // Back cover
+    tag("Back cover");
+    html.push(sheet(`
+      <div class="hero">
+        <img src="${C}/w_1600,h_2200,c_fill,g_center,f_jpg,q_auto:best/v1785925713/pelbu/home/hmuenowpmowtkagbxxns" alt="" />
+        <div class="scrim"></div>
+      </div>
+      <div class="hero-content" style="align-items:center;text-align:center;justify-content:center;gap:5mm">
+        <img src="${logo}" width="96" height="96" alt="Pelbu Suites" style="width:18mm;height:18mm" />
+        <div>
+          <p class="eyebrow" style="margin-bottom:2mm">Thank you</p>
+          <h2 class="display lg">Pelbu <em>Suites</em></h2>
+          <p class="lede" style="margin:3mm auto 0;max-width:120mm;text-align:center">
+            Stay · Sip · Savour · Unwind<br />
+            Café &amp; kitchen under one roof in Olakha.
+          </p>
+        </div>
+        <div class="qr-glass">
+          <img src="qr-web.png" width="150" height="150" alt="Website QR" />
+          <span>www.pelbusuites.bt</span>
+        </div>
+        <div class="hero-foot" style="width:100%;justify-content:center;border:0;padding:0">
+          <div style="text-align:center">
+            <p class="phone">+975 1619 3410</p>
+            <p class="web">Next to Number 7 / Asha Bakery · Olakha, Thimphu</p>
+            <p class="web" style="margin-top:3mm;letter-spacing:0.14em;text-transform:uppercase;font-size:2mm;opacity:0.55">
+              Base BTN · ++ SC &amp; GST on bill · Magazine menu 2026
+            </p>
+          </div>
+        </div>
+      </div>
+    `));
+
+    document.getElementById("book").innerHTML = html.join("\n");
+  </script>
+</body>
+</html>

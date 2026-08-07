@@ -642,6 +642,150 @@ export async function approveAgent(
   }
 }
 
+/**
+ * In-flow promote: directory (or other non-credit) listing → approved trade partner
+ * so FO can finish an on-credit booking without leaving Fast Book / Calendar.
+ * Optional credit limit can be set in the same step.
+ */
+export type PromoteAgentForCreditState = {
+  ok: boolean;
+  error?: string;
+  message?: string;
+  agent?: {
+    id: string;
+    company_name: string;
+    market: string;
+    status: string;
+  };
+};
+
+export async function promoteAgentForCredit(
+  _prev: PromoteAgentForCreditState,
+  formData: FormData,
+): Promise<PromoteAgentForCreditState> {
+  try {
+    // Same bar as desk-created partners — FO can finish credit book mid-stay entry.
+    await requireDesk();
+    const admin = createSupabaseAdminClient();
+    const propId = await propertyId(admin);
+    const agentId = trimRequired(formData.get("agent_id"), "Agent");
+    const rateTierRaw = optionalTrim(formData.get("rate_tier"));
+    const rateTier =
+      rateTierRaw && RATE_TIERS.has(rateTierRaw) ? rateTierRaw : "agents";
+
+    const limitRaw = optionalTrim(formData.get("credit_limit"));
+    let creditLimit: number | null = null;
+    if (limitRaw) {
+      creditLimit = roundBtn(Number(limitRaw));
+      if (!Number.isFinite(creditLimit) || creditLimit < 0) {
+        throw new Error("Credit limit must be a non-negative number.");
+      }
+    }
+
+    const { data: agent, error: fetchError } = await admin
+      .from("agents")
+      .select("id, company_name, market, status, credit_used, credit_limit")
+      .eq("id", agentId)
+      .single();
+    if (fetchError || !agent) throw new Error("Agent not found.");
+
+    if (isCreditAgentStatus(agent.status as string)) {
+      return {
+        ok: true,
+        message: "Already a trade partner (credit eligible).",
+        agent: {
+          id: agent.id as string,
+          company_name: agent.company_name as string,
+          market: agent.market as string,
+          status: agent.status as string,
+        },
+      };
+    }
+
+    if ((agent.status as string) === "rejected") {
+      throw new Error("This agent was rejected. Re-open them from Agents first.");
+    }
+
+    // Soft portal token (same as approveAgent); failures are non-blocking.
+    const { data: rpcToken, error: rpcError } = await admin.rpc(
+      "issue_agent_portal_token",
+      { p_agent_id: agentId },
+    );
+    if (rpcError || typeof rpcToken !== "string") {
+      try {
+        const { randomBytes } = await import("node:crypto");
+        const portalToken = randomBytes(24).toString("hex");
+        await admin
+          .from("agents")
+          .update({
+            portal_token: portalToken,
+            portal_token_issued_at: new Date().toISOString(),
+          })
+          .eq("id", agentId);
+      } catch (e) {
+        console.error("promoteAgentForCredit portal token skip", e);
+      }
+    }
+
+    const used = Number(agent.credit_used ?? 0);
+    const patch: Record<string, string | number | null> = {
+      status: "approved",
+      rate_tier: rateTier,
+      approved_at: new Date().toISOString(),
+    };
+    if (creditLimit != null) {
+      if (creditLimit < used) {
+        throw new Error(
+          `Limit Nu ${creditLimit} is below used Nu ${used}. Collect payment first.`,
+        );
+      }
+      patch.credit_limit = creditLimit;
+    }
+
+    const { data: updated, error } = await admin
+      .from("agents")
+      .update(patch)
+      .eq("id", agentId)
+      .select("id, company_name, market, status")
+      .single();
+    if (error || !updated) throw new Error("Could not approve agent for credit.");
+
+    if (creditLimit != null) {
+      await appendLedger(admin, {
+        propertyId: propId,
+        agentId,
+        entryType: "limit_set",
+        amountBtn: creditLimit,
+        balanceAfterBtn: used,
+        note: `Credit limit set to Nu ${creditLimit} (in-flow promote)`,
+      });
+    }
+
+    revalidateAgents();
+    return {
+      ok: true,
+      message:
+        creditLimit != null
+          ? `Approved as trade partner. Credit limit Nu ${creditLimit}.`
+          : "Approved as trade partner. Continue on credit.",
+      agent: {
+        id: updated.id as string,
+        company_name: updated.company_name as string,
+        market: updated.market as string,
+        status: updated.status as string,
+      },
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Could not promote agent for credit.",
+    };
+  }
+}
+
 export async function rejectAgent(
   _prev: ErpAgentState,
   formData: FormData,

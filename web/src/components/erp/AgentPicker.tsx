@@ -287,6 +287,8 @@ export function AgentPicker({
   disabled,
   placeholder = "— Walk-in / none —",
   className,
+  /** When true, directory / non-credit agents are labelled as needing promote. */
+  creditMode = false,
 }: {
   agents: BookableAgent[];
   value: string;
@@ -295,6 +297,7 @@ export function AgentPicker({
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  creditMode?: boolean;
 }) {
   const [extras, setExtras] = useState<BookableAgent[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -307,25 +310,42 @@ export function AgentPicker({
     for (const a of extras) {
       if (!byId.has(a.id)) byId.set(a.id, a);
     }
-    return Array.from(byId.values()).sort((a, b) =>
+    const list = Array.from(byId.values()).sort((a, b) =>
       a.company_name.localeCompare(b.company_name),
     );
-  }, [agents, extras]);
+    if (!creditMode) return list;
+    // Credit-eligible first when booking on credit.
+    return list.sort((a, b) => {
+      const ac = a.status === "approved" || a.status === "demo" ? 0 : 1;
+      const bc = b.status === "approved" || b.status === "demo" ? 0 : 1;
+      if (ac !== bc) return ac - bc;
+      return a.company_name.localeCompare(b.company_name);
+    });
+  }, [agents, extras, creditMode]);
 
-  const options = merged.map((a) => ({
-    value: a.id,
-    label: a.company_name,
-    hint: [
-      a.market,
-      a.status === "demo"
-        ? "demo"
-        : a.status === "directory"
-          ? "directory"
-          : null,
-    ]
-      .filter(Boolean)
-      .join(" · "),
-  }));
+  const options = merged.map((a) => {
+    const creditHint =
+      creditMode && a.status !== "approved" && a.status !== "demo"
+        ? "no credit"
+        : null;
+    return {
+      value: a.id,
+      label: a.company_name,
+      hint: [
+        a.market,
+        a.status === "demo"
+          ? "demo"
+          : a.status === "directory"
+            ? "directory"
+            : a.status === "approved"
+              ? null
+              : a.status,
+        creditHint,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    };
+  });
 
   const openCreate = (seed?: string) => {
     setSeedCompany((seed ?? query).trim());

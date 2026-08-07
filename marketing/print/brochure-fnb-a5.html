@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pelbu Suites — Café &amp; F&amp;B Menu · A5 Brochure · Print house</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #1a0f0a;
+      --body: #3d2a22;
+      --muted: #5c4033;
+      --cream: #fffaf3;
+      --paper: #fff6ea;
+      --gold: #e8a838;
+      --copper: #c45c26;
+      --teal: #2a9d8f;
+      --teal-deep: #0f6e63;
+      --line: #e8d5b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    @page {
+      size: A5 portrait;
+      margin: 0;
+    }
+
+    html, body {
+      background: #cbb8a2;
+      color: var(--ink);
+      font-family: "Outfit", "Segoe UI", Arial, sans-serif;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .print-bar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 18px;
+      background: var(--ink);
+      color: var(--cream);
+      font-size: 12.5px;
+    }
+
+    .print-bar strong {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 17px;
+    }
+
+    .print-bar .meta {
+      opacity: 0.82;
+      font-size: 11px;
+      max-width: 56ch;
+      line-height: 1.4;
+    }
+
+    .print-bar button {
+      border: 0;
+      cursor: pointer;
+      font: 700 11px/1 "Outfit", sans-serif;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 10px 16px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--copper), var(--gold));
+      color: var(--ink);
+    }
+
+    .stage {
+      padding: 20px 12px 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .side-tag {
+      width: 148mm;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* A5 = 148 × 210 mm */
+    .sheet {
+      width: 148mm;
+      height: 210mm;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 18px 44px rgba(26, 15, 10, 0.26);
+      background: var(--cream);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sheet::before {
+      content: "";
+      position: absolute;
+      inset: 4.5mm;
+      border: 0.65px solid rgba(196, 92, 38, 0.24);
+      pointer-events: none;
+      z-index: 8;
+    }
+
+    .top-bar {
+      height: 2.6mm;
+      flex-shrink: 0;
+      background: linear-gradient(90deg, var(--copper), var(--gold) 48%, var(--teal));
+      position: relative;
+      z-index: 2;
+    }
+
+    .inner {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+      z-index: 1;
+      padding: 5mm 6.5mm 4.5mm;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ——— Cover ——— */
+    .sheet.cover {
+      background: #120b08;
+      color: var(--cream);
+    }
+
+    .sheet.cover::before {
+      border-color: rgba(232, 168, 56, 0.32);
+    }
+
+    .cover-hero {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
+
+    .cover-hero img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: brightness(0.55) saturate(1.05);
+    }
+
+    .cover-hero .veil {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(18, 11, 8, 0.35) 0%, rgba(18, 11, 8, 0.55) 40%, rgba(18, 11, 8, 0.94) 100%),
+        linear-gradient(90deg, rgba(196, 92, 38, 0.2), transparent 55%);
+    }
+
+    .cover-body {
+      position: relative;
+      z-index: 2;
+      height: 100%;
+      padding: 8mm 8mm 7mm;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .cover-brand {
+      display: flex;
+      align-items: center;
+      gap: 3mm;
+    }
+
+    .cover-brand img {
+      width: 12mm;
+      height: 12mm;
+      object-fit: contain;
+    }
+
+    .cover-brand h1 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 7mm;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .cover-brand h1 span { color: var(--gold); }
+
+    .cover-brand p {
+      margin-top: 1mm;
+      font-size: 2mm;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(255, 250, 243, 0.7);
+    }
+
+    .cover-mid {
+      margin-top: auto;
+      margin-bottom: 6mm;
+    }
+
+    .cover-mid .eyebrow {
+      font-size: 2.2mm;
+      font-weight: 700;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 2mm;
+    }
+
+    .cover-mid h2 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 11mm;
+      font-weight: 700;
+      line-height: 0.95;
+      letter-spacing: 0.01em;
+    }
+
+    .cover-mid h2 em {
+      font-style: italic;
+      font-weight: 500;
+      color: #f0c66a;
+    }
+
+    .cover-mid .lead {
+      margin-top: 3mm;
+      font-size: 2.6mm;
+      line-height: 1.4;
+      color: rgba(255, 250, 243, 0.84);
+      max-width: 95mm;
+    }
+
+    .cover-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5mm;
+      margin-top: 4mm;
+    }
+
+    .cover-pills span {
+      font-size: 1.9mm;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 1.2mm 2.4mm;
+      border: 0.55px solid rgba(232, 168, 56, 0.45);
+      border-radius: 1mm;
+      color: var(--gold);
+    }
+
+    .cover-foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 4mm;
+      border-top: 0.55px solid rgba(232, 168, 56, 0.28);
+      padding-top: 3mm;
+    }
+
+    .cover-foot .phone {
+      font-size: 2.6mm;
+      font-weight: 600;
+    }
+
+    .cover-foot .web {
+      font-size: 2mm;
+      color: rgba(255, 250, 243, 0.7);
+      margin-top: 0.6mm;
+    }
+
+    .cover-foot .note {
+      text-align: right;
+      font-size: 1.8mm;
+      line-height: 1.35;
+      color: rgba(255, 250, 243, 0.65);
+      max-width: 48mm;
+    }
+
+    /* ——— Shared header ——— */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 3mm;
+      padding-bottom: 2.4mm;
+      border-bottom: 0.8px solid var(--line);
+      margin-bottom: 2.4mm;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 2.4mm;
+    }
+
+    .brand img {
+      width: 8.5mm;
+      height: 8.5mm;
+      object-fit: contain;
+    }
+
+    .brand h1 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 4.8mm;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .brand h1 span { color: var(--copper); }
+
+    .brand p {
+      margin-top: 0.5mm;
+      font-size: 1.7mm;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .badge { text-align: right; }
+
+    .badge .label {
+      font-size: 1.65mm;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--copper);
+    }
+
+    .badge .title {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 3.8mm;
+      font-weight: 700;
+      line-height: 1.05;
+      margin-top: 0.3mm;
+    }
+
+    .badge .sub {
+      margin-top: 0.3mm;
+      font-size: 1.6mm;
+      color: var(--muted);
+    }
+
+    /* Photo strip */
+    .photo-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.4mm;
+      margin-bottom: 2.4mm;
+      flex-shrink: 0;
+    }
+
+    .photo-strip figure {
+      background: #fff;
+      border: 0.5px solid var(--line);
+      border-radius: 1.2mm;
+      overflow: hidden;
+    }
+
+    .photo-strip img {
+      display: block;
+      width: 100%;
+      height: 16mm;
+      object-fit: cover;
+    }
+
+    .photo-strip figcaption {
+      padding: 0.9mm 1.1mm 1.1mm;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 2.1mm;
+      font-weight: 700;
+      line-height: 1.1;
+      color: var(--copper);
+      border-top: 0.45px solid var(--line);
+    }
+
+    /* Section blocks */
+    .sec {
+      margin-bottom: 2mm;
+    }
+
+    .sec-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 2mm;
+      margin-bottom: 1.1mm;
+      padding: 1mm 2mm;
+      border-radius: 1mm;
+      color: var(--cream);
+    }
+
+    .sec-head.cafe {
+      background: linear-gradient(105deg, #5c2a14, #c45c26 55%, #e8a838);
+    }
+
+    .sec-head.teal {
+      background: linear-gradient(105deg, #0f3d38, #0f6e63 50%, #2a9d8f);
+    }
+
+    .sec-head.ink {
+      background: linear-gradient(105deg, #1a0f0a, #3d2418 70%, #5c2a14);
+    }
+
+    .sec-head h2 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 2.9mm;
+      font-weight: 700;
+    }
+
+    .sec-head span {
+      font-size: 1.55mm;
+      font-weight: 600;
+      opacity: 0.9;
+    }
+
+    .menu-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0 3.5mm;
+    }
+
+    .menu-grid.one { grid-template-columns: 1fr; }
+
+    .menu-line {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 1.5mm;
+      align-items: baseline;
+      padding: 0.7mm 0;
+      border-bottom: 0.4px dotted rgba(92, 64, 51, 0.28);
+    }
+
+    .menu-line .name {
+      font-size: 2.05mm;
+      font-weight: 600;
+      color: var(--ink);
+      line-height: 1.2;
+    }
+
+    .menu-line .name .note {
+      display: block;
+      font-size: 1.45mm;
+      font-weight: 500;
+      color: var(--muted);
+      margin-top: 0.15mm;
+    }
+
+    .menu-line .price {
+      font-size: 2.1mm;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--body);
+      white-space: nowrap;
+    }
+
+    .menu-line .price .cur {
+      font-size: 1.35mm;
+      font-weight: 600;
+      color: var(--muted);
+      margin-right: 0.25mm;
+    }
+
+    .fine {
+      margin-top: auto;
+      padding-top: 1.8mm;
+      border-top: 0.7px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 3mm;
+      flex-shrink: 0;
+    }
+
+    .fine p {
+      font-size: 1.55mm;
+      line-height: 1.35;
+      color: var(--muted);
+      max-width: 95mm;
+    }
+
+    .fine p strong { color: var(--ink); }
+
+    .fine .contact {
+      text-align: right;
+      font-size: 1.7mm;
+      font-weight: 600;
+      color: var(--body);
+      line-height: 1.35;
+      white-space: nowrap;
+    }
+
+    .fine .contact a {
+      color: var(--ink);
+      text-decoration: none;
+    }
+
+    .qr-mini {
+      display: flex;
+      align-items: center;
+      gap: 1.5mm;
+      background: #fff;
+      border: 0.5px solid var(--line);
+      border-radius: 1.2mm;
+      padding: 1mm 1.4mm;
+    }
+
+    .qr-mini img {
+      width: 11mm;
+      height: 11mm;
+      display: block;
+    }
+
+    .qr-mini span {
+      font-size: 1.5mm;
+      line-height: 1.25;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .qr-mini strong {
+      display: block;
+      font-size: 1.65mm;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--copper);
+      margin-bottom: 0.3mm;
+    }
+
+    .page-num {
+      position: absolute;
+      bottom: 2.2mm;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 1.4mm;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      z-index: 9;
+    }
+
+    .spec {
+      max-width: 148mm;
+      width: 100%;
+      font-size: 11.5px;
+      line-height: 1.5;
+      color: var(--body);
+      background: rgba(255, 250, 243, 0.88);
+      border: 1px solid rgba(26, 15, 10, 0.1);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+
+    .spec h3 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 17px;
+      margin-bottom: 6px;
+    }
+
+    .spec ul { margin-left: 1.1em; }
+    .spec li { margin: 3px 0; }
+
+    @media print {
+      html, body { background: #fff; }
+      .no-print { display: none !important; }
+      .stage { padding: 0; gap: 0; }
+      .sheet {
+        box-shadow: none;
+        page-break-after: always;
+        break-after: page;
+      }
+      .sheet:last-of-type {
+        page-break-after: auto;
+        break-after: auto;
+      }
+      .side-tag { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-bar no-print">
+    <div>
+      <strong>Pelbu Suites · Café &amp; F&amp;B menu</strong><br />
+      <span class="meta">
+        A5 · 4 pages · full café + restaurant menus with AI dish photos.
+        Prices are menu base BTN · <b>++</b> taxes &amp; service at desk.
+        Print: A5 · margins none · background graphics ON.
+      </span>
+    </div>
+    <button type="button" onclick="window.print()">Print / PDF</button>
+  </div>
+
+  <div class="stage">
+    <!-- ========== PAGE 1 — COVER ========== -->
+    <p class="side-tag no-print">Page 1 · Cover</p>
+    <article class="sheet cover" aria-label="Café and F&B brochure cover">
+      <div class="cover-hero" aria-hidden="true">
+        <img
+          src="https://res.cloudinary.com/hkkchsfy/image/upload/w_1200,h_1600,c_fill,g_auto,f_jpg,q_auto:best/v1785925486/pelbu/restaurant/uuy1ycprinlbhm7lvkli"
+          alt=""
+        />
+        <div class="veil"></div>
+      </div>
+      <div class="cover-body">
+        <div class="cover-brand">
+          <img
+            src="https://res.cloudinary.com/hkkchsfy/image/upload/w_160,h_160,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1"
+            alt="Pelbu Suites"
+          />
+          <div>
+            <h1>Pelbu <span>Suites</span></h1>
+            <p>Olakha · Thimphu · Bhutan</p>
+          </div>
+        </div>
+
+        <div class="cover-mid">
+          <p class="eyebrow">In-house dining</p>
+          <h2>Café &amp;<br /><em>Kitchen</em></h2>
+          <p class="lead">
+            Snacks, sandwiches, continental kitchen, and Asian classics —
+            prepared for guests and walk-ins under one roof.
+          </p>
+          <div class="cover-pills">
+            <span>Café</span>
+            <span>Soup &amp; salad</span>
+            <span>Main course</span>
+            <span>Asian kitchen</span>
+          </div>
+        </div>
+
+        <div class="cover-foot">
+          <div>
+            <p class="phone">+975 1619 3410</p>
+            <p class="web">www.pelbusuites.bt</p>
+          </div>
+          <p class="note">
+            All prices BTN · menu base<br />
+            ++ service charge &amp; GST apply
+          </p>
+        </div>
+      </div>
+      <p class="page-num" style="color: rgba(255,250,243,0.45);">Pelbu Suites · Menu brochure 1 / 4</p>
+    </article>
+
+    <!-- ========== PAGE 2 — CAFÉ ========== -->
+    <p class="side-tag no-print">Page 2 · Café menu</p>
+    <article class="sheet" aria-label="Café food menu A5">
+      <div class="top-bar" aria-hidden="true"></div>
+      <div class="inner">
+        <header class="header">
+          <div class="brand">
+            <img
+              src="https://res.cloudinary.com/hkkchsfy/image/upload/w_120,h_120,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1"
+              alt=""
+            />
+            <div>
+              <h1>Pelbu <span>Suites</span></h1>
+              <p>Café · food menu</p>
+            </div>
+          </div>
+          <div class="badge">
+            <p class="label">Walk-in welcome</p>
+            <p class="title">Café bites</p>
+            <p class="sub">BTN · base prices ++</p>
+          </div>
+        </header>
+
+        <div class="photo-strip" aria-hidden="true">
+          <figure>
+            <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_400,h_300,c_fill,g_auto,f_jpg,q_auto:good/pelbu/menu/cafe-crispy-chilli-potato" alt="" />
+            <figcaption>Chilli potato</figcaption>
+          </figure>
+          <figure>
+            <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_400,h_300,c_fill,g_auto,f_jpg,q_auto:good/pelbu/menu/cafe-beef-burger" alt="" />
+            <figcaption>Beef burger</figcaption>
+          </figure>
+          <figure>
+            <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_400,h_300,c_fill,g_auto,f_jpg,q_auto:good/pelbu/menu/cafe-chicken-lollipop" alt="" />
+            <figcaption>Lollipop</figcaption>
+          </figure>
+          <figure>
+            <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_400,h_300,c_fill,g_auto,f_jpg,q_auto:good/pelbu/menu/cafe-tuna-sandwich" alt="" />
+            <figcaption>Sandwich</figcaption>
+          </figure>
+        </div>
+
+        <section class="sec">
+          <div class="sec-head cafe">
+            <h2>Cafe snacks</h2>
+            <span>Crispy · shareable</span>
+          </div>
+          <div class="menu-grid">
+            <div class="menu-line"><span class="name">Crispy chilli potato</span><span class="price"><span class="cur">BTN</span>200</span></div>
+            <div class="menu-line"><span class="name">French fries</span><span class="price"><span class="cur">BTN</span>180</span></div>
+            <div class="menu-line"><span class="name">Salted cashewnut</span><span class="price"><span class="cur">BTN</span>250</span></div>
+            <div class="menu-line"><span class="name">Salted almond</span><span class="price"><span class="cur">BTN</span>250</span></div>
+            <div class="menu-line"><span class="name">Peanut masala</span><span class="price"><span class="cur">BTN</span>200</span></div>
+            <div class="menu-line"><span class="name">Onion fritters<span class="note">6–7 pcs</span></span><span class="price"><span class="cur">BTN</span>200</span></div>
+            <div class="menu-line"><span class="name">Chilli cheese nuggets</span><span class="price"><span class="cur">BTN</span>250</span></div>
+            <div class="menu-line"><span class="name">Chicken lollipop</span><span class="price"><span class="cur">BTN</span>300</span></div>
+            <div class="menu-line"><span class="name">Fried chicken<span class="note">Drumstick · wings · breast</span></span><span class="price"><span class="cur">BTN</span>300</span></div>
+          </div>
+        </section>
+
+        <section class="sec">
+          <div class="sec-head teal">
+            <h2>Burgers</h2>
+            <span>House griddle</span>
+          </div>
+          <div class="menu-grid">
+            <div class="menu-line"><span class="name">Beef burger</span><span class="price"><span class="cur">BTN</span>350</span></div>
+            <div class="menu-line"><span class="name">Chicken burger</span><span class="price"><span class="cur">BTN</span>300</span></div>
+            <div class="menu-line"><span class="name">Potato burger</span><span class="price"><span class="cur">BTN</span>300</span></div>
+          </div>
+        </section>
+
+        <section class="sec">
+          <div class="sec-head ink">
+            <h2>Sandwiches</h2>
+            <span>Fresh · stacked</span>
+          </div>
+          <div class="menu-grid">
+            <div class="menu-line"><span class="name">Veg sandwich</span><span class="price"><span class="cur">BTN</span>200</span></div>
+            <div class="menu-line"><span class="name">Hotdog</span><span class="price"><span class="cur">BTN</span>250</span></div>
+            <div class="menu-line"><span class="name">Club sandwich</span><span class="price"><span class="cur">BTN</span>300</span></div>
+            <div class="menu-line"><span class="name">Tuna sandwich</span><span class="price"><span class="cur">BTN</span>300</span></div>
+          </div>
+        </section>
+
+        <div class="fine">
+          <p>
+            Café food menu · prices are <strong>base BTN</strong>.
+            <strong>++</strong> service charge &amp; GST applied at billing.
+            Open to hotel guests and day visitors.
+          </p>
+          <div class="contact">
+            +975 1619 3410<br />
+            www.pelbusuites.bt
+          </div>
+        </div>
+      </div>
+      <p class="page-num">Café · 2 / 4</p>
+    </article>
+
+    <!-- ========== PAGE 3 — SOUP / SALAD / MAIN ========== -->
+    <p class="side-tag no-print">Page 3 · Restaurant continental</p>
+    <article class="sheet" aria-label="Restaurant soup salad main A5">
+      <div class="top-bar" aria-hidden="true"></div>
+      <div class="inner">
+        <header class="header">
+          <div class="brand">
+            <img
+              src="https://res.cloudinary.com/hkkchsfy/image/upload/w_120,h_120,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1"
+              alt=""
+            />
+            <div>
+              <h1>Pelbu <span>Suites</span></h1>
+              <p>Restaurant · continental</p>
+            </div>
+          </div>
+          <div class="badge">
+            <p class="label">Kitchen</p>
+            <p class="title">Soup · Salad · Main</p>
+            <p class="sub">BTN · base prices ++</p>
+          </div>
+        </header>
+
+        <div class="photo-strip" aria-hidden="true">
+          <figure>
+            <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_400,h_300,c_fill,g_auto,f_jpg,q_auto:good/pelbu/menu/restaurant-french-onion-soup" alt="" />
+            <figcaption>Onion soup</figcaption>
+          </figure>
+          <figure>
+            <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_400,h_300,c_fill,g_auto,f_jpg,q_auto:good/pelbu/menu/restaurant-greek-salad" alt="" />
+            <figcaption>Greek salad</figcaption>
+          </figure>
+          <figure>
+            <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_400,h_300,c_fill,g_auto,f_jpg,q_auto:good/pelbu/menu/restaurant-chicken-schnitzel" alt="" />
+            <figcaption>Schnitzel</figcaption>
+          </figure>
+          <figure>
+            <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_400,h_300,c_fill,g_auto,f_jpg,q_auto:good/pelbu/menu/restaurant-steamed-fish" alt="" />
+            <figcaption>Steamed fish</figcaption>
+          </figure>
+        </div>
+
+        <section class="sec">
+          <div class="sec-head teal">
+            <h2>Soup</h2>
+            <span>Continental menu</span>
+          </div>
+          <div class="menu-grid">
+            <div class="menu-line"><span class="name">Lentil soup</span><span class="price"><span class="cur">BTN</span>140</span></div>
+            <div class="menu-line"><span class="name">Pumpkin soup</span><span class="price"><span class="cur">BTN</span>140</span></div>
+            <div class="menu-line"><span class="name">Italian soup</span><span class="price"><span class="cur">BTN</span>150</span></div>
+            <div class="menu-line"><span class="name">Potato leek soup</span><span class="price"><span class="cur">BTN</span>140</span></div>
+            <div class="menu-line"><span class="name">Minestrone soup</span><span class="price"><span class="cur">BTN</span>160</span></div>
+            <div class="menu-line"><span class="name">French onion soup</span><span class="price"><span class="cur">BTN</span>140</span></div>
+            <div class="menu-line"><span class="name">Mint &amp; green peas soup<span class="note">Season time</span></span><span class="price"><span class="cur">BTN</span>160</span></div>
+            <div class="menu-line"><span class="name">Tom yum soup<span class="note">Pre-order</span></span><span class="price"><span class="cur">BTN</span>180</span></div>
+            <div class="menu-line"><span class="name">Winter Schezwan soup (chicken)<span class="note">Pre-order</span></span><span class="price"><span class="cur">BTN</span>200</span></div>
+          </div>
+        </section>
+
+        <section class="sec">
+          <div class="sec-head cafe">
+            <h2>Salad</h2>
+            <span>Fresh · composed</span>
+          </div>
+          <div class="menu-grid">
+            <div class="menu-line"><span class="name">Garden salad</span><span class="price"><span class="cur">BTN</span>180</span></div>
+            <div class="menu-line"><span class="name">Greek salad</span><span class="price"><span class="cur">BTN</span>180</span></div>
+            <div class="menu-line"><span class="name">Chopped salad</span><span class="price"><span class="cur">BTN</span>180</span></div>
+            <div class="menu-line"><span class="name">Waldorf salad</span><span class="price"><span class="cur">BTN</span>200</span></div>
+            <div class="menu-line"><span class="name">Glass noodle salad</span><span class="price"><span class="cur">BTN</span>180</span></div>
+            <div class="menu-line"><span class="name">Compound salad · lemon vinaigrette</span><span class="price"><span class="cur">BTN</span>180</span></div>
+            <div class="menu-line"><span class="name">Red wine vinaigrette dressing salad</span><span class="price"><span class="cur">BTN</span>180</span></div>
+            <div class="menu-line"><span class="name">Kimchi salad (Korean)</span><span class="price"><span class="cur">BTN</span>180</span></div>
+            <div class="menu-line"><span class="name">Russian salad<span class="note">Pre-order</span></span><span class="price"><span class="cur">BTN</span>180</span></div>
+          </div>
+        </section>
+
+        <section class="sec">
+          <div class="sec-head ink">
+            <h2>Main course</h2>
+            <span>House kitchen</span>
+          </div>
+          <div class="menu-grid">
+            <div class="menu-line"><span class="name">Roasted potato</span><span class="price"><span class="cur">BTN</span>180</span></div>
+            <div class="menu-line"><span class="name">Roasted eggplant<span class="note">Chef special</span></span><span class="price"><span class="cur">BTN</span>200</span></div>
+            <div class="menu-line"><span class="name">Skillet zucchini &amp; mushroom<span class="note">Season</span></span><span class="price"><span class="cur">BTN</span>220</span></div>
+            <div class="menu-line"><span class="name">Asparagus garlic butter fry<span class="note">Season</span></span><span class="price"><span class="cur">BTN</span>250</span></div>
+            <div class="menu-line"><span class="name">Mixed veg medley<span class="note">Pre-order</span></span><span class="price"><span class="cur">BTN</span>220</span></div>
+            <div class="menu-line"><span class="name">Mixed veg creamy</span><span class="price"><span class="cur">BTN</span>220</span></div>
+            <div class="menu-line"><span class="name">Grilled chicken or pork<span class="note">Pre-order</span></span><span class="price"><span class="cur">BTN</span>450</span></div>
+            <div class="menu-line"><span class="name">Chicken schnitzel</span><span class="price"><span class="cur">BTN</span>450</span></div>
+            <div class="menu-line"><span class="name">Braised chicken · wine &amp; mushroom</span><span class="price"><span class="cur">BTN</span>450</span></div>
+            <div class="menu-line"><span class="name">Chicken breast</span><span class="price"><span class="cur">BTN</span>400</span></div>
+            <div class="menu-line"><span class="name">Chicken / pork / beef stew</span><span class="price"><span class="cur">BTN</span>400</span></div>
+            <div class="menu-line"><span class="name">Cowboy beef stew<span class="note">Pre-order</span></span><span class="price"><span class="cur">BTN</span>450</span></div>
+            <div class="menu-line"><span class="name">Sesame chicken</span><span class="price"><span class="cur">BTN</span>400</span></div>
+            <div class="menu-line"><span class="name">Pork chops Italian<span class="note">Pre-order</span></span><span class="price"><span class="cur">BTN</span>450</span></div>
+            <div class="menu-line"><span class="name">Ants climbing tree<span class="note">Beef · pork · chicken</span></span><span class="price"><span class="cur">BTN</span>400</span></div>
+            <div class="menu-line"><span class="name">Greek sweet &amp; sour pork / chicken</span><span class="price"><span class="cur">BTN</span>400</span></div>
+            <div class="menu-line"><span class="name">Sweet &amp; sour pork / chicken</span><span class="price"><span class="cur">BTN</span>400</span></div>
+            <div class="menu-line"><span class="name">Roasted chicken / pork<span class="note">Chef · dry or gravy</span></span><span class="price"><span class="cur">BTN</span>450</span></div>
+            <div class="menu-line"><span class="name">Braised pork belly with egg<span class="note">Pre-order</span></span><span class="price"><span class="cur">BTN</span>450</span></div>
+            <div class="menu-line"><span class="name">Steamed fish<span class="note">Normal size · pre-order</span></span><span class="price"><span class="cur">BTN</span>700</span></div>
+            <div class="menu-line"><span class="name">Fish fillet with red wine</span><span class="price"><span class="cur">BTN</span>300</span></div>
+          </div>
+        </section>
+
+        <div class="fine">
+          <p>
+            Continental kitchen · ask the desk for season &amp; pre-order dishes.
+            <strong>++</strong> SC + GST on billed total.
+          </p>
+          <div class="contact">
+            Page 3 of 4 · Restaurant
+          </div>
+        </div>
+      </div>
+      <p class="page-num">Restaurant · 3 / 4</p>
+    </article>
+
+    <!-- ========== PAGE 4 — ASIAN ========== -->
+    <p class="side-tag no-print">Page 4 · Asian main course</p>
+    <article class="sheet" aria-label="Restaurant Asian main course A5">
+      <div class="top-bar" aria-hidden="true"></div>
+      <div class="inner">
+        <header class="header">
+          <div class="brand">
+            <img
+              src="https://res.cloudinary.com/hkkchsfy/image/upload/w_120,h_120,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1"
+              alt=""
+            />
+            <div>
+              <h1>Pelbu <span>Suites</span></h1>
+              <p>Restaurant · Asian kitchen</p>
+            </div>
+          </div>
+          <div class="badge">
+            <p class="label">Asian main course</p>
+            <p class="title">Wok · Table · Bowl</p>
+            <p class="sub">BTN · base prices ++</p>
+          </div>
+        </header>
+
+        <div class="photo-strip" aria-hidden="true">
+          <figure>
+            <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_400,h_300,c_fill,g_auto,f_jpg,q_auto:good/pelbu/menu/restaurant-thai-curry" alt="" />
+            <figcaption>Thai curry</figcaption>
+          </figure>
+          <figure>
+            <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_400,h_300,c_fill,g_auto,f_jpg,q_auto:good/pelbu/menu/restaurant-gyudon" alt="" />
+            <figcaption>Gyudon</figcaption>
+          </figure>
+          <figure>
+            <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_400,h_300,c_fill,g_auto,f_jpg,q_auto:good/pelbu/menu/restaurant-prawn-tempura" alt="" />
+            <figcaption>Prawn tempura</figcaption>
+          </figure>
+          <figure>
+            <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_400,h_300,c_fill,g_auto,f_jpg,q_auto:good/pelbu/menu/restaurant-ramen" alt="" />
+            <figcaption>Ramen</figcaption>
+          </figure>
+        </div>
+
+        <section class="sec">
+          <div class="sec-head cafe">
+            <h2>Asian main course</h2>
+            <span>Veg · meat · seafood · Japanese</span>
+          </div>
+          <div class="menu-grid">
+            <div class="menu-line"><span class="name">Mixed veg tempura</span><span class="price"><span class="cur">BTN</span>200</span></div>
+            <div class="menu-line"><span class="name">Eggplant tempura</span><span class="price"><span class="cur">BTN</span>180</span></div>
+            <div class="menu-line"><span class="name">Spring veg stir fry</span><span class="price"><span class="cur">BTN</span>200</span></div>
+            <div class="menu-line"><span class="name">Shanghai steam veg<span class="note">Season time</span></span><span class="price"><span class="cur">BTN</span>200</span></div>
+            <div class="menu-line"><span class="name">Baguio beans</span><span class="price"><span class="cur">BTN</span>220</span></div>
+            <div class="menu-line"><span class="name">Stir fry cauliflower</span><span class="price"><span class="cur">BTN</span>220</span></div>
+            <div class="menu-line"><span class="name">Stir fry cabbage with egg</span><span class="price"><span class="cur">BTN</span>280</span></div>
+            <div class="menu-line"><span class="name">Stir fry asparagus &amp; mushroom<span class="note">Season</span></span><span class="price"><span class="cur">BTN</span>270</span></div>
+            <div class="menu-line"><span class="name">Three treasures<span class="note">Chef special</span></span><span class="price"><span class="cur">BTN</span>250</span></div>
+            <div class="menu-line"><span class="name">Kung pao chicken</span><span class="price"><span class="cur">BTN</span>400</span></div>
+            <div class="menu-line"><span class="name">Thai curry · chicken / pork / beef<span class="note">Green or red</span></span><span class="price"><span class="cur">BTN</span>450</span></div>
+            <div class="menu-line"><span class="name">Stir fried beef with green chilli</span><span class="price"><span class="cur">BTN</span>450</span></div>
+            <div class="menu-line"><span class="name">Stir fry with green pepper<span class="note">Chicken · pork · beef</span></span><span class="price"><span class="cur">BTN</span>480</span></div>
+            <div class="menu-line"><span class="name">Chicken / pork · oyster sauce</span><span class="price"><span class="cur">BTN</span>400</span></div>
+            <div class="menu-line"><span class="name">Tonkatsu · chicken or pork</span><span class="price"><span class="cur">BTN</span>450</span></div>
+            <div class="menu-line"><span class="name">Teriyaki · chicken or pork</span><span class="price"><span class="cur">BTN</span>400</span></div>
+            <div class="menu-line"><span class="name">Nikujaga<span class="note">Meat with potato stew</span></span><span class="price"><span class="cur">BTN</span>400</span></div>
+            <div class="menu-line"><span class="name">Omurice<span class="note">Omelette rice</span></span><span class="price"><span class="cur">BTN</span>400</span></div>
+            <div class="menu-line"><span class="name">Gyudon<span class="note">Japanese beef &amp; rice</span></span><span class="price"><span class="cur">BTN</span>450</span></div>
+            <div class="menu-line"><span class="name">Katsu don<span class="note">Chicken rice bowl</span></span><span class="price"><span class="cur">BTN</span>450</span></div>
+            <div class="menu-line"><span class="name">Tsukune<span class="note">Chicken meatballs</span></span><span class="price"><span class="cur">BTN</span>450</span></div>
+            <div class="menu-line"><span class="name">Chilli · chicken / pork / beef / fish</span><span class="price"><span class="cur">BTN</span>400</span></div>
+            <div class="menu-line"><span class="name">Sweet &amp; sour whole fish<span class="note">Chef special</span></span><span class="price"><span class="cur">BTN</span>750</span></div>
+            <div class="menu-line"><span class="name">Prawn tempura</span><span class="price"><span class="cur">BTN</span>600</span></div>
+            <div class="menu-line"><span class="name">Ramen</span><span class="price"><span class="cur">BTN</span>200</span></div>
+          </div>
+        </section>
+
+        <div class="fine">
+          <p>
+            Full café &amp; kitchen menus · also order on
+            <strong>pelbusuites.bt</strong>.
+            Next to Number&nbsp;7 / Asha Bakery · Olakha, Thimphu.
+          </p>
+          <div class="qr-mini">
+            <img src="qr-web.png" width="110" height="110" alt="Website QR" />
+            <span>
+              <strong>Visit</strong>
+              www.pelbusuites.bt<br />
+              +975 1619 3410
+            </span>
+          </div>
+        </div>
+      </div>
+      <p class="page-num">Asian kitchen · 4 / 4</p>
+    </article>
+
+    <aside class="spec no-print">
+      <h3>Print-house brief · Café &amp; F&amp;B A5</h3>
+      <ul>
+        <li><strong>File:</strong> <code>marketing/print/brochure-fnb-a5.html</code> (keep next to <code>qr-web.png</code>).</li>
+        <li><strong>Size:</strong> A5 portrait 148 × 210 mm · 4 pages. Duplex as two pairs or saddle-stitch booklet.</li>
+        <li><strong>Bleed:</strong> add 3 mm when imposing · inner frame is already trim-safe.</li>
+        <li><strong>PDF:</strong> Chrome → Print → Save as PDF → paper <strong>A5</strong> · margins none · background graphics <strong>on</strong>.</li>
+        <li><strong>Stock:</strong> 250–300 gsm soft matte / silk. Photos read best on silk or light matte laminate.</li>
+        <li><strong>Prices:</strong> menu base BTN; guest bill adds ++ (service charge + GST). Matches live web / POS seed.</li>
+      </ul>
+    </aside>
+  </div>
+</body>
+</html>

@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pelbu Suites — Business Card · Front &amp; Back · Print house</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #1a0f0a;
+      --ink-soft: #2c1a12;
+      --body: #3d2a22;
+      --muted: #6b4f42;
+      --cream: #fffaf3;
+      --paper: #fff6ea;
+      --gold: #e8a838;
+      --brass: #c9932e;
+      --copper: #c45c26;
+      --line: rgba(232, 168, 56, 0.38);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    @page {
+      size: 90mm 50mm;
+      margin: 0;
+    }
+
+    html, body {
+      background: #c9b6a0;
+      color: var(--ink);
+      font-family: "Outfit", "Segoe UI", Arial, sans-serif;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .print-bar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 20px;
+      background: var(--ink);
+      color: var(--cream);
+      font-size: 13px;
+    }
+
+    .print-bar strong {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .print-bar span.meta {
+      opacity: 0.8;
+      font-size: 11.5px;
+      line-height: 1.45;
+      max-width: 52ch;
+    }
+
+    .print-bar button {
+      appearance: none;
+      border: 0;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 10px 18px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--copper), var(--gold));
+      color: var(--ink);
+    }
+
+    .print-bar button:hover { filter: brightness(1.06); }
+
+    .stage {
+      padding: 28px 20px 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 28px;
+    }
+
+    .pair-label {
+      width: 100%;
+      max-width: 210mm;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      opacity: 0.7;
+    }
+
+    .cards-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 28px;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    .card-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .card-tag {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* Finished size 90 × 50 mm (common Asian card). Add 3 mm bleed in InDesign/print RIP if needed. */
+    .card {
+      width: 90mm;
+      height: 50mm;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 18px 42px rgba(26, 15, 10, 0.28);
+      background: var(--cream);
+    }
+
+    .card.front,
+    .card.back {
+      background:
+        radial-gradient(
+          ellipse 115% 105% at 50% 46%,
+          #ffffff 0%,
+          #ffffff 32%,
+          #fffaf3 52%,
+          #f3e6d6 72%,
+          #dcc4a8 88%,
+          #c4a080 100%
+        );
+    }
+
+    .card.front {
+      color: var(--ink);
+    }
+
+    .card.front::before {
+      content: "";
+      position: absolute;
+      inset: 3.2mm;
+      border: 0.7px solid rgba(196, 92, 38, 0.35);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .card.front::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 1.6mm;
+      background: linear-gradient(90deg, var(--copper) 0%, var(--gold) 50%, #2a9d8f 100%);
+      z-index: 3;
+    }
+
+    .front-inner {
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      padding: 5.5mm 7mm 9mm;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .front-brand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      position: relative;
+    }
+
+    .front-brand img {
+      position: relative;
+      z-index: 1;
+      width: 14mm;
+      height: 14mm;
+      object-fit: contain;
+      filter: drop-shadow(0 1px 2px rgba(26, 15, 10, 0.12));
+      margin-bottom: 1.6mm;
+    }
+
+    .wordmark {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1mm;
+    }
+
+    .wordmark h1 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 8mm;
+      font-weight: 700;
+      line-height: 0.95;
+      letter-spacing: 0.01em;
+      color: var(--ink);
+    }
+
+    .wordmark h1 em {
+      font-style: normal;
+      color: var(--copper);
+    }
+
+    .wordmark .loc {
+      font-size: 2.3mm;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .front-brand .rule {
+      width: 16mm;
+      height: 0.35mm;
+      margin: 2.4mm auto 0;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        var(--gold) 20%,
+        var(--gold) 80%,
+        transparent 100%
+      );
+    }
+
+    .front-mid {
+      margin-top: 1.6mm;
+      margin-bottom: 1mm;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .front-mid .tagline {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 3.1mm;
+      font-weight: 500;
+      font-style: italic;
+      line-height: 1.25;
+      color: var(--body);
+      max-width: 68mm;
+    }
+
+    .front-foot {
+      position: absolute;
+      left: 7mm;
+      right: 7mm;
+      bottom: 3.8mm;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 4mm;
+    }
+
+    .front-foot .pill {
+      font-size: 2.1mm;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(26, 15, 10, 0.9);
+      background: linear-gradient(135deg, #f0c66a, var(--gold));
+      padding: 1mm 2.2mm;
+      border-radius: 1mm;
+    }
+
+    .front-foot .web {
+      font-size: 2.4mm;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      color: var(--body);
+    }
+
+    /* ——— BACK ——— */
+
+    .card.back::before {
+      content: "";
+      position: absolute;
+      inset: 3.2mm;
+      border: 0.7px solid rgba(196, 92, 38, 0.28);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .back-inner {
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      padding: 5.5mm 5.5mm 5mm;
+      display: grid;
+      grid-template-columns: 1fr 22mm;
+      gap: 3.5mm;
+      align-items: stretch;
+    }
+
+    .back-copy {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-width: 0;
+      padding-right: 1mm;
+    }
+
+    .back-copy .eyebrow {
+      font-size: 2.1mm;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--copper);
+      margin-bottom: 1.4mm;
+    }
+
+    .back-copy h2 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 5.2mm;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 2.4mm;
+      color: var(--ink);
+    }
+
+    .back-copy h2 span { color: var(--copper); }
+
+    .contact-lines {
+      display: flex;
+      flex-direction: column;
+      gap: 1.6mm;
+    }
+
+    .contact-lines a,
+    .contact-lines span {
+      display: flex;
+      align-items: baseline;
+      gap: 2mm;
+      font-size: 2.55mm;
+      line-height: 1.2;
+      color: var(--body);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .contact-lines .k {
+      flex-shrink: 0;
+      width: 11mm;
+      font-size: 2mm;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .contact-lines .v {
+      font-weight: 600;
+      color: var(--ink);
+      letter-spacing: 0.01em;
+    }
+
+    .qr-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.4mm;
+      background: #fff;
+      border: 0.7px solid var(--line);
+      border-radius: 1.4mm;
+      padding: 1.8mm 1.4mm 1.6mm;
+      box-shadow: 0 1mm 3mm rgba(26, 15, 10, 0.06);
+    }
+
+    .qr-panel img {
+      width: 16.5mm;
+      height: 16.5mm;
+      display: block;
+      image-rendering: -webkit-optimize-contrast;
+    }
+
+    .qr-panel .qr-label {
+      font-size: 1.75mm;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      text-align: center;
+      color: var(--muted);
+      line-height: 1.25;
+    }
+
+    .bleed-note {
+      max-width: 190mm;
+      font-size: 11.5px;
+      line-height: 1.55;
+      color: var(--body);
+      background: rgba(255, 250, 243, 0.72);
+      border: 1px solid rgba(26, 15, 10, 0.12);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+
+    .bleed-note h3 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 18px;
+      margin-bottom: 6px;
+    }
+
+    .bleed-note ul {
+      margin-left: 1.1em;
+    }
+
+    .bleed-note li { margin: 3px 0; }
+
+    @media print {
+      html, body {
+        background: #fff;
+      }
+
+      .no-print { display: none !important; }
+
+      .stage {
+        padding: 0;
+        gap: 0;
+      }
+
+      .cards-row {
+        display: block;
+      }
+
+      .card-wrap {
+        gap: 0;
+        page-break-after: always;
+        break-after: page;
+      }
+
+      .card-wrap:last-child {
+        page-break-after: auto;
+        break-after: auto;
+      }
+
+      .card {
+        box-shadow: none;
+        margin: 0;
+      }
+
+      .card-tag { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-bar no-print">
+    <div>
+      <strong>Pelbu Suites · Business card</strong><br />
+      <span class="meta">
+        Finished size <b>90 × 50 mm</b> · Front + back · QR is a scan-ready vCard
+        (name, phone, website). Print each side from the dialog, or export PDF page-by-page.
+      </span>
+    </div>
+    <button type="button" onclick="window.print()">Print / PDF</button>
+  </div>
+
+  <div class="stage">
+    <p class="pair-label no-print">Screen preview — actual size</p>
+
+    <div class="cards-row">
+      <!-- FRONT -->
+      <div class="card-wrap">
+        <span class="card-tag no-print">Front</span>
+        <article class="card front" aria-label="Business card front">
+          <div class="front-inner">
+            <div class="front-brand">
+              <img
+                src="https://res.cloudinary.com/hkkchsfy/image/upload/w_200,h_200,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1"
+                width="80"
+                height="80"
+                alt="Pelbu Suites"
+              />
+              <div class="wordmark">
+                <h1>Pelbu <em>Suites</em></h1>
+                <p class="loc">Olakha · Thimphu · Bhutan</p>
+              </div>
+              <div class="rule" aria-hidden="true"></div>
+            </div>
+            <div class="front-mid">
+              <p class="tagline">Boutique stay · Café · Dining · Steam &amp; Spa</p>
+            </div>
+            <div class="front-foot">
+              <span class="pill">Stay · Dine · Unwind</span>
+              <span class="web">www.pelbusuites.bt</span>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <!-- BACK -->
+      <div class="card-wrap">
+        <span class="card-tag no-print">Back</span>
+        <article class="card back" aria-label="Business card back">
+          <div class="back-inner">
+            <div class="back-copy">
+              <p class="eyebrow">Reservations</p>
+              <h2>Pelbu <span>Suites</span></h2>
+              <div class="contact-lines">
+                <a href="tel:+97516193410">
+                  <span class="k">Phone</span>
+                  <span class="v">+975 1619 3410</span>
+                </a>
+                <a href="https://www.pelbusuites.bt" target="_blank" rel="noopener">
+                  <span class="k">Web</span>
+                  <span class="v">www.pelbusuites.bt</span>
+                </a>
+                <span>
+                  <span class="k">Find us</span>
+                  <span class="v">Next to No. 7 / Asha Bakery · Olakha</span>
+                </span>
+              </div>
+            </div>
+            <div class="qr-panel">
+              <img
+                src="qr-vcard.png"
+                width="165"
+                height="165"
+                alt="QR code: Pelbu Suites contact card"
+              />
+              <p class="qr-label">Scan<br />save contact</p>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <aside class="bleed-note no-print">
+      <h3>Print-house brief</h3>
+      <ul>
+        <li><strong>Trim size:</strong> 90 mm × 50 mm (standard Asian business card). Alternative: 85 × 55 mm — scale the PDF 94% / ask the press to centre-crop.</li>
+        <li><strong>Bleed:</strong> add 3 mm all around when imposing (artwork here is trim-safe with ~3 mm inner frame).</li>
+        <li><strong>Stock:</strong> 350–400 gsm ivory / soft-touch matte, or cotton white. Spot UV optional on gold type / QR quiet zone clear of varnish heavy build-up.</li>
+        <li><strong>Colour:</strong> RGB brand file — convert to CMYK on press. Gold ≈ C10 M30 Y80 K5 (approx); ink/espresso ≈ rich black + warm brown.</li>
+        <li><strong>QR:</strong> <code>qr-vcard.png</code> encodes a filled vCard — <em>Pelbu Suites</em>, tel <em>+975 1619 3410</em>, email <em>pelbusuites@gmail.com</em>, URL <em>https://www.pelbusuites.bt</em>, address Olakha. Keep quiet zone; do not shrink below ~14 mm square. Rescan after any regenerate.</li>
+        <li><strong>PDF:</strong> Chrome → Print → Save as PDF → more settings → paper size custom 90×50 mm · background graphics ON · one side per page.</li>
+      </ul>
+    </aside>
+  </div>
+</body>
+</html>

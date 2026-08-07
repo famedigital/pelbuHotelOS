@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pelbu Suites — A5 Brochure · Rates + Experiences · Print house</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #1a0f0a;
+      --body: #3d2a22;
+      --muted: #5c4033;
+      --cream: #fffaf3;
+      --paper: #fff6ea;
+      --gold: #e8a838;
+      --copper: #c45c26;
+      --teal: #2a9d8f;
+      --teal-deep: #0f6e63;
+      --line: #e8d5b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    @page {
+      size: A5 portrait;
+      margin: 0;
+    }
+
+    html, body {
+      background: #cbb8a2;
+      color: var(--ink);
+      font-family: "Outfit", "Segoe UI", Arial, sans-serif;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .print-bar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 18px;
+      background: var(--ink);
+      color: var(--cream);
+      font-size: 12.5px;
+    }
+
+    .print-bar strong {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 17px;
+    }
+
+    .print-bar .meta {
+      opacity: 0.82;
+      font-size: 11px;
+      max-width: 58ch;
+      line-height: 1.4;
+    }
+
+    .print-bar button {
+      border: 0;
+      cursor: pointer;
+      font: 700 11px/1 "Outfit", sans-serif;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 10px 16px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--copper), var(--gold));
+      color: var(--ink);
+    }
+
+    .stage {
+      padding: 20px 12px 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 22px;
+    }
+
+    /* A5 = 148 × 210 mm */
+    .sheet {
+      width: 148mm;
+      min-height: 210mm;
+      height: 210mm;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 20px 48px rgba(26, 15, 10, 0.26);
+      background: var(--cream);
+    }
+
+    .sheet::before {
+      content: "";
+      position: absolute;
+      inset: 5mm;
+      border: 0.7px solid rgba(196, 92, 38, 0.22);
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .side-tag {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      align-self: flex-start;
+      width: 148mm;
+      margin: 0 auto;
+    }
+
+    /* ========== FRONT — RATES ========== */
+    .sheet.rates {
+      background:
+        radial-gradient(ellipse 90% 35% at 50% 0%, rgba(232, 168, 56, 0.14), transparent 55%),
+        linear-gradient(180deg, var(--cream) 0%, var(--paper) 100%);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .rates .top-bar {
+      height: 2.8mm;
+      background: linear-gradient(90deg, var(--copper), var(--gold) 50%, var(--teal));
+      flex-shrink: 0;
+    }
+
+    .rates .inner {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 5.5mm 7mm 5mm;
+      position: relative;
+      z-index: 1;
+      min-height: 0;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4mm;
+      padding-bottom: 3.2mm;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 3mm;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 2.8mm;
+    }
+
+    .brand img {
+      width: 10mm;
+      height: 10mm;
+      object-fit: contain;
+    }
+
+    .brand h1 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 5.6mm;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .brand h1 span { color: var(--copper); }
+
+    .brand p {
+      margin-top: 0.6mm;
+      font-size: 2mm;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .season-badge { text-align: right; }
+
+    .season-badge .label {
+      font-size: 1.9mm;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--copper);
+    }
+
+    .season-badge .title {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 4.4mm;
+      font-weight: 700;
+      line-height: 1.05;
+      margin-top: 0.4mm;
+    }
+
+    .season-badge .sub {
+      font-size: 1.9mm;
+      color: var(--muted);
+      margin-top: 0.4mm;
+    }
+
+    .intro {
+      margin-bottom: 2.6mm;
+    }
+
+    .intro h2 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 4.2mm;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    .intro p {
+      margin-top: 0.8mm;
+      font-size: 2.15mm;
+      line-height: 1.4;
+      color: var(--body);
+    }
+
+    .room-photos {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.6mm;
+      margin-bottom: 2.6mm;
+    }
+
+    .room-photo {
+      background: #fff;
+      border: 0.6px solid var(--line);
+      border-radius: 1.4mm;
+      overflow: hidden;
+    }
+
+    .room-photo.suite {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 0.5px rgba(232, 168, 56, 0.4);
+    }
+
+    .room-photo img {
+      display: block;
+      width: 100%;
+      height: 16mm;
+      object-fit: cover;
+    }
+
+    .room-photo figcaption {
+      padding: 1.1mm 1.4mm 1.3mm;
+      border-top: 0.5px solid var(--line);
+    }
+
+    .room-photo .cat {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 2.5mm;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    .room-photo.double .cat { color: var(--copper); }
+    .room-photo.twin .cat { color: var(--teal-deep); }
+    .room-photo.suite .cat { color: var(--ink); }
+
+    .room-photo .meta {
+      font-size: 1.7mm;
+      color: var(--muted);
+      margin-top: 0.3mm;
+      line-height: 1.25;
+    }
+
+    .season-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 2mm;
+      padding: 1.3mm 2mm;
+      border-radius: 1.2mm;
+      margin-bottom: 1mm;
+      color: #fffaf3;
+    }
+
+    .season-banner.peak {
+      background: linear-gradient(105deg, #5c2a14, #c45c26 50%, #e8a838);
+    }
+
+    .season-banner.off {
+      background: linear-gradient(105deg, #0f3d38, #0f6e63 50%, #2a9d8f);
+      margin-top: 1.6mm;
+    }
+
+    .season-banner h3 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 2.8mm;
+      font-weight: 700;
+    }
+
+    .season-banner .fine {
+      font-size: 1.65mm;
+      font-weight: 600;
+      opacity: 0.92;
+    }
+
+    .rates-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 2mm;
+      margin-bottom: 0;
+    }
+
+    .rates-table thead th {
+      font-size: 1.55mm;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--cream);
+      background: var(--ink);
+      padding: 1mm 0.8mm;
+      text-align: center;
+      border: 0.4px solid rgba(26, 15, 10, 0.2);
+    }
+
+    .rates-table thead th.l {
+      text-align: left;
+      padding-left: 1.6mm;
+      background: #5c2a14;
+    }
+
+    .rates-table.off thead th.l { background: #0f3d38; }
+
+    .rates-table tbody td {
+      padding: 0.85mm 0.7mm;
+      text-align: center;
+      border: 0.4px solid var(--line);
+      background: #fff;
+      vertical-align: middle;
+    }
+
+    .rates-table tbody tr.alt td { background: #fffdf8; }
+
+    .rates-table tbody tr.suite-row td {
+      background: linear-gradient(90deg, #fff4d4, #fffaf0 60%);
+    }
+
+    .rates-table td.cat {
+      text-align: left;
+      padding-left: 1.6mm;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 2.35mm;
+      font-weight: 700;
+      width: 28%;
+    }
+
+    .rates-table td.cat.double { color: var(--copper); }
+    .rates-table td.cat.suite { color: var(--ink); }
+
+    .rates-table td.cat .m {
+      display: block;
+      font-family: "Outfit", sans-serif;
+      font-size: 1.5mm;
+      font-weight: 500;
+      color: var(--muted);
+      margin-top: 0.2mm;
+    }
+
+    .rates-table td.occ {
+      text-align: left;
+      padding-left: 1.4mm;
+      font-size: 1.85mm;
+      font-weight: 700;
+      color: var(--body);
+      width: 12%;
+      white-space: nowrap;
+    }
+
+    .price {
+      font-size: 2.25mm;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .price .c {
+      font-size: 1.35mm;
+      font-weight: 600;
+      color: var(--muted);
+      margin-right: 0.3mm;
+    }
+
+    .meal-key {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.2mm;
+      margin: 2mm 0 1.8mm;
+    }
+
+    .meal-card {
+      background: #fff;
+      border: 0.5px solid var(--line);
+      border-radius: 1mm;
+      padding: 1.1mm 1.3mm;
+    }
+
+    .meal-card strong {
+      display: block;
+      font-size: 1.75mm;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--copper);
+      margin-bottom: 0.3mm;
+    }
+
+    .meal-card span {
+      font-size: 1.55mm;
+      line-height: 1.25;
+      color: var(--body);
+    }
+
+    .benefits {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.4mm;
+      margin-bottom: 1.8mm;
+    }
+
+    .benefit {
+      border-radius: 1.2mm;
+      padding: 1.4mm 1.8mm;
+    }
+
+    .benefit.foc {
+      background: linear-gradient(120deg, #2a9d8f, #3dbeb0);
+      color: #f0fffc;
+    }
+
+    .benefit.mou {
+      background: linear-gradient(120deg, #1a0f0a, #3d2418);
+      color: var(--cream);
+    }
+
+    .benefit .ey {
+      font-size: 1.55mm;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      opacity: 0.88;
+      margin-bottom: 0.5mm;
+    }
+
+    .benefit h3 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 2.7mm;
+      font-weight: 700;
+      line-height: 1.15;
+    }
+
+    .benefit.foc h3 span { color: #fff6a8; }
+    .benefit.mou h3 span { color: var(--gold); }
+
+    .benefit p {
+      margin-top: 0.5mm;
+      font-size: 1.65mm;
+      line-height: 1.3;
+      opacity: 0.92;
+    }
+
+    .notes {
+      font-size: 1.7mm;
+      line-height: 1.35;
+      color: var(--muted);
+      margin-bottom: 1.6mm;
+    }
+
+    .notes strong { color: var(--ink); }
+
+    .footer {
+      margin-top: auto;
+      padding-top: 2mm;
+      border-top: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 3mm;
+      align-items: end;
+    }
+
+    .contact h3 {
+      font-size: 1.7mm;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--copper);
+      margin-bottom: 0.7mm;
+    }
+
+    .contact p {
+      font-size: 2mm;
+      line-height: 1.4;
+      color: var(--body);
+    }
+
+    .contact a {
+      color: var(--ink);
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .qr-block {
+      text-align: center;
+      background: #fff;
+      border: 0.6px solid var(--line);
+      border-radius: 1.4mm;
+      padding: 1.4mm 1.8mm 1.2mm;
+    }
+
+    .qr-block img {
+      width: 14mm;
+      height: 14mm;
+      display: block;
+      margin: 0 auto 0.8mm;
+    }
+
+    .qr-block strong {
+      display: block;
+      font-size: 1.7mm;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--copper);
+    }
+
+    .qr-block span {
+      font-size: 1.55mm;
+      color: var(--muted);
+      line-height: 1.3;
+    }
+
+    .confidential {
+      margin-top: 1.4mm;
+      text-align: center;
+      font-size: 1.5mm;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ========== BACK — EXPERIENCES ========== */
+    .sheet.experiences {
+      background: #120b08;
+      color: var(--cream);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sheet.experiences::before {
+      border-color: rgba(232, 168, 56, 0.28);
+    }
+
+    .exp-hero {
+      position: relative;
+      height: 48mm;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .exp-hero img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center 40%;
+      display: block;
+      filter: brightness(0.72) saturate(1.05);
+    }
+
+    .exp-hero .veil {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(18, 11, 8, 0.15) 0%, rgba(18, 11, 8, 0.55) 55%, rgba(18, 11, 8, 0.96) 100%),
+        linear-gradient(90deg, rgba(196, 92, 38, 0.18), transparent 50%);
+    }
+
+    .exp-hero .hero-copy {
+      position: absolute;
+      left: 7mm;
+      right: 7mm;
+      bottom: 4mm;
+      z-index: 2;
+    }
+
+    .exp-hero .eyebrow {
+      font-size: 1.9mm;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 1mm;
+    }
+
+    .exp-hero h2 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 7mm;
+      font-weight: 700;
+      line-height: 0.98;
+      letter-spacing: 0.01em;
+    }
+
+    .exp-hero h2 em {
+      font-style: italic;
+      font-weight: 500;
+      color: #f0c66a;
+    }
+
+    .exp-hero p {
+      margin-top: 1.2mm;
+      font-size: 2.15mm;
+      line-height: 1.35;
+      color: rgba(255, 250, 243, 0.82);
+      max-width: 95mm;
+    }
+
+    .exp-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 3.5mm 7mm 5mm;
+      position: relative;
+      z-index: 1;
+      background:
+        radial-gradient(ellipse 70% 40% at 100% 100%, rgba(232, 168, 56, 0.1), transparent 50%),
+        linear-gradient(180deg, #120b08 0%, #1a100c 100%);
+      min-height: 0;
+    }
+
+    .stream-label {
+      font-size: 1.8mm;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(232, 168, 56, 0.75);
+      margin-bottom: 2mm;
+    }
+
+    /* Three room categories */
+    .rooms-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.8mm;
+      margin-bottom: 2.8mm;
+    }
+
+    .room-card {
+      position: relative;
+      border-radius: 1.4mm;
+      overflow: hidden;
+      border: 0.55px solid rgba(232, 168, 56, 0.28);
+      min-height: 28mm;
+    }
+
+    .room-card img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: brightness(0.78);
+    }
+
+    .room-card .shade {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, transparent 30%, rgba(18, 11, 8, 0.92) 100%);
+    }
+
+    .room-card .txt {
+      position: absolute;
+      left: 1.8mm;
+      right: 1.8mm;
+      bottom: 1.6mm;
+      z-index: 1;
+    }
+
+    .room-card .n {
+      font-size: 1.5mm;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.4mm;
+    }
+
+    .room-card h3 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 2.7mm;
+      font-weight: 700;
+      line-height: 1.05;
+    }
+
+    .room-card p {
+      margin-top: 0.5mm;
+      font-size: 1.55mm;
+      line-height: 1.25;
+      color: rgba(255, 250, 243, 0.78);
+    }
+
+    /* Other sale streams */
+    .streams {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.8mm;
+      flex: 1;
+    }
+
+    .stream {
+      position: relative;
+      border-radius: 1.4mm;
+      overflow: hidden;
+      border: 0.55px solid rgba(232, 168, 56, 0.22);
+      min-height: 26mm;
+    }
+
+    .stream.wide {
+      grid-column: 1 / -1;
+      min-height: 22mm;
+    }
+
+    .stream img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: brightness(0.7) saturate(1.05);
+    }
+
+    .stream .shade {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(105deg, rgba(18, 11, 8, 0.88) 0%, rgba(18, 11, 8, 0.35) 55%, rgba(18, 11, 8, 0.55) 100%);
+    }
+
+    .stream.laundry {
+      background:
+        radial-gradient(ellipse 80% 70% at 90% 20%, rgba(42, 157, 143, 0.22), transparent 55%),
+        linear-gradient(135deg, #0f3d38 0%, #1a120e 55%, #2a1810 100%);
+      min-height: 26mm;
+    }
+
+    .stream.laundry .shade {
+      background:
+        linear-gradient(135deg, transparent 40%, rgba(18, 11, 8, 0.25) 100%);
+    }
+
+    .stream.laundry::after {
+      content: "";
+      position: absolute;
+      right: 3mm;
+      top: 3mm;
+      width: 12mm;
+      height: 12mm;
+      border: 0.55px solid rgba(232, 168, 56, 0.35);
+      border-radius: 50%;
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    .stream .txt {
+      position: relative;
+      z-index: 1;
+      padding: 2.4mm 2.6mm;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+
+    .stream .icon-n {
+      font-size: 1.55mm;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.5mm;
+    }
+
+    .stream h3 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 3.4mm;
+      font-weight: 700;
+      line-height: 1.05;
+    }
+
+    .stream p {
+      margin-top: 0.7mm;
+      font-size: 1.75mm;
+      line-height: 1.3;
+      color: rgba(255, 250, 243, 0.82);
+      max-width: 58mm;
+    }
+
+    .stream.wide .txt {
+      flex-direction: row;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 4mm;
+    }
+
+    .stream.wide p { max-width: 75mm; }
+
+    .stream.wide .cta {
+      flex-shrink: 0;
+      font-size: 1.7mm;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 1.2mm 2.2mm;
+      border: 0.55px solid rgba(232, 168, 56, 0.55);
+      border-radius: 1mm;
+      color: var(--gold);
+      white-space: nowrap;
+    }
+
+    .exp-foot {
+      margin-top: 2.8mm;
+      padding-top: 2.2mm;
+      border-top: 0.55px solid rgba(232, 168, 56, 0.22);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 3mm;
+    }
+
+    .exp-foot .brand-mini {
+      display: flex;
+      align-items: center;
+      gap: 2mm;
+    }
+
+    .exp-foot img {
+      width: 7mm;
+      height: 7mm;
+      object-fit: contain;
+    }
+
+    .exp-foot .name {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 3.2mm;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .exp-foot .name span { color: var(--gold); }
+
+    .exp-foot .loc {
+      font-size: 1.55mm;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255, 250, 243, 0.65);
+      margin-top: 0.5mm;
+    }
+
+    .exp-foot .phone {
+      text-align: right;
+      font-size: 2.2mm;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .exp-foot .phone a {
+      color: var(--cream);
+      text-decoration: none;
+    }
+
+    .exp-foot .phone .w {
+      display: block;
+      margin-top: 0.4mm;
+      font-size: 1.7mm;
+      font-weight: 500;
+      color: rgba(255, 250, 243, 0.7);
+    }
+
+    .spec {
+      max-width: 148mm;
+      width: 100%;
+      font-size: 11.5px;
+      line-height: 1.5;
+      color: var(--body);
+      background: rgba(255, 250, 243, 0.85);
+      border: 1px solid rgba(26, 15, 10, 0.1);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+
+    .spec h3 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 17px;
+      margin-bottom: 6px;
+    }
+
+    .spec ul { margin-left: 1.1em; }
+    .spec li { margin: 3px 0; }
+
+    @media print {
+      html, body { background: #fff; }
+      .no-print { display: none !important; }
+      .stage { padding: 0; gap: 0; }
+      .sheet {
+        box-shadow: none;
+        page-break-after: always;
+        break-after: page;
+      }
+      .sheet:last-of-type {
+        page-break-after: auto;
+        break-after: auto;
+      }
+      .side-tag { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-bar no-print">
+    <div>
+      <strong>Pelbu Suites · A5 brochure</strong><br />
+      <span class="meta">
+        Front = public rack rates (Final 2026) · Back = hotel sale streams.
+        Size <b>A5 148 × 210 mm</b>. Background graphics ON when printing PDF.
+      </span>
+    </div>
+    <button type="button" onclick="window.print()">Print / PDF</button>
+  </div>
+
+  <div class="stage">
+    <p class="side-tag no-print">Front — Public rates</p>
+
+    <!-- ===================== FRONT ===================== -->
+    <article class="sheet rates" aria-label="A5 brochure front — public rates">
+      <div class="top-bar" aria-hidden="true"></div>
+      <div class="inner">
+        <header class="header">
+          <div class="brand">
+            <img
+              src="https://res.cloudinary.com/hkkchsfy/image/upload/w_160,h_160,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1"
+              width="60"
+              height="60"
+              alt="Pelbu Suites"
+            />
+            <div>
+              <h1>Pelbu <span>Suites</span></h1>
+              <p>Olakha · Thimphu · Bhutan</p>
+            </div>
+          </div>
+          <div class="season-badge">
+            <p class="label">Public rates · Final rack</p>
+            <p class="title">Peak &amp; Off · 2026</p>
+            <p class="sub">EPAI · CPAI · MAPAI · APAI</p>
+          </div>
+        </header>
+
+        <div class="intro">
+          <h2>Public room rates</h2>
+          <p>
+            Transparent rates for walk-in, locals, and direct booking.
+            Package figures are <strong>all-in</strong> (include
+            <strong>10% SC</strong> + <strong>5% GST</strong>) · BTN · per room / night.
+          </p>
+        </div>
+
+        <div class="room-photos" aria-label="Three room experiences">
+          <figure class="room-photo double">
+            <img
+              src="https://res.cloudinary.com/hkkchsfy/image/upload/w_640,h_400,c_fill,g_auto,e_improve:indoor:40,e_auto_contrast:15,e_sharpen:50,f_jpg,q_auto:good/pelbu/rooms/deluxe-suite"
+              alt="Deluxe King"
+            />
+            <figcaption>
+              <div class="cat">Deluxe King</div>
+              <div class="meta">King bed · public tariff</div>
+            </figcaption>
+          </figure>
+          <figure class="room-photo twin">
+            <img
+              src="https://res.cloudinary.com/hkkchsfy/image/upload/w_640,h_400,c_fill,g_auto,e_improve:indoor:40,e_auto_contrast:15,e_sharpen:50,f_jpg,q_auto:good/pelbu/rooms/suite-alt"
+              alt="Deluxe Twin"
+            />
+            <figcaption>
+              <div class="cat">Deluxe Twin</div>
+              <div class="meta">Twin beds · same tariff</div>
+            </figcaption>
+          </figure>
+          <figure class="room-photo suite">
+            <img
+              src="https://res.cloudinary.com/hkkchsfy/image/upload/w_640,h_400,c_fill,g_auto,e_improve:indoor:40,e_auto_contrast:15,e_sharpen:50,f_jpg,q_auto:good/v1785925713/pelbu/home/hmuenowpmowtkagbxxns"
+              alt="Pelbu Suite"
+            />
+            <figcaption>
+              <div class="cat">Pelbu Suite</div>
+              <div class="meta">1 only · private jacuzzi</div>
+            </figcaption>
+          </figure>
+        </div>
+
+        <div class="season-banner peak">
+          <h3>Peak season</h3>
+          <p class="fine">All-in BTN · per room / night</p>
+        </div>
+        <table class="rates-table" aria-label="Peak season rates">
+          <thead>
+            <tr>
+              <th class="l" scope="col">Category</th>
+              <th class="l" scope="col">Occ.</th>
+              <th scope="col">EPAI</th>
+              <th scope="col">CPAI</th>
+              <th scope="col">MAPAI</th>
+              <th scope="col">APAI</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="cat double" rowspan="2">Deluxe King/Twin<span class="m">King or twin · one tariff</span></td>
+              <td class="occ">Single</td>
+              <td><span class="price"><span class="c">BTN</span>3,200</span></td>
+              <td><span class="price"><span class="c">BTN</span>3,600</span></td>
+              <td><span class="price"><span class="c">BTN</span>4,200</span></td>
+              <td><span class="price"><span class="c">BTN</span>4,800</span></td>
+            </tr>
+            <tr class="alt">
+              <td class="occ">Double</td>
+              <td><span class="price"><span class="c">BTN</span>3,450</span></td>
+              <td><span class="price"><span class="c">BTN</span>4,200</span></td>
+              <td><span class="price"><span class="c">BTN</span>5,600</span></td>
+              <td><span class="price"><span class="c">BTN</span>6,700</span></td>
+            </tr>
+            <tr class="suite-row">
+              <td class="cat suite" rowspan="2">Pelbu Suite<span class="m">Private jacuzzi · 1 suite</span></td>
+              <td class="occ">Single</td>
+              <td><span class="price"><span class="c">BTN</span>8,000</span></td>
+              <td><span class="price"><span class="c">BTN</span>8,400</span></td>
+              <td><span class="price"><span class="c">BTN</span>9,100</span></td>
+              <td><span class="price"><span class="c">BTN</span>9,700</span></td>
+            </tr>
+            <tr class="suite-row alt">
+              <td class="occ">Double</td>
+              <td><span class="price"><span class="c">BTN</span>8,500</span></td>
+              <td><span class="price"><span class="c">BTN</span>9,300</span></td>
+              <td><span class="price"><span class="c">BTN</span>10,600</span></td>
+              <td><span class="price"><span class="c">BTN</span>11,800</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="season-banner off">
+          <h3>Off season</h3>
+          <p class="fine">All-in BTN · same plans &amp; categories</p>
+        </div>
+        <table class="rates-table off" aria-label="Off season rates">
+          <thead>
+            <tr>
+              <th class="l" scope="col">Category</th>
+              <th class="l" scope="col">Occ.</th>
+              <th scope="col">EPAI</th>
+              <th scope="col">CPAI</th>
+              <th scope="col">MAPAI</th>
+              <th scope="col">APAI</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="cat double" rowspan="2">Deluxe King/Twin<span class="m">King or twin · one tariff</span></td>
+              <td class="occ">Single</td>
+              <td><span class="price"><span class="c">BTN</span>2,800</span></td>
+              <td><span class="price"><span class="c">BTN</span>3,200</span></td>
+              <td><span class="price"><span class="c">BTN</span>3,900</span></td>
+              <td><span class="price"><span class="c">BTN</span>4,500</span></td>
+            </tr>
+            <tr class="alt">
+              <td class="occ">Double</td>
+              <td><span class="price"><span class="c">BTN</span>3,000</span></td>
+              <td><span class="price"><span class="c">BTN</span>3,700</span></td>
+              <td><span class="price"><span class="c">BTN</span>5,000</span></td>
+              <td><span class="price"><span class="c">BTN</span>6,300</span></td>
+            </tr>
+            <tr class="suite-row">
+              <td class="cat suite" rowspan="2">Pelbu Suite<span class="m">Private jacuzzi · 1 suite</span></td>
+              <td class="occ">Single</td>
+              <td><span class="price"><span class="c">BTN</span>6,900</span></td>
+              <td><span class="price"><span class="c">BTN</span>7,300</span></td>
+              <td><span class="price"><span class="c">BTN</span>7,900</span></td>
+              <td><span class="price"><span class="c">BTN</span>8,500</span></td>
+            </tr>
+            <tr class="suite-row alt">
+              <td class="occ">Double</td>
+              <td><span class="price"><span class="c">BTN</span>7,400</span></td>
+              <td><span class="price"><span class="c">BTN</span>8,200</span></td>
+              <td><span class="price"><span class="c">BTN</span>9,400</span></td>
+              <td><span class="price"><span class="c">BTN</span>10,800</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="meal-key">
+          <div class="meal-card"><strong>EPAI</strong><span>Room only (SC+GST in)</span></div>
+          <div class="meal-card"><strong>CPAI</strong><span>Room + breakfast</span></div>
+          <div class="meal-card"><strong>MAPAI</strong><span>Room + BF + dinner</span></div>
+          <div class="meal-card"><strong>APAI</strong><span>Room + BF, lunch &amp; dinner</span></div>
+        </div>
+
+        <div class="benefits">
+          <div class="benefit foc">
+            <p class="ey">Book direct</p>
+            <h3>Live rooms on <span>pelbusuites.bt</span></h3>
+            <p>Check online, finish by phone or WhatsApp.</p>
+          </div>
+          <div class="benefit mou">
+            <p class="ey">Taxes clear</p>
+            <h3>Packages include <span>SC + GST</span></h3>
+            <p>Final public rack · Free cancel 7 / 14 days peak.</p>
+          </div>
+        </div>
+
+        <p class="notes">
+          Extra bed: adult from <strong>BTN 1,150</strong> (EPAI) · ages 0–5 free on child package.
+          Deluxe King &amp; Twin share one tariff. Suite jacuzzi is exclusive.
+        </p>
+
+        <footer class="footer">
+          <div class="contact">
+            <h3>Reservations</h3>
+            <p>
+              <a href="tel:+97516193410">+975 1619 3410</a><br />
+              <a href="mailto:pelbusuites@gmail.com">pelbusuites@gmail.com</a><br />
+              <a href="https://www.pelbusuites.bt">www.pelbusuites.bt</a><br />
+              Next to Number 7 / Asha Bakery · Olakha
+            </p>
+          </div>
+          <div class="qr-block">
+            <img src="qr-book.png" width="140" height="140" alt="QR book direct" />
+            <strong>Book direct</strong>
+            <span>pelbusuites.bt/book</span>
+          </div>
+        </footer>
+        <p class="confidential">Pelbu Suites · Public rates Peak &amp; Off 2026 · A5 front</p>
+      </div>
+    </article>
+
+    <p class="side-tag no-print">Back — Hotel sale streams</p>
+
+    <!-- ===================== BACK ===================== -->
+    <article class="sheet experiences" aria-label="A5 brochure back — hotel experiences">
+      <div class="exp-hero">
+        <img
+          src="https://res.cloudinary.com/hkkchsfy/image/upload/w_1200,h_700,c_fill,g_auto,e_improve:outdoor:40,e_auto_contrast:20,e_sharpen:40,f_jpg,q_auto:best/v1785925713/pelbu/home/hmuenowpmowtkagbxxns"
+          alt="Pelbu Suites"
+        />
+        <div class="veil" aria-hidden="true"></div>
+        <div class="hero-copy">
+          <p class="eyebrow">One roof · Five ways to enjoy Pelbu</p>
+          <h2>Stay. Sip. <em>Savour.</em> Unwind.</h2>
+          <p>Rooms, café, restaurant, steam &amp; spa, and laundry — curated for guests and walk-ins in Olakha, Thimphu.</p>
+        </div>
+      </div>
+
+      <div class="exp-body">
+        <p class="stream-label">Three room experiences</p>
+        <div class="rooms-row">
+          <div class="room-card">
+            <img
+              src="https://res.cloudinary.com/hkkchsfy/image/upload/w_560,h_480,c_fill,g_auto,e_improve:indoor:40,e_sharpen:50,f_jpg,q_auto:good/pelbu/rooms/deluxe-suite"
+              alt=""
+            />
+            <div class="shade" aria-hidden="true"></div>
+            <div class="txt">
+              <p class="n">01 · Rooms</p>
+              <h3>Deluxe King</h3>
+              <p>Calm king-bed stay · city-close quiet</p>
+            </div>
+          </div>
+          <div class="room-card">
+            <img
+              src="https://res.cloudinary.com/hkkchsfy/image/upload/w_560,h_480,c_fill,g_auto,e_improve:indoor:40,e_sharpen:50,f_jpg,q_auto:good/pelbu/rooms/suite-alt"
+              alt=""
+            />
+            <div class="shade" aria-hidden="true"></div>
+            <div class="txt">
+              <p class="n">02 · Rooms</p>
+              <h3>Deluxe Twin</h3>
+              <p>Twin beds · friends &amp; family travel</p>
+            </div>
+          </div>
+          <div class="room-card">
+            <img
+              src="https://res.cloudinary.com/hkkchsfy/image/upload/w_560,h_480,c_fill,g_auto,e_improve:indoor:40,e_sharpen:50,f_jpg,q_auto:good/v1785925713/pelbu/home/hmuenowpmowtkagbxxns"
+              alt=""
+            />
+            <div class="shade" aria-hidden="true"></div>
+            <div class="txt">
+              <p class="n">03 · Flagship</p>
+              <h3>Pelbu Suite</h3>
+              <p>One suite only · private jacuzzi</p>
+            </div>
+          </div>
+        </div>
+
+        <p class="stream-label">On property · open to guests &amp; day visitors</p>
+        <div class="streams">
+          <div class="stream cafe">
+            <img
+              src="https://res.cloudinary.com/hkkchsfy/image/upload/w_800,h_600,c_fill,g_auto,e_improve:indoor:40,e_auto_color:20,e_sharpen:50,f_jpg,q_auto:best/v1785925446/pelbu/cafe/v7d8ba1cszstrkfosyax"
+              alt=""
+            />
+            <div class="shade" aria-hidden="true"></div>
+            <div class="txt">
+              <p class="icon-n">Café</p>
+              <h3>Morning light &amp; pastry</h3>
+              <p>Coffee, suja moments, light bites — open for sit-in and take-away.</p>
+            </div>
+          </div>
+
+          <div class="stream spa">
+            <img
+              src="https://res.cloudinary.com/hkkchsfy/image/upload/w_800,h_600,c_fill,g_auto,e_improve:indoor:40,e_sharpen:50,f_jpg,q_auto:best/pelbu/spa/steam"
+              alt=""
+            />
+            <div class="shade" aria-hidden="true"></div>
+            <div class="txt">
+              <p class="icon-n">Steam &amp; Spa</p>
+              <h3>Heat, hush &amp; restore</h3>
+              <p>Steam ritual and spa time under house hours — book at the desk.</p>
+            </div>
+          </div>
+
+          <div class="stream fb">
+            <img
+              src="https://res.cloudinary.com/hkkchsfy/image/upload/w_800,h_600,c_fill,g_auto,e_improve:indoor:45,e_auto_color:25,e_sharpen:50,f_jpg,q_auto:best/v1785925486/pelbu/restaurant/uuy1ycprinlbhm7lvkli"
+              alt=""
+            />
+            <div class="shade" aria-hidden="true"></div>
+            <div class="txt">
+              <p class="icon-n">F&amp;B · Restaurant</p>
+              <h3>Plates worth lingering over</h3>
+              <p>In-house dining for breakfast through dinner · day guests welcome by schedule.</p>
+            </div>
+          </div>
+
+          <div class="stream laundry">
+            <div class="shade" aria-hidden="true"></div>
+            <div class="txt">
+              <p class="icon-n">Laundry</p>
+              <h3>Press &amp; refresh</h3>
+              <p>Guest laundry while you stay — ask reception for same-day options.</p>
+            </div>
+          </div>
+        </div>
+
+        <footer class="exp-foot">
+          <div class="brand-mini">
+            <img
+              src="https://res.cloudinary.com/hkkchsfy/image/upload/w_120,h_120,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1"
+              alt=""
+            />
+            <div>
+              <p class="name">Pelbu <span>Suites</span></p>
+              <p class="loc">Olakha · Thimphu</p>
+            </div>
+          </div>
+          <div class="phone">
+            <a href="tel:+97516193410">+975 1619 3410</a>
+            <span class="w">www.pelbusuites.bt</span>
+          </div>
+        </footer>
+      </div>
+    </article>
+
+    <aside class="spec no-print">
+      <h3>Print-house brief · A5 brochure</h3>
+      <ul>
+        <li><strong>Trim:</strong> A5 portrait 148 × 210 mm. Add <strong>3 mm bleed</strong> on all sides when imposing; keep type inside the inner frame already drawn.</li>
+        <li><strong>Pages:</strong> Page 1 = rates (cream). Page 2 = experiences (dark). Duplex print · flip on short edge for correct back orientation, or hand the pair as singles.</li>
+        <li><strong>Stock:</strong> 250–300 gsm matte / soft-touch (rates side readable); silk for photos. Optional soft-touch laminate on dark back only.</li>
+        <li><strong>Photos:</strong> Delivered via Cloudinary at print-friendly compression — for offset/offset+digital high-run, ask design to export 300 dpi PDF/X-1a after InDesign reflow if needed.</li>
+        <li><strong>PDF export:</strong> Chrome → Print → Save as PDF → paper size <strong>A5</strong> · margins none · background graphics <strong>on</strong>.</li>
+        <li><strong>Files in this folder:</strong> <code>brochure-a5.html</code>, <code>business-card.html</code>, <code>qr-vcard.png</code>, <code>qr-book.png</code>, <code>qr-web.png</code>.</li>
+      </ul>
+    </aside>
+  </div>
+</body>
+</html>

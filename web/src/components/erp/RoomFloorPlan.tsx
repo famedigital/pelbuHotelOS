@@ -15,8 +15,8 @@ import type {
 import { DEFAULT_BUILDING_PARAMS } from "@/lib/building/types";
 import { Button } from "@/components/ui/button";
 import {
-  FACADE_RING,
   HK_FILL,
+  STAY_RING,
   floorKey,
   listFloors,
   unitPlanPosition,
@@ -292,15 +292,38 @@ export function RoomFloorPlan({
           <span className="size-2.5 rounded-sm bg-emerald-500" /> Clean
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="size-2.5 rounded-sm bg-indigo-600" /> Occupied
+          <span className="size-2.5 rounded-sm bg-amber-500" /> Dirty
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="size-2.5 rounded-sm bg-amber-500" /> Dirty
+          <span className="size-2.5 rounded-sm bg-sky-500" /> Inspect
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2.5 rounded-sm bg-rose-600" /> OOO
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2.5 rounded-sm ring-2 ring-blue-500 bg-emerald-500" />{" "}
+          Arriving
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2.5 rounded-sm ring-2 ring-indigo-600 bg-emerald-500" />{" "}
+          In-house
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2.5 rounded-sm ring-2 ring-amber-500 bg-emerald-500" />{" "}
+          Departing
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex size-3 items-center justify-center rounded-full bg-indigo-600 text-[8px] font-bold text-white">
+            #
+          </span>{" "}
+          Pax
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2.5 rounded-sm bg-rose-700" /> Maint
         </span>
         {showStructure ? (
           <span>
-            Front / back wings · corridor center · drag snaps to wing · click
-            room for dossier
+            Front / back wings · corridor · drag snaps · click for dossier
           </span>
         ) : (
           <span>
@@ -395,19 +418,29 @@ export function RoomFloorPlan({
 
         {positioned.map((unit) => {
           const fill = HK_FILL[unit.hk_status] ?? "bg-muted text-foreground";
-          const ring = FACADE_RING[unit.facade_side ?? ""] ?? "ring-border";
+          const stay = unit.stay_state ?? "vacant";
+          const ring =
+            stay !== "vacant"
+              ? (STAY_RING[stay] ?? "ring-border")
+              : "ring-border/40";
+          const pax =
+            unit.person_count != null && unit.person_count > 0
+              ? unit.person_count
+              : null;
           return (
             <div
               key={unit.id}
               role="button"
               tabIndex={0}
-              aria-label={`Room ${unit.label}`}
+              aria-label={`Room ${unit.label}, ${unit.hk_status}, ${stay}${pax != null ? `, ${pax} guests` : ""}`}
               className={cn(
                 "absolute z-10 flex min-w-[3.25rem] -translate-x-1/2 -translate-y-1/2 cursor-grab flex-col items-center rounded-lg px-2 py-1.5 text-center shadow-sm ring-2 select-none active:cursor-grabbing",
                 fill,
                 ring,
+                stay !== "vacant" && "ring-[3px]",
                 dragId === unit.id && "z-20 scale-105 shadow-md",
                 unit.is_comp && "opacity-80",
+                unit.has_open_maintenance && "outline outline-2 outline-offset-1 outline-rose-700",
               )}
               style={{ left: `${unit.x}%`, top: `${unit.y}%` }}
               onPointerDown={(e) =>
@@ -420,8 +453,13 @@ export function RoomFloorPlan({
                 }
               }}
             >
-              <span className="text-sm leading-none font-semibold tracking-tight">
+              <span className="flex items-center gap-1 text-sm leading-none font-semibold tracking-tight">
                 {unit.label}
+                {pax != null ? (
+                  <span className="inline-flex min-w-[1rem] items-center justify-center rounded-full bg-black/30 px-1 text-[9px] tabular-nums">
+                    {pax}
+                  </span>
+                ) : null}
               </span>
               <span className="mt-0.5 max-w-[4.5rem] truncate text-[9px] opacity-90">
                 {unit.room_type_code || unit.room_type_name}
@@ -429,6 +467,18 @@ export function RoomFloorPlan({
               {unit.occupied_tonight && unit.guest_name ? (
                 <span className="mt-0.5 max-w-[5rem] truncate text-[9px] opacity-90">
                   {unit.guest_name}
+                </span>
+              ) : stay === "vacant" ? (
+                <span className="mt-0.5 text-[9px] opacity-80">Empty</span>
+              ) : null}
+              {unit.has_open_maintenance ? (
+                <span className="mt-0.5 text-[8px] font-semibold uppercase tracking-wide">
+                  Maint
+                </span>
+              ) : null}
+              {unit.photos_missing != null && unit.photos_missing > 0 ? (
+                <span className="mt-0.5 text-[8px] opacity-85">
+                  {unit.photos_missing} photo gaps
                 </span>
               ) : null}
             </div>

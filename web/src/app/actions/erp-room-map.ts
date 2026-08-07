@@ -132,6 +132,7 @@ export type RoomDossier = {
   };
   current: null | {
     booking_id: string;
+    assignment_id: string;
     contact_name: string | null;
     contact_phone: string | null;
     check_in: string;
@@ -141,7 +142,13 @@ export type RoomDossier = {
     agent_name: string | null;
     from_date: string;
     to_date: string;
+    adults: number;
+    children: number;
   };
+  occupants: Array<{
+    kind: string;
+    display_name: string;
+  }>;
   upcoming: Array<{
     booking_id: string;
     contact_name: string | null;
@@ -158,7 +165,14 @@ export type RoomDossier = {
     guest_names: string[];
   }>;
   amenities: Array<{ name: string; par_qty: number }>;
+  /** Room-type fallback gallery. */
   photoPublicIds: string[];
+  /** Per physical unit media by facet. */
+  unitPhotos: Array<{
+    id: string;
+    facet: string;
+    public_id: string;
+  }>;
   openProblems: Array<{ kind: string; summary: string; at: string }>;
 };
 
@@ -191,9 +205,10 @@ export async function loadRoomDossier(
     const { data: currentRows } = await admin
       .from("room_assignments")
       .select(
-        `from_date, to_date,
+        `id, from_date, to_date,
          bookings!inner(
            id, contact_name, contact_phone, check_in, check_out, status, agent_id,
+           adults, children,
            agents(company_name)
          )`,
       )
@@ -203,6 +218,7 @@ export async function loadRoomDossier(
       .limit(1);
 
     const cur = currentRows?.[0];
+    const assignmentId = (cur?.id as string | undefined) ?? null;
     const curBook = cur?.bookings as
       | {
           id: string;
@@ -212,6 +228,8 @@ export async function loadRoomDossier(
           check_out: string;
           status: string;
           agent_id?: string | null;
+          adults?: number | null;
+          children?: number | null;
           agents?: { company_name?: string } | { company_name?: string }[] | null;
         }
       | {
@@ -222,12 +240,29 @@ export async function loadRoomDossier(
           check_out: string;
           status: string;
           agent_id?: string | null;
+          adults?: number | null;
+          children?: number | null;
           agents?: { company_name?: string } | { company_name?: string }[] | null;
         }[]
       | null;
     const b = Array.isArray(curBook) ? curBook[0] : curBook;
     const agentRaw = b?.agents;
     const agent = Array.isArray(agentRaw) ? agentRaw[0] : agentRaw;
+
+    const occupants: RoomDossier["occupants"] = [];
+    if (assignmentId) {
+      const { data: occRows } = await admin
+        .from("room_assignment_occupants")
+        .select("occupant_kind, display_name")
+        .eq("assignment_id", assignmentId)
+        .limit(40);
+      for (const o of occRows ?? []) {
+        occupants.push({
+          kind: (o.occupant_kind as string) ?? "guest",
+          display_name: (o.display_name as string) || "—",
+        });
+      }
+    }
 
     const { data: upcomingRows } = await admin
       .from("room_assignments")
@@ -335,21 +370,35 @@ export async function loadRoomDossier(
       };
     });
 
-    // Room-type gallery photos when tagged room_type + subject id
     let photoPublicIds: string[] = [];
     if (unit.room_type_id) {
-      const { data: media } = await admin
+      const { data: typeMedia } = await admin
         .from("property_media")
-        .select("cloudinary_public_id, facet, subject_id")
+        .select("public_id")
         .eq("property_id", propertyId)
-        .eq("facet", "room_type")
-        .eq("subject_id", unit.room_type_id as string)
+        .eq("scope", "room_type")
+        .eq("scope_id", unit.room_type_id as string)
         .order("sort_order")
         .limit(12);
-      photoPublicIds = (media ?? [])
-        .map((m) => m.cloudinary_public_id as string)
+      photoPublicIds = (typeMedia ?? [])
+        .map((m) => m.public_id as string)
         .filter(Boolean);
     }
+
+    const { data: unitMedia } = await admin
+      .from("property_media")
+      .select("id, facet, public_id")
+      .eq("property_id", propertyId)
+      .eq("scope", "room_unit")
+      .eq("scope_id", unitId)
+      .order("sort_order")
+      .limit(40);
+
+    const unitPhotos = (unitMedia ?? []).map((m) => ({
+      id: m.id as string,
+      facet: m.facet as string,
+      public_id: m.public_id as string,
+    }));
 
     // Soft problems: HK dirty/ooo + service request + free-text notes
     const openProblems: RoomDossier["openProblems"] = [];
@@ -374,6 +423,22 @@ export async function loadRoomDossier(
         at: today,
       });
     }
+
+    const { data: openMaint } = await admin
+      .from("maintenance_orders")
+      .select("title, status")
+      .eq("property_id", propertyId)
+      .eq("room_unit_id", unitId)
+      .in("status", ["open", "in_progress"])
+      .limit(8);
+    for (const m of openMaint ?? []) {
+      openProblems.push({
+        kind: "maintenance",
+        summary: `Maintenance (${m.status}): ${m.title as string}`,
+        at: today,
+      });
+    }
+
     if (unit.notes?.trim()) {
       openProblems.push({
         kind: "note",
@@ -396,24 +461,30 @@ export async function loadRoomDossier(
         room_type_name: rt?.name ?? rt?.code ?? "Room",
         room_type_id: unit.room_type_id as string,
       },
-      current: b && cur
-        ? {
-            booking_id: b.id,
-            contact_name: b.contact_name,
-            contact_phone: b.contact_phone,
-            check_in: b.check_in,
-            check_out: b.check_out,
-            status: b.status,
-            agent_id: b.agent_id ?? null,
-            agent_name: agent?.company_name ?? null,
-            from_date: cur.from_date as string,
-            to_date: cur.to_date as string,
-          }
-        : null,
+      current:
+        b && cur
+          ? {
+              booking_id: b.id,
+              assignment_id: assignmentId ?? "",
+              contact_name: b.contact_name,
+              contact_phone: b.contact_phone,
+              check_in: b.check_in,
+              check_out: b.check_out,
+              status: b.status,
+              agent_id: b.agent_id ?? null,
+              agent_name: agent?.company_name ?? null,
+              from_date: cur.from_date as string,
+              to_date: cur.to_date as string,
+              adults: Number(b.adults ?? 1),
+              children: Number(b.children ?? 0),
+            }
+          : null,
+      occupants,
       upcoming,
       history,
       amenities,
       photoPublicIds,
+      unitPhotos,
       openProblems,
     };
 

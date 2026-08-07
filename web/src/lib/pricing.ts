@@ -36,20 +36,21 @@ export function roundBtn(amount: number): number {
 }
 
 /**
- * Guest-facing round figure after GST/SC — always ends in 0 or 5 Nu.
+ * Guest-facing round figure after GST/SC — whole Nu only, ends in 0 or 5.
  * Floors so the guest never pays more than the accurate tax total
  * (hotel absorbs the difference as rate adj).
  */
 export function roundGuestWholeBtn(amount: number): number {
   const a = roundBtn(amount);
   if (!Number.isFinite(a) || a <= 0) return 0;
-  // Nearest lower multiple of 5 (…0 or …5).
-  return Math.floor((a + 1e-9) / 5) * 5;
+  // Drop chetrums first (whole Nu), then nearest lower multiple of 5.
+  const whole = Math.floor(a + 1e-9);
+  return Math.floor(whole / 5) * 5;
 }
 
 /**
  * Hotel-absorbed credit (≤ 0) so guest-facing sum ends on Nu 0 or 5.
- * Zero when already a clean 0/5 figure.
+ * Zero when already a clean whole figure ending 0 or 5.
  */
 export function guestRateAbsorbBtn(accurateTotal: number): number {
   const accurate = roundBtn(accurateTotal);
@@ -160,6 +161,17 @@ export function formatBtn(amount: number): string {
   return `Nu ${amount.toLocaleString("en-BT", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
+  })}`;
+}
+
+/**
+ * Guest bill print — whole Nu only (no decimals). Desk books may still keep chetrums.
+ */
+export function formatGuestBtn(amount: number): string {
+  const n = Math.round(roundBtn(amount));
+  return `Nu ${n.toLocaleString("en-BT", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   })}`;
 }
 

@@ -6,6 +6,10 @@ import {
   type CalendarBookState,
 } from "@/app/actions/erp-calendar";
 import { AgentPicker, type BookableAgent } from "@/components/erp/AgentPicker";
+import {
+  CreditAgentPromotePanel,
+  needsCreditPromote,
+} from "@/components/erp/CreditAgentPromotePanel";
 import { StaffPicker, type BookableStaff } from "@/components/erp/StaffPicker";
 import { Button } from "@/components/ui/button";
 import {
@@ -165,9 +169,16 @@ export function CalendarReservationDialog({
   const [nightCount, setNightCount] = useState(1);
   const [checkOut, setCheckOut] = useState("");
   const [draft, setDraft] = useState<ReservationDraft | null>(null);
+  const [agentPatches, setAgentPatches] = useState<
+    Record<string, BookableAgent>
+  >({});
   useActionToast(state, {
     successMessage: state.message ?? "Reservation saved",
   });
+
+  const pickerAgents = useMemo(() => {
+    return agents.map((a) => agentPatches[a.id] ?? a);
+  }, [agents, agentPatches]);
 
   useEffect(() => {
     if (state.ok && open) {
@@ -207,6 +218,7 @@ export function CalendarReservationDialog({
     setDraft(
       draftForSelection(selection, defaultMealPlanCode, defaultSoldByStaffId),
     );
+    setAgentPatches({});
   }, [selection, defaultMealPlanCode, defaultSoldByStaffId]);
 
   const categoryMix = useMemo(
@@ -233,9 +245,20 @@ export function CalendarReservationDialog({
   const agentName = useMemo(() => {
     if (!draft?.agentId) return null;
     return (
-      agents.find((a) => a.id === draft.agentId)?.company_name?.trim() || null
+      pickerAgents.find((a) => a.id === draft.agentId)?.company_name?.trim() ||
+      null
     );
-  }, [agents, draft?.agentId]);
+  }, [pickerAgents, draft?.agentId]);
+
+  const selectedAgent = useMemo(() => {
+    if (!draft?.agentId) return null;
+    return pickerAgents.find((a) => a.id === draft.agentId) ?? null;
+  }, [pickerAgents, draft?.agentId]);
+
+  const blockCredit = needsCreditPromote(
+    draft?.paymentMode ?? "cash",
+    selectedAgent,
+  );
 
   // Auto party name from agent or guest + room count (industry group block pattern).
   useEffect(() => {
@@ -566,7 +589,7 @@ export function CalendarReservationDialog({
               <Label htmlFor="agent_id">Agent</Label>
               <AgentPicker
                 name="agent_id"
-                agents={agents}
+                agents={pickerAgents}
                 value={draft.agentId}
                 onValueChange={(next) => {
                   setDraft((d) => {
@@ -574,28 +597,27 @@ export function CalendarReservationDialog({
                     const source =
                       next && d.source === "reservation"
                         ? "agent"
-                        : d.source;
+                        : !next && d.source === "agent"
+                          ? "reservation"
+                          : d.source;
                     return {
                       ...d,
                       agentId: next,
                       source,
+                      // Agent stays are on credit by default; clear agent → cash
+                      paymentMode: next
+                        ? "on_credit"
+                        : d.paymentMode === "on_credit"
+                          ? "cash"
+                          : d.paymentMode,
                     };
                   });
                 }}
                 className="bg-background"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Sold by (staff)</Label>
-              <StaffPicker
-                name="sold_by_staff_id"
-                staff={staff}
-                value={draft.soldByStaffId}
-                onValueChange={(next) => updateDraft("soldByStaffId", next)}
-                className="bg-background"
+                creditMode
               />
               <p className="text-[11px] text-muted-foreground">
-                Who brought the guest or agent — Owner/GM approves later.
+                Agent stays default to on credit.
               </p>
             </div>
             <div className="space-y-1.5">
@@ -609,11 +631,43 @@ export function CalendarReservationDialog({
                 }
                 className={fieldClass}
               >
+                <option value="on_credit">On credit</option>
                 <option value="cash">Cash</option>
                 <option value="prepaid">Prepaid</option>
                 <option value="partial">Partial</option>
-                <option value="on_credit">On credit</option>
               </select>
+            </div>
+            {blockCredit && selectedAgent ? (
+              <div className="space-y-1.5 sm:col-span-2">
+                <CreditAgentPromotePanel
+                  agent={selectedAgent}
+                  onPromoted={(agent) => {
+                    setAgentPatches((prev) => ({
+                      ...prev,
+                      [agent.id]: agent,
+                    }));
+                  }}
+                  onUseCash={() => updateDraft("paymentMode", "cash")}
+                />
+              </div>
+            ) : null}
+            {draft.paymentMode === "on_credit" && !draft.agentId ? (
+              <p className="text-xs text-amber-800 sm:col-span-2 dark:text-amber-200">
+                Select an agent to book on credit.
+              </p>
+            ) : null}
+            <div className="space-y-1.5">
+              <Label>Sold by (staff)</Label>
+              <StaffPicker
+                name="sold_by_staff_id"
+                staff={staff}
+                value={draft.soldByStaffId}
+                onValueChange={(next) => updateDraft("soldByStaffId", next)}
+                className="bg-background"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Who brought the guest or agent — Owner/GM approves later.
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="calendar_meal_plan_code">Meal plan</Label>
@@ -681,12 +735,22 @@ export function CalendarReservationDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" variant="citrus" disabled={pending}>
+            <Button
+              type="submit"
+              variant="citrus"
+              disabled={
+                pending ||
+                blockCredit ||
+                (draft.paymentMode === "on_credit" && !draft.agentId)
+              }
+            >
               {pending
                 ? "Saving…"
-                : isGroup
-                  ? `Book party · ${selection.units.length} rooms`
-                  : "Save reservation"}
+                : blockCredit
+                  ? "Approve trade partner above"
+                  : isGroup
+                    ? `Book party · ${selection.units.length} rooms`
+                    : "Save reservation"}
             </Button>
           </div>
         </form>

@@ -7,9 +7,9 @@ import {
 } from "@/lib/accounting/posting";
 import type { PostingResult } from "@/lib/accounting/types";
 import {
-  GUEST_RATE_ADJ_DESCRIPTION,
   guestRateAbsorbBtn,
 } from "@/lib/pricing";
+import { guestRateAdjDescriptionForStream } from "@/lib/folio/bill-kinds";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export { allocateSplitGst } from "@/lib/folio/split-gst";
@@ -204,6 +204,7 @@ export async function postFolioCharge(
       bookingId: input.booking_id ?? null,
       chargeLineId: line.id as string,
       chargeTotalBtn: totalPosted,
+      chargeSourceType: input.source_type,
       billTo,
       journalDate: input.journal_date ?? (line.created_at as string),
       periodGuard: input.period_guard,
@@ -234,17 +235,27 @@ async function tryPostGuestRateRoundAdj(
     bookingId: string | null;
     chargeLineId: string;
     chargeTotalBtn: number;
+    chargeSourceType: string;
     billTo: FolioBillTo;
     journalDate: string;
     periodGuard?: PeriodGuardOptions;
   },
 ): Promise<void> {
   const absorbBtn = guestRateAbsorbBtn(args.chargeTotalBtn);
-  // Credit only (guest never pays up); skip if already whole Nu.
+  // Credit only (guest never pays up); skip if already whole Nu ending 0 or 5.
   if (!(absorbBtn < -0.009)) return;
 
   const creditAmt = Math.abs(absorbBtn); // positive Nu for GL (always > 0.009)
   if (!(creditAmt > 0.009)) return;
+
+  const st = (args.chargeSourceType ?? "").toLowerCase();
+  const stream =
+    ["room", "meal_plan", "extra_bed"].includes(st)
+      ? ("room" as const)
+      : ["order", "pos", "laundry"].includes(st)
+        ? ("fnb" as const)
+        : ("master" as const);
+  const adjDescription = guestRateAdjDescriptionForStream(stream);
 
   const { data: adjLine, error: adjInsertError } = await admin
     .from("folio_lines")
@@ -253,7 +264,7 @@ async function tryPostGuestRateRoundAdj(
       booking_id: args.bookingId,
       source_type: "adjustment",
       source_id: args.chargeLineId,
-      description: GUEST_RATE_ADJ_DESCRIPTION,
+      description: adjDescription,
       qty: 1,
       unit_price_btn: -creditAmt,
       amount_btn: -creditAmt,
@@ -281,7 +292,7 @@ async function tryPostGuestRateRoundAdj(
   // Allowance journal: abs amount + folio_line.comp rules (deb expense / credit AR).
   const glAdj = await postCompCredit(admin, propertyId, {
     id: adjLine.id as string,
-    description: GUEST_RATE_ADJ_DESCRIPTION,
+    description: adjDescription,
     total_btn: -creditAmt,
     created_at: args.journalDate,
     period_guard: args.periodGuard,

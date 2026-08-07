@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pelbu Suites — Category Merged Photo Menu · A4</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #1a0f0a;
+      --cream: #fffaf3;
+      --gold: #e8a838;
+      --brass: #d4a84b;
+      --copper: #c45c26;
+      --espresso: #0a0705;
+      --cut: 5mm;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
+
+    html, body {
+      background: #16100c;
+      color: var(--cream);
+      font-family: "Outfit", "Segoe UI", Arial, sans-serif;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .print-bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 18px;
+      background: #0a0705;
+      border-bottom: 1px solid rgba(232, 168, 56, 0.22);
+      font-size: 12.5px;
+    }
+
+    .print-bar strong {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 18px;
+    }
+
+    .print-bar .meta {
+      opacity: 0.8;
+      font-size: 11px;
+      max-width: 58ch;
+      line-height: 1.4;
+    }
+
+    .print-bar button {
+      border: 0;
+      cursor: pointer;
+      font: 700 11px/1 "Outfit", sans-serif;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 10px 16px;
+      background: linear-gradient(135deg, var(--copper), var(--gold));
+      color: var(--ink);
+    }
+
+    .stage {
+      padding: 18px 12px 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .side-tag {
+      width: 210mm;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(255, 250, 243, 0.4);
+    }
+
+    .sheet {
+      width: 210mm;
+      height: 297mm;
+      position: relative;
+      overflow: hidden;
+      background: #0a0705;
+      box-shadow: 0 22px 56px rgba(0, 0, 0, 0.5);
+    }
+
+    .cut-guide {
+      position: absolute;
+      inset: var(--cut);
+      border: 0.35px dashed rgba(255, 250, 243, 0.2);
+      pointer-events: none;
+      z-index: 40;
+    }
+
+    /* ——— Cover ——— */
+    .cover-full {
+      position: absolute;
+      inset: 0;
+    }
+
+    .cover-full img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center center;
+    }
+
+    .cover-full .scrim {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(8, 5, 4, 0.4) 0%, rgba(8, 5, 4, 0.05) 38%, transparent 52%),
+        linear-gradient(0deg, rgba(8, 5, 4, 0.94) 0%, rgba(8, 5, 4, 0.5) 28%, transparent 55%),
+        linear-gradient(90deg, rgba(8, 5, 4, 0.28), transparent 58%);
+    }
+
+    .cover-body {
+      position: absolute;
+      inset: var(--cut);
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 3.5mm;
+    }
+
+    .brand img {
+      width: 13mm;
+      height: 13mm;
+      object-fit: contain;
+    }
+
+    .brand h1 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 9mm;
+      font-weight: 700;
+      line-height: 0.95;
+    }
+
+    .brand h1 span { color: var(--gold); }
+
+    .brand p {
+      margin-top: 1mm;
+      font-size: 2.3mm;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(255, 250, 243, 0.75);
+    }
+
+    .eyebrow {
+      font-size: 2.5mm;
+      font-weight: 600;
+      letter-spacing: 0.34em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 2.5mm;
+    }
+
+    .display {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-weight: 700;
+      line-height: 0.92;
+      letter-spacing: 0.01em;
+      text-shadow: 0 3px 24px rgba(0, 0, 0, 0.55);
+    }
+
+    .display.xl { font-size: 18mm; }
+    .display.lg { font-size: 13mm; }
+
+    .display em {
+      font-style: italic;
+      font-weight: 500;
+      color: #f0c66a;
+    }
+
+    .lede {
+      margin-top: 3.5mm;
+      font-size: 3.2mm;
+      line-height: 1.45;
+      max-width: 135mm;
+      color: rgba(255, 250, 243, 0.9);
+    }
+
+    .foot-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 5mm;
+    }
+
+    .foot-row .phone { font-size: 3.2mm; font-weight: 600; }
+    .foot-row .web { margin-top: 0.8mm; font-size: 2.3mm; opacity: 0.75; }
+    .foot-row .note { text-align: right; font-size: 2.1mm; line-height: 1.4; opacity: 0.75; max-width: 70mm; }
+
+    /* ——— Category page: seamless mosaic ——— */
+    .page {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      /* merge: zero gap — photos butt together */
+      gap: 0;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto 1fr 1fr 1fr;
+    }
+
+    /* header bar is a photo band that also merges */
+    .page-head {
+      grid-column: 1 / -1;
+      position: relative;
+      min-height: 42mm;
+      overflow: hidden;
+    }
+
+    .page-head img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      /* Banner strip: soft center crop (not g_auto force) */
+      object-fit: cover;
+      object-position: center 40%;
+      background: var(--espresso);
+      filter: brightness(0.68) saturate(1.05);
+    }
+
+    .page-head .scrim {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, rgba(8, 5, 4, 0.72) 0%, rgba(8, 5, 4, 0.22) 55%, rgba(8, 5, 4, 0.45) 100%),
+        linear-gradient(0deg, rgba(8, 5, 4, 0.55) 0%, transparent 55%);
+    }
+
+    .page-head .inner {
+      position: relative;
+      z-index: 2;
+      height: 100%;
+      padding: var(--cut);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding-bottom: 4mm;
+    }
+
+    .page-head .kicker {
+      font-size: 2.2mm;
+      font-weight: 600;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 1.4mm;
+    }
+
+    .page-head h2 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 11mm;
+      font-weight: 700;
+      line-height: 0.95;
+    }
+
+    .page-head h2::after {
+      content: "";
+      display: block;
+      width: 12mm;
+      height: 0.3mm;
+      margin-top: 2mm;
+      background: linear-gradient(90deg, var(--gold), transparent);
+    }
+
+    .page-head h2 em {
+      font-style: italic;
+      font-weight: 500;
+      color: #f0c66a;
+    }
+
+    .page-head .blurb {
+      margin-top: 1.8mm;
+      font-size: 2.6mm;
+      line-height: 1.35;
+      max-width: 150mm;
+      color: rgba(255, 250, 243, 0.88);
+    }
+
+    .page-head .count {
+      position: absolute;
+      right: var(--cut);
+      top: var(--cut);
+      font-size: 2mm;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(255, 250, 243, 0.7);
+    }
+
+    /* mosaic cells — full plate visible, espresso pad, no force-scale */
+    .cell {
+      position: relative;
+      overflow: hidden;
+      min-height: 0;
+      background: var(--espresso);
+    }
+
+    .cell img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      object-position: center 38%;
+      background: var(--espresso);
+    }
+
+    /* Soft bottom scrim for type only — plate center stays clear */
+    .cell::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background: linear-gradient(
+        0deg,
+        rgba(8, 5, 4, 0.94) 0%,
+        rgba(8, 5, 4, 0.62) 28%,
+        rgba(8, 5, 4, 0.12) 52%,
+        transparent 72%
+      );
+    }
+
+    .cell .txt {
+      position: absolute;
+      z-index: 2;
+      left: 3.5mm;
+      right: 3.5mm;
+      bottom: 3.2mm;
+    }
+
+    .cell .tag {
+      font-size: 1.85mm;
+      font-weight: 600;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 1mm;
+      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+    }
+
+    .cell h3 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 6mm;
+      font-weight: 700;
+      line-height: 1.02;
+      letter-spacing: 0.005em;
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.65);
+    }
+
+    .cell h3::after {
+      content: "";
+      display: block;
+      width: 7mm;
+      height: 0.28mm;
+      margin-top: 1.2mm;
+      background: linear-gradient(90deg, var(--gold), transparent);
+    }
+
+    .cell .desc {
+      margin-top: 1.3mm;
+      font-size: 2.55mm;
+      line-height: 1.32;
+      color: rgba(255, 250, 243, 0.9);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55);
+    }
+
+    .cell .price {
+      margin-top: 1.6mm;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 5.5mm;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
+    }
+
+    .cell .price .cur {
+      font-family: "Outfit", sans-serif;
+      font-size: 2mm;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      color: var(--gold);
+      margin-right: 1mm;
+      vertical-align: 0.9mm;
+    }
+
+    .cell .price .pp {
+      font-family: "Outfit", sans-serif;
+      font-size: 1.7mm;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      color: var(--brass);
+      margin-left: 1.8mm;
+      opacity: 0.9;
+    }
+
+    /* layout variants for seamless merge aesthetics */
+    .page.layout-6 {
+      grid-template-rows: 42mm 1fr 1fr 1fr;
+    }
+
+    .page.layout-6 .cell:nth-child(2) { grid-column: 1; grid-row: 2; }
+    .page.layout-6 .cell:nth-child(3) { grid-column: 2; grid-row: 2; }
+    .page.layout-6 .cell:nth-child(4) { grid-column: 1; grid-row: 3; }
+    .page.layout-6 .cell:nth-child(5) { grid-column: 2; grid-row: 3; }
+    .page.layout-6 .cell:nth-child(6) { grid-column: 1; grid-row: 4; }
+    .page.layout-6 .cell:nth-child(7) { grid-column: 2; grid-row: 4; }
+
+    /* wide feature + merges */
+    .page.layout-5 {
+      grid-template-columns: 1.15fr 0.85fr;
+      grid-template-rows: 42mm 1.35fr 1fr 1fr;
+    }
+
+    .page.layout-5 .cell.wide {
+      grid-column: 1 / -1;
+      grid-row: 2;
+    }
+
+    .page.layout-5 .cell.wide h3 { font-size: 9mm; }
+    .page.layout-5 .cell.wide .desc { font-size: 3.1mm; -webkit-line-clamp: 2; max-width: 160mm; }
+    .page.layout-5 .cell.wide .price { font-size: 7.5mm; }
+    .page.layout-5 .cell.wide .price .cur { font-size: 2.4mm; letter-spacing: 0.2em; }
+    .page.layout-5 .cell.wide h3::after { width: 12mm; margin-top: 1.8mm; }
+
+    .page.layout-5 .cell:nth-child(3) { grid-column: 1; grid-row: 3; }
+    .page.layout-5 .cell:nth-child(4) { grid-column: 2; grid-row: 3; }
+    .page.layout-5 .cell:nth-child(5) { grid-column: 1; grid-row: 4; }
+    .page.layout-5 .cell:nth-child(6) { grid-column: 2; grid-row: 4; }
+
+    .page.layout-4 {
+      grid-template-rows: 42mm 1fr 1fr;
+    }
+
+    .page.layout-4 .cell:nth-child(2) { grid-column: 1; grid-row: 2; }
+    .page.layout-4 .cell:nth-child(3) { grid-column: 2; grid-row: 2; }
+    .page.layout-4 .cell:nth-child(4) { grid-column: 1; grid-row: 3; }
+    .page.layout-4 .cell:nth-child(5) { grid-column: 2; grid-row: 3; }
+
+    .page.layout-4 .cell h3 { font-size: 7mm; }
+    .page.layout-4 .cell .desc { font-size: 2.8mm; }
+    .page.layout-4 .cell .price { font-size: 6.2mm; }
+
+    .page.layout-3 {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 42mm 1.4fr 1fr;
+    }
+
+    .page.layout-3 .cell.wide {
+      grid-column: 1 / -1;
+      grid-row: 2;
+    }
+
+    .page.layout-3 .cell.wide h3 { font-size: 10mm; }
+    .page.layout-3 .cell.wide .desc { font-size: 3.3mm; -webkit-line-clamp: 3; }
+    .page.layout-3 .cell.wide .price { font-size: 8mm; }
+    .page.layout-3 .cell.wide .price .cur { font-size: 2.5mm; letter-spacing: 0.2em; }
+    .page.layout-3 .cell:not(.wide) h3 { font-size: 6.5mm; }
+    .page.layout-3 .cell:not(.wide) .price { font-size: 6mm; }
+
+    .page.layout-3 .cell:nth-child(3) { grid-column: 1; grid-row: 3; }
+    .page.layout-3 .cell:nth-child(4) { grid-column: 2; grid-row: 3; }
+
+    /* page index footer strip merging as thin photo band */
+    .page-foot {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 5;
+      height: 0;
+      pointer-events: none;
+    }
+
+    .folio {
+      position: absolute;
+      z-index: 6;
+      left: var(--cut);
+      bottom: 2mm;
+      font-size: 1.8mm;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(255, 250, 243, 0.65);
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+    }
+
+    .folio.right {
+      left: auto;
+      right: var(--cut);
+    }
+
+    /* safe: keep tile text inset from page edges */
+    .page .cell { }
+    .page.layout-6 .cell:nth-child(2) .txt,
+    .page.layout-6 .cell:nth-child(4) .txt,
+    .page.layout-6 .cell:nth-child(6) .txt,
+    .page.layout-5 .cell:nth-child(3) .txt,
+    .page.layout-5 .cell:nth-child(5) .txt,
+    .page.layout-4 .cell:nth-child(2) .txt,
+    .page.layout-4 .cell:nth-child(4) .txt,
+    .page.layout-3 .cell:nth-child(3) .txt {
+      left: var(--cut);
+    }
+
+    .page.layout-6 .cell:nth-child(3) .txt,
+    .page.layout-6 .cell:nth-child(5) .txt,
+    .page.layout-6 .cell:nth-child(7) .txt,
+    .page.layout-5 .cell:nth-child(4) .txt,
+    .page.layout-5 .cell:nth-child(6) .txt,
+    .page.layout-4 .cell:nth-child(3) .txt,
+    .page.layout-4 .cell:nth-child(5) .txt,
+    .page.layout-3 .cell:nth-child(4) .txt {
+      right: var(--cut);
+    }
+
+    .page .cell.wide .txt {
+      left: var(--cut);
+      right: var(--cut);
+      bottom: 4mm;
+    }
+
+    .page-head .inner {
+      /* already pad cut */
+    }
+
+    .spec {
+      max-width: 210mm;
+      width: 100%;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #3d2a22;
+      background: #fffaf3;
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+
+    .spec h3 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 18px;
+      margin-bottom: 6px;
+    }
+
+    .spec ul { margin-left: 1.1em; }
+    .spec li { margin: 3px 0; }
+
+    @media print {
+      html, body { background: #fff; }
+      .no-print { display: none !important; }
+      .stage { padding: 0; gap: 0; }
+      .sheet {
+        box-shadow: none;
+        page-break-after: always;
+        break-after: page;
+      }
+      .sheet:last-of-type {
+        page-break-after: auto;
+        break-after: auto;
+      }
+      .side-tag { display: none; }
+      .cut-guide { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-bar no-print">
+    <div>
+      <strong>Category mosaic menu · merged full photos</strong><br />
+      <span class="meta">
+        Each category in 1–2 A4 pages. Photos butt together with soft blends (no card boxes).
+        Type safe zone <b>5&nbsp;mm</b>. Print: A4 · margins none · backgrounds ON.
+      </span>
+    </div>
+    <button type="button" onclick="window.print()">Print / PDF</button>
+  </div>
+
+  <div class="stage" id="book"></div>
+
+  <aside class="spec no-print" style="margin: 0 auto 40px;">
+    <h3>Print brief · merged category pages</h3>
+    <ul>
+      <li><strong>File:</strong> <code>marketing/print/menu-category-mosaic-a4.html</code></li>
+      <li><strong>Layout:</strong> one category per 1–2 pages as a seamless photo mosaic</li>
+      <li><strong>Trim:</strong> A4 · photos full bleed · text 5&nbsp;mm inside cut</li>
+      <li>Also keep magazine item file: <code>menu-booklet-a4.html</code></li>
+    </ul>
+  </aside>
+
+  <script>
+    const C = "https://res.cloudinary.com/hkkchsfy/image/upload";
+    const logo = `${C}/w_160,h_160,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1`;
+    /* Full plate: pad on espresso so bowl/plate edges stay in frame */
+    const img = (id, w = 900, h = 700) =>
+      `${C}/w_${w},h_${h},c_pad,b_rgb:0a0705,g_center,e_improve:indoor:20,e_sharpen:32,f_jpg,q_auto:best/${id}`;
+
+    /** Categories capped to 1–2 pages (max 12 dishes visible; overflow uses best of set) */
+    const CATEGORIES = [
+      {
+        key: "cafe",
+        title: "Café",
+        italic: "snacks",
+        kicker: "Café · bite board",
+        blurb: "Shareable heat and crunch — chilli potato to fried chicken in one seamless photo field.",
+        hero: "pelbu/menu/cafe-crispy-chilli-potato",
+        maxPages: 2,
+        items: [
+          { name: "Crispy chilli potato", desc: "Chilli gloss · golden cubes · shareable", price: 200, image: "pelbu/menu/cafe-crispy-chilli-potato", tag: "Favourite" },
+          { name: "French fries", desc: "Sea salt · blistered gold", price: 180, image: "pelbu/menu/cafe-french-fries" },
+          { name: "Salted cashewnut", desc: "Warm · lightly salted", price: 250, image: "pelbu/menu/cafe-salted-nuts" },
+          { name: "Salted almond", desc: "Toasted · clean finish", price: 250, image: "pelbu/menu/cafe-salted-nuts" },
+          { name: "Peanut masala", desc: "Roasted · house spice", price: 200, image: "pelbu/menu/cafe-salted-nuts" },
+          { name: "Onion fritters", desc: "6–7 pcs · crisp lace", price: 200, image: "pelbu/menu/cafe-onion-fritters", tag: "6–7 pcs" },
+          { name: "Chilli cheese nuggets", desc: "Melt centre · chilli crust", price: 250, image: "pelbu/menu/cafe-chilli-cheese-nuggets", tag: "Popular" },
+          { name: "Chicken lollipop", desc: "Lacquered heat on the bone", price: 300, image: "pelbu/menu/cafe-chicken-lollipop", tag: "Popular" },
+          { name: "Fried chicken", desc: "Drumstick · wing · breast", price: 300, image: "pelbu/menu/cafe-fried-chicken", tag: "Choice of cut" },
+        ],
+      },
+      {
+        key: "burgers-sando",
+        title: "Burgers",
+        italic: "& stacks",
+        kicker: "Café · griddle & club",
+        blurb: "Griddle burgers and sandwich stacks — merged into one continuous café frame.",
+        hero: "pelbu/menu/cafe-beef-burger",
+        maxPages: 2,
+        items: [
+          { name: "Beef burger", desc: "House beef · soft bun · melt", price: 350, image: "pelbu/menu/cafe-beef-burger", tag: "Popular", wide: true },
+          { name: "Chicken burger", desc: "Seasoned chicken · lettuce · mayo", price: 300, image: "pelbu/menu/cafe-chicken-burger", tag: "Popular" },
+          { name: "Potato burger", desc: "Crisp potato patty · vegetarian", price: 300, image: "pelbu/menu/cafe-potato-burger", tag: "Veg" },
+          { name: "Veg sandwich", desc: "Garden layers · soft bread", price: 200, image: "pelbu/menu/cafe-veg-sandwich", tag: "Veg" },
+          { name: "Hotdog", desc: "Classic sausage · soft roll", price: 250, image: "pelbu/menu/cafe-hotdog" },
+          { name: "Club sandwich", desc: "Olakha club stack", price: 300, image: "pelbu/menu/cafe-olakha-club-sandwich", tag: "Popular" },
+          { name: "Tuna sandwich", desc: "Tuna · greens · soft crumb", price: 300, image: "pelbu/menu/cafe-tuna-sandwich" },
+        ],
+      },
+      {
+        key: "soup",
+        title: "Soup",
+        italic: "course",
+        kicker: "Restaurant · continental bowls",
+        blurb: "From French onion to tom yum — a merged field of steam and silverware light.",
+        hero: "pelbu/menu/restaurant-french-onion-soup",
+        maxPages: 2,
+        items: [
+          { name: "French onion soup", desc: "Caramelised onion · gratin soul", price: 140, image: "pelbu/menu/restaurant-french-onion-soup", tag: "Signature", wide: true },
+          { name: "Lentil soup", desc: "Silky dal comfort", price: 140, image: "pelbu/menu/restaurant-soup-bowl" },
+          { name: "Pumpkin soup", desc: "Roasted squash · cream", price: 140, image: "pelbu/menu/restaurant-soup-bowl" },
+          { name: "Italian soup", desc: "Herb broth · garden vegetables", price: 150, image: "pelbu/menu/restaurant-soup-bowl" },
+          { name: "Potato leek soup", desc: "White · refined · quiet", price: 140, image: "pelbu/menu/restaurant-soup-bowl" },
+          { name: "Minestrone soup", desc: "Full vegetable · Italian body", price: 160, image: "pelbu/menu/restaurant-soup-bowl" },
+          { name: "Mint & green peas soup", desc: "Season time · bright green", price: 160, image: "pelbu/menu/restaurant-soup-bowl", tag: "Season" },
+          { name: "Tom yum soup", desc: "Lemongrass · chilli · pre-order", price: 180, image: "pelbu/menu/restaurant-tom-yum", tag: "Pre-order" },
+          { name: "Winter Schezwan soup", desc: "Chicken · highland heat · pre-order", price: 200, image: "pelbu/menu/restaurant-szechuan-soup", tag: "Pre-order" },
+        ],
+      },
+      {
+        key: "salad",
+        title: "Salad",
+        italic: "board",
+        kicker: "Cold kitchen · composed",
+        blurb: "Greens, Greek, kimchi — a cool mosaic across one continuous frame.",
+        hero: "pelbu/menu/restaurant-greek-salad",
+        maxPages: 2,
+        items: [
+          { name: "Greek salad", desc: "Feta · olive · oregano oil", price: 180, image: "pelbu/menu/restaurant-greek-salad", tag: "Popular", wide: true },
+          { name: "Garden salad", desc: "Season greens · clean dressing", price: 180, image: "pelbu/menu/restaurant-garden-salad" },
+          { name: "Chopped salad", desc: "Fine-cut · structured bite", price: 180, image: "pelbu/menu/restaurant-garden-salad" },
+          { name: "Waldorf salad", desc: "Apple · celery · walnut", price: 200, image: "pelbu/menu/restaurant-waldorf-salad" },
+          { name: "Glass noodle salad", desc: "Herbs · light Asian acid", price: 180, image: "pelbu/menu/restaurant-glass-noodle-salad" },
+          { name: "Lemon vinaigrette salad", desc: "Compound · citrus lift", price: 180, image: "pelbu/menu/restaurant-garden-salad" },
+          { name: "Red wine vinaigrette", desc: "Rounder depth · still light", price: 180, image: "pelbu/menu/restaurant-garden-salad" },
+          { name: "Kimchi salad", desc: "Korean ferment · sharp heat", price: 180, image: "pelbu/menu/restaurant-kimchi-salad", tag: "Korean" },
+          { name: "Russian salad", desc: "Olivier style · pre-order", price: 180, image: "pelbu/menu/restaurant-russian-salad", tag: "Pre-order" },
+        ],
+      },
+      {
+        key: "main",
+        title: "Main",
+        italic: "course",
+        kicker: "Restaurant · grill & braise",
+        blurb: "Vegetables, schnitzel, stews and fish — two dense photo spreads of the kitchen heart.",
+        hero: "pelbu/menu/restaurant-chicken-schnitzel",
+        maxPages: 2,
+        /* curated 12 for 2 pages of 6 so it stays 2 pages max */
+        items: [
+          { name: "Chicken schnitzel", desc: "Golden cutlet · lemon", price: 450, image: "pelbu/menu/restaurant-chicken-schnitzel", tag: "Popular", wide: true },
+          { name: "Grilled chicken or pork", desc: "Char grill · pre-order · choose", price: 450, image: "pelbu/menu/restaurant-grilled-protein", tag: "Pre-order" },
+          { name: "Braised chicken · wine & mushroom", desc: "Slow braise · forest depth", price: 450, image: "pelbu/menu/restaurant-braised-chicken", tag: "Popular" },
+          { name: "Roasted chicken or pork", desc: "Chef · dry or gravy", price: 450, image: "pelbu/menu/restaurant-roasted-protein", tag: "Chef" },
+          { name: "Cowboy beef stew", desc: "Chunky beef · pre-order", price: 450, image: "pelbu/menu/restaurant-cowboy-stew", tag: "Pre-order" },
+          { name: "Steamed fish", desc: "Whole · ginger steam · pre-order", price: 700, image: "pelbu/menu/restaurant-steamed-fish", tag: "Pre-order" },
+          { name: "Roasted eggplant", desc: "Chef special · aromatic", price: 200, image: "pelbu/menu/restaurant-roasted-eggplant", tag: "Chef" },
+          { name: "Mixed veg creamy", desc: "Soft cream · garden mix", price: 220, image: "pelbu/menu/restaurant-mixed-veg-creamy" },
+          { name: "Sesame chicken", desc: "Gloss glaze · sesame", price: 400, image: "pelbu/menu/restaurant-sesame-chicken" },
+          { name: "Pork chops Italian", desc: "Herb chops · pre-order", price: 450, image: "pelbu/menu/restaurant-pork-chops", tag: "Pre-order" },
+          { name: "Braised pork belly with egg", desc: "Long cook · lacquer · pre-order", price: 450, image: "pelbu/menu/restaurant-pork-belly", tag: "Pre-order" },
+          { name: "Fish fillet · red wine", desc: "Fillet · wine reduction", price: 300, image: "pelbu/menu/restaurant-fish-red-wine" },
+        ],
+      },
+      {
+        key: "asian",
+        title: "Asian",
+        italic: "kitchen",
+        kicker: "Wok · table · bowl",
+        blurb: "Tempura to gyudon — two pages where the wok board fuses into one visual field.",
+        hero: "pelbu/menu/restaurant-thai-curry",
+        maxPages: 2,
+        items: [
+          { name: "Thai curry · chicken / pork / beef", desc: "Green or red · coconut heat", price: 450, image: "pelbu/menu/restaurant-thai-curry", tag: "Green · red", wide: true },
+          { name: "Kung pao chicken", desc: "Sichuan · peanut · chilli", price: 400, image: "pelbu/menu/restaurant-kung-pao", tag: "Popular" },
+          { name: "Gyudon", desc: "Japanese beef & rice", price: 450, image: "pelbu/menu/restaurant-gyudon", tag: "Popular" },
+          { name: "Tonkatsu · chicken or pork", desc: "Breaded cutlet · sauce", price: 450, image: "pelbu/menu/restaurant-tonkatsu", tag: "Popular" },
+          { name: "Prawn tempura", desc: "Shatter shell · light batter", price: 600, image: "pelbu/menu/restaurant-prawn-tempura", tag: "Popular" },
+          { name: "Sweet & sour whole fish", desc: "Chef special · statement", price: 750, image: "pelbu/menu/restaurant-sweet-sour-fish", tag: "Chef" },
+          { name: "Ramen", desc: "Broth · noodles · steam", price: 200, image: "pelbu/menu/restaurant-ramen", tag: "Popular" },
+          { name: "Omurice", desc: "Omelette rice", price: 400, image: "pelbu/menu/restaurant-omurice" },
+          { name: "Katsu don", desc: "Cutlet · egg · rice bowl", price: 450, image: "pelbu/menu/restaurant-katsu-don" },
+          { name: "Beef · green chilli", desc: "Hard sear · green heat", price: 450, image: "pelbu/menu/restaurant-beef-chilli" },
+          { name: "Three treasures", desc: "Chef veg jewels", price: 250, image: "pelbu/menu/restaurant-three-treasures", tag: "Chef" },
+          { name: "Mixed veg tempura", desc: "Light batter · dip", price: 200, image: "pelbu/menu/restaurant-veg-tempura" },
+        ],
+      },
+    ];
+
+    function esc(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function chunk(arr, size) {
+      const out = [];
+      for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+      return out;
+    }
+
+    function pickLayout(n, hasWide) {
+      if (n <= 3) return "layout-3";
+      if (n === 4) return "layout-4";
+      if (n === 5 || (n >= 5 && hasWide && n <= 6)) return hasWide ? "layout-5" : "layout-6";
+      return "layout-6";
+    }
+
+    function cellHtml(item, forceWide) {
+      const wide = forceWide || item.wide;
+      return `
+        <div class="cell ${wide ? "wide" : ""}">
+          <img src="${img(item.image, wide ? 1400 : 900, wide ? 900 : 700)}" alt="${esc(item.name)}" />
+          <div class="txt">
+            ${item.tag ? `<p class="tag">${esc(item.tag)}</p>` : ""}
+            <h3>${esc(item.name)}</h3>
+            <p class="desc">${esc(item.desc)}</p>
+            <p class="price"><span class="cur">BTN</span>${item.price}<span class="pp">++</span></p>
+          </div>
+        </div>`;
+    }
+
+    let pageNo = 0;
+    const pages = [];
+
+    function sheet(inner, label) {
+      pageNo += 1;
+      pages.push(`<p class="side-tag no-print">${esc(label)} · p${pageNo}</p>`);
+      pages.push(`
+        <article class="sheet" aria-label="Page ${pageNo}">
+          <div class="cut-guide no-print" aria-hidden="true"></div>
+          ${inner}
+        </article>
+      `);
+    }
+
+    // Cover
+    sheet(`
+      <div class="cover-full">
+        <img src="${C}/w_1600,h_2200,c_fill,g_center,f_jpg,q_auto:best/v1785925486/pelbu/restaurant/uuy1ycprinlbhm7lvkli" alt="" />
+        <div class="scrim"></div>
+      </div>
+      <div class="cover-body">
+        <div class="brand">
+          <img src="${logo}" alt="Pelbu Suites" />
+          <div>
+            <h1>Pelbu <span>Suites</span></h1>
+            <p>Olakha · Thimphu · Bhutan</p>
+          </div>
+        </div>
+        <div>
+          <p class="eyebrow">Merged photo menu · by category</p>
+          <h2 class="display xl">One frame.<br /><em>Many plates.</em></h2>
+          <p class="lede">
+            Each category fills one or two A4 pages as a seamless mosaic —
+            full photographs butting into each other, type floating over the field.
+          </p>
+        </div>
+        <div class="foot-row">
+          <div>
+            <p class="phone">+975 1619 3410</p>
+            <p class="web">www.pelbusuites.bt</p>
+          </div>
+          <p class="note">Prices BTN base · ++ SC &amp; GST<br />5&nbsp;mm type safe for print cut</p>
+        </div>
+      </div>
+    `, "Cover");
+
+    // Category pages
+    for (const cat of CATEGORIES) {
+      const perPage = 6;
+      const items = cat.items.slice(0, cat.maxPages * perPage);
+      const groups = chunk(items, perPage).slice(0, cat.maxPages);
+
+      groups.forEach((group, gi) => {
+        // On page 1 prefer a wide hero cell if any item is marked wide
+        let working = [...group];
+        const hasWide = gi === 0 && working.some((x) => x.wide);
+        if (hasWide) {
+          // put wide first
+          working.sort((a, b) => (b.wide ? 1 : 0) - (a.wide ? 1 : 0));
+          // layout-5 holds 1 wide + 4 = 5; if we have 6, drop last or use layout-6 without wide
+          if (working.length > 5) {
+            // keep wide + next 5 as layout-6 without wide style, clear wide flags after first for rest
+            // use layout-5 with first 5 only if 6 items — better fill: layout-6 no wide
+            const useWideLayout = working.length === 5;
+            if (!useWideLayout && working.length === 6) {
+              working = working.map((x, i) => (i === 0 ? x : { ...x, wide: false }));
+              // still force first as wide in layout-5 needs 5 items - use layout-6
+            }
+          }
+        }
+
+        let layout = pickLayout(working.length, hasWide && working.length <= 5);
+        if (hasWide && working.length === 6) {
+          // mosaic 6 merged equally
+          layout = "layout-6";
+          working = working.map((x, i) => ({ ...x, wide: false }));
+        } else if (hasWide && working.length === 5) {
+          layout = "layout-5";
+        } else if (hasWide && working.length > 6) {
+          layout = "layout-6";
+        }
+
+        // force wide class only when layout-5 or layout-3
+        const canWide = layout === "layout-5" || layout === "layout-3";
+        if (canWide && working[0]) working[0] = { ...working[0], wide: true };
+
+        const cells = working
+          .map((item, idx) => cellHtml(item, canWide && idx === 0 && item.wide))
+          .join("");
+
+        sheet(`
+          <div class="page ${layout}">
+            <header class="page-head">
+              <img src="${img(cat.hero, 1600, 600)}" alt="" />
+              <div class="scrim"></div>
+              <p class="count">${esc(cat.kicker)} · ${gi + 1}/${groups.length}</p>
+              <div class="inner">
+                <p class="kicker">${esc(cat.kicker)}</p>
+                <h2>${esc(cat.title)} <em>${esc(cat.italic)}</em></h2>
+                ${gi === 0 ? `<p class="blurb">${esc(cat.blurb)}</p>` : `<p class="blurb">Continued · seamless mosaic</p>`}
+              </div>
+            </header>
+            ${cells}
+          </div>
+          <p class="folio">${esc(cat.title)} · Pelbu Suites</p>
+          <p class="folio right">BTN base · ++</p>
+        `, cat.title);
+      });
+    }
+
+    // Back
+    sheet(`
+      <div class="cover-full">
+        <img src="${C}/w_1600,h_2200,c_fill,g_center,f_jpg,q_auto:best/v1785925713/pelbu/home/hmuenowpmowtkagbxxns" alt="" />
+        <div class="scrim"></div>
+      </div>
+      <div class="cover-body" style="align-items:center;text-align:center;justify-content:center;gap:5mm">
+        <img src="${logo}" alt="" style="width:16mm;height:16mm" />
+        <div>
+          <p class="eyebrow">Thank you</p>
+          <h2 class="display lg">Pelbu <em>Suites</em></h2>
+          <p class="lede" style="margin-left:auto;margin-right:auto;text-align:center">
+            Café &amp; kitchen · Olakha<br />+975 1619 3410 · www.pelbusuites.bt
+          </p>
+        </div>
+        <div style="background:#fffaf3;padding:3mm;border-radius:1.5mm">
+          <img src="qr-web.png" width="140" height="140" alt="QR" style="width:24mm;height:24mm;display:block" />
+        </div>
+        <p style="font-size:2mm;letter-spacing:0.14em;text-transform:uppercase;opacity:0.55">
+          Merged category menu · A4 · 5&nbsp;mm cut safe
+        </p>
+      </div>
+    `, "Back");
+
+    document.getElementById("book").innerHTML = pages.join("\n");
+  </script>
+</body>
+</html>

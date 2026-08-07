@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pelbu Suites — Public Room Rates · Season 2 2026</title>
+  <title>Pelbu Suites — Public Room Rates · Peak &amp; Off 2026</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -248,54 +248,39 @@
       box-shadow: 0 0 0 1px rgba(232, 168, 56, 0.35);
     }
 
-    /* Peak special */
-    .peak-banner {
-      margin: 0 0 2mm;
-      padding: 5px 9px 6px;
-      text-align: center;
-      border-radius: 7px;
+    /* Season banners */
+    .season-banner {
+      margin: 0 0 1.2mm;
+      padding: 4px 8px 4px;
+      border-radius: 6px;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .season-banner.peak {
       background: linear-gradient(105deg, #5c2a14 0%, #c45c26 48%, #e8a838 100%);
       color: #fffaf3;
-      box-shadow: 0 4px 14px rgba(92, 42, 20, 0.22);
     }
 
-    .peak-banner .eyebrow {
-      font-size: 7.5px;
-      font-weight: 700;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      opacity: 0.9;
-      margin-bottom: 1px;
+    .season-banner.off {
+      background: linear-gradient(105deg, #0f3d38 0%, #0f6e63 50%, #2a9d8f 100%);
+      color: #f0fffc;
+      margin-top: 2.2mm;
     }
 
-    .peak-banner h3 {
+    .season-banner h3 {
       font-family: "Cormorant Garamond", Georgia, serif;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 700;
       line-height: 1.1;
-      letter-spacing: 0.01em;
     }
 
-    .peak-banner .months {
-      margin-top: 2px;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.03em;
-    }
-
-    .peak-banner .months span {
-      display: inline-block;
-      margin: 0 2px;
-      padding: 1px 6px;
-      border-radius: 999px;
-      background: rgba(255, 250, 243, 0.18);
-      border: 1px solid rgba(255, 250, 243, 0.35);
-    }
-
-    .peak-banner .fine {
-      margin-top: 2px;
+    .season-banner .fine {
       font-size: 8px;
-      line-height: 1.3;
+      font-weight: 600;
+      letter-spacing: 0.04em;
       opacity: 0.92;
     }
 
@@ -303,17 +288,18 @@
     .rates {
       width: 100%;
       border-collapse: collapse;
-      font-size: 10.5px;
+      font-size: 9.5px;
+      margin-bottom: 0;
     }
 
     .rates thead th {
-      font-size: 8.5px;
+      font-size: 7.5px;
       font-weight: 700;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--cream);
       background: var(--ink);
-      padding: 6px 7px;
+      padding: 4px 5px;
       text-align: center;
       border: 1px solid rgba(26, 15, 10, 0.25);
     }
@@ -321,25 +307,30 @@
     .rates thead th.cat-head,
     .rates thead th.occ-head {
       text-align: left;
-      padding-left: 9px;
+      padding-left: 7px;
       background: #5c2a14;
     }
 
+    .rates.off-rates thead th.cat-head,
+    .rates.off-rates thead th.occ-head {
+      background: #0f3d38;
+    }
+
     .rates thead th.plan {
-      width: 16%;
+      width: 13.5%;
       background: #1a0f0a;
     }
 
     .rates thead th:first-child {
-      border-radius: 6px 0 0 0;
+      border-radius: 5px 0 0 0;
     }
 
     .rates thead th:last-child {
-      border-radius: 0 6px 0 0;
+      border-radius: 0 5px 0 0;
     }
 
     .rates tbody td {
-      padding: 3.5px 6px;
+      padding: 2.5px 4px;
       text-align: center;
       border: 1px solid var(--line);
       vertical-align: middle;
@@ -356,24 +347,23 @@
 
     .rates tbody td.cat {
       text-align: left;
-      padding-left: 9px;
+      padding-left: 7px;
       font-family: "Cormorant Garamond", Georgia, serif;
-      font-size: 14px;
+      font-size: 12px;
       font-weight: 700;
-      line-height: 1.15;
+      line-height: 1.1;
       vertical-align: middle;
-      width: 28%;
+      width: 26%;
     }
 
     .rates tbody td.cat.double { color: var(--copper); }
-    .rates tbody td.cat.twin { color: var(--teal-deep); }
     .rates tbody td.cat.suite { color: var(--ink); }
 
     .rates tbody td.cat .meta {
       display: block;
-      margin-top: 2px;
+      margin-top: 1px;
       font-family: "Outfit", "Segoe UI", Arial, sans-serif;
-      font-size: 8px;
+      font-size: 7.5px;
       font-weight: 500;
       color: var(--muted);
       letter-spacing: 0;
@@ -382,11 +372,11 @@
 
     .rates tbody td.occ {
       text-align: left;
-      padding-left: 9px;
-      font-size: 10px;
+      padding-left: 7px;
+      font-size: 9px;
       font-weight: 700;
       color: var(--body);
-      width: 14%;
+      width: 12%;
       white-space: nowrap;
     }
 
@@ -396,82 +386,137 @@
     }
 
     .price {
-      font-size: 13px;
+      font-size: 11.5px;
       font-weight: 700;
       font-variant-numeric: tabular-nums;
       letter-spacing: -0.01em;
     }
 
     .price .cur {
-      font-size: 7.5px;
+      font-size: 7px;
       font-weight: 600;
       letter-spacing: 0.05em;
       color: var(--muted);
-      margin-right: 2px;
-    }
-
-    .price-na {
-      font-size: 9.5px;
-      font-weight: 600;
-      color: var(--muted);
-      letter-spacing: 0.02em;
+      margin-right: 1px;
     }
 
     .rates tbody tr.suite-pair td {
       background: linear-gradient(90deg, #fff4d4 0%, #fffaf0 55%, #fff8e6 100%);
     }
 
-    .rates tbody tr.group-start td.cat {
-      border-top: 1.5px solid rgba(26, 15, 10, 0.16);
-    }
-
+    .rates tbody tr.group-start td.cat,
     .rates tbody tr.group-start td.occ,
     .rates tbody tr.group-start td.price-cell {
       border-top: 1.5px solid rgba(26, 15, 10, 0.16);
     }
 
+    /* Side-by-side add-ons */
+    .addons {
+      display: block;
+      margin: 2mm 0 1.5mm;
+    }
+
+    .addon-block {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 5px 7px 6px;
+    }
+
+    .addon-block h3 {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--copper);
+      margin-bottom: 3px;
+    }
+
+    .addon-block.teal h3 { color: var(--teal-deep); }
+
+    .mini-rates {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8.5px;
+    }
+
+    .mini-rates th {
+      font-size: 7px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-align: center;
+      padding: 2px 3px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .mini-rates th:first-child,
+    .mini-rates td:first-child {
+      text-align: left;
+      font-weight: 600;
+      color: var(--body);
+    }
+
+    .mini-rates td {
+      padding: 2px 3px;
+      text-align: center;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      border-bottom: 1px solid #f3e8d8;
+    }
+
+    .mini-rates tr:last-child td { border-bottom: none; }
+
+    .addon-note {
+      margin-top: 3px;
+      font-size: 7.5px;
+      line-height: 1.3;
+      color: var(--muted);
+    }
+
     /* Meal key */
     .meal-key {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 5px;
-      margin: 2mm 0 2mm;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+      margin: 0 0 1.8mm;
     }
 
     .meal-card {
       background: #fff;
       border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 6px 8px;
+      border-radius: 5px;
+      padding: 4px 6px;
     }
 
     .meal-card strong {
       display: block;
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 700;
-      letter-spacing: 0.12em;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
       color: var(--copper);
-      margin-bottom: 2px;
+      margin-bottom: 1px;
     }
 
     .meal-card span {
-      font-size: 9.5px;
+      font-size: 8px;
       color: var(--body);
-      line-height: 1.35;
+      line-height: 1.3;
     }
 
     /* Benefits row */
     .benefits {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 5px;
-      margin-bottom: 2mm;
+      gap: 4px;
+      margin-bottom: 1.5mm;
     }
 
     .benefit {
-      border-radius: 7px;
-      padding: 5px 8px;
+      border-radius: 6px;
+      padding: 4px 7px;
     }
 
     .benefit.foc {
@@ -495,27 +540,27 @@
 
     .benefit h3 {
       font-family: "Cormorant Garamond", Georgia, serif;
-      font-size: 15px;
+      font-size: 13px;
       font-weight: 700;
       line-height: 1.15;
-      margin-bottom: 3px;
+      margin-bottom: 2px;
     }
 
     .benefit.foc h3 span { color: #fff6a8; }
     .benefit.mou h3 span { color: var(--gold); }
 
     .benefit p {
-      font-size: 9px;
-      line-height: 1.4;
+      font-size: 8.5px;
+      line-height: 1.35;
       opacity: 0.92;
     }
 
     /* Notes + contact */
     .notes {
-      font-size: 9px;
-      line-height: 1.45;
+      font-size: 8.5px;
+      line-height: 1.4;
       color: var(--muted);
-      margin-bottom: 4mm;
+      margin-bottom: 2mm;
     }
 
     .notes strong { color: var(--ink); }
@@ -738,6 +783,8 @@
       .intro { grid-template-columns: 1fr; }
       .meta-pills { flex-direction: row; align-items: flex-start; flex-wrap: wrap; }
       .benefits { grid-template-columns: 1fr; }
+      .addons { grid-template-columns: 1fr; }
+      .meal-key { grid-template-columns: 1fr 1fr; }
       .footer { grid-template-columns: 1fr; }
       .qr-block { text-align: left; }
       .policy-grid { grid-template-columns: 1fr; }
@@ -781,7 +828,7 @@
 </head>
 <body>
   <div class="print-bar no-print">
-    <span>Pelbu Suites · Public rates + guest terms (2 pages) · Season 2 · 2026</span>
+    <span>Pelbu Suites · Public rates + guest terms (2 pages) · Final rack 2026</span>
     <button type="button" onclick="window.print()">Print / PDF</button>
   </div>
 
@@ -803,9 +850,9 @@
           </div>
         </div>
         <div class="season-badge">
-          <p class="label">Public rates · Peak special</p>
-          <p class="title">Season 2 — 2026</p>
-          <p class="sub">Sep · Oct · Nov · Direct book</p>
+          <p class="label">Public rates · Final rack</p>
+          <p class="title">Peak &amp; Off · 2026</p>
+          <p class="sub">EPAI · CPAI · MAPAI · APAI · Direct book</p>
         </div>
       </header>
 
@@ -814,13 +861,14 @@
           <h2>Public room rates</h2>
           <p>
             Transparent rates for walk-in, locals, and guests booking direct.
-            Per room, per night. All figures below are <strong>all-in</strong>
-            (include <strong>10% service charge</strong> and <strong>5% GST</strong>).
+            Per room, per night. Package figures are <strong>all-in</strong>
+            (<strong>EPAI / CPAI / MAPAI / APAI</strong> — include
+            <strong>10% service charge</strong> and <strong>5% GST</strong>).
           </p>
         </div>
         <div class="meta-pills">
-          <span class="pill pill-gold">By occupancy as tabled</span>
-          <span class="pill pill-teal">27 rooms · EP / CP / MAP</span>
+          <span class="pill pill-gold">Single &amp; double as tabled</span>
+          <span class="pill pill-teal">Deluxe King/Twin · Suite</span>
         </div>
       </div>
 
@@ -830,11 +878,11 @@
             src="https://res.cloudinary.com/hkkchsfy/image/upload/w_640,h_400,c_fill,g_auto,e_improve:indoor:40,e_auto_contrast:15,e_sharpen:50,f_jpg,q_auto:good/pelbu/rooms/deluxe-suite"
             width="320"
             height="200"
-            alt="Deluxe Queen room — queen bed at Pelbu Suites"
+            alt="Deluxe King/Twin — King bed at Pelbu Suites"
           />
           <figcaption>
-            <div class="cat">Deluxe Queen</div>
-            <div class="meta">12 rooms · 1 queen · single &amp; double</div>
+            <div class="cat">Deluxe King/Twin</div>
+            <div class="meta">King bed · same tariff</div>
           </figcaption>
         </figure>
         <figure class="room-photo twin">
@@ -842,11 +890,11 @@
             src="https://res.cloudinary.com/hkkchsfy/image/upload/w_640,h_400,c_fill,g_auto,e_improve:indoor:40,e_auto_contrast:15,e_sharpen:50,f_jpg,q_auto:good/pelbu/rooms/suite-alt"
             width="320"
             height="200"
-            alt="Twin room — two single beds at Pelbu Suites"
+            alt="Deluxe King/Twin — Twin beds at Pelbu Suites"
           />
           <figcaption>
-            <div class="cat">Twin</div>
-            <div class="meta">14 rooms · 2 singles · double occ.</div>
+            <div class="cat">Deluxe King/Twin</div>
+            <div class="meta">Twin beds · same tariff</div>
           </figcaption>
         </figure>
         <figure class="room-photo suite">
@@ -854,26 +902,18 @@
             src="https://res.cloudinary.com/hkkchsfy/image/upload/w_640,h_400,c_fill,g_auto,e_improve:indoor:40,e_auto_contrast:15,e_sharpen:50,f_jpg,q_auto:good/v1785925713/pelbu/home/hmuenowpmowtkagbxxns"
             width="320"
             height="200"
-            alt="Suite at Pelbu Suites — private jacuzzi"
+            alt="Pelbu Suite — private jacuzzi"
           />
           <figcaption>
-            <div class="cat">Suite</div>
-            <div class="meta">1 only · jacuzzi · double occ.</div>
+            <div class="cat">Pelbu Suite</div>
+            <div class="meta">1 only · jacuzzi · single &amp; double</div>
           </figcaption>
         </figure>
       </div>
 
-      <div class="peak-banner" role="note">
-        <p class="eyebrow">Peak season · Special rate 2026</p>
-        <h3>Valid for stays in peak months</h3>
-        <p class="months">
-          <span>September</span>
-          <span>October</span>
-          <span>November</span>
-        </p>
-        <p class="fine">
-          All-in BTN (10% SC + 5% GST included) · Occupancy as tabled · Subject to availability
-        </p>
+      <div class="season-banner peak" role="note">
+        <h3>Peak season rates</h3>
+        <p class="fine">All-in BTN · per room / night · occupancy as tabled</p>
       </div>
 
       <table class="rates" aria-label="Peak season public rates">
@@ -881,67 +921,158 @@
           <tr>
             <th scope="col" class="cat-head">Room category</th>
             <th scope="col" class="occ-head">Occupancy</th>
-            <th scope="col" class="plan">EP</th>
-            <th scope="col" class="plan">CP</th>
-            <th scope="col" class="plan">MAP</th>
+            <th scope="col" class="plan">EPAI</th>
+            <th scope="col" class="plan">CPAI</th>
+            <th scope="col" class="plan">MAPAI</th>
+            <th scope="col" class="plan">APAI</th>
           </tr>
         </thead>
         <tbody>
           <tr class="pair-top group-start">
             <td class="cat double" rowspan="2">
-              Deluxe Queen
-              <span class="meta">12 rooms · 1 queen bed</span>
+              Deluxe King/Twin
+              <span class="meta">King or twin bed · same tariff</span>
             </td>
             <td class="occ"><span class="label">Single</span></td>
-            <td class="price-cell"><span class="price"><span class="cur">BTN</span>3,000</span></td>
-            <td class="price-cell"><span class="price"><span class="cur">BTN</span>3,400</span></td>
-            <td class="price-cell"><span class="price"><span class="cur">BTN</span>4,400</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>3,200</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>3,600</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>4,200</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>4,800</span></td>
           </tr>
           <tr class="pair-bottom">
             <td class="occ"><span class="label">Double</span></td>
-            <td class="price-cell"><span class="price"><span class="cur">BTN</span>3,600</span></td>
-            <td class="price-cell"><span class="price"><span class="cur">BTN</span>4,600</span></td>
-            <td class="price-cell"><span class="price"><span class="cur">BTN</span>6,400</span></td>
-          </tr>
-          <tr class="pair-bottom group-start">
-            <td class="cat twin">
-              Twin
-              <span class="meta">14 rooms · 2 single beds · double only</span>
-            </td>
-            <td class="occ"><span class="label">Double</span></td>
-            <td class="price-cell"><span class="price"><span class="cur">BTN</span>3,600</span></td>
-            <td class="price-cell"><span class="price"><span class="cur">BTN</span>4,600</span></td>
-            <td class="price-cell"><span class="price"><span class="cur">BTN</span>6,400</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>3,450</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>4,200</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>5,600</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>6,700</span></td>
           </tr>
           <tr class="pair-top group-start suite-pair">
             <td class="cat suite" rowspan="2">
-              Suite
+              Pelbu Suite
               <span class="meta">1 suite only · private jacuzzi</span>
             </td>
             <td class="occ"><span class="label">Single</span></td>
-            <td class="price-cell" colspan="3"><span class="price-na">On request</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>8,000</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>8,400</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>9,100</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>9,700</span></td>
           </tr>
           <tr class="pair-bottom suite-pair">
             <td class="occ"><span class="label">Double</span></td>
-            <td class="price-cell"><span class="price"><span class="cur">BTN</span>7,900</span></td>
-            <td class="price-cell"><span class="price"><span class="cur">BTN</span>9,000</span></td>
-            <td class="price-cell"><span class="price"><span class="cur">BTN</span>10,700</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>8,500</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>9,300</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>10,600</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>11,800</span></td>
           </tr>
         </tbody>
       </table>
 
+      <div class="season-banner off" role="note">
+        <h3>Off season rates</h3>
+        <p class="fine">All-in BTN · per room / night · same plans &amp; categories</p>
+      </div>
+
+      <table class="rates off-rates" aria-label="Off season public rates">
+        <thead>
+          <tr>
+            <th scope="col" class="cat-head">Room category</th>
+            <th scope="col" class="occ-head">Occupancy</th>
+            <th scope="col" class="plan">EPAI</th>
+            <th scope="col" class="plan">CPAI</th>
+            <th scope="col" class="plan">MAPAI</th>
+            <th scope="col" class="plan">APAI</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="pair-top group-start">
+            <td class="cat double" rowspan="2">
+              Deluxe King/Twin
+              <span class="meta">King or twin bed · same tariff</span>
+            </td>
+            <td class="occ"><span class="label">Single</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>2,800</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>3,200</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>3,900</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>4,500</span></td>
+          </tr>
+          <tr class="pair-bottom">
+            <td class="occ"><span class="label">Double</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>3,000</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>3,700</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>5,000</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>6,300</span></td>
+          </tr>
+          <tr class="pair-top group-start suite-pair">
+            <td class="cat suite" rowspan="2">
+              Pelbu Suite
+              <span class="meta">1 suite only · private jacuzzi</span>
+            </td>
+            <td class="occ"><span class="label">Single</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>6,900</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>7,300</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>7,900</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>8,500</span></td>
+          </tr>
+          <tr class="pair-bottom suite-pair">
+            <td class="occ"><span class="label">Double</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>7,400</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>8,200</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>9,400</span></td>
+            <td class="price-cell"><span class="price"><span class="cur">BTN</span>10,800</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="addons">
+        <div class="addon-block">
+          <h3>Extra bed rates</h3>
+          <table class="mini-rates" aria-label="Extra bed rates by plan">
+            <thead>
+              <tr>
+                <th scope="col">Category</th>
+                <th scope="col">EPAI</th>
+                <th scope="col">CPAI</th>
+                <th scope="col">MAPAI</th>
+                <th scope="col">APAI</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Extra bed (adult)</td>
+                <td>1,150</td>
+                <td>1,550</td>
+                <td>2,200</td>
+                <td>2,800</td>
+              </tr>
+              <tr>
+                <td>Extra bed (age 6–12)</td>
+                <td>1,150</td>
+                <td>1,350</td>
+                <td>1,690</td>
+                <td>1,980</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="addon-note">Per extra bed / night · all-in · ages 0–5 free on child package</p>
+        </div>
+      </div>
+
       <div class="meal-key">
         <div class="meal-card">
-          <strong>EP</strong>
-          <span>European Plan — room only (all-in)</span>
+          <strong>EPAI</strong>
+          <span>EP all-in — room only (SC + GST included)</span>
         </div>
         <div class="meal-card">
-          <strong>CP</strong>
-          <span>Room + breakfast for the priced occupancy</span>
+          <strong>CPAI</strong>
+          <span>CP all-in — room + breakfast for priced occupancy</span>
         </div>
         <div class="meal-card">
-          <strong>MAP</strong>
-          <span>Room + breakfast + dinner for the priced occupancy</span>
+          <strong>MAPAI</strong>
+          <span>MAP all-in — room + breakfast + dinner</span>
+        </div>
+        <div class="meal-card">
+          <strong>APAI</strong>
+          <span>AP all-in — room + breakfast, lunch &amp; dinner</span>
         </div>
       </div>
 
@@ -953,14 +1084,14 @@
         </div>
         <div class="benefit mou">
           <p class="eyebrow">Taxes clear</p>
-          <h3>All rates include <span>SC + GST</span></h3>
-          <p>10% service charge and 5% GST already in the figures — no add-on at check-in for these plans.</p>
+          <h3>Package rates include <span>SC + GST</span></h3>
+          <p>10% service charge and 5% GST already in EPAI / CPAI / MAPAI / APAI package figures.</p>
         </div>
       </div>
 
       <p class="notes">
-        Published peak rates: <strong>Sep · Oct · Nov 2026</strong>. Other months on request / as confirmed at booking.
-        Twin is double occupancy only. Suite single on request. Free cancel: <strong>7 days</strong> standard · <strong>14 days</strong> peak (page&nbsp;2). Subject to availability.
+        Final public rack. <strong>Deluxe King/Twin</strong> is one tariff (king or twin bed).
+        Free cancel: <strong>7 days</strong> standard · <strong>14 days</strong> peak (page&nbsp;2). Subject to availability.
       </p>
 
       <footer class="footer">
@@ -979,12 +1110,12 @@
         <div class="qr-block">
           <strong>Book direct</strong>
           pelbusuites.bt/book<br />
-          Public rate card · Season 2 2026<br />
+          Public rate card · Final 2026<br />
           <span style="margin-top:4px; display:inline-block;">Page 1 of 2 · Public rates</span>
         </div>
       </footer>
 
-      <p class="confidential">Public rates · Season 2 2026 · Pelbu Suites · Olakha, Thimphu</p>
+      <p class="confidential">Public rates · Peak &amp; Off 2026 · Pelbu Suites · Olakha, Thimphu</p>
     </div>
   </article>
 
@@ -1009,11 +1140,11 @@
         <div class="season-badge">
           <p class="label">Guest handbook</p>
           <p class="title">Stay policies</p>
-          <p class="sub">Season 2 · 2026 · Page 2 of 2</p>
+          <p class="sub">Final rack · 2026 · Page 2 of 2</p>
         </div>
       </header>
 
-      <p class="page-tag">Applies to guests booking at public Season 2 rates (web, walk-in, phone)</p>
+      <p class="page-tag">Applies to guests booking at public Peak &amp; Off rates (web, walk-in, phone)</p>
       <h2 class="terms-title">Stay terms &amp; house policies</h2>
       <p class="terms-lead">
         By confirming a reservation (website, WhatsApp, phone, or walk-in deposit), you accept these terms.
@@ -1024,9 +1155,9 @@
         <section class="policy-block">
           <h3>1. Rates &amp; validity</h3>
           <ul>
-            <li>Rates on page&nbsp;1 are in <strong>BTN</strong>, <strong>per room / per night</strong>, and are <strong>all-in</strong>: they already include <strong>10% service charge</strong> and <strong>5% GST</strong>. No further SC/GST is stacked on these published plan totals at the desk for the same components.</li>
-            <li><strong>Published rates</strong> on page&nbsp;1 apply for <strong>peak</strong> stays in <strong>Sep–Nov 2026</strong>. Rates outside this window are on request or as confirmed in writing at booking.</li>
-            <li><strong>Deluxe Queen</strong> is published for <strong>single and double</strong>. <strong>Twin</strong> is <strong>double only</strong> (no single rate). <strong>Suite</strong> is double as priced; single on request.</li>
+            <li>Package rates on page&nbsp;1 are in <strong>BTN</strong>, <strong>per room / per night</strong>, and are <strong>all-in (AI)</strong>: they already include <strong>10% service charge</strong> and <strong>5% GST</strong>.</li>
+            <li><strong>Peak</strong> and <strong>Off</strong> season tables apply as tabled. Season dates follow the hotel calendar confirmed at booking.</li>
+            <li><strong>Deluxe King/Twin</strong> is one tariff (king or twin bed) — <strong>single and double</strong>. <strong>Pelbu Suite</strong> is single &amp; double as tabled.</li>
             <li>Confirmed bookings keep the agreed rate. Travel agents: use the agent rate card or pelbusuites.bt/agents.</li>
           </ul>
         </section>
@@ -1034,10 +1165,10 @@
         <section class="policy-block teal">
           <h3>2. Meal plans</h3>
           <ul>
-            <li><strong>EP</strong> — room only.</li>
-            <li><strong>CP</strong> — room + breakfast for the priced occupancy.</li>
-            <li><strong>MAP</strong> — room + breakfast + dinner for the priced occupancy.</li>
-            <li>Meals are for registered in-house guests unless a day package is booked separately.</li>
+            <li><strong>EPAI</strong> — room only (all-in).</li>
+            <li><strong>CPAI</strong> — room + breakfast for the priced occupancy.</li>
+            <li><strong>MAPAI</strong> — room + breakfast + dinner for the priced occupancy.</li>
+            <li><strong>APAI</strong> — room + breakfast, lunch &amp; dinner for the priced occupancy.</li>
             <li>Special diets: notify the kitchen at least <strong>24 hours</strong> before arrival.</li>
           </ul>
         </section>
@@ -1076,9 +1207,9 @@
         <section class="policy-block teal">
           <h3>6. Occupancy &amp; categories</h3>
           <ul>
-            <li><strong>Deluxe Queen</strong> — 12 rooms · 1 queen · <strong>single &amp; double</strong> rates published as tabled.</li>
-            <li><strong>Twin</strong> — 14 rooms · 2 singles · <strong>double occupancy only</strong> (no single rate).</li>
-            <li><strong>Suite</strong> — <strong>1 room only</strong> · private jacuzzi · <strong>double occupancy</strong> (as priced); single on request. Suite exclusive amenity.</li>
+            <li><strong>Deluxe King/Twin</strong> — king or twin bed · one tariff · <strong>single &amp; double</strong> rates as tabled on page&nbsp;1.</li>
+            <li><strong>Pelbu Suite</strong> — <strong>1 room only</strong> · private jacuzzi · single &amp; double as priced. Jacuzzi is exclusive to the Suite.</li>
+            <li><strong>Extra bed</strong> rates (adult / age 6–12) by plan are on page&nbsp;1. Ages 0–5 free on child package rules.</li>
             <li>Category confirmed at booking; upgrades subject to availability and rate difference.</li>
           </ul>
         </section>
@@ -1112,14 +1243,14 @@
 
       <div class="accept-box">
         <strong>Acceptance.</strong>
-        Confirming a booking constitutes acceptance of these terms &amp; the Season&nbsp;2 public rate sheet.
+        Confirming a booking constitutes acceptance of these terms &amp; the final public rate sheet.
         Free cancel: <strong>7 days</strong> standard · <strong>14 days</strong> peak.
         Book online at <strong>pelbusuites.bt/book</strong> or contact the desk.
       </div>
 
       <div class="sheet-footer-mini">
         <span>Pelbu Suites · Formerly Seven Suites at Olakha · Next to Number 7 / Asha Bakery</span>
-        <span>Page 2 of 2 · Public stay terms · Season 2 2026</span>
+        <span>Page 2 of 2 · Public stay terms · Final rack 2026</span>
       </div>
     </div>
   </article>

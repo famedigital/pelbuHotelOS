@@ -106,7 +106,7 @@ export const STAY_MONEY_CYCLE_LEGEND = [
   {
     step: 4,
     title: "Invoice / pay",
-    body: "Issue tax invoice, collect payment or create a deposit link.",
+    body: "Issue tax invoice. Print Master bill + Room bill + F&B bill. Guest totals are whole Nu ending in 0 or 5 (hotel absorbs remainder). Collect payment or deposit link.",
   },
   {
     step: 5,

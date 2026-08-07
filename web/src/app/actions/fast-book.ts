@@ -254,7 +254,7 @@ export async function createFastBooking(
         !isCreditAgentStatus(agent.status as string)
       ) {
         throw new Error(
-          "On-credit stays require an approved or demo trade partner (directory listings have no credit).",
+          "On-credit stays require an approved or demo trade partner. Approve this agent as a trade partner in the booking form (no credit for directory listings).",
         );
       }
       tier = agentRateTier(agent.rate_tier as string);

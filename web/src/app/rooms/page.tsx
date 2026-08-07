@@ -2,10 +2,12 @@ import { MediaGallery } from "@/components/media/MediaGallery";
 import { CmsContentSections } from "@/components/site/CmsContentSections";
 import { EngineShell } from "@/components/site/EngineShell";
 import { MediaCard } from "@/components/site/MediaCard";
+import { PublicBuildingExplore } from "@/components/site/PublicBuildingExplore";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { loadCmsGallery, loadCmsPage } from "@/lib/cms";
 import { formatBtn } from "@/lib/pricing";
+import { loadPublicBuildingMap } from "@/lib/public-building-map";
 import { loadPublicRoomsWithRates } from "@/lib/public-room-rates";
 import { safePublic } from "@/lib/public-safe";
 import { PAGE_SEO, metadataFromCms } from "@/lib/seo";
@@ -49,7 +51,7 @@ async function loadCompBeds() {
 }
 
 export default async function RoomsPage() {
-  const [page, gallery, rateCtx, compBeds] = await Promise.all([
+  const [page, gallery, rateCtx, compBeds, buildingMap] = await Promise.all([
     safePublic("rooms-cms", () => loadCmsPage("rooms"), null),
     safePublic("rooms-gallery", () => loadCmsGallery("rooms"), []),
     safePublic(
@@ -64,6 +66,7 @@ export default async function RoomsPage() {
       },
     ),
     safePublic("rooms-comp", () => loadCompBeds(), []),
+    safePublic("rooms-building", () => loadPublicBuildingMap(), null),
   ]);
 
   const guestRooms = rateCtx.rooms;
@@ -123,6 +126,27 @@ export default async function RoomsPage() {
       >
         <div className="space-y-12">
           <CmsContentSections sections={page?.sections_json} />
+
+          {buildingMap ? (
+            <section className="space-y-4">
+              <div className="max-w-2xl space-y-2">
+                <h2 className="font-display text-2xl text-foreground">
+                  The house in Olakha
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Sketch of how guest floors and common spaces sit together —
+                  not a live availability board. Check dates to book.
+                </p>
+              </div>
+              <PublicBuildingExplore
+                units={buildingMap.units}
+                layout={buildingMap.layout}
+                spaces={buildingMap.spaces}
+                typeHrefByCode={buildingMap.typeHrefByCode}
+              />
+            </section>
+          ) : null}
+
           <section>
             <div className="flex flex-wrap items-end justify-between gap-4">
               <h2 className="font-display text-2xl text-foreground">

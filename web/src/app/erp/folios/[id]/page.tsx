@@ -453,8 +453,38 @@ export default async function FolioDetailPage({ params }: Props) {
           Balances
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          One folio for the stay. Room package often bills the agent; food and
-          hotel extras bill the guest.
+          Desk process: <span className="font-medium text-foreground">Master bill</span>
+          {" · "}
+          <span className="font-medium text-foreground">Room bill</span>
+          {" · "}
+          <span className="font-medium text-foreground">F&amp;B bill</span>
+          . Figures: whole Nu ending 0 or 5.
+          {invoiceDoc ? (
+            <>
+              {" "}
+              Print:{" "}
+              <a
+                href={`/erp/invoices/${invoiceDoc.id as string}/print?bill=master`}
+                className="text-accent underline-offset-4 hover:underline"
+              >
+                Master
+              </a>
+              {" · "}
+              <a
+                href={`/erp/invoices/${invoiceDoc.id as string}/print?bill=room`}
+                className="text-accent underline-offset-4 hover:underline"
+              >
+                Room
+              </a>
+              {" · "}
+              <a
+                href={`/erp/invoices/${invoiceDoc.id as string}/print?bill=fnb`}
+                className="text-accent underline-offset-4 hover:underline"
+              >
+                F&amp;B
+              </a>
+            </>
+          ) : null}
         </p>
         <div
           className={cn(
