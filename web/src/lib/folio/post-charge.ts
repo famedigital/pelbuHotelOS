@@ -156,11 +156,18 @@ export async function postFolioCharge(
   }
 
   let gl: PostingResult;
-  if (input.is_comp || input.source_type === "comp") {
+  const totalPosted = Number(line.total_btn);
+  // Guest credits (rate round figure absorb, comps) journal via abs + allowance rules.
+  // Sales folio_line posts reject non-positive amounts.
+  if (
+    input.is_comp ||
+    input.source_type === "comp" ||
+    totalPosted < 0
+  ) {
     gl = await postCompCredit(admin, propertyId, {
       id: line.id as string,
       description: line.description as string | null,
-      total_btn: Number(line.total_btn),
+      total_btn: totalPosted,
       created_at: input.journal_date ?? (line.created_at as string),
       period_guard: input.period_guard,
     });
@@ -169,7 +176,7 @@ export async function postFolioCharge(
       id: line.id as string,
       source_type: line.source_type as string,
       description: line.description as string | null,
-      total_btn: Number(line.total_btn),
+      total_btn: totalPosted,
       gst_btn: Number(line.gst_btn),
       created_at: input.journal_date ?? (line.created_at as string),
       bill_to: billTo,
@@ -182,7 +189,6 @@ export async function postFolioCharge(
     throw new Error(gl.error ?? "Could not post charge to ledger.");
   }
 
-  const totalPosted = Number(line.total_btn);
   const skipAdj =
     input.skip_guest_rate_adj ||
     totalPosted <= 0 ||
@@ -196,7 +202,7 @@ export async function postFolioCharge(
     const absorbBtn = guestRateAbsorbBtn(totalPosted);
     if (absorbBtn < -0.009) {
       try {
-        // Second insert via same function — skip_guest_rate_adj prevents recursion.
+        // Second insert — negative credit uses postCompCredit path above.
         await postFolioCharge(admin, propertyId, {
           folio_id: input.folio_id,
           booking_id: input.booking_id ?? null,
