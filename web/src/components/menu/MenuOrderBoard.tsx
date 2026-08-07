@@ -282,66 +282,140 @@ export function MenuOrderBoard({
   );
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
       <section className="min-w-0" aria-label="Menu">
         <div
           className={cn(
-            "sticky z-20 -mx-4 space-y-2.5 border-b border-border bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:mx-0 lg:rounded-xl lg:border lg:px-3 lg:py-2.5",
-            menuChrome?.hideChrome ? "top-0 lg:top-[3.75rem]" : "top-[3.75rem]",
+            "sticky z-20 border-b border-border bg-background/95 backdrop-blur",
+            /* Mobile: roomy touch strips */
+            "-mx-4 space-y-2.5 px-4 py-3 sm:-mx-6 sm:px-6",
+            /* Desktop: ultra-thin sticky bar — maximize dish grid */
+            "lg:mx-0 lg:space-y-1 lg:rounded-lg lg:border lg:px-2 lg:py-1.5 lg:shadow-sm",
+            menuChrome?.hideChrome ? "top-0 lg:top-[3.25rem]" : "top-[3.75rem] lg:top-[3.25rem]",
           )}
         >
-          <div className="relative">
-            <SearchIcon
-              aria-hidden
-              className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-            />
-            <Input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search momos, pastry, dinner…"
-              aria-label="Search the menu"
-              className="h-10 rounded-xl pl-10"
-            />
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {OUTLETS.map((entry) => (
-              <button
-                key={entry.id}
-                type="button"
-                onClick={() => {
-                  setOutlet(entry.id);
-                  setCategory("all");
-                }}
-                aria-pressed={outlet === entry.id}
-                className={cn(
-                  "shrink-0 rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors",
-                  outlet === entry.id
-                    ? "border-sky-600 bg-sky-600 text-white"
-                    : "border-border bg-card text-foreground hover:bg-secondary",
-                )}
+          {/* —— Desktop compact toolbar (one search + outlet row, one category row) —— */}
+          <div className="hidden lg:block">
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="relative w-[13.5rem] shrink-0 xl:w-48">
+                <SearchIcon
+                  aria-hidden
+                  className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+                />
+                <Input
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search menu…"
+                  aria-label="Search the menu"
+                  className="h-8 rounded-md border-border/80 pl-8 text-[13px]"
+                />
+              </div>
+              <div
+                className="flex min-w-0 flex-1 gap-1 overflow-x-auto scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                role="group"
+                aria-label="Outlets"
               >
-                {entry.label}
-              </button>
-            ))}
+                {OUTLETS.map((entry) => (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    onClick={() => {
+                      setOutlet(entry.id);
+                      setCategory("all");
+                    }}
+                    aria-pressed={outlet === entry.id}
+                    className={cn(
+                      "h-8 shrink-0 rounded-md border px-2.5 text-[12px] font-medium transition-colors",
+                      outlet === entry.id
+                        ? "border-sky-600 bg-sky-600 text-white"
+                        : "border-border bg-card text-foreground hover:bg-secondary",
+                    )}
+                  >
+                    {entry.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div
+              className="mt-1 flex gap-1 overflow-x-auto scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              role="group"
+              aria-label="Categories"
+            >
+              {categories.map((entry) => (
+                <button
+                  key={entry}
+                  type="button"
+                  onClick={() => setCategory(entry)}
+                  aria-pressed={category === entry}
+                  className={cn(
+                    "h-7 shrink-0 rounded-md px-2 text-[11px] font-semibold uppercase tracking-[0.08em] transition-colors",
+                    category === entry
+                      ? "bg-mint-100 text-mint-600"
+                      : "bg-secondary/80 text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {entry === "all" ? "All" : entry}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {categories.map((entry) => (
-              <button
-                key={entry}
-                type="button"
-                onClick={() => setCategory(entry)}
-                aria-pressed={category === entry}
-                className={cn(
-                  "shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] transition-colors",
-                  category === entry
-                    ? "bg-mint-100 text-mint-600"
-                    : "bg-secondary text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {entry === "all" ? "All dishes" : entry}
-              </button>
-            ))}
+
+          {/* —— Mobile stacked filters (tap-friendly) —— */}
+          <div className="space-y-2.5 lg:hidden">
+            <div className="relative">
+              <SearchIcon
+                aria-hidden
+                className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search momos, pastry, dinner…"
+                aria-label="Search the menu"
+                className="h-10 rounded-xl pl-10"
+              />
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {OUTLETS.map((entry) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  onClick={() => {
+                    setOutlet(entry.id);
+                    setCategory("all");
+                  }}
+                  aria-pressed={outlet === entry.id}
+                  className={cn(
+                    "shrink-0 rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors",
+                    outlet === entry.id
+                      ? "border-sky-600 bg-sky-600 text-white"
+                      : "border-border bg-card text-foreground hover:bg-secondary",
+                  )}
+                >
+                  {entry.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {categories.map((entry) => (
+                <button
+                  key={entry}
+                  type="button"
+                  onClick={() => setCategory(entry)}
+                  aria-pressed={category === entry}
+                  className={cn(
+                    "shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] transition-colors",
+                    category === entry
+                      ? "bg-mint-100 text-mint-600"
+                      : "bg-secondary text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {entry === "all" ? "All dishes" : entry}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -350,7 +424,7 @@ export function MenuOrderBoard({
             No dishes match that search. Try another outlet or clear the filter.
           </p>
         ) : (
-          <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+          <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:mt-3 lg:grid-cols-3 lg:gap-3 xl:grid-cols-4 2xl:grid-cols-5">
             {filtered.map((item) => (
               <MenuTile
                 key={item.id}
@@ -366,7 +440,7 @@ export function MenuOrderBoard({
       </section>
 
       {isDesktop ? (
-        <aside className="lg:sticky lg:top-[4.75rem] lg:self-start">
+        <aside className="lg:sticky lg:top-[3.75rem] lg:self-start">
           {cartPanel}
         </aside>
       ) : (
