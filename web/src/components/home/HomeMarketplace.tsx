@@ -14,8 +14,8 @@ const STEPS = [
   },
   {
     icon: TruckIcon,
-    title: "Pickup or taxi",
-    body: "Collect at the counter or send it across Thimphu by taxi. The kitchen gets the ticket live.",
+    title: "Pickup, room, or taxi",
+    body: "In-house? Charge your room after verifying room number + booking mobile (names never shown). Or collect or taxi across Thimphu.",
   },
 ];
 
@@ -43,8 +43,8 @@ export function HomeMarketplace({ dishCount }: { dishCount: number }) {
             {dishCount > 0
               ? `${dishCount} dishes are live right now. `
               : ""}
-            No account, no app, no phone tag — build the order, pay on collection
-            or delivery, and track it with the desk.
+            Guests in-house charge the room after a private room + phone check.
+            Walk-ins pick up or take taxi delivery.
           </p>
         </div>
 
@@ -76,10 +76,10 @@ export function HomeMarketplace({ dishCount }: { dishCount: number }) {
             Open the menu
           </Link>
           <Link
-            href="/cafe"
+            href="/menu?deliver=room"
             className="inline-flex h-12 items-center rounded-xl border border-white/30 bg-white/10 px-6 text-sm font-semibold text-white backdrop-blur hover:bg-white/20"
           >
-            Cafe delivery areas
+            Order to my room
           </Link>
         </div>
       </div>

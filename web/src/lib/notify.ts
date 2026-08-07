@@ -70,10 +70,10 @@ async function sendGuestEmail(
   to: string,
   subject: string,
   text: string,
-): Promise<void> {
+): Promise<{ ok: boolean; error?: string }> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   if (!apiKey) {
-    return;
+    return { ok: false, error: "Email is not configured (RESEND_API_KEY)." };
   }
 
   const resend = new Resend(apiKey);
@@ -86,6 +86,55 @@ async function sendGuestEmail(
 
   if (error) {
     console.error("Resend guest email failed", error);
+    return { ok: false, error: error.message || "Could not send guest email." };
+  }
+  return { ok: true };
+}
+
+/**
+ * Email a personal agreed-rate promo code so the guest can book online next time.
+ */
+export async function emailGuestRatePromo(args: {
+  to: string;
+  guestName: string;
+  code: string;
+  nightlyRateBtn: number;
+  maxStays?: number | null;
+  expiresLabel?: string | null;
+}): Promise<void> {
+  const bookUrl = `${siteUrl().replace(/\/$/, "")}/book`;
+  const rate = Math.round(args.nightlyRateBtn).toLocaleString("en-BT");
+  const body = [
+    `Kuzuzangpo ${args.guestName},`,
+    "",
+    "Thank you for staying with us at Pelbu Suites, Olakha.",
+    "",
+    `Your personal rate code is: ${args.code}`,
+    `Agreed room rate: Nu ${rate} per night (tax applied as shown when you book).`,
+    args.maxStays != null
+      ? `Valid for up to ${args.maxStays} stay${args.maxStays === 1 ? "" : "s"}.`
+      : null,
+    args.expiresLabel ? `Valid until: ${args.expiresLabel}.` : null,
+    "",
+    "How to use it next time:",
+    `1. Open ${bookUrl}`,
+    "2. Choose dates and room",
+    `3. On the final step, enter promo code ${args.code}`,
+    "",
+    "We look forward to welcoming you again.",
+    "",
+    "Pelbu Suites",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const result = await sendGuestEmail(
+    args.to,
+    `Your Pelbu Suites rate code · ${args.code}`,
+    body,
+  );
+  if (!result.ok) {
+    throw new Error(result.error ?? "Could not send guest email.");
   }
 }
 

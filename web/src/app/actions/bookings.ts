@@ -100,6 +100,8 @@ export type StayPreviewInput = {
   checkIn: string;
   checkOut: string;
   rooms: number;
+  /** Adults for occupancy: 1 uses amount_single_btn when set on the rate sheet. */
+  adults?: number;
 };
 
 /**
@@ -113,6 +115,10 @@ export async function previewStayCost(
   try {
     const { checkIn, checkOut } = input;
     const rooms = Math.max(1, Math.min(6, Math.floor(input.rooms)));
+    const adults = Math.max(
+      1,
+      Math.min(12, Math.floor(Number(input.adults ?? 2)) || 2),
+    );
     assertStayDates(checkIn, checkOut);
 
     const admin = createSupabaseAdminClient();
@@ -158,6 +164,7 @@ export async function previewStayCost(
         roomTypeId,
         seasonKind: season,
         rateTier: "public",
+        adults,
       });
       const perNight =
         rate == null
@@ -389,6 +396,7 @@ export async function createBooking(
       propertyId,
       checkIn,
       roomLines: [{ roomTypeId: assignedTypeId, qty: rooms }],
+      adults,
       estimatedStayTotalBtn:
         quotedTotalBtn != null && Number.isFinite(quotedTotalBtn)
           ? quotedTotalBtn
@@ -458,29 +466,59 @@ export async function createBooking(
         await admin.from("bookings").delete().eq("id", booking.id);
         throw new Error(redeemed.error ?? "Promo code rejected.");
       }
-      const promoDiscountBtn = Number(redeemed.discount_btn ?? 0);
       const promoCodeId = redeemed.promo_code_id ?? null;
       const promoCodeSnapshot = redeemed.code ?? promoCodeRaw.toUpperCase();
-      // Persist stay-level % (pct as-is; fixed_btn amortized) so room-night + meal posts cascade.
-      const promoDiscountPct = stayLevelPromoDiscountPct({
-        benefitType: redeemed.benefit_type,
-        benefitValue: redeemed.benefit_value,
-        discountBtn: promoDiscountBtn,
-        preDiscountBtn: quotedTotalBtn,
-      });
-      quotedTotalBtn = roundBtn(
-        Number(redeemed.post_discount_btn ?? quotedTotalBtn - promoDiscountBtn),
-      );
-      await admin
-        .from("bookings")
-        .update({
-          promo_code_id: promoCodeId,
-          promo_discount_pct: promoDiscountPct,
-          promo_discount_btn: promoDiscountBtn,
-          promo_code_snapshot: promoCodeSnapshot,
-          quoted_total_btn: quotedTotalBtn,
-        })
-        .eq("id", booking.id);
+
+      if (
+        redeemed.benefit_type === "nightly_rate_btn" &&
+        redeemed.benefit_value != null &&
+        Number.isFinite(Number(redeemed.benefit_value))
+      ) {
+        // Personal/manager agreed rate: lock folio room posts + re-quote stay.
+        const agreed = Math.round(Number(redeemed.benefit_value) * 100) / 100;
+        const taxSettings = await loadRoomRateTaxSettings(admin, propertyId);
+        const nightAllIn = calculateRoomNightTax(agreed, taxSettings).totalBtn;
+        const roomStay = roundBtn(nightAllIn * nights * rooms);
+        quotedTotalBtn = roundBtn(
+          roomStay + mealPlanAmountBtn + extraBedAmountBtn,
+        );
+        await admin
+          .from("bookings")
+          .update({
+            promo_code_id: promoCodeId,
+            promo_discount_pct: null,
+            promo_discount_btn: 0,
+            promo_code_snapshot: promoCodeSnapshot,
+            quoted_total_btn: quotedTotalBtn,
+            agreed_nightly_rate_btn: agreed,
+            agreed_rate_reason: `Promo ${promoCodeSnapshot}`,
+            agreed_rate_set_at: new Date().toISOString(),
+            agreed_rate_set_by: "public_book_promo",
+          })
+          .eq("id", booking.id);
+      } else {
+        const promoDiscountBtn = Number(redeemed.discount_btn ?? 0);
+        // Persist stay-level % (pct as-is; fixed_btn amortized) so room-night + meal posts cascade.
+        const promoDiscountPct = stayLevelPromoDiscountPct({
+          benefitType: redeemed.benefit_type,
+          benefitValue: redeemed.benefit_value,
+          discountBtn: promoDiscountBtn,
+          preDiscountBtn: quotedTotalBtn,
+        });
+        quotedTotalBtn = roundBtn(
+          Number(redeemed.post_discount_btn ?? quotedTotalBtn - promoDiscountBtn),
+        );
+        await admin
+          .from("bookings")
+          .update({
+            promo_code_id: promoCodeId,
+            promo_discount_pct: promoDiscountPct,
+            promo_discount_btn: promoDiscountBtn,
+            promo_code_snapshot: promoCodeSnapshot,
+            quoted_total_btn: quotedTotalBtn,
+          })
+          .eq("id", booking.id);
+      }
     }
 
     const { error: linesError } = await admin.from("booking_rooms").insert({

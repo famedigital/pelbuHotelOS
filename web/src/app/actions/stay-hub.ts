@@ -16,6 +16,7 @@ import {
 } from "@/lib/rates";
 import { loadRoomRateTaxSettings } from "@/lib/room-rate-tax";
 import { loadCheckInRoomOptions } from "@/lib/room-assignments";
+import { loadRoomChargePosOrders } from "@/lib/folio/room-pos-orders";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export type StayHubCheckInPayload = {
@@ -37,6 +38,8 @@ export type StayHubMoneyPayload = {
   agentId: string | null;
   agentName: string | null;
   paymentMode: string | null;
+  /** Room-charge F&B tickets with item-level serve / void audit. */
+  roomPosOrders: import("@/lib/folio/room-pos-orders").RoomChargePosOrder[];
 };
 
 export type StayHubSummary = {
@@ -591,6 +594,17 @@ export async function fetchStayHubMoney(
       (d) => d.doc_kind === "tax_invoice" || d.doc_kind === "invoice",
     ) ?? (openFolio?.fiscal_documents ?? [])[0];
 
+  let roomPosOrders: Awaited<ReturnType<typeof loadRoomChargePosOrders>> = [];
+  try {
+    roomPosOrders = await loadRoomChargePosOrders(
+      admin,
+      propertyId,
+      bookingId,
+    );
+  } catch {
+    roomPosOrders = [];
+  }
+
   return {
     ok: true,
     data: {
@@ -604,6 +618,7 @@ export async function fetchStayHubMoney(
       agentId: (data.agent_id as string | null) ?? null,
       agentName: agent?.company_name ?? null,
       paymentMode: (data.payment_mode as string | null) ?? null,
+      roomPosOrders,
     },
   };
 }

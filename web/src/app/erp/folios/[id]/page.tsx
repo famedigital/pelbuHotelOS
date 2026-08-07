@@ -4,6 +4,7 @@ import {
   VoidLineButton,
 } from "@/components/erp/FolioOpsForms";
 import { FolioActionsPanel } from "@/components/erp/FolioActionsPanel";
+import { FolioRoomPosItemsPanel } from "@/components/erp/FolioRoomPosItemsPanel";
 import { ErpDetailBack } from "@/components/erp/ErpDetailBack";
 import { FolioStaleRefreshBanner } from "@/components/erp/FolioStaleRefreshBanner";
 import { StayMoneyCycleLegend } from "@/components/erp/StayMoneyCycleLegend";
@@ -15,6 +16,7 @@ import {
   buildStayMoneySteps,
   stayMoneyNextAction,
 } from "@/lib/folio/stay-money-cycle";
+import { loadRoomChargePosOrders } from "@/lib/folio/room-pos-orders";
 import { formatBtn } from "@/lib/pricing";
 import { netFolioBalance } from "@/lib/folio/balance";
 import { resolveActivePropertyId } from "@/lib/property-context";
@@ -73,6 +75,7 @@ function sourceLabel(sourceType: string) {
     damage: "Damage",
     cancel_fee: "Cancel fee",
     no_show_fee: "No-show fee",
+    adjustment: "Adjustment",
   };
   return map[sourceType] ?? sourceType.replace(/_/g, " ");
 }
@@ -181,6 +184,14 @@ export default async function FolioDetailPage({ params }: Props) {
           .limit(40)
       : Promise.resolve({ data: [] as { id: string; label: string; status: string }[] }),
   ]);
+
+  const roomPosOrders = bookingId
+    ? await loadRoomChargePosOrders(
+        admin,
+        activePropertyId,
+        bookingId,
+      ).catch(() => [])
+    : [];
 
   const transferTargets = (siblingFolios ?? []).map((f) => ({
     id: f.id as string,
@@ -572,6 +583,25 @@ export default async function FolioDetailPage({ params }: Props) {
           aria-labelledby="folio-activity-heading"
           className="order-2 min-w-0 space-y-4 lg:order-1"
         >
+          {bookingId ? (
+            <div>
+              <h2
+                id="folio-pos-heading"
+                className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase"
+              >
+                Room F&amp;B · POS items
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Detail of café/restaurant charges to this room — serve status
+                and who marked served. Correct lines before invoice if guest
+                disputes.
+              </p>
+              <div className="mt-3">
+                <FolioRoomPosItemsPanel orders={roomPosOrders} />
+              </div>
+            </div>
+          ) : null}
+
           <div>
             <h2
               id="folio-activity-heading"
@@ -711,9 +741,13 @@ export default async function FolioDetailPage({ params }: Props) {
                         {isOpen &&
                         !voided &&
                         !isPayment &&
-                        line.source_type !== "comp" ? (
+                        line.source_type !== "comp" &&
+                        !line.reverses_line_id ? (
                           <div className="mt-1 space-y-1">
-                            <VoidLineButton lineId={line.id} />
+                            <VoidLineButton
+                              lineId={line.id}
+                              description={line.description}
+                            />
                             <TransferLineForm
                               lineId={line.id}
                               siblingFolios={transferTargets}

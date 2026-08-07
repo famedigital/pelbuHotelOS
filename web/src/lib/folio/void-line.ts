@@ -2,6 +2,7 @@ import "server-only";
 import { reverseJournal } from "@/lib/accounting/journals";
 import type { PeriodGuardOptions } from "@/lib/accounting/period-guard";
 import { assertOpenPeriodForDate } from "@/lib/accounting/period-guard";
+import { isGuestRateAdjDescription } from "@/lib/folio/rate-adj";
 import { roundBtn } from "@/lib/pricing";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -12,6 +13,8 @@ export type VoidFolioLineInput = {
   reason: string;
   voidedBy?: string;
   period_guard?: PeriodGuardOptions;
+  /** Internal: skip cascading linked rate-adj voids (avoids recursion). */
+  skipLinkedRateAdj?: boolean;
 };
 
 export type VoidFolioLineResult = {
@@ -19,6 +22,7 @@ export type VoidFolioLineResult = {
   originalLineId: string;
   reversalLineId: string | null;
   journalReversed: boolean;
+  linkedVoided: string[];
 };
 
 async function findPostedJournalId(
@@ -42,6 +46,9 @@ async function findPostedJournalId(
 /**
  * Void a posted folio charge: mark original voided, insert reversing credit line,
  * and reverse the GL journal when one exists.
+ *
+ * Also voids hotel rate-round adj lines that point at this charge (source_id).
+ * Does not allow voiding reverse lines (prevents reverse-of-reverse mess).
  */
 export async function voidFolioLineWithReversal(
   admin: Admin,
@@ -51,7 +58,7 @@ export async function voidFolioLineWithReversal(
   const { data: line, error } = await admin
     .from("folio_lines")
     .select(
-      "id, folio_id, booking_id, status, description, qty, unit_price_btn, amount_btn, gst_applicable, gst_btn, total_btn, service_charge_rate, service_charge_btn, service_charge_applied, service_charge_reason, source_type, source_id, created_at",
+      "id, folio_id, booking_id, status, description, qty, unit_price_btn, amount_btn, gst_applicable, gst_btn, total_btn, service_charge_rate, service_charge_btn, service_charge_applied, service_charge_reason, source_type, source_id, reverses_line_id, created_at",
     )
     .eq("id", input.lineId)
     .single();
@@ -70,6 +77,11 @@ export async function voidFolioLineWithReversal(
   if ((line.source_type as string) === "payment") {
     throw new Error("Void payments via a refund adjustment — not line void.");
   }
+  if (line.reverses_line_id) {
+    throw new Error(
+      "Cannot void a reversal line. Void the original charge instead if needed.",
+    );
+  }
 
   await assertOpenPeriodForDate(
     admin,
@@ -81,6 +93,29 @@ export async function voidFolioLineWithReversal(
       actor: input.voidedBy ?? "desk",
     },
   );
+
+  const linkedVoided: string[] = [];
+  if (!input.skipLinkedRateAdj) {
+    const { data: linked } = await admin
+      .from("folio_lines")
+      .select("id, description, status, reverses_line_id")
+      .eq("folio_id", line.folio_id as string)
+      .eq("source_id", input.lineId)
+      .eq("status", "posted")
+      .is("reverses_line_id", null);
+
+    for (const adj of linked ?? []) {
+      if (!isGuestRateAdjDescription(adj.description as string)) continue;
+      const cascaded = await voidFolioLineWithReversal(admin, propertyId, {
+        lineId: adj.id as string,
+        reason: input.reason,
+        voidedBy: input.voidedBy,
+        period_guard: input.period_guard,
+        skipLinkedRateAdj: true,
+      });
+      linkedVoided.push(cascaded.originalLineId);
+    }
+  }
 
   const journalId = await findPostedJournalId(admin, propertyId, input.lineId);
   let journalReversed = false;
@@ -143,5 +178,43 @@ export async function voidFolioLineWithReversal(
     originalLineId: input.lineId,
     reversalLineId: reversal.id as string,
     journalReversed,
+    linkedVoided,
   };
+}
+
+/**
+ * After a POS order is voided (or needs un-post), reverse any room-charge
+ * folio lines that still point at the order.
+ */
+export async function voidFolioLinesForOrder(
+  admin: Admin,
+  propertyId: string,
+  args: {
+    orderId: string;
+    reason: string;
+    voidedBy?: string;
+    period_guard?: PeriodGuardOptions;
+  },
+): Promise<{ voidedLineIds: string[] }> {
+  const { data: lines } = await admin
+    .from("folio_lines")
+    .select("id, status, source_type, reverses_line_id, total_btn")
+    .eq("source_id", args.orderId)
+    .in("source_type", ["order", "pos"])
+    .eq("status", "posted")
+    .is("reverses_line_id", null);
+
+  const voidedLineIds: string[] = [];
+  for (const row of lines ?? []) {
+    // Only void positive sell posts (not stray credits).
+    if (Number(row.total_btn) <= 0) continue;
+    const result = await voidFolioLineWithReversal(admin, propertyId, {
+      lineId: row.id as string,
+      reason: args.reason,
+      voidedBy: args.voidedBy,
+      period_guard: args.period_guard,
+    });
+    voidedLineIds.push(result.originalLineId);
+  }
+  return { voidedLineIds };
 }

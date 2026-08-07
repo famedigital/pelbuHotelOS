@@ -4,6 +4,7 @@ import { cloudinaryUrl } from "@/lib/cloudinary";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { formatBtn } from "@/lib/pricing";
+import { guestVisibleBalanceLines } from "@/lib/folio/balance";
 import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
 import { nightsBetween } from "@/lib/rates";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -19,11 +20,13 @@ export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ id: string }> };
 
 type FolioLine = {
+  id: string;
   description: string;
   total_btn: number;
   gst_btn: number;
   status: string;
   source_type: string;
+  reverses_line_id?: string | null;
 };
 
 type MaybeList<T> = T | T[] | null;
@@ -119,7 +122,7 @@ export default async function FiscalInvoicePrintPage({ params }: Props) {
     ? await admin
         .from("folios")
         .select(
-          "label, booking_id, folio_lines(description, total_btn, gst_btn, status, source_type)",
+          "label, booking_id, folio_lines(id, description, total_btn, gst_btn, status, source_type, reverses_line_id)",
         )
         .eq("id", folioId)
         .maybeSingle()
@@ -201,11 +204,16 @@ export default async function FiscalInvoicePrintPage({ params }: Props) {
     }
   }
 
-  const lines = ((folio?.folio_lines as FolioLine[] | null) ?? []).filter(
-    (l) =>
-      l.status === "posted" &&
-      l.source_type !== "payment" &&
-      l.source_type !== "deposit",
+  const lines = guestVisibleBalanceLines(
+    ((folio?.folio_lines as FolioLine[] | null) ?? []).map((l) => ({
+      ...l,
+      id: l.id,
+      status: l.status,
+      total_btn: Number(l.total_btn),
+      reverses_line_id: l.reverses_line_id ?? null,
+    })),
+  ).filter(
+    (l) => l.source_type !== "payment" && l.source_type !== "deposit",
   );
 
   const totalBtn = lines.reduce((s, l) => s + Number(l.total_btn ?? 0), 0);

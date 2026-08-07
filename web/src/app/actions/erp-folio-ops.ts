@@ -9,18 +9,21 @@ import { postFolioCharge } from "@/lib/folio/post-charge";
 import { postExtraBedFolioLine } from "@/lib/folio/extra-bed";
 import { postMealPlanFolioLine } from "@/lib/folio/meal-plan";
 import { postFolioPaymentRecord } from "@/lib/folio/post-payment";
+import { postOpenFolioGuestRateRoundAdj } from "@/lib/folio/rate-adj";
 import {
   postRoomNightsForBooking,
   postRoomNightsForDate,
 } from "@/lib/folio/room-night";
-import { voidFolioLineWithReversal } from "@/lib/folio/void-line";
+import {
+  voidFolioLineWithReversal,
+} from "@/lib/folio/void-line";
 import { issueFiscalDocument } from "@/lib/fiscal/issue-document";
 import { executeNightAudit } from "@/lib/night-audit/run";
 import {
   claimPaymentLinkOpen,
   releasePaymentLinkClaim,
 } from "@/lib/payments/claim-link";
-import { roundBtn } from "@/lib/pricing";
+import { GUEST_RATE_ADJ_DESCRIPTION, roundBtn } from "@/lib/pricing";
 import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
@@ -75,11 +78,15 @@ export async function voidFolioLine(
     const admin = createSupabaseAdminClient();
     const pid = await propertyId(admin);
     const lineId = trimRequired(formData.get("line_id"), "Line");
-    const reason = trimRequired(formData.get("void_reason"), "Void reason");
+    const reasonBase = trimRequired(formData.get("void_reason"), "Void reason");
+    const reasonDetail = optionalTrim(formData.get("void_reason_detail"));
+    const reason = reasonDetail
+      ? `${reasonBase} · ${reasonDetail}`
+      : reasonBase;
 
     const { data: line, error } = await admin
       .from("folio_lines")
-      .select("id, folio_id, status, description, total_btn, source_type, folios!inner(property_id)")
+      .select("id, folio_id, status, description, total_btn, source_type, source_id, reverses_line_id, folios!inner(property_id)")
       .eq("id", lineId)
       .single();
     if (error || !line) throw new Error("Folio line not found.");
@@ -107,11 +114,70 @@ export async function voidFolioLine(
         reason,
         reversalLineId: result.reversalLineId,
         journalReversed: result.journalReversed,
+        linkedVoided: result.linkedVoided,
       },
     });
 
     revalidateFolio(result.folioId);
-    return { ok: true, message: "Line voided." };
+    return { ok: true, message: "Line voided · balance updated." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+export async function postGuestRoundFigureAdj(
+  _prev: ErpFolioOpsState,
+  formData: FormData,
+): Promise<ErpFolioOpsState> {
+  try {
+    await requireMoney();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const folioId = trimRequired(formData.get("folio_id"), "Folio");
+
+    const { data: folio } = await admin
+      .from("folios")
+      .select("id, booking_id, status, property_id")
+      .eq("id", folioId)
+      .eq("property_id", pid)
+      .single();
+    if (!folio) throw new Error("Folio not found.");
+    assertDeskProperty(pid, folio.property_id as string, "Folio");
+    if ((folio.status as string) !== "open") throw new Error("Folio is not open.");
+
+    const result = await postOpenFolioGuestRateRoundAdj(admin, pid, {
+      folioId,
+      bookingId: (folio.booking_id as string | null) ?? null,
+      period_guard: periodGuardFromForm(formData, pid),
+    });
+
+    if (!result.lineId || result.absorbBtn >= -0.009) {
+      revalidateFolio(folioId);
+      return {
+        ok: true,
+        message: "Charges already on a whole Nu figure — no rate adj needed.",
+      };
+    }
+
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "folio.rate_round_adj",
+      entityType: "folio_lines",
+      entityId: result.lineId,
+      summary: `${GUEST_RATE_ADJ_DESCRIPTION} · ${result.absorbBtn} Nu (charges ${result.chargesSumBtn} → ${result.targetBtn})`,
+      meta: {
+        folioId,
+        absorbBtn: result.absorbBtn,
+        chargesSumBtn: result.chargesSumBtn,
+        targetBtn: result.targetBtn,
+      },
+    });
+
+    revalidateFolio(folioId);
+    return {
+      ok: true,
+      message: `Rate round adj ${result.absorbBtn} Nu · guest charges now Nu ${result.targetBtn}.`,
+    };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
   }

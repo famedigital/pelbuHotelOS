@@ -299,7 +299,8 @@ export function KitchenDisplayBoard({
       {isPass && (
         <p className="border-b bg-gold/10 px-4 py-2 text-center text-sm text-foreground md:px-6">
           Service screen — only tickets kitchen marked <strong>Ready</strong>.
-          Tap <strong>Mark served</strong> when food leaves the pass.
+          Tap <strong>Mark served</strong> when food leaves the pass — your
+          name is stored for front-desk audit if the guest disputes later.
         </p>
       )}
 
@@ -534,7 +535,9 @@ function TicketCard({
             {isOnline
               ? ticket.delivery_type === "taxi"
                 ? ` · taxi · ${ticket.delivery_area ?? "Thimphu"}`
-                : " · pickup"
+                : ticket.delivery_type === "room"
+                  ? ` · room ${ticket.delivery_area ?? ""}`
+                  : " · pickup"
               : ""}
           </p>
         </div>

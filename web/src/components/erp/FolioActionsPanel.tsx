@@ -5,6 +5,7 @@ import {
   CompCreditForm,
   DepositLinkForm,
   BankProofPaymentForm,
+  GuestRoundFigureForm,
   IssueCreditNoteButton,
   IssueInvoiceButton,
   PostCheckInChargesForm,
@@ -186,9 +187,12 @@ export function FolioActionsPanel({
           </AccordionTrigger>
           <AccordionContent className="space-y-3 pb-4">
             <GroupHint>
-              Use sparingly — voids sit on each activity line. Minibar, amenity,
-              comp, and damage add audited charges without a full POS ticket.
+              Use sparingly — voids sit on each activity line (not served,
+              duplicate, wrong item). Round-figure adj absorbs GST/SC chetrum so
+              guests pay whole Nu from hotel rates. Minibar, amenity, comp, and
+              damage add audited charges without a full POS ticket.
             </GroupHint>
+            <GuestRoundFigureForm folioId={folioId} />
             <PostMinibarChargeForm folioId={folioId} items={minibarItems} />
             <CompCreditForm folioId={folioId} />
             <PostDamageChargeForm folioId={folioId} items={damageItems} />

@@ -1,6 +1,11 @@
 "use client";
 
 import { createOrder, type OrderActionState } from "@/app/actions/orders";
+import {
+  fetchInHouseRoomLabels,
+  verifyGuestRoomForOrder,
+  type VerifyGuestRoomState,
+} from "@/app/actions/guest-room-order";
 import { CloudinaryImage } from "@/components/media/CloudinaryImage";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,6 +34,9 @@ import { cn } from "@/lib/utils";
 import { MinusIcon, PlusIcon, SearchIcon, ShoppingBagIcon } from "lucide-react";
 import Link from "next/link";
 import { useActionState, useEffect, useMemo, useState } from "react";
+
+const ROOM_TOKEN_KEY = "pelbu_guest_room_token";
+const ROOM_LABEL_KEY = "pelbu_guest_room_label";
 
 const OUTLETS = [
   { id: "all", label: "All" },
@@ -60,21 +68,65 @@ function isOrderable(item: MenuItem): boolean {
 export function MenuOrderBoard({
   items,
   initialOutlet,
+  preferRoomDelivery = false,
 }: {
   items: MenuItem[];
   initialOutlet?: OutletId;
+  preferRoomDelivery?: boolean;
 }) {
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [query, setQuery] = useState("");
   const [outlet, setOutlet] = useState<OutletId>(initialOutlet ?? "all");
   const [category, setCategory] = useState("all");
   const [cart, setCart] = useState<Record<string, number>>({});
-  const [deliveryType, setDeliveryType] = useState<"pickup" | "taxi">("pickup");
+  const [deliveryType, setDeliveryType] = useState<
+    "pickup" | "taxi" | "room"
+  >(preferRoomDelivery ? "room" : "pickup");
   const [deliveryArea, setDeliveryArea] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
   const [conflict, setConflict] = useState<MenuItem | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [state, action, pending] = useActionState(createOrder, initialState);
+  const [roomToken, setRoomToken] = useState<string | null>(null);
+  const [roomLabel, setRoomLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const t = sessionStorage.getItem(ROOM_TOKEN_KEY);
+      const l = sessionStorage.getItem(ROOM_LABEL_KEY);
+      if (t && l) {
+        setRoomToken(t);
+        setRoomLabel(l);
+        setDeliveryType("room");
+      }
+    } catch {
+      /* private mode */
+    }
+  }, []);
+
+  function bindRoomSession(token: string, label: string) {
+    setRoomToken(token);
+    setRoomLabel(label);
+    setDeliveryType("room");
+    try {
+      sessionStorage.setItem(ROOM_TOKEN_KEY, token);
+      sessionStorage.setItem(ROOM_LABEL_KEY, label);
+    } catch {
+      /* private mode */
+    }
+  }
+
+  function clearRoomSession() {
+    setRoomToken(null);
+    setRoomLabel(null);
+    try {
+      sessionStorage.removeItem(ROOM_TOKEN_KEY);
+      sessionStorage.removeItem(ROOM_LABEL_KEY);
+    } catch {
+      /* private mode */
+    }
+    if (deliveryType === "room") setDeliveryType("pickup");
+  }
 
   useEffect(() => {
     const hash = window.location.hash.replace(/^#/, "");
@@ -177,11 +229,13 @@ export function MenuOrderBoard({
         aria-live="polite"
         className="mx-auto max-w-lg rounded-2xl border border-mint-100 bg-mint-100/40 px-6 py-10 text-center"
       >
-        <h2 className="font-display text-2xl text-foreground">Order received</h2>
+        <h2 className="font-display text-2xl text-foreground">
+          {state.chargedToRoom ? "Charged to your room" : "Order received"}
+        </h2>
         <p className="mt-3 text-sm text-muted-foreground">
-          Total {formatBtn(state.totalBtn ?? 0)}. The desk will WhatsApp you a
-          confirmation with payment details — send the transfer journal number
-          back and the kitchen starts cooking.
+          {state.chargedToRoom
+            ? `Total ${formatBtn(state.totalBtn ?? 0)} posted to room ${state.roomLabel ?? ""}. Kitchen will deliver / you can collect — check out pays the folio.`
+            : `Total ${formatBtn(state.totalBtn ?? 0)}. The desk will WhatsApp you a confirmation with payment details — send the transfer journal number back and the kitchen starts cooking.`}
         </p>
         <p className="mt-4 font-mono text-lg text-foreground">
           {orderRef(state.orderId)}
@@ -202,9 +256,16 @@ export function MenuOrderBoard({
       onQty={setQty}
       onClear={() => setCart({})}
       deliveryType={deliveryType}
-      onDeliveryType={setDeliveryType}
+      onDeliveryType={(v) => {
+        if (v !== "room") clearRoomSession();
+        setDeliveryType(v);
+      }}
       deliveryArea={deliveryArea}
       onDeliveryArea={setDeliveryArea}
+      roomToken={roomToken}
+      roomLabel={roomLabel}
+      onRoomVerified={bindRoomSession}
+      onClearRoom={clearRoomSession}
       state={state}
       action={action}
       pending={pending}
@@ -483,6 +544,10 @@ function OrderCart({
   onDeliveryType,
   deliveryArea,
   onDeliveryArea,
+  roomToken,
+  roomLabel,
+  onRoomVerified,
+  onClearRoom,
   state,
   action,
   pending,
@@ -493,15 +558,20 @@ function OrderCart({
   ticket: Ticket | null;
   onQty: (id: string, next: number) => void;
   onClear: () => void;
-  deliveryType: "pickup" | "taxi";
-  onDeliveryType: (value: "pickup" | "taxi") => void;
+  deliveryType: "pickup" | "taxi" | "room";
+  onDeliveryType: (value: "pickup" | "taxi" | "room") => void;
   deliveryArea: string;
   onDeliveryArea: (value: string) => void;
+  roomToken: string | null;
+  roomLabel: string | null;
+  onRoomVerified: (token: string, label: string) => void;
+  onClearRoom: () => void;
   state: OrderActionState;
   action: (payload: FormData) => void;
   pending: boolean;
 }) {
   const empty = cartLines.length === 0;
+  const roomReady = deliveryType !== "room" || Boolean(roomToken && roomLabel);
 
   return (
     <form
@@ -515,12 +585,15 @@ function OrderCart({
         value={JSON.stringify(cartLines)}
         readOnly
       />
+      {roomToken ? (
+        <input type="hidden" name="guest_room_token" value={roomToken} />
+      ) : null}
 
       <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
         <div>
           <p className="font-semibold text-foreground">Your order</p>
           <p className="text-xs text-muted-foreground">
-            {ticket ? `${TICKET_LABEL[ticket]} ticket` : "Pickup or Thimphu taxi"}
+            {ticket ? `${TICKET_LABEL[ticket]} ticket` : "Pickup, room, or taxi"}
           </p>
         </div>
         {empty ? null : (
@@ -604,34 +677,18 @@ function OrderCart({
         ) : null}
 
         <fieldset className="mt-4 space-y-3" disabled={empty}>
-          <div className="grid gap-1.5">
-            <Label htmlFor="customer-name">Name</Label>
-            <Input
-              id="customer-name"
-              name="customer_name"
-              required
-              autoComplete="name"
-              maxLength={120}
-            />
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="phone">Phone</Label>
-            <Input
-              id="phone"
-              name="phone"
-              type="tel"
-              required
-              autoComplete="tel"
-              placeholder="+975 …"
-              maxLength={24}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {(["pickup", "taxi"] as const).map((option) => (
+          <div className="grid grid-cols-3 gap-2">
+            {(
+              [
+                ["pickup", "Pickup"],
+                ["room", "My room"],
+                ["taxi", "Taxi"],
+              ] as const
+            ).map(([option, label]) => (
               <label
                 key={option}
                 className={cn(
-                  "flex min-h-11 cursor-pointer items-center justify-center rounded-xl border text-sm font-medium capitalize transition-colors",
+                  "flex min-h-11 cursor-pointer items-center justify-center rounded-xl border px-1 text-center text-xs font-medium transition-colors sm:text-sm",
                   deliveryType === option
                     ? "border-sky-600 bg-sky-100 text-sky-700"
                     : "border-border text-foreground hover:bg-secondary",
@@ -645,10 +702,47 @@ function OrderCart({
                   onChange={() => onDeliveryType(option)}
                   className="sr-only"
                 />
-                {option === "taxi" ? "Taxi delivery" : "Pickup"}
+                {label}
               </label>
             ))}
           </div>
+
+          {deliveryType === "room" ? (
+            <RoomVerifyPanel
+              roomToken={roomToken}
+              roomLabel={roomLabel}
+              onVerified={onRoomVerified}
+              onClear={onClearRoom}
+            />
+          ) : null}
+
+          {deliveryType !== "room" ? (
+            <>
+              <div className="grid gap-1.5">
+                <Label htmlFor="customer-name">Name</Label>
+                <Input
+                  id="customer-name"
+                  name="customer_name"
+                  required
+                  autoComplete="name"
+                  maxLength={120}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  required
+                  autoComplete="tel"
+                  placeholder="+975 …"
+                  maxLength={24}
+                />
+              </div>
+            </>
+          ) : null}
+
           {deliveryType === "taxi" ? (
             <>
               <div className="grid gap-1.5">
@@ -699,15 +793,169 @@ function OrderCart({
           type="submit"
           variant="citrus"
           className="h-12 w-full text-[15px]"
-          disabled={pending || empty}
+          disabled={pending || empty || !roomReady}
         >
           {pending
             ? "Placing…"
             : empty
               ? "Add items to order"
-              : `Place order · ${formatBtn(totals.totalBtn)}`}
+              : !roomReady
+                ? "Verify room first"
+                : deliveryType === "room"
+                  ? `Charge room · ${formatBtn(totals.totalBtn)}`
+                  : `Place order · ${formatBtn(totals.totalBtn)}`}
         </Button>
       </div>
     </form>
+  );
+}
+
+const verifyInitial: VerifyGuestRoomState = { ok: false };
+
+function RoomVerifyPanel({
+  roomToken,
+  roomLabel,
+  onVerified,
+  onClear,
+}: {
+  roomToken: string | null;
+  roomLabel: string | null;
+  onVerified: (token: string, label: string) => void;
+  onClear: () => void;
+}) {
+  const [rooms, setRooms] = useState<string[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadingRooms, setLoadingRooms] = useState(true);
+  const [selectedRoom, setSelectedRoom] = useState("");
+  const [phone, setPhone] = useState("");
+  const [state, action, pending] = useActionState(
+    verifyGuestRoomForOrder,
+    verifyInitial,
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingRooms(true);
+    fetchInHouseRoomLabels()
+      .then((res) => {
+        if (cancelled) return;
+        if (res.ok) {
+          setRooms(res.rooms ?? []);
+          setLoadError(null);
+        } else {
+          setLoadError(res.error ?? "Could not load rooms.");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError("Could not load rooms.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingRooms(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (state.ok && state.token && state.roomLabel) {
+      onVerified(state.token, state.roomLabel);
+    }
+  }, [state.ok, state.token, state.roomLabel, onVerified]);
+
+  if (roomToken && roomLabel) {
+    return (
+      <div className="rounded-xl border border-mint-100 bg-mint-100/40 px-3 py-3 text-sm">
+        <p className="font-medium text-foreground">
+          In-house · Room {roomLabel}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Verified with the mobile number on your stay. Order charges this room’s
+          folio. No guest names are shown publicly.
+        </p>
+        <button
+          type="button"
+          onClick={onClear}
+          className="mt-2 text-xs font-medium text-sky-700 underline-offset-4 hover:underline"
+        >
+          Use a different room
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 rounded-xl border border-border bg-secondary/40 p-3">
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        Checked-in guests only. We list room numbers — never names. Confirm with
+        the mobile number used at check-in.
+      </p>
+      {loadingRooms ? (
+        <p className="text-xs text-muted-foreground">Loading rooms…</p>
+      ) : loadError ? (
+        <p className="text-xs text-destructive" role="alert">
+          {loadError}
+        </p>
+      ) : rooms.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          No rooms available for charge right now. Use pickup or call the desk.
+        </p>
+      ) : (
+        <div className="grid gap-3">
+          <div className="grid gap-1.5">
+            <Label htmlFor="room_label">Your room number</Label>
+            <select
+              id="room_label"
+              value={selectedRoom}
+              onChange={(e) => setSelectedRoom(e.target.value)}
+              required
+              className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm"
+            >
+              <option value="" disabled>
+                Select room…
+              </option>
+              {rooms.map((label) => (
+                <option key={label} value={label}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="verify-phone">Mobile on booking</Label>
+            <Input
+              id="verify-phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              required
+              autoComplete="tel"
+              placeholder="+975 …"
+              maxLength={24}
+              className="h-11"
+            />
+          </div>
+          {state.error ? (
+            <p className="text-xs text-destructive" role="alert">
+              {state.error}
+            </p>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            disabled={pending || !selectedRoom || !phone.trim()}
+            className="h-10 w-full"
+            onClick={() => {
+              const fd = new FormData();
+              fd.set("room_label", selectedRoom);
+              fd.set("phone", phone.trim());
+              action(fd);
+            }}
+          >
+            {pending ? "Checking…" : "Verify room"}
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }

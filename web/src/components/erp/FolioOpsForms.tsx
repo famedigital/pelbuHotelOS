@@ -10,6 +10,7 @@ import {
   postCompCredit,
   postFolioCheckInCharges,
   postFolioRoomNight,
+  postGuestRoundFigureAdj,
   promoteFolioToMaster,
   submitBankPaymentProof,
   transferFolioLine,
@@ -55,28 +56,96 @@ function Flash({ state }: { state: ErpFolioOpsState }) {
   );
 }
 
-export function VoidLineButton({ lineId }: { lineId: string }) {
+export function VoidLineButton({
+  lineId,
+  description,
+}: {
+  lineId: string;
+  description?: string;
+}) {
   const [state, action, pending] = useActionState(voidFolioLine, initial);
   useActionToast(state, { successMessage: "Folio line voided" });
   return (
-    <form action={action} className="erp mt-2 flex flex-wrap items-center gap-2">
+    <form action={action} className="erp mt-2 space-y-1.5">
       <input type="hidden" name="line_id" value={lineId} />
-      <Input
-        name="void_reason"
-        required
-        placeholder="Void reason"
-        className="min-w-[140px] flex-1 text-xs"
-      />
+      <p className="text-[11px] text-muted-foreground">
+        Wrong / duplicate / not served? Void removes this charge and credits the
+        folio (audit logged).
+        {description ? (
+          <span className="mt-0.5 block truncate text-foreground/80">
+            {description}
+          </span>
+        ) : null}
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          name="void_reason"
+          required
+          defaultValue=""
+          className={`${selectClass()} max-w-[240px] text-xs`}
+        >
+          <option value="" disabled>
+            Why void…
+          </option>
+          <option value="Not served">Not served</option>
+          <option value="Duplicate charge">Duplicate charge</option>
+          <option value="Wrong item">Wrong item</option>
+          <option value="Guest refused / returned">Guest refused / returned</option>
+          <option value="Charged wrong folio">Charged wrong folio</option>
+          <option value="Other — see notes">Other — see notes</option>
+        </select>
+        <Input
+          name="void_reason_detail"
+          placeholder="Optional notes"
+          className="min-w-[120px] flex-1 text-xs"
+        />
+        <Button
+          type="submit"
+          variant="ghost"
+          size="sm"
+          disabled={pending}
+          className="text-xs font-medium text-destructive hover:bg-destructive/5 hover:text-destructive"
+        >
+          {pending ? "Voiding…" : "Void line"}
+        </Button>
+        <PeriodOverrideFields idPrefix={`void-${lineId.slice(0, 8)}`} />
+      </div>
+      <Flash state={state} />
+    </form>
+  );
+}
+
+export function GuestRoundFigureForm({ folioId }: { folioId: string }) {
+  const [state, action, pending] = useActionState(
+    postGuestRoundFigureAdj,
+    initial,
+  );
+  useActionToast(state, { successMessage: "Rate round adj posted" });
+  return (
+    <form
+      action={action}
+      className="erp space-y-3 rounded-lg border bg-card p-4"
+    >
+      <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+        Round figure (rate adj)
+      </h3>
+      <p className="text-xs text-muted-foreground">
+        GST + service charge can leave chetrum decimals. This posts{" "}
+        <span className="font-medium text-foreground">
+          Adj · deducted from our rates (round figure)
+        </span>{" "}
+        so the guest pays a whole Nu — hotel absorbs the pennies.
+      </p>
+      <input type="hidden" name="folio_id" value={folioId} />
       <Button
         type="submit"
-        variant="ghost"
-        size="sm"
+        variant="outline"
         disabled={pending}
-        className="text-xs font-medium text-destructive hover:bg-destructive/5 hover:text-destructive"
+        className="h-10 w-full"
       >
-        {pending ? "Voiding…" : "Void"}
+        {pending ? "Posting…" : "Round charges to whole Nu"}
       </Button>
-      <PeriodOverrideFields idPrefix={`void-${lineId.slice(0, 8)}`} />
+      <PeriodOverrideFields idPrefix={`round-${folioId.slice(0, 8)}`} />
       <Flash state={state} />
     </form>
   );

@@ -8,6 +8,7 @@ import { DocPrintControls } from "@/components/erp/DocPrintControls";
 import { FiscalDocEmailForm } from "@/components/erp/FiscalDocEmailForm";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { guestVisibleBalanceLines } from "@/lib/folio/balance";
 import type { DocumentPaperSize } from "@/lib/property-settings";
 import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -36,7 +37,7 @@ export default async function FolioReceiptPage({ params, searchParams }: Props) 
   const { data: folio } = await admin
     .from("folios")
     .select(
-      "id, label, status, booking_id, created_at, property_id, folio_lines(description, amount_btn, total_btn, gst_btn, service_charge_btn, source_type, status)",
+      "id, label, status, booking_id, created_at, property_id, folio_lines(id, description, amount_btn, total_btn, gst_btn, service_charge_btn, source_type, status, reverses_line_id)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -97,15 +98,23 @@ export default async function FolioReceiptPage({ params, searchParams }: Props) 
     guestName = (booking?.contact_name as string | null) ?? null;
   }
 
-  const rawLines = ((folio.folio_lines as {
-    description: string;
-    amount_btn: number;
-    total_btn: number;
-    gst_btn: number;
-    service_charge_btn?: number;
-    source_type: string;
-    status: string;
-  }[] | null) ?? []).filter((line) => line.status === "posted");
+  const rawLines = guestVisibleBalanceLines(
+    ((folio.folio_lines as {
+      id: string;
+      description: string;
+      amount_btn: number;
+      total_btn: number;
+      gst_btn: number;
+      service_charge_btn?: number;
+      source_type: string;
+      status: string;
+      reverses_line_id?: string | null;
+    }[] | null) ?? []).map((line) => ({
+      ...line,
+      total_btn: Number(line.total_btn),
+      reverses_line_id: line.reverses_line_id ?? null,
+    })),
+  );
 
   const lines: ReceiptLine[] = rawLines.map((line) => {
     const isPayment =

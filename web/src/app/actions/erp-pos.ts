@@ -916,6 +916,19 @@ export async function updateOrderKotStatus(formData: FormData): Promise<void> {
   }
 
   const admin = createSupabaseAdminClient();
+  const property_id = await propertyId(admin);
+  const { actor } = await resolveDeskActor();
+  const nowIso = new Date().toISOString();
+
+  const { data: order } = await admin
+    .from("orders")
+    .select("id, property_id, voided_at")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (!order) throw new Error("Order not found.");
+  assertDeskProperty(property_id, order.property_id as string, "Order");
+  if (order.voided_at) throw new Error("Cannot update a voided order.");
+
   const patch: Record<string, unknown> = {
     kot_status: nextStatus,
     status:
@@ -925,15 +938,156 @@ export async function updateOrderKotStatus(formData: FormData): Promise<void> {
           ? "cancelled"
           : "preparing",
   };
+  if (nextStatus === "ready") {
+    patch.ready_at = nowIso;
+    patch.ready_by = actor;
+  }
+  if (nextStatus === "served") {
+    patch.served_at = nowIso;
+    patch.served_by = actor;
+    // Ready may have been skipped (desk shortcut).
+    patch.ready_at = patch.ready_at ?? nowIso;
+    patch.ready_by = patch.ready_by ?? actor;
+  }
+  if (nextStatus === "cancelled") {
+    // Status only — money voids go through voidOrder / voidOrderItem.
+  }
+
   const { error } = await admin.from("orders").update(patch).eq("id", orderId);
   if (error) {
     throw new Error("Could not update order status.");
   }
 
+  // Cascade live item status + who/when (audit for guest disputes at front desk).
+  const itemPatch: Record<string, unknown> = { kot_status: nextStatus };
+  if (nextStatus === "ready") {
+    itemPatch.ready_at = nowIso;
+    itemPatch.ready_by = actor;
+  }
+  if (nextStatus === "served") {
+    itemPatch.served_at = nowIso;
+    itemPatch.served_by = actor;
+    itemPatch.ready_at = nowIso;
+    itemPatch.ready_by = actor;
+  }
+
+  await admin
+    .from("order_items")
+    .update(itemPatch)
+    .eq("order_id", orderId)
+    .is("voided_at", null);
+
+  await writeAuditEvent(admin, {
+    propertyId: property_id,
+    action: "pos.kot.status",
+    entityType: "orders",
+    entityId: orderId,
+    summary: `KOT → ${nextStatus} by ${actor}`,
+    meta: { nextStatus, actor },
+  });
+
   revalidatePath("/erp");
   revalidatePath("/erp/pos");
   revalidatePath("/erp/kds");
   revalidatePath("/erp/kds/pass");
+  revalidatePath("/erp/folios");
+}
+
+/**
+ * Desk / waiter confirms a single line was served to the guest (who + when).
+ * Does not change money — only the serve audit used at collection.
+ */
+export async function markOrderItemServed(
+  _prev: PosActionState,
+  formData: FormData,
+): Promise<PosActionState> {
+  try {
+    await requireDesk();
+    const orderId = trimRequired(formData.get("order_id"), "Order");
+    const itemId = trimRequired(formData.get("order_item_id"), "Order item");
+
+    const admin = createSupabaseAdminClient();
+    const property_id = await propertyId(admin);
+    const { actor } = await resolveDeskActor();
+    const nowIso = new Date().toISOString();
+
+    const { data: order, error: orderError } = await admin
+      .from("orders")
+      .select("id, property_id, voided_at, kot_status")
+      .eq("id", orderId)
+      .single();
+    if (orderError || !order) throw new Error("Order not found.");
+    assertDeskProperty(property_id, order.property_id as string, "Order");
+    if (order.voided_at) throw new Error("Order is voided.");
+
+    const { data: item, error: itemError } = await admin
+      .from("order_items")
+      .select("id, order_id, voided_at, name_snapshot, served_at")
+      .eq("id", itemId)
+      .eq("order_id", orderId)
+      .single();
+    if (itemError || !item) throw new Error("Order item not found.");
+    if (item.voided_at) throw new Error("Item is already voided.");
+    if (item.served_at) {
+      return { ok: true, orderId, message: "Already marked served." };
+    }
+
+    const { error: patchError } = await admin
+      .from("order_items")
+      .update({
+        kot_status: "served",
+        served_at: nowIso,
+        served_by: actor,
+        ready_at: nowIso,
+        ready_by: actor,
+      })
+      .eq("id", itemId);
+    if (patchError) throw new Error("Could not mark item served.");
+
+    // If all live lines are served, promote the ticket.
+    const { data: live } = await admin
+      .from("order_items")
+      .select("id, kot_status, voided_at, served_at")
+      .eq("order_id", orderId)
+      .is("voided_at", null);
+    const allServed =
+      (live ?? []).length > 0 &&
+      (live ?? []).every(
+        (row) =>
+          row.served_at != null || (row.kot_status as string) === "served",
+      );
+    if (allServed) {
+      await admin
+        .from("orders")
+        .update({
+          kot_status: "served",
+          status: "completed",
+          served_at: nowIso,
+          served_by: actor,
+        })
+        .eq("id", orderId);
+    }
+
+    await writeAuditEvent(admin, {
+      propertyId: property_id,
+      action: "pos.item.served",
+      entityType: "order_items",
+      entityId: itemId,
+      summary: `Served ${item.name_snapshot as string} by ${actor}`,
+      meta: { orderId, actor },
+    });
+
+    revalidatePath("/erp");
+    revalidatePath("/erp/pos");
+    revalidatePath("/erp/kds");
+    revalidatePath("/erp/folios");
+    return { ok: true, orderId, message: "Marked served." };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Something went wrong.",
+    };
+  }
 }
 
 export async function postOrderToBookingFolio(formData: FormData): Promise<void> {
@@ -1348,6 +1502,7 @@ export type PosActionState = {
   ok: boolean;
   error?: string;
   orderId?: string;
+  message?: string;
 };
 
 export async function parkOrder(
@@ -1519,6 +1674,24 @@ export async function voidOrder(
       console.error("pos_voids insert failed", voidInsertError);
     }
 
+    // Room-charge orders already on a folio: reverse those charges so the guest
+    // is not billed for voided F&B (wrong item, never served, duplicate, etc.).
+    try {
+      const { voidFolioLinesForOrder } = await import("@/lib/folio/void-line");
+      await voidFolioLinesForOrder(admin, property_id, {
+        orderId,
+        reason: `POS void · ${reasonCode}${reasonText ? ` · ${reasonText}` : ""}`,
+        voidedBy: actor,
+      });
+    } catch (folioVoidErr) {
+      console.error("folio reverse after POS void failed", folioVoidErr);
+      throw new Error(
+        folioVoidErr instanceof Error
+          ? `Order voided in POS, but folio reverse failed: ${folioVoidErr.message}`
+          : "Order voided in POS, but folio reverse failed.",
+      );
+    }
+
     if (order.table_id) {
       await admin
         .from("dining_tables")
@@ -1618,6 +1791,7 @@ export async function voidOrderItem(
       .update({
         voided_at: nowIso,
         void_reason: reasonText ?? reasonCode,
+        kot_status: "cancelled",
       })
       .eq("id", itemId);
     if (patchItemError) throw new Error("Could not void item.");
@@ -1685,8 +1859,69 @@ export async function voidOrderItem(
       meta: { orderId, lineAmount, reasonCode },
     });
 
+    // If order was already charged to room, reverse folio post and re-post remaining.
+    const { data: orderAfter } = await admin
+      .from("orders")
+      .select(
+        "id, total_btn, posted_to_folio_at, settled_at, folio_id, booking_id, outlet, customer_name, subtotal_btn, service_charge_rate, service_charge_btn, service_charge_applied, service_charge_reason, gst_btn, property_id",
+      )
+      .eq("id", orderId)
+      .single();
+
+    if (
+      orderAfter &&
+      orderAfter.posted_to_folio_at &&
+      Number(orderAfter.total_btn) >= 0
+    ) {
+      const { voidFolioLinesForOrder } = await import("@/lib/folio/void-line");
+      await voidFolioLinesForOrder(admin, property_id, {
+        orderId,
+        reason: `POS item void · ${item.name_snapshot as string} · ${reasonCode}`,
+        voidedBy: actor,
+      });
+
+      const remainingTotal = Number(orderAfter.total_btn);
+      if (
+        remainingTotal > 0.009 &&
+        orderAfter.folio_id &&
+        orderAfter.booking_id
+      ) {
+        const { data: liveForDesc } = await admin
+          .from("order_items")
+          .select("qty, name_snapshot")
+          .eq("order_id", orderId)
+          .is("voided_at", null);
+        const description = (liveForDesc ?? [])
+          .map((row) => `${row.qty}× ${row.name_snapshot}`)
+          .join(", ");
+        await postFolioCharge(admin, property_id, {
+          folio_id: orderAfter.folio_id as string,
+          booking_id: orderAfter.booking_id as string,
+          source_type: "order",
+          source_id: orderId,
+          description: `Desk ${orderAfter.outlet as string}: ${description || "balance after void"}`,
+          qty: 1,
+          unit_price_btn: Number(orderAfter.subtotal_btn),
+          amount_btn: Number(orderAfter.subtotal_btn),
+          service_charge_rate: Number(orderAfter.service_charge_rate ?? 0),
+          service_charge_btn: Number(orderAfter.service_charge_btn ?? 0),
+          service_charge_applied: Boolean(orderAfter.service_charge_applied),
+          service_charge_reason: orderAfter.service_charge_reason as string | null,
+          gst_applicable: Number(orderAfter.gst_btn) > 0,
+          gst_btn: Number(orderAfter.gst_btn ?? 0),
+          total_btn: remainingTotal,
+        });
+      } else if (remainingTotal <= 0.009) {
+        await admin
+          .from("orders")
+          .update({ posted_to_folio_at: null })
+          .eq("id", orderId);
+      }
+    }
+
     revalidatePath("/erp");
     revalidatePath("/erp/pos");
+    revalidatePath("/erp/folios");
     return { ok: true, orderId };
   } catch (err) {
     return {

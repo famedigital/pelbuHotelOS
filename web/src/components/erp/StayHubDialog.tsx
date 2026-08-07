@@ -27,6 +27,7 @@ import {
   type FastBookVoucherData,
 } from "@/components/erp/FastBookVoucher";
 import { FolioPaymentForm } from "@/components/erp/FolioPaymentForm";
+import { FolioRoomPosItemsPanel } from "@/components/erp/FolioRoomPosItemsPanel";
 import {
   IssueInvoiceButton,
   PostCheckInChargesForm,
@@ -35,6 +36,7 @@ import {
 import { InhouseTaskQuickForm } from "@/components/erp/InhouseTasksPanel";
 import { RoomNcForm } from "@/components/erp/RoomNcForm";
 import { AgreedRateForm } from "@/components/erp/AgreedRateForm";
+import { GuestRatePromoForm } from "@/components/erp/GuestRatePromoForm";
 import type { RackStay, RackUnit } from "@/components/erp/RoomRackGrid";
 import { StayMoneyCycleLegend } from "@/components/erp/StayMoneyCycleLegend";
 import {
@@ -1075,6 +1077,24 @@ export function StayHubDialog({
                         />
                       </WorkSection>
 
+                      <WorkSection title="Guest rate code">
+                        <GuestRatePromoForm
+                          bookingId={summary.bookingId}
+                          defaultNightlyRateBtn={summary.agreedNightlyRateBtn}
+                          defaultEmail={summary.contactEmail}
+                          guestName={summary.contactName}
+                          onSuccess={() => {
+                            void fetchStayHubSummary(
+                              summary.bookingId,
+                              summary.assignmentId,
+                            ).then((result) => {
+                              if (result.ok) applySummary(result.data, false);
+                            });
+                            router.refresh();
+                          }}
+                        />
+                      </WorkSection>
+
                       {!terminal ? (
                         <WorkSection title="Cancel / no-show">
                           <BookingLifecycleActions
@@ -1263,6 +1283,26 @@ export function StayHubDialog({
                         </WorkSection>
                       ) : null}
 
+                      {isInHouse || panel === "stay_money" ? (
+                        <WorkSection title="Guest rate code">
+                          <GuestRatePromoForm
+                            bookingId={summary.bookingId}
+                            defaultNightlyRateBtn={summary.agreedNightlyRateBtn}
+                            defaultEmail={summary.contactEmail}
+                            guestName={summary.contactName}
+                            onSuccess={() => {
+                              void fetchStayHubSummary(
+                                summary.bookingId,
+                                summary.assignmentId,
+                              ).then((result) => {
+                                if (result.ok) applySummary(result.data, false);
+                              });
+                              router.refresh();
+                            }}
+                          />
+                        </WorkSection>
+                      ) : null}
+
                       {folioId ? (
                         <>
                           {isInHouse && !money?.hasCharges ? (
@@ -1291,6 +1331,19 @@ export function StayHubDialog({
                               />
                             </WorkSection>
                           </div>
+                          <WorkSection title="Room F&B (POS items)">
+                            <FolioRoomPosItemsPanel
+                              orders={money?.roomPosOrders ?? []}
+                              onChanged={() => {
+                                void fetchStayHubMoney(summary.bookingId).then(
+                                  (r) => {
+                                    if (r.ok) setMoney(r.data);
+                                  },
+                                );
+                                router.refresh();
+                              }}
+                            />
+                          </WorkSection>
                           <WorkSection title="Invoice">
                             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                               <IssueInvoiceButton

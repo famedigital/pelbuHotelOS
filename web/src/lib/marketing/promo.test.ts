@@ -35,8 +35,8 @@ describe("applyPromoBenefit", () => {
   it("applies 50% for TikTok-style pct", () => {
     assert.equal(applyPromoBenefit(1000, "pct", 50), 500);
   });
-  it("caps fixed discount to amount", () => {
-    assert.equal(applyPromoBenefit(100, "fixed_btn", 150), 100);
+  it("nightly_rate_btn is not a cash discount", () => {
+    assert.equal(applyPromoBenefit(1000, "nightly_rate_btn", 2000), 0);
   });
 });
 
@@ -69,6 +69,17 @@ describe("stayLevelPromoDiscountPct", () => {
         benefitType: "fixed_btn",
         discountBtn: 100,
         preDiscountBtn: 0,
+      }),
+      null,
+    );
+  });
+  it("nightly_rate_btn does not set stay-level %", () => {
+    assert.equal(
+      stayLevelPromoDiscountPct({
+        benefitType: "nightly_rate_btn",
+        benefitValue: 2000,
+        discountBtn: 0,
+        preDiscountBtn: 4620,
       }),
       null,
     );

@@ -867,9 +867,11 @@ function TicketGroup({
                     : ""}
                   {t.order_source === "public" && t.delivery_type === "taxi"
                     ? ` · taxi ${t.delivery_area ?? "Thimphu"}`
-                    : t.order_source === "public"
-                      ? " · pickup"
-                      : ""}
+                    : t.order_source === "public" && t.delivery_type === "room"
+                      ? ` · room ${t.delivery_area ?? ""}`
+                      : t.order_source === "public"
+                        ? " · pickup"
+                        : ""}
                   {t.order_source !== "public"
                     ? ""
                     : !t.confirmed_at

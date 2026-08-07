@@ -2,11 +2,13 @@
 
 export function applyPromoBenefit(
   amountBtn: number,
-  benefitType: "pct" | "fixed_btn",
+  benefitType: "pct" | "fixed_btn" | "nightly_rate_btn",
   benefitValue: number,
   maxDiscountBtn?: number | null,
 ): number {
   const amount = Math.max(0, Number(amountBtn) || 0);
+  // nightly_rate_btn is a rate override, not a cash discount against a quote.
+  if (benefitType === "nightly_rate_btn") return 0;
   let discount =
     benefitType === "pct"
       ? Math.round(
@@ -28,11 +30,13 @@ export function applyPromoBenefit(
  *   nightly posters (which only read %) still cascade the discount
  */
 export function stayLevelPromoDiscountPct(args: {
-  benefitType?: "pct" | "fixed_btn" | string | null;
+  benefitType?: "pct" | "fixed_btn" | "nightly_rate_btn" | string | null;
   benefitValue?: number | null;
   discountBtn: number;
   preDiscountBtn: number;
 }): number | null {
+  // Agreed nightly rate is applied via bookings.agreed_nightly_rate_btn — not % off.
+  if (args.benefitType === "nightly_rate_btn") return null;
   if (args.benefitType === "pct") {
     const v = Number(args.benefitValue ?? 0);
     if (!Number.isFinite(v) || v <= 0) return null;

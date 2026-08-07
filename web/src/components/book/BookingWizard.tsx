@@ -135,7 +135,7 @@ export function BookingWizard({
     /* eslint-disable react-hooks/set-state-in-effect -- fetch lifecycle */
     setPreviewLoading(true);
     setPreviewError(null);
-    previewStayCost({ checkIn, checkOut, rooms })
+    previewStayCost({ checkIn, checkOut, rooms, adults })
       .then((res) => {
         if (cancelled) return;
         if (res.ok) {
@@ -177,7 +177,7 @@ export function BookingWizard({
     return () => {
       cancelled = true;
     };
-  }, [checkIn, checkOut, rooms, datesValid]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [checkIn, checkOut, rooms, adults, datesValid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const options: RoomOption[] = preview?.options ?? [];
   const selectedOption = options.find((o) => o.code === selectedCode) ?? null;

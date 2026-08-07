@@ -158,8 +158,14 @@ export async function upsertPromoCode(
     const code = trimRequired(formData.get("code"), "Code").toUpperCase();
     const name = trimRequired(formData.get("name"), "Name");
     const benefitType = trimRequired(formData.get("benefit_type"), "Benefit type");
-    if (benefitType !== "pct" && benefitType !== "fixed_btn") {
-      throw new Error("Benefit type must be pct or fixed_btn.");
+    if (
+      benefitType !== "pct" &&
+      benefitType !== "fixed_btn" &&
+      benefitType !== "nightly_rate_btn"
+    ) {
+      throw new Error(
+        "Benefit type must be pct, fixed_btn, or nightly_rate_btn (guest rate).",
+      );
     }
     const benefitValue = Number(
       trimRequired(formData.get("benefit_value"), "Benefit value"),
@@ -169,6 +175,9 @@ export async function upsertPromoCode(
     }
     if (benefitType === "pct" && benefitValue > 100) {
       throw new Error("Percent benefit cannot exceed 100.");
+    }
+    if (benefitType === "nightly_rate_btn" && benefitValue > 500_000) {
+      throw new Error("Nightly rate looks too high — check the figure.");
     }
     const campaignId = optionalTrim(formData.get("campaign_id"));
     const maxRedemptionsRaw = optionalTrim(formData.get("max_redemptions"));

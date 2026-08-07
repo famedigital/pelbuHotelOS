@@ -92,6 +92,8 @@ export async function computeTokenRequiredBtn(
     checkIn: string;
     roomLines: { roomTypeId: string; qty: number }[];
     rateTier?: RateTier;
+    /** For occupancy (1 adult → single sheet rate when set). */
+    adults?: number;
     estimatedStayTotalBtn?: number;
   },
 ): Promise<number> {
@@ -119,6 +121,7 @@ export async function computeTokenRequiredBtn(
             seasonKind,
             tier,
             roomLines: args.roomLines,
+            adults: args.adults,
           })) * 2;
     const pct = rule.percent ?? 20;
     modeAmount = (stay * pct) / 100;
@@ -128,6 +131,7 @@ export async function computeTokenRequiredBtn(
       seasonKind,
       tier,
       roomLines: args.roomLines,
+      adults: args.adults,
     });
   }
 
@@ -142,6 +146,7 @@ async function estimateOneNightTotal(
     seasonKind: SeasonKind;
     tier: RateTier;
     roomLines: { roomTypeId: string; qty: number }[];
+    adults?: number;
   },
 ): Promise<number> {
   const taxSettings = await loadRoomRateTaxSettings(admin, args.propertyId);
@@ -152,6 +157,7 @@ async function estimateOneNightTotal(
       roomTypeId: line.roomTypeId,
       seasonKind: args.seasonKind,
       rateTier: args.tier,
+      adults: args.adults,
     });
     if (rate == null) continue;
     const nightAllIn = calculateRoomNightTax(rate, taxSettings).totalBtn;

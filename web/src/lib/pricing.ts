@@ -35,6 +35,31 @@ export function roundBtn(amount: number): number {
   return Math.round((amount + Number.EPSILON) * 100) / 100;
 }
 
+/**
+ * Guest-facing whole Nu total after GST/SC.
+ * Uses nearest Nu, but never above the accurate tax total (guest does not pay up).
+ */
+export function roundGuestWholeBtn(amount: number): number {
+  const a = roundBtn(amount);
+  if (!Number.isFinite(a)) return 0;
+  const nearest = Math.round(a);
+  if (nearest > a + 1e-9) return Math.floor(a + 1e-9);
+  return nearest;
+}
+
+/**
+ * Hotel-absorbed credit (≤ 0) so guest-facing sum is whole Nu.
+ * Zero when already a whole figure.
+ */
+export function guestRateAbsorbBtn(accurateTotal: number): number {
+  const accurate = roundBtn(accurateTotal);
+  return roundBtn(roundGuestWholeBtn(accurate) - accurate);
+}
+
+/** Folio/invoice label for the absorb line (hotel rates, not guest discount marketing). */
+export const GUEST_RATE_ADJ_DESCRIPTION =
+  "Adj · deducted from our rates (round figure)";
+
 /** Sum of modifier unit prices for one cart line (qty of line applied outside). */
 export function modifierUnitTotal(modifiers: LineModifierForGst[] | undefined): number {
   if (!modifiers?.length) return 0;

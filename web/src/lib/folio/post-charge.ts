@@ -6,6 +6,10 @@ import {
   postFolioLine,
 } from "@/lib/accounting/posting";
 import type { PostingResult } from "@/lib/accounting/types";
+import {
+  GUEST_RATE_ADJ_DESCRIPTION,
+  guestRateAbsorbBtn,
+} from "@/lib/pricing";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export { allocateSplitGst } from "@/lib/folio/split-gst";
@@ -38,6 +42,11 @@ export type FolioChargeInput = {
   /** Journal date override (YYYY-MM-DD or ISO). */
   journal_date?: string | null;
   period_guard?: PeriodGuardOptions;
+  /**
+   * Skip auto whole-Nu rate absorb (used for the rate-adj line itself).
+   * Default: auto-adj on positive fractional charges.
+   */
+  skip_guest_rate_adj?: boolean;
 };
 
 /** Default payor for a charge source when caller does not set bill_to. */
@@ -171,6 +180,47 @@ export async function postFolioCharge(
   if (!gl.ok) {
     await admin.from("folio_lines").delete().eq("id", line.id);
     throw new Error(gl.error ?? "Could not post charge to ledger.");
+  }
+
+  const totalPosted = Number(line.total_btn);
+  const skipAdj =
+    input.skip_guest_rate_adj ||
+    totalPosted <= 0 ||
+    input.is_comp ||
+    input.source_type === "comp" ||
+    input.source_type === "payment" ||
+    input.source_type === "deposit" ||
+    input.source_type === "adjustment";
+
+  if (!skipAdj) {
+    const absorbBtn = guestRateAbsorbBtn(totalPosted);
+    if (absorbBtn < -0.009) {
+      try {
+        // Second insert via same function — skip_guest_rate_adj prevents recursion.
+        await postFolioCharge(admin, propertyId, {
+          folio_id: input.folio_id,
+          booking_id: input.booking_id ?? null,
+          source_type: "adjustment",
+          source_id: line.id as string,
+          description: GUEST_RATE_ADJ_DESCRIPTION,
+          qty: 1,
+          unit_price_btn: absorbBtn,
+          amount_btn: absorbBtn,
+          gst_applicable: false,
+          gst_btn: 0,
+          total_btn: absorbBtn,
+          bill_to: billTo,
+          period_guard: input.period_guard,
+          skip_guest_rate_adj: true,
+        });
+      } catch (adjErr) {
+        throw new Error(
+          adjErr instanceof Error
+            ? `Charge posted, but rate round adj failed: ${adjErr.message}`
+            : "Charge posted, but rate round adj failed.",
+        );
+      }
+    }
   }
 
   return {

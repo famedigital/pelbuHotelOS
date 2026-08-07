@@ -27,7 +27,7 @@ export type PromoPreviewResult = {
   code?: string;
   discount_btn?: number;
   post_discount_btn?: number;
-  benefit_type?: "pct" | "fixed_btn";
+  benefit_type?: "pct" | "fixed_btn" | "nightly_rate_btn";
   benefit_value?: number;
   redeemed_count?: number;
   max_redemptions?: number | null;
@@ -55,7 +55,9 @@ function asResult(raw: unknown): PromoPreviewResult {
     post_discount_btn:
       r.post_discount_btn != null ? Number(r.post_discount_btn) : undefined,
     benefit_type:
-      r.benefit_type === "pct" || r.benefit_type === "fixed_btn"
+      r.benefit_type === "pct" ||
+      r.benefit_type === "fixed_btn" ||
+      r.benefit_type === "nightly_rate_btn"
         ? r.benefit_type
         : undefined,
     benefit_value:

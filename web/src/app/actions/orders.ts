@@ -1,5 +1,10 @@
 "use server";
 
+import { postFolioCharge } from "@/lib/folio/post-charge";
+import {
+  assertActiveGuestRoomSession,
+  openGuestRoomSession,
+} from "@/lib/guest-room-auth";
 import { isValidThimphuArea } from "@/lib/delivery-areas";
 import { notifyNewOrder } from "@/lib/notify";
 import { loadMenuStockMap } from "@/lib/menu-stock";
@@ -18,6 +23,9 @@ export type OrderActionState = {
   ok: boolean;
   orderId?: string;
   totalBtn?: number;
+  /** True when charge posted to in-house folio. */
+  chargedToRoom?: boolean;
+  roomLabel?: string;
   error?: string;
 };
 
@@ -69,6 +77,40 @@ function parseCart(raw: FormDataEntryValue | null): CartLineInput[] {
   return lines;
 }
 
+async function ensureOpenFolioForBooking(
+  admin: ReturnType<typeof createSupabaseAdminClient>,
+  propertyId: string,
+  bookingId: string,
+  label: string,
+): Promise<string> {
+  const { data: existing } = await admin
+    .from("folios")
+    .select("id")
+    .eq("booking_id", bookingId)
+    .eq("property_id", propertyId)
+    .eq("status", "open")
+    .order("created_at")
+    .limit(1)
+    .maybeSingle();
+  if (existing?.id) return existing.id as string;
+
+  const { data: folio, error } = await admin
+    .from("folios")
+    .insert({
+      property_id: propertyId,
+      booking_id: bookingId,
+      folio_type: "guest",
+      label,
+      status: "open",
+    })
+    .select("id")
+    .single();
+  if (error || !folio) {
+    throw new Error("Could not open a room folio. Please call the desk.");
+  }
+  return folio.id as string;
+}
+
 export async function createOrder(
   _prev: OrderActionState,
   formData: FormData,
@@ -86,33 +128,17 @@ export async function createOrder(
       };
     }
 
-    const customerName = trimRequired(formData.get("customer_name"), "Full name");
-    const phone = trimRequired(formData.get("phone"), "Phone");
-    assertPhone(phone);
-
     const deliveryTypeRaw = trimRequired(
       formData.get("delivery_type"),
       "Delivery option",
     );
-    if (deliveryTypeRaw !== "pickup" && deliveryTypeRaw !== "taxi") {
-      throw new Error("Choose pickup or taxi delivery.");
+    if (
+      deliveryTypeRaw !== "pickup" &&
+      deliveryTypeRaw !== "taxi" &&
+      deliveryTypeRaw !== "room"
+    ) {
+      throw new Error("Choose pickup, room charge, or taxi delivery.");
     }
-
-    const deliveryArea = optionalTrim(formData.get("delivery_area"));
-    const deliveryAddress = optionalTrim(formData.get("delivery_address"));
-    if (deliveryTypeRaw === "taxi") {
-      if (!isValidThimphuArea(deliveryArea)) {
-        throw new Error(
-          "Taxi delivery is Thimphu only. Choose a Thimphu area first.",
-        );
-      }
-      if (!deliveryAddress) {
-        throw new Error("Add a landmark or detail address for taxi delivery.");
-      }
-    }
-
-    const notes = optionalTrim(formData.get("notes"));
-    const cart = parseCart(formData.get("cart"));
 
     const admin = createSupabaseAdminClient();
 
@@ -125,13 +151,90 @@ export async function createOrder(
     if (propertyError || !property) {
       throw new Error("Hotel property is not configured. Please call the cafe.");
     }
+    const propertyId = property.id as string;
+
+    let customerName = "";
+    let phone = "";
+    let bookingId: string | null = null;
+    let roomUnitId: string | null = null;
+    let roomLabel: string | null = null;
+    let folioId: string | null = null;
+    let notes = optionalTrim(formData.get("notes"));
+    let deliveryArea = optionalTrim(formData.get("delivery_area"));
+    let deliveryAddress = optionalTrim(formData.get("delivery_address"));
+
+    if (deliveryTypeRaw === "room") {
+      const token = trimRequired(
+        formData.get("guest_room_token"),
+        "Room verification",
+      );
+      const session = openGuestRoomSession(token);
+      if (!session || session.propertyId !== propertyId) {
+        throw new Error(
+          "Room verification expired or invalid. Verify your room again.",
+        );
+      }
+      const stillActive = await assertActiveGuestRoomSession(admin, session);
+      if (!stillActive) {
+        throw new Error(
+          "That room is no longer checked in. Call the desk if you need help.",
+        );
+      }
+
+      bookingId = session.bookingId;
+      roomUnitId = session.roomUnitId;
+      roomLabel = session.roomLabel;
+
+      const { data: booking } = await admin
+        .from("bookings")
+        .select("contact_name, contact_phone")
+        .eq("id", bookingId)
+        .eq("property_id", propertyId)
+        .maybeSingle();
+
+      // Never trust client-supplied name/phone for room charge — use stay record.
+      customerName =
+        (booking?.contact_name as string | null)?.trim() || `Room ${roomLabel}`;
+      phone = (booking?.contact_phone as string | null)?.trim() || "room";
+      deliveryArea = roomLabel;
+      deliveryAddress = null;
+      notes = notes
+        ? `[Room ${roomLabel}] ${notes}`
+        : `In-house order · Room ${roomLabel}`;
+
+      folioId = await ensureOpenFolioForBooking(
+        admin,
+        propertyId,
+        bookingId,
+        `Room ${roomLabel}`,
+      );
+    } else {
+      customerName = trimRequired(formData.get("customer_name"), "Full name");
+      phone = trimRequired(formData.get("phone"), "Phone");
+      assertPhone(phone);
+
+      if (deliveryTypeRaw === "taxi") {
+        if (!isValidThimphuArea(deliveryArea)) {
+          throw new Error(
+            "Taxi delivery is Thimphu only. Choose a Thimphu area first.",
+          );
+        }
+        if (!deliveryAddress) {
+          throw new Error("Add a landmark or detail address for taxi delivery.");
+        }
+      }
+    }
+
+    const cart = parseCart(formData.get("cart"));
 
     const ids = [...new Set(cart.map((line) => line.menuItemId))];
     const { data: menuRows, error: menuError } = await admin
       .from("menu_items")
-      .select("id, name, price_btn, gst_applicable, outlet, is_available, property_id")
+      .select(
+        "id, name, price_btn, gst_applicable, outlet, is_available, property_id",
+      )
       .in("id", ids)
-      .eq("property_id", property.id)
+      .eq("property_id", propertyId)
       .eq("is_available", true);
 
     if (menuError || !menuRows) {
@@ -140,10 +243,12 @@ export async function createOrder(
     }
 
     if (menuRows.length !== ids.length) {
-      throw new Error("One or more items are no longer available. Refresh the menu.");
+      throw new Error(
+        "One or more items are no longer available. Refresh the menu.",
+      );
     }
 
-    const stock = await loadMenuStockMap(admin, property.id as string, ids);
+    const stock = await loadMenuStockMap(admin, propertyId, ids);
     for (const id of ids) {
       const required = cart
         .filter((line) => line.menuItemId === id)
@@ -173,7 +278,6 @@ export async function createOrder(
         "Restaurant and cafe items use separate kitchen tickets. Place them as separate orders.",
       );
     }
-    // Cafe + pastry share a public ticket; restaurant routes to its own KOT.
     const outlet = hasRestaurant
       ? "restaurant"
       : outlets.has("cafe")
@@ -202,21 +306,37 @@ export async function createOrder(
       })),
     );
 
+    const nowIso = new Date().toISOString();
+    const isRoom = deliveryTypeRaw === "room";
+
     const { data: order, error: orderError } = await admin
       .from("orders")
       .insert({
-        property_id: property.id,
+        property_id: propertyId,
         outlet,
         customer_name: customerName,
         phone,
         delivery_type: deliveryTypeRaw,
-        delivery_area: deliveryTypeRaw === "taxi" ? deliveryArea : null,
+        delivery_area:
+          deliveryTypeRaw === "taxi" || deliveryTypeRaw === "room"
+            ? deliveryArea
+            : null,
         delivery_address: deliveryTypeRaw === "taxi" ? deliveryAddress : null,
         notes,
         status: "received",
+        order_source: "public",
         subtotal_btn: subtotalBtn,
         gst_btn: gstBtn,
         total_btn: totalBtn,
+        booking_id: bookingId,
+        room_unit_id: roomUnitId,
+        folio_id: folioId,
+        ...(isRoom && folioId
+          ? {
+              posted_to_folio_at: nowIso,
+              settled_at: nowIso,
+            }
+          : {}),
       })
       .select("id")
       .single();
@@ -243,24 +363,73 @@ export async function createOrder(
       throw new Error("Could not save order items. Please try again.");
     }
 
+    if (isRoom && folioId && bookingId && totalBtn > 0) {
+      const description = priced
+        .map((line) => `${line.qty}× ${line.name}`)
+        .join(", ");
+      try {
+        await postFolioCharge(admin, propertyId, {
+          folio_id: folioId,
+          booking_id: bookingId,
+          source_type: "order",
+          source_id: order.id as string,
+          description: `Room ${roomLabel}: ${description}`,
+          qty: 1,
+          unit_price_btn: subtotalBtn,
+          amount_btn: subtotalBtn,
+          gst_applicable: gstBtn > 0,
+          gst_btn: gstBtn,
+          total_btn: totalBtn,
+          room_unit_id: roomUnitId,
+          bill_to: "guest",
+        });
+        await admin.from("order_tenders").insert({
+          order_id: order.id,
+          method: "room_charge",
+          amount_btn: totalBtn,
+          folio_id: folioId,
+          booking_id: bookingId,
+        });
+      } catch (e) {
+        console.error("createOrder room charge failed", e);
+        await admin.from("orders").delete().eq("id", order.id);
+        throw new Error(
+          e instanceof Error
+            ? e.message
+            : "Could not charge your room. Please call the desk.",
+        );
+      }
+    }
+
     const itemSummary = priced
       .map((line) => `${line.qty}× ${line.name}`)
       .join(", ");
 
     await notifyNewOrder({
-      orderId: order.id,
-      customerName,
-      phone,
-      deliveryType: deliveryTypeRaw,
-      deliveryArea: deliveryTypeRaw === "taxi" ? deliveryArea : null,
+      orderId: order.id as string,
+      customerName: isRoom ? `Room ${roomLabel}` : customerName,
+      phone: isRoom ? `Room ${roomLabel}` : phone,
+      deliveryType: deliveryTypeRaw === "room" ? "pickup" : deliveryTypeRaw,
+      deliveryArea:
+        deliveryTypeRaw === "taxi" || deliveryTypeRaw === "room"
+          ? deliveryArea
+          : null,
       deliveryAddress,
       outlet,
       totalBtn,
-      itemSummary,
+      itemSummary: isRoom
+        ? `[ROOM ${roomLabel}] ${itemSummary}`
+        : itemSummary,
       notes,
     });
 
-    return { ok: true, orderId: order.id, totalBtn };
+    return {
+      ok: true,
+      orderId: order.id as string,
+      totalBtn,
+      chargedToRoom: isRoom,
+      roomLabel: roomLabel ?? undefined,
+    };
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Something went wrong. Please try again.";

@@ -366,10 +366,15 @@ export function PromoForm({
         >
           <option value="pct">Percent off</option>
           <option value="fixed_btn">Fixed Nu off</option>
+          <option value="nightly_rate_btn">
+            Guest rate Nu / night (agreed)
+          </option>
         </select>
       </label>
       <label className="space-y-1.5 text-sm">
-        <span className="text-muted-foreground">Benefit value</span>
+        <span className="text-muted-foreground">
+          Benefit value (Nu/night when guest rate)
+        </span>
         <Input
           name="benefit_value"
           type="number"
@@ -632,7 +637,9 @@ export function PromoTable({
               <td className="px-3 py-2">
                 {r.benefit_type === "pct"
                   ? `${r.benefit_value}%`
-                  : formatBtn(Number(r.benefit_value))}
+                  : r.benefit_type === "nightly_rate_btn"
+                    ? `Nu ${r.benefit_value}/night`
+                    : formatBtn(Number(r.benefit_value))}
               </td>
               <td className="px-3 py-2 tabular-nums">
                 {r.redeemed_count}

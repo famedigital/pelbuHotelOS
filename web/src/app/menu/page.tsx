@@ -37,10 +37,11 @@ function parseOutlet(value?: string): OutletFilter | undefined {
 export default async function MenuPage({
   searchParams,
 }: {
-  searchParams: Promise<{ outlet?: string; menu?: string }>;
+  searchParams: Promise<{ outlet?: string; menu?: string; deliver?: string }>;
 }) {
   const params = await searchParams;
   const initialOutlet = parseOutlet(params.outlet ?? params.menu);
+  const preferRoomDelivery = params.deliver === "room";
   const [page, items] = await Promise.all([
     loadCmsPage("dine"),
     loadMenuByOutlets([...OUTLET_FILTERS]),
@@ -99,8 +100,7 @@ export default async function MenuPage({
                   : "Menu"}
               </h1>
               <p className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-                Cafe, pastry, restaurant and bar — add dishes and order for
-                pickup or Thimphu taxi delivery.
+                Pickup, charge your in-house room, or Thimphu taxi.
               </p>
               {page?.hours_note ? (
                 <p className="hidden shrink-0 rounded-full bg-mint-100/60 px-3 py-1 text-xs text-mint-600 xl:block">
@@ -116,7 +116,11 @@ export default async function MenuPage({
             </p>
           ) : (
             <div className="pt-4 md:pt-5">
-              <MenuOrderBoard items={items} initialOutlet={initialOutlet} />
+              <MenuOrderBoard
+                items={items}
+                initialOutlet={initialOutlet}
+                preferRoomDelivery={preferRoomDelivery}
+              />
             </div>
           )}
         </div>
