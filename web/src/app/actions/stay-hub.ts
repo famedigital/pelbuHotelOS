@@ -75,6 +75,10 @@ export type StayHubSummary = {
   chargeable: boolean;
   ncReasonCode: string | null;
   roomNcReasons: { code: string; label: string }[];
+  /** Manager-approved nightly rate (null = use rate sheet). */
+  agreedNightlyRateBtn: number | null;
+  agreedRateReason: string | null;
+  mealPlanCode: string | null;
 };
 
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -95,7 +99,8 @@ export async function fetchStayHubSummary(
       `
       id, contact_name, contact_phone, contact_email, status, check_in, check_out,
       adults, rooms, guide_number, guest_origin, source, notes, agent_id, payment_mode,
-      booked_by_role, sold_by_staff_id, sales_claim_status,
+      booked_by_role, sold_by_staff_id, sales_claim_status, meal_plan_code,
+      agreed_nightly_rate_btn, agreed_rate_reason,
       agents(company_name),
       sold_by_staff:staff_members!sold_by_staff_id(full_name),
       booking_guests(full_name, passport_or_cid, nationality, sdf_ref),
@@ -260,6 +265,12 @@ export async function fetchStayHubSummary(
       chargeable: preferred?.chargeable !== false,
       ncReasonCode: (preferred?.nc_reason_code as string | null) ?? null,
       roomNcReasons,
+      agreedNightlyRateBtn:
+        data.agreed_nightly_rate_btn != null
+          ? Number(data.agreed_nightly_rate_btn)
+          : null,
+      agreedRateReason: (data.agreed_rate_reason as string | null) ?? null,
+      mealPlanCode: (data.meal_plan_code as string | null) ?? null,
       earlyCheckoutFeeBtn:
         policy?.early_checkout_fee_btn == null
           ? null

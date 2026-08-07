@@ -34,6 +34,7 @@ import {
 } from "@/components/erp/FolioOpsForms";
 import { InhouseTaskQuickForm } from "@/components/erp/InhouseTasksPanel";
 import { RoomNcForm } from "@/components/erp/RoomNcForm";
+import { AgreedRateForm } from "@/components/erp/AgreedRateForm";
 import type { RackStay, RackUnit } from "@/components/erp/RoomRackGrid";
 import { StayMoneyCycleLegend } from "@/components/erp/StayMoneyCycleLegend";
 import {
@@ -173,6 +174,9 @@ function summaryFromSeed(stay: StayHubSeedStay): StayHubSummary {
     chargeable: true,
     ncReasonCode: null,
     roomNcReasons: [],
+    agreedNightlyRateBtn: null,
+    agreedRateReason: null,
+    mealPlanCode: null,
   };
 }
 
@@ -1052,6 +1056,25 @@ export function StayHubDialog({
                         </WorkSection>
                       ) : null}
 
+                      <WorkSection title="Agreed rate">
+                        <AgreedRateForm
+                          bookingId={summary.bookingId}
+                          currentRateBtn={summary.agreedNightlyRateBtn}
+                          currentReason={summary.agreedRateReason}
+                          mealPlanCode={summary.mealPlanCode}
+                          roomLabel={summary.roomLabel}
+                          onSuccess={() => {
+                            void fetchStayHubSummary(
+                              summary.bookingId,
+                              summary.assignmentId,
+                            ).then((result) => {
+                              if (result.ok) applySummary(result.data, false);
+                            });
+                            router.refresh();
+                          }}
+                        />
+                      </WorkSection>
+
                       {!terminal ? (
                         <WorkSection title="Cancel / no-show">
                           <BookingLifecycleActions
@@ -1214,6 +1237,27 @@ export function StayHubDialog({
                               ).then((result) => {
                                 if (result.ok) applySummary(result.data, false);
                               });
+                            }}
+                          />
+                        </WorkSection>
+                      ) : null}
+
+                      {isInHouse || panel === "stay_money" ? (
+                        <WorkSection title="Agreed rate">
+                          <AgreedRateForm
+                            bookingId={summary.bookingId}
+                            currentRateBtn={summary.agreedNightlyRateBtn}
+                            currentReason={summary.agreedRateReason}
+                            mealPlanCode={summary.mealPlanCode}
+                            roomLabel={summary.roomLabel}
+                            onSuccess={() => {
+                              void fetchStayHubSummary(
+                                summary.bookingId,
+                                summary.assignmentId,
+                              ).then((result) => {
+                                if (result.ok) applySummary(result.data, false);
+                              });
+                              router.refresh();
                             }}
                           />
                         </WorkSection>

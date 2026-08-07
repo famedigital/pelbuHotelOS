@@ -75,6 +75,8 @@ type OccupiedRoom = {
   promoDiscountPct: number;
   promoCodeId: string | null;
   adults: number;
+  /** Manager-approved special nightly rate (BTN, rate-sheet tax basis). */
+  agreedNightlyRateBtn: number | null;
 };
 
 /**
@@ -113,7 +115,7 @@ export async function postRoomNightsForDate(
        room_units(id, label, room_type_id, room_types(inventory_kind)),
        bookings!inner(
          id, status, check_in, check_out, contact_name, source, agent_id,
-         adults, promo_discount_pct, promo_code_id,
+         adults, promo_discount_pct, promo_code_id, agreed_nightly_rate_btn,
          agents(rate_tier)
        )`,
     )
@@ -137,6 +139,7 @@ export async function postRoomNightsForDate(
           source: string | null;
           agent_id: string | null;
           adults?: number | null;
+          agreed_nightly_rate_btn?: number | null;
           agents?:
             | { rate_tier?: string | null }
             | { rate_tier?: string | null }[]
@@ -151,6 +154,7 @@ export async function postRoomNightsForDate(
           source: string | null;
           agent_id: string | null;
           adults?: number | null;
+          agreed_nightly_rate_btn?: number | null;
           agents?:
             | { rate_tier?: string | null }
             | { rate_tier?: string | null }[]
@@ -215,6 +219,10 @@ export async function postRoomNightsForDate(
           | string
           | null) ?? null,
       adults: Math.max(1, Number(booking.adults ?? 2)),
+      agreedNightlyRateBtn:
+        booking.agreed_nightly_rate_btn != null
+          ? Number(booking.agreed_nightly_rate_btn)
+          : null,
     });
   }
 
@@ -233,28 +241,45 @@ export async function postRoomNightsForDate(
       ? agentRateTier(room.agentRateTier)
       : rateTierFromSource(room.source);
 
-    const rate = await lookupRoomRateBtn(admin, {
-      propertyId,
-      roomTypeId: room.roomTypeId,
-      seasonKind,
-      rateTier: tier,
-      adults: room.adults,
-    });
+    let rate =
+      room.agreedNightlyRateBtn != null && room.agreedNightlyRateBtn >= 0
+        ? room.agreedNightlyRateBtn
+        : await lookupRoomRateBtn(admin, {
+            propertyId,
+            roomTypeId: room.roomTypeId,
+            seasonKind,
+            rateTier: tier,
+            adults: room.adults,
+          });
     if (rate == null) {
       errors.push(`Room ${room.roomLabel}: no rate for ${tier}/${seasonKind}.`);
       continue;
     }
 
-    // Promo + partner discounts apply to the stored room_rates figure, then tax split.
+    // Promo + partner discounts apply to sheet rates only.
+    // Agreed/special rate is already negotiated — do not stack promo/partner.
     let listedAmountBtn = roundBtn(rate);
-    if (room.promoDiscountPct > 0) {
-      listedAmountBtn = roundBtn(
-        listedAmountBtn * (1 - Math.min(100, room.promoDiscountPct) / 100),
+    const usedAgreed =
+      room.agreedNightlyRateBtn != null && room.agreedNightlyRateBtn >= 0;
+    let promoNote = "";
+    let partnerNote = "";
+    if (!usedAgreed) {
+      if (room.promoDiscountPct > 0) {
+        listedAmountBtn = roundBtn(
+          listedAmountBtn * (1 - Math.min(100, room.promoDiscountPct) / 100),
+        );
+        promoNote = ` · promo −${room.promoDiscountPct}%`;
+      }
+      const partner = await resolveBookingPartnerDiscountPct(
+        admin,
+        room.bookingId,
       );
-    }
-    const partner = await resolveBookingPartnerDiscountPct(admin, room.bookingId);
-    if (partner.pct > 0) {
-      listedAmountBtn = applyDiscountPct(listedAmountBtn, partner.pct);
+      if (partner.pct > 0) {
+        listedAmountBtn = applyDiscountPct(listedAmountBtn, partner.pct);
+        partnerNote = ` · partner −${partner.pct}%`;
+      }
+    } else {
+      partnerNote = " · agreed rate";
     }
 
     const tax = calculateRoomNightTax(listedAmountBtn, taxSettings);
@@ -290,10 +315,6 @@ export async function postRoomNightsForDate(
       continue;
     }
 
-    const promoNote =
-      room.promoDiscountPct > 0 ? ` · promo −${room.promoDiscountPct}%` : "";
-    const partnerNote =
-      partner.pct > 0 ? ` · partner −${partner.pct}%` : "";
     const description = `Room ${room.roomLabel} · ${businessDate}${promoNote}${partnerNote}`;
 
     try {
