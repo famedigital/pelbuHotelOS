@@ -385,10 +385,11 @@ export function SiteHeader({
     >
       <div
         className={cn(
-          "relative overflow-hidden",
+          "relative",
+          /* Logo mark hangs below the bar — only clip when immersively collapsed. */
           hideForMenuMobile
-            ? "h-0 max-h-0 opacity-0"
-            : "h-12 md:h-[3.25rem]",
+            ? "h-0 max-h-0 overflow-hidden opacity-0"
+            : "h-12 overflow-visible md:h-[3.25rem]",
         )}
       >
         {/* Glass strip: desktop only over hero. Mobile is free-float (no second bar). */}
