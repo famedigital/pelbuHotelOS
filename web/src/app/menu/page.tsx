@@ -5,11 +5,17 @@ import { SiteBreadcrumbs } from "@/components/site/SiteBreadcrumbs";
 import { loadCmsPage } from "@/lib/cms";
 import { loadMenuByOutlets } from "@/lib/menu-loader";
 import {
+  loadProperty,
+  resolveActivePropertyId,
+} from "@/lib/property-context";
+import { DEFAULT_GST_RATE } from "@/lib/property-settings";
+import {
   breadcrumbJsonLd,
   menuJsonLd,
   restaurantJsonLd,
   serializeJsonLd,
 } from "@/lib/structured-data";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 import { PAGE_SEO, buildPageMetadata } from "@/lib/seo";
 
@@ -43,10 +49,14 @@ export default async function MenuPage({
   const params = await searchParams;
   const initialOutlet = parseOutlet(params.outlet ?? params.menu);
   const preferRoomDelivery = params.deliver === "room";
-  const [page, items] = await Promise.all([
+  const admin = createSupabaseAdminClient();
+  const propertyId = await resolveActivePropertyId(admin);
+  const [page, items, property] = await Promise.all([
     loadCmsPage("dine"),
     loadMenuByOutlets([...OUTLET_FILTERS]),
+    loadProperty(admin, propertyId),
   ]);
+  const gstRate = Number(property?.gst_rate ?? DEFAULT_GST_RATE);
 
   const breadcrumbs = [
     { name: "Home", path: "/" },
@@ -123,6 +133,7 @@ export default async function MenuPage({
               items={items}
               initialOutlet={initialOutlet}
               preferRoomDelivery={preferRoomDelivery}
+              gstRate={gstRate}
             />
           </div>
         )}

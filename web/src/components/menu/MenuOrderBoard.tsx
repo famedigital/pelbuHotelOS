@@ -30,7 +30,13 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { THIMPHU_DELIVERY_AREAS } from "@/lib/delivery-areas";
 import type { MenuItem } from "@/lib/menu";
 import { orderRef } from "@/lib/order-ref";
-import { BHUTAN_GST_RATE, calculateOrderTotals, formatBtn } from "@/lib/pricing";
+import {
+  calculateOrderTotals,
+  formatBtn,
+  formatGuestBtn,
+  withGuestFacingTotal,
+} from "@/lib/pricing";
+import { DEFAULT_GST_RATE } from "@/lib/property-settings";
 import { cn } from "@/lib/utils";
 import { MinusIcon, PlusIcon, SearchIcon, ShoppingBagIcon } from "lucide-react";
 import Link from "next/link";
@@ -70,10 +76,13 @@ export function MenuOrderBoard({
   items,
   initialOutlet,
   preferRoomDelivery = false,
+  /** Property GST rate from ERP settings (`properties.gst_rate`). */
+  gstRate = DEFAULT_GST_RATE,
 }: {
   items: MenuItem[];
   initialOutlet?: OutletId;
   preferRoomDelivery?: boolean;
+  gstRate?: number;
 }) {
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const menuChrome = usePublicMenuChromeOptional();
@@ -184,6 +193,8 @@ export function MenuOrderBoard({
     return null;
   }, [cartLines, items]);
 
+  const resolvedGstRate = Math.max(0, Number(gstRate) || DEFAULT_GST_RATE);
+
   const totals = useMemo(() => {
     const lines = cartLines.flatMap((line) => {
       const item = items.find((entry) => entry.id === line.menuItemId);
@@ -196,8 +207,10 @@ export function MenuOrderBoard({
         },
       ];
     });
-    return calculateOrderTotals(lines);
-  }, [cartLines, items]);
+    return withGuestFacingTotal(
+      calculateOrderTotals(lines, { gstRate: resolvedGstRate }),
+    );
+  }, [cartLines, items, resolvedGstRate]);
 
   const cartCount = cartLines.reduce((sum, line) => sum + line.qty, 0);
 
@@ -243,8 +256,8 @@ export function MenuOrderBoard({
         </h2>
         <p className="mt-3 text-sm text-muted-foreground">
           {state.chargedToRoom
-            ? `Total ${formatBtn(state.totalBtn ?? 0)} posted to room ${state.roomLabel ?? ""}. Kitchen will deliver / you can collect — check out pays the folio.`
-            : `Total ${formatBtn(state.totalBtn ?? 0)}. The desk will WhatsApp you a confirmation with payment details — send the transfer journal number back and the kitchen starts cooking.`}
+            ? `Total ${formatGuestBtn(state.totalBtn ?? 0)} posted to room ${state.roomLabel ?? ""}. Kitchen will deliver / you can collect — check out pays the folio.`
+            : `Total ${formatGuestBtn(state.totalBtn ?? 0)}. The desk will WhatsApp you a confirmation with payment details — send the transfer journal number back and the kitchen starts cooking.`}
         </p>
         <p className="mt-4 font-mono text-lg text-foreground">
           {orderRef(state.orderId)}
@@ -261,6 +274,7 @@ export function MenuOrderBoard({
       cartLines={cartLines}
       items={items}
       totals={totals}
+      gstRate={resolvedGstRate}
       ticket={cartTicket}
       onQty={setQty}
       onClear={() => setCart({})}
@@ -458,7 +472,7 @@ export function MenuOrderBoard({
                   {cartCount} item{cartCount === 1 ? "" : "s"}
                 </span>
                 <span className="tabular-nums">
-                  {formatBtn(totals.totalBtn)} · Checkout
+                  {formatGuestBtn(totals.totalBtn)} · Checkout
                 </span>
               </Button>
             </div>
@@ -625,6 +639,7 @@ function OrderCart({
   cartLines,
   items,
   totals,
+  gstRate,
   ticket,
   onQty,
   onClear,
@@ -643,6 +658,7 @@ function OrderCart({
   cartLines: { menuItemId: string; qty: number }[];
   items: MenuItem[];
   totals: ReturnType<typeof calculateOrderTotals>;
+  gstRate: number;
   ticket: Ticket | null;
   onQty: (id: string, next: number) => void;
   onClear: () => void;
@@ -660,6 +676,7 @@ function OrderCart({
 }) {
   const empty = cartLines.length === 0;
   const roomReady = deliveryType !== "room" || Boolean(roomToken && roomLabel);
+  const gstPct = Math.round(gstRate * 10000) / 100;
 
   return (
     <form
@@ -743,16 +760,25 @@ function OrderCart({
         <div className="mt-4 space-y-1 border-t border-border pt-3 text-sm">
           <div className="flex justify-between text-muted-foreground">
             <span>Subtotal</span>
-            <span className="tabular-nums">{formatBtn(totals.subtotalBtn)}</span>
+            <span className="tabular-nums">
+              {formatGuestBtn(totals.subtotalBtn)}
+            </span>
           </div>
           <div className="flex justify-between text-muted-foreground">
-            <span>GST ({Math.round(BHUTAN_GST_RATE * 100)}%)</span>
+            <span>GST ({gstPct}%)</span>
             <span className="tabular-nums">{formatBtn(totals.gstBtn)}</span>
           </div>
           <div className="flex justify-between pt-1 text-base font-semibold text-foreground">
             <span>Total</span>
-            <span className="tabular-nums">{formatBtn(totals.totalBtn)}</span>
+            <span className="tabular-nums">
+              {formatGuestBtn(totals.totalBtn)}
+            </span>
           </div>
+          {totals.guestAbsorbBtn < -0.009 ? (
+            <p className="pt-0.5 text-xs text-muted-foreground">
+              Rounded to whole Nu ending 0 or 5
+            </p>
+          ) : null}
         </div>
 
         {state.error ? (
@@ -890,8 +916,8 @@ function OrderCart({
               : !roomReady
                 ? "Verify room first"
                 : deliveryType === "room"
-                  ? `Charge room · ${formatBtn(totals.totalBtn)}`
-                  : `Place order · ${formatBtn(totals.totalBtn)}`}
+                  ? `Charge room · ${formatGuestBtn(totals.totalBtn)}`
+                  : `Place order · ${formatGuestBtn(totals.totalBtn)}`}
         </Button>
       </div>
     </form>
