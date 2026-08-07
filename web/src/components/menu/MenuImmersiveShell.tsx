@@ -31,7 +31,7 @@ export function MenuImmersiveShell({
           chrome?.cartActive
             ? "pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))]"
             : chrome?.immersive
-              ? "pb-6"
+              ? "pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))]"
               : "pb-28",
           className,
         )}
@@ -39,7 +39,8 @@ export function MenuImmersiveShell({
         <div className="mx-auto w-full max-w-[1760px] px-4 sm:px-6 lg:px-8 2xl:px-12">
           <div
             className={cn(
-              "overflow-hidden border-b border-border/70 transition-[max-height,opacity,padding,border-color] duration-200 ease-out motion-reduce:transition-none lg:max-h-[200px] lg:opacity-100 lg:py-4",
+              "overflow-hidden border-b border-border/70 lg:max-h-[200px] lg:opacity-100 lg:py-4",
+              // Instant hide on mobile immersive — animated height caused flicker with header.
               hideTitle
                 ? "max-h-0 border-transparent py-0 opacity-0 pointer-events-none lg:pointer-events-auto lg:border-border/70"
                 : "max-h-[200px] py-3 opacity-100",
