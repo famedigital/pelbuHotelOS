@@ -83,10 +83,7 @@ export function modifierUnitTotal(modifiers: LineModifierForGst[] | undefined): 
   );
 }
 
-export function calculateOrderTotals(
-  lines: LineForGst[],
-  options: PricingOptions = {},
-): {
+export type OrderTotals = {
   subtotalBtn: number;
   serviceChargeBtn: number;
   gstBtn: number;
@@ -95,7 +92,29 @@ export function calculateOrderTotals(
   ncValueBtn: number;
   /** Chargeable subtotal before NC exclusion adjustment (same as subtotal). */
   listSubtotalBtn: number;
-} {
+};
+
+/**
+ * Guest-facing payable: whole Nu ending 0 or 5 (hotel absorbs the rest).
+ * Keeps accurate tax lines for books; only `totalBtn` is adjusted.
+ */
+export function withGuestFacingTotal(
+  totals: OrderTotals,
+): OrderTotals & { accurateTotalBtn: number; guestAbsorbBtn: number } {
+  const accurateTotalBtn = roundBtn(totals.totalBtn);
+  const totalBtn = roundGuestWholeBtn(accurateTotalBtn);
+  return {
+    ...totals,
+    totalBtn,
+    accurateTotalBtn,
+    guestAbsorbBtn: guestRateAbsorbBtn(accurateTotalBtn),
+  };
+}
+
+export function calculateOrderTotals(
+  lines: LineForGst[],
+  options: PricingOptions = {},
+): OrderTotals {
   let subtotal = 0;
   let listSubtotal = 0;
   let ncValue = 0;

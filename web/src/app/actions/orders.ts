@@ -8,8 +8,9 @@ import {
 import { isValidThimphuArea } from "@/lib/delivery-areas";
 import { notifyNewOrder } from "@/lib/notify";
 import { loadMenuStockMap } from "@/lib/menu-stock";
-import { calculateOrderTotals } from "@/lib/pricing";
+import { calculateOrderTotals, withGuestFacingTotal } from "@/lib/pricing";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
+import { DEFAULT_GST_RATE } from "@/lib/property-settings";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
@@ -144,7 +145,7 @@ export async function createOrder(
 
     const { data: property, error: propertyError } = await admin
       .from("properties")
-      .select("id")
+      .select("id, gst_rate")
       .eq("slug", PELBU_PROPERTY_SLUG)
       .single();
 
@@ -152,6 +153,10 @@ export async function createOrder(
       throw new Error("Hotel property is not configured. Please call the cafe.");
     }
     const propertyId = property.id as string;
+    const gstRate = Math.max(
+      0,
+      Number(property.gst_rate ?? DEFAULT_GST_RATE),
+    );
 
     let customerName = "";
     let phone = "";
@@ -298,13 +303,17 @@ export async function createOrder(
       };
     });
 
-    const { subtotalBtn, gstBtn, totalBtn } = calculateOrderTotals(
+    const accurate = calculateOrderTotals(
       priced.map((line) => ({
         qty: line.qty,
         unitPriceBtn: line.unitPriceBtn,
         gstApplicable: line.gstApplicable,
       })),
+      { gstRate },
     );
+    // Guest pays whole Nu ending 0 or 5; hotel absorbs the chetrum/gap.
+    const { subtotalBtn, gstBtn, totalBtn, accurateTotalBtn } =
+      withGuestFacingTotal(accurate);
 
     const nowIso = new Date().toISOString();
     const isRoom = deliveryTypeRaw === "room";
@@ -363,11 +372,13 @@ export async function createOrder(
       throw new Error("Could not save order items. Please try again.");
     }
 
-    if (isRoom && folioId && bookingId && totalBtn > 0) {
+    if (isRoom && folioId && bookingId && accurateTotalBtn > 0) {
       const description = priced
         .map((line) => `${line.qty}× ${line.name}`)
         .join(", ");
       try {
+        // Post accurate tax lines; postFolioCharge adds hotel absorb so folio
+        // net ends on Nu 0/5 (matches guest payable total_btn).
         await postFolioCharge(admin, propertyId, {
           folio_id: folioId,
           booking_id: bookingId,
@@ -379,7 +390,7 @@ export async function createOrder(
           amount_btn: subtotalBtn,
           gst_applicable: gstBtn > 0,
           gst_btn: gstBtn,
-          total_btn: totalBtn,
+          total_btn: accurateTotalBtn,
           room_unit_id: roomUnitId,
           bill_to: "guest",
         });

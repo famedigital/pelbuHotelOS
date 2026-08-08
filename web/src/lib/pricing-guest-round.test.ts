@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  calculateOrderTotals,
   formatGuestBtn,
   guestRateAbsorbBtn,
   roundBtn,
   roundGuestWholeBtn,
+  withGuestFacingTotal,
 } from "./pricing";
 
 describe("roundGuestWholeBtn (whole Nu 0 or 5)", () => {
@@ -55,5 +57,22 @@ describe("formatGuestBtn", () => {
     assert.equal(formatGuestBtn(1325), "Nu 1,325");
     assert.equal(formatGuestBtn(1325.4), "Nu 1,325");
     assert.equal(formatGuestBtn(-3.25), "Nu -3");
+  });
+});
+
+describe("withGuestFacingTotal", () => {
+  it("floors payable total to Nu ending 0 or 5", () => {
+    const accurate = calculateOrderTotals(
+      [{ qty: 1, unitPriceBtn: 250, gstApplicable: true }],
+      { gstRate: 0.07 },
+    );
+    // 250 + 17.5 = 267.5 → guest 265
+    assert.equal(accurate.totalBtn, 267.5);
+    const guest = withGuestFacingTotal(accurate);
+    assert.equal(guest.totalBtn, 265);
+    assert.equal(guest.accurateTotalBtn, 267.5);
+    assert.equal(guest.subtotalBtn, 250);
+    assert.equal(guest.gstBtn, 17.5);
+    assert.ok(guest.guestAbsorbBtn < 0);
   });
 });
