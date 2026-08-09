@@ -1453,6 +1453,40 @@ export async function postFolioPayment(
       throw new Error("Folio is not open.");
     }
 
+    if (method === "agent_credit") {
+      const bookingId = folio.booking_id as string | null;
+      if (!bookingId) {
+        throw new Error("Agent credit needs a booking on this folio.");
+      }
+      const { data: booking } = await admin
+        .from("bookings")
+        .select("id, agent_id")
+        .eq("id", bookingId)
+        .maybeSingle();
+      const agentId = booking?.agent_id as string | null;
+      if (!agentId) {
+        throw new Error("Attach an agent before collecting agent credit.");
+      }
+      // Validate agent is credit-eligible before posting payment
+      const { data: agentRow } = await admin
+        .from("agents")
+        .select("id, status, credit_limit, credit_used")
+        .eq("id", agentId)
+        .maybeSingle();
+      if (!agentRow) throw new Error("Agent not found.");
+      const { isCreditAgentStatus } = await import("@/lib/agents/status");
+      if (!isCreditAgentStatus(agentRow.status as string)) {
+        throw new Error("Agent must be approved or demo for agent credit.");
+      }
+      const available =
+        Number(agentRow.credit_limit ?? 0) - Number(agentRow.credit_used ?? 0);
+      if (amountBtn > available + 0.001) {
+        throw new Error(
+          `Insufficient credit. Available Nu ${available}; need Nu ${amountBtn}.`,
+        );
+      }
+    }
+
     const pay = await postFolioPaymentRecord(admin, {
       property_id,
       folio_id: folioId,
@@ -1473,6 +1507,26 @@ export async function postFolioPayment(
 
     if (pay.alreadyExists) {
       return { ok: true, paymentId: pay.paymentId };
+    }
+
+    if (method === "agent_credit") {
+      const bookingId = folio.booking_id as string | null;
+      const { data: booking } = await admin
+        .from("bookings")
+        .select("id, agent_id")
+        .eq("id", bookingId!)
+        .maybeSingle();
+      const agentId = booking?.agent_id as string | null;
+      if (agentId) {
+        const { chargeAgentCredit } = await import("@/app/actions/erp-agents");
+        await chargeAgentCredit(admin, {
+          agentId,
+          amountBtn,
+          bookingId: bookingId!,
+          note:
+            notes ?? `Folio payment · agent credit · ${folioId.slice(0, 8)}`,
+        });
+      }
     }
 
     await writeAuditEvent(admin, {

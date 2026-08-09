@@ -44,12 +44,12 @@ export type StayHubCycleInput = {
 };
 
 const LABELS: Record<StayHubStepId, { label: string; short: string }> = {
-  reserve: { label: "Reserve", short: "Rsv" },
+  reserve: { label: "Book", short: "Book" },
   confirm: { label: "Confirm", short: "Cfm" },
-  arrival: { label: "Arrival", short: "Arr" },
+  arrival: { label: "Ready", short: "Rdy" },
   check_in: { label: "Check-in", short: "CI" },
-  stay_money: { label: "Stay / Money", short: "Money" },
-  check_out: { label: "Check-out", short: "CO" },
+  stay_money: { label: "Settle", short: "Pay" },
+  check_out: { label: "Checkout", short: "Out" },
 };
 
 const ORDER: StayHubStepId[] = [
@@ -232,3 +232,32 @@ export function parseStayHubStep(
 }
 
 export const STAY_HUB_STEP_ORDER = ORDER;
+
+/**
+ * Desk FO strip — fewer phase tabs so staff don't see a 6-step maze.
+ * Pre-stay: Book · Confirm · Check-in. In-house: In-house · Settle · Out.
+ */
+export function deskFocusedSteps(
+  steps: StayHubStep[],
+  status: string,
+): StayHubStep[] {
+  const s = (status ?? "").toLowerCase();
+  const inStay =
+    s === "checked_in" || s === "checked_out";
+  const ids = inStay
+    ? (["check_in", "stay_money", "check_out"] as StayHubStepId[])
+    : (["reserve", "confirm", "check_in"] as StayHubStepId[]);
+  return steps
+    .filter((st) => ids.includes(st.id))
+    .map((st) => {
+      if (st.id === "check_in" && inStay) {
+        return {
+          ...st,
+          label: "In-house",
+          shortLabel: "In",
+        };
+      }
+      return st;
+    });
+}
+

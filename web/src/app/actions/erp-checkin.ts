@@ -792,7 +792,7 @@ export async function confirmCheckOut(
 
     const { data: booking, error: bookingError } = await admin
       .from("bookings")
-      .select("id, status, contact_name, property_id")
+      .select("id, status, contact_name, property_id, agent_id, payment_mode")
       .eq("id", bookingId)
       .single();
 
@@ -806,7 +806,7 @@ export async function confirmCheckOut(
 
     const { data: folio } = await admin
       .from("folios")
-      .select("id, folio_lines(total_btn, status)")
+      .select("id, folio_lines(total_btn, status, bill_to, source_type)")
       .eq("booking_id", bookingId)
       .eq("status", "open")
       .order("created_at")
@@ -870,30 +870,56 @@ export async function confirmCheckOut(
     }
 
     let balance = 0;
+    let guestVisibleBalance = 0;
     if (folio) {
       const { data: refreshed } = await admin
         .from("folios")
-        .select("id, folio_lines(total_btn, status)")
+        .select("id, folio_lines(total_btn, status, bill_to, source_type)")
         .eq("id", folio.id)
         .maybeSingle();
       const lines =
         ((refreshed ?? folio).folio_lines as
-          | { total_btn: number; status: string }[]
+          | {
+              total_btn: number;
+              status: string;
+              bill_to?: string | null;
+              source_type?: string | null;
+            }[]
           | null) ?? [];
-      balance = lines
-        .filter((l) => l.status === "posted")
-        .reduce((sum, l) => sum + Number(l.total_btn), 0);
+      const posted = lines.filter((l) => l.status === "posted");
+      balance = posted.reduce((sum, l) => sum + Number(l.total_btn), 0);
+      // Guest-visible: non-agent bill_to charges + all payments (guest settle)
+      guestVisibleBalance = posted.reduce((sum, l) => {
+        const st = (l.source_type ?? "").toLowerCase();
+        if (st === "payment" || st === "deposit") {
+          return sum + Number(l.total_btn);
+        }
+        if ((l.bill_to ?? "guest") === "agent") return sum;
+        return sum + Number(l.total_btn);
+      }, 0);
 
-      if (Math.abs(balance) > 0.009 && !allowBalance) {
+      const paymentMode = String(booking.payment_mode ?? "").toLowerCase();
+      const agentResidualOk =
+        Boolean(booking.agent_id) &&
+        (paymentMode === "on_credit" || paymentMode === "partial") &&
+        Math.abs(guestVisibleBalance) <= 0.5 &&
+        Math.abs(balance) > 0.009;
+
+      if (Math.abs(balance) > 0.009 && !allowBalance && !agentResidualOk) {
         throw new Error(
-          `Folio balance is Nu ${balance.toFixed(2)}. Settle payment or tick allow balance to checkout.`,
+          `Folio balance is Nu ${balance.toFixed(2)}. Settle guest payment, use agent credit, or tick allow balance to checkout.`,
         );
       }
 
       await admin
         .from("folios")
         .update({
-          status: Math.abs(balance) <= 0.009 ? "settled" : "closed",
+          status:
+            Math.abs(balance) <= 0.009
+              ? "settled"
+              : agentResidualOk
+                ? "closed"
+                : "closed",
           closed_at: new Date().toISOString(),
         })
         .eq("id", folio.id);

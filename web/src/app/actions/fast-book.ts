@@ -17,6 +17,7 @@ import { stayLevelPromoDiscountPct } from "@/lib/marketing/promo-math";
 import { notifyNewBooking } from "@/lib/notify";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { writeAuditEvent } from "@/lib/audit";
+import { verifyManagerPinForProperty } from "@/lib/manager-pin";
 import { calculateRoomNightTax, roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import {
@@ -43,9 +44,13 @@ import {
 } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
 
+export type DeskBookIntent = "reserve" | "confirm" | "check_in";
+
 export type FastBookState = {
   ok: boolean;
   bookingId?: string;
+  /** How the desk created this stay — clients open the right StayHub panel. */
+  intent?: DeskBookIntent;
   error?: string;
 };
 
@@ -260,6 +265,47 @@ export async function createFastBooking(
       tier = agentRateTier(agent.rate_tier as string);
     }
 
+    const intentRaw = (optionalTrim(formData.get("intent")) ?? "confirm") as string;
+    const intent: DeskBookIntent =
+      intentRaw === "reserve" || intentRaw === "check_in"
+        ? intentRaw
+        : "confirm";
+
+    /** Optional agreed nightly rate (manager PIN when it differs from sheet). */
+    let agreedNightly: number | null = null;
+    const agreedRaw = optionalTrim(formData.get("agreed_nightly_rate_btn"));
+    if (agreedRaw) {
+      const n = Number(agreedRaw);
+      if (!Number.isFinite(n) || n < 0) {
+        throw new Error("Agreed nightly rate must be a non-negative number.");
+      }
+      agreedNightly = roundBtn(n);
+    }
+    const systemNightlyRaw = optionalTrim(formData.get("system_nightly_rate_btn"));
+    const systemNightly = systemNightlyRaw ? Number(systemNightlyRaw) : null;
+    if (agreedNightly != null) {
+      const differs =
+        systemNightly == null ||
+        !Number.isFinite(systemNightly) ||
+        Math.abs(agreedNightly - systemNightly) > 0.009;
+      if (differs) {
+        const pin = optionalTrim(formData.get("manager_pin")) ?? "";
+        const pinRes = await verifyManagerPinForProperty(
+          admin,
+          property.id as string,
+          pin,
+        );
+        if (!pinRes.ok) {
+          throw new Error(
+            pinRes.error ?? "Manager PIN required to change the rate.",
+          );
+        }
+      } else {
+        // Same as sheet — no override column
+        agreedNightly = null;
+      }
+    }
+
     let creditChargeBtn = 0;
     let quotedRoomsBtn = 0;
     {
@@ -274,13 +320,15 @@ export async function createFastBooking(
       );
       for (const line of lines) {
         if (line.inventory_kind !== "sellable_guest") continue;
-        const rate = await lookupRoomRateBtn(admin, {
+        const sheetRate = await lookupRoomRateBtn(admin, {
           propertyId: property.id as string,
           roomTypeId: line.room_type_id,
           seasonKind: season,
           rateTier: tier,
           adults,
         });
+        const rate =
+          agreedNightly != null ? agreedNightly : (sheetRate ?? null);
         if (rate != null) {
           const nightAllIn = calculateRoomNightTax(rate, taxSettings).totalBtn;
           quotedRoomsBtn += nightAllIn * line.qty * nights;
@@ -298,13 +346,15 @@ export async function createFastBooking(
       let estimate = 0;
       for (const line of lines) {
         if (line.inventory_kind !== "sellable_guest") continue;
-        const rate = await lookupRoomRateBtn(admin, {
+        const sheetRate = await lookupRoomRateBtn(admin, {
           propertyId: property.id as string,
           roomTypeId: line.room_type_id,
           seasonKind: season,
           rateTier: tier,
           adults,
         });
+        const rate =
+          agreedNightly != null ? agreedNightly : (sheetRate ?? null);
         if (rate == null) {
           throw new Error(
             "No room rate for this season/tier. Set rates before on-credit booking.",
@@ -320,6 +370,13 @@ export async function createFastBooking(
     }
 
     const promoCodeRaw = optionalTrim(formData.get("promo_code"));
+    const passportOrCid = optionalTrim(formData.get("passport_or_cid"));
+    const sdfRef = optionalTrim(formData.get("sdf_ref"));
+
+    const isHold = intent === "reserve";
+    const holdExpiresAt = isHold
+      ? new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
+      : null;
 
     const { data: booking, error: bookingError } = await admin
       .from("bookings")
@@ -328,9 +385,10 @@ export async function createFastBooking(
         agent_id: agentId,
         source: source === "mou_agent" ? "agent" : source,
         booked_by_role: source,
-        status: "confirmed",
-        confirmed_at: new Date().toISOString(),
-        confirmed_by: "desk_fast_book",
+        status: isHold ? "held" : "confirmed",
+        confirmed_at: isHold ? null : new Date().toISOString(),
+        confirmed_by: isHold ? null : "desk_fast_book",
+        hold_expires_at: holdExpiresAt,
         check_in: checkIn,
         check_out: checkOut,
         contact_name: contactName,
@@ -349,6 +407,11 @@ export async function createFastBooking(
         extra_bed_amount_btn: extraBedAmountBtn,
         sold_by_staff_id: salesClaim.sold_by_staff_id,
         sales_claim_status: salesClaim.sales_claim_status,
+        agreed_nightly_rate_btn: agreedNightly,
+        agreed_rate_reason:
+          agreedNightly != null ? "desk override" : null,
+        agreed_rate_set_at:
+          agreedNightly != null ? new Date().toISOString() : null,
         quoted_total_btn:
           quotedRoomsBtn > 0
             ? roundBtn(
@@ -477,7 +540,24 @@ export async function createFastBooking(
     await admin.from("booking_guests").insert({
       booking_id: booking.id,
       full_name: contactName,
+      passport_or_cid: passportOrCid,
+      sdf_ref: sdfRef,
     });
+
+    if (agreedNightly != null) {
+      await writeAuditEvent(admin, {
+        propertyId: property.id as string,
+        action: "rate.agreed",
+        entityType: "bookings",
+        entityId: booking.id as string,
+        summary: `Agreed nightly Nu ${agreedNightly} on desk book`,
+        meta: {
+          agreed_nightly_rate_btn: agreedNightly,
+          system_nightly: systemNightly,
+          reason: "desk override",
+        },
+      });
+    }
 
     // Don't block FO on WhatsApp/email or channel ARI (calendar single-room already does this).
     void notifyNewBooking({
@@ -490,7 +570,7 @@ export async function createFastBooking(
       adults,
       rooms: guestRooms,
       guideNumber,
-      notes: notes ? `[FAST-BOOK ${source}] ${notes}` : `[FAST-BOOK ${source}]`,
+      notes: notes ? `[DESK-BOOK ${source}/${intent}] ${notes}` : `[DESK-BOOK ${source}/${intent}]`,
     }).catch((err) => console.error("notifyNewBooking fast_book", err));
 
     void enqueueAfterBookingChange(
@@ -506,7 +586,7 @@ export async function createFastBooking(
     revalidatePath("/erp/reservations");
     if (agentId) revalidatePath("/erp/agents");
 
-    return { ok: true, bookingId: booking.id };
+    return { ok: true, bookingId: booking.id as string, intent };
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Something went wrong. Please try again.";

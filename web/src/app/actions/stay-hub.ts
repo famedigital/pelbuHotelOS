@@ -40,6 +40,18 @@ export type StayHubMoneyPayload = {
   paymentMode: string | null;
   /** Room-charge F&B tickets with item-level serve / void audit. */
   roomPosOrders: import("@/lib/folio/room-pos-orders-types").RoomChargePosOrder[];
+  /** Posted folio lines for Room / POS tabs (void-level corrections). */
+  lines: Array<{
+    id: string;
+    source_type: string;
+    description: string | null;
+    total_btn: number;
+    status: string | null;
+    bill_to: string | null;
+  }>;
+  /** Guest-visible balance (excludes agent-billed room package). */
+  guestVisibleBalanceBtn: number;
+  agentChargesBtn: number;
 };
 
 export type StayHubSummary = {
@@ -522,7 +534,7 @@ export async function fetchStayHubMoney(
       agents(company_name),
       room_assignments(room_units(label)),
       folios(id, status,
-        folio_lines(total_btn, status, source_type),
+        folio_lines(id, total_btn, status, source_type, description, bill_to),
         fiscal_documents(id, doc_no, doc_kind, status)
       )
     `,
@@ -562,9 +574,12 @@ export async function fetchStayHubMoney(
           id: string;
           status: string;
           folio_lines?: Array<{
+            id?: string;
             total_btn?: number;
             status?: string;
             source_type?: string;
+            description?: string | null;
+            bill_to?: string | null;
           }> | null;
           fiscal_documents?: Array<{
             id: string;
@@ -575,10 +590,30 @@ export async function fetchStayHubMoney(
         }>
       | null) ?? [];
   const openFolio = folios.find((f) => f.status === "open") ?? folios[0] ?? null;
-  const lines = (openFolio?.folio_lines ?? []).filter(
-    (l) => l.status === "posted",
-  );
+  const rawLines = (openFolio?.folio_lines ?? []) as Array<{
+    id?: string;
+    total_btn?: number;
+    status?: string;
+    source_type?: string;
+    description?: string | null;
+    bill_to?: string | null;
+  }>;
+  const lines = rawLines.filter((l) => l.status === "posted");
   const balance = lines.reduce((s, l) => s + Number(l.total_btn ?? 0), 0);
+  const guestVisibleBalanceBtn = lines.reduce((s, l) => {
+    const st = (l.source_type ?? "").toLowerCase();
+    if (st === "payment" || st === "deposit") {
+      return s + Number(l.total_btn ?? 0);
+    }
+    if ((l.bill_to ?? "guest") === "agent") return s;
+    return s + Number(l.total_btn ?? 0);
+  }, 0);
+  const agentChargesBtn = lines.reduce((s, l) => {
+    if ((l.bill_to ?? "guest") !== "agent") return s;
+    const st = (l.source_type ?? "").toLowerCase();
+    if (st === "payment" || st === "deposit") return s;
+    return s + Number(l.total_btn ?? 0);
+  }, 0);
   const hasCharges = lines.some(
     (l) => (l.source_type ?? "") !== "payment" && Number(l.total_btn ?? 0) > 0,
   );
@@ -619,6 +654,18 @@ export async function fetchStayHubMoney(
       agentName: agent?.company_name ?? null,
       paymentMode: (data.payment_mode as string | null) ?? null,
       roomPosOrders,
+      lines: lines
+        .filter((l) => l.id)
+        .map((l) => ({
+          id: l.id as string,
+          source_type: l.source_type ?? "other",
+          description: l.description ?? null,
+          total_btn: Number(l.total_btn ?? 0),
+          status: l.status ?? "posted",
+          bill_to: l.bill_to ?? null,
+        })),
+      guestVisibleBalanceBtn,
+      agentChargesBtn,
     },
   };
 }

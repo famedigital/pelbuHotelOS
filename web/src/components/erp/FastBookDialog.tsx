@@ -1,6 +1,10 @@
 "use client";
 
 import {
+  DeskBookForm,
+  type DeskBookFormProps,
+} from "@/components/erp/DeskBookForm";
+import {
   FastBookForm,
   type FastBookFormProps,
 } from "@/components/erp/FastBookForm";
@@ -12,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import type { DeskBookIntent } from "@/app/actions/fast-book";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -24,21 +29,45 @@ export type FastBookDialogProps = Omit<
   onOpenChange: (open: boolean) => void;
   /** Called after create, before StayHub opens (optional extras like refresh). */
   onCreated?: (bookingId: string) => void;
+  /** Use classic multi-field Fast Book (debug). Default: simplified Desk book. */
+  classic?: boolean;
 };
 
+function stepForIntent(intent: DeskBookIntent) {
+  if (intent === "check_in") return "check_in" as const;
+  if (intent === "reserve") return "reserve" as const;
+  return "confirm" as const;
+}
+
 /**
- * Full-sheet (phone) / large dialog (desktop) Fast Book create.
- * On success: closes, opens StayHub at Reserve — same path as calendar create.
+ * Desk book modal — dates, source, rooms, live rate, three create intents.
+ * On success: opens StayHub at the right step.
  */
 export function FastBookDialog({
   open,
   onOpenChange,
   onCreated,
+  classic = false,
   ...formProps
 }: FastBookDialogProps) {
   const router = useRouter();
   const stayHub = useStayHubOptional();
   const [formKey, setFormKey] = useState(0);
+
+  const handleCreated = (bookingId: string, intent: DeskBookIntent = "confirm") => {
+    onCreated?.(bookingId);
+    if (stayHub) {
+      stayHub.openStayHub({
+        bookingId,
+        step: stepForIntent(intent),
+        board: intent === "check_in" ? "arrivals" : "reservations",
+        agents: formProps.agents,
+      });
+    }
+    onOpenChange(false);
+    setFormKey((k) => k + 1);
+    router.refresh();
+  };
 
   return (
     <Dialog
@@ -52,12 +81,10 @@ export function FastBookDialog({
         showCloseButton
         className={cn(
           "erp flex flex-col gap-0 overflow-hidden p-0",
-          // Phone: full viewport sheet (match StayHub)
           "top-auto bottom-0 left-0 right-0 h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 rounded-none border-0",
           "data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
-          // Tablet+
-          "md:top-[50%] md:bottom-auto md:left-[50%] md:right-auto md:h-auto md:max-h-[90vh] md:w-full md:max-w-3xl md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-lg md:border",
-          "lg:max-w-4xl",
+          "md:top-[50%] md:bottom-auto md:left-[50%] md:right-auto md:h-auto md:max-h-[90vh] md:w-full md:max-w-2xl md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-lg md:border",
+          "lg:max-w-3xl",
           "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
         )}
       >
@@ -66,34 +93,39 @@ export function FastBookDialog({
             New reservation
           </DialogTitle>
           <DialogDescription className="text-sm">
-            Walk-in or phone book — pick dates and rooms, then StayHub opens
-            at Reserve to confirm and progress the stay.
+            Dates · source · room · rate. Then Reserve, Confirm, or Check-in.
           </DialogDescription>
         </DialogHeader>
 
         <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 md:px-5">
-          <FastBookForm
-            key={formKey}
-            {...formProps}
-            embedded
-            onCreated={(bookingId) => {
-              // Parent may suppress dropping URL (StayHub write owns ?booking=)
-              onCreated?.(bookingId);
-              if (stayHub) {
-                stayHub.openStayHub({
-                  bookingId,
-                  step: "reserve",
-                  board: "reservations",
-                  agents: formProps.agents,
-                });
-              }
-              onOpenChange(false);
-              setFormKey((k) => k + 1);
-              router.refresh();
-            }}
-          />
+          {classic ? (
+            <FastBookForm
+              key={formKey}
+              {...formProps}
+              embedded
+              onCreated={(bookingId) => handleCreated(bookingId, "confirm")}
+            />
+          ) : (
+            <DeskBookForm
+              key={formKey}
+              roomTypes={formProps.roomTypes}
+              agents={formProps.agents}
+              staff={formProps.staff}
+              defaultSoldByStaffId={formProps.defaultSoldByStaffId}
+              mealPlans={formProps.mealPlans}
+              defaults={formProps.defaults}
+              onCreated={handleCreated}
+            />
+          )}
         </div>
       </DialogContent>
     </Dialog>
   );
 }
+
+/** Alias for desk plan naming. */
+export function DeskBookModal(props: FastBookDialogProps) {
+  return <FastBookDialog {...props} />;
+}
+
+export type { DeskBookFormProps };

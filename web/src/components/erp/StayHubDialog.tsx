@@ -33,6 +33,7 @@ import {
   PostCheckInChargesForm,
   PostRoomNightForm,
 } from "@/components/erp/FolioOpsForms";
+import { DeskSettlePanel } from "@/components/erp/DeskSettlePanel";
 import { InhouseTaskQuickForm } from "@/components/erp/InhouseTasksPanel";
 import { RoomNcForm } from "@/components/erp/RoomNcForm";
 import { AgreedRateForm } from "@/components/erp/AgreedRateForm";
@@ -59,6 +60,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   buildStayHubSteps,
+  deskFocusedSteps,
   recommendStayHubStep,
   stayHubTerminal,
   type StayHubStepId,
@@ -551,7 +553,7 @@ export function StayHubDialog({
 
   const steps = useMemo(() => {
     if (!summary) return [];
-    return buildStayHubSteps({
+    const full = buildStayHubSteps({
       status: summary.status,
       hasRoomAssigned: summary.hasRoomAssigned,
       sdfIncomplete: summary.sdfIncomplete,
@@ -560,6 +562,7 @@ export function StayHubDialog({
       hasInvoice: money?.hasInvoice,
       balanceBtn: money?.balanceBtn ?? summary.folioBalance,
     });
+    return deskFocusedSteps(full, summary.status);
   }, [summary, money]);
 
   const terminal = summary ? stayHubTerminal(summary.status) : null;
@@ -1179,314 +1182,140 @@ export function StayHubDialog({
                     </div>
                   )}
 
-                  {panel === "stay_money" && (
+                  {(panel === "stay_money" || panel === "check_out") && (
                     <div className="space-y-4">
-                      <WorkSection title="Balances">
-                        <p className="mb-3 text-xs text-muted-foreground">
-                          One folio for this stay. Agent room package vs guest
-                          extras follow booking payment mode.
-                        </p>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <div className="rounded-lg border bg-card p-3 sm:p-4">
-                            <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-                              Agent (room)
-                            </p>
-                            <p className="mt-1.5 text-sm font-medium">
-                              {money?.agentName ||
-                              summary.agentName ||
-                              money?.agentId ||
-                              summary.agentId ? (
-                                <AgentNameLink
-                                  agentId={
-                                    money?.agentId || summary.agentId
-                                  }
-                                  name={
-                                    money?.agentName ||
-                                    summary.agentName ||
-                                    "Agent"
-                                  }
-                                  tab="money"
-                                  className="text-sm"
+                      <DeskSettlePanel
+                        bookingId={summary.bookingId}
+                        status={summary.status}
+                        money={money}
+                        checkIn={summary.checkIn}
+                        earlyCheckoutFeeBtn={summary.earlyCheckoutFeeBtn}
+                        lateCheckoutFeeBtn={summary.lateCheckoutFeeBtn}
+                        hasInvoice={Boolean(money?.hasInvoice)}
+                        onMoneyChanged={() => {
+                          void fetchStayHubMoney(summary.bookingId).then((r) => {
+                            if (r.ok) setMoney(r.data);
+                          });
+                          router.refresh();
+                        }}
+                        onCheckedOut={() => {
+                          void fetchStayHubSummary(
+                            summary.bookingId,
+                            summary.assignmentId,
+                          ).then((result) => {
+                            if (result.ok) applySummary(result.data, false);
+                          });
+                          router.refresh();
+                        }}
+                      />
+                      {isInHouse ? (
+                        <details className="group rounded-lg border bg-muted/15">
+                          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2.5 text-sm font-medium select-none [&::-webkit-details-marker]:hidden">
+                            <span>More · rate, NC, promo, tasks</span>
+                            <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+                          </summary>
+                          <div className="space-y-4 border-t px-3 py-3">
+                            {summary.assignmentId ? (
+                              <WorkSection title="Room NC">
+                                <RoomNcForm
+                                  assignmentId={summary.assignmentId}
+                                  chargeable={summary.chargeable}
+                                  ncReasonCode={summary.ncReasonCode}
+                                  reasons={summary.roomNcReasons}
+                                  roomLabel={summary.roomLabel}
+                                  onSuccess={() => {
+                                    void fetchStayHubSummary(
+                                      summary.bookingId,
+                                      summary.assignmentId,
+                                    ).then((result) => {
+                                      if (result.ok) applySummary(result.data, false);
+                                    });
+                                  }}
                                 />
-                              ) : (
-                                "No agent"
-                              )}
-                            </p>
-                            <p className="mt-0.5 text-xs text-muted-foreground">
-                              Mode:{" "}
-                              {(
-                                money?.paymentMode ??
-                                summary.paymentMode ??
-                                "unset"
-                              ).replace(/_/g, " ")}
-                            </p>
-                          </div>
-                          <div className="rounded-lg border bg-card p-3 sm:p-4">
-                            <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-                              Guest (extras)
-                            </p>
-                            <p
-                              className={cn(
-                                "mt-1.5 text-xl font-semibold tabular-nums",
-                                dues > 0.5 && "text-maroon",
-                              )}
-                            >
-                              {dues > 0.5
-                                ? `Nu ${Math.round(dues).toLocaleString()}`
-                                : "Clear"}
-                            </p>
-                            <p className="mt-0.5 text-xs text-muted-foreground">
-                              Open total on folio
-                            </p>
-                          </div>
-                        </div>
-                      </WorkSection>
-
-                      {isInHouse && summary.assignmentId ? (
-                        <WorkSection title="Room NC">
-                          <RoomNcForm
-                            assignmentId={summary.assignmentId}
-                            chargeable={summary.chargeable}
-                            ncReasonCode={summary.ncReasonCode}
-                            reasons={summary.roomNcReasons}
-                            roomLabel={summary.roomLabel}
-                            onSuccess={() => {
-                              void fetchStayHubSummary(
-                                summary.bookingId,
-                                summary.assignmentId,
-                              ).then((result) => {
-                                if (result.ok) applySummary(result.data, false);
-                              });
-                            }}
-                          />
-                        </WorkSection>
-                      ) : null}
-
-                      {isInHouse || panel === "stay_money" ? (
-                        <WorkSection title="Agreed rate">
-                          <AgreedRateForm
-                            bookingId={summary.bookingId}
-                            currentRateBtn={summary.agreedNightlyRateBtn}
-                            currentReason={summary.agreedRateReason}
-                            mealPlanCode={summary.mealPlanCode}
-                            roomLabel={summary.roomLabel}
-                            onSuccess={() => {
-                              void fetchStayHubSummary(
-                                summary.bookingId,
-                                summary.assignmentId,
-                              ).then((result) => {
-                                if (result.ok) applySummary(result.data, false);
-                              });
-                              router.refresh();
-                            }}
-                          />
-                        </WorkSection>
-                      ) : null}
-
-                      {isInHouse || panel === "stay_money" ? (
-                        <WorkSection title="Guest rate code">
-                          <GuestRatePromoForm
-                            bookingId={summary.bookingId}
-                            defaultNightlyRateBtn={summary.agreedNightlyRateBtn}
-                            defaultEmail={summary.contactEmail}
-                            guestName={summary.contactName}
-                            onSuccess={() => {
-                              void fetchStayHubSummary(
-                                summary.bookingId,
-                                summary.assignmentId,
-                              ).then((result) => {
-                                if (result.ok) applySummary(result.data, false);
-                              });
-                              router.refresh();
-                            }}
-                          />
-                        </WorkSection>
-                      ) : null}
-
-                      {folioId ? (
-                        <>
-                          {isInHouse && !money?.hasCharges ? (
-                            <div ref={postChargesRef}>
-                              <WorkSection title="Post charges">
-                                <PostCheckInChargesForm
+                              </WorkSection>
+                            ) : null}
+                            <WorkSection title="Agreed rate">
+                              <AgreedRateForm
+                                bookingId={summary.bookingId}
+                                currentRateBtn={summary.agreedNightlyRateBtn}
+                                currentReason={summary.agreedRateReason}
+                                mealPlanCode={summary.mealPlanCode}
+                                roomLabel={summary.roomLabel}
+                                onSuccess={() => {
+                                  void fetchStayHubSummary(
+                                    summary.bookingId,
+                                    summary.assignmentId,
+                                  ).then((result) => {
+                                    if (result.ok) applySummary(result.data, false);
+                                  });
+                                  router.refresh();
+                                }}
+                              />
+                            </WorkSection>
+                            <WorkSection title="Guest rate code">
+                              <GuestRatePromoForm
+                                bookingId={summary.bookingId}
+                                defaultNightlyRateBtn={summary.agreedNightlyRateBtn}
+                                defaultEmail={summary.contactEmail}
+                                guestName={summary.contactName}
+                                onSuccess={() => {
+                                  void fetchStayHubSummary(
+                                    summary.bookingId,
+                                    summary.assignmentId,
+                                  ).then((result) => {
+                                    if (result.ok) applySummary(result.data, false);
+                                  });
+                                  router.refresh();
+                                }}
+                              />
+                            </WorkSection>
+                            {folioId ? (
+                              <WorkSection title="Post room night">
+                                <PostRoomNightForm
                                   folioId={folioId}
                                   defaultDate={summary.checkIn}
                                 />
                               </WorkSection>
-                            </div>
-                          ) : null}
-                          {isInHouse ? (
-                            <WorkSection title="Room night">
-                              <PostRoomNightForm
-                                folioId={folioId}
-                                defaultDate={summary.checkIn}
-                              />
+                            ) : null}
+                            <WorkSection title="In-house task">
+                              <InhouseTaskQuickForm bookingId={summary.bookingId} />
                             </WorkSection>
-                          ) : null}
-                          <div ref={collectPayRef} id="hub-collect">
-                            <WorkSection title="Collect payment">
-                              <FolioPaymentForm
-                                folioId={folioId}
-                                suggestedAmount={Math.max(0, dues)}
-                              />
+                            <WorkSection title="Agent voucher">
+                              {summary.agentId ? (
+                                <div className="flex flex-wrap gap-2">
+                                  <AgentVoucherEmailButton bookingId={summary.bookingId} />
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="min-h-11"
+                                    onClick={() => setVoucherOpen(true)}
+                                  >
+                                    Print voucher
+                                  </Button>
+                                </div>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">
+                                  Assign an agent to print a voucher.
+                                </p>
+                              )}
                             </WorkSection>
-                          </div>
-                          <WorkSection title="Room F&B (POS items)">
-                            <FolioRoomPosItemsPanel
-                              orders={money?.roomPosOrders ?? []}
-                              onChanged={() => {
-                                void fetchStayHubMoney(summary.bookingId).then(
-                                  (r) => {
-                                    if (r.ok) setMoney(r.data);
-                                  },
-                                );
-                                router.refresh();
-                              }}
-                            />
-                          </WorkSection>
-                          <WorkSection title="Invoice">
-                            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                              <IssueInvoiceButton
-                                folioId={folioId}
-                                invoiceNo={money?.invoiceNo}
-                                invoiceDocId={money?.invoiceDocId}
-                              />
-                              <Button
-                                asChild
-                                variant="outline"
-                                className="min-h-11 sm:w-auto"
-                              >
-                                <Link href={`/erp/folios/${folioId}/receipt`}>
-                                  Print receipt
-                                </Link>
-                              </Button>
-                              <Button
-                                asChild
-                                variant="ghost"
-                                className="min-h-11 sm:w-auto"
-                              >
-                                <Link href={`/erp/folios/${folioId}`}>
-                                  Open city ledger
-                                </Link>
-                              </Button>
-                            </div>
-                            <div className="mt-3">
-                              <StayMoneyCycleLegend compact />
-                            </div>
-                          </WorkSection>
-                        </>
-                      ) : (
-                        <Callout tone="muted" title="No folio yet">
-                          Folio opens at check-in. Day-1 room may post then;
-                          later nights at night audit. F&B posts when ordered.
-                        </Callout>
-                      )}
-
-                      <WorkSection title="Agent voucher">
-                        <div className="flex items-start gap-2">
-                          <FileTextIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                          <div className="min-w-0 flex-1">
-                            {summary.agentId ? (
-                              <div className="flex flex-wrap gap-2">
-                                <AgentVoucherEmailButton
-                                  bookingId={summary.bookingId}
+                            <details className="rounded-md border">
+                              <summary className="cursor-pointer px-3 py-2 text-sm font-medium">
+                                Guest details
+                              </summary>
+                              <div className="border-t px-3 py-3">
+                                <GuestIdentityFields
+                                  draft={draft}
+                                  agents={agents}
+                                  staff={staff}
+                                  salesClaimStatus={summary.salesClaimStatus}
+                                  onUpdate={updateDraft}
                                 />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  className="min-h-11"
-                                  onClick={() => setVoucherOpen(true)}
-                                >
-                                  Print voucher
-                                </Button>
                               </div>
-                            ) : (
-                              <p className="text-xs text-muted-foreground">
-                                Assign an agent on Reserve to email or print a
-                                voucher (not a tax invoice).
-                              </p>
-                            )}
+                            </details>
                           </div>
-                        </div>
-                      </WorkSection>
-
-                      {/* Guest edit secondary — collapsed by default for in-house */}
-                      <details
-                        className="group rounded-lg border bg-muted/15 open:bg-card"
-                        open={!isInHouse}
-                      >
-                        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2.5 text-sm font-medium select-none [&::-webkit-details-marker]:hidden">
-                          <span>Guest details</span>
-                          <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
-                        </summary>
-                        <div className="border-t px-3 py-3">
-                          <GuestIdentityFields
-                            draft={draft}
-                            agents={agents}
-                            staff={staff}
-                            salesClaimStatus={summary.salesClaimStatus}
-                            onUpdate={updateDraft}
-                          />
-                          <p className="mt-2 text-[11px] text-muted-foreground">
-                            Edits save automatically.
-                          </p>
-                        </div>
-                      </details>
-                    </div>
-                  )}
-
-                  {panel === "check_out" && (
-                    <div className="space-y-4">
-                      {isInHouse ? (
-                        <>
-                          {folioId && dues > 0.5 ? (
-                            <Callout
-                              tone="amber"
-                              title={`Balance still open (${formatBtn(dues)})`}
-                            >
-                              Collect on Stay / Money, or allow balance on
-                              check-out with reason.
-                              <Button
-                                type="button"
-                                variant="outline"
-                                className="mt-2 min-h-11"
-                                onClick={() => setPanel("stay_money")}
-                              >
-                                Go to Stay / Money
-                              </Button>
-                            </Callout>
-                          ) : null}
-                          <WorkSection title="Check-out">
-                            <CheckOutForm
-                              bookingId={summary.bookingId}
-                              rooms={
-                                money?.roomLabels?.length
-                                  ? money.roomLabels
-                                  : summary.roomLabel
-                                    ? [summary.roomLabel]
-                                    : []
-                              }
-                              folioBalance={dues}
-                              earlyFeeDefaultBtn={summary.earlyCheckoutFeeBtn}
-                              lateFeeDefaultBtn={summary.lateCheckoutFeeBtn}
-                            />
-                          </WorkSection>
-                          <WorkSection title="In-house task">
-                            <InhouseTaskQuickForm
-                              bookingId={summary.bookingId}
-                            />
-                          </WorkSection>
-                        </>
-                      ) : summary.status === "checked_out" ? (
-                        <div className="flex items-center gap-2 rounded-lg border bg-card px-4 py-3 text-sm">
-                          <CheckIcon className="size-4 text-emerald-600" />
-                          Checked out.
-                        </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          Check-out after the guest is in-house.
-                        </p>
-                      )}
+                        </details>
+                      ) : null}
                     </div>
                   )}
 
