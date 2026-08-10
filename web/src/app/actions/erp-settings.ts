@@ -611,13 +611,84 @@ export async function updatePropertyDocumentDesign(
     const admin = createSupabaseAdminClient();
     const propertyId = trimRequired(formData.get("property_id"), "Property");
     const kind = trimRequired(formData.get("doc_kind"), "Document kind");
-    if (!["invoice", "receipt", "voucher"].includes(kind)) {
-      throw new Error("Choose invoice, receipt, or voucher.");
+    if (
+      !["invoice", "receipt", "voucher", "settlement", "registration"].includes(
+        kind,
+      )
+    ) {
+      throw new Error(
+        "Choose invoice, receipt, voucher, settlement, or registration.",
+      );
     }
 
-    const defaultDesign = defaultDocumentDesign(
-      kind as "invoice" | "receipt" | "voucher",
-    );
+    if (kind === "registration") {
+      const { defaultRegistrationDesign, mapRegistrationDesign } =
+        await import("@/lib/property-settings");
+      const fallback = defaultRegistrationDesign();
+      const next = mapRegistrationDesign({
+        preset: optionalTrim(formData.get("preset")) ?? fallback.preset,
+        brand_color:
+          optionalTrim(formData.get("brand_color")) ?? fallback.brand_color,
+        accent_color:
+          optionalTrim(formData.get("accent_color")) ?? fallback.accent_color,
+        header_text:
+          optionalTrim(formData.get("header_text")) ?? fallback.header_text,
+        footer_text:
+          optionalTrim(formData.get("footer_text")) ?? fallback.footer_text,
+        title: optionalTrim(formData.get("title")) ?? fallback.title,
+        intro_text:
+          typeof formData.get("intro_text") === "string"
+            ? String(formData.get("intro_text"))
+            : fallback.intro_text,
+        policies_text:
+          typeof formData.get("policies_text") === "string"
+            ? String(formData.get("policies_text"))
+            : fallback.policies_text,
+        dos_text:
+          typeof formData.get("dos_text") === "string"
+            ? String(formData.get("dos_text"))
+            : fallback.dos_text,
+        donts_text:
+          typeof formData.get("donts_text") === "string"
+            ? String(formData.get("donts_text"))
+            : fallback.donts_text,
+        terms_text:
+          typeof formData.get("terms_text") === "string"
+            ? String(formData.get("terms_text"))
+            : fallback.terms_text,
+        show_phone: formData.get("show_phone") === "1",
+        show_email: formData.get("show_email") === "1",
+        show_tax_id: formData.get("show_tax_id") === "1",
+        show_address: formData.get("show_address") === "1",
+        show_logo: formData.get("show_logo") === "1",
+        paper_size: "a4",
+      });
+
+      const { error } = await admin
+        .from("properties")
+        .update({ doc_registration: next })
+        .eq("id", propertyId);
+      if (error) throw new Error(error.message);
+
+      await writeAuditEvent(admin, {
+        propertyId,
+        action: "property.settings.registration_design",
+        entityType: "properties",
+        entityId: propertyId,
+        summary: "Updated registration card design",
+        meta: { kind, title: next.title },
+      });
+
+      revalidatePath("/erp/settings");
+      return {
+        ok: true,
+        propertyId,
+        message: "Registration card design saved.",
+      };
+    }
+
+    const docKind = kind as "invoice" | "receipt" | "voucher" | "settlement";
+    const defaultDesign = defaultDocumentDesign(docKind);
     const next = mapDocumentDesign(
       {
         preset: optionalTrim(formData.get("preset")) ?? defaultDesign.preset,
@@ -629,14 +700,28 @@ export async function updatePropertyDocumentDesign(
           optionalTrim(formData.get("header_text")) ?? defaultDesign.header_text,
         footer_text:
           optionalTrim(formData.get("footer_text")) ?? defaultDesign.footer_text,
+        title: optionalTrim(formData.get("title")) ?? defaultDesign.title,
+        intro_text:
+          typeof formData.get("intro_text") === "string"
+            ? String(formData.get("intro_text"))
+            : defaultDesign.intro_text,
+        notes_text:
+          typeof formData.get("notes_text") === "string"
+            ? String(formData.get("notes_text"))
+            : defaultDesign.notes_text,
+        terms_text:
+          typeof formData.get("terms_text") === "string"
+            ? String(formData.get("terms_text"))
+            : defaultDesign.terms_text,
         show_phone: formData.get("show_phone") === "1",
         show_email: formData.get("show_email") === "1",
         show_tax_id: formData.get("show_tax_id") === "1",
         show_address: formData.get("show_address") === "1",
+        show_logo: formData.get("show_logo") === "1",
         paper_size:
           optionalTrim(formData.get("paper_size")) ?? defaultDesign.paper_size,
       },
-      kind as "invoice" | "receipt" | "voucher",
+      docKind,
     );
 
     const column =
@@ -644,7 +729,9 @@ export async function updatePropertyDocumentDesign(
         ? "doc_invoice"
         : kind === "receipt"
           ? "doc_receipt"
-          : "doc_voucher";
+          : kind === "voucher"
+            ? "doc_voucher"
+            : "doc_settlement";
     const { error } = await admin
       .from("properties")
       .update({ [column]: next })

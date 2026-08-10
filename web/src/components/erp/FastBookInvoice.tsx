@@ -2,7 +2,13 @@
 
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { bookingConfirmationLabel } from "@/lib/booking-ref";
-import type { PropertyDocumentDesign } from "@/lib/property-settings";
+import {
+  defaultDocumentDesign,
+  registrationLines,
+  type PropertyDocumentDesign,
+} from "@/lib/property-settings";
+import { cn } from "@/lib/utils";
+import type { CSSProperties } from "react";
 
 export type FastBookInvoiceData = {
   bookingId: string;
@@ -53,12 +59,15 @@ const PAYMENT_LABELS: Record<string, string> = {
   on_credit: "On credit",
 };
 
+/**
+ * Desk booking confirmation note — professional A4, not a fiscal GST INV.
+ * Design from Settings → Documents → Invoice.
+ */
 export function FastBookInvoice({
   data,
   property,
-  design,
-  /** Proforma desk note — not a fiscal GST INV# */
-  title = "Booking confirmation",
+  design: designProp,
+  title: titleOverride,
   printId = "print-booking-note",
 }: {
   data: FastBookInvoiceData;
@@ -67,6 +76,7 @@ export function FastBookInvoice({
   title?: string;
   printId?: string;
 }) {
+  const design = designProp ?? defaultDocumentDesign("invoice");
   const sourceLabel =
     data.sourceLabel != null
       ? (SOURCE_LABELS[data.sourceLabel] ?? data.sourceLabel)
@@ -76,124 +86,162 @@ export function FastBookInvoice({
       ? (PAYMENT_LABELS[data.paymentLabel] ?? data.paymentLabel)
       : undefined;
   const brandName = property?.name ?? "Pelbu Suites";
-  const legalName = property?.legal_name ?? brandName;
-  const logoSrc = property?.logo_public_id
-    ? cloudinaryUrl(property.logo_public_id, { width: 180, crop: "fit" })
-    : null;
-  const brandColor = design?.brand_color ?? "#7b1e3a";
-  const accentColor = design?.accent_color ?? "#d46f92";
-  const headerText = design?.header_text ?? "Direct booking confirmation.";
-  const footerText =
-    design?.footer_text ??
-    "Not a tax invoice — GST INV issues from the guest folio. Rates applied on stay.";
-  const showAddress = design?.show_address ?? true;
-  const showPhone = design?.show_phone ?? true;
-  const showEmail = design?.show_email ?? true;
-  const showTaxId = design?.show_tax_id ?? true;
+  const legalName = property?.legal_name?.trim() || brandName;
+  const logoSrc =
+    design.show_logo && property?.logo_public_id
+      ? cloudinaryUrl(property.logo_public_id, { width: 180, crop: "fit" })
+      : null;
+  const title = titleOverride ?? design.title;
+  const notes = registrationLines(design.notes_text);
+  const conf = bookingConfirmationLabel({
+    confirmationCode: data.confirmationCode,
+    bookingId: data.bookingId,
+  });
+  const style = {
+    ["--doc-brand" as string]: design.brand_color,
+    ["--doc-accent" as string]: design.accent_color,
+  } as CSSProperties;
 
   return (
     <section
       id={printId}
-      className="erp doc-print-sheet rounded-lg border bg-card px-6 py-6 print:border-0 print:px-0 print:py-0 print:shadow-none"
       aria-label={title}
-      style={{
-        borderColor: accentColor,
-        background:
-          design?.preset === "branded"
-            ? `linear-gradient(180deg, ${accentColor}12, transparent 30%)`
-            : undefined,
-      }}
+      style={style}
+      className={cn(
+        "erp doc-print-sheet mx-auto max-w-[210mm] border bg-white text-foreground",
+        "px-5 py-4 text-[11px] leading-snug print:max-w-none print:rounded-none print:border-0 print:px-6 print:py-4 print:shadow-none",
+        design.preset === "branded" &&
+          "bg-[linear-gradient(180deg,color-mix(in_srgb,var(--doc-accent)_10%,white)_0%,white_22%)]",
+        design.preset === "compact" && "text-[10.5px]",
+      )}
     >
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <div>
+      <header
+        className="flex items-start justify-between gap-3 border-b-2 pb-2.5"
+        style={{ borderColor: design.brand_color }}
+      >
+        <div className="min-w-0 flex-1">
           <p
-            className="text-[11px] font-semibold tracking-[0.2em] uppercase"
-            style={{ color: brandColor }}
+            className="text-[9px] font-semibold tracking-[0.2em] uppercase"
+            style={{ color: design.brand_color }}
           >
-            {brandName}
+            {legalName}
           </p>
-          <h2 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+          <h1
+            className="mt-0.5 text-lg font-semibold tracking-tight"
+            style={{ color: design.brand_color }}
+          >
             {title}
-          </h2>
-        </div>
-        <p className="font-mono text-[11px] text-muted-foreground">
-          Conf{" "}
-          <span className="font-semibold text-foreground">
-            {bookingConfirmationLabel({
-              confirmationCode: data.confirmationCode,
-              bookingId: data.bookingId,
-            })}
-          </span>
-        </p>
-      </div>
-
-      {(logoSrc || showAddress || showPhone || showEmail || showTaxId) && (
-        <div
-          className="mt-3 flex flex-wrap items-start justify-between gap-4 border-b pb-4"
-          style={{ borderColor: brandColor }}
-        >
-          <div className="space-y-1 text-sm text-muted-foreground">
-            <p className="font-medium text-foreground">{legalName}</p>
-            <p>{headerText}</p>
-            {showAddress && property?.address ? <p>{property.address}</p> : null}
-            {showPhone && property?.phone ? <p>{property.phone}</p> : null}
-            {showEmail && property?.email ? <p>{property.email}</p> : null}
-            {showTaxId && property?.tax_id ? <p>GST/TAX: {property.tax_id}</p> : null}
+          </h1>
+          <p className="mt-0.5 text-[10px] text-neutral-600">
+            {design.header_text}
+          </p>
+          <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] text-neutral-500">
+            {design.show_address && property?.address ? (
+              <span>{property.address}</span>
+            ) : null}
+            {design.show_phone && property?.phone ? (
+              <span>T {property.phone}</span>
+            ) : null}
+            {design.show_email && property?.email ? (
+              <span>{property.email}</span>
+            ) : null}
+            {design.show_tax_id && property?.tax_id ? (
+              <span>Tax {property.tax_id}</span>
+            ) : null}
           </div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
           {logoSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={logoSrc}
-              alt={`${brandName} logo`}
-              className="h-14 w-auto object-contain"
+              alt=""
+              className="h-12 w-auto max-w-[7rem] object-contain"
             />
-          ) : null}
+          ) : (
+            <div
+              className="flex h-12 w-12 items-center justify-center rounded-md text-[10px] font-bold tracking-wide text-white"
+              style={{ backgroundColor: design.brand_color }}
+              aria-hidden
+            >
+              {brandName.slice(0, 2).toUpperCase()}
+            </div>
+          )}
+          <p
+            className="rounded px-1.5 py-0.5 text-[8px] font-semibold tracking-wider text-white uppercase"
+            style={{ backgroundColor: design.accent_color }}
+          >
+            Not a tax inv
+          </p>
         </div>
-      )}
+      </header>
 
-      <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm text-foreground sm:grid-cols-4">
-        <Field label="Check-in" value={fmtIso(data.checkIn)} />
-        <Field label="Check-out" value={fmtIso(data.checkOut)} />
-        <Field label="Nights" value={String(data.nights)} />
-        <Field label="Adults" value={String(data.adults)} />
+      {design.intro_text.trim() ? (
+        <p className="mt-2 text-[10px] leading-snug text-neutral-600">
+          {design.intro_text}
+        </p>
+      ) : null}
+
+      <div
+        className="mt-2 grid grid-cols-4 gap-1 rounded border px-2 py-1.5 text-[9px]"
+        style={{ borderColor: `${design.accent_color}55` }}
+      >
+        <Meta label="Confirmation" value={conf} />
+        <Meta label="Check-in" value={fmtIso(data.checkIn)} />
+        <Meta label="Check-out" value={fmtIso(data.checkOut)} />
+        <Meta
+          label="Nights · adults"
+          value={`${data.nights || "—"} · ${data.adults || "—"}`}
+        />
+      </div>
+
+      <div className="mt-2.5 grid gap-x-4 gap-y-1 sm:grid-cols-2">
         <Field label="Guest" value={data.guestName || "—"} />
-        {data.agentLabel ? <Field label="Agent" value={data.agentLabel} /> : null}
+        {data.agentLabel ? (
+          <Field label="Agent" value={data.agentLabel} />
+        ) : null}
         {sourceLabel ? <Field label="Booked by" value={sourceLabel} /> : null}
         {paymentLabel ? <Field label="Payment" value={paymentLabel} /> : null}
-      </dl>
+      </div>
 
-      <div className="mt-5 overflow-hidden rounded-lg border">
-        <table className="w-full border-collapse text-sm">
-          <thead className="bg-muted/40 text-[11px] tracking-[0.18em] text-muted-foreground uppercase">
-            <tr>
-              <th scope="col" className="px-3 py-2 text-left font-semibold">
-                Room / bed
-              </th>
-              <th scope="col" className="px-3 py-2 text-left font-semibold">
-                Code
-              </th>
-              <th scope="col" className="px-3 py-2 text-right font-semibold">
-                Qty
-              </th>
-              <th scope="col" className="px-3 py-2 text-right font-semibold">
-                Nights
-              </th>
+      <div className="mt-2.5 overflow-hidden rounded border border-neutral-300">
+        <table className="w-full border-collapse text-[10px]">
+          <thead>
+            <tr
+              className="text-left text-[8px] tracking-[0.14em] text-white uppercase"
+              style={{ backgroundColor: design.brand_color }}
+            >
+              <th className="px-2 py-1.5 font-semibold">Room / item</th>
+              <th className="px-2 py-1.5 font-semibold">Code</th>
+              <th className="px-2 py-1.5 text-right font-semibold">Qty</th>
+              <th className="px-2 py-1.5 text-right font-semibold">Nights</th>
             </tr>
           </thead>
           <tbody>
             {data.lines.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-3 py-3 text-muted-foreground">
+                <td colSpan={4} className="px-2 py-2 text-neutral-500">
                   No room lines.
                 </td>
               </tr>
             ) : (
               data.lines.map((l) => (
-                <tr key={`${l.code}-${l.name}`} className="border-t">
-                  <td className="px-3 py-2 text-foreground">{l.name}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{l.code}</td>
-                  <td className="px-3 py-2 text-right font-mono text-foreground">{l.qty}</td>
-                  <td className="px-3 py-2 text-right font-mono text-foreground">{data.nights}</td>
+                <tr
+                  key={`${l.code}-${l.name}`}
+                  className="border-t border-neutral-200"
+                >
+                  <td className="px-2 py-1.5 font-medium text-neutral-900">
+                    {l.name}
+                  </td>
+                  <td className="px-2 py-1.5 font-mono text-[9px] text-neutral-500">
+                    {l.code}
+                  </td>
+                  <td className="px-2 py-1.5 text-right font-mono tabular-nums">
+                    {l.qty}
+                  </td>
+                  <td className="px-2 py-1.5 text-right font-mono tabular-nums">
+                    {data.nights}
+                  </td>
                 </tr>
               ))
             )}
@@ -201,18 +249,48 @@ export function FastBookInvoice({
         </table>
       </div>
 
-      <p className="mt-4 border-t pt-3 text-xs italic text-muted-foreground">
-        {footerText}
-      </p>
+      {notes.length > 0 ? (
+        <ul className="mt-2.5 space-y-0.5 text-[9px] text-neutral-600">
+          {notes.map((line) => (
+            <li key={line} className="flex gap-1.5">
+              <span style={{ color: design.accent_color }}>•</span>
+              <span>{line}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {design.terms_text.trim() ? (
+        <p className="mt-2 rounded border border-neutral-300 bg-neutral-50 px-2 py-1.5 text-[9px] leading-snug text-neutral-700">
+          {design.terms_text}
+        </p>
+      ) : null}
+
+      <footer className="mt-3 border-t border-neutral-200 pt-2 text-[9px] text-neutral-500">
+        {design.footer_text}
+      </footer>
     </section>
+  );
+}
+
+function Meta({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[8px] font-semibold tracking-wide text-neutral-500 uppercase">
+        {label}
+      </p>
+      <p className="font-medium text-neutral-900">{value}</p>
+    </div>
   );
 }
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">{label}</dt>
-      <dd className="mt-0.5 text-foreground">{value}</dd>
+      <p className="text-[8px] font-semibold tracking-wide text-neutral-500 uppercase">
+        {label}
+      </p>
+      <p className="text-[11px] font-medium text-neutral-900">{value}</p>
     </div>
   );
 }

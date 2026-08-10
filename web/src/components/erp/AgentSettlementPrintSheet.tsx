@@ -4,17 +4,27 @@ import type { SettlementPrintPack } from "@/app/actions/erp-settlement-pack";
 import { bookingConfirmationLabel } from "@/lib/booking-ref";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { formatBtn, formatGuestBtn } from "@/lib/pricing";
+import {
+  defaultDocumentDesign,
+  registrationLines,
+  type PropertyDocumentDesign,
+} from "@/lib/property-settings";
+import { cn } from "@/lib/utils";
+import type { CSSProperties } from "react";
 
 /**
- * A4 guide-sign settlement sheet — FO prints, guide ink-signs at desk.
+ * A4 guide-sign settlement / checkout card — FO prints, guide ink-signs at desk.
+ * Design from Settings → Documents → Settlement.
  * Target for html[data-desk-print="settlement"] (see globals.css).
  */
 export function AgentSettlementPrintSheet({
   pack,
+  design: designProp,
   /** Lightweight fallback when live pack not loaded yet */
   fallback,
 }: {
   pack?: SettlementPrintPack | null;
+  design?: PropertyDocumentDesign | null;
   fallback?: {
     guestName: string;
     rooms: string[];
@@ -28,11 +38,14 @@ export function AgentSettlementPrintSheet({
   const data = pack ?? (fallback ? packFromFallback(fallback) : null);
   if (!data) return null;
 
+  const design =
+    designProp ?? pack?.design ?? defaultDocumentDesign("settlement");
   const brand = data.property.name || "Pelbu Suites";
   const legal = data.property.legalName?.trim() || brand;
-  const logoSrc = data.property.logoPublicId
-    ? cloudinaryUrl(data.property.logoPublicId, { width: 200, crop: "fit" })
-    : null;
+  const logoSrc =
+    design.show_logo && data.property.logoPublicId
+      ? cloudinaryUrl(data.property.logoPublicId, { width: 200, crop: "fit" })
+      : null;
   const conf = bookingConfirmationLabel({
     confirmationCode: data.confirmationCode,
     bookingId: data.bookingId,
@@ -53,6 +66,7 @@ export function AgentSettlementPrintSheet({
   const paxLine = paxParts.length ? paxParts.join(" · ") : "—";
   const paymentLabel = paymentModeLabel(data.paymentMode);
   const asOf = fmtStamp(data.asOfIso);
+  const notes = registrationLines(design.notes_text);
   const chargeLines = data.lines.filter(
     (l) =>
       l.sourceType !== "payment" &&
@@ -64,55 +78,72 @@ export function AgentSettlementPrintSheet({
       (l.sourceType === "payment" || l.sourceType === "deposit") &&
       Math.abs(l.amountBtn) > 0.009,
   );
+  const style = {
+    ["--doc-brand" as string]: design.brand_color,
+    ["--doc-accent" as string]: design.accent_color,
+  } as CSSProperties;
 
   return (
     <article
       id="print-agent-settlement"
       aria-label="Agent settlement pack"
-      className="doc-print-sheet mx-auto w-full max-w-[720px] bg-white px-7 py-6 text-neutral-900"
+      style={style}
+      className={cn(
+        "doc-print-sheet mx-auto w-full max-w-[210mm] border bg-white px-5 py-4 text-[11px] leading-snug text-neutral-900",
+        design.preset === "branded" &&
+          "bg-[linear-gradient(180deg,color-mix(in_srgb,var(--doc-accent)_10%,white)_0%,white_22%)]",
+        design.preset === "compact" && "text-[10.5px]",
+      )}
     >
-      {/* —— Letterhead —— */}
-      <header className="flex items-start justify-between gap-4 border-b-2 border-neutral-900 pb-4">
-        <div className="min-w-0">
-          <p className="text-[10px] font-semibold tracking-[0.22em] text-[#7b1e3a] uppercase">
-            {brand}
+      <header
+        className="flex items-start justify-between gap-3 border-b-2 pb-2.5"
+        style={{ borderColor: design.brand_color }}
+      >
+        <div className="min-w-0 flex-1">
+          <p
+            className="text-[9px] font-semibold tracking-[0.2em] uppercase"
+            style={{ color: design.brand_color }}
+          >
+            {legal}
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900">
-            Agent settlement pack
+          <h1
+            className="mt-0.5 text-lg font-semibold tracking-tight"
+            style={{ color: design.brand_color }}
+          >
+            {design.title}
           </h1>
-          <p className="mt-1 max-w-md text-sm text-neutral-600">
-            Guide signs in ink at desk. Front desk keeps scan; seal &amp; email
-            agent after guests leave.
+          <p className="mt-0.5 text-[10px] text-neutral-600">
+            {design.header_text}
           </p>
-          {legal !== brand ? (
-            <p className="mt-2 text-xs text-neutral-600">{legal}</p>
-          ) : null}
-          {data.property.address ? (
-            <p className="mt-0.5 text-xs text-neutral-600">
-              {data.property.address}
-            </p>
-          ) : null}
-          <p className="mt-0.5 text-xs text-neutral-600">
-            {[data.property.phone, data.property.email]
-              .filter(Boolean)
-              .join(" · ") || "Olakha, Thimphu, Bhutan"}
-          </p>
-          {data.property.taxId ? (
-            <p className="text-xs text-neutral-500">
-              Tax / GST: {data.property.taxId}
-            </p>
-          ) : null}
+          <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] text-neutral-500">
+            {design.show_address && data.property.address ? (
+              <span>{data.property.address}</span>
+            ) : null}
+            {design.show_phone && data.property.phone ? (
+              <span>T {data.property.phone}</span>
+            ) : null}
+            {design.show_email && data.property.email ? (
+              <span>{data.property.email}</span>
+            ) : null}
+            {design.show_tax_id && data.property.taxId ? (
+              <span>Tax {data.property.taxId}</span>
+            ) : null}
+          </div>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-2">
+        <div className="flex shrink-0 flex-col items-end gap-1">
           {logoSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={logoSrc}
-              alt={`${brand} logo`}
-              className="h-16 w-auto max-w-[140px] object-contain"
+              alt=""
+              className="h-12 w-auto max-w-[7rem] object-contain"
             />
           ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded border-2 border-neutral-900 text-center text-[9px] font-bold tracking-wide uppercase leading-tight">
+            <div
+              className="flex h-12 w-12 items-center justify-center rounded-md text-[10px] font-bold tracking-wide text-white"
+              style={{ backgroundColor: design.brand_color }}
+              aria-hidden
+            >
               {brand
                 .split(/\s+/)
                 .slice(0, 2)
@@ -120,26 +151,41 @@ export function AgentSettlementPrintSheet({
                 .join("")}
             </div>
           )}
-          <div className="text-right">
-            <p className="text-[10px] font-semibold tracking-[0.16em] text-neutral-500 uppercase">
-              Confirmation
+          <p
+            className="rounded px-1.5 py-0.5 text-[8px] font-semibold tracking-wider text-white uppercase"
+            style={{ backgroundColor: design.accent_color }}
+          >
+            Guide sign · desk
+          </p>
+          <div className="mt-1 text-right">
+            <p className="text-[8px] font-semibold tracking-wide text-neutral-500 uppercase">
+              Conf
             </p>
-            <p className="font-mono text-sm font-semibold text-neutral-900">
+            <p className="font-mono text-[11px] font-semibold text-neutral-900">
               {conf}
             </p>
-            <p className="mt-1 text-[10px] text-neutral-500">As of {asOf}</p>
+            <p className="text-[8px] text-neutral-500">As of {asOf}</p>
           </div>
         </div>
       </header>
 
-      {/* —— Parties & stay —— */}
-      <section className="mt-5 grid gap-4 border-b border-neutral-300 pb-4 sm:grid-cols-2">
-        <div className="space-y-3 text-sm">
+      {design.intro_text.trim() ? (
+        <p className="mt-2 text-[10px] leading-snug text-neutral-600">
+          {design.intro_text}
+        </p>
+      ) : null}
+
+      <div className="mt-2.5 grid gap-x-4 gap-y-1 sm:grid-cols-2">
+        <div className="space-y-1">
           <Field label="Guest" value={data.guestName || "—"} strong />
           {data.guestPhone ? (
             <Field label="Guest phone" value={data.guestPhone} />
           ) : null}
-          <Field label="Agent (bill to)" value={data.agentName?.trim() || "—"} strong />
+          <Field
+            label="Agent (bill to)"
+            value={data.agentName?.trim() || "—"}
+            strong
+          />
           {data.agentEmail ? (
             <Field label="Agent email" value={data.agentEmail} />
           ) : null}
@@ -149,7 +195,7 @@ export function AgentSettlementPrintSheet({
             strong
           />
         </div>
-        <div className="space-y-3 text-sm">
+        <div className="space-y-1">
           <Field
             label="Stay"
             value={`${fmtIso(data.checkIn)} → ${fmtIso(data.checkOut)}`}
@@ -164,54 +210,57 @@ export function AgentSettlementPrintSheet({
           <Field label="Payment mode" value={paymentLabel} />
           <Field label="Assigned room(s)" value={roomsLine} />
         </div>
-      </section>
+      </div>
 
-      {/* —— Money summary —— */}
-      <section className="mt-5">
-        <p className="text-[10px] font-semibold tracking-[0.18em] text-neutral-500 uppercase">
+      <section className="mt-3">
+        <p
+          className="text-[8px] font-semibold tracking-[0.16em] uppercase"
+          style={{ color: design.brand_color }}
+        >
           Folio amounts (Nu · live desk snapshot)
         </p>
-        <div className="mt-2 grid grid-cols-3 gap-2 border-2 border-neutral-900">
+        <div
+          className="mt-1.5 grid grid-cols-3 gap-px border-2"
+          style={{ borderColor: design.brand_color }}
+        >
           <MoneyCell label="Charges" value={data.chargesBtn} />
           <MoneyCell label="Payments / deposits" value={data.paymentsBtn} />
-          <MoneyCell label="Balance" value={data.balanceBtn} emphasize />
+          <MoneyCell label="Balance" value={data.balanceBtn} emphasize brand={design.brand_color} />
         </div>
-        <div className="mt-2 grid gap-2 sm:grid-cols-2">
-          <div className="rounded border border-neutral-300 px-3 py-2 text-sm">
-            <p className="text-[10px] font-semibold tracking-wide text-neutral-500 uppercase">
+        <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
+          <div className="rounded border border-neutral-300 px-2.5 py-1.5">
+            <p className="text-[8px] font-semibold tracking-wide text-neutral-500 uppercase">
               On agent AR / package
             </p>
-            <p className="mt-0.5 text-lg font-semibold tabular-nums">
+            <p className="mt-0.5 text-base font-semibold tabular-nums">
               {formatGuestBtn(data.agentChargesBtn)}
             </p>
           </div>
-          <div className="rounded border border-neutral-300 px-3 py-2 text-sm">
-            <p className="text-[10px] font-semibold tracking-wide text-neutral-500 uppercase">
+          <div className="rounded border border-neutral-300 px-2.5 py-1.5">
+            <p className="text-[8px] font-semibold tracking-wide text-neutral-500 uppercase">
               Guest-visible balance
             </p>
-            <p className="mt-0.5 text-lg font-semibold tabular-nums">
+            <p className="mt-0.5 text-base font-semibold tabular-nums">
               {formatGuestBtn(data.guestBalanceBtn)}
             </p>
           </div>
         </div>
-        <p className="mt-2 text-[11px] leading-snug text-neutral-500">
-          Not a fiscal tax invoice. GST INV is issued from the folio only.
-          Amounts may change if desk posts further charges before seal.
-        </p>
       </section>
 
-      {/* —— Line preview —— */}
       {(chargeLines.length > 0 || payLines.length > 0) && (
-        <section className="mt-5">
-          <p className="text-[10px] font-semibold tracking-[0.18em] text-neutral-500 uppercase">
+        <section className="mt-3">
+          <p
+            className="text-[8px] font-semibold tracking-[0.16em] uppercase"
+            style={{ color: design.brand_color }}
+          >
             Posted lines (summary)
           </p>
-          <table className="mt-2 w-full border-collapse text-xs">
+          <table className="mt-1 w-full border-collapse text-[9px]">
             <thead>
               <tr className="border-b border-neutral-400 text-left">
-                <th className="py-1.5 pr-2 font-semibold">Description</th>
-                <th className="py-1.5 pr-2 font-semibold">Bill to</th>
-                <th className="py-1.5 text-right font-semibold">Amount</th>
+                <th className="py-1 pr-2 font-semibold">Description</th>
+                <th className="py-1 pr-2 font-semibold">Bill to</th>
+                <th className="py-1 text-right font-semibold">Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -234,80 +283,100 @@ export function AgentSettlementPrintSheet({
             </tbody>
           </table>
           {data.lines.length > 16 ? (
-            <p className="mt-1 text-[10px] text-neutral-500">
+            <p className="mt-0.5 text-[8px] text-neutral-500">
               +{data.lines.length - 16} more on full folio
             </p>
           ) : null}
         </section>
       )}
 
-      {/* —— Acknowledgment —— */}
-      <section className="mt-5 border border-neutral-400 px-4 py-3 text-sm leading-relaxed text-neutral-800">
+      {notes.length > 0 ? (
+        <ul className="mt-2.5 space-y-0.5 text-[9px] text-neutral-600">
+          {notes.map((line) => (
+            <li key={line} className="flex gap-1.5">
+              <span style={{ color: design.accent_color }}>•</span>
+              <span>{line}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      <section
+        className="mt-3 border px-3 py-2 text-[10px] leading-relaxed text-neutral-800"
+        style={{ borderColor: `${design.brand_color}66` }}
+      >
         <p className="font-semibold text-neutral-900">Guide acknowledgment</p>
-        <p className="mt-1.5">
-          I confirm that{" "}
-          <strong>{data.guestName || "the guest"}</strong> stayed at {brand}
-          {data.roomLabels.length
-            ? ` (room ${data.roomLabels.join(", ")})`
-            : ""}{" "}
-          from {fmtIso(data.checkIn)} to {fmtIso(data.checkOut)} under agent{" "}
-          <strong>{data.agentName?.trim() || "—"}</strong>, and that the folio
-          amounts shown above (balance{" "}
-          <strong>{formatGuestBtn(data.balanceBtn)}</strong>
-          {data.agentChargesBtn > 0.009
-            ? `; agent AR ${formatGuestBtn(data.agentChargesBtn)}`
-            : ""}
-          ) are accepted for settlement under our agreed commercial terms with
-          Pelbu Suites.
+        <p className="mt-1">
+          {design.terms_text.trim() ||
+            `I confirm that ${data.guestName || "the guest"} stayed at ${brand}${
+              data.roomLabels.length
+                ? ` (room ${data.roomLabels.join(", ")})`
+                : ""
+            } from ${fmtIso(data.checkIn)} to ${fmtIso(data.checkOut)} under agent ${
+              data.agentName?.trim() || "—"
+            }, and that the folio amounts shown (balance ${formatGuestBtn(
+              data.balanceBtn,
+            )}${
+              data.agentChargesBtn > 0.009
+                ? `; agent AR ${formatGuestBtn(data.agentChargesBtn)}`
+                : ""
+            }) are accepted for settlement.`}
+        </p>
+        <p className="mt-1.5 text-[9px] text-neutral-600">
+          Guest: <strong>{data.guestName || "—"}</strong>
+          {" · "}
+          Agent: <strong>{data.agentName?.trim() || "—"}</strong>
+          {" · "}
+          Balance:{" "}
+          <strong className="tabular-nums">
+            {formatGuestBtn(data.balanceBtn)}
+          </strong>
         </p>
       </section>
 
-      {/* —— Signatures —— */}
-      <section className="mt-8 grid gap-8 sm:grid-cols-2">
+      <section className="mt-5 grid gap-6 sm:grid-cols-2">
         <div>
-          <div className="min-h-[3.75rem] border-b-2 border-neutral-900" />
-          <p className="mt-2 text-[11px] font-semibold text-neutral-800">
+          <div className="min-h-[3.25rem] border-b-2 border-neutral-900" />
+          <p className="mt-1.5 text-[10px] font-semibold text-neutral-800">
             Guide signature (ink)
           </p>
-          <p className="text-[10px] text-neutral-500">
+          <p className="text-[8px] text-neutral-500">
             Print full name · Tour / licence # if different
           </p>
-          <div className="mt-4 min-h-[2rem] border-b border-neutral-400" />
-          <p className="mt-1 text-[10px] text-neutral-500">Name in print</p>
+          <div className="mt-3 min-h-[1.75rem] border-b border-neutral-400" />
+          <p className="mt-0.5 text-[8px] text-neutral-500">Name in print</p>
         </div>
         <div>
-          <div className="min-h-[3.75rem] border-b-2 border-neutral-900" />
-          <p className="mt-2 text-[11px] font-semibold text-neutral-800">
+          <div className="min-h-[3.25rem] border-b-2 border-neutral-900" />
+          <p className="mt-1.5 text-[10px] font-semibold text-neutral-800">
             Date &amp; hotel stamp
           </p>
-          <p className="text-[10px] text-neutral-500">DD/MM/YYYY · stamp if any</p>
-          <div className="mt-4 min-h-[2rem] border-b border-neutral-400" />
-          <p className="mt-1 text-[10px] text-neutral-500">FO name (print)</p>
+          <p className="text-[8px] text-neutral-500">DD/MM/YYYY · stamp if any</p>
+          <div className="mt-3 min-h-[1.75rem] border-b border-neutral-400" />
+          <p className="mt-0.5 text-[8px] text-neutral-500">FO name (print)</p>
         </div>
       </section>
 
-      <section className="mt-6 grid gap-6 sm:grid-cols-2">
+      <section className="mt-4 grid gap-4 sm:grid-cols-2">
         <div>
-          <div className="min-h-[2.5rem] border-b border-neutral-400" />
-          <p className="mt-1 text-[10px] text-neutral-500">FO signature</p>
+          <div className="min-h-[2rem] border-b border-neutral-400" />
+          <p className="mt-0.5 text-[8px] text-neutral-500">FO signature</p>
         </div>
         <div>
-          <div className="min-h-[2.5rem] border-b border-neutral-400" />
-          <p className="mt-1 text-[10px] text-neutral-500">
+          <div className="min-h-[2rem] border-b border-neutral-400" />
+          <p className="mt-0.5 text-[8px] text-neutral-500">
             Manager (if amount disputed)
           </p>
         </div>
       </section>
 
-      <footer className="mt-8 border-t border-neutral-300 pt-3 text-[10px] leading-relaxed text-neutral-500">
-        <p>
-          Desk evidence only · not a tax invoice · not a room voucher for
-          check-in. After ink sign: camera / scan on StayHub Checkout, then seal
-          &amp; email agent.
-        </p>
-        <p className="mt-1 font-medium text-neutral-700">
+      <footer className="mt-5 border-t border-neutral-200 pt-2 text-[9px] leading-relaxed text-neutral-500">
+        <p>{design.footer_text}</p>
+        <p className="mt-0.5 font-medium text-neutral-700">
           {brand}
-          {data.property.address ? ` · ${data.property.address}` : " · Thimphu, Bhutan"}
+          {data.property.address
+            ? ` · ${data.property.address}`
+            : " · Thimphu, Bhutan"}
           {data.property.phone ? ` · ${data.property.phone}` : null}
         </p>
       </footer>
@@ -335,6 +404,7 @@ function packFromFallback(f: {
       taxId: null,
       logoPublicId: null,
     },
+    design: defaultDocumentDesign("settlement"),
     guestName: f.guestName,
     guestPhone: null,
     confirmationCode: f.confirmationCode ?? null,
@@ -406,10 +476,16 @@ function Field({
 }) {
   return (
     <div>
-      <p className="text-[10px] font-semibold tracking-[0.14em] text-neutral-500 uppercase">
+      <p className="text-[8px] font-semibold tracking-[0.14em] text-neutral-500 uppercase">
         {label}
       </p>
-      <p className={strong ? "font-semibold text-neutral-900" : "text-neutral-800"}>
+      <p
+        className={
+          strong
+            ? "text-[11px] font-semibold text-neutral-900"
+            : "text-[11px] text-neutral-800"
+        }
+      >
         {value}
       </p>
     </div>
@@ -420,27 +496,34 @@ function MoneyCell({
   label,
   value,
   emphasize,
+  brand,
 }: {
   label: string;
   value: number;
   emphasize?: boolean;
+  brand?: string;
 }) {
   return (
     <div
       className={
         emphasize
-          ? "border-l-0 bg-white px-3 py-2.5 text-neutral-900 ring-2 ring-inset ring-neutral-900"
-          : "bg-white px-3 py-2.5 text-neutral-900"
+          ? "bg-white px-2.5 py-2 text-neutral-900 ring-2 ring-inset"
+          : "bg-white px-2.5 py-2 text-neutral-900"
+      }
+      style={
+        emphasize && brand
+          ? { boxShadow: `inset 0 0 0 2px ${brand}` }
+          : undefined
       }
     >
-      <p className="text-[9px] font-semibold tracking-[0.14em] text-neutral-500 uppercase">
+      <p className="text-[8px] font-semibold tracking-[0.14em] text-neutral-500 uppercase">
         {label}
       </p>
       <p
         className={
           emphasize
-            ? "mt-0.5 text-xl font-bold tabular-nums"
-            : "mt-0.5 text-lg font-semibold tabular-nums"
+            ? "mt-0.5 text-lg font-bold tabular-nums"
+            : "mt-0.5 text-base font-semibold tabular-nums"
         }
       >
         {formatGuestBtn(value)}

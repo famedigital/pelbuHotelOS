@@ -11,6 +11,10 @@ import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { formatBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
+import {
+  mapDocumentDesign,
+  type PropertyDocumentDesign,
+} from "@/lib/property-settings";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 import { Resend } from "resend";
@@ -194,6 +198,8 @@ export type SettlementPrintProperty = {
 export type SettlementPrintPack = {
   bookingId: string;
   property: SettlementPrintProperty;
+  /** Settings → Documents → Settlement (checkout card) */
+  design: PropertyDocumentDesign;
   guestName: string;
   guestPhone: string | null;
   confirmationCode: string | null;
@@ -319,7 +325,7 @@ export async function loadSettlementPrintPack(
       admin
         .from("properties")
         .select(
-          "name, legal_name, address, phone, email, tax_id, logo_public_id",
+          "name, legal_name, address, phone, email, tax_id, logo_public_id, doc_settlement",
         )
         .eq("id", propertyId)
         .maybeSingle(),
@@ -363,6 +369,7 @@ export async function loadSettlementPrintPack(
       taxId: (property?.tax_id as string | null) ?? null,
       logoPublicId: (property?.logo_public_id as string | null) ?? null,
     },
+    design: mapDocumentDesign(property?.doc_settlement, "settlement"),
     guestName: (booking.contact_name as string) || "Guest",
     guestPhone: (booking.contact_phone as string | null) ?? null,
     confirmationCode: (booking.confirmation_code as string | null) ?? null,

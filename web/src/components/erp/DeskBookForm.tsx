@@ -42,7 +42,10 @@ import {
 import { useActionToast } from "@/hooks/use-action-toast";
 import { useAgentCreditEligibilityNotify } from "@/hooks/use-agent-credit-eligibility-notify";
 import { creditAgentIneligibilityMessage } from "@/lib/agents/status";
-import type { PropertyDocumentDesign } from "@/lib/property-settings";
+import type {
+  PropertyDocumentDesign,
+  PropertyRegistrationDesign,
+} from "@/lib/property-settings";
 import { formatGuestBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import {
@@ -84,6 +87,7 @@ export type DeskBookFormProps = {
   };
   invoiceDesign?: PropertyDocumentDesign;
   voucherDesign?: PropertyDocumentDesign;
+  registrationDesign?: PropertyRegistrationDesign;
   defaults?: {
     checkIn?: string;
     checkOut?: string;
@@ -199,6 +203,7 @@ export function DeskBookForm({
   property,
   invoiceDesign,
   voucherDesign,
+  registrationDesign,
   defaults,
   onSaved,
   onOpenStay,
@@ -961,7 +966,11 @@ export function DeskBookForm({
                 design={voucherDesign}
               />
             ) : null}
-            <GuestRegistrationCard data={regData} property={property} />
+            <GuestRegistrationCard
+              data={regData}
+              property={property}
+              design={registrationDesign}
+            />
           </div>
         </div>
 

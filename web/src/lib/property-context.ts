@@ -89,7 +89,7 @@ const loadPropertyCached = cache(
     const { data } = await admin
       .from("properties")
       .select(
-        "id, slug, name, template_id, timezone, setup_step, setup_completed_at, income_streams, bank_accounts, logo_public_id, logo_nav_size_rem, logo_nav_offset_pct, logo_nav_gap_rem, logo_nav_shift_x_rem, legal_name, address, phone, whatsapp, email, tax_id, gst_rate, service_charge_rate, service_charge_default_on, post_day1_room_at_checkin, doc_invoice, doc_receipt, doc_voucher, public_host, desk_host, night_audit_close_time, current_business_date, public_host_cert_status, desk_host_cert_status, host_verify_token, product_pack, pos_training_mode",
+        "id, slug, name, template_id, timezone, setup_step, setup_completed_at, income_streams, bank_accounts, logo_public_id, logo_nav_size_rem, logo_nav_offset_pct, logo_nav_gap_rem, logo_nav_shift_x_rem, legal_name, address, phone, whatsapp, email, tax_id, gst_rate, service_charge_rate, service_charge_default_on, post_day1_room_at_checkin, doc_invoice, doc_receipt, doc_voucher, doc_settlement, doc_registration, public_host, desk_host, night_audit_close_time, current_business_date, public_host_cert_status, desk_host_cert_status, host_verify_token, product_pack, pos_training_mode",
       )
       .eq("id", id)
       .maybeSingle();
@@ -110,7 +110,7 @@ export async function listProperties(admin: Admin): Promise<PropertyRow[]> {
   const { data } = await admin
     .from("properties")
     .select(
-      "id, slug, name, template_id, timezone, setup_step, setup_completed_at, income_streams, bank_accounts, logo_public_id, logo_nav_size_rem, logo_nav_offset_pct, logo_nav_gap_rem, logo_nav_shift_x_rem, legal_name, address, phone, whatsapp, email, tax_id, gst_rate, service_charge_rate, service_charge_default_on, post_day1_room_at_checkin, doc_invoice, doc_receipt, doc_voucher, public_host, desk_host, night_audit_close_time, current_business_date, public_host_cert_status, desk_host_cert_status, host_verify_token, product_pack, pos_training_mode",
+      "id, slug, name, template_id, timezone, setup_step, setup_completed_at, income_streams, bank_accounts, logo_public_id, logo_nav_size_rem, logo_nav_offset_pct, logo_nav_gap_rem, logo_nav_shift_x_rem, legal_name, address, phone, whatsapp, email, tax_id, gst_rate, service_charge_rate, service_charge_default_on, post_day1_room_at_checkin, doc_invoice, doc_receipt, doc_voucher, doc_settlement, doc_registration, public_host, desk_host, night_audit_close_time, current_business_date, public_host_cert_status, desk_host_cert_status, host_verify_token, product_pack, pos_training_mode",
     )
     .order("name");
   return (data ?? []).map(mapProperty);

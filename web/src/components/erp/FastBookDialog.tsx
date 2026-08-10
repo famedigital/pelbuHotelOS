@@ -29,6 +29,7 @@ export type FastBookDialogProps = {
   property?: DeskBookFormProps["property"];
   invoiceDesign?: DeskBookFormProps["invoiceDesign"];
   voucherDesign?: DeskBookFormProps["voucherDesign"];
+  registrationDesign?: DeskBookFormProps["registrationDesign"];
   defaults?: DeskBookFormProps["defaults"];
   /** @deprecated Classic FastBook form removed — DeskBook is the only path. */
   classic?: boolean;
@@ -119,6 +120,7 @@ export function FastBookDialog({
             property={formProps.property}
             invoiceDesign={formProps.invoiceDesign}
             voucherDesign={formProps.voucherDesign}
+            registrationDesign={formProps.registrationDesign}
             defaults={formProps.defaults}
             onSaved={() => {
               setStage("confirm");

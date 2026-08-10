@@ -43,6 +43,7 @@ import {
   SignedRegCardUploadStrip,
 } from "@/components/erp/PostCheckInRegPanel";
 import type { RackStay, RackUnit } from "@/components/erp/RoomRackGrid";
+import type { PropertyRegistrationDesign } from "@/lib/property-settings";
 import {
   StayHubFooterBar,
   StayHubHeader,
@@ -395,6 +396,19 @@ export function StayHubDialog({
   const [localAgents, setLocalAgents] = useState<CalendarAgent[]>([]);
   const [localStaff, setLocalStaff] = useState<BookableStaff[]>([]);
   const [mealPlans, setMealPlans] = useState<StayHubCatalogMealPlan[]>([]);
+  const [regDesign, setRegDesign] =
+    useState<PropertyRegistrationDesign | null>(null);
+  const [regProperty, setRegProperty] = useState<{
+    name: string;
+    legal_name: string | null;
+    address: string | null;
+    phone: string | null;
+    email: string | null;
+    tax_id: string | null;
+    logo_public_id: string | null;
+    check_in_time: string | null;
+    check_out_time: string | null;
+  } | null>(null);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [sheetRate, setSheetRate] = useState<Awaited<
     ReturnType<typeof previewStayHubSheetRate>
@@ -442,6 +456,8 @@ export function StayHubDialog({
       );
       setLocalStaff(r.data.staff);
       setMealPlans(r.data.mealPlans);
+      setRegDesign(r.data.registration.design);
+      setRegProperty(r.data.registration.property);
     });
     return () => {
       cancelled = true;
@@ -1857,6 +1873,8 @@ export function StayHubDialog({
                       <PostCheckInRegPanel
                         regData={postRegData}
                         regCardPhotoPublicId={summary.regCardPhotoPublicId}
+                        property={regProperty ?? undefined}
+                        design={regDesign}
                         onUploaded={(publicId) => {
                           setSummary((prev) =>
                             prev
@@ -1896,6 +1914,8 @@ export function StayHubDialog({
                                   summary,
                                   draft,
                                 )}
+                                property={regProperty ?? undefined}
+                                design={regDesign}
                                 onUploaded={() => void refreshSummary()}
                               />
                             ) : null}

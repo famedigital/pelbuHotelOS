@@ -7,11 +7,13 @@ import {
 import {
   GuestRegistrationCard,
   type GuestRegistrationCardData,
+  type GuestRegistrationPropertyBits,
 } from "@/components/erp/GuestRegistrationCard";
 import { Button } from "@/components/ui/button";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { uploadToCloudinary } from "@/lib/cloudinary-direct-upload";
+import type { PropertyRegistrationDesign } from "@/lib/property-settings";
 import { cn } from "@/lib/utils";
 import {
   CameraIcon,
@@ -44,12 +46,16 @@ function printRegCardSheet() {
 export function PostCheckInRegPanel({
   regData,
   regCardPhotoPublicId,
+  property,
+  design,
   onUploaded,
   onGoFolio,
   onCloseStay,
 }: {
   regData: GuestRegistrationCardData;
   regCardPhotoPublicId?: string | null;
+  property?: GuestRegistrationPropertyBits;
+  design?: PropertyRegistrationDesign | null;
   onUploaded?: (publicId: string) => void;
   onGoFolio: () => void;
   onCloseStay: () => void;
@@ -276,7 +282,11 @@ export function PostCheckInRegPanel({
 
       {/* Print target — screen-hidden, revealed by data-desk-print=reg */}
       <div className="desk-print-host" aria-hidden>
-        <GuestRegistrationCard data={regData} />
+        <GuestRegistrationCard
+          data={regData}
+          property={property}
+          design={design}
+        />
       </div>
     </div>
   );
@@ -287,6 +297,8 @@ export function SignedRegCardUploadStrip({
   bookingId,
   regCardPhotoPublicId,
   regData,
+  property,
+  design,
   onUploaded,
   className,
 }: {
@@ -294,6 +306,8 @@ export function SignedRegCardUploadStrip({
   regCardPhotoPublicId?: string | null;
   /** When set, shows Print for re-runs at desk. */
   regData?: GuestRegistrationCardData | null;
+  property?: GuestRegistrationPropertyBits;
+  design?: PropertyRegistrationDesign | null;
   onUploaded?: () => void;
   className?: string;
 }) {
@@ -429,7 +443,11 @@ export function SignedRegCardUploadStrip({
       ) : null}
       {regData ? (
         <div className="desk-print-host" aria-hidden>
-          <GuestRegistrationCard data={regData} />
+          <GuestRegistrationCard
+            data={regData}
+            property={property}
+            design={design}
+          />
         </div>
       ) : null}
     </div>

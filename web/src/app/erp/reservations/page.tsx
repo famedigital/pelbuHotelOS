@@ -367,6 +367,7 @@ export default async function ReservationsPage({
       : undefined,
     invoiceDesign: property?.doc_invoice,
     voucherDesign: property?.doc_voucher,
+    registrationDesign: property?.doc_registration,
     defaults: {
       checkIn: sp.check_in,
       checkOut: sp.check_out,

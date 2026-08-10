@@ -780,6 +780,20 @@ export async function fetchStayHubCatalog(): Promise<
     agents: StayHubCatalogAgent[];
     staff: StayHubCatalogStaff[];
     mealPlans: StayHubCatalogMealPlan[];
+    registration: {
+      design: import("@/lib/property-settings").PropertyRegistrationDesign;
+      property: {
+        name: string;
+        legal_name: string | null;
+        address: string | null;
+        phone: string | null;
+        email: string | null;
+        tax_id: string | null;
+        logo_public_id: string | null;
+        check_in_time: string | null;
+        check_out_time: string | null;
+      };
+    };
   }>
 > {
   if (!(await isDeskAuthenticated())) {
@@ -788,31 +802,50 @@ export async function fetchStayHubCatalog(): Promise<
   const admin = createSupabaseAdminClient();
   const propertyId = await requireDeskPropertyId();
 
-  const [{ data: agents }, { data: staff }, { data: mealRows }] =
-    await Promise.all([
-      admin
-        .from("agents")
-        .select("id, company_name, market, status")
-        .eq("property_id", propertyId)
-        .in("status", ["approved", "demo", "directory"])
-        .order("company_name")
-        .limit(400),
-      admin
-        .from("staff_members")
-        .select("id, full_name, employee_code, role_label, status")
-        .eq("property_id", propertyId)
-        .order("full_name")
-        .limit(200),
-      admin
-        .from("meal_plans")
-        .select(
-          "code, name, blurb, sort_order, amount_btn_per_adult_night, amount_btn_per_child_night, is_active",
-        )
-        .eq("property_id", propertyId)
-        .eq("is_active", true)
-        .order("sort_order")
-        .limit(40),
-    ]);
+  const [
+    { data: agents },
+    { data: staff },
+    { data: mealRows },
+    { data: propRow },
+    { data: policyRow },
+  ] = await Promise.all([
+    admin
+      .from("agents")
+      .select("id, company_name, market, status")
+      .eq("property_id", propertyId)
+      .in("status", ["approved", "demo", "directory"])
+      .order("company_name")
+      .limit(400),
+    admin
+      .from("staff_members")
+      .select("id, full_name, employee_code, role_label, status")
+      .eq("property_id", propertyId)
+      .order("full_name")
+      .limit(200),
+    admin
+      .from("meal_plans")
+      .select(
+        "code, name, blurb, sort_order, amount_btn_per_adult_night, amount_btn_per_child_night, is_active",
+      )
+      .eq("property_id", propertyId)
+      .eq("is_active", true)
+      .order("sort_order")
+      .limit(40),
+    admin
+      .from("properties")
+      .select(
+        "name, legal_name, address, phone, email, tax_id, logo_public_id, doc_registration",
+      )
+      .eq("id", propertyId)
+      .maybeSingle(),
+    admin
+      .from("property_policies")
+      .select("check_in_time, check_out_time")
+      .eq("property_id", propertyId)
+      .maybeSingle(),
+  ]);
+
+  const { mapRegistrationDesign } = await import("@/lib/property-settings");
 
   return {
     ok: true,
@@ -847,6 +880,22 @@ export async function fetchStayHubCatalog(): Promise<
             ? null
             : Number(m.amount_btn_per_child_night),
       })),
+      registration: {
+        design: mapRegistrationDesign(propRow?.doc_registration),
+        property: {
+          name: (propRow?.name as string) || "Pelbu Suites",
+          legal_name: (propRow?.legal_name as string | null) ?? null,
+          address: (propRow?.address as string | null) ?? null,
+          phone: (propRow?.phone as string | null) ?? null,
+          email: (propRow?.email as string | null) ?? null,
+          tax_id: (propRow?.tax_id as string | null) ?? null,
+          logo_public_id: (propRow?.logo_public_id as string | null) ?? null,
+          check_in_time:
+            (policyRow?.check_in_time as string | null) ?? "14:00",
+          check_out_time:
+            (policyRow?.check_out_time as string | null) ?? "12:00",
+        },
+      },
     },
   };
 }
