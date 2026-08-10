@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { orderRef } from "@/lib/order-ref";
 import type { OpenPosTicket, PosShift, PosShiftCloseSummary } from "@/lib/pos";
-import { tenderMethodLabel } from "@/lib/pos";
+import { tenderMethodLabel } from "@/lib/pos-tenders";
 import { formatBtn, roundBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import Link from "next/link";

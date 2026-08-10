@@ -8,6 +8,13 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export type { TableStatus };
 
+export {
+  POS_TENDER_LABELS,
+  POS_TENDER_METHODS,
+  tenderMethodLabel,
+  type PosTenderMethod,
+} from "@/lib/pos-tenders";
+
 export type PrepStation = "kitchen" | "bar" | "pastry" | "grill" | "cold";
 
 export type DiningTable = {
@@ -139,47 +146,6 @@ export {
   POS_VOID_REASON_CODES,
   type PosVoidReasonCode,
 } from "@/lib/pos-void-reasons";
-
-export const POS_TENDER_METHODS = [
-  "cash",
-  "bank",
-  "card",
-  "agent_credit",
-  "bank_qr",
-  "pay_bt",
-  "mbob",
-  "mpay",
-  "deposit",
-  "room_charge",
-  "comp",
-  "staff_meal",
-  "owner_meal",
-  "nc",
-] as const;
-
-/** Bhutan-friendly labels for tenders + comps. */
-export const POS_TENDER_LABELS: Record<string, string> = {
-  cash: "Cash",
-  bank: "Bank transfer",
-  card: "Card",
-  agent_credit: "Agent credit",
-  bank_qr: "Bank QR",
-  pay_bt: "Pay.bt",
-  mbob: "mBoB",
-  mpay: "mPay",
-  deposit: "Deposit",
-  room_charge: "Room charge",
-  comp: "Comp",
-  staff_meal: "Staff meal",
-  owner_meal: "Owner meal",
-  nc: "NC",
-};
-
-export function tenderMethodLabel(method: string): string {
-  return POS_TENDER_LABELS[method] ?? method.replace(/_/g, " ");
-}
-
-export type PosTenderMethod = (typeof POS_TENDER_METHODS)[number];
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
 

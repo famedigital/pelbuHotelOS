@@ -4,7 +4,7 @@
  */
 
 import { thimphuToday } from "@/lib/erp-lists";
-import { tenderMethodLabel } from "@/lib/pos";
+import { tenderMethodLabel } from "@/lib/pos-tenders";
 import { roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";

@@ -14,8 +14,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
-import type { OpenPosTicket, PosTenderMethod } from "@/lib/pos";
-import { tenderMethodLabel } from "@/lib/pos";
+import type { OpenPosTicket } from "@/lib/pos";
+import {
+  tenderMethodLabel,
+  type PosTenderMethod,
+} from "@/lib/pos-tenders";
 import { TriangleAlertIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useActionState } from "react";
 import type { PosBookingOption, TenderDraft } from "./types";
