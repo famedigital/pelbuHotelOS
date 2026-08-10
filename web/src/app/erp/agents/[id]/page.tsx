@@ -5,6 +5,7 @@ import {
 } from "@/components/erp/DeskListShell";
 import { AgentDossierTabNav } from "@/components/erp/AgentDossierTabNav";
 import { PrintButton } from "@/components/erp/PrintButton";
+import { VoidAgentCreditPaymentForm } from "@/components/erp/VoidAgentCreditPaymentForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -180,6 +181,34 @@ export default async function AgentDossierPage({ params, searchParams }: Props) 
               <p className="mt-2 text-xs text-muted-foreground">{agent.contact_email}</p>
             ) : null}
           </section>
+
+          <section className="rounded-lg border bg-card p-4 print:hidden">
+            <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
+              Reports
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              eZee-style production + commission and open AR for this agent.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button asChild size="sm" variant="outline" className="h-9">
+                <Link
+                  href={`/erp/reports/agent-production?from=${from}&to=${to}&agent_id=${id}`}
+                >
+                  Production + commission
+                </Link>
+              </Button>
+              <Button asChild size="sm" variant="outline" className="h-9">
+                <Link
+                  href={`/erp/reports/agent-ar?from=${from}&to=${to}&agent_id=${id}`}
+                >
+                  AR &amp; payment habit
+                </Link>
+              </Button>
+              <Button asChild size="sm" variant="ghost" className="h-9">
+                <Link href={`/erp/reports`}>All reports</Link>
+              </Button>
+            </div>
+          </section>
         </div>
       ) : null}
 
@@ -328,10 +357,13 @@ export default async function AgentDossierPage({ params, searchParams }: Props) 
         <div className="space-y-6">
           <div className="grid gap-3 sm:grid-cols-4 print:grid-cols-4">
             {[
-              ["Credit limit", formatBtn(agent.credit_limit)],
-              ["Credit used", formatBtn(agent.credit_used)],
-              ["Folio charges", formatBtn(money.folioTotal)],
-              ["Outstanding", formatBtn(money.outstanding)],
+              [
+                "Open rooms / cap",
+                `${money.openRoomsInHouse} / ${agent.open_room_cap}`,
+              ],
+              ["Agent owes (credit used)", formatBtn(agent.credit_used)],
+              ["Credit limit (soft Nu)", formatBtn(agent.credit_limit)],
+              ["Outstanding folios", formatBtn(money.outstanding)],
             ].map(([label, val]) => (
               <div key={label} className="rounded-lg border bg-card px-4 py-4">
                 <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
@@ -341,6 +373,54 @@ export default async function AgentDossierPage({ params, searchParams }: Props) 
               </div>
             ))}
           </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[
+              ["Folio charges in range", formatBtn(money.folioTotal)],
+              ["Paid (folio payments)", formatBtn(money.paid)],
+            ].map(([label, val]) => (
+              <div key={label} className="rounded-lg border bg-card px-4 py-4">
+                <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
+                  {label}
+                </p>
+                <p className="mt-2 text-xl tabular-nums text-foreground">{val}</p>
+              </div>
+            ))}
+          </div>
+
+          <section className="rounded-lg border bg-card p-4 print:break-inside-avoid">
+            <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
+              Settlement packs (guide evidence)
+            </p>
+            {money.packs.length === 0 ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                No sealed packs yet. FO seals after guide sign on checkout.
+              </p>
+            ) : (
+              <ul className="mt-3 space-y-2 text-sm">
+                {money.packs.map((p) => (
+                  <li
+                    key={p.id}
+                    className="flex flex-wrap items-center justify-between gap-2 border-t pt-2 first:border-0 first:pt-0"
+                  >
+                    <span>
+                      {p.guestName ?? "Guest"} ·{" "}
+                      {new Date(p.sealedAt).toLocaleString()}
+                      {p.emailSentAt
+                        ? ` · emailed ${p.emailTo ?? ""}`
+                        : " · not emailed"}
+                    </span>
+                    <Link
+                      href={`/erp/bookings/${p.bookingId}/settlement-pack`}
+                      className="text-accent underline-offset-4 hover:underline"
+                    >
+                      Open pack
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
           <section className="rounded-lg border bg-card p-4 print:break-inside-avoid">
             <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
@@ -370,10 +450,10 @@ export default async function AgentDossierPage({ params, searchParams }: Props) 
             <PrintButton label="Print statement" />
           </div>
 
-          <DeskTable caption="Payments" headers={["When", "Amount", "Method", "Ref"]}>
+          <DeskTable caption="Payments" headers={["When", "Amount", "Method", "Ref", ""]}>
             {money.payments.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-3 py-6 text-muted-foreground">
+                <td colSpan={5} className="px-3 py-6 text-muted-foreground">
                   No payments.
                 </td>
               </tr>
@@ -389,6 +469,14 @@ export default async function AgentDossierPage({ params, searchParams }: Props) 
                   <td className="px-3 py-2.5 text-sm">{p.method}</td>
                   <td className="px-3 py-2.5 font-mono text-xs text-muted-foreground">
                     {p.reference ?? "—"}
+                  </td>
+                  <td className="px-3 py-2.5 print:hidden">
+                    {p.method === "agent_credit" ? (
+                      <VoidAgentCreditPaymentForm
+                        paymentId={p.id}
+                        amountLabel={formatBtn(p.amount_btn)}
+                      />
+                    ) : null}
                   </td>
                 </tr>
               ))

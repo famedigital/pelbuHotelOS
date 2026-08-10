@@ -220,7 +220,12 @@ function CancelForm({
           <p className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
             {cancelPolicySummary}
           </p>
-        ) : null}
+        ) : (
+          <p className="rounded-md border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
+            Cancel fee (if any) posts from Settings → Policies after save —
+            same job as eZee cancel-with-fee.
+          </p>
+        )}
         <form action={action} className="space-y-3">
           <input type="hidden" name="booking_id" value={bookingId} />
           <div className="space-y-1.5">
@@ -286,9 +291,14 @@ function NoShowForm({ bookingId }: { bookingId: string }) {
           <DialogTitle>Mark as no-show?</DialogTitle>
           <DialogDescription>
             The booking will be marked as a no-show and its inventory released.
-            This cannot be undone.
+            No-show fee nights (Settings → Policies) post to the folio when
+            configured — same pattern as eZee.
           </DialogDescription>
         </DialogHeader>
+        <p className="rounded-md border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
+          Confirm only if the guest never arrived on the business date. Late
+          arrival should stay checked in after CI.
+        </p>
         <form action={action}>
           <input type="hidden" name="booking_id" value={bookingId} />
           {state.error ? (

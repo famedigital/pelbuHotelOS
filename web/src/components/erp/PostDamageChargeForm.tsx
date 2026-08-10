@@ -24,9 +24,11 @@ export type DamagePickerItem = {
 export function PostDamageChargeForm({
   folioId,
   items,
+  embedded = false,
 }: {
   folioId: string;
   items: DamagePickerItem[];
+  embedded?: boolean;
 }) {
   const [state, action, pending] = useActionState(postDamageCharge, initial);
   useActionToast(state, { successMessage: "Damage charge posted" });
@@ -51,10 +53,17 @@ export function PostDamageChargeForm({
   if (items.length === 0) return null;
 
   return (
-    <form action={action} className="space-y-3 rounded-lg border bg-card p-4">
-      <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-        Post damage
-      </p>
+    <form
+      action={action}
+      className={
+        embedded ? "space-y-3" : "space-y-3 rounded-lg border bg-card p-4"
+      }
+    >
+      {!embedded ? (
+        <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+          Damage / extra
+        </p>
+      ) : null}
       {state.error ? (
         <Alert variant="destructive">
           <AlertDescription>{state.error}</AlertDescription>
@@ -97,7 +106,7 @@ export function PostDamageChargeForm({
           />
         </div>
       ) : null}
-      <Button type="submit" disabled={pending || !selectedId} className="h-10">
+      <Button type="submit" disabled={pending || !selectedId} className="h-10 w-full">
         {pending ? "Posting…" : "Post to folio"}
       </Button>
     </form>

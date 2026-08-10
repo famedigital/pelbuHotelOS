@@ -1,5 +1,6 @@
 import "server-only";
 import { writeAuditEvent } from "@/lib/audit";
+import { advancePropertyBusinessDate } from "@/lib/business-date";
 import { postRoomNightsForDate } from "@/lib/folio/room-night";
 import { deliverHotelBackupPack } from "@/lib/night-audit/deliver-hotel-backup";
 import {
@@ -448,6 +449,8 @@ export async function executeNightAudit(
     .from("night_audits")
     .update({ summary })
     .eq("id", audit.id as string);
+
+  await advancePropertyBusinessDate(admin, propertyId, date);
 
   return {
     ok: true,

@@ -31,6 +31,10 @@ const EXPENSE_CATEGORIES = new Set([
   "tax",
   "bank_fee",
   "rent",
+  "fb_produce",
+  "fb_packaging",
+  "fb_lpg",
+  "fb_beverage",
   "other",
 ]);
 const PAY_METHODS = new Set(["cash", "bank", "card"]);

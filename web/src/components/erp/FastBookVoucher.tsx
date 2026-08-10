@@ -3,10 +3,12 @@
 import { Button } from "@/components/ui/button";
 import { AgentVoucherEmailButton } from "@/components/erp/AgentVoucherEmailButton";
 import { cloudinaryUrl } from "@/lib/cloudinary";
+import { bookingConfirmationLabel } from "@/lib/booking-ref";
 import type { PropertyDocumentDesign } from "@/lib/property-settings";
 
 export type FastBookVoucherData = {
   bookingId: string;
+  confirmationCode?: string;
   checkIn: string;
   checkOut: string;
   nights: number;
@@ -63,9 +65,9 @@ export function FastBookVoucher({
   const showTaxId = design?.show_tax_id ?? false;
   return (
     <section
-      id="fast-book-voucher"
+      id="print-agent-voucher"
       aria-label="Agent voucher"
-      className="erp flex flex-col gap-5 rounded-lg border bg-card px-6 py-6 print:border-0 print:px-0 print:py-0"
+      className="erp doc-print-sheet flex flex-col gap-5 rounded-lg border bg-card px-6 py-6 print:border-0 print:px-0 print:py-0 print:shadow-none"
       style={{
         borderColor: accentColor,
         background:
@@ -88,8 +90,15 @@ export function FastBookVoucher({
           <p className="mt-1 text-sm text-muted-foreground">{headerText}</p>
         </div>
         <div className="text-right">
-          <p className="text-[11px] tracking-[0.18em] text-muted-foreground uppercase">Ref</p>
-          <p className="font-mono text-sm text-foreground">{data.bookingId}</p>
+          <p className="text-[11px] tracking-[0.18em] text-muted-foreground uppercase">
+            Conf
+          </p>
+          <p className="font-mono text-sm font-semibold text-foreground">
+            {bookingConfirmationLabel({
+              confirmationCode: data.confirmationCode,
+              bookingId: data.bookingId,
+            })}
+          </p>
         </div>
       </header>
 

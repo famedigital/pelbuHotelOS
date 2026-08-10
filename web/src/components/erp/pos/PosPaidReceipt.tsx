@@ -68,8 +68,9 @@ export type PosPaidReceiptProperty = {
 };
 
 /**
- * Guest-facing PAID receipt after POS settle. Optimized for browser Print
- * (narrow thermal-ish width works on A4 too).
+ * Guest-facing PAID receipt after POS settle.
+ * Uses `doc-print-sheet` + html[data-doc-paper] (see DocPrintControls / globals)
+ * so thermal 80mm stays left-aligned at 72mm — not full-page centered.
  */
 export function PosPaidReceipt({
   order,
@@ -79,7 +80,7 @@ export function PosPaidReceipt({
   property: PosPaidReceiptProperty;
 }) {
   return (
-    <article className="mx-auto w-full max-w-[420px] rounded-xl border border-neutral-300 bg-white px-5 py-6 text-neutral-900 shadow-sm print:max-w-none print:border-0 print:px-0 print:py-0 print:shadow-none">
+    <article className="doc-print-sheet mx-auto w-full max-w-[420px] rounded-xl border border-neutral-300 bg-white px-5 py-6 text-neutral-900 shadow-sm print:mx-0 print:border-0 print:px-0 print:py-0 print:shadow-none">
       <header className="border-b border-neutral-300 pb-4 text-center">
         <p className="text-[10px] font-semibold tracking-[0.2em] text-neutral-500 uppercase">
           Payment receipt

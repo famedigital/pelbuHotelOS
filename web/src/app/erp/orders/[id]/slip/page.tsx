@@ -1,14 +1,15 @@
 import { confirmPublicOrderAction } from "@/app/actions/erp-pos";
+import { DocPrintControls } from "@/components/erp/DocPrintControls";
 import {
   OnlineOrderSlip,
   type OrderSlipData,
 } from "@/components/erp/OnlineOrderSlip";
-import { PrintButton } from "@/components/erp/PrintButton";
 import { RecordOrderPaymentForm } from "@/components/erp/RecordOrderPaymentForm";
 import { Button } from "@/components/ui/button";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { orderRef } from "@/lib/order-ref";
+import type { DocumentPaperSize } from "@/lib/property-settings";
 import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { notFound, redirect } from "next/navigation";
@@ -105,8 +106,12 @@ export default async function OrderSlipPage({ params }: Props) {
   const confirmed = Boolean(data.confirmedAt);
   const paid = Boolean(data.paymentRecordedAt);
 
+  const designPaper = property.doc_receipt.paper_size;
+  const paper: DocumentPaperSize =
+    designPaper === "a4" ? "a4" : "thermal";
+
   return (
-    <div className="erp mx-auto w-full max-w-[720px] space-y-5 p-4 md:p-6">
+    <div className="erp mx-auto w-full max-w-[520px] space-y-5 p-4 md:p-6 print:max-w-none print:p-0">
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent">
@@ -123,7 +128,7 @@ export default async function OrderSlipPage({ params }: Props) {
           >
             Back to POS
           </a>
-          <PrintButton label="Print slip" />
+          <DocPrintControls defaultSize={paper} printLabel="Print slip" />
         </div>
       </div>
 

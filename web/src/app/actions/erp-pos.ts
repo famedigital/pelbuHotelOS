@@ -51,7 +51,14 @@ const PAY_METHODS = new Set([
 const GUEST_SERVICES = new Set(["taxi", "shop", "spa", "other"]);
 const VOID_REASONS = new Set<string>(POS_VOID_REASON_CODES);
 const TENDER_METHODS = new Set<string>(POS_TENDER_METHODS);
-const TABLE_STATUSES = new Set(["free", "occupied", "reserved", "dirty"]);
+const TABLE_STATUSES = new Set([
+  "free",
+  "occupied",
+  "ordered",
+  "billed",
+  "reserved",
+  "dirty",
+]);
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
 
@@ -864,7 +871,7 @@ export async function createDeskOrder(
     if (tableId) {
       await admin
         .from("dining_tables")
-        .update({ status: "occupied" })
+        .update({ status: parkOnCreate ? "occupied" : "ordered" })
         .eq("id", tableId)
         .eq("property_id", property_id);
     }
@@ -922,7 +929,9 @@ export async function updateOrderKotStatus(formData: FormData): Promise<void> {
 
   const { data: order } = await admin
     .from("orders")
-    .select("id, property_id, voided_at")
+    .select(
+      "id, property_id, voided_at, phone, customer_name, outlet, order_source, delivery_type",
+    )
     .eq("id", orderId)
     .maybeSingle();
   if (!order) throw new Error("Order not found.");
@@ -985,6 +994,21 @@ export async function updateOrderKotStatus(formData: FormData): Promise<void> {
     summary: `KOT → ${nextStatus} by ${actor}`,
     meta: { nextStatus, actor },
   });
+
+  if (
+    nextStatus === "ready" &&
+    order.order_source === "public" &&
+    (order.delivery_type === "pickup" || order.delivery_type === "taxi") &&
+    order.phone
+  ) {
+    const { notifyOrderReady } = await import("@/lib/notify");
+    void notifyOrderReady({
+      orderId,
+      phone: String(order.phone),
+      customerName: String(order.customer_name ?? "Guest"),
+      outlet: String(order.outlet ?? "F&B"),
+    });
+  }
 
   revalidatePath("/erp");
   revalidatePath("/erp/pos");
@@ -1410,6 +1434,9 @@ export type PaymentState = {
   ok: boolean;
   paymentId?: string;
   error?: string;
+  message?: string;
+  /** agent_credit = charged AR book, not cash collect */
+  settleKind?: "cash_like" | "agent_ar";
 };
 
 export async function postFolioPayment(
@@ -1465,19 +1492,23 @@ export async function postFolioPayment(
         .maybeSingle();
       const agentId = booking?.agent_id as string | null;
       if (!agentId) {
-        throw new Error("Attach an agent before collecting agent credit.");
+        throw new Error("Attach an agent before charging the agent AR book.");
       }
       // Validate agent is credit-eligible before posting payment
       const { data: agentRow } = await admin
         .from("agents")
-        .select("id, status, credit_limit, credit_used")
+        .select("id, status, credit_limit, credit_used, company_name")
         .eq("id", agentId)
         .maybeSingle();
       if (!agentRow) throw new Error("Agent not found.");
-      const { isCreditAgentStatus } = await import("@/lib/agents/status");
-      if (!isCreditAgentStatus(agentRow.status as string)) {
-        throw new Error("Agent must be approved or demo for agent credit.");
-      }
+      const { creditAgentIneligibilityMessage } = await import(
+        "@/lib/agents/status"
+      );
+      const creditBlocked = creditAgentIneligibilityMessage(
+        agentRow.status as string,
+        agentRow.company_name as string | null,
+      );
+      if (creditBlocked) throw new Error(creditBlocked);
       const available =
         Number(agentRow.credit_limit ?? 0) - Number(agentRow.credit_used ?? 0);
       if (amountBtn > available + 0.001) {
@@ -1534,7 +1565,10 @@ export async function postFolioPayment(
       action: "payment.create",
       entityType: "payments",
       entityId: pay.paymentId,
-      summary: `Payment ${amountBtn} Nu · ${method}`,
+      summary:
+        method === "agent_credit"
+          ? `Agent AR charge Nu ${amountBtn} · guest folio settled`
+          : `Payment ${amountBtn} Nu · ${method}`,
       meta: { folioId, method, amountBtn },
     });
 
@@ -1542,7 +1576,15 @@ export async function postFolioPayment(
     revalidatePath(`/erp/folios/${folioId}`);
     revalidatePath("/erp/reports");
     revalidatePath("/erp/finance");
-    return { ok: true, paymentId: pay.paymentId };
+    return {
+      ok: true,
+      paymentId: pay.paymentId,
+      settleKind: method === "agent_credit" ? "agent_ar" : "cash_like",
+      message:
+        method === "agent_credit"
+          ? `Charged Nu ${amountBtn} to agent AR book (agent owes). Guest folio reduced.`
+          : `Collected Nu ${amountBtn}.`,
+    };
   } catch (err) {
     await captureServerError(err, { action: "postFolioPayment" });
     return {

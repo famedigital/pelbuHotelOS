@@ -39,7 +39,12 @@ export type PropertyRow = {
   public_host?: string | null;
   desk_host?: string | null;
   night_audit_close_time?: string;
+  /** Open hotel business day (Thimphu) after night audit; null falls back to calendar today. */
+  current_business_date?: string | null;
   post_day1_room_at_checkin?: boolean;
+  /** hotel = full PMS; restaurant = F&B pack only */
+  product_pack?: "hotel" | "restaurant";
+  pos_training_mode?: boolean;
   public_host_cert_status?: string;
   desk_host_cert_status?: string;
   host_verify_token?: string | null;

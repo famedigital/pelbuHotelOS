@@ -135,6 +135,15 @@ export async function saveMenuItem(
     }
     const imagePublicId =
       optionalTrim(formData.get("image_public_id"))?.slice(0, 200) ?? null;
+    const nameDz = optionalTrim(formData.get("name_dz"))?.slice(0, 120) ?? null;
+    const isCombo = formData.get("is_combo") === "1";
+    const daypart = optionalTrim(formData.get("daypart"))?.slice(0, 32) ?? null;
+    const allergensRaw = optionalTrim(formData.get("allergens")) ?? "";
+    const allergens = allergensRaw
+      .split(/[,;]+/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 20);
 
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
@@ -151,6 +160,7 @@ export async function saveMenuItem(
     const payload = {
       property_id: propertyId,
       name,
+      name_dz: nameDz,
       outlet,
       category,
       description: description ?? null,
@@ -158,6 +168,9 @@ export async function saveMenuItem(
       gst_applicable: gstApplicable,
       is_available: isAvailable,
       is_popular: isPopular,
+      is_combo: isCombo,
+      daypart,
+      allergens,
       prep_station: prepStation,
       sort_order: sortOrder,
       image_public_id: imagePublicId,

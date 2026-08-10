@@ -54,6 +54,19 @@ Use before cutting over from Excel. Desk PIN: `DESK_PIN`. Property slug: `pelbu-
 - [ ] Accidental check-in: **Undo check-in** returns status to **confirmed**, room still assigned (simple folio only)
 - [ ] Undo blocked with clear message when payments or laundry/F&B (non day-1) charges exist
 - [ ] Typing guest name/phone in StayHub auto-saves without remounting the whole calendar rack
+- [ ] After save, confirmation shows **PS-YYYY-#####** (not raw UUID)
+
+## Desk — Stay / money FO (2026-08-09/10)
+- [ ] In-house StayHub opens on **Folio**, not Checkout (unless `?step=check_out`)
+- [ ] Folio tabs **All · Room · POS**; POS shows ordered items when room-charged
+- [ ] Guest pays F&B cash; optional **Charge agent AR** for F&B only amount
+- [ ] Optional **Put F&B on agent tab** (bill_to) without AR ledger post
+- [ ] Collect vs Charge agent AR labels correct on settle form
+- [ ] Search `PS-…` or guest/agent on `/erp/reservations` and Ctrl+K
+- [ ] Agent CO blocked without guide photo or waive; leave after evidence
+- [ ] FO seal + email settlement pack after leave
+- [ ] Agent open room cap blocks CI over cap unless override + note
+- [ ] Fiscal **INV** only after Issue invoice; different from **PS** conf #
 
 ## Desk — shell / settings
 - [ ] Sidebar groups navigate; property switcher changes active hotel

@@ -2,9 +2,9 @@
 
 import {
   AttachToMasterForm,
+  BankProofPaymentForm,
   CompCreditForm,
   DepositLinkForm,
-  BankProofPaymentForm,
   GuestRoundFigureForm,
   IssueCreditNoteButton,
   IssueInvoiceButton,
@@ -18,12 +18,8 @@ import {
   PostMinibarChargeForm,
   type MinibarPickerItem,
 } from "@/components/erp/PostMinibarChargeForm";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { formatBtn } from "@/lib/pricing";
+import { buildStayHubReopenHref } from "@/lib/folio/stay-hub-cycle";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
@@ -51,15 +47,48 @@ type Props = {
   minibarItems?: MinibarPickerItem[];
   /** Suggested default open panel based on stay money next step */
   defaultGroup: "collect" | "invoice" | "post" | "adjust";
+  /** Manager rail (comp / credit note). Defaults true. */
+  showManagerActions?: boolean;
 };
 
-function GroupHint({ children }: { children: ReactNode }) {
-  return <p className="mb-3 text-xs text-muted-foreground">{children}</p>;
+function RailItem({
+  title,
+  subtitle,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  subtitle: string;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}) {
+  return (
+    <details
+      className="group rounded-lg border bg-card open:bg-card"
+      open={defaultOpen ? true : undefined}
+    >
+      <summary className="flex cursor-pointer list-none items-start justify-between gap-2 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0 text-left">
+          <span className="block text-sm font-medium text-foreground">{title}</span>
+          <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">
+            {subtitle}
+          </span>
+        </span>
+        <span
+          className="mt-1 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+          aria-hidden
+        >
+          ▾
+        </span>
+      </summary>
+      <div className="space-y-3 border-t px-3 py-3">{children}</div>
+    </details>
+  );
 }
 
 /**
- * Folio desk actions grouped by intent so the default view stays short.
- * All existing server actions stay wired — layout only.
+ * Folio desk actions — eZee-simple primary CTAs + collapsed More / Manager.
+ * Server actions unchanged; layout and copy only.
  */
 export function FolioActionsPanel({
   folioId,
@@ -77,143 +106,214 @@ export function FolioActionsPanel({
   damageItems,
   minibarItems = [],
   defaultGroup,
+  showManagerActions = true,
 }: Props) {
   if (!folioOpen) {
     return (
       <div className="rounded-xl border bg-card px-4 py-5 text-sm text-muted-foreground">
-        This folio is closed. Review activity below or print a receipt for
-        records.
+        Folio closed — review activity or print a receipt.
       </div>
     );
   }
 
   const suggested = Math.max(balanceDue, 0);
-  const showPost =
-    bookingCheckedIn && Boolean(bookingId);
+  const hasDue = balanceDue > 0.5;
+  const showPost = bookingCheckedIn && Boolean(bookingId);
+  const postOpen = needsDay1 || defaultGroup === "post";
 
   return (
     <div className="space-y-3">
-      <Accordion
-        type="multiple"
-        defaultValue={[defaultGroup]}
-        className="rounded-xl border bg-card px-3"
+      {/* —— Primary: always visible —— */}
+      <section
+        id="folio-collect"
+        className={cn(
+          "space-y-3 rounded-xl border bg-card p-3 sm:p-4",
+          hasDue && "border-citrus/50 bg-citrus-tint/20 shadow-sm",
+        )}
+        aria-labelledby="folio-collect-heading"
       >
-        <AccordionItem value="collect" className="border-border/70">
-          <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
-            <span className="flex flex-col items-start gap-0.5 text-left">
-              <span>Collect payment</span>
-              <span className="text-[11px] font-normal text-muted-foreground">
-                Cash, card, QR, deposit link, bank proof
-              </span>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h3
+              id="folio-collect-heading"
+              className="text-sm font-semibold text-foreground"
+            >
+              Settle guest or agent AR
+            </h3>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Collect cash/card · or charge agent AR book (agent owes)
+            </p>
+          </div>
+          {hasDue ? (
+            <span className="rounded-md bg-maroon/10 px-2 py-1 text-xs font-semibold tabular-nums text-maroon">
+              Due {formatBtn(balanceDue)}
             </span>
-          </AccordionTrigger>
-          <AccordionContent className="space-y-3 pb-4">
-            <GroupHint>
-              Record money received against this folio. Guest extras are usually
-              cash/card; agent room may settle via credit or bank later.
-            </GroupHint>
-            <FolioPaymentForm folioId={folioId} suggestedAmount={suggested} />
+          ) : (
+            <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
+              Nothing due
+            </span>
+          )}
+        </div>
+
+        {!hasDue ? (
+          <p className="text-sm text-foreground">
+            Balance due {formatBtn(0)} · Nothing to settle
+          </p>
+        ) : (
+          <FolioPaymentForm
+            folioId={folioId}
+            suggestedAmount={suggested}
+            emphasized
+          />
+        )}
+
+        <details className="rounded-lg border border-dashed">
+          <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-muted-foreground">
+            More payment ways · bank proof, deposit link
+          </summary>
+          <div className="space-y-3 border-t px-3 py-3">
             <BankProofPaymentForm
               folioId={folioId}
               suggestedAmount={suggested}
+              embedded
             />
-            <DepositLinkForm folioId={folioId} bookingId={bookingId} />
-          </AccordionContent>
-        </AccordionItem>
-
-        <AccordionItem value="invoice" className="border-border/70">
-          <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
-            <span className="flex flex-col items-start gap-0.5 text-left">
-              <span>Issue tax invoice</span>
-              <span className="text-[11px] font-normal text-muted-foreground">
-                GST fiscal document for this stay
-              </span>
-            </span>
-          </AccordionTrigger>
-          <AccordionContent className="space-y-3 pb-4">
-            <GroupHint>
-              Issue when charges are on the folio. Print from the invoice once
-              issued.
-            </GroupHint>
-            <IssueInvoiceButton
+            <DepositLinkForm
               folioId={folioId}
-              invoiceNo={invoiceNo}
-              invoiceDocId={invoiceDocId}
+              bookingId={bookingId}
+              embedded
             />
-          </AccordionContent>
-        </AccordionItem>
+          </div>
+        </details>
+      </section>
 
-        {showPost ? (
-          <AccordionItem value="post" className="border-border/70">
-            <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
-              <span className="flex flex-col items-start gap-0.5 text-left">
-                <span className="flex items-center gap-2">
-                  Post room charges
-                  {needsDay1 ? (
-                    <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-amber-800 uppercase dark:text-amber-200">
-                      Needed
-                    </span>
-                  ) : null}
-                </span>
-                <span className="text-[11px] font-normal text-muted-foreground">
-                  Day-1 package and missing room nights
-                </span>
-              </span>
-            </AccordionTrigger>
-            <AccordionContent className="space-y-3 pb-4">
-              <GroupHint>
-                Room package posts at check-in or night audit. Use these only if
-                a night is missing.
-              </GroupHint>
-              {needsDay1 ? (
-                <PostCheckInChargesForm
-                  folioId={folioId}
-                  defaultDate={arrivalDate}
-                />
-              ) : null}
-              <PostRoomNightForm folioId={folioId} defaultDate={arrivalDate} />
-            </AccordionContent>
-          </AccordionItem>
-        ) : null}
+      <section
+        id="folio-invoice"
+        className="rounded-xl border bg-card p-3 sm:p-4"
+        aria-labelledby="folio-invoice-heading"
+      >
+        <h3
+          id="folio-invoice-heading"
+          className="sr-only"
+        >
+          Issue tax invoice
+        </h3>
+        <IssueInvoiceButton
+          folioId={folioId}
+          invoiceNo={invoiceNo}
+          invoiceDocId={invoiceDocId}
+          embedded
+          secondary
+        />
+      </section>
 
-        <AccordionItem value="adjust" className="border-border/70">
-          <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
-            <span className="flex flex-col items-start gap-0.5 text-left">
-              <span>Adjustments</span>
-              <span className="text-[11px] font-normal text-muted-foreground">
-                Comp, minibar, damage, master folio, credit note
-              </span>
+      {showPost ? (
+        <RailItem
+          title="Post room charges"
+          subtitle={
+            needsDay1 ? "Day-1 needed" : "Missing night only"
+          }
+          defaultOpen={postOpen}
+        >
+          {needsDay1 ? (
+            <PostCheckInChargesForm
+              folioId={folioId}
+              defaultDate={arrivalDate}
+              embedded
+            />
+          ) : null}
+          <PostRoomNightForm
+            folioId={folioId}
+            defaultDate={arrivalDate}
+            embedded
+          />
+        </RailItem>
+      ) : null}
+
+      {/* —— More: collapsed —— */}
+      <details
+        className="rounded-xl border bg-card open:shadow-sm"
+        open={defaultGroup === "adjust" ? true : undefined}
+      >
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
+          <span className="flex flex-col items-start gap-0.5 text-left">
+            <span>More</span>
+            <span className="text-[11px] font-normal text-muted-foreground">
+              Minibar, damage, round, group
             </span>
-          </AccordionTrigger>
-          <AccordionContent className="space-y-3 pb-4">
-            <GroupHint>
-              Use sparingly — voids sit on each activity line (not served,
-              duplicate, wrong item). Round-figure adj absorbs GST/SC chetrum so
-              guests pay whole Nu from hotel rates. Minibar, amenity, comp, and
-              damage add audited charges without a full POS ticket.
-            </GroupHint>
-            <GuestRoundFigureForm folioId={folioId} />
-            <PostMinibarChargeForm folioId={folioId} items={minibarItems} />
-            <CompCreditForm folioId={folioId} />
-            <PostDamageChargeForm folioId={folioId} items={damageItems} />
-            {!isMaster && !hasMaster ? (
-              <PromoteToMasterForm folioId={folioId} />
-            ) : null}
-            {!isMaster ? (
+          </span>
+          <span className="text-muted-foreground" aria-hidden>
+            ▾
+          </span>
+        </summary>
+        <div className="space-y-2 border-t px-3 py-3">
+          <p className="text-[11px] text-muted-foreground">
+            Void wrong charges on the activity line.
+          </p>
+          {minibarItems.length > 0 ? (
+            <RailItem title="Minibar / amenity" subtitle="Quick charge to folio">
+              <PostMinibarChargeForm
+                folioId={folioId}
+                items={minibarItems}
+                embedded
+              />
+            </RailItem>
+          ) : null}
+          {damageItems.length > 0 ? (
+            <RailItem title="Damage / extra charge" subtitle="Guest bill add-on">
+              <PostDamageChargeForm
+                folioId={folioId}
+                items={damageItems}
+                embedded
+              />
+            </RailItem>
+          ) : null}
+          <RailItem title="Round figure" subtitle="Rate adj to Nu 0 or 5">
+            <GuestRoundFigureForm folioId={folioId} embedded />
+          </RailItem>
+          {!isMaster && !hasMaster ? (
+            <RailItem title="Make master folio" subtitle="Link group rooms here">
+              <PromoteToMasterForm folioId={folioId} embedded />
+            </RailItem>
+          ) : null}
+          {!isMaster && masterCandidates.length > 0 ? (
+            <RailItem title="Attach to master" subtitle="Link under city ledger">
               <AttachToMasterForm
                 folioId={folioId}
                 masterCandidates={masterCandidates}
+                embedded
               />
-            ) : null}
-            <IssueCreditNoteButton folioId={folioId} />
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+            </RailItem>
+          ) : null}
+        </div>
+      </details>
+
+      {/* —— Manager: collapsed —— */}
+      {showManagerActions ? (
+        <details className="rounded-xl border bg-card">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
+            <span className="flex flex-col items-start gap-0.5 text-left">
+              <span>Manager</span>
+              <span className="text-[11px] font-normal text-muted-foreground">
+                Comp / NC, credit note
+              </span>
+            </span>
+            <span className="text-muted-foreground" aria-hidden>
+              ▾
+            </span>
+          </summary>
+          <div className="space-y-2 border-t px-3 py-3">
+            <RailItem title="Comp / NC" subtitle="Courtesy credit">
+              <CompCreditForm folioId={folioId} embedded />
+            </RailItem>
+            <RailItem title="Credit note" subtitle="Fiscal CN against folio">
+              <IssueCreditNoteButton folioId={folioId} embedded />
+            </RailItem>
+          </div>
+        </details>
+      ) : null}
 
       <nav
-        className={cn(
-          "flex flex-col gap-2 rounded-xl border bg-muted/20 p-3",
-        )}
+        className="flex flex-col gap-2 rounded-xl border bg-muted/20 p-3"
         aria-label="Folio shortcuts"
       >
         <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
@@ -221,7 +321,11 @@ export function FolioActionsPanel({
         </p>
         {bookingCheckedIn && bookingId ? (
           <a
-            href={`/erp/check-out?id=${bookingId}`}
+            href={buildStayHubReopenHref({
+              bookingId,
+              panel: "check_out",
+              board: "in_house",
+            })}
             className="inline-flex h-11 w-full items-center justify-center rounded-md border border-citrus/40 bg-citrus-tint/40 text-sm font-medium text-foreground hover:bg-citrus-tint/70"
           >
             Checkout guest
@@ -229,6 +333,8 @@ export function FolioActionsPanel({
         ) : null}
         <a
           href={`/erp/folios/${folioId}/receipt`}
+          target="_blank"
+          rel="noopener noreferrer"
           className="inline-flex h-11 w-full items-center justify-center rounded-md border bg-card text-sm font-medium text-foreground hover:bg-muted"
         >
           Receipt · print / email
@@ -236,6 +342,8 @@ export function FolioActionsPanel({
         {invoiceDocId ? (
           <a
             href={`/erp/invoices/${invoiceDocId}/print`}
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex h-11 w-full items-center justify-center rounded-md border bg-card text-sm font-medium text-foreground hover:bg-muted"
           >
             Invoice · print / email
@@ -243,7 +351,11 @@ export function FolioActionsPanel({
         ) : null}
         {bookingId ? (
           <a
-            href={`/erp/reservations?booking=${bookingId}&step=stay_money`}
+            href={buildStayHubReopenHref({
+              bookingId,
+              panel: "stay_money",
+              board: bookingCheckedIn ? "in_house" : "reservations",
+            })}
             className="inline-flex h-10 w-full items-center justify-center rounded-md border border-transparent text-sm font-medium text-foreground underline-offset-4 hover:underline"
           >
             Open Stay hub money

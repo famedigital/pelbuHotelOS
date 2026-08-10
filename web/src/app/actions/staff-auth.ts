@@ -133,8 +133,13 @@ export async function staffLogin(
       },
     });
 
+    const { resolveDeskHomeHref } = await import("@/lib/erp/desk-modules");
+    const { normalizeDeskRole } = await import("@/lib/desk-auth");
+    const deskRole = normalizeDeskRole((member.desk_role as string | null) ?? null);
+    const deskHome = resolveDeskHomeHref({ deskRole, pinOnlySession: false });
+
     // Prefer return URL (bag QR scan) over default desk/staff home.
-    redirect(returnNext ?? (mayOpenDesk ? "/erp" : "/staff"));
+    redirect(returnNext ?? (mayOpenDesk ? deskHome : "/staff"));
   } catch (error) {
     if (
       error &&

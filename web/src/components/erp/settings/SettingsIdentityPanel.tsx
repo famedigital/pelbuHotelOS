@@ -88,6 +88,33 @@ export function SettingsIdentityPanel({
                 defaultValue={property.legal_name ?? property.name}
               />
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="product_pack">Product pack</Label>
+              <select
+                id="product_pack"
+                name="product_pack"
+                defaultValue={property.product_pack ?? "hotel"}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="hotel">Hotel (full PMS + F&B)</option>
+                <option value="restaurant">Restaurant only (hide rooms / channel)</option>
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Restaurant pack keeps POS, kitchen, inventory, finance, and HR.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="pos_training_mode">POS training mode</Label>
+              <select
+                id="pos_training_mode"
+                name="pos_training_mode"
+                defaultValue={property.pos_training_mode ? "1" : "0"}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="0">Live (real sales)</option>
+                <option value="1">Training drills (flag only — still audit carefully)</option>
+              </select>
+            </div>
             <div className="space-y-1.5 md:col-span-2">
               <Label htmlFor="logo_public_id">Logo public ID</Label>
               <Input

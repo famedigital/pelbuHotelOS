@@ -2,6 +2,10 @@
  * IndexedDB offline queue for desk critical paths.
  * Queues: hold drafts, book drafts, POS park tickets.
  * Money posts (folio charge/payment) are NOT queued — too risky offline.
+ *
+ * Power-cut recovery: re-open POS online; replay parked tickets; never auto-fire
+ * KOT from offline queue (double-ticket risk). Use POS Closing X report +
+ * Open tickets drawer to reconcile.
  */
 
 export type DeskOfflineKind = "hold_draft" | "book_draft" | "pos_park";

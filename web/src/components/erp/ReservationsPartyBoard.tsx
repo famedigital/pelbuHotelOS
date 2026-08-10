@@ -23,6 +23,7 @@ import {
 } from "@/lib/erp/reservation-party";
 import { useStayHubOptional } from "@/components/erp/StayHubProvider";
 import { recommendStayHubStep } from "@/lib/folio/stay-hub-cycle";
+import { bookingConfirmationLabel } from "@/lib/booking-ref";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
@@ -131,7 +132,10 @@ function PartySummary({ party }: { party: ReservationParty }) {
         <p className="text-xs text-muted-foreground">
           {multi
             ? `${party.members.length} reservations · ${party.roomsSold} rooms`
-            : `${party.members[0]?.id.slice(0, 8) ?? "—"} · ${party.members[0]?.contact_phone ?? "—"}`}
+            : `${bookingConfirmationLabel({
+                confirmationCode: party.members[0]?.confirmation_code,
+                bookingId: party.members[0]?.id,
+              })} · ${party.members[0]?.contact_phone ?? "—"}`}
         </p>
       </div>
       <div className="hidden shrink-0 text-sm sm:block sm:w-[10rem]">
@@ -207,7 +211,11 @@ function MemberRow({
           )}
         </p>
         <p className="font-mono text-[11px] text-muted-foreground">
-          {row.id.slice(0, 8)} · {row.status?.replace(/_/g, " ")}
+          {bookingConfirmationLabel({
+            confirmationCode: row.confirmation_code,
+            bookingId: row.id,
+          })}{" "}
+          · {row.status?.replace(/_/g, " ")}
         </p>
       </div>
       <div className="flex flex-wrap gap-1">
@@ -293,6 +301,75 @@ export function ReservationsPartyBoard({
     });
   }
 
+  const stayHub = useStayHubOptional();
+  const selectedCount = selected.size;
+
+  const selectedMembers = useMemo(() => {
+    const ids = selected;
+    const out: BookingRow[] = [];
+    for (const p of parties) {
+      for (const m of p.members) {
+        if (ids.has(m.id)) out.push(m);
+      }
+    }
+    return out;
+  }, [parties, selected]);
+
+  function openStayHubFor(
+    rows: BookingRow[],
+    prefer: "check_in" | "stay_money" | "check_out",
+  ) {
+    if (!stayHub || rows.length === 0) return;
+    const first = rows[0]!;
+    stayHub.openStayHub({
+      bookingId: first.id,
+      step: recommendStayHubStep({
+        status: first.status ?? "confirmed",
+        hasRoomAssigned: (first.assigned_count ?? 0) > 0,
+        board:
+          prefer === "check_in"
+            ? "arrivals"
+            : prefer === "check_out"
+              ? "departures"
+              : "in_house",
+      }),
+      board:
+        prefer === "check_in"
+          ? "arrivals"
+          : prefer === "check_out"
+            ? "departures"
+            : "in_house",
+    });
+    if (rows.length > 1) {
+      toast.message(
+        `Opened StayHub for first of ${rows.length} — finish, then next room.`,
+      );
+    }
+  }
+
+  function bulkOpenCheckIn() {
+    const ready = selectedMembers.filter(
+      (m) =>
+        m.status === "confirmed" ||
+        m.status === "held" ||
+        m.status === "pending",
+    );
+    if (ready.length === 0) {
+      toast.error("Select confirmed / held rooms ready for check-in");
+      return;
+    }
+    openStayHubFor(ready, "check_in");
+  }
+
+  function bulkOpenCollect() {
+    const inHouse = selectedMembers.filter((m) => m.status === "checked_in");
+    if (inHouse.length === 0) {
+      toast.error("Select checked-in rooms for master collect");
+      return;
+    }
+    openStayHubFor(inHouse, "stay_money");
+  }
+
   if (parties.length === 0) {
     return (
       <p className="rounded-xl border border-border bg-card px-4 py-6 text-sm text-muted-foreground">
@@ -301,25 +378,47 @@ export function ReservationsPartyBoard({
     );
   }
 
-  const selectedCount = selected.size;
-
   return (
     <div className="space-y-3">
-      {selectedCount >= 2 ? (
+      {selectedCount >= 1 ? (
         <div className="sticky top-2 z-20 flex flex-wrap items-center gap-2 rounded-xl border border-accent/40 bg-card/95 px-3 py-2.5 shadow-sm backdrop-blur">
           <p className="text-sm text-foreground">
             <span className="font-semibold tabular-nums">{selectedCount}</span>{" "}
-            selected — link as one party with a shared rooming list
+            selected
           </p>
-          <Button
-            type="button"
-            size="sm"
-            variant="citrus"
-            disabled={pending}
-            onClick={() => linkParty([...selected])}
-          >
-            {pending ? "Linking…" : "Merge into group"}
-          </Button>
+          {stayHub ? (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                variant="citrus"
+                disabled={pending}
+                onClick={bulkOpenCheckIn}
+              >
+                Check-in selected
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={pending}
+                onClick={bulkOpenCollect}
+              >
+                Open master collect
+              </Button>
+            </>
+          ) : null}
+          {selectedCount >= 2 ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={pending}
+              onClick={() => linkParty([...selected])}
+            >
+              {pending ? "Linking…" : "Merge into group"}
+            </Button>
+          ) : null}
           <Button
             type="button"
             size="sm"
@@ -355,6 +454,12 @@ export function ReservationsPartyBoard({
           const detailId = party.members[0]!.id;
           const selectable =
             party.kind !== "group" || party.members.length === 1;
+          const inHouseIds = party.members
+            .filter((m) => m.status === "checked_in")
+            .map((m) => m.id);
+          const folioIdGuess = party.members.find(
+            (m) => m.status === "checked_in",
+          )?.id;
 
           return (
             <AccordionItem
@@ -392,16 +497,73 @@ export function ReservationsPartyBoard({
 
                 {multi ? (
                   <div className="mb-3 space-y-1.5">
-                    <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-                      Rooms under this party
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+                        Rooms under this party
+                      </p>
+                      {stayHub ? (
+                        <div className="ml-auto flex flex-wrap gap-1.5">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="citrus"
+                            className="h-8 text-xs"
+                            onClick={() => {
+                              const ready = party.members.filter(
+                                (m) =>
+                                  m.status === "confirmed" ||
+                                  m.status === "held" ||
+                                  m.status === "pending",
+                              );
+                              if (ready.length === 0) {
+                                toast.error("No rooms ready for check-in");
+                                return;
+                              }
+                              openStayHubFor(ready, "check_in");
+                            }}
+                          >
+                            Check-in party
+                          </Button>
+                          {inHouseIds.length > 0 ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-8 text-xs"
+                              onClick={() =>
+                                openStayHubFor(
+                                  party.members.filter(
+                                    (m) => m.status === "checked_in",
+                                  ),
+                                  "stay_money",
+                                )
+                              }
+                            >
+                              Collect / settle
+                            </Button>
+                          ) : null}
+                          {folioIdGuess ? (
+                            <Button
+                              asChild
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 text-xs"
+                            >
+                              <Link href={`/erp/folios?q=${folioIdGuess}`}>
+                                Folios
+                              </Link>
+                            </Button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
                     {party.members.map((m) => (
                       <MemberRow
                         key={m.id}
                         row={m}
                         selected={selected.has(m.id)}
                         onToggle={toggleSelect}
-                        canSelect={party.kind !== "group"}
+                        canSelect
                       />
                     ))}
                   </div>
@@ -412,9 +574,9 @@ export function ReservationsPartyBoard({
                       className="size-4 accent-[var(--accent)]"
                       checked={selected.has(detailId)}
                       onChange={() => toggleSelect(detailId)}
-                      aria-label="Select reservation for merge"
+                      aria-label="Select reservation for merge or bulk CI"
                     />
-                    Select to merge with other stays into one party
+                    Select for party merge or bulk check-in / collect
                   </div>
                 ) : null}
 

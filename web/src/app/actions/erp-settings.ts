@@ -58,6 +58,13 @@ export async function updatePropertyIdentity(
     const name = trimRequired(formData.get("name"), "Property name");
     const legalName = optionalTrim(formData.get("legal_name")) ?? name;
 
+    const productPackRaw = optionalTrim(formData.get("product_pack"));
+    const productPack =
+      productPackRaw === "restaurant" ? "restaurant" : "hotel";
+    const trainingRaw = optionalTrim(formData.get("pos_training_mode"));
+    const posTrainingMode =
+      trainingRaw === "1" || trainingRaw === "true" || trainingRaw === "on";
+
     const patch = {
       name,
       legal_name: legalName,
@@ -67,6 +74,8 @@ export async function updatePropertyIdentity(
       email: optionalTrim(formData.get("email")),
       tax_id: optionalTrim(formData.get("tax_id")),
       logo_public_id: optionalTrim(formData.get("logo_public_id")),
+      product_pack: productPack,
+      pos_training_mode: posTrainingMode,
     };
 
     const { error } = await admin.from("properties").update(patch).eq("id", propertyId);

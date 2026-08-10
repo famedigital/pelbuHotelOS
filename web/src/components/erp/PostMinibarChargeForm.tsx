@@ -25,9 +25,11 @@ export type MinibarPickerItem = {
 export function PostMinibarChargeForm({
   folioId,
   items,
+  embedded = false,
 }: {
   folioId: string;
   items: MinibarPickerItem[];
+  embedded?: boolean;
 }) {
   const [state, action, pending] = useActionState(postMinibarCharge, initial);
   useActionToast(state, { successMessage: "Minibar / amenity posted" });
@@ -48,13 +50,17 @@ export function PostMinibarChargeForm({
   if (items.length === 0) return null;
 
   return (
-    <form action={action} className="space-y-3 rounded-lg border bg-card p-4">
-      <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-        Minibar / amenity
-      </p>
-      <p className="text-xs text-muted-foreground">
-        Quick folio charge — no POS ticket. Catalog from property seed.
-      </p>
+    <form
+      action={action}
+      className={
+        embedded ? "space-y-3" : "space-y-3 rounded-lg border bg-card p-4"
+      }
+    >
+      {!embedded ? (
+        <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+          Minibar / amenity
+        </p>
+      ) : null}
       {state.error ? (
         <Alert variant="destructive">
           <AlertDescription>{state.error}</AlertDescription>
@@ -111,7 +117,7 @@ export function PostMinibarChargeForm({
           className="h-10 font-mono uppercase"
         />
       </div>
-      <Button type="submit" disabled={pending || !selectedId} className="h-10">
+      <Button type="submit" disabled={pending || !selectedId} className="h-10 w-full">
         {pending ? "Posting…" : "Post to folio"}
       </Button>
     </form>

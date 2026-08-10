@@ -32,6 +32,7 @@ import {
   filterErpNavByGrants,
   firstAllowedHrefForModule,
 } from "@/lib/erp/desk-modules";
+import { filterModulesForProductPack } from "@/lib/product-pack";
 import { pushErpRecent } from "@/lib/erp-recents";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +42,7 @@ export function AppSidebar({
   brandName = "Pelbu desk",
   logoSrc,
   allowedModuleKeys,
+  productPack = "hotel",
 }: {
   /** Active hotel name — falls back to the Pelbu label. */
   brandName?: string;
@@ -51,15 +53,18 @@ export function AppSidebar({
    * Omit / empty = all (legacy full access).
    */
   allowedModuleKeys?: readonly string[];
+  productPack?: "hotel" | "restaurant";
 } = {}) {
   const pathname = usePathname();
   const activeMatch = resolveModule(pathname);
   const modules = React.useMemo(() => {
-    if (!allowedModuleKeys || allowedModuleKeys.length === 0) {
-      return ERP_MODULES;
-    }
-    return filterErpNavByGrants(ERP_MODULES, allowedModuleKeys);
-  }, [allowedModuleKeys]);
+    let list =
+      !allowedModuleKeys || allowedModuleKeys.length === 0
+        ? ERP_MODULES
+        : filterErpNavByGrants(ERP_MODULES, allowedModuleKeys);
+    list = filterModulesForProductPack(list, productPack);
+    return list;
+  }, [allowedModuleKeys, productPack]);
   const showSettings =
     !allowedModuleKeys ||
     allowedModuleKeys.length === 0 ||
@@ -86,7 +91,7 @@ export function AppSidebar({
   }, [activeMatch?.module.key]);
 
   return (
-    <Sidebar collapsible="icon" className="erp">
+    <Sidebar collapsible="icon" className="erp print:hidden">
       <SidebarHeader className="border-b border-sidebar-border/60">
         <SidebarMenu>
           <SidebarMenuItem>

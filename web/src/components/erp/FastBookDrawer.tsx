@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useAgentCreditEligibilityNotify } from "@/hooks/use-agent-credit-eligibility-notify";
+import { toast } from "sonner";
 
 type Props = {
   agents: BookableAgent[];
@@ -109,6 +111,10 @@ function DrawerBody({
 
   const blockCredit =
     needsCreditPromote(paymentMode, selectedAgent) && Boolean(agentId);
+
+  useAgentCreditEligibilityNotify(paymentMode, selectedAgent, {
+    enabled: Boolean(agentId),
+  });
 
   const onPromoted = useCallback((agent: BookableAgent) => {
     setAgentPatches((prev) => ({ ...prev, [agent.id]: agent }));
@@ -285,7 +291,10 @@ function DrawerBody({
             <CreditAgentPromotePanel
               agent={selectedAgent}
               onPromoted={onPromoted}
-              onUseCash={() => setPaymentMode("cash")}
+              onUseCash={() => {
+                setPaymentMode("cash");
+                toast.message("Payment set to cash");
+              }}
             />
           ) : null}
           {paymentMode === "on_credit" && !agentId ? (

@@ -30,9 +30,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
+import { useAgentCreditEligibilityNotify } from "@/hooks/use-agent-credit-eligibility-notify";
 import { useStayHubOptional } from "@/components/erp/StayHubProvider";
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export type CalendarAgent = BookableAgent;
 
@@ -258,6 +260,12 @@ export function CalendarReservationDialog({
   const blockCredit = needsCreditPromote(
     draft?.paymentMode ?? "cash",
     selectedAgent,
+  );
+
+  useAgentCreditEligibilityNotify(
+    draft?.paymentMode ?? "cash",
+    selectedAgent,
+    { enabled: Boolean(draft?.agentId) },
   );
 
   // Auto party name from agent or guest + room count (industry group block pattern).
@@ -647,7 +655,10 @@ export function CalendarReservationDialog({
                       [agent.id]: agent,
                     }));
                   }}
-                  onUseCash={() => updateDraft("paymentMode", "cash")}
+                  onUseCash={() => {
+                    updateDraft("paymentMode", "cash");
+                    toast.message("Payment set to cash");
+                  }}
                 />
               </div>
             ) : null}

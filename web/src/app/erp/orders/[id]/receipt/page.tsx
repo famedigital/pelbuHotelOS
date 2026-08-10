@@ -1,13 +1,14 @@
+import { DocPrintControls } from "@/components/erp/DocPrintControls";
 import { AutoPrintOnLoad } from "@/components/erp/pos/AutoPrintOnLoad";
 import {
   PosPaidReceipt,
   type PosPaidReceiptData,
 } from "@/components/erp/pos/PosPaidReceipt";
-import { PrintButton } from "@/components/erp/PrintButton";
 import { Button } from "@/components/ui/button";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { orderRef } from "@/lib/order-ref";
+import type { DocumentPaperSize } from "@/lib/property-settings";
 import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
@@ -22,7 +23,7 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ print?: string }>;
+  searchParams: Promise<{ print?: string; paper?: string }>;
 };
 
 /**
@@ -71,6 +72,15 @@ export default async function OrderPaidReceiptPage({
 
   const property = await loadProperty(admin, propertyId);
   if (!property) notFound();
+
+  const paperParam = (sp.paper ?? "").toLowerCase();
+  const designPaper = property.doc_receipt.paper_size;
+  const paper: DocumentPaperSize =
+    paperParam === "a4" || paperParam === "thermal"
+      ? paperParam
+      : designPaper === "a4"
+        ? "a4"
+        : "thermal";
 
   const tableJoin = order.dining_tables as
     | { name?: string }
@@ -135,7 +145,7 @@ export default async function OrderPaidReceiptPage({
 
   return (
     <div className="erp mx-auto w-full max-w-[520px] space-y-5 p-4 md:p-6 print:max-w-none print:p-0">
-      {autoPrint ? <AutoPrintOnLoad /> : null}
+      {autoPrint ? <AutoPrintOnLoad paper={paper} /> : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <div>
@@ -158,7 +168,10 @@ export default async function OrderPaidReceiptPage({
               <Link href={`/erp/folios/${data.folioId}`}>Open folio</Link>
             </Button>
           ) : null}
-          <PrintButton label="Print receipt" />
+          <DocPrintControls
+            defaultSize={paper}
+            printLabel="Print receipt"
+          />
         </div>
       </div>
 

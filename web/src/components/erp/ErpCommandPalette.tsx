@@ -41,7 +41,7 @@ export function openErpCommandPalette() {
 }
 
 type EntityHit = {
-  kind: "guest" | "room" | "booking" | "invoice";
+  kind: "guest" | "room" | "booking" | "invoice" | "agent";
   id: string;
   label: string;
   href: string;
@@ -53,6 +53,7 @@ const ENTITY_ICONS = {
   room: BedDoubleIcon,
   booking: ReceiptTextIcon,
   invoice: ReceiptTextIcon,
+  agent: UserIcon,
 } as const;
 
 /**
@@ -156,15 +157,15 @@ export function ErpCommandPalette({
       commandProps={{ filter: erpNavFilterScore }}
     >
       <CommandInput
-        placeholder="Jump to a screen, guest, room…"
-        aria-label="Search desk screens"
+        placeholder="Conf # · guest · phone · room · folio · INV · agent…"
+        aria-label="Search desk screens and records"
         onValueChange={setEntityQuery}
       />
       <CommandList>
         <CommandEmpty>No matching screen.</CommandEmpty>
         {entityLoading ? (
           <p className="px-3 py-2 text-xs text-muted-foreground">
-            Searching guests and rooms…
+            Searching reservations, guests, invoices…
           </p>
         ) : null}
         {entityHits.length > 0 ? (

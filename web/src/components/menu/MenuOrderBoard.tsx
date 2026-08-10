@@ -76,12 +76,15 @@ export function MenuOrderBoard({
   items,
   initialOutlet,
   preferRoomDelivery = false,
+  /** Prefill from QR /menu?table=T12 — guest notes, not desk ticket yet. */
+  initialTableLabel,
   /** Property GST rate from ERP settings (`properties.gst_rate`). */
   gstRate = DEFAULT_GST_RATE,
 }: {
   items: MenuItem[];
   initialOutlet?: OutletId;
   preferRoomDelivery?: boolean;
+  initialTableLabel?: string;
   gstRate?: number;
 }) {
   const isDesktop = useMediaQuery("(min-width: 1024px)");
@@ -289,6 +292,8 @@ export function MenuOrderBoard({
       roomLabel={roomLabel}
       onRoomVerified={bindRoomSession}
       onClearRoom={clearRoomSession}
+      initialTableLabel={initialTableLabel}
+      browseOutlet={outlet}
       state={state}
       action={action}
       pending={pending}
@@ -594,12 +599,9 @@ function MenuTile({
               Sold out
             </span>
           ) : !orderable ? (
-            <Link
-              href="/contact"
-              className="rounded-lg border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
-            >
-              Ask desk
-            </Link>
+            <span className="rounded-lg border border-border bg-secondary/40 px-2 py-1 text-[11px] font-semibold text-muted-foreground">
+              Desk only
+            </span>
           ) : qty === 0 ? (
             <button
               type="button"
@@ -651,6 +653,8 @@ function OrderCart({
   roomLabel,
   onRoomVerified,
   onClearRoom,
+  initialTableLabel,
+  browseOutlet,
   state,
   action,
   pending,
@@ -670,6 +674,8 @@ function OrderCart({
   roomLabel: string | null;
   onRoomVerified: (token: string, label: string) => void;
   onClearRoom: () => void;
+  initialTableLabel?: string;
+  browseOutlet: OutletId;
   state: OrderActionState;
   action: (payload: FormData) => void;
   pending: boolean;
@@ -897,7 +903,28 @@ function OrderCart({
           )}
           <div className="grid gap-1.5">
             <Label htmlFor="notes">Notes</Label>
-            <Textarea id="notes" name="notes" rows={2} maxLength={500} />
+            <Textarea
+              id="notes"
+              name="notes"
+              rows={2}
+              maxLength={500}
+              defaultValue={
+                initialTableLabel
+                  ? `Table ${initialTableLabel}`
+                  : undefined
+              }
+              placeholder={
+                initialTableLabel
+                  ? `Table ${initialTableLabel} · allergies, spice…`
+                  : "Allergies, spice, timing…"
+              }
+            />
+            {browseOutlet === "bar" ? (
+              <p className="text-xs text-amber-800">
+                Bar drinks are order-at-desk only — browser filter shows them to
+                browse; cart checkout is not available for bar items.
+              </p>
+            ) : null}
           </div>
         </fieldset>
       </div>

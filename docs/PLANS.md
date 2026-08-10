@@ -4,7 +4,7 @@ Plans live outside the repo at `C:\Users\rajiv\.cursor\plans\` (Cursor plan-mode
 **Release roll-up:** [RELEASE-v1.md](RELEASE-v1.md).  
 **Shipped routes:** [FEATURES.md](FEATURES.md).
 
-Last reconciled: **2026-08-06** (StayHub walk-in UX on `main` · `8ba9342`; prior wave + N+1 + A/B/C residuals).
+Last reconciled: **2026-08-10** (full docs re-sync after **`fc23144`**; FO agent commerce + PS conf + iterate streams on `main` + WIP).
 
 ---
 
@@ -13,11 +13,12 @@ Last reconciled: **2026-08-06** (StayHub walk-in UX on `main` · `8ba9342`; prio
 | Plan | Focus | Status | Saved copy |
 |------|--------|--------|------------|
 | **Way forward (current)** | Residual after wave + N+1 — **A/B/C pack** | **A–C implemented** — D/E pull if desk asks | [plans/olakha-erp-way-forward.md](plans/olakha-erp-way-forward.md) |
-| N+1 tranche (shipped) | StayHub FO cycle, night-audit desk, HR personnel/rota cover, kitchen events, hotel accountant/journals, DOT assessment | **Done (pushed)** — see way-forward §1.3 | same way-forward doc |
-| `stayhub_walk-in_ux_4eb64b91.plan.md` | Walk-in FO: phone later, fast save, sticky CI, undo/no-show | **Done (pushed `8ba9342`)** | Cursor plans folder |
-| `rates_meals_nationality_7c9e2c95.plan.md` | Production-ready #1 ERP wave | **Done (implementation)** — 50/71; residual in way-forward | [plans/olakha-production-ready-erp-wave.md](plans/olakha-production-ready-erp-wave.md) |
+| N+1 tranche (shipped) | StayHub FO cycle, night-audit desk, HR, kitchen events, DOT | **Done** | way-forward §1.3 |
+| `stayhub_walk-in_ux_4eb64b91.plan.md` | Walk-in FO: phone later, fast save, sticky CI, undo/no-show | **Done (`8ba9342` / docs `fc23144`)** | Cursor plans folder |
+| Agent commerce / StayHub FO | Guide pack, room cap, AR labels, POS folio, PS conf # | **Shipped 2026-08-09/10** — [checklist](FO-AGENT-COMMERCE-CHECKLIST.md) | Cursor plans + checklist |
+| `bhutan_agent_commerce_*` / stayhub folio open form | Soft confirm + settle evidence | **Done (product)** | plans folder if present |
 
-**Wave 0–6 + post-wave + N+1 + A/B/C + StayHub walk-in** on `main`. **Next pull:** Phase D (connective ops) only if desk asks; Phase E (UAT initials + Playwright with secrets). Do not restart the 71-todo wave.
+**Wave 0–6 + N+1 + StayHub walk-in + 2026-08 FO iterate** on `main`. **Next pull:** Phase D only if desk asks; Phase E UAT initials + Playwright with secrets. Do not restart the 71-todo wave.
 
 ---
 
@@ -60,7 +61,7 @@ Last reconciled: **2026-08-06** (StayHub walk-in UX on `main` · `8ba9342`; prio
 | `rack_bars_and_hover_220e67c2.plan.md` | Stay bars, hover, voucher, shells | **Done** |
 | `hotel_erp_gap_p8_lists_p9_depth.plan.md` | P8 lists + P9 depth | **Done** |
 
-**Post-v1 optional (pull when desk asks):** overbooking buffer, stop-sell markers, rooming-list editor, VIP intel, full keyboard rack — still listed in FEATURES calendar leftovers.
+**Post-v1 optional (pull when desk asks):** overbooking buffer, stop-sell markers, VIP intel, full keyboard rack — party/rooming shipped. Still listed in FEATURES leftovers.
 
 ---
 
@@ -70,7 +71,9 @@ Last reconciled: **2026-08-06** (StayHub walk-in UX on `main` · `8ba9342`; prio
 |-----------|--------|--------|
 | `bhutan_front_desk_flow_c629d551.plan.md` | Bhutan FO flow | **Done** |
 | `check-in_guest_table_1129ac18.plan.md` | Dense guest docs | **Done** |
-| `stayhub_walk-in_ux_4eb64b91.plan.md` | StayHub walk-in FO (phone later, perf, sticky CI, undo) | **Done** (`8ba9342`) |
+| `stayhub_walk-in_ux_4eb64b91.plan.md` | StayHub walk-in FO (phone later, perf, sticky CI, undo) | **Done** (`8ba9342` / docs `fc23144`) |
+| Party / rooming | Reservations party board + rooming list | **Done** (`ae5bf73`) |
+| Agent commerce FO | Guide evidence, AR CTAs, room cap, PS conf | **Done** 2026-08-09/10 |
 | `fast-book_ux_rebuild_dad84d1f.plan.md` | Fast-book UX | **Done** |
 | `stay_dates_ux_upgrade_16852ef3.plan.md` | `StayDatesField` | **Done** |
 | `guest_origin_+_conditional_guide_8e4bf3d0.plan.md` | Guest origin + guide | **Done** |

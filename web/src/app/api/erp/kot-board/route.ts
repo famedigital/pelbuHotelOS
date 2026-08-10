@@ -1,4 +1,5 @@
 import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { isKitchenBoardVisible } from "@/lib/kot-visibility";
 import { loadOpenPosTickets } from "@/lib/pos";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -27,13 +28,8 @@ export async function GET() {
     return NextResponse.json({ error: "Query failed" }, { status: 500 });
   }
 
-  // Match KDS filters for board-visible tickets (excluding served/cancelled for columns).
-  const boardVisible = tickets.filter((t) => {
-    if (t.order_source === "public" && (!t.confirmed_at || !t.payment_recorded_at)) {
-      return false;
-    }
-    return ["new", "preparing", "ready"].includes(t.kot_status);
-  });
+  // Settlement ≠ kitchen done — public room + paid online share the same rule.
+  const boardVisible = tickets.filter((t) => isKitchenBoardVisible(t));
 
   const counts = {
     new: boardVisible.filter((t) => t.kot_status === "new").length,

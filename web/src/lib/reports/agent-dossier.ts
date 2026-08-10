@@ -41,6 +41,17 @@ export type AgentDossierAgent = {
   rate_tier: string;
   credit_limit: number;
   credit_used: number;
+  open_room_cap: number;
+};
+
+export type AgentDossierPack = {
+  id: string;
+  bookingId: string;
+  guestName: string | null;
+  sealedAt: string;
+  emailSentAt: string | null;
+  emailTo: string | null;
+  guideSignStatus: string | null;
 };
 
 export type AgentDossierBooking = {
@@ -123,6 +134,8 @@ export type AgentDossierMoney = {
   payments: AgentDossierPayment[];
   ledger: AgentDossierLedger[];
   habit: AgentPaymentHabit;
+  openRoomsInHouse: number;
+  packs: AgentDossierPack[];
 };
 
 export type AgentDossier = {
@@ -246,7 +259,7 @@ export async function loadAgentDossier(
   const { data: agentRow } = await admin
     .from("agents")
     .select(
-      "id, company_name, market, contact_name, contact_phone, contact_email, status, rate_tier, credit_limit, credit_used",
+      "id, company_name, market, contact_name, contact_phone, contact_email, status, rate_tier, credit_limit, credit_used, open_room_cap",
     )
     .eq("id", agentId)
     .maybeSingle();
@@ -263,6 +276,7 @@ export async function loadAgentDossier(
     rate_tier: (agentRow.rate_tier as string) ?? "agents",
     credit_limit: Number(agentRow.credit_limit ?? 0),
     credit_used: Number(agentRow.credit_used ?? 0),
+    open_room_cap: Number(agentRow.open_room_cap ?? 15),
   };
 
   const { data: bookingRows } = await admin
@@ -489,6 +503,37 @@ export async function loadAgentDossier(
     0,
   );
 
+  const openRoomsInHouse = bookings
+    .filter((b) => b.status === "checked_in")
+    .reduce((s, b) => s + Math.max(1, b.rooms), 0);
+
+  const { data: packRows } = await admin
+    .from("booking_settlement_packs")
+    .select(
+      "id, booking_id, sealed_at, email_sent_at, email_to, guide_sign_status, bookings(contact_name)",
+    )
+    .eq("agent_id", agentId)
+    .eq("property_id", propertyId)
+    .order("sealed_at", { ascending: false })
+    .limit(40);
+
+  const packs: AgentDossierPack[] = (packRows ?? []).map((p) => {
+    const bRaw = p.bookings as
+      | { contact_name?: string }
+      | { contact_name?: string }[]
+      | null;
+    const b = Array.isArray(bRaw) ? bRaw[0] : bRaw;
+    return {
+      id: p.id as string,
+      bookingId: p.booking_id as string,
+      guestName: b?.contact_name ?? null,
+      sealedAt: p.sealed_at as string,
+      emailSentAt: (p.email_sent_at as string | null) ?? null,
+      emailTo: (p.email_to as string | null) ?? null,
+      guideSignStatus: (p.guide_sign_status as string | null) ?? null,
+    };
+  });
+
   return {
     agent,
     from,
@@ -506,6 +551,8 @@ export async function loadAgentDossier(
       payments,
       ledger,
       habit: buildHabit(payments, bookings),
+      openRoomsInHouse,
+      packs,
     },
     rates,
     allotments,

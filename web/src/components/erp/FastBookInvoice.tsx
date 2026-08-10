@@ -1,10 +1,12 @@
 "use client";
 
 import { cloudinaryUrl } from "@/lib/cloudinary";
+import { bookingConfirmationLabel } from "@/lib/booking-ref";
 import type { PropertyDocumentDesign } from "@/lib/property-settings";
 
 export type FastBookInvoiceData = {
   bookingId: string;
+  confirmationCode?: string;
   checkIn: string;
   checkOut: string;
   nights: number;
@@ -55,13 +57,24 @@ export function FastBookInvoice({
   data,
   property,
   design,
+  /** Proforma desk note — not a fiscal GST INV# */
+  title = "Booking confirmation",
+  printId = "print-booking-note",
 }: {
   data: FastBookInvoiceData;
   property?: InvoiceProperty;
   design?: PropertyDocumentDesign;
+  title?: string;
+  printId?: string;
 }) {
-  const sourceLabel = data.sourceLabel ?? SOURCE_LABELS[data.sourceLabel ?? ""] ?? data.sourceLabel;
-  const paymentLabel = data.paymentLabel ?? PAYMENT_LABELS[data.paymentLabel ?? ""] ?? data.paymentLabel;
+  const sourceLabel =
+    data.sourceLabel != null
+      ? (SOURCE_LABELS[data.sourceLabel] ?? data.sourceLabel)
+      : undefined;
+  const paymentLabel =
+    data.paymentLabel != null
+      ? (PAYMENT_LABELS[data.paymentLabel] ?? data.paymentLabel)
+      : undefined;
   const brandName = property?.name ?? "Pelbu Suites";
   const legalName = property?.legal_name ?? brandName;
   const logoSrc = property?.logo_public_id
@@ -69,8 +82,10 @@ export function FastBookInvoice({
     : null;
   const brandColor = design?.brand_color ?? "#7b1e3a";
   const accentColor = design?.accent_color ?? "#d46f92";
-  const headerText = design?.header_text ?? "Direct billing summary.";
-  const footerText = design?.footer_text ?? "Rates applied on save — see folio.";
+  const headerText = design?.header_text ?? "Direct booking confirmation.";
+  const footerText =
+    design?.footer_text ??
+    "Not a tax invoice — GST INV issues from the guest folio. Rates applied on stay.";
   const showAddress = design?.show_address ?? true;
   const showPhone = design?.show_phone ?? true;
   const showEmail = design?.show_email ?? true;
@@ -78,8 +93,9 @@ export function FastBookInvoice({
 
   return (
     <section
-      className="erp rounded-lg border bg-card px-6 py-6 print:hidden"
-      aria-label="Desk invoice"
+      id={printId}
+      className="erp doc-print-sheet rounded-lg border bg-card px-6 py-6 print:border-0 print:px-0 print:py-0 print:shadow-none"
+      aria-label={title}
       style={{
         borderColor: accentColor,
         background:
@@ -97,10 +113,18 @@ export function FastBookInvoice({
             {brandName}
           </p>
           <h2 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-            Desk invoice
+            {title}
           </h2>
         </div>
-        <p className="font-mono text-[11px] text-muted-foreground">{data.bookingId}</p>
+        <p className="font-mono text-[11px] text-muted-foreground">
+          Conf{" "}
+          <span className="font-semibold text-foreground">
+            {bookingConfirmationLabel({
+              confirmationCode: data.confirmationCode,
+              bookingId: data.bookingId,
+            })}
+          </span>
+        </p>
       </div>
 
       {(logoSrc || showAddress || showPhone || showEmail || showTaxId) && (

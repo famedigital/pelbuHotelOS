@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pelbu Suites — Editorial Menu · A4 Booklet</title>
+  <!--
+    Print brief (saddle-stitch, reader order):
+    Chrome → Print / PDF · A4 · margins none · background graphics ON
+    Duplex long-edge · shop: fold centre + 2 staples (saddle)
+    Page count is multiple of 4. Heroes: menu-editorial/hero-*.jpg
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,500;1,600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #1a100c;
+      --ivory: #faf7f2;
+      --ivory-deep: #f3eee6;
+      --gold: #c9a227;
+      --gold-soft: #b8943a;
+      --copper: #b85420;
+      --charcoal: #141210;
+      --cream: #f7f0e8;
+      --muted: #6b5850;
+      --muted-soft: #8a7060;
+      --cut: 5mm;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
+
+    html, body {
+      background: #1c1612;
+      color: var(--ink);
+      font-family: "Outfit", "Segoe UI", Arial, sans-serif;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .print-bar {
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 18px;
+      background: #0c0806;
+      border-bottom: 1px solid rgba(201, 162, 39, 0.28);
+      color: var(--cream);
+      font-size: 12.5px;
+    }
+
+    .print-bar strong {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .print-bar .meta {
+      opacity: 0.82;
+      font-size: 11px;
+      max-width: 64ch;
+      line-height: 1.45;
+    }
+
+    .print-bar button {
+      border: 0;
+      cursor: pointer;
+      font: 700 11px/1 "Outfit", sans-serif;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 11px 18px;
+      background: linear-gradient(135deg, var(--copper), var(--gold));
+      color: var(--ink);
+    }
+
+    .stage {
+      padding: 18px 12px 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .side-tag {
+      width: 210mm;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(247, 240, 232, 0.42);
+    }
+
+    .sheet {
+      width: 210mm;
+      height: 297mm;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+      background: var(--ivory);
+    }
+
+    .sheet .safe {
+      position: absolute;
+      inset: var(--cut);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .folio {
+      position: absolute;
+      bottom: var(--cut);
+      right: var(--cut);
+      font-size: 2.2mm;
+      letter-spacing: 0.16em;
+      color: rgba(26, 16, 12, 0.35);
+      font-weight: 500;
+      z-index: 5;
+    }
+
+    .sheet.is-dark .folio,
+    .sheet.is-visual .folio,
+    .sheet.is-cover .folio,
+    .sheet.is-back .folio {
+      color: rgba(247, 240, 232, 0.4);
+    }
+
+    .tax-foot {
+      margin-top: auto;
+      padding-top: 4mm;
+      font-size: 2.1mm;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted-soft);
+      border-top: 0.25mm solid rgba(26, 16, 12, 0.1);
+      line-height: 1.45;
+    }
+
+    .sheet.is-dark .tax-foot {
+      color: rgba(247, 240, 232, 0.45);
+      border-top-color: rgba(247, 240, 232, 0.12);
+    }
+
+    /* ——— COVER / BACK ——— */
+    .sheet.is-cover,
+    .sheet.is-back,
+    .sheet.is-visual {
+      background: var(--charcoal);
+    }
+
+    .bleed-hero {
+      position: absolute;
+      inset: 0;
+    }
+
+    .bleed-hero img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      display: block;
+    }
+
+    .bleed-hero .scrim {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(10, 7, 5, 0.5) 0%, rgba(10, 7, 5, 0.08) 38%, rgba(10, 7, 5, 0.15) 55%, rgba(10, 7, 5, 0.92) 100%);
+    }
+
+    .bleed-hero .scrim.soft {
+      background: linear-gradient(180deg, rgba(10, 7, 5, 0.28) 0%, transparent 40%, rgba(10, 7, 5, 0.72) 100%);
+    }
+
+    .cover-content {
+      position: absolute;
+      z-index: 2;
+      inset: var(--cut);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      color: var(--cream);
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 3.5mm;
+    }
+
+    .brand-row img {
+      width: 14mm;
+      height: 14mm;
+      object-fit: contain;
+    }
+
+    .brand-row .nm {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 9mm;
+      font-weight: 700;
+      line-height: 0.95;
+    }
+
+    .brand-row .nm em {
+      font-style: normal;
+      color: var(--gold);
+    }
+
+    .brand-row .loc {
+      margin-top: 1mm;
+      font-size: 2.3mm;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(247, 240, 232, 0.72);
+    }
+
+    .eyebrow {
+      font-size: 2.4mm;
+      font-weight: 600;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 3mm;
+    }
+
+    .display {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-weight: 700;
+      line-height: 0.94;
+      letter-spacing: 0.01em;
+    }
+
+    .display.xl { font-size: 18mm; }
+    .display.lg { font-size: 15mm; }
+    .display.md { font-size: 12mm; }
+
+    .display em {
+      font-style: italic;
+      font-weight: 500;
+      color: #e8c96a;
+    }
+
+    .lede {
+      margin-top: 3.5mm;
+      font-size: 3.2mm;
+      line-height: 1.45;
+      max-width: 130mm;
+      color: rgba(247, 240, 232, 0.88);
+      font-weight: 400;
+    }
+
+    .cover-foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 6mm;
+    }
+
+    .cover-foot .phone {
+      font-size: 3.2mm;
+      font-weight: 600;
+    }
+
+    .cover-foot .web {
+      margin-top: 1mm;
+      font-size: 2.3mm;
+      opacity: 0.75;
+    }
+
+    .cover-foot .note {
+      text-align: right;
+      font-size: 2.1mm;
+      line-height: 1.4;
+      opacity: 0.72;
+      max-width: 70mm;
+    }
+
+    .qr-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2.5mm;
+      background: rgba(247, 240, 232, 0.92);
+      padding: 4mm;
+      color: var(--ink);
+    }
+
+    .qr-block img {
+      width: 28mm;
+      height: 28mm;
+      display: block;
+    }
+
+    .qr-block span {
+      font-size: 2.2mm;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+    }
+
+    /* ——— LIST PAGE (sample 04 left) ——— */
+    .sheet.is-list {
+      background:
+        linear-gradient(165deg, #fbf8f3 0%, var(--ivory) 55%, var(--ivory-deep) 100%);
+    }
+
+    .quote-line {
+      font-size: 2.4mm;
+      font-weight: 300;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: rgba(26, 16, 12, 0.38);
+      text-align: center;
+      margin-bottom: 8mm;
+      margin-top: 2mm;
+    }
+
+    .cat-title {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 16mm;
+      font-weight: 700;
+      color: var(--gold-soft);
+      line-height: 0.92;
+      margin-bottom: 1mm;
+      letter-spacing: 0.01em;
+    }
+
+    .cat-sub {
+      font-size: 2.3mm;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--muted-soft);
+      margin-bottom: 7mm;
+    }
+
+    .item-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      flex: 1;
+    }
+
+    .item-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 2mm 4mm;
+      padding: 2.6mm 0;
+      border-bottom: 0.2mm solid rgba(26, 16, 12, 0.07);
+      align-items: start;
+    }
+
+    .item-row:last-child {
+      border-bottom: 0;
+    }
+
+    .item-row.compact {
+      padding: 1.8mm 0;
+    }
+
+    .item-name {
+      font-size: 2.9mm;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink);
+      line-height: 1.25;
+    }
+
+    .item-desc {
+      margin-top: 0.8mm;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 2.7mm;
+      font-style: italic;
+      font-weight: 500;
+      color: var(--muted);
+      line-height: 1.3;
+      max-width: 128mm;
+    }
+
+    .item-meta {
+      margin-top: 0.6mm;
+      font-size: 2mm;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--copper);
+    }
+
+    .item-price {
+      font-size: 2.9mm;
+      font-weight: 600;
+      color: var(--ink);
+      white-space: nowrap;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      padding-top: 0.2mm;
+    }
+
+    .item-price .nu {
+      font-size: 2.2mm;
+      font-weight: 500;
+      color: var(--muted-soft);
+      margin-right: 0.8mm;
+    }
+
+    .list-note {
+      margin-top: 4mm;
+      font-size: 2.2mm;
+      font-style: italic;
+      color: var(--muted);
+      line-height: 1.4;
+      max-width: 140mm;
+    }
+
+    /* ——— HYBRID (sample 05) ——— */
+    .sheet.is-hybrid {
+      background:
+        linear-gradient(180deg, #fbf8f3 0%, var(--ivory) 100%);
+    }
+
+    .hybrid-top {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3mm;
+      height: 95mm;
+      flex-shrink: 0;
+      margin-bottom: 5mm;
+    }
+
+    .hybrid-top .cell {
+      position: relative;
+      overflow: hidden;
+      background: #1a1410;
+    }
+
+    .hybrid-top .cell img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .hybrid-top .cell.bw img {
+      filter: grayscale(1) contrast(1.05);
+    }
+
+    .hybrid-head {
+      margin-bottom: 3mm;
+    }
+
+    .hybrid-head .cat-title {
+      font-size: 14mm;
+      margin-bottom: 0;
+    }
+
+    /* ——— VISUAL PAGE ——— */
+    .visual-caption {
+      position: absolute;
+      z-index: 3;
+      left: var(--cut);
+      right: var(--cut);
+      bottom: calc(var(--cut) + 6mm);
+      color: var(--cream);
+    }
+
+    .visual-caption .quote {
+      font-size: 3mm;
+      font-weight: 300;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      opacity: 0.88;
+      max-width: 150mm;
+      line-height: 1.45;
+    }
+
+    .visual-caption .label {
+      margin-top: 2mm;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 8mm;
+      font-weight: 600;
+      color: var(--gold);
+    }
+
+    /* ——— DARK FEATURE (sample 07) ——— */
+    .sheet.is-dark {
+      background: var(--charcoal);
+      color: var(--cream);
+    }
+
+    .dark-safe {
+      position: absolute;
+      inset: var(--cut);
+      display: flex;
+      flex-direction: column;
+      z-index: 2;
+    }
+
+    .dark-photo {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 52%;
+      z-index: 1;
+    }
+
+    .dark-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center 40%;
+      display: block;
+    }
+
+    .dark-photo::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, var(--charcoal) 0%, transparent 28%, transparent 70%, rgba(10, 7, 5, 0.55) 100%);
+    }
+
+    .dark-safe .cat-title {
+      color: var(--gold);
+      font-size: 15mm;
+      margin-bottom: 1mm;
+    }
+
+    .dark-safe .cat-sub {
+      color: rgba(247, 240, 232, 0.45);
+    }
+
+    .dark-safe .item-name {
+      color: rgba(247, 240, 232, 0.95);
+    }
+
+    .dark-safe .item-desc {
+      color: rgba(247, 240, 232, 0.55);
+    }
+
+    .dark-safe .item-price {
+      color: var(--gold);
+    }
+
+    .dark-safe .item-price .nu {
+      color: rgba(201, 162, 39, 0.65);
+    }
+
+    .dark-safe .item-row {
+      border-bottom-color: rgba(247, 240, 232, 0.08);
+    }
+
+    .dark-safe .item-list {
+      max-height: 115mm;
+      overflow: hidden;
+      margin-bottom: 4mm;
+    }
+
+    /* ——— CONTENTS ——— */
+    .toc-list {
+      display: flex;
+      flex-direction: column;
+      gap: 3.5mm;
+      margin-top: 4mm;
+    }
+
+    .toc-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 4mm;
+      border-bottom: 0.2mm solid rgba(26, 16, 12, 0.08);
+      padding-bottom: 2.5mm;
+    }
+
+    .toc-row .t {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 5mm;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .toc-row .d {
+      font-size: 2.4mm;
+      color: var(--muted-soft);
+      letter-spacing: 0.06em;
+    }
+
+    /* ——— HOUSE NOTES ——— */
+    .notes-body {
+      margin-top: 6mm;
+      display: flex;
+      flex-direction: column;
+      gap: 5mm;
+      max-width: 155mm;
+    }
+
+    .notes-body h3 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 5mm;
+      font-weight: 600;
+      color: var(--gold-soft);
+      margin-bottom: 1.5mm;
+    }
+
+    .notes-body p {
+      font-size: 3mm;
+      line-height: 1.5;
+      color: var(--muted);
+    }
+
+    .spec {
+      width: 210mm;
+      max-width: 92vw;
+      margin: 0 auto 40px;
+      padding: 16px 18px;
+      background: #120e0b;
+      color: rgba(247, 240, 232, 0.8);
+      font-size: 12px;
+      line-height: 1.55;
+      border: 1px solid rgba(201, 162, 39, 0.18);
+    }
+
+    .spec h3 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 16px;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+
+    .spec ul {
+      padding-left: 18px;
+    }
+
+    .spec li { margin: 4px 0; }
+    .spec code {
+      font-size: 11px;
+      color: #e8c96a;
+    }
+
+    @media print {
+      .no-print { display: none !important; }
+      html, body { background: #fff; }
+      .stage {
+        padding: 0;
+        gap: 0;
+      }
+      .sheet {
+        box-shadow: none;
+        page-break-after: always;
+        break-after: page;
+      }
+      .sheet:last-child {
+        page-break-after: auto;
+        break-after: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-bar no-print">
+    <div>
+      <strong>Pelbu Suites · Editorial menu</strong><br />
+      <span class="meta">
+        A4 booklet · sample-style (list + photo faces) · <b>saddle-stitch ready</b> (page count ÷ 4).
+        Chrome → Print → A4 · margins <b>none</b> · background graphics <b>ON</b> · duplex long-edge · shop folds &amp; staples.
+        Safe type margin 5&nbsp;mm.
+      </span>
+    </div>
+    <button type="button" onclick="window.print()">Print / PDF</button>
+  </div>
+
+  <div class="stage" id="book"></div>
+
+  <aside class="spec no-print">
+    <h3>Print-house · editorial A4 booklet</h3>
+    <ul>
+      <li><strong>File:</strong> <code>marketing/print/menu-booklet-editorial-a4.html</code> + <code>menu-editorial/*.jpg</code> + <code>qr-web.png</code></li>
+      <li><strong>Trim:</strong> A4 210×297 mm · reader order · total pages multiple of 4</li>
+      <li><strong>Bind:</strong> saddle-stitch (fold centre, 2 staples) — shop imposition from this PDF</li>
+      <li><strong>Style:</strong> ivory list pages · full-bleed visual faces · charcoal main/Asian feature</li>
+      <li><strong>Charges:</strong> Prices Nu (BTN) · 10% service charge · 5% GST on every list page</li>
+    </ul>
+  </aside>
+
+  <script>
+    const C = "https://res.cloudinary.com/hkkchsfy/image/upload";
+    const logo = `${C}/w_180,h_180,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1`;
+    const H = "menu-editorial";
+    const thumb = (id, w = 800, h = 1000) =>
+      `${C}/w_${w},h_${h},c_fill,g_auto,f_jpg,q_auto:good/${id}`;
+
+    const TAX = "Prices in Nu (BTN) · 10% service charge · 5% GST";
+
+    /** Full café + restaurant — food from handwritten seed; drinks/bakery/highland from published agent menu */
+    const ITEMS = [
+      // Barista
+      { cat: "Barista", name: "Latte", desc: "Silky house milk coffee.", price: 160, image: "pelbu/menu/cafe-latte" },
+      { cat: "Barista", name: "Cappuccino", desc: "Equal parts · soft foam.", price: 160, image: "pelbu/menu/cafe-cappuccino" },
+      { cat: "Barista", name: "Masala chai", desc: "House spice · milk tea.", price: 140, image: "pelbu/menu/cafe-masala-chai" },
+      { cat: "Barista", name: "Suja (butter tea)", desc: "Highland hospitality cup.", price: 100, image: "pelbu/menu/cafe-suja" },
+      // Cold & boba
+      { cat: "Cold & boba", name: "Classic milk tea boba", desc: "Pearl cup · café favourite.", price: 220, image: "pelbu/menu/cafe-boba-classic" },
+      // Bakery
+      { cat: "Bakery", name: "Butter croissant", desc: "Laminated · fresh bake.", price: 150, image: "pelbu/menu/cafe-croissant" },
+      { cat: "Bakery", name: "Chocolate croissant", desc: "Dark fill · flaky layers.", price: 180, image: "pelbu/menu/cafe-chocolate-croissant" },
+      // Cafe snacks
+      { cat: "Cafe snacks", name: "Crispy chilli potato", desc: "Golden cubes, chilli gloss, spring onion.", price: 200, image: "pelbu/menu/cafe-crispy-chilli-potato", tag: "House favourite" },
+      { cat: "Cafe snacks", name: "French fries", desc: "Straight-cut, sea salt, blistering from the fryer.", price: 180, image: "pelbu/menu/cafe-french-fries" },
+      { cat: "Cafe snacks", name: "Salted cashewnut", desc: "Warm cashews, light salt.", price: 250, image: "pelbu/menu/cafe-salted-nuts" },
+      { cat: "Cafe snacks", name: "Salted almond", desc: "Toasted almonds, clean mineral finish.", price: 250, image: "pelbu/menu/cafe-salted-nuts" },
+      { cat: "Cafe snacks", name: "Peanut masala", desc: "Roasted peanuts through house masala.", price: 200, image: "pelbu/menu/cafe-salted-nuts" },
+      { cat: "Cafe snacks", name: "Onion fritters", desc: "Six to seven golden fritters, crisp lace.", price: 200, image: "pelbu/menu/cafe-onion-fritters", tag: "6–7 pcs" },
+      { cat: "Cafe snacks", name: "Chilli cheese nuggets", desc: "Melted cheese centres, chilli-kissed crust.", price: 250, image: "pelbu/menu/cafe-chilli-cheese-nuggets", tag: "Popular" },
+      { cat: "Cafe snacks", name: "Chicken lollipop", desc: "Lacquered heat on the bone.", price: 300, image: "pelbu/menu/cafe-chicken-lollipop", tag: "Popular" },
+      { cat: "Cafe snacks", name: "Fried chicken", desc: "Drumstick, wing or breast — golden café crunch.", price: 300, image: "pelbu/menu/cafe-fried-chicken", tag: "Choice of cut" },
+      // Burgers
+      { cat: "Burgers", name: "Beef burger", desc: "House beef, soft bun, melt and greens.", price: 350, image: "pelbu/menu/cafe-beef-burger", tag: "Popular" },
+      { cat: "Burgers", name: "Chicken burger", desc: "Seasoned chicken, lettuce, clean mayo.", price: 300, image: "pelbu/menu/cafe-chicken-burger", tag: "Popular" },
+      { cat: "Burgers", name: "Potato burger", desc: "Crisp potato patty — full vegetarian hold.", price: 300, image: "pelbu/menu/cafe-potato-burger", tag: "Vegetarian" },
+      // Sandwiches
+      { cat: "Sandwiches", name: "Veg sandwich", desc: "Garden layers, soft bread, light spread.", price: 200, image: "pelbu/menu/cafe-veg-sandwich", tag: "Vegetarian" },
+      { cat: "Sandwiches", name: "Hotdog", desc: "Classic sausage, soft roll, mustard.", price: 250, image: "pelbu/menu/cafe-hotdog" },
+      { cat: "Sandwiches", name: "Club sandwich", desc: "The Olakha club stack.", price: 300, image: "pelbu/menu/cafe-olakha-club-sandwich", tag: "Popular" },
+      { cat: "Sandwiches", name: "Tuna sandwich", desc: "Tuna, greens, soft crumb.", price: 300, image: "pelbu/menu/cafe-tuna-sandwich" },
+      // Highland
+      { cat: "Highland", name: "Kewa datshi", desc: "Potato · cheese · chilli.", price: 220, image: "pelbu/menu/cafe-kewa-datshi" },
+      { cat: "Highland", name: "Ema cheese bite", desc: "Valley heat, refined plate.", price: 220, image: "pelbu/menu/cafe-ema-cheese-bite" },
+      { cat: "Highland", name: "Pe-datshi cups", desc: "Green pea · soft cheese.", price: 220, image: "pelbu/menu/cafe-pe-datshi-bite" },
+      { cat: "Highland", name: "Ezay chilli cheese", desc: "Street soul · hotel plate.", price: 180, image: "pelbu/menu/cafe-ezay" },
+      { cat: "Highland", name: "Steamed chicken momo", desc: "Handmade · house achar.", price: 300, image: "pelbu/menu/cafe-momo-chicken", tag: "Pre-order" },
+      { cat: "Highland", name: "Steamed vegetable momo", desc: "Fresh steam · pre-order.", price: 260, image: "pelbu/menu/cafe-momo-veg", tag: "Pre-order" },
+      { cat: "Highland", name: "Chicken fried rice", desc: "Wok grain · full plate.", price: 320, image: "pelbu/menu/cafe-fried-rice-chicken" },
+      { cat: "Highland", name: "Buckwheat khule", desc: "Honey butter · nutty.", price: 200, image: "pelbu/menu/cafe-buckwheat-khule" },
+      // Soup
+      { cat: "Soup", name: "Lentil soup", desc: "Silky dal comfort, earthy glow.", price: 140, image: "pelbu/menu/restaurant-soup-bowl" },
+      { cat: "Soup", name: "Pumpkin soup", desc: "Roasted pumpkin purée, gentle cream.", price: 140, image: "pelbu/menu/restaurant-soup-bowl" },
+      { cat: "Soup", name: "Italian soup", desc: "Herb-led Italian broth with garden vegetables.", price: 150, image: "pelbu/menu/restaurant-soup-bowl" },
+      { cat: "Soup", name: "Potato leek soup", desc: "White, refined leek and potato.", price: 140, image: "pelbu/menu/restaurant-soup-bowl" },
+      { cat: "Soup", name: "Minestrone soup", desc: "Full vegetable body, Italian herbs.", price: 160, image: "pelbu/menu/restaurant-soup-bowl" },
+      { cat: "Soup", name: "French onion soup", desc: "Caramelised onion, broth, gratin soul.", price: 140, image: "pelbu/menu/restaurant-french-onion-soup", tag: "Signature" },
+      { cat: "Soup", name: "Mint and green peas soup", desc: "Bright pea and mint when season opens.", price: 160, image: "pelbu/menu/restaurant-soup-bowl", tag: "Season" },
+      { cat: "Soup", name: "Tom yum soup", desc: "Lemongrass, chilli heat, aromatic stock.", price: 180, image: "pelbu/menu/restaurant-tom-yum", tag: "Pre-order" },
+      { cat: "Soup", name: "Winter Schezwan soup (chicken)", desc: "Red Schezwan warmth with chicken.", price: 200, image: "pelbu/menu/restaurant-szechuan-soup", tag: "Pre-order" },
+      // Salad
+      { cat: "Salad", name: "Garden salad", desc: "Seasonal greens, cucumber, tomato — dressed clean.", price: 180, image: "pelbu/menu/restaurant-garden-salad" },
+      { cat: "Salad", name: "Greek salad", desc: "Feta, olive, cucumber, oregano oil.", price: 180, image: "pelbu/menu/restaurant-greek-salad", tag: "Popular" },
+      { cat: "Salad", name: "Chopped salad", desc: "Fine-cut vegetables, structured bite.", price: 180, image: "pelbu/menu/restaurant-garden-salad" },
+      { cat: "Salad", name: "Waldorf salad", desc: "Apple, celery, walnut — cream-bound classic.", price: 200, image: "pelbu/menu/restaurant-waldorf-salad" },
+      { cat: "Salad", name: "Glass noodle salad", desc: "Silken noodles, herbs, light Asian acid.", price: 180, image: "pelbu/menu/restaurant-glass-noodle-salad" },
+      { cat: "Salad", name: "Compound salad · lemon vinaigrette", desc: "Composed leaves lifted with lemon.", price: 180, image: "pelbu/menu/restaurant-garden-salad" },
+      { cat: "Salad", name: "Red wine vinaigrette salad", desc: "Greens in a rounder red-wine vinaigrette.", price: 180, image: "pelbu/menu/restaurant-garden-salad" },
+      { cat: "Salad", name: "Kimchi salad (Korean)", desc: "Fermented heat and tang as a sharp side.", price: 180, image: "pelbu/menu/restaurant-kimchi-salad", tag: "Korean" },
+      { cat: "Salad", name: "Russian salad", desc: "Olivier-style potato salad — banquet comfort.", price: 180, image: "pelbu/menu/restaurant-russian-salad", tag: "Pre-order" },
+      // Main course
+      { cat: "Main course", name: "Roasted potato", desc: "Herb-butter roast — gold outside, soft heart.", price: 180, image: "pelbu/menu/restaurant-roasted-veg" },
+      { cat: "Main course", name: "Roasted eggplant", desc: "Slow-roasted aubergine, aromatic finish.", price: 200, image: "pelbu/menu/restaurant-roasted-eggplant", tag: "Chef special" },
+      { cat: "Main course", name: "Skillet zucchini and mushroom", desc: "Butter, garlic, woodland umami — when in season.", price: 220, image: "pelbu/menu/restaurant-skillet-veg", tag: "Season" },
+      { cat: "Main course", name: "Asparagus garlic butter fry", desc: "Tender spears seared in garlic butter.", price: 250, image: "pelbu/menu/restaurant-asparagus", tag: "Season" },
+      { cat: "Main course", name: "Mixed veg medley", desc: "Colour plate of vegetables — pre-order.", price: 220, image: "pelbu/menu/restaurant-mixed-veg", tag: "Pre-order" },
+      { cat: "Main course", name: "Mixed veg creamy", desc: "Garden mix in soft cream sauce.", price: 220, image: "pelbu/menu/restaurant-mixed-veg-creamy" },
+      { cat: "Main course", name: "Grilled chicken or pork", desc: "Char-kissed grill — choose chicken or pork.", price: 450, image: "pelbu/menu/restaurant-grilled-protein", tag: "Pre-order" },
+      { cat: "Main course", name: "Chicken schnitzel", desc: "Golden cutlet, lemon at the side.", price: 450, image: "pelbu/menu/restaurant-chicken-schnitzel", tag: "Popular" },
+      { cat: "Main course", name: "Braised chicken · wine & mushroom", desc: "Slow braise, red wine, forest mushrooms.", price: 450, image: "pelbu/menu/restaurant-braised-chicken", tag: "Popular" },
+      { cat: "Main course", name: "Chicken breast", desc: "Pan-seared breast, herb finish.", price: 400, image: "pelbu/menu/restaurant-chicken-breast" },
+      { cat: "Main course", name: "Chicken, pork or beef stew", desc: "Hearty gravy — choose your protein.", price: 400, image: "pelbu/menu/restaurant-meat-stew", tag: "Choose protein" },
+      { cat: "Main course", name: "Cowboy beef stew", desc: "Chunky beef, rustic vegetables, deep pot.", price: 450, image: "pelbu/menu/restaurant-cowboy-stew", tag: "Pre-order" },
+      { cat: "Main course", name: "Sesame chicken", desc: "Glossy glaze, toasted sesame, green onion.", price: 400, image: "pelbu/menu/restaurant-sesame-chicken" },
+      { cat: "Main course", name: "Pork chops Italian", desc: "Thick herb-forward pork chops.", price: 450, image: "pelbu/menu/restaurant-pork-chops", tag: "Pre-order" },
+      { cat: "Main course", name: "Ants climbing tree", desc: "Minced meat, glass noodles, chilli warmth.", price: 400, image: "pelbu/menu/restaurant-ants-climbing", tag: "Choose protein" },
+      { cat: "Main course", name: "Greek sweet and sour pork or chicken", desc: "Sweet-sour glaze with a Greek kitchen turn.", price: 400, image: "pelbu/menu/restaurant-sweet-sour" },
+      { cat: "Main course", name: "Sweet and sour pork or chicken", desc: "Classic red glaze, pineapple, peppers.", price: 400, image: "pelbu/menu/restaurant-sweet-sour" },
+      { cat: "Main course", name: "Roasted chicken or pork", desc: "Chef special — dry roast or gravy path.", price: 450, image: "pelbu/menu/restaurant-roasted-protein", tag: "Chef special" },
+      { cat: "Main course", name: "Braised pork belly with egg", desc: "Long-cook pork belly, soft egg, lacquer.", price: 450, image: "pelbu/menu/restaurant-pork-belly", tag: "Pre-order" },
+      { cat: "Main course", name: "Steamed fish", desc: "Normal size whole fish, ginger-scallion steam.", price: 700, image: "pelbu/menu/restaurant-steamed-fish", tag: "Pre-order" },
+      { cat: "Main course", name: "Fish fillet with red wine", desc: "Fillet through a red-wine reduction.", price: 300, image: "pelbu/menu/restaurant-fish-red-wine" },
+      // Asian
+      { cat: "Asian main course", name: "Mixed veg tempura", desc: "Light batter, seasonal vegetables, dipping sauce.", price: 200, image: "pelbu/menu/restaurant-veg-tempura" },
+      { cat: "Asian main course", name: "Eggplant tempura", desc: "Soft centre, shatter-crisp shell.", price: 180, image: "pelbu/menu/restaurant-veg-tempura" },
+      { cat: "Asian main course", name: "Spring veg stir fry", desc: "High-heat wok, garlic, clean oil.", price: 200, image: "pelbu/menu/restaurant-stir-fry-veg" },
+      { cat: "Asian main course", name: "Shanghai steam veg", desc: "Gentle steam — when produce peaks.", price: 200, image: "pelbu/menu/restaurant-steam-veg", tag: "Season" },
+      { cat: "Asian main course", name: "Baguio beans", desc: "Tender beans, wok finish.", price: 220, image: "pelbu/menu/restaurant-stir-fry-veg" },
+      { cat: "Asian main course", name: "Stir fry cauliflower", desc: "Nutty edges at the wok rim.", price: 220, image: "pelbu/menu/restaurant-stir-fry-veg" },
+      { cat: "Asian main course", name: "Stir fry cabbage with egg", desc: "Soft cabbage, silky egg ribbons.", price: 280, image: "pelbu/menu/restaurant-stir-fry-veg" },
+      { cat: "Asian main course", name: "Stir fry asparagus with mushroom", desc: "Green spears and mushroom umami.", price: 270, image: "pelbu/menu/restaurant-asparagus", tag: "Season" },
+      { cat: "Asian main course", name: "Three treasures", desc: "Three vegetable jewels in house sauce.", price: 250, image: "pelbu/menu/restaurant-three-treasures", tag: "Chef special" },
+      { cat: "Asian main course", name: "Kung pao chicken", desc: "Sichuan fire, peanuts, dried chilli.", price: 400, image: "pelbu/menu/restaurant-kung-pao", tag: "Popular" },
+      { cat: "Asian main course", name: "Thai curry · chicken, pork or beef", desc: "Green or red coconut curry — choose protein.", price: 450, image: "pelbu/menu/restaurant-thai-curry", tag: "Green · red" },
+      { cat: "Asian main course", name: "Stir fried beef with green chilli", desc: "Beef seared hard with green chilli.", price: 450, image: "pelbu/menu/restaurant-beef-chilli", tag: "Popular" },
+      { cat: "Asian main course", name: "Stir fried meat with green pepper", desc: "Chicken, pork or beef with green pepper.", price: 480, image: "pelbu/menu/restaurant-pepper-stir-fry" },
+      { cat: "Asian main course", name: "Chicken or pork oyster sauce", desc: "Classic oyster-sauce gloss at the wok.", price: 400, image: "pelbu/menu/restaurant-oyster-sauce" },
+      { cat: "Asian main course", name: "Tonkatsu · chicken or pork", desc: "Breaded cutlet, cabbage, tonkatsu sauce.", price: 450, image: "pelbu/menu/restaurant-tonkatsu", tag: "Popular" },
+      { cat: "Asian main course", name: "Teriyaki · chicken or pork", desc: "Sweet-savoury glaze, rice-ready.", price: 400, image: "pelbu/menu/restaurant-teriyaki" },
+      { cat: "Asian main course", name: "Nikujaga", desc: "Japanese meat and potato stew.", price: 400, image: "pelbu/menu/restaurant-nikujaga" },
+      { cat: "Asian main course", name: "Omurice", desc: "Soft omelette over fried rice.", price: 400, image: "pelbu/menu/restaurant-omurice", tag: "Popular" },
+      { cat: "Asian main course", name: "Gyudon", desc: "Simmered beef and onion over rice.", price: 450, image: "pelbu/menu/restaurant-gyudon", tag: "Popular" },
+      { cat: "Asian main course", name: "Katsu don", desc: "Chicken cutlet, egg, rice bowl.", price: 450, image: "pelbu/menu/restaurant-katsu-don", tag: "Popular" },
+      { cat: "Asian main course", name: "Tsukune", desc: "Japanese chicken meatballs — glazed.", price: 450, image: "pelbu/menu/restaurant-tsukune" },
+      { cat: "Asian main course", name: "Chilli · chicken, pork, beef or fish", desc: "Dry chilli heat — pick protein.", price: 400, image: "pelbu/menu/restaurant-chilli-protein" },
+      { cat: "Asian main course", name: "Sweet and sour whole fish", desc: "Statement whole fish under sweet-sour glaze.", price: 750, image: "pelbu/menu/restaurant-sweet-sour-fish", tag: "Chef special" },
+      { cat: "Asian main course", name: "Prawn tempura", desc: "Shatter-shell prawns, light batter.", price: 600, image: "pelbu/menu/restaurant-prawn-tempura", tag: "Popular" },
+      { cat: "Asian main course", name: "Ramen", desc: "Noodles in aromatic broth — egg, steam.", price: 200, image: "pelbu/menu/restaurant-ramen", tag: "Popular" },
+    ];
+
+    function esc(s) {
+      return String(s ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function byCat(cat) {
+      return ITEMS.filter((i) => i.cat === cat);
+    }
+
+    function byCats(cats) {
+      return ITEMS.filter((i) => cats.includes(i.cat));
+    }
+
+    function chunk(arr, n) {
+      const out = [];
+      for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
+      return out;
+    }
+
+    function priceHtml(n) {
+      return `<span class="nu">Nu</span>${Number(n).toLocaleString("en-US")}`;
+    }
+
+    function itemRows(items, compact) {
+      return items
+        .map(
+          (it) => `<div class="item-row${compact ? " compact" : ""}">
+          <div>
+            <div class="item-name">${esc(it.name)}</div>
+            <div class="item-desc">${esc(it.desc)}</div>
+            ${it.tag ? `<div class="item-meta">${esc(it.tag)}</div>` : ""}
+          </div>
+          <div class="item-price">${priceHtml(it.price)}</div>
+        </div>`
+        )
+        .join("");
+    }
+
+    let page = 0;
+    const pages = [];
+
+    function push(kind, tag, inner, extraClass) {
+      page += 1;
+      pages.push({
+        kind,
+        tag,
+        n: page,
+        html: `<article class="sheet is-${kind}${extraClass ? " " + extraClass : ""}" aria-label="Page ${page}">
+          ${inner}
+          <span class="folio">${String(page).padStart(2, "0")}</span>
+        </article>`,
+      });
+    }
+
+    function listPage(opts) {
+      const {
+        title,
+        subtitle = "",
+        quote = "",
+        items,
+        note = "",
+        compact = false,
+      } = opts;
+      push(
+        "list",
+        `List · ${title}`,
+        `<div class="safe">
+          ${quote ? `<p class="quote-line">${esc(quote)}</p>` : `<div style="height:6mm"></div>`}
+          <h2 class="cat-title">${esc(title)}</h2>
+          ${subtitle ? `<p class="cat-sub">${esc(subtitle)}</p>` : ""}
+          <div class="item-list">${itemRows(items, compact)}</div>
+          ${note ? `<p class="list-note">${esc(note)}</p>` : ""}
+          <p class="tax-foot">${esc(TAX)}</p>
+        </div>`
+      );
+    }
+
+    function visualPage(img, label, quote) {
+      push(
+        "visual",
+        `Visual · ${label}`,
+        `<div class="bleed-hero">
+          <img src="${esc(img)}" alt="" />
+          <div class="scrim soft"></div>
+        </div>
+        <div class="visual-caption">
+          ${quote ? `<p class="quote">${esc(quote)}</p>` : ""}
+          <p class="label">${esc(label)}</p>
+        </div>`
+      );
+    }
+
+    function hybridPage(opts) {
+      const { title, subtitle, items, images, note = "" } = opts;
+      const cells = images
+        .map(
+          (im) =>
+            `<div class="cell${im.bw ? " bw" : ""}"><img src="${esc(im.src)}" alt="" /></div>`
+        )
+        .join("");
+      push(
+        "hybrid",
+        `Hybrid · ${title}`,
+        `<div class="safe">
+          <div class="hybrid-top">${cells}</div>
+          <div class="hybrid-head">
+            <h2 class="cat-title">${esc(title)}</h2>
+            ${subtitle ? `<p class="cat-sub">${esc(subtitle)}</p>` : ""}
+          </div>
+          <div class="item-list">${itemRows(items, true)}</div>
+          ${note ? `<p class="list-note">${esc(note)}</p>` : ""}
+          <p class="tax-foot">${esc(TAX)}</p>
+        </div>`
+      );
+    }
+
+    function darkPage(opts) {
+      const { title, subtitle, items, photo, note = "" } = opts;
+      push(
+        "dark",
+        `Dark · ${title}`,
+        `<div class="dark-photo"><img src="${esc(photo)}" alt="" /></div>
+        <div class="dark-safe">
+          <h2 class="cat-title">${esc(title)}</h2>
+          ${subtitle ? `<p class="cat-sub">${esc(subtitle)}</p>` : ""}
+          <div class="item-list">${itemRows(items, true)}</div>
+          ${note ? `<p class="list-note" style="color:rgba(247,240,232,0.5)">${esc(note)}</p>` : ""}
+          <p class="tax-foot">${esc(TAX)}</p>
+        </div>`
+      );
+    }
+
+    // ——— 1 Cover ———
+    push(
+      "cover",
+      "Cover",
+      `<div class="bleed-hero">
+        <img src="${H}/hero-cover.jpg" alt="" />
+        <div class="scrim"></div>
+      </div>
+      <div class="cover-content">
+        <div class="brand-row">
+          <img src="${logo}" alt="Pelbu Suites" />
+          <div>
+            <div class="nm">Pelbu <em>Suites</em></div>
+            <p class="loc">Olakha · Thimphu · Bhutan</p>
+          </div>
+        </div>
+        <div>
+          <p class="eyebrow">Café &amp; Restaurant · Menu 2026</p>
+          <h1 class="display xl">The mountain<br /><em>table</em></h1>
+          <p class="lede">
+            Editorial booklet — café brew to Asian kitchen.
+            Every price in Nu (BTN). Service and GST on the bill.
+          </p>
+        </div>
+        <div class="cover-foot">
+          <div>
+            <p class="phone">+975 1619 3410</p>
+            <p class="web">www.pelbusuites.bt</p>
+          </div>
+          <p class="note">Guests &amp; walk-ins welcome<br />Next to Number 7 / Asha Bakery</p>
+        </div>
+      </div>`
+    );
+
+    // ——— 2 Contents ———
+    push(
+      "list",
+      "Contents",
+      `<div class="safe">
+        <p class="quote-line">Live, breathe, dine in the highland light</p>
+        <h2 class="cat-title">Contents</h2>
+        <p class="cat-sub">Chapters in this booklet</p>
+        <div class="toc-list">
+          <div class="toc-row"><span class="t">Barista & cold</span><span class="d">Coffee · chai · boba</span></div>
+          <div class="toc-row"><span class="t">Café bites</span><span class="d">Snacks · bakery</span></div>
+          <div class="toc-row"><span class="t">Burgers & sandwiches</span><span class="d">Grill counter</span></div>
+          <div class="toc-row"><span class="t">Highland</span><span class="d">Datshi · momo · rice</span></div>
+          <div class="toc-row"><span class="t">Soup</span><span class="d">Continental · tom yum</span></div>
+          <div class="toc-row"><span class="t">Salad</span><span class="d">Cold kitchen</span></div>
+          <div class="toc-row"><span class="t">Main course</span><span class="d">Grill · braise · roast</span></div>
+          <div class="toc-row"><span class="t">Asian kitchen</span><span class="d">Wok · tempura · bowls</span></div>
+        </div>
+        <p class="list-note" style="margin-top:10mm">Base prices in Nu (BTN). 10% service charge and 5% GST are added at billing.</p>
+        <p class="tax-foot">${esc(TAX)}</p>
+      </div>`
+    );
+
+    // ——— 3–4 Barista ———
+    const barista = byCats(["Barista", "Cold & boba"]);
+    listPage({
+      title: "Barista",
+      subtitle: "Café counter · brew & boba",
+      quote: "A proper cup before the mountain day",
+      items: barista,
+    });
+    visualPage(`${H}/hero-cafe-brew.jpg`, "Brew", "Steam · foam · highland light");
+
+    // ——— 5–6 Bakery + Café snacks hybrid + residual list ———
+    const bakery = byCat("Bakery");
+    const snacks = byCat("Cafe snacks");
+    hybridPage({
+      title: "Café",
+      subtitle: "Bakery & snacks",
+      images: [
+        { src: `${H}/hero-cafe-bites.jpg` },
+        { src: `${H}/hero-life-bw.jpg`, bw: true },
+        { src: thumb("pelbu/menu/cafe-croissant") },
+        { src: thumb("pelbu/menu/cafe-crispy-chilli-potato") },
+      ],
+      items: [...bakery, ...snacks.slice(0, 5)],
+    });
+    listPage({
+      title: "Snacks",
+      subtitle: "Shareable café table",
+      quote: "Crisp · spice · share",
+      items: snacks.slice(5),
+      compact: true,
+    });
+
+    // ——— 7–8 Burgers & sandwiches ———
+    const bun = byCats(["Burgers", "Sandwiches"]);
+    listPage({
+      title: "Grill",
+      subtitle: "Burgers & sandwiches",
+      quote: "Soft bun · tall stack · griddle",
+      items: bun,
+    });
+    visualPage(`${H}/hero-cafe-bites.jpg`, "Counter", "From the café grill");
+
+    // ——— 9–10 Highland ———
+    const highland = byCat("Highland");
+    listPage({
+      title: "Highland",
+      subtitle: "Datshi · momo · local comfort",
+      quote: "Valley heat · hotel plate",
+      items: highland,
+      note: "Momo needs time · please pre-order · about 25–35 minutes.",
+    });
+    visualPage(`${H}/hero-highland.jpg`, "Highland", "Steam over ceramic · butter tea");
+
+    // ——— 11–12 Soup ———
+    const soups = byCat("Soup");
+    listPage({
+      title: "Soups",
+      subtitle: "Restaurant · continental & spice",
+      quote: "Live, breathe, warm from the bowl",
+      items: soups,
+      compact: true,
+    });
+    visualPage(`${H}/hero-soups.jpg`, "Soups", "Three bowls · dark wood · spice");
+
+    // ——— 13–14 Salad hybrid ———
+    const salads = byCat("Salad");
+    hybridPage({
+      title: "Starters",
+      subtitle: "Salad board",
+      images: [
+        { src: thumb("pelbu/menu/restaurant-greek-salad") },
+        { src: `${H}/hero-life-table-bw.jpg`, bw: true },
+        { src: thumb("pelbu/menu/restaurant-waldorf-salad") },
+        { src: `${H}/hero-salad.jpg` },
+      ],
+      items: salads.slice(0, 5),
+    });
+    listPage({
+      title: "Salad",
+      subtitle: "Cold kitchen · continued",
+      quote: "I feel the power of clean herbs",
+      items: salads.slice(5),
+      compact: true,
+    });
+
+    // ——— 15–18 Main course (4 pages) ———
+    const mains = byCat("Main course");
+    const mainChunks = chunk(mains, 8);
+    listPage({
+      title: "Main",
+      subtitle: "Course · vegetables & first plates",
+      quote: "From the continental kitchen",
+      items: mainChunks[0],
+      compact: true,
+    });
+    darkPage({
+      title: "From the grill",
+      subtitle: "Protein · braise · roast",
+      items: mainChunks[1] || [],
+      photo: `${H}/hero-main-dark.jpg`,
+    });
+    listPage({
+      title: "Main",
+      subtitle: "Course · continued",
+      items: mainChunks[2] || [],
+      compact: true,
+    });
+    visualPage(`${H}/hero-main-dark.jpg`, "Kitchen", "Char · lemon · gold cutlet");
+
+    // ——— 19–22 Asian (4 pages) ———
+    const asian = byCat("Asian main course");
+    const asianChunks = chunk(asian, 9);
+    listPage({
+      title: "Asian",
+      subtitle: "Kitchen · vegetables & wok",
+      quote: "High heat · quiet depth",
+      items: asianChunks[0],
+      compact: true,
+    });
+    visualPage(`${H}/hero-asian.jpg`, "Wok", "Curry · tempura · broth");
+    darkPage({
+      title: "Bowls",
+      subtitle: "Japanese comfort · signature",
+      items: asianChunks[1] || [],
+      photo: `${H}/hero-asian.jpg`,
+    });
+    listPage({
+      title: "Asian",
+      subtitle: "Kitchen · continued",
+      items: asianChunks[2] || [],
+      compact: true,
+    });
+
+    // ——— House notes ———
+    push(
+      "list",
+      "House notes",
+      `<div class="safe">
+        <p class="quote-line">Do all things with care</p>
+        <h2 class="cat-title">Notes</h2>
+        <p class="cat-sub">House service</p>
+        <div class="notes-body">
+          <div>
+            <h3>Pre-order dishes</h3>
+            <p>Items marked pre-order need kitchen time — please give the desk or waitstaff notice when you book the table or as you sit. Steamed fish, momo, and special stews reward a little patience.</p>
+          </div>
+          <div>
+            <h3>Service &amp; GST</h3>
+            <p>Prices in this booklet are base amounts in Nu (BTN). A 10% service charge and 5% GST are added on the bill. Live catalogue and photos also on pelbusuites.bt/menu.</p>
+          </div>
+          <div>
+            <h3>Guests &amp; walk-ins</h3>
+            <p>Café and restaurant welcome hotel guests and walk-in diners. For large parties or special dietary needs, ask reception or write to us — we hold the line for your group.</p>
+          </div>
+        </div>
+        <p class="tax-foot">${esc(TAX)}</p>
+      </div>`
+    );
+
+    // ——— Back cover ———
+    push(
+      "back",
+      "Back cover",
+      `<div class="bleed-hero">
+        <img src="${H}/hero-back.jpg" alt="" />
+        <div class="scrim"></div>
+      </div>
+      <div class="cover-content" style="align-items:center;text-align:center;justify-content:center;gap:5mm">
+        <img src="${logo}" alt="Pelbu Suites" style="width:16mm;height:16mm" />
+        <div>
+          <p class="eyebrow" style="margin-bottom:2mm">Thank you</p>
+          <h2 class="display lg">Pelbu <em>Suites</em></h2>
+          <p class="lede" style="margin:3mm auto 0;max-width:120mm;text-align:center">
+            Stay · Sip · Savour · Unwind<br />
+            Café &amp; kitchen under one roof in Olakha.
+          </p>
+        </div>
+        <div class="qr-block">
+          <img src="qr-web.png" width="150" height="150" alt="Website QR" />
+          <span>www.pelbusuites.bt</span>
+        </div>
+        <div>
+          <p class="phone" style="font-size:3.2mm;font-weight:600">+975 1619 3410</p>
+          <p class="web" style="margin-top:1mm;font-size:2.3mm;opacity:0.75">Next to Number 7 / Asha Bakery · Olakha, Thimphu</p>
+          <p class="web" style="margin-top:3mm;font-size:2mm;letter-spacing:0.14em;text-transform:uppercase;opacity:0.55">
+            ${esc(TAX)} · Editorial menu 2026
+          </p>
+        </div>
+      </div>`
+    );
+
+    // Pad to multiple of 4 for saddle-stitch
+    while (page % 4 !== 0) {
+      visualPage(`${H}/hero-cover.jpg`, "Pelbu", "The mountain table");
+    }
+
+    document.getElementById("book").innerHTML =
+      pages.map((p) => `<p class="side-tag no-print">${esc(p.tag)} · p${p.n}</p>${p.html}`).join("\n");
+
+    // Screen meta
+    const total = page;
+    const cats = [...new Set(ITEMS.map((i) => i.cat))];
+    console.info(
+      `[editorial booklet] pages=${total} (÷4=${total % 4 === 0}) items=${ITEMS.length} cats=${cats.join(", ")}`
+    );
+  </script>
+</body>
+</html>

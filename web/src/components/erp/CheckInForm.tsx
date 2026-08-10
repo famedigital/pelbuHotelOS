@@ -31,6 +31,7 @@ import {
 } from "@/lib/checkin-rules";
 import { countryComboboxOptions, nationalityRequired } from "@/lib/countries";
 import { cloudinaryOriginalUrl, cloudinaryUrl } from "@/lib/cloudinary";
+import { thimphuToday } from "@/lib/erp-lists";
 import { formatBtn } from "@/lib/pricing";
 import type {
   CheckInAssignmentSlot,
@@ -104,6 +105,8 @@ export type CheckInBooking = {
   driver_id: string | null;
   payment_mode: string | null;
   adults: number;
+  children?: number;
+  extra_beds?: number;
   rooms: number;
   agent_id: string | null;
   agent_name: string | null;
@@ -121,6 +124,7 @@ export type CheckInBooking = {
     passport_or_cid: string | null;
     sdf_ref: string | null;
     sdf_doc_url: string | null;
+    id_photo_url?: string | null;
   }[];
   booking_drivers: {
     full_name: string | null;
@@ -178,6 +182,7 @@ type GuestDraft = {
   passportOrCid: string;
   sdfRef: string;
   sdfDocUrl: string;
+  idPhotoUrl: string;
   roomUnitId: string;
 };
 
@@ -203,7 +208,11 @@ export function CheckInForm({
   }) => void;
 }) {
   const [state, action, pending] = useActionState(confirmCheckIn, checkInInitial);
-  useActionToast(state, { successMessage: "Guest checked in" });
+  useActionToast(state, {
+    successMessage: booking.id
+      ? `Checked in · ref ${booking.id.slice(0, 8).toUpperCase()}`
+      : "Guest checked in",
+  });
   const notifiedOkRef = useRef(false);
 
   useEffect(() => {
@@ -220,7 +229,11 @@ export function CheckInForm({
   const hasDriverBeds = booking.booking_rooms.some(
     (r) => r.inventory_kind === "driver_comp" && r.qty > 0,
   );
-  const guestCount = Math.max(1, booking.adults || booking.booking_guests.length || 1);
+  /** Lead guest only by default — additional IDs via expandable section. */
+  const leadGuestCount = 1;
+  const paxAdults = Math.max(1, booking.adults || 1);
+  const paxChildren = Math.max(0, booking.children ?? 0);
+  const paxExtraBeds = Math.max(0, booking.extra_beds ?? 0);
 
   const countryOptions = useMemo(() => countryComboboxOptions(), []);
 
@@ -231,7 +244,14 @@ export function CheckInForm({
   );
   const [guideNumber, setGuideNumber] = useState(booking.guide_number ?? "");
   const [paymentMode, setPaymentMode] = useState(booking.payment_mode ?? "cash");
+  const [roomCapOverride, setRoomCapOverride] = useState(false);
+  const [roomCapNote, setRoomCapNote] = useState("");
   const [allowDirty, setAllowDirty] = useState(false);
+  /** GM/owner soft opt-in when check-in date is before today (or night-audit gate). */
+  const [businessDateOverride, setBusinessDateOverride] = useState(false);
+
+  const checkInDate = booking.check_in.slice(0, 10);
+  const isPastCheckInDate = checkInDate < thimphuToday();
 
   const [driverPick, setDriverPick] = useState<PartnerOption | null>(
     booking.driver_id
@@ -255,7 +275,7 @@ export function CheckInForm({
 
   const [guests, setGuests] = useState<GuestDraft[]>(() => {
     const rows: GuestDraft[] = [];
-    for (let i = 0; i < guestCount; i++) {
+    for (let i = 0; i < leadGuestCount; i++) {
       const existing = booking.booking_guests[i];
       const guestSlot = slots.find(
         (s) => s.inventoryKind === "sellable_guest" && s.index === Math.min(i, Math.max(0, slots.filter(x => x.inventoryKind === "sellable_guest").length - 1)),
@@ -268,19 +288,29 @@ export function CheckInForm({
         passportOrCid: existing?.passport_or_cid ?? "",
         sdfRef: existing?.sdf_ref ?? "",
         sdfDocUrl: existing?.sdf_doc_url ?? "",
+        idPhotoUrl: existing?.id_photo_url ?? "",
         roomUnitId: guestSlot?.assignedUnitId ?? "",
       });
     }
     return rows;
   });
+  const [showAllGuestIds, setShowAllGuestIds] = useState(
+    () => booking.booking_guests.length > 1,
+  );
 
   /** Which guest row the shared Cloudinary picker is currently editing. */
   const [docPickerIndex, setDocPickerIndex] = useState<number | null>(null);
   const [docPickerIntent, setDocPickerIntent] = useState<
     "camera" | "file" | null
   >(null);
+  const [docPickerKind, setDocPickerKind] = useState<"sdf" | "id_photo">("sdf");
 
-  function openDocPicker(index: number, intent: "camera" | "file") {
+  function openDocPicker(
+    index: number,
+    intent: "camera" | "file",
+    kind: "sdf" | "id_photo" = "sdf",
+  ) {
+    setDocPickerKind(kind);
     setDocPickerIntent(intent);
     setDocPickerIndex(index);
   }
@@ -385,6 +415,12 @@ export function CheckInForm({
       <input type="hidden" name="booking_id" value={booking.id} />
       <input type="hidden" name="payment_mode" value={paymentMode} />
       <input type="hidden" name="allow_dirty_rooms" value={allowDirty ? "on" : "off"} />
+      <input
+        type="hidden"
+        name="override_agent_room_cap"
+        value={roomCapOverride ? "on" : "off"}
+      />
+      <input type="hidden" name="agent_room_cap_note" value={roomCapNote} />
       {state.error ? (
         <Alert variant="destructive">
           <TriangleAlertIcon />
@@ -404,7 +440,14 @@ export function CheckInForm({
           <span className="ml-1 inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium tracking-[0.16em] text-foreground uppercase">
             {ORIGIN_LABELS[origin] ?? "International"}
           </span>{" "}
-          · {booking.adults} adults · {booking.rooms} rooms
+          · {paxAdults} adult{paxAdults === 1 ? "" : "s"}
+          {paxChildren > 0
+            ? ` · ${paxChildren} child${paxChildren === 1 ? "" : "ren"}`
+            : ""}
+          {paxExtraBeds > 0
+            ? ` · ${paxExtraBeds} extra bed${paxExtraBeds === 1 ? "" : "s"}`
+            : ""}
+          · {booking.rooms} rooms
         </p>
         {booking.agent_name || booking.agent_id ? (
           <p className="mt-1 text-xs">
@@ -508,8 +551,12 @@ export function CheckInForm({
 
       <fieldset className="min-w-0 space-y-3">
         <legend className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-          Guest documents ({guests.length})
+          Lead guest · ID for check-in
         </legend>
+        <p className="text-xs text-muted-foreground">
+          Capture the lead guest now. Additional passport / SDF rows can wait
+          until after the guest is in-house.
+        </p>
         <div className="min-w-0 overflow-x-auto rounded-md border border-border/70">
           <div
             className={cn(
@@ -665,6 +712,24 @@ export function CheckInForm({
 
                 <div className="min-w-0 space-y-1.5 xl:space-y-0">
                   <span
+                    id={`guest_id_photo_label_${index}`}
+                    className={CELL_LABEL}
+                  >
+                    Passport / CID photo
+                  </span>
+                  <CloudinaryDocField
+                    name="guest_id_photo_url"
+                    value={guest.idPhotoUrl}
+                    describedBy={`guest_id_photo_label_${index}`}
+                    onPick={(intent) =>
+                      openDocPicker(index, intent, "id_photo")
+                    }
+                    onClear={() => updateGuest(index, { idPhotoUrl: "" })}
+                  />
+                </div>
+
+                <div className="min-w-0 space-y-1.5 xl:space-y-0">
+                  <span
                     id={`guest_doc_label_${index}`}
                     className={CELL_LABEL}
                   >
@@ -674,7 +739,7 @@ export function CheckInForm({
                     name="guest_sdf_doc_url"
                     value={guest.sdfDocUrl}
                     describedBy={`guest_doc_label_${index}`}
-                    onPick={(intent) => openDocPicker(index, intent)}
+                    onPick={(intent) => openDocPicker(index, intent, "sdf")}
                     onClear={() => updateGuest(index, { sdfDocUrl: "" })}
                   />
                 </div>
@@ -728,26 +793,129 @@ export function CheckInForm({
             ))}
           </ul>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            setGuests((prev) => [
-              ...prev,
-              {
-                fullName: "",
-                nationality: "",
-                passportOrCid: "",
-                sdfRef: "",
-                sdfDocUrl: "",
-                roomUnitId: "",
-              },
-            ])
-          }
+        <details
+          open={showAllGuestIds}
+          onToggle={(e) => setShowAllGuestIds(e.currentTarget.open)}
+          className="rounded-lg border bg-muted/15"
         >
-          Add guest
-        </Button>
+          <summary className="cursor-pointer px-3 py-2.5 text-sm font-medium">
+            Add guest IDs later ({Math.max(0, paxAdults - 1)} more adult
+            {paxAdults - 1 === 1 ? "" : "s"} on booking)
+          </summary>
+          <div className="space-y-3 border-t px-3 py-3">
+            {guests.length > 1 ? (
+              <div className="min-w-0 overflow-x-auto rounded-md border border-border/70">
+                <ul className="divide-y divide-border/70">
+                  {guests.slice(1).map((guest, offset) => {
+                    const index = offset + 1;
+                    return (
+                      <li
+                        key={`guest-extra-${index}`}
+                        className="space-y-3 p-3"
+                      >
+                        <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+                          Guest {index + 1}
+                        </p>
+                        <Input
+                          name="guest_name"
+                          required={false}
+                          value={guest.fullName}
+                          onKeyDown={blockEnterSubmit}
+                          onChange={(e) =>
+                            updateGuest(index, { fullName: e.target.value })
+                          }
+                          placeholder="Full name"
+                          className={CELL_INPUT}
+                        />
+                        <input
+                          type="hidden"
+                          name="guest_nationality"
+                          value={guest.nationality}
+                        />
+                        <Input
+                          name="guest_passport_or_cid"
+                          value={guest.passportOrCid}
+                          onKeyDown={blockEnterSubmit}
+                          onChange={(e) =>
+                            updateGuest(index, {
+                              passportOrCid: e.target.value,
+                            })
+                          }
+                          placeholder={idLabel(origin)}
+                          className={CELL_INPUT}
+                        />
+                        <Input
+                          name="guest_sdf_ref"
+                          value={guest.sdfRef}
+                          onKeyDown={blockEnterSubmit}
+                          onChange={(e) =>
+                            updateGuest(index, { sdfRef: e.target.value })
+                          }
+                          placeholder="SDF ref"
+                          className={CELL_INPUT}
+                        />
+                        <input
+                          type="hidden"
+                          name="guest_sdf_doc_url"
+                          value={guest.sdfDocUrl}
+                        />
+                        <input
+                          type="hidden"
+                          name="guest_id_photo_url"
+                          value={guest.idPhotoUrl}
+                        />
+                        <input
+                          type="hidden"
+                          name="guest_room_unit_id"
+                          value={guest.roomUnitId}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs text-muted-foreground hover:text-destructive"
+                          onClick={() =>
+                            setGuests((prev) =>
+                              prev.filter((_, i) => i !== index),
+                            )
+                          }
+                        >
+                          Remove
+                        </Button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                No additional guest rows yet.
+              </p>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowAllGuestIds(true);
+                setGuests((prev) => [
+                  ...prev,
+                  {
+                    fullName: "",
+                    nationality: "",
+                    passportOrCid: "",
+                    sdfRef: "",
+                    sdfDocUrl: "",
+                    idPhotoUrl: "",
+                    roomUnitId: "",
+                  },
+                ]);
+              }}
+            >
+              Add another guest ID
+            </Button>
+          </div>
+        </details>
       </fieldset>
 
       <fieldset className="min-w-0 space-y-4">
@@ -803,6 +971,30 @@ export function CheckInForm({
                 ? ` · available ${formatBtn(booking.credit_available_btn)}`
                 : ""}
             </p>
+          ) : null}
+          {booking.agent_id ? (
+            <div className="space-y-2 rounded-md border border-dashed px-3 py-2">
+              <Label
+                htmlFor="override_agent_room_cap_ui"
+                className="flex items-center gap-2 text-xs font-normal"
+              >
+                <Checkbox
+                  id="override_agent_room_cap_ui"
+                  checked={roomCapOverride}
+                  onCheckedChange={(v) => setRoomCapOverride(v === true)}
+                />
+                Override agent open-room cap (stack more rooms) — manager note
+                required
+              </Label>
+              {roomCapOverride ? (
+                <Input
+                  value={roomCapNote}
+                  onChange={(e) => setRoomCapNote(e.target.value)}
+                  placeholder="Why exceed open room cap?"
+                  className="h-9"
+                />
+              ) : null}
+            </div>
           ) : null}
         </div>
       </fieldset>
@@ -882,6 +1074,88 @@ export function CheckInForm({
         </div>
       </fieldset>
 
+      {isPastCheckInDate ? (
+        <div
+          className="space-y-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-3"
+          role="status"
+        >
+          <p className="text-sm font-medium text-foreground">
+            Check-in date {checkInDate} is before today ({thimphuToday()})
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Floor staff: enter a manager PIN. GM/owner: tick the override below
+            (no PIN). Or open Book / Confirm → Details and move the stay dates
+            first.
+          </p>
+          <Label className="flex items-start gap-2 text-sm font-normal">
+            <Checkbox
+              checked={businessDateOverride}
+              onCheckedChange={(v) => setBusinessDateOverride(v === true)}
+              className="mt-0.5"
+            />
+            <span>
+              Allow past check-in / business date override (GM/owner session)
+            </span>
+          </Label>
+          <input
+            type="hidden"
+            name="business_date_override"
+            value={businessDateOverride ? "on" : "off"}
+          />
+          <div className="space-y-1.5">
+            <Label htmlFor="ci_manager_pin">Manager PIN (floor staff)</Label>
+            <Input
+              id="ci_manager_pin"
+              name="manager_pin"
+              type="password"
+              autoComplete="off"
+              className="h-11 max-w-xs"
+              placeholder="Owner/GM staff PIN or desk manager PIN"
+            />
+          </div>
+        </div>
+      ) : (
+        <details className="rounded-lg border bg-muted/15">
+          <summary className="cursor-pointer px-3 py-2.5 text-sm font-medium">
+            Manager override (night audit / business date)
+          </summary>
+          <div className="space-y-3 border-t px-3 py-3">
+            <Label className="flex items-start gap-2 text-sm font-normal">
+              <Checkbox
+                checked={businessDateOverride}
+                onCheckedChange={(v) => setBusinessDateOverride(v === true)}
+                className="mt-0.5"
+              />
+              <span>
+                Allow business date override (GM/owner — e.g. night audit not
+                closed)
+              </span>
+            </Label>
+            <input
+              type="hidden"
+              name="business_date_override"
+              value={businessDateOverride ? "on" : "off"}
+            />
+            <div className="space-y-1.5">
+              <Label htmlFor="ci_manager_pin">Manager PIN</Label>
+              <Input
+                id="ci_manager_pin"
+                name="manager_pin"
+                type="password"
+                autoComplete="off"
+                className="h-11 max-w-xs"
+                placeholder="Floor staff when prior day not closed"
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Floor staff need a manager PIN if night audit for the prior
+              business day is not closed. GM/owner may tick the checkbox
+              instead.
+            </p>
+          </div>
+        </details>
+      )}
+
       <Button
         type="submit"
         variant="citrus"
@@ -910,26 +1184,42 @@ export function CheckInForm({
                   quality: "auto",
                   format: "auto",
                 });
-          if (url) updateGuest(docPickerIndex, { sdfDocUrl: url });
+          if (url) {
+            if (docPickerKind === "id_photo") {
+              updateGuest(docPickerIndex, { idPhotoUrl: url });
+            } else {
+              updateGuest(docPickerIndex, { sdfDocUrl: url });
+            }
+          }
           setDocPickerIndex(null);
           setDocPickerIntent(null);
         }}
-        uploadFolder="pelbu/sdf"
+        uploadFolder={
+          docPickerKind === "id_photo" ? "pelbu/guest-id" : "pelbu/sdf"
+        }
         acceptVideo={false}
-        acceptPdf
+        acceptPdf={docPickerKind !== "id_photo"}
         initialTab="upload"
         uploadIntent={docPickerIntent}
         title={
           docPickerIndex === null
-            ? "SDF document"
-            : `SDF document · guest ${docPickerIndex + 1}`
+            ? docPickerKind === "id_photo"
+              ? "Passport / CID photo"
+              : "SDF document"
+            : docPickerKind === "id_photo"
+              ? `Passport / CID photo · guest ${docPickerIndex + 1}`
+              : `SDF document · guest ${docPickerIndex + 1}`
         }
         description={
-          docPickerIntent === "camera"
-            ? "Take a photo of the SDF permit with the camera."
-            : docPickerIntent === "file"
-              ? "Attach a scanned PDF or a photo from files — you can scan later and upload here."
-              : "Camera for a quick desk photo, or PDF / file for a scanned permit."
+          docPickerKind === "id_photo"
+            ? docPickerIntent === "camera"
+              ? "Photograph the passport biometrics page or CID card."
+              : "Upload a clear photo or scan of passport / CID."
+            : docPickerIntent === "camera"
+              ? "Take a photo of the SDF permit with the camera."
+              : docPickerIntent === "file"
+                ? "Attach a scanned PDF or a photo from files — you can scan later and upload here."
+                : "Camera for a quick desk photo, or PDF / file for a scanned permit."
         }
       />
     </form>
@@ -946,13 +1236,16 @@ export function CheckOutForm({
   bookingId: string;
   rooms?: string[];
   folioBalance?: number;
-  /** From property policies when set */
+  /** Policy suggestions only — never pre-fill both fee fields */
   earlyFeeDefaultBtn?: number | null;
   lateFeeDefaultBtn?: number | null;
 }) {
   const [state, action, pending] = useActionState(confirmCheckOut, checkOutInitial);
   useActionToast(state, { successMessage: "Guest checked out" });
   const [allowBalance, setAllowBalance] = useState(false);
+  // Empty unless staff intentionally posts a fee — policy is a suggestion, not a charge.
+  const [earlyFee, setEarlyFee] = useState("");
+  const [lateFee, setLateFee] = useState("");
 
   if (state.ok) {
     return (
@@ -964,6 +1257,15 @@ export function CheckOutForm({
       </p>
     );
   }
+
+  const earlyPolicy =
+    earlyFeeDefaultBtn != null && earlyFeeDefaultBtn > 0
+      ? earlyFeeDefaultBtn
+      : null;
+  const latePolicy =
+    lateFeeDefaultBtn != null && lateFeeDefaultBtn > 0
+      ? lateFeeDefaultBtn
+      : null;
 
   return (
     <form action={action} className="erp space-y-4 rounded-lg border bg-card p-6">
@@ -987,6 +1289,10 @@ export function CheckOutForm({
         <span className="font-semibold tabular-nums">
           {formatBtn(folioBalance)}
         </span>
+        <span className="text-muted-foreground">
+          {" "}
+          (fees below post only if you enter an amount)
+        </span>
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block space-y-1.5 text-sm">
@@ -999,16 +1305,26 @@ export function CheckOutForm({
             min={0}
             step="0.01"
             placeholder="0"
-            defaultValue={
-              earlyFeeDefaultBtn != null && earlyFeeDefaultBtn > 0
-                ? String(earlyFeeDefaultBtn)
-                : undefined
-            }
+            value={earlyFee}
+            onChange={(e) => {
+              setEarlyFee(e.target.value);
+              if (e.target.value.trim()) setLateFee("");
+            }}
             className="h-10"
           />
-          {earlyFeeDefaultBtn != null && earlyFeeDefaultBtn > 0 ? (
-            <span className="text-xs text-muted-foreground">
-              Policy default {formatBtn(earlyFeeDefaultBtn)} — clear to zero if waived.
+          {earlyPolicy != null ? (
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              <span>Policy {formatBtn(earlyPolicy)}</span>
+              <button
+                type="button"
+                className="font-medium text-foreground underline-offset-2 hover:underline"
+                onClick={() => {
+                  setEarlyFee(String(earlyPolicy));
+                  setLateFee("");
+                }}
+              >
+                Apply early fee
+              </button>
             </span>
           ) : null}
         </label>
@@ -1022,16 +1338,26 @@ export function CheckOutForm({
             min={0}
             step="0.01"
             placeholder="0"
-            defaultValue={
-              lateFeeDefaultBtn != null && lateFeeDefaultBtn > 0
-                ? String(lateFeeDefaultBtn)
-                : undefined
-            }
+            value={lateFee}
+            onChange={(e) => {
+              setLateFee(e.target.value);
+              if (e.target.value.trim()) setEarlyFee("");
+            }}
             className="h-10"
           />
-          {lateFeeDefaultBtn != null && lateFeeDefaultBtn > 0 ? (
-            <span className="text-xs text-muted-foreground">
-              Policy default {formatBtn(lateFeeDefaultBtn)} — clear to zero if waived.
+          {latePolicy != null ? (
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              <span>Policy {formatBtn(latePolicy)}</span>
+              <button
+                type="button"
+                className="font-medium text-foreground underline-offset-2 hover:underline"
+                onClick={() => {
+                  setLateFee(String(latePolicy));
+                  setEarlyFee("");
+                }}
+              >
+                Apply late fee
+              </button>
             </span>
           ) : null}
         </label>

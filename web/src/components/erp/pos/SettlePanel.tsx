@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
 import type { OpenPosTicket, PosTenderMethod } from "@/lib/pos";
+import { tenderMethodLabel } from "@/lib/pos";
 import { TriangleAlertIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useActionState } from "react";
 import type { PosBookingOption, TenderDraft } from "./types";
@@ -54,17 +55,26 @@ function routeReceiptToWindow(orderId: string, shell: Window | null) {
   return false;
 }
 
-const METHOD_LABELS: Record<TenderDraft["method"], string> = {
+const METHOD_LABELS: Record<string, string> = {
   cash: "Cash",
   bank: "Bank transfer",
   card: "Card",
   agent_credit: "Agent credit",
   bank_qr: "Bank QR",
   pay_bt: "Pay.bt",
+  mbob: "mBoB",
+  mpay: "mPay",
   deposit: "Deposit",
   room_charge: "Charge to room",
+  comp: "Comp (manager)",
+  staff_meal: "Staff meal",
+  owner_meal: "Owner meal",
   nc: "Non-chargeable (NC)",
 };
+
+function methodLabel(m: string): string {
+  return METHOD_LABELS[m] ?? tenderMethodLabel(m);
+}
 
 const fieldClass =
   "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
@@ -270,7 +280,7 @@ export function SettlePanel({
                   >
                     {tenderMethods.map((m) => (
                       <option key={m} value={m}>
-                        {METHOD_LABELS[m]}
+                        {methodLabel(m)}
                       </option>
                     ))}
                   </select>
@@ -433,7 +443,7 @@ export function SettlePanel({
                 onClick={() => addTender(m)}
                 className="min-h-9 rounded-md border border-dashed border-border px-3 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
               >
-                + {METHOD_LABELS[m]}
+                + {methodLabel(m)}
               </button>
             ))}
           </div>

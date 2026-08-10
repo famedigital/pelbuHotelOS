@@ -20,6 +20,10 @@ export const EXPENSE_CATEGORIES = [
   "tax",
   "bank_fee",
   "rent",
+  "fb_produce",
+  "fb_packaging",
+  "fb_lpg",
+  "fb_beverage",
   "other",
 ] as const;
 

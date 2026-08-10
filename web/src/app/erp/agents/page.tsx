@@ -51,6 +51,7 @@ type AgentRaw = {
   rate_tier: string | null;
   credit_limit: number | null;
   credit_used: number | null;
+  open_room_cap: number | null;
   wants_mou: boolean | null;
   approved_at: string | null;
   created_at: string;
@@ -93,7 +94,7 @@ export default async function ErpAgentsPage({
   let agentsQ = admin
     .from("agents")
     .select(
-      "id, company_name, market, contact_name, contact_phone, contact_email, license_url, notes, status, rate_tier, credit_limit, credit_used, wants_mou, approved_at, created_at, portal_token",
+      "id, company_name, market, contact_name, contact_phone, contact_email, license_url, notes, status, rate_tier, credit_limit, credit_used, open_room_cap, wants_mou, approved_at, created_at, portal_token",
     );
 
   if (view === "directory") {
@@ -181,6 +182,7 @@ export default async function ErpAgentsPage({
     rate_tier: row.rate_tier ?? "agents",
     credit_limit: Number(row.credit_limit ?? 0),
     credit_used: Number(row.credit_used ?? 0),
+    open_room_cap: Number(row.open_room_cap ?? 15),
     wants_mou: Boolean(row.wants_mou),
     approved_at: row.approved_at ?? null,
     created_at: row.created_at,

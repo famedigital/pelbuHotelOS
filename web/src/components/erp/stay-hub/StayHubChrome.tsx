@@ -1,32 +1,28 @@
 "use client";
 
-import { AgentNameLink } from "@/components/erp/AgentNameLink";
 import { Badge } from "@/components/ui/badge";
 import { StayProgressStrip } from "@/components/erp/StayProgressStrip";
 import {
   statusLabel,
   stayMetaLine,
 } from "@/lib/folio/stay-hub-format";
-import type { StayHubStep, StayHubStepId } from "@/lib/folio/stay-hub-cycle";
+import {
+  type StayHubStep,
+  type StayHubStepId,
+} from "@/lib/folio/stay-hub-cycle";
+import { isCreditAgentStatus } from "@/lib/agents/status";
+import { formatGuestBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
+import { ChevronLeftIcon, MoreHorizontalIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-export function StayHubHeader({
-  guestName,
-  status,
-  roomLabel,
-  roomTypeName,
-  checkIn,
-  checkOut,
-  bookingId,
-  alerts,
-  steps,
-  panel,
-  terminal,
-  saveStatus,
-  lockHint,
-  onStepClick,
-}: {
+export type StayHubIdentityProps = {
   guestName: string;
   status?: string | null;
   roomLabel?: string | null;
@@ -34,101 +30,20 @@ export function StayHubHeader({
   checkIn?: string | null;
   checkOut?: string | null;
   bookingId?: string | null;
+  confirmationCode?: string | null;
+  agentName?: string | null;
+  agentStatus?: string | null;
+  paymentMode?: string | null;
   alerts: Array<{ key: string; label: string; tone: "warn" | "danger" | "info" }>;
-  steps: StayHubStep[];
-  panel: StayHubStepId;
   terminal?: string | null;
   saveStatus?: "idle" | "saving" | "saved" | "error" | null;
   lockHint?: string | null;
-  onStepClick?: (id: StayHubStepId, locked: boolean, reason?: string) => void;
-}) {
-  return (
-    <div className="shrink-0 space-y-2.5 border-b bg-card px-4 py-3 pr-12 md:px-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1">
-          <p className="text-[10px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-            Stay hub
-          </p>
-          <h2 className="truncate text-lg font-semibold tracking-tight text-foreground md:text-xl">
-            {guestName.trim() || "Walk-in guest"}
-          </h2>
-          {checkIn && checkOut ? (
-            <p className="text-xs leading-snug text-muted-foreground">
-              {stayMetaLine({
-                roomLabel,
-                roomTypeName,
-                checkIn,
-                checkOut,
-                bookingId,
-              })}
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">Loading stay…</p>
-          )}
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          {status ? (
-            <Badge
-              variant={statusBadgeVariant(status)}
-              className="capitalize"
-            >
-              {statusLabel(status)}
-            </Badge>
-          ) : null}
-          {saveStatus && saveStatus !== "idle" ? (
-            <span
-              className={cn(
-                "text-[10px] font-medium",
-                saveStatus === "saving" && "text-muted-foreground",
-                saveStatus === "saved" && "text-emerald-700 dark:text-emerald-400",
-                saveStatus === "error" && "text-destructive",
-              )}
-              role="status"
-            >
-              {saveStatus === "saving"
-                ? "Saving…"
-                : saveStatus === "saved"
-                  ? "Saved"
-                  : "Save failed"}
-            </span>
-          ) : null}
-        </div>
-      </div>
-
-      {alerts.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
-          {alerts.map((a) => (
-            <Badge
-              key={a.key}
-              variant={
-                a.tone === "danger"
-                  ? "destructive"
-                  : a.tone === "warn"
-                    ? "maroon"
-                    : "secondary"
-              }
-              className="whitespace-nowrap"
-            >
-              {a.label}
-            </Badge>
-          ))}
-        </div>
-      ) : null}
-
-      <StayProgressStrip
-        steps={steps}
-        activePanel={panel}
-        terminal={terminal}
-        onStepClick={onStepClick}
-      />
-      {lockHint ? (
-        <p className="text-[11px] text-amber-700 dark:text-amber-300">
-          {lockHint}
-        </p>
-      ) : null}
-    </div>
-  );
-}
+  /** Force multi-machine stay lease (manager). */
+  onForceLock?: () => void;
+  backLabel?: string | null;
+  onBack?: () => void;
+  dueChipBtn?: number | null;
+};
 
 function statusBadgeVariant(
   status: string,
@@ -140,134 +55,627 @@ function statusBadgeVariant(
   return "secondary";
 }
 
-export function StayHubSummaryCard({
-  balanceDue,
-  agentId,
-  agentName,
-  paymentMode,
-  nextAction,
-  folioId,
-  roomLabel,
-  roomTypeName,
-}: {
-  balanceDue: number;
-  agentId?: string | null;
-  agentName?: string | null;
-  paymentMode?: string | null;
-  nextAction: string;
-  folioId: string | null;
-  roomLabel?: string | null;
-  roomTypeName?: string | null;
-}) {
-  const clear = Math.abs(balanceDue) <= 0.5;
+function paymentModeShort(mode: string | null | undefined): string {
+  if (!mode) return "";
+  return mode.replace(/_/g, " ");
+}
+
+/**
+ * Mobile-only compact top bar (md+ identity lives in the left rail).
+ */
+export function StayHubHeader(props: StayHubIdentityProps) {
+  const {
+    guestName,
+    status,
+    roomLabel,
+    checkIn,
+    checkOut,
+    confirmationCode,
+    bookingId,
+    agentName,
+    alerts,
+    terminal,
+    saveStatus,
+    lockHint,
+    onForceLock,
+    backLabel,
+    onBack,
+    dueChipBtn,
+  } = props;
+
+  const showDueChip =
+    dueChipBtn != null &&
+    Math.abs(dueChipBtn) > 0.5 &&
+    Math.abs(dueChipBtn) < 1_000_000;
+
+  const conf =
+    confirmationCode?.trim() ||
+    (bookingId ? bookingId.slice(0, 8) : "");
+
   return (
-    <aside className="mb-4 space-y-2 md:mb-0 md:sticky md:top-0">
-      <div className="rounded-xl border bg-card p-3.5 shadow-sm">
-        <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-          Balance due
-        </p>
-        <p
-          className={cn(
-            "mt-1 text-xl font-semibold tracking-tight tabular-nums",
-            !clear && "text-maroon",
-          )}
-        >
-          {clear
-            ? "Clear"
-            : `Nu ${Math.round(balanceDue).toLocaleString()}`}
-        </p>
-        {agentName || agentId ? (
-          <p className="mt-1 text-xs text-muted-foreground">
-            Agent ·{" "}
-            <AgentNameLink
-              agentId={agentId}
-              name={agentName}
-              className="text-xs"
-              tab="money"
-            />
+    <div className="shrink-0 border-b bg-card px-3 py-2 pr-11 md:hidden">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          {backLabel && onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label={backLabel}
+              className="-ml-1 inline-flex min-h-9 items-center gap-0.5 rounded-md px-1 text-xs font-medium text-muted-foreground"
+            >
+              <ChevronLeftIcon className="size-3.5 shrink-0" aria-hidden />
+              <span className="truncate">{backLabel}</span>
+            </button>
+          ) : null}
+          <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+            {guestName.trim() || "Walk-in guest"}
+          </h2>
+          <p className="truncate text-[10px] text-muted-foreground">
+            {[
+              roomLabel?.trim(),
+              checkIn && checkOut
+                ? `${checkIn.slice(5)}→${checkOut.slice(5)}`
+                : null,
+              conf,
+              agentName?.trim(),
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           </p>
-        ) : null}
-        {paymentMode ? (
-          <p className="text-xs text-muted-foreground capitalize">
-            Mode · {paymentMode.replace(/_/g, " ")}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-0.5">
+          {showDueChip ? (
+            <Badge variant="maroon" className="tabular-nums text-[10px]">
+              Due {formatGuestBtn(dueChipBtn)}
+            </Badge>
+          ) : null}
+          {status ? (
+            <Badge
+              variant={statusBadgeVariant(status)}
+              className="text-[10px] capitalize"
+            >
+              {statusLabel(status)}
+            </Badge>
+          ) : null}
+          {saveStatus && saveStatus !== "idle" ? (
+            <span className="text-[10px] text-muted-foreground">
+              {saveStatus === "saving"
+                ? "Saving…"
+                : saveStatus === "saved"
+                  ? "Saved"
+                  : "Save failed"}
+            </span>
+          ) : null}
+        </div>
+      </div>
+      {alerts.filter((a) => a.key !== "dues").length > 0 ? (
+        <div className="mt-1 flex flex-wrap gap-1">
+          {alerts
+            .filter((a) => a.key !== "dues")
+            .slice(0, 3)
+            .map((a) => (
+              <Badge
+                key={a.key}
+                variant={
+                  a.tone === "danger"
+                    ? "destructive"
+                    : a.tone === "warn"
+                      ? "maroon"
+                      : "secondary"
+                }
+                className="text-[9px]"
+              >
+                {a.label}
+              </Badge>
+            ))}
+        </div>
+      ) : null}
+      {terminal ? (
+        <p className="mt-1 text-center text-[10px] font-medium capitalize text-destructive">
+          {terminal.replace(/_/g, " ")}
+        </p>
+      ) : null}
+      {lockHint ? (
+        <div className="mt-1 space-y-0.5">
+          <p className="text-[10px] leading-snug text-amber-800 dark:text-amber-200">
+            {lockHint}
           </p>
-        ) : null}
-      </div>
-      <div className="rounded-xl border bg-card p-3.5 shadow-sm">
-        <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-          Room
-        </p>
-        <p className="mt-1 text-sm font-medium">
-          {roomLabel?.trim() || "Unassigned"}
-        </p>
-        {roomTypeName ? (
-          <p className="text-xs text-muted-foreground">{roomTypeName}</p>
-        ) : null}
-      </div>
-      <div className="rounded-xl border bg-card p-3.5 shadow-sm">
-        <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-          Next
-        </p>
-        <p className="mt-1 text-sm leading-snug">{nextAction}</p>
-        {folioId ? (
-          <a
-            href={`/erp/folios/${folioId}`}
-            className="mt-2 inline-block text-xs font-medium text-accent underline-offset-4 hover:underline"
+          {onForceLock ? (
+            <button
+              type="button"
+              onClick={onForceLock}
+              className="text-[10px] font-medium text-amber-900 underline-offset-2 hover:underline dark:text-amber-100"
+            >
+              Take over this stay
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Desktop left column: guest / agent / due / steps — keeps the work pane tall.
+ */
+export function StayHubLeftRail({
+  identity,
+  steps,
+  panel,
+  terminal,
+  onStepClick,
+  canNavigateStep,
+  railActions,
+  className,
+}: {
+  identity: StayHubIdentityProps;
+  steps: StayHubStep[];
+  panel: StayHubStepId;
+  terminal?: string | null;
+  onStepClick?: (id: StayHubStepId, locked: boolean, reason?: string) => void;
+  canNavigateStep?: (id: StayHubStepId, step: StayHubStep) => boolean;
+  /** Optional compact actions under the due (e.g. open settle). */
+  railActions?: ReactNode;
+  className?: string;
+}) {
+  const {
+    guestName,
+    status,
+    roomLabel,
+    roomTypeName,
+    checkIn,
+    checkOut,
+    bookingId,
+    confirmationCode,
+    agentName,
+    agentStatus,
+    paymentMode,
+    alerts,
+    saveStatus,
+    lockHint,
+    onForceLock,
+    backLabel,
+    onBack,
+    dueChipBtn,
+  } = identity;
+
+  const showDue =
+    dueChipBtn != null &&
+    Math.abs(dueChipBtn) > 0.5 &&
+    Math.abs(dueChipBtn) < 1_000_000;
+
+  const conf = confirmationCode?.trim();
+  const creditOk =
+    agentStatus != null && isCreditAgentStatus(agentStatus);
+  const agentChip =
+    agentStatus && agentName?.trim()
+      ? creditOk
+        ? "credit OK"
+        : agentStatus === "directory"
+          ? "TCB · directory"
+          : agentStatus.replace(/_/g, " ")
+      : null;
+
+  return (
+    <aside
+      className={cn(
+        "hidden min-h-0 w-[13.5rem] shrink-0 flex-col border-r bg-muted/20 lg:w-60 md:flex",
+        className,
+      )}
+    >
+      <div className="shrink-0 space-y-1.5 border-b px-2.5 py-2">
+        {backLabel && onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className="-ml-0.5 inline-flex min-h-7 max-w-full items-center gap-0.5 rounded-md px-1 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
           >
-            Open folio →
-          </a>
+            <ChevronLeftIcon className="size-3.5 shrink-0" aria-hidden />
+            <span className="truncate">{backLabel}</span>
+          </button>
+        ) : (
+          <p className="text-[9px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+            Stay
+          </p>
+        )}
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <h2 className="min-w-0 flex-1 text-sm font-semibold leading-snug tracking-tight text-foreground">
+            {guestName.trim() || "Walk-in guest"}
+          </h2>
+          {status ? (
+            <Badge
+              variant={statusBadgeVariant(status)}
+              className="shrink-0 text-[9px] capitalize"
+            >
+              {statusLabel(status)}
+            </Badge>
+          ) : null}
+        </div>
+
+        {checkIn && checkOut ? (
+          <p className="text-[10px] leading-snug text-muted-foreground">
+            {stayMetaLine({
+              roomLabel,
+              roomTypeName,
+              checkIn,
+              checkOut,
+              bookingId: conf ? null : bookingId,
+              confirmationCode: conf,
+            })}
+          </p>
+        ) : (
+          <p className="text-[10px] text-muted-foreground">Loading…</p>
+        )}
+
+        {agentName?.trim() ? (
+          <div className="rounded-md border bg-background/80 px-2 py-1">
+            <div className="flex flex-wrap items-center gap-1">
+              <p className="min-w-0 flex-1 truncate text-[11px] font-medium text-foreground">
+                {agentName.trim()}
+              </p>
+              {agentChip ? (
+                <Badge
+                  variant={creditOk ? "citrus" : "gold"}
+                  className="shrink-0 text-[9px] capitalize"
+                >
+                  {agentChip}
+                </Badge>
+              ) : null}
+            </div>
+            {paymentMode ? (
+              <p className="truncate text-[10px] text-muted-foreground capitalize">
+                {paymentModeShort(paymentMode)}
+              </p>
+            ) : null}
+          </div>
         ) : null}
+
+        {showDue ? (
+          <div className="rounded-md border border-maroon/30 bg-maroon/5 px-2 py-1.5">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
+                Guest due
+              </p>
+              <p className="text-base font-semibold tabular-nums tracking-tight text-maroon">
+                {formatGuestBtn(dueChipBtn)}
+              </p>
+            </div>
+            {railActions ? (
+              <div className="mt-1.5 flex flex-col gap-1 [&_button]:h-8 [&_button]:min-h-8 [&_button]:w-full [&_button]:px-2 [&_button]:text-[11px]">
+                {railActions}
+              </div>
+            ) : null}
+          </div>
+        ) : dueChipBtn != null && Math.abs(dueChipBtn) <= 0.5 ? (
+          <div className="rounded-md border bg-background/80 px-2 py-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
+                Balance
+              </p>
+              <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                Clear
+              </p>
+            </div>
+            {railActions ? (
+              <div className="mt-1 flex flex-col gap-1 [&_button]:h-8 [&_button]:min-h-8 [&_button]:w-full [&_button]:px-2 [&_button]:text-[11px]">
+                {railActions}
+              </div>
+            ) : null}
+          </div>
+        ) : railActions ? (
+          <div className="flex flex-col gap-1 [&_button]:h-8 [&_button]:min-h-8 [&_button]:w-full [&_button]:px-2 [&_button]:text-[11px]">
+            {railActions}
+          </div>
+        ) : null}
+
+        {alerts.filter((a) => a.key !== "dues").length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {alerts
+              .filter((a) => a.key !== "dues")
+              .map((a) => (
+                <Badge
+                  key={a.key}
+                  variant={
+                    a.tone === "danger"
+                      ? "destructive"
+                      : a.tone === "warn"
+                        ? "maroon"
+                        : "secondary"
+                  }
+                  className="max-w-full truncate text-[9px]"
+                  title={a.label}
+                >
+                  {a.label}
+                </Badge>
+              ))}
+          </div>
+        ) : null}
+
+        {lockHint ? (
+          <div className="space-y-1">
+            <p className="text-[10px] leading-snug text-amber-800 dark:text-amber-200">
+              {lockHint}
+            </p>
+            {onForceLock ? (
+              <button
+                type="button"
+                onClick={onForceLock}
+                className="text-[10px] font-medium text-amber-900 underline-offset-2 hover:underline dark:text-amber-100"
+              >
+                Take over this stay
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {saveStatus && saveStatus !== "idle" ? (
+          <p
+            className={cn(
+              "text-[10px] font-medium",
+              saveStatus === "saved" &&
+                "text-emerald-700 dark:text-emerald-400",
+              saveStatus === "error" && "text-destructive",
+              saveStatus === "saving" && "text-muted-foreground",
+            )}
+          >
+            {saveStatus === "saving"
+              ? "Saving…"
+              : saveStatus === "saved"
+                ? "Saved"
+                : "Save failed"}
+          </p>
+        ) : null}
+      </div>
+
+      {/* No internal scroll — keep steps compact so 4 steps always fit */}
+      <div className="min-h-0 flex-1 overflow-hidden px-1 py-1.5">
+        <p className="mb-0.5 px-2 text-[9px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+          Steps
+        </p>
+        <StayProgressStrip
+          orientation="vertical"
+          dense
+          steps={steps}
+          activePanel={panel}
+          terminal={terminal}
+          onStepClick={onStepClick}
+          canNavigateStep={canNavigateStep}
+        />
       </div>
     </aside>
+  );
+}
+
+/** @deprecated use StayHubLeftRail — thin alias for older imports */
+export function StayHubSideRail({
+  steps,
+  panel,
+  terminal,
+  onStepClick,
+  canNavigateStep,
+  className,
+}: {
+  steps: StayHubStep[];
+  panel: StayHubStepId;
+  terminal?: string | null;
+  onStepClick?: (id: StayHubStepId, locked: boolean, reason?: string) => void;
+  canNavigateStep?: (id: StayHubStepId, step: StayHubStep) => boolean;
+  className?: string;
+}) {
+  return (
+    <aside
+      className={cn(
+        "hidden w-28 shrink-0 border-r bg-muted/25 px-1.5 py-2 md:flex md:flex-col md:w-32",
+        className,
+      )}
+    >
+      <StayProgressStrip
+        orientation="vertical"
+        steps={steps}
+        activePanel={panel}
+        terminal={terminal}
+        onStepClick={onStepClick}
+        canNavigateStep={canNavigateStep}
+      />
+    </aside>
+  );
+}
+
+/** Mobile / narrow: compact horizontal steps under header. */
+export function StayHubMobileSteps({
+  steps,
+  panel,
+  terminal,
+  onStepClick,
+  canNavigateStep,
+}: {
+  steps: StayHubStep[];
+  panel: StayHubStepId;
+  terminal?: string | null;
+  onStepClick?: (id: StayHubStepId, locked: boolean, reason?: string) => void;
+  canNavigateStep?: (id: StayHubStepId, step: StayHubStep) => boolean;
+}) {
+  if (steps.length === 0) return null;
+  return (
+    <div className="shrink-0 border-b px-2 py-1 md:hidden">
+      <StayProgressStrip
+        orientation="horizontal"
+        steps={steps}
+        activePanel={panel}
+        terminal={terminal}
+        onStepClick={onStepClick}
+        canNavigateStep={canNavigateStep}
+      />
+    </div>
+  );
+}
+
+/** Tool tabs for the active hierarchy step only. */
+export function StayHubToolTabs({
+  tabs,
+  activeId,
+  onChange,
+}: {
+  tabs: Array<{ id: string; label: string }>;
+  activeId: string;
+  onChange: (id: string) => void;
+}) {
+  if (tabs.length <= 1) return null;
+  return (
+    <div
+      className="flex min-w-0 flex-1 gap-0.5 rounded-md border bg-muted/40 p-0.5"
+      role="tablist"
+      aria-label="Step tools"
+    >
+      {tabs.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          role="tab"
+          aria-selected={activeId === t.id}
+          onClick={() => onChange(t.id)}
+          className={cn(
+            "min-h-9 flex-1 rounded px-2 text-xs font-medium transition-colors",
+            activeId === t.id
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
 export function StayHubWorkFrame({
   title,
   description,
+  tools,
   children,
+  className,
+  /** Title + tools on one row; hide description (Folio/Checkout density). */
+  dense = false,
 }: {
-  title: string;
+  title?: string;
   description?: string;
+  tools?: ReactNode;
   children: ReactNode;
+  className?: string;
+  dense?: boolean;
 }) {
+  const showDesc = Boolean(description) && !dense;
   return (
-    <div className="min-w-0 space-y-3">
-      <div className="space-y-0.5">
-        <h3 className="text-sm font-semibold tracking-tight text-foreground">
-          {title}
-        </h3>
-        {description ? (
-          <p className="text-xs text-muted-foreground">{description}</p>
-        ) : null}
-      </div>
+    <div className={cn("min-w-0 space-y-1.5", className)}>
+      {(title || showDesc || tools) && (
+        <div className={cn(dense && tools ? "space-y-0" : "space-y-1")}>
+          {dense && (title || tools) ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {title ? (
+                <h3 className="shrink-0 text-sm font-semibold tracking-tight text-foreground">
+                  {title}
+                </h3>
+              ) : null}
+              {tools}
+            </div>
+          ) : (
+            <>
+              {(title || showDesc) && (
+                <div className="space-y-0">
+                  {title ? (
+                    <h3 className="text-sm font-semibold tracking-tight text-foreground">
+                      {title}
+                    </h3>
+                  ) : null}
+                  {showDesc ? (
+                    <p className="text-[11px] text-muted-foreground sm:text-xs">
+                      {description}
+                    </p>
+                  ) : null}
+                </div>
+              )}
+              {tools}
+            </>
+          )}
+        </div>
+      )}
       {children}
     </div>
   );
 }
 
+export type StayHubMoreAction = {
+  key: string;
+  label: string;
+  onSelect: () => void;
+  disabled?: boolean;
+  destructive?: boolean;
+};
+
+/** Footer: Close · ··· · primary CTA */
 export function StayHubFooterBar({
   panelLabel,
   primaryCta,
   onClose,
+  moreActions,
 }: {
-  panelLabel: string;
+  panelLabel?: string;
   primaryCta?: ReactNode;
   onClose: () => void;
+  moreActions?: StayHubMoreAction[];
 }) {
   return (
-    <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t bg-background px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:px-5">
-      <p className="text-xs font-medium text-muted-foreground">{panelLabel}</p>
-      <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
+    <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t bg-background px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:px-4">
+      <p className="hidden text-xs font-medium text-muted-foreground sm:block">
+        {panelLabel ?? ""}
+      </p>
+      <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end">
         <button
           type="button"
           onClick={onClose}
-          className="inline-flex min-h-11 flex-1 items-center justify-center rounded-md px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:flex-none"
+          className="inline-flex min-h-11 flex-1 items-center justify-center rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:flex-none"
         >
           Close
         </button>
+        {moreActions && moreActions.length > 0 ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label="More actions"
+              >
+                <MoreHorizontalIcon className="size-4" aria-hidden />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-44">
+              {moreActions.map((a) => (
+                <DropdownMenuItem
+                  key={a.key}
+                  disabled={a.disabled}
+                  className={cn(
+                    a.destructive && "text-destructive focus:text-destructive",
+                  )}
+                  onSelect={() => a.onSelect()}
+                >
+                  {a.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
         {primaryCta}
       </div>
     </div>
   );
+}
+
+/** @deprecated Prefer Folio due bar — kept as no-op export for safety. */
+export function StayHubSummaryCard(_props: {
+  balanceDue: number;
+  nextAction: string;
+  [key: string]: unknown;
+}) {
+  return null;
 }

@@ -3,6 +3,7 @@
 import { updateOrderKotStatus } from "@/app/actions/erp-pos";
 import { Button } from "@/components/ui/button";
 import { useKotNotifier } from "@/hooks/use-kot-notifier";
+import { isKitchenBoardVisible } from "@/lib/kot-visibility";
 import type { OpenPosTicket } from "@/lib/pos";
 import {
   KOT_BOARD_COLUMNS,
@@ -130,12 +131,7 @@ export function KitchenDisplayBoard({
     const COOK_STATIONS = new Set(["kitchen", "grill", "cold", "pastry"]);
 
     for (const raw of tickets) {
-      if (
-        raw.order_source === "public" &&
-        (!raw.confirmed_at || !raw.payment_recorded_at)
-      ) {
-        continue;
-      }
+      if (!isKitchenBoardVisible(raw)) continue;
 
       let t = raw;
       // Kitchen TV only shows dishes prepared on the cook line. Pass sees full

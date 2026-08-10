@@ -24,13 +24,15 @@ export function nightsBetween(checkIn: string, checkOut: string): number {
   return Math.round((b - a) / 86_400_000);
 }
 
-/** e.g. "DELUXE-03 · Deluxe suite · 2 nights · 01 Aug – 03 Aug 2026 · #1597049f" */
+/** e.g. "DELUXE-03 · Deluxe suite · 2 nights · 01 Aug – 03 Aug 2026 · PS-2026-00042" */
 export function stayMetaLine(input: {
   roomLabel?: string | null;
   roomTypeName?: string | null;
   checkIn: string;
   checkOut: string;
   bookingId?: string | null;
+  /** Prefer over short UUID — e.g. PS-2026-00042 */
+  confirmationCode?: string | null;
 }): string {
   const nights = nightsBetween(input.checkIn, input.checkOut);
   const room = input.roomLabel?.trim() || "Unassigned";
@@ -42,7 +44,10 @@ export function stayMetaLine(input: {
     nights > 0 ? `${nights} night${nights === 1 ? "" : "s"}` : null,
     range,
   ].filter(Boolean);
-  if (input.bookingId) {
+  const conf = input.confirmationCode?.trim();
+  if (conf) {
+    parts.push(conf);
+  } else if (input.bookingId) {
     parts.push(`#${input.bookingId.slice(0, 8)}`);
   }
   return parts.join(" · ");
@@ -51,17 +56,17 @@ export function stayMetaLine(input: {
 export function panelDescription(panel: StayHubStepId): string {
   switch (panel) {
     case "reserve":
-      return "Contact, agent, and notes. Changes save automatically.";
+      return "Contact, dates, rate. Saves as you type.";
     case "confirm":
       return "Hold token and confirmation.";
     case "arrival":
-      return "Guest docs readiness and room assignment.";
+      return "Guest docs and room assignment.";
     case "check_in":
-      return "Guest documents, rooms, and confirm check-in.";
+      return "Docs, room, confirm check-in.";
     case "stay_money":
-      return "Room package vs guest extras — post charges, invoice, and pay.";
+      return "Review bill and collect.";
     case "check_out":
-      return "Settle balance and release the room.";
+      return "Release room when balance is ready.";
     default:
       return "";
   }

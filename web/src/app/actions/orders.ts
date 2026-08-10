@@ -8,6 +8,7 @@ import {
 import { isValidThimphuArea } from "@/lib/delivery-areas";
 import { notifyNewOrder } from "@/lib/notify";
 import { loadMenuStockMap } from "@/lib/menu-stock";
+import { isPublicOrderOutlet } from "@/lib/kot-visibility";
 import { calculateOrderTotals, withGuestFacingTotal } from "@/lib/pricing";
 import { PELBU_PROPERTY_SLUG } from "@/lib/property";
 import { DEFAULT_GST_RATE } from "@/lib/property-settings";
@@ -272,9 +273,10 @@ export async function createOrder(
 
     const byId = new Map(menuRows.map((row) => [row.id as string, row]));
     const outlets = new Set(menuRows.map((row) => row.outlet as string));
-    const allowedOutlets = new Set(["cafe", "pastry", "restaurant"]);
-    if ([...outlets].some((outlet) => !allowedOutlets.has(outlet))) {
-      throw new Error("One or more items cannot be ordered online.");
+    if ([...outlets].some((outlet) => !isPublicOrderOutlet(outlet))) {
+      throw new Error(
+        "Bar and other lounge items are order-at-desk only. Remove them from your cart.",
+      );
     }
     const hasRestaurant = outlets.has("restaurant");
     const hasCafe = outlets.has("cafe") || outlets.has("pastry");
@@ -318,6 +320,8 @@ export async function createOrder(
     const nowIso = new Date().toISOString();
     const isRoom = deliveryTypeRaw === "room";
 
+    // Public room: money settles on folio, kitchen still starts immediately.
+    // confirmed_at / payment_recorded_at mark the economic gate for KDS rules.
     const { data: order, error: orderError } = await admin
       .from("orders")
       .insert({
@@ -332,8 +336,9 @@ export async function createOrder(
             : null,
         delivery_address: deliveryTypeRaw === "taxi" ? deliveryAddress : null,
         notes,
-        status: "received",
+        status: isRoom ? "preparing" : "received",
         order_source: "public",
+        kot_status: isRoom ? "preparing" : "new",
         subtotal_btn: subtotalBtn,
         gst_btn: gstBtn,
         total_btn: totalBtn,
@@ -344,6 +349,9 @@ export async function createOrder(
           ? {
               posted_to_folio_at: nowIso,
               settled_at: nowIso,
+              confirmed_at: nowIso,
+              payment_recorded_at: nowIso,
+              payment_journal_no: "ROOM-CHARGE",
             }
           : {}),
       })
@@ -401,6 +409,12 @@ export async function createOrder(
           folio_id: folioId,
           booking_id: bookingId,
         });
+        const { error: stockError } = await admin.rpc("pos_apply_order_stock", {
+          p_order_id: order.id,
+        });
+        if (stockError) {
+          console.error("createOrder room stock failed", stockError);
+        }
       } catch (e) {
         console.error("createOrder room charge failed", e);
         await admin.from("orders").delete().eq("id", order.id);

@@ -44,11 +44,17 @@ function parseOutlet(value?: string): OutletFilter | undefined {
 export default async function MenuPage({
   searchParams,
 }: {
-  searchParams: Promise<{ outlet?: string; menu?: string; deliver?: string }>;
+  searchParams: Promise<{
+    outlet?: string;
+    menu?: string;
+    deliver?: string;
+    table?: string;
+  }>;
 }) {
   const params = await searchParams;
   const initialOutlet = parseOutlet(params.outlet ?? params.menu);
   const preferRoomDelivery = params.deliver === "room";
+  const initialTableLabel = params.table?.trim() || undefined;
   const admin = createSupabaseAdminClient();
   const propertyId = await resolveActivePropertyId(admin);
   const [page, items, property] = await Promise.all([
@@ -133,6 +139,7 @@ export default async function MenuPage({
               items={items}
               initialOutlet={initialOutlet}
               preferRoomDelivery={preferRoomDelivery}
+              initialTableLabel={initialTableLabel}
               gstRate={gstRate}
             />
           </div>

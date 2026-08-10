@@ -103,6 +103,7 @@ export function BookingBoardTable({
 
     return {
       id: r.id as string,
+      confirmation_code: (r.confirmation_code as string | null) ?? null,
       contact_name: (r.contact_name as string) ?? null,
       contact_phone: (r.contact_phone as string) ?? null,
       check_in: (r.check_in as string) ?? null,

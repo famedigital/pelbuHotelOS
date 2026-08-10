@@ -1,9 +1,12 @@
 # Pelbu Suites — Feature status
 
-Last updated: **2026-08-06** (**StayHub walk-in FO fix + desk polish** · commit `8ba9342`).
+Last updated: **2026-08-10** (docs full re-sync after **`fc23144`**).  
+Last full multi-file documentation commit before this: **`fc23144`** (2026-08-06 — StayHub walk-in FO).  
+Product HEAD at docs write: `main` including uncommitted desk FO (agent commerce, POS folio strip, **PS** confirmation codes).
+
 Property #1: `pelbu-suites-olakha` (`template_id` 1). Work login supports staff Auth with desk access; `DESK_PIN` remains a temporary single-hotel fallback — **never share across hotels**.
 
-**Verdict:** **v1.0 ready** for single-hotel Pelbu Olakha — see **[RELEASE-v1.md](RELEASE-v1.md)**. Core desk OS + public conversion PWA are **built**. Residual FO/money pack (journals proof, Playwright smoke, minibar, immigration SDF CSV, seasons editor, guest history) landed after N+1. **2026-08-06:** StayHub walk-in path (phone later, fast identity save, sticky Confirm check-in, undo check-in) shipped — plan `stayhub_walk-in_ux_4eb64b91`. Day-1 ops: **[GO-LIVE-TOMORROW.md](GO-LIVE-TOMORROW.md)**; cutover: **[LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md)** (real initials). Not chain-SaaS complete — Stripe self-serve, full SEC-01 admin purge, and **live** Channex certification remain post-v1.
+**Verdict:** **v1.0 ready** for single-hotel Pelbu Olakha — see **[RELEASE-v1.md](RELEASE-v1.md)**. Core desk OS + public conversion PWA are **built**. **2026-08-06:** StayHub walk-in. **2026-08-06→10:** bar packs · desk Ctrl+K search · party reservations · agreed rates · folio POS serve/void · guest Nu 0/5 · one book modal · public menu immerse · agent commerce (guide evidence, room cap, AR labels) · stay confirmation **`PS-YYYY-#####`**. Day-1 ops: **[GO-LIVE-TOMORROW.md](GO-LIVE-TOMORROW.md)**; agent FO: **[FO-AGENT-COMMERCE-CHECKLIST.md](FO-AGENT-COMMERCE-CHECKLIST.md)**; cutover: **[LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md)**. Residuals: live Channex cert, Stripe self-serve, SEC-01 admin client purge.
 
 **Palette (FINAL):** **Sky & Citrus** — sky-500 `#0ea5e9` accent + amber-500 `#f59e0b` citrus. Shipped on the desk (`.erp` scope). Pelbu-pink / Bubblegum is **retired**.
 
@@ -36,6 +39,9 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Flagship conversion pages | `/`, rooms, cafe, restaurant, bar, dine, spa, meeting, book, order, contact, agents |
 | Public room rates | `/rates` — **package card** (room only + BB/MAP totals at double occupancy) from `room_rates` + `meal_plans`; same math as desk; trade tiers only after email+WhatsApp soft gate (audit `rate_card_access_log` + httpOnly cookie); GST/SC inclusive badge; child package footnotes (0–6 free, 6–12 meal @ 50%) |
 | CMS galleries + menus | Supabase `cms_*` / `menu_items` + Cloudinary `image_public_id` |
+| Public menu UX (2026-08) | Immersive mobile chrome; compact desktop filters; menu GST from property rate; guest totals rounded hotel-side to Nu **0 or 5** |
+| Header logo | Public header logo no longer clipped below the bar |
+| Mobile home / book / POS | Photo-first home hero; mobile POS cart + tickets; public book polish |
 | Direct book | Creates booking; overbooking guard; hold TTL + deposit payment URL; uses `StayDatesField` (Dates mode default) |
 | F&B order | Cafe/pastry/restaurant → separate KOT tickets; mixed carts rejected |
 | Agent apply | Markets BT / Jaigaon / India; pending → owner approve |
@@ -66,27 +72,30 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | **Training LMS** | `/erp/training` — role-filtered manuals + checklist (local progress) |
 | **DOT assessment** | `/erp/dot-assessment` — HCS 2024 3★/4★ digital checklist (Trade · BFDA · DOT), entry gate, M/Q/P scoring, photos, print pack |
 | Loading UX | Top **NavigationProgress** on desk nav · `usePendingFeedback` + sonner on mutating actions (rota publish, danger wipe) |
+| **Desk search** | Header **Search** · **Ctrl+K** command palette → modules + guests / rooms / bookings (**PS conf #**) / invoices / agents (`/api/erp/desk-search`) |
+| Free-tier / resilience | Flagship middleware skips Supabase when possible; slower desk polls; KOT SSE pauses when tab hidden; middleware fail-open if Auth down |
 | Reskin | **Sky & Citrus (final)** — shadcn primitives + TanStack `DataTable`; sky-500 accent + amber citrus under `.erp`. Plan `erp_shadcn_reskin_d79ac669` (all 13 clusters) |
 
 ### Desk ERP modules
 
 | Module | Route | Status |
 |--------|-------|--------|
-| **Dashboard** (role home) | `/erp` | **Per desk role:** Owner · Manager · Front desk · F&B · Kitchen (**BF/L/D pax** + event pax) · HK · Laundry · Cashier — each board shows **weekly + monthly guest forecast** (arr/dep/rooms/guests from bookings). Owner/GM can preview all via `?view=`. Assign role on Staff → Access. |
+| **Dashboard** (role home) | `/erp` (+ role lands: FO → arrivals, kitchen → kitchen, cashier/F&B → POS) | **Per desk role:** tab-level defaults via `desk_module_keys` NULL (cashier: POS+payments+folios; kitchen: kitchen+KDS; FO: arrivals…night-audit without sales/loyalty/group). Owner/GM full catalog. Login redirects to role home. |
 | **Calendar / Timeline** | `/erp/calendar` | **v1–v2 shipped (2026-07-29)** — see below |
 | Calendar day sheet | `/erp/calendar/day-sheet` | Printable arrivals / departures / stayovers / blocks |
-| Fast book | Modal on `/erp/reservations?new=1` (deeplink `/erp/fast-book` redirects) | Qty grid + drawer; default **adults = 1**; **Phone later**; success → StayHub |
-| **StayHub (FO hub)** | Modal from calendar / boards / reservations | One surface: Reserve → Confirm → Arrival → Check-in → Stay/Money → Check-out — see **StayHub walk-in** below |
-| Check-in / out | StayHub panels + `/erp/check-in` | Physical room allocation; sticky **Confirm check-in** footer; after CI lands Stay/Money; **Undo check-in** when folio still simple; checkout → dirty |
-| Arrivals / in-house / departures | `/erp/arrivals` etc. | Boards open StayHub (CI / Stay-Money / CO); today’s worklists only for A/D |
-| Reservations / guests | `/erp/reservations`, `/erp/guests` | **New reservation** CTA → Fast Book modal; filters (room / dates / sort) + room column via `booking-room-fit`; metric chips |
-| **POS / F&B** | `/erp/pos` (+ tabs) | **F&B product surface** (sidebar title remains POS): Register · Menu · Recipe cost · **Kitchen board** · Food cost · Kitchen TV. Cashier → folio; floor plan; shifts; **Open tickets + Closed today**. **Bar packs** (below) share pour stock between pek & bottle tiles. |
-| **Menu (catalog + bar)** | `/erp/menu` | Catalog · **Bar packs** (spirit pek+bottle, beer case receive, waste/spill) · Stock & recipes · **Categories** manager. Spirits ledger in **ml**; default **30 ml pek**. See bar packs note below. |
-| **Laundry** | `/erp/laundry` (+ `/qr`, `/orders/[id]/labels`) · guest `/laundry` · staff `/staff/laundry` (+ bag scan/labels) | Guest QR room+name intake · reception photo intake · maid mobile board · **Amazon-style bag QR labels** (1–N bags, per-bag garments, staff-secured scan) · maid-confirmed counts → atomic folio post · printable room + bag stickers |
-| Folio | `/erp/folios/[id]` (+ `/receipt`) | Payments, void, comp, deposit links; **tax invoice + fiscal receipt issue**; **day-1 room post at check-in** + manual Post room night / day-1 charges; **stay money process strip** |
-| **Kitchen board** (F&B ops dashboard) | `/erp/kitchen` (+ `/food-cost`) | Covers · staff on shift · publish BF/lunch/dinner to FO/POS (`kitchen_meal_services`) · gas/stock/expiry · food cost COGS · **Events & groups** (banquet cards: menu, time window, pax, venue, package rate/deposit/balance, link/post to folio) — **chef/F&B supervisor home**, not FO Dashboard |
-| Invoices / payments | `/erp/invoices`, `/erp/payments` | **Invoices:** issued fiscal tax invoice list (INV-YYYY-####) only — not POS tickets. Settle/paid/on-room under **POS → Closed today** |
-| Agents | `/erp/agents` (+ `/erp/agents/[id]` dossier) | Approve, credit, rates matrix, documents; **click agent → 360° dossier**; **TCB directory** import (`status=directory`, no credit/portal) via `web/scripts/import-tcb-tour-operators.mjs` — searchable on FO pickers A–Z; filter tabs Trade / Pending / Directory |
+| Fast book | Modal on `/erp/reservations?new=1` (deeplink `/erp/fast-book` redirects) | **DeskBook re-engineer (2026-08-10):** StayHub-style left price rail + dense form — guest origin vs bill-to-agent, meal/children/extra, multi-category rooms, **guide/driver comps**, live **remaining inventory**, package bill break (rooms/meal/extra), walk-in **rate tier** (public/friends/family/mutual), promo + notes + email, preferred rack unit chip, agent **room-cap soft warn**. Classic FastBook path retired. Confirm pack or same-day → StayHub. |
+| **Stay confirmation #** | `bookings.confirmation_code` | **`PS-YYYY-#####`** gapless per property (Thimphu year); trigger on insert + backfill. Searchable. **Not** a tax invoice. Tax = **`INV-YYYY-####`** from folio fiscal issue only. |
+| **StayHub (FO hub)** | Modal from calendar / boards / reservations | One surface: Details → Check-in → **Folio** → Checkout. In-house **opens Folio** (not Checkout). Rail + URL `?step=` in sync (P0 snap-back fixed). Folio tools: **Bill · Collect · Advanced**; tabs **All · Room · POS**; POS strip (what ordered) + **Guest pays F&B** / **Charge agent AR** / **Put F&B on agent tab**. Settle labels: cash = Collect; agent = **Charge agent AR**. **Confirm #** on header/boards. Agent leave: print pack → guide ink → **camera or file** upload → leave when photo/waived → FO seal + email after. `/erp/bookings/[id]/settlement-pack`. **Open-room cap** on CI. Soft confirm_mode / advance badges. See [FO-AGENT-COMMERCE-CHECKLIST.md](FO-AGENT-COMMERCE-CHECKLIST.md). |
+| Check-in / out | StayHub panels + `/erp/check-in` | Lead guest + pax; business-date gate (`properties.current_business_date`, manager PIN override); physical rooms; sticky Confirm CI; after CI → Folio; Undo CI when folio simple; CO → dirty; agent CO gated on guide evidence |
+| Arrivals / in-house / departures | `/erp/arrivals` etc. | Boards open StayHub (CI / Stay-Money / CO); show **PS** conf #; today’s worklists only for A/D |
+| Reservations / guests | `/erp/reservations`, `/erp/guests` | **Party board** (groups + suggested multi-room); rooming list; filters room/dates/sort; search guest/phone/agent/room/**PS conf #**; Ctrl+K globally |
+| **POS / F&B** | `/erp/pos` (+ tabs) | Register · Menu · Recipe cost · Kitchen board · Food cost · Kitchen TV. Open tickets + Closed today; floor plan; shifts. Room-charge → folio with item serve/void on StayHub POS. Guest Nu 0/5 on F&B bills. **Bar packs** |
+| **Menu (catalog + bar)** | `/erp/menu` | Catalog · **Bar packs** (spirit pek+bottle, beer case, waste) · Stock & recipes · Categories. Spirits in **ml**; default 30 ml pek |
+| **Laundry** | `/erp/laundry` · guest `/laundry` · staff `/staff/laundry` | Bag QR; scan/login hardened; reprint without invalidating stickers; maid board → folio post |
+| Folio | `/erp/folios/[id]` (+ `/receipt`) | Payments (cash vs agent AR), void, comp, minibar/damage; INV/RCP issue; day-1 post; POS serve/void; whole-Nu hotel rate adj (room/F&B); Group/master Advanced |
+| **Kitchen board** | `/erp/kitchen` (+ `/food-cost`) | Covers · meal services → POS · food cost · events & groups (banquet) — chef/F&B home not FO Dashboard |
+| Invoices / payments | `/erp/invoices`, `/erp/payments` | Fiscal **INV-YYYY-####** issued only; not POS tickets. Closed-today tickets under POS |
+| Agents | `/erp/agents` (+ dossier) | Approve, credit, rates; dossier Money: open rooms vs **open_room_cap**, owes, settlement packs; TCB directory; **Credit promote**; desk credit path polished |
 | Finance + bank recon | `/erp/finance` | **Hotel accountant** — Vault (cash/bank/holdings) · Money in · Money out (expenses + AP bills + payroll link) · Banking · GST · Journals · Reports · Setup & month close; walk-in POS + payroll payout journals; bank create-from-line; Settings → Finance imports |
 | GST | `/erp/gst` (+ `/erp/finance/gst`) | Returns / summaries + ledger GST input/output |
 | Partners | `/erp/partners` | Guides + drivers master, visit counts, search |
@@ -103,10 +112,28 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Group / properties | `/erp/group`, `/erp/properties/*` | Multi-hotel overview + **setup wizard** (identity → rooms/units → rates → outlets/deposits → team/banks) |
 | Night audit | `/erp/night-audit` | Close-day checklist + room-night posting; cron midnight Thimphu; printable pack with POS cash variance table |
 | Guests | `/erp/guests`, `/erp/guests/[id]` | Directory + **profile stay history**; SDF incomplete badge; immigration CSV export |
-| Room rates | `/erp/rates` | **Public package card** (room + meal packages) primary; public room Nu edit + advanced market tiers; season date-range editor; meal plan strip → Settings |
-| Folio | `/erp/folios/[id]` | Payments, void, comp, minibar/amenity quick charge, damage; day-1 post; stay money strip |
-| Settings | `/erp/settings` | Hub + dual mode · staff group nav · `?tab=` deep links (Identity, Tax, Rooms, etc.) |
+| Room rates | `/erp/rates` | **Public package card** primary; market tiers; seasons; meal strip → Settings; **manager-PIN agreed nightly rate** on stay for specials |
+| Settings | `/erp/settings` | Hub + dual mode · staff group nav · `?tab=` deep links (Identity, Tax, Rooms, etc.); floor/map ops assets |
 | **DOT assessment** | `/erp/dot-assessment` | HCS 2024 3★/4★ digital checklist (Trade · BFDA · DOT), entry gate, M/Q/P scores, photos, print pack |
+
+### Shipped since full docs (`fc23144` · 2026-08-06 → 2026-08-10)
+
+| Area | What landed | Key commits / notes |
+|------|-------------|---------------------|
+| **Bar packs + resilience** | Pour packs; Ctrl+K desk search; folio stale check; free-tier middleware / poll / KOT pause | `b29031d`, `85f788e`, `2a8bbce` |
+| **Laundry bag QR** | Scan/login fix; sticker reprint safe | `9f63c25` |
+| **Party reservations** | Party board, rooming list, mobile polish | `ae5bf73` |
+| **Agreed nightly rate** | Manager PIN override on stay | `9e089be` |
+| **Folio money ops** | POS serve-by + item void audit; hotel whole-Nu rate adj; GL adj fixes | `bf05801`…`51ba8cd` |
+| **Desk book unify** | One book modal; tabbed Folio Bill/Collect/Advanced | `a43c41a` |
+| **Public menu + logo** | Immersive menu, GST sync, Nu 0/5 guest, logo clip fix | `b818fe8`…`54aff19` |
+| **Credit promote / rates / print** | Directory→credit promote; public rates; print assets; floor/map | `58ced1f` |
+| **Agent commerce (uncommitted @ docs)** | Guide photo/waive CO gate; seal + Resend pack; open_room_cap; agent AR CTAs; settlement packs page | mig `20260809200000_*`; checklist |
+| **Stay conf numbers (uncommitted @ docs)** | `PS-YYYY-#####` on booking; search RES + Ctrl+K; pack docs | mig `20260810010000_*` |
+| **Business date** | `properties.current_business_date` + CI gate | mig `20260809140000_*` |
+| **Folio POS payor** | Always show POS; guest pay / charge AR / put on agent tab | StayHub DeskSettle |
+
+**Migrations to apply if not production yet:** `20260809140000_property_current_business_date` · `20260809200000_agent_settlement_guide_sign_room_cap` · `20260810010000_booking_confirmation_code` (remote may already have backfill).
 
 ### Calendar / room rack (plan `calendar_drag_booking_64bad6ba`)
 
@@ -136,7 +163,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 
 **Still soft / polish:** stronger SDF/passport incomplete badge.
 
-**v3+ still open (optional):** overbooking buffer, stop-sell markers on rack, rooming-list editor, allotment pickup curves, VIP/repeat-guest intelligence, full keyboard mode — pull only when desk asks.
+**v3+ still open (optional):** overbooking buffer, stop-sell markers on rack, allotment pickup curves, VIP/repeat-guest intelligence, full keyboard mode — pull only when desk asks. **Party board + rooming list shipped.**
 
 ### Platform / integrations
 
@@ -153,9 +180,12 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Booking holds | TTL by source/season; cron `expire-holds` |
 | Cancel / no-show | Frees `room_assignments`; queues ARI when channel mapped; visible on StayHub **Check-in** step (not only Reserve) |
 | **Undo check-in** | `undoCheckIn` — status → `confirmed`, keep room assignment; voids day-1 room/meal/extra_bed only; **blocks** if payments or other charges posted; audit `checkin.undo` |
+| **Booking confirmation #** | `bookings.confirmation_code` → `PS-YYYY-#####` (unique per property); RES `?q=` + Ctrl+K |
+| **Agent settlement** | Guide sign photo/waive · settlement packs · `open_room_cap` · seal/email (Resend) |
+| **Agreed nightly rate** | Manager PIN special rate on booking |
 | Accounting CSV | `/api/erp/export?kind=payments\|expenses\|folio_lines\|immigration\|agent-production\|agent-commission` |
 | Playwright desk smoke | `web/e2e/money-path.spec.ts` — skips without `PLAYWRIGHT_*` secrets |
-| UAT checklist | `docs/UAT-CHECKLIST.md` |
+| UAT | `docs/UAT-CHECKLIST.md` · [FO-AGENT-COMMERCE-CHECKLIST.md](FO-AGENT-COMMERCE-CHECKLIST.md) |
 | Brand assets | `design/brand/` + favicons/PWA icons |
 
 ### StayHub walk-in FO (plan `stayhub_walk-in_ux_4eb64b91` · **shipped 2026-08-06**)
@@ -211,6 +241,14 @@ Spirits / beer share **one inventory ledger** across multiple sell sizes. Checko
 
 ---
 
+## Competitive intel (eZee Absolute)
+
+- Full external product map: [competitive/ezee-absolute-full-map.md](competitive/ezee-absolute-full-map.md)
+- Desk hang-card (eZee → Pelbu clicks): [ops/fo-ezee-to-pelbu-hang-card.md](ops/fo-ezee-to-pelbu-hang-card.md)
+- Local pay-at-end + agent room-cap UAT: [ops/fo-pay-at-end-and-room-cap-uat.md](ops/fo-pay-at-end-and-room-cap-uat.md)
+- FO-parity pass 2026-08-10: header **Biz date**, StayHub soft multi-tab lock, rack context Folio/CI/CO, Ctrl+K folio search
+- Beat eZee non-channel 2026-08-10: StayHub **bill split / extras folio / master** (Advanced); party **bulk CI + collect**; agent dossier → production/commission reports; **DB stay lease**; NA FO flash email; guest WA templates; CI **ID photo**; agent AR void; Wave A drills + Wave D trust docs. Channel still deferred.
+
 ## Competitive gap close (shipped 2026-08-02)
 
 | Item | Where |
@@ -230,7 +268,7 @@ Spirits / beer share **one inventory ledger** across multiple sell sizes. Checko
 
 | Item | Status |
 |------|--------|
-| **Calendar v3+ leftover polish** | Connecting rooms + virtualization **shipped**; optional leftovers (overbooking buffer, stop-sell markers, rooming-list editor, VIP intel, full keyboard) — pull only when desk asks |
+| **Calendar v3+ leftover polish** | Party/rooming **shipped**; optional leftovers (overbooking buffer, stop-sell markers, VIP intel, full keyboard) — pull only when desk asks |
 | **Advanced HR at chain scale** | Weekly rota + publish + overlap conflict **shipped**; biometrics / 200-staff payroll = business residual |
 | **Channex live certification** | Wave 1 desk ARI **shipped**; **ops residual** needs human `CHANNEX_*` — [CHANNEX-CERT.md](CHANNEX-CERT.md) |
 | **Live Pay.bt / bank QR** | Methods + deposit links + HMAC webhook with atomic claim; payment is desk-confirmed until merchant credentials exist |
@@ -294,19 +332,19 @@ Never commit `.env*`.
 | P7 | Night audit, voids/comps, deposits, UAT doc | Done (`close_time` + blockers); provider APIs open |
 | P8+ | Mews pricing parity / Enterprise catalog | Guest loyalty lite shipped; locks/API/SMS/BI residual |
 
-See also: [RELEASE-v1.md](RELEASE-v1.md) · [WHITEBOARD.md](WHITEBOARD.md) · [ERP-AUDIT.md](ERP-AUDIT.md) · [PLATFORM.md](PLATFORM.md) · [PLANS.md](PLANS.md) · [UAT-CHECKLIST.md](UAT-CHECKLIST.md) · [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md) · [FINANCE-UAT.md](FINANCE-UAT.md) · [OPS-RUNBOOK.md](OPS-RUNBOOK.md) · [../AGENTS.md](../AGENTS.md)
+See also: [RELEASE-v1.md](RELEASE-v1.md) · [WHITEBOARD.md](WHITEBOARD.md) · [ERP-AUDIT.md](ERP-AUDIT.md) · [PLATFORM.md](PLATFORM.md) · [PLANS.md](PLANS.md) · [UAT-CHECKLIST.md](UAT-CHECKLIST.md) · [FO-AGENT-COMMERCE-CHECKLIST.md](FO-AGENT-COMMERCE-CHECKLIST.md) · [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md) · [FINANCE-UAT.md](FINANCE-UAT.md) · [OPS-RUNBOOK.md](OPS-RUNBOOK.md) · [../AGENTS.md](../AGENTS.md)
 
 ---
 
 ## Front-desk stay money cycle (FO)
 
-1. **Book / assign rates** — calendar (walk-in: room click → create), fast book, or public `/book`. Room Nu from `room_rates` (`/erp/rates`); meal plan snapshot on booking. **Phone later** allowed for desk walk-ins.
-2. **StayHub** — single-room rack create lands on **Check-in** with room # visible; sticky **Confirm check-in** in footer.
-3. **Check-in** — opens guest folio; by default posts **day-1 room rent** (toggle: Settings → Tax → *Post day-1 room rent at check-in*) and **meal plan** when `meal_plan_amount_btn > 0`. Accidental CI: **Undo check-in** (if folio still simple).
-4. **Post charges** — further nights via **night audit** (cron midnight Thimphu or `/erp/night-audit`). Manual: folio → **Post day-1 room + meals** / **Post room night**.
-5. **Invoice / pay** — collect payment, deposit link, issue tax invoice. Collect **phone before settle** when deferred at book.
-6. **Checkout** when balance is zero (`/erp/check-out`).
+1. **Book / assign rates** — calendar (walk-in: room → create), Fast book modal, or public `/book`. Capture **`PS-…` confirmation** shown on save/pack. Phone later allowed. Manager-PIN agreed rate when special.
+2. **StayHub** — rack walk-in lands **Check-in**; future holds use confirmation pack then StayHub when ready.
+3. **Check-in** — business-date gate if needed; opens folio; day-1 room (+ meal if priced). Room-cap check for agent stays (override audited). Undo if folio still simple.
+4. **In-house / Folio** — **Bill** (All · Room · **POS** — what guest ordered). F&B default **guest pays**; **Charge agent AR** or **Put F&B on agent tab** when agent asks. Room package often agent bill_to on credit.
+5. **Collect** — cash/QR/bank = Collect payment; agent tender = **Charge agent AR** (agent book ↑, guest folio ↓).
+6. **Invoice** — optional fiscal **INV-…** from folio (not auto). Stay conf **PS-…** for ops/search is separate.
+7. **Checkout** — local: pay then leave. Agent: print/sign/upload guide evidence → leave → FO seal/email pack later.
 
-Empty Nu 0 after check-in historically meant no day-1 post + night audit not yet run (FO-01). Fixed 2026-08-02.
+Kitchen meal services from `/erp/kitchen` → POS feed.
 
-Kitchen publishes BF/lunch/dinner covers + menu notes from `/erp/kitchen` → visible on POS as **Kitchen service feed**.

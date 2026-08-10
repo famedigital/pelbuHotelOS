@@ -19,6 +19,8 @@ export type DeskAgentRow = {
   rate_tier: string;
   credit_limit: number;
   credit_used: number;
+  /** Concurrent in-house rooms before next CI blocks. */
+  open_room_cap?: number;
   wants_mou: boolean;
   approved_at: string | null;
   created_at: string;

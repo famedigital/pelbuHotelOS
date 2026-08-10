@@ -28,6 +28,10 @@ export type BookableAgent = {
   company_name: string;
   market: string;
   status: string;
+  /** Sheet mapping: agents | mou_agents | … */
+  rate_tier?: string | null;
+  /** Soft CI room control (default 15). */
+  open_room_cap?: number | null;
 };
 
 const createInitial: CreateDeskAgentState = { ok: false };
@@ -324,10 +328,15 @@ export function AgentPicker({
   }, [agents, extras, creditMode]);
 
   const options = merged.map((a) => {
-    const creditHint =
-      creditMode && a.status !== "approved" && a.status !== "demo"
-        ? "no credit"
-        : null;
+    const isCreditOk =
+      a.status === "approved" || a.status === "demo";
+    const creditHint = creditMode
+      ? isCreditOk
+        ? "credit OK"
+        : a.status === "directory"
+          ? "TCB · needs Enable credit"
+          : "needs Enable credit"
+      : null;
     return {
       value: a.id,
       label: a.company_name,
@@ -336,9 +345,9 @@ export function AgentPicker({
         a.status === "demo"
           ? "demo"
           : a.status === "directory"
-            ? "directory"
+            ? "TCB directory"
             : a.status === "approved"
-              ? null
+              ? "trade partner"
               : a.status,
         creditHint,
       ]

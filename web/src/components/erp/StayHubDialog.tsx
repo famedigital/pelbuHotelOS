@@ -7,9 +7,12 @@ import {
   setCalendarAssignmentLock,
 } from "@/app/actions/erp-calendar";
 import {
+  fetchStayHubCatalog,
   fetchStayHubCheckIn,
   fetchStayHubMoney,
   fetchStayHubSummary,
+  previewStayHubSheetRate,
+  type StayHubCatalogMealPlan,
   type StayHubCheckInPayload,
   type StayHubMoneyPayload,
   type StayHubSummary,
@@ -17,36 +20,36 @@ import {
 import { undoCheckIn } from "@/app/actions/erp-checkin";
 import type { CalendarAgent } from "@/components/erp/CalendarReservationDialog";
 import { AgentPicker } from "@/components/erp/AgentPicker";
-import { AgentNameLink } from "@/components/erp/AgentNameLink";
 import { StaffPicker, type BookableStaff } from "@/components/erp/StaffPicker";
-import { AgentVoucherEmailButton } from "@/components/erp/AgentVoucherEmailButton";
 import { BookingLifecycleActions } from "@/components/erp/BookingLifecycleActions";
 import { CheckInForm, CheckOutForm } from "@/components/erp/CheckInForm";
 import {
   FastBookVoucher,
   type FastBookVoucherData,
 } from "@/components/erp/FastBookVoucher";
-import { FolioPaymentForm } from "@/components/erp/FolioPaymentForm";
-import { FolioRoomPosItemsPanel } from "@/components/erp/FolioRoomPosItemsPanel";
-import {
-  IssueInvoiceButton,
-  PostCheckInChargesForm,
-  PostRoomNightForm,
-} from "@/components/erp/FolioOpsForms";
 import { DeskSettlePanel } from "@/components/erp/DeskSettlePanel";
-import { InhouseTaskQuickForm } from "@/components/erp/InhouseTasksPanel";
+import { GuideEvidencePanel } from "@/components/erp/GuideEvidencePanel";
+import {
+  bookingNeedsGuideCheckoutEvidence,
+  guideEvidenceAllowsLeave,
+} from "@/lib/agents/guide-checkout";
+import { fetchBookingSettlementEvidence } from "@/app/actions/erp-settlement-pack";
 import { RoomNcForm } from "@/components/erp/RoomNcForm";
 import { AgreedRateForm } from "@/components/erp/AgreedRateForm";
 import { GuestRatePromoForm } from "@/components/erp/GuestRatePromoForm";
 import type { RackStay, RackUnit } from "@/components/erp/RoomRackGrid";
-import { StayMoneyCycleLegend } from "@/components/erp/StayMoneyCycleLegend";
 import {
   StayHubFooterBar,
   StayHubHeader,
-  StayHubSummaryCard,
+  StayHubLeftRail,
+  StayHubMobileSteps,
+  StayHubToolTabs,
   StayHubWorkFrame,
+  type StayHubMoreAction,
 } from "@/components/erp/stay-hub/StayHubChrome";
+import { StayHubAdvancedPanel } from "@/components/erp/stay-hub/StayHubAdvancedPanel";
 import { useDebouncedAutoSave } from "@/components/erp/stay-hub/use-debounced-auto-save";
+import { useStayHubConcurrentLock } from "@/components/erp/stay-hub/use-stay-hub-concurrent-lock";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -59,23 +62,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  buildFolioPageHref,
   buildStayHubSteps,
+  canNavigateStayHubStep,
   deskFocusedSteps,
+  previousStayHubPanel,
   recommendStayHubStep,
+  stayHubBackTargetLabel,
   stayHubTerminal,
   type StayHubStepId,
 } from "@/lib/folio/stay-hub-cycle";
 import { panelDescription } from "@/lib/folio/stay-hub-format";
-import { formatBtn } from "@/lib/pricing";
+import { formatGuestBtn } from "@/lib/pricing";
+import { thimphuToday } from "@/lib/erp-lists";
 import { cn } from "@/lib/utils";
-import {
-  CheckIcon,
-  ChevronDownIcon,
-  FileTextIcon,
-  LockIcon,
-  UnlockIcon,
-} from "lucide-react";
-import Link from "next/link";
+import { LockIcon, UnlockIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
@@ -87,6 +88,10 @@ import {
   type ReactNode,
 } from "react";
 import { toast } from "sonner";
+
+type FolioToolTab = "bill" | "collect" | "advanced";
+type DetailsToolTab = "stay" | "guest" | "rate" | "more";
+type CheckInToolTab = "room" | "guest" | "more";
 
 const selectClass =
   "h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] sm:h-9";
@@ -100,6 +105,9 @@ type Draft = {
   phoneLater: boolean;
   contactEmail: string;
   adults: string;
+  children: string;
+  extraBeds: string;
+  mealPlanCode: string;
   guideNumber: string;
   guestOrigin: string;
   source: string;
@@ -145,6 +153,7 @@ function mergeSeedStatus(prevStatus: string, seedStatus: string): string {
 function summaryFromSeed(stay: StayHubSeedStay): StayHubSummary {
   return {
     bookingId: stay.booking_id,
+    confirmationCode: null,
     contactName: stay.contact_name,
     contactPhone: stay.contact_phone,
     contactEmail: stay.contact_email,
@@ -152,12 +161,16 @@ function summaryFromSeed(stay: StayHubSeedStay): StayHubSummary {
     checkIn: stay.check_in,
     checkOut: stay.check_out,
     adults: stay.adults,
+    children: 0,
+    extraBeds: 0,
     rooms: stay.rooms,
     guideNumber: stay.guide_number,
     guestOrigin: stay.guest_origin,
     source: stay.booked_by_role || stay.source,
     agentId: stay.agent_id,
     agentName: stay.agent_name,
+    agentStatus: null,
+    agentMarket: null,
     soldByStaffId: stay.sold_by_staff_id ?? null,
     soldByName: stay.sold_by_name ?? null,
     salesClaimStatus: stay.sales_claim_status ?? null,
@@ -181,6 +194,12 @@ function summaryFromSeed(stay: StayHubSeedStay): StayHubSummary {
     agreedNightlyRateBtn: null,
     agreedRateReason: null,
     mealPlanCode: null,
+    guideSignStatus: null,
+    guideSignPhotoPublicId: null,
+    guideSignWaiveReason: null,
+    confirmMode: "soft",
+    advanceStatus: "none",
+    advanceDueBtn: null,
   };
 }
 
@@ -192,6 +211,9 @@ function draftFromSummary(s: StayHubSummary): Draft {
     phoneLater: !phone.trim(),
     contactEmail: s.contactEmail ?? "",
     adults: String(s.adults),
+    children: String(s.children ?? 0),
+    extraBeds: String(s.extraBeds ?? 0),
+    mealPlanCode: s.mealPlanCode?.trim() || "EP",
     guideNumber: s.guideNumber ?? "",
     guestOrigin: s.guestOrigin ?? "international",
     source: s.source || "reservation",
@@ -268,6 +290,7 @@ export function StayHubDialog({
   onToggleLock,
   parentPending = false,
   onPreferredStepConsumed,
+  onPanelChange,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -282,6 +305,8 @@ export function StayHubDialog({
   onToggleLock?: (stay: StayHubSeedStay) => void;
   parentPending?: boolean;
   onPreferredStepConsumed?: () => void;
+  /** Keep ?step= in sync when staff change rail / panel (stops snap-back). */
+  onPanelChange?: (step: StayHubStepId) => void;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -297,20 +322,115 @@ export function StayHubDialog({
   const [message, setMessage] = useState<string | null>(null);
   const [voucherOpen, setVoucherOpen] = useState(false);
   const [panel, setPanel] = useState<StayHubStepId>("reserve");
+  const [folioTool, setFolioTool] = useState<FolioToolTab>("bill");
+  const [detailsTool, setDetailsTool] = useState<DetailsToolTab>("guest");
+  const [checkInTool, setCheckInTool] = useState<CheckInToolTab>("room");
   const [lockHint, setLockHint] = useState<string | null>(null);
   const [money, setMoney] = useState<StayHubMoneyPayload | null>(null);
   const [checkInPayload, setCheckInPayload] =
     useState<StayHubCheckInPayload | null>(null);
   const [checkInLoading, setCheckInLoading] = useState(false);
+  const [settlementPacks, setSettlementPacks] = useState<
+    Array<{
+      id: string;
+      sealedAt: string;
+      emailSentAt: string | null;
+      emailTo: string | null;
+    }>
+  >([]);
+  const [settlementPrint, setSettlementPrint] = useState<
+    import("@/app/actions/erp-settlement-pack").SettlementPrintPack | null
+  >(null);
+  const [agentEmailHint, setAgentEmailHint] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<
     "idle" | "saving" | "saved" | "error" | null
   >("idle");
+  const [localAgents, setLocalAgents] = useState<CalendarAgent[]>([]);
+  const [localStaff, setLocalStaff] = useState<BookableStaff[]>([]);
+  const [mealPlans, setMealPlans] = useState<StayHubCatalogMealPlan[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [sheetRate, setSheetRate] = useState<Awaited<
+    ReturnType<typeof previewStayHubSheetRate>
+  > | null>(null);
+  const [sheetRatePending, startSheetRate] = useTransition();
   const collectPayRef = useRef<HTMLDivElement | null>(null);
   const postChargesRef = useRef<HTMLDivElement | null>(null);
 
-  const agents = agentsProp;
-  const staff = staffProp;
+  const agents = useMemo(() => {
+    if (localAgents.length > 0) return localAgents;
+    return agentsProp;
+  }, [localAgents, agentsProp]);
+  const staff = useMemo(() => {
+    if (localStaff.length > 0) return localStaff;
+    return staffProp;
+  }, [localStaff, staffProp]);
   const units = unitsProp;
+
+  const { peerHint, forceTakeover } = useStayHubConcurrentLock(
+    bookingId,
+    open,
+  );
+  const railLockHint = peerHint ?? lockHint;
+
+  // Deep link / boards may open StayHub without agents/staff props — load catalog.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setCatalogLoading(true);
+    void fetchStayHubCatalog().then((r) => {
+      if (cancelled) return;
+      setCatalogLoading(false);
+      if (!r.ok) return;
+      setLocalAgents(
+        r.data.agents.map((a) => ({
+          id: a.id,
+          company_name: a.company_name,
+          market: a.market,
+          status: a.status,
+        })),
+      );
+      setLocalStaff(r.data.staff);
+      setMealPlans(r.data.mealPlans);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  // Live sheet rate for Details → Rate (package + tier + season + addons).
+  useEffect(() => {
+    if (!open || !bookingId || !draft) return;
+    if (panel !== "reserve" && panel !== "confirm" && detailsTool !== "rate") {
+      // Still refresh when rate tab or when meal changes while on guest
+    }
+    const want =
+      detailsTool === "rate" ||
+      panel === "reserve" ||
+      panel === "confirm";
+    if (!want && detailsTool !== "guest") return;
+    startSheetRate(async () => {
+      const r = await previewStayHubSheetRate({
+        bookingId,
+        mealPlanCode: draft.mealPlanCode,
+        adults: Number(draft.adults) || 1,
+        children: Number(draft.children) || 0,
+        extraBeds: Number(draft.extraBeds) || 0,
+      });
+      setSheetRate(r);
+    });
+  }, [
+    open,
+    bookingId,
+    draft?.mealPlanCode,
+    draft?.adults,
+    draft?.children,
+    draft?.extraBeds,
+    draft?.source,
+    draft?.agentId,
+    detailsTool,
+    panel,
+    summary?.agreedNightlyRateBtn,
+  ]);
 
   /** Bound to booking id only — never reset panel on summary rehydrate. */
   const sessionBookingIdRef = useRef<string | null>(null);
@@ -342,6 +462,9 @@ export function StayHubDialog({
         setLockHint(null);
         setMoney(null);
         setCheckInPayload(null);
+        setFolioTool("bill");
+        setDetailsTool("guest");
+        setCheckInTool("room");
         setPanel(resolveOpenPanel(s, stepHint, board ?? "auto"));
         onPreferredStepConsumed?.();
       }
@@ -530,6 +653,46 @@ export function StayHubDialog({
     }
   }, [open, bookingId, panel]);
 
+  const refreshSettlementEvidence = useCallback(() => {
+    if (!bookingId) return;
+    void fetchBookingSettlementEvidence(bookingId).then((r) => {
+      if (!r.ok) return;
+      setSettlementPacks(r.data.packs);
+      setAgentEmailHint(r.data.agentEmail);
+      setSettlementPrint(r.data.print);
+      setSummary((prev) =>
+        prev
+          ? {
+              ...prev,
+              guideSignStatus: r.data.guideSignStatus,
+              guideSignPhotoPublicId: r.data.guideSignPhotoPublicId,
+              guideSignWaiveReason: r.data.guideSignWaiveReason,
+              confirmMode: r.data.confirmMode,
+              advanceStatus: r.data.advanceStatus,
+              advanceDueBtn: r.data.advanceDueBtn,
+            }
+          : prev,
+      );
+    });
+  }, [bookingId]);
+
+  useEffect(() => {
+    if (!open || !bookingId) return;
+    if (panel === "check_out" || panel === "stay_money") {
+      refreshSettlementEvidence();
+    }
+  }, [open, bookingId, panel, refreshSettlementEvidence]);
+
+  // Apply preferred panel from URL / openStayHub once (Back to stay / deep link).
+  // Consuming preferred clears it so rail clicks are not overwritten.
+  useEffect(() => {
+    if (!open || !bookingId || !preferredStep) return;
+    setLockHint(null);
+    setPanel(preferredStep);
+    if (preferredStep === "stay_money") setFolioTool("bill");
+    onPreferredStepConsumed?.();
+  }, [open, bookingId, preferredStep, onPreferredStepConsumed]);
+
   useEffect(() => {
     if (!open || !bookingId || !summary) return;
     const st = summary.status;
@@ -549,7 +712,35 @@ export function StayHubDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, bookingId, summary?.status]);
+  }, [open, bookingId, summary?.status, summary?.checkIn, summary?.checkOut]);
+
+  const refreshStayAfterDateChange = useCallback(() => {
+    if (!summary?.bookingId) {
+      router.refresh();
+      return;
+    }
+    void fetchStayHubSummary(summary.bookingId, summary.assignmentId).then(
+      (result) => {
+        if (result.ok) {
+          // Date apply was explicit — take server truth for check-in gate UI
+          draftDirtyRef.current = false;
+          applySummary(result.data, false);
+        }
+      },
+    );
+    if (["pending", "confirmed"].includes(summary.status)) {
+      void fetchStayHubCheckIn(summary.bookingId).then((r) => {
+        if (r.ok) setCheckInPayload(r.data);
+      });
+    }
+    router.refresh();
+  }, [
+    summary?.bookingId,
+    summary?.assignmentId,
+    summary?.status,
+    applySummary,
+    router,
+  ]);
 
   const steps = useMemo(() => {
     if (!summary) return [];
@@ -561,9 +752,21 @@ export function StayHubDialog({
       hasCharges: money?.hasCharges,
       hasInvoice: money?.hasInvoice,
       balanceBtn: money?.balanceBtn ?? summary.folioBalance,
+      // Strip “current” tracks where staff actually are — not leave-ready math.
+      forceCurrent: panel,
     });
     return deskFocusedSteps(full, summary.status);
-  }, [summary, money]);
+  }, [summary, money, panel]);
+
+  const goPanel = useCallback(
+    (id: StayHubStepId) => {
+      setLockHint(null);
+      setPanel(id);
+      if (id === "stay_money") setFolioTool("bill");
+      onPanelChange?.(id);
+    },
+    [onPanelChange],
+  );
 
   const terminal = summary ? stayHubTerminal(summary.status) : null;
 
@@ -580,21 +783,35 @@ export function StayHubDialog({
 
   const handleStepClick = (
     id: StayHubStepId,
-    locked: boolean,
+    _locked: boolean,
     reason?: string,
   ) => {
-    // Allow viewing done/current/previous and stay_money/check_out when in-house
     const step = steps.find((s) => s.id === id);
     const status = summary?.status ?? "";
-    const allowAlways =
-      status === "checked_in" &&
-      (id === "stay_money" || id === "check_out" || id === "reserve");
-    if (locked && !allowAlways && step && !step.done && !step.current) {
-      setLockHint(reason ?? "Complete earlier steps first");
+    const allowed = canNavigateStayHubStep({
+      targetId: id,
+      panel,
+      step,
+      status,
+    });
+    if (!allowed) {
+      setLockHint(
+        reason ?? step?.lockReason ?? "Complete earlier steps first",
+      );
       return;
     }
-    setLockHint(null);
-    setPanel(id);
+    goPanel(id);
+  };
+
+  const backTarget =
+    summary && !terminal ? previousStayHubPanel(panel, summary.status) : null;
+  const backLabel = backTarget
+    ? `Back to ${stayHubBackTargetLabel(backTarget, summary?.status ?? "")}`
+    : null;
+
+  const handleBack = () => {
+    if (!backTarget) return;
+    goPanel(backTarget);
   };
 
   const serializeDraft = useCallback((d: Draft) => JSON.stringify(d), []);
@@ -606,6 +823,9 @@ export function StayHubDialog({
       phoneLater: true,
       contactEmail: "",
       adults: "1",
+      children: "0",
+      extraBeds: "0",
+      mealPlanCode: "EP",
       guideNumber: "",
       guestOrigin: "international",
       source: "reservation",
@@ -625,6 +845,9 @@ export function StayHubDialog({
         contactPhone: d.phoneLater ? "" : d.contactPhone,
         contactEmail: d.contactEmail,
         adults: Number(d.adults) || 1,
+        children: Number(d.children) || 0,
+        extraBeds: Number(d.extraBeds) || 0,
+        mealPlanCode: d.mealPlanCode || "EP",
         guideNumber: d.guideNumber,
         guestOrigin: d.guestOrigin,
         source: d.source,
@@ -634,7 +857,26 @@ export function StayHubDialog({
       });
       if (result.ok) {
         draftDirtyRef.current = false;
-        // Keep StayHub local; refresh calendar when dialog closes
+        setSummary((prev) =>
+          prev
+            ? {
+                ...prev,
+                contactName: d.contactName,
+                contactPhone: d.phoneLater ? "" : d.contactPhone,
+                contactEmail: d.contactEmail,
+                adults: Number(d.adults) || 1,
+                children: Number(d.children) || 0,
+                extraBeds: Number(d.extraBeds) || 0,
+                mealPlanCode: d.mealPlanCode || "EP",
+                guideNumber: d.guideNumber || null,
+                guestOrigin: d.guestOrigin,
+                source: d.source,
+                agentId: d.agentId || null,
+                soldByStaffId: d.soldByStaffId || null,
+                notes: d.notes || null,
+              }
+            : prev,
+        );
       }
       return {
         ok: Boolean(result.ok),
@@ -695,6 +937,13 @@ export function StayHubDialog({
     router,
   ]);
 
+  useEffect(() => {
+    const bal = Number(money?.balanceBtn ?? summary?.folioBalance ?? 0);
+    if (bal <= 0.5) {
+      setFolioTool((t) => (t === "collect" ? "bill" : t));
+    }
+  }, [money?.balanceBtn, summary?.folioBalance]);
+
   if (!open || !bookingId) return null;
 
   const updateDraft = <K extends keyof Draft>(key: K, value: Draft[K]) => {
@@ -703,22 +952,28 @@ export function StayHubDialog({
   };
 
   const dues = Number(money?.balanceBtn ?? summary?.folioBalance ?? 0);
+  const balanceOpen = dues > 0.5;
   const titleName = summary?.contactName ?? seedStay?.contact_name ?? "Stay";
   const folioId = money?.folioId || summary?.folioId || null;
   const panelLabel = steps.find((s) => s.id === panel)?.label ?? "Stay";
   const isInHouse = summary?.status === "checked_in";
-  const showContextRail =
-    Boolean(summary) &&
-    (isInHouse || panel === "stay_money" || panel === "check_out");
+  const isDetailsPanel = panel === "reserve" || panel === "confirm";
+  const isCheckInPanel = panel === "arrival" || panel === "check_in";
 
-  const scrollToCollect = () => {
-    collectPayRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const openCollect = () => {
+    setPanel("stay_money");
+    setFolioTool("collect");
+    onPanelChange?.("stay_money");
   };
-  const scrollToPostCharges = () => {
-    postChargesRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
+  const openBill = () => {
+    setPanel("stay_money");
+    setFolioTool("bill");
+    onPanelChange?.("stay_money");
+  };
+  const openAdvanced = () => {
+    setPanel("stay_money");
+    setFolioTool("advanced");
+    onPanelChange?.("stay_money");
   };
 
   const handleClose = () => {
@@ -740,6 +995,7 @@ export function StayHubDialog({
           applySummary(next.data, true, "check_in");
         }
         setPanel("check_in");
+        setCheckInTool("room");
         setMoney(null);
         router.refresh();
       } else {
@@ -748,15 +1004,22 @@ export function StayHubDialog({
     });
   };
 
+  const refreshSummary = () => {
+    if (!summary) return;
+    void fetchStayHubSummary(summary.bookingId, summary.assignmentId).then(
+      (result) => {
+        if (result.ok) applySummary(result.data, false);
+      },
+    );
+    router.refresh();
+  };
+
   const primaryCta = (() => {
     if (!summary) return null;
 
-    // Guest fields auto-save — no Save button on reserve/confirm
-    if (panel === "reserve" || panel === "confirm") {
-      return null;
-    }
+    if (isDetailsPanel) return null;
 
-    if (panel === "check_in" || panel === "arrival") {
+    if (isCheckInPanel) {
       if (["pending", "confirmed"].includes(summary.status)) {
         if (checkInLoading || !checkInPayload) {
           return (
@@ -785,12 +1048,11 @@ export function StayHubDialog({
         return (
           <Button
             type="button"
-            variant="outline"
+            variant="citrus"
             className="min-h-11 flex-1 sm:flex-none"
-            disabled={busy}
-            onClick={handleUndoCheckIn}
+            onClick={() => goPanel("stay_money")}
           >
-            Undo check-in
+            Open folio
           </Button>
         );
       }
@@ -798,78 +1060,111 @@ export function StayHubDialog({
     }
 
     if (panel === "stay_money" && isInHouse) {
-      const undoBtn = (
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-11 flex-1 sm:flex-none"
-          disabled={busy}
-          onClick={handleUndoCheckIn}
-        >
-          Undo check-in
-        </Button>
-      );
+      if (folioTool === "collect") return null;
       if (folioId && !money?.hasCharges) {
         return (
-          <>
-            {undoBtn}
-            <Button
-              type="button"
-              variant="citrus"
-              className="min-h-11 flex-1 sm:flex-none"
-              onClick={scrollToPostCharges}
-            >
-              Post charges
-            </Button>
-          </>
-        );
-      }
-      if (dues > 0.5) {
-        return (
-          <>
-            {undoBtn}
-            <Button
-              type="button"
-              variant="citrus"
-              className="min-h-11 flex-1 sm:flex-none"
-              onClick={scrollToCollect}
-              disabled={!folioId}
-            >
-              Collect payment
-            </Button>
-          </>
-        );
-      }
-      return (
-        <>
-          {undoBtn}
           <Button
             type="button"
             variant="citrus"
             className="min-h-11 flex-1 sm:flex-none"
-            onClick={() => setPanel("check_out")}
+            onClick={openBill}
           >
-            Check out
+            Post charges
           </Button>
-        </>
-      );
-    }
-
-    if (panel === "check_out" && isInHouse && dues > 0.5) {
+        );
+      }
+      if (balanceOpen) {
+        return (
+          <Button
+            type="button"
+            variant="citrus"
+            className="min-h-11 flex-1 sm:flex-none"
+            onClick={openCollect}
+            disabled={!folioId}
+          >
+            {summary.agentId ? "Settle / agent AR" : "Collect payment"}
+          </Button>
+        );
+      }
       return (
         <Button
           type="button"
           variant="citrus"
           className="min-h-11 flex-1 sm:flex-none"
-          onClick={() => setPanel("stay_money")}
+          onClick={() => goPanel("check_out")}
         >
-          Collect payment
+          Check out
+        </Button>
+      );
+    }
+
+    if (panel === "check_out" && isInHouse && balanceOpen) {
+      return (
+        <Button
+          type="button"
+          variant="citrus"
+          className="min-h-11 flex-1 sm:flex-none"
+          onClick={openCollect}
+        >
+          {summary.agentId ? "Settle due first" : "Collect payment first"}
         </Button>
       );
     }
 
     return null;
   })();
+
+  const moreActions: StayHubMoreAction[] = [];
+  if (
+    summary &&
+    isInHouse &&
+    (panel === "stay_money" ||
+      panel === "check_out" ||
+      panel === "check_in" ||
+      panel === "arrival")
+  ) {
+    moreActions.push({
+      key: "undo-ci",
+      label: "Undo check-in",
+      disabled: busy,
+      destructive: true,
+      onSelect: handleUndoCheckIn,
+    });
+  }
+  if (panel === "stay_money") {
+    moreActions.push({
+      key: "advanced",
+      label: "Advanced",
+      onSelect: openAdvanced,
+    });
+  }
+  if (folioId) {
+    const receiptHref = buildFolioPageHref({
+      folioId,
+      pathSuffix: "/receipt",
+    });
+    moreActions.push({
+      key: "receipt",
+      label: "Receipt (new tab)",
+      onSelect: () => {
+        window.open(receiptHref, "_blank", "noopener,noreferrer");
+      },
+    });
+    moreActions.push({
+      key: "folio-page",
+      label: "Open folio page",
+      onSelect: () => {
+        const href = buildFolioPageHref({
+          folioId,
+          stayReturn: true,
+          bookingId: summary?.bookingId,
+          panel: "stay_money",
+          board,
+        });
+        window.open(href, "_blank", "noopener,noreferrer");
+      },
+    });
+  }
 
   const headerAlerts: Array<{
     key: string;
@@ -887,13 +1182,6 @@ export function StayHubDialog({
     if (summary.isLocked) {
       headerAlerts.push({ key: "lock", label: "Room locked", tone: "warn" });
     }
-    if (dues > 0.5) {
-      headerAlerts.push({
-        key: "dues",
-        label: `Dues ${formatBtn(dues)}`,
-        tone: "warn",
-      });
-    }
     if (summary.sdfIncomplete) {
       headerAlerts.push({
         key: "sdf",
@@ -903,441 +1191,748 @@ export function StayHubDialog({
     }
   }
 
+  const detailsTabs = [
+    { id: "stay", label: "Stay" },
+    { id: "guest", label: "Guest" },
+    { id: "rate", label: "Rate" },
+    { id: "more", label: "More" },
+  ];
+  const checkInTabs = [
+    { id: "room", label: "Room" },
+    { id: "guest", label: "Guest" },
+    { id: "more", label: "More" },
+  ];
+  const folioTabs = [
+    { id: "bill", label: "Bill" },
+    ...(balanceOpen
+      ? [
+          {
+            id: "collect",
+            label: summary?.agentId ? "Settle" : "Collect",
+          },
+        ]
+      : []),
+    { id: "advanced", label: "Advanced" },
+  ];
+
+  const toolTabsNode = (() => {
+    if (isDetailsPanel) {
+      return (
+        <StayHubToolTabs
+          tabs={detailsTabs}
+          activeId={detailsTool}
+          onChange={(id) => setDetailsTool(id as DetailsToolTab)}
+        />
+      );
+    }
+    if (isCheckInPanel) {
+      return (
+        <StayHubToolTabs
+          tabs={checkInTabs}
+          activeId={checkInTool}
+          onChange={(id) => setCheckInTool(id as CheckInToolTab)}
+        />
+      );
+    }
+    if (panel === "stay_money") {
+      const active =
+        !balanceOpen && folioTool === "collect" ? "bill" : folioTool;
+      return (
+        <StayHubToolTabs
+          tabs={folioTabs}
+          activeId={active}
+          onChange={(id) => setFolioTool(id as FolioToolTab)}
+        />
+      );
+    }
+    return null;
+  })();
+
+  const navProps = {
+    steps,
+    panel,
+    terminal,
+    onStepClick: handleStepClick,
+    canNavigateStep: (id: StayHubStepId, step: (typeof steps)[number]) =>
+      canNavigateStayHubStep({
+        targetId: id,
+        panel,
+        step,
+        status: summary?.status ?? "",
+      }),
+  };
+
+  const onMoneyChanged = () => {
+    if (!summary) return;
+    void fetchStayHubMoney(summary.bookingId).then((r) => {
+      if (r.ok) setMoney(r.data);
+    });
+    router.refresh();
+  };
+
+  const advancedExtra =
+    summary && folioId ? (
+      <StayHubAdvancedPanel
+        folioId={folioId}
+        masterCandidates={money?.masterCandidates ?? []}
+        onRefresh={refreshSummary}
+        onOpenVoucher={() => setVoucherOpen(true)}
+        booking={{
+          bookingId: summary.bookingId,
+          assignmentId: summary.assignmentId,
+          chargeable: summary.chargeable,
+          ncReasonCode: summary.ncReasonCode,
+          roomNcReasons: summary.roomNcReasons,
+          roomLabel: summary.roomLabel,
+          agreedNightlyRateBtn: summary.agreedNightlyRateBtn,
+          agreedRateReason: summary.agreedRateReason,
+          mealPlanCode: summary.mealPlanCode,
+          contactEmail: summary.contactEmail,
+          contactName: summary.contactName,
+          contactPhone: summary.contactPhone,
+          confirmationCode: summary.confirmationCode,
+          checkOut: summary.checkOut,
+          agentId: summary.agentId,
+          checkIn: summary.checkIn,
+        }}
+      />
+    ) : null;
+
   return (
     <>
-      <Dialog open={open} onOpenChange={(next) => {
-        if (!next) router.refresh();
-        onOpenChange(next);
-      }}>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!next) router.refresh();
+          onOpenChange(next);
+        }}
+      >
         <DialogContent
           showCloseButton
           className={cn(
             "erp flex flex-col gap-0 overflow-hidden p-0",
-            // Phone: full viewport sheet
-            "top-auto bottom-0 left-0 right-0 h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 rounded-none border-0",
+            "isolate bg-background shadow-2xl",
+            "top-auto bottom-0 left-0 right-0 z-[60] h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 rounded-none border-0",
             "data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
-            // Tablet+
-            "md:top-[50%] md:bottom-auto md:left-[50%] md:right-auto md:h-auto md:max-h-[90vh] md:w-full md:max-w-3xl md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-lg md:border",
-            "lg:max-w-4xl",
+            "md:top-[50%] md:bottom-auto md:left-[50%] md:right-auto md:h-auto md:max-h-[min(92vh,880px)] md:w-full md:max-w-5xl md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-lg md:border",
+            "lg:max-w-6xl",
             "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
           )}
         >
           <DialogTitle className="sr-only">
             Stay hub · {titleName}
           </DialogTitle>
-          {/* —— A. Sticky header chrome —— */}
-          <div className="contents">
-            <StayHubHeader
-              guestName={titleName}
-              status={summary?.status}
-              roomLabel={summary?.roomLabel}
-              roomTypeName={summary?.roomTypeName}
-              checkIn={summary?.checkIn}
-              checkOut={summary?.checkOut}
-              bookingId={summary?.bookingId}
-              alerts={headerAlerts}
-              steps={steps}
-              panel={panel}
-              terminal={terminal}
-              saveStatus={saveStatus}
-              lockHint={lockHint}
-              onStepClick={handleStepClick}
-            />
-          </div>
 
-          {/* —— B. Scrollable work area —— */}
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3 md:px-5 md:py-4">
-            {loadError ? (
-              <p className="text-sm text-destructive">{loadError}</p>
-            ) : !summary || !draft ? (
-              <p className="text-sm text-muted-foreground">Loading stay…</p>
-            ) : (
-              <div
-                className={cn(
-                  showContextRail &&
-                    "md:grid md:grid-cols-[minmax(0,12rem)_minmax(0,1fr)] md:items-start md:gap-4 lg:grid-cols-[minmax(0,13.5rem)_minmax(0,1fr)]",
-                )}
-              >
-                {showContextRail ? (
-                  <StayHubSummaryCard
-                    balanceDue={dues}
-                    agentId={money?.agentId || summary.agentId}
-                    agentName={money?.agentName || summary.agentName}
-                    paymentMode={money?.paymentMode ?? summary.paymentMode}
-                    folioId={folioId}
-                    roomLabel={summary.roomLabel}
-                    roomTypeName={summary.roomTypeName}
-                    nextAction={
-                      panel === "check_out"
-                        ? dues > 0.5
-                          ? "Settle before check-out"
-                          : "Complete departure"
-                        : !folioId
-                          ? "Folio opens at check-in"
-                          : !money?.hasCharges
-                            ? "Post room / day charges"
-                            : dues > 0.5
-                              ? "Collect open balance"
-                              : "Ready for check-out"
+          {/* Mobile compact identity — desktop lives in left rail */}
+          <StayHubHeader
+            guestName={titleName}
+            status={summary?.status}
+            roomLabel={summary?.roomLabel}
+            roomTypeName={summary?.roomTypeName}
+            checkIn={summary?.checkIn}
+            checkOut={summary?.checkOut}
+            bookingId={summary?.bookingId}
+            confirmationCode={summary?.confirmationCode}
+            agentName={summary?.agentName}
+            paymentMode={summary?.paymentMode}
+            alerts={headerAlerts}
+            terminal={terminal}
+            saveStatus={saveStatus}
+            lockHint={railLockHint}
+            onForceLock={
+              railLockHint
+                ? () => {
+                    void forceTakeover("Manager forced stay lease from StayHub");
+                  }
+                : undefined
+            }
+            backLabel={backLabel}
+            onBack={backTarget ? handleBack : undefined}
+            dueChipBtn={balanceOpen ? dues : null}
+          />
+
+          <StayHubMobileSteps {...navProps} />
+
+          <div className="flex min-h-0 flex-1 overflow-hidden">
+            <StayHubLeftRail
+              identity={{
+                guestName: titleName,
+                status: summary?.status,
+                roomLabel: summary?.roomLabel,
+                roomTypeName: summary?.roomTypeName,
+                checkIn: summary?.checkIn,
+                checkOut: summary?.checkOut,
+                bookingId: summary?.bookingId,
+                confirmationCode: summary?.confirmationCode,
+                agentName: summary?.agentName,
+                agentStatus:
+                  summary?.agentStatus ?? money?.agentStatus ?? null,
+                paymentMode: summary?.paymentMode ?? money?.paymentMode,
+                alerts: headerAlerts,
+                terminal,
+                saveStatus,
+                lockHint: railLockHint,
+                onForceLock: railLockHint
+                  ? () => {
+                      void forceTakeover(
+                        "Manager forced stay lease from StayHub",
+                      );
                     }
-                  />
-                ) : null}
+                  : undefined,
+                backLabel,
+                onBack: backTarget ? handleBack : undefined,
+                dueChipBtn: balanceOpen ? dues : null,
+              }}
+              railActions={
+                balanceOpen &&
+                panel === "stay_money" &&
+                folioTool !== "collect" ? (
+                  <button
+                    type="button"
+                    onClick={() => openCollect()}
+                    className="inline-flex w-full items-center justify-center rounded-md bg-citrus px-2 text-[11px] font-semibold text-citrus-foreground"
+                  >
+                    Settle
+                  </button>
+                ) : balanceOpen && panel === "check_out" ? (
+                  <button
+                    type="button"
+                    onClick={() => openCollect()}
+                    className="inline-flex w-full items-center justify-center rounded-md border border-input bg-background px-2 text-[11px] font-semibold"
+                  >
+                    Collect on Folio
+                  </button>
+                ) : null
+              }
+              {...navProps}
+            />
 
+            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2 md:px-4 md:py-3">
+              {loadError ? (
+                <p className="text-sm text-destructive">{loadError}</p>
+              ) : !summary || !draft ? (
+                <p className="text-sm text-muted-foreground">Loading stay…</p>
+              ) : (
                 <StayHubWorkFrame
                   title={panelLabel}
                   description={panelDescription(panel)}
+                  dense={panel === "stay_money" || panel === "check_out"}
+                  tools={toolTabsNode}
                 >
-                <div className="min-w-0 space-y-4">
-                  {(panel === "reserve" || panel === "confirm") && (
-                    <div className="space-y-4">
-                      {panel === "confirm" &&
-                      (summary.status === "held" ||
-                        summary.status === "pending") ? (
-                        <Callout tone="amber" title="Hold / confirmation pending">
-                          Confirm token via lifecycle actions below, then
-                          continue to arrival docs.
-                        </Callout>
-                      ) : null}
+                  <div className="min-w-0 space-y-2">
+                    {/* Details — Stay | Guest | Rate | More */}
+                    {isDetailsPanel ? (
+                      <div className="space-y-2">
+                        {panel === "confirm" &&
+                        (summary.status === "held" ||
+                          summary.status === "pending") ? (
+                          <Callout
+                            tone="amber"
+                            title="Hold / confirmation pending"
+                          >
+                            Confirm token via lifecycle actions, then continue
+                            to check-in.
+                          </Callout>
+                        ) : null}
 
-                      <WorkSection title="Guest identity">
-                        <GuestIdentityFields
-                          draft={draft}
-                          agents={agents}
-                          staff={staff}
-                          salesClaimStatus={summary.salesClaimStatus}
-                          onUpdate={updateDraft}
-                        />
-                        <p className="mt-2 text-[11px] text-muted-foreground">
-                          Changes save automatically as you type.
-                        </p>
-                      </WorkSection>
-
-                      {summary.assignmentId ? (
-                        <WorkSection title="Stay dates">
-                          <StayDatesAndSplit
-                            summary={summary}
-                            checkIn={checkIn}
-                            checkOut={checkOut}
-                            setCheckIn={(v) => {
-                              draftDirtyRef.current = true;
-                              setCheckIn(v);
-                            }}
-                            setCheckOut={(v) => {
-                              draftDirtyRef.current = true;
-                              setCheckOut(v);
-                            }}
-                            splitDate={splitDate}
-                            setSplitDate={setSplitDate}
-                            splitUnitId={splitUnitId}
-                            setSplitUnitId={setSplitUnitId}
-                            sameTypeUnits={sameTypeUnits}
-                            busy={busy}
-                            seedStay={seedStay}
-                            onToggleLock={onToggleLock}
-                            onMessage={setMessage}
-                            onRefresh={() => router.refresh()}
-                            startTransition={startTransition}
-                          />
-                        </WorkSection>
-                      ) : null}
-
-                      {summary.assignmentId ? (
-                        <WorkSection title="Room NC">
-                          <RoomNcForm
-                            assignmentId={summary.assignmentId}
-                            chargeable={summary.chargeable}
-                            ncReasonCode={summary.ncReasonCode}
-                            reasons={summary.roomNcReasons}
-                            roomLabel={summary.roomLabel}
-                            onSuccess={() => {
-                              void fetchStayHubSummary(
-                                summary.bookingId,
-                                summary.assignmentId,
-                              ).then((result) => {
-                                if (result.ok) applySummary(result.data, false);
-                              });
-                            }}
-                          />
-                        </WorkSection>
-                      ) : null}
-
-                      <WorkSection title="Agreed rate">
-                        <AgreedRateForm
-                          bookingId={summary.bookingId}
-                          currentRateBtn={summary.agreedNightlyRateBtn}
-                          currentReason={summary.agreedRateReason}
-                          mealPlanCode={summary.mealPlanCode}
-                          roomLabel={summary.roomLabel}
-                          onSuccess={() => {
-                            void fetchStayHubSummary(
-                              summary.bookingId,
-                              summary.assignmentId,
-                            ).then((result) => {
-                              if (result.ok) applySummary(result.data, false);
-                            });
-                            router.refresh();
-                          }}
-                        />
-                      </WorkSection>
-
-                      <WorkSection title="Guest rate code">
-                        <GuestRatePromoForm
-                          bookingId={summary.bookingId}
-                          defaultNightlyRateBtn={summary.agreedNightlyRateBtn}
-                          defaultEmail={summary.contactEmail}
-                          guestName={summary.contactName}
-                          onSuccess={() => {
-                            void fetchStayHubSummary(
-                              summary.bookingId,
-                              summary.assignmentId,
-                            ).then((result) => {
-                              if (result.ok) applySummary(result.data, false);
-                            });
-                            router.refresh();
-                          }}
-                        />
-                      </WorkSection>
-
-                      {!terminal ? (
-                        <WorkSection title="Cancel / no-show">
-                          <BookingLifecycleActions
-                            bookingId={summary.bookingId}
-                            status={summary.status}
-                          />
-                        </WorkSection>
-                      ) : null}
-                    </div>
-                  )}
-
-                  {(panel === "arrival" || panel === "check_in") && (
-                    <div className="space-y-4">
-                      {!terminal &&
-                      ["pending", "held", "confirmed", "checked_in"].includes(
-                        summary.status,
-                      ) ? (
-                        <WorkSection title="Cancel / no-show">
-                          <BookingLifecycleActions
-                            bookingId={summary.bookingId}
-                            status={summary.status}
-                          />
-                        </WorkSection>
-                      ) : null}
-
-                      {(summary.contactPhone ?? draft?.contactPhone ?? "")
-                        .trim() === "" &&
-                      ["pending", "confirmed"].includes(summary.status) ? (
-                        <Callout tone="muted" title="Phone not collected">
-                          Walk-in can check in with name only. Collect phone
-                          before settle when possible.
-                        </Callout>
-                      ) : null}
-
-                      <WorkSection
-                        title={
-                          panel === "arrival" ? "Arrival readiness" : "Check-in"
-                        }
-                      >
-                        {["pending", "confirmed"].includes(summary.status) ? (
-                          checkInLoading ? (
-                            <p className="text-sm text-muted-foreground">
-                              Loading check-in form…
-                            </p>
-                          ) : checkInPayload ? (
-                            <CheckInForm
-                              key={`${summary.bookingId}-${checkInPayload.booking.adults}-${draft?.adults ?? ""}`}
-                              booking={{
-                                ...checkInPayload.booking,
-                                adults: Math.max(
-                                  1,
-                                  Number(draft?.adults) ||
-                                    checkInPayload.booking.adults ||
-                                    1,
-                                ),
-                              }}
-                              guides={checkInPayload.guides}
-                              drivers={checkInPayload.drivers}
-                              slots={checkInPayload.slots}
-                              units={checkInPayload.units}
-                              embedded
-                              onCheckedIn={handleCheckedIn}
+                        {detailsTool === "guest" ? (
+                          <WorkSection title="Guest identity">
+                            <GuestIdentityFields
+                              draft={draft}
+                              agents={agents}
+                              staff={staff}
+                              mealPlans={mealPlans}
+                              catalogLoading={catalogLoading}
+                              salesClaimStatus={summary.salesClaimStatus}
+                              onUpdate={updateDraft}
                             />
-                          ) : (
-                            <p className="text-sm text-muted-foreground">
-                              Could not load check-in form for this stay.
+                            <p className="mt-1.5 text-[11px] text-muted-foreground">
+                              Saves automatically as you type.
                             </p>
-                          )
-                        ) : summary.status === "checked_in" ? (
-                          <p className="text-sm text-muted-foreground">
-                            Already checked in. Continue on Stay / Money or
-                            Check-out. Use Undo check-in if this was a mistake
-                            and the folio is still simple.
-                          </p>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">
-                            Check-in not available for status{" "}
-                            {summary.status.replace(/_/g, " ")}.
-                          </p>
-                        )}
-                      </WorkSection>
-                    </div>
-                  )}
+                          </WorkSection>
+                        ) : null}
 
-                  {(panel === "stay_money" || panel === "check_out") && (
-                    <div className="space-y-4">
-                      <DeskSettlePanel
-                        bookingId={summary.bookingId}
-                        status={summary.status}
-                        money={money}
-                        checkIn={summary.checkIn}
-                        earlyCheckoutFeeBtn={summary.earlyCheckoutFeeBtn}
-                        lateCheckoutFeeBtn={summary.lateCheckoutFeeBtn}
-                        hasInvoice={Boolean(money?.hasInvoice)}
-                        onMoneyChanged={() => {
-                          void fetchStayHubMoney(summary.bookingId).then((r) => {
-                            if (r.ok) setMoney(r.data);
-                          });
-                          router.refresh();
-                        }}
-                        onCheckedOut={() => {
-                          void fetchStayHubSummary(
-                            summary.bookingId,
-                            summary.assignmentId,
-                          ).then((result) => {
-                            if (result.ok) applySummary(result.data, false);
-                          });
-                          router.refresh();
-                        }}
-                      />
-                      {isInHouse ? (
-                        <details className="group rounded-lg border bg-muted/15">
-                          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2.5 text-sm font-medium select-none [&::-webkit-details-marker]:hidden">
-                            <span>More · rate, NC, promo, tasks</span>
-                            <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
-                          </summary>
-                          <div className="space-y-4 border-t px-3 py-3">
-                            {summary.assignmentId ? (
-                              <WorkSection title="Room NC">
-                                <RoomNcForm
-                                  assignmentId={summary.assignmentId}
-                                  chargeable={summary.chargeable}
-                                  ncReasonCode={summary.ncReasonCode}
-                                  reasons={summary.roomNcReasons}
-                                  roomLabel={summary.roomLabel}
-                                  onSuccess={() => {
-                                    void fetchStayHubSummary(
-                                      summary.bookingId,
-                                      summary.assignmentId,
-                                    ).then((result) => {
-                                      if (result.ok) applySummary(result.data, false);
-                                    });
-                                  }}
-                                />
-                              </WorkSection>
-                            ) : null}
-                            <WorkSection title="Agreed rate">
+                        {detailsTool === "stay" && summary.assignmentId ? (
+                          <WorkSection title="Stay dates">
+                            <StayDatesAndSplit
+                              summary={summary}
+                              checkIn={checkIn}
+                              checkOut={checkOut}
+                              setCheckIn={(v) => {
+                                draftDirtyRef.current = true;
+                                setCheckIn(v);
+                              }}
+                              setCheckOut={(v) => {
+                                draftDirtyRef.current = true;
+                                setCheckOut(v);
+                              }}
+                              splitDate={splitDate}
+                              setSplitDate={setSplitDate}
+                              splitUnitId={splitUnitId}
+                              setSplitUnitId={setSplitUnitId}
+                              sameTypeUnits={sameTypeUnits}
+                              busy={busy}
+                              seedStay={seedStay}
+                              onToggleLock={onToggleLock}
+                              onMessage={setMessage}
+                              onRefresh={refreshStayAfterDateChange}
+                              startTransition={startTransition}
+                            />
+                          </WorkSection>
+                        ) : null}
+
+                        {detailsTool === "stay" && !summary.assignmentId ? (
+                          <p className="text-xs text-muted-foreground">
+                            No room assignment yet — dates locked after
+                            assignment.
+                          </p>
+                        ) : null}
+
+                        {detailsTool === "rate" ? (
+                          <WorkSection title="Package & rate">
+                            <StayHubSheetRatePanel
+                              draft={draft}
+                              mealPlans={mealPlans}
+                              sheetRate={sheetRate}
+                              sheetRatePending={sheetRatePending}
+                              summary={summary}
+                              onUpdate={updateDraft}
+                            />
+                            <div className="mt-4 border-t pt-3">
+                              <p className="mb-2 text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                                Custom nightly (exception)
+                              </p>
+                              <p className="mb-2 text-xs text-muted-foreground">
+                                Only use when negotiated off the sheet. Manager
+                                PIN required.
+                              </p>
                               <AgreedRateForm
                                 bookingId={summary.bookingId}
                                 currentRateBtn={summary.agreedNightlyRateBtn}
                                 currentReason={summary.agreedRateReason}
-                                mealPlanCode={summary.mealPlanCode}
+                                mealPlanCode={
+                                  draft?.mealPlanCode ?? summary.mealPlanCode
+                                }
                                 roomLabel={summary.roomLabel}
-                                onSuccess={() => {
-                                  void fetchStayHubSummary(
-                                    summary.bookingId,
-                                    summary.assignmentId,
-                                  ).then((result) => {
-                                    if (result.ok) applySummary(result.data, false);
-                                  });
-                                  router.refresh();
-                                }}
+                                onSuccess={refreshSummary}
                               />
-                            </WorkSection>
-                            <WorkSection title="Guest rate code">
-                              <GuestRatePromoForm
-                                bookingId={summary.bookingId}
-                                defaultNightlyRateBtn={summary.agreedNightlyRateBtn}
-                                defaultEmail={summary.contactEmail}
-                                guestName={summary.contactName}
-                                onSuccess={() => {
-                                  void fetchStayHubSummary(
-                                    summary.bookingId,
-                                    summary.assignmentId,
-                                  ).then((result) => {
-                                    if (result.ok) applySummary(result.data, false);
-                                  });
-                                  router.refresh();
-                                }}
-                              />
-                            </WorkSection>
-                            {folioId ? (
-                              <WorkSection title="Post room night">
-                                <PostRoomNightForm
-                                  folioId={folioId}
-                                  defaultDate={summary.checkIn}
+                            </div>
+                          </WorkSection>
+                        ) : null}
+
+                        {detailsTool === "more" ? (
+                          <div className="space-y-2">
+                            {summary.assignmentId ? (
+                              <>
+                                <WorkSection title="Room NC">
+                                  <RoomNcForm
+                                    assignmentId={summary.assignmentId}
+                                    chargeable={summary.chargeable}
+                                    ncReasonCode={summary.ncReasonCode}
+                                    reasons={summary.roomNcReasons}
+                                    roomLabel={summary.roomLabel}
+                                    onSuccess={refreshSummary}
+                                  />
+                                </WorkSection>
+                                <WorkSection title="Guest rate code">
+                                  <GuestRatePromoForm
+                                    bookingId={summary.bookingId}
+                                    defaultNightlyRateBtn={
+                                      summary.agreedNightlyRateBtn
+                                    }
+                                    defaultEmail={summary.contactEmail}
+                                    guestName={summary.contactName}
+                                    onSuccess={refreshSummary}
+                                  />
+                                </WorkSection>
+                              </>
+                            ) : null}
+                            {!terminal ? (
+                              <WorkSection title="Cancel / no-show">
+                                <BookingLifecycleActions
+                                  bookingId={summary.bookingId}
+                                  status={summary.status}
                                 />
                               </WorkSection>
                             ) : null}
-                            <WorkSection title="In-house task">
-                              <InhouseTaskQuickForm bookingId={summary.bookingId} />
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    {/* Check-in — Room | Guest | More */}
+                    {isCheckInPanel ? (
+                      <div className="space-y-2">
+                        {checkInTool === "guest" ? (
+                          <div className="space-y-2">
+                            {(summary.contactPhone ?? draft?.contactPhone ?? "")
+                              .trim() === "" &&
+                            ["pending", "confirmed"].includes(
+                              summary.status,
+                            ) ? (
+                              <Callout
+                                tone="muted"
+                                title="Phone not collected"
+                              >
+                                Walk-in can check in with name only. Collect
+                                phone before settle when possible.
+                              </Callout>
+                            ) : null}
+                            <WorkSection title="Guest snapshot">
+                              <GuestIdentityFields
+                                draft={draft}
+                                agents={agents}
+                                staff={staff}
+                                mealPlans={mealPlans}
+                                catalogLoading={catalogLoading}
+                                salesClaimStatus={summary.salesClaimStatus}
+                                onUpdate={updateDraft}
+                              />
                             </WorkSection>
-                            <WorkSection title="Agent voucher">
-                              {summary.agentId ? (
-                                <div className="flex flex-wrap gap-2">
-                                  <AgentVoucherEmailButton bookingId={summary.bookingId} />
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    className="min-h-11"
-                                    onClick={() => setVoucherOpen(true)}
-                                  >
-                                    Print voucher
-                                  </Button>
-                                </div>
+                          </div>
+                        ) : null}
+
+                        {checkInTool === "more" ? (
+                          <div className="space-y-2">
+                            {!terminal &&
+                            [
+                              "pending",
+                              "held",
+                              "confirmed",
+                              "checked_in",
+                            ].includes(summary.status) ? (
+                              <WorkSection title="Cancel / no-show">
+                                <BookingLifecycleActions
+                                  bookingId={summary.bookingId}
+                                  status={summary.status}
+                                />
+                              </WorkSection>
+                            ) : null}
+                            {["pending", "confirmed"].includes(
+                              summary.status,
+                            ) ? (
+                              <WorkSection title="Agreed nightly rate">
+                                <AgreedRateForm
+                                  bookingId={summary.bookingId}
+                                  currentRateBtn={
+                                    summary.agreedNightlyRateBtn
+                                  }
+                                  currentReason={summary.agreedRateReason}
+                                  mealPlanCode={summary.mealPlanCode}
+                                  roomLabel={summary.roomLabel}
+                                  onSuccess={refreshSummary}
+                                />
+                              </WorkSection>
+                            ) : null}
+                          </div>
+                        ) : null}
+
+                        {checkInTool === "room" ? (
+                          <div className="space-y-2">
+                            {["pending", "confirmed"].includes(
+                              summary.status,
+                            ) &&
+                            summary.checkIn.slice(0, 10) < thimphuToday() ? (
+                              <Callout
+                                tone="amber"
+                                title={`Check-in date ${summary.checkIn.slice(0, 10)} is before today`}
+                              >
+                                Adjust dates below, or use GM override /
+                                manager PIN on the check-in form.
+                              </Callout>
+                            ) : null}
+
+                            {["pending", "confirmed"].includes(
+                              summary.status,
+                            ) && summary.assignmentId ? (
+                              <WorkSection title="Stay dates">
+                                <StayDatesAndSplit
+                                  summary={summary}
+                                  checkIn={checkIn}
+                                  checkOut={checkOut}
+                                  setCheckIn={(v) => {
+                                    draftDirtyRef.current = true;
+                                    setCheckIn(v);
+                                  }}
+                                  setCheckOut={(v) => {
+                                    draftDirtyRef.current = true;
+                                    setCheckOut(v);
+                                  }}
+                                  splitDate={splitDate}
+                                  setSplitDate={setSplitDate}
+                                  splitUnitId={splitUnitId}
+                                  setSplitUnitId={setSplitUnitId}
+                                  sameTypeUnits={sameTypeUnits}
+                                  busy={busy}
+                                  seedStay={seedStay}
+                                  onToggleLock={onToggleLock}
+                                  onMessage={setMessage}
+                                  onRefresh={refreshStayAfterDateChange}
+                                  startTransition={startTransition}
+                                />
+                              </WorkSection>
+                            ) : null}
+
+                            <WorkSection
+                              title={
+                                panel === "arrival"
+                                  ? "Arrival readiness"
+                                  : "Check-in"
+                              }
+                            >
+                              {["pending", "confirmed"].includes(
+                                summary.status,
+                              ) ? (
+                                checkInLoading ? (
+                                  <p className="text-sm text-muted-foreground">
+                                    Loading check-in form…
+                                  </p>
+                                ) : checkInPayload ? (
+                                  <CheckInForm
+                                    key={`${summary.bookingId}-${checkInPayload.booking.adults}-${checkInPayload.booking.check_in}-${draft?.adults ?? ""}`}
+                                    booking={{
+                                      ...checkInPayload.booking,
+                                      adults: Math.max(
+                                        1,
+                                        Number(draft?.adults) ||
+                                          checkInPayload.booking.adults ||
+                                          1,
+                                      ),
+                                    }}
+                                    guides={checkInPayload.guides}
+                                    drivers={checkInPayload.drivers}
+                                    slots={checkInPayload.slots}
+                                    units={checkInPayload.units}
+                                    embedded
+                                    onCheckedIn={handleCheckedIn}
+                                  />
+                                ) : (
+                                  <p className="text-sm text-muted-foreground">
+                                    Could not load check-in form for this stay.
+                                  </p>
+                                )
+                              ) : summary.status === "checked_in" ? (
+                                <p className="text-xs text-muted-foreground">
+                                  Already checked in. Continue on Folio or
+                                  Checkout. Undo is under ··· when the folio is
+                                  still simple.
+                                </p>
                               ) : (
                                 <p className="text-xs text-muted-foreground">
-                                  Assign an agent to print a voucher.
+                                  Check-in not available for status{" "}
+                                  {summary.status.replace(/_/g, " ")}.
                                 </p>
                               )}
                             </WorkSection>
-                            <details className="rounded-md border">
-                              <summary className="cursor-pointer px-3 py-2 text-sm font-medium">
-                                Guest details
-                              </summary>
-                              <div className="border-t px-3 py-3">
-                                <GuestIdentityFields
-                                  draft={draft}
-                                  agents={agents}
-                                  staff={staff}
-                                  salesClaimStatus={summary.salesClaimStatus}
-                                  onUpdate={updateDraft}
-                                />
-                              </div>
-                            </details>
                           </div>
-                        </details>
-                      ) : null}
-                    </div>
-                  )}
+                        ) : null}
+                      </div>
+                    ) : null}
 
-                  {message ? (
-                    <p
-                      role="status"
-                      className="rounded-md border bg-muted/30 px-3 py-2 text-sm"
-                    >
-                      {message}
-                    </p>
-                  ) : null}
-                </div>
+                    {/* Folio — Bill | Collect | Advanced */}
+                    {panel === "stay_money" ? (
+                      <div className="space-y-2">
+                        {summary.rooms > 1 && folioTool === "advanced" ? (
+                          <Callout tone="muted" title="Multi-room / group">
+                            Check in each room from Reservations party board if
+                            needed. Master attach is on the folio advanced
+                            page.
+                          </Callout>
+                        ) : null}
+                        <DeskSettlePanel
+                          key={`settle-${summary.bookingId}`}
+                          bookingId={summary.bookingId}
+                          status={summary.status}
+                          money={money}
+                          checkIn={summary.checkIn}
+                          earlyCheckoutFeeBtn={summary.earlyCheckoutFeeBtn}
+                          lateCheckoutFeeBtn={summary.lateCheckoutFeeBtn}
+                          hasInvoice={Boolean(money?.hasInvoice)}
+                          mode="settle"
+                          stayPanel="stay_money"
+                          stayBoard={board}
+                          toolTab={
+                            !balanceOpen && folioTool === "collect"
+                              ? "bill"
+                              : folioTool
+                          }
+                          onRequestCollect={openCollect}
+                          collectAnchorRef={collectPayRef}
+                          postChargesAnchorRef={postChargesRef}
+                          advancedExtra={advancedExtra}
+                          onMoneyChanged={onMoneyChanged}
+                        />
+                      </div>
+                    ) : null}
+
+                    {/* Checkout — evidence → leave (agent) · pay-first FO */}
+                    {panel === "check_out" ? (
+                      <div className="space-y-2">
+                        {/* Mobile only — md+ due sits on left rail */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-card px-2 py-1.5 md:hidden">
+                          <div className="flex items-baseline gap-2">
+                            <p className="text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+                              Balance
+                            </p>
+                            <p
+                              className={cn(
+                                "text-base font-semibold tracking-tight tabular-nums",
+                                balanceOpen && "text-maroon",
+                              )}
+                            >
+                              {balanceOpen
+                                ? formatGuestBtn(dues)
+                                : "Clear"}
+                            </p>
+                          </div>
+                          {balanceOpen ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="min-h-9 h-9 text-xs"
+                              onClick={openCollect}
+                            >
+                              Collect on Folio
+                            </Button>
+                          ) : null}
+                        </div>
+                        {balanceOpen ? (
+                          <div className="hidden md:flex md:flex-wrap md:items-center md:justify-end">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="min-h-9 h-9 text-xs"
+                              onClick={openCollect}
+                            >
+                              Collect on Folio
+                            </Button>
+                          </div>
+                        ) : null}
+
+                        {summary.confirmMode &&
+                        summary.confirmMode !== "soft" ? (
+                          <p className="text-[11px] text-muted-foreground">
+                            Confirm mode:{" "}
+                            <span className="font-medium capitalize text-foreground">
+                              {summary.confirmMode.replace(/_/g, " ")}
+                            </span>
+                            {summary.advanceStatus !== "none"
+                              ? ` · advance ${summary.advanceStatus}`
+                              : null}
+                            {summary.advanceDueBtn != null &&
+                            summary.advanceDueBtn > 0
+                              ? ` · due ${formatGuestBtn(summary.advanceDueBtn)}`
+                              : null}
+                          </p>
+                        ) : null}
+
+                        {balanceOpen ? (
+                          <Callout tone="amber" title="Balance still open">
+                            Collect on Folio, or tick “allow checkout with
+                            folio balance” if manager-approved.
+                          </Callout>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Balance clear — after guide paper (if agent),
+                            confirm leave.
+                          </p>
+                        )}
+
+                        {money?.hasInvoice ? (
+                          <p className="text-[11px] text-muted-foreground">
+                            Tax invoice issued — void/credit note needs manager
+                            (L4).
+                          </p>
+                        ) : null}
+
+                        {(summary.status === "checked_in" ||
+                          summary.status === "checked_out") &&
+                        bookingNeedsGuideCheckoutEvidence({
+                          agentId: summary.agentId,
+                        }) ? (
+                          <GuideEvidencePanel
+                            bookingId={summary.bookingId}
+                            guestName={summary.contactName ?? "Guest"}
+                            rooms={money?.roomLabels ?? []}
+                            checkIn={summary.checkIn}
+                            checkOut={summary.checkOut}
+                            guideNumber={summary.guideNumber}
+                            agentName={summary.agentName}
+                            agentEmail={agentEmailHint}
+                            confirmationCode={summary.confirmationCode}
+                            printPack={settlementPrint}
+                            needsEvidence
+                            guideSignStatus={summary.guideSignStatus}
+                            guideSignPhotoPublicId={
+                              summary.guideSignPhotoPublicId
+                            }
+                            canLeave={guideEvidenceAllowsLeave({
+                              agentId: summary.agentId,
+                              guideSignStatus: summary.guideSignStatus,
+                            })}
+                            packs={settlementPacks}
+                            onChanged={refreshSettlementEvidence}
+                          />
+                        ) : null}
+
+                        {isInHouse ? (
+                          guideEvidenceAllowsLeave({
+                            agentId: summary.agentId,
+                            guideSignStatus: summary.guideSignStatus,
+                          }) ? (
+                            <CheckOutForm
+                              bookingId={summary.bookingId}
+                              rooms={money?.roomLabels ?? []}
+                              folioBalance={dues}
+                              earlyFeeDefaultBtn={summary.earlyCheckoutFeeBtn}
+                              lateFeeDefaultBtn={summary.lateCheckoutFeeBtn}
+                            />
+                          ) : (
+                            <Callout
+                              tone="amber"
+                              title="Guide paper required before leave"
+                            >
+                              Attach signed pack with phone camera, scanner, or
+                              PC file (or waive with reason). Email agent after
+                              guests leave.
+                            </Callout>
+                          )
+                        ) : summary.status === "checked_out" ? (
+                          <p className="rounded-md border bg-card px-3 py-2 text-sm">
+                            Guest already checked out
+                            {bookingNeedsGuideCheckoutEvidence({
+                              agentId: summary.agentId,
+                            })
+                              ? " — seal/email pack above if still needed."
+                              : "."}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Check-out available after check-in.
+                          </p>
+                        )}
+                      </div>
+                    ) : null}
+
+                    {message ? (
+                      <p
+                        role="status"
+                        className="rounded-md border bg-muted/30 px-2.5 py-1.5 text-xs"
+                      >
+                        {message}
+                      </p>
+                    ) : null}
+                  </div>
                 </StayHubWorkFrame>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
-          {/* —— C. Sticky footer —— */}
           <StayHubFooterBar
             panelLabel={panelLabel}
             onClose={handleClose}
             primaryCta={primaryCta}
+            moreActions={moreActions}
           />
         </DialogContent>
       </Dialog>
@@ -1373,14 +1968,14 @@ function WorkSection({
   return (
     <section
       className={cn(
-        "rounded-xl border bg-card p-3.5 shadow-sm sm:p-4",
+        "rounded-md border bg-card p-2.5 sm:p-3",
         className,
       )}
     >
-      <h3 className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+      <h3 className="text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
         {title}
       </h3>
-      <div className="mt-3">{children}</div>
+      <div className="mt-2">{children}</div>
     </section>
   );
 }
@@ -1413,15 +2008,25 @@ function GuestIdentityFields({
   draft,
   agents,
   staff,
+  mealPlans,
+  catalogLoading,
   salesClaimStatus,
   onUpdate,
 }: {
   draft: Draft;
   agents: CalendarAgent[];
   staff: BookableStaff[];
+  mealPlans: StayHubCatalogMealPlan[];
+  catalogLoading: boolean;
   salesClaimStatus?: string | null;
   onUpdate: <K extends keyof Draft>(key: K, value: Draft[K]) => void;
 }) {
+  const needsAgent = draft.source === "agent" || draft.source === "mou_agent";
+  const mealOptions =
+    mealPlans.length > 0
+      ? mealPlans
+      : [{ code: "EP", name: "Room only", blurb: null, amountPerAdultNight: null, amountPerChildNight: null }];
+
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <Field label="Guest / lead name" id="hub_contact_name">
@@ -1474,6 +2079,50 @@ function GuestIdentityFields({
           onChange={(e) => onUpdate("adults", e.target.value)}
         />
       </Field>
+      <Field label="Children" id="hub_children">
+        <Input
+          id="hub_children"
+          type="number"
+          min={0}
+          max={24}
+          className="min-h-11 sm:min-h-9"
+          value={draft.children}
+          onChange={(e) => onUpdate("children", e.target.value)}
+        />
+      </Field>
+      <Field label="Extra beds" id="hub_extra_beds">
+        <Input
+          id="hub_extra_beds"
+          type="number"
+          min={0}
+          max={8}
+          className="min-h-11 sm:min-h-9"
+          value={draft.extraBeds}
+          onChange={(e) => onUpdate("extraBeds", e.target.value)}
+        />
+      </Field>
+      <Field label="Meal package" id="hub_meal">
+        <select
+          id="hub_meal"
+          value={draft.mealPlanCode || "EP"}
+          onChange={(e) => onUpdate("mealPlanCode", e.target.value)}
+          className={selectClass}
+        >
+          {mealOptions.map((m) => (
+            <option key={m.code} value={m.code}>
+              {m.code} · {m.name}
+              {m.amountPerAdultNight != null
+                ? ` (+Nu ${m.amountPerAdultNight}/adult·night meal)`
+                : m.code === "EP"
+                  ? " (room only)"
+                  : ""}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          EP / CP / MAP etc. — sheet room rate + meal addon. See Details → Rate.
+        </p>
+      </Field>
       <Field label="Guide #" id="hub_guide">
         <Input
           id="hub_guide"
@@ -1482,7 +2131,7 @@ function GuestIdentityFields({
           onChange={(e) => onUpdate("guideNumber", e.target.value)}
         />
       </Field>
-      <Field label="Guest origin" id="hub_origin">
+      <Field label="Guest origin (passport / SDF)" id="hub_origin">
         <select
           id="hub_origin"
           value={draft.guestOrigin}
@@ -1494,12 +2143,23 @@ function GuestIdentityFields({
           <option value="official">Official</option>
           <option value="local">Local</option>
         </select>
+        {draft.guestOrigin === "international" ? (
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Guide # required. Agent attach is under Booked by → Agent (not origin).
+          </p>
+        ) : null}
       </Field>
       <Field label="Booked by" id="hub_source">
         <select
           id="hub_source"
           value={draft.source}
-          onChange={(e) => onUpdate("source", e.target.value)}
+          onChange={(e) => {
+            const next = e.target.value;
+            onUpdate("source", next);
+            if (next !== "agent" && next !== "mou_agent") {
+              onUpdate("agentId", "");
+            }
+          }}
           className={selectClass}
         >
           <option value="reservation">Reservation desk</option>
@@ -1508,22 +2168,46 @@ function GuestIdentityFields({
           <option value="mou_agent">MoU agent</option>
         </select>
       </Field>
-      <Field label="Agent" id="hub_agent">
-        <AgentPicker
-          agents={agents}
-          value={draft.agentId}
-          onValueChange={(next) => onUpdate("agentId", next)}
-          className="bg-background min-h-11 sm:min-h-9"
-        />
+      <Field
+        label={needsAgent ? "Agent (required)" : "Agent (optional)"}
+        id="hub_agent"
+      >
+        {catalogLoading && agents.length === 0 ? (
+          <p className="rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+            Loading agents…
+          </p>
+        ) : agents.length === 0 ? (
+          <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs">
+            No agents in directory. Add under Agents or use Add agent in picker.
+          </p>
+        ) : (
+          <AgentPicker
+            agents={agents}
+            value={draft.agentId}
+            onValueChange={(next) => onUpdate("agentId", next)}
+            className="bg-background min-h-11 sm:min-h-9"
+          />
+        )}
+        {needsAgent && !draft.agentId ? (
+          <p className="mt-1 text-[11px] text-amber-800 dark:text-amber-200">
+            Select agent for agent / MoU bookings.
+          </p>
+        ) : null}
       </Field>
       <Field label="Sold by (staff)" id="hub_sold_by">
-        <StaffPicker
-          staff={staff}
-          value={draft.soldByStaffId}
-          onValueChange={(next) => onUpdate("soldByStaffId", next)}
-          className="bg-background min-h-11 sm:min-h-9"
-          disabled={salesClaimStatus === "approved"}
-        />
+        {catalogLoading && staff.length === 0 ? (
+          <p className="rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+            Loading staff…
+          </p>
+        ) : (
+          <StaffPicker
+            staff={staff}
+            value={draft.soldByStaffId}
+            onValueChange={(next) => onUpdate("soldByStaffId", next)}
+            className="bg-background min-h-11 sm:min-h-9"
+            disabled={salesClaimStatus === "approved"}
+          />
+        )}
         {salesClaimStatus ? (
           <p className="mt-1 text-[11px] text-muted-foreground capitalize">
             Claim: {salesClaimStatus}
@@ -1547,6 +2231,162 @@ function GuestIdentityFields({
             className="min-h-[4.5rem] resize-y"
           />
         </Field>
+      </div>
+    </div>
+  );
+}
+
+function StayHubSheetRatePanel({
+  draft,
+  mealPlans,
+  sheetRate,
+  sheetRatePending,
+  summary,
+  onUpdate,
+}: {
+  draft: Draft | null;
+  mealPlans: StayHubCatalogMealPlan[];
+  sheetRate: Awaited<ReturnType<typeof previewStayHubSheetRate>> | null;
+  sheetRatePending: boolean;
+  summary: StayHubSummary;
+  onUpdate: <K extends keyof Draft>(key: K, value: Draft[K]) => void;
+}) {
+  if (!draft) return null;
+  const mealOptions =
+    mealPlans.length > 0
+      ? mealPlans
+      : [
+          {
+            code: "EP",
+            name: "Room only",
+            blurb: null,
+            amountPerAdultNight: null,
+            amountPerChildNight: null,
+          },
+        ];
+  const ok = sheetRate?.ok === true ? sheetRate : null;
+  const err = sheetRate && !sheetRate.ok ? sheetRate.error : null;
+  const usingAgreed = summary.agreedNightlyRateBtn != null;
+
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Meal package" id="hub_rate_meal">
+          <select
+            id="hub_rate_meal"
+            value={draft.mealPlanCode || "EP"}
+            onChange={(e) => onUpdate("mealPlanCode", e.target.value)}
+            className={selectClass}
+          >
+            {mealOptions.map((m) => (
+              <option key={m.code} value={m.code}>
+                {m.code} · {m.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+          <p>
+            Pax: {draft.adults} adult
+            {Number(draft.adults) === 1 ? "" : "s"}
+            {Number(draft.children) > 0
+              ? ` · ${draft.children} child`
+              : ""}
+            {Number(draft.extraBeds) > 0
+              ? ` · ${draft.extraBeds} extra bed`
+              : ""}
+          </p>
+          <p className="mt-1">
+            {summary.roomLabel ?? "Room"}
+            {summary.roomTypeName ? ` · ${summary.roomTypeName}` : ""}
+          </p>
+          <p className="mt-1 text-[10px]">
+            Edit pax under Details → Guest (autosave).
+          </p>
+        </div>
+      </div>
+
+      <div className="rounded-lg border bg-card p-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+            {sheetRatePending ? "Loading sheet…" : "System sheet rate"}
+          </p>
+          {ok ? (
+            <p className="text-[11px] text-muted-foreground">
+              {ok.seasonKind} · {ok.rateTier} · {ok.nights}n
+            </p>
+          ) : null}
+        </div>
+        {err ? (
+          <p className="mt-2 text-sm text-destructive">{err}</p>
+        ) : null}
+        {ok ? (
+          <div className="mt-2 space-y-1.5 text-sm">
+            <div className="flex justify-between gap-2">
+              <span className="text-muted-foreground">Room nightly</span>
+              <span className="tabular-nums font-medium">
+                {ok.roomNightlyBtn != null
+                  ? formatGuestBtn(ok.roomNightlyBtn)
+                  : "— no sheet"}
+              </span>
+            </div>
+            <div className="flex justify-between gap-2">
+              <span className="text-muted-foreground">
+                Meal ({ok.mealPlanCode}) / night
+              </span>
+              <span className="tabular-nums">
+                {formatGuestBtn(ok.mealPerNightBtn)}
+              </span>
+            </div>
+            {ok.extraBedPerNightBtn > 0.009 ? (
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Extra bed / night</span>
+                <span className="tabular-nums">
+                  {formatGuestBtn(ok.extraBedPerNightBtn)}
+                </span>
+              </div>
+            ) : null}
+            <div className="mt-2 flex justify-between gap-2 border-t pt-2">
+              <span className="font-medium">Package nightly total</span>
+              <span className="text-lg font-semibold tabular-nums">
+                {ok.systemNightlyTotalBtn != null
+                  ? formatGuestBtn(ok.systemNightlyTotalBtn)
+                  : "—"}
+              </span>
+            </div>
+            <div className="flex justify-between gap-2 text-xs text-muted-foreground">
+              <span>Stay total (rooms + meal + extra)</span>
+              <span className="tabular-nums">
+                {ok.systemStayTotalBtn != null
+                  ? formatGuestBtn(ok.systemStayTotalBtn)
+                  : "—"}
+              </span>
+            </div>
+            {!ok.hasRoomType ? (
+              <p className="text-[11px] text-amber-800 dark:text-amber-200">
+                No room type on stay yet — assign room for full sheet lookup.
+              </p>
+            ) : null}
+            {usingAgreed ? (
+              <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-[11px]">
+                Custom agreed rate active:{" "}
+                {formatGuestBtn(summary.agreedNightlyRateBtn!)}/night
+                {summary.agreedRateReason
+                  ? ` · ${summary.agreedRateReason}`
+                  : ""}
+                . Clear below to return to sheet.
+              </p>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">
+                Auto sheet — no input. Custom rate only if negotiated.
+              </p>
+            )}
+          </div>
+        ) : !sheetRatePending ? (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Sheet preview unavailable.
+          </p>
+        ) : null}
       </div>
     </div>
   );
@@ -1736,6 +2576,7 @@ function voucherFromSummary(s: StayHubSummary): FastBookVoucherData {
   );
   return {
     bookingId: s.bookingId,
+    confirmationCode: s.confirmationCode ?? undefined,
     checkIn: s.checkIn,
     checkOut: s.checkOut,
     nights,

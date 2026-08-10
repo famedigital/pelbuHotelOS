@@ -62,6 +62,18 @@ async function sendDeskEmail(subject: string, text: string): Promise<void> {
   });
 
   if (error) {
+    const msg = error.message || String(error);
+    // Resend free/test keys only allow the account owner — not a booking failure.
+    if (
+      msg.includes("only send testing emails") ||
+      msg.includes("verify a domain")
+    ) {
+      console.warn(
+        "Resend desk email skipped (test-mode recipient/domain).",
+        msg,
+      );
+      return;
+    }
     console.error("Resend desk email failed", error);
   }
 }
@@ -268,6 +280,25 @@ export async function notifyNewOrder(payload: OrderNotifyPayload): Promise<void>
       `[Pelbu] New order · Nu ${payload.totalBtn.toFixed(0)} · ${payload.customerName}`,
       text,
     ),
+  ]);
+}
+
+/** Guest WhatsApp when KOT flips to ready (pickup/taxi). Best-effort. */
+export async function notifyOrderReady(payload: {
+  orderId: string;
+  phone: string;
+  customerName: string;
+  outlet: string;
+}): Promise<void> {
+  const shortId = payload.orderId.slice(0, 8);
+  const text = [
+    `Pelbu ${payload.outlet}: order ${shortId} is ready.`,
+    `${payload.customerName}, please collect at the desk.`,
+    siteUrl(),
+  ].join("\n");
+  await Promise.allSettled([
+    sendCallMeBotTo(payload.phone, text),
+    sendCallMeBot(text),
   ]);
 }
 

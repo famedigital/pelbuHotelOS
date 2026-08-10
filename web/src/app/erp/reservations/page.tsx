@@ -121,7 +121,7 @@ export default async function ReservationsPage({
       let req = admin
         .from("bookings")
         .select(
-          `id, contact_name, contact_phone, check_in, check_out, status, source,
+          `id, confirmation_code, contact_name, contact_phone, check_in, check_out, status, source,
            guest_origin, agent_id, adults, rooms, hold_expires_at, created_at,
            agents(company_name),
            room_assignments( room_units(label) )`,
@@ -144,13 +144,13 @@ export default async function ReservationsPage({
       : Promise.resolve({ data: [] }),
     admin
       .from("agents")
-      .select("id, company_name, market, status")
+      .select("id, company_name, market, status, rate_tier, open_room_cap")
       .in("status", [...BOOKABLE_AGENT_STATUSES])
       .order("company_name"),
     sp.room_unit_id && property
       ? admin
           .from("room_units")
-          .select("id, room_type_id, room_types(code)")
+          .select("id, label, room_type_id, room_types(code)")
           .eq("id", sp.room_unit_id)
           .eq("property_id", property.id)
           .maybeSingle()
@@ -258,6 +258,7 @@ export default async function ReservationsPage({
 
     return {
       id: r.id as string,
+      confirmation_code: (r.confirmation_code as string | null) ?? null,
       contact_name: (r.contact_name as string) ?? null,
       contact_phone: (r.contact_phone as string) ?? null,
       check_in: (r.check_in as string) ?? null,
@@ -278,7 +279,15 @@ export default async function ReservationsPage({
 
   const afterSearch = enriched.filter((r) =>
     matchesQuery(
-      [r.contact_name, r.contact_phone, r.id, r.source, r.agent_name, r.room_labels],
+      [
+        r.contact_name,
+        r.contact_phone,
+        r.id,
+        r.confirmation_code,
+        r.source,
+        r.agent_name,
+        r.room_labels,
+      ],
       query,
     ),
   );
@@ -331,6 +340,9 @@ export default async function ReservationsPage({
       company_name: a.company_name as string,
       market: a.market as string,
       status: a.status as string,
+      rate_tier: (a.rate_tier as string | null) ?? null,
+      open_room_cap:
+        a.open_room_cap == null ? 15 : Number(a.open_room_cap),
     })),
     staff: (staffRows ?? []).map((s) => ({
       id: s.id as string,
@@ -359,6 +371,7 @@ export default async function ReservationsPage({
       checkIn: sp.check_in,
       checkOut: sp.check_out,
       roomUnitId: unit?.id as string | undefined,
+      roomUnitLabel: (unit?.label as string | undefined) ?? undefined,
       qtyByCode,
       mealPlanCode:
         (propertyDefaults?.default_meal_plan_code as string | undefined) ??
@@ -474,7 +487,7 @@ export default async function ReservationsPage({
               type="search"
               name="q"
               defaultValue={q ?? ""}
-              placeholder="Guest, phone, agent, room, booking id…"
+              placeholder="Conf # · guest · phone · agent · room · INV…"
               className="h-10"
             />
           </div>

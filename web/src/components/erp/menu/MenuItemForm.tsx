@@ -255,6 +255,69 @@ export function MenuItemForm({
             />
           </div>
 
+          <div className="space-y-1.5">
+            <Label htmlFor="mi_name_dz">Dzongkha name (optional)</Label>
+            <Input
+              id="mi_name_dz"
+              name="name_dz"
+              maxLength={120}
+              autoComplete="off"
+              defaultValue={
+                (editing as { name_dz?: string | null } | null)?.name_dz ?? ""
+              }
+              placeholder="མིང་"
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="mi_daypart">Daypart</Label>
+              <select
+                id="mi_daypart"
+                name="daypart"
+                className="h-10 w-full rounded-md border px-2 text-sm"
+                defaultValue={
+                  (editing as { daypart?: string | null } | null)?.daypart ?? ""
+                }
+              >
+                <option value="">All day</option>
+                <option value="breakfast">Breakfast</option>
+                <option value="lunch">Lunch</option>
+                <option value="dinner">Dinner</option>
+                <option value="bar">Bar</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="mi_allergens">Allergens (comma-sep)</Label>
+              <Input
+                id="mi_allergens"
+                name="allergens"
+                maxLength={200}
+                defaultValue={
+                  Array.isArray(
+                    (editing as { allergens?: string[] } | null)?.allergens,
+                  )
+                    ? (
+                        (editing as { allergens?: string[] }).allergens ?? []
+                      ).join(", ")
+                    : ""
+                }
+                placeholder="nuts, dairy, gluten"
+              />
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="is_combo"
+              value="1"
+              defaultChecked={Boolean(
+                (editing as { is_combo?: boolean } | null)?.is_combo,
+              )}
+            />
+            Set / combo meal
+          </label>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="mi_outlet">Outlet</Label>

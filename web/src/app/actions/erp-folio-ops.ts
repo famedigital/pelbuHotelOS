@@ -125,6 +125,321 @@ export async function voidFolioLine(
   }
 }
 
+/**
+ * Move guest-pays F&B / POS / laundry lines onto the agent tab (bill_to=agent).
+ * Guest due drops; package residual / AR settle later stays on the agent book.
+ * Does not post agent_credit_used — use postFolioPayment(agent_credit) to charge AR now.
+ */
+export async function putFnBOnAgentTab(
+  _prev: ErpFolioOpsState,
+  formData: FormData,
+): Promise<ErpFolioOpsState> {
+  try {
+    await requireMoney();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const folioId = trimRequired(formData.get("folio_id"), "Folio");
+    const note = optionalTrim(formData.get("notes"));
+
+    const { data: folio, error: folioError } = await admin
+      .from("folios")
+      .select("id, status, property_id, booking_id, bookings(agent_id, agents(company_name))")
+      .eq("id", folioId)
+      .eq("property_id", pid)
+      .maybeSingle();
+    if (folioError || !folio) throw new Error("Folio not found.");
+    assertDeskProperty(pid, folio.property_id as string, "Folio");
+    if ((folio.status as string) !== "open") {
+      throw new Error("Folio is not open.");
+    }
+
+    const bookingRaw = folio.bookings as
+      | {
+          agent_id?: string | null;
+          agents?:
+            | { company_name?: string | null }
+            | { company_name?: string | null }[]
+            | null;
+        }
+      | {
+          agent_id?: string | null;
+          agents?:
+            | { company_name?: string | null }
+            | { company_name?: string | null }[]
+            | null;
+        }[]
+      | null;
+    const booking = Array.isArray(bookingRaw) ? bookingRaw[0] : bookingRaw;
+    if (!booking?.agent_id) {
+      throw new Error("Attach an agent on the booking before putting F&B on the agent tab.");
+    }
+
+    const { data: lines, error: linesError } = await admin
+      .from("folio_lines")
+      .select("id, source_type, description, status, bill_to, total_btn")
+      .eq("folio_id", folioId)
+      .eq("status", "posted");
+    if (linesError) throw new Error(linesError.message);
+
+    const { classifyBillLine } = await import("@/lib/folio/bill-kinds");
+    const targetIds = (lines ?? [])
+      .filter((l) => {
+        if ((l.bill_to ?? "guest") === "agent") return false;
+        if (classifyBillLine(l) !== "fnb") return false;
+        const st = (l.source_type ?? "").toLowerCase();
+        if (st === "payment" || st === "deposit") return false;
+        return Number(l.total_btn ?? 0) !== 0;
+      })
+      .map((l) => l.id as string);
+
+    if (targetIds.length === 0) {
+      return {
+        ok: true,
+        message: "No guest-pays F&B lines to move — already on agent tab or none posted.",
+      };
+    }
+
+    const { error: updError } = await admin
+      .from("folio_lines")
+      .update({ bill_to: "agent" })
+      .in("id", targetIds);
+    if (updError) throw new Error(updError.message);
+
+    const agentRow = Array.isArray(booking.agents)
+      ? booking.agents[0]
+      : booking.agents;
+    const agentName = agentRow?.company_name?.trim() || "agent";
+
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "folio.fnb_to_agent_tab",
+      entityType: "folios",
+      entityId: folioId,
+      summary: `F&B on agent tab · ${targetIds.length} line(s) · ${agentName}`,
+      meta: {
+        folioId,
+        lineIds: targetIds,
+        agentId: booking.agent_id,
+        note: note ?? null,
+      },
+    });
+
+    revalidateFolio(folioId);
+    return {
+      ok: true,
+      message: `Moved ${targetIds.length} F&B line(s) onto ${agentName} tab. Guest due no longer includes them — settle agent later or charge AR.`,
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+/**
+ * StayHub multi-folio bill split: move posted charge lines by kind onto
+ * guest or agent payor (bill_to) without leaving StayHub.
+ * Modes: fnb_agent | fnb_guest | room_agent | room_guest | all_agent | all_guest
+ */
+export async function setFolioLinesBillToByKind(
+  _prev: ErpFolioOpsState,
+  formData: FormData,
+): Promise<ErpFolioOpsState> {
+  try {
+    await requireMoney();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const folioId = trimRequired(formData.get("folio_id"), "Folio");
+    const mode = trimRequired(formData.get("mode"), "Mode").toLowerCase();
+    const allowed = new Set([
+      "fnb_agent",
+      "fnb_guest",
+      "room_agent",
+      "room_guest",
+      "all_agent",
+      "all_guest",
+    ]);
+    if (!allowed.has(mode)) {
+      throw new Error("Invalid bill split mode.");
+    }
+    const billTo = mode.endsWith("_agent") ? "agent" : "guest";
+    const kind = mode.startsWith("fnb_")
+      ? "fnb"
+      : mode.startsWith("room_")
+        ? "room"
+        : "all";
+
+    const { data: folio, error: folioError } = await admin
+      .from("folios")
+      .select("id, status, property_id, booking_id, bookings(agent_id)")
+      .eq("id", folioId)
+      .eq("property_id", pid)
+      .maybeSingle();
+    if (folioError || !folio) throw new Error("Folio not found.");
+    assertDeskProperty(pid, folio.property_id as string, "Folio");
+    if ((folio.status as string) !== "open") {
+      throw new Error("Folio is not open.");
+    }
+
+    if (billTo === "agent") {
+      const bookingRaw = folio.bookings as
+        | { agent_id?: string | null }
+        | { agent_id?: string | null }[]
+        | null;
+      const booking = Array.isArray(bookingRaw) ? bookingRaw[0] : bookingRaw;
+      if (!booking?.agent_id) {
+        throw new Error("Attach an agent before charging lines to agent tab.");
+      }
+    }
+
+    const { data: lines, error: linesError } = await admin
+      .from("folio_lines")
+      .select("id, source_type, description, status, bill_to, total_btn")
+      .eq("folio_id", folioId)
+      .eq("status", "posted");
+    if (linesError) throw new Error(linesError.message);
+
+    const { classifyBillLine } = await import("@/lib/folio/bill-kinds");
+    const targetIds = (lines ?? [])
+      .filter((l) => {
+        const st = (l.source_type ?? "").toLowerCase();
+        if (st === "payment" || st === "deposit") return false;
+        if (Number(l.total_btn ?? 0) === 0) return false;
+        const group = classifyBillLine(l);
+        if (kind === "fnb" && group !== "fnb") return false;
+        if (kind === "room" && group !== "room") return false;
+        if ((l.bill_to ?? "guest") === billTo) return false;
+        return true;
+      })
+      .map((l) => l.id as string);
+
+    if (targetIds.length === 0) {
+      return {
+        ok: true,
+        message: `No lines to retarget · already ${billTo} or none posted for that stream.`,
+      };
+    }
+
+    const { error: updError } = await admin
+      .from("folio_lines")
+      .update({ bill_to: billTo })
+      .in("id", targetIds);
+    if (updError) throw new Error(updError.message);
+
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "folio.bill_to_split",
+      entityType: "folios",
+      entityId: folioId,
+      summary: `Bill split ${mode} · ${targetIds.length} line(s) → ${billTo}`,
+      meta: { folioId, mode, billTo, lineIds: targetIds },
+    });
+
+    revalidateFolio(folioId);
+    return {
+      ok: true,
+      message: `Moved ${targetIds.length} line(s) to ${billTo} payor (${mode}).`,
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+/**
+ * Physical multi-folio: create open sibling "Extras" folio and transfer
+ * posted non-room charges off the room folio (eZee room vs extras habit).
+ */
+export async function splitExtrasToSiblingFolio(
+  _prev: ErpFolioOpsState,
+  formData: FormData,
+): Promise<ErpFolioOpsState> {
+  try {
+    await requireMoney();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const folioId = trimRequired(formData.get("folio_id"), "Folio");
+
+    const { data: folio, error: folioError } = await admin
+      .from("folios")
+      .select("id, status, property_id, booking_id, label")
+      .eq("id", folioId)
+      .eq("property_id", pid)
+      .maybeSingle();
+    if (folioError || !folio) throw new Error("Folio not found.");
+    assertDeskProperty(pid, folio.property_id as string, "Folio");
+    if ((folio.status as string) !== "open") {
+      throw new Error("Folio is not open.");
+    }
+    const bookingId = folio.booking_id as string | null;
+    if (!bookingId) throw new Error("Folio has no booking.");
+
+    const { data: lines, error: linesError } = await admin
+      .from("folio_lines")
+      .select("id, source_type, description, status, total_btn")
+      .eq("folio_id", folioId)
+      .eq("status", "posted");
+    if (linesError) throw new Error(linesError.message);
+
+    const { classifyBillLine } = await import("@/lib/folio/bill-kinds");
+    const moveIds = (lines ?? [])
+      .filter((l) => {
+        const st = (l.source_type ?? "").toLowerCase();
+        if (st === "payment" || st === "deposit") return false;
+        if (Number(l.total_btn ?? 0) === 0) return false;
+        return classifyBillLine(l) === "fnb" || classifyBillLine(l) === "other";
+      })
+      .map((l) => l.id as string);
+
+    if (moveIds.length === 0) {
+      return {
+        ok: true,
+        message: "No extras lines to split — only room / meal rent remains.",
+      };
+    }
+
+    const baseLabel = String(folio.label ?? "Stay").slice(0, 80);
+    const { data: extras, error: createErr } = await admin
+      .from("folios")
+      .insert({
+        property_id: pid,
+        booking_id: bookingId,
+        folio_type: "guest",
+        label: `${baseLabel} · Extras`,
+        status: "open",
+        master_folio_id: null,
+      })
+      .select("id")
+      .single();
+    if (createErr || !extras) {
+      throw new Error(createErr?.message ?? "Could not create extras folio.");
+    }
+    const extrasId = extras.id as string;
+
+    const { error: moveErr } = await admin
+      .from("folio_lines")
+      .update({ folio_id: extrasId, booking_id: bookingId })
+      .in("id", moveIds);
+    if (moveErr) throw new Error(moveErr.message);
+
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "folio.split_extras",
+      entityType: "folios",
+      entityId: folioId,
+      summary: `Split ${moveIds.length} extras line(s) → folio ${extrasId.slice(0, 8)}`,
+      meta: { from: folioId, to: extrasId, lineIds: moveIds },
+    });
+
+    revalidateFolio(folioId);
+    revalidateFolio(extrasId);
+    return {
+      ok: true,
+      message: `Extras folio created · ${moveIds.length} line(s) moved. Open full folio or statement for each.`,
+      token: extrasId,
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
 export async function postGuestRoundFigureAdj(
   _prev: ErpFolioOpsState,
   formData: FormData,
@@ -710,6 +1025,99 @@ export async function transferFolioLine(
     revalidateFolio(line.folio_id as string);
     revalidateFolio(targetFolioId);
     return { ok: true, message: "Line transferred." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+/**
+ * Void a posted agent_credit payment: reverse AR on agent book + ledger,
+ * reverse payment folio line + GL. Manager money path for dispute fix.
+ */
+export async function voidAgentCreditPayment(
+  _prev: ErpFolioOpsState,
+  formData: FormData,
+): Promise<ErpFolioOpsState> {
+  try {
+    await requireMoney();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const paymentId = trimRequired(formData.get("payment_id"), "Payment");
+    const reason =
+      optionalTrim(formData.get("reason")) ?? "Agent AR payment void";
+
+    const { data: payment, error: payErr } = await admin
+      .from("payments")
+      .select(
+        "id, property_id, folio_id, booking_id, method, amount_btn, kind",
+      )
+      .eq("id", paymentId)
+      .eq("property_id", pid)
+      .maybeSingle();
+    if (payErr || !payment) throw new Error("Payment not found.");
+    assertDeskProperty(pid, payment.property_id as string, "Payment");
+    if ((payment.method as string) !== "agent_credit") {
+      throw new Error("Only agent_credit payments can use AR void.");
+    }
+
+    const amountBtn = roundBtn(Number(payment.amount_btn ?? 0));
+    if (amountBtn <= 0) throw new Error("Invalid payment amount.");
+
+    const bookingId = payment.booking_id as string | null;
+    if (!bookingId) throw new Error("Payment has no booking.");
+
+    const { data: booking } = await admin
+      .from("bookings")
+      .select("id, agent_id")
+      .eq("id", bookingId)
+      .maybeSingle();
+    const agentId = booking?.agent_id as string | null;
+    if (!agentId) throw new Error("Booking has no agent for AR reverse.");
+
+    const { rollbackFolioPaymentRecord } = await import(
+      "@/lib/folio/post-payment"
+    );
+    await rollbackFolioPaymentRecord(
+      admin,
+      pid,
+      paymentId,
+      "payment",
+    );
+
+    // Payment row is removed by rollback — reverse agent AR with ledger entry.
+    const { releaseAgentCredit } = await import("@/app/actions/erp-agents");
+    await releaseAgentCredit(admin, {
+      agentId,
+      amountBtn,
+      bookingId,
+      paymentId,
+      note: `Void agent AR · ${reason}`,
+    });
+
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "payment.void_agent_credit",
+      entityType: "payments",
+      entityId: paymentId,
+      summary: `Voided agent AR Nu ${amountBtn} · ${reason}`,
+      meta: {
+        paymentId,
+        agentId,
+        bookingId,
+        folioId: payment.folio_id,
+        amountBtn,
+        reason,
+      },
+    });
+
+    const folioId = payment.folio_id as string | null;
+    revalidateFolio(folioId ?? undefined);
+    revalidatePath("/erp/agents");
+    revalidatePath(`/erp/agents/${agentId}`);
+    return {
+      ok: true,
+      message: `Agent AR Nu ${amountBtn} reversed · ledger adjusted.`,
+    };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
   }

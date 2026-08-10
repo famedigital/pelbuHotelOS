@@ -85,7 +85,7 @@ export default async function CalendarPage({ searchParams }: Props) {
       .limit(5000),
     admin
       .from("agents")
-      .select("id, company_name, market, status")
+      .select("id, company_name, market, status, rate_tier, open_room_cap")
       .in("status", [...BOOKABLE_AGENT_STATUSES])
       .order("company_name"),
     admin
@@ -101,7 +101,14 @@ export default async function CalendarPage({ searchParams }: Props) {
       .eq("property_id", propertyId)
       .lt("check_in", endExclusive)
       .gt("check_out", start)
-      .in("status", ["held", "pending", "confirmed", "checked_in"])
+      // Past check-outs stay on the rail (grey OUT) for ops context
+      .in("status", [
+        "held",
+        "pending",
+        "confirmed",
+        "checked_in",
+        "checked_out",
+      ])
       .limit(2000),
     admin
       .from("room_blocks")
@@ -269,7 +276,15 @@ export default async function CalendarPage({ searchParams }: Props) {
       const booking = bookingById.get(a.booking_id as string);
       if (!booking) return null;
       const status = booking.status as string;
-      if (!["held", "pending", "confirmed", "checked_in"].includes(status)) {
+      if (
+        ![
+          "held",
+          "pending",
+          "confirmed",
+          "checked_in",
+          "checked_out",
+        ].includes(status)
+      ) {
         return null;
       }
 
@@ -484,6 +499,9 @@ export default async function CalendarPage({ searchParams }: Props) {
     company_name: a.company_name as string,
     market: a.market as string,
     status: (a.status as string) ?? "approved",
+    rate_tier: (a.rate_tier as string | null) ?? null,
+    open_room_cap:
+      a.open_room_cap == null ? 15 : Number(a.open_room_cap),
   }));
 
   const blocks: RoomBlock[] = (blockRows ?? []).map((block) => ({

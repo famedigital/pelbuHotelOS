@@ -83,6 +83,7 @@ export function allDeskGrants(): string[] {
  * Role defaults when `staff_members.desk_module_keys` is NULL.
  * Owner/GM get everything; departments get a short ops set (full modules).
  */
+/** Tab-level FO/POS defaults when `desk_module_keys` is NULL. */
 export function defaultModulesForDeskRole(
   role: DeskRole | null | undefined,
 ): string[] {
@@ -91,17 +92,83 @@ export function defaultModulesForDeskRole(
     case "gm":
       return allDeskModuleKeys();
     case "cashier":
-      return ["dashboard", "pos", "money"];
+      return [
+        "dashboard",
+        "/erp/pos",
+        "/erp/payments",
+        "/erp/folios",
+      ];
     case "fnb":
+      return ["dashboard", "/erp/pos", "/erp/kitchen"];
     case "kitchen":
-      return ["dashboard", "pos"];
+      return ["dashboard", "/erp/kitchen", "/erp/kds"];
     case "hk":
+      return [
+        "dashboard",
+        "/erp/housekeeping",
+        "/erp/rooms",
+        "/erp/rooms/layout",
+        "/erp/lost-found",
+        "/erp/maintenance",
+      ];
     case "laundry":
-      return ["dashboard", "rooms"];
+      return ["dashboard", "/erp/laundry", "/erp/housekeeping"];
     case "front_desk":
+      return [
+        "dashboard",
+        "/erp/arrivals",
+        "/erp/in-house",
+        "/erp/departures",
+        "/erp/reservations",
+        "/erp/guests",
+        "/erp/calendar",
+        "/erp/calendar/day-sheet",
+        "/erp/housekeeping",
+        "/erp/laundry",
+        "/erp/pos",
+        "/erp/folios",
+        "/erp/payments",
+        "/erp/night-audit",
+      ];
     default:
-      return ["dashboard", "calendar", "front-desk", "rooms", "money"];
+      return defaultModulesForDeskRole("front_desk");
   }
+}
+
+/** Role landing route after desk login (staff Auth or PIN-only shared desk). */
+export function deskHomeHrefForRole(
+  role: DeskRole | null | undefined,
+): string {
+  switch (role) {
+    case "front_desk":
+      return "/erp/arrivals";
+    case "kitchen":
+      return "/erp/kitchen";
+    case "cashier":
+    case "fnb":
+      return "/erp/pos";
+    case "hk":
+      return "/erp/housekeeping";
+    case "laundry":
+      return "/erp/laundry";
+    case "owner":
+    case "gm":
+    default:
+      return "/erp";
+  }
+}
+
+/**
+ * Post-login desk home — prefers role home; shared PIN with no staff role → `/erp`.
+ */
+export function resolveDeskHomeHref(opts: {
+  deskRole: DeskRole | null | undefined;
+  pinOnlySession?: boolean;
+}): string {
+  if (opts.pinOnlySession && !opts.deskRole) {
+    return "/erp";
+  }
+  return deskHomeHrefForRole(opts.deskRole);
 }
 
 /**
@@ -279,6 +346,7 @@ export function pathnameAllowedForModules(
   if (
     pathname === "/erp/kds" ||
     pathname.startsWith("/erp/kds/") ||
+    pathname.startsWith("/erp/menu/print/") ||
     /\/print\/?$/.test(pathname) ||
     /\/receipt\/?$/.test(pathname) ||
     /\/statement\/?$/.test(pathname)

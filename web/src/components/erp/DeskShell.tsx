@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import type { PropertyRow } from "@/lib/property-types";
+import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 
 /**
@@ -30,22 +31,32 @@ export function DeskShell({
   properties,
   activePropertyId,
   logoSrc,
+  businessDate,
   allowedModuleKeys,
   canPreviewDashboards,
   homeDashboardView,
+  productPack = "hotel",
   children,
 }: {
   title?: string;
   properties?: PropertyRow[];
   activePropertyId?: string;
   logoSrc?: string | null;
+  /**
+   * Open hotel business date (eZee “working date”). Distinct from wall-clock;
+   * advances after night audit.
+   */
+  businessDate?: string | null;
   /** ERP_MODULES keys the session may open. */
   allowedModuleKeys?: readonly string[];
   /** Owner/GM: department boards as first-row tabs on `/erp`. */
   canPreviewDashboards?: boolean;
   homeDashboardView?: import("@/lib/erp/role-dashboard").DashboardView;
+  productPack?: "hotel" | "restaurant";
   children: ReactNode;
 }) {
+  const bizLabel = businessDate?.slice(0, 10) ?? null;
+
   return (
     <div className="erp">
       <NavigationProgress />
@@ -54,11 +65,12 @@ export function DeskShell({
           brandName={title}
           logoSrc={logoSrc}
           allowedModuleKeys={allowedModuleKeys}
+          productPack={productPack}
         />
         <ErpCommandPalette allowedModuleKeys={allowedModuleKeys} />
         <SidebarInset>
           <StayHubShell>
-            <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+            <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 print:hidden">
               <SidebarTrigger className="-ml-1 hidden md:inline-flex" />
               <Separator
                 orientation="vertical"
@@ -68,6 +80,20 @@ export function DeskShell({
                 <h1 className="hidden max-w-[8rem] truncate text-sm font-medium text-muted-foreground lg:max-w-[12rem] xl:block">
                   {title}
                 </h1>
+              ) : null}
+              {bizLabel ? (
+                <Link
+                  href="/erp/night-audit"
+                  title="Business date (open hotel day). Click for night audit."
+                  className="hidden shrink-0 sm:inline-flex"
+                >
+                  <Badge
+                    variant="secondary"
+                    className="font-mono text-[10px] tracking-tight tabular-nums"
+                  >
+                    Biz {bizLabel.slice(5)}
+                  </Badge>
+                </Link>
               ) : null}
               <Suspense fallback={null}>
                 <ModuleHeaderTabs
@@ -107,10 +133,12 @@ export function DeskShell({
                 </form>
               </div>
             </header>
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0 print:overflow-visible print:pb-0">
               {children}
             </div>
-            <DeskMobileNav allowedModuleKeys={allowedModuleKeys} />
+            <div className="print:hidden">
+              <DeskMobileNav allowedModuleKeys={allowedModuleKeys} />
+            </div>
           </StayHubShell>
         </SidebarInset>
       </SidebarProvider>

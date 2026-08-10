@@ -16,6 +16,7 @@ import {
   loadProperty,
   resolveActivePropertyId,
 } from "@/lib/property-context";
+import { thimphuToday } from "@/lib/erp-lists";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
@@ -79,9 +80,12 @@ export default async function ErpLayout({
   const isPrintSurface =
     pathname === "/erp/kds" ||
     pathname.startsWith("/erp/kds/") ||
+    // Template print sheets live under /erp/menu/print/[template]
+    pathname.startsWith("/erp/menu/print/") ||
     /\/print\/?$/.test(pathname) ||
     /\/receipt\/?$/.test(pathname) ||
-    /\/statement\/?$/.test(pathname);
+    /\/statement\/?$/.test(pathname) ||
+    /\/slip\/?$/.test(pathname);
 
   if (isPrintSurface) {
     return (
@@ -129,9 +133,17 @@ export default async function ErpLayout({
       properties={properties}
       activePropertyId={propertyId}
       logoSrc={logoSrc}
+      businessDate={
+        activeProperty?.current_business_date?.slice(0, 10) ?? thimphuToday()
+      }
       allowedModuleKeys={allowedModuleKeys}
       canPreviewDashboards={canPreview}
       homeDashboardView={homeDashboardView}
+      productPack={
+        activeProperty?.product_pack === "restaurant"
+          ? "restaurant"
+          : "hotel"
+      }
     >
       {children}
       <WorkPwaRegistrar />

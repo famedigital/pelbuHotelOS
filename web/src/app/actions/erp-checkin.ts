@@ -101,6 +101,7 @@ function parseGuestRows(formData: FormData): Array<{
   passportOrCid: string;
   sdfRef: string;
   sdfDocUrl: string;
+  idPhotoUrl: string;
   roomUnitId: string | null;
 }> {
   const names = formData.getAll("guest_name").map((v) => String(v ?? ""));
@@ -110,6 +111,9 @@ function parseGuestRows(formData: FormData): Array<{
   const ids = formData.getAll("guest_passport_or_cid").map((v) => String(v ?? ""));
   const sdfRefs = formData.getAll("guest_sdf_ref").map((v) => String(v ?? ""));
   const sdfUrls = formData.getAll("guest_sdf_doc_url").map((v) => String(v ?? ""));
+  const idPhotos = formData
+    .getAll("guest_id_photo_url")
+    .map((v) => String(v ?? ""));
   const roomUnits = formData
     .getAll("guest_room_unit_id")
     .map((v) => String(v ?? "").trim() || null);
@@ -123,6 +127,7 @@ function parseGuestRows(formData: FormData): Array<{
         passportOrCid: String(formData.get("passport_or_cid") ?? ""),
         sdfRef: String(formData.get("sdf_ref") ?? ""),
         sdfDocUrl: String(formData.get("sdf_doc_url") ?? ""),
+        idPhotoUrl: String(formData.get("id_photo_url") ?? ""),
         roomUnitId: optionalTrim(formData.get("guest_room_unit_id")),
       },
     ];
@@ -134,6 +139,7 @@ function parseGuestRows(formData: FormData): Array<{
     passportOrCid: ids[i] ?? "",
     sdfRef: sdfRefs[i] ?? "",
     sdfDocUrl: sdfUrls[i] ?? "",
+    idPhotoUrl: idPhotos[i] ?? "",
     roomUnitId: roomUnits[i] ?? null,
   }));
 }
@@ -182,7 +188,7 @@ export async function confirmCheckIn(
     const { data: booking, error: bookingError } = await admin
       .from("bookings")
       .select(
-        "id, status, contact_name, check_in, check_out, agent_id, payment_mode, guest_origin, booked_by_role, meal_plan_code, meal_plan_amount_btn, extra_beds, extra_bed_amount_btn, quoted_total_btn, property_id, booking_rooms(qty, inventory_kind, room_type_id)",
+        "id, status, contact_name, check_in, check_out, agent_id, payment_mode, guest_origin, booked_by_role, meal_plan_code, meal_plan_amount_btn, extra_beds, extra_bed_amount_btn, quoted_total_btn, property_id, rooms, booking_rooms(qty, inventory_kind, room_type_id)",
       )
       .eq("id", bookingId)
       .single();
@@ -192,9 +198,150 @@ export async function confirmCheckIn(
     }
     assertDeskProperty(property_id, booking.property_id as string, "Booking");
 
+    const { assertBusinessDateOpenForCheckIn } = await import(
+      "@/lib/business-date"
+    );
+    const { getDeskRole } = await import("@/lib/desk-auth");
+    const { isManagerDeskRole } = await import("@/lib/manager-pin-core");
+    const { verifyManagerPinForProperty } = await import("@/lib/manager-pin");
+    const businessGate = await assertBusinessDateOpenForCheckIn(
+      admin,
+      property_id,
+      booking.check_in as string,
+    );
+    if (!businessGate.ok) {
+      // Floor staff need manager PIN. GM/owner session may opt-in without PIN.
+      const sessionRole = await getDeskRole();
+      const sessionIsGmOwner =
+        sessionRole != null && isManagerDeskRole(sessionRole);
+      const overridePin = optionalTrim(formData.get("manager_pin"));
+      const sessionOverride =
+        formData.get("business_date_override") === "on" ||
+        formData.get("past_check_in_ack") === "on";
+
+      let overrideSource: "session_gm" | "manager_pin" | null = null;
+      let pinSource: string | null = null;
+
+      if (overridePin) {
+        const pinResult = await verifyManagerPinForProperty(
+          admin,
+          property_id,
+          overridePin,
+        );
+        if (!pinResult.ok) {
+          throw new Error(pinResult.error);
+        }
+        overrideSource = "manager_pin";
+        pinSource =
+          pinResult.source === "staff"
+            ? `staff:${pinResult.staffId}:${pinResult.fullName}`
+            : pinResult.source;
+      } else if (sessionIsGmOwner && sessionOverride) {
+        overrideSource = "session_gm";
+      } else if (sessionIsGmOwner) {
+        throw new Error(
+          `${businessGate.message} Tick “Allow past check-in / business date override” (GM/owner), enter a manager PIN, or adjust stay dates on Details.`,
+        );
+      } else {
+        throw new Error(
+          `${businessGate.message} Enter a manager PIN below, ask a GM/owner to override, or adjust stay dates on Details.`,
+        );
+      }
+
+      await writeAuditEvent(admin, {
+        propertyId: property_id,
+        action: "booking.check_in_business_date_override",
+        entityType: "bookings",
+        entityId: bookingId,
+        summary:
+          overrideSource === "session_gm"
+            ? `GM/owner session override · check-in ${booking.check_in} (gate: ${businessGate.priorDate})`
+            : `Manager PIN override · check-in ${booking.check_in} (gate: ${businessGate.priorDate})`,
+        meta: {
+          priorBusinessDate: businessGate.priorDate,
+          checkIn: booking.check_in,
+          gateMessage: businessGate.message,
+          overrideSource,
+          pinSource,
+          deskRole: sessionRole,
+        },
+      });
+    }
+
     const status = booking.status as string;
     if (!["pending", "confirmed"].includes(status)) {
       throw new Error(`Cannot check in a booking with status ${status}.`);
+    }
+
+    // Agent open-room capacity (primary credit control vs Nu-only limits).
+    const agentIdCi = (booking.agent_id as string | null) ?? null;
+    if (agentIdCi) {
+      const { data: agentRow } = await admin
+        .from("agents")
+        .select("id, company_name, open_room_cap")
+        .eq("id", agentIdCi)
+        .maybeSingle();
+      if (agentRow) {
+        const {
+          countAgentOpenRooms,
+          agentRoomCapBlockedMessage,
+        } = await import("@/lib/agents/open-rooms");
+        const cap = Math.max(0, Number(agentRow.open_room_cap ?? 15));
+        const openRooms = await countAgentOpenRooms(admin, {
+          propertyId: property_id,
+          agentId: agentIdCi,
+          excludeBookingId: bookingId,
+        });
+        const incoming = Math.max(1, Number((booking as { rooms?: number }).rooms ?? 1));
+        // Prefer assigned units count when FO picked rooms
+        const unitCount = roomUnitIds.length;
+        const incomingRooms = unitCount > 0 ? unitCount : incoming;
+        const overrideCap =
+          formData.get("override_agent_room_cap") === "on" ||
+          formData.get("override_agent_room_cap") === "true";
+        const overrideNote = optionalTrim(formData.get("agent_room_cap_note"));
+        if (openRooms + incomingRooms > cap && !overrideCap) {
+          throw new Error(
+            agentRoomCapBlockedMessage({
+              companyName: agentRow.company_name as string | null,
+              openRooms,
+              incomingRooms,
+              cap,
+            }),
+          );
+        }
+        if (openRooms + incomingRooms > cap && overrideCap) {
+          if (!overrideNote || overrideNote.length < 4) {
+            throw new Error(
+              "Room-cap override requires a short note (why stack this agent).",
+            );
+          }
+          await writeAuditEvent(admin, {
+            propertyId: property_id,
+            action: "booking.check_in_room_cap_override",
+            entityType: "bookings",
+            entityId: bookingId,
+            summary: `Agent room-cap override · ${openRooms}+${incomingRooms} > ${cap}`,
+            meta: {
+              openRooms,
+              incomingRooms,
+              cap,
+              note: overrideNote,
+              agentId: agentIdCi,
+            },
+          });
+        }
+      }
+    }
+
+    if (!requireClean) {
+      await writeAuditEvent(admin, {
+        propertyId: property_id,
+        action: "booking.check_in_dirty_room_override",
+        entityType: "bookings",
+        entityId: bookingId,
+        summary: "Check-in with dirty/inspect room override",
+      });
     }
 
     const guestOrigin = normalizeGuestOrigin(
@@ -470,6 +617,7 @@ export async function confirmCheckIn(
         passport_or_cid: g.passportOrCid.trim(),
         sdf_ref: g.sdfRef.trim() || null,
         sdf_doc_url: g.sdfDocUrl.trim() || null,
+        id_photo_url: g.idPhotoUrl.trim() || null,
         room_assignment_id: assignmentId,
         sort_order: i,
       };
@@ -621,7 +769,7 @@ export async function confirmCheckIn(
       action: "booking.check_in",
       entityType: "bookings",
       entityId: bookingId,
-      summary: `Checked in ${primaryGuest.fullName.trim()} · ${roomUnitIds.length} room(s)`,
+      summary: `Checked in ${primaryGuest.fullName.trim()} · ref ${bookingId.slice(0, 8).toUpperCase()} · ${roomUnitIds.length} room(s)`,
       meta: {
         paymentMode,
         guestCount: guests.length,
@@ -786,13 +934,19 @@ export async function confirmCheckOut(
     if (lateFeeRaw && (!Number.isFinite(lateFee) || lateFee < 0)) {
       throw new Error("Late checkout fee must be a non-negative amount.");
     }
+    // Early and late are mutually exclusive — prevent double-post of both policy amounts.
+    if (earlyFee > 0.009 && lateFee > 0.009) {
+      throw new Error(
+        "Post either early or late checkout fee, not both. Clear one field and try again.",
+      );
+    }
 
     const admin = createSupabaseAdminClient();
     const property_id = await propertyId(admin);
 
     const { data: booking, error: bookingError } = await admin
       .from("bookings")
-      .select("id, status, contact_name, property_id, agent_id, payment_mode")
+      .select("id, status, contact_name, property_id, agent_id, payment_mode, guide_sign_status")
       .eq("id", bookingId)
       .single();
 
@@ -802,6 +956,20 @@ export async function confirmCheckOut(
     assertDeskProperty(property_id, booking.property_id as string, "Booking");
     if ((booking.status as string) !== "checked_in") {
       throw new Error("Only checked-in bookings can be checked out.");
+    }
+
+    // Agent stays: guide-signed paper (or waive) before guests leave.
+    // Email/seal is FO work after leave — not a gate here.
+    if (booking.agent_id) {
+      const signStatus = String(
+        (booking as { guide_sign_status?: string | null }).guide_sign_status ??
+          "",
+      ).toLowerCase();
+      if (signStatus !== "photo" && signStatus !== "waived") {
+        throw new Error(
+          "Agent stay: attach guide-signed settlement paper (phone camera, scanner, or file) or waive with reason before check-out.",
+        );
+      }
     }
 
     const { data: folio } = await admin
@@ -959,6 +1127,7 @@ export async function confirmCheckOut(
         folioBalance: balance,
         allowBalance,
         earlyCheckoutFee: earlyFee > 0 ? earlyFee : undefined,
+        lateCheckoutFee: lateFee > 0 ? lateFee : undefined,
       },
     });
 

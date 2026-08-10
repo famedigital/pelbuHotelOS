@@ -40,6 +40,8 @@ type StayHubContextValue = {
   bookingId: string | null;
   openStayHub: (opts: OpenStayHubOptions) => void;
   closeStayHub: () => void;
+  /** Rail / body panel change — keeps ?step= in sync without re-forcing preferred. */
+  setStayHubStepInUrl: (step: StayHubStepId | null) => void;
 };
 
 const StayHubContext = createContext<StayHubContextValue | null>(null);
@@ -84,6 +86,11 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
    */
   const suppressOpenFromUrl = useRef(false);
   const lastOpenedIdRef = useRef<string | null>(null);
+  /**
+   * Last step we applied as preferred for this booking.
+   * Prevents ?step=check_out from re-forcing panel every time staff pick Folio.
+   */
+  const appliedPreferredKeyRef = useRef<string | null>(null);
 
   const open = bookingId != null;
 
@@ -117,9 +124,15 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
       lastOpenedIdRef.current = id;
       setBookingId(id);
       setAssignmentId(opts.assignmentId ?? null);
-      // Only apply preferred step when opening a different stay
+      // Only apply preferred step when opening a different stay or explicit step
       if (isNew || opts.step) {
-        setPreferredStep(opts.step ?? null);
+        if (opts.step) {
+          appliedPreferredKeyRef.current = `${id}:${opts.step}`;
+          setPreferredStep(opts.step);
+        } else if (isNew) {
+          appliedPreferredKeyRef.current = null;
+          setPreferredStep(null);
+        }
       }
       setSeedStay(opts.seedStay ?? null);
       if (opts.agents) setAgents(opts.agents);
@@ -136,6 +149,7 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
     // Block deep-link re-open until booking is gone from the URL.
     suppressOpenFromUrl.current = true;
     lastOpenedIdRef.current = null;
+    appliedPreferredKeyRef.current = null;
     setBookingId(null);
     setAssignmentId(null);
     setPreferredStep(null);
@@ -144,6 +158,23 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
     onToggleLockRef.current = undefined;
     writeUrl(null, null);
   }, [writeUrl]);
+
+  const clearPreferredStep = useCallback(() => {
+    setPreferredStep(null);
+  }, []);
+
+  /** Staff changed panel — keep URL honest and stop preferred re-apply. */
+  const setStayHubStepInUrl = useCallback(
+    (step: StayHubStepId | null) => {
+      if (!bookingId) return;
+      if (step) {
+        appliedPreferredKeyRef.current = `${bookingId}:${step}`;
+      }
+      setPreferredStep(null);
+      writeUrl(bookingId, step);
+    },
+    [bookingId, writeUrl],
+  );
 
   // Deep link: ?booking=&step= (and re-open guard after close)
   useEffect(() => {
@@ -154,17 +185,44 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
       return;
     }
     if (suppressOpenFromUrl.current) return;
-    if (fromUrl === bookingId) return;
-    suppressUrlWrite.current = true;
     const step = parseStayHubStep(searchParams.get("step"));
+    const pathBoard = (() => {
+      if (pathname.includes("/arrivals")) return "arrivals" as const;
+      if (pathname.includes("/departures")) return "departures" as const;
+      if (pathname.includes("/reservations")) return "reservations" as const;
+      if (pathname.includes("/in-house")) return "in_house" as const;
+      return "auto" as const;
+    })();
+
+    // Same booking: only re-apply preferred when the URL step is *new*
+    // (e.g. Back to stay with different panel). Never re-force check_out
+    // after staff already navigated to Folio while URL still says check_out.
+    if (fromUrl === bookingId) {
+      if (step) {
+        const key = `${fromUrl}:${step}`;
+        if (appliedPreferredKeyRef.current !== key) {
+          appliedPreferredKeyRef.current = key;
+          setPreferredStep(step);
+        }
+      }
+      return;
+    }
+
+    suppressUrlWrite.current = true;
     lastOpenedIdRef.current = fromUrl;
     setBookingId(fromUrl);
-    setPreferredStep(step);
+    if (step) {
+      appliedPreferredKeyRef.current = `${fromUrl}:${step}`;
+      setPreferredStep(step);
+    } else {
+      appliedPreferredKeyRef.current = null;
+      setPreferredStep(null);
+    }
     setSeedStay(null);
     setAssignmentId(null);
-    setBoard("auto");
+    setBoard(pathBoard);
     suppressUrlWrite.current = false;
-  }, [searchParams, bookingId]);
+  }, [searchParams, bookingId, pathname]);
 
   const value = useMemo(
     () => ({
@@ -172,8 +230,9 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
       bookingId,
       openStayHub,
       closeStayHub,
+      setStayHubStepInUrl,
     }),
-    [open, bookingId, openStayHub, closeStayHub],
+    [open, bookingId, openStayHub, closeStayHub, setStayHubStepInUrl],
   );
 
   return (
@@ -197,7 +256,8 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
             ? (stay) => onToggleLockRef.current?.(stay)
             : undefined
         }
-        onPreferredStepConsumed={() => setPreferredStep(null)}
+        onPreferredStepConsumed={clearPreferredStep}
+        onPanelChange={setStayHubStepInUrl}
       />
     </StayHubContext.Provider>
   );

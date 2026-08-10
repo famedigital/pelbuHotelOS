@@ -2,6 +2,7 @@
 
 import { chargeAgentCredit } from "@/app/actions/erp-agents";
 import {
+  creditAgentIneligibilityMessage,
   isBookableAgentStatus,
   isCreditAgentStatus,
 } from "@/lib/agents/status";
@@ -151,7 +152,8 @@ async function assertAgentAttachable(
     !isCreditAgentStatus(agent.status as string)
   ) {
     throw new Error(
-      "On-credit stays require an approved or demo trade partner. Approve this agent as a trade partner in the booking form (no credit for directory listings).",
+      creditAgentIneligibilityMessage(agent.status as string) ??
+        "On-credit stays require an approved or demo trade partner.",
     );
   }
 }
@@ -174,11 +176,16 @@ async function estimateAndChargeCredit(
   if (args.paymentMode !== "on_credit" || !args.agentId) return 0;
   const { data: agent } = await admin
     .from("agents")
-    .select("id, status, rate_tier")
+    .select("id, status, rate_tier, company_name")
     .eq("id", args.agentId)
     .maybeSingle();
-  if (!agent || !isCreditAgentStatus(agent.status as string)) {
-    throw new Error("Agent must be approved (or demo) to book on credit.");
+  if (!agent) throw new Error("Agent not found for credit charge.");
+  {
+    const blocked = creditAgentIneligibilityMessage(
+      agent.status as string,
+      agent.company_name as string | null,
+    );
+    if (blocked) throw new Error(blocked);
   }
   const tier = agentRateTier(agent.rate_tier as string) ?? rateTierFromSource(args.source);
   const season = await resolveSeasonKind(admin, args.propertyId, args.checkIn);
@@ -1526,6 +1533,9 @@ export type CalendarReservationEditInput = {
   contactPhone: string;
   contactEmail: string;
   adults: number;
+  children?: number;
+  extraBeds?: number;
+  mealPlanCode?: string | null;
   guideNumber: string;
   guestOrigin: string;
   source: string;
@@ -1558,6 +1568,14 @@ export async function updateCalendarReservationDetails(
     }
     const adults = Math.max(1, Math.min(48, Math.floor(Number(input.adults))));
     if (!Number.isFinite(adults)) throw new Error("Adults must be a number.");
+    const children = Math.max(
+      0,
+      Math.min(24, Math.floor(Number(input.children ?? 0)) || 0),
+    );
+    const extraBedsIn = Math.max(
+      0,
+      Math.min(12, Math.floor(Number(input.extraBeds ?? 0)) || 0),
+    );
     if ((source === "agent" || source === "mou_agent") && !agentId) {
       throw new Error("Select an agent for agent bookings.");
     }
@@ -1570,7 +1588,8 @@ export async function updateCalendarReservationDetails(
     const { data: existing } = await admin
       .from("bookings")
       .select(
-        "id, payment_mode, contact_name, sold_by_staff_id, sales_claim_status",
+        `id, payment_mode, contact_name, sold_by_staff_id, sales_claim_status,
+         check_in, check_out, meal_plan_code, children, extra_beds`,
       )
       .eq("id", input.bookingId)
       .eq("property_id", propertyId)
@@ -1601,6 +1620,30 @@ export async function updateCalendarReservationDetails(
         (existing.sales_claim_status as string | null) ?? null,
     });
 
+    const checkIn = existing.check_in as string;
+    const checkOut = existing.check_out as string;
+    const nights = Math.max(
+      1,
+      Math.round(
+        (new Date(`${checkOut}T00:00:00`).getTime() -
+          new Date(`${checkIn}T00:00:00`).getTime()) /
+          86_400_000,
+      ),
+    );
+    const mealPlanCode =
+      (typeof input.mealPlanCode === "string"
+        ? input.mealPlanCode.trim()
+        : "") ||
+      (existing.meal_plan_code as string | null) ||
+      "EP";
+    const addons = await resolveStayAddonsForBook(admin, propertyId, {
+      mealPlanCode,
+      adults,
+      children,
+      extraBeds: extraBedsIn,
+      nights,
+    });
+
     const { error } = await admin
       .from("bookings")
       .update({
@@ -1608,6 +1651,11 @@ export async function updateCalendarReservationDetails(
         contact_phone: contactPhone,
         contact_email: contactEmail,
         adults,
+        children,
+        extra_beds: addons.extraBeds,
+        meal_plan_code: addons.mealPlanCode,
+        meal_plan_amount_btn: addons.mealPlanAmountBtn,
+        extra_bed_amount_btn: addons.extraBedAmountBtn,
         guide_number: guideNumber,
         guest_origin: input.guestOrigin,
         source: source === "mou_agent" ? "agent" : source,
@@ -1647,6 +1695,9 @@ export async function updateCalendarReservationDetails(
         source,
         agent_id: agentId,
         adults,
+        children,
+        extra_beds: addons.extraBeds,
+        meal_plan_code: addons.mealPlanCode,
         guest_origin: input.guestOrigin,
         sold_by_staff_id: soldByStaffId,
       },

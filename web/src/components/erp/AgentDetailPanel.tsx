@@ -5,6 +5,7 @@ import {
   recordAgentCreditPayment,
   rejectAgent,
   setAgentCreditLimit,
+  setAgentOpenRoomCap,
   updateAgentDeskStatus,
   type AgentDocumentRow,
   type ErpAgentState,
@@ -160,6 +161,42 @@ function CreditLimitForm({ agent, compact }: { agent: DeskAgentRow; compact?: bo
   );
 }
 
+function OpenRoomCapForm({ agent, compact }: { agent: DeskAgentRow; compact?: boolean }) {
+  const [state, action, pending] = useActionState(setAgentOpenRoomCap, initial);
+  return (
+    <form action={action} className="flex flex-wrap items-end gap-2">
+      <input type="hidden" name="agent_id" value={agent.id} />
+      <label className="block min-w-[8rem] flex-1 text-xs text-muted-foreground">
+        Open room cap (in-house)
+        <Input
+          name="open_room_cap"
+          type="number"
+          min={0}
+          max={500}
+          step={1}
+          defaultValue={agent.open_room_cap ?? 15}
+          className="mt-1.5"
+          required
+        />
+        <span className="mt-1 block text-[10px] text-muted-foreground">
+          Concurrent rooms before next check-in blocks (primary control vs Nu
+          limit).
+        </span>
+      </label>
+      <Button
+        type="submit"
+        variant="outline"
+        size={compact ? "sm" : "default"}
+        disabled={pending}
+        className="h-9"
+      >
+        {pending ? "Saving…" : "Set room cap"}
+      </Button>
+      <ActionFlash state={state} />
+    </form>
+  );
+}
+
 function CreditPaymentForm({ agent, compact }: { agent: DeskAgentRow; compact?: boolean }) {
   const [state, action, pending] = useActionState(recordAgentCreditPayment, initial);
   const idempotencyKey = useRef(
@@ -272,9 +309,10 @@ export function AgentDetailPanel({
 
         <section className="rounded-lg border bg-card p-3 sm:p-4">
           <h3 className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-            Credit
+            Credit & room capacity
           </h3>
           <div className="mt-3 space-y-4">
+            <OpenRoomCapForm agent={agent} compact={compact} />
             <CreditLimitForm agent={agent} compact={compact} />
             <CreditPaymentForm agent={agent} compact={compact} />
           </div>

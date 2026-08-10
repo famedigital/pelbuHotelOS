@@ -32,7 +32,13 @@ export async function GET() {
         "id, status, check_in, check_out, guide_number, payment_mode, created_at, checked_in_at, checked_out_at",
       )
       .eq("property_id", propertyId)
-      .in("status", ["pending", "confirmed", "checked_in", "held"])
+      .in("status", [
+        "pending",
+        "confirmed",
+        "checked_in",
+        "held",
+        "checked_out",
+      ])
       .or(`check_in.eq.${today},check_out.eq.${today},and(check_in.lte.${today},check_out.gt.${today})`)
       .limit(400),
     admin

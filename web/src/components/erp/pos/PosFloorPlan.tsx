@@ -479,6 +479,8 @@ export function PosFloorPlan({
 const STATUS_STYLES: Record<TableStatus, string> = {
   free: "border-border bg-card hover:border-accent/50",
   occupied: "border-accent/40 bg-accent/10",
+  ordered: "border-sky-500/40 bg-sky-500/10",
+  billed: "border-amber-500/40 bg-amber-500/10",
   reserved: "border-gold/40 bg-gold/10",
   dirty: "border-destructive/30 bg-destructive/5",
 };

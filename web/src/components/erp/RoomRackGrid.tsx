@@ -21,12 +21,13 @@ import { RoomDayBoard } from "@/components/erp/RoomDayBoard";
 import { useStayHubOptional } from "@/components/erp/StayHubProvider";
 import { CalendarRoomUnitEditDialog } from "@/components/erp/CalendarRoomUnitEditDialog";
 import {
-  CalendarReservationDialog,
   type CalendarAgent,
   type CalendarMealPlan,
   type CalendarSelection,
   type CalendarSelectedUnit,
 } from "@/components/erp/CalendarReservationDialog";
+import { FastBookDialog } from "@/components/erp/FastBookDialog";
+import type { FastBookRoomType } from "@/components/erp/FastBookForm";
 import type { BookableStaff } from "@/components/erp/StaffPicker";
 import {
   DropdownMenu,
@@ -278,6 +279,8 @@ function fmtHeader(iso: string): { dow: string; day: string; mon: string } {
 function statusBadgeClass(status: string): string {
   if (status === "checked_in")
     return "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+  if (status === "checked_out")
+    return "border-slate-500/40 bg-slate-500/10 text-slate-700 dark:text-slate-300";
   if (status === "confirmed")
     return "border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300";
   if (status === "pending" || status === "held")
@@ -303,8 +306,19 @@ function stayOpsTone(stay: RackStay, today: string): StayOpsTone {
       stay.status === "held");
   const departingToday =
     stay.status === "checked_in" && stay.check_out === today;
-  const dues = Number(stay.folio_balance ?? 0) > 0.5;
+  // Settled dues cue less important on past departures
+  const dues =
+    stay.status !== "checked_out" && Number(stay.folio_balance ?? 0) > 0.5;
 
+  // Checked-out stays remain visible for history (not "overdue" rose)
+  if (stay.status === "checked_out") {
+    return {
+      bar: "bg-slate-500 text-white ring-1 ring-slate-300/50",
+      accent: "bg-slate-700",
+      dues,
+      lifeLabel: "Checked out",
+    };
+  }
   if (overdueDeparture) {
     return {
       bar: "bg-rose-700 text-white ring-1 ring-rose-300/70",
@@ -658,6 +672,10 @@ function StayHoverCard({
               <span className="shrink-0 font-bold" title="Not checked out">
                 OUT
               </span>
+            ) : stay.status === "checked_out" ? (
+              <span className="shrink-0 font-bold" title="Checked out">
+                CO
+              </span>
             ) : tone.lifeLabel === "Arriving" ? (
               <span className="shrink-0 font-bold" title="Arriving today">
                 IN
@@ -926,6 +944,44 @@ export function RoomRackGrid({
   const [editUnit, setEditUnit] = useState<RackUnit | null>(null);
   const [, startResizing] = useTransition();
   const [dayBoardDate, setDayBoardDate] = useState(today);
+
+  const deskRoomTypes: FastBookRoomType[] = useMemo(() => {
+    const map = new Map<string, FastBookRoomType>();
+    for (const u of units) {
+      const cur = map.get(u.room_type_id);
+      if (!cur) {
+        map.set(u.room_type_id, {
+          id: u.room_type_id,
+          code: u.room_type_code,
+          name: u.room_type_name,
+          inventory_kind: "sellable_guest",
+          unit_count: 1,
+        });
+      } else {
+        cur.unit_count += 1;
+      }
+    }
+    return Array.from(map.values());
+  }, [units]);
+
+  const deskBookDefaults = useMemo(() => {
+    if (!selection) return undefined;
+    const qtyByCode: Record<string, number> = {};
+    for (const u of selection.units) {
+      const code = u.room_type_code;
+      if (code) qtyByCode[code] = (qtyByCode[code] ?? 0) + 1;
+    }
+    if (Object.keys(qtyByCode).length === 0 && deskRoomTypes[0]) {
+      qtyByCode[deskRoomTypes[0].code] = 1;
+    }
+    return {
+      checkIn: selection.checkIn,
+      checkOut: selection.checkOut,
+      roomUnitId: selection.units[0]?.id,
+      roomUnitLabel: selection.units[0]?.label,
+      qtyByCode,
+    };
+  }, [selection, deskRoomTypes]);
 
   const openStay = useCallback(
     (stay: RackStay) => {
@@ -1622,15 +1678,26 @@ export function RoomRackGrid({
             setAssignGuide(null);
           }}
         />
-        <CalendarReservationDialog
+        <FastBookDialog
           open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          selection={selection}
+          onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) setSelection(null);
+          }}
+          roomTypes={deskRoomTypes}
           agents={agents}
           staff={staff}
           defaultSoldByStaffId={defaultSoldByStaffId}
-          mealPlans={mealPlans}
-          defaultMealPlanCode={defaultMealPlanCode}
+          mealPlans={mealPlans.map((m) => ({
+            code: m.code,
+            name: m.name,
+            blurb: null as string | null,
+            amountPerAdultNight: null as number | null,
+          }))}
+          defaults={{
+            ...deskBookDefaults,
+            mealPlanCode: defaultMealPlanCode,
+          }}
         />
       </div>
     );
@@ -1688,6 +1755,7 @@ export function RoomRackGrid({
                 { swatch: "bg-sky-700", label: "Confirmed (future)" },
                 { swatch: "bg-amber-300", label: "Held / pending" },
                 { swatch: "bg-rose-700", label: "Overdue checkout" },
+                { swatch: "bg-slate-500", label: "Checked out" },
               ].map((row) => (
                 <li key={row.label} className="flex items-center gap-2">
                   <span
@@ -2513,7 +2581,10 @@ export function RoomRackGrid({
                               >
                                 Open stay
                               </DropdownMenuItem>
-                              {stay.status !== "checked_in" ? (
+                              {stay.status !== "checked_in" &&
+                              stay.status !== "checked_out" &&
+                              stay.status !== "cancelled" &&
+                              stay.status !== "no_show" ? (
                                 <DropdownMenuItem
                                   onSelect={() => {
                                     setContextStayId(null);
@@ -2529,7 +2600,44 @@ export function RoomRackGrid({
                                 >
                                   Check-in
                                 </DropdownMenuItem>
-                              ) : (
+                              ) : null}
+                              {stay.status === "checked_in" ? (
+                                <>
+                                  <DropdownMenuItem
+                                    onSelect={() => {
+                                      setContextStayId(null);
+                                      stayHub?.openStayHub({
+                                        bookingId: stay.booking_id,
+                                        assignmentId: stay.id,
+                                        seedStay: stay,
+                                        agents,
+                                        units,
+                                        step: "stay_money",
+                                      });
+                                    }}
+                                  >
+                                    Folio / settle
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onSelect={() => {
+                                      setContextStayId(null);
+                                      stayHub?.openStayHub({
+                                        bookingId: stay.booking_id,
+                                        assignmentId: stay.id,
+                                        seedStay: stay,
+                                        agents,
+                                        units,
+                                        step: "check_out",
+                                      });
+                                    }}
+                                  >
+                                    Check-out
+                                  </DropdownMenuItem>
+                                </>
+                              ) : null}
+                              {stay.status === "confirmed" ||
+                              stay.status === "held" ||
+                              stay.status === "pending" ? (
                                 <DropdownMenuItem
                                   onSelect={() => {
                                     setContextStayId(null);
@@ -2539,22 +2647,22 @@ export function RoomRackGrid({
                                       seedStay: stay,
                                       agents,
                                       units,
-                                      step: "check_out",
+                                      step: "confirm",
                                     });
                                   }}
                                 >
-                                  Check-out
+                                  Amend / details
                                 </DropdownMenuItem>
-                              )}
+                              ) : null}
                               <DropdownMenuItem asChild>
                                 <Link href={`/erp/bookings/${stay.booking_id}`}>
-                                  Booking
+                                  Booking page
                                 </Link>
                               </DropdownMenuItem>
                               {stay.folio_id ? (
                                 <DropdownMenuItem asChild>
                                   <Link href={`/erp/folios/${stay.folio_id}`}>
-                                    Folio
+                                    Full folio
                                   </Link>
                                 </DropdownMenuItem>
                               ) : null}
@@ -2626,15 +2734,26 @@ export function RoomRackGrid({
         </div>
       )}
 
-      <CalendarReservationDialog
+      <FastBookDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        selection={selection}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setSelection(null);
+        }}
+        roomTypes={deskRoomTypes}
         agents={agents}
         staff={staff}
         defaultSoldByStaffId={defaultSoldByStaffId}
-        mealPlans={mealPlans}
-        defaultMealPlanCode={defaultMealPlanCode}
+        mealPlans={mealPlans.map((m) => ({
+          code: m.code,
+          name: m.name,
+          blurb: null as string | null,
+          amountPerAdultNight: null as number | null,
+        }))}
+        defaults={{
+          ...deskBookDefaults,
+          mealPlanCode: defaultMealPlanCode,
+        }}
       />
       <AssignUnassignedRoomDialog
         guide={assignGuide}

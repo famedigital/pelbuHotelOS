@@ -10,10 +10,13 @@ import {
   boardActionLabel,
   type ArrivalBadge,
 } from "@/lib/arrival-board";
+import { bookingConfirmationLabel } from "@/lib/booking-ref";
 import { recommendStayHubStep } from "@/lib/folio/stay-hub-cycle";
 
 export type BookingRow = {
   id: string;
+  /** Stay confirmation PS-YYYY-##### when allocated. */
+  confirmation_code?: string | null;
   contact_name: string | null;
   contact_phone: string | null;
   check_in: string | null;
@@ -133,7 +136,11 @@ export function BookingsTable({
             {row.original.contact_name ?? "Guest"}
           </p>
           <p className="font-mono text-xs text-muted-foreground">
-            {row.original.id.slice(0, 8)} · {row.original.contact_phone ?? "—"}
+            {bookingConfirmationLabel({
+              confirmationCode: row.original.confirmation_code,
+              bookingId: row.original.id,
+            })}{" "}
+            · {row.original.contact_phone ?? "—"}
           </p>
         </div>
       ),
@@ -259,7 +266,11 @@ export function BookingsTable({
                     {row.contact_name ?? "Guest"}
                   </p>
                   <p className="font-mono text-xs text-muted-foreground">
-                    {row.id.slice(0, 8)} · {row.contact_phone ?? "—"}
+                    {bookingConfirmationLabel({
+                      confirmationCode: row.confirmation_code,
+                      bookingId: row.id,
+                    })}{" "}
+                    · {row.contact_phone ?? "—"}
                   </p>
                 </div>
                 <StatusPill value={row.status ?? ""} />

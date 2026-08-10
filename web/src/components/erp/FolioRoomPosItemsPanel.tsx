@@ -165,38 +165,50 @@ export function FolioRoomPosItemsPanel({
 }) {
   if (orders.length === 0) {
     return (
-      <div className={cn("rounded-lg border bg-card p-4 text-sm text-muted-foreground", className)}>
-        No room-charge F&amp;B yet. Café / restaurant posts appear here when
-        charged to the room so front desk can verify every item at collection.
-      </div>
+      <p
+        className={cn("px-0.5 text-[11px] text-muted-foreground", className)}
+      >
+        No room-charge F&amp;B tickets yet.
+      </p>
     );
   }
 
+  const ticketTotal = orders.reduce((s, o) => s + Number(o.totalBtn ?? 0), 0);
+  const itemCount = orders.reduce((s, o) => s + o.items.length, 0);
+
   return (
-    <div className={cn("space-y-3", className)}>
-      <p className="text-xs text-muted-foreground">
-        Every dish or drink charged to this room. Pass should mark{" "}
-        <span className="font-medium text-foreground">served</span> (who + when
-        is stored). If guest disputes after KOT, void the line — audited, folio
-        rebalanced.
-      </p>
+    <details className={cn("group rounded-md border bg-card", className)}>
+      <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-2 px-2 py-1.5 text-xs font-medium select-none [&::-webkit-details-marker]:hidden">
+        <span>
+          Ordered · {orders.length} ticket
+          {orders.length === 1 ? "" : "s"} · {itemCount} item
+          {itemCount === 1 ? "" : "s"}
+        </span>
+        <span className="tabular-nums text-muted-foreground">
+          {formatBtn(ticketTotal)} · expand
+        </span>
+      </summary>
+      <div className="space-y-2 border-t px-2 py-2">
+        <p className="text-[10px] text-muted-foreground">
+          Mark served / void disputed lines (audited).
+        </p>
       {orders.map((order) => {
         const activeItems = order.items.filter((i) => !i.voidedAt);
         const voidedItems = order.items.filter((i) => i.voidedAt);
         return (
           <article
             key={order.orderId}
-            className="rounded-lg border bg-card p-3 sm:p-4"
+            className="rounded-md border bg-background/50 p-2"
           >
-            <header className="flex flex-wrap items-start justify-between gap-2 border-b pb-2">
+            <header className="flex flex-wrap items-start justify-between gap-2 border-b pb-1.5">
               <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground">
+                <p className="text-xs font-medium text-foreground">
                   {order.outlet} ·{" "}
                   <span className="font-normal text-muted-foreground">
                     {fmtWhen(order.createdAt)}
                   </span>
                 </p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-[10px] text-muted-foreground">
                   {order.postedToFolioAt
                     ? `On folio · ${fmtWhen(order.postedToFolioAt)}`
                     : "Not yet posted to folio"}
@@ -204,12 +216,12 @@ export function FolioRoomPosItemsPanel({
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-sm font-semibold tabular-nums">
+                <p className="text-xs font-semibold tabular-nums">
                   {formatBtn(order.totalBtn)}
                 </p>
                 <span
                   className={cn(
-                    "mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase",
+                    "mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase",
                     kotTone(order.kotStatus),
                   )}
                 >
@@ -335,7 +347,8 @@ export function FolioRoomPosItemsPanel({
           </article>
         );
       })}
-    </div>
+      </div>
+    </details>
   );
 }
 

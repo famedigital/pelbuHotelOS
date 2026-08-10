@@ -69,12 +69,9 @@ export function VoidLineButton({
     <form action={action} className="erp mt-2 space-y-1.5">
       <input type="hidden" name="line_id" value={lineId} />
       <p className="text-[11px] text-muted-foreground">
-        Wrong / duplicate / not served? Void removes this charge and credits the
-        folio (audit logged).
+        Wrong charge? Void credits the folio.
         {description ? (
-          <span className="mt-0.5 block truncate text-foreground/80">
-            {description}
-          </span>
+          <span className="sr-only"> {description}</span>
         ) : null}
       </p>
       <div className="flex flex-wrap items-center gap-2">
@@ -83,6 +80,7 @@ export function VoidLineButton({
           required
           defaultValue=""
           className={`${selectClass()} max-w-[240px] text-xs`}
+          aria-label="Void reason"
         >
           <option value="" disabled>
             Why void…
@@ -115,7 +113,13 @@ export function VoidLineButton({
   );
 }
 
-export function GuestRoundFigureForm({ folioId }: { folioId: string }) {
+export function GuestRoundFigureForm({
+  folioId,
+  embedded = false,
+}: {
+  folioId: string;
+  embedded?: boolean;
+}) {
   const [state, action, pending] = useActionState(
     postGuestRoundFigureAdj,
     initial,
@@ -124,17 +128,17 @@ export function GuestRoundFigureForm({ folioId }: { folioId: string }) {
   return (
     <form
       action={action}
-      className="erp space-y-3 rounded-lg border bg-card p-4"
+      className={
+        embedded
+          ? "erp space-y-3"
+          : "erp space-y-3 rounded-lg border bg-card p-4"
+      }
     >
-      <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-        Round figure (rate adj)
-      </h3>
-      <p className="text-xs text-muted-foreground">
-        Rounds Master, Room, and F&amp;B charge streams to whole Nu ending in{" "}
-        <span className="font-medium text-foreground">0 or 5</span> (no
-        decimals). Posts hotel absorb adj — guest never pays the chetrum
-        remainder.
-      </p>
+      {!embedded ? (
+        <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+          Round figure
+        </h3>
+      ) : null}
       <input type="hidden" name="folio_id" value={folioId} />
       <Button
         type="submit"
@@ -142,7 +146,7 @@ export function GuestRoundFigureForm({ folioId }: { folioId: string }) {
         disabled={pending}
         className="h-10 w-full"
       >
-        {pending ? "Posting…" : "Round Master / Room / F&B to Nu 0 or 5"}
+        {pending ? "Posting…" : "Round to Nu ending 0 or 5"}
       </Button>
       <PeriodOverrideFields idPrefix={`round-${folioId.slice(0, 8)}`} />
       <Flash state={state} />
@@ -186,17 +190,29 @@ export function TransferLineForm({
   );
 }
 
-export function CompCreditForm({ folioId }: { folioId: string }) {
+export function CompCreditForm({
+  folioId,
+  embedded = false,
+}: {
+  folioId: string;
+  embedded?: boolean;
+}) {
   const [state, action, pending] = useActionState(postCompCredit, initial);
   useActionToast(state, { successMessage: "Comp credit posted" });
   return (
     <form
       action={action}
-      className="erp space-y-3 rounded-lg border bg-card p-4"
+      className={
+        embedded
+          ? "erp space-y-3"
+          : "erp space-y-3 rounded-lg border bg-card p-4"
+      }
     >
-      <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-        Comp / courtesy
-      </h3>
+      {!embedded ? (
+        <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+          Comp / NC
+        </h3>
+      ) : null}
       <input type="hidden" name="folio_id" value={folioId} />
       <div className="space-y-1.5">
         <Label htmlFor="comp_amount_btn" className="text-xs text-muted-foreground">
@@ -234,23 +250,35 @@ export function CompCreditForm({ folioId }: { folioId: string }) {
 export function DepositLinkForm({
   folioId,
   bookingId,
+  embedded = false,
 }: {
   folioId: string;
   bookingId: string | null;
+  embedded?: boolean;
 }) {
   const [state, action, pending] = useActionState(createDepositLink, initial);
   useActionToast(state, { successMessage: "Deposit link created" });
   return (
     <form
       action={action}
-      className="erp space-y-3 rounded-lg border bg-card p-4"
+      className={
+        embedded
+          ? "erp space-y-3"
+          : "erp space-y-3 rounded-lg border bg-card p-4"
+      }
     >
-      <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-        Deposit / QR link
-      </h3>
-      <p className="text-xs text-muted-foreground">
-        Share the link for bank QR / NEFT. Guest uploads proof → pending bank → confirm in Finance.
-      </p>
+      {!embedded ? (
+        <>
+          <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+            Deposit / QR link
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Share bank QR / NEFT link for guest payment.
+          </p>
+        </>
+      ) : (
+        <p className="text-sm font-medium">Deposit / QR link</p>
+      )}
       <input type="hidden" name="folio_id" value={folioId} />
       {bookingId ? (
         <input type="hidden" name="booking_id" value={bookingId} />
@@ -340,52 +368,56 @@ export function IssueInvoiceButton({
   folioId,
   invoiceNo,
   invoiceDocId,
+  embedded = false,
+  secondary = false,
 }: {
   folioId: string;
   invoiceNo?: string | null;
   invoiceDocId?: string | null;
+  embedded?: boolean;
+  /** Secondary CTA styling when always visible on the rail */
+  secondary?: boolean;
 }) {
   const [state, action, pending] = useActionState(issueFolioInvoice, initial);
   useActionToast(state, { successMessage: "Tax invoice issued" });
 
   if (invoiceNo) {
     return (
-      <div className="erp rounded-lg border bg-card p-4 text-sm">
-        <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-          Tax invoice
-        </p>
-        <p className="mt-2 font-mono font-medium text-foreground">{invoiceNo}</p>
+      <div
+        className={
+          embedded
+            ? "erp text-sm"
+            : "erp rounded-lg border bg-card p-4 text-sm"
+        }
+      >
+        <p className="text-sm font-semibold text-foreground">Tax invoice</p>
+        <p className="mt-1 font-mono font-medium text-foreground">{invoiceNo}</p>
         {invoiceDocId ? (
-          <div className="mt-2 space-y-2 text-xs">
-            <p className="text-muted-foreground">
-              Print process: Master → Room → F&amp;B (whole Nu, ends 0 or 5)
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <a
-                href={`/erp/invoices/${invoiceDocId}/print?bill=master`}
-                className="font-medium text-accent underline-offset-4 hover:underline"
-              >
-                Master bill
-              </a>
-              <a
-                href={`/erp/invoices/${invoiceDocId}/print?bill=room`}
-                className="font-medium text-accent underline-offset-4 hover:underline"
-              >
-                Room bill
-              </a>
-              <a
-                href={`/erp/invoices/${invoiceDocId}/print?bill=fnb`}
-                className="font-medium text-accent underline-offset-4 hover:underline"
-              >
-                F&amp;B bill
-              </a>
-              <a
-                href={`/erp/folios/${folioId}/receipt`}
-                className="text-muted-foreground underline-offset-4 hover:underline"
-              >
-                Receipt
-              </a>
-            </div>
+          <div className="mt-2 flex flex-wrap gap-3 text-xs">
+            <a
+              href={`/erp/invoices/${invoiceDocId}/print?bill=master`}
+              className="font-medium text-accent underline-offset-4 hover:underline"
+            >
+              Master bill
+            </a>
+            <a
+              href={`/erp/invoices/${invoiceDocId}/print?bill=room`}
+              className="font-medium text-accent underline-offset-4 hover:underline"
+            >
+              Room bill
+            </a>
+            <a
+              href={`/erp/invoices/${invoiceDocId}/print?bill=fnb`}
+              className="font-medium text-accent underline-offset-4 hover:underline"
+            >
+              F&amp;B bill
+            </a>
+            <a
+              href={`/erp/folios/${folioId}/receipt`}
+              className="text-muted-foreground underline-offset-4 hover:underline"
+            >
+              Receipt
+            </a>
           </div>
         ) : null}
       </div>
@@ -393,16 +425,37 @@ export function IssueInvoiceButton({
   }
 
   return (
-    <form action={action} className="erp space-y-3 rounded-lg border bg-card p-4">
+    <form
+      action={action}
+      className={
+        embedded
+          ? "erp space-y-2"
+          : "erp space-y-3 rounded-lg border bg-card p-4"
+      }
+    >
       <input type="hidden" name="folio_id" value={folioId} />
-      <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-        Tax invoice
-      </p>
-      <p className="text-xs text-muted-foreground">
-        Allocate a gapless fiscal invoice number for GST reporting.
-      </p>
+      {!embedded ? (
+        <>
+          <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+            Tax invoice
+          </p>
+          <p className="text-xs text-muted-foreground">Gapless GST invoice no.</p>
+        </>
+      ) : (
+        <div>
+          <p className="text-sm font-semibold text-foreground">Issue tax invoice</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            GST fiscal document
+          </p>
+        </div>
+      )}
       <PeriodOverrideFields idPrefix={`inv-${folioId.slice(0, 8)}`} />
-      <Button type="submit" variant="outline" disabled={pending} className="h-10 w-full">
+      <Button
+        type="submit"
+        variant={secondary || embedded ? "outline" : "outline"}
+        disabled={pending}
+        className="h-10 w-full"
+      >
         {pending ? "Issuing…" : "Issue tax invoice"}
       </Button>
       <Flash state={state} />
@@ -414,26 +467,28 @@ export function IssueInvoiceButton({
 export function PostCheckInChargesForm({
   folioId,
   defaultDate,
+  embedded = false,
 }: {
   folioId: string;
   defaultDate: string;
+  embedded?: boolean;
 }) {
   const [state, action, pending] = useActionState(postFolioCheckInCharges, initial);
   useActionToast(state, { successMessage: "Day-1 charges updated" });
   return (
-    <form action={action} className="erp space-y-3 rounded-lg border border-accent/30 bg-accent/5 p-4">
+    <form
+      action={action}
+      className={
+        embedded
+          ? "erp space-y-3 rounded-lg border border-accent/30 bg-accent/5 p-3"
+          : "erp space-y-3 rounded-lg border border-accent/30 bg-accent/5 p-4"
+      }
+    >
       <input type="hidden" name="folio_id" value={folioId} />
-      <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-        Day-1 charges
-      </p>
-      <p className="text-xs text-muted-foreground">
-        Posts meal plan (if priced) and room rent for arrival date{" "}
-        <span className="font-mono text-foreground">{defaultDate}</span>. Safe if
-        already posted. Rates from{" "}
-        <a href="/erp/rates" className="text-accent underline-offset-4 hover:underline">
-          /erp/rates
-        </a>
-        .
+      <p className="text-sm font-medium text-foreground">Day-1 charges</p>
+      <p className="text-[11px] text-muted-foreground">
+        Room + meals for{" "}
+        <span className="font-mono text-foreground">{defaultDate}</span>
       </p>
       <Button type="submit" disabled={pending} className="h-10 w-full">
         {pending ? "Posting…" : "Post day-1 room + meals"}
@@ -447,22 +502,31 @@ export function PostCheckInChargesForm({
 export function PostRoomNightForm({
   folioId,
   defaultDate,
+  embedded = false,
 }: {
   folioId: string;
   defaultDate: string;
+  embedded?: boolean;
 }) {
   const [state, action, pending] = useActionState(postFolioRoomNight, initial);
   useActionToast(state, { successMessage: "Room night posted" });
   return (
-    <form action={action} className="erp space-y-3 rounded-lg border bg-card p-4">
+    <form
+      action={action}
+      className={
+        embedded
+          ? "erp space-y-3"
+          : "erp space-y-3 rounded-lg border bg-card p-4"
+      }
+    >
       <input type="hidden" name="folio_id" value={folioId} />
-      <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-        Post room night
-      </p>
-      <p className="text-xs text-muted-foreground">
-        Posts one night of sellable room rent from the live rate sheet. Later
-        nights also post at night audit (idempotent).
-      </p>
+      {!embedded ? (
+        <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+          Post room night
+        </p>
+      ) : (
+        <p className="text-sm font-medium">Post room night</p>
+      )}
       <div>
         <Label htmlFor="rn_business_date" className="text-xs">
           Business date
@@ -484,18 +548,30 @@ export function PostRoomNightForm({
   );
 }
 
-export function IssueCreditNoteButton({ folioId }: { folioId: string }) {
+export function IssueCreditNoteButton({
+  folioId,
+  embedded = false,
+}: {
+  folioId: string;
+  embedded?: boolean;
+}) {
   const [state, action, pending] = useActionState(issueFolioCreditNote, initial);
   useActionToast(state, { successMessage: "Credit note issued" });
   return (
-    <form action={action} className="erp space-y-3 rounded-lg border bg-card p-4">
+    <form
+      action={action}
+      className={
+        embedded
+          ? "erp space-y-3"
+          : "erp space-y-3 rounded-lg border bg-card p-4"
+      }
+    >
       <input type="hidden" name="folio_id" value={folioId} />
-      <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-        Credit note
-      </p>
-      <p className="text-xs text-muted-foreground">
-        Issue CN-YYYY-#### against this folio (voids / adjustments already on lines).
-      </p>
+      {!embedded ? (
+        <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+          Credit note
+        </p>
+      ) : null}
       <PeriodOverrideFields idPrefix={`cn-${folioId.slice(0, 8)}`} />
       <Button type="submit" variant="outline" disabled={pending} className="h-10 w-full">
         {pending ? "Issuing…" : "Issue credit note"}
@@ -539,18 +615,30 @@ export function IssueReceiptButton({
   );
 }
 
-export function PromoteToMasterForm({ folioId }: { folioId: string }) {
+export function PromoteToMasterForm({
+  folioId,
+  embedded = false,
+}: {
+  folioId: string;
+  embedded?: boolean;
+}) {
   const [state, action, pending] = useActionState(promoteFolioToMaster, initial);
   useActionToast(state, { successMessage: "Promoted to master folio" });
   return (
-    <form action={action} className="erp space-y-3 rounded-lg border bg-card p-4">
+    <form
+      action={action}
+      className={
+        embedded
+          ? "erp space-y-3"
+          : "erp space-y-3 rounded-lg border bg-card p-4"
+      }
+    >
       <input type="hidden" name="folio_id" value={folioId} />
-      <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-        City ledger / master
-      </p>
-      <p className="text-xs text-muted-foreground">
-        Promote this folio so guest folios can attach under it (group / agent city ledger).
-      </p>
+      {!embedded ? (
+        <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+          Make master folio
+        </p>
+      ) : null}
       <Button type="submit" variant="outline" disabled={pending} className="h-10 w-full">
         {pending ? "Promoting…" : "Make master folio"}
       </Button>
@@ -562,19 +650,30 @@ export function PromoteToMasterForm({ folioId }: { folioId: string }) {
 export function AttachToMasterForm({
   folioId,
   masterCandidates,
+  embedded = false,
 }: {
   folioId: string;
   masterCandidates: Array<{ id: string; label: string }>;
+  embedded?: boolean;
 }) {
   const [state, action, pending] = useActionState(attachFolioToMaster, initial);
   useActionToast(state, { successMessage: "Attached to master" });
   if (masterCandidates.length === 0) return null;
   return (
-    <form action={action} className="erp space-y-3 rounded-lg border bg-card p-4">
+    <form
+      action={action}
+      className={
+        embedded
+          ? "erp space-y-3"
+          : "erp space-y-3 rounded-lg border bg-card p-4"
+      }
+    >
       <input type="hidden" name="folio_id" value={folioId} />
-      <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-        Attach to master
-      </p>
+      {!embedded ? (
+        <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+          Attach to master
+        </p>
+      ) : null}
       <div>
         <Label htmlFor={`master-${folioId.slice(0, 8)}`}>Master folio</Label>
         <select
@@ -605,9 +704,11 @@ export function AttachToMasterForm({
 export function BankProofPaymentForm({
   folioId,
   suggestedAmount,
+  embedded = false,
 }: {
   folioId: string;
   suggestedAmount: number;
+  embedded?: boolean;
 }) {
   const [state, action, pending] = useActionState(submitBankPaymentProof, initial);
   useActionToast(state, { successMessage: "Proof submitted — pending bank" });
@@ -616,14 +717,26 @@ export function BankProofPaymentForm({
   const [intent, setIntent] = useState<"camera" | "file">("camera");
 
   return (
-    <form action={action} className="erp space-y-3 rounded-lg border bg-card p-4">
-      <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-        Bank QR / NEFT proof
-      </h3>
-      <p className="text-xs text-muted-foreground">
-        Upload guest screenshot → pending bank (2–3 days) → confirm in Finance → Bank proofs →
-        issue receipt.
-      </p>
+    <form
+      action={action}
+      className={
+        embedded
+          ? "erp space-y-3"
+          : "erp space-y-3 rounded-lg border bg-card p-4"
+      }
+    >
+      {embedded ? (
+        <p className="text-sm font-medium">Bank QR / NEFT proof</p>
+      ) : (
+        <>
+          <h3 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+            Bank QR / NEFT proof
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Upload proof → Finance confirms.
+          </p>
+        </>
+      )}
       <input type="hidden" name="folio_id" value={folioId} />
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">

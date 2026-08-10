@@ -81,8 +81,8 @@ export function OnlineOrderSlip({
       : "Pickup at Pelbu cafe";
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-sm print:border-0 print:shadow-none">
-      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-6 py-5">
+    <article className="doc-print-sheet mx-auto w-full max-w-[420px] overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-sm print:mx-0 print:border-0 print:shadow-none">
+      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-5 py-5 print:px-0">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent">
             Order confirmation
@@ -107,7 +107,7 @@ export function OnlineOrderSlip({
       </header>
 
       <div
-        className={`px-6 py-4 ${
+        className={`px-5 py-4 print:px-0 ${
           paid
             ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
             : "bg-amber-500/10 text-amber-700 dark:text-amber-300"
@@ -123,7 +123,7 @@ export function OnlineOrderSlip({
         </p>
       </div>
 
-      <dl className="grid gap-4 border-b border-border px-6 py-5 text-sm sm:grid-cols-2">
+      <dl className="grid gap-4 border-b border-border px-5 py-5 text-sm print:px-0 sm:grid-cols-2">
         <div>
           <dt className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
             Guest
@@ -143,7 +143,7 @@ export function OnlineOrderSlip({
         </div>
       </dl>
 
-      <div className="px-6 py-5">
+      <div className="px-5 py-5 print:px-0">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs uppercase tracking-[0.14em] text-muted-foreground">
@@ -194,7 +194,7 @@ export function OnlineOrderSlip({
       </div>
 
       {!paid && property.bankAccounts.length > 0 ? (
-        <section className="border-t border-border px-6 py-5">
+        <section className="border-t border-border px-5 py-5 print:px-0">
           <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
             Pay to
           </p>
@@ -224,7 +224,7 @@ export function OnlineOrderSlip({
         </section>
       ) : null}
 
-      <footer className="border-t border-border px-6 py-4 text-xs text-muted-foreground">
+      <footer className="border-t border-border px-5 py-4 text-xs text-muted-foreground print:px-0">
         {order.confirmedAt ? (
           <p>
             Confirmed {stamp(order.confirmedAt, property.timezone)}

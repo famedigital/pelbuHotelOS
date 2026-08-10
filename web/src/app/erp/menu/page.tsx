@@ -3,6 +3,7 @@ import { BarPackPanel } from "@/components/erp/menu/BarPackPanel";
 import { MenuAdminGrid } from "@/components/erp/menu/MenuAdminGrid";
 import { MenuCategoryManager } from "@/components/erp/menu/MenuCategoryManager";
 import { MenuStockManager } from "@/components/erp/menu/MenuStockManager";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import {
@@ -12,6 +13,8 @@ import {
 import { loadPropertyOutlets } from "@/lib/outlets";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { PrinterIcon } from "lucide-react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata = {
@@ -84,11 +87,19 @@ export default async function ErpMenuPage() {
 
   return (
     <div className="erp mx-auto w-full max-w-[1200px] space-y-6 p-4 md:p-6">
-      <DeskPageTitle
-        eyebrow="F&B"
-        title="Menu"
-        description="Dishes and drinks across your outlets. Spirit packs share stock between pek and bottle; changes go live to POS immediately."
-      />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <DeskPageTitle
+          eyebrow="F&B"
+          title="Menu"
+          description="Dishes and drinks across your outlets. Spirit packs share stock between pek and bottle; changes go live to POS immediately."
+        />
+        <Button variant="outline" size="sm" className="shrink-0 gap-1.5" asChild>
+          <Link href="/erp/menu/print">
+            <PrinterIcon className="size-3.5" />
+            Print menu
+          </Link>
+        </Button>
+      </div>
       <Tabs defaultValue="catalog">
         <TabsList className="flex h-auto flex-wrap gap-1">
           <TabsTrigger value="catalog">Catalog</TabsTrigger>

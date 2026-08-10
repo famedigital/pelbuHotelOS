@@ -11,7 +11,13 @@ import { StayMoneyCycleLegend } from "@/components/erp/StayMoneyCycleLegend";
 import { StayMoneyProcessStrip } from "@/components/erp/StayMoneyProcessStrip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { getDeskRole, isDeskAuthenticated } from "@/lib/desk-auth";
+import {
+  buildStayHubReopenHref,
+  parseStayHubBoard,
+  parseStayHubStep,
+  stayHubBackTargetLabel,
+} from "@/lib/folio/stay-hub-cycle";
 import {
   buildStayMoneySteps,
   stayMoneyNextAction,
@@ -32,7 +38,15 @@ export const metadata = {
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ id: string }> };
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{
+    stay?: string;
+    booking?: string;
+    panel?: string;
+    board?: string;
+  }>;
+};
 
 type FolioLine = {
   id: string;
@@ -80,12 +94,78 @@ function sourceLabel(sourceType: string) {
   return map[sourceType] ?? sourceType.replace(/_/g, " ");
 }
 
-export default async function FolioDetailPage({ params }: Props) {
+/** Guest-facing activity rows: pair void + reversal as one Cancelled story. */
+type ActivityRow =
+  | { kind: "line"; line: FolioLine }
+  | {
+      kind: "cancelled";
+      original: FolioLine;
+      reversal: FolioLine;
+    };
+
+function buildActivityRows(lines: FolioLine[]): {
+  rows: ActivityRow[];
+  accountingLines: FolioLine[];
+} {
+  const byId = new Map(lines.map((l) => [l.id, l]));
+  const reversalByOriginal = new Map<string, FolioLine>();
+  for (const line of lines) {
+    if (line.reverses_line_id) {
+      reversalByOriginal.set(line.reverses_line_id, line);
+    }
+  }
+
+  const consumed = new Set<string>();
+  const rows: ActivityRow[] = [];
+  const accountingLines: FolioLine[] = [];
+
+  for (const line of lines) {
+    if (consumed.has(line.id)) continue;
+
+    if (line.status === "voided") {
+      const reversal = reversalByOriginal.get(line.id);
+      if (reversal) {
+        rows.push({ kind: "cancelled", original: line, reversal });
+        consumed.add(line.id);
+        consumed.add(reversal.id);
+        accountingLines.push(line, reversal);
+        continue;
+      }
+    }
+
+    // Orphan reversal (no voided original in list) still as accounting noise
+    if (line.reverses_line_id) {
+      const original = byId.get(line.reverses_line_id);
+      if (original?.status === "voided" && consumed.has(original.id)) {
+        continue;
+      }
+      if (original?.status === "voided") {
+        // handled when walking original
+        continue;
+      }
+      accountingLines.push(line);
+      continue;
+    }
+
+    if (line.status === "voided") {
+      accountingLines.push(line);
+      rows.push({ kind: "line", line });
+      continue;
+    }
+
+    rows.push({ kind: "line", line });
+  }
+
+  return { rows, accountingLines };
+}
+
+export default async function FolioDetailPage({ params, searchParams }: Props) {
   if (!(await isDeskAuthenticated())) {
     redirect("/erp/login");
   }
 
   const { id } = await params;
+  const sp = await searchParams;
   const admin = createSupabaseAdminClient();
   const activePropertyId = await resolveActivePropertyId(admin);
 
@@ -208,6 +288,8 @@ export default async function FolioDetailPage({ params }: Props) {
       new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   );
 
+  const { rows: activityRows, accountingLines } = buildActivityRows(lines);
+
   const balance = netFolioBalance(lines);
   const folioStatus = (folio.status as string) ?? "open";
   const isOpen = folioStatus === "open";
@@ -309,7 +391,7 @@ export default async function FolioDetailPage({ params }: Props) {
     : balance > 0.5
       ? "Open balance — collect payment or issue the tax invoice when ready."
       : chargeLines.length > 0
-        ? "Balance clear. Checkout when the guest departs."
+        ? "Balance due Nu 0 · Nothing to collect"
         : "Open folio — charges appear after check-in, POS, or night audit.";
 
   const guestTitle =
@@ -321,13 +403,72 @@ export default async function FolioDetailPage({ params }: Props) {
     lines,
   });
 
+  const deskRole = await getDeskRole();
+  const showManagerActions =
+    deskRole == null ||
+    deskRole === "gm" ||
+    deskRole === "owner" ||
+    deskRole === "front_desk" ||
+    deskRole === "cashier";
+
+  const stayReturnRequested = sp.stay === "1";
+  const stayReturnBooking = (sp.booking ?? "").trim() || bookingId;
+  const stayReturnValid =
+    stayReturnRequested &&
+    Boolean(stayReturnBooking) &&
+    (!bookingId || stayReturnBooking === bookingId);
+  const stayReturnPanel =
+    parseStayHubStep(sp.panel) ??
+    (bookingStatus === "checked_out" ? "check_out" : "stay_money");
+  const stayReturnBoard = parseStayHubBoard(sp.board);
+  const stayReturnHref =
+    stayReturnValid && stayReturnBooking
+      ? buildStayHubReopenHref({
+          bookingId: stayReturnBooking,
+          panel: stayReturnPanel,
+          board:
+            stayReturnBoard !== "auto"
+              ? stayReturnBoard
+              : bookingStatus === "checked_in" || bookingStatus === "checked_out"
+                ? "in_house"
+                : "reservations",
+        })
+      : null;
+  const stayReturnPanelLabel = stayHubBackTargetLabel(
+    stayReturnPanel,
+    bookingStatus,
+  );
+  const defaultStayHubHref = bookingId
+    ? buildStayHubReopenHref({
+        bookingId,
+        panel: "stay_money",
+        board:
+          bookingStatus === "checked_in" || bookingStatus === "checked_out"
+            ? "in_house"
+            : "reservations",
+      })
+    : null;
+
   return (
     <div className="erp mx-auto w-full max-w-[1100px] p-4 md:p-6">
+      {stayReturnHref ? (
+        <a
+          href={stayReturnHref}
+          className="sticky top-0 z-30 -mx-4 mb-3 flex min-h-11 items-center gap-2 border-b border-accent/25 bg-accent/10 px-4 py-2.5 text-sm font-medium text-foreground backdrop-blur supports-[backdrop-filter]:bg-accent/15 md:-mx-6 md:px-6"
+        >
+          <span aria-hidden>←</span>
+          <span className="min-w-0 truncate">
+            Back to stay
+            {guestTitle ? ` · ${guestTitle}` : ""}
+            {` · ${stayReturnPanelLabel}`}
+          </span>
+        </a>
+      ) : null}
       <div className="mb-4 flex flex-wrap gap-2">
         <ErpDetailBack href="/erp/folios" label="City ledger" />
-        {bookingId ? (
+        {defaultStayHubHref ? (
           <a
-            href={`/erp/reservations?booking=${bookingId}&step=stay_money`}
+            href={defaultStayHubHref}
             className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
           >
             Stay hub
@@ -336,7 +477,12 @@ export default async function FolioDetailPage({ params }: Props) {
       </div>
       <FolioStaleRefreshBanner folioId={id} initialVersion={folioVersion} />
       {/* Sticky identity + next action */}
-      <div className="sticky top-0 z-20 -mx-4 mb-5 border-b bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/85 md:-mx-6 md:px-6">
+      <div
+        className={cn(
+          "sticky z-20 -mx-4 mb-5 border-b bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/85 md:-mx-6 md:px-6",
+          stayReturnHref ? "top-12" : "top-0",
+        )}
+      >
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
@@ -366,9 +512,9 @@ export default async function FolioDetailPage({ params }: Props) {
                   {booking.check_in as string} → {booking.check_out as string}
                 </span>
               ) : null}
-              {bookingId ? (
+              {defaultStayHubHref ? (
                 <a
-                  href={`/erp/reservations?booking=${bookingId}&step=stay_money`}
+                  href={defaultStayHubHref}
                   className="font-medium text-foreground underline-offset-4 hover:underline"
                 >
                   Stay hub
@@ -398,6 +544,11 @@ export default async function FolioDetailPage({ params }: Props) {
               >
                 {formatBtn(balance)}
               </p>
+              {Math.abs(balance) <= 0.5 ? (
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Nothing to collect
+                </p>
+              ) : null}
             </div>
             {isOpen ? (
               <a
@@ -541,7 +692,7 @@ export default async function FolioDetailPage({ params }: Props) {
               "rounded-xl border p-4",
               balance > 0.5
                 ? "border-destructive/30 bg-destructive/5"
-                : "bg-card",
+                : "border-accent/20 bg-accent/5",
             )}
           >
             <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
@@ -556,7 +707,9 @@ export default async function FolioDetailPage({ params }: Props) {
               {formatBtn(balance)}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Charges − paid (net)
+              {Math.abs(balance) <= 0.5
+                ? "Balance due Nu 0 · Nothing to collect"
+                : "Charges − paid (net)"}
             </p>
           </div>
         </div>
@@ -578,7 +731,7 @@ export default async function FolioDetailPage({ params }: Props) {
               Actions
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Open only what you need — collect, invoice, post, or adjust.
+              Collect · invoice · more when needed
             </p>
           </div>
           <FolioActionsPanel
@@ -606,6 +759,7 @@ export default async function FolioDetailPage({ params }: Props) {
               category: (m.category as string) || "minibar",
             }))}
             defaultGroup={defaultActionGroup}
+            showManagerActions={showManagerActions}
           />
         </aside>
 
@@ -640,8 +794,7 @@ export default async function FolioDetailPage({ params }: Props) {
               Activity
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Charges and payments in order — void or transfer on a line if
-              needed.
+              Charges and payments — void on the line if needed.
             </p>
           </div>
 
@@ -650,13 +803,17 @@ export default async function FolioDetailPage({ params }: Props) {
               <CardTitle className="text-sm font-medium text-foreground">
                 Folio lines
                 <span className="ml-2 font-normal text-muted-foreground">
-                  ({lines.length})
+                  ({activityRows.length}
+                  {accountingLines.length > 0
+                    ? ` · ${accountingLines.length} accounting`
+                    : ""}
+                  )
                 </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <ul className="divide-y">
-                {lines.length === 0 ? (
+                {activityRows.length === 0 ? (
                   <li className="space-y-3 px-4 py-8 text-sm text-muted-foreground sm:px-5">
                     <p className="font-medium text-foreground">No lines yet</p>
                     <p>
@@ -683,7 +840,62 @@ export default async function FolioDetailPage({ params }: Props) {
                     ) : null}
                   </li>
                 ) : (
-                  lines.map((line) => {
+                  activityRows.map((row) => {
+                    if (row.kind === "cancelled") {
+                      const { original, reversal } = row;
+                      return (
+                        <li
+                          key={`cancelled-${original.id}`}
+                          className="px-4 py-3 text-sm sm:px-5"
+                        >
+                          <div className="flex flex-wrap items-baseline justify-between gap-2">
+                            <p className="min-w-0 flex-1 text-muted-foreground">
+                              <span className="mr-2 inline-flex rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-foreground uppercase">
+                                Cancelled
+                              </span>
+                              {original.description}
+                            </p>
+                            <p className="shrink-0 tabular-nums text-muted-foreground">
+                              Nu 0
+                            </p>
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {sourceLabel(original.source_type)}
+                            {original.void_reason
+                              ? ` · ${original.void_reason}`
+                              : ""}
+                            {original.business_date
+                              ? ` · ${original.business_date}`
+                              : ""}
+                          </p>
+                          <details className="mt-2 rounded-md border border-dashed">
+                            <summary className="cursor-pointer px-2 py-1.5 text-[11px] font-medium text-muted-foreground">
+                              Show accounting lines
+                            </summary>
+                            <ul className="divide-y border-t text-xs">
+                              <li className="flex justify-between gap-2 px-2 py-2 text-muted-foreground">
+                                <span className="line-through">
+                                  Voided · {original.description}
+                                </span>
+                                <span className="tabular-nums line-through">
+                                  {formatBtn(Number(original.total_btn))}
+                                </span>
+                              </li>
+                              <li className="flex justify-between gap-2 px-2 py-2 text-muted-foreground">
+                                <span>
+                                  Reversal · {reversal.description}
+                                </span>
+                                <span className="tabular-nums">
+                                  {formatBtn(Number(reversal.total_btn))}
+                                </span>
+                              </li>
+                            </ul>
+                          </details>
+                        </li>
+                      );
+                    }
+
+                    const line = row.line;
                     const amount = Number(line.total_btn);
                     const isPayment = isPaymentSource(line.source_type);
                     const voided = line.status === "voided";
@@ -789,6 +1001,30 @@ export default async function FolioDetailPage({ params }: Props) {
                   })
                 )}
               </ul>
+              {accountingLines.length > 0 ? (
+                <details className="border-t">
+                  <summary className="cursor-pointer px-4 py-2.5 text-xs font-medium text-muted-foreground hover:bg-muted/40 sm:px-5">
+                    Show all accounting lines ({accountingLines.length})
+                  </summary>
+                  <ul className="divide-y border-t bg-muted/20">
+                    {accountingLines.map((line) => (
+                      <li
+                        key={`acct-${line.id}`}
+                        className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-2 text-xs text-muted-foreground sm:px-5"
+                      >
+                        <span>
+                          {line.status === "voided" ? "Voided · " : ""}
+                          {line.reverses_line_id ? "Reversal · " : ""}
+                          {line.description}
+                        </span>
+                        <span className="tabular-nums">
+                          {formatBtn(Number(line.total_btn))}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
             </CardContent>
           </Card>
 

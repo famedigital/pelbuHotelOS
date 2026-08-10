@@ -99,16 +99,32 @@ export async function deliverHotelBackupPack(
     }
 
     const recipients = backupEmailRecipients();
+    const flashLines = [
+      `FO flash · ${propertySlug} · business date ${businessDate.slice(0, 10)}`,
+      `Occupied rooms: ${auditSummary?.roomsOccupied ?? "—"} · comp: ${auditSummary?.roomsComp ?? "—"}`,
+      `Room nights posted: ${auditSummary?.posted ?? "—"} · skipped: ${auditSummary?.skipped ?? "—"}`,
+      `Open folios: ${auditSummary?.openFolios ?? "—"}`,
+      `Charges Nu ${auditSummary?.folioChargesBtn ?? "—"} · payments Nu ${auditSummary?.folioPaymentsBtn ?? "—"}`,
+      `No-shows: ${auditSummary?.noShows ?? 0}`,
+      auditSummary?.blockers?.length
+        ? `Blockers: ${auditSummary.blockers.join("; ")}`
+        : "Blockers: none",
+      auditSummary?.forceClose ? "Force-close used." : null,
+      `Run by: ${auditSummary?.runBy ?? "—"}`,
+      "",
+      "Full hotel backup attach (xlsx) — arrivals/departures/in-house sheets inside.",
+      "Download again: ERP → Night audit → Download hotel backup.",
+    ].filter(Boolean) as string[];
+
     const mail = await sendBackupEmail({
       to: recipients,
-      subject: `[Pelbu] Hotel backup ${propertySlug} · ${businessDate.slice(0, 10)}`,
+      subject: `[Pelbu] NA pack + FO flash · ${propertySlug} · ${businessDate.slice(0, 10)}`,
       text: [
-        `Hotel backup pack for ${propertySlug}.`,
-        `Business date: ${businessDate.slice(0, 10)}`,
-        `Audit id: ${auditSummary?.auditId ?? "—"}`,
+        ...flashLines,
         "",
         "Confidential — owner/ops only. Save to phone/USB.",
         "pack_version 1 — future clean-state import contract (importer not shipped yet).",
+        `Audit id: ${auditSummary?.auditId ?? "—"}`,
       ].join("\n"),
       filename,
       buffer,

@@ -23,7 +23,7 @@ export default async function DeparturesPage() {
   const { data: rows } = await admin
     .from("bookings")
     .select(
-      `id, contact_name, contact_phone, check_in, check_out, status, adults, rooms,
+      `id, confirmation_code, contact_name, contact_phone, check_in, check_out, status, adults, rooms,
        source, guest_origin, guide_number, payment_mode,
        token_required_btn, token_received_btn,
        agents(company_name),

@@ -171,7 +171,7 @@ export function SettingsPoliciesPanel({
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="early_checkout_fee_btn">
-                    Early checkout fee (Nu)
+                    Early checkout fee (Nu) — desk suggestion
                   </Label>
                   <Input
                     id="early_checkout_fee_btn"
@@ -180,12 +180,15 @@ export function SettingsPoliciesPanel({
                     min={0}
                     step="0.01"
                     defaultValue={policy.early_checkout_fee_btn ?? ""}
-                    placeholder="0"
+                    placeholder="Optional apply amount"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Checkout shows Apply only — not pre-filled or auto-charged.
+                  </p>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="late_checkout_fee_btn">
-                    Late checkout fee (Nu)
+                    Late checkout fee (Nu) — desk suggestion
                   </Label>
                   <Input
                     id="late_checkout_fee_btn"
@@ -194,8 +197,11 @@ export function SettingsPoliciesPanel({
                     min={0}
                     step="0.01"
                     defaultValue={policy.late_checkout_fee_btn ?? ""}
-                    placeholder="0"
+                    placeholder="Optional apply amount"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Checkout shows Apply only — not pre-filled or auto-charged.
+                  </p>
                 </div>
               </div>
               <div className="grid gap-3 md:grid-cols-2">

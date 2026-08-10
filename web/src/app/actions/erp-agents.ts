@@ -1,7 +1,9 @@
 "use server";
 
+import { writeAuditEvent } from "@/lib/audit";
 import {
   isAgentStatus,
+  creditAgentIneligibilityMessage,
   isCreditAgentStatus,
 } from "@/lib/agents/status";
 import { isDeskAuthenticated, requireMoneyDesk } from "@/lib/desk-auth";
@@ -254,10 +256,11 @@ export async function setAgentCreditLimit(
       .eq("id", agentId)
       .single();
     if (fetchError || !agent) throw new Error("Agent not found.");
-    if (!isCreditAgentStatus(agent.status as string)) {
-      throw new Error(
-        "Credit limits apply only to approved or demo trade partners. Approve this agent first.",
+    {
+      const blocked = creditAgentIneligibilityMessage(
+        agent.status as string,
       );
+      if (blocked) throw new Error(blocked);
     }
 
     const used = Number(agent.credit_used ?? 0);
@@ -288,6 +291,56 @@ export async function setAgentCreditLimit(
     return {
       ok: false,
       error: err instanceof Error ? err.message : "Could not set limit.",
+    };
+  }
+}
+
+export async function setAgentOpenRoomCap(
+  _prev: ErpAgentState,
+  formData: FormData,
+): Promise<ErpAgentState> {
+  try {
+    await requireMoneyDesk();
+    const admin = createSupabaseAdminClient();
+    const propId = await propertyId(admin);
+    const agentId = trimRequired(formData.get("agent_id"), "Agent");
+    const capRaw = trimRequired(formData.get("open_room_cap"), "Open room cap");
+    const cap = Math.floor(Number(capRaw));
+    if (!Number.isFinite(cap) || cap < 0 || cap > 500) {
+      throw new Error("Open room cap must be 0–500.");
+    }
+
+    const { data: agent, error: fetchError } = await admin
+      .from("agents")
+      .select("id, company_name")
+      .eq("id", agentId)
+      .single();
+    if (fetchError || !agent) throw new Error("Agent not found.");
+
+    const { error } = await admin
+      .from("agents")
+      .update({ open_room_cap: cap })
+      .eq("id", agentId);
+    if (error) throw new Error("Could not set open room cap.");
+
+    await writeAuditEvent(admin, {
+      propertyId: propId,
+      action: "agent.open_room_cap",
+      entityType: "agents",
+      entityId: agentId,
+      summary: `Open room cap set to ${cap} · ${agent.company_name}`,
+      meta: { open_room_cap: cap },
+    });
+
+    revalidateAgents();
+    return {
+      ok: true,
+      message: `Open room cap set to ${cap} concurrent rooms.`,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Could not set room cap.",
     };
   }
 }
@@ -423,8 +476,12 @@ export async function chargeAgentCredit(
     .single();
   if (error || !agent) throw new Error("Agent not found for credit charge.");
 
-  if (!isCreditAgentStatus(agent.status as string)) {
-    throw new Error("Agent must be approved or demo to use credit.");
+  {
+    const blocked = creditAgentIneligibilityMessage(
+      agent.status as string,
+      agent.company_name as string | null,
+    );
+    if (blocked) throw new Error(blocked);
   }
 
   const limit = Number(agent.credit_limit ?? 0);
@@ -450,6 +507,56 @@ export async function chargeAgentCredit(
     balanceAfterBtn: nextUsed,
     note: args.note ?? "On-credit booking charge",
     bookingId: args.bookingId ?? null,
+  });
+
+  return { creditUsed: nextUsed };
+}
+
+/**
+ * Reverse an agent credit charge (decreases credit_used) with ledger audit.
+ * Used when voiding agent_credit folio payments / reverse settle mistakes.
+ */
+export async function releaseAgentCredit(
+  admin: Admin,
+  args: {
+    agentId: string;
+    amountBtn: number;
+    bookingId?: string | null;
+    paymentId?: string | null;
+    note?: string | null;
+  },
+): Promise<{ creditUsed: number }> {
+  const propId = await propertyId(admin);
+  const amount = roundBtn(args.amountBtn);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error("Credit release must be greater than zero.");
+  }
+
+  const { data: agent, error } = await admin
+    .from("agents")
+    .select("id, credit_used, company_name")
+    .eq("id", args.agentId)
+    .single();
+  if (error || !agent) throw new Error("Agent not found for credit release.");
+
+  const used = Number(agent.credit_used ?? 0);
+  const nextUsed = roundBtn(Math.max(0, used - amount));
+
+  const { error: upd } = await admin
+    .from("agents")
+    .update({ credit_used: nextUsed })
+    .eq("id", args.agentId);
+  if (upd) throw new Error("Could not update agent credit used.");
+
+  await appendLedger(admin, {
+    propertyId: propId,
+    agentId: args.agentId,
+    entryType: "adjustment",
+    amountBtn: -amount,
+    balanceAfterBtn: nextUsed,
+    note: args.note ?? "Agent credit reverse / void",
+    bookingId: args.bookingId ?? null,
+    paymentId: args.paymentId ?? null,
   });
 
   return { creditUsed: nextUsed };

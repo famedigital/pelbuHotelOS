@@ -8,13 +8,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export const REPORT_CATALOG = [
   {
     slug: "agent-production",
-    title: "Agent production",
-    blurb: "Bookings, room-nights, quoted totals, and commission from production.",
+    title: "Agent production + commission",
+    blurb:
+      "Bookings, room-nights, quoted totals, and commission detail (eZee TA production).",
   },
   {
     slug: "agent-ar",
     title: "Agent AR & payment habit",
-    blurb: "Outstanding balances, aging, and payment mix per agent.",
+    blurb:
+      "Outstanding balances, aging, unsecured exposure, payment mix per agent.",
   },
   {
     slug: "staff-attendance",

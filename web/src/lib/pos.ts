@@ -1,4 +1,5 @@
 import { thimphuToday } from "@/lib/erp-lists";
+import { isOpenCookStatus, isPosBoardVisible } from "@/lib/kot-visibility";
 import type { MenuItem } from "@/lib/menu";
 import type { TableStatus } from "@/lib/pos-tables";
 import { roundBtn } from "@/lib/pricing";
@@ -146,10 +147,37 @@ export const POS_TENDER_METHODS = [
   "agent_credit",
   "bank_qr",
   "pay_bt",
+  "mbob",
+  "mpay",
   "deposit",
   "room_charge",
+  "comp",
+  "staff_meal",
+  "owner_meal",
   "nc",
 ] as const;
+
+/** Bhutan-friendly labels for tenders + comps. */
+export const POS_TENDER_LABELS: Record<string, string> = {
+  cash: "Cash",
+  bank: "Bank transfer",
+  card: "Card",
+  agent_credit: "Agent credit",
+  bank_qr: "Bank QR",
+  pay_bt: "Pay.bt",
+  mbob: "mBoB",
+  mpay: "mPay",
+  deposit: "Deposit",
+  room_charge: "Room charge",
+  comp: "Comp",
+  staff_meal: "Staff meal",
+  owner_meal: "Owner meal",
+  nc: "NC",
+};
+
+export function tenderMethodLabel(method: string): string {
+  return POS_TENDER_LABELS[method] ?? method.replace(/_/g, " ");
+}
 
 export type PosTenderMethod = (typeof POS_TENDER_METHODS)[number];
 
@@ -384,12 +412,9 @@ export function posTicketPayLabel(ticket: OpenPosTicket): {
 }
 
 /**
- * Unsettled desk tickets still on the payment path.
- *
- * Includes `served` (kitchen done, guest not paid yet). Previously the board
- * only listed new/preparing/ready — marking served hid the ticket while shift
- * close still required settle/void, which blocked close with no visible tickets.
- * KDS columns still only show new/preparing/ready.
+ * Open POS board: unpaid tickets (incl. served awaiting settle) PLUS tickets
+ * still cooking even when money is done (public room / prepaid).
+ * Settlement ≠ kitchen done — see `lib/kot-visibility.ts`.
  */
 export async function loadOpenPosTickets(
   admin?: Admin,
@@ -397,17 +422,49 @@ export async function loadOpenPosTickets(
   const client = admin ?? createSupabaseAdminClient();
   const propertyId = await resolveActivePropertyId(client);
 
-  const { data } = await client
-    .from("orders")
-    .select(POS_TICKET_SELECT)
-    .eq("property_id", propertyId)
-    .is("voided_at", null)
-    .is("settled_at", null)
-    .in("kot_status", [...POS_OPEN_KOT_STATUSES])
-    .order("created_at", { ascending: false })
-    .limit(80);
+  const [unpaidRes, cookingRes] = await Promise.all([
+    client
+      .from("orders")
+      .select(POS_TICKET_SELECT)
+      .eq("property_id", propertyId)
+      .is("voided_at", null)
+      .is("settled_at", null)
+      .in("kot_status", [...POS_OPEN_KOT_STATUSES])
+      .order("created_at", { ascending: false })
+      .limit(80),
+    client
+      .from("orders")
+      .select(POS_TICKET_SELECT)
+      .eq("property_id", propertyId)
+      .is("voided_at", null)
+      .not("settled_at", "is", null)
+      .in("kot_status", ["new", "preparing", "ready"])
+      .order("created_at", { ascending: false })
+      .limit(80),
+  ]);
 
-  return ((data ?? []) as RawOrderTicketRow[]).map(mapPosTicketRow);
+  const byId = new Map<string, OpenPosTicket>();
+  for (const row of [
+    ...((unpaidRes.data ?? []) as RawOrderTicketRow[]),
+    ...((cookingRes.data ?? []) as RawOrderTicketRow[]),
+  ]) {
+    const ticket = mapPosTicketRow(row);
+    if (!isPosBoardVisible(ticket)) continue;
+    byId.set(ticket.id, ticket);
+  }
+
+  return [...byId.values()].sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+}
+
+/** Kitchen board tickets: cook statuses that pass visibility. */
+export async function loadKitchenBoardTickets(
+  admin?: Admin,
+): Promise<OpenPosTicket[]> {
+  const all = await loadOpenPosTickets(admin);
+  return all.filter((t) => isOpenCookStatus(t.kot_status));
 }
 
 /**
@@ -531,21 +588,6 @@ export async function loadSettledPosTickets(
     .limit(limit);
 
   return ((data ?? []) as RawOrderTicketRow[]).map(mapPosTicketRow);
-}
-
-/** Human label for tender method codes. */
-export function tenderMethodLabel(method: string): string {
-  const map: Record<string, string> = {
-    cash: "Cash",
-    bank: "Bank",
-    card: "Card",
-    agent_credit: "Agent credit",
-    bank_qr: "Bank QR",
-    pay_bt: "Pay.bt",
-    deposit: "Deposit",
-    room_charge: "Room charge",
-  };
-  return map[method] ?? method.replace(/_/g, " ");
 }
 
 /** Nu threshold above which void requires manager PIN (env override). */

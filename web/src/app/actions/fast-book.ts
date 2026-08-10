@@ -2,6 +2,7 @@
 
 import { chargeAgentCredit } from "@/app/actions/erp-agents";
 import {
+  creditAgentIneligibilityMessage,
   isBookableAgentStatus,
   isCreditAgentStatus,
 } from "@/lib/agents/status";
@@ -49,6 +50,8 @@ export type DeskBookIntent = "reserve" | "confirm" | "check_in";
 export type FastBookState = {
   ok: boolean;
   bookingId?: string;
+  /** Human stay confirmation PS-YYYY-##### */
+  confirmationCode?: string;
   /** How the desk created this stay — clients open the right StayHub panel. */
   intent?: DeskBookIntent;
   error?: string;
@@ -71,10 +74,23 @@ type RoomTypeRow = {
   unit_count: number;
 };
 
+const WALKIN_RATE_TIERS = new Set<RateTier>([
+  "public",
+  "friends",
+  "family",
+  "mutual_friends",
+]);
+
 function rateTierFromSource(source: string): RateTier {
   if (source === "mou_agent") return agentRateTier("mou_agents");
   if (source === "agent") return agentRateTier("agents");
-  return agentRateTier("public");
+  return "public";
+}
+
+function resolveWalkinRateTier(raw: string | null | undefined): RateTier | null {
+  if (!raw) return null;
+  if (WALKIN_RATE_TIERS.has(raw as RateTier)) return raw as RateTier;
+  return null;
 }
 
 /** Desk ultra-fast book: dates → rooms → pax → agent → guide → beds → save. */
@@ -243,6 +259,12 @@ export async function createFastBooking(
     }
 
     let tier = rateTierFromSource(source);
+    const walkinTier = resolveWalkinRateTier(
+      optionalTrim(formData.get("rate_tier")),
+    );
+    if (!agentId && walkinTier) {
+      tier = walkinTier;
+    }
     if (agentId) {
       const { data: agent } = await admin
         .from("agents")
@@ -259,7 +281,8 @@ export async function createFastBooking(
         !isCreditAgentStatus(agent.status as string)
       ) {
         throw new Error(
-          "On-credit stays require an approved or demo trade partner. Approve this agent as a trade partner in the booking form (no credit for directory listings).",
+          creditAgentIneligibilityMessage(agent.status as string) ??
+            "On-credit stays require an approved or demo trade partner.",
         );
       }
       tier = agentRateTier(agent.rate_tier as string);
@@ -421,7 +444,7 @@ export async function createFastBooking(
               )
             : null,
       })
-      .select("id")
+      .select("id, confirmation_code")
       .single();
 
     if (bookingError || !booking) {
@@ -586,7 +609,13 @@ export async function createFastBooking(
     revalidatePath("/erp/reservations");
     if (agentId) revalidatePath("/erp/agents");
 
-    return { ok: true, bookingId: booking.id as string, intent };
+    return {
+      ok: true,
+      bookingId: booking.id as string,
+      confirmationCode:
+        (booking.confirmation_code as string | null) ?? undefined,
+      intent,
+    };
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Something went wrong. Please try again.";

@@ -91,6 +91,7 @@ export type FastBookFormProps = {
     checkIn?: string;
     checkOut?: string;
     roomUnitId?: string;
+    roomUnitLabel?: string;
     qtyByCode?: Record<string, number>;
     mealPlanCode?: string;
     guestOrigin?: string;

@@ -76,8 +76,13 @@ export type TenderDraft = {
     | "agent_credit"
     | "bank_qr"
     | "pay_bt"
+    | "mbob"
+    | "mpay"
     | "deposit"
     | "room_charge"
+    | "comp"
+    | "staff_meal"
+    | "owner_meal"
     | "nc";
   amountBtn: number;
   reference?: string;

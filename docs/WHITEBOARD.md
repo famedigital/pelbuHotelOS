@@ -1,6 +1,6 @@
 # Whiteboard — Pelbu Suites live system
 
-Last updated: 2026-08-06 (**v1.0 + StayHub walk-in** · `8ba9342`). This is the single desk-side map of what is live, how it is hosted, and what is next. Release package: [RELEASE-v1.md](RELEASE-v1.md). Detail: [FEATURES.md](FEATURES.md), [PLATFORM.md](PLATFORM.md), audit docs below.
+Last updated: **2026-08-10** (full docs re-sync after **`fc23144`**). Canonical modules: [FEATURES.md](FEATURES.md). Release: [RELEASE-v1.md](RELEASE-v1.md). Agent FO gaps: [FO-AGENT-COMMERCE-CHECKLIST.md](FO-AGENT-COMMERCE-CHECKLIST.md).
 
 ---
 
@@ -32,7 +32,9 @@ Last updated: 2026-08-06 (**v1.0 + StayHub walk-in** · `8ba9342`). This is the 
 
 **F&B staff path:** cashier → **POS** + **Kitchen TV**; chef/supervisor → **Kitchen board** (`/erp/kitchen`). Domain labels (HR `fnb`, GL F&B revenue) are not nav modules.
 
-Deep links such as `/erp/folios/[id]`, `/erp/bookings/[id]`, `/erp/orders/[id]/slip` stay as detail routes (not sidebar tabs).
+Deep links: `/erp/folios/[id]`, `/erp/bookings/[id]`, `/erp/bookings/[id]/settlement-pack`, `/erp/orders/[id]/slip`.
+
+**Lookup:** Stay conf **`PS-YYYY-#####`** · guest · agent · **INV** via `/erp/reservations?q=` or header **Search / Ctrl+K**.
 
 ---
 
@@ -106,6 +108,21 @@ Launch cutover: [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md) · Finance pack: [FIN
 | Menu save UX | POS menu admin | Item save does not remount whole menu page |
 | Building layout | rooms layout + migration | Setup tools for building floor map (early) |
 
+### 2026-08-06→10 — FO / money / public iterate (after `fc23144`)
+
+| Fix | What changed |
+|-----|--------------|
+| Bar packs + Ctrl+K search | Pour ledger; desk-search bookings/guests/rooms/invoices |
+| Free-tier resilience | Middleware/Auth fail-open; slower polls; pause KOT SSE when hidden |
+| Party + rooming | Reservations party board; multi-room suggested groups |
+| Agreed rate | Manager PIN nightly override |
+| Folio POS ops | Serve-by lines, item voids; guest Nu 0/5 hotel absorb |
+| One book modal + Folio tabs | DeskBookForm; Bill · Collect · Advanced |
+| Agent commerce | Guide photo/file → leave; seal/email; open_room_cap; agent AR CTAs; settlement pack page |
+| Stay conf # | `PS-YYYY-#####` backfill + trigger; RES + Ctrl+K |
+| Public menu / logo | Immersive menu, GST property rate, Nu 0/5, header logo clip |
+| Business date | Night audit advances `current_business_date`; CI gate |
+
 ### 2026-07-31 — Front desk process UX
 
 | Fix | Route / component | What changed |
@@ -127,6 +144,9 @@ Full severity register: [ERP-AUDIT.md](ERP-AUDIT.md).
 |-----|------------------------------------------|-----------------|--------|
 | Empty folio after check-in | Room nights post on night-audit cron, not at check-in; balance Nu 0 with 0 lines until roll | Clear copy + optional same-day post | **Fixed 2026-08-02** — day-1 post at CI (default on); night audit remaining nights |
 | Walk-in phone + slow StayHub | Phone required; auto-save revalidated whole ERP; Confirm CI buried | Phone later + light auto-save + sticky CI footer + undo | **Fixed 2026-08-06** — [FEATURES StayHub](FEATURES.md) |
+| Confirmation # for FO search | UUID only | `PS-YYYY-#####` + RES/Ctrl+K | **Fixed 2026-08-10** |
+| Agent guide leave / AR package | No sealed evidence path | Photo/file + seal + email + room cap | **Fixed 2026-08-09** — [checklist](FO-AGENT-COMMERCE-CHECKLIST.md) |
+| Folio POS invisible | Split tabs only when room+POS | Always All/Room/POS + agent F&B options | **Fixed 2026-08-09** |
 | Laundry money integrity | GST / reversal / cancel paths | Fix GST form post; reverseJournal on correction; block cancel without void | **Largely fixed 2026-08-01** — see ERP-AUDIT §7.1 |
 | Service-role bypass | Most desk writes use admin client; RLS is a second fence, not the primary one | AuthZ at action + RLS for non-admin clients | **Partial** — Wave 2 money gates + `assertDeskProperty`; staff-scoped client rewrite open |
 | RLS enabled, 0 policies | Several booking/order tables | Add policies or document admin-only | **Fixed 2026-08-01** — service_role policies migration |
@@ -153,6 +173,7 @@ Full severity register: [ERP-AUDIT.md](ERP-AUDIT.md).
 | [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md) | Launch-day env + smoke |
 | [FINANCE-UAT.md](FINANCE-UAT.md) | Period close / GST / bank recon / edge journals |
 | [OPS-RUNBOOK.md](OPS-RUNBOOK.md) | Night audit / payments / hosts / channel ops |
+| [FO-AGENT-COMMERCE-CHECKLIST.md](FO-AGENT-COMMERCE-CHECKLIST.md) | Agent tour leave + AR + FO UAT |
 | [CHANNEX-CERT.md](CHANNEX-CERT.md) | Live Channel cert after desk ARI is ready |
 | [GST-EINVOICE.md](GST-EINVOICE.md) | Bhutan DRC e-invoice stub vs live mandate |
 

@@ -17,7 +17,7 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 const BOARD_SELECT = `
-  id, contact_name, contact_phone, check_in, check_out, status, adults, rooms,
+  id, confirmation_code, contact_name, contact_phone, check_in, check_out, status, adults, rooms,
   source, guest_origin, guide_number, payment_mode,
   token_required_btn, token_received_btn,
   agents(company_name),
@@ -95,7 +95,18 @@ export default async function ArrivalsPage() {
           </p>
         </div>
         <BookingBoardTable rows={boardRows} board="arrivals" />
+        {boardRows.length === 0 ? (
+          <p className="rounded-lg border border-dashed bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
+            No arrivals today. Your job: scan departures for late CO, confirm
+            tomorrow&apos;s holds on Reservations, and keep HK ahead of the next
+            wave.
+          </p>
+        ) : null}
       </div>
+      <p className="text-xs text-muted-foreground">
+        Your job today: assign clean rooms → lead guest ID → check-in → collect
+        on Folio. Ref prints on save and check-in toasts.
+      </p>
     </DeskListShell>
   );
 }
