@@ -198,6 +198,10 @@
       width: 14mm;
       height: 14mm;
       object-fit: contain;
+      /* full-res PNG scaled down — never upsample a 200px remote */
+      image-rendering: auto;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
       filter: drop-shadow(0 1px 2px rgba(26, 15, 10, 0.12));
       margin-bottom: 1.6mm;
     }
@@ -489,10 +493,11 @@
           <div class="front-inner">
             <div class="front-brand">
               <img
-                src="https://res.cloudinary.com/hkkchsfy/image/upload/w_200,h_200,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1"
-                width="80"
-                height="80"
+                src="logo-mark.png"
+                width="512"
+                height="512"
                 alt="Pelbu Suites"
+                decoding="sync"
               />
               <div class="wordmark">
                 <h1>Pelbu <em>Suites</em></h1>
@@ -553,6 +558,7 @@
       <ul>
         <li><strong>Trim size:</strong> 90 mm × 50 mm (standard Asian business card). Alternative: 85 × 55 mm — scale the PDF 94% / ask the press to centre-crop.</li>
         <li><strong>Bleed:</strong> add 3 mm all around when imposing (artwork here is trim-safe with ~3 mm inner frame).</li>
+        <li><strong>Logo:</strong> <code>logo-mark.png</code> is the full <em>3072×3072</em> brand mark (same file as <code>design/brand/pelbu-logo-icon.png</code>). Displayed at 14 mm — keep this local master with the HTML; do not re-export small web icons.</li>
         <li><strong>Stock:</strong> 350–400 gsm ivory / soft-touch matte, or cotton white. Spot UV optional on gold type / QR quiet zone clear of varnish heavy build-up.</li>
         <li><strong>Colour:</strong> RGB brand file — convert to CMYK on press. Gold ≈ C10 M30 Y80 K5 (approx); ink/espresso ≈ rich black + warm brown.</li>
         <li><strong>QR:</strong> <code>qr-vcard.png</code> encodes a filled vCard — <em>Pelbu Suites</em>, tel <em>+975 1619 3410</em>, email <em>pelbusuites@gmail.com</em>, URL <em>https://www.pelbusuites.bt</em>, address Olakha. Keep quiet zone; do not shrink below ~14 mm square. Rescan after any regenerate.</li>

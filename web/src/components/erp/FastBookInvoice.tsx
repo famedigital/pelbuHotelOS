@@ -47,9 +47,9 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 const PAYMENT_LABELS: Record<string, string> = {
-  cash: "Cash",
+  cash: "Pay at checkout",
   prepaid: "Prepaid",
-  partial: "Partial",
+  partial: "Partial / deposit",
   on_credit: "On credit",
 };
 

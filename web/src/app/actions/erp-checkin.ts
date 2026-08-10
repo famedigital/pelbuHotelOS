@@ -1140,3 +1140,73 @@ export async function confirmCheckOut(
     };
   }
 }
+
+export type RegCardState = {
+  ok: boolean;
+  error?: string;
+  message?: string;
+  regCardPhotoPublicId?: string | null;
+};
+
+/**
+ * FO attaches the signed guest registration card after print + ink.
+ * Camera photo or scanned PDF/file via Cloudinary.
+ */
+export async function saveSignedRegCard(
+  _prev: RegCardState,
+  formData: FormData,
+): Promise<RegCardState> {
+  try {
+    await requireDesk();
+    const bookingId = trimRequired(formData.get("booking_id"), "Booking");
+    const publicId = trimRequired(
+      formData.get("reg_card_photo_public_id"),
+      "Signed registration file",
+    );
+
+    const admin = createSupabaseAdminClient();
+    const property_id = await propertyId(admin);
+
+    const { data: booking, error: loadErr } = await admin
+      .from("bookings")
+      .select("id, property_id, contact_name, status")
+      .eq("id", bookingId)
+      .maybeSingle();
+    if (loadErr || !booking) throw new Error("Booking not found.");
+    assertDeskProperty(property_id, booking.property_id as string, "Booking");
+
+    const now = new Date().toISOString();
+    const { error } = await admin
+      .from("bookings")
+      .update({
+        reg_card_photo_public_id: publicId,
+        reg_card_signed_at: now,
+      })
+      .eq("id", bookingId)
+      .eq("property_id", property_id);
+    if (error) throw new Error(error.message);
+
+    await writeAuditEvent(admin, {
+      propertyId: property_id,
+      action: "booking.reg_card_signed",
+      entityType: "bookings",
+      entityId: bookingId,
+      summary: `Signed registration on file · ${(booking.contact_name as string) ?? "guest"}`,
+      meta: { publicId },
+    });
+
+    revalidateCheckIn();
+    revalidatePath(`/erp/bookings/${bookingId}`);
+    return {
+      ok: true,
+      message: "Signed registration saved.",
+      regCardPhotoPublicId: publicId,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error:
+        err instanceof Error ? err.message : "Could not save registration scan.",
+    };
+  }
+}

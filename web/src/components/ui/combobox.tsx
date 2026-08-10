@@ -129,6 +129,22 @@ export function Combobox({
       <PopoverContent
         className="w-(--radix-popover-trigger-width) p-0"
         align="start"
+        side="bottom"
+        sideOffset={4}
+        collisionPadding={16}
+        // Keep focus usable when Combobox portals above StayHub Dialog
+        onOpenAutoFocus={(e) => {
+          // Focus search field inside instead of fighting Dialog trap awkwardly
+          const root = e.currentTarget as HTMLElement;
+          const input = root.querySelector<HTMLInputElement>(
+            "[data-slot=command-input]",
+          );
+          if (input) {
+            e.preventDefault();
+            // Defer so portal is fully mounted
+            requestAnimationFrame(() => input.focus());
+          }
+        }}
       >
         <Command shouldFilter={false}>
           <CommandInput

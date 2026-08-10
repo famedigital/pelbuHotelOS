@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { cloudinaryOriginalUrl } from "@/lib/cloudinary";
+import { cn } from "@/lib/utils";
 import { useActionState, useState } from "react";
 
 const initial: ErpFolioOpsState = { ok: false };
@@ -59,27 +60,33 @@ function Flash({ state }: { state: ErpFolioOpsState }) {
 export function VoidLineButton({
   lineId,
   description,
+  collapsed = false,
 }: {
   lineId: string;
   description?: string;
+  /** StayHub bill — hide form until FO opens Void */
+  collapsed?: boolean;
 }) {
   const [state, action, pending] = useActionState(voidFolioLine, initial);
   useActionToast(state, { successMessage: "Folio line voided" });
-  return (
-    <form action={action} className="erp mt-2 space-y-1.5">
+
+  const form = (
+    <form action={action} className={cn("erp space-y-1.5", !collapsed && "mt-2")}>
       <input type="hidden" name="line_id" value={lineId} />
-      <p className="text-[11px] text-muted-foreground">
-        Wrong charge? Void credits the folio.
-        {description ? (
-          <span className="sr-only"> {description}</span>
-        ) : null}
-      </p>
-      <div className="flex flex-wrap items-center gap-2">
+      {!collapsed ? (
+        <p className="text-[11px] text-muted-foreground">
+          Wrong charge? Void credits the folio.
+          {description ? (
+            <span className="sr-only"> {description}</span>
+          ) : null}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-1.5">
         <select
           name="void_reason"
           required
           defaultValue=""
-          className={`${selectClass()} max-w-[240px] text-xs`}
+          className={`${selectClass()} max-w-[11rem] text-xs h-8`}
           aria-label="Void reason"
         >
           <option value="" disabled>
@@ -94,22 +101,35 @@ export function VoidLineButton({
         </select>
         <Input
           name="void_reason_detail"
-          placeholder="Optional notes"
-          className="min-w-[120px] flex-1 text-xs"
+          placeholder="Notes"
+          className="h-8 min-w-[6rem] max-w-[10rem] flex-1 text-xs"
         />
         <Button
           type="submit"
           variant="ghost"
           size="sm"
           disabled={pending}
-          className="text-xs font-medium text-destructive hover:bg-destructive/5 hover:text-destructive"
+          className="h-8 min-h-8 text-xs font-medium text-destructive hover:bg-destructive/5 hover:text-destructive"
         >
-          {pending ? "Voiding…" : "Void line"}
+          {pending ? "Voiding…" : "Void"}
         </Button>
-        <PeriodOverrideFields idPrefix={`void-${lineId.slice(0, 8)}`} />
       </div>
+      <PeriodOverrideFields idPrefix={`void-${lineId.slice(0, 8)}`} />
       <Flash state={state} />
     </form>
+  );
+
+  if (!collapsed) return form;
+
+  return (
+    <details className="group w-full text-right">
+      <summary className="cursor-pointer list-none text-[10px] font-medium text-muted-foreground underline-offset-2 hover:text-destructive hover:underline [&::-webkit-details-marker]:hidden">
+        Void
+      </summary>
+      <div className="mt-1.5 rounded-md border bg-muted/20 px-2 py-1.5 text-left">
+        {form}
+      </div>
+    </details>
   );
 }
 

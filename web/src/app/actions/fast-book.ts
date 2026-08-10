@@ -349,6 +349,7 @@ export async function createFastBooking(
           seasonKind: season,
           rateTier: tier,
           adults,
+          occupancy: adults === 1 ? "single" : "double",
         });
         const rate =
           agreedNightly != null ? agreedNightly : (sheetRate ?? null);
@@ -375,6 +376,7 @@ export async function createFastBooking(
           seasonKind: season,
           rateTier: tier,
           adults,
+          occupancy: adults === 1 ? "single" : "double",
         });
         const rate =
           agreedNightly != null ? agreedNightly : (sheetRate ?? null);

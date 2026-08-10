@@ -92,19 +92,19 @@ export function FastBookDialog({
           "erp flex flex-col gap-0 overflow-hidden p-0",
           "top-auto bottom-0 left-0 right-0 h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 rounded-none border-0",
           "data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
-          "md:top-[50%] md:bottom-auto md:left-[50%] md:right-auto md:h-[min(92dvh,820px)] md:max-h-[92dvh] md:w-[min(96vw,1040px)] md:max-w-[1040px] md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-xl md:border",
-          "lg:w-[min(95vw,1180px)] lg:max-w-[1180px] lg:h-[min(90dvh,860px)]",
+          "md:top-[50%] md:bottom-auto md:left-[50%] md:right-auto md:h-[700px] md:max-h-[min(88dvh,700px)] md:w-[min(96vw,980px)] md:max-w-[980px] md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-lg md:border",
+          "lg:w-[min(96vw,1080px)] lg:max-w-[1080px] lg:h-[700px] lg:max-h-[min(90dvh,700px)]",
           "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
         )}
       >
-        <DialogHeader className="shrink-0 space-y-0 border-b px-3 py-2 pr-11 text-left md:px-4 print:hidden">
-          <DialogTitle className="text-base font-semibold tracking-tight md:text-lg">
+        <DialogHeader className="shrink-0 space-y-0 border-b px-3 py-1.5 pr-10 text-left print:hidden">
+          <DialogTitle className="text-sm font-semibold tracking-tight">
             {stage === "confirm" ? "Booking confirmed" : "New booking"}
           </DialogTitle>
-          <DialogDescription className="text-[11px] text-muted-foreground">
+          <DialogDescription className="sr-only">
             {stage === "confirm"
               ? "Print note / voucher / reg card, then open stay."
-              : "Price left · form right · package + inventory live · same-day opens check-in."}
+              : "Desk booking form with live package price."}
           </DialogDescription>
         </DialogHeader>
 

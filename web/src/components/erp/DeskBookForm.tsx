@@ -39,7 +39,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { useAgentCreditEligibilityNotify } from "@/hooks/use-agent-credit-eligibility-notify";
 import { creditAgentIneligibilityMessage } from "@/lib/agents/status";
@@ -114,9 +113,9 @@ type PrintTarget = "note" | "voucher" | "reg";
 type WalkinRateTier = "public" | "friends" | "family" | "mutual_friends";
 
 const PAYMENT_LABELS: Record<string, string> = {
-  cash: "Cash",
+  cash: "Pay at checkout",
   prepaid: "Prepaid",
-  partial: "Partial",
+  partial: "Partial / deposit",
   on_credit: "On credit",
 };
 
@@ -310,6 +309,8 @@ export function DeskBookForm({
     defaults?.mealPlanCode ?? mealPlans[0]?.code ?? "EP",
   );
   const [adults, setAdults] = useState(2);
+  /** Room rate occupancy (sheet single vs double Nu). Headcount may still rise above 2. */
+  const [occupancy, setOccupancy] = useState<"single" | "double">("double");
   const [children, setChildren] = useState(0);
   const [extraBeds, setExtraBeds] = useState(0);
   const [stepError, setStepError] = useState<string | null>(null);
@@ -571,6 +572,7 @@ export function DeskBookForm({
           qty: l.qty,
         })),
         adults,
+        occupancy,
         children,
         extraBeds,
         mealPlanCode,
@@ -593,10 +595,11 @@ export function DeskBookForm({
         r.mealPlanCode && r.mealPlanCode !== "EP"
           ? ` · ${r.mealPlanCode}`
           : "";
+      const occNote = occupancy === "single" ? " · SGL" : " · DBL";
       setQuoteHint(
         r.systemNightlyBtn == null
           ? "No rate — enter a rate (manager PIN)."
-          : `${r.seasonKind} · ${r.rateTier}${mixNote}${pkgNote}`,
+          : `${r.seasonKind} · ${r.rateTier}${occNote}${mixNote}${pkgNote}`,
       );
       setSystemNightly(r.systemNightlyBtn);
       setQuoteRoomsStay(r.stayRoomsBtn);
@@ -618,6 +621,7 @@ export function DeskBookForm({
     checkOut,
     nights,
     adults,
+    occupancy,
     children,
     extraBeds,
     mealPlanCode,
@@ -658,7 +662,8 @@ export function DeskBookForm({
       savedIntent === "check_in" ||
       (savedIntent === "confirm" && checkIn === todayIso());
     if (sameDayOpen) {
-      (onOpenStay ?? onCreated)?.(state.bookingId, savedIntent);
+      // Same-day confirm / Save→CI → open StayHub on Check-in (not Details)
+      (onOpenStay ?? onCreated)?.(state.bookingId, "check_in");
       return;
     }
     onSaved?.(state.bookingId, savedIntent);
@@ -1095,66 +1100,66 @@ export function DeskBookForm({
         {/* LEFT RAIL */}
         <aside
           className={cn(
-            "flex shrink-0 flex-col gap-2 border-b bg-muted/20 p-2.5",
-            "md:w-[13.5rem] md:border-b-0 md:border-r lg:w-60 lg:p-3",
+            "flex shrink-0 flex-col gap-1.5 border-b bg-muted/15 p-2",
+            "md:w-44 md:border-b-0 md:border-r lg:w-48 lg:p-2.5",
           )}
         >
           <button
             type="button"
             onClick={openRateDialog}
             className={cn(
-              "w-full rounded-md border bg-card px-2.5 py-2 text-left transition-colors",
-              "hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "w-full rounded border bg-card px-2 py-1.5 text-left transition-colors",
+              "hover:border-foreground/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               rateDiffers &&
-                "border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20",
+                "border-amber-500/50 bg-amber-50/40 dark:bg-amber-950/20",
             )}
           >
             <div className="flex items-center justify-between gap-1">
-              <p className="text-[9px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+              <p className="text-[9px] font-medium tracking-wide text-muted-foreground uppercase">
                 {quotePending
                   ? "Price…"
                   : rateDiffers
-                    ? "Custom nightly"
-                    : "Sheet nightly"}
+                    ? "Custom"
+                    : "Nightly"}
               </p>
               <PencilIcon className="size-3 shrink-0 text-muted-foreground" />
             </div>
-            <p className="mt-0.5 text-2xl font-semibold tracking-tight tabular-nums lg:text-[1.75rem]">
+            <p className="mt-0.5 text-xl font-semibold tracking-tight tabular-nums">
               {displayRate && Number.isFinite(Number(displayRate))
                 ? formatGuestBtn(Number(displayRate))
                 : "—"}
             </p>
-            <div className="mt-1.5 space-y-0.5 border-t border-border/60 pt-1.5 text-[10px]">
+            <div className="mt-1 space-y-px border-t border-border/50 pt-1 text-[10px] tabular-nums text-muted-foreground">
               {quoteRoomsStay != null && !rateDiffers ? (
-                <div className="flex justify-between gap-2 tabular-nums text-muted-foreground">
+                <div className="flex justify-between gap-2">
                   <span>Rooms</span>
                   <span>{formatGuestBtn(quoteRoomsStay)}</span>
                 </div>
               ) : null}
               {quoteMealStay > 0 && !rateDiffers ? (
-                <div className="flex justify-between gap-2 tabular-nums text-muted-foreground">
+                <div className="flex justify-between gap-2">
                   <span>Meals</span>
                   <span>{formatGuestBtn(quoteMealStay)}</span>
                 </div>
               ) : null}
               {quoteExtraStay > 0 && !rateDiffers ? (
-                <div className="flex justify-between gap-2 tabular-nums text-muted-foreground">
-                  <span>Extra beds</span>
+                <div className="flex justify-between gap-2">
+                  <span>Extra</span>
                   <span>{formatGuestBtn(quoteExtraStay)}</span>
                 </div>
               ) : null}
-              <div className="flex items-baseline justify-between gap-2 pt-0.5">
-                <p className="text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
-                  Stay total
-                </p>
-                <p className="text-sm font-semibold tabular-nums">
+              <div className="flex items-baseline justify-between gap-2 pt-0.5 text-foreground">
+                <span className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Total
+                </span>
+                <span className="text-sm font-semibold">
                   {stayTotal != null ? formatGuestBtn(stayTotal) : "—"}
-                </p>
+                </span>
               </div>
             </div>
             <p className="mt-1 truncate text-[10px] text-muted-foreground">
-              {nights}n · {totalGuestRooms} rm
-              {mixedCategories ? " · multi" : ""}
+              {nights}n · {totalGuestRooms}rm ·{" "}
+              {occupancy === "single" ? "SGL" : "DBL"}
               {mealPlanCode ? ` · ${mealPlanCode}` : ""}
             </p>
             {quoteHint ? (
@@ -1164,66 +1169,44 @@ export function DeskBookForm({
             ) : null}
           </button>
 
-          <div className="rounded-md border bg-background/80 px-2.5 py-1.5 text-[11px] leading-snug text-muted-foreground">
+          <div className="rounded border bg-background/70 px-2 py-1.5 text-[10px] leading-snug text-muted-foreground">
             <p className="truncate font-medium text-foreground">
               {guestName.trim() || "Walk-in guest"}
             </p>
-            <p className="mt-0.5">
+            <p className="mt-0.5 tabular-nums">
               {fmtShort(checkIn)} → {fmtShort(checkOut)} · {nights}n
             </p>
             <p className="mt-0.5 truncate">
               {roomLineSummary || "Pick rooms"}
+              {preferredUnitId
+                ? ` · #${preferredUnitLabel || "rack"}`
+                : ""}
             </p>
-            {billAgent && selectedAgent ? (
-              <p className="mt-1 truncate border-t border-border/50 pt-1 font-medium text-foreground">
-                {selectedAgent.company_name}
-                {isMouAgentTier(selectedAgent.rate_tier) ? " · MoU" : ""}
-              </p>
-            ) : (
-              <p className="mt-1 truncate border-t border-border/50 pt-1 capitalize">
-                {guestOrigin}
-                {!billAgent ? ` · ${walkinRateTier.replace("_", " ")}` : ""}
-              </p>
-            )}
-            {soldByStaffId && staff.length ? (
-              <p className="mt-0.5 truncate text-[10px]">
-                Sold by{" "}
-                {staff.find((s) => s.id === soldByStaffId)?.full_name ?? "—"}
-              </p>
-            ) : null}
-            {preferredUnitId ? (
-              <p className="mt-0.5 truncate text-[10px] text-foreground">
-                Rack {preferredUnitLabel || preferredUnitId.slice(0, 6)}
-              </p>
-            ) : null}
+            <p className="mt-0.5 truncate capitalize">
+              {billAgent && selectedAgent
+                ? selectedAgent.company_name
+                : `${guestOrigin}${!billAgent ? ` · ${walkinRateTier.replace("_", " ")}` : ""}`}
+            </p>
             {availStrip ? (
-              <p className="mt-1 truncate border-t border-border/50 pt-1 text-[9px]">
+              <p className="mt-1 border-t border-border/40 pt-1 text-[9px]">
                 {availStrip}
               </p>
             ) : null}
           </div>
 
           {roomCapNear ? (
-            <p className="rounded-md border border-amber-500/35 bg-amber-500/10 px-2 py-1.5 text-[10px] leading-snug text-amber-950 dark:text-amber-50">
-              Room cap soft warn:{" "}
-              {agentOpenRooms ?? "?"} open + {totalGuestRooms} this book
-              {agentRoomCap != null ? ` vs cap ${agentRoomCap}` : ""}. Block is
-              at check-in only.
+            <p className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-1 text-[9px] leading-snug text-amber-950 dark:text-amber-50">
+              Cap warn: {agentOpenRooms ?? "?"} open + {totalGuestRooms}
+              {agentRoomCap != null ? ` / ${agentRoomCap}` : ""} · blocks at CI
             </p>
           ) : null}
-
-          <div className="hidden flex-1 md:block" />
-          <p className="hidden text-[9px] leading-snug text-muted-foreground md:block">
-            Tap price for custom rate (manager PIN). Live leftover updates with
-            dates.
-          </p>
         </aside>
 
-        {/* RIGHT work pane */}
+        {/* RIGHT — dense professional grid */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2.5 py-2 sm:px-3 md:px-4 md:py-2.5">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2.5 py-1.5 md:overflow-hidden md:px-3 md:py-2">
             {state.error ? (
-              <Alert variant="destructive" className="mb-2 py-2">
+              <Alert variant="destructive" className="mb-1.5 py-1.5">
                 <TriangleAlertIcon />
                 <AlertDescription className="text-xs">
                   {state.error}
@@ -1231,7 +1214,7 @@ export function DeskBookForm({
               </Alert>
             ) : null}
             {stepError ? (
-              <Alert variant="destructive" className="mb-2 py-2">
+              <Alert variant="destructive" className="mb-1.5 py-1.5">
                 <TriangleAlertIcon />
                 <AlertDescription className="text-xs">
                   {stepError}
@@ -1239,158 +1222,215 @@ export function DeskBookForm({
               </Alert>
             ) : null}
 
-            <div className="space-y-2.5">
-              <section className="rounded-md border bg-card p-2 sm:p-2.5">
-                <p className="mb-1.5 text-[9px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-                  Stay &amp; guest
-                </p>
-                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 lg:grid-cols-6">
-                  <div className="space-y-0.5">
-                    <Label
-                      htmlFor="db_ci"
-                      className="text-[10px] text-muted-foreground"
-                    >
-                      Check-in
-                    </Label>
-                    <Input
-                      id="db_ci"
-                      type="date"
-                      value={checkIn}
-                      min={todayIso()}
-                      onChange={(e) => onCheckInChange(e.target.value)}
-                      className="h-9"
-                    />
-                  </div>
-                  <div className="space-y-0.5">
-                    <Label
-                      htmlFor="db_co"
-                      className="text-[10px] text-muted-foreground"
-                    >
-                      Check-out
-                    </Label>
-                    <Input
-                      id="db_co"
-                      type="date"
-                      value={checkOut}
-                      min={addDaysIso(checkIn, 1)}
-                      onChange={(e) => onCheckOutChange(e.target.value)}
-                      className="h-9"
-                    />
-                  </div>
-                  <div className="space-y-0.5">
-                    <Label className="text-[10px] text-muted-foreground">
-                      Nights
-                    </Label>
-                    <div className="flex h-9 items-center gap-1">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="size-9 shrink-0"
-                        onClick={() => setNights(nights - 1)}
-                        aria-label="Fewer nights"
-                      >
-                        −
-                      </Button>
-                      <span className="min-w-[1.5rem] text-center text-sm font-semibold tabular-nums">
-                        {nights}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="size-9 shrink-0"
-                        onClick={() => setNights(nights + 1)}
-                        aria-label="More nights"
-                      >
-                        +
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="col-span-2 space-y-0.5 sm:col-span-2 lg:col-span-3">
-                    <Label
-                      htmlFor="db_name"
-                      className="text-[10px] text-muted-foreground"
-                    >
-                      Guest name
-                    </Label>
-                    <Input
-                      id="db_name"
-                      value={guestName}
-                      onChange={(e) => setGuestName(e.target.value)}
-                      autoComplete="off"
-                      className="h-9"
-                      placeholder="Lead guest"
-                    />
-                  </div>
-                  <div className="space-y-0.5">
-                    <Label
-                      htmlFor="db_phone"
-                      className="text-[10px] text-muted-foreground"
-                    >
-                      Phone
-                    </Label>
-                    <Input
-                      id="db_phone"
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      disabled={phoneLater}
-                      className="h-9"
-                    />
-                  </div>
-                  <div className="space-y-0.5">
-                    <Label
-                      htmlFor="db_email"
-                      className="text-[10px] text-muted-foreground"
-                    >
-                      Email
-                    </Label>
-                    <Input
-                      id="db_email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="h-9"
-                      placeholder="Optional"
-                    />
-                  </div>
-                  <div className="col-span-2 flex items-end pb-1 sm:col-span-1">
-                    <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                      <input
-                        type="checkbox"
-                        checked={phoneLater}
-                        onChange={(e) => setPhoneLater(e.target.checked)}
-                        className="size-3.5 accent-foreground"
-                      />
-                      Phone later
-                    </label>
-                  </div>
+            <div className="space-y-2">
+              {/* ROW: dates + guest */}
+              <div className="grid grid-cols-2 gap-x-2 gap-y-1 sm:grid-cols-4 lg:grid-cols-12">
+                <div className="space-y-0.5 lg:col-span-2">
+                  <Label
+                    htmlFor="db_ci"
+                    className="text-[10px] font-normal text-muted-foreground"
+                  >
+                    Check-in
+                  </Label>
+                  <Input
+                    id="db_ci"
+                    type="date"
+                    value={checkIn}
+                    min={todayIso()}
+                    onChange={(e) => onCheckInChange(e.target.value)}
+                    className="h-8 text-sm"
+                  />
                 </div>
-                {preferredUnitId ? (
-                  <div className="mt-1.5 flex flex-wrap items-center gap-2 rounded-md border border-sky-500/25 bg-sky-500/5 px-2 py-1 text-[11px]">
-                    <span className="font-medium text-foreground">
-                      Preferred rack room
-                    </span>
-                    <span className="tabular-nums">
-                      {preferredUnitLabel || preferredUnitId.slice(0, 8)}
+                <div className="space-y-0.5 lg:col-span-2">
+                  <Label
+                    htmlFor="db_co"
+                    className="text-[10px] font-normal text-muted-foreground"
+                  >
+                    Check-out
+                  </Label>
+                  <Input
+                    id="db_co"
+                    type="date"
+                    value={checkOut}
+                    min={addDaysIso(checkIn, 1)}
+                    onChange={(e) => onCheckOutChange(e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-0.5 lg:col-span-2">
+                  <Label className="text-[10px] font-normal text-muted-foreground">
+                    Nights
+                  </Label>
+                  <div className="flex h-8 items-center gap-0.5">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="size-8 shrink-0"
+                      onClick={() => setNights(nights - 1)}
+                      aria-label="Fewer nights"
+                    >
+                      −
+                    </Button>
+                    <span className="min-w-[1.25rem] text-center text-sm font-semibold tabular-nums">
+                      {nights}
                     </span>
                     <Button
                       type="button"
-                      variant="ghost"
-                      className="h-7 px-2 text-[10px]"
-                      onClick={() => setPreferredUnitId("")}
+                      variant="outline"
+                      className="size-8 shrink-0"
+                      onClick={() => setNights(nights + 1)}
+                      aria-label="More nights"
                     >
-                      Clear
+                      +
                     </Button>
                   </div>
-                ) : null}
-              </section>
+                </div>
+                <div className="col-span-2 space-y-0.5 sm:col-span-2 lg:col-span-3">
+                  <Label
+                    htmlFor="db_name"
+                    className="text-[10px] font-normal text-muted-foreground"
+                  >
+                    Guest
+                  </Label>
+                  <Input
+                    id="db_name"
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    autoComplete="off"
+                    className="h-8 text-sm"
+                    placeholder="Lead guest"
+                  />
+                </div>
+                <div className="space-y-0.5 lg:col-span-2">
+                  <Label
+                    htmlFor="db_phone"
+                    className="text-[10px] font-normal text-muted-foreground"
+                  >
+                    Phone
+                  </Label>
+                  <Input
+                    id="db_phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    disabled={phoneLater}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="flex items-end pb-0.5 lg:col-span-1">
+                  <label className="flex h-8 items-center gap-1 text-[10px] text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={phoneLater}
+                      onChange={(e) => setPhoneLater(e.target.checked)}
+                      className="size-3 accent-foreground"
+                    />
+                    Later
+                  </label>
+                </div>
+              </div>
 
-              <section className="rounded-md border bg-card p-2 sm:p-2.5">
-                <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-1">
-                  <p className="text-[9px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-                    Origin · bill · staff
-                  </p>
-                  <label className="flex items-center gap-1.5 text-[11px] font-medium">
+              {preferredUnitId ? (
+                <p className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                  <span>
+                    Rack{" "}
+                    <span className="font-medium text-foreground tabular-nums">
+                      {preferredUnitLabel || preferredUnitId.slice(0, 8)}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    className="text-[10px] underline-offset-2 hover:underline"
+                    onClick={() => setPreferredUnitId("")}
+                  >
+                    Clear
+                  </button>
+                </p>
+              ) : null}
+
+              {/* ROW: origin / tier / staff / docs */}
+              <div className="grid grid-cols-2 gap-x-2 gap-y-1 border-t border-border/50 pt-2 sm:grid-cols-4 lg:grid-cols-12">
+                <div className="space-y-0.5 lg:col-span-2">
+                  <Label className="text-[10px] font-normal text-muted-foreground">
+                    Origin
+                  </Label>
+                  <Select
+                    value={guestOrigin}
+                    onValueChange={(v) => setGuestOrigin(v as GuestOrigin)}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ORIGIN_OPTIONS.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {!billAgent ? (
+                  <div className="space-y-0.5 lg:col-span-2">
+                    <Label className="text-[10px] font-normal text-muted-foreground">
+                      Rate tier
+                    </Label>
+                    <Select
+                      value={walkinRateTier}
+                      onValueChange={(v) => {
+                        setWalkinRateTier(v as WalkinRateTier);
+                        setRateDirty(false);
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {WALKIN_TIERS.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div className="space-y-0.5 lg:col-span-2">
+                    <Label className="text-[10px] font-normal text-muted-foreground">
+                      Payment
+                    </Label>
+                    <Select
+                      value={paymentMode}
+                      onValueChange={setPaymentMode}
+                    >
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cash">Pay at checkout</SelectItem>
+                        <SelectItem value="prepaid">Prepaid (already paid)</SelectItem>
+                        <SelectItem value="partial">Partial / deposit</SelectItem>
+                        <SelectItem value="on_credit">On credit (agent)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div className="space-y-0.5 lg:col-span-3">
+                  <Label className="text-[10px] font-normal text-muted-foreground">
+                    Sold by
+                  </Label>
+                  <StaffPicker
+                    staff={staff}
+                    value={soldByStaffId}
+                    onValueChange={setSoldByStaffId}
+                    className="h-8 min-h-8"
+                  />
+                </div>
+
+                <div className="flex items-end pb-0.5 lg:col-span-2">
+                  <label className="flex h-8 items-center gap-1.5 text-[11px] font-medium">
                     <input
                       type="checkbox"
                       checked={billAgent}
@@ -1400,328 +1440,258 @@ export function DeskBookForm({
                     Bill to agent
                   </label>
                 </div>
-                <div className="grid grid-cols-4 gap-1">
-                  {ORIGIN_OPTIONS.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => setGuestOrigin(c.id)}
-                      className={cn(
-                        "h-8 rounded-md border text-xs font-semibold transition-colors",
-                        guestOrigin === c.id
-                          ? "border-foreground bg-foreground text-background"
-                          : "border-border bg-background hover:bg-muted/50",
-                      )}
-                    >
-                      {c.label}
-                    </button>
-                  ))}
+
+                <div className="space-y-0.5 col-span-2 sm:col-span-2 lg:col-span-3">
+                  <Label
+                    htmlFor="db_email"
+                    className="text-[10px] font-normal text-muted-foreground"
+                  >
+                    Email
+                  </Label>
+                  <Input
+                    id="db_email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="h-8 text-sm"
+                    placeholder="Optional"
+                  />
                 </div>
+              </div>
 
-                <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
-                  {guestOrigin === "local" ? (
-                    <div className="space-y-0.5 sm:col-span-2">
-                      <Label
-                        htmlFor="db_cid"
-                        className="text-[10px] text-muted-foreground"
-                      >
-                        CID (optional)
-                      </Label>
-                      <Input
-                        id="db_cid"
-                        value={docId}
-                        onChange={(e) => setDocId(e.target.value)}
-                        placeholder="11 digits"
-                        className="h-9"
-                        inputMode="numeric"
-                      />
-                    </div>
-                  ) : null}
-
-                  {guestOrigin === "regional" || guestOrigin === "official" ? (
-                    <>
-                      <div className="space-y-0.5">
-                        <Label
-                          htmlFor="db_pass_r"
-                          className="text-[10px] text-muted-foreground"
-                        >
-                          Passport / voter
-                        </Label>
-                        <Input
-                          id="db_pass_r"
-                          value={docId}
-                          onChange={(e) => setDocId(e.target.value)}
-                          className="h-9"
-                        />
-                      </div>
-                      <div className="space-y-0.5">
-                        <Label
-                          htmlFor="db_sdf_r"
-                          className="text-[10px] text-muted-foreground"
-                        >
-                          SDF (optional)
-                        </Label>
-                        <Input
-                          id="db_sdf_r"
-                          value={sdfRef}
-                          onChange={(e) => setSdfRef(e.target.value)}
-                          className="h-9"
-                          disabled={guestOrigin === "official"}
-                        />
-                      </div>
-                    </>
-                  ) : null}
-
-                  {guestOrigin === "international" ? (
-                    <>
-                      <div className="space-y-0.5">
-                        <Label
-                          htmlFor="db_pass_i"
-                          className="text-[10px] text-muted-foreground"
-                        >
-                          Passport
-                        </Label>
-                        <Input
-                          id="db_pass_i"
-                          value={docId}
-                          onChange={(e) => setDocId(e.target.value)}
-                          className="h-9"
-                        />
-                      </div>
-                      <div className="space-y-0.5">
-                        <Label
-                          htmlFor="db_sdf_i"
-                          className="text-[10px] text-muted-foreground"
-                        >
-                          SDF
-                        </Label>
-                        <Input
-                          id="db_sdf_i"
-                          value={sdfRef}
-                          onChange={(e) => setSdfRef(e.target.value)}
-                          className="h-9"
-                        />
-                      </div>
-                      <div className="space-y-0.5 sm:col-span-2">
-                        <Label
-                          htmlFor="db_guide"
-                          className="text-[10px] text-muted-foreground"
-                        >
-                          Guide number (required)
-                        </Label>
-                        <Input
-                          id="db_guide"
-                          value={guideNumber}
-                          onChange={(e) => setGuideNumber(e.target.value)}
-                          className="h-9"
-                          placeholder="Guide #"
-                        />
-                      </div>
-                    </>
-                  ) : null}
-
-                  {billAgent ? (
-                    <>
-                      <div className="space-y-0.5 sm:col-span-2">
-                        <Label className="text-[10px] text-muted-foreground">
-                          Agent
-                        </Label>
-                        <AgentPicker
-                          agents={pickerAgents}
-                          value={agentId}
-                          onValueChange={(id) => {
-                            setAgentId(id);
-                            if (id) setPaymentMode("on_credit");
-                          }}
-                          creditMode={paymentMode === "on_credit"}
-                          className="h-9 min-h-9"
-                        />
-                      </div>
-                      <div className="space-y-0.5">
-                        <Label className="text-[10px] text-muted-foreground">
-                          Payment
-                        </Label>
-                        <Select
-                          value={paymentMode}
-                          onValueChange={setPaymentMode}
-                        >
-                          <SelectTrigger className="h-9">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="on_credit">On credit</SelectItem>
-                            <SelectItem value="partial">Partial</SelectItem>
-                            <SelectItem value="prepaid">Prepaid</SelectItem>
-                            <SelectItem value="cash">Cash</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        {paymentMode === "partial" || paymentMode === "prepaid" ? (
-                          <p className="text-[10px] text-muted-foreground">
-                            Collect balance later on Folio.
-                          </p>
-                        ) : null}
-                      </div>
-                      {blockCredit && selectedAgent ? (
-                        <div className="sm:col-span-2">
-                          <CreditAgentPromotePanel
-                            agent={selectedAgent}
-                            variant="compact"
-                            onPromoted={(a) =>
-                              setAgentPatches((p) => ({ ...p, [a.id]: a }))
-                            }
-                            onUseCash={() => {
-                              setPaymentMode("cash");
-                              toast.message("Payment set to cash", {
-                                description:
-                                  "Agent stays as directory listing (no credit).",
-                              });
-                            }}
-                          />
-                        </div>
-                      ) : null}
-                      {selectedAgent &&
-                      paymentMode === "on_credit" &&
-                      !blockCredit ? (
-                        <p className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-900 sm:col-span-2 dark:text-emerald-100">
-                          {selectedAgent.company_name} · credit OK
-                          {agentOpenRooms != null && agentRoomCap != null
-                            ? ` · open ${agentOpenRooms}/${agentRoomCap}`
-                            : ""}
-                        </p>
-                      ) : null}
-                    </>
-                  ) : (
-                    <div className="space-y-0.5 sm:col-span-2">
-                      <Label className="text-[10px] text-muted-foreground">
-                        Rate tier (walk-in sheet)
-                      </Label>
-                      <div className="grid grid-cols-4 gap-1">
-                        {WALKIN_TIERS.map((t) => (
-                          <button
-                            key={t.id}
-                            type="button"
-                            onClick={() => {
-                              setWalkinRateTier(t.id);
-                              setRateDirty(false);
-                            }}
-                            className={cn(
-                              "h-8 rounded-md border text-[11px] font-semibold",
-                              walkinRateTier === t.id
-                                ? "border-foreground bg-foreground text-background"
-                                : "border-border bg-background hover:bg-muted/50",
-                            )}
-                          >
-                            {t.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="space-y-0.5 sm:col-span-2">
-                    <Label className="text-[10px] text-muted-foreground">
-                      Sold by (staff)
+              {/* Guest documents — own row so passport / SDF are full usable width */}
+              {guestOrigin === "local" ? (
+                <div className="grid grid-cols-1 gap-x-2 sm:max-w-sm">
+                  <div className="space-y-0.5 min-w-0">
+                    <Label
+                      htmlFor="db_cid"
+                      className="text-[10px] font-normal text-muted-foreground"
+                    >
+                      CID
                     </Label>
-                    <StaffPicker
-                      staff={staff}
-                      value={soldByStaffId}
-                      onValueChange={setSoldByStaffId}
-                      className="h-9 min-h-9"
+                    <Input
+                      id="db_cid"
+                      value={docId}
+                      onChange={(e) => setDocId(e.target.value)}
+                      placeholder="11 digits (optional)"
+                      className="h-8 font-mono text-sm tabular-nums"
+                      inputMode="numeric"
+                      maxLength={14}
                     />
                   </div>
                 </div>
-              </section>
+              ) : null}
 
-              <section className="rounded-md border bg-card p-2 sm:p-2.5">
-                <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-1">
-                  <p className="text-[9px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-                    Rooms · comps · meal · pax
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {totalGuestRooms} guest room
-                    {totalGuestRooms === 1 ? "" : "s"}
-                    {mixedCategories ? " · multi" : ""}
-                  </p>
+              {guestOrigin === "regional" || guestOrigin === "official" ? (
+                <div className="grid grid-cols-1 gap-x-2 gap-y-1 sm:grid-cols-2">
+                  <div className="space-y-0.5 min-w-0">
+                    <Label
+                      htmlFor="db_pass_r"
+                      className="text-[10px] font-normal text-muted-foreground"
+                    >
+                      Passport / voter ID
+                    </Label>
+                    <Input
+                      id="db_pass_r"
+                      value={docId}
+                      onChange={(e) => setDocId(e.target.value)}
+                      className="h-8 font-mono text-sm"
+                      placeholder="Document number"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div className="space-y-0.5 min-w-0">
+                    <Label
+                      htmlFor="db_sdf_r"
+                      className="text-[10px] font-normal text-muted-foreground"
+                    >
+                      SDF ref
+                    </Label>
+                    <Input
+                      id="db_sdf_r"
+                      value={sdfRef}
+                      onChange={(e) => setSdfRef(e.target.value)}
+                      className="h-8 font-mono text-sm"
+                      placeholder={
+                        guestOrigin === "official"
+                          ? "N/A for official"
+                          : "Optional now"
+                      }
+                      disabled={guestOrigin === "official"}
+                      autoComplete="off"
+                    />
+                  </div>
                 </div>
+              ) : null}
 
-                <ul className="space-y-1">
-                  {roomLines.map((line) => {
-                    const rt = guestTypes.find((g) => g.id === line.roomTypeId);
-                    if (!rt) return null;
-                    const left = leftFor(line.roomTypeId, rt.unit_count || 20);
-                    const qLine = quoteLines.find(
-                      (q) => q.roomTypeId === line.roomTypeId,
-                    );
-                    return (
-                      <li
-                        key={line.roomTypeId}
-                        className="flex flex-wrap items-center gap-1.5 rounded-md border bg-background px-2 py-1"
+              {guestOrigin === "international" ? (
+                <div className="grid grid-cols-1 gap-x-2 gap-y-1 sm:grid-cols-2 lg:grid-cols-12">
+                  <div className="min-w-0 space-y-0.5 lg:col-span-5">
+                    <Label
+                      htmlFor="db_pass_i"
+                      className="text-[10px] font-normal text-muted-foreground"
+                    >
+                      Passport
+                    </Label>
+                    <Input
+                      id="db_pass_i"
+                      value={docId}
+                      onChange={(e) => setDocId(e.target.value)}
+                      className="h-8 font-mono text-sm"
+                      placeholder="Passport number"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div className="min-w-0 space-y-0.5 lg:col-span-4">
+                    <Label
+                      htmlFor="db_sdf_i"
+                      className="text-[10px] font-normal text-muted-foreground"
+                    >
+                      SDF ref
+                    </Label>
+                    <Input
+                      id="db_sdf_i"
+                      value={sdfRef}
+                      onChange={(e) => setSdfRef(e.target.value)}
+                      className="h-8 font-mono text-sm"
+                      placeholder="SDF number"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div className="min-w-0 space-y-0.5 sm:col-span-2 lg:col-span-3">
+                    <Label
+                      htmlFor="db_guide"
+                      className="text-[10px] font-normal text-muted-foreground"
+                    >
+                      Guide number
+                    </Label>
+                    <Input
+                      id="db_guide"
+                      value={guideNumber}
+                      onChange={(e) => setGuideNumber(e.target.value)}
+                      className="h-8 font-mono text-sm"
+                      placeholder="Required"
+                      autoComplete="off"
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              {billAgent ? (
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                  <div className="space-y-0.5 sm:col-span-2">
+                    <Label className="text-[10px] font-normal text-muted-foreground">
+                      Agent
+                    </Label>
+                    <AgentPicker
+                      agents={pickerAgents}
+                      value={agentId}
+                      onValueChange={(id) => {
+                        setAgentId(id);
+                        if (id) setPaymentMode("on_credit");
+                      }}
+                      creditMode={paymentMode === "on_credit"}
+                      className="h-8 min-h-8"
+                    />
+                  </div>
+                  {blockCredit && selectedAgent ? (
+                    <div className="sm:col-span-2">
+                      <CreditAgentPromotePanel
+                        agent={selectedAgent}
+                        variant="compact"
+                        onPromoted={(a) =>
+                          setAgentPatches((p) => ({ ...p, [a.id]: a }))
+                        }
+                        onUseCash={() => {
+                          setPaymentMode("cash");
+                          toast.message("Payment set to pay at checkout");
+                        }}
+                      />
+                    </div>
+                  ) : null}
+                  {selectedAgent &&
+                  paymentMode === "on_credit" &&
+                  !blockCredit ? (
+                    <p className="text-[10px] text-emerald-800 sm:col-span-2 dark:text-emerald-200">
+                      {selectedAgent.company_name} · credit OK
+                      {agentOpenRooms != null && agentRoomCap != null
+                        ? ` · open ${agentOpenRooms}/${agentRoomCap}`
+                        : ""}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {/* ROW: rooms + package */}
+              <div className="space-y-1 border-t border-border/50 pt-2">
+                {roomLines.map((line) => {
+                  const rt = guestTypes.find((g) => g.id === line.roomTypeId);
+                  if (!rt) return null;
+                  const left = leftFor(line.roomTypeId, rt.unit_count || 20);
+                  const qLine = quoteLines.find(
+                    (q) => q.roomTypeId === line.roomTypeId,
+                  );
+                  return (
+                    <div
+                      key={line.roomTypeId}
+                      className="flex flex-wrap items-center gap-1.5 text-sm"
+                    >
+                      <span className="min-w-0 flex-1 truncate font-medium">
+                        {rt.name}
+                        <span className="ml-1 font-normal text-muted-foreground">
+                          {left} left
+                          {qLine?.nightlyBtn != null
+                            ? ` · ${formatGuestBtn(qLine.nightlyBtn)}/n`
+                            : ""}
+                        </span>
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="size-7"
+                        onClick={() =>
+                          setLineQty(line.roomTypeId, line.qty - 1)
+                        }
+                        aria-label={`Decrease ${rt.name}`}
                       >
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-semibold">
-                            {rt.name}
-                            <span className="ml-1 font-normal text-muted-foreground">
-                              {rt.code}
-                            </span>
-                          </p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {left} left
-                            {qLine?.nightlyBtn != null
-                              ? ` · ${formatGuestBtn(qLine.nightlyBtn)}/n`
-                              : ""}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="size-8"
-                            onClick={() =>
-                              setLineQty(line.roomTypeId, line.qty - 1)
-                            }
-                            aria-label={`Decrease ${rt.name}`}
-                          >
-                            −
-                          </Button>
-                          <span className="min-w-[1.25rem] text-center text-sm font-semibold tabular-nums">
-                            {line.qty}
-                          </span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="size-8"
-                            disabled={line.qty >= left}
-                            onClick={() =>
-                              setLineQty(line.roomTypeId, line.qty + 1)
-                            }
-                            aria-label={`Increase ${rt.name}`}
-                          >
-                            +
-                          </Button>
-                          {roomLines.length > 1 ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              className="h-8 px-1.5 text-[10px] text-muted-foreground"
-                              onClick={() => removeLine(line.roomTypeId)}
-                            >
-                              ×
-                            </Button>
-                          ) : null}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
+                        −
+                      </Button>
+                      <span className="min-w-[1rem] text-center text-sm font-semibold tabular-nums">
+                        {line.qty}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="size-7"
+                        disabled={line.qty >= left}
+                        onClick={() =>
+                          setLineQty(line.roomTypeId, line.qty + 1)
+                        }
+                        aria-label={`Increase ${rt.name}`}
+                      >
+                        +
+                      </Button>
+                      {roomLines.length > 1 ? (
+                        <button
+                          type="button"
+                          className="px-1 text-[11px] text-muted-foreground hover:text-foreground"
+                          onClick={() => removeLine(line.roomTypeId)}
+                        >
+                          Remove
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })}
 
                 {typesAvailableToAdd.length > 0 ? (
-                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <div className="flex items-center gap-1.5">
                     <Select
                       value={addCategoryId || undefined}
                       onValueChange={setAddCategoryId}
                     >
-                      <SelectTrigger className="h-8 min-w-[9rem] flex-1 text-xs">
-                        <SelectValue placeholder="Add room type…" />
+                      <SelectTrigger className="h-7 min-w-[8rem] flex-1 text-xs">
+                        <SelectValue placeholder="Add category…" />
                       </SelectTrigger>
                       <SelectContent>
                         {typesAvailableToAdd.map((rt) => {
@@ -1733,7 +1703,7 @@ export function DeskBookForm({
                               disabled={left < 1}
                             >
                               {rt.name}
-                              {left < 1 ? " · sold" : ` · ${left} left`}
+                              {left < 1 ? " · sold" : ` · ${left}`}
                             </SelectItem>
                           );
                         })}
@@ -1742,7 +1712,7 @@ export function DeskBookForm({
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-8 text-xs"
+                      className="h-7 px-2 text-xs"
                       disabled={!addCategoryId}
                       onClick={() => addCategoryLine(addCategoryId)}
                     >
@@ -1752,70 +1722,57 @@ export function DeskBookForm({
                 ) : null}
 
                 {compTypes.length > 0 ? (
-                  <div className="mt-2 space-y-1 border-t border-border/50 pt-2">
-                    <p className="text-[9px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-                      Guide / driver beds
-                    </p>
-                    <ul className="space-y-1">
-                      {compTypes.map((rt) => {
-                        const qty = compQtyByTypeId[rt.id] ?? 0;
-                        const left = leftFor(rt.id, rt.unit_count || 8);
-                        return (
-                          <li
-                            key={rt.id}
-                            className="flex flex-wrap items-center gap-1.5 rounded-md border bg-background px-2 py-1"
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 text-[11px]">
+                    {compTypes.map((rt) => {
+                      const qty = compQtyByTypeId[rt.id] ?? 0;
+                      const left = leftFor(rt.id, rt.unit_count || 8);
+                      return (
+                        <div
+                          key={rt.id}
+                          className="flex items-center gap-1"
+                        >
+                          <span className="text-muted-foreground">
+                            {rt.inventory_kind === "guide_comp"
+                              ? "Guide bed"
+                              : "Driver bed"}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="size-6"
+                            disabled={qty <= 0}
+                            onClick={() => setCompQty(rt.id, qty - 1)}
                           >
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-xs font-medium">
-                                {rt.name}
-                                <span className="ml-1 text-[10px] text-muted-foreground">
-                                  {rt.inventory_kind === "guide_comp"
-                                    ? "guide"
-                                    : "driver"}{" "}
-                                  · {left} left
-                                </span>
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                className="size-8"
-                                disabled={qty <= 0}
-                                onClick={() => setCompQty(rt.id, qty - 1)}
-                              >
-                                −
-                              </Button>
-                              <span className="min-w-[1.25rem] text-center text-sm font-semibold tabular-nums">
-                                {qty}
-                              </span>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                className="size-8"
-                                disabled={qty >= left}
-                                onClick={() => setCompQty(rt.id, qty + 1)}
-                              >
-                                +
-                              </Button>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
+                            −
+                          </Button>
+                          <span className="w-4 text-center tabular-nums font-medium">
+                            {qty}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="size-6"
+                            disabled={qty >= left}
+                            onClick={() => setCompQty(rt.id, qty + 1)}
+                          >
+                            +
+                          </Button>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : null}
 
-                <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-                  <div className="space-y-0.5">
-                    <Label className="text-[10px] text-muted-foreground">
+                <div className="grid grid-cols-2 gap-x-2 gap-y-1 pt-1 sm:grid-cols-4 lg:grid-cols-8">
+                  <div className="space-y-0.5 sm:col-span-1 lg:col-span-2">
+                    <Label className="text-[10px] font-normal text-muted-foreground">
                       Meal
                     </Label>
                     <Select
                       value={mealPlanCode}
                       onValueChange={setMealPlanCode}
                     >
-                      <SelectTrigger className="h-9">
+                      <SelectTrigger className="h-8 text-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1836,10 +1793,45 @@ export function DeskBookForm({
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="space-y-0.5 sm:col-span-1 lg:col-span-2">
+                    <Label
+                      htmlFor="db_occupancy"
+                      className="text-[10px] font-normal text-muted-foreground"
+                    >
+                      Occupancy
+                    </Label>
+                    <Select
+                      value={occupancy}
+                      onValueChange={(v) => {
+                        const next = v === "single" ? "single" : "double";
+                        setOccupancy(next);
+                        if (next === "single") {
+                          setAdults(1);
+                        } else if (adults < 2) {
+                          setAdults(2);
+                        }
+                      }}
+                    >
+                      <SelectTrigger
+                        id="db_occupancy"
+                        className="h-8 text-sm"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="single">
+                          Single · 1 adult rate
+                        </SelectItem>
+                        <SelectItem value="double">
+                          Double · 2 adult rate
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="space-y-0.5">
                     <Label
                       htmlFor="db_adults"
-                      className="text-[10px] text-muted-foreground"
+                      className="text-[10px] font-normal text-muted-foreground"
                     >
                       Adults
                     </Label>
@@ -1849,16 +1841,23 @@ export function DeskBookForm({
                       min={1}
                       max={24}
                       value={adults}
-                      onChange={(e) => setAdults(Number(e.target.value) || 1)}
-                      className="h-9"
+                      onChange={(e) => {
+                        const n = Math.max(
+                          1,
+                          Math.min(24, Number(e.target.value) || 1),
+                        );
+                        setAdults(n);
+                        setOccupancy(n === 1 ? "single" : "double");
+                      }}
+                      className="h-8 text-sm"
                     />
                   </div>
                   <div className="space-y-0.5">
                     <Label
                       htmlFor="db_children"
-                      className="text-[10px] text-muted-foreground"
+                      className="text-[10px] font-normal text-muted-foreground"
                     >
-                      Children
+                      Child
                     </Label>
                     <Input
                       id="db_children"
@@ -1869,15 +1868,15 @@ export function DeskBookForm({
                       onChange={(e) =>
                         setChildren(Math.max(0, Number(e.target.value) || 0))
                       }
-                      className="h-9"
+                      className="h-8 text-sm"
                     />
                   </div>
                   <div className="space-y-0.5">
                     <Label
                       htmlFor="db_extra_beds"
-                      className="text-[10px] text-muted-foreground"
+                      className="text-[10px] font-normal text-muted-foreground"
                     >
-                      Extra beds
+                      Extra bed
                     </Label>
                     <Input
                       id="db_extra_beds"
@@ -1888,61 +1887,52 @@ export function DeskBookForm({
                       onChange={(e) =>
                         setExtraBeds(Math.max(0, Number(e.target.value) || 0))
                       }
-                      className="h-9"
+                      className="h-8 text-sm"
                     />
                   </div>
-                </div>
-              </section>
-
-              <section className="rounded-md border bg-card p-2 sm:p-2.5">
-                <p className="mb-1.5 text-[9px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-                  Notes · promo
-                </p>
-                <div className="grid gap-1.5 sm:grid-cols-2">
-                  <div className="space-y-0.5 sm:col-span-2">
-                    <Label
-                      htmlFor="db_notes"
-                      className="text-[10px] text-muted-foreground"
-                    >
-                      Stay notes
-                    </Label>
-                    <Textarea
-                      id="db_notes"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      rows={2}
-                      className="min-h-[2.5rem] resize-y text-sm"
-                      placeholder="ETA, special requests…"
-                    />
-                  </div>
-                  <div className="space-y-0.5">
+                  <div className="col-span-2 space-y-0.5 sm:col-span-2 lg:col-span-2">
                     <Label
                       htmlFor="db_promo"
-                      className="text-[10px] text-muted-foreground"
+                      className="text-[10px] font-normal text-muted-foreground"
                     >
-                      Promo code
+                      Promo
                     </Label>
                     <Input
                       id="db_promo"
                       value={promoCode}
                       onChange={(e) => setPromoCode(e.target.value)}
-                      className="h-9 uppercase"
-                      placeholder="Optional"
+                      className="h-8 text-sm uppercase"
+                      placeholder="Code"
                       autoComplete="off"
                     />
                   </div>
+                  <div className="col-span-2 space-y-0.5 sm:col-span-4 lg:col-span-2">
+                    <Label
+                      htmlFor="db_notes"
+                      className="text-[10px] font-normal text-muted-foreground"
+                    >
+                      Notes
+                    </Label>
+                    <Input
+                      id="db_notes"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      className="h-8 text-sm"
+                      placeholder="ETA, requests…"
+                    />
+                  </div>
                 </div>
-              </section>
+              </div>
             </div>
           </div>
 
-          <div className="shrink-0 border-t bg-background/95 px-2.5 py-2 sm:px-3">
+          <div className="shrink-0 border-t bg-background/95 px-2.5 py-1.5">
             <div className="flex flex-wrap items-center gap-1.5">
               <Button
                 type="submit"
                 variant="outline"
                 disabled={pending || blockCredit || totalGuestRooms < 1}
-                className="h-9 px-3 text-xs"
+                className="h-8 px-2.5 text-xs"
                 onClick={() => setIntent("reserve")}
               >
                 Hold
@@ -1956,10 +1946,10 @@ export function DeskBookForm({
                   totalGuestRooms < 1 ||
                   !guestName.trim()
                 }
-                className="h-9 px-3 text-xs"
+                className="h-8 px-2.5 text-xs"
                 onClick={() => setIntent("check_in")}
               >
-                Save → check-in
+                Save → CI
               </Button>
               <Button
                 type="submit"
@@ -1970,7 +1960,7 @@ export function DeskBookForm({
                   totalGuestRooms < 1 ||
                   !guestName.trim()
                 }
-                className="ml-auto h-9 min-w-[10rem] flex-1 text-sm font-semibold sm:flex-none"
+                className="ml-auto h-8 min-w-[8.5rem] px-4 text-xs font-semibold"
                 onClick={() => setIntent("confirm")}
               >
                 {pending && intent === "confirm"

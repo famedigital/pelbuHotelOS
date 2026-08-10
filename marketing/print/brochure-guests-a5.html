@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pelbu Suites — A5 · Guest story + public rates · 2026</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #1a0f0a;
+      --body: #3d2a22;
+      --muted: #5c4033;
+      --cream: #fffaf3;
+      --paper: #fff6ea;
+      --gold: #e8a838;
+      --copper: #c45c26;
+      --teal: #2a9d8f;
+      --teal-deep: #0f6e63;
+      --line: #e8d5b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    @page {
+      size: A5 portrait;
+      margin: 0;
+    }
+
+    html, body {
+      background: #cbb8a2;
+      color: var(--ink);
+      font-family: "Outfit", "Segoe UI", Arial, sans-serif;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .print-bar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 18px;
+      background: var(--ink);
+      color: var(--cream);
+      font-size: 12.5px;
+    }
+
+    .print-bar strong {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 17px;
+    }
+
+    .print-bar .meta {
+      opacity: 0.82;
+      font-size: 11px;
+      max-width: 58ch;
+      line-height: 1.4;
+    }
+
+    .print-bar button {
+      border: 0;
+      cursor: pointer;
+      font: 700 11px/1 "Outfit", sans-serif;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 10px 16px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--copper), var(--gold));
+      color: var(--ink);
+    }
+
+    .stage {
+      padding: 20px 12px 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 22px;
+    }
+
+    .side-tag {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      align-self: flex-start;
+      width: 148mm;
+      margin: 0 auto;
+    }
+
+    .sheet {
+      width: 148mm;
+      height: 210mm;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 20px 48px rgba(26, 15, 10, 0.26);
+      background: var(--cream);
+    }
+
+    /* ========== FRONT — visual essay · rooms + table ========== */
+    .sheet.story {
+      background: #0c0806;
+      color: var(--cream);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Continuous editorial collage · one story, soft joins */
+    .story-frame {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 1.15fr 0.9fr 0.95fr;
+      grid-template-rows: 52mm 42mm 48mm 1fr;
+      grid-template-areas:
+        "build build suite"
+        "build build king"
+        "twin table table"
+        "cuisine cuisine cuisine";
+    }
+
+    .cell {
+      position: relative;
+      overflow: hidden;
+      min-width: 0;
+      min-height: 0;
+      background: #140e0b;
+    }
+
+    .cell img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      /* Shared grade so cells feel one long exposure */
+      filter: brightness(0.9) saturate(1.05) contrast(1.04) sepia(0.06);
+    }
+
+    /* Soft edge merges (magazine multi-image plate) */
+    .cell.merge-r img {
+      -webkit-mask-image: linear-gradient(90deg, #000 78%, transparent 100%);
+      mask-image: linear-gradient(90deg, #000 78%, transparent 100%);
+    }
+
+    .cell.merge-l img {
+      -webkit-mask-image: linear-gradient(270deg, #000 78%, transparent 100%);
+      mask-image: linear-gradient(270deg, #000 78%, transparent 100%);
+    }
+
+    .cell.merge-b img {
+      -webkit-mask-image: linear-gradient(180deg, #000 82%, transparent 100%);
+      mask-image: linear-gradient(180deg, #000 82%, transparent 100%);
+    }
+
+    .cell.merge-t img {
+      -webkit-mask-image: linear-gradient(0deg, #000 82%, transparent 100%);
+      mask-image: linear-gradient(0deg, #000 82%, transparent 100%);
+    }
+
+    .cell.build { grid-area: build; }
+    .cell.suite { grid-area: suite; }
+    .cell.king { grid-area: king; }
+    .cell.twin { grid-area: twin; }
+    .cell.table { grid-area: table; }
+    .cell.cuisine { grid-area: cuisine; }
+
+    .cell.build img { object-position: center 18%; filter: brightness(0.95) saturate(1.04) sepia(0.08); }
+    .cell.suite img { object-position: center 45%; }
+    .cell.king img { object-position: center 40%; }
+    .cell.twin img { object-position: center 42%; }
+    .cell.table img { object-position: center 40%; filter: brightness(0.88) saturate(1.1); }
+
+    /* Six plates as one long cinematic strip */
+    .film {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+    }
+
+    .film .shot {
+      position: relative;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .film .shot img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      filter: brightness(0.88) saturate(1.1) contrast(1.05);
+    }
+
+    /* Soft cross-fade joins between plates */
+    .film .shot:not(:last-child) img {
+      -webkit-mask-image: linear-gradient(90deg, #000 70%, transparent 100%);
+      mask-image: linear-gradient(90deg, #000 70%, transparent 100%);
+    }
+
+    .film .shot:not(:first-child) {
+      margin-left: -2.5mm;
+    }
+
+    /* Type plates on the collage */
+    .brand-float {
+      position: absolute;
+      top: 3.5mm;
+      left: 4mm;
+      z-index: 6;
+      display: flex;
+      align-items: center;
+      gap: 2mm;
+      pointer-events: none;
+    }
+
+    .brand-float img {
+      width: 8mm;
+      height: 8mm;
+      object-fit: contain;
+      filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45));
+    }
+
+    .brand-float strong {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 4.2mm;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      color: var(--cream);
+      text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
+    }
+
+    .brand-float strong em {
+      font-style: italic;
+      font-weight: 500;
+      color: #f0c66a;
+    }
+
+    .deck {
+      position: absolute;
+      z-index: 6;
+      pointer-events: none;
+      color: var(--cream);
+      max-width: 62mm;
+    }
+
+    .deck.stay {
+      left: 4mm;
+      bottom: 98mm;
+    }
+
+    .deck.savour {
+      right: 4mm;
+      bottom: 52mm;
+      text-align: right;
+      max-width: 70mm;
+    }
+
+    .deck .ch {
+      font-size: 1.4mm;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.8mm;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    .deck h2 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 5.4mm;
+      font-weight: 600;
+      font-style: italic;
+      line-height: 1.05;
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    .deck p {
+      margin-top: 1mm;
+      font-size: 1.7mm;
+      line-height: 1.35;
+      color: rgba(255, 250, 243, 0.85);
+      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+    }
+
+    .cell .tag {
+      position: absolute;
+      left: 2mm;
+      bottom: 2mm;
+      z-index: 3;
+      font-size: 1.35mm;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255, 250, 243, 0.92);
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+    }
+
+    .cuisine-label {
+      position: absolute;
+      left: 4mm;
+      right: 4mm;
+      bottom: 2.4mm;
+      z-index: 4;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      pointer-events: none;
+    }
+
+    .cuisine-label .ch {
+      font-size: 1.35mm;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+
+    .cuisine-label h3 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 3.2mm;
+      font-weight: 700;
+      font-style: italic;
+      color: var(--cream);
+      text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
+    }
+
+    .cuisine-label .kitchens {
+      font-size: 1.4mm;
+      color: rgba(255, 250, 243, 0.75);
+      letter-spacing: 0.04em;
+      text-align: right;
+      line-height: 1.35;
+    }
+
+    .story-foot {
+      flex-shrink: 0;
+      height: 14mm;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 5mm;
+      background: linear-gradient(180deg, #120c0a 0%, #1a100c 100%);
+      border-top: 0.4px solid rgba(232, 168, 56, 0.28);
+      font-size: 1.7mm;
+      color: rgba(255, 250, 243, 0.75);
+    }
+
+    .story-foot a {
+      color: var(--gold);
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .story-foot .vol {
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      font-size: 1.35mm;
+      color: rgba(255, 250, 243, 0.5);
+    }
+
+    /* ========== BACK — rates essay with soft photo atmosphere ========== */
+    .sheet.rates {
+      background: var(--cream);
+      color: var(--ink);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .rates-bg {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .rates-bg .ghost {
+      position: absolute;
+      opacity: 0.14;
+      filter: grayscale(0.2) saturate(0.9);
+    }
+
+    .rates-bg .ghost img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .rates-bg .g1 {
+      top: 0;
+      left: 0;
+      width: 72%;
+      height: 58mm;
+      -webkit-mask-image: linear-gradient(180deg, #000 30%, transparent 100%);
+      mask-image: linear-gradient(180deg, #000 30%, transparent 100%);
+    }
+
+    .rates-bg .g2 {
+      top: 48mm;
+      right: 0;
+      width: 48%;
+      height: 50mm;
+      opacity: 0.1;
+      -webkit-mask-image: linear-gradient(225deg, #000 20%, transparent 90%);
+      mask-image: linear-gradient(225deg, #000 20%, transparent 90%);
+    }
+
+    .rates-bg .g3 {
+      bottom: 28mm;
+      left: 0;
+      width: 100%;
+      height: 46mm;
+      opacity: 0.12;
+      -webkit-mask-image: linear-gradient(0deg, transparent 0%, #000 35%, transparent 100%);
+      mask-image: linear-gradient(0deg, transparent 0%, #000 35%, transparent 100%);
+    }
+
+    .rates-bg .veil {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(255, 250, 243, 0.55) 0%, rgba(255, 246, 234, 0.88) 28%, rgba(255, 250, 243, 0.92) 100%),
+        radial-gradient(ellipse 80% 40% at 50% 0%, rgba(232, 168, 56, 0.12), transparent 60%);
+    }
+
+    .rates-inner {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 4.5mm 5.5mm 3.5mm;
+    }
+
+    .rates-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 3mm;
+      padding-bottom: 2.5mm;
+      margin-bottom: 2.5mm;
+      border-bottom: 0.7px solid rgba(196, 92, 38, 0.28);
+    }
+
+    .rates-head .mark {
+      display: flex;
+      align-items: center;
+      gap: 2mm;
+    }
+
+    .rates-head .mark img {
+      width: 7mm;
+      height: 7mm;
+      object-fit: contain;
+    }
+
+    .rates-head h1 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 5.2mm;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .rates-head h1 span { color: var(--copper); }
+
+    .rates-head .sub {
+      text-align: right;
+      font-size: 1.55mm;
+      line-height: 1.4;
+      color: var(--muted);
+      max-width: 48mm;
+    }
+
+    .rates-head .sub strong {
+      display: block;
+      color: var(--copper);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-size: 1.4mm;
+      margin-bottom: 0.4mm;
+    }
+
+    .lede {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 3.4mm;
+      font-style: italic;
+      font-weight: 500;
+      line-height: 1.2;
+      color: var(--body);
+      margin-bottom: 2.5mm;
+      max-width: 120mm;
+    }
+
+    /* Season blocks */
+    .season {
+      margin-bottom: 2.2mm;
+    }
+
+    .season-bar {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 2mm;
+      padding: 1.2mm 2mm;
+      margin-bottom: 1.2mm;
+    }
+
+    .season.peak .season-bar {
+      background: linear-gradient(90deg, rgba(196, 92, 38, 0.14), rgba(232, 168, 56, 0.08) 55%, transparent);
+      border-left: 1.2mm solid var(--copper);
+    }
+
+    .season.off .season-bar {
+      background: linear-gradient(90deg, rgba(15, 110, 99, 0.12), rgba(42, 157, 143, 0.06) 55%, transparent);
+      border-left: 1.2mm solid var(--teal-deep);
+    }
+
+    .season-bar h2 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 3.2mm;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .season.peak .season-bar h2 { color: var(--copper); }
+    .season.off .season-bar h2 { color: var(--teal-deep); }
+
+    .season-bar span {
+      font-size: 1.4mm;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+
+    .tariff {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.4mm;
+    }
+
+    .tariff caption {
+      caption-side: top;
+      text-align: left;
+      font-size: 1.55mm;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink);
+      padding: 0 0 0.8mm 0.4mm;
+    }
+
+    .tariff caption small {
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: none;
+      color: var(--muted);
+      margin-left: 1.5mm;
+    }
+
+    .tariff th,
+    .tariff td {
+      font-size: 1.7mm;
+      padding: 0.85mm 0.6mm;
+      text-align: center;
+      border-bottom: 0.4px solid rgba(232, 213, 184, 0.85);
+    }
+
+    .tariff th {
+      font-size: 1.35mm;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .tariff th:first-child,
+    .tariff td:first-child {
+      text-align: left;
+      font-weight: 600;
+      color: var(--body);
+      width: 14mm;
+    }
+
+    .tariff .room-name {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 2.2mm;
+      font-weight: 700;
+      color: var(--ink);
+      text-align: left;
+      padding-top: 1.2mm;
+      border-bottom: 0;
+      letter-spacing: 0.01em;
+    }
+
+    .tariff .room-name span {
+      display: block;
+      font-family: "Outfit", sans-serif;
+      font-size: 1.25mm;
+      font-weight: 500;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      margin-top: 0.2mm;
+    }
+
+    .tariff td.amt {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .tariff tr.dbl td {
+      background: rgba(255, 248, 232, 0.55);
+    }
+
+    .season.off .tariff tr.dbl td {
+      background: rgba(230, 255, 248, 0.45);
+    }
+
+    .tariff.suite-tbl .room-name {
+      color: #8a4a12;
+    }
+
+    .key {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.2mm 3mm;
+      font-size: 1.4mm;
+      color: var(--muted);
+      line-height: 1.35;
+      margin: 0.5mm 0 1.5mm;
+    }
+
+    .key strong { color: var(--ink); font-weight: 600; }
+
+    .rates-foot {
+      margin-top: auto;
+      padding-top: 2mm;
+      border-top: 0.6px solid rgba(196, 92, 38, 0.25);
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 3mm;
+      align-items: center;
+    }
+
+    .contact h3 {
+      font-size: 1.4mm;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--copper);
+      margin-bottom: 0.4mm;
+    }
+
+    .contact p {
+      font-size: 1.65mm;
+      line-height: 1.35;
+      color: var(--body);
+    }
+
+    .contact a {
+      color: var(--ink);
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .note {
+      text-align: right;
+      max-width: 42mm;
+      font-size: 1.35mm;
+      line-height: 1.3;
+      color: var(--muted);
+    }
+
+    .note strong {
+      display: block;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 2.3mm;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 0.3mm;
+    }
+
+    .qr-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      flex-shrink: 0;
+      width: 19mm;
+      background: #fff;
+      padding: 1.2mm 1mm 1mm;
+      box-shadow: 0 0 0 0.4px var(--line);
+    }
+
+    .qr-block img {
+      width: 12mm;
+      height: 12mm;
+      display: block;
+      margin: 0 0 0.45mm;
+      object-fit: contain;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    .qr-block strong {
+      font-size: 1.25mm;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--copper);
+    }
+
+    .qr-block span {
+      font-size: 1.15mm;
+      color: var(--muted);
+    }
+
+    .spec {
+      max-width: 148mm;
+      width: 100%;
+      font-size: 11.5px;
+      line-height: 1.5;
+      color: var(--body);
+      background: rgba(255, 250, 243, 0.85);
+      border: 1px solid rgba(26, 15, 10, 0.1);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+
+    .spec h3 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 17px;
+      margin-bottom: 6px;
+    }
+
+    .spec ul { margin-left: 1.1em; }
+    .spec li { margin: 3px 0; }
+
+    @media print {
+      html, body { background: #fff; }
+      .no-print { display: none !important; }
+      .stage { padding: 0; gap: 0; }
+      .sheet {
+        box-shadow: none;
+        page-break-after: always;
+        break-after: page;
+      }
+      .sheet:last-of-type {
+        page-break-after: auto;
+        break-after: auto;
+      }
+      .side-tag { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-bar no-print">
+    <div>
+      <strong>Pelbu Suites · Guest A5</strong><br />
+      <span class="meta">
+        Front = photo essay (building · rooms · six kitchens). Back = public rack Peak/Off (all-in BTN) with soft photo atmosphere. A5 · no margins · background graphics ON.
+      </span>
+    </div>
+    <button type="button" onclick="window.print()">Print / PDF</button>
+  </div>
+
+  <div class="stage">
+    <p class="side-tag no-print">Front — Visual essay</p>
+
+    <!-- ===================== FRONT · STORY ===================== -->
+    <article class="sheet story" aria-label="A5 guest brochure front — stay and table">
+      <div class="brand-float">
+        <img
+          src="https://res.cloudinary.com/hkkchsfy/image/upload/w_160,h_160,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1"
+          alt=""
+        />
+        <strong>Pelbu <em>Suites</em></strong>
+      </div>
+
+      <div class="story-frame">
+        <div class="cell build merge-r merge-b">
+          <img
+            src="HotelImage-pelbu-suites.jpg?v=5"
+            alt="Pelbu Suites, Olakha — your rooftop sign"
+          />
+        </div>
+
+        <div class="cell suite merge-l merge-b">
+          <img
+            src="https://res.cloudinary.com/hkkchsfy/image/upload/w_700,h_900,c_fill,g_auto,e_improve:indoor:40,e_sharpen:50,f_jpg,q_auto:good/v1785925713/pelbu/home/hmuenowpmowtkagbxxns"
+            alt="Pelbu Suite"
+          />
+          <span class="tag">Pelbu Suite · 1 only</span>
+        </div>
+
+        <div class="cell king merge-l merge-t">
+          <img
+            src="https://res.cloudinary.com/hkkchsfy/image/upload/w_700,h_600,c_fill,g_auto,e_improve:indoor:40,e_sharpen:50,f_jpg,q_auto:good/pelbu/rooms/deluxe-suite"
+            alt="Deluxe King"
+          />
+          <span class="tag">Deluxe King</span>
+        </div>
+
+        <div class="cell twin merge-r merge-t">
+          <img
+            src="https://res.cloudinary.com/hkkchsfy/image/upload/w_700,h_700,c_fill,g_auto,e_improve:indoor:40,e_sharpen:50,f_jpg,q_auto:good/pelbu/rooms/suite-alt"
+            alt="Deluxe Twin"
+          />
+          <span class="tag">Deluxe Twin</span>
+        </div>
+
+        <div class="cell table merge-l merge-t">
+          <img
+            src="https://res.cloudinary.com/hkkchsfy/image/upload/w_960,h_640,c_fill,g_auto,e_improve:indoor:35,e_sharpen:50,f_jpg,q_auto:best/v1786128500/pelbu/lifestyle/indian-guests-dining"
+            alt="Long dinners at Pelbu"
+          />
+        </div>
+
+        <div class="cell cuisine">
+          <div class="film" aria-label="Six signature plates">
+            <div class="shot">
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_320,h_360,e_improve:indoor:30,e_sharpen:45,f_jpg,q_auto:good/pelbu/menu/cafe-olakha-club-sandwich" alt="Club sandwich" />
+            </div>
+            <div class="shot">
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_320,h_360,e_improve:indoor:30,e_sharpen:45,f_jpg,q_auto:good/pelbu/menu/restaurant-braised-chicken" alt="Braised chicken" />
+            </div>
+            <div class="shot">
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_320,h_360,e_improve:indoor:30,e_sharpen:45,f_jpg,q_auto:good/pelbu/menu/restaurant-thai-curry" alt="Thai curry" />
+            </div>
+            <div class="shot">
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_320,h_360,e_improve:indoor:30,e_sharpen:45,f_jpg,q_auto:good/pelbu/menu/cafe-kewa-datshi" alt="Kewa datshi" />
+            </div>
+            <div class="shot">
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_320,h_360,e_improve:indoor:30,e_sharpen:45,f_jpg,q_auto:good/pelbu/menu/indian-butter-chicken" alt="Butter chicken" />
+            </div>
+            <div class="shot">
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_320,h_360,e_improve:indoor:30,e_sharpen:45,f_jpg,q_auto:good/pelbu/menu/restaurant-tonkatsu" alt="Tonkatsu" />
+            </div>
+          </div>
+          <div class="cuisine-label">
+            <div>
+              <p class="ch">The table</p>
+              <h3>Six kitchens · one roof</h3>
+            </div>
+            <p class="kitchens">Café · Western · Asian<br />Highland · Indian · Japanese</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="deck stay">
+        <p class="ch">Chapter I · Stay</p>
+        <h2>Rooms that hold<br />the mountain quiet.</h2>
+        <p>King · Twin · one Suite with private jacuzzi.</p>
+      </div>
+
+      <div class="deck savour">
+        <p class="ch">Chapter II · Savour</p>
+        <h2>Plates for the long evening.</h2>
+      </div>
+
+      <footer class="story-foot">
+        <a href="tel:+97516193410">+975 1619 3410</a>
+        <span>Olakha · Thimphu · Bhutan</span>
+        <span class="vol">Guest guide · 2026</span>
+      </footer>
+    </article>
+
+    <p class="side-tag no-print">Back — Public rates Peak &amp; Off</p>
+
+    <!-- ===================== BACK · RATES ===================== -->
+    <article class="sheet rates" aria-label="A5 guest brochure back — public rates">
+      <div class="rates-bg" aria-hidden="true">
+        <div class="ghost g1">
+          <img
+            src="https://res.cloudinary.com/hkkchsfy/image/upload/w_900,h_600,c_fill,g_auto,e_improve:indoor:35,f_jpg,q_auto:good/pelbu/rooms/deluxe-suite"
+            alt=""
+          />
+        </div>
+        <div class="ghost g2">
+          <img
+            src="https://res.cloudinary.com/hkkchsfy/image/upload/w_700,h_700,c_fill,g_auto,e_improve:indoor:30,f_jpg,q_auto:good/pelbu/menu/indian-butter-chicken"
+            alt=""
+          />
+        </div>
+        <div class="ghost g3">
+          <img
+            src="https://res.cloudinary.com/hkkchsfy/image/upload/w_1100,h_500,c_fill,g_center,e_improve:indoor:30,f_jpg,q_auto:good/v1785245838/pelbu/spa/steam.jpg"
+            alt=""
+          />
+        </div>
+        <div class="veil"></div>
+      </div>
+
+      <div class="rates-inner">
+        <header class="rates-head">
+          <div class="mark">
+            <img
+              src="https://res.cloudinary.com/hkkchsfy/image/upload/w_120,h_120,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1"
+              alt=""
+            />
+            <h1>Pelbu <span>Suites</span></h1>
+          </div>
+          <p class="sub">
+            <strong>Public rack · Final 2026</strong>
+            All-in BTN · per room / night<br />
+            10% SC + 5% GST included
+          </p>
+        </header>
+
+        <p class="lede">Stay how you live — room only to full board. King and Twin share one tariff.</p>
+
+        <!-- PEAK -->
+        <section class="season peak" aria-label="Peak season rates">
+          <div class="season-bar">
+            <h2>Peak season</h2>
+            <span>Occupancy as tabled · all-in BTN</span>
+          </div>
+
+          <table class="tariff">
+            <caption>Deluxe King / Twin <small>same tariff</small></caption>
+            <thead>
+              <tr>
+                <th scope="col"></th>
+                <th scope="col">EPAI</th>
+                <th scope="col">CPAI</th>
+                <th scope="col">MAPAI</th>
+                <th scope="col">APAI</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Single</td>
+                <td class="amt">3,200</td>
+                <td class="amt">3,600</td>
+                <td class="amt">4,200</td>
+                <td class="amt">4,800</td>
+              </tr>
+              <tr class="dbl">
+                <td>Double</td>
+                <td class="amt">3,450</td>
+                <td class="amt">4,200</td>
+                <td class="amt">5,600</td>
+                <td class="amt">6,700</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table class="tariff suite-tbl">
+            <caption>Pelbu Suite <small>1 only · private jacuzzi</small></caption>
+            <thead>
+              <tr>
+                <th scope="col"></th>
+                <th scope="col">EPAI</th>
+                <th scope="col">CPAI</th>
+                <th scope="col">MAPAI</th>
+                <th scope="col">APAI</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Single</td>
+                <td class="amt">8,000</td>
+                <td class="amt">8,400</td>
+                <td class="amt">9,100</td>
+                <td class="amt">9,700</td>
+              </tr>
+              <tr class="dbl">
+                <td>Double</td>
+                <td class="amt">8,500</td>
+                <td class="amt">9,300</td>
+                <td class="amt">10,600</td>
+                <td class="amt">11,800</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <!-- OFF -->
+        <section class="season off" aria-label="Off season rates">
+          <div class="season-bar">
+            <h2>Off season</h2>
+            <span>Same plans &amp; categories</span>
+          </div>
+
+          <table class="tariff">
+            <caption>Deluxe King / Twin <small>same tariff</small></caption>
+            <thead>
+              <tr>
+                <th scope="col"></th>
+                <th scope="col">EPAI</th>
+                <th scope="col">CPAI</th>
+                <th scope="col">MAPAI</th>
+                <th scope="col">APAI</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Single</td>
+                <td class="amt">2,800</td>
+                <td class="amt">3,200</td>
+                <td class="amt">3,900</td>
+                <td class="amt">4,500</td>
+              </tr>
+              <tr class="dbl">
+                <td>Double</td>
+                <td class="amt">3,000</td>
+                <td class="amt">3,700</td>
+                <td class="amt">5,000</td>
+                <td class="amt">6,300</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table class="tariff suite-tbl">
+            <caption>Pelbu Suite <small>1 only · private jacuzzi</small></caption>
+            <thead>
+              <tr>
+                <th scope="col"></th>
+                <th scope="col">EPAI</th>
+                <th scope="col">CPAI</th>
+                <th scope="col">MAPAI</th>
+                <th scope="col">APAI</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Single</td>
+                <td class="amt">6,900</td>
+                <td class="amt">7,300</td>
+                <td class="amt">7,900</td>
+                <td class="amt">8,500</td>
+              </tr>
+              <tr class="dbl">
+                <td>Double</td>
+                <td class="amt">7,400</td>
+                <td class="amt">8,200</td>
+                <td class="amt">9,400</td>
+                <td class="amt">10,800</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <p class="key">
+          <span><strong>EPAI</strong> room only</span>
+          <span><strong>CPAI</strong> + breakfast</span>
+          <span><strong>MAPAI</strong> + BF + dinner</span>
+          <span><strong>APAI</strong> + BF, lunch &amp; dinner</span>
+        </p>
+        <p class="key">Check-in 14:00 · check-out 12:00 · Subject to availability · Rack matches public 2026 final.</p>
+
+        <footer class="rates-foot">
+          <div class="contact">
+            <h3>Reservations</h3>
+            <p>
+              <a href="tel:+97516193410">+975 1619 3410</a><br />
+              <a href="mailto:pelbusuites@gmail.com">pelbusuites@gmail.com</a><br />
+              Olakha · next to Number 7
+            </p>
+          </div>
+          <div class="note">
+            <strong>Also</strong>
+            Steam &amp; spa · laundry · private tours — ask at the desk.
+          </div>
+          <div class="qr-block">
+            <img src="qr-book.png" width="280" height="280" alt="QR book direct" />
+            <strong>Book direct</strong>
+            <span>pelbusuites.bt</span>
+          </div>
+        </footer>
+      </div>
+    </article>
+
+    <aside class="spec no-print">
+      <h3>Print brief · brochure-guests-a5.html</h3>
+      <ul>
+        <li><strong>Trim:</strong> A5 148 × 210 mm · duplex, flip short edge.</li>
+        <li><strong>Front:</strong> editorial photo essay — building (your rooftop art untouched), rooms, dining moment, six-cuisine film strip with soft edge joins.</li>
+        <li><strong>Back:</strong> public Peak &amp; Off tariffs from <code>pelbu-public-rates-2026.html</code> (all-in BTN) on cream with soft photo atmosphere; QR + contact.</li>
+        <li><strong>Files:</strong> <code>HotelImage-pelbu-suites.jpg</code>, <code>qr-book.png</code>.</li>
+        <li><strong>PDF:</strong> Chrome → Print → A5 · margins none · background graphics ON.</li>
+      </ul>
+    </aside>
+  </div>
+</body>
+</html>

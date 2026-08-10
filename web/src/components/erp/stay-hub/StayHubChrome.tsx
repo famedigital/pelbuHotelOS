@@ -13,7 +13,11 @@ import {
 import { isCreditAgentStatus } from "@/lib/agents/status";
 import { formatGuestBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
-import { ChevronLeftIcon, MoreHorizontalIcon } from "lucide-react";
+import {
+  ChevronLeftIcon,
+  MoreHorizontalIcon,
+  PencilIcon,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import {
   DropdownMenu,
@@ -43,6 +47,19 @@ export type StayHubIdentityProps = {
   backLabel?: string | null;
   onBack?: () => void;
   dueChipBtn?: number | null;
+};
+
+/** Fixed left-rail amount foot (Desk Book parity) — editable nightly. */
+export type StayHubRailAmount = {
+  nightlyBtn: number | null;
+  isCustom: boolean;
+  stayTotalBtn: number | null;
+  nights?: number | null;
+  mealPlanCode?: string | null;
+  pending?: boolean;
+  /** Open manager PIN rate dialog / Details Rate. */
+  onEdit?: () => void;
+  editable?: boolean;
 };
 
 function statusBadgeVariant(
@@ -196,7 +213,7 @@ export function StayHubHeader(props: StayHubIdentityProps) {
 }
 
 /**
- * Desktop left column: guest / agent / due / steps — keeps the work pane tall.
+ * Desktop left column: guest / agent → steps → fixed amount foot.
  */
 export function StayHubLeftRail({
   identity,
@@ -206,6 +223,7 @@ export function StayHubLeftRail({
   onStepClick,
   canNavigateStep,
   railActions,
+  amount,
   className,
 }: {
   identity: StayHubIdentityProps;
@@ -216,6 +234,8 @@ export function StayHubLeftRail({
   canNavigateStep?: (id: StayHubStepId, step: StayHubStep) => boolean;
   /** Optional compact actions under the due (e.g. open settle). */
   railActions?: ReactNode;
+  /** Sticky left-bottom amount; editable when onEdit set. */
+  amount?: StayHubRailAmount | null;
   className?: string;
 }) {
   const {
@@ -243,6 +263,8 @@ export function StayHubLeftRail({
     dueChipBtn != null &&
     Math.abs(dueChipBtn) > 0.5 &&
     Math.abs(dueChipBtn) < 1_000_000;
+  const balanceClear =
+    dueChipBtn != null && Math.abs(dueChipBtn) <= 0.5;
 
   const conf = confirmationCode?.trim();
   const creditOk =
@@ -255,6 +277,119 @@ export function StayHubLeftRail({
           ? "TCB · directory"
           : agentStatus.replace(/_/g, " ")
       : null;
+
+  const editable = Boolean(amount?.editable !== false && amount?.onEdit);
+  const nightly = amount?.nightlyBtn;
+  const stayTotal = amount?.stayTotalBtn;
+
+  const amountNode = amount || showDue || balanceClear || railActions ? (
+    <div className="space-y-1.5">
+      {/* In-house money first — primary FO signal */}
+      {showDue ? (
+        <div className="rounded-md border border-maroon/30 bg-maroon/5 px-2 py-1.5">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Guest due
+            </p>
+            <p className="text-lg font-semibold tabular-nums tracking-tight text-maroon">
+              {formatGuestBtn(dueChipBtn)}
+            </p>
+          </div>
+          {railActions ? (
+            <div className="mt-1.5 flex flex-col gap-1 [&_button]:h-8 [&_button]:min-h-8 [&_button]:w-full [&_button]:px-2 [&_button]:text-[11px]">
+              {railActions}
+            </div>
+          ) : null}
+        </div>
+      ) : balanceClear ? (
+        <div className="rounded-md border bg-background/80 px-2 py-1">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Balance
+            </p>
+            <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+              Clear
+            </p>
+          </div>
+          {railActions ? (
+            <div className="mt-1 flex flex-col gap-1 [&_button]:h-8 [&_button]:min-h-8 [&_button]:w-full [&_button]:px-2 [&_button]:text-[11px]">
+              {railActions}
+            </div>
+          ) : null}
+        </div>
+      ) : railActions && !amount ? (
+        <div className="flex flex-col gap-1 [&_button]:h-8 [&_button]:min-h-8 [&_button]:w-full [&_button]:px-2 [&_button]:text-[11px]">
+          {railActions}
+        </div>
+      ) : null}
+
+      {amount ? (
+        <button
+          type="button"
+          disabled={!editable}
+          onClick={() => amount.onEdit?.()}
+          className={cn(
+            "w-full rounded-md border bg-card px-2 py-1.5 text-left transition-colors",
+            editable &&
+              "hover:border-foreground/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            amount.isCustom &&
+              "border-amber-500/50 bg-amber-50/40 dark:bg-amber-950/20",
+            !editable && "cursor-default opacity-95",
+          )}
+        >
+          <div className="flex items-center justify-between gap-1">
+            <p className="text-[9px] font-medium tracking-wide text-muted-foreground uppercase">
+              {amount.pending
+                ? "Price…"
+                : amount.isCustom
+                  ? "Custom nightly"
+                  : "Nightly"}
+            </p>
+            {editable ? (
+              <PencilIcon className="size-3 shrink-0 text-muted-foreground" />
+            ) : null}
+          </div>
+          <p className="mt-0.5 text-base font-semibold tracking-tight tabular-nums">
+            {nightly != null && Number.isFinite(nightly)
+              ? formatGuestBtn(nightly)
+              : amount.pending
+                ? "…"
+                : "—"}
+          </p>
+          <div className="mt-1 space-y-px border-t border-border/50 pt-1 text-[10px] tabular-nums text-muted-foreground">
+            {amount.nights != null && amount.nights > 0 ? (
+              <div className="flex justify-between gap-2">
+                <span>{amount.nights}n stay</span>
+                <span>
+                  {stayTotal != null ? formatGuestBtn(stayTotal) : "—"}
+                </span>
+              </div>
+            ) : (
+              <div className="flex justify-between gap-2">
+                <span>Stay total</span>
+                <span>
+                  {stayTotal != null ? formatGuestBtn(stayTotal) : "—"}
+                </span>
+              </div>
+            )}
+          </div>
+          {amount.mealPlanCode ? (
+            <p className="mt-1 truncate text-[10px] text-muted-foreground">
+              {amount.mealPlanCode}
+              {amount.isCustom ? " · agreed" : " · sheet"}
+              {editable ? " · edit" : ""}
+            </p>
+          ) : null}
+        </button>
+      ) : null}
+
+      {!showDue && !balanceClear && railActions && amount ? (
+        <div className="flex flex-col gap-1 [&_button]:h-8 [&_button]:min-h-8 [&_button]:w-full [&_button]:px-2 [&_button]:text-[11px]">
+          {railActions}
+        </div>
+      ) : null}
+    </div>
+  ) : null;
 
   return (
     <aside
@@ -331,44 +466,6 @@ export function StayHubLeftRail({
           </div>
         ) : null}
 
-        {showDue ? (
-          <div className="rounded-md border border-maroon/30 bg-maroon/5 px-2 py-1.5">
-            <div className="flex items-baseline justify-between gap-2">
-              <p className="text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
-                Guest due
-              </p>
-              <p className="text-base font-semibold tabular-nums tracking-tight text-maroon">
-                {formatGuestBtn(dueChipBtn)}
-              </p>
-            </div>
-            {railActions ? (
-              <div className="mt-1.5 flex flex-col gap-1 [&_button]:h-8 [&_button]:min-h-8 [&_button]:w-full [&_button]:px-2 [&_button]:text-[11px]">
-                {railActions}
-              </div>
-            ) : null}
-          </div>
-        ) : dueChipBtn != null && Math.abs(dueChipBtn) <= 0.5 ? (
-          <div className="rounded-md border bg-background/80 px-2 py-1">
-            <div className="flex items-baseline justify-between gap-2">
-              <p className="text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
-                Balance
-              </p>
-              <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-                Clear
-              </p>
-            </div>
-            {railActions ? (
-              <div className="mt-1 flex flex-col gap-1 [&_button]:h-8 [&_button]:min-h-8 [&_button]:w-full [&_button]:px-2 [&_button]:text-[11px]">
-                {railActions}
-              </div>
-            ) : null}
-          </div>
-        ) : railActions ? (
-          <div className="flex flex-col gap-1 [&_button]:h-8 [&_button]:min-h-8 [&_button]:w-full [&_button]:px-2 [&_button]:text-[11px]">
-            {railActions}
-          </div>
-        ) : null}
-
         {alerts.filter((a) => a.key !== "dues").length > 0 ? (
           <div className="flex flex-wrap gap-1">
             {alerts
@@ -428,7 +525,7 @@ export function StayHubLeftRail({
         ) : null}
       </div>
 
-      {/* No internal scroll — keep steps compact so 4 steps always fit */}
+      {/* Steps fill middle; amount stays pinned bottom */}
       <div className="min-h-0 flex-1 overflow-hidden px-1 py-1.5">
         <p className="mb-0.5 px-2 text-[9px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
           Steps
@@ -443,6 +540,12 @@ export function StayHubLeftRail({
           canNavigateStep={canNavigateStep}
         />
       </div>
+
+      {amountNode ? (
+        <div className="shrink-0 border-t bg-muted/30 px-2 py-2">
+          {amountNode}
+        </div>
+      ) : null}
     </aside>
   );
 }

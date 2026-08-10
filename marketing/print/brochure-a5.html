@@ -480,8 +480,8 @@
       border-top: 1px solid var(--line);
       display: grid;
       grid-template-columns: 1fr auto;
-      gap: 3mm;
-      align-items: end;
+      gap: 3.5mm;
+      align-items: center;
     }
 
     .contact h3 {
@@ -506,33 +506,48 @@
     }
 
     .qr-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       text-align: center;
+      flex-shrink: 0;
+      width: 22mm;
       background: #fff;
       border: 0.6px solid var(--line);
       border-radius: 1.4mm;
-      padding: 1.4mm 1.8mm 1.2mm;
+      padding: 1.6mm 1.5mm 1.3mm;
     }
 
     .qr-block img {
       width: 14mm;
       height: 14mm;
       display: block;
-      margin: 0 auto 0.8mm;
+      margin: 0 0 0.7mm;
+      object-fit: contain;
+      object-position: center;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
     }
 
     .qr-block strong {
       display: block;
-      font-size: 1.7mm;
+      width: 100%;
+      font-size: 1.55mm;
       font-weight: 700;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--copper);
+      line-height: 1.2;
     }
 
     .qr-block span {
-      font-size: 1.55mm;
+      display: block;
+      width: 100%;
+      font-size: 1.4mm;
       color: var(--muted);
-      line-height: 1.3;
+      line-height: 1.25;
+      word-break: break-all;
     }
 
     .confidential {
@@ -558,7 +573,7 @@
 
     .exp-hero {
       position: relative;
-      height: 48mm;
+      height: 42mm;
       flex-shrink: 0;
       overflow: hidden;
     }
@@ -654,7 +669,8 @@
       border-radius: 1.4mm;
       overflow: hidden;
       border: 0.55px solid rgba(232, 168, 56, 0.28);
-      min-height: 28mm;
+      aspect-ratio: 4 / 3;
+      min-height: 0;
     }
 
     .room-card img {
@@ -703,12 +719,14 @@
       color: rgba(255, 250, 243, 0.78);
     }
 
-    /* Other sale streams */
+    /* Other sale streams · café+dining pair · spa dual band · laundry strip */
     .streams {
       display: grid;
       grid-template-columns: 1fr 1fr;
+      grid-template-rows: minmax(0, 1fr) minmax(34mm, 1.15fr) auto;
       gap: 1.8mm;
       flex: 1;
+      min-height: 0;
     }
 
     .stream {
@@ -716,57 +734,122 @@
       border-radius: 1.4mm;
       overflow: hidden;
       border: 0.55px solid rgba(232, 168, 56, 0.22);
-      min-height: 26mm;
+      min-height: 0;
+      height: 100%;
+      background: #1a120e;
     }
 
-    .stream.wide {
-      grid-column: 1 / -1;
-      min-height: 22mm;
-    }
-
-    .stream img {
+    .stream > img {
       position: absolute;
       inset: 0;
       width: 100%;
       height: 100%;
       object-fit: cover;
-      filter: brightness(0.7) saturate(1.05);
+      object-position: center;
+      filter: brightness(0.72) saturate(1.05);
     }
 
     .stream .shade {
       position: absolute;
       inset: 0;
+      z-index: 1;
       background: linear-gradient(105deg, rgba(18, 11, 8, 0.88) 0%, rgba(18, 11, 8, 0.35) 55%, rgba(18, 11, 8, 0.55) 100%);
     }
 
-    .stream.laundry {
+    /* Steam + jacuzzi full-width dual band */
+    .stream.spa {
+      grid-column: 1 / -1;
+      min-height: 34mm;
+    }
+
+    .stream.spa .spa-split {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .stream.spa .spa-photo {
+      position: relative;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .stream.spa .spa-photo img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center 40%;
+      filter: brightness(0.78) saturate(1.08);
+    }
+
+    .stream.spa .shade {
       background:
-        radial-gradient(ellipse 80% 70% at 90% 20%, rgba(42, 157, 143, 0.22), transparent 55%),
+        linear-gradient(90deg, rgba(14, 9, 7, 0.72) 0%, rgba(14, 9, 7, 0.25) 48%, rgba(14, 9, 7, 0.55) 100%),
+        linear-gradient(180deg, transparent 20%, rgba(14, 9, 7, 0.88) 100%);
+    }
+
+    .stream.spa .txt {
+      justify-content: flex-end;
+      max-width: 95mm;
+    }
+
+    .stream.spa h3 {
+      font-size: 3.8mm;
+    }
+
+    .stream.spa p {
+      max-width: 88mm;
+    }
+
+    .stream.laundry {
+      grid-column: 1 / -1;
+      height: auto;
+      min-height: 16mm;
+      background:
+        radial-gradient(ellipse 70% 100% at 92% 50%, rgba(42, 157, 143, 0.28), transparent 55%),
         linear-gradient(135deg, #0f3d38 0%, #1a120e 55%, #2a1810 100%);
-      min-height: 26mm;
     }
 
     .stream.laundry .shade {
-      background:
-        linear-gradient(135deg, transparent 40%, rgba(18, 11, 8, 0.25) 100%);
+      background: transparent;
     }
 
-    .stream.laundry::after {
-      content: "";
-      position: absolute;
-      right: 3mm;
-      top: 3mm;
-      width: 12mm;
-      height: 12mm;
-      border: 0.55px solid rgba(232, 168, 56, 0.35);
-      border-radius: 50%;
-      opacity: 0.7;
-      pointer-events: none;
+    .stream.laundry .txt {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4mm;
+      padding: 2.2mm 3mm;
+    }
+
+    .stream.laundry .copy {
+      min-width: 0;
+    }
+
+    .stream.laundry p {
+      max-width: 90mm;
+      margin-top: 0.4mm;
+    }
+
+    .stream.laundry .cta {
+      flex-shrink: 0;
+      font-size: 1.55mm;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 1.2mm 2.2mm;
+      border: 0.55px solid rgba(232, 168, 56, 0.55);
+      border-radius: 1mm;
+      color: var(--gold);
+      white-space: nowrap;
     }
 
     .stream .txt {
       position: relative;
-      z-index: 1;
+      z-index: 2;
       padding: 2.4mm 2.6mm;
       height: 100%;
       display: flex;
@@ -785,39 +868,17 @@
 
     .stream h3 {
       font-family: "Cormorant Garamond", Georgia, serif;
-      font-size: 3.4mm;
+      font-size: 3.2mm;
       font-weight: 700;
       line-height: 1.05;
     }
 
     .stream p {
-      margin-top: 0.7mm;
-      font-size: 1.75mm;
-      line-height: 1.3;
-      color: rgba(255, 250, 243, 0.82);
-      max-width: 58mm;
-    }
-
-    .stream.wide .txt {
-      flex-direction: row;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: 4mm;
-    }
-
-    .stream.wide p { max-width: 75mm; }
-
-    .stream.wide .cta {
-      flex-shrink: 0;
+      margin-top: 0.65mm;
       font-size: 1.7mm;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      padding: 1.2mm 2.2mm;
-      border: 0.55px solid rgba(232, 168, 56, 0.55);
-      border-radius: 1mm;
-      color: var(--gold);
-      white-space: nowrap;
+      line-height: 1.3;
+      color: rgba(255, 250, 243, 0.84);
+      max-width: 58mm;
     }
 
     .exp-foot {
@@ -1132,9 +1193,9 @@
             </p>
           </div>
           <div class="qr-block">
-            <img src="qr-book.png" width="140" height="140" alt="QR book direct" />
+            <img src="qr-book.png" width="280" height="280" alt="QR book direct" />
             <strong>Book direct</strong>
-            <span>pelbusuites.bt/book</span>
+            <span>pelbusuites.bt</span>
           </div>
         </footer>
         <p class="confidential">Pelbu Suites · Public rates Peak &amp; Off 2026 · A5 front</p>
@@ -1203,49 +1264,62 @@
         <div class="streams">
           <div class="stream cafe">
             <img
-              src="https://res.cloudinary.com/hkkchsfy/image/upload/w_800,h_600,c_fill,g_auto,e_improve:indoor:40,e_auto_color:20,e_sharpen:50,f_jpg,q_auto:best/v1785925446/pelbu/cafe/v7d8ba1cszstrkfosyax"
-              alt=""
+              src="https://res.cloudinary.com/hkkchsfy/image/upload/w_800,h_620,c_fill,g_auto,e_improve:indoor:40,e_auto_color:20,e_sharpen:50,f_jpg,q_auto:best/v1785925446/pelbu/cafe/v7d8ba1cszstrkfosyax"
+              alt="Café at Pelbu Suites"
             />
             <div class="shade" aria-hidden="true"></div>
             <div class="txt">
               <p class="icon-n">Café</p>
               <h3>Morning light &amp; pastry</h3>
-              <p>Coffee, suja moments, light bites — open for sit-in and take-away.</p>
-            </div>
-          </div>
-
-          <div class="stream spa">
-            <img
-              src="https://res.cloudinary.com/hkkchsfy/image/upload/w_800,h_600,c_fill,g_auto,e_improve:indoor:40,e_sharpen:50,f_jpg,q_auto:best/pelbu/spa/steam"
-              alt=""
-            />
-            <div class="shade" aria-hidden="true"></div>
-            <div class="txt">
-              <p class="icon-n">Steam &amp; Spa</p>
-              <h3>Heat, hush &amp; restore</h3>
-              <p>Steam ritual and spa time under house hours — book at the desk.</p>
+              <p>Coffee, suja, light bites — sit-in and take-away.</p>
             </div>
           </div>
 
           <div class="stream fb">
             <img
-              src="https://res.cloudinary.com/hkkchsfy/image/upload/w_800,h_600,c_fill,g_auto,e_improve:indoor:45,e_auto_color:25,e_sharpen:50,f_jpg,q_auto:best/v1785925486/pelbu/restaurant/uuy1ycprinlbhm7lvkli"
-              alt=""
+              src="https://res.cloudinary.com/hkkchsfy/image/upload/w_800,h_620,c_fill,g_auto,e_improve:indoor:45,e_auto_color:25,e_sharpen:50,f_jpg,q_auto:best/v1785925486/pelbu/restaurant/uuy1ycprinlbhm7lvkli"
+              alt="Restaurant dining at Pelbu Suites"
             />
             <div class="shade" aria-hidden="true"></div>
             <div class="txt">
-              <p class="icon-n">F&amp;B · Restaurant</p>
-              <h3>Plates worth lingering over</h3>
-              <p>In-house dining for breakfast through dinner · day guests welcome by schedule.</p>
+              <p class="icon-n">Restaurant</p>
+              <h3>Plates worth lingering</h3>
+              <p>Breakfast through dinner · walk-ins by schedule.</p>
+            </div>
+          </div>
+
+          <div class="stream spa" aria-label="Steam and spa">
+            <div class="spa-split" aria-hidden="true">
+              <div class="spa-photo">
+                <img
+                  src="https://res.cloudinary.com/hkkchsfy/image/upload/w_900,h_700,c_fill,g_center,e_improve:indoor:40,e_sharpen:55,f_jpg,q_auto:best/v1785245838/pelbu/spa/steam"
+                  alt=""
+                />
+              </div>
+              <div class="spa-photo">
+                <img
+                  src="https://res.cloudinary.com/hkkchsfy/image/upload/w_900,h_700,c_fill,g_auto,e_improve:indoor:40,e_sharpen:55,f_jpg,q_auto:best/v1785245810/pelbu/spa/jacuzzi"
+                  alt=""
+                />
+              </div>
+            </div>
+            <div class="shade" aria-hidden="true"></div>
+            <div class="txt">
+              <p class="icon-n">Steam &amp; spa</p>
+              <h3>Heat, hush &amp; restore</h3>
+              <p>Steam sessions and spa under house hours — book at the desk. Private jacuzzi with the Pelbu Suite.</p>
             </div>
           </div>
 
           <div class="stream laundry">
             <div class="shade" aria-hidden="true"></div>
             <div class="txt">
-              <p class="icon-n">Laundry</p>
-              <h3>Press &amp; refresh</h3>
-              <p>Guest laundry while you stay — ask reception for same-day options.</p>
+              <div class="copy">
+                <p class="icon-n">Laundry</p>
+                <h3>Press &amp; refresh</h3>
+                <p>Guest laundry while you stay — ask reception for same-day options.</p>
+              </div>
+              <span class="cta">Ask reception</span>
             </div>
           </div>
         </div>

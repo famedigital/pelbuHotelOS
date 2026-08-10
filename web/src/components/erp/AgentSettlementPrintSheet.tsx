@@ -363,9 +363,9 @@ function packFromFallback(f: {
 function paymentModeLabel(mode: string | null): string {
   if (!mode) return "—";
   const map: Record<string, string> = {
-    cash: "Cash / walk-in",
+    cash: "Pay at checkout",
     prepaid: "Prepaid",
-    partial: "Partial",
+    partial: "Partial / deposit",
     on_credit: "Agent on credit (AR)",
     agent_credit: "Agent on credit (AR)",
   };

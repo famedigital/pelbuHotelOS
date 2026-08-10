@@ -50,10 +50,23 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  onInteractOutside,
+  onPointerDownOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
 }) {
+  // Portaled Select / Popover / Dropdown live outside the dialog DOM node.
+  // Without this, stay-hub FO pickers close or appear “stuck” behind the modal.
+  const allowPortaledPicker = (target: EventTarget | null) => {
+    if (!(target instanceof Element)) return false;
+    return Boolean(
+      target.closest(
+        "[data-slot='popover-content'], [data-slot='select-content'], [data-slot='dropdown-menu-content'], [data-slot='dropdown-menu-sub-content']",
+      ),
+    );
+  };
+
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -64,6 +77,18 @@ function DialogContent({
           className,
         )}
         {...props}
+        onInteractOutside={(e) => {
+          if (allowPortaledPicker(e.target)) {
+            e.preventDefault();
+          }
+          onInteractOutside?.(e);
+        }}
+        onPointerDownOutside={(e) => {
+          if (allowPortaledPicker(e.target)) {
+            e.preventDefault();
+          }
+          onPointerDownOutside?.(e);
+        }}
       >
         {children}
         {showCloseButton && (

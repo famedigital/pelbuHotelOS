@@ -639,10 +639,10 @@ export function CalendarReservationDialog({
                 }
                 className={fieldClass}
               >
-                <option value="on_credit">On credit</option>
-                <option value="cash">Cash</option>
-                <option value="prepaid">Prepaid</option>
-                <option value="partial">Partial</option>
+                <option value="cash">Pay at checkout</option>
+                <option value="prepaid">Prepaid (already paid)</option>
+                <option value="partial">Partial / deposit</option>
+                <option value="on_credit">On credit (agent)</option>
               </select>
             </div>
             {blockCredit && selectedAgent ? (
@@ -657,7 +657,7 @@ export function CalendarReservationDialog({
                   }}
                   onUseCash={() => {
                     updateDraft("paymentMode", "cash");
-                    toast.message("Payment set to cash");
+                    toast.message("Payment set to pay at checkout");
                   }}
                 />
               </div>

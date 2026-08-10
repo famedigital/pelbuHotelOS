@@ -88,6 +88,11 @@ export async function previewDeskStayQuote(input: {
   roomTypeId?: string;
   qty?: number;
   adults?: number;
+  /**
+   * Room rate occupancy. When set, prefers single/double sheet rate
+   * (`amount_single_btn` vs `amount_btn`). Defaults from adults when omitted.
+   */
+  occupancy?: "single" | "double";
   children?: number;
   extraBeds?: number;
   mealPlanCode?: string | null;
@@ -138,6 +143,12 @@ export async function previewDeskStayQuote(input: {
     }
 
     const adults = Math.max(1, Math.floor(Number(input.adults) || 2));
+    const occupancy: "single" | "double" =
+      input.occupancy === "single" || input.occupancy === "double"
+        ? input.occupancy
+        : adults === 1
+          ? "single"
+          : "double";
     const children = Math.max(0, Math.floor(Number(input.children) || 0));
     const extraBeds = Math.max(0, Math.floor(Number(input.extraBeds) || 0));
 
@@ -242,6 +253,7 @@ export async function previewDeskStayQuote(input: {
         roomTypeId,
         seasonKind: season,
         rateTier: tier,
+        occupancy,
         adults,
       });
 

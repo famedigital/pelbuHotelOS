@@ -15,15 +15,9 @@ import { Input } from "@/components/ui/input";
 import { CloudinaryDocField } from "@/components/erp/CloudinaryDocField";
 import { CloudinaryPicker } from "@/components/erp/CloudinaryPicker";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
+  guideRequired,
   idLabel,
   inventoryKindLabel,
   sdfRequired,
@@ -51,7 +45,7 @@ import {
 
 /** Dense inputs inside the guest docs grid — must shrink, never force scroll. */
 const CELL_INPUT =
-  "h-9 w-full min-w-0 rounded-md border-border/70 bg-background px-2 text-sm shadow-none";
+  "h-8 w-full min-w-0 rounded-md border-border/70 bg-background px-2 text-sm shadow-none font-mono";
 
 /**
  * Shared column template for the guest docs grid so the header and rows stay
@@ -59,11 +53,23 @@ const CELL_INPUT =
  * read as table columns. One set of inputs either way — a CSS-hidden duplicate
  * layout would post every guest field twice.
  */
-const GUEST_GRID =
-  "xl:grid-cols-[2.25rem_minmax(8rem,1.4fr)_minmax(6.5rem,1fr)_minmax(7.5rem,1.1fr)_minmax(6.5rem,1fr)_minmax(9rem,1.3fr)_minmax(5.5rem,0.9fr)_2.25rem]";
+function guestGridClass(origin: GuestOrigin): string {
+  if (sdfRequired(origin)) {
+    // # · name · nationality · ID · SDF · photo · SDF doc · sleeps · remove
+    return "xl:grid-cols-[2rem_minmax(7rem,1.3fr)_minmax(5.5rem,0.9fr)_minmax(6.5rem,1fr)_minmax(5.5rem,0.85fr)_minmax(7.5rem,1.1fr)_minmax(7.5rem,1.1fr)_minmax(4.5rem,0.8fr)_2rem]";
+  }
+  // local / official: # · name · ID · photo · sleeps · remove
+  return "xl:grid-cols-[2rem_minmax(8rem,1.5fr)_minmax(7rem,1.1fr)_minmax(8rem,1.2fr)_minmax(5rem,0.9fr)_2rem]";
+}
 
 /** Stacked label that collapses to the column header from `xl` up. */
-const CELL_LABEL = "text-xs font-normal text-muted-foreground xl:sr-only";
+const CELL_LABEL = "text-[10px] font-normal text-muted-foreground xl:sr-only";
+const FIELD_LABEL = "text-[10px] font-normal text-muted-foreground";
+const DENSE_INPUT = "h-8 text-sm";
+const SECTION =
+  "min-w-0 space-y-2 rounded-md border border-border/50 bg-muted/10 p-2 sm:p-2.5";
+const SECTION_LEGEND =
+  "text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase";
 
 /** Enter in a guest cell must not submit check-in mid-typing. */
 function blockEnterSubmit(e: KeyboardEvent<HTMLElement>) {
@@ -186,6 +192,8 @@ type GuestDraft = {
   roomUnitId: string;
 };
 
+export type CheckInFormPane = "all" | "room" | "guest";
+
 export function CheckInForm({
   booking,
   guides = [],
@@ -193,6 +201,8 @@ export function CheckInForm({
   slots,
   units,
   embedded = false,
+  /** StayHub tabs: hide non-active sections without unmounting (preserves values). */
+  pane = "all",
   onCheckedIn,
 }: {
   booking: CheckInBooking;
@@ -202,11 +212,23 @@ export function CheckInForm({
   units: CheckInRoomUnit[];
   /** When true (StayHub modal), success UI advances hub — no Next arrival dead-end. */
   embedded?: boolean;
+  pane?: CheckInFormPane;
   onCheckedIn?: (payload: {
     bookingId: string;
     folioId?: string;
+    leadGuest?: {
+      fullName?: string;
+      passportOrCid?: string;
+      sdfRef?: string;
+    };
   }) => void;
 }) {
+  const showRoom = pane === "all" || pane === "room";
+  const showGuest = pane === "all" || pane === "guest";
+  // Manager / past-date gate: room tab + full page
+  const showManager = pane === "all" || pane === "room";
+  // Compact summary: full page or guest pane
+  const showSummary = pane === "all" || pane === "guest";
   const [state, action, pending] = useActionState(confirmCheckIn, checkInInitial);
   useActionToast(state, {
     successMessage: booking.id
@@ -215,20 +237,24 @@ export function CheckInForm({
   });
   const notifiedOkRef = useRef(false);
 
-  useEffect(() => {
-    if (!state.ok || !state.bookingId || notifiedOkRef.current) return;
-    notifiedOkRef.current = true;
-    onCheckedIn?.({
-      bookingId: state.bookingId,
-      folioId: state.folioId,
-    });
-  }, [state.ok, state.bookingId, state.folioId, onCheckedIn]);
+  // leadGuest filled after guests state exists — effect re-declared below guests
+  const onCheckedInRef = useRef(onCheckedIn);
+  onCheckedInRef.current = onCheckedIn;
 
   const origin = (booking.guest_origin ?? "international") as GuestOrigin;
   const driver = booking.booking_drivers[0];
   const hasDriverBeds = booking.booking_rooms.some(
     (r) => r.inventory_kind === "driver_comp" && r.qty > 0,
   );
+  const showSdfFields = sdfRequired(origin);
+  const showNationality =
+    origin === "international" || origin === "regional";
+  const showGuide = guideRequired(origin);
+  const showDriver =
+    hasDriverBeds ||
+    origin === "international" ||
+    origin === "regional";
+  const guestGrid = guestGridClass(origin);
   /** Lead guest only by default — additional IDs via expandable section. */
   const leadGuestCount = 1;
   const paxAdults = Math.max(1, booking.adults || 1);
@@ -297,6 +323,21 @@ export function CheckInForm({
   const [showAllGuestIds, setShowAllGuestIds] = useState(
     () => booking.booking_guests.length > 1,
   );
+
+  useEffect(() => {
+    if (!state.ok || !state.bookingId || notifiedOkRef.current) return;
+    notifiedOkRef.current = true;
+    const lead = guests[0];
+    onCheckedInRef.current?.({
+      bookingId: state.bookingId,
+      folioId: state.folioId,
+      leadGuest: {
+        fullName: lead?.fullName || booking.contact_name || undefined,
+        passportOrCid: lead?.passportOrCid || undefined,
+        sdfRef: lead?.sdfRef || undefined,
+      },
+    });
+  }, [state.ok, state.bookingId, state.folioId, guests, booking.contact_name]);
 
   /** Which guest row the shared Cloudinary picker is currently editing. */
   const [docPickerIndex, setDocPickerIndex] = useState<number | null>(null);
@@ -373,10 +414,16 @@ export function CheckInForm({
                 onCheckedIn?.({
                   bookingId: state.bookingId!,
                   folioId: state.folioId,
+                  leadGuest: {
+                    fullName:
+                      guests[0]?.fullName || booking.contact_name || undefined,
+                    passportOrCid: guests[0]?.passportOrCid || undefined,
+                    sdfRef: guests[0]?.sdfRef || undefined,
+                  },
                 })
               }
             >
-              Continue to Stay / Money
+              Print reg card / finish
             </Button>
             {state.folioId ? (
               <Button asChild variant="outline" className="h-11 min-h-11">
@@ -405,10 +452,10 @@ export function CheckInForm({
     <form
       action={action}
       className={cn(
-        "erp space-y-8",
+        "erp space-y-3",
         embedded
-          ? "space-y-6 rounded-none border-0 bg-transparent p-0"
-          : "rounded-lg border bg-card p-4 sm:p-6",
+          ? "space-y-2.5 rounded-none border-0 bg-transparent p-0"
+          : "rounded-lg border bg-card p-3 sm:p-4",
       )}
       id={embedded ? "stay-hub-checkin-form" : undefined}
     >
@@ -422,35 +469,37 @@ export function CheckInForm({
       />
       <input type="hidden" name="agent_room_cap_note" value={roomCapNote} />
       {state.error ? (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className={cn(!showSummary && "hidden")}>
           <TriangleAlertIcon />
           <AlertDescription>{state.error}</AlertDescription>
         </Alert>
       ) : null}
 
-      <div className="text-sm text-muted-foreground">
-        <p className="font-medium text-foreground">
-          {booking.contact_name ?? "Guest"} · {booking.contact_phone ?? "—"}
-        </p>
-        <p className="mt-1">
-          {booking.check_in} → {booking.check_out}{" "}
-          <span className="ml-1 inline-flex items-center rounded-full border border-citrus/40 bg-citrus-tint/60 px-2 py-0.5 text-[11px] font-medium tracking-[0.16em] text-citrus uppercase">
-            {nightsBetween(booking.check_in, booking.check_out)} nights
-          </span>{" "}
-          <span className="ml-1 inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium tracking-[0.16em] text-foreground uppercase">
-            {ORIGIN_LABELS[origin] ?? "International"}
-          </span>{" "}
-          · {paxAdults} adult{paxAdults === 1 ? "" : "s"}
-          {paxChildren > 0
-            ? ` · ${paxChildren} child${paxChildren === 1 ? "" : "ren"}`
-            : ""}
-          {paxExtraBeds > 0
-            ? ` · ${paxExtraBeds} extra bed${paxExtraBeds === 1 ? "" : "s"}`
-            : ""}
-          · {booking.rooms} rooms
-        </p>
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground",
+          !showSummary && "hidden",
+        )}
+        aria-hidden={!showSummary}
+      >
+        <span className="font-medium text-foreground">
+          {booking.contact_name ?? "Guest"}
+          {booking.contact_phone ? ` · ${booking.contact_phone}` : ""}
+        </span>
+        <span className="inline-flex items-center rounded border border-citrus/40 bg-citrus-tint/50 px-1.5 py-0 text-[10px] font-medium tracking-wide text-citrus uppercase">
+          {nightsBetween(booking.check_in, booking.check_out)}n
+        </span>
+        <span className="inline-flex items-center rounded border border-border bg-muted px-1.5 py-0 text-[10px] font-medium tracking-wide text-foreground uppercase">
+          {ORIGIN_LABELS[origin] ?? "International"}
+        </span>
+        <span>
+          {paxAdults}a
+          {paxChildren > 0 ? ` · ${paxChildren}c` : ""}
+          {paxExtraBeds > 0 ? ` · ${paxExtraBeds}xb` : ""} · {booking.rooms}{" "}
+          rm
+        </span>
         {booking.agent_name || booking.agent_id ? (
-          <p className="mt-1 text-xs">
+          <span className="w-full sm:w-auto">
             Agent{" "}
             <AgentNameLink
               agentId={booking.agent_id}
@@ -459,31 +508,33 @@ export function CheckInForm({
               tab="money"
             />
             {booking.credit_available_btn != null
-              ? ` · credit available ${formatBtn(booking.credit_available_btn)}`
+              ? ` · credit ${formatBtn(booking.credit_available_btn)}`
               : ""}
-            {booking.stay_estimate_btn != null
-              ? ` · stay est. ${formatBtn(booking.stay_estimate_btn)}`
-              : ""}
-          </p>
+          </span>
         ) : null}
       </div>
 
-      <fieldset className="min-w-0 space-y-4">
-        <legend className="flex flex-wrap items-center gap-3 text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+      <fieldset
+        className={cn(SECTION, !showRoom && "hidden")}
+        aria-hidden={!showRoom}
+      >
+        <legend
+          className={cn(SECTION_LEGEND, "flex flex-wrap items-center gap-2")}
+        >
           Room allocation
           <Link
             href="/erp/calendar"
-            className="text-[11px] font-medium normal-case tracking-normal text-muted-foreground underline-offset-4 hover:underline"
+            className="text-[10px] font-medium normal-case tracking-normal text-muted-foreground underline-offset-2 hover:underline"
           >
-            Open room rack
+            Rack
           </Link>
         </legend>
         {slots.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             No bookable room lines on this reservation.
           </p>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-1.5">
             {slots.map((slot) => {
               const typeKey = `${slot.roomTypeId}:${slot.inventoryKind}`;
               const options = (unitsByType.get(typeKey) ?? []).filter((u) => {
@@ -495,27 +546,30 @@ export function CheckInForm({
                   : allowDirty && !u.blocked && !selectedElsewhere;
               });
               return (
-                <div key={slot.key} className="grid gap-2 sm:grid-cols-[1fr_220px]">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
+                <div
+                  key={slot.key}
+                  className="grid gap-1.5 sm:grid-cols-[1fr_minmax(8rem,12rem)] sm:items-center"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-medium text-foreground">
                       {inventoryKindLabel(slot.inventoryKind)} ·{" "}
                       {slot.roomTypeName} #{slot.index + 1}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-[10px] text-muted-foreground">
                       {slot.assignedLabel
                         ? `Pre-assigned ${slot.assignedLabel}`
                         : "Unassigned — pick a ready room"}
                     </p>
                   </div>
-                  <div className="space-y-1.5">
+                  <div>
                     <Label className="sr-only" htmlFor={`slot-${slot.key}`}>
                       Room
                     </Label>
                     <select
                       id={`slot-${slot.key}`}
                       name="room_unit_id"
-                      required
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      required={showRoom}
+                      className="flex h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
                       value={slotUnits[slot.key] ?? ""}
                       onChange={(e) =>
                         setSlotUnits((prev) => ({
@@ -540,28 +594,31 @@ export function CheckInForm({
             })}
           </div>
         )}
-        <Label className="flex items-center gap-2 text-sm font-normal">
+        <Label className="flex items-center gap-1.5 text-[11px] font-normal">
           <Checkbox
             checked={allowDirty}
             onCheckedChange={(v) => setAllowDirty(v === true)}
+            className="size-3.5"
           />
-          Allow dirty / inspect rooms (override readiness)
+          Allow dirty / inspect rooms
         </Label>
       </fieldset>
 
-      <fieldset className="min-w-0 space-y-3">
-        <legend className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-          Lead guest · ID for check-in
+      <fieldset
+        className={cn(SECTION, !showGuest && "hidden")}
+        aria-hidden={!showGuest}
+      >
+        <legend className={SECTION_LEGEND}>
+          Lead guest · {idLabel(origin)}
         </legend>
-        <p className="text-xs text-muted-foreground">
-          Capture the lead guest now. Additional passport / SDF rows can wait
-          until after the guest is in-house.
+        <p className="text-[10px] text-muted-foreground">
+          Lead guest for check-in. Extra IDs can wait until in-house.
         </p>
         <div className="min-w-0 overflow-x-auto rounded-md border border-border/70">
           <div
             className={cn(
-              "hidden bg-muted/40 px-2 py-2 text-xs font-medium text-muted-foreground xl:grid xl:items-center xl:gap-2",
-              GUEST_GRID,
+              "hidden bg-muted/40 px-2 py-1.5 text-[10px] font-medium text-muted-foreground xl:grid xl:items-center xl:gap-1.5",
+              guestGrid,
             )}
             aria-hidden
           >
@@ -569,17 +626,18 @@ export function CheckInForm({
             <span>
               Full name <span className="text-destructive">*</span>
             </span>
-            <span>Nationality</span>
+            {showNationality ? <span>Nationality</span> : null}
             <span>
               {idLabel(origin)} <span className="text-destructive">*</span>
             </span>
-            <span>
-              SDF ref
-              {sdfRequired(origin) ? (
+            {showSdfFields ? (
+              <span>
+                SDF ref
                 <span className="text-destructive"> *</span>
-              ) : null}
-            </span>
-            <span>SDF document</span>
+              </span>
+            ) : null}
+            <span>ID photo</span>
+            {showSdfFields ? <span>SDF doc</span> : null}
             <span>Sleeps in</span>
             <span />
           </div>
@@ -589,14 +647,12 @@ export function CheckInForm({
               <li
                 key={`guest-${index}`}
                 className={cn(
-                  "grid gap-3 p-3 sm:grid-cols-2 xl:items-center xl:gap-2 xl:p-2",
-                  GUEST_GRID,
+                  "grid gap-2 p-2 sm:grid-cols-2 xl:items-center xl:gap-1.5 xl:p-1.5",
+                  guestGrid,
                 )}
               >
-                {/* Stacked view row header — the `#` and remove cells below
-                    take over once the grid goes columnar. */}
                 <div className="flex items-center justify-between gap-2 sm:col-span-2 xl:hidden">
-                  <span className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+                  <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
                     Guest {index + 1}
                   </span>
                   {guests.length > 1 ? (
@@ -615,62 +671,78 @@ export function CheckInForm({
                   ) : null}
                 </div>
 
-                <span className="hidden text-center text-xs text-muted-foreground tabular-nums xl:block">
+                <span className="hidden text-center text-[11px] text-muted-foreground tabular-nums xl:block">
                   {index + 1}
                 </span>
 
-                <div className="min-w-0 space-y-1.5 xl:space-y-0">
+                <div className="min-w-0 space-y-0.5 xl:space-y-0">
                   <Label className={CELL_LABEL} htmlFor={`guest_name_${index}`}>
                     Full name <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id={`guest_name_${index}`}
                     name="guest_name"
-                    required
+                    required={showGuest}
                     value={guest.fullName}
                     onKeyDown={blockEnterSubmit}
                     onChange={(e) =>
                       updateGuest(index, { fullName: e.target.value })
                     }
-                    className={CELL_INPUT}
+                    className={cn(CELL_INPUT, "font-sans")}
                   />
                 </div>
 
-                <div className="min-w-0 space-y-1.5 xl:space-y-0">
-                  <Label className={CELL_LABEL} htmlFor={`guest_nat_${index}`}>
-                    Nationality
-                    {nationalityRequired(origin) ? (
-                      <span className="text-destructive"> *</span>
-                    ) : null}
-                  </Label>
-                  <Combobox
-                    options={countryOptions}
-                    value={guest.nationality || null}
-                    onValueChange={(value) =>
-                      updateGuest(index, { nationality: value })
-                    }
-                    placeholder="Select country…"
-                    searchPlaceholder="Search countries…"
-                    className={CELL_INPUT}
-                  />
+                {showNationality ? (
+                  <div className="min-w-0 space-y-0.5 xl:space-y-0">
+                    <Label
+                      className={CELL_LABEL}
+                      htmlFor={`guest_nat_${index}`}
+                    >
+                      Nationality
+                      {nationalityRequired(origin) ? (
+                        <span className="text-destructive"> *</span>
+                      ) : null}
+                    </Label>
+                    <Combobox
+                      options={countryOptions}
+                      value={guest.nationality || null}
+                      onValueChange={(value) =>
+                        updateGuest(index, { nationality: value })
+                      }
+                      placeholder="Country…"
+                      searchPlaceholder="Search countries…"
+                      className={CELL_INPUT}
+                    />
+                    <input
+                      type="hidden"
+                      name="guest_nationality"
+                      value={guest.nationality}
+                    />
+                  </div>
+                ) : (
                   <input
                     type="hidden"
                     name="guest_nationality"
                     value={guest.nationality}
                   />
-                </div>
+                )}
 
-                <div className="min-w-0 space-y-1.5 xl:space-y-0">
+                <div className="min-w-0 space-y-0.5 xl:space-y-0">
                   <Label className={CELL_LABEL} htmlFor={`guest_id_${index}`}>
-                    {idLabel(origin)} <span className="text-destructive">*</span>
+                    {idLabel(origin)}{" "}
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id={`guest_id_${index}`}
                     name="guest_passport_or_cid"
-                    required
+                    required={showGuest}
                     inputMode={origin === "local" ? "numeric" : undefined}
-                    pattern={origin === "local" ? "[0-9]{11}" : undefined}
-                    minLength={origin === "local" ? 11 : undefined}
+                    pattern={
+                      showGuest && origin === "local" ? "[0-9]{11}" : undefined
+                    }
+                    minLength={
+                      showGuest && origin === "local" ? 11 : undefined
+                    }
                     maxLength={origin === "local" ? 11 : undefined}
                     value={guest.passportOrCid}
                     onKeyDown={blockEnterSubmit}
@@ -681,7 +753,7 @@ export function CheckInForm({
                           : e.target.value;
                       updateGuest(index, { passportOrCid: value });
                     }}
-                    className={CELL_INPUT}
+                    className={cn(CELL_INPUT, "tabular-nums")}
                     title={
                       origin === "local"
                         ? "Bhutan CID must be exactly 11 digits"
@@ -690,27 +762,36 @@ export function CheckInForm({
                   />
                 </div>
 
-                <div className="min-w-0 space-y-1.5 xl:space-y-0">
-                  <Label className={CELL_LABEL} htmlFor={`guest_sdf_${index}`}>
-                    SDF ref
-                    {sdfRequired(origin) ? (
+                {showSdfFields ? (
+                  <div className="min-w-0 space-y-0.5 xl:space-y-0">
+                    <Label
+                      className={CELL_LABEL}
+                      htmlFor={`guest_sdf_${index}`}
+                    >
+                      SDF ref
                       <span className="text-destructive"> *</span>
-                    ) : null}
-                  </Label>
-                  <Input
-                    id={`guest_sdf_${index}`}
+                    </Label>
+                    <Input
+                      id={`guest_sdf_${index}`}
+                      name="guest_sdf_ref"
+                      required={showGuest && showSdfFields}
+                      value={guest.sdfRef}
+                      onKeyDown={blockEnterSubmit}
+                      onChange={(e) =>
+                        updateGuest(index, { sdfRef: e.target.value })
+                      }
+                      className={CELL_INPUT}
+                    />
+                  </div>
+                ) : (
+                  <input
+                    type="hidden"
                     name="guest_sdf_ref"
-                    required={sdfRequired(origin)}
                     value={guest.sdfRef}
-                    onKeyDown={blockEnterSubmit}
-                    onChange={(e) =>
-                      updateGuest(index, { sdfRef: e.target.value })
-                    }
-                    className={CELL_INPUT}
                   />
-                </div>
+                )}
 
-                <div className="min-w-0 space-y-1.5 xl:space-y-0">
+                <div className="min-w-0 space-y-0.5 xl:space-y-0">
                   <span
                     id={`guest_id_photo_label_${index}`}
                     className={CELL_LABEL}
@@ -728,24 +809,35 @@ export function CheckInForm({
                   />
                 </div>
 
-                <div className="min-w-0 space-y-1.5 xl:space-y-0">
-                  <span
-                    id={`guest_doc_label_${index}`}
-                    className={CELL_LABEL}
-                  >
-                    SDF document
-                  </span>
-                  <CloudinaryDocField
+                {showSdfFields ? (
+                  <div className="min-w-0 space-y-0.5 xl:space-y-0">
+                    <span
+                      id={`guest_doc_label_${index}`}
+                      className={CELL_LABEL}
+                    >
+                      SDF document
+                    </span>
+                    <CloudinaryDocField
+                      name="guest_sdf_doc_url"
+                      value={guest.sdfDocUrl}
+                      describedBy={`guest_doc_label_${index}`}
+                      onPick={(intent) => openDocPicker(index, intent, "sdf")}
+                      onClear={() => updateGuest(index, { sdfDocUrl: "" })}
+                    />
+                  </div>
+                ) : (
+                  <input
+                    type="hidden"
                     name="guest_sdf_doc_url"
                     value={guest.sdfDocUrl}
-                    describedBy={`guest_doc_label_${index}`}
-                    onPick={(intent) => openDocPicker(index, intent, "sdf")}
-                    onClear={() => updateGuest(index, { sdfDocUrl: "" })}
                   />
-                </div>
+                )}
 
-                <div className="min-w-0 space-y-1.5 xl:space-y-0">
-                  <Label className={CELL_LABEL} htmlFor={`guest_room_${index}`}>
+                <div className="min-w-0 space-y-0.5 xl:space-y-0">
+                  <Label
+                    className={CELL_LABEL}
+                    htmlFor={`guest_room_${index}`}
+                  >
                     Sleeps in
                   </Label>
                   <select
@@ -756,7 +848,10 @@ export function CheckInForm({
                     onChange={(e) =>
                       updateGuest(index, { roomUnitId: e.target.value })
                     }
-                    className={cn(CELL_INPUT, "flex border border-input")}
+                    className={cn(
+                      CELL_INPUT,
+                      "flex border border-input font-sans",
+                    )}
                   >
                     <option value="">Auto</option>
                     {selectedUnitIds.map((id) => {
@@ -779,13 +874,13 @@ export function CheckInForm({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="size-8 text-muted-foreground hover:text-destructive"
+                      className="size-7 text-muted-foreground hover:text-destructive"
                       aria-label={`Remove guest ${index + 1}`}
                       onClick={() =>
                         setGuests((prev) => prev.filter((_, i) => i !== index))
                       }
                     >
-                      <Trash2Icon className="size-4" />
+                      <Trash2Icon className="size-3.5" />
                     </Button>
                   ) : null}
                 </div>
@@ -796,13 +891,13 @@ export function CheckInForm({
         <details
           open={showAllGuestIds}
           onToggle={(e) => setShowAllGuestIds(e.currentTarget.open)}
-          className="rounded-lg border bg-muted/15"
+          className="rounded-md border bg-muted/15"
         >
-          <summary className="cursor-pointer px-3 py-2.5 text-sm font-medium">
+          <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium">
             Add guest IDs later ({Math.max(0, paxAdults - 1)} more adult
             {paxAdults - 1 === 1 ? "" : "s"} on booking)
           </summary>
-          <div className="space-y-3 border-t px-3 py-3">
+          <div className="space-y-2 border-t px-2 py-2">
             {guests.length > 1 ? (
               <div className="min-w-0 overflow-x-auto rounded-md border border-border/70">
                 <ul className="divide-y divide-border/70">
@@ -811,9 +906,9 @@ export function CheckInForm({
                     return (
                       <li
                         key={`guest-extra-${index}`}
-                        className="space-y-3 p-3"
+                        className="space-y-1.5 p-2"
                       >
-                        <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+                        <p className="text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
                           Guest {index + 1}
                         </p>
                         <Input
@@ -825,7 +920,7 @@ export function CheckInForm({
                             updateGuest(index, { fullName: e.target.value })
                           }
                           placeholder="Full name"
-                          className={CELL_INPUT}
+                          className={cn(CELL_INPUT, "font-sans")}
                         />
                         <input
                           type="hidden"
@@ -844,16 +939,24 @@ export function CheckInForm({
                           placeholder={idLabel(origin)}
                           className={CELL_INPUT}
                         />
-                        <Input
-                          name="guest_sdf_ref"
-                          value={guest.sdfRef}
-                          onKeyDown={blockEnterSubmit}
-                          onChange={(e) =>
-                            updateGuest(index, { sdfRef: e.target.value })
-                          }
-                          placeholder="SDF ref"
-                          className={CELL_INPUT}
-                        />
+                        {showSdfFields ? (
+                          <Input
+                            name="guest_sdf_ref"
+                            value={guest.sdfRef}
+                            onKeyDown={blockEnterSubmit}
+                            onChange={(e) =>
+                              updateGuest(index, { sdfRef: e.target.value })
+                            }
+                            placeholder="SDF ref"
+                            className={CELL_INPUT}
+                          />
+                        ) : (
+                          <input
+                            type="hidden"
+                            name="guest_sdf_ref"
+                            value={guest.sdfRef}
+                          />
+                        )}
                         <input
                           type="hidden"
                           name="guest_sdf_doc_url"
@@ -873,7 +976,7 @@ export function CheckInForm({
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="text-xs text-muted-foreground hover:text-destructive"
+                          className="h-7 text-xs text-muted-foreground hover:text-destructive"
                           onClick={() =>
                             setGuests((prev) =>
                               prev.filter((_, i) => i !== index),
@@ -888,7 +991,7 @@ export function CheckInForm({
                 </ul>
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[10px] text-muted-foreground">
                 No additional guest rows yet.
               </p>
             )}
@@ -896,6 +999,7 @@ export function CheckInForm({
               type="button"
               variant="outline"
               size="sm"
+              className="h-7 text-xs"
               onClick={() => {
                 setShowAllGuestIds(true);
                 setGuests((prev) => [
@@ -918,80 +1022,104 @@ export function CheckInForm({
         </details>
       </fieldset>
 
-      <fieldset className="min-w-0 space-y-4">
-        <legend className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-          Guide &amp; settlement
+      <fieldset
+        className={cn(SECTION, !showGuest && "hidden")}
+        aria-hidden={!showGuest}
+      >
+        <legend className={SECTION_LEGEND}>
+          {showGuide ? "Guide & settlement" : "Settlement"}
         </legend>
-        <PartnersPicker
-          kind="guide"
-          partners={guides}
-          selectedId={guidePick?.id ?? null}
-          onPick={(p) => {
-            setGuidePick(p);
-            if (p?.fill?.guide_number) setGuideNumber(p.fill.guide_number);
-          }}
-        />
-        <input type="hidden" name="guide_id" value={guidePick?.id ?? ""} />
-        <div className="space-y-1.5">
-          <Label htmlFor="guide_number">Guide number</Label>
-          <Input
-            id="guide_number"
-            type="text"
-            name="guide_number"
-            value={guideNumber}
-            onChange={(e) => {
-              setGuideNumber(e.target.value);
-              if (guidePick) setGuidePick(null);
-            }}
-            aria-required={origin === "international"}
-          />
-          <p className="text-[11px] text-muted-foreground">
-            {origin === "international"
-              ? "Required for international tourists."
-              : "Optional for this guest origin."}
-          </p>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="payment_mode">Payment mode</Label>
-          <Select value={paymentMode} onValueChange={setPaymentMode}>
-            <SelectTrigger id="payment_mode">
-              <SelectValue placeholder="Select payment" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="cash">Cash</SelectItem>
-              <SelectItem value="prepaid">Prepaid</SelectItem>
-              <SelectItem value="partial">Partial</SelectItem>
-              <SelectItem value="on_credit">On credit (agent)</SelectItem>
-            </SelectContent>
-          </Select>
+        {showGuide ? (
+          <>
+            <PartnersPicker
+              kind="guide"
+              partners={guides}
+              selectedId={guidePick?.id ?? null}
+              onPick={(p) => {
+                setGuidePick(p);
+                if (p?.fill?.guide_number) setGuideNumber(p.fill.guide_number);
+              }}
+            />
+            <input type="hidden" name="guide_id" value={guidePick?.id ?? ""} />
+            <div className="space-y-0.5">
+              <Label htmlFor="guide_number" className={FIELD_LABEL}>
+                Guide number
+              </Label>
+              <Input
+                id="guide_number"
+                type="text"
+                name="guide_number"
+                value={guideNumber}
+                onChange={(e) => {
+                  setGuideNumber(e.target.value);
+                  if (guidePick) setGuidePick(null);
+                }}
+                className={cn(DENSE_INPUT, "font-mono")}
+                aria-required={showGuest}
+                required={showGuest}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Required for international tourists.
+              </p>
+            </div>
+          </>
+        ) : (
+          <>
+            <input type="hidden" name="guide_id" value="" />
+            <input type="hidden" name="guide_number" value={guideNumber} />
+          </>
+        )}
+        <div className="space-y-0.5">
+          <Label htmlFor="payment_mode" className={FIELD_LABEL}>
+            Payment mode
+          </Label>
+          <select
+            id="payment_mode"
+            name="payment_mode_ui"
+            value={paymentMode}
+            onChange={(e) => setPaymentMode(e.target.value)}
+            className="flex h-8 w-full rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+          >
+            {/* cash = soft pay-at-end (local default): collect Folio at leave */}
+            <option value="cash">Pay at checkout</option>
+            <option value="prepaid">Prepaid (already paid)</option>
+            <option value="partial">Partial / deposit</option>
+            <option value="on_credit">On credit (agent)</option>
+          </select>
+          {paymentMode === "cash" ? (
+            <p className="text-[10px] text-muted-foreground">
+              Guest settles on leave — Folio → Collect (cash / QR / bank). Not
+              collected at check-in.
+            </p>
+          ) : null}
           {paymentMode === "on_credit" && booking.stay_estimate_btn != null ? (
-            <p className="text-[11px] text-muted-foreground">
-              Estimated charge {formatBtn(booking.stay_estimate_btn)}
+            <p className="text-[10px] text-muted-foreground">
+              Est. {formatBtn(booking.stay_estimate_btn)}
               {booking.credit_available_btn != null
                 ? ` · available ${formatBtn(booking.credit_available_btn)}`
                 : ""}
             </p>
           ) : null}
           {booking.agent_id ? (
-            <div className="space-y-2 rounded-md border border-dashed px-3 py-2">
+            <div className="space-y-1.5 rounded-md border border-dashed px-2 py-1.5">
               <Label
                 htmlFor="override_agent_room_cap_ui"
-                className="flex items-center gap-2 text-xs font-normal"
+                className="flex items-center gap-1.5 text-[11px] font-normal"
               >
                 <Checkbox
                   id="override_agent_room_cap_ui"
                   checked={roomCapOverride}
                   onCheckedChange={(v) => setRoomCapOverride(v === true)}
+                  className="size-3.5"
                 />
-                Override agent open-room cap (stack more rooms) — manager note
-                required
+                Override agent open-room cap — note required
               </Label>
               {roomCapOverride ? (
                 <Input
                   value={roomCapNote}
                   onChange={(e) => setRoomCapNote(e.target.value)}
                   placeholder="Why exceed open room cap?"
-                  className="h-9"
+                  className="h-8"
                 />
               ) : null}
             </div>
@@ -999,102 +1127,140 @@ export function CheckInForm({
         </div>
       </fieldset>
 
-      <fieldset className="min-w-0 space-y-4">
-        <legend className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-          Driver {hasDriverBeds ? "(required)" : "(optional)"}
-        </legend>
-        <PartnersPicker
-          kind="driver"
-          partners={drivers}
-          selectedId={driverPick?.id ?? null}
-          onPick={(p) => {
-            setDriverPick(p);
-            if (p?.fill) {
-              setDriverFields({
-                name: p.fill.driver_name ?? driverFields.name,
-                phone: p.fill.driver_phone ?? driverFields.phone,
-                vehicle_no: p.fill.vehicle_no ?? driverFields.vehicle_no,
-                license_no: p.fill.license_no ?? driverFields.license_no,
-              });
-            }
-          }}
-        />
-        <input type="hidden" name="driver_id" value={driverPick?.id ?? ""} />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="driver_name">Driver name</Label>
-            <Input
-              id="driver_name"
-              name="driver_name"
-              required={hasDriverBeds}
-              value={driverFields.name}
-              onChange={(e) => {
-                setDriverFields({ ...driverFields, name: e.target.value });
-                if (driverPick) setDriverPick(null);
-              }}
-            />
+      <div className={cn(!showGuest && "hidden")} aria-hidden={!showGuest}>
+      {showDriver ? (
+        <fieldset className={SECTION}>
+          <legend className={SECTION_LEGEND}>
+            Driver {hasDriverBeds ? "(required)" : "(optional)"}
+          </legend>
+          <PartnersPicker
+            kind="driver"
+            partners={drivers}
+            selectedId={driverPick?.id ?? null}
+            onPick={(p) => {
+              setDriverPick(p);
+              if (p?.fill) {
+                setDriverFields({
+                  name: p.fill.driver_name ?? driverFields.name,
+                  phone: p.fill.driver_phone ?? driverFields.phone,
+                  vehicle_no: p.fill.vehicle_no ?? driverFields.vehicle_no,
+                  license_no: p.fill.license_no ?? driverFields.license_no,
+                });
+              }
+            }}
+          />
+          <input type="hidden" name="driver_id" value={driverPick?.id ?? ""} />
+          <div className="grid gap-x-2 gap-y-1.5 sm:grid-cols-2">
+            <div className="space-y-0.5">
+              <Label htmlFor="driver_name" className={FIELD_LABEL}>
+                Driver name
+              </Label>
+              <Input
+                id="driver_name"
+                name="driver_name"
+                required={showGuest && hasDriverBeds}
+                value={driverFields.name}
+                onChange={(e) => {
+                  setDriverFields({ ...driverFields, name: e.target.value });
+                  if (driverPick) setDriverPick(null);
+                }}
+                className={DENSE_INPUT}
+              />
+            </div>
+            <div className="space-y-0.5">
+              <Label htmlFor="driver_phone" className={FIELD_LABEL}>
+                Driver phone
+              </Label>
+              <Input
+                id="driver_phone"
+                type="tel"
+                name="driver_phone"
+                value={driverFields.phone}
+                onChange={(e) => {
+                  setDriverFields({ ...driverFields, phone: e.target.value });
+                  if (driverPick) setDriverPick(null);
+                }}
+                className={DENSE_INPUT}
+              />
+            </div>
+            <div className="space-y-0.5">
+              <Label htmlFor="vehicle_no" className={FIELD_LABEL}>
+                Vehicle no
+              </Label>
+              <Input
+                id="vehicle_no"
+                name="vehicle_no"
+                value={driverFields.vehicle_no}
+                onChange={(e) => {
+                  setDriverFields({
+                    ...driverFields,
+                    vehicle_no: e.target.value,
+                  });
+                  if (driverPick) setDriverPick(null);
+                }}
+                className={cn(DENSE_INPUT, "font-mono")}
+              />
+            </div>
+            <div className="space-y-0.5">
+              <Label htmlFor="license_no" className={FIELD_LABEL}>
+                License no
+              </Label>
+              <Input
+                id="license_no"
+                name="license_no"
+                value={driverFields.license_no}
+                onChange={(e) => {
+                  setDriverFields({
+                    ...driverFields,
+                    license_no: e.target.value,
+                  });
+                  if (driverPick) setDriverPick(null);
+                }}
+                className={cn(DENSE_INPUT, "font-mono")}
+              />
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="driver_phone">Driver phone</Label>
-            <Input
-              id="driver_phone"
-              type="tel"
-              name="driver_phone"
-              value={driverFields.phone}
-              onChange={(e) => {
-                setDriverFields({ ...driverFields, phone: e.target.value });
-                if (driverPick) setDriverPick(null);
-              }}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="vehicle_no">Vehicle no</Label>
-            <Input
-              id="vehicle_no"
-              name="vehicle_no"
-              value={driverFields.vehicle_no}
-              onChange={(e) => {
-                setDriverFields({ ...driverFields, vehicle_no: e.target.value });
-                if (driverPick) setDriverPick(null);
-              }}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="license_no">License no</Label>
-            <Input
-              id="license_no"
-              name="license_no"
-              value={driverFields.license_no}
-              onChange={(e) => {
-                setDriverFields({ ...driverFields, license_no: e.target.value });
-                if (driverPick) setDriverPick(null);
-              }}
-            />
-          </div>
-        </div>
-      </fieldset>
+        </fieldset>
+      ) : (
+        <>
+          <input type="hidden" name="driver_id" value="" />
+          <input type="hidden" name="driver_name" value={driverFields.name} />
+          <input type="hidden" name="driver_phone" value={driverFields.phone} />
+          <input
+            type="hidden"
+            name="vehicle_no"
+            value={driverFields.vehicle_no}
+          />
+          <input
+            type="hidden"
+            name="license_no"
+            value={driverFields.license_no}
+          />
+        </>
+      )}
+      </div>
 
+      <div className={cn(!showManager && "hidden")} aria-hidden={!showManager}>
       {isPastCheckInDate ? (
         <div
-          className="space-y-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-3"
+          className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2"
           role="status"
         >
-          <p className="text-sm font-medium text-foreground">
+          <p className="text-xs font-medium text-foreground">
             Check-in date {checkInDate} is before today ({thimphuToday()})
           </p>
-          <p className="text-xs text-muted-foreground">
-            Floor staff: enter a manager PIN. GM/owner: tick the override below
-            (no PIN). Or open Book / Confirm → Details and move the stay dates
-            first.
+          <p className="text-[10px] text-muted-foreground">
+            Floor staff: manager PIN. GM/owner: tick override (or fix dates on
+            Details).
           </p>
-          <Label className="flex items-start gap-2 text-sm font-normal">
+          <Label className="flex items-start gap-1.5 text-[11px] font-normal">
             <Checkbox
               checked={businessDateOverride}
               onCheckedChange={(v) => setBusinessDateOverride(v === true)}
-              className="mt-0.5"
+              className="mt-0.5 size-3.5"
             />
             <span>
-              Allow past check-in / business date override (GM/owner session)
+              Allow past check-in / business date override (GM/owner)
             </span>
           </Label>
           <input
@@ -1102,33 +1268,34 @@ export function CheckInForm({
             name="business_date_override"
             value={businessDateOverride ? "on" : "off"}
           />
-          <div className="space-y-1.5">
-            <Label htmlFor="ci_manager_pin">Manager PIN (floor staff)</Label>
+          <div className="space-y-0.5">
+            <Label htmlFor="ci_manager_pin" className={FIELD_LABEL}>
+              Manager PIN (floor staff)
+            </Label>
             <Input
               id="ci_manager_pin"
               name="manager_pin"
               type="password"
               autoComplete="off"
-              className="h-11 max-w-xs"
-              placeholder="Owner/GM staff PIN or desk manager PIN"
+              className="h-8 max-w-xs"
+              placeholder="Staff or desk manager PIN"
             />
           </div>
         </div>
       ) : (
-        <details className="rounded-lg border bg-muted/15">
-          <summary className="cursor-pointer px-3 py-2.5 text-sm font-medium">
+        <details className="rounded-md border bg-muted/15">
+          <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium">
             Manager override (night audit / business date)
           </summary>
-          <div className="space-y-3 border-t px-3 py-3">
-            <Label className="flex items-start gap-2 text-sm font-normal">
+          <div className="space-y-2 border-t px-2 py-2">
+            <Label className="flex items-start gap-1.5 text-[11px] font-normal">
               <Checkbox
                 checked={businessDateOverride}
                 onCheckedChange={(v) => setBusinessDateOverride(v === true)}
-                className="mt-0.5"
+                className="mt-0.5 size-3.5"
               />
               <span>
-                Allow business date override (GM/owner — e.g. night audit not
-                closed)
+                Allow business date override (GM/owner — e.g. night audit open)
               </span>
             </Label>
             <input
@@ -1136,25 +1303,23 @@ export function CheckInForm({
               name="business_date_override"
               value={businessDateOverride ? "on" : "off"}
             />
-            <div className="space-y-1.5">
-              <Label htmlFor="ci_manager_pin">Manager PIN</Label>
+            <div className="space-y-0.5">
+              <Label htmlFor="ci_manager_pin" className={FIELD_LABEL}>
+                Manager PIN
+              </Label>
               <Input
                 id="ci_manager_pin"
                 name="manager_pin"
                 type="password"
                 autoComplete="off"
-                className="h-11 max-w-xs"
+                className="h-8 max-w-xs"
                 placeholder="Floor staff when prior day not closed"
               />
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              Floor staff need a manager PIN if night audit for the prior
-              business day is not closed. GM/owner may tick the checkbox
-              instead.
-            </p>
           </div>
         </details>
       )}
+      </div>
 
       <Button
         type="submit"

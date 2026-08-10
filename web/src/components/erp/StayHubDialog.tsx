@@ -37,6 +37,11 @@ import { fetchBookingSettlementEvidence } from "@/app/actions/erp-settlement-pac
 import { RoomNcForm } from "@/components/erp/RoomNcForm";
 import { AgreedRateForm } from "@/components/erp/AgreedRateForm";
 import { GuestRatePromoForm } from "@/components/erp/GuestRatePromoForm";
+import type { GuestRegistrationCardData } from "@/components/erp/GuestRegistrationCard";
+import {
+  PostCheckInRegPanel,
+  SignedRegCardUploadStrip,
+} from "@/components/erp/PostCheckInRegPanel";
 import type { RackStay, RackUnit } from "@/components/erp/RoomRackGrid";
 import {
   StayHubFooterBar,
@@ -94,7 +99,9 @@ type DetailsToolTab = "stay" | "guest" | "rate" | "more";
 type CheckInToolTab = "room" | "guest" | "more";
 
 const selectClass =
-  "h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] sm:h-9";
+  "h-8 w-full rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
+
+const denseInputClass = "h-8 text-sm";
 
 /** Seed shape from room rack (assignment-centric). */
 export type StayHubSeedStay = RackStay;
@@ -197,9 +204,47 @@ function summaryFromSeed(stay: StayHubSeedStay): StayHubSummary {
     guideSignStatus: null,
     guideSignPhotoPublicId: null,
     guideSignWaiveReason: null,
+    regCardPhotoPublicId: null,
+    regCardSignedAt: null,
     confirmMode: "soft",
     advanceStatus: "none",
     advanceDueBtn: null,
+  };
+}
+
+function regDataFromStaySummary(
+  s: StayHubSummary,
+  d?: Draft | null,
+): GuestRegistrationCardData {
+  const cin = (s.checkIn ?? "").slice(0, 10);
+  const cout = (s.checkOut ?? "").slice(0, 10);
+  const t0 = new Date(`${cin}T12:00:00`).getTime();
+  const t1 = new Date(`${cout}T12:00:00`).getTime();
+  const nights =
+    Number.isFinite(t0) && Number.isFinite(t1) && t1 > t0
+      ? Math.round((t1 - t0) / 86_400_000)
+      : 1;
+  const roomName =
+    [s.roomLabel, s.roomTypeName].filter(Boolean).join(" · ") || "Room";
+  return {
+    bookingId: s.bookingId,
+    confirmationCode: s.confirmationCode ?? undefined,
+    guestName: d?.contactName?.trim() || s.contactName || "Guest",
+    guestPhone: d?.contactPhone?.trim() || s.contactPhone || undefined,
+    guestOrigin: d?.guestOrigin || s.guestOrigin || undefined,
+    guideNumber:
+      d?.guideNumber?.trim() || s.guideNumber || undefined,
+    agentLabel: s.agentName || undefined,
+    checkIn: cin,
+    checkOut: cout,
+    nights,
+    adults: Math.max(1, Number(d?.adults) || s.adults || 1),
+    children: Math.max(0, Number(d?.children) || s.children || 0),
+    extraBeds: Math.max(0, Number(d?.extraBeds) || s.extraBeds || 0),
+    mealPlanCode: d?.mealPlanCode || s.mealPlanCode || undefined,
+    roomLines: [{ name: roomName, qty: Math.max(1, s.rooms || 1) }],
+    rateNightlyBtn: s.agreedNightlyRateBtn,
+    stayTotalBtn: null,
   };
 }
 
@@ -324,7 +369,9 @@ export function StayHubDialog({
   const [panel, setPanel] = useState<StayHubStepId>("reserve");
   const [folioTool, setFolioTool] = useState<FolioToolTab>("bill");
   const [detailsTool, setDetailsTool] = useState<DetailsToolTab>("guest");
-  const [checkInTool, setCheckInTool] = useState<CheckInToolTab>("room");
+  const [checkInTool, setCheckInTool] = useState<CheckInToolTab>("guest");
+  /** Once per booking open: prefer Guest when room already assigned. */
+  const checkInTabLandedRef = useRef<string | null>(null);
   const [lockHint, setLockHint] = useState<string | null>(null);
   const [money, setMoney] = useState<StayHubMoneyPayload | null>(null);
   const [checkInPayload, setCheckInPayload] =
@@ -353,6 +400,10 @@ export function StayHubDialog({
     ReturnType<typeof previewStayHubSheetRate>
   > | null>(null);
   const [sheetRatePending, startSheetRate] = useTransition();
+  const [railRateOpen, setRailRateOpen] = useState(false);
+  const [postCheckInOpen, setPostCheckInOpen] = useState(false);
+  const [postRegData, setPostRegData] =
+    useState<GuestRegistrationCardData | null>(null);
   const collectPayRef = useRef<HTMLDivElement | null>(null);
   const postChargesRef = useRef<HTMLDivElement | null>(null);
 
@@ -397,17 +448,9 @@ export function StayHubDialog({
     };
   }, [open]);
 
-  // Live sheet rate for Details → Rate (package + tier + season + addons).
+  // Live sheet rate for left-rail amount + Details → Rate.
   useEffect(() => {
     if (!open || !bookingId || !draft) return;
-    if (panel !== "reserve" && panel !== "confirm" && detailsTool !== "rate") {
-      // Still refresh when rate tab or when meal changes while on guest
-    }
-    const want =
-      detailsTool === "rate" ||
-      panel === "reserve" ||
-      panel === "confirm";
-    if (!want && detailsTool !== "guest") return;
     startSheetRate(async () => {
       const r = await previewStayHubSheetRate({
         bookingId,
@@ -427,8 +470,6 @@ export function StayHubDialog({
     draft?.extraBeds,
     draft?.source,
     draft?.agentId,
-    detailsTool,
-    panel,
     summary?.agreedNightlyRateBtn,
   ]);
 
@@ -473,8 +514,93 @@ export function StayHubDialog({
   );
 
   const handleCheckedIn = useCallback(
-    (payload: { bookingId: string; folioId?: string }) => {
+    (payload: {
+      bookingId: string;
+      folioId?: string;
+      leadGuest?: {
+        fullName?: string;
+        passportOrCid?: string;
+        sdfRef?: string;
+      };
+    }) => {
       const id = payload.bookingId;
+      // Build reg print payload immediately so FO always sees Print + Upload
+      // even if summary re-fetch is slow or soft-fails.
+      const s = summary;
+      const d = draft;
+      const ciBooking = checkInPayload?.booking;
+      const cin = (
+        s?.checkIn ??
+        ciBooking?.check_in ??
+        checkIn ??
+        ""
+      ).slice(0, 10);
+      const cout = (
+        s?.checkOut ??
+        ciBooking?.check_out ??
+        checkOut ??
+        ""
+      ).slice(0, 10);
+      const t0 = new Date(`${cin}T12:00:00`).getTime();
+      const t1 = new Date(`${cout}T12:00:00`).getTime();
+      const nights =
+        Number.isFinite(t0) && Number.isFinite(t1) && t1 > t0
+          ? Math.round((t1 - t0) / 86_400_000)
+          : 1;
+      const roomName =
+        [s?.roomLabel, s?.roomTypeName].filter(Boolean).join(" · ") ||
+        "Room";
+      setPostRegData({
+        bookingId: id,
+        confirmationCode: s?.confirmationCode ?? undefined,
+        guestName:
+          payload.leadGuest?.fullName?.trim() ||
+          d?.contactName?.trim() ||
+          s?.contactName ||
+          "Guest",
+        guestPhone: d?.contactPhone?.trim() || s?.contactPhone || undefined,
+        guestOrigin: d?.guestOrigin || s?.guestOrigin || undefined,
+        passportOrCid: payload.leadGuest?.passportOrCid || undefined,
+        sdfRef: payload.leadGuest?.sdfRef || undefined,
+        guideNumber:
+          d?.guideNumber?.trim() ||
+          s?.guideNumber ||
+          ciBooking?.guide_number ||
+          undefined,
+        agentLabel: s?.agentName || undefined,
+        checkIn: cin,
+        checkOut: cout,
+        nights,
+        adults: Math.max(1, Number(d?.adults) || s?.adults || 1),
+        children: Math.max(0, Number(d?.children) || s?.children || 0),
+        extraBeds: Math.max(0, Number(d?.extraBeds) || s?.extraBeds || 0),
+        mealPlanCode: d?.mealPlanCode || s?.mealPlanCode || undefined,
+        roomLines: [
+          {
+            name: roomName,
+            qty: Math.max(1, s?.rooms || 1),
+          },
+        ],
+        rateNightlyBtn: s?.agreedNightlyRateBtn ?? null,
+        stayTotalBtn: null,
+      });
+      setPostCheckInOpen(true);
+      setPanel("check_in");
+      setCheckInTool("guest");
+      onPanelChange?.("check_in");
+      setSummary((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: "checked_in",
+              folioId: payload.folioId ?? prev.folioId,
+            }
+          : prev,
+      );
+      setLockHint(null);
+      setMessage(null);
+      toast.success("Checked in — print registration, then upload signed card");
+
       startTransition(async () => {
         const result = await fetchStayHubSummary(id, assignmentId);
         if (result.ok) {
@@ -485,13 +611,51 @@ export function StayHubDialog({
               ? {
                   ...prev,
                   status: result.data.status,
-                  folioId: result.data.folioId ?? payload.folioId ?? prev.folioId,
+                  folioId:
+                    result.data.folioId ?? payload.folioId ?? prev.folioId,
                   folioBalance: result.data.folioBalance,
                   sdfIncomplete: result.data.sdfIncomplete,
                   hasRoomAssigned: result.data.hasRoomAssigned,
+                  regCardPhotoPublicId: result.data.regCardPhotoPublicId,
+                  regCardSignedAt: result.data.regCardSignedAt,
                 }
               : result.data,
           );
+          // Enrich print card without leaving the post-CI panel.
+          setPostRegData((prev) => {
+            if (!prev || prev.bookingId !== id) return prev;
+            const r = result.data;
+            const nextName = [
+              r.roomLabel,
+              r.roomTypeName,
+            ]
+              .filter(Boolean)
+              .join(" · ");
+            return {
+              ...prev,
+              confirmationCode:
+                r.confirmationCode ?? prev.confirmationCode,
+              guestName:
+                payload.leadGuest?.fullName?.trim() ||
+                r.contactName ||
+                prev.guestName,
+              guestPhone: r.contactPhone || prev.guestPhone,
+              guestOrigin: r.guestOrigin || prev.guestOrigin,
+              guideNumber: r.guideNumber || prev.guideNumber,
+              agentLabel: r.agentName || prev.agentLabel,
+              checkIn: (r.checkIn ?? prev.checkIn).slice(0, 10),
+              checkOut: (r.checkOut ?? prev.checkOut).slice(0, 10),
+              adults: r.adults || prev.adults,
+              children: r.children ?? prev.children,
+              extraBeds: r.extraBeds ?? prev.extraBeds,
+              mealPlanCode: r.mealPlanCode || prev.mealPlanCode,
+              roomLines: nextName
+                ? [{ name: nextName, qty: Math.max(1, r.rooms || 1) }]
+                : prev.roomLines,
+              rateNightlyBtn:
+                r.agreedNightlyRateBtn ?? prev.rateNightlyBtn,
+            };
+          });
         } else if (payload.folioId) {
           setSummary((prev) =>
             prev
@@ -503,15 +667,22 @@ export function StayHubDialog({
               : prev,
           );
         }
-        setPanel("stay_money");
-        setLockHint(null);
-        setMessage("Checked in — continue Stay / Money");
         const moneyResult = await fetchStayHubMoney(id);
         if (moneyResult.ok) setMoney(moneyResult.data);
         router.refresh();
       });
     },
-    [applySummary, assignmentId, router],
+    [
+      applySummary,
+      assignmentId,
+      checkIn,
+      checkInPayload?.booking,
+      checkOut,
+      draft,
+      onPanelChange,
+      router,
+      summary,
+    ],
   );
 
   // Open / bookingId change
@@ -524,6 +695,8 @@ export function StayHubDialog({
       setSummary(null);
       setDraft(null);
       setLoadError(null);
+      setPostCheckInOpen(false);
+      setPostRegData(null);
       return;
     }
 
@@ -533,6 +706,8 @@ export function StayHubDialog({
       serverTruthRef.current = false;
       prevStatusRef.current = null;
       openLandedRef.current = false;
+      setPostCheckInOpen(false);
+      setPostRegData(null);
     }
 
     if (isNewOpen && seedStay && seedStay.booking_id === bookingId) {
@@ -592,7 +767,9 @@ export function StayHubDialog({
     });
   }, [open, bookingId, seedStay]);
 
-  // When status transitions into checked_in, land on Stay / Money once
+  // When status transitions into checked_in, land on Stay / Money once —
+  // unless FO is still on post-CI registration print/upload.
+  // When held/pending is confirmed, advance to Check-in so footer is not Close-only.
   useEffect(() => {
     if (!open || !summary) return;
     const prev = prevStatusRef.current;
@@ -602,12 +779,24 @@ export function StayHubDialog({
       prev &&
       ["pending", "confirmed", "held"].includes(prev) &&
       cur === "checked_in" &&
-      (panel === "arrival" || panel === "check_in" || panel === "reserve")
+      (panel === "arrival" || panel === "check_in" || panel === "reserve") &&
+      !postCheckInOpen &&
+      !postRegData
     ) {
       setPanel("stay_money");
       setLockHint(null);
+      return;
     }
-  }, [open, summary?.status, panel, summary]);
+    if (
+      prev &&
+      ["held", "pending"].includes(prev) &&
+      cur === "confirmed" &&
+      (panel === "reserve" || panel === "confirm" || panel === "arrival")
+    ) {
+      setPanel("check_in");
+      setLockHint(null);
+    }
+  }, [open, summary?.status, panel, summary, postCheckInOpen, postRegData]);
 
   /**
    * Once-per-open safety: if progress already treats Stay/Money as current
@@ -617,6 +806,7 @@ export function StayHubDialog({
   useEffect(() => {
     if (!open || !summary || !bookingId) return;
     if (openLandedRef.current) return;
+    if (postCheckInOpen || postRegData) return;
 
     const st = (summary.status ?? "").toLowerCase();
     if (st !== "checked_in") {
@@ -641,7 +831,15 @@ export function StayHubDialog({
       setPanel(domain);
       setLockHint(null);
     }
-  }, [open, bookingId, summary, panel, board]);
+  }, [
+    open,
+    bookingId,
+    summary,
+    panel,
+    board,
+    postCheckInOpen,
+    postRegData,
+  ]);
 
   // Lazy-load money panel; prefetch check-in as soon as hub opens for confirmed stays
   useEffect(() => {
@@ -713,6 +911,35 @@ export function StayHubDialog({
       cancelled = true;
     };
   }, [open, bookingId, summary?.status, summary?.checkIn, summary?.checkOut]);
+
+  // Prefer Guest tab when room is already assigned (FO captures IDs next).
+  useEffect(() => {
+    if (!open || !summary?.bookingId) return;
+    if (panel !== "check_in" && panel !== "arrival") return;
+    if (checkInTabLandedRef.current === summary.bookingId) return;
+    checkInTabLandedRef.current = summary.bookingId;
+    const assigned =
+      summary.hasRoomAssigned || Boolean(summary.roomLabel?.trim());
+    if (
+      ["pending", "confirmed"].includes(summary.status) &&
+      assigned
+    ) {
+      setCheckInTool("guest");
+    } else {
+      setCheckInTool("room");
+    }
+  }, [
+    open,
+    panel,
+    summary?.bookingId,
+    summary?.status,
+    summary?.hasRoomAssigned,
+    summary?.roomLabel,
+  ]);
+
+  useEffect(() => {
+    if (!open) checkInTabLandedRef.current = null;
+  }, [open]);
 
   const refreshStayAfterDateChange = useCallback(() => {
     if (!summary?.bookingId) {
@@ -960,6 +1187,20 @@ export function StayHubDialog({
   const isDetailsPanel = panel === "reserve" || panel === "confirm";
   const isCheckInPanel = panel === "arrival" || panel === "check_in";
 
+  const sheetOk = sheetRate?.ok === true ? sheetRate : null;
+  const railNightly =
+    summary?.agreedNightlyRateBtn ??
+    sheetOk?.systemNightlyTotalBtn ??
+    sheetOk?.roomNightlyBtn ??
+    null;
+  const railStayTotal =
+    summary?.agreedNightlyRateBtn != null && sheetOk?.nights
+      ? summary.agreedNightlyRateBtn * sheetOk.nights
+      : (sheetOk?.systemStayTotalBtn ?? null);
+  const rateEditable =
+    !!summary &&
+    ["pending", "held", "confirmed", "checked_in"].includes(summary.status);
+
   const openCollect = () => {
     setPanel("stay_money");
     setFolioTool("collect");
@@ -1017,7 +1258,30 @@ export function StayHubDialog({
   const primaryCta = (() => {
     if (!summary) return null;
 
-    if (isDetailsPanel) return null;
+    if (isDetailsPanel) {
+      if (["pending", "confirmed"].includes(summary.status)) {
+        const ciStep = steps.find((s) => s.id === "check_in");
+        const allowed = canNavigateStayHubStep({
+          targetId: "check_in",
+          panel,
+          step: ciStep,
+          status: summary.status,
+        });
+        if (allowed) {
+          return (
+            <Button
+              type="button"
+              variant="citrus"
+              className="min-h-11 flex-1 sm:flex-none"
+              onClick={() => goPanel("check_in")}
+            >
+              Continue to check-in
+            </Button>
+          );
+        }
+      }
+      return null;
+    }
 
     if (isCheckInPanel) {
       if (["pending", "confirmed"].includes(summary.status)) {
@@ -1050,9 +1314,15 @@ export function StayHubDialog({
             type="button"
             variant="citrus"
             className="min-h-11 flex-1 sm:flex-none"
-            onClick={() => goPanel("stay_money")}
+            onClick={() => {
+              if (postCheckInOpen || postRegData) {
+                setPostCheckInOpen(false);
+                setPostRegData(null);
+              }
+              goPanel("stay_money");
+            }}
           >
-            Open folio
+            {postCheckInOpen || postRegData ? "Go to Folio" : "Open folio"}
           </Button>
         );
       }
@@ -1383,6 +1653,23 @@ export function StayHubDialog({
                 onBack: backTarget ? handleBack : undefined,
                 dueChipBtn: balanceOpen ? dues : null,
               }}
+              amount={
+                summary
+                  ? {
+                      nightlyBtn: railNightly,
+                      isCustom: summary.agreedNightlyRateBtn != null,
+                      stayTotalBtn: railStayTotal,
+                      nights: sheetOk?.nights ?? null,
+                      mealPlanCode:
+                        draft?.mealPlanCode ?? summary.mealPlanCode,
+                      pending: sheetRatePending && railNightly == null,
+                      editable: rateEditable,
+                      onEdit: rateEditable
+                        ? () => setRailRateOpen(true)
+                        : undefined,
+                    }
+                  : null
+              }
               railActions={
                 balanceOpen &&
                 panel === "stay_money" &&
@@ -1416,7 +1703,11 @@ export function StayHubDialog({
                 <StayHubWorkFrame
                   title={panelLabel}
                   description={panelDescription(panel)}
-                  dense={panel === "stay_money" || panel === "check_out"}
+                  dense={
+                    isCheckInPanel ||
+                    panel === "stay_money" ||
+                    panel === "check_out"
+                  }
                   tools={toolTabsNode}
                 >
                   <div className="min-w-0 space-y-2">
@@ -1552,6 +1843,7 @@ export function StayHubDialog({
                                 <BookingLifecycleActions
                                   bookingId={summary.bookingId}
                                   status={summary.status}
+                                  onSuccess={refreshSummary}
                                 />
                               </WorkSection>
                             ) : null}
@@ -1560,11 +1852,53 @@ export function StayHubDialog({
                       </div>
                     ) : null}
 
-                    {/* Check-in — Room | Guest | More */}
-                    {isCheckInPanel ? (
+                    {/* Check-in — post-CI reg print/upload OR Room | Guest | More */}
+                    {isCheckInPanel && postRegData && postCheckInOpen ? (
+                      <PostCheckInRegPanel
+                        regData={postRegData}
+                        regCardPhotoPublicId={summary.regCardPhotoPublicId}
+                        onUploaded={(publicId) => {
+                          setSummary((prev) =>
+                            prev
+                              ? {
+                                  ...prev,
+                                  regCardPhotoPublicId: publicId,
+                                  regCardSignedAt: new Date().toISOString(),
+                                }
+                              : prev,
+                          );
+                        }}
+                        onGoFolio={() => {
+                          setPostCheckInOpen(false);
+                          setPostRegData(null);
+                          setPanel("stay_money");
+                          setFolioTool("bill");
+                          onPanelChange?.("stay_money");
+                        }}
+                        onCloseStay={() => {
+                          setPostCheckInOpen(false);
+                          setPostRegData(null);
+                          onOpenChange(false);
+                          router.refresh();
+                        }}
+                      />
+                    ) : isCheckInPanel ? (
                       <div className="space-y-2">
                         {checkInTool === "guest" ? (
                           <div className="space-y-2">
+                            {summary.status === "checked_in" ? (
+                              <SignedRegCardUploadStrip
+                                bookingId={summary.bookingId}
+                                regCardPhotoPublicId={
+                                  summary.regCardPhotoPublicId
+                                }
+                                regData={regDataFromStaySummary(
+                                  summary,
+                                  draft,
+                                )}
+                                onUploaded={() => void refreshSummary()}
+                              />
+                            ) : null}
                             {(summary.contactPhone ?? draft?.contactPhone ?? "")
                               .trim() === "" &&
                             ["pending", "confirmed"].includes(
@@ -1578,7 +1912,20 @@ export function StayHubDialog({
                                 phone before settle when possible.
                               </Callout>
                             ) : null}
-                            <WorkSection title="Guest snapshot">
+                            {!summary.hasRoomAssigned &&
+                            !summary.roomLabel?.trim() &&
+                            ["pending", "confirmed"].includes(
+                              summary.status,
+                            ) ? (
+                              <Callout
+                                tone="amber"
+                                title="Room not assigned"
+                              >
+                                Assign a unit on the Room tab, then complete
+                                guest ID here.
+                              </Callout>
+                            ) : null}
+                            <WorkSection title="Stay contact">
                               <GuestIdentityFields
                                 draft={draft}
                                 agents={agents}
@@ -1587,6 +1934,7 @@ export function StayHubDialog({
                                 catalogLoading={catalogLoading}
                                 salesClaimStatus={summary.salesClaimStatus}
                                 onUpdate={updateDraft}
+                                compactSnapshot
                               />
                             </WorkSection>
                           </div>
@@ -1605,6 +1953,8 @@ export function StayHubDialog({
                                 <BookingLifecycleActions
                                   bookingId={summary.bookingId}
                                   status={summary.status}
+                                  onSuccess={refreshSummary}
+                                  compact
                                 />
                               </WorkSection>
                             ) : null}
@@ -1621,6 +1971,7 @@ export function StayHubDialog({
                                   mealPlanCode={summary.mealPlanCode}
                                   roomLabel={summary.roomLabel}
                                   onSuccess={refreshSummary}
+                                  compact
                                 />
                               </WorkSection>
                             ) : null}
@@ -1638,7 +1989,7 @@ export function StayHubDialog({
                                 title={`Check-in date ${summary.checkIn.slice(0, 10)} is before today`}
                               >
                                 Adjust dates below, or use GM override /
-                                manager PIN on the check-in form.
+                                manager PIN under Room allocation.
                               </Callout>
                             ) : null}
 
@@ -1672,59 +2023,71 @@ export function StayHubDialog({
                                 />
                               </WorkSection>
                             ) : null}
-
-                            <WorkSection
-                              title={
-                                panel === "arrival"
-                                  ? "Arrival readiness"
-                                  : "Check-in"
-                              }
-                            >
-                              {["pending", "confirmed"].includes(
-                                summary.status,
-                              ) ? (
-                                checkInLoading ? (
-                                  <p className="text-sm text-muted-foreground">
-                                    Loading check-in form…
-                                  </p>
-                                ) : checkInPayload ? (
-                                  <CheckInForm
-                                    key={`${summary.bookingId}-${checkInPayload.booking.adults}-${checkInPayload.booking.check_in}-${draft?.adults ?? ""}`}
-                                    booking={{
-                                      ...checkInPayload.booking,
-                                      adults: Math.max(
-                                        1,
-                                        Number(draft?.adults) ||
-                                          checkInPayload.booking.adults ||
-                                          1,
-                                      ),
-                                    }}
-                                    guides={checkInPayload.guides}
-                                    drivers={checkInPayload.drivers}
-                                    slots={checkInPayload.slots}
-                                    units={checkInPayload.units}
-                                    embedded
-                                    onCheckedIn={handleCheckedIn}
-                                  />
-                                ) : (
-                                  <p className="text-sm text-muted-foreground">
-                                    Could not load check-in form for this stay.
-                                  </p>
-                                )
-                              ) : summary.status === "checked_in" ? (
-                                <p className="text-xs text-muted-foreground">
-                                  Already checked in. Continue on Folio or
-                                  Checkout. Undo is under ··· when the folio is
-                                  still simple.
-                                </p>
-                              ) : (
-                                <p className="text-xs text-muted-foreground">
-                                  Check-in not available for status{" "}
-                                  {summary.status.replace(/_/g, " ")}.
-                                </p>
-                              )}
-                            </WorkSection>
                           </div>
+                        ) : null}
+
+                        {/* One form for all CI tabs — panes hide without unmount */}
+                        {["pending", "confirmed"].includes(summary.status) ? (
+                          checkInLoading ? (
+                            checkInTool !== "more" ? (
+                              <p className="text-sm text-muted-foreground">
+                                Loading check-in form…
+                              </p>
+                            ) : null
+                          ) : checkInPayload ? (
+                            <div
+                              className={cn(
+                                checkInTool === "more" && "hidden",
+                              )}
+                              aria-hidden={checkInTool === "more"}
+                            >
+                              <WorkSection
+                                title={
+                                  checkInTool === "room"
+                                    ? "Room allocation"
+                                    : "Guest check-in"
+                                }
+                              >
+                                <CheckInForm
+                                  key={`${summary.bookingId}-${checkInPayload.booking.check_in}`}
+                                  booking={{
+                                    ...checkInPayload.booking,
+                                    adults: Math.max(
+                                      1,
+                                      Number(draft?.adults) ||
+                                        checkInPayload.booking.adults ||
+                                        1,
+                                    ),
+                                  }}
+                                  guides={checkInPayload.guides}
+                                  drivers={checkInPayload.drivers}
+                                  slots={checkInPayload.slots}
+                                  units={checkInPayload.units}
+                                  embedded
+                                  pane={
+                                    checkInTool === "room" ? "room" : "guest"
+                                  }
+                                  onCheckedIn={handleCheckedIn}
+                                />
+                              </WorkSection>
+                            </div>
+                          ) : checkInTool !== "more" ? (
+                            <p className="text-sm text-muted-foreground">
+                              Could not load check-in form for this stay.
+                            </p>
+                          ) : null
+                        ) : summary.status === "checked_in" &&
+                          checkInTool !== "more" ? (
+                          <p className="text-xs text-muted-foreground">
+                            Already checked in. Continue on Folio or Checkout.
+                            Undo is under ··· when the folio is still simple.
+                          </p>
+                        ) : checkInTool !== "more" &&
+                          summary.status !== "checked_in" ? (
+                          <p className="text-xs text-muted-foreground">
+                            Check-in not available for status{" "}
+                            {summary.status.replace(/_/g, " ")}.
+                          </p>
                         ) : null}
                       </div>
                     ) : null}
@@ -1950,6 +2313,48 @@ export function StayHubDialog({
           </DialogContent>
         </Dialog>
       ) : null}
+
+      {summary && rateEditable ? (
+        <Dialog open={railRateOpen} onOpenChange={setRailRateOpen}>
+          <DialogContent className="erp max-h-[90vh] overflow-y-auto sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Nightly rate</DialogTitle>
+              <DialogDescription>
+                Sheet or agreed Nu/night. Manager PIN required for a custom
+                rate. Posts use this for room-night charging.
+              </DialogDescription>
+            </DialogHeader>
+            {sheetOk ? (
+              <p className="rounded-md border bg-muted/30 px-2.5 py-1.5 text-xs text-muted-foreground">
+                Sheet package nightly{" "}
+                <span className="font-medium text-foreground tabular-nums">
+                  {sheetOk.systemNightlyTotalBtn != null
+                    ? formatGuestBtn(sheetOk.systemNightlyTotalBtn)
+                    : "—"}
+                </span>
+                {sheetOk.nights ? ` · ${sheetOk.nights}n` : ""}
+                {sheetOk.seasonKind ? ` · ${sheetOk.seasonKind}` : ""}
+              </p>
+            ) : null}
+            <AgreedRateForm
+              bookingId={summary.bookingId}
+              currentRateBtn={summary.agreedNightlyRateBtn}
+              currentReason={summary.agreedRateReason}
+              mealPlanCode={
+                draft?.mealPlanCode ?? summary.mealPlanCode
+              }
+              roomLabel={summary.roomLabel}
+              compact
+              onSuccess={() => {
+                setRailRateOpen(false);
+                void refreshSummary();
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      ) : null}
+
+      {/* Nested print dialog removed — PostCheckInRegPanel runs in work pane */}
     </>
   );
 }
@@ -2012,6 +2417,7 @@ function GuestIdentityFields({
   catalogLoading,
   salesClaimStatus,
   onUpdate,
+  compactSnapshot = false,
 }: {
   draft: Draft;
   agents: CalendarAgent[];
@@ -2020,6 +2426,8 @@ function GuestIdentityFields({
   catalogLoading: boolean;
   salesClaimStatus?: string | null;
   onUpdate: <K extends keyof Draft>(key: K, value: Draft[K]) => void;
+  /** Check-in Guest tab: contact + booking context; ID docs live in CheckInForm. */
+  compactSnapshot?: boolean;
 }) {
   const needsAgent = draft.source === "agent" || draft.source === "mou_agent";
   const mealOptions =
@@ -2028,11 +2436,16 @@ function GuestIdentityFields({
       : [{ code: "EP", name: "Room only", blurb: null, amountPerAdultNight: null, amountPerChildNight: null }];
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div
+      className={cn(
+        "grid gap-2",
+        compactSnapshot ? "sm:grid-cols-3" : "sm:grid-cols-2",
+      )}
+    >
       <Field label="Guest / lead name" id="hub_contact_name">
         <Input
           id="hub_contact_name"
-          className="min-h-11 sm:min-h-9"
+          className={denseInputClass}
           value={draft.contactName}
           onChange={(e) => onUpdate("contactName", e.target.value)}
         />
@@ -2040,12 +2453,12 @@ function GuestIdentityFields({
       <Field label="Phone" id="hub_contact_phone">
         <Input
           id="hub_contact_phone"
-          className="min-h-11 sm:min-h-9"
+          className={denseInputClass}
           disabled={draft.phoneLater}
           value={draft.phoneLater ? "" : draft.contactPhone}
           onChange={(e) => onUpdate("contactPhone", e.target.value)}
         />
-        <label className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
+        <label className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
           <input
             type="checkbox"
             checked={draft.phoneLater}
@@ -2056,17 +2469,44 @@ function GuestIdentityFields({
             }}
             className="size-3.5 accent-foreground"
           />
-          Phone later — collect before settle
+          Phone later
         </label>
       </Field>
-      <Field label="Email" id="hub_contact_email">
-        <Input
-          id="hub_contact_email"
-          type="email"
-          className="min-h-11 sm:min-h-9"
-          value={draft.contactEmail}
-          onChange={(e) => onUpdate("contactEmail", e.target.value)}
-        />
+      {!compactSnapshot ? (
+        <Field label="Email" id="hub_contact_email">
+          <Input
+            id="hub_contact_email"
+            type="email"
+            className={denseInputClass}
+            value={draft.contactEmail}
+            onChange={(e) => onUpdate("contactEmail", e.target.value)}
+          />
+        </Field>
+      ) : null}
+      <Field label="Occupancy" id="hub_occupancy">
+        <select
+          id="hub_occupancy"
+          value={
+            Math.max(1, Number(draft.adults) || 1) === 1 ? "single" : "double"
+          }
+          onChange={(e) => {
+            if (e.target.value === "single") {
+              onUpdate("adults", "1");
+            } else {
+              const n = Math.max(1, Number(draft.adults) || 1);
+              onUpdate("adults", String(n < 2 ? 2 : n));
+            }
+          }}
+          className={selectClass}
+        >
+          <option value="single">Single</option>
+          <option value="double">Double</option>
+        </select>
+        {!compactSnapshot ? (
+          <p className="mt-0.5 text-[10px] text-muted-foreground">
+            Room sheet rate. Adults below is headcount for meals.
+          </p>
+        ) : null}
       </Field>
       <Field label="Adults" id="hub_adults">
         <Input
@@ -2074,33 +2514,51 @@ function GuestIdentityFields({
           type="number"
           min={1}
           max={48}
-          className="min-h-11 sm:min-h-9"
+          className={denseInputClass}
           value={draft.adults}
-          onChange={(e) => onUpdate("adults", e.target.value)}
+          onChange={(e) => {
+            onUpdate("adults", e.target.value);
+          }}
         />
       </Field>
-      <Field label="Children" id="hub_children">
-        <Input
-          id="hub_children"
-          type="number"
-          min={0}
-          max={24}
-          className="min-h-11 sm:min-h-9"
-          value={draft.children}
-          onChange={(e) => onUpdate("children", e.target.value)}
-        />
-      </Field>
-      <Field label="Extra beds" id="hub_extra_beds">
-        <Input
-          id="hub_extra_beds"
-          type="number"
-          min={0}
-          max={8}
-          className="min-h-11 sm:min-h-9"
-          value={draft.extraBeds}
-          onChange={(e) => onUpdate("extraBeds", e.target.value)}
-        />
-      </Field>
+      {!compactSnapshot ? (
+        <>
+          <Field label="Children" id="hub_children">
+            <Input
+              id="hub_children"
+              type="number"
+              min={0}
+              max={24}
+              className={denseInputClass}
+              value={draft.children}
+              onChange={(e) => onUpdate("children", e.target.value)}
+            />
+          </Field>
+          <Field label="Extra beds" id="hub_extra_beds">
+            <Input
+              id="hub_extra_beds"
+              type="number"
+              min={0}
+              max={8}
+              className={denseInputClass}
+              value={draft.extraBeds}
+              onChange={(e) => onUpdate("extraBeds", e.target.value)}
+            />
+          </Field>
+        </>
+      ) : (
+        <Field label="Children" id="hub_children">
+          <Input
+            id="hub_children"
+            type="number"
+            min={0}
+            max={24}
+            className={denseInputClass}
+            value={draft.children}
+            onChange={(e) => onUpdate("children", e.target.value)}
+          />
+        </Field>
+      )}
       <Field label="Meal package" id="hub_meal">
         <select
           id="hub_meal"
@@ -2111,31 +2569,30 @@ function GuestIdentityFields({
           {mealOptions.map((m) => (
             <option key={m.code} value={m.code}>
               {m.code} · {m.name}
-              {m.amountPerAdultNight != null
+              {!compactSnapshot && m.amountPerAdultNight != null
                 ? ` (+Nu ${m.amountPerAdultNight}/adult·night meal)`
-                : m.code === "EP"
+                : !compactSnapshot && m.code === "EP"
                   ? " (room only)"
                   : ""}
             </option>
           ))}
         </select>
-        <p className="mt-1 text-[11px] text-muted-foreground">
-          EP / CP / MAP etc. — sheet room rate + meal addon. See Details → Rate.
-        </p>
+        {!compactSnapshot ? (
+          <p className="mt-0.5 text-[10px] text-muted-foreground">
+            EP / CP / MAP — sheet room + meal. Details → Rate for totals.
+          </p>
+        ) : null}
       </Field>
-      <Field label="Guide #" id="hub_guide">
-        <Input
-          id="hub_guide"
-          className="min-h-11 sm:min-h-9"
-          value={draft.guideNumber}
-          onChange={(e) => onUpdate("guideNumber", e.target.value)}
-        />
-      </Field>
-      <Field label="Guest origin (passport / SDF)" id="hub_origin">
+      <Field label="Guest origin" id="hub_origin">
         <select
           id="hub_origin"
           value={draft.guestOrigin}
-          onChange={(e) => onUpdate("guestOrigin", e.target.value)}
+          onChange={(e) => {
+            onUpdate("guestOrigin", e.target.value);
+            if (e.target.value !== "international") {
+              onUpdate("guideNumber", "");
+            }
+          }}
           className={selectClass}
         >
           <option value="international">International</option>
@@ -2143,12 +2600,23 @@ function GuestIdentityFields({
           <option value="official">Official</option>
           <option value="local">Local</option>
         </select>
-        {draft.guestOrigin === "international" ? (
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            Guide # required. Agent attach is under Booked by → Agent (not origin).
-          </p>
-        ) : null}
       </Field>
+      {draft.guestOrigin === "international" ? (
+        <Field label="Guide #" id="hub_guide">
+          <Input
+            id="hub_guide"
+            className={cn(denseInputClass, "font-mono")}
+            value={draft.guideNumber}
+            onChange={(e) => onUpdate("guideNumber", e.target.value)}
+            placeholder="Required for international"
+          />
+          {!compactSnapshot ? (
+            <p className="mt-0.5 text-[10px] text-muted-foreground">
+              Guide # required. Agent is under Booked by (not origin).
+            </p>
+          ) : null}
+        </Field>
+      ) : null}
       <Field label="Booked by" id="hub_source">
         <select
           id="hub_source"
@@ -2167,17 +2635,22 @@ function GuestIdentityFields({
           <option value="agent">Agent</option>
           <option value="mou_agent">MoU agent</option>
         </select>
+        {compactSnapshot ? (
+          <p className="mt-0.5 text-[10px] text-muted-foreground">
+            Channel only — staff name is Sold by.
+          </p>
+        ) : null}
       </Field>
       <Field
         label={needsAgent ? "Agent (required)" : "Agent (optional)"}
         id="hub_agent"
       >
         {catalogLoading && agents.length === 0 ? (
-          <p className="rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+          <p className="rounded-md border bg-muted/20 px-2 py-1.5 text-[11px] text-muted-foreground">
             Loading agents…
           </p>
         ) : agents.length === 0 ? (
-          <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs">
+          <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-[11px]">
             No agents in directory. Add under Agents or use Add agent in picker.
           </p>
         ) : (
@@ -2185,18 +2658,18 @@ function GuestIdentityFields({
             agents={agents}
             value={draft.agentId}
             onValueChange={(next) => onUpdate("agentId", next)}
-            className="bg-background min-h-11 sm:min-h-9"
+            className={cn("bg-background", denseInputClass)}
           />
         )}
         {needsAgent && !draft.agentId ? (
-          <p className="mt-1 text-[11px] text-amber-800 dark:text-amber-200">
+          <p className="mt-0.5 text-[10px] text-amber-800 dark:text-amber-200">
             Select agent for agent / MoU bookings.
           </p>
         ) : null}
       </Field>
       <Field label="Sold by (staff)" id="hub_sold_by">
         {catalogLoading && staff.length === 0 ? (
-          <p className="rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+          <p className="rounded-md border bg-muted/20 px-2 py-1.5 text-[11px] text-muted-foreground">
             Loading staff…
           </p>
         ) : (
@@ -2204,34 +2677,38 @@ function GuestIdentityFields({
             staff={staff}
             value={draft.soldByStaffId}
             onValueChange={(next) => onUpdate("soldByStaffId", next)}
-            className="bg-background min-h-11 sm:min-h-9"
+            className={cn("bg-background", denseInputClass)}
             disabled={salesClaimStatus === "approved"}
           />
         )}
         {salesClaimStatus ? (
-          <p className="mt-1 text-[11px] text-muted-foreground capitalize">
+          <p className="mt-0.5 text-[10px] text-muted-foreground capitalize">
             Claim: {salesClaimStatus}
             {salesClaimStatus === "approved"
               ? " · clear only via Owner/GM reject"
               : ""}
           </p>
         ) : (
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            Incentive credit — Owner/GM approves on Sales claims.
+          <p className="mt-0.5 text-[10px] text-muted-foreground">
+            {compactSnapshot
+              ? "Who brought / sold this stay (desk staff name)."
+              : "Incentive credit — Owner/GM approves on Sales claims."}
           </p>
         )}
       </Field>
-      <div className="sm:col-span-2">
-        <Field label="Notes" id="hub_notes">
-          <Textarea
-            id="hub_notes"
-            rows={3}
-            value={draft.notes}
-            onChange={(e) => onUpdate("notes", e.target.value)}
-            className="min-h-[4.5rem] resize-y"
-          />
-        </Field>
-      </div>
+      {!compactSnapshot ? (
+        <div className="sm:col-span-2">
+          <Field label="Notes" id="hub_notes">
+            <Textarea
+              id="hub_notes"
+              rows={2}
+              value={draft.notes}
+              onChange={(e) => onUpdate("notes", e.target.value)}
+              className="min-h-[2.75rem] resize-y text-sm"
+            />
+          </Field>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -2428,13 +2905,13 @@ function StayDatesAndSplit({
   startTransition: (fn: () => void) => void;
 }) {
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <div className="space-y-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
         <Field label="Check-in" id="hub_ci">
           <Input
             id="hub_ci"
             type="date"
-            className="min-h-11 sm:min-h-9"
+            className={denseInputClass}
             value={checkIn}
             onChange={(e) => setCheckIn(e.target.value)}
           />
@@ -2443,52 +2920,52 @@ function StayDatesAndSplit({
           <Input
             id="hub_co"
             type="date"
-            className="min-h-11 sm:min-h-9"
+            className={denseInputClass}
             value={checkOut}
             onChange={(e) => setCheckOut(e.target.value)}
           />
         </Field>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-8 px-3 text-xs"
+          disabled={busy || summary.isLocked}
+          onClick={() => {
+            if (!summary.assignmentId) return;
+            startTransition(async () => {
+              const result = await resizeCalendarAssignment(
+                summary.assignmentId!,
+                checkIn,
+                checkOut,
+              );
+              if (result.ok) {
+                toast.success(result.message ?? "Dates updated");
+                onRefresh();
+              } else {
+                toast.error(result.error ?? "Could not update dates");
+                onMessage(result.error ?? null);
+              }
+            });
+          }}
+        >
+          Apply dates
+        </Button>
       </div>
-      <Button
-        type="button"
-        variant="outline"
-        className="min-h-11"
-        disabled={busy || summary.isLocked}
-        onClick={() => {
-          if (!summary.assignmentId) return;
-          startTransition(async () => {
-            const result = await resizeCalendarAssignment(
-              summary.assignmentId!,
-              checkIn,
-              checkOut,
-            );
-            if (result.ok) {
-              toast.success(result.message ?? "Dates updated");
-              onRefresh();
-            } else {
-              toast.error(result.error ?? "Could not update dates");
-              onMessage(result.error ?? null);
-            }
-          });
-        }}
-      >
-        Apply dates now
-      </Button>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-[10px] text-muted-foreground">
         Dates also auto-save shortly after you change them.
       </p>
 
       {sameTypeUnits.length > 0 ? (
-        <div className="space-y-3 border-t pt-3">
-          <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+        <div className="space-y-1.5 border-t border-border/50 pt-2">
+          <p className="text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
             Split remaining nights
           </p>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
             <Field label="Split from date" id="hub_split">
               <Input
                 id="hub_split"
                 type="date"
-                className="min-h-11 sm:min-h-9"
+                className={denseInputClass}
                 min={addDays(summary.checkIn, 1)}
                 max={addDays(summary.checkOut, -1)}
                 value={splitDate}
@@ -2510,27 +2987,27 @@ function StayDatesAndSplit({
                 ))}
               </select>
             </Field>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-8 px-3 text-xs"
+              disabled={busy || summary.isLocked || !splitUnitId}
+              onClick={() => {
+                if (!summary.assignmentId) return;
+                startTransition(async () => {
+                  const result = await splitCalendarAssignment(
+                    summary.assignmentId!,
+                    splitDate,
+                    splitUnitId,
+                  );
+                  onMessage(result.message ?? result.error ?? null);
+                  if (result.ok) onRefresh();
+                });
+              }}
+            >
+              Split stay
+            </Button>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11"
-            disabled={busy || summary.isLocked || !splitUnitId}
-            onClick={() => {
-              if (!summary.assignmentId) return;
-              startTransition(async () => {
-                const result = await splitCalendarAssignment(
-                  summary.assignmentId!,
-                  splitDate,
-                  splitUnitId,
-                );
-                onMessage(result.message ?? result.error ?? null);
-                if (result.ok) onRefresh();
-              });
-            }}
-          >
-            Split stay
-          </Button>
         </div>
       ) : null}
 
@@ -2538,7 +3015,7 @@ function StayDatesAndSplit({
         type="button"
         variant={summary.isLocked ? "outline" : "secondary"}
         disabled={busy}
-        className="min-h-11 gap-2"
+        className="h-8 gap-1.5 px-3 text-xs"
         onClick={() => {
           if (onToggleLock && seedStay) {
             onToggleLock(seedStay);
@@ -2555,9 +3032,9 @@ function StayDatesAndSplit({
         }}
       >
         {summary.isLocked ? (
-          <UnlockIcon className="size-4" />
+          <UnlockIcon className="size-3.5" />
         ) : (
-          <LockIcon className="size-4" />
+          <LockIcon className="size-3.5" />
         )}
         {summary.isLocked ? "Unlock room" : "Lock room assignment"}
       </Button>
@@ -2605,8 +3082,13 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id}>{label}</Label>
+    <div className="space-y-0.5">
+      <Label
+        htmlFor={id}
+        className="text-[10px] font-normal text-muted-foreground"
+      >
+        {label}
+      </Label>
       {children}
     </div>
   );

@@ -190,17 +190,11 @@ export function DeskSettlePanel({
   /** StayHub identity rail already shows agent — denser DueBar. */
   const denseDue = stayPanel === "stay_money";
 
-  // Prefer POS when F&B is present on this stay (once per folio open).
+  // Prefer a clean all-lines ledger on open (FO can filter Room / POS).
   useEffect(() => {
-    if (hasPos || posTotal > 0.5) {
-      setTab("pos");
-    } else if (hasRoom) {
-      setTab("room");
-    } else {
-      setTab("all");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only remount default when folio/hasPos flips
-  }, [folioId, hasPos]);
+    setTab("all");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per folio
+  }, [folioId]);
 
   function openSettle(opts?: {
     amount?: number;
@@ -318,17 +312,19 @@ export function DeskSettlePanel({
 
   return (
     <div className="space-y-1.5">
+      {/* Dense StayHub: due+settle live on left rail + footer — skip duplicate bar CTA */}
       <DueBar
         dense={denseDue}
+        hideCta={denseDue}
         dues={dues}
         roomTotal={roomTotal}
         posTotal={posTotal}
         agentName={denseDue ? null : money?.agentName}
         paymentMode={paymentMode}
         agentRoom={agentRoom}
-        showCollect={showCollect && showBill}
+        showCollect={showCollect && showBill && !denseDue}
         onCollect={
-          showCollect && showBill
+          showCollect && showBill && !denseDue
             ? () => {
                 openSettle({ amount: guestDue, method: "cash" });
               }
@@ -339,7 +335,7 @@ export function DeskSettlePanel({
             <Button
               asChild
               variant="outline"
-              className="min-h-9 h-9 px-2.5 text-xs"
+              className="min-h-8 h-8 px-2.5 text-xs"
             >
               <Link
                 href={`/erp/invoices/${money.invoiceDocId}/print?bill=master`}
@@ -357,13 +353,11 @@ export function DeskSettlePanel({
         <button
           type="button"
           onClick={() => setTab("pos")}
-          className="flex w-full items-center justify-between gap-2 rounded-md border border-sky-500/30 bg-sky-500/5 px-2 py-1.5 text-left text-xs transition-colors hover:bg-sky-500/10"
+          className="flex w-full items-center justify-between gap-2 rounded-md border border-border/80 bg-muted/20 px-2 py-1 text-left text-[11px] transition-colors hover:bg-muted/40"
         >
-          <span className="font-medium text-foreground">
-            POS / F&amp;B also on this stay
-          </span>
+          <span className="font-medium text-foreground">POS / F&amp;B also posted</span>
           <span className="tabular-nums text-muted-foreground">
-            {formatGuestBtn(posTotal)} · open section
+            {formatGuestBtn(posTotal)}
           </span>
         </button>
       ) : null}
@@ -421,14 +415,13 @@ export function DeskSettlePanel({
 
       {showBill ? (
         <>
-          {/* Day-1 — only when no charges yet */}
           {!money?.hasCharges ? (
             <div ref={postChargesAnchorRef as RefObject<HTMLDivElement>}>
-              <details className="group rounded-md border bg-muted/15" open>
-                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-1.5 text-xs font-medium select-none [&::-webkit-details-marker]:hidden">
+              <details className="group rounded-md border bg-muted/15">
+                <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-1.5 text-xs font-medium select-none [&::-webkit-details-marker]:hidden">
                   <span>Day-1 room charges</span>
-                  <span className="text-[10px] text-muted-foreground group-open:hidden">
-                    Expand
+                  <span className="text-[10px] text-muted-foreground">
+                    Post
                   </span>
                 </summary>
                 <div className="border-t px-2.5 py-2">
@@ -443,23 +436,22 @@ export function DeskSettlePanel({
 
           {showSplitTabs ? (
             <div
-              className="flex gap-0.5 rounded-md border bg-muted/30 p-0.5"
+              className="flex gap-0.5 rounded-md border bg-muted/25 p-0.5"
               role="tablist"
               aria-label="Bill sections"
             >
               {(
                 [
-                  {
-                    id: "all" as const,
-                    label: "All",
-                  },
+                  { id: "all" as const, label: "All" },
                   {
                     id: "room" as const,
-                    label: `Room ${formatGuestBtn(roomTotal)}`,
+                    label: "Room",
+                    hint: formatGuestBtn(roomTotal),
                   },
                   {
                     id: "pos" as const,
-                    label: `POS ${formatGuestBtn(posTotal)}`,
+                    label: "POS",
+                    hint: formatGuestBtn(posTotal),
                   },
                 ] as const
               ).map((t) => (
@@ -470,19 +462,26 @@ export function DeskSettlePanel({
                   aria-selected={tab === t.id}
                   onClick={() => setTab(t.id)}
                   className={cn(
-                    "min-h-9 flex-1 rounded px-2 text-xs font-medium transition-colors",
+                    "min-h-8 flex-1 rounded px-1.5 text-[11px] font-medium transition-colors",
                     tab === t.id
                       ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {t.label}
+                  {"hint" in t && t.hint ? (
+                    <span className="ml-1 tabular-nums text-muted-foreground opacity-80">
+                      {t.hint}
+                    </span>
+                  ) : null}
                 </button>
               ))}
             </div>
           ) : null}
 
-          {(tab === "pos" || tab === "all") ? (
+          {(tab === "pos" || tab === "all") &&
+          (hasPos || posTotal > 0.5) &&
+          agentId ? (
             <PosPayorStrip
               folioId={folioId}
               hasPos={hasPos}
@@ -517,6 +516,7 @@ export function DeskSettlePanel({
                     : "No lines yet."
               }
               onVoided={onMoneyChanged}
+              compact
             />
           ) : (
             <LineList
@@ -527,10 +527,10 @@ export function DeskSettlePanel({
                   : "No F&B charged to room yet."
               }
               onVoided={onMoneyChanged}
+              compact
             />
           )}
 
-          {/* Itemised room-charge tickets — always on POS/All so FO sees what was ordered */}
           {tab === "pos" || tab === "all" ? (
             <FolioRoomPosItemsPanel
               orders={money?.roomPosOrders ?? []}
@@ -676,6 +676,7 @@ function DueBar({
   onCollect,
   invoiceSlot,
   dense = false,
+  hideCta = false,
 }: {
   dues: number;
   roomTotal: number;
@@ -688,6 +689,8 @@ function DueBar({
   invoiceSlot: ReactNode;
   /** Hide agent line; smaller total (agent/due live on left rail). */
   dense?: boolean;
+  /** StayHub: no second Settle — rail + footer own collection. */
+  hideCta?: boolean;
 }) {
   const clear = dues <= 0.5;
   return (
@@ -728,7 +731,7 @@ function DueBar({
         ) : null}
       </div>
       <div className="flex shrink-0 flex-wrap gap-1.5">
-        {showCollect && onCollect ? (
+        {!hideCta && showCollect && onCollect ? (
           <Button
             type="button"
             variant="citrus"
@@ -852,10 +855,12 @@ function LineList({
   lines,
   empty,
   onVoided,
+  compact = false,
 }: {
   lines: NonNullable<StayHubMoneyPayload["lines"]>;
   empty: string;
   onVoided: () => void;
+  compact?: boolean;
 }) {
   if (!lines.length) {
     return (
@@ -863,31 +868,44 @@ function LineList({
     );
   }
   return (
-    <ul className="max-h-[min(10rem,28vh)] divide-y overflow-y-auto rounded-md border">
-      {lines.map((l) => (
-        <li
-          key={l.id}
-          className="flex items-start justify-between gap-2 px-2 py-1"
-        >
-          <div className="min-w-0">
-            <p className="truncate text-xs font-medium">
-              {l.description || l.source_type}
-            </p>
-            <p className="text-[10px] text-muted-foreground">
-              {l.source_type}
-              {l.bill_to === "agent"
-                ? " · agent tab"
-                : l.source_type !== "payment"
-                  ? " · guest"
-                  : ""}
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-col items-end gap-0.5">
-            <p className="tabular-nums text-xs font-medium">
-              {formatGuestBtn(Number(l.total_btn ?? 0))}
-            </p>
-            {l.source_type !== "payment" && Number(l.total_btn ?? 0) > 0 ? (
+    <ul
+      className={cn(
+        "divide-y overflow-y-auto rounded-md border bg-card",
+        compact
+          ? "max-h-[min(22rem,48vh)]"
+          : "max-h-[min(14rem,36vh)]",
+      )}
+    >
+      {lines.map((l) => {
+        const amt = Number(l.total_btn ?? 0);
+        const canVoid = l.source_type !== "payment" && amt > 0;
+        return (
+          <li
+            key={l.id}
+            className="flex flex-col gap-0.5 px-2.5 py-1.5"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[12px] font-medium leading-snug">
+                  {l.description || l.source_type}
+                </p>
+                <p className="text-[10px] capitalize text-muted-foreground">
+                  {(l.source_type ?? "line").replace(/_/g, " ")}
+                  {l.bill_to === "agent" ? " · agent" : ""}
+                </p>
+              </div>
+              <p
+                className={cn(
+                  "shrink-0 tabular-nums text-[12px] font-semibold leading-snug",
+                  amt < 0 && "text-emerald-700 dark:text-emerald-400",
+                )}
+              >
+                {formatGuestBtn(amt)}
+              </p>
+            </div>
+            {canVoid ? (
               <div
+                className="flex justify-end"
                 onSubmitCapture={() => {
                   window.setTimeout(onVoided, 600);
                 }}
@@ -895,12 +913,13 @@ function LineList({
                 <VoidLineButton
                   lineId={l.id}
                   description={l.description ?? undefined}
+                  collapsed={compact}
                 />
               </div>
             ) : null}
-          </div>
-        </li>
-      ))}
+          </li>
+        );
+      })}
     </ul>
   );
 }

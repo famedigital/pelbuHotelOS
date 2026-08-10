@@ -112,6 +112,9 @@ export type StayHubSummary = {
   guideSignStatus: string | null;
   guideSignPhotoPublicId: string | null;
   guideSignWaiveReason: string | null;
+  /** Cloudinary public_id of signed guest reg card (post CI). */
+  regCardPhotoPublicId: string | null;
+  regCardSignedAt: string | null;
   confirmMode: string;
   advanceStatus: string;
   advanceDueBtn: number | null;
@@ -138,6 +141,7 @@ export async function fetchStayHubSummary(
       booked_by_role, sold_by_staff_id, sales_claim_status, meal_plan_code,
       agreed_nightly_rate_btn, agreed_rate_reason,
       guide_sign_status, guide_sign_photo_public_id, guide_sign_waive_reason,
+      reg_card_photo_public_id, reg_card_signed_at,
       confirm_mode, advance_status, advance_due_btn,
       agents(company_name, contact_email, status, market),
       sold_by_staff:staff_members!sold_by_staff_id(full_name),
@@ -320,6 +324,9 @@ export async function fetchStayHubSummary(
         (data.guide_sign_photo_public_id as string | null) ?? null,
       guideSignWaiveReason:
         (data.guide_sign_waive_reason as string | null) ?? null,
+      regCardPhotoPublicId:
+        (data.reg_card_photo_public_id as string | null) ?? null,
+      regCardSignedAt: (data.reg_card_signed_at as string | null) ?? null,
       confirmMode: (data.confirm_mode as string | null) ?? "soft",
       advanceStatus: (data.advance_status as string | null) ?? "none",
       advanceDueBtn:
@@ -1045,6 +1052,7 @@ export async function previewStayHubSheetRate(input: {
         roomTypeId,
         seasonKind: season,
         rateTier: tier,
+        occupancy: adults === 1 ? "single" : "double",
         adults,
       });
       if (sheet != null) {

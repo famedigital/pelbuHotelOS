@@ -280,10 +280,10 @@ function DrawerBody({
                 <SelectValue placeholder="Select payment" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="on_credit">On credit</SelectItem>
-                <SelectItem value="cash">Cash</SelectItem>
-                <SelectItem value="prepaid">Prepaid</SelectItem>
-                <SelectItem value="partial">Partial</SelectItem>
+                <SelectItem value="cash">Pay at checkout</SelectItem>
+                <SelectItem value="prepaid">Prepaid (already paid)</SelectItem>
+                <SelectItem value="partial">Partial / deposit</SelectItem>
+                <SelectItem value="on_credit">On credit (agent)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -293,7 +293,7 @@ function DrawerBody({
               onPromoted={onPromoted}
               onUseCash={() => {
                 setPaymentMode("cash");
-                toast.message("Payment set to cash");
+                toast.message("Payment set to pay at checkout");
               }}
             />
           ) : null}

@@ -24,7 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 const channelInitial: ErpChannelState = { ok: false };
 const holdInitial: HoldActionState = { ok: false };
@@ -34,18 +34,33 @@ const fieldXs =
 const selectXs =
   "min-h-9 rounded-md border border-input bg-transparent px-2 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer";
 
+function useActionSuccess(state: { ok?: boolean }, onSuccess?: () => void) {
+  const fired = useRef(false);
+  useEffect(() => {
+    if (!state.ok || fired.current) return;
+    fired.current = true;
+    onSuccess?.();
+  }, [state.ok, onSuccess]);
+}
+
 export function BookingLifecycleActions({
   bookingId,
   status,
   tokenRequired,
   cancelPolicySummary,
   isMouAgent,
+  onSuccess,
+  compact = false,
 }: {
   bookingId: string;
   status: string;
   tokenRequired?: number;
   cancelPolicySummary?: string;
   isMouAgent?: boolean;
+  /** After token confirm / cancel / no-show etc. — host refreshes stay summary. */
+  onSuccess?: () => void;
+  /** Check-in More: tighter cancel / no-show row */
+  compact?: boolean;
 }) {
   const canCancel = ["pending", "held", "confirmed", "checked_in"].includes(
     status,
@@ -57,23 +72,35 @@ export function BookingLifecycleActions({
   if (!canCancel && !canNoShow && !canConfirmToken) return null;
 
   return (
-    <div className="erp mt-2 flex flex-col gap-2">
+    <div
+      className={
+        compact
+          ? "erp flex flex-col gap-1.5"
+          : "erp mt-2 flex flex-col gap-2"
+      }
+    >
       {canConfirmToken ? (
         <ConfirmTokenForm
           bookingId={bookingId}
           tokenRequired={tokenRequired ?? 0}
+          onSuccess={onSuccess}
         />
       ) : null}
-      {canExtend ? <ExtendHoldForm bookingId={bookingId} /> : null}
-      <div className="flex flex-wrap gap-3">
+      {canExtend ? (
+        <ExtendHoldForm bookingId={bookingId} onSuccess={onSuccess} />
+      ) : null}
+      <div className={compact ? "flex flex-wrap gap-2" : "flex flex-wrap gap-3"}>
         {canCancel ? (
           <CancelForm
             bookingId={bookingId}
             cancelPolicySummary={cancelPolicySummary}
             isMouAgent={isMouAgent}
+            onSuccess={onSuccess}
           />
         ) : null}
-        {canNoShow ? <NoShowForm bookingId={bookingId} /> : null}
+        {canNoShow ? (
+          <NoShowForm bookingId={bookingId} onSuccess={onSuccess} />
+        ) : null}
       </div>
     </div>
   );
@@ -82,15 +109,18 @@ export function BookingLifecycleActions({
 function ConfirmTokenForm({
   bookingId,
   tokenRequired,
+  onSuccess,
 }: {
   bookingId: string;
   tokenRequired: number;
+  onSuccess?: () => void;
 }) {
   const [state, action, pending] = useActionState(
     confirmBookingToken,
     holdInitial,
   );
   useActionToast(state, { successMessage: "Token confirmed" });
+  useActionSuccess(state, onSuccess);
   return (
     <form action={action} className="flex flex-wrap items-end gap-2">
       <input type="hidden" name="booking_id" value={bookingId} />
@@ -146,12 +176,19 @@ function ConfirmTokenForm({
   );
 }
 
-function ExtendHoldForm({ bookingId }: { bookingId: string }) {
+function ExtendHoldForm({
+  bookingId,
+  onSuccess,
+}: {
+  bookingId: string;
+  onSuccess?: () => void;
+}) {
   const [state, action, pending] = useActionState(
     extendBookingHold,
     holdInitial,
   );
   useActionToast(state, { successMessage: "Hold extended" });
+  useActionSuccess(state, onSuccess);
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="booking_id" value={bookingId} />
@@ -183,13 +220,16 @@ function CancelForm({
   bookingId,
   cancelPolicySummary,
   isMouAgent,
+  onSuccess,
 }: {
   bookingId: string;
   cancelPolicySummary?: string;
   isMouAgent?: boolean;
+  onSuccess?: () => void;
 }) {
   const [state, action, pending] = useActionState(cancelBooking, channelInitial);
   useActionToast(state, { successMessage: "Booking cancelled" });
+  useActionSuccess(state, onSuccess);
   const [open, setOpen] = useState(false);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -267,12 +307,19 @@ function CancelForm({
   );
 }
 
-function NoShowForm({ bookingId }: { bookingId: string }) {
+function NoShowForm({
+  bookingId,
+  onSuccess,
+}: {
+  bookingId: string;
+  onSuccess?: () => void;
+}) {
   const [state, action, pending] = useActionState(
     markBookingNoShow,
     channelInitial,
   );
   useActionToast(state, { successMessage: "Marked as no-show" });
+  useActionSuccess(state, onSuccess);
   const [open, setOpen] = useState(false);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
