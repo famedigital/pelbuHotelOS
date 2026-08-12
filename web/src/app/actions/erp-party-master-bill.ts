@@ -31,6 +31,7 @@ export type PartyMasterBill = {
 };
 
 type Line = {
+  id: string;
   total_btn?: number | null;
   status?: string | null;
   reverses_line_id?: string | null;
@@ -38,12 +39,19 @@ type Line = {
 };
 
 function lineTotals(lines: Line[]) {
-  const balance = netFolioBalance(lines);
+  const balance = netFolioBalance(
+    lines.map((l) => ({
+      id: l.id,
+      status: l.status ?? "posted",
+      total_btn: Number(l.total_btn ?? 0),
+      reverses_line_id: l.reverses_line_id ?? null,
+    })),
+  );
   let charges = 0;
   let paid = 0;
   let pos = 0;
   for (const l of lines) {
-    if (l.status === "void" || l.reverses_line_id) continue;
+    if (l.status === "voided" || l.reverses_line_id) continue;
     const amt = Number(l.total_btn ?? 0);
     const src = (l.source_type ?? "").toLowerCase();
     if (src === "payment" || amt < 0) {
@@ -214,7 +222,7 @@ export async function fetchPartyMasterBill(
     const { data: folios } = await admin
       .from("folios")
       .select(
-        "id, booking_id, folio_lines(total_btn, status, reverses_line_id, source_type)",
+        "id, booking_id, folio_lines(id, total_btn, status, reverses_line_id, source_type)",
       )
       .eq("property_id", propertyId)
       .eq("status", "open")
