@@ -27,12 +27,15 @@ import {
   type CalendarSelectedUnit,
 } from "@/components/erp/CalendarReservationDialog";
 import { FastBookDialog } from "@/components/erp/FastBookDialog";
+import { RackPartySelectionBar } from "@/components/erp/RackPartySelectionBar";
+import { RackStayNotesDialog } from "@/components/erp/RackStayNotesDialog";
 import type { FastBookRoomType } from "@/components/erp/FastBookForm";
 import type { BookableStaff } from "@/components/erp/StaffPicker";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -48,6 +51,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { mergeBookingsIntoGroup } from "@/app/actions/erp-reservations-party";
 import {
   BanIcon,
   MoreHorizontalIcon,
@@ -59,6 +63,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { toast } from "sonner";
 import {
   useCallback,
   useDeferredValue,
@@ -67,6 +72,7 @@ import {
   useRef,
   useState,
   useTransition,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
@@ -573,12 +579,16 @@ function StayHoverCard({
   stay,
   today,
   suppressed,
+  selected,
   onOpenDetail,
+  onSelectClick,
 }: {
   stay: RackStay;
   today: string;
   suppressed: boolean;
+  selected?: boolean;
   onOpenDetail: () => void;
+  onSelectClick?: (e: ReactMouseEvent) => void;
 }) {
   const nights = nightsBetween(stay.check_in, stay.check_out);
   const overdueDeparture =
@@ -602,17 +612,27 @@ function StayHoverCard({
             "relative flex h-[calc(100%-4px)] w-full flex-col justify-center gap-0.5 overflow-hidden rounded-sm py-0.5 pl-2 pr-1.5 text-left",
             tone.bar,
             tone.dues && "ring-2 ring-inset ring-violet-300/90",
+            selected && "ring-2 ring-accent ring-offset-1 ring-offset-background",
           )}
           title={
             [
               tone.lifeLabel,
               overdueDeparture ? "Departure due — still checked in" : null,
               tone.dues ? "Open folio balance / dues" : null,
+              selected ? "Selected for party link" : null,
             ]
               .filter(Boolean)
               .join(" · ") || undefined
           }
-          onClick={onOpenDetail}
+          onClick={(e) => {
+            if (onSelectClick && (e.metaKey || e.ctrlKey || e.shiftKey)) {
+              e.preventDefault();
+              e.stopPropagation();
+              onSelectClick(e);
+              return;
+            }
+            onOpenDetail();
+          }}
         >
           <span
             aria-hidden
@@ -931,6 +951,12 @@ export function RoomRackGrid({
   const [assignMessage, setAssignMessage] = useState<string | null>(null);
   const [assigning, startAssigning] = useTransition();
   const [selectedStayId, setSelectedStayId] = useState<string | null>(null);
+  const [selectedBookingIds, setSelectedBookingIds] = useState<string[]>([]);
+  const [lastSelectedBookingId, setLastSelectedBookingId] = useState<
+    string | null
+  >(null);
+  const [partySelectMode, setPartySelectMode] = useState(false);
+  const [notesStay, setNotesStay] = useState<RackStay | null>(null);
   const [contextStayId, setContextStayId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearch = useDeferredValue(searchQuery.trim().toLowerCase());
@@ -963,6 +989,17 @@ export function RoomRackGrid({
     }
     return Array.from(map.values());
   }, [units]);
+
+  const rackCleanUnits = useMemo(
+    () =>
+      units.map((u) => ({
+        id: u.id,
+        label: u.label,
+        roomTypeId: u.room_type_id,
+        hkStatus: (u.hk_status ?? "clean") as string,
+      })),
+    [units],
+  );
 
   const deskBookDefaults = useMemo(() => {
     if (!selection) return undefined;
@@ -1006,6 +1043,127 @@ export function RoomRackGrid({
       }
     },
     [stayHub, agents, staff, units, stays],
+  );
+
+  const bookingOrderIds = useMemo(() => {
+    const seen = new Set<string>();
+    const ordered: string[] = [];
+    const sorted = [...stays].sort((a, b) => {
+      const ra = a.room_label.localeCompare(b.room_label, undefined, {
+        numeric: true,
+      });
+      if (ra !== 0) return ra;
+      return a.check_in.localeCompare(b.check_in);
+    });
+    for (const s of sorted) {
+      if (seen.has(s.booking_id)) continue;
+      seen.add(s.booking_id);
+      ordered.push(s.booking_id);
+    }
+    return ordered;
+  }, [stays]);
+
+  const clearPartySelection = useCallback(() => {
+    setSelectedBookingIds([]);
+    setLastSelectedBookingId(null);
+  }, []);
+
+  const togglePartyBooking = useCallback((bookingId: string) => {
+    setSelectedBookingIds((prev) => {
+      if (prev.includes(bookingId)) {
+        return prev.filter((id) => id !== bookingId);
+      }
+      return [...prev, bookingId];
+    });
+    setLastSelectedBookingId(bookingId);
+  }, []);
+
+  const selectPartyRange = useCallback(
+    (toBookingId: string) => {
+      const fromId = lastSelectedBookingId ?? toBookingId;
+      const i0 = bookingOrderIds.indexOf(fromId);
+      const i1 = bookingOrderIds.indexOf(toBookingId);
+      if (i0 < 0 || i1 < 0) {
+        setSelectedBookingIds([toBookingId]);
+        setLastSelectedBookingId(toBookingId);
+        return;
+      }
+      const lo = Math.min(i0, i1);
+      const hi = Math.max(i0, i1);
+      const range = bookingOrderIds.slice(lo, hi + 1);
+      setSelectedBookingIds((prev) => [
+        ...new Set([...prev, ...range]),
+      ]);
+      setLastSelectedBookingId(toBookingId);
+    },
+    [bookingOrderIds, lastSelectedBookingId],
+  );
+
+  const handleStaySelectClick = useCallback(
+    (stay: RackStay, e: ReactMouseEvent) => {
+      if (e.shiftKey) {
+        selectPartyRange(stay.booking_id);
+        return;
+      }
+      togglePartyBooking(stay.booking_id);
+    },
+    [selectPartyRange, togglePartyBooking],
+  );
+
+  const handleStayPrimaryClick = useCallback(
+    (stay: RackStay) => {
+      if (partySelectMode) {
+        togglePartyBooking(stay.booking_id);
+        return;
+      }
+      setSelectedBookingIds([stay.booking_id]);
+      setLastSelectedBookingId(stay.booking_id);
+      openStay(stay);
+    },
+    [openStay, partySelectMode, togglePartyBooking],
+  );
+
+  const openPartyFromSelection = useCallback(() => {
+    const firstId = selectedBookingIds[0];
+    if (!firstId) return;
+    const stay =
+      stays.find((s) => s.booking_id === firstId) ??
+      stays.find((s) => s.id === selectedStayId);
+    if (stay) {
+      openStay(stay);
+      if (selectedBookingIds.length > 1) {
+        toast.message(
+          `Party: ${selectedBookingIds.length} rooms — use room chips in StayHub to switch.`,
+        );
+      }
+    }
+  }, [openStay, selectedBookingIds, selectedStayId, stays]);
+
+  const linkContextSelection = useCallback(
+    (anchorBookingId: string) => {
+      const ids =
+        selectedBookingIds.length >= 2 &&
+        selectedBookingIds.includes(anchorBookingId)
+          ? selectedBookingIds
+          : selectedBookingIds.length >= 2
+            ? selectedBookingIds
+            : null;
+      if (!ids || ids.length < 2) {
+        toast.error("Select at least two rooms, then Link as group");
+        return;
+      }
+      void (async () => {
+        const result = await mergeBookingsIntoGroup(ids);
+        if (result.ok) {
+          toast.success(result.message ?? "Linked as group");
+          clearPartySelection();
+          router.refresh();
+        } else {
+          toast.error(result.error ?? "Could not link group");
+        }
+      })();
+    },
+    [clearPartySelection, router, selectedBookingIds],
   );
 
   const toggleStayLockRef = useRef<((stay: RackStay) => void) | null>(null);
@@ -1495,6 +1653,8 @@ export function RoomRackGrid({
   ) => {
     if (e.button !== 0) return;
     if (selectedPool) return;
+    // Don't start vacant drag-book while FO is multi-selecting stays.
+    if (e.shiftKey || e.ctrlKey || e.metaKey || partySelectMode) return;
     // No pointer capture here: capturing would send every later pointer event
     // back to this cell, so the rectangle could never grow past one cell.
     e.preventDefault();
@@ -1593,11 +1753,13 @@ export function RoomRackGrid({
         setDraft(null);
         setDragging(false);
         setConflict(null);
+        clearPartySelection();
+        setPartySelectMode(false);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [clearPartySelection]);
 
   const cellSelected = (unitIdx: number, dayIdx: number) => {
     if (!norm) return false;
@@ -1687,6 +1849,7 @@ export function RoomRackGrid({
           roomTypes={deskRoomTypes}
           agents={agents}
           staff={staff}
+          cleanUnits={rackCleanUnits}
           defaultSoldByStaffId={defaultSoldByStaffId}
           mealPlans={mealPlans.map((m) => ({
             code: m.code,
@@ -1980,7 +2143,30 @@ export function RoomRackGrid({
           {draft && !conflict ? (
             <span className="ml-2 text-accent">Drag to select nights…</span>
           ) : null}
+          {partySelectMode ? (
+            <span className="ml-2 text-accent">Select rooms · Link as group</span>
+          ) : null}
         </span>
+        <button
+          type="button"
+          aria-pressed={partySelectMode}
+          title="Tap stays to multi-select, then Link as group (mobile-friendly)"
+          onClick={() => {
+            setPartySelectMode((v) => {
+              const next = !v;
+              if (!next) clearPartySelection();
+              return next;
+            });
+          }}
+          className={cn(
+            "inline-flex h-7 shrink-0 items-center rounded-md border px-2 text-[11px] font-medium",
+            partySelectMode
+              ? "border-accent bg-accent/15 text-accent"
+              : "bg-card text-muted-foreground hover:bg-muted/50",
+          )}
+        >
+          Select
+        </button>
         <span
           className="inline-flex h-7 items-center rounded-md border border-violet-300 bg-violet-50/70 px-2 text-[10px] font-medium text-violet-700 dark:border-violet-800 dark:bg-violet-950/25 dark:text-violet-300"
           title="Click any room number in the frozen left column to create an OOO, OOS, or hold block."
@@ -1989,6 +2175,13 @@ export function RoomRackGrid({
         </span>
         <CalendarLiveRefresh />
       </div>
+
+      <RackPartySelectionBar
+        selectedBookingIds={selectedBookingIds}
+        onClear={clearPartySelection}
+        onOpenParty={openPartyFromSelection}
+        onLinked={() => router.refresh()}
+      />
 
       <div className="flex shrink-0 items-center gap-1.5 border-b bg-muted/20 px-2 py-1">
         <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -2502,6 +2695,8 @@ export function RoomRackGrid({
                               "opacity-20",
                             flashStayId === stay.id &&
                               "z-20 ring-2 ring-accent ring-offset-2",
+                            selectedBookingIds.includes(stay.booking_id) &&
+                              "z-20 ring-2 ring-accent",
                           )}
                           style={{ left: left + 2, width: width - 4 }}
                           onPointerDown={(e) => e.stopPropagation()}
@@ -2509,6 +2704,13 @@ export function RoomRackGrid({
                             e.preventDefault();
                             e.stopPropagation();
                             setContextStayId(stay.id);
+                            if (
+                              !selectedBookingIds.includes(stay.booking_id) &&
+                              selectedBookingIds.length === 0
+                            ) {
+                              setSelectedBookingIds([stay.booking_id]);
+                              setLastSelectedBookingId(stay.booking_id);
+                            }
                           }}
                           draggable={!stay.is_locked}
                           onDragStart={(event) => {
@@ -2544,12 +2746,19 @@ export function RoomRackGrid({
                           <StayHoverCard
                             stay={stay}
                             today={today}
+                            selected={selectedBookingIds.includes(
+                              stay.booking_id,
+                            )}
                             suppressed={
                               dragging ||
                               selectedStayId === stay.id ||
-                              contextStayId === stay.id
+                              contextStayId === stay.id ||
+                              partySelectMode
                             }
-                            onOpenDetail={() => openStay(stay)}
+                            onOpenDetail={() => handleStayPrimaryClick(stay)}
+                            onSelectClick={(e) =>
+                              handleStaySelectClick(stay, e)
+                            }
                           />
                           <DropdownMenu
                             open={contextStayId === stay.id}
@@ -2581,6 +2790,38 @@ export function RoomRackGrid({
                               >
                                 Open stay
                               </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onSelect={() => {
+                                  setContextStayId(null);
+                                  setNotesStay(stay);
+                                }}
+                              >
+                                Edit notes
+                              </DropdownMenuItem>
+                              {selectedBookingIds.length >= 2 ? (
+                                <DropdownMenuItem
+                                  onSelect={() => {
+                                    setContextStayId(null);
+                                    linkContextSelection(stay.booking_id);
+                                  }}
+                                >
+                                  Link as group ({selectedBookingIds.length})
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem
+                                  onSelect={() => {
+                                    setContextStayId(null);
+                                    togglePartyBooking(stay.booking_id);
+                                    setPartySelectMode(true);
+                                    toast.message(
+                                      "Select mode on — tap more rooms, then Link as group",
+                                    );
+                                  }}
+                                >
+                                  Select for party
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator />
                               {stay.status !== "checked_in" &&
                               stay.status !== "checked_out" &&
                               stay.status !== "cancelled" &&
@@ -2743,6 +2984,7 @@ export function RoomRackGrid({
         roomTypes={deskRoomTypes}
         agents={agents}
         staff={staff}
+        cleanUnits={rackCleanUnits}
         defaultSoldByStaffId={defaultSoldByStaffId}
         mealPlans={mealPlans.map((m) => ({
           code: m.code,
@@ -2786,6 +3028,20 @@ export function RoomRackGrid({
         onOpenChange={(nextOpen) => {
           if (!nextOpen) setEditUnit(null);
         }}
+      />
+      <RackStayNotesDialog
+        open={notesStay != null}
+        bookingId={notesStay?.booking_id ?? null}
+        guestLabel={
+          notesStay?.contact_name?.trim() ||
+          notesStay?.room_label ||
+          "Stay"
+        }
+        initialNotes={notesStay?.notes ?? null}
+        onOpenChange={(open) => {
+          if (!open) setNotesStay(null);
+        }}
+        onSaved={() => router.refresh()}
       />
     </div>
   );

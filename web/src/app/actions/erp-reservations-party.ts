@@ -35,6 +35,8 @@ export type RoomingLine = {
   checkOut: string;
   status: string;
   roomsSold: number;
+  adults: number;
+  children: number;
   assignmentId: string | null;
   roomUnitId: string | null;
   roomLabel: string | null;
@@ -51,6 +53,11 @@ export type RoomingListPayload = {
   partyBookingIds: string[];
   groupId: string | null;
   groupName: string | null;
+  /** Party leader / booker (group FO — one name, not per room). */
+  leaderName: string | null;
+  leaderPhone: string | null;
+  totalAdults: number;
+  totalChildren: number;
 };
 
 function revalidatePartySurfaces() {
@@ -58,6 +65,36 @@ function revalidatePartySurfaces() {
   revalidatePath("/erp/group");
   revalidatePath("/erp/calendar");
   revalidatePath("/erp/arrivals");
+}
+
+/** Patch booking notes only (rack right-click Edit notes). */
+export async function updateBookingNotes(
+  bookingId: string,
+  notes: string,
+): Promise<PartyActionState> {
+  try {
+    if (!(await isDeskAuthenticated())) {
+      return { ok: false, error: "Desk session expired. Sign in again." };
+    }
+    const id = bookingId.trim();
+    if (!id) return { ok: false, error: "Booking required." };
+    const admin = createSupabaseAdminClient();
+    const propertyId = await requireDeskPropertyId();
+    const trimmed = notes.trim().slice(0, 2000);
+    const { error } = await admin
+      .from("bookings")
+      .update({ notes: trimmed || null })
+      .eq("id", id)
+      .eq("property_id", propertyId);
+    if (error) throw new Error(error.message);
+    revalidatePartySurfaces();
+    return { ok: true, message: trimmed ? "Notes saved" : "Notes cleared" };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not save notes.",
+    };
+  }
 }
 
 /**
@@ -195,6 +232,16 @@ export async function mergeBookingsIntoGroup(
       meta: { booking_ids: bookings.map((b) => b.id) },
     });
 
+    // Best-effort: attach any open folios under one master (in-house parties).
+    try {
+      const { ensurePartyMasterFolio } = await import(
+        "@/app/actions/erp-party-master-bill"
+      );
+      await ensurePartyMasterFolio(groupId!);
+    } catch {
+      /* pre-arrival parties have no folios yet */
+    }
+
     revalidatePartySurfaces();
     return {
       ok: true,
@@ -255,7 +302,7 @@ export async function fetchRoomingList(
       .from("bookings")
       .select(
         `
-        id, contact_name, contact_phone, check_in, check_out, status, rooms,
+        id, contact_name, contact_phone, check_in, check_out, status, rooms, adults, children,
         booking_rooms(qty, inventory_kind, room_type_id, room_types(name, code)),
         room_assignments(
           id, room_unit_id, from_date, to_date,
@@ -530,23 +577,14 @@ export async function fetchRoomingList(
         openSlots.forEach((slot, idx) => {
           const guest =
             unlinked[idx] ??
-            (idx === 0
-              ? {
-                  id: null as string | null,
-                  fullName: (b.contact_name as string) || "",
-                  phone: (b.contact_phone as string | null) ?? null,
-                  nationality: null as string | null,
-                  passportOrCid: null as string | null,
-                  sortOrder: idx,
-                }
-              : {
-                  id: null,
-                  fullName: "",
-                  phone: null,
-                  nationality: null,
-                  passportOrCid: null,
-                  sortOrder: idx,
-                });
+            ({
+              id: null as string | null,
+              fullName: "",
+              phone: null as string | null,
+              nationality: null as string | null,
+              passportOrCid: null as string | null,
+              sortOrder: idx,
+            } as RoomingGuest);
           lines.push({
             bookingId: b.id as string,
             contactName: (b.contact_name as string | null) ?? null,
@@ -554,6 +592,8 @@ export async function fetchRoomingList(
             checkOut: b.check_out as string,
             status: b.status as string,
             roomsSold,
+            adults: Math.max(0, Number(b.adults ?? 1)),
+            children: Math.max(0, Number(b.children ?? 0)),
             assignmentId: null,
             roomUnitId: null,
             roomLabel: null,
@@ -580,6 +620,8 @@ export async function fetchRoomingList(
             checkOut: b.check_out as string,
             status: b.status as string,
             roomsSold,
+            adults: Math.max(0, Number(b.adults ?? 1)),
+            children: Math.max(0, Number(b.children ?? 0)),
             assignmentId: a.id,
             roomUnitId: a.room_unit_id,
             roomLabel: ru?.label ?? null,
@@ -591,7 +633,7 @@ export async function fetchRoomingList(
                 : [
                     {
                       id: null,
-                      fullName: (b.contact_name as string) || "",
+                      fullName: "",
                       phone: null,
                       nationality: null,
                       passportOrCid: null,
@@ -610,6 +652,8 @@ export async function fetchRoomingList(
             checkOut: b.check_out as string,
             status: b.status as string,
             roomsSold,
+            adults: Math.max(0, Number(b.adults ?? 1)),
+            children: Math.max(0, Number(b.children ?? 0)),
             assignmentId: null,
             roomUnitId: null,
             roomLabel: null,
@@ -630,6 +674,15 @@ export async function fetchRoomingList(
       }
     }
 
+    const totalAdults = bookings.reduce(
+      (n, b) => n + Math.max(0, Number(b.adults ?? 0)),
+      0,
+    );
+    const totalChildren = bookings.reduce(
+      (n, b) => n + Math.max(0, Number(b.children ?? 0)),
+      0,
+    );
+
     return {
       ok: true,
       data: {
@@ -640,6 +693,10 @@ export async function fetchRoomingList(
         partyBookingIds,
         groupId,
         groupName,
+        leaderName: (anchor.contact_name as string | null) ?? null,
+        leaderPhone: (anchor.contact_phone as string | null) ?? null,
+        totalAdults,
+        totalChildren,
       },
     };
   } catch (e) {
@@ -879,6 +936,251 @@ export async function upsertRoomingGuest(input: {
     return {
       ok: false,
       error: e instanceof Error ? e.message : "Could not save guest.",
+    };
+  }
+}
+
+/**
+ * Cancel one party room (confirmed/held/pending only) and drop group membership.
+ * Leaves at least one member in the party.
+ */
+export async function removePartyRoom(
+  bookingId: string,
+): Promise<PartyActionState> {
+  try {
+    if (!(await isDeskAuthenticated())) {
+      return { ok: false, error: "Desk session expired. Sign in again." };
+    }
+    const id = bookingId.trim();
+    if (!id) return { ok: false, error: "Booking required." };
+
+    const admin = createSupabaseAdminClient();
+    const propertyId = await requireDeskPropertyId();
+
+    const { data: membership } = await admin
+      .from("booking_group_members")
+      .select("group_id")
+      .eq("booking_id", id)
+      .maybeSingle();
+    if (!membership?.group_id) {
+      return { ok: false, error: "This room is not in a formal party." };
+    }
+
+    const { data: siblings } = await admin
+      .from("booking_group_members")
+      .select("booking_id")
+      .eq("group_id", membership.group_id as string);
+    if ((siblings ?? []).length <= 1) {
+      return {
+        ok: false,
+        error: "Cannot remove the last room — cancel the whole party instead.",
+      };
+    }
+
+    const { data: booking } = await admin
+      .from("bookings")
+      .select("id, status, check_in, check_out, contact_name")
+      .eq("id", id)
+      .eq("property_id", propertyId)
+      .maybeSingle();
+    if (!booking) return { ok: false, error: "Booking not found." };
+
+    const status = booking.status as string;
+    if (["checked_in", "checked_out"].includes(status)) {
+      return {
+        ok: false,
+        error: "Check out or void folio before removing an in-house room.",
+      };
+    }
+    if (["cancelled", "no_show", "expired"].includes(status)) {
+      await admin.from("booking_group_members").delete().eq("booking_id", id);
+      revalidatePartySurfaces();
+      return { ok: true, message: "Removed cancelled room from party." };
+    }
+
+    const { error: upd } = await admin
+      .from("bookings")
+      .update({
+        status: "cancelled",
+        cancelled_at: new Date().toISOString(),
+        cancel_reason: "party_room_removed",
+      })
+      .eq("id", id);
+    if (upd) throw new Error(upd.message);
+
+    await admin.from("room_assignments").delete().eq("booking_id", id);
+    await admin.from("booking_group_members").delete().eq("booking_id", id);
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "reservations.party.remove_room",
+      entityType: "bookings",
+      entityId: id,
+      summary: `Removed room from party · ${booking.contact_name ?? id.slice(0, 8)}`,
+      meta: { group_id: membership.group_id },
+    });
+
+    revalidatePartySurfaces();
+    return { ok: true, message: "Room removed from party." };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not remove room.",
+    };
+  }
+}
+
+/**
+ * Add a physical unit as a new sibling booking under the same formal group.
+ */
+export async function addPartyRoom(input: {
+  anchorBookingId: string;
+  roomUnitId: string;
+}): Promise<PartyActionState> {
+  try {
+    if (!(await isDeskAuthenticated())) {
+      return { ok: false, error: "Desk session expired. Sign in again." };
+    }
+    const anchorId = input.anchorBookingId.trim();
+    const unitId = input.roomUnitId.trim();
+    if (!anchorId || !unitId) {
+      return { ok: false, error: "Booking and room unit required." };
+    }
+
+    const admin = createSupabaseAdminClient();
+    const propertyId = await requireDeskPropertyId();
+
+    const { data: membership } = await admin
+      .from("booking_group_members")
+      .select("group_id, booking_groups(id, name, property_id)")
+      .eq("booking_id", anchorId)
+      .maybeSingle();
+    if (!membership?.group_id) {
+      return {
+        ok: false,
+        error: "Link as group first, then add rooms to the party.",
+      };
+    }
+    const groupId = membership.group_id as string;
+
+    const { data: anchor } = await admin
+      .from("bookings")
+      .select(
+        `id, agent_id, source, booked_by_role, check_in, check_out, contact_name,
+         contact_phone, contact_email, guest_origin, guide_number, payment_mode,
+         meal_plan_code, sold_by_staff_id, sales_claim_status, adults, children`,
+      )
+      .eq("id", anchorId)
+      .eq("property_id", propertyId)
+      .maybeSingle();
+    if (!anchor) return { ok: false, error: "Anchor booking not found." };
+
+    const checkIn = (anchor.check_in as string).slice(0, 10);
+    const checkOut = (anchor.check_out as string).slice(0, 10);
+
+    const { data: unit } = await admin
+      .from("room_units")
+      .select("id, label, room_type_id, property_id")
+      .eq("id", unitId)
+      .eq("property_id", propertyId)
+      .maybeSingle();
+    if (!unit) return { ok: false, error: "Room unit not found." };
+
+    const { data: busy } = await admin
+      .from("room_assignments")
+      .select("id")
+      .eq("room_unit_id", unitId)
+      .lt("from_date", checkOut)
+      .gt("to_date", checkIn)
+      .limit(1);
+    if (busy?.length) {
+      return { ok: false, error: `${unit.label} is busy for these dates.` };
+    }
+
+    const { data: booking, error: bookErr } = await admin
+      .from("bookings")
+      .insert({
+        property_id: propertyId,
+        agent_id: anchor.agent_id,
+        source: anchor.source,
+        booked_by_role: anchor.booked_by_role,
+        status: "confirmed",
+        confirmed_at: new Date().toISOString(),
+        confirmed_by: "desk_party_add_room",
+        check_in: checkIn,
+        check_out: checkOut,
+        contact_name: anchor.contact_name,
+        contact_phone: anchor.contact_phone,
+        contact_email: anchor.contact_email,
+        adults: 1,
+        children: 0,
+        extra_beds: 0,
+        rooms: 1,
+        guide_number: anchor.guide_number,
+        guest_origin: anchor.guest_origin ?? "international",
+        payment_mode: anchor.payment_mode ?? "cash",
+        notes: `Party add · ${unit.label as string}`,
+        meal_plan_code: anchor.meal_plan_code ?? "EP",
+        meal_plan_amount_btn: 0,
+        extra_bed_amount_btn: 0,
+        sold_by_staff_id: anchor.sold_by_staff_id,
+        sales_claim_status: anchor.sales_claim_status,
+      })
+      .select("id")
+      .single();
+    if (bookErr || !booking) {
+      throw new Error(bookErr?.message ?? "Could not create room booking.");
+    }
+
+    const { error: lineErr } = await admin.from("booking_rooms").insert({
+      booking_id: booking.id,
+      room_type_id: unit.room_type_id,
+      qty: 1,
+      inventory_kind: "sellable_guest",
+    });
+    if (lineErr) throw new Error(lineErr.message);
+
+    const { assignRoomsForBooking } = await import("@/lib/room-assignments");
+    await assignRoomsForBooking(admin, {
+      propertyId,
+      bookingId: booking.id as string,
+      checkIn,
+      checkOut,
+      lines: [
+        {
+          room_type_id: unit.room_type_id as string,
+          qty: 1,
+          inventory_kind: "sellable_guest",
+        },
+      ],
+      preferredUnitIds: [unitId],
+    });
+
+    const { error: memErr } = await admin.from("booking_group_members").insert({
+      group_id: groupId,
+      booking_id: booking.id,
+    });
+    if (memErr) throw new Error(memErr.message);
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "reservations.party.add_room",
+      entityType: "booking_groups",
+      entityId: groupId,
+      summary: `Added ${unit.label as string} to party`,
+      meta: { booking_id: booking.id },
+    });
+
+    revalidatePartySurfaces();
+    return {
+      ok: true,
+      groupId,
+      message: `Added ${unit.label as string} to party.`,
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not add room.",
     };
   }
 }

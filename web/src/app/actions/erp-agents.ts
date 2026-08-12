@@ -484,14 +484,10 @@ export async function chargeAgentCredit(
     if (blocked) throw new Error(blocked);
   }
 
-  const limit = Number(agent.credit_limit ?? 0);
+  // Soft tracker only — Bhutan FO does not hard-block on Nu credit_limit.
+  // credit_used = agent AR outstanding for reminders / dossier.
   const used = Number(agent.credit_used ?? 0);
   const nextUsed = roundBtn(used + amount);
-  if (nextUsed > limit + 0.001) {
-    throw new Error(
-      `Insufficient credit. Available Nu ${roundBtn(limit - used)}; need Nu ${amount}.`,
-    );
-  }
 
   const { error: upd } = await admin
     .from("agents")

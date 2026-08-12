@@ -1,5 +1,7 @@
 export const INHOUSE_TASK_KINDS = [
   { value: "wake_up", label: "Wake-up" },
+  { value: "follow_up", label: "Follow-up" },
+  { value: "guest_message", label: "Guest message" },
   { value: "callback", label: "Callback" },
   { value: "towels", label: "Extra towels" },
   { value: "extra_pillows", label: "Extra pillows" },

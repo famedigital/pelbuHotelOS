@@ -268,6 +268,36 @@ export default async function ErpReportsPage({ searchParams }: Props) {
               blurb: "Outstanding, aging, payment mix",
             },
             {
+              href: `/erp/reports/deposit-due?from=${from}&to=${to}`,
+              title: "Deposit due",
+              blurb: "Token shortfall · release deposit date",
+            },
+            {
+              href: `/erp/reports/cancellations?from=${from}&to=${to}`,
+              title: "Cancellations",
+              blurb: "Cancelled and no-show stays",
+            },
+            {
+              href: `/erp/reports/meal-count?from=${from}&to=${to}`,
+              title: "Meal count",
+              blurb: "Covers by meal plan for a night",
+            },
+            {
+              href: `/erp/reports/fo-occupancy?from=${from}&to=${to}`,
+              title: "FO occupancy",
+              blurb: "Daily OCC% · arrivals · departs",
+            },
+            {
+              href: `/erp/reports/room-moves?from=${from}&to=${to}`,
+              title: "Room move audit",
+              blurb: "Who moved which assignment",
+            },
+            {
+              href: `/erp/reports/guest-ar-aging?from=${from}&to=${to}`,
+              title: "Guest AR aging",
+              blurb: "Open folios · 30/60/90 slabs",
+            },
+            {
               href: `/erp/reports/staff-attendance?from=${from}&to=${to}`,
               title: "Staff attendance",
               blurb: "Punches and estimated hours",

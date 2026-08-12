@@ -21,17 +21,20 @@ import {
   partyRoomFit,
   type ReservationParty,
 } from "@/lib/erp/reservation-party";
+import { statusStripeClass } from "@/lib/erp/reservation-status-buckets";
 import { useStayHubOptional } from "@/components/erp/StayHubProvider";
 import { recommendStayHubStep } from "@/lib/folio/stay-hub-cycle";
+import { seedStayFromBoardRow } from "@/lib/folio/stay-hub-seed";
 import { bookingConfirmationLabel } from "@/lib/booking-ref";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { BookingLifecycleActions } from "@/components/erp/BookingLifecycleActions";
+import { fmtDate as formatStayDate } from "@/lib/erp-lists";
 
 function fmtDate(iso: string | null): string {
-  if (!iso) return "—";
-  return iso;
+  return formatStayDate(iso);
 }
 
 function StatusPill({ value }: { value: string }) {
@@ -187,9 +190,19 @@ function MemberRow({
   onToggle: (id: string) => void;
   canSelect: boolean;
 }) {
+  const router = useRouter();
   const stayHub = useStayHubOptional();
+  const stripe = statusStripeClass(row.status);
+  const canCi =
+    row.status === "confirmed" ||
+    row.status === "held" ||
+    row.status === "pending";
+  const inHouse = row.status === "checked_in";
+
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-md border border-border/60 bg-background/80 px-2.5 py-2">
+    <div
+      className={`flex flex-wrap items-center gap-2 rounded-md border border-border/60 bg-background/80 px-2.5 py-2 pl-2 ${stripe}`}
+    >
       {canSelect ? (
         <input
           type="checkbox"
@@ -220,31 +233,83 @@ function MemberRow({
       </div>
       <div className="flex flex-wrap gap-1">
         {stayHub ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-8 text-xs"
-            onClick={() =>
-              stayHub.openStayHub({
-                bookingId: row.id,
-                step: recommendStayHubStep({
-                  status: row.status ?? "confirmed",
-                  hasRoomAssigned: (row.assigned_count ?? 0) > 0,
+          <>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              onClick={() =>
+                stayHub.openStayHub({
+                  bookingId: row.id,
+                  step: recommendStayHubStep({
+                    status: row.status ?? "confirmed",
+                    hasRoomAssigned: (row.assigned_count ?? 0) > 0,
+                    board: "reservations",
+                  }),
                   board: "reservations",
-                }),
-                board: "reservations",
-              })
-            }
-          >
-            StayHub
-          </Button>
+                  seedStay: seedStayFromBoardRow(row),
+                })
+              }
+            >
+              StayHub
+            </Button>
+            {canCi ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="citrus"
+                className="h-8 text-xs"
+                onClick={() =>
+                  stayHub.openStayHub({
+                    bookingId: row.id,
+                    step: "check_in",
+                    board: "arrivals",
+                    seedStay: seedStayFromBoardRow(row),
+                  })
+                }
+              >
+                Check-in
+              </Button>
+            ) : null}
+            {inHouse ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs"
+                onClick={() =>
+                  stayHub.openStayHub({
+                    bookingId: row.id,
+                    step: "stay_money",
+                    board: "in_house",
+                    seedStay: seedStayFromBoardRow(row),
+                  })
+                }
+              >
+                Folio
+              </Button>
+            ) : null}
+          </>
         ) : null}
         <Button asChild size="sm" variant="ghost" className="h-8 text-xs">
-          <Link href={boardActionHref(row.status, row.id)}>
+          <Link href={boardActionHref(row.status, row.id, "reservations")}>
             {row.action_label ?? boardActionLabel(row.status)}
           </Link>
         </Button>
+        {canCi || row.status === "checked_in" ? (
+          <div className="w-full basis-full sm:w-auto sm:basis-auto">
+            <BookingLifecycleActions
+              bookingId={row.id}
+              status={row.status ?? "confirmed"}
+              compact
+              onSuccess={() => {
+                toast.message("Updated");
+                router.refresh();
+              }}
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -339,10 +404,11 @@ export function ReservationsPartyBoard({
           : prefer === "check_out"
             ? "departures"
             : "in_house",
+      seedStay: seedStayFromBoardRow(first),
     });
     if (rows.length > 1) {
       toast.message(
-        `Opened StayHub for first of ${rows.length} — finish, then next room.`,
+        `Party: ${rows.length} rooms — use room chips in StayHub to switch.`,
       );
     }
   }
@@ -465,7 +531,7 @@ export function ReservationsPartyBoard({
             <AccordionItem
               key={party.id}
               value={party.id}
-              className="border-b border-border/70 px-3 last:border-b-0 sm:px-4"
+              className={`border-b border-border/70 px-3 last:border-b-0 sm:px-4 ${statusStripeClass(party.primaryStatus)}`}
             >
               <AccordionTrigger className="py-3 hover:no-underline sm:py-3.5">
                 <PartySummary party={party} />

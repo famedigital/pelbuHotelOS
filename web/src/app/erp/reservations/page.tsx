@@ -2,9 +2,10 @@ import type { BookingRow } from "@/components/erp/BookingsTable";
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { DeskMetricRow } from "@/components/erp/DeskMetricRow";
 import { NewReservationLauncher } from "@/components/erp/NewReservationLauncher";
+import { ReservationsFilterForm } from "@/components/erp/ReservationsFilterForm";
 import { ReservationsPartyBoard } from "@/components/erp/ReservationsPartyBoard";
+import { ReservationsStatusChrome } from "@/components/erp/ReservationsStatusChrome";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { BOOKABLE_AGENT_STATUSES } from "@/lib/agents/status";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import {
@@ -16,11 +17,19 @@ import {
   roomFitBadgeLabel,
 } from "@/lib/erp/booking-room-fit";
 import {
+  checkInWithinRange,
+  normalizeArrivalRange,
+} from "@/lib/erp/reservation-date-range";
+import {
+  parseReservationStatusBucket,
+  statusesForBucket,
+} from "@/lib/erp/reservation-status-buckets";
+import {
   buildReservationParties,
   type BookingGroupMembership,
 } from "@/lib/erp/reservation-party";
 import { requireDeskPropertyId } from "@/lib/desk-property";
-import { matchesQuery } from "@/lib/erp-lists";
+import { fmtDate, matchesQuery } from "@/lib/erp-lists";
 import { loadProperty } from "@/lib/property-context";
 import { getStaffSession } from "@/lib/staff-auth";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -34,18 +43,6 @@ export const metadata = {
 };
 export const dynamic = "force-dynamic";
 
-const STATUSES = [
-  "held",
-  "pending",
-  "confirmed",
-  "checked_in",
-  "checked_out",
-  "cancelled",
-  "no_show",
-] as const;
-
-const ISO = /^\d{4}-\d{2}-\d{2}$/;
-
 function buildReservationsQs(opts: {
   q?: string;
   status?: string;
@@ -54,6 +51,8 @@ function buildReservationsQs(opts: {
   check_in_from?: string;
   check_in_to?: string;
   sort?: string;
+  bucket?: string;
+  worklist?: string;
   patch?: Record<string, string | undefined>;
 }): string {
   const p = new URLSearchParams();
@@ -65,6 +64,8 @@ function buildReservationsQs(opts: {
     check_in_from: opts.check_in_from,
     check_in_to: opts.check_in_to,
     sort: opts.sort && opts.sort !== "check_in_desc" ? opts.sort : undefined,
+    bucket: opts.bucket && opts.bucket !== "all" ? opts.bucket : undefined,
+    worklist: opts.worklist || undefined,
     ...opts.patch,
   };
   for (const [k, v] of Object.entries(base)) {
@@ -89,6 +90,8 @@ export default async function ReservationsPage({
     check_in_from?: string;
     check_in_to?: string;
     sort?: string;
+    bucket?: string;
+    worklist?: string;
   }>;
 }) {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
@@ -97,11 +100,15 @@ export default async function ReservationsPage({
   const { q, status, source } = sp;
   const query = (q ?? "").trim();
   const roomFilter = (sp.room ?? "all").toLowerCase();
-  const checkInFrom =
-    sp.check_in_from && ISO.test(sp.check_in_from) ? sp.check_in_from : "";
-  const checkInTo =
-    sp.check_in_to && ISO.test(sp.check_in_to) ? sp.check_in_to : "";
+  const { from: checkInFrom, to: checkInTo } = normalizeArrivalRange(
+    sp.check_in_from,
+    sp.check_in_to,
+  );
+  const hasDateFilter = Boolean(checkInFrom || checkInTo);
+  const listLimit = hasDateFilter ? 1000 : 250;
   const sort = parseReservationSort(sp.sort);
+  const bucket = parseReservationStatusBucket(sp.bucket);
+  const worklist = (sp.worklist ?? "").trim();
 
   const admin = createSupabaseAdminClient();
   const propertyId = await requireDeskPropertyId();
@@ -109,6 +116,7 @@ export default async function ReservationsPage({
 
   const [
     { data: rows },
+    { data: countRows },
     { data: roomTypes },
     { data: agents },
     preferredUnit,
@@ -116,6 +124,7 @@ export default async function ReservationsPage({
     { data: propertyDefaults },
     { data: staffRows },
     { data: groupMemberRows },
+    { data: cleanUnits },
   ] = await Promise.all([
     (() => {
       let req = admin
@@ -123,18 +132,30 @@ export default async function ReservationsPage({
         .select(
           `id, confirmation_code, contact_name, contact_phone, check_in, check_out, status, source,
            guest_origin, agent_id, adults, rooms, hold_expires_at, created_at,
+           token_required_btn, token_received_btn, deposit_due_on,
            agents(company_name),
            room_assignments( room_units(label) )`,
         )
         .eq("property_id", propertyId)
-        .order("check_in", { ascending: false })
-        .limit(250);
-      if (status) req = req.eq("status", status);
+        .order("check_in", { ascending: sort === "check_in_asc" })
+        .limit(listLimit);
+      if (status) {
+        req = req.eq("status", status);
+      } else {
+        const statuses = statusesForBucket(bucket);
+        if (statuses) req = req.in("status", statuses);
+      }
       if (source) req = req.eq("source", source);
+      // Inclusive arrival window on date column (YYYY-MM-DD)
       if (checkInFrom) req = req.gte("check_in", checkInFrom);
       if (checkInTo) req = req.lte("check_in", checkInTo);
       return req;
     })(),
+    admin
+      .from("bookings")
+      .select("status, token_required_btn, token_received_btn")
+      .eq("property_id", propertyId)
+      .limit(2000),
     property
       ? admin
           .from("room_types")
@@ -144,7 +165,9 @@ export default async function ReservationsPage({
       : Promise.resolve({ data: [] }),
     admin
       .from("agents")
-      .select("id, company_name, market, status, rate_tier, open_room_cap")
+      .select(
+        "id, company_name, market, status, rate_tier, open_room_cap, commission_pct, credit_used, credit_limit",
+      )
       .in("status", [...BOOKABLE_AGENT_STATUSES])
       .order("company_name"),
     sp.room_unit_id && property
@@ -185,7 +208,39 @@ export default async function ReservationsPage({
         "booking_id, group_id, booking_groups(id, name, status, property_id)",
       )
       .limit(2000),
+    property
+      ? admin
+          .from("room_units")
+          .select("id, label, room_type_id, hk_status")
+          .eq("property_id", property.id)
+          .in("hk_status", ["clean", "inspect", "dirty", "occupied"])
+          .order("label")
+          .limit(300)
+      : Promise.resolve({ data: [] }),
   ]);
+
+  const bucketCounts = {
+    active: 0,
+    cancelled: 0,
+    no_show: 0,
+    checked_out: 0,
+    all: 0,
+    deposit_due: 0,
+  };
+  for (const r of countRows ?? []) {
+    const st = (r.status as string) ?? "";
+    bucketCounts.all += 1;
+    if (["held", "pending", "confirmed", "checked_in"].includes(st)) {
+      bucketCounts.active += 1;
+    } else if (st === "cancelled") bucketCounts.cancelled += 1;
+    else if (st === "no_show") bucketCounts.no_show += 1;
+    else if (st === "checked_out") bucketCounts.checked_out += 1;
+    if (["held", "pending", "confirmed"].includes(st)) {
+      const req = Number(r.token_required_btn ?? 0);
+      const got = Number(r.token_received_btn ?? 0);
+      if (req > 0 && got + 0.009 < req) bucketCounts.deposit_due += 1;
+    }
+  }
 
   const qtyByCode: Record<string, number> = {};
   const unit = preferredUnit.data;
@@ -207,14 +262,15 @@ export default async function ReservationsPage({
       ? (agent[0]?.company_name ?? null)
       : (agent?.company_name ?? null);
 
-    const assignments = (r.room_assignments as
-      | Array<{
-          room_units:
-            | { label?: string }
-            | { label?: string }[]
-            | null;
-        }>
-      | null) ?? [];
+    const assignments =
+      (r.room_assignments as
+        | Array<{
+            room_units:
+              | { label?: string }
+              | { label?: string }[]
+              | null;
+          }>
+        | null) ?? [];
 
     const labels: string[] = [];
     for (const a of assignments) {
@@ -236,11 +292,11 @@ export default async function ReservationsPage({
     const needed = roomsNeeded(rooms);
     const badge = roomFitBadgeLabel(fit, assignedCount, needed, roomLabels);
 
-    const badges: BookingRow["badges"] =
+    const badges: NonNullable<BookingRow["badges"]> =
       fit === "n_a"
         ? roomLabels
           ? [{ key: "rooms", label: roomLabels, tone: "info" }]
-          : undefined
+          : []
         : [
             {
               key: "room_fit",
@@ -255,6 +311,20 @@ export default async function ReservationsPage({
                       : "danger",
             },
           ];
+
+    const tokenReq = Number(r.token_required_btn ?? 0);
+    const tokenGot = Number(r.token_received_btn ?? 0);
+    if (
+      tokenReq > 0 &&
+      tokenGot + 0.009 < tokenReq &&
+      ["held", "pending", "confirmed"].includes(statusVal ?? "")
+    ) {
+      badges.push({
+        key: "deposit",
+        label: "Deposit due",
+        tone: "danger",
+      });
+    }
 
     return {
       id: r.id as string,
@@ -273,11 +343,11 @@ export default async function ReservationsPage({
       assigned_count: assignedCount,
       room_labels: roomLabels || null,
       room_fit: fit,
-      badges,
+      badges: badges.length ? badges : undefined,
     };
   });
 
-  const afterSearch = enriched.filter((r) =>
+  let afterSearch = enriched.filter((r) =>
     matchesQuery(
       [
         r.contact_name,
@@ -292,7 +362,19 @@ export default async function ReservationsPage({
     ),
   );
 
-  // Counts for metric chips among search+status+date results (before room filter)
+  // Defense-in-depth: re-apply arrival window in app space (timestamptz-safe).
+  if (hasDateFilter) {
+    afterSearch = afterSearch.filter((r) =>
+      checkInWithinRange(r.check_in, checkInFrom, checkInTo),
+    );
+  }
+
+  if (worklist === "deposit_due") {
+    afterSearch = afterSearch.filter((r) =>
+      (r.badges ?? []).some((b) => b.key === "deposit"),
+    );
+  }
+
   const needsOnly = afterSearch.filter((r) => r.room_fit === "none").length;
   const partialOnly = afterSearch.filter((r) => r.room_fit === "partial").length;
   const fullOnly = afterSearch.filter((r) => r.room_fit === "full").length;
@@ -341,14 +423,23 @@ export default async function ReservationsPage({
       market: a.market as string,
       status: a.status as string,
       rate_tier: (a.rate_tier as string | null) ?? null,
-      open_room_cap:
-        a.open_room_cap == null ? 15 : Number(a.open_room_cap),
+      open_room_cap: a.open_room_cap == null ? 15 : Number(a.open_room_cap),
+      commission_pct:
+        a.commission_pct == null ? null : Number(a.commission_pct),
+      credit_used: Number(a.credit_used ?? 0),
+      credit_limit: Number(a.credit_limit ?? 0),
     })),
     staff: (staffRows ?? []).map((s) => ({
       id: s.id as string,
       full_name: (s.full_name as string) || "Staff",
       employee_code: (s.employee_code as string | null) ?? null,
       role_label: (s.role_label as string | null) ?? null,
+    })),
+    cleanUnits: (cleanUnits ?? []).map((u) => ({
+      id: u.id as string,
+      label: (u.label as string) || "—",
+      roomTypeId: u.room_type_id as string,
+      hkStatus: (u.hk_status as string) || "clean",
     })),
     defaultSoldByStaffId:
       staffSession && staffSession.propertyId === propertyId
@@ -397,15 +488,71 @@ export default async function ReservationsPage({
     check_in_from: checkInFrom || undefined,
     check_in_to: checkInTo || undefined,
     sort: sort !== "check_in_desc" ? sort : undefined,
+    bucket: bucket !== "all" ? bucket : undefined,
+    worklist: worklist || undefined,
   };
 
+  const exportParams = new URLSearchParams();
+  for (const [k, v] of Object.entries(filterBase)) {
+    if (v) exportParams.set(k, v);
+  }
+  const exportHref = `/erp/reservations/export?${exportParams.toString()}`;
+  const printHref = `/erp/reservations/print?${exportParams.toString()}`;
+
   const needsRoomFilter = roomFilter === "needs_room";
+  const hasActiveFilters = Boolean(
+    needsRoomFilter ||
+      query ||
+      status ||
+      checkInFrom ||
+      checkInTo ||
+      worklist ||
+      bucket !== "all" ||
+      (source && source.trim()) ||
+      roomFilter !== "all",
+  );
+
+  const arrivalWindowLabel =
+    checkInFrom && checkInTo
+      ? checkInFrom === checkInTo
+        ? fmtDate(checkInFrom)
+        : `${fmtDate(checkInFrom)} – ${fmtDate(checkInTo)}`
+      : checkInFrom
+        ? `From ${fmtDate(checkInFrom)}`
+        : checkInTo
+          ? `Until ${fmtDate(checkInTo)}`
+          : null;
 
   return (
     <DeskListShell
-      eyebrow="Bookings"
-      heading="All reservations"
-      blurb="Party-style board: same-agent multi-room stays roll up, link as a formal group, then open rooming list to assign unit numbers and guest details per room. Calendar rack and StayHub still work for drag-assign and check-in."
+      eyebrow="Front office"
+      heading="Reservations"
+      subtitle={
+        worklist === "deposit_due"
+          ? "Deposit due — token required not yet fully received."
+          : "Multi-room parties roll up. Filter by arrival window, status, and room fit."
+      }
+      help={
+        worklist === "deposit_due" ? (
+          <p>
+            Worklist of held / pending / confirmed stays where token received
+            is short of token required. Status chips and party board still
+            apply within this set.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            <p>
+              Arrival From / To filters check-in date only (not in-house span).
+              Selecting From updates To to the last day of that month when To
+              is empty, earlier, or in another month.
+            </p>
+            <p>
+              Status strip uses eZee-style Active / Cancelled / No-show /
+              Departed buckets. Export and print respect the current filters.
+            </p>
+          </div>
+        )
+      }
       headerAside={
         <Suspense
           fallback={
@@ -428,7 +575,7 @@ export default async function ReservationsPage({
                 room: "needs_room",
               }),
               tone: needsOnly > 0 ? "destructive" : "default",
-              hint: "No physical units yet",
+              hint: "No units yet",
             },
             {
               label: "Partial",
@@ -465,161 +612,102 @@ export default async function ReservationsPage({
               hint: "Same agent + dates",
             },
             {
-              label: "Shown",
+              label: "In view",
               value: String(parties.length),
               href: buildReservationsQs({ ...filterBase, room: "all" }),
-              hint: `${filtered.length} booking rows`,
+              hint: `${filtered.length} booking${filtered.length === 1 ? "" : "s"}`,
             },
           ]}
         />
       }
       filters={
-        <form
-          className="flex flex-wrap items-end gap-2"
-          action="/erp/reservations"
-          method="get"
-        >
-          <div className="min-w-[200px] flex-1 space-y-1.5">
-            <label htmlFor="q" className="sr-only">
-              Search
-            </label>
-            <Input
-              id="q"
-              type="search"
-              name="q"
-              defaultValue={q ?? ""}
-              placeholder="Conf # · guest · phone · agent · room · INV…"
-              className="h-10"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="status" className="text-[10px] font-medium text-muted-foreground">
-              Status
-            </label>
-            <select
-              id="status"
-              name="status"
-              defaultValue={status ?? ""}
-              className="h-10 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-            >
-              <option value="">All statuses</option>
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {s.replace(/_/g, " ")}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="room" className="text-[10px] font-medium text-muted-foreground">
-              Rooms
-            </label>
-            <select
-              id="room"
-              name="room"
-              defaultValue={roomFilter === "all" ? "" : roomFilter}
-              className="h-10 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-            >
-              <option value="">All room fits</option>
-              <option value="needs_room">Needs room (none + partial)</option>
-              <option value="partial">Partial only</option>
-              <option value="assigned">Fully assigned</option>
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <label
-              htmlFor="check_in_from"
-              className="text-[10px] font-medium text-muted-foreground"
-            >
-              Arrival from
-            </label>
-            <Input
-              id="check_in_from"
-              type="date"
-              name="check_in_from"
-              defaultValue={checkInFrom}
-              className="h-10 w-[10.5rem]"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label
-              htmlFor="check_in_to"
-              className="text-[10px] font-medium text-muted-foreground"
-            >
-              Arrival to
-            </label>
-            <Input
-              id="check_in_to"
-              type="date"
-              name="check_in_to"
-              defaultValue={checkInTo}
-              className="h-10 w-[10.5rem]"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="sort" className="text-[10px] font-medium text-muted-foreground">
-              Sort
-            </label>
-            <select
-              id="sort"
-              name="sort"
-              defaultValue={sort}
-              className="h-10 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-            >
-              <option value="check_in_desc">Arrival · latest first</option>
-              <option value="check_in_asc">Arrival · soonest first</option>
-              <option value="needs_room_first">Needs room first</option>
-              <option value="created_desc">Recently created</option>
-              <option value="name_asc">Guest A–Z</option>
-            </select>
-          </div>
-          <div className="w-28 space-y-1.5">
-            <label htmlFor="source" className="text-[10px] font-medium text-muted-foreground">
-              Source
-            </label>
-            <Input
-              id="source"
-              name="source"
-              defaultValue={source ?? ""}
-              placeholder="Source"
-              className="h-10"
-            />
-          </div>
-          <Button type="submit" variant="outline" className="h-10">
-            Apply
-          </Button>
-          {needsRoomFilter || query || status || checkInFrom || checkInTo ? (
-            <Button asChild type="button" variant="ghost" className="h-10">
-              <Link href="/erp/reservations">Clear</Link>
-            </Button>
-          ) : null}
-        </form>
+        <ReservationsFilterForm
+          key={[
+            query,
+            status ?? "",
+            source ?? "",
+            roomFilter,
+            checkInFrom,
+            checkInTo,
+            sort,
+            bucket,
+            worklist,
+          ].join("|")}
+          q={query}
+          status={status ?? ""}
+          source={source ?? ""}
+          roomFilter={roomFilter}
+          checkInFrom={checkInFrom}
+          checkInTo={checkInTo}
+          sort={sort}
+          bucket={bucket}
+          worklist={worklist}
+          hasActiveFilters={hasActiveFilters}
+        />
       }
     >
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-        <p>
-          {parties.length} parties · {filtered.length} reservations
-          {roomFilter !== "all"
-            ? ` · room filter: ${roomFilter.replace(/_/g, " ")}`
-            : ""}
-          {suggestedCount > 0
-            ? ` · ${suggestedCount} suggested multi-room`
-            : ""}
-        </p>
-        <div className="flex flex-wrap gap-3">
+      <ReservationsStatusChrome
+        bucket={bucket}
+        counts={bucketCounts}
+        queryBase={{
+          q: query || undefined,
+          source: source || undefined,
+          room: roomFilter !== "all" ? roomFilter : undefined,
+          check_in_from: checkInFrom || undefined,
+          check_in_to: checkInTo || undefined,
+          sort: sort !== "check_in_desc" ? sort : undefined,
+          worklist: worklist || undefined,
+        }}
+        exportHref={exportHref}
+        printHref={printHref}
+      />
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-3">
+        <div className="min-w-0 space-y-0.5">
+          <p className="text-sm font-medium text-foreground">
+            {parties.length} part{parties.length === 1 ? "y" : "ies"}
+            <span className="font-normal text-muted-foreground">
+              {" "}
+              · {filtered.length} reservation
+              {filtered.length === 1 ? "" : "s"}
+            </span>
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {arrivalWindowLabel ? (
+              <span>
+                Arrivals <span className="text-foreground">{arrivalWindowLabel}</span>
+              </span>
+            ) : (
+              <span>All arrival dates</span>
+            )}
+            {roomFilter !== "all"
+              ? ` · ${roomFilter.replace(/_/g, " ")}`
+              : ""}
+            {suggestedCount > 0
+              ? ` · ${suggestedCount} suggested multi-room`
+              : ""}
+            {worklist === "deposit_due" ? " · deposit due only" : ""}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 text-xs">
           {needsRoomFilter || needsOnly > 0 ? (
             <Link
               href="/erp/calendar"
               className="font-medium text-accent underline-offset-4 hover:underline"
             >
-              Assign on calendar →
+              Assign on calendar
             </Link>
           ) : null}
           <Link
             href="/erp/group"
             className="font-medium text-accent underline-offset-4 hover:underline"
           >
-            Groups desk →
+            Groups desk
+          </Link>
+          <Link
+            href="/erp/arrivals"
+            className="font-medium text-accent underline-offset-4 hover:underline"
+          >
+            Today&apos;s arrivals
           </Link>
         </div>
       </div>
@@ -632,7 +720,11 @@ export default async function ReservationsPage({
       >
         <ReservationsPartyBoard
           parties={parties}
-          emptyMessage="No reservations match these filters."
+          emptyMessage={
+            hasDateFilter
+              ? `No reservations with check-in ${arrivalWindowLabel ?? "in this window"}.`
+              : "No reservations match these filters."
+          }
         />
       </Suspense>
     </DeskListShell>

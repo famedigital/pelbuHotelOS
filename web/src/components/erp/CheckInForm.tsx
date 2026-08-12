@@ -1397,6 +1397,7 @@ export function CheckOutForm({
   folioBalance = 0,
   earlyFeeDefaultBtn = null,
   lateFeeDefaultBtn = null,
+  onCheckedOut,
 }: {
   bookingId: string;
   rooms?: string[];
@@ -1404,6 +1405,8 @@ export function CheckOutForm({
   /** Policy suggestions only — never pre-fill both fee fields */
   earlyFeeDefaultBtn?: number | null;
   lateFeeDefaultBtn?: number | null;
+  /** StayHub: paint checked_out immediately when server confirms */
+  onCheckedOut?: () => void;
 }) {
   const [state, action, pending] = useActionState(confirmCheckOut, checkOutInitial);
   useActionToast(state, { successMessage: "Guest checked out" });
@@ -1411,6 +1414,13 @@ export function CheckOutForm({
   // Empty unless staff intentionally posts a fee — policy is a suggestion, not a charge.
   const [earlyFee, setEarlyFee] = useState("");
   const [lateFee, setLateFee] = useState("");
+  const checkedOutFired = useRef(false);
+
+  useEffect(() => {
+    if (!state.ok || checkedOutFired.current) return;
+    checkedOutFired.current = true;
+    onCheckedOut?.();
+  }, [state.ok, onCheckedOut]);
 
   if (state.ok) {
     return (

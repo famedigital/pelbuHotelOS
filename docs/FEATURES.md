@@ -64,7 +64,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Feature | Notes |
 |---------|--------|
 | Layout | `web/src/app/erp/layout.tsx` → authenticated `DeskShell` |
-| Sidebar IA | Dashboard · Calendar · Front desk · Rooms · **POS** (F&B live here — not a separate module) · Money · Channels · **Team** · **Inventory** · Hotel (Settings footer) |
+| Sidebar IA | Header **Front desk \| Back office** · Dashboard · Calendar · Front desk · Rooms · **POS** · Money · Channels · **Team** · **Inventory** · Hotel (Settings footer) |
 | Desk shift gate | **Default OFF** — any staff with `can_login` + `can_access_desk` may open `/erp` any time. Optional Settings → Identity → **Restrict hotel desk to scheduled shifts** limits non-management staff to a covering published `staff_shifts` (Thimphu); Owner/GM/manager + DESK_PIN bypass. Not POS cashier shifts. |
 | **F&B IA (fixed)** | **No standalone F&B sidebar.** Sell/settle = POS register + menu + KDS; daily ops = **Kitchen board** `/erp/kitchen` (F&B ops home); property FO/GM home = Dashboard `/erp`. Do not merge kitchen into `/erp` or add a duplicate F&B root. |
 | Property switcher | Header; multi-property helpers + wizard exist |
@@ -243,7 +243,10 @@ Spirits / beer share **one inventory ledger** across multiple sell sizes. Checko
 
 ## Competitive intel (eZee Absolute)
 
+- Res list · tax/release · print pack · night grid · logistics/DNR · meal/FO/occ/aging/room-move reports · guest CRM filters · StayHub tasks (2026-08-11 **product phases closed**)
+- **Phase status (done vs defer):** [plans/ezee-fo-parity-status.md](plans/ezee-fo-parity-status.md)
 - Full external product map: [competitive/ezee-absolute-full-map.md](competitive/ezee-absolute-full-map.md)
+- **Screenshot control inventory (58 files, 2026-08-11):** [competitive/ezee-screenshot-inventory.md](competitive/ezee-screenshot-inventory.md) · [ezee-controls.csv](competitive/ezee-controls.csv) — P0 res-list density, per-night rate grid, book tax exempt, deposit due, print pack, clean-only pick, commission/source rate, res list export
 - Desk hang-card (eZee → Pelbu clicks): [ops/fo-ezee-to-pelbu-hang-card.md](ops/fo-ezee-to-pelbu-hang-card.md)
 - Local pay-at-end + agent room-cap UAT: [ops/fo-pay-at-end-and-room-cap-uat.md](ops/fo-pay-at-end-and-room-cap-uat.md)
 - FO-parity pass 2026-08-10: header **Biz date**, StayHub soft multi-tab lock, rack context Folio/CI/CO, Ctrl+K folio search
@@ -290,13 +293,15 @@ Spirits / beer share **one inventory ledger** across multiple sell sizes. Checko
 
 ## Desk nav map (as shipped)
 
-`AppSidebar` / `erp-nav.ts` groups:
+`AppSidebar` / `erp-nav.ts` groups + header **Front desk | Back office** workspace chip (`pelbu_workspace_v1` cookie):
 
-- **Front desk:** Dashboard · Calendar · Arrivals · In-house · Departures · Reservations (**New reservation** → Fast Book modal → StayHub) · Guests · **Groups** · Rooms · Housekeeping · Maintenance · Laundry
-- **Money:** Invoices · Payments · POS · Finance · GST · Night audit · Reports
-- **Channels:** Allotments · Channel · Partners · Agents
-- **Inventory & people:** Stock · HR
-- **Footer:** Settings · Add hotel (property wizard)
+- **Front desk workspace:** Dashboard · Calendar · Arrivals · In-house · Departures · Reservations (**New reservation** → Fast Book → StayHub) · Guests · **Groups** · Rooms · Housekeeping · Maintenance · Laundry · Desk money (Payments · City ledger · Night audit) · POS
+- **Back office workspace:** Money (Finance · Expenses · Banking · GST · Invoices · Payments · City ledger · Reports · Night audit) · Channels/Agents · Inventory · **Team** · POS
+- **Footer (Configuration):** Settings · Add hotel — not inside FO rail
+- **Role land:** FO → Arrivals · Owner/GM → Finance · Cashier → POS · workspace chip flip navigates to that world’s home
+- **Shared PIN:** lands Arrivals (or stored workspace home); staff Auth uses role home + seeds `pelbu_workspace_v1`
+
+Absolute Back Office map: Pay Out → Finance/expenses · Business Source → Agents · Cityledger → Agent AR / City ledger · Misc Sales → POS · Undo → folio/NA void. See [FO hang-card](ops/fo-ezee-to-pelbu-hang-card.md).
 
 Default ops home for room inventory: **`/erp/calendar`**. Agent click → **`/erp/agents/[id]`** dossier.
 

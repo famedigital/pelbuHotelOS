@@ -69,6 +69,13 @@ export type DeskBookFormProps = {
   roomTypes: FastBookRoomType[];
   agents: BookableAgent[];
   staff?: BookableStaff[];
+  /** Clean / inspect units for FO "clean rooms only" pick. */
+  cleanUnits?: {
+    id: string;
+    label: string;
+    roomTypeId: string;
+    hkStatus: string;
+  }[];
   defaultSoldByStaffId?: string;
   mealPlans?: {
     code: string;
@@ -198,6 +205,7 @@ export function DeskBookForm({
   roomTypes,
   agents,
   staff = [],
+  cleanUnits = [],
   defaultSoldByStaffId = "",
   mealPlans = [],
   property,
@@ -309,7 +317,19 @@ export function DeskBookForm({
   const [preferredUnitId, setPreferredUnitId] = useState(
     () => defaults?.roomUnitId ?? "",
   );
-  const preferredUnitLabel = defaults?.roomUnitLabel?.trim() || null;
+  const preferredUnitLabel =
+    defaults?.roomUnitLabel?.trim() ||
+    cleanUnits.find((u) => u.id === preferredUnitId)?.label ||
+    null;
+  const [cleanOnly, setCleanOnly] = useState(true);
+  const [rateTaxMode, setRateTaxMode] = useState<"inclusive" | "exclusive">(
+    "exclusive",
+  );
+  const [taxExemptGst, setTaxExemptGst] = useState(false);
+  const [taxExemptService, setTaxExemptService] = useState(false);
+  const [taxExemptBst, setTaxExemptBst] = useState(false);
+  const [releaseDays, setReleaseDays] = useState("");
+  const [releasePercent, setReleasePercent] = useState("");
   const [mealPlanCode, setMealPlanCode] = useState(
     defaults?.mealPlanCode ?? mealPlans[0]?.code ?? "EP",
   );
@@ -1355,7 +1375,128 @@ export function DeskBookForm({
                     Clear
                   </button>
                 </p>
+              ) : cleanUnits.length > 0 ? (
+                <div className="space-y-1 rounded-md border border-border/60 bg-muted/20 px-2 py-1.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Label className="text-[10px] font-normal text-muted-foreground">
+                      Prefer clean unit
+                    </Label>
+                    <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={cleanOnly}
+                        onChange={(e) => setCleanOnly(e.target.checked)}
+                        className="size-3 accent-foreground"
+                      />
+                      Clean / inspect only
+                    </label>
+                  </div>
+                  <select
+                    className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring"
+                    value={preferredUnitId}
+                    onChange={(e) => setPreferredUnitId(e.target.value)}
+                  >
+                    <option value="">— No preferred unit —</option>
+                    {(cleanOnly
+                      ? cleanUnits.filter((u) =>
+                          ["clean", "inspect"].includes(
+                            (u.hkStatus || "").toLowerCase(),
+                          ),
+                        )
+                      : cleanUnits
+                    ).map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.label} · {u.hkStatus}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               ) : null}
+
+              <div className="grid grid-cols-2 gap-2 rounded-md border border-border/50 p-2 sm:grid-cols-4">
+                <div className="col-span-2 space-y-1 sm:col-span-1">
+                  <Label className="text-[10px] font-normal text-muted-foreground">
+                    Rate tax
+                  </Label>
+                  <select
+                    name="rate_tax_mode"
+                    value={rateTaxMode}
+                    onChange={(e) =>
+                      setRateTaxMode(
+                        e.target.value === "inclusive"
+                          ? "inclusive"
+                          : "exclusive",
+                      )
+                    }
+                    className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-xs"
+                  >
+                    <option value="exclusive">Exclusive tax</option>
+                    <option value="inclusive">Inclusive tax</option>
+                  </select>
+                </div>
+                <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    name="tax_exempt_gst"
+                    value="1"
+                    checked={taxExemptGst}
+                    onChange={(e) => setTaxExemptGst(e.target.checked)}
+                    className="size-3"
+                  />
+                  Exempt GST
+                </label>
+                <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    name="tax_exempt_service"
+                    value="1"
+                    checked={taxExemptService}
+                    onChange={(e) => setTaxExemptService(e.target.checked)}
+                    className="size-3"
+                  />
+                  Exempt SC
+                </label>
+                <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    name="tax_exempt_bst"
+                    value="1"
+                    checked={taxExemptBst}
+                    onChange={(e) => setTaxExemptBst(e.target.checked)}
+                    className="size-3"
+                  />
+                  Exempt BST
+                </label>
+                <div className="space-y-0.5">
+                  <Label className="text-[10px] font-normal text-muted-foreground">
+                    Release days
+                  </Label>
+                  <Input
+                    name="release_days_before_arrival"
+                    type="number"
+                    min={0}
+                    value={releaseDays}
+                    onChange={(e) => setReleaseDays(e.target.value)}
+                    placeholder="0"
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-0.5">
+                  <Label className="text-[10px] font-normal text-muted-foreground">
+                    Release %
+                  </Label>
+                  <Input
+                    name="release_percent"
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={releasePercent}
+                    onChange={(e) => setReleasePercent(e.target.value)}
+                    placeholder="0"
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
 
               {/* ROW: origin / tier / staff / docs */}
               <div className="grid grid-cols-2 gap-x-2 gap-y-1 border-t border-border/50 pt-2 sm:grid-cols-4 lg:grid-cols-12">
@@ -1621,10 +1762,32 @@ export function DeskBookForm({
                   {selectedAgent &&
                   paymentMode === "on_credit" &&
                   !blockCredit ? (
-                    <p className="text-[10px] text-emerald-800 sm:col-span-2 dark:text-emerald-200">
-                      {selectedAgent.company_name} · credit OK
+                    <p className="rounded border border-amber-500/25 bg-amber-500/8 px-1.5 py-1 text-[10px] leading-snug text-amber-950 sm:col-span-2 dark:text-amber-50">
+                      {selectedAgent.company_name} · agent AR outstanding{" "}
+                      <span className="font-semibold tabular-nums">
+                        {formatGuestBtn(
+                          Number(selectedAgent.credit_used ?? 0),
+                        )}
+                      </span>
+                      {Number(selectedAgent.credit_limit ?? 0) > 0
+                        ? ` · soft ceiling ${formatGuestBtn(Number(selectedAgent.credit_limit))}`
+                        : " · no hard credit limit"}
                       {agentOpenRooms != null && agentRoomCap != null
-                        ? ` · open ${agentOpenRooms}/${agentRoomCap}`
+                        ? ` · open rooms ${agentOpenRooms}/${agentRoomCap}`
+                        : ""}
+                      {selectedAgent.rate_tier
+                        ? ` · rate ${selectedAgent.rate_tier.replace(/_/g, " ")}`
+                        : ""}
+                    </p>
+                  ) : null}
+                  {selectedAgent && paymentMode !== "on_credit" ? (
+                    <p className="text-[10px] text-muted-foreground sm:col-span-2">
+                      Source rate
+                      {selectedAgent.rate_tier
+                        ? `: ${selectedAgent.rate_tier.replace(/_/g, " ")}`
+                        : " · agent sheet"}
+                      {selectedAgent.commission_pct != null
+                        ? ` · commission ${Number(selectedAgent.commission_pct)}%`
                         : ""}
                     </p>
                   ) : null}

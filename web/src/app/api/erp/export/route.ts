@@ -4,7 +4,13 @@ import { requireDeskPropertyId } from "@/lib/desk-property";
 import { loadAgentProductionReport } from "@/lib/reports/agent-dossier";
 import {
   loadAgentArReport,
+  loadCancellationsReport,
+  loadDepositDueReport,
+  loadFoOccupancyReport,
+  loadGuestArAgingReport,
   loadInventoryMovementsSummary,
+  loadMealCountReport,
+  loadRoomMoveAuditReport,
   loadStaffAttendanceSummary,
 } from "@/lib/reports/catalog";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -54,6 +60,12 @@ export async function GET(request: Request) {
     kind === "agent-production" ||
     kind === "agent-commission" ||
     kind === "agent-ar" ||
+    kind === "deposit-due" ||
+    kind === "cancellations" ||
+    kind === "meal-count" ||
+    kind === "fo-occupancy" ||
+    kind === "room-moves" ||
+    kind === "guest-ar-aging" ||
     kind === "staff-attendance" ||
     kind === "staff-sales" ||
     kind === "inventory-movements" ||
@@ -258,6 +270,195 @@ export async function GET(request: Request) {
           csvEscape(r.credit_used),
           csvEscape(r.credit_limit),
           csvEscape(r.habit),
+        ]),
+      );
+    }
+
+    if (kind === "deposit-due") {
+      const rows = await loadDepositDueReport(admin, {
+        propertyId,
+        from: since,
+        to: until,
+      });
+      return csvResponse(
+        kind,
+        since,
+        [
+          "booking_id",
+          "confirmation_code",
+          "contact_name",
+          "check_in",
+          "status",
+          "token_required",
+          "token_received",
+          "shortfall",
+          "deposit_due_on",
+          "agent_name",
+        ],
+        rows.map((r) => [
+          csvEscape(r.booking_id),
+          csvEscape(r.confirmation_code ?? ""),
+          csvEscape(r.contact_name),
+          csvEscape(r.check_in),
+          csvEscape(r.status),
+          csvEscape(r.token_required_btn),
+          csvEscape(r.token_received_btn),
+          csvEscape(r.shortfall_btn),
+          csvEscape(r.deposit_due_on ?? ""),
+          csvEscape(r.agent_name ?? ""),
+        ]),
+      );
+    }
+
+    if (kind === "cancellations") {
+      const rows = await loadCancellationsReport(admin, {
+        propertyId,
+        from: since,
+        to: until,
+      });
+      return csvResponse(
+        kind,
+        since,
+        [
+          "booking_id",
+          "confirmation_code",
+          "contact_name",
+          "check_in",
+          "check_out",
+          "status",
+          "quoted_total",
+          "agent_name",
+        ],
+        rows.map((r) => [
+          csvEscape(r.booking_id),
+          csvEscape(r.confirmation_code ?? ""),
+          csvEscape(r.contact_name),
+          csvEscape(r.check_in),
+          csvEscape(r.check_out),
+          csvEscape(r.status),
+          csvEscape(r.quoted_total_btn),
+          csvEscape(r.agent_name ?? ""),
+        ]),
+      );
+    }
+
+    if (kind === "meal-count") {
+      const report = await loadMealCountReport(admin, {
+        propertyId,
+        businessDate: until,
+      });
+      return csvResponse(
+        kind,
+        until,
+        [
+          "guest",
+          "rooms",
+          "meal_plan",
+          "pax",
+          "breakfast",
+          "lunch",
+          "dinner",
+          "status",
+          "booking_id",
+        ],
+        report.rows.map((r) => [
+          csvEscape(r.guest_name),
+          csvEscape(r.rooms),
+          csvEscape(r.meal_plan),
+          csvEscape(r.pax),
+          csvEscape(r.breakfast ? "1" : "0"),
+          csvEscape(r.lunch ? "1" : "0"),
+          csvEscape(r.dinner ? "1" : "0"),
+          csvEscape(r.status),
+          csvEscape(r.booking_id),
+        ]),
+      );
+    }
+
+    if (kind === "fo-occupancy") {
+      const rows = await loadFoOccupancyReport(admin, {
+        propertyId,
+        from: since,
+        to: until,
+      });
+      return csvResponse(
+        kind,
+        since,
+        [
+          "date",
+          "sellable_capacity",
+          "rooms_occupied",
+          "rooms_comp",
+          "occupancy_pct",
+          "arrivals",
+          "departures",
+        ],
+        rows.map((r) => [
+          csvEscape(r.date),
+          csvEscape(r.sellable_capacity),
+          csvEscape(r.rooms_occupied),
+          csvEscape(r.rooms_comp),
+          csvEscape(r.occupancy_pct),
+          csvEscape(r.arrivals),
+          csvEscape(r.departures),
+        ]),
+      );
+    }
+
+    if (kind === "room-moves") {
+      const rows = await loadRoomMoveAuditReport(admin, {
+        propertyId,
+        from: since,
+        to: until,
+      });
+      return csvResponse(
+        kind,
+        since,
+        ["at", "actor", "summary", "booking_id", "assignment_id", "action"],
+        rows.map((r) => [
+          csvEscape(r.at),
+          csvEscape(r.actor),
+          csvEscape(r.summary),
+          csvEscape(r.booking_id ?? ""),
+          csvEscape(r.assignment_id ?? ""),
+          csvEscape(r.action),
+        ]),
+      );
+    }
+
+    if (kind === "guest-ar-aging") {
+      const { rows } = await loadGuestArAgingReport(admin, {
+        propertyId,
+        asOf: until,
+      });
+      return csvResponse(
+        kind,
+        until,
+        [
+          "folio_id",
+          "booking_id",
+          "contact_name",
+          "check_out",
+          "status",
+          "balance",
+          "current",
+          "d30",
+          "d60",
+          "d90",
+          "agent_name",
+        ],
+        rows.map((r) => [
+          csvEscape(r.folio_id),
+          csvEscape(r.booking_id),
+          csvEscape(r.contact_name),
+          csvEscape(r.check_out),
+          csvEscape(r.status),
+          csvEscape(r.balance_btn),
+          csvEscape(r.aging_current),
+          csvEscape(r.aging_d30),
+          csvEscape(r.aging_d60),
+          csvEscape(r.aging_d90),
+          csvEscape(r.agent_name ?? ""),
         ]),
       );
     }

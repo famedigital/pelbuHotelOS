@@ -6,6 +6,14 @@ import { usePathname } from "next/navigation";
 import { ChevronRightIcon, SettingsIcon } from "lucide-react";
 
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -23,72 +31,82 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { BRAND_ICONS } from "@/lib/brand";
+import { useDeskWorkspace } from "@/components/erp/DeskWorkspaceProvider";
 import {
   ERP_MODULES,
   type ErpModule,
   resolveModule,
 } from "@/lib/erp-nav";
-import {
-  filterErpNavByGrants,
-  firstAllowedHrefForModule,
-} from "@/lib/erp/desk-modules";
+import { firstAllowedHrefForModule, moduleVisibleFromGrants } from "@/lib/erp/desk-modules";
+import { filterModulesForWorkspace } from "@/lib/erp/desk-workspace";
 import { filterModulesForProductPack } from "@/lib/product-pack";
 import { pushErpRecent } from "@/lib/erp-recents";
 import { cn } from "@/lib/utils";
 
 export { NAV_SECTIONS } from "@/lib/erp-nav";
 
+/**
+ * Standard shadcn sidebar menus:
+ * - Icon rail stays icons; no hover-grow of the shell.
+ * - Nested modules open on chevron **click** only (not mouseenter).
+ * - When the rail is collapsed, sub-items open as a right flyout (click).
+ */
 export function AppSidebar({
   brandName = "Pelbu desk",
   logoSrc,
   allowedModuleKeys,
   productPack = "hotel",
 }: {
-  /** Active hotel name — falls back to the Pelbu label. */
   brandName?: string;
-  /** Cloudinary logo from settings; falls back to the local knot mark. */
   logoSrc?: string | null;
-  /**
-   * Desk grants: module keys and/or tab hrefs the session may open.
-   * Omit / empty = all (legacy full access).
-   */
   allowedModuleKeys?: readonly string[];
   productPack?: "hotel" | "restaurant";
 } = {}) {
   const pathname = usePathname();
   const activeMatch = resolveModule(pathname);
+  const { workspace } = useDeskWorkspace();
   const modules = React.useMemo(() => {
-    let list =
+    const grants =
       !allowedModuleKeys || allowedModuleKeys.length === 0
-        ? ERP_MODULES
-        : filterErpNavByGrants(ERP_MODULES, allowedModuleKeys);
+        ? null
+        : allowedModuleKeys;
+    let list = filterModulesForWorkspace(ERP_MODULES, workspace, grants);
+    // Settings stays in footer — restore hotel module visibility check from full catalog.
     list = filterModulesForProductPack(list, productPack);
     return list;
-  }, [allowedModuleKeys, productPack]);
+  }, [allowedModuleKeys, productPack, workspace]);
   const showSettings =
     !allowedModuleKeys ||
     allowedModuleKeys.length === 0 ||
-    modules.some((m) => m.key === "hotel");
+    moduleVisibleFromGrants("hotel", allowedModuleKeys);
 
-  const [browseExpanded, setBrowseExpanded] = React.useState<Set<string>>(
-    () => new Set(),
+  // User-opened modules (independent of route). Active module always shows.
+  const [openKeys, setOpenKeys] = React.useState<Set<string>>(() => new Set());
+
+  React.useEffect(() => {
+    const key = activeMatch?.module.key;
+    if (!key) return;
+    setOpenKeys((prev) => {
+      if (prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+  }, [activeMatch?.module.key]);
+
+  const isModuleOpen = React.useCallback(
+    (key: string) => openKeys.has(key) || activeMatch?.module.key === key,
+    [openKeys, activeMatch?.module.key],
   );
 
-  const isModuleExpanded = React.useCallback(
-    (key: string) =>
-      activeMatch?.module.key === key || browseExpanded.has(key),
-    [activeMatch?.module.key, browseExpanded],
-  );
-
-  const toggleExpanded = React.useCallback((key: string) => {
-    if (activeMatch?.module.key === key) return;
-    setBrowseExpanded((prev) => {
+  const toggleModule = React.useCallback((key: string) => {
+    setOpenKeys((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
       return next;
     });
-  }, [activeMatch?.module.key]);
+  }, []);
 
   return (
     <Sidebar collapsible="icon" className="erp print:hidden">
@@ -116,7 +134,9 @@ export function AppSidebar({
                     {brandName}
                   </span>
                   <span className="truncate text-[11px] text-muted-foreground">
-                    Desk operations
+                    {workspace === "back_office"
+                      ? "Back office"
+                      : "Front desk"}
                   </span>
                 </div>
               </Link>
@@ -128,7 +148,7 @@ export function AppSidebar({
       <SidebarContent className="gap-0">
         <SidebarGroup className="py-2">
           <SidebarGroupLabel className="text-[10px] tracking-[0.14em]">
-            Modules
+            {workspace === "back_office" ? "Back office" : "Front desk"}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-0.5">
@@ -137,8 +157,8 @@ export function AppSidebar({
                   key={module.key}
                   module={module}
                   activeMatch={activeMatch}
-                  expanded={isModuleExpanded(module.key)}
-                  onToggle={() => toggleExpanded(module.key)}
+                  open={isModuleOpen(module.key)}
+                  onToggle={() => toggleModule(module.key)}
                   landingHref={
                     allowedModuleKeys && allowedModuleKeys.length > 0
                       ? firstAllowedHrefForModule(module, allowedModuleKeys)
@@ -177,48 +197,21 @@ export function AppSidebar({
 function SidebarModuleItem({
   module,
   activeMatch,
-  expanded: clickExpanded,
+  open,
   onToggle,
   landingHref,
 }: {
   module: ErpModule;
   activeMatch: ReturnType<typeof resolveModule>;
-  expanded: boolean;
+  open: boolean;
   onToggle: () => void;
   landingHref: string;
 }) {
+  const { state, isMobile } = useSidebar();
+  const iconCollapsed = state === "collapsed" && !isMobile;
   const moduleActive = activeMatch?.module.key === module.key;
   const Icon = module.icon;
   const hasSubmenu = module.tabs.length > 1;
-  const [hoverOpen, setHoverOpen] = React.useState(false);
-  const leaveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
-
-  const clearLeaveTimer = React.useCallback(() => {
-    if (leaveTimerRef.current != null) {
-      clearTimeout(leaveTimerRef.current);
-      leaveTimerRef.current = null;
-    }
-  }, []);
-
-  React.useEffect(() => () => clearLeaveTimer(), [clearLeaveTimer]);
-
-  const openSubmenu = React.useCallback(() => {
-    clearLeaveTimer();
-    setHoverOpen(true);
-  }, [clearLeaveTimer]);
-
-  const scheduleCloseSubmenu = React.useCallback(() => {
-    clearLeaveTimer();
-    leaveTimerRef.current = setTimeout(() => {
-      setHoverOpen(false);
-      leaveTimerRef.current = null;
-    }, 140);
-  }, [clearLeaveTimer]);
-
-  // Active route stays open; hover peeks; click locks open while browsing.
-  const expanded = moduleActive || clickExpanded || hoverOpen;
 
   if (!hasSubmenu) {
     return (
@@ -237,17 +230,62 @@ function SidebarModuleItem({
     );
   }
 
+  // Icon rail: stable hit targets — flyout sub-nav on click (shadcn pattern).
+  if (iconCollapsed) {
+    return (
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton
+              isActive={moduleActive}
+              tooltip={module.title}
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+            >
+              <Icon />
+              <span>{module.title}</span>
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side="right"
+            align="start"
+            sideOffset={8}
+            className="min-w-48"
+          >
+            <DropdownMenuLabel className="text-xs font-semibold tracking-wide">
+              {module.title}
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link
+                href={landingHref}
+                onClick={() =>
+                  pushErpRecent({ href: landingHref, title: module.title })
+                }
+              >
+                Overview
+              </Link>
+            </DropdownMenuItem>
+            {module.tabs.map((tab) => (
+              <DropdownMenuItem key={tab.href} asChild>
+                <Link
+                  href={tab.href}
+                  onClick={() =>
+                    pushErpRecent({ href: tab.href, title: tab.title })
+                  }
+                >
+                  {tab.title}
+                </Link>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    );
+  }
+
+  // Expanded rail: nested list toggled by chevron click only.
   return (
-    <SidebarMenuItem
-      onMouseEnter={openSubmenu}
-      onMouseLeave={scheduleCloseSubmenu}
-      onFocusCapture={openSubmenu}
-      onBlurCapture={(event) => {
-        const next = event.relatedTarget as Node | null;
-        if (next && event.currentTarget.contains(next)) return;
-        scheduleCloseSubmenu();
-      }}
-    >
+    <SidebarMenuItem>
       <div className="flex w-full items-center gap-0.5">
         <SidebarMenuButton
           asChild
@@ -267,27 +305,24 @@ function SidebarModuleItem({
             event.stopPropagation();
             onToggle();
           }}
-          aria-expanded={expanded}
+          aria-expanded={open}
           aria-controls={`sidebar-sub-${module.key}`}
-          aria-label={`${expanded ? "Collapse" : "Expand"} ${module.title} sections`}
+          aria-label={`${open ? "Collapse" : "Expand"} ${module.title} sections`}
           className={cn(
-            "inline-flex size-8 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 outline-none ring-sidebar-ring transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 group-data-[collapsible=icon]:hidden",
+            "inline-flex size-8 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 outline-none ring-sidebar-ring transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2",
             moduleActive && "text-sidebar-accent-foreground",
           )}
         >
           <ChevronRightIcon
             className={cn(
               "size-4 transition-transform duration-200",
-              expanded && "rotate-90",
+              open && "rotate-90",
             )}
           />
         </button>
       </div>
-      {expanded ? (
-        <SidebarMenuSub
-          id={`sidebar-sub-${module.key}`}
-          className="mx-0 border-l-sidebar-border/70 px-0 group-data-[collapsible=icon]:hidden"
-        >
+      {open ? (
+        <SidebarMenuSub id={`sidebar-sub-${module.key}`}>
           {module.tabs.map((tab) => {
             const tabActive = activeMatch?.tab.href === tab.href;
             return (
@@ -295,7 +330,7 @@ function SidebarModuleItem({
                 <SidebarMenuSubButton
                   asChild
                   isActive={tabActive}
-                  className="relative w-full pl-6 text-[13px]"
+                  className="w-full pl-2 text-[13px]"
                 >
                   <Link
                     href={tab.href}
@@ -314,51 +349,3 @@ function SidebarModuleItem({
     </SidebarMenuItem>
   );
 }
-
-/** Pin/auto-collapse toggle for the sidebar footer or header. */
-export function SidebarAutoCollapseToggle() {
-  const ctx = useSidebar() as SidebarContextProps & {
-    autoCollapse?: boolean;
-    setAutoCollapse?: (v: boolean) => void;
-  };
-  const [pinned, setPinned] = React.useState<boolean>(!ctx.autoCollapse);
-
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        const next = !pinned;
-        setPinned(next);
-        // Pinned = autoCollapse off (always expanded on desktop).
-        ctx.setAutoCollapse?.(!next);
-        if (next) ctx.setOpen(true);
-      }}
-      className={cn(
-        "inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[11px] font-medium tracking-[0.16em] uppercase transition-colors",
-        pinned
-          ? "bg-accent/10 text-accent"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground",
-      )}
-      aria-pressed={pinned}
-      title={
-        pinned
-          ? "Sidebar pinned open (will not auto-collapse on narrow screens)"
-          : "Sidebar auto-collapses on narrow screens"
-      }
-    >
-      {pinned ? "Pinned" : "Auto"}
-    </button>
-  );
-}
-
-type SidebarContextProps = {
-  state: "expanded" | "collapsed";
-  open: boolean;
-  setOpen: (open: boolean) => void;
-  openMobile: boolean;
-  setOpenMobile: (open: boolean) => void;
-  isMobile: boolean;
-  toggleSidebar: () => void;
-  isHoverExpanded: boolean;
-  setIsHoverExpanded: (value: boolean) => void;
-};

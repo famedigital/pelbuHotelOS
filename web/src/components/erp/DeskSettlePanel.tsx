@@ -7,19 +7,20 @@ import { CheckOutForm } from "@/components/erp/CheckInForm";
 import {
   IssueInvoiceButton,
   PostCheckInChargesForm,
-  VoidLineButton,
 } from "@/components/erp/FolioOpsForms";
 import {
   FolioPaymentForm,
   type FolioSettleMethod,
 } from "@/components/erp/FolioPaymentForm";
 import { FolioRoomPosItemsPanel } from "@/components/erp/FolioRoomPosItemsPanel";
+import { StayHubFolioLedgerTable } from "@/components/erp/stay-hub/StayHubFolioLedgerTable";
 import { Button } from "@/components/ui/button";
 import { isCreditAgentStatus } from "@/lib/agents/status";
 import {
   classifyBillLine,
   type BillKind,
 } from "@/lib/folio/bill-kinds";
+import { buildLedgerStripSummary } from "@/lib/folio/ledger-summary";
 import {
   buildFolioPageHref,
   type StayHubBoard,
@@ -48,6 +49,8 @@ export type DeskSettlePanelProps = {
   lateCheckoutFeeBtn?: number | null;
   hasInvoice: boolean;
   onMoneyChanged: () => void;
+  /** Paint voided line immediately before server round-trip. */
+  onOptimisticVoidLine?: (lineId: string) => void;
   onCheckedOut?: () => void;
   /** settle = Folio tab (room/POS/print); checkout = balance + check-out only */
   mode?: DeskSettleMode;
@@ -81,6 +84,7 @@ export function DeskSettlePanel({
   lateCheckoutFeeBtn,
   hasInvoice,
   onMoneyChanged,
+  onOptimisticVoidLine,
   mode = "settle",
   stayPanel = "stay_money",
   stayBoard = "auto",
@@ -121,26 +125,30 @@ export function DeskSettlePanel({
       })
     : null;
   const lines = money?.lines ?? [];
+  const postedOnly = useMemo(
+    () => lines.filter((l) => (l.status ?? "posted") === "posted"),
+    [lines],
+  );
   const roomLines = useMemo(
     () =>
-      lines.filter((l) => {
-        if ((l.status ?? "posted") !== "posted") return false;
+      postedOnly.filter((l) => {
         const g = classifyBillLine(l);
         return g === "room" || g === "hotel_adj" || g === "other";
       }),
-    [lines],
+    [postedOnly],
   );
   const posLines = useMemo(
     () =>
-      lines.filter((l) => {
-        if ((l.status ?? "posted") !== "posted") return false;
+      postedOnly.filter((l) => {
         return classifyBillLine(l) === "fnb";
       }),
-    [lines],
+    [postedOnly],
   );
 
   const roomTotal = roomLines.reduce((s, l) => s + Number(l.total_btn ?? 0), 0);
   const posTotal = posLines.reduce((s, l) => s + Number(l.total_btn ?? 0), 0);
+  const ledgerSummary =
+    money?.ledgerSummary ?? buildLedgerStripSummary(lines);
   const posGuestCharges = posLines
     .filter((l) => (l.bill_to ?? "guest") !== "agent")
     .reduce((s, l) => s + Number(l.total_btn ?? 0), 0);
@@ -274,11 +282,42 @@ export function DeskSettlePanel({
   }
 
   const displayLines =
-    tab === "pos" ? posLines : tab === "room" ? roomLines : [...roomLines, ...posLines];
+    tab === "pos" ? posLines : tab === "room" ? roomLines : postedOnly;
 
   const collectExpanded = toolTab === "collect" && showCollect;
   const showBill = toolTab === "bill";
   const showAdvanced = toolTab === "advanced";
+
+  const ledgerLinesForTab = useMemo(() => {
+    if (tab === "room") {
+      return lines.filter((l) => {
+        const st = (l.status ?? "posted").toLowerCase();
+        if (st !== "posted" && st !== "voided") return false;
+        if (st === "posted") {
+          const g = classifyBillLine(l);
+          return g === "room" || g === "hotel_adj" || g === "other";
+        }
+        // voided room-ish: same classification
+        const g = classifyBillLine(l);
+        return g === "room" || g === "hotel_adj" || g === "other";
+      });
+    }
+    if (tab === "pos") {
+      return lines.filter((l) => classifyBillLine(l) === "fnb");
+    }
+    return lines;
+  }, [lines, tab]);
+
+  const ledgerEmpty =
+    !money?.hasCharges
+      ? "No charges yet — post day-1 above, or wait for night audit room nights."
+      : tab === "room"
+        ? "No room lines yet."
+        : tab === "pos"
+          ? hasPos
+            ? "No F&B folio lines yet — tickets below may still be open."
+            : "No F&B charged to room yet."
+          : "No lines yet.";
 
   if (showAdvanced) {
     return (
@@ -505,31 +544,20 @@ export function DeskSettlePanel({
             />
           ) : null}
 
-          {tab !== "pos" ? (
-            <LineList
-              lines={tab === "room" ? roomLines : displayLines}
-              empty={
-                !money?.hasCharges
-                  ? "No charges yet — post day-1 above."
-                  : tab === "room"
-                    ? "No room lines yet."
-                    : "No lines yet."
-              }
-              onVoided={onMoneyChanged}
-              compact
-            />
-          ) : (
-            <LineList
-              lines={posLines}
-              empty={
-                hasPos
-                  ? "No F&B folio lines yet — tickets below may still be open."
-                  : "No F&B charged to room yet."
-              }
-              onVoided={onMoneyChanged}
-              compact
-            />
-          )}
+          <StayHubFolioLedgerTable
+            lines={ledgerLinesForTab}
+            summary={
+              tab === "all"
+                ? ledgerSummary
+                : buildLedgerStripSummary(displayLines)
+            }
+            siblingFolios={
+              tab === "all" ? (money?.siblingFolios ?? []) : []
+            }
+            empty={ledgerEmpty}
+            onVoided={onMoneyChanged}
+            onOptimisticVoid={onOptimisticVoidLine}
+          />
 
           {tab === "pos" || tab === "all" ? (
             <FolioRoomPosItemsPanel
@@ -848,79 +876,6 @@ function MasterActionsBlock({
         </p>
       ) : null}
     </div>
-  );
-}
-
-function LineList({
-  lines,
-  empty,
-  onVoided,
-  compact = false,
-}: {
-  lines: NonNullable<StayHubMoneyPayload["lines"]>;
-  empty: string;
-  onVoided: () => void;
-  compact?: boolean;
-}) {
-  if (!lines.length) {
-    return (
-      <p className="px-0.5 text-xs text-muted-foreground">{empty}</p>
-    );
-  }
-  return (
-    <ul
-      className={cn(
-        "divide-y overflow-y-auto rounded-md border bg-card",
-        compact
-          ? "max-h-[min(22rem,48vh)]"
-          : "max-h-[min(14rem,36vh)]",
-      )}
-    >
-      {lines.map((l) => {
-        const amt = Number(l.total_btn ?? 0);
-        const canVoid = l.source_type !== "payment" && amt > 0;
-        return (
-          <li
-            key={l.id}
-            className="flex flex-col gap-0.5 px-2.5 py-1.5"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[12px] font-medium leading-snug">
-                  {l.description || l.source_type}
-                </p>
-                <p className="text-[10px] capitalize text-muted-foreground">
-                  {(l.source_type ?? "line").replace(/_/g, " ")}
-                  {l.bill_to === "agent" ? " · agent" : ""}
-                </p>
-              </div>
-              <p
-                className={cn(
-                  "shrink-0 tabular-nums text-[12px] font-semibold leading-snug",
-                  amt < 0 && "text-emerald-700 dark:text-emerald-400",
-                )}
-              >
-                {formatGuestBtn(amt)}
-              </p>
-            </div>
-            {canVoid ? (
-              <div
-                className="flex justify-end"
-                onSubmitCapture={() => {
-                  window.setTimeout(onVoided, 600);
-                }}
-              >
-                <VoidLineButton
-                  lineId={l.id}
-                  description={l.description ?? undefined}
-                  collapsed={compact}
-                />
-              </div>
-            ) : null}
-          </li>
-        );
-      })}
-    </ul>
   );
 }
 

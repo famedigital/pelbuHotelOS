@@ -24,6 +24,7 @@ export type FastBookDialogProps = {
   roomTypes: DeskBookFormProps["roomTypes"];
   agents: DeskBookFormProps["agents"];
   staff?: DeskBookFormProps["staff"];
+  cleanUnits?: DeskBookFormProps["cleanUnits"];
   defaultSoldByStaffId?: string;
   mealPlans?: DeskBookFormProps["mealPlans"];
   property?: DeskBookFormProps["property"];
@@ -115,6 +116,7 @@ export function FastBookDialog({
             roomTypes={formProps.roomTypes}
             agents={formProps.agents}
             staff={formProps.staff}
+            cleanUnits={formProps.cleanUnits}
             defaultSoldByStaffId={formProps.defaultSoldByStaffId}
             mealPlans={formProps.mealPlans}
             property={formProps.property}

@@ -153,20 +153,22 @@ export function deskHomeHrefForRole(
       return "/erp/laundry";
     case "owner":
     case "gm":
+      return "/erp/finance";
     default:
-      return "/erp";
+      return "/erp/arrivals";
   }
 }
 
 /**
- * Post-login desk home — prefers role home; shared PIN with no staff role → `/erp`.
+ * Post-login desk home — prefers role home; shared PIN with no staff role →
+ * Front desk Arrivals (not bare `/erp`).
  */
 export function resolveDeskHomeHref(opts: {
   deskRole: DeskRole | null | undefined;
   pinOnlySession?: boolean;
 }): string {
   if (opts.pinOnlySession && !opts.deskRole) {
-    return "/erp";
+    return "/erp/arrivals";
   }
   return deskHomeHrefForRole(opts.deskRole);
 }

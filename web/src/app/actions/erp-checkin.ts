@@ -269,7 +269,7 @@ export async function confirmCheckIn(
     }
 
     const status = booking.status as string;
-    if (!["pending", "confirmed"].includes(status)) {
+    if (!["pending", "confirmed", "held"].includes(status)) {
       throw new Error(`Cannot check in a booking with status ${status}.`);
     }
 
@@ -355,20 +355,26 @@ export async function confirmCheckIn(
       (r) => r.inventory_kind === "driver_comp" && Number(r.qty) > 0,
     );
 
-    const docsError = validateCheckInDocs({
-      origin: guestOrigin,
-      guideNumber,
-      guests: guests.map((g) => ({
-        fullName: g.fullName,
-        passportOrCid: g.passportOrCid,
-        sdfRef: g.sdfRef,
-      })),
-      hasDriverBeds,
-      driverName,
-    });
+    const docsDeferred =
+      formData.get("party_docs_deferred") === "on" ||
+      formData.get("party_docs_deferred") === "true";
+
+    const docsError = docsDeferred
+      ? null
+      : validateCheckInDocs({
+          origin: guestOrigin,
+          guideNumber,
+          guests: guests.map((g) => ({
+            fullName: g.fullName,
+            passportOrCid: g.passportOrCid,
+            sdfRef: g.sdfRef,
+          })),
+          hasDriverBeds,
+          driverName,
+        });
     if (docsError) throw new Error(docsError);
 
-    if (nationalityRequired(guestOrigin)) {
+    if (!docsDeferred && nationalityRequired(guestOrigin)) {
       for (const [i, g] of guests.entries()) {
         if (!g.nationality.trim()) {
           throw new Error(`Guest ${i + 1}: nationality is required for ${guestOrigin} guests.`);

@@ -41,6 +41,10 @@ export type StayHubCycleInput = {
   balanceBtn?: number;
   /** Board can force a preferred current for open (visual only if viewer picks panel) */
   forceCurrent?: StayHubStepId | null;
+  /** Booking check-in YYYY-MM-DD */
+  checkInDate?: string | null;
+  /** Property open business date YYYY-MM-DD */
+  openBusinessDate?: string | null;
 };
 
 const LABELS: Record<StayHubStepId, { label: string; short: string }> = {
@@ -75,6 +79,20 @@ export function stayHubTerminal(status: string): StayHubTerminal {
   return null;
 }
 
+/** True when booking arrival is after the open hotel business day. */
+export function isStayHubArrivalTooFar(
+  checkInDate: string | null | undefined,
+  openBusinessDate: string | null | undefined,
+  status?: string | null,
+): boolean {
+  const s = (status ?? "").toLowerCase();
+  if (s === "checked_in" || s === "checked_out") return false;
+  if (stayHubTerminal(s)) return false;
+  const checkInDay = (checkInDate ?? "").slice(0, 10);
+  const openBiz = (openBusinessDate ?? "").slice(0, 10);
+  return Boolean(checkInDay) && Boolean(openBiz) && checkInDay > openBiz;
+}
+
 /**
  * Visual truth for progress strip. Does not steal the open panel —
  * callers must only apply recommended panel on booking open, not rehydrate.
@@ -96,6 +114,15 @@ export function buildStayHubSteps(input: StayHubCycleInput): StayHubStep[] {
   const hasFolio = Boolean(input.hasFolio) || checkedIn;
   const balance = Number(input.balanceBtn ?? 0);
   const settled = Math.abs(balance) <= 0.5;
+  const checkInDay = (input.checkInDate ?? "").slice(0, 10);
+  const openBiz = (input.openBusinessDate ?? "").slice(0, 10);
+  const arrivalTooFar =
+    Boolean(checkInDay) &&
+    Boolean(openBiz) &&
+    checkInDay > openBiz &&
+    !checkedIn &&
+    !checkedOut &&
+    !terminal;
 
   const doneMap: Record<StayHubStepId, boolean> = {
     reserve: !terminal,
@@ -128,6 +155,9 @@ export function buildStayHubSteps(input: StayHubCycleInput): StayHubStep[] {
     if (holdActive) currentIdx = ORDER.indexOf("confirm");
     else if (status === "confirmed" && !arrivalReady)
       currentIdx = ORDER.indexOf("arrival");
+    else if (status === "confirmed" && arrivalReady && arrivalTooFar)
+      // Future arrival — keep FO on Ready/Details, not Check-in.
+      currentIdx = ORDER.indexOf("arrival");
     else if (status === "confirmed" && arrivalReady)
       currentIdx = ORDER.indexOf("check_in");
     // In-house domain focus is Folio (bill/collect). Checkout is explicit leave —
@@ -139,6 +169,11 @@ export function buildStayHubSteps(input: StayHubCycleInput): StayHubStep[] {
     // Held/pending: never treat check_out as current even if forced from board/URL.
     if (holdActive && input.forceCurrent === "check_out") {
       currentIdx = ORDER.indexOf("confirm");
+    } else if (
+      arrivalTooFar &&
+      (input.forceCurrent === "check_in" || input.forceCurrent === "check_out")
+    ) {
+      currentIdx = ORDER.indexOf("arrival");
     } else {
       const forced = ORDER.indexOf(input.forceCurrent);
       if (forced >= 0) currentIdx = forced;
@@ -146,14 +181,24 @@ export function buildStayHubSteps(input: StayHubCycleInput): StayHubStep[] {
   }
 
   return ORDER.map((id, i) => {
-    const locked =
+    let locked =
       !terminal &&
       !doneMap[id] &&
       i > currentIdx &&
       !(id === "stay_money" && checkedIn) &&
       !(id === "check_out" && checkedIn);
     let lockReason: string | undefined;
-    if (locked) {
+
+    // Future arrival: check-in (and checkout) stay locked until hotel day.
+    if (arrivalTooFar && (id === "check_in" || id === "check_out") && !doneMap[id]) {
+      locked = true;
+      lockReason =
+        id === "check_in"
+          ? `Arrival ${checkInDay} — business day is ${openBiz}`
+          : "Check in on arrival day first";
+    }
+
+    if (locked && !lockReason) {
       if (id === "check_in" && !docsOk)
         lockReason = "Finish guest docs first";
       else if (id === "check_in" && !hasRoom)
@@ -191,6 +236,16 @@ export function recommendStayHubStep(
 
   const board = input.board ?? "auto";
   if (board === "arrivals") {
+    const checkInDay = (input.checkInDate ?? "").slice(0, 10);
+    const openBiz = (input.openBusinessDate ?? "").slice(0, 10);
+    if (
+      checkInDay &&
+      openBiz &&
+      checkInDay > openBiz &&
+      ["pending", "confirmed"].includes(status)
+    ) {
+      return "arrival";
+    }
     if (["pending", "confirmed"].includes(status)) return "check_in";
     return "check_in";
   }

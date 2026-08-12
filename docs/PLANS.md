@@ -13,6 +13,7 @@ Last reconciled: **2026-08-10** (full docs re-sync after **`fc23144`**; FO agent
 | Plan | Focus | Status | Saved copy |
 |------|--------|--------|------------|
 | **Way forward (current)** | Residual after wave + N+1 — **A/B/C pack** | **A–C implemented** — D/E pull if desk asks | [plans/olakha-erp-way-forward.md](plans/olakha-erp-way-forward.md) |
+| **eZee FO parity (screenshots)** | Phase B inventory + product P0/P1/P2 practical | **Closed** (defer auto-release, FC, 112 reports, §15 ops) | [plans/ezee-fo-parity-status.md](plans/ezee-fo-parity-status.md) · Cursor `ezee_res_gaps_8b5b7d45` |
 | N+1 tranche (shipped) | StayHub FO cycle, night-audit desk, HR, kitchen events, DOT | **Done** | way-forward §1.3 |
 | `stayhub_walk-in_ux_4eb64b91.plan.md` | Walk-in FO: phone later, fast save, sticky CI, undo/no-show | **Done (`8ba9342` / docs `fc23144`)** | Cursor plans folder |
 | Agent commerce / StayHub FO | Guide pack, room cap, AR labels, POS folio, PS conf # | **Shipped 2026-08-09/10** — [checklist](FO-AGENT-COMMERCE-CHECKLIST.md) | Cursor plans + checklist |

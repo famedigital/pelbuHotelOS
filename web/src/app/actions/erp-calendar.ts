@@ -758,10 +758,13 @@ export async function createCalendarGroupReservation(
         preferredUnitIds: [unit.id],
       });
 
-      await admin.from("booking_guests").insert({
-        booking_id: booking.id,
-        full_name: common.contactName,
-      });
+      // Leader guest row once — other rooms are pax/inventory only until SDF.
+      if (unitIndex === 0) {
+        await admin.from("booking_guests").insert({
+          booking_id: booking.id,
+          full_name: common.contactName,
+        });
+      }
 
       await admin.from("booking_group_members").insert({
         group_id: groupId,

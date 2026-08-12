@@ -10,11 +10,13 @@ import {
   fetchStayHubCatalog,
   fetchStayHubCheckIn,
   fetchStayHubMoney,
+  fetchStayHubPartyContext,
   fetchStayHubSummary,
   previewStayHubSheetRate,
   type StayHubCatalogMealPlan,
   type StayHubCheckInPayload,
   type StayHubMoneyPayload,
+  type StayHubPartyContext,
   type StayHubSummary,
 } from "@/app/actions/stay-hub";
 import { undoCheckIn } from "@/app/actions/erp-checkin";
@@ -22,6 +24,20 @@ import type { CalendarAgent } from "@/components/erp/CalendarReservationDialog";
 import { AgentPicker } from "@/components/erp/AgentPicker";
 import { StaffPicker, type BookableStaff } from "@/components/erp/StaffPicker";
 import { BookingLifecycleActions } from "@/components/erp/BookingLifecycleActions";
+import { StayHubPrintPackMenu } from "@/components/erp/StayHubPrintPackMenu";
+import { StayHubRateNightsPanel } from "@/components/erp/stay-hub/StayHubRateNightsPanel";
+import {
+  StayHubAuditStrip,
+  StayHubFoExtrasForm,
+  StayHubNextResBanner,
+} from "@/components/erp/stay-hub/StayHubFoExtrasPanel";
+import { StayHubTasksPanel } from "@/components/erp/stay-hub/StayHubTasksPanel";
+import { useStayHubOptional } from "@/components/erp/StayHubProvider";
+import {
+  getStayHubCatalogCache,
+  setStayHubCatalogCache,
+} from "@/lib/folio/stay-hub-catalog-cache";
+import { buildLedgerStripSummary } from "@/lib/folio/ledger-summary";
 import { CheckInForm, CheckOutForm } from "@/components/erp/CheckInForm";
 import {
   FastBookVoucher,
@@ -54,6 +70,7 @@ import {
   type StayHubMoreAction,
 } from "@/components/erp/stay-hub/StayHubChrome";
 import { StayHubAdvancedPanel } from "@/components/erp/stay-hub/StayHubAdvancedPanel";
+import { StayHubPartyStrip } from "@/components/erp/stay-hub/StayHubPartyStrip";
 import { useDebouncedAutoSave } from "@/components/erp/stay-hub/use-debounced-auto-save";
 import { useStayHubConcurrentLock } from "@/components/erp/stay-hub/use-stay-hub-concurrent-lock";
 import { Button } from "@/components/ui/button";
@@ -72,6 +89,7 @@ import {
   buildStayHubSteps,
   canNavigateStayHubStep,
   deskFocusedSteps,
+  isStayHubArrivalTooFar,
   previousStayHubPanel,
   recommendStayHubStep,
   stayHubBackTargetLabel,
@@ -79,8 +97,14 @@ import {
   type StayHubStepId,
 } from "@/lib/folio/stay-hub-cycle";
 import { panelDescription } from "@/lib/folio/stay-hub-format";
+import {
+  packageNightlyAverageBtn,
+  packageStayTotalBtn,
+  roomNightAllInBtn,
+} from "@/lib/folio/stay-rate-quote";
 import { formatGuestBtn } from "@/lib/pricing";
 import { thimphuToday } from "@/lib/erp-lists";
+import { nightsBetween } from "@/lib/stay-dates";
 import { cn } from "@/lib/utils";
 import { LockIcon, UnlockIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -207,9 +231,44 @@ function summaryFromSeed(stay: StayHubSeedStay): StayHubSummary {
     guideSignWaiveReason: null,
     regCardPhotoPublicId: null,
     regCardSignedAt: null,
+    rateTaxMode: "exclusive",
+    taxExemptGst: false,
+    taxExemptService: false,
+    taxExemptBst: false,
+    roomTax: {
+      gstRate: 0,
+      serviceChargeRate: 0,
+      applyServiceCharge: false,
+      inclusiveOfGstSc: false,
+    },
+    houseUse: false,
+    dnr: false,
+    dnrReason: null,
+    pickupNeeded: false,
+    dropoffNeeded: false,
+    pickupAt: null,
+    dropoffAt: null,
+    transportArrivalMode: null,
+    transportDepartureMode: null,
+    transportNotes: null,
+    visaNo: null,
+    visaExpiry: null,
+    arrivedFrom: null,
+    purposeOfVisit: null,
+    bookedAt: null,
+    checkedInAt: null,
+    checkedOutAt: null,
+    releaseDaysBeforeArrival: null,
+    releasePercent: null,
+    depositDueOn: null,
+    auditTrail: [],
+    nextRes: null,
+    guests: [],
+    openTasks: [],
     confirmMode: "soft",
     advanceStatus: "none",
     advanceDueBtn: null,
+    openBusinessDate: thimphuToday(),
   };
 }
 
@@ -278,18 +337,26 @@ function resolveOpenPanel(
   stepHint: StayHubStepId | null | undefined,
   board: "arrivals" | "in_house" | "departures" | "reservations" | "auto",
 ): StayHubStepId {
+  const cycleInput = {
+    status: s.status,
+    hasRoomAssigned: s.hasRoomAssigned,
+    sdfIncomplete: s.sdfIncomplete,
+    hasFolio: Boolean(s.folioId),
+    balanceBtn: s.folioBalance,
+    board: board ?? "auto",
+    checkInDate: s.checkIn,
+    openBusinessDate: s.openBusinessDate,
+  } as const;
+
   let recommended =
-    stepHint ??
-    recommendStayHubStep({
-      status: s.status,
-      hasRoomAssigned: s.hasRoomAssigned,
-      sdfIncomplete: s.sdfIncomplete,
-      hasFolio: Boolean(s.folioId),
-      balanceBtn: s.folioBalance,
-      board: board ?? "auto",
-    });
+    stepHint ?? recommendStayHubStep(cycleInput);
 
   const st = (s.status ?? "").toLowerCase();
+  const tooFar = isStayHubArrivalTooFar(
+    s.checkIn,
+    s.openBusinessDate,
+    s.status,
+  );
 
   // Holds: never land past Confirm for edit surface.
   if (
@@ -300,17 +367,18 @@ function resolveOpenPanel(
     recommended = "confirm";
   }
 
+  // Future arrival: never open on Check-in / Checkout.
+  if (
+    tooFar &&
+    (recommended === "check_in" || recommended === "check_out")
+  ) {
+    recommended = "arrival";
+  }
+
   // In-house: ignore reserve/confirm/arrival/check_in seed/URL hints when
   // domain says Stay/Money or Check-out — fixes progress vs body mismatch.
   if (st === "checked_in") {
-    const domain = recommendStayHubStep({
-      status: s.status,
-      hasRoomAssigned: s.hasRoomAssigned,
-      sdfIncomplete: s.sdfIncomplete,
-      hasFolio: Boolean(s.folioId),
-      balanceBtn: s.folioBalance,
-      board: board ?? "auto",
-    });
+    const domain = recommendStayHubStep(cycleInput);
     const early = (
       ["reserve", "confirm", "arrival", "check_in"] as StayHubStepId[]
     ).includes(recommended);
@@ -355,8 +423,13 @@ export function StayHubDialog({
   onPanelChange?: (step: StayHubStepId) => void;
 }) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const busy = pending || parentPending;
+  const stayHubCtx = useStayHubOptional();
+  const [datesPending, startDatesTransition] = useTransition();
+  const [undoPending, startUndoTransition] = useTransition();
+  const [lockPending, startLockTransition] = useTransition();
+  const [splitPending, startSplitTransition] = useTransition();
+  const [checkInFollowPending, startCheckInFollowTransition] = useTransition();
+  const [sheetRatePending, startSheetRate] = useTransition();
 
   const [summary, setSummary] = useState<StayHubSummary | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -413,13 +486,17 @@ export function StayHubDialog({
   const [sheetRate, setSheetRate] = useState<Awaited<
     ReturnType<typeof previewStayHubSheetRate>
   > | null>(null);
-  const [sheetRatePending, startSheetRate] = useTransition();
   const [railRateOpen, setRailRateOpen] = useState(false);
   const [postCheckInOpen, setPostCheckInOpen] = useState(false);
   const [postRegData, setPostRegData] =
     useState<GuestRegistrationCardData | null>(null);
+  const [party, setParty] = useState<StayHubPartyContext | null>(null);
   const collectPayRef = useRef<HTMLDivElement | null>(null);
   const postChargesRef = useRef<HTMLDivElement | null>(null);
+  /** Sticky money: skip refetch until force (void/pay) or booking change. */
+  const moneyBookingIdRef = useRef<string | null>(null);
+  const moneyForceRef = useRef(false);
+  const statusRollbackRef = useRef<string | null>(null);
 
   const agents = useMemo(() => {
     if (localAgents.length > 0) return localAgents;
@@ -437,31 +514,53 @@ export function StayHubDialog({
   );
   const railLockHint = peerHint ?? lockHint;
 
-  // Deep link / boards may open StayHub without agents/staff props — load catalog.
+  // Deep link / boards may open StayHub without agents/staff props — load catalog (cached).
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setCatalogLoading(true);
-    void fetchStayHubCatalog().then((r) => {
-      if (cancelled) return;
-      setCatalogLoading(false);
-      if (!r.ok) return;
+
+    const applyCatalog = (data: NonNullable<ReturnType<typeof getStayHubCatalogCache>>) => {
       setLocalAgents(
-        r.data.agents.map((a) => ({
+        data.agents.map((a) => ({
           id: a.id,
           company_name: a.company_name,
           market: a.market,
           status: a.status,
         })),
       );
-      setLocalStaff(r.data.staff);
-      setMealPlans(r.data.mealPlans);
-      setRegDesign(r.data.registration.design);
-      setRegProperty(r.data.registration.property);
+      setLocalStaff(data.staff);
+      setMealPlans(data.mealPlans);
+      setRegDesign(data.registration.design);
+      setRegProperty(data.registration.property);
+    };
+
+    const cached = getStayHubCatalogCache();
+    const propsReady =
+      (agentsProp?.length ?? 0) > 0 && (staffProp?.length ?? 0) > 0;
+
+    if (cached) {
+      applyCatalog(cached);
+      setCatalogLoading(false);
+      return;
+    }
+
+    if (propsReady && mealPlans.length > 0) {
+      setCatalogLoading(false);
+      return;
+    }
+
+    setCatalogLoading(true);
+    void fetchStayHubCatalog().then((r) => {
+      if (cancelled) return;
+      setCatalogLoading(false);
+      if (!r.ok) return;
+      setStayHubCatalogCache(r.data);
+      applyCatalog(r.data);
     });
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- catalog once per open; props seed skip
   }, [open]);
 
   // Live sheet rate for left-rail amount + Details → Rate.
@@ -517,7 +616,11 @@ export function StayHubDialog({
         setMessage(null);
         setVoucherOpen(false);
         setLockHint(null);
-        setMoney(null);
+        // Keep sticky money for same booking (prefetch / Folio↔Checkout)
+        if (moneyBookingIdRef.current !== s.bookingId) {
+          setMoney(null);
+          moneyBookingIdRef.current = null;
+        }
         setCheckInPayload(null);
         setFolioTool("bill");
         setDetailsTool("guest");
@@ -617,7 +720,7 @@ export function StayHubDialog({
       setMessage(null);
       toast.success("Checked in — print registration, then upload signed card");
 
-      startTransition(async () => {
+      startCheckInFollowTransition(async () => {
         const result = await fetchStayHubSummary(id, assignmentId);
         if (result.ok) {
           serverTruthRef.current = true;
@@ -713,6 +816,7 @@ export function StayHubDialog({
       setLoadError(null);
       setPostCheckInOpen(false);
       setPostRegData(null);
+      setParty(null);
       return;
     }
 
@@ -724,6 +828,8 @@ export function StayHubDialog({
       openLandedRef.current = false;
       setPostCheckInOpen(false);
       setPostRegData(null);
+      moneyBookingIdRef.current = null;
+      moneyForceRef.current = false;
     }
 
     if (isNewOpen && seedStay && seedStay.booking_id === bookingId) {
@@ -744,6 +850,12 @@ export function StayHubDialog({
       serverTruthRef.current = true;
       // Same id rehydrate: update summary for strip truth; keep panel/draft if dirty
       applySummary(result.data, isNewOpen, preferredStep);
+    });
+
+    void fetchStayHubPartyContext(bookingId).then((result) => {
+      if (cancelled) return;
+      if (result.ok) setParty(result.data);
+      else setParty(null);
     });
 
     return () => {
@@ -857,15 +969,47 @@ export function StayHubDialog({
     postRegData,
   ]);
 
-  // Lazy-load money panel; prefetch check-in as soon as hub opens for confirmed stays
+  // Prefetch money when folio exists / in-house / Folio·Checkout; sticky skip unless forced
   useEffect(() => {
     if (!open || !bookingId) return;
-    if (panel === "stay_money" || panel === "check_out") {
-      fetchStayHubMoney(bookingId).then((r) => {
-        if (r.ok) setMoney(r.data);
-      });
+    const wantsMoney =
+      panel === "stay_money" ||
+      panel === "check_out" ||
+      preferredStep === "stay_money" ||
+      preferredStep === "check_out" ||
+      summary?.status === "checked_in" ||
+      Boolean(summary?.folioId) ||
+      Boolean(seedStay?.folio_id);
+
+    if (!wantsMoney) return;
+
+    if (moneyBookingIdRef.current === bookingId && !moneyForceRef.current) {
+      return;
     }
-  }, [open, bookingId, panel]);
+
+    let cancelled = false;
+    const force = moneyForceRef.current;
+    void fetchStayHubMoney(bookingId).then((r) => {
+      if (cancelled || !r.ok) {
+        if (force) moneyForceRef.current = false;
+        return;
+      }
+      moneyBookingIdRef.current = bookingId;
+      moneyForceRef.current = false;
+      setMoney(r.data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    open,
+    bookingId,
+    panel,
+    preferredStep,
+    summary?.status,
+    summary?.folioId,
+    seedStay?.folio_id,
+  ]);
 
   const refreshSettlementEvidence = useCallback(() => {
     if (!bookingId) return;
@@ -997,9 +1141,19 @@ export function StayHubDialog({
       balanceBtn: money?.balanceBtn ?? summary.folioBalance,
       // Strip “current” tracks where staff actually are — not leave-ready math.
       forceCurrent: panel,
+      checkInDate: summary.checkIn,
+      openBusinessDate: summary.openBusinessDate,
     });
     return deskFocusedSteps(full, summary.status);
   }, [summary, money, panel]);
+
+  const arrivalTooFar = summary
+    ? isStayHubArrivalTooFar(
+        summary.checkIn,
+        summary.openBusinessDate,
+        summary.status,
+      )
+    : false;
 
   const goPanel = useCallback(
     (id: StayHubStepId) => {
@@ -1031,6 +1185,17 @@ export function StayHubDialog({
   ) => {
     const step = steps.find((s) => s.id === id);
     const status = summary?.status ?? "";
+    if (
+      arrivalTooFar &&
+      (id === "check_in" || id === "check_out") &&
+      ["pending", "confirmed", "held"].includes(status)
+    ) {
+      setLockHint(
+        step?.lockReason ??
+          `Arrival ${summary?.checkIn.slice(0, 10)} — business day is ${summary?.openBusinessDate}`,
+      );
+      return;
+    }
     const allowed = canNavigateStayHubStep({
       targetId: id,
       panel,
@@ -1158,9 +1323,13 @@ export function StayHubDialog({
         if (result.ok) {
           lastDateKey.current = dateKey;
           setSaveStatus("saved");
-          toast.success(result.message ?? "Dates updated");
-          router.refresh();
+          setSummary((prev) =>
+            prev
+              ? { ...prev, checkIn, checkOut }
+              : prev,
+          );
           window.setTimeout(() => setSaveStatus("idle"), 1800);
+          void router.refresh();
         } else {
           setSaveStatus("error");
           toast.error(result.error ?? "Could not update dates");
@@ -1204,15 +1373,69 @@ export function StayHubDialog({
   const isCheckInPanel = panel === "arrival" || panel === "check_in";
 
   const sheetOk = sheetRate?.ok === true ? sheetRate : null;
-  const railNightly =
-    summary?.agreedNightlyRateBtn ??
-    sheetOk?.systemNightlyTotalBtn ??
-    sheetOk?.roomNightlyBtn ??
-    null;
-  const railStayTotal =
-    summary?.agreedNightlyRateBtn != null && sheetOk?.nights
-      ? summary.agreedNightlyRateBtn * sheetOk.nights
-      : (sheetOk?.systemStayTotalBtn ?? null);
+  const nightsCount =
+    sheetOk?.nights != null && sheetOk.nights > 0
+      ? sheetOk.nights
+      : summary
+        ? nightsBetween(summary.checkIn, summary.checkOut)
+        : 0;
+  const roomsCount = Math.max(
+    1,
+    Math.floor(Number(summary?.rooms ?? 1) || 1),
+  );
+  const taxOpts = summary
+    ? {
+        gstRate: summary.roomTax.gstRate,
+        serviceChargeRate: summary.roomTax.serviceChargeRate,
+        applyServiceCharge: summary.roomTax.applyServiceCharge,
+        // Booking FO tax mode wins when set (eZee toggle on book)
+        inclusiveOfGstSc:
+          summary.rateTaxMode === "inclusive" ||
+          summary.roomTax.inclusiveOfGstSc,
+      }
+    : null;
+
+  /** Guest-facing room all-in night (taxed). Matches room-night posts. */
+  let railNightly: number | null = null;
+  let railStayTotal: number | null = null;
+  if (summary?.agreedNightlyRateBtn != null && taxOpts) {
+    const roomAllIn = roomNightAllInBtn(
+      summary.agreedNightlyRateBtn,
+      taxOpts,
+    );
+    railNightly = roomAllIn;
+    if (nightsCount > 0) {
+      railStayTotal = packageStayTotalBtn({
+        roomNightAllInBtn: roomAllIn,
+        rooms: roomsCount,
+        nights: nightsCount,
+        mealStayBtn: sheetOk?.mealStayBtn ?? 0,
+        extraBedStayBtn: sheetOk?.extraBedStayBtn ?? 0,
+      });
+    }
+  } else if (sheetOk) {
+    // Sheet path already returns guest all-in room + package totals.
+    railNightly =
+      sheetOk.systemNightlyTotalBtn ?? sheetOk.roomNightlyBtn ?? null;
+    railStayTotal = sheetOk.systemStayTotalBtn ?? null;
+    // If sheet lacks package average but has room nightly, rebuild stay.
+    if (
+      railStayTotal == null &&
+      sheetOk.roomNightlyBtn != null &&
+      nightsCount > 0
+    ) {
+      railStayTotal = packageStayTotalBtn({
+        roomNightAllInBtn: sheetOk.roomNightlyBtn,
+        rooms: roomsCount,
+        nights: nightsCount,
+        mealStayBtn: sheetOk.mealStayBtn,
+        extraBedStayBtn: sheetOk.extraBedStayBtn,
+      });
+      railNightly =
+        packageNightlyAverageBtn(railStayTotal, roomsCount, nightsCount) ??
+        sheetOk.roomNightlyBtn;
+    }
+  }
   const rateEditable =
     !!summary &&
     ["pending", "held", "confirmed", "checked_in"].includes(summary.status);
@@ -1240,7 +1463,7 @@ export function StayHubDialog({
 
   const handleUndoCheckIn = () => {
     if (!summary) return;
-    startTransition(async () => {
+    startUndoTransition(async () => {
       const result = await undoCheckIn(summary.bookingId);
       if (result.ok) {
         toast.success(result.message ?? "Check-in reversed");
@@ -1254,6 +1477,7 @@ export function StayHubDialog({
         setPanel("check_in");
         setCheckInTool("room");
         setMoney(null);
+        moneyBookingIdRef.current = null;
         router.refresh();
       } else {
         toast.error(result.error ?? "Could not undo check-in");
@@ -1276,6 +1500,18 @@ export function StayHubDialog({
 
     if (isDetailsPanel) {
       if (["pending", "confirmed"].includes(summary.status)) {
+        if (arrivalTooFar) {
+          return (
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11 flex-1 sm:flex-none"
+              onClick={() => goPanel("arrival")}
+            >
+              Prepare arrival
+            </Button>
+          );
+        }
         const ciStep = steps.find((s) => s.id === "check_in");
         const allowed = canNavigateStayHubStep({
           targetId: "check_in",
@@ -1301,6 +1537,18 @@ export function StayHubDialog({
 
     if (isCheckInPanel) {
       if (["pending", "confirmed"].includes(summary.status)) {
+        if (arrivalTooFar) {
+          return (
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11 flex-1 sm:flex-none"
+              onClick={() => goPanel("reserve")}
+            >
+              Adjust stay dates
+            </Button>
+          );
+        }
         if (checkInLoading || !checkInPayload) {
           return (
             <Button
@@ -1412,7 +1660,7 @@ export function StayHubDialog({
     moreActions.push({
       key: "undo-ci",
       label: "Undo check-in",
-      disabled: busy,
+      disabled: undoPending || parentPending,
       destructive: true,
       onSelect: handleUndoCheckIn,
     });
@@ -1550,10 +1798,46 @@ export function StayHubDialog({
 
   const onMoneyChanged = () => {
     if (!summary) return;
+    moneyForceRef.current = true;
     void fetchStayHubMoney(summary.bookingId).then((r) => {
-      if (r.ok) setMoney(r.data);
+      if (r.ok) {
+        moneyBookingIdRef.current = summary.bookingId;
+        moneyForceRef.current = false;
+        setMoney(r.data);
+      }
     });
     router.refresh();
+  };
+
+  const onOptimisticVoidLine = (lineId: string) => {
+    setMoney((prev) => {
+      if (!prev) return prev;
+      const lines = prev.lines.map((l) =>
+        l.id === lineId ? { ...l, status: "voided" } : l,
+      );
+      const ledgerSummary = buildLedgerStripSummary(lines);
+      return {
+        ...prev,
+        lines,
+        ledgerSummary,
+        balanceBtn: ledgerSummary.balanceBtn,
+      };
+    });
+  };
+
+  const patchOptimisticStatus = (nextStatus: string) => {
+    setSummary((prev) => {
+      if (!prev) return prev;
+      statusRollbackRef.current = prev.status;
+      return { ...prev, status: nextStatus };
+    });
+  };
+
+  const rollbackOptimisticStatus = () => {
+    const prev = statusRollbackRef.current;
+    if (!prev) return;
+    statusRollbackRef.current = null;
+    setSummary((s) => (s ? { ...s, status: prev } : s));
   };
 
   const advancedExtra =
@@ -1637,6 +1921,49 @@ export function StayHubDialog({
             dueChipBtn={balanceOpen ? dues : null}
           />
 
+          {party && summary ? (
+            <StayHubPartyStrip
+              party={party}
+              activeBookingId={summary.bookingId}
+              onSwitch={(nextId, nextAssignmentId) => {
+                if (stayHubCtx) {
+                  stayHubCtx.openStayHub({
+                    bookingId: nextId,
+                    assignmentId: nextAssignmentId,
+                    step: panel,
+                    board,
+                  });
+                }
+              }}
+              onLinked={() => {
+                if (!summary) return;
+                void fetchStayHubPartyContext(summary.bookingId).then((r) => {
+                  if (r.ok) setParty(r.data);
+                });
+                router.refresh();
+              }}
+            />
+          ) : null}
+
+          {summary ? (
+            <div
+              className={cn(
+                // Clear the dialog’s absolute close control (top-4 right-4 + X size)
+                // so it never draws over “Print pack”.
+                "flex shrink-0 flex-wrap items-center justify-end gap-2 border-b border-border",
+                "px-3 py-1.5 pr-12 md:px-4 md:pr-14",
+              )}
+            >
+              <StayHubPrintPackMenu
+                compact
+                bookingId={summary.bookingId}
+                folioId={folioId}
+                agentId={summary.agentId}
+                confirmationCode={summary.confirmationCode}
+              />
+            </div>
+          ) : null}
+
           <StayHubMobileSteps {...navProps} />
 
           <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -1675,7 +2002,8 @@ export function StayHubDialog({
                       nightlyBtn: railNightly,
                       isCustom: summary.agreedNightlyRateBtn != null,
                       stayTotalBtn: railStayTotal,
-                      nights: sheetOk?.nights ?? null,
+                      nights: nightsCount > 0 ? nightsCount : null,
+                      rooms: roomsCount,
                       mealPlanCode:
                         draft?.mealPlanCode ?? summary.mealPlanCode,
                       pending: sheetRatePending && railNightly == null,
@@ -1742,6 +2070,27 @@ export function StayHubDialog({
                           </Callout>
                         ) : null}
 
+                        {arrivalTooFar ? (
+                          <Callout
+                            tone="amber"
+                            title={`Arrival ${summary.checkIn.slice(0, 10)} — hotel day is ${summary.openBusinessDate}`}
+                          >
+                            Adjust dates on Details for early arrival, or wait
+                            until the hotel business day reaches arrival.
+                            Check-in stays locked until then.
+                          </Callout>
+                        ) : null}
+
+                        <StayHubNextResBanner
+                          summary={summary}
+                          onOpen={(id) => {
+                            stayHubCtx?.openStayHub({
+                              bookingId: id,
+                              board: board === "auto" ? "reservations" : board,
+                            });
+                          }}
+                        />
+
                         {detailsTool === "guest" ? (
                           <WorkSection title="Guest identity">
                             <GuestIdentityFields
@@ -1756,6 +2105,51 @@ export function StayHubDialog({
                             <p className="mt-1.5 text-[11px] text-muted-foreground">
                               Saves automatically as you type.
                             </p>
+                            {summary.guests.length > 0 ? (
+                              <div className="mt-3 border-t border-border/50 pt-2">
+                                <p className="mb-1.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+                                  Named guests / sharers
+                                </p>
+                                <div className="overflow-x-auto rounded-md border border-border/70">
+                                  <table className="w-full text-left text-xs">
+                                    <thead className="bg-muted/40 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+                                      <tr>
+                                        <th className="px-2 py-1">Name</th>
+                                        <th className="px-2 py-1">ID</th>
+                                        <th className="px-2 py-1">Nationality</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {summary.guests.map((g) => (
+                                        <tr
+                                          key={g.id || g.fullName}
+                                          className="border-t border-border/50"
+                                        >
+                                          <td className="px-2 py-1 font-medium">
+                                            {g.fullName}
+                                            {g.blacklisted ? (
+                                              <span className="ml-1 text-[10px] font-normal text-destructive">
+                                                DNR
+                                              </span>
+                                            ) : null}
+                                          </td>
+                                          <td className="px-2 py-1 font-mono text-[10px] tabular-nums text-muted-foreground">
+                                            {g.passportOrCid || "—"}
+                                          </td>
+                                          <td className="px-2 py-1 text-muted-foreground">
+                                            {g.nationality || "—"}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="mt-2 text-[11px] text-muted-foreground">
+                                No additional guest names yet — add at check-in.
+                              </p>
+                            )}
                           </WorkSection>
                         ) : null}
 
@@ -1778,12 +2172,16 @@ export function StayHubDialog({
                               splitUnitId={splitUnitId}
                               setSplitUnitId={setSplitUnitId}
                               sameTypeUnits={sameTypeUnits}
-                              busy={busy}
+                              datesPending={datesPending}
+                              splitPending={splitPending}
+                              lockPending={lockPending || parentPending}
                               seedStay={seedStay}
                               onToggleLock={onToggleLock}
                               onMessage={setMessage}
                               onRefresh={refreshStayAfterDateChange}
-                              startTransition={startTransition}
+                              startDatesTransition={startDatesTransition}
+                              startSplitTransition={startSplitTransition}
+                              startLockTransition={startLockTransition}
                             />
                           </WorkSection>
                         ) : null}
@@ -1805,6 +2203,27 @@ export function StayHubDialog({
                               summary={summary}
                               onUpdate={updateDraft}
                             />
+                            <div className="mt-3 border-t pt-3">
+                              <p className="mb-2 text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                                Night grid (tax split)
+                              </p>
+                              <StayHubRateNightsPanel
+                                checkIn={summary.checkIn}
+                                checkOut={summary.checkOut}
+                                baseNightBtn={
+                                  summary.agreedNightlyRateBtn ??
+                                  (sheetRate?.ok
+                                    ? (sheetRate.roomNightlyBtn ?? null)
+                                    : null)
+                                }
+                                adults={summary.adults}
+                                children={summary.children}
+                                tax={summary.roomTax}
+                                taxExemptGst={summary.taxExemptGst}
+                                taxExemptService={summary.taxExemptService}
+                                rateTaxMode={summary.rateTaxMode}
+                              />
+                            </div>
                             <div className="mt-4 border-t pt-3">
                               <p className="mb-2 text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
                                 Custom nightly (exception)
@@ -1829,6 +2248,28 @@ export function StayHubDialog({
 
                         {detailsTool === "more" ? (
                           <div className="space-y-2">
+                            <WorkSection title="Audit">
+                              <StayHubAuditStrip summary={summary} />
+                            </WorkSection>
+                            <WorkSection title="Wake-up · follow-up · message">
+                              <StayHubTasksPanel
+                                bookingId={summary.bookingId}
+                                tasks={summary.openTasks.map((t) => ({
+                                  id: t.id,
+                                  due_at: t.dueAt,
+                                  kind: t.kind,
+                                  notes: t.notes,
+                                  done_at: t.doneAt,
+                                }))}
+                                onChanged={() => void refreshSummary()}
+                              />
+                            </WorkSection>
+                            <WorkSection title="Logistics · visa · flags">
+                              <StayHubFoExtrasForm
+                                summary={summary}
+                                onSuccess={refreshSummary}
+                              />
+                            </WorkSection>
                             {summary.assignmentId ? (
                               <>
                                 <WorkSection title="Room NC">
@@ -1860,6 +2301,8 @@ export function StayHubDialog({
                                   bookingId={summary.bookingId}
                                   status={summary.status}
                                   onSuccess={refreshSummary}
+                                  onOptimisticStatus={patchOptimisticStatus}
+                                  onOptimisticRollback={rollbackOptimisticStatus}
                                 />
                               </WorkSection>
                             ) : null}
@@ -1974,6 +2417,8 @@ export function StayHubDialog({
                                   bookingId={summary.bookingId}
                                   status={summary.status}
                                   onSuccess={refreshSummary}
+                                  onOptimisticStatus={patchOptimisticStatus}
+                                  onOptimisticRollback={rollbackOptimisticStatus}
                                   compact
                                 />
                               </WorkSection>
@@ -2015,6 +2460,20 @@ export function StayHubDialog({
 
                             {["pending", "confirmed"].includes(
                               summary.status,
+                            ) && arrivalTooFar ? (
+                              <Callout
+                                tone="amber"
+                                title={`Arrival ${summary.checkIn.slice(0, 10)} — hotel day is ${summary.openBusinessDate}`}
+                              >
+                                Check-in opens on the arrival business day.
+                                Assign rooms and collect token now, or move
+                                check-in earlier under Details if the guest is
+                                arriving early.
+                              </Callout>
+                            ) : null}
+
+                            {["pending", "confirmed"].includes(
+                              summary.status,
                             ) && summary.assignmentId ? (
                               <WorkSection title="Stay dates">
                                 <StayDatesAndSplit
@@ -2034,12 +2493,16 @@ export function StayHubDialog({
                                   splitUnitId={splitUnitId}
                                   setSplitUnitId={setSplitUnitId}
                                   sameTypeUnits={sameTypeUnits}
-                                  busy={busy}
+                                  datesPending={datesPending}
+                                  splitPending={splitPending}
+                                  lockPending={lockPending || parentPending}
                                   seedStay={seedStay}
                                   onToggleLock={onToggleLock}
                                   onMessage={setMessage}
                                   onRefresh={refreshStayAfterDateChange}
-                                  startTransition={startTransition}
+                                  startDatesTransition={startDatesTransition}
+                                  startSplitTransition={startSplitTransition}
+                                  startLockTransition={startLockTransition}
                                 />
                               </WorkSection>
                             ) : null}
@@ -2144,6 +2607,7 @@ export function StayHubDialog({
                           postChargesAnchorRef={postChargesRef}
                           advancedExtra={advancedExtra}
                           onMoneyChanged={onMoneyChanged}
+                          onOptimisticVoidLine={onOptimisticVoidLine}
                         />
                       </div>
                     ) : null}
@@ -2269,6 +2733,14 @@ export function StayHubDialog({
                               folioBalance={dues}
                               earlyFeeDefaultBtn={summary.earlyCheckoutFeeBtn}
                               lateFeeDefaultBtn={summary.lateCheckoutFeeBtn}
+                              onCheckedOut={() => {
+                                setSummary((prev) =>
+                                  prev
+                                    ? { ...prev, status: "checked_out" }
+                                    : prev,
+                                );
+                                void refreshSummary();
+                              }}
                             />
                           ) : (
                             <Callout
@@ -2900,12 +3372,16 @@ function StayDatesAndSplit({
   splitUnitId,
   setSplitUnitId,
   sameTypeUnits,
-  busy,
+  datesPending,
+  splitPending,
+  lockPending,
   seedStay,
   onToggleLock,
   onMessage,
   onRefresh,
-  startTransition,
+  startDatesTransition,
+  startSplitTransition,
+  startLockTransition,
 }: {
   summary: StayHubSummary;
   checkIn: string;
@@ -2917,12 +3393,16 @@ function StayDatesAndSplit({
   splitUnitId: string;
   setSplitUnitId: (v: string) => void;
   sameTypeUnits: RackUnit[];
-  busy: boolean;
+  datesPending: boolean;
+  splitPending: boolean;
+  lockPending: boolean;
   seedStay: StayHubSeedStay | null;
   onToggleLock?: (stay: StayHubSeedStay) => void;
   onMessage: (m: string | null) => void;
   onRefresh: () => void;
-  startTransition: (fn: () => void) => void;
+  startDatesTransition: (fn: () => void) => void;
+  startSplitTransition: (fn: () => void) => void;
+  startLockTransition: (fn: () => void) => void;
 }) {
   return (
     <div className="space-y-2">
@@ -2949,10 +3429,10 @@ function StayDatesAndSplit({
           type="button"
           variant="outline"
           className="h-8 px-3 text-xs"
-          disabled={busy || summary.isLocked}
+          disabled={datesPending || summary.isLocked}
           onClick={() => {
             if (!summary.assignmentId) return;
-            startTransition(async () => {
+            startDatesTransition(async () => {
               const result = await resizeCalendarAssignment(
                 summary.assignmentId!,
                 checkIn,
@@ -3011,10 +3491,10 @@ function StayDatesAndSplit({
               type="button"
               variant="outline"
               className="h-8 px-3 text-xs"
-              disabled={busy || summary.isLocked || !splitUnitId}
+              disabled={splitPending || summary.isLocked || !splitUnitId}
               onClick={() => {
                 if (!summary.assignmentId) return;
-                startTransition(async () => {
+                startSplitTransition(async () => {
                   const result = await splitCalendarAssignment(
                     summary.assignmentId!,
                     splitDate,
@@ -3034,7 +3514,7 @@ function StayDatesAndSplit({
       <Button
         type="button"
         variant={summary.isLocked ? "outline" : "secondary"}
-        disabled={busy}
+        disabled={lockPending}
         className="h-8 gap-1.5 px-3 text-xs"
         onClick={() => {
           if (onToggleLock && seedStay) {
@@ -3042,7 +3522,7 @@ function StayDatesAndSplit({
             return;
           }
           if (!summary.assignmentId) return;
-          startTransition(async () => {
+          startLockTransition(async () => {
             await setCalendarAssignmentLock(
               summary.assignmentId!,
               !summary.isLocked,

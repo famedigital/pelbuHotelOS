@@ -17,6 +17,8 @@ import {
 import { loadRoomRateTaxSettings } from "@/lib/room-rate-tax";
 import { loadCheckInRoomOptions } from "@/lib/room-assignments";
 import { loadRoomChargePosOrders } from "@/lib/folio/room-pos-orders";
+import { buildLedgerStripSummary } from "@/lib/folio/ledger-summary";
+import { thimphuToday } from "@/lib/erp-lists";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export type StayHubCheckInPayload = {
@@ -25,6 +27,28 @@ export type StayHubCheckInPayload = {
   drivers: PartnerOption[];
   slots: Awaited<ReturnType<typeof loadCheckInRoomOptions>>["slots"];
   units: Awaited<ReturnType<typeof loadCheckInRoomOptions>>["units"];
+};
+
+export type StayHubMoneyLine = {
+  id: string;
+  source_type: string;
+  description: string | null;
+  total_btn: number;
+  gst_btn: number | null;
+  status: string | null;
+  bill_to: string | null;
+  /** YYYY-MM-DD for grid (business_date or created day). */
+  date: string | null;
+  created_at: string | null;
+};
+
+export type StayHubLedgerSummary = {
+  rateBtn: number;
+  extBtn: number;
+  discountBtn: number;
+  /** Absolute paid (payments + deposits as positive Nu collected). */
+  paymentBtn: number;
+  balanceBtn: number;
 };
 
 export type StayHubMoneyPayload = {
@@ -43,15 +67,13 @@ export type StayHubMoneyPayload = {
   paymentMode: string | null;
   /** Room-charge F&B tickets with item-level serve / void audit. */
   roomPosOrders: import("@/lib/folio/room-pos-orders-types").RoomChargePosOrder[];
-  /** Posted folio lines for Room / POS tabs (void-level corrections). */
-  lines: Array<{
-    id: string;
-    source_type: string;
-    description: string | null;
-    total_btn: number;
-    status: string | null;
-    bill_to: string | null;
-  }>;
+  /**
+   * Folio lines including voided (ledger can filter). Posted-only balance math
+   * uses status === posted.
+   */
+  lines: StayHubMoneyLine[];
+  /** Rate / Ext / Discount / Payment / Balance for Manage Folio strip. */
+  ledgerSummary: StayHubLedgerSummary;
   /** Guest-visible balance (excludes agent-billed room package). */
   guestVisibleBalanceBtn: number;
   agentChargesBtn: number;
@@ -115,9 +137,75 @@ export type StayHubSummary = {
   /** Cloudinary public_id of signed guest reg card (post CI). */
   regCardPhotoPublicId: string | null;
   regCardSignedAt: string | null;
+  /** FO rate tax mode at book (eZee-style). */
+  rateTaxMode: "inclusive" | "exclusive";
+  taxExemptGst: boolean;
+  taxExemptService: boolean;
+  taxExemptBst: boolean;
+  /** Property room tax settings for night grid. */
+  roomTax: {
+    gstRate: number;
+    serviceChargeRate: number;
+    applyServiceCharge: boolean;
+    inclusiveOfGstSc: boolean;
+  };
+  /** FO logistics / eZee Room Sharing lite. */
+  houseUse: boolean;
+  dnr: boolean;
+  dnrReason: string | null;
+  pickupNeeded: boolean;
+  dropoffNeeded: boolean;
+  pickupAt: string | null;
+  dropoffAt: string | null;
+  transportArrivalMode: string | null;
+  transportDepartureMode: string | null;
+  transportNotes: string | null;
+  visaNo: string | null;
+  visaExpiry: string | null;
+  arrivedFrom: string | null;
+  purposeOfVisit: string | null;
+  /** Lifecycle stamps. */
+  bookedAt: string | null;
+  checkedInAt: string | null;
+  checkedOutAt: string | null;
+  releaseDaysBeforeArrival: number | null;
+  releasePercent: number | null;
+  depositDueOn: string | null;
+  /** Recent stay audit lines (newest first). */
+  auditTrail: { at: string; action: string; summary: string; actor: string }[];
+  /** Next reservation on the same room (if assigned). */
+  /** Open folio balances (BTN) for night grid / billing context. */
+  nextRes: {
+    bookingId: string;
+    confirmationCode: string | null;
+    contactName: string | null;
+    checkIn: string;
+    status: string;
+  } | null;
+  /** Named guests on stay (sharers / SDF people). */
+  guests: Array<{
+    id: string;
+    fullName: string;
+    passportOrCid: string | null;
+    nationality: string | null;
+    blacklisted: boolean;
+  }>;
+  /** Open desk requests (wake-up, message, follow-up). */
+  openTasks: Array<{
+    id: string;
+    dueAt: string;
+    kind: string;
+    notes: string | null;
+    doneAt: string | null;
+  }>;
   confirmMode: string;
   advanceStatus: string;
   advanceDueBtn: number | null;
+  /**
+   * Open hotel business date (YYYY-MM-DD). Check-in is only offered when
+   * booking.check_in <= this day (matches assertBusinessDateOpenForCheckIn).
+   */
+  openBusinessDate: string;
 };
 
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -132,36 +220,47 @@ export async function fetchStayHubSummary(
   const admin = createSupabaseAdminClient();
   const propertyId = await requireDeskPropertyId();
 
-  const { data, error } = await admin
-    .from("bookings")
-    .select(
-      `
+  const [bookingResult, roomNcList] = await Promise.all([
+    admin
+      .from("bookings")
+      .select(
+        `
       id, confirmation_code, contact_name, contact_phone, contact_email, status, check_in, check_out,
       adults, children, extra_beds, rooms, guide_number, guest_origin, source, notes, agent_id, payment_mode,
       booked_by_role, sold_by_staff_id, sales_claim_status, meal_plan_code,
       agreed_nightly_rate_btn, agreed_rate_reason,
+      rate_tax_mode, tax_exempt_gst, tax_exempt_service, tax_exempt_bst,
+      release_days_before_arrival, release_percent, deposit_due_on,
+      house_use, dnr, dnr_reason, pickup_needed, dropoff_needed, pickup_at, dropoff_at,
+      transport_arrival_mode, transport_departure_mode, transport_notes,
+      visa_no, visa_expiry, arrived_from, purpose_of_visit,
+      created_at, checked_in_at, checked_out_at,
       guide_sign_status, guide_sign_photo_public_id, guide_sign_waive_reason,
       reg_card_photo_public_id, reg_card_signed_at,
       confirm_mode, advance_status, advance_due_btn,
       agents(company_name, contact_email, status, market),
       sold_by_staff:staff_members!sold_by_staff_id(full_name),
-      booking_guests(full_name, passport_or_cid, nationality, sdf_ref),
+      booking_guests(id, full_name, passport_or_cid, nationality, sdf_ref, blacklisted),
       room_assignments(id, room_unit_id, is_locked, from_date, to_date,
         chargeable, nc_reason_code,
         room_units(id, label, room_type_id, room_types(id, name))),
       folios(id, status, folio_lines(total_btn, status, source_type))
     `,
-    )
-    .eq("id", bookingId)
-    .eq("property_id", propertyId)
-    .maybeSingle();
+      )
+      .eq("id", bookingId)
+      .eq("property_id", propertyId)
+      .maybeSingle(),
+    listNcReasonCodes(admin, propertyId, "room"),
+  ]);
 
+  const { data, error } = bookingResult;
   if (error) return { ok: false, error: error.message };
   if (!data) return { ok: false, error: "Booking not found" };
 
-  const roomNcReasons = (
-    await listNcReasonCodes(admin, propertyId, "room")
-  ).map((r) => ({ code: r.code, label: r.label }));
+  const roomNcReasons = roomNcList.map((r) => ({
+    code: r.code,
+    label: r.label,
+  }));
 
   const agentRaw = data.agents as
     | { company_name?: string; status?: string; market?: string }
@@ -172,10 +271,12 @@ export async function fetchStayHubSummary(
   const guests =
     (data.booking_guests as
       | Array<{
+          id?: string;
           full_name?: string | null;
           passport_or_cid?: string | null;
           nationality?: string | null;
           sdf_ref?: string | null;
+          blacklisted?: boolean;
         }>
       | null) ?? [];
   const origin = (data.guest_origin as string | null) ?? "international";
@@ -256,11 +357,96 @@ export async function fetchStayHubSummary(
   );
   const balance = lines.reduce((s, l) => s + Number(l.total_btn ?? 0), 0);
 
-  const { data: policy } = await admin
-    .from("property_policies")
-    .select("early_checkout_fee_btn, late_checkout_fee_btn")
-    .eq("property_id", propertyId)
-    .maybeSingle();
+  const [{ data: policy }, { data: propertyRow }, roomTax] = await Promise.all([
+    admin
+      .from("property_policies")
+      .select("early_checkout_fee_btn, late_checkout_fee_btn")
+      .eq("property_id", propertyId)
+      .maybeSingle(),
+    admin
+      .from("properties")
+      .select("current_business_date")
+      .eq("id", propertyId)
+      .maybeSingle(),
+    loadRoomRateTaxSettings(admin, propertyId),
+  ]);
+
+  const openBusinessDate =
+    (propertyRow?.current_business_date as string | null)?.slice(0, 10) ||
+    thimphuToday();
+
+  const roomUnitId = preferred?.room_unit_id ?? unit?.id ?? null;
+  const checkOutIso = (data.check_out as string).slice(0, 10);
+
+  const [{ data: auditRows }, nextRes, { data: taskRows }] = await Promise.all([
+    admin
+      .from("audit_events")
+      .select("created_at, action, summary, actor")
+      .eq("property_id", propertyId)
+      .eq("entity_type", "booking")
+      .eq("entity_id", bookingId)
+      .order("created_at", { ascending: false })
+      .limit(8),
+    roomUnitId
+      ? (async () => {
+          const { data: nextAssign } = await admin
+            .from("room_assignments")
+            .select(
+              `from_date, booking_id,
+               bookings!inner(id, confirmation_code, contact_name, check_in, status, property_id)`,
+            )
+            .eq("room_unit_id", roomUnitId)
+            .gte("from_date", checkOutIso)
+            .neq("booking_id", bookingId)
+            .order("from_date", { ascending: true })
+            .limit(6);
+          for (const row of nextAssign ?? []) {
+            const bRaw = row.bookings as
+              | {
+                  id?: string;
+                  confirmation_code?: string | null;
+                  contact_name?: string | null;
+                  check_in?: string;
+                  status?: string;
+                  property_id?: string;
+                }
+              | {
+                  id?: string;
+                  confirmation_code?: string | null;
+                  contact_name?: string | null;
+                  check_in?: string;
+                  status?: string;
+                  property_id?: string;
+                }[]
+              | null;
+            const b = Array.isArray(bRaw) ? bRaw[0] : bRaw;
+            if (!b?.id || b.property_id !== propertyId) continue;
+            if (
+              ["cancelled", "no_show", "expired"].includes(
+                (b.status ?? "").toLowerCase(),
+              )
+            ) {
+              continue;
+            }
+            return {
+              bookingId: b.id,
+              confirmationCode: b.confirmation_code ?? null,
+              contactName: b.contact_name ?? null,
+              checkIn: (b.check_in ?? "").slice(0, 10),
+              status: b.status ?? "",
+            };
+          }
+          return null;
+        })()
+      : Promise.resolve(null),
+    admin
+      .from("inhouse_tasks")
+      .select("id, due_at, kind, notes, done_at")
+      .eq("property_id", propertyId)
+      .eq("booking_id", bookingId)
+      .order("due_at", { ascending: true })
+      .limit(20),
+  ]);
 
   return {
     ok: true,
@@ -303,7 +489,7 @@ export async function fetchStayHubSummary(
       sdfIncomplete,
       hasRoomAssigned: assigns.length > 0,
       assignmentId: preferred?.id ?? null,
-      roomUnitId: preferred?.room_unit_id ?? unit?.id ?? null,
+      roomUnitId,
       roomLabel: unit?.label ?? null,
       roomTypeId: unit?.room_type_id ?? rt?.id ?? null,
       roomTypeName: rt?.name ?? null,
@@ -327,10 +513,68 @@ export async function fetchStayHubSummary(
       regCardPhotoPublicId:
         (data.reg_card_photo_public_id as string | null) ?? null,
       regCardSignedAt: (data.reg_card_signed_at as string | null) ?? null,
+      rateTaxMode:
+        data.rate_tax_mode === "inclusive" ? "inclusive" : "exclusive",
+      taxExemptGst: Boolean(data.tax_exempt_gst),
+      taxExemptService: Boolean(data.tax_exempt_service),
+      taxExemptBst: Boolean(data.tax_exempt_bst),
+      roomTax,
+      houseUse: Boolean(data.house_use),
+      dnr: Boolean(data.dnr),
+      dnrReason: (data.dnr_reason as string | null) ?? null,
+      pickupNeeded: Boolean(data.pickup_needed),
+      dropoffNeeded: Boolean(data.dropoff_needed),
+      pickupAt: (data.pickup_at as string | null) ?? null,
+      dropoffAt: (data.dropoff_at as string | null) ?? null,
+      transportArrivalMode:
+        (data.transport_arrival_mode as string | null) ?? null,
+      transportDepartureMode:
+        (data.transport_departure_mode as string | null) ?? null,
+      transportNotes: (data.transport_notes as string | null) ?? null,
+      visaNo: (data.visa_no as string | null) ?? null,
+      visaExpiry: (data.visa_expiry as string | null)
+        ? String(data.visa_expiry).slice(0, 10)
+        : null,
+      arrivedFrom: (data.arrived_from as string | null) ?? null,
+      purposeOfVisit: (data.purpose_of_visit as string | null) ?? null,
+      bookedAt: (data.created_at as string | null) ?? null,
+      checkedInAt: (data.checked_in_at as string | null) ?? null,
+      checkedOutAt: (data.checked_out_at as string | null) ?? null,
+      releaseDaysBeforeArrival:
+        data.release_days_before_arrival == null
+          ? null
+          : Number(data.release_days_before_arrival),
+      releasePercent:
+        data.release_percent == null ? null : Number(data.release_percent),
+      depositDueOn: (data.deposit_due_on as string | null)
+        ? String(data.deposit_due_on).slice(0, 10)
+        : null,
+      auditTrail: (auditRows ?? []).map((r) => ({
+        at: (r.created_at as string) ?? "",
+        action: (r.action as string) ?? "",
+        summary: (r.summary as string) ?? "",
+        actor: (r.actor as string) ?? "desk",
+      })),
+      nextRes,
+      guests: guests.map((g) => ({
+        id: (g.id as string) ?? "",
+        fullName: (g.full_name as string) || "Guest",
+        passportOrCid: (g.passport_or_cid as string | null) ?? null,
+        nationality: (g.nationality as string | null) ?? null,
+        blacklisted: Boolean(g.blacklisted),
+      })),
+      openTasks: (taskRows ?? []).map((t) => ({
+        id: t.id as string,
+        dueAt: (t.due_at as string) ?? "",
+        kind: (t.kind as string) ?? "other",
+        notes: (t.notes as string | null) ?? null,
+        doneAt: (t.done_at as string | null) ?? null,
+      })),
       confirmMode: (data.confirm_mode as string | null) ?? "soft",
       advanceStatus: (data.advance_status as string | null) ?? "none",
       advanceDueBtn:
         data.advance_due_btn != null ? Number(data.advance_due_btn) : null,
+      openBusinessDate,
       earlyCheckoutFeeBtn:
         policy?.early_checkout_fee_btn == null
           ? null
@@ -579,7 +823,7 @@ export async function fetchStayHubMoney(
       agents(company_name, status, market),
       room_assignments(room_units(label)),
       folios(id, status,
-        folio_lines(id, total_btn, status, source_type, description, bill_to),
+        folio_lines(id, total_btn, gst_btn, status, source_type, description, bill_to, business_date, created_at),
         fiscal_documents(id, doc_no, doc_kind, status)
       )
     `,
@@ -621,10 +865,13 @@ export async function fetchStayHubMoney(
           folio_lines?: Array<{
             id?: string;
             total_btn?: number;
+            gst_btn?: number | null;
             status?: string;
             source_type?: string;
             description?: string | null;
             bill_to?: string | null;
+            business_date?: string | null;
+            created_at?: string | null;
           }> | null;
           fiscal_documents?: Array<{
             id: string;
@@ -638,14 +885,19 @@ export async function fetchStayHubMoney(
   const rawLines = (openFolio?.folio_lines ?? []) as Array<{
     id?: string;
     total_btn?: number;
+    gst_btn?: number | null;
     status?: string;
     source_type?: string;
     description?: string | null;
     bill_to?: string | null;
+    business_date?: string | null;
+    created_at?: string | null;
   }>;
-  const lines = rawLines.filter((l) => l.status === "posted");
-  const balance = lines.reduce((s, l) => s + Number(l.total_btn ?? 0), 0);
-  const guestVisibleBalanceBtn = lines.reduce((s, l) => {
+  /** Include voided for ledger “Show voided”; balance uses posted only. */
+  const allLines = rawLines.filter((l) => l.id);
+  const postedLines = allLines.filter((l) => (l.status ?? "posted") === "posted");
+  const balance = postedLines.reduce((s, l) => s + Number(l.total_btn ?? 0), 0);
+  const guestVisibleBalanceBtn = postedLines.reduce((s, l) => {
     const st = (l.source_type ?? "").toLowerCase();
     if (st === "payment" || st === "deposit") {
       return s + Number(l.total_btn ?? 0);
@@ -653,21 +905,40 @@ export async function fetchStayHubMoney(
     if ((l.bill_to ?? "guest") === "agent") return s;
     return s + Number(l.total_btn ?? 0);
   }, 0);
-  const agentChargesBtn = lines.reduce((s, l) => {
+  const agentChargesBtn = postedLines.reduce((s, l) => {
     if ((l.bill_to ?? "guest") !== "agent") return s;
     const st = (l.source_type ?? "").toLowerCase();
     if (st === "payment" || st === "deposit") return s;
     return s + Number(l.total_btn ?? 0);
   }, 0);
-  const hasCharges = lines.some(
+  const hasCharges = postedLines.some(
     (l) => (l.source_type ?? "") !== "payment" && Number(l.total_btn ?? 0) > 0,
   );
-  // payments are negative or separate — balance already nets
-  const chargesOnly = lines.some(
+  const chargesOnly = postedLines.some(
     (l) =>
       !["payment", "deposit"].includes(l.source_type ?? "") &&
       Number(l.total_btn ?? 0) !== 0,
   );
+
+  const mappedLines = allLines.map((l) => {
+    const biz = l.business_date
+      ? String(l.business_date).slice(0, 10)
+      : null;
+    const created = l.created_at ? String(l.created_at) : null;
+    return {
+      id: l.id as string,
+      source_type: l.source_type ?? "other",
+      description: l.description ?? null,
+      total_btn: Number(l.total_btn ?? 0),
+      gst_btn:
+        l.gst_btn == null ? null : Number(l.gst_btn),
+      status: l.status ?? "posted",
+      bill_to: l.bill_to ?? null,
+      date: biz || (created ? created.slice(0, 10) : null),
+      created_at: created,
+    };
+  });
+  const ledgerSummary = buildLedgerStripSummary(mappedLines);
 
   const inv =
     (openFolio?.fiscal_documents ?? []).find(
@@ -734,16 +1005,12 @@ export async function fetchStayHubMoney(
       agentMarket: (agent?.market as string | null) ?? null,
       paymentMode: (data.payment_mode as string | null) ?? null,
       roomPosOrders,
-      lines: lines
-        .filter((l) => l.id)
-        .map((l) => ({
-          id: l.id as string,
-          source_type: l.source_type ?? "other",
-          description: l.description ?? null,
-          total_btn: Number(l.total_btn ?? 0),
-          status: l.status ?? "posted",
-          bill_to: l.bill_to ?? null,
-        })),
+      lines: mappedLines.sort((a, b) => {
+        const da = a.date ?? a.created_at ?? "";
+        const db = b.date ?? b.created_at ?? "";
+        return db.localeCompare(da);
+      }),
+      ledgerSummary,
       guestVisibleBalanceBtn,
       agentChargesBtn,
       masterCandidates,
@@ -1161,6 +1428,285 @@ export async function previewStayHubSheetRate(input: {
     return {
       ok: false,
       error: err instanceof Error ? err.message : "Could not preview rate.",
+    };
+  }
+}
+
+export type StayHubFoExtrasInput = {
+  bookingId: string;
+  houseUse: boolean;
+  dnr: boolean;
+  dnrReason?: string | null;
+  pickupNeeded: boolean;
+  dropoffNeeded: boolean;
+  pickupAt?: string | null;
+  dropoffAt?: string | null;
+  transportArrivalMode?: string | null;
+  transportDepartureMode?: string | null;
+  transportNotes?: string | null;
+  visaNo?: string | null;
+  visaExpiry?: string | null;
+  arrivedFrom?: string | null;
+  purposeOfVisit?: string | null;
+};
+
+function optionalLocalDateTime(raw: string | null | undefined): string | null {
+  if (raw == null) return null;
+  const t = raw.trim();
+  if (!t) return null;
+  // datetime-local → treat as Asia/Thimphu wall time if no zone
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(t) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(t)) {
+    return `${t.length === 16 ? `${t}:00` : t}+06:00`;
+  }
+  const d = new Date(t);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+/** Save FO logistics, visa lite, house-use / DNR (eZee Edit Transaction lite). */
+export async function updateStayHubFoExtras(
+  input: StayHubFoExtrasInput,
+): Promise<Result<null>> {
+  if (!(await isDeskAuthenticated())) {
+    return { ok: false, error: "Not signed in" };
+  }
+  const admin = createSupabaseAdminClient();
+  const propertyId = await requireDeskPropertyId();
+  const bookingId = input.bookingId?.trim();
+  if (!bookingId) return { ok: false, error: "Missing booking." };
+
+  const dnrReason =
+    input.dnr && input.dnrReason?.trim()
+      ? input.dnrReason.trim().slice(0, 240)
+      : null;
+
+  const { error } = await admin
+    .from("bookings")
+    .update({
+      house_use: Boolean(input.houseUse),
+      dnr: Boolean(input.dnr),
+      dnr_reason: dnrReason,
+      pickup_needed: Boolean(input.pickupNeeded),
+      dropoff_needed: Boolean(input.dropoffNeeded),
+      pickup_at: optionalLocalDateTime(input.pickupAt ?? null),
+      dropoff_at: optionalLocalDateTime(input.dropoffAt ?? null),
+      transport_arrival_mode:
+        input.transportArrivalMode?.trim().slice(0, 80) || null,
+      transport_departure_mode:
+        input.transportDepartureMode?.trim().slice(0, 80) || null,
+      transport_notes: input.transportNotes?.trim().slice(0, 500) || null,
+      visa_no: input.visaNo?.trim().slice(0, 80) || null,
+      visa_expiry: input.visaExpiry?.trim().slice(0, 10) || null,
+      arrived_from: input.arrivedFrom?.trim().slice(0, 120) || null,
+      purpose_of_visit: input.purposeOfVisit?.trim().slice(0, 120) || null,
+    })
+    .eq("id", bookingId)
+    .eq("property_id", propertyId);
+
+  if (error) return { ok: false, error: error.message };
+
+  const { writeAuditEvent } = await import("@/lib/audit");
+  await writeAuditEvent(admin, {
+    propertyId,
+    action: "booking.fo_extras",
+    entityType: "booking",
+    entityId: bookingId,
+    summary: "Updated FO logistics / flags",
+    meta: {
+      house_use: input.houseUse,
+      dnr: input.dnr,
+      pickup: input.pickupNeeded,
+      dropoff: input.dropoffNeeded,
+    },
+  });
+
+  return { ok: true, data: null };
+}
+
+export type StayHubPartyMember = {
+  bookingId: string;
+  confirmationCode: string | null;
+  contactName: string | null;
+  status: string;
+  roomLabel: string | null;
+  assignmentId: string | null;
+};
+
+export type StayHubPartyContext = {
+  bookingId: string;
+  groupId: string | null;
+  groupName: string | null;
+  /** Soft party (same agent/dates) not yet linked as booking_groups. */
+  suggested: boolean;
+  members: StayHubPartyMember[];
+};
+
+/**
+ * Formal group siblings, or soft-suggested multi-room peers (agent + dates).
+ * StayHub stays single-booking for money; this powers the room switcher strip.
+ */
+export async function fetchStayHubPartyContext(
+  bookingId: string,
+): Promise<Result<StayHubPartyContext>> {
+  try {
+    if (!(await isDeskAuthenticated())) {
+      return { ok: false, error: "Not signed in" };
+    }
+    const admin = createSupabaseAdminClient();
+    const propertyId = await requireDeskPropertyId();
+    const id = bookingId.trim();
+    if (!id) return { ok: false, error: "Booking required." };
+
+    const { data: anchor, error: anchorErr } = await admin
+      .from("bookings")
+      .select(
+        `id, confirmation_code, contact_name, contact_phone, check_in, check_out, status, rooms, agent_id,
+         agents(company_name),
+         room_assignments(id, room_units(label))`,
+      )
+      .eq("id", id)
+      .eq("property_id", propertyId)
+      .maybeSingle();
+    if (anchorErr) return { ok: false, error: anchorErr.message };
+    if (!anchor) return { ok: false, error: "Booking not found." };
+
+    const { data: membership } = await admin
+      .from("booking_group_members")
+      .select("group_id, booking_groups(id, name, property_id)")
+      .eq("booking_id", id)
+      .maybeSingle();
+
+    let partyIds = [id];
+    let groupId: string | null = null;
+    let groupName: string | null = null;
+    let suggested = false;
+
+    if (membership?.group_id) {
+      const gRaw = membership.booking_groups as
+        | { id?: string; name?: string; property_id?: string }
+        | { id?: string; name?: string; property_id?: string }[]
+        | null;
+      const g = Array.isArray(gRaw) ? gRaw[0] : gRaw;
+      if (g?.id && g.property_id === propertyId) {
+        groupId = g.id;
+        groupName = g.name ?? null;
+        const { data: siblings } = await admin
+          .from("booking_group_members")
+          .select("booking_id")
+          .eq("group_id", groupId);
+        partyIds = [
+          ...new Set(
+            (siblings ?? [])
+              .map((s) => s.booking_id as string)
+              .filter(Boolean),
+          ),
+        ];
+        if (!partyIds.includes(id)) partyIds.push(id);
+      }
+    }
+
+    // Soft party: same agent + dates, not already in a formal group.
+    if (!groupId) {
+      const agentId = (anchor.agent_id as string | null) ?? null;
+      const checkIn = (anchor.check_in as string).slice(0, 10);
+      const checkOut = (anchor.check_out as string).slice(0, 10);
+      if (agentId && checkIn) {
+        const { data: peers } = await admin
+          .from("bookings")
+          .select("id")
+          .eq("property_id", propertyId)
+          .eq("agent_id", agentId)
+          .eq("check_in", checkIn)
+          .eq("check_out", checkOut)
+          .not("status", "in", '("cancelled","no_show","expired")')
+          .limit(40);
+        const peerIds = (peers ?? []).map((p) => p.id as string);
+        if (peerIds.length >= 2) {
+          const { data: alreadyGrouped } = await admin
+            .from("booking_group_members")
+            .select("booking_id")
+            .in("booking_id", peerIds);
+          const grouped = new Set(
+            (alreadyGrouped ?? []).map((r) => r.booking_id as string),
+          );
+          const ungrouped = peerIds.filter((pid) => !grouped.has(pid));
+          if (ungrouped.length >= 2 && ungrouped.includes(id)) {
+            partyIds = ungrouped;
+            suggested = true;
+          }
+        }
+      }
+    }
+
+    const { data: bookings, error: bookErr } = await admin
+      .from("bookings")
+      .select(
+        `id, confirmation_code, contact_name, status,
+         room_assignments(id, room_units(label))`,
+      )
+      .eq("property_id", propertyId)
+      .in("id", partyIds)
+      .order("confirmation_code", { ascending: true });
+    if (bookErr) return { ok: false, error: bookErr.message };
+
+    const members: StayHubPartyMember[] = (bookings ?? []).map((b) => {
+      const assigns =
+        (b.room_assignments as
+          | Array<{
+              id?: string;
+              room_units?:
+                | { label?: string }
+                | { label?: string }[]
+                | null;
+            }>
+          | null) ?? [];
+      const first = assigns[0];
+      const ru = first?.room_units;
+      const unit = Array.isArray(ru) ? ru[0] : ru;
+      return {
+        bookingId: b.id as string,
+        confirmationCode: (b.confirmation_code as string | null) ?? null,
+        contactName: (b.contact_name as string | null) ?? null,
+        status: (b.status as string) ?? "pending",
+        roomLabel: unit?.label?.trim() || null,
+        assignmentId: (first?.id as string | null) ?? null,
+      };
+    });
+
+    // Prefer room label sort when assigned
+    members.sort((a, b) => {
+      const la = a.roomLabel ?? a.confirmationCode ?? a.bookingId;
+      const lb = b.roomLabel ?? b.confirmationCode ?? b.bookingId;
+      return la.localeCompare(lb, undefined, { numeric: true });
+    });
+
+    return {
+      ok: true,
+      data: {
+        bookingId: id,
+        groupId,
+        groupName,
+        suggested,
+        members:
+          members.length > 0
+            ? members
+            : [
+                {
+                  bookingId: id,
+                  confirmationCode:
+                    (anchor.confirmation_code as string | null) ?? null,
+                  contactName: (anchor.contact_name as string | null) ?? null,
+                  status: (anchor.status as string) ?? "pending",
+                  roomLabel: null,
+                  assignmentId: null,
+                },
+              ],
+      },
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Could not load party.",
     };
   }
 }

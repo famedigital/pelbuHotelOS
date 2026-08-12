@@ -12,6 +12,7 @@ import {
 } from "@/lib/arrival-board";
 import { bookingConfirmationLabel } from "@/lib/booking-ref";
 import { recommendStayHubStep } from "@/lib/folio/stay-hub-cycle";
+import { seedStayFromBoardRow } from "@/lib/folio/stay-hub-seed";
 
 export type BookingRow = {
   id: string;
@@ -107,6 +108,7 @@ function openRow(
       bookingId: row.id,
       step,
       board,
+      seedStay: seedStayFromBoardRow(row),
     });
     return;
   }

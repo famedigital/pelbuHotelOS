@@ -137,6 +137,7 @@ export default async function ErpLayout({
         activeProperty?.current_business_date?.slice(0, 10) ?? thimphuToday()
       }
       allowedModuleKeys={allowedModuleKeys}
+      deskRole={deskRole}
       canPreviewDashboards={canPreview}
       homeDashboardView={homeDashboardView}
       productPack={

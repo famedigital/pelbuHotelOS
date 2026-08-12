@@ -32,6 +32,12 @@ export type BookableAgent = {
   rate_tier?: string | null;
   /** Soft CI room control (default 15). */
   open_room_cap?: number | null;
+  /** Contract commission % (display at book; AR posting separate). */
+  commission_pct?: number | null;
+  /** Agent AR outstanding (Nu) — reminder only, not a hard gate. */
+  credit_used?: number | null;
+  /** Optional soft Nu ceiling (advisory). */
+  credit_limit?: number | null;
 };
 
 const createInitial: CreateDeskAgentState = { ok: false };

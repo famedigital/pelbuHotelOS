@@ -19,6 +19,56 @@ export const REPORT_CATALOG = [
       "Outstanding balances, aging, unsecured exposure, payment mix per agent.",
   },
   {
+    slug: "deposit-due",
+    title: "Deposit due",
+    blurb:
+      "Reservations with incomplete token/deposit or deposit_due_on in range (eZee Deposit Due lite).",
+  },
+  {
+    slug: "cancellations",
+    title: "Cancellations & no-shows",
+    blurb: "Cancelled and no-show stays by arrival date (FO cancel pack).",
+  },
+  {
+    slug: "meal-count",
+    title: "Meal count",
+    blurb:
+      "In-house meal covers by plan (BB/MAP/AP) for a business date — kitchen / FO count sheet.",
+  },
+  {
+    slug: "fo-occupancy",
+    title: "FO occupancy",
+    blurb:
+      "Daily sellable occupancy %, arrivals, departures, and comp room nights (Bhutan FO occ lite).",
+  },
+  {
+    slug: "room-moves",
+    title: "Room move audit",
+    blurb: "Assignment moves from desk audit log (who moved which room).",
+  },
+  {
+    slug: "guest-ar-aging",
+    title: "Guest / direct-billing aging",
+    blurb:
+      "Open folio balances aged into current · 30 · 60 · 90 slabs (direct billing aging lite).",
+  },
+  {
+    slug: "group-outstanding",
+    title: "Group outstanding",
+    blurb:
+      "Formal parties with open folio due by room (eZee Group Outstanding lite / Master Bill).",
+  },
+  {
+    slug: "group-arrivals",
+    title: "Group arrivals",
+    blurb: "Formal parties arriving in date range (eZee Group Arrival List lite).",
+  },
+  {
+    slug: "group-in-house",
+    title: "Group in-house",
+    blurb: "Formal parties with at least one checked-in room today.",
+  },
+  {
     slug: "staff-attendance",
     title: "Staff attendance summary",
     blurb: "Clock events and estimated hours by staff member.",
@@ -373,5 +423,132 @@ export async function loadStaffSalesReport(
   });
 }
 
+export type DepositDueRow = {
+  booking_id: string;
+  confirmation_code: string | null;
+  contact_name: string;
+  check_in: string;
+  status: string;
+  token_required_btn: number;
+  token_received_btn: number;
+  shortfall_btn: number;
+  deposit_due_on: string | null;
+  agent_name: string | null;
+};
+
+export async function loadDepositDueReport(
+  admin: SupabaseClient,
+  opts: { propertyId: string; from: string; to: string },
+): Promise<DepositDueRow[]> {
+  const { data } = await admin
+    .from("bookings")
+    .select(
+      `id, confirmation_code, contact_name, check_in, status,
+       token_required_btn, token_received_btn, deposit_due_on,
+       agents(company_name)`,
+    )
+    .eq("property_id", opts.propertyId)
+    .in("status", ["held", "pending", "confirmed"])
+    .gte("check_in", opts.from)
+    .lte("check_in", opts.to)
+    .order("check_in", { ascending: true })
+    .limit(2000);
+
+  const rows: DepositDueRow[] = [];
+  for (const r of data ?? []) {
+    const req = Number(r.token_required_btn ?? 0);
+    const got = Number(r.token_received_btn ?? 0);
+    const dueOn = r.deposit_due_on
+      ? String(r.deposit_due_on).slice(0, 10)
+      : null;
+    const short = Math.max(0, req - got);
+    if (short < 0.01 && !dueOn) continue;
+    if (short < 0.01 && dueOn) {
+      // still show if deposit_due_on set and not fully prepaid with due date
+      if (req <= 0) continue;
+    }
+    if (short < 0.01) continue;
+    const agent = r.agents as
+      | { company_name?: string }
+      | { company_name?: string }[]
+      | null;
+    const agentName = Array.isArray(agent)
+      ? (agent[0]?.company_name ?? null)
+      : (agent?.company_name ?? null);
+    rows.push({
+      booking_id: r.id as string,
+      confirmation_code: (r.confirmation_code as string | null) ?? null,
+      contact_name: (r.contact_name as string) || "Guest",
+      check_in: String(r.check_in).slice(0, 10),
+      status: r.status as string,
+      token_required_btn: req,
+      token_received_btn: got,
+      shortfall_btn: short,
+      deposit_due_on: dueOn,
+      agent_name: agentName,
+    });
+  }
+  return rows;
+}
+
+export type CancellationReportRow = {
+  booking_id: string;
+  confirmation_code: string | null;
+  contact_name: string;
+  check_in: string;
+  check_out: string;
+  status: string;
+  agent_name: string | null;
+  quoted_total_btn: number;
+};
+
+export async function loadCancellationsReport(
+  admin: SupabaseClient,
+  opts: { propertyId: string; from: string; to: string },
+): Promise<CancellationReportRow[]> {
+  const { data } = await admin
+    .from("bookings")
+    .select(
+      `id, confirmation_code, contact_name, check_in, check_out, status,
+       quoted_total_btn, agents(company_name)`,
+    )
+    .eq("property_id", opts.propertyId)
+    .in("status", ["cancelled", "no_show"])
+    .gte("check_in", opts.from)
+    .lte("check_in", opts.to)
+    .order("check_in", { ascending: false })
+    .limit(2000);
+
+  return (data ?? []).map((r) => {
+    const agent = r.agents as
+      | { company_name?: string }
+      | { company_name?: string }[]
+      | null;
+    const agentName = Array.isArray(agent)
+      ? (agent[0]?.company_name ?? null)
+      : (agent?.company_name ?? null);
+    return {
+      booking_id: r.id as string,
+      confirmation_code: (r.confirmation_code as string | null) ?? null,
+      contact_name: (r.contact_name as string) || "Guest",
+      check_in: String(r.check_in).slice(0, 10),
+      check_out: String(r.check_out).slice(0, 10),
+      status: r.status as string,
+      agent_name: agentName,
+      quoted_total_btn: Number(r.quoted_total_btn ?? 0),
+    };
+  });
+}
+
 /** Re-export for catalog page convenience. */
 export { loadAgentProductionReport, daysBetweenIso };
+
+export {
+  loadMealCountReport,
+  loadFoOccupancyReport,
+  loadRoomMoveAuditReport,
+  loadGuestArAgingReport,
+  loadGroupOutstandingReport,
+  loadGroupArrivalsReport,
+  loadGroupInHouseReport,
+} from "@/lib/reports/fo-desk-reports";

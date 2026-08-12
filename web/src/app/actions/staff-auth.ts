@@ -135,8 +135,30 @@ export async function staffLogin(
 
     const { resolveDeskHomeHref } = await import("@/lib/erp/desk-modules");
     const { normalizeDeskRole } = await import("@/lib/desk-auth");
+    const {
+      DESK_WORKSPACE_COOKIE,
+      DESK_WORKSPACE_COOKIE_MAX_AGE,
+      defaultWorkspaceForRole,
+      isDeskWorkspace,
+    } = await import("@/lib/erp/desk-workspace");
     const deskRole = normalizeDeskRole((member.desk_role as string | null) ?? null);
     const deskHome = resolveDeskHomeHref({ deskRole, pinOnlySession: false });
+
+    if (mayOpenDesk) {
+      const { cookies } = await import("next/headers");
+      const jar = await cookies();
+      const stored = jar.get(DESK_WORKSPACE_COOKIE)?.value;
+      const workspace = isDeskWorkspace(stored)
+        ? stored
+        : defaultWorkspaceForRole(deskRole);
+      jar.set(DESK_WORKSPACE_COOKIE, workspace, {
+        httpOnly: false,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: DESK_WORKSPACE_COOKIE_MAX_AGE,
+      });
+    }
 
     // Prefer return URL (bag QR scan) over default desk/staff home.
     redirect(returnNext ?? (mayOpenDesk ? deskHome : "/staff"));

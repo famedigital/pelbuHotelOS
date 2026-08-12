@@ -445,6 +445,38 @@ export async function createFastBooking(
                   (extraBedAmountBtn ?? 0),
               )
             : null,
+        rate_tax_mode:
+          optionalTrim(formData.get("rate_tax_mode")) === "inclusive"
+            ? "inclusive"
+            : "exclusive",
+        tax_exempt_gst: formData.get("tax_exempt_gst") === "1",
+        tax_exempt_service: formData.get("tax_exempt_service") === "1",
+        tax_exempt_bst: formData.get("tax_exempt_bst") === "1",
+        release_days_before_arrival: (() => {
+          const raw = optionalTrim(formData.get("release_days_before_arrival"));
+          if (!raw) return null;
+          const n = Number(raw);
+          return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null;
+        })(),
+        release_percent: (() => {
+          const raw = optionalTrim(formData.get("release_percent"));
+          if (!raw) return null;
+          const n = Number(raw);
+          return Number.isFinite(n) && n >= 0 && n <= 100 ? n : null;
+        })(),
+        deposit_due_on: (() => {
+          // If release days set, deposit due = check-in minus release days
+          const raw = optionalTrim(formData.get("release_days_before_arrival"));
+          if (!raw) return null;
+          const n = Number(raw);
+          if (!Number.isFinite(n) || n < 0) return null;
+          const d = new Date(`${checkIn}T12:00:00`);
+          d.setDate(d.getDate() - Math.floor(n));
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, "0");
+          const day = String(d.getDate()).padStart(2, "0");
+          return `${y}-${m}-${day}`;
+        })(),
       })
       .select("id, confirmation_code")
       .single();

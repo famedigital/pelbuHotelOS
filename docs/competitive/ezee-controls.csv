@@ -1,0 +1,218 @@
+module,surface,control,control_type,state,ezee_detail,pelbu_status,pelbu_route,priority,evidence
+FO Nav,Front Office sidebar,Walk In,nav,enabled,3-step wizard,Partial,"/erp/calendar; DeskBook StayHub walk-in CI",P2,screenshot+FEATURES
+FO Nav,Front Office sidebar,Reservation,nav,enabled,opens res wizard,Parity,"/erp/reservations?new=1 DeskBook",P2,screenshot+FEATURES
+FO Nav,Front Office sidebar,Reservation List,nav,enabled,status radios+grid,Partial,/erp/reservations,P0,screenshot+FEATURES
+FO Nav,Front Office sidebar,New Booking,nav,enabled,4-step book wizard,Partial,party board multi-room DeskBook,P1,screenshot
+FO Nav,Front Office sidebar,Booking List,nav,enabled,booking# list,Partial,overlaps reservations,P2,screenshot
+FO Nav,Front Office sidebar,Out of Order,nav,enabled,OOO module,Parity,/erp/rooms; calendar OOO,P2,screenshot+FEATURES
+FO Nav,Front Office sidebar,Guest Ledger,nav,enabled,in-house multi-ID,Partial,/erp/in-house + StayHub Folio,P1,screenshot
+FO Nav,Front Office sidebar,Arrival List,nav,enabled,arrivals with filters,Parity,/erp/arrivals → StayHub,—,screenshot+FEATURES
+FO Nav,Front Office sidebar,Departure List,nav,enabled,departures with filters,Parity,/erp/departures → StayHub,—,screenshot+FEATURES
+FO Nav,Front Office sidebar,Guest Database,nav,enabled,profile list advanced,Partial,/erp/guests,P1,screenshot
+FO Nav,Front Office sidebar,Guest Message,nav,enabled,messages by room,Missing,none,P2,screenshot
+FO Chrome,Header,Global Search CTRL+SPACE,search,enabled,search anything,Parity,Ctrl+K,—,screenshot+FEATURES
+FO Chrome,Status bar,Working Date,status,enabled,business date,Partial,header Biz date chip,P1,screenshot+FEATURES
+FO Chrome,Status bar,Audited Date,status,enabled,last NA date,Partial,night audit,P1,screenshot
+FO Chrome,Status bar,Shift Date,status,enabled,shift timestamp,Missing,none,P1,screenshot
+FO Chrome,Footer,Live Support,link,enabled,headset chat,Behind_by_design,ops WhatsApp/docs,Defer,screenshot
+Wizard,Walk-in/Res Info,Rate Type,dropdown,enabled,RACK RATE + plans,Partial,DeskBook meal/tier,P1,screenshot
+Wizard,Walk-in/Res Info,Arrival,date,enabled,,Parity,DeskBook dates,—,screenshot
+Wizard,Walk-in/Res Info,Departure,date,enabled,,Parity,DeskBook dates,—,screenshot
+Wizard,Walk-in/Res Info,Nights,stepper,enabled,,Parity,DeskBook,—,screenshot
+Wizard,Walk-in/Res Info,Adults,stepper,enabled,,Parity,DeskBook,—,screenshot
+Wizard,Walk-in/Res Info,Children,stepper,enabled,,Partial,child packages,P1,screenshot
+Wizard,Walk-in/Res Info,Infants,stepper,enabled,,Partial,infant free-under rule UI thin,P1,screenshot
+Wizard,Walk-in/Res Info,Tax Exempt Bhutan Sale Tax,checkbox,enabled,,Missing,folio gst_applicable only,P0,screenshot
+Wizard,Walk-in/Res Info,Tax Exempt GST(5%),checkbox,enabled,,Missing,folio/gst policy,P0,screenshot
+Wizard,Walk-in/Res Info,Tax Exempt Service,checkbox,enabled,,Missing,none,P0,screenshot
+Wizard,Walk-in/Res Info,Rate Inclusive Tax,radio,enabled,,Missing,no FO toggle,P0,screenshot
+Wizard,Walk-in/Res Info,Rate Exclusive Tax,radio,enabled,default,Partial,property tax default,P0,screenshot
+Wizard,Walk-in/Res Info,Comp. Rate,checkbox,enabled,,Partial,folio comp,P1,screenshot
+Wizard,Walk-in/Res Info,Rate manual override,money,enabled,,Partial,agreed nightly PIN,P1,screenshot
+Wizard,Walk-in/Res Info,Override Rate for whole stay,checkbox,enabled,,Partial,stay-level override,P1,screenshot
+Wizard,Reservation Info,Release days of Arrival,checkbox+n,enabled,,Missing,hold TTL only differs,P0,screenshot
+Wizard,Reservation Info,Release Amount %,money,enabled,,Missing,none,P0,screenshot
+Wizard,Select Room,Room Type filter,dropdown,enabled,,Partial,DeskBook category,P1,screenshot
+Wizard,Select Room,Room Name,text,enabled,,Partial,preferred unit chip,P1,screenshot
+Wizard,Select Room,Show Clean Rooms only,checkbox,enabled,,Missing,rack HK not assign filter,P0,screenshot
+Wizard,Select Room,Room Amenity,dropdown,enabled,,Missing,none,P1,screenshot
+Wizard,Select Room,Room Owner,dropdown,enabled,condo,NA,condo out of scope,Defer,screenshot
+Wizard,Select Room,Room Type|Name|Alias|Type Alias,grid_cols,enabled,,Partial,room_units map,P2,screenshot
+Wizard,Business Source,Market Place,dropdown,enabled,,Partial,guest origin,P1,screenshot
+Wizard,Business Source,Source list,listbox,enabled,TA names,Partial,/erp/agents,P1,screenshot
+Wizard,Business Source,Commission Plan,dropdown,enabled,,Missing,no plan on book,P0,screenshot
+Wizard,Business Source,Commission Value,field,enabled,,Missing,agent rates elsewhere,P1,screenshot
+Wizard,Business Source,Sub Source,dropdown,enabled,,Missing,none,P1,screenshot
+Wizard,Business Source,Voucher No,field,enabled,,Partial,agent voucher soft,P1,screenshot
+Wizard,Business Source,Apply Source Rate,checkbox,enabled,,Partial,agent tier rates,P1,screenshot
+Wizard,Business Source,Connect Room,checkbox,enabled,,Missing,none,P2,screenshot
+Wizard,Business Source,Scan Credit Card/Identity,button,enabled,hardware,Missing,none,Defer,screenshot
+Wizard,Business Source,Rate matrix CP EP MAP AP RACK COMP,grid,enabled,extra adult/child weekend*,Partial,meal plans + packages not matrix UI,P0,screenshot
+Wizard,Book Room Info,Confirm Booking,checkbox,enabled,,Partial,held/confirmed status,P1,screenshot
+Wizard,Book Room Info,Group Color,color,enabled,,Partial,calendar group tint,P2,screenshot
+Wizard,Book Room Info,Arrival time,checkbox+time,enabled,,Partial,dates primary,P1,screenshot
+Wizard,Book Room General,Booked-by lookup,field,enabled,,Missing,none,P1,screenshot
+Wizard,Book Room General,Salutation Last First Address City State Zip Country Email Phone Fax,fields,enabled,,Partial,guest profile,P1,screenshot
+Wizard,Book Room General,Copy to guest information,checkbox,enabled,,Missing,none,P1,screenshot
+Wizard,Book Room General,Remark,textarea,enabled,,Parity,notes,—,screenshot
+Wizard,Book Room Rooms,Type inventory Total Available Overbook Qty,grid,enabled,,Partial,multi-qty; no overbook buffer,P1,screenshot
+Wizard,Book Room Rooms,Book & Continue / Book & Close,buttons,enabled,,Partial,confirm pack / CI,P2,screenshot
+List,Reservation List,Active|Cancelled|No Show|Void|All,radio,enabled,,Partial,status filter no void legend,P0,screenshot
+List,Reservation List,Color legend Void Noshow Cancelled Active,legend,enabled,,Missing,none,P0,screenshot
+List,Reservation List,Res.No Room First Last Res.Date Arrival Departure Source Voucher,grid_cols,enabled,,Partial,/erp/reservations,P0,screenshot
+List,Reservation List,New Edit Void Close,footer_buttons,enabled,,Partial,StayHub lifecycle,P0,screenshot
+List,Booking List,Booking No Booked For date First Last Source Phone,grid_cols,enabled,,Partial,no separate booking entity,P2,screenshot
+List,Guest Ledger filters,From/To Date Guest Name Document Market Source LookingFor CityLedger RoomType Room MasterFolio IncludeSharer,filters,enabled,,Partial,boards + search,P1,screenshot
+List,Guest Ledger,Meal Plan,button,enabled,,Partial,StayHub meals,P1,screenshot
+List,Guest Ledger,Revenue Break Down,button,enabled,,Partial,package rail/reports,P1,screenshot
+List,Guest Ledger,Option Print Export,menu,enabled,,Partial,CSV,P1,screenshot
+List,Guest Ledger cols,Booking# Res# Folio# Reg# Bill# Confirm# Web# Arr Dep Guest Email Phone Identity,grid_cols,enabled,,Partial,PS + INV primarily,P1,screenshot
+List,Context menu,Open Transaction,menu_item,enabled,,Parity,StayHub,—,screenshot
+List,Context menu,Open Group,menu_item,enabled,,Partial,party board,P1,screenshot
+List,Context menu,Change Stay,menu_item,enabled,,Partial,calendar edit,P1,screenshot
+List,Context menu,Room Move,menu_item,enabled,,Parity,rack move,—,screenshot
+List,Context menu,Settlement,menu_item,enabled,,Parity,StayHub Collect,—,screenshot
+List,Context menu,Post Extra Charge,menu_item,enabled,,Parity,folio extras,—,screenshot
+List,Context menu,Manage Folio,menu_item,enabled,,Parity,StayHub Folio,—,screenshot
+List,Context menu,Mark as Cancel,menu_item,enabled,,Parity,lifecycle,—,screenshot
+List,Context menu,Mark as Noshow,menu_item,enabled,,Parity,lifecycle,—,screenshot
+List,Arrival/Departure filters,same as ledger Looking Guest to CI/CO,filters,enabled,,Parity,separate boards,—,screenshot
+ET,Tabs,General Information,tab,enabled,,Partial,StayHub Details,P1,screenshot
+ET,Tabs,Room Sharing,tab,enabled,,Missing,per-room sharers weak,P0,screenshot
+ET,Tabs,Other Information,tab,enabled,,Partial,notes soft,P1,screenshot
+ET,Tabs,Rate Information,tab,enabled,,Missing,no per-night grid,P0,screenshot
+ET,Tabs,Extra Charges,tab,enabled,,Partial,folio extras,P1,screenshot
+ET,Tabs,Payment Details,tab,enabled,,Partial,Collect,P1,screenshot
+ET,General,Guest Last First lookup add,fields,enabled,,Partial,guests,P1,screenshot
+ET,General,Settlement Cash Credit Partial Credit,radio,enabled,,Partial,guest cash vs agent AR,P0,screenshot
+ET,General,Settlement Type Card No Exp Bill To,fields,enabled,,Partial,pay methods,P1,screenshot
+ET,General,Folio No refresh,field,enabled,,Partial,folio id,P1,screenshot
+ET,General,Arrival Departure datetime Night,fields,enabled,,Partial,dates,P1,screenshot
+ET,General,Adult Child Infant,stepper,enabled,,Partial,pax,P1,screenshot
+ET,General,Tax Exempt checkboxes,checkbox,enabled,,Missing,none book/ET,P0,screenshot
+ET,General,Season Rate Type,dropdown,enabled,,Partial,rates seasons,P1,screenshot
+ET,General,Market Source Commission,dropdown,enabled,,Partial,agents,P1,screenshot
+ET,General,Reservation# Voucher#,fields,enabled,,Partial,PS conf,P1,screenshot
+ET,General,Release Information,fields,enabled,,Missing,hold TTL,P0,screenshot
+ET,General,Rate summary balance rail,display,enabled,,Parity,StayHub Due,—,screenshot
+ET,General,Guest Remark tabs Res CI CO,tabs_textarea,enabled,,Partial,notes,P1,screenshot
+ET,General,Generate Bill No,checkbox,enabled,,Partial,INV fiscal,P1,screenshot
+ET,General,Show Rate on Registration,checkbox,enabled,,Partial,docs settings,P1,screenshot
+ET,General,Generate Folio for Sharer,checkbox,enabled,,Missing,none,P0,screenshot
+ET,General,Stop Room Move,checkbox,enabled,,Missing,none,P1,screenshot
+ET,General,Override Rate,checkbox,enabled,,Partial,agreed rate,P1,screenshot
+ET,General,Next Reservation warning,banner,enabled,,Missing,rack only,P1,screenshot
+ET,General,More Print Check In Update Close,footer,enabled,,Partial,StayHub CTAs,P1,screenshot
+ET,General,Booked By Reserved By CI By CO By,audit_strip,enabled,,Partial,audit_events weak UI,P1,screenshot
+ET,Room Sharing/logistics,Multi-guest grid,grid,enabled,,Missing,party multi-room not sharer,P0,screenshot
+ET,Visa,Serial VisaNo Date IssuePlace ArrivedFrom DateTime Purpose GoingTo DepartTransport,fields,enabled,,Partial,CI passport/SDF,P1,screenshot
+ET,Visa,Visa Form button,button,enabled,,Missing,none,P1,screenshot
+ET,Transport,Arrival Mode Name No Station DateTime PickUp,fields,enabled,,Missing,none,P1,screenshot
+ET,Transport,Departure Mode Name No Station DateTime DropOff,fields,enabled,,Missing,none,P1,screenshot
+ET,Vehicle,Company Model Year Color Plate State,fields,enabled,,Missing,none,P2,screenshot
+ET,Other,DNR reason,textarea,enabled,,Missing,none,P1,screenshot
+ET,Other,Guest Preferences Room Floor Type,list,enabled,,Missing,none,P1,screenshot
+ET,Other,Web Affiliate Name Code,fields,enabled,,Missing,channel soft,P2,screenshot
+ET,Other,House Use + remark,checkbox,enabled,,Missing,none,P1,screenshot
+ET,Other,Allow Integration Posting,checkbox,enabled,,Partial,channel,Defer,screenshot
+ET,Rate Information,Per night Rate Type Rate Discount Taxable Adult Child,fields,enabled,,Missing,no day grid,P0,screenshot
+ET,Rate Information,Tax lines Bhutan Service GST,display,enabled,,Partial,folio nights,P0,screenshot
+ET,Rate Information,Apply selected checked full stay,radio,enabled,,Missing,none,P0,screenshot
+ET,Rate Information,Change only pax info,checkbox,enabled,,Missing,none,P1,screenshot
+ET,Rate Information,Split Bulk Rent Merge Bulk Rent,buttons,enabled,,Missing,none,P1,screenshot
+ET,Rate Information,Apply Discount Apply Changes,buttons,enabled,,Partial,rate adj,P1,screenshot
+ET,Rate Information,Day grid Date Day Room RateType Rate Disc taxes Total Season A/C,grid_cols,enabled,,Missing,none,P0,screenshot
+ET,Extra Charges,Show Voided Show Close Folio,checkbox,enabled,,Partial,void,P1,screenshot
+ET,Extra Charges,Posted charges grid,grid,enabled,,Partial,folio lines,P1,screenshot
+ET,Extra Charges,Print New Edit Void,buttons,enabled,,Partial,Advanced,P1,screenshot
+ET,Extra Charges,Special Packages Add Remove,list,enabled,,Partial,meal packages,P1,screenshot
+ET,Extra Charges,Inclusion Name Posting Type,list,enabled,,Missing,none,P1,screenshot
+ET,Payment Details,Payment grid full cols,grid,enabled,,Partial,Collect,P1,screenshot
+ET,Payment Details,Encash Print Refund New Edit Void,buttons,enabled,,Partial,payments/void,P1,screenshot
+ET,More,Change Stay,menu_item,enabled,,Partial,edit stay,P1,screenshot
+ET,More,Add Settlement,menu_item,enabled,,Parity,Collect,—,screenshot
+ET,More,Add Extra Charge,menu_item,enabled,,Parity,extras,—,screenshot
+ET,More,Room Move,menu_item,enabled,,Parity,rack move,—,screenshot
+ET,More,Follow Up,menu_item,enabled,,Missing,none,P2,screenshot
+ET,More,Add Wakeup Call,menu_item,enabled,,Missing,none,P2,screenshot
+ET,More,Audit Trail,menu_item,enabled,,Partial,audit_events,P1,screenshot
+ET,More,Card,menu_item,enabled,,Partial,reg card,P1,screenshot
+ET,More,Guest Note,menu_item,enabled,,Partial,notes,P1,screenshot
+ET,More,Assign Guide,menu_item,enabled,,Partial,leave evidence not assign,P1,screenshot
+ET,More,Exchange Room,menu_item,disabled,,NA,none,Defer,screenshot
+ET,More,Automatic Folio Routing,menu_item,disabled,,Missing,none,P1,screenshot
+ET,More,Undo Check Out,menu_item,disabled,,Missing,none,P1,screenshot
+ET,More,Undo CheckIn,menu_item,disabled_when_blocked,,Parity,undoCI rules,—,screenshot+FEATURES
+ET,Print voucher tree,Preview Voucher,menu_item,enabled,,Partial,docs voucher,P1,screenshot
+ET,Print voucher tree,Print Voucher,menu_item,enabled,,Partial,docs,P1,screenshot
+ET,Print voucher tree,Email Voucher,menu_item,enabled,,Partial,Resend packs,P1,screenshot
+ET,Print voucher tree,Email Other Attachments,menu_item,enabled,,Missing,none,P2,screenshot
+ET,Print voucher tree,Foreign Currency,menu_item,enabled,FC submenu,Missing,none,P2,screenshot
+ET,Print voucher tree,Registration Card,menu_item,enabled,,Partial,reg print+photo,P1,screenshot
+Folio,Folio list,Folio Guest Rate Ext Discount Payment Adj Balance,grid_cols,enabled,,Partial,StayHub Due,P0,screenshot
+Folio,Print L1,Master Folio Summary,menu_item,enabled,Preview Print FC,Partial,group statement,P0,screenshot
+Folio,Print L1,Master Folio Details,menu_item,enabled,Preview Print FC,Partial,Advanced,P0,screenshot
+Folio,Print L1,Folio Summary,menu_item,enabled,Preview Print FC,Partial,bill,P0,screenshot
+Folio,Print L1,Folio Details,menu_item,enabled,Preview Print FC,Partial,folio page,P0,screenshot
+Folio,Print L1,Registration Card,menu_item,enabled,Preview Print FC,Partial,reg docs,P1,screenshot
+Folio,Print L1,Settlement Details,menu_item,enabled,,Partial,settlement-pack,P1,screenshot
+Folio,Print L1,Extra Charge Details,menu_item,enabled,,Missing,none,P1,screenshot
+Folio,Print L2,Preview,menu_item,enabled,,Partial,print preview soft,P1,screenshot
+Folio,Print L2,Print,menu_item,enabled,,Partial,print,P1,screenshot
+Folio,Print L2,Foreign Currency $,menu_item,enabled,,Missing,Nu primary,P2,screenshot
+Folio,Folio list actions,Discount New Edit Delete Language,buttons,enabled,,Partial,folio tools,P1,screenshot
+Print,Registration Card sample,Full guest stay ID block signature,document,enabled,,Partial,Settings Documents Registration,P1,screenshot
+Guest DB,Profile List,Last First ID Phone InHouseOnly,filters,enabled,,Partial,/erp/guests,P1,screenshot
+Guest DB,Profile List,Advance Search Gender Marital Birth Anniversary SpouseBirth,filters,enabled,,Missing,none,P1,screenshot
+Guest DB,Profile List,Address Identification Contact Misc accordions,filters,enabled,,Missing,deep CRM,P2,screenshot
+Guest DB,Profile List,Type Name Country Source Email City Phone,grid_cols,enabled,,Partial,guests,P1,screenshot
+Guest DB,Profile List,New Edit Delete Options,buttons,enabled,,Partial,guests CRUD,P1,screenshot
+Back Office,Nav,Pay Out Misc Insert Undo Business Source Cityledger,nav,enabled,,Partial,finance+agents,P1,screenshot
+Back Office,Pay Out AP,Voucher PaidTo RegNo Category Extra Room Outlet Remark Amount Disc% Tax Qty Adj,fields,enabled,,Partial,/erp/finance expenses,P1,screenshot
+Back Office,Pay Out AP,Add Void Cancel Print Save Close,buttons,enabled,,Partial,finance,P1,screenshot
+Back Office,Business Source,Company Contact City Phone Email Plan PlanValue,grid_cols,enabled,327 records,Partial,/erp/agents,P1,screenshot
+Back Office,Insert Transaction,Walk-in style wizard,wizard,enabled,,Partial,DeskBook,P2,screenshot
+Back Office,Guest Messages,Room First Last From grid,grid,enabled,empty,Missing,none,P2,screenshot
+Tools,Menu,Reminder,nav,enabled,,Missing,none,P2,screenshot
+Tools,Menu,Network Lock,nav,enabled,,Partial,soft multi-tab lock,P1,screenshot
+Tools,Menu,Phone Directory,nav,enabled,,Missing,none,Defer,screenshot
+Tools,Menu,Lost & Found,nav,enabled,Found/Lost tabs,Parity,/erp/lost-found,—,screenshot+FEATURES
+Tools,Lost & Found,Item Color Where Room Found range Returned Discarded status+date,filters,enabled,,Partial,simpler board,P2,screenshot
+Tools,Menu,User Messages,nav,enabled,,Missing,none,P2,screenshot
+Tools,Menu,Wakeup Call,nav,enabled,,Missing,none,P2,screenshot
+Tools,Menu,Transport Mode Name Station,nav,disabled,,Missing,master,P2,screenshot
+Tools,Account List,Account names checkboxes,list,enabled,TA accounts,Partial,agents/city ledger soft,P1,screenshot
+System,Kebab,Settings,menu_item,enabled,,Parity,/erp/settings,—,screenshot
+System,Kebab,Refresh Language,menu_item,enabled,,NA,none,Defer,screenshot
+System,Kebab,Blank Reg. Form,menu_item,enabled,,Partial,blank reg,P2,screenshot
+System,Kebab,Database Backup,menu_item,enabled,,Behind_by_design,ops,Defer,screenshot
+System,Kebab,Database Restore,menu_item,enabled,,Behind_by_design,ops,Defer,screenshot
+System,Kebab,Night Audit,menu_item,enabled,,Parity,/erp/night-audit,—,screenshot+FEATURES
+System,Kebab,Undo Night Audit,menu_item,enabled,,Missing,none,P1,screenshot
+System,Kebab,Product Tour FAQ Live Support Feedback License Contact About,menu_item,enabled,,Behind_by_design,ops/docs,Defer,screenshot
+Reports Export,Export menu,Rich Text,format,enabled,,Missing,none,P2,screenshot
+Reports Export,Export menu,Word,format,enabled,,Missing,none,P2,screenshot
+Reports Export,Export menu,Excel,format,enabled,,Partial,CSV,P1,screenshot
+Reports Export,Export menu,PDF,format,enabled,,Partial,print packs,P1,screenshot
+Reports Export,Export menu,HTML,format,enabled,,Missing,none,P2,screenshot
+Reports Export,Export menu,Excel Data Only,format,enabled,,Partial,CSV,P1,screenshot
+Reports Export,Export menu,Set Default Export,menu_item,enabled,,Missing,none,P2,screenshot
+Reports Params,Reservation List,On Arrival|On Reservation mode Arr range Rate Floor Room Booking Pax Nights User Source SubSource Reason ResNo RsrvDate Dep RateRange PayType IgnoreZeroPaid Sort,filters,enabled,,Partial,res filters weaker,P0,screenshot
+Reports Params,Arrival List Report,Type BookingStatus Market Source SubSource User Guest GuestType IncludeShared Dep RsrvDate ShowRate flags Pax Nights ArrivalType Remark PayType RemarkType Sort,filters,enabled,,Partial,arrivals,P1,screenshot
+Reports Params,Booking List,similar + Void Cancel Noshow toggles,filters,enabled,,Partial,status filters,P1,screenshot
+Reports Params,Cancellation Report,Date Floor RoomType Room Rate Source Remark CancelledBy Names Arr Nights Deposit Doc Sort,filters,enabled,,Missing,none,P1,screenshot
+Reports Params,Deposit Due Report,DaysBeforeArrival Rate Booking Floor Source RoomType Room User Names Arr Dep DueDate Sort,filters,enabled,,Missing,none,P0,screenshot
+Reports Params,Monthly Availability Chart,Month Year,filters,enabled,R B I codes,Partial,calendar,P1,screenshot
+Reports Params,Monthly Room Inventory,Month Year BookingStatus Active flags,filters,enabled,,Partial,occ,P1,screenshot
+Reports Params,Direct Billing Aging,ReportType DateRange Columns Slab AccType Unalloc AccName Currency Ranges Sort,filters,enabled,,Partial,agent AR no slabs,P1,screenshot
+Reports Sample,Reservation List print,Rsrv# Date Source Guest Arr Dep Pax Nights Room Type Rate Total Paid User,document,enabled,,Missing,printable res list,P0,screenshot
+Reports Sample,Yearly Occupancy,RoomType x month TotalNights Occ%,document,enabled,,Partial,/erp/reports/performance,P1,screenshot
+Reports Names,Reservation tree,8 named reports (see inventory §11.1),report_name,enabled,,Partial,boards+res,P1,screenshot
+Reports Names,Group tree,8 named reports,report_name,enabled,,Missing,formal reports,P1,screenshot
+Reports Names,Front Office tree,22+ named reports,report_name,enabled,,Partial,boards only,P1,screenshot
+Reports Names,Room Report tree,5+ named,report_name,enabled,,Partial,rooms,P2,screenshot
+Reports Names,Marketing tree,20 named + yearly sample,report_name,enabled,,Partial,performance,P2,screenshot
+Reports Names,Direct Billing tree,6 named + aging params,report_name,enabled,,Partial,agent AR,P1,screenshot
+Reports Names,Night Audit tree,23 named,report_name,enabled,,Partial,NA pack,P1,screenshot
+Reports Names,Back Office tree,23 named,report_name,enabled,,Partial,finance,P2,screenshot
+Reports Names,Audit and Void tree,16 named,report_name,enabled,,Partial,audit_events,P1,screenshot

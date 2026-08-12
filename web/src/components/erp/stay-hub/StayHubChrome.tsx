@@ -55,6 +55,8 @@ export type StayHubRailAmount = {
   isCustom: boolean;
   stayTotalBtn: number | null;
   nights?: number | null;
+  /** Guest rooms sold (for “1 rm · 4n” legibility). */
+  rooms?: number | null;
   mealPlanCode?: string | null;
   pending?: boolean;
   /** Open manager PIN rate dialog / Details Rate. */
@@ -281,6 +283,14 @@ export function StayHubLeftRail({
   const editable = Boolean(amount?.editable !== false && amount?.onEdit);
   const nightly = amount?.nightlyBtn;
   const stayTotal = amount?.stayTotalBtn;
+  const stayNights = amount?.nights;
+  const stayRooms = amount?.rooms != null ? Math.max(1, amount.rooms) : 1;
+  const staySpanLabel =
+    stayNights != null && stayNights > 0
+      ? stayRooms > 1
+        ? `${stayRooms} rm · ${stayNights}n plan`
+        : `${stayNights}n plan`
+      : "Stay plan";
 
   const amountNode = amount || showDue || balanceClear || railActions ? (
     <div className="space-y-1.5">
@@ -289,12 +299,15 @@ export function StayHubLeftRail({
         <div className="rounded-md border border-maroon/30 bg-maroon/5 px-2 py-1.5">
           <div className="flex items-baseline justify-between gap-2">
             <p className="text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
-              Guest due
+              Open balance
             </p>
             <p className="text-lg font-semibold tabular-nums tracking-tight text-maroon">
               {formatGuestBtn(dueChipBtn)}
             </p>
           </div>
+          <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
+            Posted charges − payments (not full stay plan)
+          </p>
           {railActions ? (
             <div className="mt-1.5 flex flex-col gap-1 [&_button]:h-8 [&_button]:min-h-8 [&_button]:w-full [&_button]:px-2 [&_button]:text-[11px]">
               {railActions}
@@ -342,8 +355,8 @@ export function StayHubLeftRail({
               {amount.pending
                 ? "Price…"
                 : amount.isCustom
-                  ? "Custom nightly"
-                  : "Nightly"}
+                  ? "Room / night"
+                  : "Package / night"}
             </p>
             {editable ? (
               <PencilIcon className="size-3 shrink-0 text-muted-foreground" />
@@ -357,26 +370,18 @@ export function StayHubLeftRail({
                 : "—"}
           </p>
           <div className="mt-1 space-y-px border-t border-border/50 pt-1 text-[10px] tabular-nums text-muted-foreground">
-            {amount.nights != null && amount.nights > 0 ? (
-              <div className="flex justify-between gap-2">
-                <span>{amount.nights}n stay</span>
-                <span>
-                  {stayTotal != null ? formatGuestBtn(stayTotal) : "—"}
-                </span>
-              </div>
-            ) : (
-              <div className="flex justify-between gap-2">
-                <span>Stay total</span>
-                <span>
-                  {stayTotal != null ? formatGuestBtn(stayTotal) : "—"}
-                </span>
-              </div>
-            )}
+            <div className="flex justify-between gap-2">
+              <span>{staySpanLabel}</span>
+              <span className="font-medium text-foreground">
+                {stayTotal != null ? formatGuestBtn(stayTotal) : "—"}
+              </span>
+            </div>
           </div>
           {amount.mealPlanCode ? (
             <p className="mt-1 truncate text-[10px] text-muted-foreground">
               {amount.mealPlanCode}
               {amount.isCustom ? " · agreed" : " · sheet"}
+              {amount.isCustom ? " · tax as sheet" : ""}
               {editable ? " · edit" : ""}
             </p>
           ) : null}

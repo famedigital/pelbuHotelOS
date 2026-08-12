@@ -82,6 +82,7 @@ export async function createInhouseTask(
 
     revalidatePath("/erp/in-house");
     revalidatePath("/erp/calendar");
+    revalidatePath("/erp/reservations");
     return { ok: true, taskId: data.id as string };
   } catch (err) {
     return {

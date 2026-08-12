@@ -1509,13 +1509,7 @@ export async function postFolioPayment(
         agentRow.company_name as string | null,
       );
       if (creditBlocked) throw new Error(creditBlocked);
-      const available =
-        Number(agentRow.credit_limit ?? 0) - Number(agentRow.credit_used ?? 0);
-      if (amountBtn > available + 0.001) {
-        throw new Error(
-          `Insufficient credit. Available Nu ${available}; need Nu ${amountBtn}.`,
-        );
-      }
+      // Nu credit_limit is advisory — chargeAgentCredit tracks AR, does not block.
     }
 
     const pay = await postFolioPaymentRecord(admin, {

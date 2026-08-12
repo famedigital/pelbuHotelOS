@@ -85,7 +85,9 @@ export default async function CalendarPage({ searchParams }: Props) {
       .limit(5000),
     admin
       .from("agents")
-      .select("id, company_name, market, status, rate_tier, open_room_cap")
+      .select(
+        "id, company_name, market, status, rate_tier, open_room_cap, commission_pct, credit_used, credit_limit",
+      )
       .in("status", [...BOOKABLE_AGENT_STATUSES])
       .order("company_name"),
     admin
@@ -502,6 +504,10 @@ export default async function CalendarPage({ searchParams }: Props) {
     rate_tier: (a.rate_tier as string | null) ?? null,
     open_room_cap:
       a.open_room_cap == null ? 15 : Number(a.open_room_cap),
+    commission_pct:
+      a.commission_pct == null ? null : Number(a.commission_pct),
+    credit_used: Number(a.credit_used ?? 0),
+    credit_limit: Number(a.credit_limit ?? 0),
   }));
 
   const blocks: RoomBlock[] = (blockRows ?? []).map((block) => ({

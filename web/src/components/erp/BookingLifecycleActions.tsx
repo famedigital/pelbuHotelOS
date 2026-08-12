@@ -43,6 +43,18 @@ function useActionSuccess(state: { ok?: boolean }, onSuccess?: () => void) {
   }, [state.ok, onSuccess]);
 }
 
+function useOptimisticRollback(
+  state: { ok?: boolean; error?: string },
+  onRollback?: () => void,
+) {
+  const rolled = useRef(false);
+  useEffect(() => {
+    if (!state.error || state.ok || rolled.current) return;
+    rolled.current = true;
+    onRollback?.();
+  }, [state.error, state.ok, onRollback]);
+}
+
 export function BookingLifecycleActions({
   bookingId,
   status,
@@ -50,6 +62,8 @@ export function BookingLifecycleActions({
   cancelPolicySummary,
   isMouAgent,
   onSuccess,
+  onOptimisticStatus,
+  onOptimisticRollback,
   compact = false,
 }: {
   bookingId: string;
@@ -59,6 +73,9 @@ export function BookingLifecycleActions({
   isMouAgent?: boolean;
   /** After token confirm / cancel / no-show etc. — host refreshes stay summary. */
   onSuccess?: () => void;
+  /** Paint status immediately on submit (confirm → confirmed, cancel → cancelled). */
+  onOptimisticStatus?: (status: string) => void;
+  onOptimisticRollback?: () => void;
   /** Check-in More: tighter cancel / no-show row */
   compact?: boolean;
 }) {
@@ -84,6 +101,8 @@ export function BookingLifecycleActions({
           bookingId={bookingId}
           tokenRequired={tokenRequired ?? 0}
           onSuccess={onSuccess}
+          onOptimistic={() => onOptimisticStatus?.("confirmed")}
+          onRollback={onOptimisticRollback}
         />
       ) : null}
       {canExtend ? (
@@ -96,10 +115,17 @@ export function BookingLifecycleActions({
             cancelPolicySummary={cancelPolicySummary}
             isMouAgent={isMouAgent}
             onSuccess={onSuccess}
+            onOptimistic={() => onOptimisticStatus?.("cancelled")}
+            onRollback={onOptimisticRollback}
           />
         ) : null}
         {canNoShow ? (
-          <NoShowForm bookingId={bookingId} onSuccess={onSuccess} />
+          <NoShowForm
+            bookingId={bookingId}
+            onSuccess={onSuccess}
+            onOptimistic={() => onOptimisticStatus?.("no_show")}
+            onRollback={onOptimisticRollback}
+          />
         ) : null}
       </div>
     </div>
@@ -110,10 +136,14 @@ function ConfirmTokenForm({
   bookingId,
   tokenRequired,
   onSuccess,
+  onOptimistic,
+  onRollback,
 }: {
   bookingId: string;
   tokenRequired: number;
   onSuccess?: () => void;
+  onOptimistic?: () => void;
+  onRollback?: () => void;
 }) {
   const [state, action, pending] = useActionState(
     confirmBookingToken,
@@ -121,8 +151,13 @@ function ConfirmTokenForm({
   );
   useActionToast(state, { successMessage: "Token confirmed" });
   useActionSuccess(state, onSuccess);
+  useOptimisticRollback(state, onRollback);
   return (
-    <form action={action} className="flex flex-wrap items-end gap-2">
+    <form
+      action={action}
+      className="flex flex-wrap items-end gap-2"
+      onSubmit={() => onOptimistic?.()}
+    >
       <input type="hidden" name="booking_id" value={bookingId} />
       <label className="text-xs text-muted-foreground">
         Token Nu
@@ -221,15 +256,20 @@ function CancelForm({
   cancelPolicySummary,
   isMouAgent,
   onSuccess,
+  onOptimistic,
+  onRollback,
 }: {
   bookingId: string;
   cancelPolicySummary?: string;
   isMouAgent?: boolean;
   onSuccess?: () => void;
+  onOptimistic?: () => void;
+  onRollback?: () => void;
 }) {
   const [state, action, pending] = useActionState(cancelBooking, channelInitial);
   useActionToast(state, { successMessage: "Booking cancelled" });
   useActionSuccess(state, onSuccess);
+  useOptimisticRollback(state, onRollback);
   const [open, setOpen] = useState(false);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -296,7 +336,10 @@ function CancelForm({
               variant="destructive"
               size="sm"
               disabled={pending}
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                onOptimistic?.();
+                setOpen(false);
+              }}
             >
               {pending ? "Cancelling…" : "Confirm cancel"}
             </Button>
@@ -310,9 +353,13 @@ function CancelForm({
 function NoShowForm({
   bookingId,
   onSuccess,
+  onOptimistic,
+  onRollback,
 }: {
   bookingId: string;
   onSuccess?: () => void;
+  onOptimistic?: () => void;
+  onRollback?: () => void;
 }) {
   const [state, action, pending] = useActionState(
     markBookingNoShow,
@@ -320,6 +367,7 @@ function NoShowForm({
   );
   useActionToast(state, { successMessage: "Marked as no-show" });
   useActionSuccess(state, onSuccess);
+  useOptimisticRollback(state, onRollback);
   const [open, setOpen] = useState(false);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -362,7 +410,10 @@ function NoShowForm({
               variant="destructive"
               size="sm"
               disabled={pending}
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                onOptimistic?.();
+                setOpen(false);
+              }}
             >
               {pending ? "Marking…" : "Confirm no-show"}
             </Button>

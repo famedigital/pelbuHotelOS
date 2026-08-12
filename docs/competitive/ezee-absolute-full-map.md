@@ -150,9 +150,18 @@ Add reservation · Group booking · Group CI/CO · Room move · Split reservatio
 
 ## 9. Win front desk (product order)
 
-0. **Dense StayHub** — largely shipped (left identity + Due, compact DeskSettle, sticky footer). Residual only if UAT red at 1366×768.  
-1. **FO-parity jobs** — rack context · omnisearch · **business date** always visible · soft concurrent stay lock · zero-balance CO · day-use/late CO fees (policy) · cancel/no-show fee paths  
-2. **Money depth** — multi-folio / master attach · company bill-to patterns · agent AR settlement UX  
-3. **Bhutan kill-shot** — guide pack + photo · agent open-room cap · soft pay-at-end for locals  
+**Screenshot evidence (2026-08-11):** full control inventory of property FrontDesk capture (58 files) → [ezee-screenshot-inventory.md](ezee-screenshot-inventory.md) + [ezee-controls.csv](ezee-controls.csv). **217** control rows (Partial 119 · Missing 65 · Parity 26); **~112** report names; **34 P0** items. Corpus ≥95% of visible UI in shots. Full Absolute FO still needs Stay View / NA body / Cashiering / Config / Group deep captures (checklist in inventory §15).
 
-Do **not** chase Centrix/Mint/Critique/600 integrations on Day-1 boutique.
+0. **Dense StayHub** — largely shipped (left identity + Due, compact DeskSettle, sticky footer). Residual only if UAT red at 1366×768.  
+1. **Reservations office FO (P0 from inventory counts)**  
+   - Res list density: Active / Cancelled / Noshow / void language + color legend + row actions (StayHub · move · settle · cancel · noshow)  
+   - Per-night **Rate Information** grid (tax lines, discount, apply full-stay)  
+   - Book-time **tax inclusive/exclusive + per-tax exempt**  
+   - **Release days/%** + **Deposit Due** worklist/report  
+   - Stay **Print pack** tree (master/folio summary·detail, reg, settlement, extras)  
+   - Clean-only unit pick · agent commission/source rate matrix at book · printable res list + CSV/Excel  
+2. **FO-parity jobs (residual)** — rack context · omnisearch · **business date** · soft concurrent stay lock · zero-balance CO · day-use/late CO fees · cancel/no-show **fee** paths · Undo NA  
+3. **Money depth** — multi-folio / master attach · company bill-to · agent AR settlement UX · auto folio routing  
+4. **Bhutan kill-shot (already ahead; keep)** — guide pack + photo · agent open-room cap · soft pay-at-end for locals · guide/driver comps  
+
+**Do not** clone 3-step wizards, chase Centrix/Mint/Critique/600 integrations, or aim for 100 named Absolute reports on Day-1 boutique.

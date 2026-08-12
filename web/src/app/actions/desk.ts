@@ -58,7 +58,35 @@ export async function deskLogin(
     maxAge: 60 * 60 * 12,
   });
 
-  redirect("/erp");
+  // Shared PIN = front-desk machine default · honor existing workspace cookie.
+  const {
+    DESK_WORKSPACE_COOKIE,
+    DESK_WORKSPACE_COOKIE_MAX_AGE,
+    defaultWorkspaceForRole,
+    isDeskWorkspace,
+    resolveWorkspaceLandingHref,
+  } = await import("@/lib/erp/desk-workspace");
+  const { resolveDeskHomeHref } = await import("@/lib/erp/desk-modules");
+  const { getDeskRole } = await import("@/lib/desk-auth");
+
+  const deskRole = await getDeskRole().catch(() => null);
+  const storedRaw = jar.get(DESK_WORKSPACE_COOKIE)?.value;
+  const workspace = isDeskWorkspace(storedRaw)
+    ? storedRaw
+    : defaultWorkspaceForRole(deskRole);
+  jar.set(DESK_WORKSPACE_COOKIE, workspace, {
+    httpOnly: false,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: DESK_WORKSPACE_COOKIE_MAX_AGE,
+  });
+
+  const home = deskRole
+    ? resolveDeskHomeHref({ deskRole, pinOnlySession: true })
+    : resolveWorkspaceLandingHref(workspace, null);
+
+  redirect(home);
 }
 
 export async function deskLogout(): Promise<void> {

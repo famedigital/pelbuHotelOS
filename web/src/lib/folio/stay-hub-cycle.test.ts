@@ -6,6 +6,7 @@ import {
   buildStayHubSteps,
   canNavigateStayHubStep,
   deskFocusedSteps,
+  isStayHubArrivalTooFar,
   previousStayHubPanel,
   recommendStayHubStep,
   stayHubBackTargetLabel,
@@ -169,6 +170,45 @@ test("canNavigateStayHubStep: completed Folio stays clickable from Checkout", ()
       status: "checked_in",
     }),
     true,
+  );
+});
+
+test("future arrival locks check-in until open business date", () => {
+  assert.equal(
+    isStayHubArrivalTooFar("2026-08-28", "2026-08-11", "confirmed"),
+    true,
+  );
+  assert.equal(
+    isStayHubArrivalTooFar("2026-08-11", "2026-08-11", "confirmed"),
+    false,
+  );
+  assert.equal(
+    isStayHubArrivalTooFar("2026-08-28", "2026-08-11", "checked_in"),
+    false,
+  );
+
+  const steps = buildStayHubSteps({
+    status: "confirmed",
+    hasRoomAssigned: true,
+    sdfIncomplete: false,
+    checkInDate: "2026-08-28",
+    openBusinessDate: "2026-08-11",
+  });
+  const checkIn = steps.find((s) => s.id === "check_in");
+  assert.equal(checkIn?.locked, true);
+  assert.match(checkIn?.lockReason ?? "", /2026-08-28/);
+  assert.match(checkIn?.lockReason ?? "", /2026-08-11/);
+  assert.notEqual(steps.find((s) => s.current)?.id, "check_in");
+
+  assert.equal(
+    recommendStayHubStep({
+      status: "confirmed",
+      board: "arrivals",
+      hasRoomAssigned: true,
+      checkInDate: "2026-08-28",
+      openBusinessDate: "2026-08-11",
+    }),
+    "arrival",
   );
 });
 
