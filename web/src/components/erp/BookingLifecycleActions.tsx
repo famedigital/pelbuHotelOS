@@ -61,6 +61,7 @@ export function BookingLifecycleActions({
   tokenRequired,
   cancelPolicySummary,
   isMouAgent,
+  ratePendingApproval = false,
   onSuccess,
   onOptimisticStatus,
   onOptimisticRollback,
@@ -71,6 +72,8 @@ export function BookingLifecycleActions({
   tokenRequired?: number;
   cancelPolicySummary?: string;
   isMouAgent?: boolean;
+  /** Custom rates awaiting GM — block token confirm. */
+  ratePendingApproval?: boolean;
   /** After token confirm / cancel / no-show etc. — host refreshes stay summary. */
   onSuccess?: () => void;
   /** Paint status immediately on submit (confirm → confirmed, cancel → cancelled). */
@@ -83,7 +86,8 @@ export function BookingLifecycleActions({
     status,
   );
   const canNoShow = ["pending", "held", "confirmed"].includes(status);
-  const canConfirmToken = ["held", "pending"].includes(status);
+  const canConfirmToken =
+    ["held", "pending"].includes(status) && !ratePendingApproval;
   const canExtend = status === "held";
 
   if (!canCancel && !canNoShow && !canConfirmToken) return null;
@@ -96,6 +100,11 @@ export function BookingLifecycleActions({
           : "erp mt-2 flex flex-col gap-2"
       }
     >
+      {ratePendingApproval && ["held", "pending"].includes(status) ? (
+        <p className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-[11px] text-amber-950 dark:text-amber-50">
+          Confirm disabled — awaiting GM rate approval.
+        </p>
+      ) : null}
       {canConfirmToken ? (
         <ConfirmTokenForm
           bookingId={bookingId}

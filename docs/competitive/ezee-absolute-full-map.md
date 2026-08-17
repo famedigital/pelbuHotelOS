@@ -4,7 +4,7 @@
 **Purpose:** Competitive intelligence vs Pelbu desk ERP. Sources are external only (manuals, brochure, Freshdesk, reviews). Not a clone checklist — FO **jobs** to match and **Bhutan wedge** to win.  
 **Brand:** eZee Absolute under **Yanolja Cloud Solution (YCS)** / eZee Technosys (Surat). Host lineage: `live.ipms247.com` FO + Config logins.
 
-Companion: [FO hang-card](../ops/fo-ezee-to-pelbu-hang-card.md) · [FO agent commerce checklist](../FO-AGENT-COMMERCE-CHECKLIST.md)
+Companion: [eZee→Pelbu switch catalogue](ezee-bhutan-fo-switch-catalogue.md) · [FO hang-card](../ops/fo-ezee-to-pelbu-hang-card.md) · [FO agent commerce checklist](../FO-AGENT-COMMERCE-CHECKLIST.md)
 
 ---
 

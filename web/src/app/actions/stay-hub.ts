@@ -117,6 +117,18 @@ export type StayHubSummary = {
   roomLabel: string | null;
   roomTypeId: string | null;
   roomTypeName: string | null;
+  /**
+   * All sellable/comp lines on this stay (New booking multi-category).
+   * Distinct from formal party sibling bookings.
+   */
+  roomLines: Array<{
+    roomTypeId: string;
+    roomTypeName: string;
+    roomTypeCode: string | null;
+    qty: number;
+    inventoryKind: string;
+    assignedLabels: string[];
+  }>;
   folioId: string | null;
   folioBalance: number;
   isLocked: boolean;
@@ -129,6 +141,8 @@ export type StayHubSummary = {
   /** Manager-approved nightly rate (null = use rate sheet). */
   agreedNightlyRateBtn: number | null;
   agreedRateReason: string | null;
+  /** True when any booking_rooms line awaits GM rate approval. */
+  ratePendingApproval: boolean;
   mealPlanCode: string | null;
   /** Agent guide-settlement evidence (photo | waived | null). */
   guideSignStatus: string | null;
@@ -241,6 +255,7 @@ export async function fetchStayHubSummary(
       agents(company_name, contact_email, status, market),
       sold_by_staff:staff_members!sold_by_staff_id(full_name),
       booking_guests(id, full_name, passport_or_cid, nationality, sdf_ref, blacklisted),
+      booking_rooms(qty, inventory_kind, room_type_id, rate_request_status, room_types(id, name, code)),
       room_assignments(id, room_unit_id, is_locked, from_date, to_date,
         chargeable, nc_reason_code,
         room_units(id, label, room_type_id, room_types(id, name))),
@@ -448,6 +463,48 @@ export async function fetchStayHubSummary(
       .limit(20),
   ]);
 
+  const labelsByTypeId = new Map<string, string[]>();
+  for (const a of assigns) {
+    const u = Array.isArray(a.room_units) ? a.room_units[0] : a.room_units;
+    const typeId = u?.room_type_id;
+    const label = u?.label?.trim();
+    if (!typeId || !label) continue;
+    const list = labelsByTypeId.get(typeId) ?? [];
+    list.push(label);
+    labelsByTypeId.set(typeId, list);
+  }
+
+  const roomLines = (
+    (data.booking_rooms as
+      | Array<{
+          qty?: number;
+          inventory_kind?: string;
+          room_type_id?: string;
+          rate_request_status?: string | null;
+          room_types?:
+            | { id?: string; name?: string; code?: string }
+            | { id?: string; name?: string; code?: string }[]
+            | null;
+        }>
+      | null) ?? []
+  ).map((r) => {
+    const rtRow = Array.isArray(r.room_types) ? r.room_types[0] : r.room_types;
+    const typeId = (r.room_type_id as string) || (rtRow?.id as string) || "";
+    return {
+      roomTypeId: typeId,
+      roomTypeName: (rtRow?.name as string) || "Room",
+      roomTypeCode: (rtRow?.code as string | null) ?? null,
+      qty: Number(r.qty ?? 1),
+      inventoryKind: (r.inventory_kind as string) || "sellable_guest",
+      assignedLabels: typeId ? (labelsByTypeId.get(typeId) ?? []) : [],
+    };
+  });
+
+  const ratePendingApproval = (
+    (data.booking_rooms as Array<{ rate_request_status?: string | null }> | null) ??
+    []
+  ).some((r) => (r.rate_request_status as string) === "pending");
+
   return {
     ok: true,
     data: {
@@ -493,6 +550,7 @@ export async function fetchStayHubSummary(
       roomLabel: unit?.label ?? null,
       roomTypeId: unit?.room_type_id ?? rt?.id ?? null,
       roomTypeName: rt?.name ?? null,
+      roomLines,
       folioId: openFolio?.id ?? null,
       folioBalance: balance,
       isLocked: Boolean(preferred?.is_locked),
@@ -504,6 +562,7 @@ export async function fetchStayHubSummary(
           ? Number(data.agreed_nightly_rate_btn)
           : null,
       agreedRateReason: (data.agreed_rate_reason as string | null) ?? null,
+      ratePendingApproval,
       mealPlanCode: (data.meal_plan_code as string | null) ?? null,
       guideSignStatus: (data.guide_sign_status as string | null) ?? null,
       guideSignPhotoPublicId:
@@ -1605,11 +1664,19 @@ export async function fetchStayHubPartyContext(
       }
     }
 
-    // Soft party: same agent + dates, not already in a formal group.
+    // Soft party: same agent+dates, or same contact phone/name + dates (board parity).
     if (!groupId) {
       const agentId = (anchor.agent_id as string | null) ?? null;
       const checkIn = (anchor.check_in as string).slice(0, 10);
       const checkOut = (anchor.check_out as string).slice(0, 10);
+      const phone = String(anchor.contact_phone ?? "")
+        .replace(/\D/g, "")
+        .slice(-10);
+      const contactName = String(anchor.contact_name ?? "")
+        .trim()
+        .toLowerCase();
+
+      let peerIds: string[] = [];
       if (agentId && checkIn) {
         const { data: peers } = await admin
           .from("bookings")
@@ -1620,20 +1687,46 @@ export async function fetchStayHubPartyContext(
           .eq("check_out", checkOut)
           .not("status", "in", '("cancelled","no_show","expired")')
           .limit(40);
-        const peerIds = (peers ?? []).map((p) => p.id as string);
-        if (peerIds.length >= 2) {
-          const { data: alreadyGrouped } = await admin
-            .from("booking_group_members")
-            .select("booking_id")
-            .in("booking_id", peerIds);
-          const grouped = new Set(
-            (alreadyGrouped ?? []).map((r) => r.booking_id as string),
-          );
-          const ungrouped = peerIds.filter((pid) => !grouped.has(pid));
-          if (ungrouped.length >= 2 && ungrouped.includes(id)) {
-            partyIds = ungrouped;
-            suggested = true;
-          }
+        peerIds = (peers ?? []).map((p) => p.id as string);
+      } else if (checkIn && (phone.length >= 8 || contactName.length >= 4)) {
+        const { data: peers } = await admin
+          .from("bookings")
+          .select("id, contact_phone, contact_name")
+          .eq("property_id", propertyId)
+          .eq("check_in", checkIn)
+          .eq("check_out", checkOut)
+          .is("agent_id", null)
+          .not("status", "in", '("cancelled","no_show","expired")')
+          .limit(60);
+        peerIds = (peers ?? [])
+          .filter((p) => {
+            if (phone.length >= 8) {
+              const pp = String(p.contact_phone ?? "")
+                .replace(/\D/g, "")
+                .slice(-10);
+              return pp === phone;
+            }
+            return (
+              String(p.contact_name ?? "")
+                .trim()
+                .toLowerCase() === contactName
+            );
+          })
+          .map((p) => p.id as string);
+      }
+
+      if (peerIds.length >= 2) {
+        const { data: alreadyGrouped } = await admin
+          .from("booking_group_members")
+          .select("booking_id")
+          .in("booking_id", peerIds);
+        const grouped = new Set(
+          (alreadyGrouped ?? []).map((r) => r.booking_id as string),
+        );
+        const ungrouped = peerIds.filter((pid) => !grouped.has(pid));
+        if (ungrouped.length >= 2 && ungrouped.includes(id)) {
+          partyIds = ungrouped;
+          suggested = true;
         }
       }
     }

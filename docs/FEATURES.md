@@ -184,7 +184,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | **Agent settlement** | Guide sign photo/waive · settlement packs · `open_room_cap` · seal/email (Resend) |
 | **Agreed nightly rate** | Manager PIN special rate on booking |
 | Accounting CSV | `/api/erp/export?kind=payments\|expenses\|folio_lines\|immigration\|agent-production\|agent-commission` |
-| Playwright desk smoke | `web/e2e/money-path.spec.ts` — skips without `PLAYWRIGHT_*` secrets |
+| Playwright desk smoke | `web/e2e/*` — routes, Wave A–B, layout overflow, money path; see [VERIFICATION.md](VERIFICATION.md); skips without desk PIN |
 | UAT | `docs/UAT-CHECKLIST.md` · [FO-AGENT-COMMERCE-CHECKLIST.md](FO-AGENT-COMMERCE-CHECKLIST.md) |
 | Brand assets | `design/brand/` + favicons/PWA icons |
 

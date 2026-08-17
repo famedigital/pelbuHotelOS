@@ -83,6 +83,8 @@ export type DeskBookFormProps = {
     blurb: string | null;
     amountPerAdultNight?: number | null;
   }[];
+  /** Owner/GM session — custom rates confirm instantly (PIN still accepted). */
+  canInstantApproveRates?: boolean;
   property?: {
     name: string;
     legal_name?: string | null;
@@ -213,6 +215,7 @@ export function DeskBookForm({
   voucherDesign,
   registrationDesign,
   defaults,
+  canInstantApproveRates = false,
   onSaved,
   onOpenStay,
   onBookAnother,
@@ -221,12 +224,18 @@ export function DeskBookForm({
 }: DeskBookFormProps) {
   const [state, action, pending] = useActionState(createFastBooking, initial);
   useActionToast(state, {
-    successMessage: state.bookingId
-      ? `Saved · ${
+    successMessage: state.ratePendingApproval
+      ? `Held · awaiting GM rate approval · ${
           state.confirmationCode ??
-          state.bookingId.slice(0, 8).toUpperCase()
+          state.bookingId?.slice(0, 8).toUpperCase() ??
+          ""
         }`
-      : "Reservation saved",
+      : state.bookingId
+        ? `Saved · ${
+            state.confirmationCode ??
+            state.bookingId.slice(0, 8).toUpperCase()
+          }`
+        : "Reservation saved",
   });
   const savedNotified = useRef(false);
 
@@ -341,16 +350,43 @@ export function DeskBookForm({
   const [stepError, setStepError] = useState<string | null>(null);
 
   /** Multi-category guest room cart (one booking · many booking_rooms). */
-  type RoomCartLine = { roomTypeId: string; qty: number };
+  type RoomCartLine = {
+    roomTypeId: string;
+    qty: number;
+    mealPlanCode: string;
+    occupancy: "single" | "double";
+    adults: number;
+    children: number;
+    extraBeds: number;
+    sheetNightlyBtn: number | null;
+    agreedNightlyBtn: number | null;
+    ratePendingApproval: boolean;
+  };
+  const defaultMeal = defaults?.mealPlanCode ?? mealPlans[0]?.code ?? "EP";
+  const makeLine = (
+    roomTypeId: string,
+    qty: number,
+    base?: Partial<RoomCartLine>,
+  ): RoomCartLine => ({
+    roomTypeId,
+    qty,
+    mealPlanCode: base?.mealPlanCode ?? defaultMeal,
+    occupancy: base?.occupancy ?? "double",
+    adults: base?.adults ?? 2,
+    children: base?.children ?? 0,
+    extraBeds: base?.extraBeds ?? 0,
+    sheetNightlyBtn: base?.sheetNightlyBtn ?? null,
+    agreedNightlyBtn: base?.agreedNightlyBtn ?? null,
+    ratePendingApproval: base?.ratePendingApproval ?? false,
+  });
   const [roomLines, setRoomLines] = useState<RoomCartLine[]>(() => {
     const seeded = guestTypes
       .filter((g) => (defaults?.qtyByCode?.[g.code] ?? 0) > 0)
-      .map((g) => ({
-        roomTypeId: g.id,
-        qty: Math.max(1, defaults?.qtyByCode?.[g.code] ?? 1),
-      }));
+      .map((g) =>
+        makeLine(g.id, Math.max(1, defaults?.qtyByCode?.[g.code] ?? 1)),
+      );
     if (seeded.length > 0) return seeded;
-    if (guestTypes[0]) return [{ roomTypeId: guestTypes[0].id, qty: 1 }];
+    if (guestTypes[0]) return [makeLine(guestTypes[0].id, 1)];
     return [];
   });
   const [addCategoryId, setAddCategoryId] = useState("");
@@ -377,6 +413,8 @@ export function DeskBookForm({
   const [pinOpen, setPinOpen] = useState(false);
   const [draftRate, setDraftRate] = useState("");
   const [draftPin, setDraftPin] = useState("");
+  const [rateEditLineId, setRateEditLineId] = useState<string | null>(null);
+  const [rateEditReason, setRateEditReason] = useState("");
   const [quoteHint, setQuoteHint] = useState<string | null>(null);
   const [quoteMealStay, setQuoteMealStay] = useState(0);
   const [quoteExtraStay, setQuoteExtraStay] = useState(0);
@@ -389,6 +427,7 @@ export function DeskBookForm({
       name: string;
       qty: number;
       nightlyBtn: number | null;
+      sheetNightlyBtn?: number | null;
     }>
   >([]);
   const [remainingByType, setRemainingByType] = useState<
@@ -532,7 +571,12 @@ export function DeskBookForm({
         l.roomTypeId === roomTypeId ? { ...l, qty: next } : l,
       ),
     );
-    setRateDirty(false);
+  }
+
+  function patchLine(roomTypeId: string, patch: Partial<RoomCartLine>) {
+    setRoomLines((prev) =>
+      prev.map((l) => (l.roomTypeId === roomTypeId ? { ...l, ...patch } : l)),
+    );
   }
 
   function removeLine(roomTypeId: string) {
@@ -540,7 +584,6 @@ export function DeskBookForm({
       if (prev.length <= 1) return prev;
       return prev.filter((l) => l.roomTypeId !== roomTypeId);
     });
-    setRateDirty(false);
   }
 
   function addCategoryLine(roomTypeId: string) {
@@ -553,9 +596,17 @@ export function DeskBookForm({
       });
       return;
     }
-    setRoomLines((prev) => [...prev, { roomTypeId, qty: 1 }]);
+    setRoomLines((prev) => [
+      ...prev,
+      makeLine(roomTypeId, 1, {
+        mealPlanCode: mealPlanCode || defaultMeal,
+        occupancy,
+        adults,
+        children,
+        extraBeds,
+      }),
+    ]);
     setAddCategoryId("");
-    setRateDirty(false);
   }
 
   function setCompQty(roomTypeId: string, qty: number) {
@@ -595,6 +646,12 @@ export function DeskBookForm({
         lines: roomLines.map((l) => ({
           roomTypeId: l.roomTypeId,
           qty: l.qty,
+          occupancy: l.occupancy,
+          mealPlanCode: l.mealPlanCode,
+          adults: l.adults,
+          children: l.children,
+          extraBeds: l.extraBeds,
+          agreedNightlyBtn: l.agreedNightlyBtn,
         })),
         adults,
         occupancy,
@@ -635,6 +692,19 @@ export function DeskBookForm({
       setRemainingByType(r.remainingByRoomTypeId ?? {});
       setAgentOpenRooms(r.agentOpenRooms);
       setAgentRoomCap(r.agentRoomCap);
+      setRoomLines((prev) =>
+        prev.map((l) => {
+          const q = r.lines.find((x) => x.roomTypeId === l.roomTypeId);
+          if (!q) return l;
+          const sheet =
+            q.sheetNightlyBtn != null
+              ? q.sheetNightlyBtn
+              : l.agreedNightlyBtn == null
+                ? q.nightlyBtn
+                : l.sheetNightlyBtn;
+          return { ...l, sheetNightlyBtn: sheet ?? l.sheetNightlyBtn };
+        }),
+      );
       if (!rateDirty && r.systemNightlyBtn != null) {
         setDisplayRate(String(Math.round(r.systemNightlyBtn)));
       }
@@ -660,6 +730,25 @@ export function DeskBookForm({
   useEffect(() => {
     refreshQuote();
   }, [refreshQuote]);
+
+  // Stay-level pax mirrors sum of category lines (FO form header + server fallback).
+  useEffect(() => {
+    if (roomLines.length === 0) return;
+    let a = 0;
+    let c = 0;
+    let e = 0;
+    for (const l of roomLines) {
+      a += l.adults * l.qty;
+      c += l.children * l.qty;
+      e += l.extraBeds * l.qty;
+    }
+    if (a >= 1) setAdults(a);
+    setChildren(c);
+    setExtraBeds(e);
+    setMealPlanCode(roomLines[0]?.mealPlanCode ?? mealPlanCode);
+    setOccupancy(roomLines[0]?.occupancy ?? occupancy);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync from roomLines only
+  }, [roomLines]);
 
   useEffect(() => {
     if (billAgent) {
@@ -703,6 +792,14 @@ export function DeskBookForm({
     checkIn,
   ]);
 
+  const anyLineCustomRate = roomLines.some((l) => {
+    if (l.agreedNightlyBtn == null) return false;
+    if (l.sheetNightlyBtn == null) return true;
+    return Math.abs(l.agreedNightlyBtn - l.sheetNightlyBtn) > 0.009;
+  });
+  const anyRatePendingSubmit =
+    anyLineCustomRate && !canInstantApproveRates && !ratePin.trim();
+
   const editedRate = Number(displayRate);
   const rateDiffers =
     (systemNightly != null &&
@@ -710,13 +807,11 @@ export function DeskBookForm({
       Math.abs(editedRate - systemNightly) > 0.009) ||
     (systemNightly == null &&
       displayRate.trim() !== "" &&
-      Number.isFinite(editedRate));
+      Number.isFinite(editedRate)) ||
+    anyLineCustomRate;
 
-  /** Custom nightly is treated as all-in per room-night; sheet uses package total. */
+  /** Package total from quote (per-line rates already included). */
   const stayTotal = useMemo(() => {
-    if (rateDiffers && Number.isFinite(editedRate) && nights > 0 && totalGuestRooms > 0) {
-      return editedRate * nights * totalGuestRooms;
-    }
     if (quotePackageStay != null) return quotePackageStay;
     if (
       Number.isFinite(editedRate) &&
@@ -726,13 +821,7 @@ export function DeskBookForm({
       return editedRate * nights * totalGuestRooms;
     }
     return null;
-  }, [
-    rateDiffers,
-    editedRate,
-    nights,
-    totalGuestRooms,
-    quotePackageStay,
-  ]);
+  }, [editedRate, nights, totalGuestRooms, quotePackageStay]);
 
   const stepDone: Record<StepId, boolean> = {
     stay: Boolean(checkIn) && nights >= 1,
@@ -796,31 +885,94 @@ export function DeskBookForm({
     return null;
   }
 
-  const openRateDialog = () => {
+  const openRateDialog = (roomTypeId?: string) => {
+    const line = roomTypeId
+      ? roomLines.find((l) => l.roomTypeId === roomTypeId)
+      : roomLines.length === 1
+        ? roomLines[0]
+        : null;
+    setRateEditLineId(line?.roomTypeId ?? roomTypeId ?? null);
+    const sheet = line?.sheetNightlyBtn ?? systemNightly;
+    const current =
+      line?.agreedNightlyBtn ??
+      line?.sheetNightlyBtn ??
+      (displayRate.trim()
+        ? Number(displayRate)
+        : sheet != null
+          ? sheet
+          : null);
     setDraftRate(
-      displayRate ||
-        (systemNightly != null ? String(Math.round(systemNightly)) : ""),
+      current != null && Number.isFinite(current)
+        ? String(Math.round(Number(current)))
+        : "",
     );
     setDraftPin(ratePin);
+    setRateEditReason("");
     setPinOpen(true);
   };
 
   const applyRateDialog = () => {
     const n = Number(draftRate);
     if (!Number.isFinite(n) || n < 0) return;
+
+    const lineId = rateEditLineId;
+    const targetLines = lineId
+      ? roomLines.filter((l) => l.roomTypeId === lineId)
+      : roomLines;
+    if (targetLines.length === 0) {
+      setPinOpen(false);
+      return;
+    }
+
+    const sheetRef =
+      targetLines[0]?.sheetNightlyBtn ??
+      (targetLines.length === 1 ? systemNightly : null);
     const differs =
-      systemNightly == null || Math.abs(n - systemNightly) > 0.009;
-    if (differs && !draftPin.trim()) return;
+      sheetRef == null || Math.abs(n - sheetRef) > 0.009;
+
+    // Custom rate: GM session or PIN → instant; FO without PIN → pending approval
+    if (differs && !canInstantApproveRates && draftPin.trim()) {
+      setRatePin(draftPin);
+    } else if (differs && canInstantApproveRates) {
+      setRatePin(draftPin.trim() || ratePin);
+    } else if (!differs) {
+      setRatePin("");
+    }
+
+    setRoomLines((prev) =>
+      prev.map((l) => {
+        if (lineId && l.roomTypeId !== lineId) return l;
+        if (!differs) {
+          return {
+            ...l,
+            agreedNightlyBtn: null,
+            ratePendingApproval: false,
+          };
+        }
+        return {
+          ...l,
+          agreedNightlyBtn: Math.round(n),
+          ratePendingApproval: !canInstantApproveRates && !draftPin.trim(),
+        };
+      }),
+    );
     setDisplayRate(String(Math.round(n)));
     setRateDirty(true);
-    setRatePin(differs ? draftPin : "");
     setPinOpen(false);
+    setRateEditLineId(null);
   };
 
-  const draftDiffers =
-    systemNightly == null ||
-    !Number.isFinite(Number(draftRate)) ||
-    Math.abs(Number(draftRate) - (systemNightly ?? -1)) > 0.009;
+  const draftDiffers = (() => {
+    const line = rateEditLineId
+      ? roomLines.find((l) => l.roomTypeId === rateEditLineId)
+      : null;
+    const sheet = line?.sheetNightlyBtn ?? systemNightly;
+    return (
+      sheet == null ||
+      !Number.isFinite(Number(draftRate)) ||
+      Math.abs(Number(draftRate) - (sheet ?? -1)) > 0.009
+    );
+  })();
 
   // —— Confirmation pack after successful create (future holds / non same-day) ——
   if (state.ok && state.bookingId && !skipConfirmationPack) {
@@ -1032,7 +1184,13 @@ export function DeskBookForm({
         action={action}
         className="erp flex min-h-0 flex-1 flex-col md:flex-row"
         onSubmit={(e) => {
-          if (rateDiffers && !ratePin.trim()) {
+          // Custom rates without GM/PIN → hold for approval (do not block submit).
+          if (
+            rateDiffers &&
+            !canInstantApproveRates &&
+            !ratePin.trim() &&
+            !anyLineCustomRate
+          ) {
             e.preventDefault();
             openRateDialog();
             return;
@@ -1099,16 +1257,26 @@ export function DeskBookForm({
         <input
           type="hidden"
           name="agreed_nightly_rate_btn"
-          value={rateDiffers ? displayRate : ""}
+          value={
+            !mixedCategories && rateDiffers && !anyLineCustomRate
+              ? displayRate
+              : ""
+          }
         />
         <input type="hidden" name="manager_pin" value={ratePin} />
+        <input
+          type="hidden"
+          name="rate_request_reason"
+          value={rateEditReason || "desk override"}
+        />
         {preferredUnitId ? (
           <input type="hidden" name="room_unit_id" value={preferredUnitId} />
         ) : null}
         {roomTypes.map((rt) => {
           let qtyVal = "0";
+          let line: RoomCartLine | undefined;
           if (rt.inventory_kind === "sellable_guest") {
-            const line = roomLines.find((l) => l.roomTypeId === rt.id);
+            line = roomLines.find((l) => l.roomTypeId === rt.id);
             qtyVal = line ? String(line.qty) : "0";
           } else if (
             rt.inventory_kind === "guide_comp" ||
@@ -1117,12 +1285,56 @@ export function DeskBookForm({
             qtyVal = String(compQtyByTypeId[rt.id] ?? 0);
           }
           return (
-            <input
-              key={rt.id}
-              type="hidden"
-              name={`qty_${rt.code}`}
-              value={qtyVal}
-            />
+            <span key={rt.id}>
+              <input type="hidden" name={`qty_${rt.code}`} value={qtyVal} />
+              {line ? (
+                <>
+                  <input
+                    type="hidden"
+                    name={`line_meal_${rt.code}`}
+                    value={line.mealPlanCode}
+                  />
+                  <input
+                    type="hidden"
+                    name={`line_occ_${rt.code}`}
+                    value={line.occupancy}
+                  />
+                  <input
+                    type="hidden"
+                    name={`line_adults_${rt.code}`}
+                    value={String(line.adults)}
+                  />
+                  <input
+                    type="hidden"
+                    name={`line_children_${rt.code}`}
+                    value={String(line.children)}
+                  />
+                  <input
+                    type="hidden"
+                    name={`line_extra_${rt.code}`}
+                    value={String(line.extraBeds)}
+                  />
+                  <input
+                    type="hidden"
+                    name={`line_sheet_${rt.code}`}
+                    value={
+                      line.sheetNightlyBtn != null
+                        ? String(line.sheetNightlyBtn)
+                        : ""
+                    }
+                  />
+                  <input
+                    type="hidden"
+                    name={`line_agreed_${rt.code}`}
+                    value={
+                      line.agreedNightlyBtn != null
+                        ? String(line.agreedNightlyBtn)
+                        : ""
+                    }
+                  />
+                </>
+              ) : null}
+            </span>
           );
         })}
 
@@ -1135,7 +1347,7 @@ export function DeskBookForm({
         >
           <button
             type="button"
-            onClick={openRateDialog}
+            onClick={() => openRateDialog()}
             className={cn(
               "w-full rounded border bg-card px-2 py-1.5 text-left transition-colors",
               "hover:border-foreground/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -1794,8 +2006,8 @@ export function DeskBookForm({
                 </div>
               ) : null}
 
-              {/* ROW: rooms + package */}
-              <div className="space-y-1 border-t border-border/50 pt-2">
+              {/* ROW: rooms + per-line package */}
+              <div className="space-y-2 border-t border-border/50 pt-2">
                 {roomLines.map((line) => {
                   const rt = guestTypes.find((g) => g.id === line.roomTypeId);
                   if (!rt) return null;
@@ -1803,55 +2015,203 @@ export function DeskBookForm({
                   const qLine = quoteLines.find(
                     (q) => q.roomTypeId === line.roomTypeId,
                   );
+                  const showRate =
+                    line.agreedNightlyBtn ??
+                    line.sheetNightlyBtn ??
+                    qLine?.nightlyBtn;
+                  const custom =
+                    line.agreedNightlyBtn != null &&
+                    (line.sheetNightlyBtn == null ||
+                      Math.abs(line.agreedNightlyBtn - line.sheetNightlyBtn) >
+                        0.009);
                   return (
                     <div
                       key={line.roomTypeId}
-                      className="flex flex-wrap items-center gap-1.5 text-sm"
+                      className="space-y-1.5 rounded border border-border/60 bg-card/40 px-2 py-1.5"
                     >
-                      <span className="min-w-0 flex-1 truncate font-medium">
-                        {rt.name}
-                        <span className="ml-1 font-normal text-muted-foreground">
-                          {left} left
-                          {qLine?.nightlyBtn != null
-                            ? ` · ${formatGuestBtn(qLine.nightlyBtn)}/n`
-                            : ""}
+                      <div className="flex flex-wrap items-center gap-1.5 text-sm">
+                        <span className="min-w-0 flex-1 truncate font-medium">
+                          {rt.name}
+                          <span className="ml-1 font-normal text-muted-foreground">
+                            {left} left
+                          </span>
                         </span>
-                      </span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="size-7"
-                        onClick={() =>
-                          setLineQty(line.roomTypeId, line.qty - 1)
-                        }
-                        aria-label={`Decrease ${rt.name}`}
-                      >
-                        −
-                      </Button>
-                      <span className="min-w-[1rem] text-center text-sm font-semibold tabular-nums">
-                        {line.qty}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="size-7"
-                        disabled={line.qty >= left}
-                        onClick={() =>
-                          setLineQty(line.roomTypeId, line.qty + 1)
-                        }
-                        aria-label={`Increase ${rt.name}`}
-                      >
-                        +
-                      </Button>
-                      {roomLines.length > 1 ? (
                         <button
                           type="button"
-                          className="px-1 text-[11px] text-muted-foreground hover:text-foreground"
-                          onClick={() => removeLine(line.roomTypeId)}
+                          onClick={() => openRateDialog(line.roomTypeId)}
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] tabular-nums",
+                            custom
+                              ? "border-amber-500/50 bg-amber-50/50 text-amber-950 dark:bg-amber-950/30 dark:text-amber-50"
+                              : "border-border/70 text-muted-foreground hover:text-foreground",
+                          )}
                         >
-                          Remove
+                          {showRate != null
+                            ? `${formatGuestBtn(showRate)}/n`
+                            : "Set rate"}
+                          <PencilIcon className="size-3" />
                         </button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="size-7"
+                          onClick={() =>
+                            setLineQty(line.roomTypeId, line.qty - 1)
+                          }
+                          aria-label={`Decrease ${rt.name}`}
+                        >
+                          −
+                        </Button>
+                        <span className="min-w-[1rem] text-center text-sm font-semibold tabular-nums">
+                          {line.qty}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="size-7"
+                          disabled={line.qty >= left}
+                          onClick={() =>
+                            setLineQty(line.roomTypeId, line.qty + 1)
+                          }
+                          aria-label={`Increase ${rt.name}`}
+                        >
+                          +
+                        </Button>
+                        {roomLines.length > 1 ? (
+                          <button
+                            type="button"
+                            className="px-1 text-[11px] text-muted-foreground hover:text-foreground"
+                            onClick={() => removeLine(line.roomTypeId)}
+                          >
+                            Remove
+                          </button>
+                        ) : null}
+                      </div>
+                      {line.ratePendingApproval ? (
+                        <p className="text-[10px] text-amber-800 dark:text-amber-100">
+                          Awaiting GM rate approval on confirm
+                        </p>
                       ) : null}
+                      <div className="grid grid-cols-2 gap-x-2 gap-y-1 sm:grid-cols-5">
+                        <div className="space-y-0.5">
+                          <Label className="text-[10px] font-normal text-muted-foreground">
+                            Meal
+                          </Label>
+                          <Select
+                            value={line.mealPlanCode}
+                            onValueChange={(v) =>
+                              patchLine(line.roomTypeId, { mealPlanCode: v })
+                            }
+                          >
+                            <SelectTrigger className="h-7 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(mealPlans.length
+                                ? mealPlans
+                                : [
+                                    {
+                                      code: "EP",
+                                      name: "Room only",
+                                      blurb: null,
+                                    },
+                                  ]
+                              ).map((p) => (
+                                <SelectItem key={p.code} value={p.code}>
+                                  {p.code}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-0.5">
+                          <Label className="text-[10px] font-normal text-muted-foreground">
+                            Occupancy
+                          </Label>
+                          <Select
+                            value={line.occupancy}
+                            onValueChange={(v) => {
+                              const next =
+                                v === "single" ? "single" : "double";
+                              patchLine(line.roomTypeId, {
+                                occupancy: next,
+                                adults:
+                                  next === "single"
+                                    ? 1
+                                    : Math.max(2, line.adults),
+                              });
+                            }}
+                          >
+                            <SelectTrigger className="h-7 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="single">Single</SelectItem>
+                              <SelectItem value="double">Double</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-0.5">
+                          <Label className="text-[10px] font-normal text-muted-foreground">
+                            Adults
+                          </Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={12}
+                            value={line.adults}
+                            onChange={(e) =>
+                              patchLine(line.roomTypeId, {
+                                adults: Math.max(
+                                  1,
+                                  Math.min(12, Number(e.target.value) || 1),
+                                ),
+                              })
+                            }
+                            className="h-7 text-xs tabular-nums"
+                          />
+                        </div>
+                        <div className="space-y-0.5">
+                          <Label className="text-[10px] font-normal text-muted-foreground">
+                            Child
+                          </Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={8}
+                            value={line.children}
+                            onChange={(e) =>
+                              patchLine(line.roomTypeId, {
+                                children: Math.max(
+                                  0,
+                                  Math.min(8, Number(e.target.value) || 0),
+                                ),
+                              })
+                            }
+                            className="h-7 text-xs tabular-nums"
+                          />
+                        </div>
+                        <div className="space-y-0.5">
+                          <Label className="text-[10px] font-normal text-muted-foreground">
+                            Extra bed
+                          </Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={4}
+                            value={line.extraBeds}
+                            onChange={(e) =>
+                              patchLine(line.roomTypeId, {
+                                extraBeds: Math.max(
+                                  0,
+                                  Math.min(4, Number(e.target.value) || 0),
+                                ),
+                              })
+                            }
+                            className="h-7 text-xs tabular-nums"
+                          />
+                        </div>
+                      </div>
                     </div>
                   );
                 })}
@@ -1934,165 +2294,39 @@ export function DeskBookForm({
                     })}
                   </div>
                 ) : null}
+              </div>
 
-                <div className="grid grid-cols-2 gap-x-2 gap-y-1 pt-1 sm:grid-cols-4 lg:grid-cols-8">
-                  <div className="space-y-0.5 sm:col-span-1 lg:col-span-2">
-                    <Label className="text-[10px] font-normal text-muted-foreground">
-                      Meal
-                    </Label>
-                    <Select
-                      value={mealPlanCode}
-                      onValueChange={setMealPlanCode}
-                    >
-                      <SelectTrigger className="h-8 text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(mealPlans.length
-                          ? mealPlans
-                          : [
-                              {
-                                code: "EP",
-                                name: "Room only",
-                                blurb: null,
-                              },
-                            ]
-                        ).map((p) => (
-                          <SelectItem key={p.code} value={p.code}>
-                            {p.code} · {p.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-0.5 sm:col-span-1 lg:col-span-2">
-                    <Label
-                      htmlFor="db_occupancy"
-                      className="text-[10px] font-normal text-muted-foreground"
-                    >
-                      Occupancy
-                    </Label>
-                    <Select
-                      value={occupancy}
-                      onValueChange={(v) => {
-                        const next = v === "single" ? "single" : "double";
-                        setOccupancy(next);
-                        if (next === "single") {
-                          setAdults(1);
-                        } else if (adults < 2) {
-                          setAdults(2);
-                        }
-                      }}
-                    >
-                      <SelectTrigger
-                        id="db_occupancy"
-                        className="h-8 text-sm"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="single">
-                          Single · 1 adult rate
-                        </SelectItem>
-                        <SelectItem value="double">
-                          Double · 2 adult rate
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-0.5">
-                    <Label
-                      htmlFor="db_adults"
-                      className="text-[10px] font-normal text-muted-foreground"
-                    >
-                      Adults
-                    </Label>
-                    <Input
-                      id="db_adults"
-                      type="number"
-                      min={1}
-                      max={24}
-                      value={adults}
-                      onChange={(e) => {
-                        const n = Math.max(
-                          1,
-                          Math.min(24, Number(e.target.value) || 1),
-                        );
-                        setAdults(n);
-                        setOccupancy(n === 1 ? "single" : "double");
-                      }}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-0.5">
-                    <Label
-                      htmlFor="db_children"
-                      className="text-[10px] font-normal text-muted-foreground"
-                    >
-                      Child
-                    </Label>
-                    <Input
-                      id="db_children"
-                      type="number"
-                      min={0}
-                      max={12}
-                      value={children}
-                      onChange={(e) =>
-                        setChildren(Math.max(0, Number(e.target.value) || 0))
-                      }
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-0.5">
-                    <Label
-                      htmlFor="db_extra_beds"
-                      className="text-[10px] font-normal text-muted-foreground"
-                    >
-                      Extra bed
-                    </Label>
-                    <Input
-                      id="db_extra_beds"
-                      type="number"
-                      min={0}
-                      max={8}
-                      value={extraBeds}
-                      onChange={(e) =>
-                        setExtraBeds(Math.max(0, Number(e.target.value) || 0))
-                      }
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="col-span-2 space-y-0.5 sm:col-span-2 lg:col-span-2">
-                    <Label
-                      htmlFor="db_promo"
-                      className="text-[10px] font-normal text-muted-foreground"
-                    >
-                      Promo
-                    </Label>
-                    <Input
-                      id="db_promo"
-                      value={promoCode}
-                      onChange={(e) => setPromoCode(e.target.value)}
-                      className="h-8 text-sm uppercase"
-                      placeholder="Code"
-                      autoComplete="off"
-                    />
-                  </div>
-                  <div className="col-span-2 space-y-0.5 sm:col-span-4 lg:col-span-2">
-                    <Label
-                      htmlFor="db_notes"
-                      className="text-[10px] font-normal text-muted-foreground"
-                    >
-                      Notes
-                    </Label>
-                    <Input
-                      id="db_notes"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      className="h-8 text-sm"
-                      placeholder="ETA, requests…"
-                    />
-                  </div>
+              <div className="grid grid-cols-2 gap-x-2 gap-y-1 border-t border-border/40 pt-2 sm:grid-cols-4">
+                <div className="col-span-2 space-y-0.5 sm:col-span-2">
+                  <Label
+                    htmlFor="db_promo"
+                    className="text-[10px] font-normal text-muted-foreground"
+                  >
+                    Promo
+                  </Label>
+                  <Input
+                    id="db_promo"
+                    value={promoCode}
+                    onChange={(e) => setPromoCode(e.target.value)}
+                    className="h-8 text-sm uppercase"
+                    placeholder="Code"
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="col-span-2 space-y-0.5 sm:col-span-2">
+                  <Label
+                    htmlFor="db_notes"
+                    className="text-[10px] font-normal text-muted-foreground"
+                  >
+                    Notes
+                  </Label>
+                  <Input
+                    id="db_notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="h-8 text-sm"
+                    placeholder="ETA, requests…"
+                  />
                 </div>
               </div>
             </div>
@@ -2116,10 +2350,16 @@ export function DeskBookForm({
                   pending ||
                   blockCredit ||
                   totalGuestRooms < 1 ||
-                  !guestName.trim()
+                  !guestName.trim() ||
+                  anyRatePendingSubmit
                 }
                 className="h-8 px-2.5 text-xs"
                 onClick={() => setIntent("check_in")}
+                title={
+                  anyRatePendingSubmit
+                    ? "Awaiting GM rate approval"
+                    : undefined
+                }
               >
                 Save → CI
               </Button>
@@ -2137,11 +2377,19 @@ export function DeskBookForm({
               >
                 {pending && intent === "confirm"
                   ? "Saving…"
-                  : checkIn === todayIso()
-                    ? "Confirm & check-in"
-                    : "Confirm booking"}
+                  : anyRatePendingSubmit
+                    ? "Submit · rate approval"
+                    : checkIn === todayIso()
+                      ? "Confirm & check-in"
+                      : "Confirm booking"}
               </Button>
             </div>
+            {anyRatePendingSubmit ? (
+              <p className="mt-1 text-[10px] text-amber-800 dark:text-amber-100">
+                Custom category rate → booking held until GM approves at Rate
+                approvals.
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -2150,13 +2398,22 @@ export function DeskBookForm({
       <Dialog open={pinOpen} onOpenChange={setPinOpen}>
         <DialogContent className="erp sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Change nightly rate</DialogTitle>
+            <DialogTitle>
+              {rateEditLineId ? "Edit category rate" : "Change nightly rate"}
+            </DialogTitle>
             <DialogDescription>
-              {systemNightly != null
-                ? mixedCategories
-                  ? `Blended sheet ~${formatGuestBtn(systemNightly)}/room-night across categories. PIN if you set a special.`
-                  : `System rate ${formatGuestBtn(systemNightly)}. Manager PIN if different.`
-                : "No sheet rate — manager PIN required."}
+              {(() => {
+                const line = rateEditLineId
+                  ? roomLines.find((l) => l.roomTypeId === rateEditLineId)
+                  : null;
+                const sheet = line?.sheetNightlyBtn ?? systemNightly;
+                if (sheet != null) {
+                  return canInstantApproveRates
+                    ? `Sheet ${formatGuestBtn(sheet)}/n. Apply to confirm instantly.`
+                    : `Sheet ${formatGuestBtn(sheet)}/n. Manager PIN for instant, or submit for GM approval.`;
+                }
+                return "No sheet rate — enter a special and PIN or submit for GM.";
+              })()}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-1">
@@ -2175,7 +2432,11 @@ export function DeskBookForm({
             </div>
             {draftDiffers ? (
               <div className="space-y-1.5 duration-150 animate-in fade-in">
-                <Label htmlFor="rate_pin">Manager PIN</Label>
+                <Label htmlFor="rate_pin">
+                  {canInstantApproveRates
+                    ? "Manager PIN (optional)"
+                    : "Manager PIN (optional — blank = GM queue)"}
+                </Label>
                 <Input
                   id="rate_pin"
                   type="password"
@@ -2183,8 +2444,22 @@ export function DeskBookForm({
                   value={draftPin}
                   onChange={(e) => setDraftPin(e.target.value)}
                   className="h-12"
-                  placeholder="Required for custom rate"
+                  placeholder={
+                    canInstantApproveRates
+                      ? "Optional"
+                      : "Blank → await GM approval"
+                  }
                 />
+                <div className="space-y-1.5">
+                  <Label htmlFor="rate_reason">Reason</Label>
+                  <Input
+                    id="rate_reason"
+                    value={rateEditReason}
+                    onChange={(e) => setRateEditReason(e.target.value)}
+                    className="h-9 text-sm"
+                    placeholder="e.g. agent special, long stay"
+                  />
+                </div>
               </div>
             ) : null}
           </div>
@@ -2199,13 +2474,12 @@ export function DeskBookForm({
             <Button
               type="button"
               variant="citrus"
-              disabled={
-                !Number.isFinite(Number(draftRate)) ||
-                (draftDiffers && !draftPin.trim())
-              }
+              disabled={!Number.isFinite(Number(draftRate))}
               onClick={applyRateDialog}
             >
-              Apply
+              {draftDiffers && !canInstantApproveRates && !draftPin.trim()
+                ? "Submit for approval"
+                : "Apply"}
             </Button>
           </DialogFooter>
         </DialogContent>

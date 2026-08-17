@@ -1,16 +1,21 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Critical-path desk smoke. Skips cleanly when PLAYWRIGHT_BASE_URL / credentials
- * are missing so CI without secrets does not false-fail.
+ * Critical-path desk smoke. Skips cleanly when desk credentials missing
+ * so CI without secrets does not false-fail.
  *
- * Env:
- *   PLAYWRIGHT_BASE_URL   e.g. http://127.0.0.1:3000
- *   PLAYWRIGHT_DESK_EMAIL staff Auth email (optional — PIN path if DESK_PIN UI)
- *   PLAYWRIGHT_DESK_PASSWORD
- *   PLAYWRIGHT_DESK_PIN   shared desk PIN fallback when email unset
+ * Env (optional — helpers fall back to DESK_PIN / NEXT_PUBLIC_SITE_URL):
+ *   PLAYWRIGHT_BASE_URL
+ *   PLAYWRIGHT_DESK_PIN | DESK_PIN
+ *   PLAYWRIGHT_DESK_EMAIL + PLAYWRIGHT_DESK_PASSWORD
+ *   PLAYWRIGHT_MONEY_CYCLE=1  — enable mutation walk
+ *
+ * No screenshot artifacts written by default (layout uses overflow asserts).
  */
-const baseURL = process.env.PLAYWRIGHT_BASE_URL?.replace(/\/$/, "") || "";
+const baseURL =
+  process.env.PLAYWRIGHT_BASE_URL?.replace(/\/$/, "") ||
+  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
+  "http://127.0.0.1:3000";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -21,9 +26,19 @@ export default defineConfig({
   reporter: [["list"]],
   timeout: 90_000,
   use: {
-    baseURL: baseURL || "http://127.0.0.1:3000",
+    baseURL,
     trace: "on-first-retry",
+    screenshot: "off",
+    video: "off",
     ...devices["Desktop Chrome"],
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  webServer: process.env.PLAYWRIGHT_SKIP_WEBSERVER
+    ? undefined
+    : {
+        command: "npm run dev",
+        url: baseURL,
+        reuseExistingServer: true,
+        timeout: 120_000,
+      },
 });

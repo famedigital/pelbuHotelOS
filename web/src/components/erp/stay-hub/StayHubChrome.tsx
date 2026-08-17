@@ -721,23 +721,71 @@ export type StayHubMoreAction = {
   destructive?: boolean;
 };
 
-/** Footer: Close · ··· · primary CTA */
+/** Footer: identity/price (left) · Close · ··· · primary CTA (right) */
 export function StayHubFooterBar({
   panelLabel,
   primaryCta,
   onClose,
   moreActions,
+  identityLine,
+  amount,
 }: {
   panelLabel?: string;
   primaryCta?: ReactNode;
   onClose: () => void;
   moreActions?: StayHubMoreAction[];
+  /** Compact stay identity for party / dense modes. */
+  identityLine?: string | null;
+  amount?: StayHubRailAmount | null;
 }) {
+  const nightly = amount?.nightlyBtn;
+  const stayTotal = amount?.stayTotalBtn;
+  const editable = Boolean(amount?.editable !== false && amount?.onEdit);
+
   return (
     <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t bg-background px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:px-4">
-      <p className="hidden text-xs font-medium text-muted-foreground sm:block">
-        {panelLabel ?? ""}
-      </p>
+      <div className="min-w-0 flex-1 space-y-0.5">
+        {identityLine ? (
+          <p className="truncate text-[11px] text-muted-foreground">
+            {identityLine}
+          </p>
+        ) : panelLabel ? (
+          <p className="hidden text-xs font-medium text-muted-foreground sm:block">
+            {panelLabel}
+          </p>
+        ) : null}
+        {amount ? (
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+            <button
+              type="button"
+              disabled={!editable}
+              onClick={() => amount.onEdit?.()}
+              className={cn(
+                "inline-flex items-center gap-1 text-sm font-semibold tabular-nums",
+                editable
+                  ? "text-foreground hover:underline"
+                  : "text-foreground",
+                amount.isCustom && "text-amber-800 dark:text-amber-100",
+              )}
+            >
+              {nightly != null ? `${formatGuestBtn(nightly)}/n` : "—/n"}
+              {editable ? (
+                <PencilIcon className="size-3 text-muted-foreground" />
+              ) : null}
+            </button>
+            {stayTotal != null ? (
+              <span className="text-xs tabular-nums text-muted-foreground">
+                Stay {formatGuestBtn(stayTotal)}
+              </span>
+            ) : null}
+            {amount.mealPlanCode && amount.mealPlanCode !== "EP" ? (
+              <span className="text-[10px] text-muted-foreground">
+                {amount.mealPlanCode}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
       <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end">
         <button
           type="button"

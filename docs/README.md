@@ -13,6 +13,8 @@ All Pelbu OS docs live in this folder (`C:\GitHub\pelbusuites\docs`).
 | [GO-LIVE-TOMORROW.md](GO-LIVE-TOMORROW.md) | Day-1 shift guide by role |
 | [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md) | Cutover env + smoke (real initials) |
 | [UAT-CHECKLIST.md](UAT-CHECKLIST.md) | Full go-live UAT before Excel cutover |
+| [VERIFICATION.md](VERIFICATION.md) | Automated route/smoke/layout verification (Playwright) |
+| [VERIFICATION-FAULTS.md](VERIFICATION-FAULTS.md) | Agent UAT fault register + advisor findings |
 | [PLATFORM.md](PLATFORM.md) | Architecture, UX north stars, phases |
 | [MULTI-TENANT-WHITELABEL.md](MULTI-TENANT-WHITELABEL.md) | SaaS white-label, DNS/CNAME, Host → property |
 | [BTCL-ADAPTATION.md](BTCL-ADAPTATION.md) | Multi-hotel chain adaptation (BTCL) |

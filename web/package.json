@@ -10,6 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "test:e2e": "playwright test",
+    "test:e2e:smoke": "playwright test e2e/routes-smoke.spec.ts e2e/money-path.spec.ts",
+    "test:e2e:waves": "playwright test e2e/wave-ab-clickthrough.spec.ts",
+    "test:e2e:layout": "playwright test e2e/layout-overflow.spec.ts",
     "import:tcb": "node --env-file=.env.local scripts/import-tcb-tour-operators.mjs",
     "import:tcb:dry": "node --env-file=.env.local scripts/import-tcb-tour-operators.mjs --dry-run"
   },

@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-11  
 **Corpus:** 58 files in [`Eze Screens/`](../../Eze%20Screens/) (property *Seven Suites*, eZee FrontDesk 7.x FO walkthrough 2026-08-06 + 2026-08-11)  
-**Companion:** [ezee-absolute-full-map.md](ezee-absolute-full-map.md) · hang-card [fo-ezee-to-pelbu-hang-card.md](../ops/fo-ezee-to-pelbu-hang-card.md) · machine CSV [ezee-controls.csv](ezee-controls.csv)
+**Companion:** [ezee-bhutan-fo-switch-catalogue.md](ezee-bhutan-fo-switch-catalogue.md) (sales/UAT) · [ezee-absolute-full-map.md](ezee-absolute-full-map.md) · hang-card [fo-ezee-to-pelbu-hang-card.md](../ops/fo-ezee-to-pelbu-hang-card.md) · machine CSV [ezee-controls.csv](ezee-controls.csv)
 
 **Method:** Every file in the corpus was opened. Controls are **deduped by UI surface** (same Print cascade shot six ways = one matrix block). Pelbu status uses [FEATURES.md](../FEATURES.md) + live routes under `web/src/app/erp/`.
 

@@ -11,7 +11,8 @@ import type { CalendarAgent } from "@/components/erp/CalendarReservationDialog";
 import {
   BOOKABLE_AGENT_STATUSES,
 } from "@/lib/agents/status";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { isDeskAuthenticated, getDeskRole } from "@/lib/desk-auth";
+import { isManagerDeskRole } from "@/lib/manager-pin-core";
 import { thimphuToday } from "@/lib/erp-lists";
 import { requireDeskPropertyId } from "@/lib/desk-property";
 import { netFolioBalance } from "@/lib/folio/balance";
@@ -575,6 +576,7 @@ export default async function CalendarPage({ searchParams }: Props) {
             (propertyDefaults?.default_meal_plan_code as string | undefined) ??
             "EP"
           }
+          canInstantApproveRates={isManagerDeskRole(await getDeskRole())}
         />
       </div>
     </div>

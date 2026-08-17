@@ -32,6 +32,7 @@ export type FastBookDialogProps = {
   voucherDesign?: DeskBookFormProps["voucherDesign"];
   registrationDesign?: DeskBookFormProps["registrationDesign"];
   defaults?: DeskBookFormProps["defaults"];
+  canInstantApproveRates?: boolean;
   /** @deprecated Classic FastBook form removed — DeskBook is the only path. */
   classic?: boolean;
 };
@@ -124,6 +125,7 @@ export function FastBookDialog({
             voucherDesign={formProps.voucherDesign}
             registrationDesign={formProps.registrationDesign}
             defaults={formProps.defaults}
+            canInstantApproveRates={formProps.canInstantApproveRates}
             onSaved={() => {
               setStage("confirm");
               router.refresh();

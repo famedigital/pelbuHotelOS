@@ -42,6 +42,7 @@ type AgentRaw = {
   id: string;
   company_name: string;
   market: string;
+  dzongkhag: string | null;
   contact_name: string | null;
   contact_phone: string | null;
   contact_email: string | null;
@@ -68,10 +69,36 @@ function parseFilter(raw: string | string[] | undefined): ViewFilter {
   return "trade";
 }
 
+function parseDzongkhag(raw: string | string[] | undefined): string | null {
+  const v = (Array.isArray(raw) ? raw[0] : raw)?.trim();
+  if (!v) return null;
+  // Normalize known TCB spellings for URL chips
+  if (v.toLowerCase() === "thimphu") return "Thimphu";
+  return v;
+}
+
+function agentsListHref(opts: {
+  view?: ViewFilter;
+  dzongkhag?: string | null;
+  q?: string | null;
+}) {
+  const params = new URLSearchParams();
+  if (opts.view && opts.view !== "trade") params.set("view", opts.view);
+  if (opts.dzongkhag) params.set("dzongkhag", opts.dzongkhag);
+  if (opts.q) params.set("q", opts.q);
+  const qs = params.toString();
+  return qs ? `/erp/agents?${qs}` : "/erp/agents";
+}
+
 export default async function ErpAgentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; id?: string; q?: string }>;
+  searchParams: Promise<{
+    view?: string;
+    id?: string;
+    q?: string;
+    dzongkhag?: string;
+  }>;
 }) {
   if (!(await isDeskAuthenticated())) {
     redirect("/erp/login");
@@ -79,6 +106,7 @@ export default async function ErpAgentsPage({
 
   const sp = await searchParams;
   const view = parseFilter(sp.view);
+  const dzongkhagFilter = parseDzongkhag(sp.dzongkhag);
   const searchQuery = (sp.q ?? "").trim().toLowerCase();
 
   const admin = createSupabaseAdminClient();
@@ -94,7 +122,7 @@ export default async function ErpAgentsPage({
   let agentsQ = admin
     .from("agents")
     .select(
-      "id, company_name, market, contact_name, contact_phone, contact_email, license_url, notes, status, rate_tier, credit_limit, credit_used, open_room_cap, wants_mou, approved_at, created_at, portal_token",
+      "id, company_name, market, dzongkhag, contact_name, contact_phone, contact_email, license_url, notes, status, rate_tier, credit_limit, credit_used, open_room_cap, wants_mou, approved_at, created_at, portal_token",
     );
 
   if (view === "directory") {
@@ -116,6 +144,10 @@ export default async function ErpAgentsPage({
       .in("status", ["pending", "approved", "demo", "rejected"])
       .order("created_at", { ascending: false })
       .limit(200);
+  }
+
+  if (dzongkhagFilter) {
+    agentsQ = agentsQ.ilike("dzongkhag", dzongkhagFilter);
   }
 
   const pinAgentsQ = admin
@@ -149,6 +181,11 @@ export default async function ErpAgentsPage({
       .from("agents")
       .select("id", { count: "exact", head: true })
       .in("status", ["approved", "demo"]),
+    admin
+      .from("agents")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "directory")
+      .ilike("dzongkhag", "Thimphu"),
   ]);
 
   const [agentsRes, ledgerRes, countRes, pinAgentsRes] = await Promise.all([
@@ -165,6 +202,7 @@ export default async function ErpAgentsPage({
   const pendingCount = countRes[0].count ?? 0;
   const directoryCount = countRes[1].count ?? 0;
   const tradeCount = countRes[2].count ?? 0;
+  const thimphuDirectoryCount = countRes[3].count ?? 0;
 
   const agentRows = (agentsRes.data ?? []) as unknown as AgentRaw[];
   const ledger = ledgerRes.data ?? [];
@@ -173,6 +211,7 @@ export default async function ErpAgentsPage({
     id: row.id,
     company_name: row.company_name,
     market: row.market,
+    dzongkhag: row.dzongkhag ?? null,
     contact_name: row.contact_name ?? null,
     contact_phone: row.contact_phone ?? null,
     contact_email: row.contact_email ?? null,
@@ -194,6 +233,7 @@ export default async function ErpAgentsPage({
         const hay = [
           a.company_name,
           a.market,
+          a.dzongkhag,
           a.contact_name,
           a.contact_phone,
           a.contact_email,
@@ -248,7 +288,9 @@ export default async function ErpAgentsPage({
   const emptyByView: Record<ViewFilter, string> = {
     trade: "No trade partners or applications yet.",
     pending: "No pending applications.",
-    directory: "No TCB directory operators yet.",
+    directory: dzongkhagFilter
+      ? `No TCB operators in ${dzongkhagFilter}.`
+      : "No TCB directory operators yet.",
     all: "No agents yet.",
   };
 
@@ -257,34 +299,69 @@ export default async function ErpAgentsPage({
       eyebrow="Channels"
       heading="Agents"
       subtitle="Trade partners, credit, and TCB directory"
-      blurb="Approve applications, set MoU/demo status, credit limits, and record credit payments. Markets: Bhutan, Jaigaon, India. TCB directory operators are searchable on bookings but are not credit partners until you Approve."
+      blurb="Approve applications, set MoU/demo status, credit limits, and record credit payments. Markets: Bhutan, Jaigaon, India. TCB directory operators are searchable on bookings but are not credit partners until you Approve. Filter Thimphu under TCB directory."
       filters={
-        <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <DeskSearchForm
-            action={
-              view === "trade"
-                ? "/erp/agents"
-                : `/erp/agents?view=${view}`
-            }
+            action="/erp/agents"
             q={sp.q}
-            placeholder="Company, contact, phone, email…"
-          />
-          <DeskViewSwitcher
-            label="Agent list filters"
-            items={filterTabs.map((tab) => ({
-              href:
-                tab.key === "trade"
-                  ? "/erp/agents"
-                  : `/erp/agents?view=${tab.key}`,
-              label: tab.label,
-              count: tab.count,
-              active: view === tab.key,
-            }))}
-          />
+            placeholder="Company, dzongkhag, contact, phone, email…"
+          >
+            {view !== "trade" ? (
+              <input type="hidden" name="view" value={view} />
+            ) : null}
+            {dzongkhagFilter ? (
+              <input type="hidden" name="dzongkhag" value={dzongkhagFilter} />
+            ) : null}
+          </DeskSearchForm>
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <DeskViewSwitcher
+              label="Agent list filters"
+              items={filterTabs.map((tab) => ({
+                href: agentsListHref({
+                  view: tab.key,
+                  dzongkhag:
+                    tab.key === "directory" || tab.key === "all"
+                      ? dzongkhagFilter
+                      : null,
+                  q: searchQuery || null,
+                }),
+                label: tab.label,
+                count: tab.count,
+                active: view === tab.key,
+              }))}
+            />
+            {view === "directory" || view === "all" ? (
+              <DeskViewSwitcher
+                label="Dzongkhag"
+                items={[
+                  {
+                    href: agentsListHref({
+                      view,
+                      q: searchQuery || null,
+                    }),
+                    label: "All",
+                    active: !dzongkhagFilter,
+                  },
+                  {
+                    href: agentsListHref({
+                      view,
+                      dzongkhag: "Thimphu",
+                      q: searchQuery || null,
+                    }),
+                    label: "Thimphu",
+                    count: thimphuDirectoryCount,
+                    active: dzongkhagFilter === "Thimphu",
+                  },
+                ]}
+              />
+            ) : null}
+          </div>
         </div>
       }
       metrics={
         <DeskMetricRow
+          className="sm:grid-cols-5"
           metrics={[
             {
               label: "Pending applications",

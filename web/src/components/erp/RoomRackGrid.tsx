@@ -904,6 +904,7 @@ export function RoomRackGrid({
   propertyId,
   mealPlans,
   defaultMealPlanCode,
+  canInstantApproveRates = false,
 }: {
   units: RackUnit[];
   stays: RackStay[];
@@ -920,6 +921,7 @@ export function RoomRackGrid({
   propertyId: string;
   mealPlans: CalendarMealPlan[];
   defaultMealPlanCode: string;
+  canInstantApproveRates?: boolean;
 }) {
   const router = useRouter();
   const { resolvedTheme } = useTheme();
@@ -1861,6 +1863,7 @@ export function RoomRackGrid({
             ...deskBookDefaults,
             mealPlanCode: defaultMealPlanCode,
           }}
+          canInstantApproveRates={canInstantApproveRates}
         />
       </div>
     );
@@ -2996,6 +2999,7 @@ export function RoomRackGrid({
           ...deskBookDefaults,
           mealPlanCode: defaultMealPlanCode,
         }}
+        canInstantApproveRates={canInstantApproveRates}
       />
       <AssignUnassignedRoomDialog
         guide={assignGuide}

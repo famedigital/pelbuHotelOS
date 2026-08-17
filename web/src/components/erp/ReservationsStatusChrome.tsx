@@ -91,26 +91,30 @@ export function ReservationsStatusChrome({
 
   return (
     <div className="mb-4 space-y-2.5 print:hidden">
-      <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border/80 bg-card px-2.5 py-2">
-        {chips.map((c) => (
+      <div className="flex flex-col gap-2 rounded-lg border border-border/80 bg-card px-2.5 py-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          {chips.map((c) => (
+            <Link
+              key={c.id}
+              href={bucketHref(queryBase, c.id)}
+              data-on={bucket === c.id ? "true" : "false"}
+              className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors hover:bg-muted/60 ${c.tone}`}
+            >
+              {c.label}
+              <span className="tabular-nums text-muted-foreground">
+                {c.count}
+              </span>
+            </Link>
+          ))}
           <Link
-            key={c.id}
-            href={bucketHref(queryBase, c.id)}
-            data-on={bucket === c.id ? "true" : "false"}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors hover:bg-muted/60 ${c.tone}`}
+            href={depositHref}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-destructive/40 px-2.5 text-xs font-medium text-destructive hover:bg-destructive/5"
           >
-            {c.label}
-            <span className="tabular-nums text-muted-foreground">{c.count}</span>
+            Deposit due
+            <span className="tabular-nums">{counts.deposit_due}</span>
           </Link>
-        ))}
-        <Link
-          href={depositHref}
-          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-destructive/40 px-2.5 text-xs font-medium text-destructive hover:bg-destructive/5"
-        >
-          Deposit due
-          <span className="tabular-nums">{counts.deposit_due}</span>
-        </Link>
-        <div className="ml-auto flex flex-wrap gap-1.5">
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-1.5">
           <Button asChild size="sm" variant="outline" className="h-8 text-xs">
             <Link href={exportHref}>Export CSV</Link>
           </Button>
@@ -123,13 +127,16 @@ export function ReservationsStatusChrome({
       </div>
       <div className="flex flex-wrap items-center gap-3 px-0.5 text-[10px] text-muted-foreground">
         <span className="inline-flex items-center gap-1">
-          <span className="inline-block size-2 rounded-full bg-emerald-600" /> Active
+          <span className="inline-block size-2 rounded-full bg-emerald-600" />{" "}
+          Active
         </span>
         <span className="inline-flex items-center gap-1">
-          <span className="inline-block size-2 rounded-full bg-sky-600" /> Cancelled
+          <span className="inline-block size-2 rounded-full bg-sky-600" />{" "}
+          Cancelled
         </span>
         <span className="inline-flex items-center gap-1">
-          <span className="inline-block size-2 rounded-full bg-orange-500" /> No-show
+          <span className="inline-block size-2 rounded-full bg-orange-500" />{" "}
+          No-show
         </span>
         <span className="text-muted-foreground/80">
           Row stripe matches legend

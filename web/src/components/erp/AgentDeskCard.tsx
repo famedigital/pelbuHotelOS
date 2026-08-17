@@ -10,6 +10,8 @@ export type DeskAgentRow = {
   id: string;
   company_name: string;
   market: string;
+  /** Office dzongkhag from TCB (e.g. Thimphu). */
+  dzongkhag?: string | null;
   contact_name: string | null;
   contact_phone: string | null;
   contact_email: string | null;
@@ -26,6 +28,13 @@ export type DeskAgentRow = {
   created_at: string;
   portal_token: string | null;
 };
+
+/** Subtitle under company name: Thimphu · Bhutan when known. */
+export function agentPlaceLabel(agent: Pick<DeskAgentRow, "market" | "dzongkhag">) {
+  const place = (agent.dzongkhag ?? "").trim();
+  if (place) return `${place} · ${agent.market}`;
+  return agent.market;
+}
 
 export function AgentDeskCard({
   agent,
@@ -69,7 +78,7 @@ export function AgentDeskCard({
             ) : null}
           </div>
           <p className="mt-1 text-xs tracking-wide text-muted-foreground uppercase">
-            {agent.market}
+            {agentPlaceLabel(agent)}
           </p>
           <p className="mt-2 text-sm text-foreground/80">
             {[agent.contact_name, agent.contact_phone].filter(Boolean).join(" · ") ||

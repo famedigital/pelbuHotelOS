@@ -344,6 +344,15 @@ export function ReservationsPartyBoard({
     if (matchedPartyId) setOpenId(matchedPartyId);
   }, [matchedPartyId]);
 
+  // Drop stale accordion value after party ids change (suggested → group:…).
+  useEffect(() => {
+    if (!openId) return;
+    if (parties.length === 0) return;
+    if (!parties.some((p) => p.id === openId)) {
+      setOpenId(undefined);
+    }
+  }, [parties, openId]);
+
   function toggleSelect(id: string) {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -355,6 +364,9 @@ export function ReservationsPartyBoard({
 
   function linkParty(memberIds: string[], name?: string) {
     startTransition(async () => {
+      // Collapse before refresh — open accordion + remounted party ids leave
+      // Radix content-height animation stuck (huge empty white band).
+      setOpenId(undefined);
       const res = await mergeBookingsIntoGroup(memberIds, name);
       if (!res.ok) {
         toast.error(res.error ?? "Could not link party");
@@ -500,8 +512,8 @@ export function ReservationsPartyBoard({
       <Accordion
         type="single"
         collapsible
-        value={openId}
-        onValueChange={setOpenId}
+        value={openId ?? ""}
+        onValueChange={(v) => setOpenId(v || undefined)}
         className="rounded-xl border border-border bg-card"
       >
         <div
@@ -537,11 +549,14 @@ export function ReservationsPartyBoard({
                 <PartySummary party={party} />
               </AccordionTrigger>
               <AccordionContent className="border-t border-border/50 bg-muted/10 px-1 pb-4 pt-3 sm:px-2">
+                {openId === party.id ? (
+                  <>
                 {party.kind === "suggested" ? (
                   <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-50/40 px-3 py-2 dark:bg-amber-950/20">
                     <p className="flex-1 text-xs text-foreground">
-                      Same agent and stay dates — typically one multi-room
-                      party. Link them for a formal rooming list.
+                      <span className="font-medium">Link as group</span> to
+                      add/remove rooms and open the formal rooming list in
+                      StayHub.
                     </p>
                     <Button
                       type="button"
@@ -549,14 +564,16 @@ export function ReservationsPartyBoard({
                       variant="citrus"
                       className="h-8"
                       disabled={pending}
-                      onClick={() =>
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
                         linkParty(
                           party.members.map((m) => m.id),
                           party.label,
-                        )
-                      }
+                        );
+                      }}
                     >
-                      Link as group
+                      {pending ? "Linking…" : "Link as group"}
                     </Button>
                   </div>
                 ) : null}
@@ -646,7 +663,6 @@ export function ReservationsPartyBoard({
                   </div>
                 ) : null}
 
-                {openId === party.id ? (
                   <div className="space-y-3">
                     <RoomingListPanel bookingId={detailId} compact />
                     {!multi ? (
@@ -667,6 +683,7 @@ export function ReservationsPartyBoard({
                       </p>
                     ) : null}
                   </div>
+                  </>
                 ) : null}
               </AccordionContent>
             </AccordionItem>

@@ -2,7 +2,10 @@
 
 import type { AgentDocumentRow } from "@/app/actions/erp-agents";
 import { AgentDetailPanel } from "@/components/erp/AgentDetailPanel";
-import type { DeskAgentRow } from "@/components/erp/AgentDeskCard";
+import {
+  agentPlaceLabel,
+  type DeskAgentRow,
+} from "@/components/erp/AgentDeskCard";
 import {
   Accordion,
   AccordionContent,
@@ -44,7 +47,9 @@ function RowSummary({ row }: { row: AgentAccordionRow }) {
     <div className="flex w-full min-w-0 flex-col gap-2 pr-2 text-left sm:flex-row sm:items-center sm:gap-4">
       <div className="min-w-0 flex-1 sm:max-w-[14rem]">
         <p className="font-medium text-foreground">{row.company_name}</p>
-        <p className="text-xs tracking-wide text-muted-foreground uppercase">{row.market}</p>
+        <p className="text-xs tracking-wide text-muted-foreground uppercase">
+          {agentPlaceLabel(row)}
+        </p>
       </div>
       <div className="hidden shrink-0 text-sm sm:block sm:w-[10rem]">
         <span className="text-foreground">
@@ -87,7 +92,9 @@ function MobileRowSummary({ row }: { row: AgentAccordionRow }) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="font-medium text-foreground">{row.company_name}</p>
-          <p className="text-xs tracking-wide text-muted-foreground uppercase">{row.market}</p>
+          <p className="text-xs tracking-wide text-muted-foreground uppercase">
+            {agentPlaceLabel(row)}
+          </p>
         </div>
         <StatusPill status={row.status} />
       </div>

@@ -218,6 +218,19 @@ export async function confirmBookingToken(
     if (!bookingRow) throw new Error("Booking not found.");
     assertDeskProperty(pid, bookingRow.property_id as string, "Booking");
 
+    const { data: pendingRate } = await admin
+      .from("booking_rooms")
+      .select("id")
+      .eq("booking_id", bookingId)
+      .eq("rate_request_status", "pending")
+      .limit(1)
+      .maybeSingle();
+    if (pendingRate) {
+      throw new Error(
+        "Custom rate awaiting GM approval — confirm blocked until Rate approvals clears it.",
+      );
+    }
+
     const { amount } = await applyBookingConfirmation({
       admin,
       propertyId: pid,

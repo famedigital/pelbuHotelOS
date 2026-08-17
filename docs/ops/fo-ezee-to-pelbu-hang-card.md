@@ -1,6 +1,7 @@
 # FO hang-card — eZee → Pelbu
 
 **Print this** · post at desk · one side, 1 page.  
+**Switch catalogue (flows · folio · ~112 reports · gaps):** [ezee-bhutan-fo-switch-catalogue.md](../competitive/ezee-bhutan-fo-switch-catalogue.md)  
 **Full map:** [ezee-absolute-full-map.md](../competitive/ezee-absolute-full-map.md)
 
 ---

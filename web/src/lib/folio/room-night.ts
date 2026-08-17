@@ -226,6 +226,42 @@ export async function postRoomNightsForDate(
     });
   }
 
+  // Prefer approved per-category rates on booking_rooms when present.
+  const bookingIds = [...new Set(rooms.map((r) => r.bookingId))];
+  const lineRateByBookingType = new Map<string, number>();
+  if (bookingIds.length > 0) {
+    const { data: brRows } = await admin
+      .from("booking_rooms")
+      .select(
+        "booking_id, room_type_id, agreed_nightly_rate_btn, rate_request_status",
+      )
+      .in("booking_id", bookingIds);
+    for (const br of brRows ?? []) {
+      const status = (br.rate_request_status as string | null) ?? "none";
+      if (status === "pending" || status === "rejected") continue;
+      const agreed =
+        br.agreed_nightly_rate_btn != null
+          ? Number(br.agreed_nightly_rate_btn)
+          : null;
+      if (agreed == null || !Number.isFinite(agreed) || agreed < 0) continue;
+      // approved or none-with-agreed (legacy backfill)
+      if (status === "approved" || status === "none") {
+        lineRateByBookingType.set(
+          `${br.booking_id as string}:${br.room_type_id as string}`,
+          agreed,
+        );
+      }
+    }
+    for (const room of rooms) {
+      const lineRate = lineRateByBookingType.get(
+        `${room.bookingId}:${room.roomTypeId}`,
+      );
+      if (lineRate != null) {
+        room.agreedNightlyRateBtn = lineRate;
+      }
+    }
+  }
+
   let posted = 0;
   let skipped = 0;
   const errors: string[] = [];

@@ -16,9 +16,10 @@ import {
 import { redeemPromoCode } from "@/lib/marketing/promo";
 import { stayLevelPromoDiscountPct } from "@/lib/marketing/promo-math";
 import { notifyNewBooking } from "@/lib/notify";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { isDeskAuthenticated, getDeskRole } from "@/lib/desk-auth";
 import { writeAuditEvent } from "@/lib/audit";
 import { verifyManagerPinForProperty } from "@/lib/manager-pin";
+import { isManagerDeskRole } from "@/lib/manager-pin-core";
 import { calculateRoomNightTax, roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import {
@@ -54,6 +55,8 @@ export type FastBookState = {
   confirmationCode?: string;
   /** How the desk created this stay — clients open the right StayHub panel. */
   intent?: DeskBookIntent;
+  /** FO custom rate queued for GM — booking is held until approved. */
+  ratePendingApproval?: boolean;
   error?: string;
 };
 
@@ -141,6 +144,7 @@ export async function createFastBooking(
       "Extra beds",
       MAX_EXTRA_BEDS,
     );
+    void extraBedsRaw;
     const guideNumber = optionalTrim(formData.get("guide_number"));
     const notes = optionalTrim(formData.get("notes"));
     const agentId = optionalTrim(formData.get("agent_id"));
@@ -182,19 +186,9 @@ export async function createFastBooking(
     );
     const salesClaim = buildSalesClaimInsert(soldByStaffId);
 
-    const mealPlanCodeRaw = trimRequired(formData.get("meal_plan_code"), "Meal plan");
+    const mealPlanCodeRaw =
+      optionalTrim(formData.get("meal_plan_code")) ?? "EP";
     const nights = nightsBetween(checkIn, checkOut);
-    const addons = await resolveStayAddonsForBook(admin, property.id as string, {
-      mealPlanCode: mealPlanCodeRaw,
-      adults,
-      children,
-      extraBeds: extraBedsRaw,
-      nights,
-    });
-    const mealPlanAmountBtn = addons.mealPlanAmountBtn;
-    const mealPlanCode = addons.mealPlanCode;
-    const extraBeds = addons.extraBeds;
-    const extraBedAmountBtn = addons.extraBedAmountBtn;
 
     const { data: roomTypes, error: typesError } = await admin
       .from("room_types")
@@ -214,8 +208,20 @@ export async function createFastBooking(
       checkOut,
     );
 
-    const lines: { room_type_id: string; qty: number; inventory_kind: string }[] =
-      [];
+    const lines: {
+      room_type_id: string;
+      qty: number;
+      inventory_kind: string;
+      meal_plan_code: string;
+      occupancy: "single" | "double";
+      adults: number;
+      children: number;
+      extra_beds: number;
+      sheet_nightly_rate_btn: number | null;
+      agreed_nightly_rate_btn: number | null;
+      rate_request_status: string;
+      rate_request_reason: string | null;
+    }[] = [];
     let guestRooms = 0;
 
     for (const rt of types) {
@@ -239,16 +245,104 @@ export async function createFastBooking(
         );
       }
 
+      const lineAdults = Math.max(
+        1,
+        parseNonNegInt(
+          formData.get(`line_adults_${rt.code}`),
+          `${rt.name} adults`,
+          12,
+        ) || adults,
+      );
+      const lineChildren = parseNonNegInt(
+        formData.get(`line_children_${rt.code}`),
+        `${rt.name} children`,
+        MAX_CHILDREN,
+      );
+      const lineExtra = parseNonNegInt(
+        formData.get(`line_extra_${rt.code}`),
+        `${rt.name} extra beds`,
+        MAX_EXTRA_BEDS,
+      );
+      const lineOccRaw = optionalTrim(formData.get(`line_occ_${rt.code}`));
+      const lineOcc: "single" | "double" =
+        lineOccRaw === "single" || lineOccRaw === "double"
+          ? lineOccRaw
+          : lineAdults === 1
+            ? "single"
+            : "double";
+      const lineMeal =
+        optionalTrim(formData.get(`line_meal_${rt.code}`)) || mealPlanCodeRaw;
+      const sheetRaw = optionalTrim(formData.get(`line_sheet_${rt.code}`));
+      const sheetNightly = sheetRaw ? Number(sheetRaw) : null;
+      const agreedLineRaw = optionalTrim(
+        formData.get(`line_agreed_${rt.code}`),
+      );
+      let agreedLine: number | null = null;
+      if (agreedLineRaw) {
+        const n = Number(agreedLineRaw);
+        if (Number.isFinite(n) && n >= 0) agreedLine = roundBtn(n);
+      }
+
       lines.push({
         room_type_id: rt.id,
         qty,
         inventory_kind: rt.inventory_kind,
+        meal_plan_code: lineMeal,
+        occupancy: lineOcc,
+        adults: lineAdults,
+        children: lineChildren,
+        extra_beds: lineExtra,
+        sheet_nightly_rate_btn:
+          sheetNightly != null && Number.isFinite(sheetNightly)
+            ? roundBtn(sheetNightly)
+            : null,
+        agreed_nightly_rate_btn: agreedLine,
+        rate_request_status: "none",
+        rate_request_reason: null,
       });
 
       if (rt.inventory_kind === "sellable_guest") {
         guestRooms += qty;
       }
     }
+
+    if (guestRooms < 1) {
+      throw new Error("Add at least one guest room.");
+    }
+
+    // Stay-level pax / meal totals from per-line config (qty-weighted).
+    let bookingAdults = 0;
+    let bookingChildren = 0;
+    let bookingExtraBeds = 0;
+    let mealPlanAmountBtn = 0;
+    let extraBedAmountBtn = 0;
+    let mealPlanCode = mealPlanCodeRaw;
+    for (const line of lines) {
+      if (line.inventory_kind !== "sellable_guest") continue;
+      bookingAdults += line.adults * line.qty;
+      bookingChildren += line.children * line.qty;
+      bookingExtraBeds += line.extra_beds * line.qty;
+      mealPlanCode = line.meal_plan_code || mealPlanCode;
+      const addons = await resolveStayAddonsForBook(
+        admin,
+        property.id as string,
+        {
+          mealPlanCode: line.meal_plan_code,
+          adults: line.adults * line.qty,
+          children: line.children * line.qty,
+          extraBeds: line.extra_beds * line.qty,
+          nights,
+        },
+      );
+      mealPlanAmountBtn = roundBtn(
+        mealPlanAmountBtn + addons.mealPlanAmountBtn,
+      );
+      extraBedAmountBtn = roundBtn(
+        extraBedAmountBtn + addons.extraBedAmountBtn,
+      );
+    }
+    if (bookingAdults < 1) bookingAdults = adults;
+    const extraBeds = bookingExtraBeds;
 
     if (lines.length === 0) {
       throw new Error("Select at least one guest, guide, or driver bed.");
@@ -294,7 +388,7 @@ export async function createFastBooking(
         ? intentRaw
         : "confirm";
 
-    /** Optional agreed nightly rate (manager PIN when it differs from sheet). */
+    /** Per-line custom rates: GM/owner (or PIN) approve instantly; FO → held + pending. */
     let agreedNightly: number | null = null;
     const agreedRaw = optionalTrim(formData.get("agreed_nightly_rate_btn"));
     if (agreedRaw) {
@@ -304,29 +398,96 @@ export async function createFastBooking(
       }
       agreedNightly = roundBtn(n);
     }
-    const systemNightlyRaw = optionalTrim(formData.get("system_nightly_rate_btn"));
+    const systemNightlyRaw = optionalTrim(
+      formData.get("system_nightly_rate_btn"),
+    );
     const systemNightly = systemNightlyRaw ? Number(systemNightlyRaw) : null;
+    const rateReason =
+      optionalTrim(formData.get("rate_request_reason")) ?? "desk override";
+    const deskRole = await getDeskRole();
+    const canInstantRate = isManagerDeskRole(deskRole);
+    const pin = optionalTrim(formData.get("manager_pin")) ?? "";
+    let pinVerified = false;
+    if (pin) {
+      const pinRes = await verifyManagerPinForProperty(
+        admin,
+        property.id as string,
+        pin,
+      );
+      if (!pinRes.ok) {
+        throw new Error(
+          pinRes.error ?? "Manager PIN required to change the rate.",
+        );
+      }
+      pinVerified = true;
+    }
+
+    // Propagate legacy blended override onto lines that have no per-line agreed.
     if (agreedNightly != null) {
       const differs =
         systemNightly == null ||
         !Number.isFinite(systemNightly) ||
         Math.abs(agreedNightly - systemNightly) > 0.009;
-      if (differs) {
-        const pin = optionalTrim(formData.get("manager_pin")) ?? "";
-        const pinRes = await verifyManagerPinForProperty(
-          admin,
-          property.id as string,
-          pin,
-        );
-        if (!pinRes.ok) {
-          throw new Error(
-            pinRes.error ?? "Manager PIN required to change the rate.",
-          );
-        }
-      } else {
-        // Same as sheet — no override column
+      if (!differs) {
         agreedNightly = null;
+      } else {
+        for (const line of lines) {
+          if (
+            line.inventory_kind === "sellable_guest" &&
+            line.agreed_nightly_rate_btn == null
+          ) {
+            line.agreed_nightly_rate_btn = agreedNightly;
+          }
+        }
       }
+    }
+
+    let anyRatePending = false;
+    let approvedCustomCount = 0;
+    for (const line of lines) {
+      if (line.inventory_kind !== "sellable_guest") continue;
+      const agreed = line.agreed_nightly_rate_btn;
+      if (agreed == null) {
+        line.rate_request_status = "none";
+        continue;
+      }
+      const sheet = line.sheet_nightly_rate_btn;
+      const differs =
+        sheet == null ||
+        !Number.isFinite(sheet) ||
+        Math.abs(agreed - sheet) > 0.009;
+      if (!differs) {
+        line.agreed_nightly_rate_btn = null;
+        line.rate_request_status = "none";
+        line.rate_request_reason = null;
+        continue;
+      }
+      if (canInstantRate || pinVerified) {
+        line.rate_request_status = "approved";
+        line.rate_request_reason = rateReason;
+        approvedCustomCount += 1;
+      } else {
+        line.rate_request_status = "pending";
+        line.rate_request_reason = rateReason;
+        anyRatePending = true;
+      }
+    }
+
+    // Booking-level agreed only when single sellable category with approved override.
+    const sellableLines = lines.filter(
+      (l) => l.inventory_kind === "sellable_guest",
+    );
+    if (
+      sellableLines.length === 1 &&
+      sellableLines[0].agreed_nightly_rate_btn != null &&
+      sellableLines[0].rate_request_status === "approved"
+    ) {
+      agreedNightly = sellableLines[0].agreed_nightly_rate_btn;
+    } else if (anyRatePending || sellableLines.length > 1) {
+      agreedNightly =
+        approvedCustomCount === 1 && sellableLines.length === 1
+          ? sellableLines[0].agreed_nightly_rate_btn
+          : null;
     }
 
     let creditChargeBtn = 0;
@@ -348,21 +509,36 @@ export async function createFastBooking(
           roomTypeId: line.room_type_id,
           seasonKind: season,
           rateTier: tier,
-          adults,
-          occupancy: adults === 1 ? "single" : "double",
+          adults: line.adults,
+          occupancy: line.occupancy,
         });
+        const sheetAllIn =
+          sheetRate != null
+            ? calculateRoomNightTax(sheetRate, taxSettings).totalBtn
+            : null;
+        if (
+          line.sheet_nightly_rate_btn == null &&
+          sheetAllIn != null
+        ) {
+          line.sheet_nightly_rate_btn = roundBtn(sheetAllIn);
+        }
         const rate =
-          agreedNightly != null ? agreedNightly : (sheetRate ?? null);
+          line.agreed_nightly_rate_btn != null
+            ? line.agreed_nightly_rate_btn
+            : sheetAllIn;
         if (rate != null) {
-          const nightAllIn = calculateRoomNightTax(rate, taxSettings).totalBtn;
-          quotedRoomsBtn += nightAllIn * line.qty * nights;
+          quotedRoomsBtn += rate * line.qty * nights;
         }
       }
       quotedRoomsBtn = roundBtn(quotedRoomsBtn);
     }
 
     if (paymentMode === "on_credit" && agentId) {
-      const season = await resolveSeasonKind(admin, property.id as string, checkIn);
+      const season = await resolveSeasonKind(
+        admin,
+        property.id as string,
+        checkIn,
+      );
       const taxSettings = await loadRoomRateTaxSettings(
         admin,
         property.id as string,
@@ -375,18 +551,23 @@ export async function createFastBooking(
           roomTypeId: line.room_type_id,
           seasonKind: season,
           rateTier: tier,
-          adults,
-          occupancy: adults === 1 ? "single" : "double",
+          adults: line.adults,
+          occupancy: line.occupancy,
         });
+        const sheetAllIn =
+          sheetRate != null
+            ? calculateRoomNightTax(sheetRate, taxSettings).totalBtn
+            : null;
         const rate =
-          agreedNightly != null ? agreedNightly : (sheetRate ?? null);
+          line.agreed_nightly_rate_btn != null
+            ? line.agreed_nightly_rate_btn
+            : sheetAllIn;
         if (rate == null) {
           throw new Error(
             "No room rate for this season/tier. Set rates before on-credit booking.",
           );
         }
-        const nightAllIn = calculateRoomNightTax(rate, taxSettings).totalBtn;
-        estimate += nightAllIn * line.qty * nights;
+        estimate += rate * line.qty * nights;
       }
       creditChargeBtn = roundBtn(estimate);
       if (creditChargeBtn <= 0) {
@@ -398,7 +579,7 @@ export async function createFastBooking(
     const passportOrCid = optionalTrim(formData.get("passport_or_cid"));
     const sdfRef = optionalTrim(formData.get("sdf_ref"));
 
-    const isHold = intent === "reserve";
+    const isHold = intent === "reserve" || anyRatePending;
     const holdExpiresAt = isHold
       ? new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
       : null;
@@ -419,8 +600,8 @@ export async function createFastBooking(
         contact_name: contactName,
         contact_phone: contactPhone,
         contact_email: contactEmail,
-        adults,
-        children,
+        adults: bookingAdults,
+        children: bookingChildren,
         extra_beds: extraBeds,
         rooms: guestRooms,
         guide_number: guideNumber,
@@ -554,6 +735,15 @@ export async function createFastBooking(
         room_type_id: line.room_type_id,
         qty: line.qty,
         inventory_kind: line.inventory_kind,
+        meal_plan_code: line.meal_plan_code,
+        occupancy: line.occupancy,
+        adults: line.adults,
+        children: line.children,
+        extra_beds: line.extra_beds,
+        sheet_nightly_rate_btn: line.sheet_nightly_rate_btn,
+        agreed_nightly_rate_btn: line.agreed_nightly_rate_btn,
+        rate_request_status: line.rate_request_status,
+        rate_request_reason: line.rate_request_reason,
       })),
     );
 
@@ -579,7 +769,7 @@ export async function createFastBooking(
       // Booking stays; rack may show unassigned until ensureAssignments runs.
     }
 
-    if (paymentMode === "on_credit" && agentId && creditChargeBtn > 0) {
+    if (paymentMode === "on_credit" && agentId && creditChargeBtn > 0 && !anyRatePending) {
       try {
         await chargeAgentCredit(admin, {
           agentId,
@@ -611,8 +801,17 @@ export async function createFastBooking(
         meta: {
           agreed_nightly_rate_btn: agreedNightly,
           system_nightly: systemNightly,
-          reason: "desk override",
+          reason: rateReason,
         },
+      });
+    } else if (anyRatePending) {
+      await writeAuditEvent(admin, {
+        propertyId: property.id as string,
+        action: "rate.request_pending",
+        entityType: "bookings",
+        entityId: booking.id as string,
+        summary: "Custom category rate(s) awaiting GM approval",
+        meta: { reason: rateReason },
       });
     }
 
@@ -624,10 +823,12 @@ export async function createFastBooking(
       contactEmail,
       checkIn,
       checkOut,
-      adults,
+      adults: bookingAdults,
       rooms: guestRooms,
       guideNumber,
-      notes: notes ? `[DESK-BOOK ${source}/${intent}] ${notes}` : `[DESK-BOOK ${source}/${intent}]`,
+      notes: notes
+        ? `[DESK-BOOK ${source}/${intent}${anyRatePending ? "/rate-pending" : ""}] ${notes}`
+        : `[DESK-BOOK ${source}/${intent}${anyRatePending ? "/rate-pending" : ""}]`,
     }).catch((err) => console.error("notifyNewBooking fast_book", err));
 
     void enqueueAfterBookingChange(
@@ -641,6 +842,7 @@ export async function createFastBooking(
     revalidatePath("/erp");
     revalidatePath("/erp/calendar");
     revalidatePath("/erp/reservations");
+    revalidatePath("/erp/rate-approvals");
     if (agentId) revalidatePath("/erp/agents");
 
     return {
@@ -648,7 +850,8 @@ export async function createFastBooking(
       bookingId: booking.id as string,
       confirmationCode:
         (booking.confirmation_code as string | null) ?? undefined,
-      intent,
+      intent: anyRatePending ? "reserve" : intent,
+      ratePendingApproval: anyRatePending,
     };
   } catch (err) {
     const message =

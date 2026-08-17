@@ -1,19 +1,48 @@
-"""Scrape certified tour operators from services.bhutan.travel into CSV."""
+"""Scrape certified tour operators from services.bhutan.travel into CSV.
+
+On Windows without Python, use:
+  node scripts/scrape-bhutan-tour-ops.mjs --dzongkhag=Thimphu
+"""
 
 from __future__ import annotations
 
+import argparse
 import csv
 import html as html_lib
 import json
 import re
 import time
-import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
 BASE = "https://services.bhutan.travel/search/tour-operator"
 OUT_DIR = Path(__file__).resolve().parent.parent / "docs" / "exports"
+MAILCHIMP_DIR = Path(__file__).resolve().parent.parent / "marketing" / "mailchimp"
 UA = "PelbuSuites-research/1.0 (+hotel partner research; respectful crawl)"
+
+LOCATION_IDS = {
+    "thimphu": 1,
+    "paro": 2,
+    "punakha": 3,
+    "chhukha": 4,
+    "haa": 5,
+    "samtse": 6,
+    "dagana": 7,
+    "gasa": 8,
+    "tsirang": 9,
+    "wangdue phodrang": 10,
+    "bumthang": 11,
+    "sarpang": 12,
+    "trongsa": 13,
+    "zhemgang": 14,
+    "lhuntse": 15,
+    "mongar": 16,
+    "pema gatshel": 17,
+    "samdrup jongkhar": 18,
+    "trashigang": 19,
+    "trashi yangtse": 20,
+}
 
 
 def fetch_page(url: str) -> dict:
@@ -26,104 +55,76 @@ def fetch_page(url: str) -> dict:
     return json.loads(html_lib.unescape(m.group(1)))
 
 
-def pick_list(props: dict) -> dict:
-    """Find Laravel paginator dict with tour operator records."""
-    for key, val in props.items():
-        if isinstance(val, dict) and isinstance(val.get("data"), list) and val["data"]:
-            sample = val["data"][0]
-            if isinstance(sample, dict) and (
-                "company_name" in sample
-                or "email" in sample
-                or "phone" in sample
-                or "slug" in sample
-            ):
-                return val
-    # fallback: any paginator
-    for key, val in props.items():
-        if isinstance(val, dict) and isinstance(val.get("data"), list):
-            return val
-    raise RuntimeError(f"No list found in props keys: {list(props.keys())}")
-
-
-def normalize_row(item: dict) -> dict:
-    # Flatten common nested profile/user fields if present
-    profile = item.get("profile") if isinstance(item.get("profile"), dict) else {}
-    user = item.get("user") if isinstance(item.get("user"), dict) else {}
-
-    name = (
-        item.get("company_name")
-        or item.get("name")
-        or profile.get("company_name")
-        or profile.get("name")
-        or user.get("name")
-        or ""
-    )
-    email = (
-        item.get("email")
-        or profile.get("email")
-        or user.get("email")
-        or item.get("contact_email")
-        or ""
-    )
-    phone = (
-        item.get("phone")
-        or item.get("mobile")
-        or item.get("contact_number")
-        or profile.get("phone")
-        or profile.get("mobile")
-        or user.get("phone")
-        or ""
-    )
-    website = (
-        item.get("website")
-        or item.get("url")
-        or profile.get("website")
-        or item.get("web_url")
-        or ""
-    )
-    slug = item.get("slug") or ""
-    license_no = item.get("license_no") or item.get("license_number") or profile.get("license_no") or ""
-
+def normalize_row(item: dict, dzongkhag: str = "") -> dict:
+    slug = str(item.get("slug") or "").strip()
+    phone_raw = item.get("contact") or item.get("phone") or item.get("mobile") or ""
+    phone = str(phone_raw).strip()
+    if phone and not phone.startswith("+"):
+        phone = f"+975 {phone}"
     return {
-        "name": str(name).strip(),
-        "phone": str(phone).strip(),
-        "email": str(email).strip(),
-        "website": str(website).strip(),
-        "slug": str(slug).strip(),
-        "license_no": str(license_no).strip(),
-        "source_url": f"https://services.bhutan.travel/search/tour-operator/{slug}" if slug else "",
+        "id": str(item.get("id") or "").strip(),
+        "name": str(item.get("name") or item.get("company_name") or "").strip(),
+        "phone": phone,
+        "email": str(item.get("email") or "").strip(),
+        "website": str(item.get("website") or "").strip(),
+        "slug": slug,
+        "dzongkhag": dzongkhag,
+        "source_url": f"{BASE}/{slug}" if slug else "",
     }
 
 
 def main() -> None:
-    first = fetch_page(BASE)
-    props = first["props"]
-    paginator = pick_list(props)
-    sample = paginator["data"][0]
-    print("Sample keys:", sorted(sample.keys()))
-    print("Sample JSON:", json.dumps(sample, indent=2)[:2500])
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--locations", type=int, default=None, help="TCB locations[] id (Thimphu=1)")
+    parser.add_argument("--dzongkhag", type=str, default=None, help="Dzongkhag name, e.g. Thimphu")
+    args = parser.parse_args()
+
+    location_id = args.locations
+    location_name = ""
+    if args.dzongkhag:
+        key = args.dzongkhag.strip().lower()
+        location_id = LOCATION_IDS.get(key)
+        if not location_id:
+            raise SystemExit(f"Unknown dzongkhag {args.dzongkhag!r}")
+        location_name = args.dzongkhag.strip().title()
+    elif location_id:
+        for name, lid in LOCATION_IDS.items():
+            if lid == location_id:
+                location_name = name.title()
+                break
+        location_name = location_name or f"Id-{location_id}"
+
+    qs = {}
+    if location_id:
+        qs["locations[]"] = str(location_id)
+        print(f"Filtering by office dzongkhag: {location_name} (locations[]={location_id})")
+
+    first_url = f"{BASE}?{urllib.parse.urlencode(qs)}" if qs else BASE
+    first = fetch_page(first_url)
+    paginator = first["props"]["results"]
+    last_page = int(paginator.get("last_page") or 1)
     print(
         "Pagination:",
         {
             k: paginator.get(k)
-            for k in ("total", "last_page", "current_page", "per_page", "from", "to")
+            for k in ("total", "last_page", "current_page", "per_page")
         },
     )
 
-    last_page = int(paginator.get("last_page") or 1)
     rows: list[dict] = []
     seen: set[tuple[str, str, str]] = set()
 
     for page in range(1, last_page + 1):
-        url = BASE if page == 1 else f"{BASE}?page={page}"
         if page > 1:
-            time.sleep(0.6)  # polite delay
-            data = fetch_page(url)
-            paginator = pick_list(data["props"])
+            time.sleep(0.6)
+            page_qs = dict(qs)
+            page_qs["page"] = str(page)
+            data = fetch_page(f"{BASE}?{urllib.parse.urlencode(page_qs)}")
+            paginator = data["props"]["results"]
         items = paginator.get("data") or []
         print(f"Page {page}/{last_page}: {len(items)} items")
         for item in items:
-            row = normalize_row(item if isinstance(item, dict) else {})
+            row = normalize_row(item if isinstance(item, dict) else {}, location_name)
             key = (row["name"].lower(), row["email"].lower(), row["phone"])
             if key in seen:
                 continue
@@ -132,20 +133,66 @@ def main() -> None:
                 rows.append(row)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    csv_path = OUT_DIR / "bhutan-tour-operators.csv"
-    fieldnames = ["name", "phone", "email", "website", "license_no", "slug", "source_url"]
+    fieldnames = ["id", "name", "phone", "email", "website", "slug", "dzongkhag", "source_url"]
+    suffix = f"-{location_name.lower().replace(' ', '-')}" if location_name else ""
+    csv_path = OUT_DIR / f"bhutan-tour-operators{suffix}.csv"
     with csv_path.open("w", newline="", encoding="utf-8-sig") as f:
         w = csv.DictWriter(f, fieldnames=fieldnames)
         w.writeheader()
         w.writerows(rows)
 
-    # Minimal 3-col sheet too
-    slim_path = OUT_DIR / "bhutan-tour-operators-contacts.csv"
+    slim_path = OUT_DIR / f"bhutan-tour-operators{suffix}-contacts.csv"
     with slim_path.open("w", newline="", encoding="utf-8-sig") as f:
-        w = csv.DictWriter(f, fieldnames=["name", "phone", "email"])
+        w = csv.DictWriter(f, fieldnames=["name", "phone", "email", "dzongkhag"])
         w.writeheader()
         for r in rows:
-            w.writerow({"name": r["name"], "phone": r["phone"], "email": r["email"]})
+            w.writerow({k: r[k] for k in ["name", "phone", "email", "dzongkhag"]})
+
+    if not location_name:
+        # Compat path used by import-tcb-tour-operators.mjs
+        with (OUT_DIR / "bhutan-tour-operators.csv").open("w", newline="", encoding="utf-8-sig") as f:
+            w = csv.DictWriter(f, fieldnames=fieldnames)
+            w.writeheader()
+            w.writerows(rows)
+
+    if location_name:
+        MAILCHIMP_DIR.mkdir(parents=True, exist_ok=True)
+        mail_path = MAILCHIMP_DIR / f"{location_name.lower().replace(' ', '-')}-travel-agents-seed.csv"
+        mail_fields = [
+            "Email Address",
+            "First Name",
+            "Last Name",
+            "Company",
+            "Phone",
+            "City",
+            "State",
+            "Address",
+            "Website",
+            "Tags",
+            "Source",
+            "Notes",
+        ]
+        with mail_path.open("w", newline="", encoding="utf-8-sig") as f:
+            w = csv.DictWriter(f, fieldnames=mail_fields)
+            w.writeheader()
+            for r in rows:
+                w.writerow(
+                    {
+                        "Email Address": r["email"],
+                        "First Name": "",
+                        "Last Name": "",
+                        "Company": r["name"],
+                        "Phone": r["phone"],
+                        "City": r["dzongkhag"],
+                        "State": "",
+                        "Address": "",
+                        "Website": r["website"],
+                        "Tags": f"bhutan-agent;tcb-directory;{r['dzongkhag'].lower()}-agent",
+                        "Source": "tcb-portal",
+                        "Notes": f"TCB {r['source_url']}" if r["source_url"] else "TCB directory",
+                    }
+                )
+        print(f"Mailchimp seed: {mail_path}")
 
     print(f"\nWrote {len(rows)} operators")
     print(f"  {csv_path}")

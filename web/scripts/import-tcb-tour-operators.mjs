@@ -3,26 +3,36 @@
  *
  * - credit_limit=0, can_login=false, market=bhutan, rate_tier=public
  * - notes: source:tcb + website/slug/source_url/tcb_id
+ * - dzongkhag from CSV when present (e.g. Thimphu filter scrape)
  * - Idempotent: match lower(email) or lower(company_name); update directory only;
- *   never overwrite approved/demo/rejected trade partners
+ *   never overwrite approved/demo/rejected trade partners (except dzongkhag fill)
  *
  * Usage (from web/):
  *   node --env-file=.env.local scripts/import-tcb-tour-operators.mjs
  *   node --env-file=.env.local scripts/import-tcb-tour-operators.mjs --dry-run
+ *   node --env-file=.env.local scripts/import-tcb-tour-operators.mjs --csv=../docs/exports/bhutan-tour-operators-thimphu.csv
  *
  * Requires NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY.
  */
 
 import { createClient } from "@supabase/supabase-js";
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "../..");
-const CSV_PATH = join(ROOT, "docs/exports/bhutan-tour-operators.csv");
+const DEFAULT_CSV = join(ROOT, "docs/exports/bhutan-tour-operators.csv");
 const DRY_RUN = process.argv.includes("--dry-run");
 const BATCH = 50;
+
+function argValue(prefix) {
+  const hit = process.argv.find((a) => a.startsWith(prefix));
+  return hit ? hit.slice(prefix.length) : null;
+}
+
+const csvArg = argValue("--csv=");
+const CSV_PATH = csvArg ? resolve(process.cwd(), csvArg) : DEFAULT_CSV;
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -100,6 +110,7 @@ function buildNotes(row) {
   if (row.slug) lines.push(`slug:${row.slug}`);
   if (row.source_url) lines.push(`source_url:${row.source_url}`);
   if (row.id) lines.push(`tcb_id:${row.id}`);
+  if (row.dzongkhag) lines.push(`dzongkhag:${row.dzongkhag}`);
   return lines.join("\n");
 }
 
@@ -126,6 +137,7 @@ const col = {
   website: idx("website"),
   slug: idx("slug"),
   source_url: idx("source_url"),
+  dzongkhag: idx("dzongkhag"),
 };
 if (col.name < 0) {
   console.error("CSV missing name column");
@@ -147,6 +159,7 @@ for (let r = 1; r < table.length; r++) {
     website: get("website"),
     slug: get("slug"),
     source_url: get("source_url"),
+    dzongkhag: get("dzongkhag"),
   });
 }
 
@@ -163,7 +176,7 @@ for (;;) {
   const { data, error } = await admin
     .from("agents")
     .select(
-      "id, company_name, contact_email, contact_phone, status, notes, market, rate_tier, credit_limit, can_login",
+      "id, company_name, contact_email, contact_phone, status, notes, market, rate_tier, credit_limit, can_login, dzongkhag",
     )
     .order("id")
     .range(from, from + pageSize - 1);
@@ -188,10 +201,12 @@ console.log(
 
 let inserted = 0;
 let updated = 0;
+let dzongkhagFilled = 0;
 let skippedTrade = 0;
 let skippedNoop = 0;
 const toInsert = [];
 const toUpdate = [];
+const toFillDzongkhag = [];
 
 for (const op of operators) {
   const emailKey = normKey(op.email);
@@ -214,6 +229,7 @@ for (const op of operators) {
     credit_used: 0,
     can_login: false,
     wants_mou: false,
+    dzongkhag: op.dzongkhag,
   };
 
   if (!match) {
@@ -224,20 +240,25 @@ for (const op of operators) {
     continue;
   }
 
+  // Approved / demo / rejected: only fill missing dzongkhag, never clobber trade fields
   if (!isTcbDirectory(match) && match.status !== "pending") {
-    // Never clobber approved/demo/rejected (or non-TCB pending applications)
-    if (match.status === "approved" || match.status === "demo") {
+    if (
+      (match.status === "approved" ||
+        match.status === "demo" ||
+        match.status === "rejected") &&
+      op.dzongkhag &&
+      !match.dzongkhag
+    ) {
+      toFillDzongkhag.push({ id: match.id, dzongkhag: op.dzongkhag });
+    } else {
       skippedTrade += 1;
-      continue;
     }
-    if (match.status === "rejected") {
-      skippedTrade += 1;
-      continue;
-    }
-    if (match.status === "pending" && !isTcbDirectory(match)) {
-      skippedTrade += 1;
-      continue;
-    }
+    continue;
+  }
+
+  if (match.status === "pending" && !isTcbDirectory(match)) {
+    skippedTrade += 1;
+    continue;
   }
 
   const same =
@@ -249,7 +270,8 @@ for (const op of operators) {
     Number(match.credit_limit ?? 0) === 0 &&
     match.can_login === false &&
     match.market === "bhutan" &&
-    match.rate_tier === "public";
+    match.rate_tier === "public" &&
+    normKey(match.dzongkhag) === normKey(op.dzongkhag);
 
   if (same) {
     skippedNoop += 1;
@@ -264,6 +286,7 @@ if (DRY_RUN) {
   console.log({
     wouldInsert: toInsert.length,
     wouldUpdate: toUpdate.length,
+    wouldFillDzongkhag: toFillDzongkhag.length,
     skippedTrade,
     skippedNoop,
   });
@@ -286,7 +309,6 @@ for (let i = 0; i < toUpdate.length; i += BATCH) {
   const chunk = toUpdate.slice(i, i + BATCH);
   for (const row of chunk) {
     const { id, ...patch } = row;
-    // Keep credit_used if somehow non-zero; force limit 0 / no login
     const { error } = await admin
       .from("agents")
       .update({
@@ -300,6 +322,7 @@ for (let i = 0; i < toUpdate.length; i += BATCH) {
         credit_limit: 0,
         can_login: false,
         wants_mou: false,
+        dzongkhag: patch.dzongkhag,
       })
       .eq("id", id);
     if (error) {
@@ -312,15 +335,29 @@ for (let i = 0; i < toUpdate.length; i += BATCH) {
 }
 if (toUpdate.length) process.stdout.write("\n");
 
+for (const row of toFillDzongkhag) {
+  const { error } = await admin
+    .from("agents")
+    .update({ dzongkhag: row.dzongkhag })
+    .eq("id", row.id);
+  if (error) {
+    console.error(`dzongkhag fill ${row.id} failed:`, error.message);
+    process.exit(1);
+  }
+  dzongkhagFilled += 1;
+}
+
 console.log(
   JSON.stringify(
     {
       ok: true,
       inserted,
       updated,
+      dzongkhagFilled,
       skippedTrade,
       skippedNoop,
       totalCsv: operators.length,
+      csv: CSV_PATH,
     },
     null,
     2,

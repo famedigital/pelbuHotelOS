@@ -1036,6 +1036,9 @@ export async function removePartyRoom(
 export async function addPartyRoom(input: {
   anchorBookingId: string;
   roomUnitId: string;
+  adults?: number;
+  children?: number;
+  mealPlanCode?: string | null;
 }): Promise<PartyActionState> {
   try {
     if (!(await isDeskAuthenticated())) {
@@ -1112,15 +1115,18 @@ export async function addPartyRoom(input: {
         contact_name: anchor.contact_name,
         contact_phone: anchor.contact_phone,
         contact_email: anchor.contact_email,
-        adults: 1,
-        children: 0,
+        adults: Math.max(1, Math.min(12, Number(input.adults ?? 1) || 1)),
+        children: Math.max(0, Math.min(12, Number(input.children ?? 0) || 0)),
         extra_beds: 0,
         rooms: 1,
         guide_number: anchor.guide_number,
         guest_origin: anchor.guest_origin ?? "international",
         payment_mode: anchor.payment_mode ?? "cash",
         notes: `Party add · ${unit.label as string}`,
-        meal_plan_code: anchor.meal_plan_code ?? "EP",
+        meal_plan_code:
+          (input.mealPlanCode?.trim() ||
+            (anchor.meal_plan_code as string | null) ||
+            "EP") ?? "EP",
         meal_plan_amount_btn: 0,
         extra_bed_amount_btn: 0,
         sold_by_staff_id: anchor.sold_by_staff_id,
@@ -1181,6 +1187,219 @@ export async function addPartyRoom(input: {
     return {
       ok: false,
       error: e instanceof Error ? e.message : "Could not add room.",
+    };
+  }
+}
+
+/**
+ * Edit pax / meal on a party sibling booking (pre check-in).
+ */
+export async function updatePartyRoomLine(input: {
+  bookingId: string;
+  adults?: number;
+  children?: number;
+  mealPlanCode?: string | null;
+}): Promise<PartyActionState> {
+  try {
+    if (!(await isDeskAuthenticated())) {
+      return { ok: false, error: "Desk session expired. Sign in again." };
+    }
+    const bookingId = input.bookingId.trim();
+    if (!bookingId) return { ok: false, error: "Booking required." };
+
+    const admin = createSupabaseAdminClient();
+    const propertyId = await requireDeskPropertyId();
+
+    const { data: booking } = await admin
+      .from("bookings")
+      .select("id, status, adults, children, meal_plan_code")
+      .eq("id", bookingId)
+      .eq("property_id", propertyId)
+      .maybeSingle();
+    if (!booking) return { ok: false, error: "Booking not found." };
+    if (["checked_in", "checked_out"].includes(booking.status as string)) {
+      return {
+        ok: false,
+        error: "Cannot edit pax / meal after check-in.",
+      };
+    }
+
+    const patch: Record<string, unknown> = {};
+    if (input.adults != null) {
+      patch.adults = Math.max(1, Math.min(12, Number(input.adults) || 1));
+    }
+    if (input.children != null) {
+      patch.children = Math.max(0, Math.min(12, Number(input.children) || 0));
+    }
+    if (input.mealPlanCode !== undefined) {
+      patch.meal_plan_code =
+        input.mealPlanCode?.trim().slice(0, 16) || "EP";
+    }
+    if (Object.keys(patch).length === 0) {
+      return { ok: false, error: "Nothing to update." };
+    }
+
+    const { error } = await admin
+      .from("bookings")
+      .update(patch)
+      .eq("id", bookingId)
+      .eq("property_id", propertyId);
+    if (error) return { ok: false, error: error.message };
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "reservations.party.update_room_line",
+      entityType: "bookings",
+      entityId: bookingId,
+      summary: "Updated party room pax / meal",
+      meta: patch,
+    });
+    revalidatePartySurfaces();
+    return { ok: true, message: "Room line updated." };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not update room.",
+    };
+  }
+}
+
+function addDaysIso(iso: string, days: number): string {
+  const d = new Date(`${String(iso).slice(0, 10)}T12:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Extend one party room checkout by +N nights (default 1). */
+export async function extendPartyRoom(
+  bookingId: string,
+  nights = 1,
+): Promise<PartyActionState> {
+  try {
+    if (!(await isDeskAuthenticated())) {
+      return { ok: false, error: "Desk session expired." };
+    }
+    const id = String(bookingId ?? "").trim();
+    if (!id) {
+      return { ok: false, error: "Invalid booking." };
+    }
+    const n = Math.max(1, Math.min(30, Math.floor(nights) || 1));
+    const admin = createSupabaseAdminClient();
+    const propertyId = await requireDeskPropertyId();
+
+    const { data: booking } = await admin
+      .from("bookings")
+      .select("id, check_in, check_out, status, property_id")
+      .eq("id", id)
+      .eq("property_id", propertyId)
+      .maybeSingle();
+    if (!booking) return { ok: false, error: "Booking not found." };
+    if (["cancelled", "no_show", "checked_out"].includes(booking.status as string)) {
+      return { ok: false, error: "Cannot extend this stay." };
+    }
+
+    const checkIn = String(booking.check_in).slice(0, 10);
+    const checkOut = String(booking.check_out).slice(0, 10);
+    const nextOut = addDaysIso(checkOut, n);
+
+    const { data: assignment } = await admin
+      .from("room_assignments")
+      .select("id")
+      .eq("booking_id", id)
+      .order("from_date", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (assignment?.id) {
+      const { resizeCalendarAssignment } = await import(
+        "@/app/actions/erp-calendar"
+      );
+      const resized = await resizeCalendarAssignment(
+        assignment.id as string,
+        checkIn,
+        nextOut,
+      );
+      if (!resized.ok) {
+        return { ok: false, error: resized.error ?? "Could not extend stay." };
+      }
+    } else {
+      const { error } = await admin
+        .from("bookings")
+        .update({ check_out: nextOut })
+        .eq("id", id)
+        .eq("property_id", propertyId);
+      if (error) return { ok: false, error: error.message };
+    }
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "reservations.party.extend_room",
+      entityType: "bookings",
+      entityId: id,
+      summary: `Extended +${n}n → ${nextOut}`,
+    });
+    revalidatePartySurfaces();
+    return { ok: true, message: `Extended +${n} night(s).` };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not extend room.",
+    };
+  }
+}
+
+/** Extend every sibling in the formal group by +N nights. */
+export async function extendPartyAll(
+  groupId: string,
+  nights = 1,
+): Promise<PartyActionState & { extended?: number; failed?: number }> {
+  try {
+    if (!(await isDeskAuthenticated())) {
+      return { ok: false, error: "Desk session expired." };
+    }
+    const gid = String(groupId ?? "").trim();
+    if (!gid) {
+      return { ok: false, error: "Invalid group." };
+    }
+    const admin = createSupabaseAdminClient();
+    const propertyId = await requireDeskPropertyId();
+
+    const { data: members } = await admin
+      .from("booking_group_members")
+      .select("booking_id, bookings!inner(id, property_id, status)")
+      .eq("group_id", gid);
+    if (!members?.length) {
+      return { ok: false, error: "No rooms in this group." };
+    }
+
+    let extended = 0;
+    let failed = 0;
+    for (const m of members) {
+      const b = Array.isArray(m.bookings) ? m.bookings[0] : m.bookings;
+      if ((b as { property_id?: string } | null)?.property_id !== propertyId) {
+        failed += 1;
+        continue;
+      }
+      const res = await extendPartyRoom(m.booking_id as string, nights);
+      if (res.ok) extended += 1;
+      else failed += 1;
+    }
+
+    revalidatePartySurfaces();
+    return {
+      ok: extended > 0,
+      message:
+        failed > 0
+          ? `Extended ${extended} · ${failed} failed`
+          : `Extended ${extended} room(s) +${nights}n`,
+      extended,
+      failed,
+      error: extended === 0 ? "No rooms could be extended." : undefined,
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not extend party.",
     };
   }
 }

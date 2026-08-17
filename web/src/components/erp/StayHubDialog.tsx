@@ -25,6 +25,7 @@ import { AgentPicker } from "@/components/erp/AgentPicker";
 import { StaffPicker, type BookableStaff } from "@/components/erp/StaffPicker";
 import { BookingLifecycleActions } from "@/components/erp/BookingLifecycleActions";
 import { StayHubPrintPackMenu } from "@/components/erp/StayHubPrintPackMenu";
+import Link from "next/link";
 import { StayHubRateNightsPanel } from "@/components/erp/stay-hub/StayHubRateNightsPanel";
 import {
   StayHubAuditStrip,
@@ -70,7 +71,13 @@ import {
   type StayHubMoreAction,
 } from "@/components/erp/stay-hub/StayHubChrome";
 import { StayHubAdvancedPanel } from "@/components/erp/stay-hub/StayHubAdvancedPanel";
-import { StayHubPartyStrip } from "@/components/erp/stay-hub/StayHubPartyStrip";
+import { StayHubPartyCommandBar, type PartyHubTab } from "@/components/erp/stay-hub/StayHubPartyCommandBar";
+import { StayHubPartyRoomList } from "@/components/erp/stay-hub/StayHubPartyRoomList";
+import { StayHubPartyDocsPanel } from "@/components/erp/stay-hub/StayHubPartyDocsPanel";
+import { StayHubPartyMasterBill } from "@/components/erp/stay-hub/StayHubPartyMasterBill";
+import { RoomingListPanel } from "@/components/erp/RoomingListPanel";
+import { extendPartyAll } from "@/app/actions/erp-reservations-party";
+import { StayHubBookingRoomsStrip } from "@/components/erp/stay-hub/StayHubBookingRoomsStrip";
 import { useDebouncedAutoSave } from "@/components/erp/stay-hub/use-debounced-auto-save";
 import { useStayHubConcurrentLock } from "@/components/erp/stay-hub/use-stay-hub-concurrent-lock";
 import { Button } from "@/components/ui/button";
@@ -215,6 +222,18 @@ function summaryFromSeed(stay: StayHubSeedStay): StayHubSummary {
     roomLabel: stay.room_label,
     roomTypeId: stay.room_type_id,
     roomTypeName: stay.room_type_name,
+    roomLines: stay.room_label
+      ? [
+          {
+            roomTypeId: stay.room_type_id || "",
+            roomTypeName: stay.room_type_name || stay.room_label,
+            roomTypeCode: null,
+            qty: Math.max(1, stay.rooms || 1),
+            inventoryKind: "sellable_guest",
+            assignedLabels: stay.room_label ? [stay.room_label] : [],
+          },
+        ]
+      : [],
     folioId: stay.folio_id,
     folioBalance: Number(stay.folio_balance ?? 0),
     isLocked: stay.is_locked,
@@ -225,6 +244,7 @@ function summaryFromSeed(stay: StayHubSeedStay): StayHubSummary {
     roomNcReasons: [],
     agreedNightlyRateBtn: null,
     agreedRateReason: null,
+    ratePendingApproval: false,
     mealPlanCode: null,
     guideSignStatus: null,
     guideSignPhotoPublicId: null,
@@ -491,6 +511,7 @@ export function StayHubDialog({
   const [postRegData, setPostRegData] =
     useState<GuestRegistrationCardData | null>(null);
   const [party, setParty] = useState<StayHubPartyContext | null>(null);
+  const [partyTab, setPartyTab] = useState<PartyHubTab>("rooms");
   const collectPayRef = useRef<HTMLDivElement | null>(null);
   const postChargesRef = useRef<HTMLDivElement | null>(null);
   /** Sticky money: skip refetch until force (void/pay) or booking change. */
@@ -1922,19 +1943,10 @@ export function StayHubDialog({
           />
 
           {party && summary ? (
-            <StayHubPartyStrip
+            <StayHubPartyCommandBar
               party={party}
-              activeBookingId={summary.bookingId}
-              onSwitch={(nextId, nextAssignmentId) => {
-                if (stayHubCtx) {
-                  stayHubCtx.openStayHub({
-                    bookingId: nextId,
-                    assignmentId: nextAssignmentId,
-                    step: panel,
-                    board,
-                  });
-                }
-              }}
+              tab={partyTab}
+              onTabChange={setPartyTab}
               onLinked={() => {
                 if (!summary) return;
                 void fetchStayHubPartyContext(summary.bookingId).then((r) => {
@@ -1942,7 +1954,25 @@ export function StayHubDialog({
                 });
                 router.refresh();
               }}
+              onExtendAll={
+                party.groupId
+                  ? () => {
+                      void (async () => {
+                        const res = await extendPartyAll(party.groupId!, 1);
+                        if (res.ok) {
+                          toast.success(res.message ?? "Extended");
+                          void refreshSummary();
+                          router.refresh();
+                        } else {
+                          toast.error(res.error ?? "Could not extend");
+                        }
+                      })();
+                    }
+                  : undefined
+              }
             />
+          ) : summary?.roomLines && summary.roomLines.length > 0 ? (
+            <StayHubBookingRoomsStrip roomLines={summary.roomLines} />
           ) : null}
 
           {summary ? (
@@ -2063,10 +2093,29 @@ export function StayHubDialog({
                           summary.status === "pending") ? (
                           <Callout
                             tone="amber"
-                            title="Hold / confirmation pending"
+                            title={
+                              summary.ratePendingApproval
+                                ? "Awaiting GM rate approval"
+                                : "Hold / confirmation pending"
+                            }
                           >
-                            Confirm token via lifecycle actions, then continue
-                            to check-in.
+                            {summary.ratePendingApproval ? (
+                              <>
+                                Custom category rate must be approved at{" "}
+                                <Link
+                                  href="/erp/rate-approvals"
+                                  className="underline"
+                                >
+                                  Rate approvals
+                                </Link>{" "}
+                                before confirm or check-in.
+                              </>
+                            ) : (
+                              <>
+                                Confirm token via lifecycle actions, then
+                                continue to check-in.
+                              </>
+                            )}
                           </Callout>
                         ) : null}
 
@@ -2300,6 +2349,9 @@ export function StayHubDialog({
                                 <BookingLifecycleActions
                                   bookingId={summary.bookingId}
                                   status={summary.status}
+                                  ratePendingApproval={
+                                    summary.ratePendingApproval
+                                  }
                                   onSuccess={refreshSummary}
                                   onOptimisticStatus={patchOptimisticStatus}
                                   onOptimisticRollback={rollbackOptimisticStatus}
@@ -2416,6 +2468,9 @@ export function StayHubDialog({
                                 <BookingLifecycleActions
                                   bookingId={summary.bookingId}
                                   status={summary.status}
+                                  ratePendingApproval={
+                                    summary.ratePendingApproval
+                                  }
                                   onSuccess={refreshSummary}
                                   onOptimisticStatus={patchOptimisticStatus}
                                   onOptimisticRollback={rollbackOptimisticStatus}
@@ -2517,6 +2572,21 @@ export function StayHubDialog({
                                 Loading check-in form…
                               </p>
                             ) : null
+                          ) : summary.ratePendingApproval ? (
+                            <Callout
+                              tone="amber"
+                              title="Awaiting GM rate approval"
+                            >
+                              Check-in is locked until custom category rates are
+                              approved at{" "}
+                              <Link
+                                href="/erp/rate-approvals"
+                                className="underline"
+                              >
+                                Rate approvals
+                              </Link>
+                              .
+                            </Callout>
                           ) : checkInPayload ? (
                             <div
                               className={cn(

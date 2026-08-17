@@ -7,7 +7,8 @@ import { ReservationsPartyBoard } from "@/components/erp/ReservationsPartyBoard"
 import { ReservationsStatusChrome } from "@/components/erp/ReservationsStatusChrome";
 import { Button } from "@/components/ui/button";
 import { BOOKABLE_AGENT_STATUSES } from "@/lib/agents/status";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { isDeskAuthenticated, getDeskRole } from "@/lib/desk-auth";
+import { isManagerDeskRole } from "@/lib/manager-pin-core";
 import {
   bookingRoomFit,
   compareReservations,
@@ -479,6 +480,7 @@ export default async function ReservationsPage({
           ? null
           : Number(m.amount_btn_per_adult_night),
     })),
+    canInstantApproveRates: isManagerDeskRole(await getDeskRole()),
   };
 
   const filterBase = {

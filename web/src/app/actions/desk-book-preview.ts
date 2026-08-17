@@ -22,8 +22,28 @@ export type DeskQuoteLine = {
   code: string;
   name: string;
   qty: number;
+  /** Effective nightly used for package (agreed override or sheet). */
   nightlyBtn: number | null;
+  /** Sheet nightly before FO override (null when no rate). */
+  sheetNightlyBtn?: number | null;
   stayBtn: number | null;
+  occupancy?: "single" | "double";
+  mealPlanCode?: string;
+  adults?: number;
+  children?: number;
+  extraBeds?: number;
+};
+
+export type DeskQuoteLineInput = {
+  roomTypeId: string;
+  qty: number;
+  occupancy?: "single" | "double";
+  mealPlanCode?: string | null;
+  adults?: number;
+  children?: number;
+  extraBeds?: number;
+  /** Override sheet nightly (all-in) for package preview. */
+  agreedNightlyBtn?: number | null;
 };
 
 export type DeskAvailLine = {
@@ -82,8 +102,8 @@ const WALKIN_TIERS: ReadonlySet<string> = new Set([
 export async function previewDeskStayQuote(input: {
   checkIn: string;
   checkOut: string;
-  /** Prefer for multi-category cart. */
-  lines?: Array<{ roomTypeId: string; qty: number }>;
+  /** Prefer for multi-category cart (supports per-line meal/occ/pax). */
+  lines?: DeskQuoteLineInput[];
   /** @deprecated single-type — used when lines empty */
   roomTypeId?: string;
   qty?: number;
@@ -91,6 +111,7 @@ export async function previewDeskStayQuote(input: {
   /**
    * Room rate occupancy. When set, prefers single/double sheet rate
    * (`amount_single_btn` vs `amount_btn`). Defaults from adults when omitted.
+   * Per-line occupancy on `lines[]` overrides this for that category.
    */
   occupancy?: "single" | "double";
   children?: number;
@@ -126,31 +147,40 @@ export async function previewDeskStayQuote(input: {
               {
                 roomTypeId: input.roomTypeId.trim(),
                 qty: Math.max(1, Math.floor(Number(input.qty) || 1)),
-              },
+              } as DeskQuoteLineInput,
             ]
           : [];
 
-    const merged = new Map<string, number>();
+    /** Keep first occurrence's line config when merging qty by type. */
+    const merged = new Map<string, DeskQuoteLineInput>();
     for (const l of rawLines) {
       const id = (l.roomTypeId ?? "").trim();
       if (!id) continue;
       const q = Math.max(0, Math.floor(Number(l.qty) || 0));
       if (q < 1) continue;
-      merged.set(id, (merged.get(id) ?? 0) + q);
+      const prev = merged.get(id);
+      if (prev) {
+        merged.set(id, { ...prev, qty: prev.qty + q });
+      } else {
+        merged.set(id, { ...l, roomTypeId: id, qty: q });
+      }
     }
     if (merged.size === 0) {
       return { ok: false, error: "Add at least one room category." };
     }
 
-    const adults = Math.max(1, Math.floor(Number(input.adults) || 2));
-    const occupancy: "single" | "double" =
+    const adultsGlobal = Math.max(1, Math.floor(Number(input.adults) || 2));
+    const occupancyGlobal: "single" | "double" =
       input.occupancy === "single" || input.occupancy === "double"
         ? input.occupancy
-        : adults === 1
+        : adultsGlobal === 1
           ? "single"
           : "double";
-    const children = Math.max(0, Math.floor(Number(input.children) || 0));
-    const extraBeds = Math.max(0, Math.floor(Number(input.extraBeds) || 0));
+    const childrenGlobal = Math.max(0, Math.floor(Number(input.children) || 0));
+    const extraBedsGlobal = Math.max(
+      0,
+      Math.floor(Number(input.extraBeds) || 0),
+    );
 
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
@@ -240,13 +270,35 @@ export async function previewDeskStayQuote(input: {
     let stayTotal = 0;
     let totalRooms = 0;
     let anyNull = false;
+    let mealStayBtn = 0;
+    let extraBedStayBtn = 0;
 
-    for (const [roomTypeId, qty] of merged) {
+    for (const [roomTypeId, lineIn] of merged) {
       const meta = typeById.get(roomTypeId);
       if (!meta) {
         return { ok: false, error: "Unknown room type in cart." };
       }
       if (meta.kind !== "sellable_guest") continue;
+
+      const qty = lineIn.qty;
+      const adults = Math.max(
+        1,
+        Math.floor(Number(lineIn.adults ?? adultsGlobal) || adultsGlobal),
+      );
+      const occupancy: "single" | "double" =
+        lineIn.occupancy === "single" || lineIn.occupancy === "double"
+          ? lineIn.occupancy
+          : occupancyGlobal;
+      const children = Math.max(
+        0,
+        Math.floor(Number(lineIn.children ?? childrenGlobal) || 0),
+      );
+      const extraBeds = Math.max(
+        0,
+        Math.floor(Number(lineIn.extraBeds ?? extraBedsGlobal) || 0),
+      );
+      const mealPlanCode =
+        lineIn.mealPlanCode?.trim() || input.mealPlanCode || "EP";
 
       const sheet = await lookupRoomRateBtn(admin, {
         propertyId,
@@ -257,7 +309,19 @@ export async function previewDeskStayQuote(input: {
         adults,
       });
 
-      if (sheet == null) {
+      const agreed =
+        lineIn.agreedNightlyBtn != null &&
+        Number.isFinite(lineIn.agreedNightlyBtn) &&
+        lineIn.agreedNightlyBtn >= 0
+          ? roundBtn(Number(lineIn.agreedNightlyBtn))
+          : null;
+
+      const sheetAllIn =
+        sheet != null
+          ? calculateRoomNightTax(sheet, taxSettings).totalBtn
+          : null;
+
+      if (sheetAllIn == null && agreed == null) {
         anyNull = true;
         lines.push({
           roomTypeId,
@@ -265,13 +329,19 @@ export async function previewDeskStayQuote(input: {
           name: meta.name,
           qty,
           nightlyBtn: null,
+          sheetNightlyBtn: null,
           stayBtn: null,
+          occupancy,
+          mealPlanCode,
+          adults,
+          children,
+          extraBeds,
         });
         totalRooms += qty;
         continue;
       }
 
-      const nightAllIn = calculateRoomNightTax(sheet, taxSettings).totalBtn;
+      const nightAllIn = agreed ?? (sheetAllIn as number);
       const stay = roundBtn(nightAllIn * qty * nights);
       stayTotal = roundBtn(stayTotal + stay);
       totalRooms += qty;
@@ -281,23 +351,47 @@ export async function previewDeskStayQuote(input: {
         name: meta.name,
         qty,
         nightlyBtn: roundBtn(nightAllIn),
+        sheetNightlyBtn: sheetAllIn != null ? roundBtn(sheetAllIn) : null,
         stayBtn: stay,
+        occupancy,
+        mealPlanCode,
+        adults,
+        children,
+        extraBeds,
       });
+
+      const addons = await resolveStayAddonsForBook(admin, propertyId, {
+        mealPlanCode,
+        adults: adults * qty,
+        children: children * qty,
+        extraBeds: extraBeds * qty,
+        nights,
+      });
+      mealStayBtn = roundBtn(mealStayBtn + addons.mealPlanAmountBtn);
+      extraBedStayBtn = roundBtn(extraBedStayBtn + addons.extraBedAmountBtn);
     }
 
     if (totalRooms < 1) {
       return { ok: false, error: "Add at least one guest room." };
     }
 
-    const addons = await resolveStayAddonsForBook(admin, propertyId, {
-      mealPlanCode: input.mealPlanCode,
-      adults,
-      children,
-      extraBeds,
-      nights,
-    });
-    const mealStayBtn = roundBtn(addons.mealPlanAmountBtn);
-    const extraBedStayBtn = roundBtn(addons.extraBedAmountBtn);
+    // Fallback: if no per-line meal inputs, use global once (legacy carts).
+    if (
+      mealStayBtn === 0 &&
+      extraBedStayBtn === 0 &&
+      (input.mealPlanCode || adultsGlobal)
+    ) {
+      const addons = await resolveStayAddonsForBook(admin, propertyId, {
+        mealPlanCode: input.mealPlanCode,
+        adults: adultsGlobal,
+        children: childrenGlobal,
+        extraBeds: extraBedsGlobal,
+        nights,
+      });
+      mealStayBtn = roundBtn(addons.mealPlanAmountBtn);
+      extraBedStayBtn = roundBtn(addons.extraBedAmountBtn);
+    }
+
     const mealPerNightBtn =
       nights > 0 ? roundBtn(mealStayBtn / nights) : mealStayBtn;
     const extraBedPerNightBtn =
@@ -324,7 +418,7 @@ export async function previewDeskStayQuote(input: {
         lines,
         totalRooms,
         mixedCategories: lines.length > 1,
-        mealPlanCode: addons.mealPlanCode,
+        mealPlanCode: input.mealPlanCode ?? "EP",
         mealStayBtn,
         mealPerNightBtn,
         extraBedStayBtn,
@@ -362,7 +456,7 @@ export async function previewDeskStayQuote(input: {
       lines,
       totalRooms,
       mixedCategories: lines.length > 1,
-      mealPlanCode: addons.mealPlanCode,
+      mealPlanCode: input.mealPlanCode ?? lines[0]?.mealPlanCode ?? "EP",
       mealStayBtn,
       mealPerNightBtn,
       extraBedStayBtn,

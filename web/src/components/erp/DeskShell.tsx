@@ -24,10 +24,11 @@ import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 
 /**
- * ERP shell: icon sidebar + single sticky header row.
+ * ERP shell: icon sidebar + pinned header row (does not scroll away).
  * Module sub-destinations sit **in that header** (compact segment control), not
  * a second menu row under it — keeps desk workspace tall. POS register portals
  * Sell | Floor + ticket actions into the same row.
+ * Page body scrolls inside the inset under the header so sticky filters (`top-14`) work.
  */
 export function DeskShell({
   title,
@@ -78,9 +79,9 @@ export function DeskShell({
             productPack={productPack}
           />
           <ErpCommandPalette allowedModuleKeys={allowedModuleKeys} />
-          <SidebarInset>
+          <SidebarInset className="max-h-svh overflow-hidden">
             <StayHubShell>
-              <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 print:hidden">
+              <header className="z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 print:hidden">
                 <SidebarTrigger className="-ml-1 hidden md:inline-flex" />
                 <Separator
                   orientation="vertical"
@@ -144,10 +145,10 @@ export function DeskShell({
                   </form>
                 </div>
               </header>
-              <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0 print:overflow-visible print:pb-0">
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0 print:overflow-visible print:pb-0">
                 {children}
               </div>
-              <div className="print:hidden">
+              <div className="shrink-0 print:hidden">
                 <DeskMobileNav allowedModuleKeys={allowedModuleKeys} />
               </div>
             </StayHubShell>
@@ -179,7 +180,7 @@ export function DeskPageTitle({
     description && description.length > 96 ? description : undefined;
 
   return (
-    <div className="erp border-b border-border/80 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/85 md:sticky md:top-14 md:z-20 md:-mx-6 md:px-6 -mx-4">
+    <div className="erp border-b border-border/80 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/85 md:sticky md:top-0 md:z-20 md:-mx-6 md:px-6 -mx-4">
       <div className="flex flex-col gap-3 py-3 sm:flex-row sm:items-start sm:justify-between md:py-3.5">
         <div className="min-w-0 flex-1 space-y-1">
           {eyebrow ? (
