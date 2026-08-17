@@ -8,7 +8,11 @@ import { todayInTimezone } from "@/lib/erp-lists";
 import { postFolioCharge } from "@/lib/folio/post-charge";
 import { postExtraBedFolioLine } from "@/lib/folio/extra-bed";
 import { postMealPlanFolioLine } from "@/lib/folio/meal-plan";
-import { postFolioPaymentRecord } from "@/lib/folio/post-payment";
+import { isAgentOpenItemFolio } from "@/lib/folio/agent-open-item";
+import {
+  maybeSettleZeroBalanceFolio,
+  postFolioPaymentRecord,
+} from "@/lib/folio/post-payment";
 import { postOpenFolioGuestRateRoundAdj } from "@/lib/folio/rate-adj";
 import {
   postRoomNightsForBooking,
@@ -1267,15 +1271,22 @@ export async function confirmPendingBankPayment(
     const folioId = payment.folio_id as string | null;
     const reference = optionalTrim(formData.get("reference")) ?? (payment.reference as string | null);
 
+    let agentOpenItem = false;
+    let folioAgentId: string | null = null;
     if (folioId) {
       const { data: folio } = await admin
         .from("folios")
-        .select("id, status")
+        .select("id, status, booking_id, agent_id")
         .eq("id", folioId)
         .single();
       if (!folio || (folio.status as string) !== "open") {
         throw new Error("Linked folio is not open.");
       }
+      agentOpenItem = isAgentOpenItemFolio({
+        agent_id: folio.agent_id as string | null,
+        booking_id: folio.booking_id as string | null,
+      });
+      folioAgentId = (folio.agent_id as string | null) ?? null;
 
       const { error: lineError } = await admin.from("folio_lines").insert({
         folio_id: folioId,
@@ -1301,6 +1312,7 @@ export async function confirmPendingBankPayment(
       kind: (payment.kind as string) ?? "settlement",
       amount_btn: amountBtn,
       notes: payment.notes as string | null,
+      arSide: agentOpenItem ? "agent" : "guest",
       period_guard: periodGuardFromForm(formData, pid),
     });
     if (!gl.ok) {
@@ -1312,6 +1324,17 @@ export async function confirmPendingBankPayment(
           .eq("source_id", paymentId);
       }
       throw new Error(gl.error ?? "Ledger posting failed.");
+    }
+
+    if (agentOpenItem && folioAgentId) {
+      const { releaseAgentCredit } = await import("@/app/actions/erp-agents");
+      await releaseAgentCredit(admin, {
+        agentId: folioAgentId,
+        amountBtn,
+        paymentId,
+        note: `Open-item bank confirm · ${folioId?.slice(0, 8)}`,
+      });
+      if (folioId) await maybeSettleZeroBalanceFolio(admin, folioId);
     }
 
     await admin

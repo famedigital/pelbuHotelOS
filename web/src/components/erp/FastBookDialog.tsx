@@ -95,12 +95,12 @@ export function FastBookDialog({
           "erp flex flex-col gap-0 overflow-hidden p-0",
           "top-auto bottom-0 left-0 right-0 h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 rounded-none border-0",
           "data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
-          "md:top-[50%] md:bottom-auto md:left-[50%] md:right-auto md:h-[700px] md:max-h-[min(88dvh,700px)] md:w-[min(96vw,980px)] md:max-w-[980px] md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-lg md:border",
-          "lg:w-[min(96vw,1080px)] lg:max-w-[1080px] lg:h-[700px] lg:max-h-[min(90dvh,700px)]",
+          "md:top-[50%] md:bottom-auto md:left-[50%] md:right-auto md:h-[700px] md:max-h-[min(88dvh,700px)] md:w-[min(96vw,1120px)] md:max-w-[1120px] md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-lg md:border",
+          "lg:w-[min(96vw,1120px)] lg:max-w-[1120px] lg:h-[700px] lg:max-h-[min(90dvh,700px)]",
           "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
         )}
       >
-        <DialogHeader className="shrink-0 space-y-0 border-b px-3 py-1.5 pr-10 text-left print:hidden">
+        <DialogHeader className="flex h-14 shrink-0 flex-row items-center space-y-0 border-b px-4 pr-12 text-left print:hidden">
           <DialogTitle className="text-sm font-semibold tracking-tight">
             {stage === "confirm" ? "Booking confirmed" : "New booking"}
           </DialogTitle>

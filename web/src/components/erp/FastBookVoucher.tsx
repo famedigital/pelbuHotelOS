@@ -9,6 +9,7 @@ import {
   registrationLines,
   type PropertyDocumentDesign,
 } from "@/lib/property-settings";
+import { printDeskSheet } from "@/lib/desk-print";
 import { cn } from "@/lib/utils";
 import type { CSSProperties } from "react";
 
@@ -243,9 +244,7 @@ export function FastBookVoucher({
           type="button"
           variant="outline"
           className="h-11"
-          onClick={() => {
-            if (typeof window !== "undefined") window.print();
-          }}
+          onClick={() => printDeskSheet("voucher")}
         >
           Print agent voucher
         </Button>

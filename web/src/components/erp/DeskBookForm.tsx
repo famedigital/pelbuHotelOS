@@ -47,6 +47,7 @@ import type {
   PropertyRegistrationDesign,
 } from "@/lib/property-settings";
 import { formatGuestBtn } from "@/lib/pricing";
+import { printDeskSheet } from "@/lib/desk-print";
 import { cn } from "@/lib/utils";
 import {
   PencilIcon,
@@ -122,7 +123,6 @@ const MAX_NIGHTS = 30;
 
 type GuestOrigin = "local" | "regional" | "international" | "official";
 type StepId = "stay" | "guest" | "source" | "room" | "ready";
-type PrintTarget = "note" | "voucher" | "reg";
 type WalkinRateTier = "public" | "friends" | "family" | "mutual_friends";
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -186,20 +186,18 @@ function fmtShort(iso: string): string {
   });
 }
 
-function printDeskSheet(target: PrintTarget) {
-  const html = document.documentElement;
-  html.setAttribute("data-desk-print", target);
-  html.setAttribute("data-doc-paper", "a4");
-  const cleanup = () => {
-    html.removeAttribute("data-desk-print");
-    html.removeAttribute("data-doc-paper");
-    window.removeEventListener("afterprint", cleanup);
-  };
-  window.addEventListener("afterprint", cleanup);
-  window.print();
-  window.setTimeout(cleanup, 1500);
+function focusNextFoField(form: HTMLFormElement, from: EventTarget | null) {
+  const nodes = Array.from(
+    form.querySelectorAll<HTMLElement>("[data-fo-tab]"),
+  ).filter((n) => {
+    if (n.closest("details:not([open])")) return false;
+    return n.offsetParent !== null || n.getClientRects().length > 0;
+  });
+  const el = from instanceof HTMLElement ? from : null;
+  const i = nodes.findIndex((n) => n === el || n.contains(el));
+  const next = nodes[Math.min(nodes.length - 1, Math.max(0, i) + 1)];
+  next?.focus();
 }
-
 /**
  * Desk book modal: StayHub-style left identity/price rail + dense work pane.
  */
@@ -1206,6 +1204,20 @@ export function DeskBookForm({
             setStepError(readyErr);
           }
         }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            setIntent(checkIn === todayIso() ? "check_in" : "confirm");
+            (e.currentTarget as HTMLFormElement).requestSubmit();
+            return;
+          }
+          if (e.key !== "Enter") return;
+          const t = e.target as HTMLElement;
+          if (t.tagName === "TEXTAREA") return;
+          if (t.closest("button[type='submit']")) return;
+          e.preventDefault();
+          focusNextFoField(e.currentTarget, e.target);
+        }}
       >
         <input type="hidden" name="intent" value={intent} />
         <input type="hidden" name="source" value={bookedBy} />
@@ -1338,105 +1350,85 @@ export function DeskBookForm({
           );
         })}
 
-        {/* LEFT RAIL */}
+        {/* LEFT RAIL — stay ticket */}
         <aside
           className={cn(
-            "flex shrink-0 flex-col gap-1.5 border-b bg-muted/15 p-2",
-            "md:w-44 md:border-b-0 md:border-r lg:w-48 lg:p-2.5",
+            "flex shrink-0 flex-col gap-2 border-b bg-muted/15 p-3",
+            "md:w-56 md:border-b-0 md:border-r lg:w-56",
           )}
         >
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold tracking-tight text-foreground">
+              {guestName.trim() || "Walk-in"}
+            </p>
+            <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+              {fmtShort(checkIn)} → {fmtShort(checkOut)} · {nights}n
+            </p>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              {roomLineSummary || "Pick a room"}
+              {preferredUnitId
+                ? ` · #${preferredUnitLabel || "rack"}`
+                : ""}
+            </p>
+            <p className="mt-0.5 truncate text-[11px] capitalize text-muted-foreground">
+              {billAgent && selectedAgent
+                ? selectedAgent.company_name
+                : `${guestOrigin}${!billAgent ? ` · ${walkinRateTier.replace("_", " ")}` : ""}`}
+            </p>
+          </div>
+
           <button
             type="button"
             onClick={() => openRateDialog()}
             className={cn(
-              "w-full rounded border bg-card px-2 py-1.5 text-left transition-colors",
-              "hover:border-foreground/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "mt-auto w-full rounded-md border bg-card px-2.5 py-2 text-left transition-colors",
+              "hover:border-foreground/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40",
               rateDiffers &&
                 "border-amber-500/50 bg-amber-50/40 dark:bg-amber-950/20",
             )}
           >
             <div className="flex items-center justify-between gap-1">
-              <p className="text-[9px] font-medium tracking-wide text-muted-foreground uppercase">
+              <p className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
                 {quotePending
-                  ? "Price…"
+                  ? "Price"
                   : rateDiffers
-                    ? "Custom"
-                    : "Nightly"}
+                    ? "Custom stay"
+                    : "Stay"}
               </p>
               <PencilIcon className="size-3 shrink-0 text-muted-foreground" />
             </div>
-            <p className="mt-0.5 text-xl font-semibold tracking-tight tabular-nums">
-              {displayRate && Number.isFinite(Number(displayRate))
-                ? formatGuestBtn(Number(displayRate))
+            <p className="mt-0.5 text-2xl font-semibold tracking-tight tabular-nums">
+              {stayTotal != null &&
+              Number.isFinite(stayTotal) &&
+              stayTotal > 0.5 &&
+              totalGuestRooms >= 1
+                ? formatGuestBtn(stayTotal)
                 : "—"}
             </p>
-            <div className="mt-1 space-y-px border-t border-border/50 pt-1 text-[10px] tabular-nums text-muted-foreground">
-              {quoteRoomsStay != null && !rateDiffers ? (
-                <div className="flex justify-between gap-2">
-                  <span>Rooms</span>
-                  <span>{formatGuestBtn(quoteRoomsStay)}</span>
-                </div>
-              ) : null}
-              {quoteMealStay > 0 && !rateDiffers ? (
-                <div className="flex justify-between gap-2">
-                  <span>Meals</span>
-                  <span>{formatGuestBtn(quoteMealStay)}</span>
-                </div>
-              ) : null}
-              {quoteExtraStay > 0 && !rateDiffers ? (
-                <div className="flex justify-between gap-2">
-                  <span>Extra</span>
-                  <span>{formatGuestBtn(quoteExtraStay)}</span>
-                </div>
-              ) : null}
-              <div className="flex items-baseline justify-between gap-2 pt-0.5 text-foreground">
-                <span className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
-                  Total
-                </span>
-                <span className="text-sm font-semibold">
-                  {stayTotal != null ? formatGuestBtn(stayTotal) : "—"}
-                </span>
-              </div>
-            </div>
-            <p className="mt-1 truncate text-[10px] text-muted-foreground">
-              {nights}n · {totalGuestRooms}rm ·{" "}
-              {occupancy === "single" ? "SGL" : "DBL"}
+            <p className="mt-1 truncate text-[11px] tabular-nums text-muted-foreground">
+              {displayRate &&
+              Number.isFinite(Number(displayRate)) &&
+              Number(displayRate) > 0
+                ? `${formatGuestBtn(Number(displayRate))}/n`
+                : "Pick a room"}
               {mealPlanCode ? ` · ${mealPlanCode}` : ""}
+              {occupancy === "single" ? " · SGL" : " · DBL"}
             </p>
             {quoteHint ? (
-              <p className="mt-0.5 truncate text-[9px] text-muted-foreground">
+              <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
                 {quoteHint}
               </p>
             ) : null}
           </button>
 
-          <div className="rounded border bg-background/70 px-2 py-1.5 text-[10px] leading-snug text-muted-foreground">
-            <p className="truncate font-medium text-foreground">
-              {guestName.trim() || "Walk-in guest"}
+          {availStrip ? (
+            <p className="text-[10px] leading-snug text-muted-foreground">
+              {availStrip}
             </p>
-            <p className="mt-0.5 tabular-nums">
-              {fmtShort(checkIn)} → {fmtShort(checkOut)} · {nights}n
-            </p>
-            <p className="mt-0.5 truncate">
-              {roomLineSummary || "Pick rooms"}
-              {preferredUnitId
-                ? ` · #${preferredUnitLabel || "rack"}`
-                : ""}
-            </p>
-            <p className="mt-0.5 truncate capitalize">
-              {billAgent && selectedAgent
-                ? selectedAgent.company_name
-                : `${guestOrigin}${!billAgent ? ` · ${walkinRateTier.replace("_", " ")}` : ""}`}
-            </p>
-            {availStrip ? (
-              <p className="mt-1 border-t border-border/40 pt-1 text-[9px]">
-                {availStrip}
-              </p>
-            ) : null}
-          </div>
+          ) : null}
 
           {roomCapNear ? (
-            <p className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-1 text-[9px] leading-snug text-amber-950 dark:text-amber-50">
+            <p className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-1 text-[10px] leading-snug text-amber-950 dark:text-amber-50">
               Cap warn: {agentOpenRooms ?? "?"} open + {totalGuestRooms}
               {agentRoomCap != null ? ` / ${agentRoomCap}` : ""} · blocks at CI
             </p>
@@ -1445,7 +1437,7 @@ export function DeskBookForm({
 
         {/* RIGHT — dense professional grid */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2.5 py-1.5 md:overflow-hidden md:px-3 md:py-2">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 md:px-4">
             {state.error ? (
               <Alert variant="destructive" className="mb-1.5 py-1.5">
                 <TriangleAlertIcon />
@@ -1463,50 +1455,57 @@ export function DeskBookForm({
               </Alert>
             ) : null}
 
-            <div className="space-y-2">
-              {/* ROW: dates + guest */}
-              <div className="grid grid-cols-2 gap-x-2 gap-y-1 sm:grid-cols-4 lg:grid-cols-12">
-                <div className="space-y-0.5 lg:col-span-2">
+            <div className="space-y-4">
+              {/* Stay */}
+              <section className="space-y-2">
+                <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                  Stay
+                </p>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-4">
+                <div className="space-y-1">
                   <Label
                     htmlFor="db_ci"
-                    className="text-[10px] font-normal text-muted-foreground"
+                    className="text-xs font-normal text-muted-foreground"
                   >
                     Check-in
                   </Label>
                   <Input
                     id="db_ci"
+                    data-fo-tab
                     type="date"
                     value={checkIn}
                     min={todayIso()}
+                    autoFocus={!defaults?.checkIn}
                     onChange={(e) => onCheckInChange(e.target.value)}
-                    className="h-8 text-sm"
+                    className="h-9 text-sm"
                   />
                 </div>
-                <div className="space-y-0.5 lg:col-span-2">
+                <div className="space-y-1">
                   <Label
                     htmlFor="db_co"
-                    className="text-[10px] font-normal text-muted-foreground"
+                    className="text-xs font-normal text-muted-foreground"
                   >
                     Check-out
                   </Label>
                   <Input
                     id="db_co"
+                    data-fo-tab
                     type="date"
                     value={checkOut}
                     min={addDaysIso(checkIn, 1)}
                     onChange={(e) => onCheckOutChange(e.target.value)}
-                    className="h-8 text-sm"
+                    className="h-9 text-sm"
                   />
                 </div>
-                <div className="space-y-0.5 lg:col-span-2">
-                  <Label className="text-[10px] font-normal text-muted-foreground">
+                <div className="space-y-1">
+                  <Label className="text-xs font-normal text-muted-foreground">
                     Nights
                   </Label>
-                  <div className="flex h-8 items-center gap-0.5">
+                  <div className="flex h-9 items-center gap-0.5">
                     <Button
                       type="button"
                       variant="outline"
-                      className="size-8 shrink-0"
+                      className="size-9 shrink-0"
                       onClick={() => setNights(nights - 1)}
                       aria-label="Fewer nights"
                     >
@@ -1518,7 +1517,7 @@ export function DeskBookForm({
                     <Button
                       type="button"
                       variant="outline"
-                      className="size-8 shrink-0"
+                      className="size-9 shrink-0"
                       onClick={() => setNights(nights + 1)}
                       aria-label="More nights"
                     >
@@ -1526,74 +1525,30 @@ export function DeskBookForm({
                     </Button>
                   </div>
                 </div>
-                <div className="col-span-2 space-y-0.5 sm:col-span-2 lg:col-span-3">
-                  <Label
-                    htmlFor="db_name"
-                    className="text-[10px] font-normal text-muted-foreground"
-                  >
-                    Guest
-                  </Label>
-                  <Input
-                    id="db_name"
-                    value={guestName}
-                    onChange={(e) => setGuestName(e.target.value)}
-                    autoComplete="off"
-                    className="h-8 text-sm"
-                    placeholder="Lead guest"
-                  />
-                </div>
-                <div className="space-y-0.5 lg:col-span-2">
-                  <Label
-                    htmlFor="db_phone"
-                    className="text-[10px] font-normal text-muted-foreground"
-                  >
-                    Phone
-                  </Label>
-                  <Input
-                    id="db_phone"
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    disabled={phoneLater}
-                    className="h-8 text-sm"
-                  />
-                </div>
-                <div className="flex items-end pb-0.5 lg:col-span-1">
-                  <label className="flex h-8 items-center gap-1 text-[10px] text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={phoneLater}
-                      onChange={(e) => setPhoneLater(e.target.checked)}
-                      className="size-3 accent-foreground"
-                    />
-                    Later
-                  </label>
-                </div>
+                {preferredUnitId ? (
+                  <div className="flex items-end pb-0.5">
+                    <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span>
+                        #{preferredUnitLabel || preferredUnitId.slice(0, 8)}
+                      </span>
+                      <button
+                        type="button"
+                        className="text-[11px] underline-offset-2 hover:underline"
+                        onClick={() => setPreferredUnitId("")}
+                      >
+                        Clear
+                      </button>
+                    </p>
+                  </div>
+                ) : null}
               </div>
-
-              {preferredUnitId ? (
-                <p className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                  <span>
-                    Rack{" "}
-                    <span className="font-medium text-foreground tabular-nums">
-                      {preferredUnitLabel || preferredUnitId.slice(0, 8)}
-                    </span>
-                  </span>
-                  <button
-                    type="button"
-                    className="text-[10px] underline-offset-2 hover:underline"
-                    onClick={() => setPreferredUnitId("")}
-                  >
-                    Clear
-                  </button>
-                </p>
-              ) : cleanUnits.length > 0 ? (
-                <div className="space-y-1 rounded-md border border-border/60 bg-muted/20 px-2 py-1.5">
+              {cleanUnits.length > 0 && !preferredUnitId ? (
+                <div className="space-y-1">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Label className="text-[10px] font-normal text-muted-foreground">
+                    <Label className="text-xs font-normal text-muted-foreground">
                       Prefer clean unit
                     </Label>
-                    <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
                       <input
                         type="checkbox"
                         checked={cleanOnly}
@@ -1604,7 +1559,7 @@ export function DeskBookForm({
                     </label>
                   </div>
                   <select
-                    className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring"
+                    className="h-9 w-full rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring"
                     value={preferredUnitId}
                     onChange={(e) => setPreferredUnitId(e.target.value)}
                   >
@@ -1624,94 +1579,62 @@ export function DeskBookForm({
                   </select>
                 </div>
               ) : null}
+              </section>
 
-              <div className="grid grid-cols-2 gap-2 rounded-md border border-border/50 p-2 sm:grid-cols-4">
-                <div className="col-span-2 space-y-1 sm:col-span-1">
-                  <Label className="text-[10px] font-normal text-muted-foreground">
-                    Rate tax
-                  </Label>
-                  <select
-                    name="rate_tax_mode"
-                    value={rateTaxMode}
-                    onChange={(e) =>
-                      setRateTaxMode(
-                        e.target.value === "inclusive"
-                          ? "inclusive"
-                          : "exclusive",
-                      )
-                    }
-                    className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-xs"
+              <div className="grid gap-4 md:grid-cols-12 md:gap-4">
+              <section className="space-y-2 md:col-span-5">
+                <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                  Guest
+                </p>
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="db_name"
+                    className="text-xs font-normal text-muted-foreground"
                   >
-                    <option value="exclusive">Exclusive tax</option>
-                    <option value="inclusive">Inclusive tax</option>
-                  </select>
-                </div>
-                <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    name="tax_exempt_gst"
-                    value="1"
-                    checked={taxExemptGst}
-                    onChange={(e) => setTaxExemptGst(e.target.checked)}
-                    className="size-3"
-                  />
-                  Exempt GST
-                </label>
-                <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    name="tax_exempt_service"
-                    value="1"
-                    checked={taxExemptService}
-                    onChange={(e) => setTaxExemptService(e.target.checked)}
-                    className="size-3"
-                  />
-                  Exempt SC
-                </label>
-                <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    name="tax_exempt_bst"
-                    value="1"
-                    checked={taxExemptBst}
-                    onChange={(e) => setTaxExemptBst(e.target.checked)}
-                    className="size-3"
-                  />
-                  Exempt BST
-                </label>
-                <div className="space-y-0.5">
-                  <Label className="text-[10px] font-normal text-muted-foreground">
-                    Release days
+                    Guest
                   </Label>
                   <Input
-                    name="release_days_before_arrival"
-                    type="number"
-                    min={0}
-                    value={releaseDays}
-                    onChange={(e) => setReleaseDays(e.target.value)}
-                    placeholder="0"
-                    className="h-8 text-xs"
+                    id="db_name"
+                    data-fo-tab
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    autoComplete="off"
+                    autoFocus={Boolean(defaults?.checkIn)}
+                    className="h-9 text-sm"
+                    placeholder="Lead guest"
                   />
                 </div>
-                <div className="space-y-0.5">
-                  <Label className="text-[10px] font-normal text-muted-foreground">
-                    Release %
-                  </Label>
-                  <Input
-                    name="release_percent"
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={releasePercent}
-                    onChange={(e) => setReleasePercent(e.target.value)}
-                    placeholder="0"
-                    className="h-8 text-xs"
-                  />
+                <div className="flex items-end gap-2">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <Label
+                      htmlFor="db_phone"
+                      className="text-xs font-normal text-muted-foreground"
+                    >
+                      Phone
+                    </Label>
+                    <Input
+                      id="db_phone"
+                      data-fo-tab
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      disabled={phoneLater}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                  <label className="flex h-9 shrink-0 items-center gap-1 pb-px text-[11px] text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={phoneLater}
+                      onChange={(e) => setPhoneLater(e.target.checked)}
+                      className="size-3 accent-foreground"
+                    />
+                    Later
+                  </label>
                 </div>
-              </div>
 
-              {/* ROW: origin / tier / staff / docs */}
-              <div className="grid grid-cols-2 gap-x-2 gap-y-1 border-t border-border/50 pt-2 sm:grid-cols-4 lg:grid-cols-12">
+              {/* Origin / tier / agent */}
+              <div className="grid grid-cols-2 gap-x-2 gap-y-2">
                 <div className="space-y-0.5 lg:col-span-2">
                   <Label className="text-[10px] font-normal text-muted-foreground">
                     Origin
@@ -1720,7 +1643,7 @@ export function DeskBookForm({
                     value={guestOrigin}
                     onValueChange={(v) => setGuestOrigin(v as GuestOrigin)}
                   >
-                    <SelectTrigger className="h-8 text-sm">
+                    <SelectTrigger data-fo-tab className="h-9 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1779,20 +1702,8 @@ export function DeskBookForm({
                   </div>
                 )}
 
-                <div className="space-y-0.5 lg:col-span-3">
-                  <Label className="text-[10px] font-normal text-muted-foreground">
-                    Sold by
-                  </Label>
-                  <StaffPicker
-                    staff={staff}
-                    value={soldByStaffId}
-                    onValueChange={setSoldByStaffId}
-                    className="h-8 min-h-8"
-                  />
-                </div>
-
-                <div className="flex items-end pb-0.5 lg:col-span-2">
-                  <label className="flex h-8 items-center gap-1.5 text-[11px] font-medium">
+                <div className="col-span-2 flex items-end pb-0.5">
+                  <label className="flex h-9 items-center gap-1.5 text-xs font-medium">
                     <input
                       type="checkbox"
                       checked={billAgent}
@@ -1801,23 +1712,6 @@ export function DeskBookForm({
                     />
                     Bill to agent
                   </label>
-                </div>
-
-                <div className="space-y-0.5 col-span-2 sm:col-span-2 lg:col-span-3">
-                  <Label
-                    htmlFor="db_email"
-                    className="text-[10px] font-normal text-muted-foreground"
-                  >
-                    Email
-                  </Label>
-                  <Input
-                    id="db_email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="h-8 text-sm"
-                    placeholder="Optional"
-                  />
                 </div>
               </div>
 
@@ -2006,8 +1900,14 @@ export function DeskBookForm({
                 </div>
               ) : null}
 
-              {/* ROW: rooms + per-line package */}
-              <div className="space-y-2 border-t border-border/50 pt-2">
+              </section>
+
+              {/* Rooms */}
+              <section className="space-y-2 md:col-span-7">
+                <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                  Rooms
+                </p>
+              <div className="space-y-2">
                 {roomLines.map((line) => {
                   const rt = guestTypes.find((g) => g.id === line.roomTypeId);
                   if (!rt) return null;
@@ -2103,7 +2003,7 @@ export function DeskBookForm({
                               patchLine(line.roomTypeId, { mealPlanCode: v })
                             }
                           >
-                            <SelectTrigger className="h-7 text-xs">
+                            <SelectTrigger data-fo-tab className="h-7 text-xs">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -2295,74 +2195,182 @@ export function DeskBookForm({
                   </div>
                 ) : null}
               </div>
-
-              <div className="grid grid-cols-2 gap-x-2 gap-y-1 border-t border-border/40 pt-2 sm:grid-cols-4">
-                <div className="col-span-2 space-y-0.5 sm:col-span-2">
-                  <Label
-                    htmlFor="db_promo"
-                    className="text-[10px] font-normal text-muted-foreground"
-                  >
-                    Promo
-                  </Label>
-                  <Input
-                    id="db_promo"
-                    value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value)}
-                    className="h-8 text-sm uppercase"
-                    placeholder="Code"
-                    autoComplete="off"
-                  />
-                </div>
-                <div className="col-span-2 space-y-0.5 sm:col-span-2">
-                  <Label
-                    htmlFor="db_notes"
-                    className="text-[10px] font-normal text-muted-foreground"
-                  >
-                    Notes
-                  </Label>
-                  <Input
-                    id="db_notes"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    className="h-8 text-sm"
-                    placeholder="ETA, requests…"
-                  />
-                </div>
+              </section>
               </div>
+
+              <details className="rounded-md border border-border/60 bg-muted/10 px-3 py-2">
+                <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
+                  More · tax, release, promo, notes
+                </summary>
+                <div className="mt-3 space-y-3">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div className="col-span-2 space-y-1 sm:col-span-1">
+                      <Label className="text-xs font-normal text-muted-foreground">
+                        Rate tax
+                      </Label>
+                      <select
+                        name="rate_tax_mode"
+                        value={rateTaxMode}
+                        onChange={(e) =>
+                          setRateTaxMode(
+                            e.target.value === "inclusive"
+                              ? "inclusive"
+                              : "exclusive",
+                          )
+                        }
+                        className="h-9 w-full rounded-md border border-input bg-transparent px-2 text-xs"
+                      >
+                        <option value="exclusive">Exclusive tax</option>
+                        <option value="inclusive">Inclusive tax</option>
+                      </select>
+                    </div>
+                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        name="tax_exempt_gst"
+                        value="1"
+                        checked={taxExemptGst}
+                        onChange={(e) => setTaxExemptGst(e.target.checked)}
+                        className="size-3"
+                      />
+                      Exempt GST
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        name="tax_exempt_service"
+                        value="1"
+                        checked={taxExemptService}
+                        onChange={(e) => setTaxExemptService(e.target.checked)}
+                        className="size-3"
+                      />
+                      Exempt SC
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        name="tax_exempt_bst"
+                        value="1"
+                        checked={taxExemptBst}
+                        onChange={(e) => setTaxExemptBst(e.target.checked)}
+                        className="size-3"
+                      />
+                      Exempt BST
+                    </label>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-normal text-muted-foreground">
+                        Release days
+                      </Label>
+                      <Input
+                        name="release_days_before_arrival"
+                        type="number"
+                        min={0}
+                        value={releaseDays}
+                        onChange={(e) => setReleaseDays(e.target.value)}
+                        placeholder="0"
+                        className="h-9 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-normal text-muted-foreground">
+                        Release %
+                      </Label>
+                      <Input
+                        name="release_percent"
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={releasePercent}
+                        onChange={(e) => setReleasePercent(e.target.value)}
+                        placeholder="0"
+                        className="h-9 text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-normal text-muted-foreground">
+                        Sold by
+                      </Label>
+                      <StaffPicker
+                        staff={staff}
+                        value={soldByStaffId}
+                        onValueChange={setSoldByStaffId}
+                        className="h-9 min-h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="db_email"
+                        className="text-xs font-normal text-muted-foreground"
+                      >
+                        Email
+                      </Label>
+                      <Input
+                        id="db_email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="h-9 text-sm"
+                        placeholder="Optional"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="db_promo"
+                        className="text-xs font-normal text-muted-foreground"
+                      >
+                        Promo
+                      </Label>
+                      <Input
+                        id="db_promo"
+                        value={promoCode}
+                        onChange={(e) => setPromoCode(e.target.value)}
+                        className="h-9 text-sm uppercase"
+                        placeholder="Code"
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="db_notes"
+                        className="text-xs font-normal text-muted-foreground"
+                      >
+                        Notes
+                      </Label>
+                      <Input
+                        id="db_notes"
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        className="h-9 text-sm"
+                        placeholder="ETA, requests…"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </details>
             </div>
           </div>
 
-          <div className="shrink-0 border-t bg-background/95 px-2.5 py-1.5">
-            <div className="flex flex-wrap items-center gap-1.5">
+          <div className="shrink-0 border-t bg-background/95 px-3 py-2.5">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="submit"
                 variant="outline"
                 disabled={pending || blockCredit || totalGuestRooms < 1}
-                className="h-8 px-2.5 text-xs"
+                className="h-9 px-3 text-xs"
                 onClick={() => setIntent("reserve")}
               >
                 Hold
               </Button>
-              <Button
-                type="submit"
-                variant="secondary"
-                disabled={
-                  pending ||
-                  blockCredit ||
-                  totalGuestRooms < 1 ||
-                  !guestName.trim() ||
-                  anyRatePendingSubmit
-                }
-                className="h-8 px-2.5 text-xs"
-                onClick={() => setIntent("check_in")}
-                title={
-                  anyRatePendingSubmit
-                    ? "Awaiting GM rate approval"
-                    : undefined
-                }
-              >
-                Save → CI
-              </Button>
+              <p className="ml-auto text-xs tabular-nums text-muted-foreground">
+                {stayTotal != null &&
+                Number.isFinite(stayTotal) &&
+                stayTotal > 0.5 &&
+                totalGuestRooms >= 1
+                  ? formatGuestBtn(stayTotal)
+                  : "—"}
+              </p>
               <Button
                 type="submit"
                 variant="citrus"
@@ -2370,17 +2378,25 @@ export function DeskBookForm({
                   pending ||
                   blockCredit ||
                   totalGuestRooms < 1 ||
-                  !guestName.trim()
+                  !guestName.trim() ||
+                  (checkIn === todayIso() && anyRatePendingSubmit)
                 }
-                className="ml-auto h-8 min-w-[8.5rem] px-4 text-xs font-semibold"
-                onClick={() => setIntent("confirm")}
+                className="h-9 min-w-[9rem] px-4 text-xs font-semibold"
+                onClick={() =>
+                  setIntent(checkIn === todayIso() ? "check_in" : "confirm")
+                }
+                title={
+                  anyRatePendingSubmit
+                    ? "Awaiting GM rate approval"
+                    : undefined
+                }
               >
-                {pending && intent === "confirm"
+                {pending
                   ? "Saving…"
                   : anyRatePendingSubmit
                     ? "Submit · rate approval"
                     : checkIn === todayIso()
-                      ? "Confirm & check-in"
+                      ? "Confirm check-in"
                       : "Confirm booking"}
               </Button>
             </div>

@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { fmtDateTime, matchesQuery } from "@/lib/erp-lists";
 import { requireDeskPropertyId } from "@/lib/desk-property";
+import { netFolioBalance } from "@/lib/folio/balance";
 import { formatBtn } from "@/lib/pricing";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
 function StatusPill({ value }: { value: string }) {
   if (!value) return null;
   const tone =
-    value === "open"
+    value === "unpaid" || value === "open"
       ? "border-citrus/40 bg-citrus-tint/60 text-citrus"
       : value === "closed"
         ? "border-border bg-muted text-muted-foreground"
@@ -45,7 +46,7 @@ export default async function InvoicesPage({
   let req = admin
     .from("fiscal_documents")
     .select(
-      "id, doc_no, issued_at, folio_id, folios(id, label, status, folio_type, booking_id, folio_lines(total_btn, gst_btn, status))",
+      "id, doc_no, issued_at, folio_id, folios(id, label, status, folio_type, booking_id, agent_id, agents(company_name), folio_lines(id, total_btn, gst_btn, status, reverses_line_id))",
     )
     .eq("property_id", propertyId)
     .eq("doc_kind", "invoice")
@@ -64,13 +65,38 @@ export default async function InvoicesPage({
         status: string;
         folio_type: string;
         booking_id: string | null;
-        folio_lines: { total_btn: number; gst_btn: number; status: string }[] | null;
+        agent_id?: string | null;
+        agents?:
+          | { company_name?: string | null }
+          | { company_name?: string | null }[]
+          | null;
+        folio_lines: {
+          id?: string;
+          total_btn: number;
+          gst_btn: number;
+          status: string;
+          reverses_line_id?: string | null;
+        }[] | null;
       } | null;
       const lines = folio?.folio_lines ?? [];
       const posted = lines.filter((l) => l.status === "posted");
       const total = posted.reduce((s, l) => s + Number(l.total_btn), 0);
       const gst = posted.reduce((s, l) => s + Number(l.gst_btn ?? 0), 0);
       const folioStatus = folio?.status ?? "";
+      const agentRaw = folio?.agents;
+      const agentName = Array.isArray(agentRaw)
+        ? agentRaw[0]?.company_name
+        : agentRaw?.company_name;
+      const balance = netFolioBalance(
+        lines.map((l, i) => ({
+          id: l.id ?? String(i),
+          status: l.status,
+          total_btn: Number(l.total_btn),
+          reverses_line_id: l.reverses_line_id ?? null,
+        })),
+      );
+      const unpaid =
+        folioStatus === "open" && Math.abs(balance) > 0.009;
       return {
         docId: doc.id as string,
         docNo: doc.doc_no as string,
@@ -78,6 +104,8 @@ export default async function InvoicesPage({
         label: folio?.label ?? "Folio",
         status: folioStatus,
         folio_type: folio?.folio_type ?? "guest",
+        agentName: agentName?.trim() || null,
+        unpaid,
         booking_id: folio?.booking_id ?? null,
         issued_at: doc.issued_at as string,
         total,
@@ -87,7 +115,7 @@ export default async function InvoicesPage({
     .filter((r) => {
       if (status && r.status !== status) return false;
       return matchesQuery(
-        [r.docNo, r.label, r.folioId, r.booking_id, r.status, r.folio_type],
+        [r.docNo, r.label, r.folioId, r.booking_id, r.status, r.folio_type, r.agentName],
         query,
       );
     });
@@ -96,7 +124,7 @@ export default async function InvoicesPage({
     <DeskListShell
       eyebrow="Money"
       heading="Tax invoices"
-      blurb="Fiscal invoice numbers (INV-YYYY-####) issued from guest folios only — not POS ticket slips. F&B room charges land on the folio first; issue a number there when you need paperwork. Cash walk-ins without a folio do not appear here."
+      blurb="Fiscal invoice numbers (INV-YYYY-####) from guest folios and travel-agent F&B open items. Cash walk-in tickets without a folio do not appear here."
       filters={
         <form
           className="flex flex-wrap items-end gap-2"
@@ -127,7 +155,7 @@ export default async function InvoicesPage({
               className="h-10 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
             >
               <option value="">All folio statuses</option>
-              <option value="open">Open folio</option>
+              <option value="open">Open / unpaid</option>
               <option value="closed">Closed folio</option>
             </select>
           </div>
@@ -141,11 +169,8 @@ export default async function InvoicesPage({
       <div className="space-y-3 md:hidden">
         {rows.length === 0 ? (
           <p className="rounded-xl border bg-card px-4 py-6 text-sm text-muted-foreground">
-            No tax invoices issued yet. Open a guest folio (from calendar,
-            in-house, or a POS charge-to-room ticket) and use{" "}
-            <span className="font-medium text-foreground">Issue tax invoice</span>
-            . POS cashier slips are under POS → Open tickets → Closed today —
-            they are not fiscal INV numbers.
+            No tax invoices issued yet. Open a guest folio, or settle POS as
+            Charge agent (invoice later) for travel-agent lunches.
           </p>
         ) : (
           rows.map((row) => (
@@ -154,8 +179,14 @@ export default async function InvoicesPage({
                 <div>
                   <p className="font-mono font-medium text-foreground">{row.docNo}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{row.label}</p>
+                  {row.agentName ? (
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {row.agentName}
+                      {row.folio_type === "walk_in" ? " · TA lunch" : ""}
+                    </p>
+                  ) : null}
                 </div>
-                <StatusPill value={row.status} />
+                <StatusPill value={row.unpaid ? "unpaid" : row.status} />
               </div>
               <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
                 <div>
@@ -222,9 +253,8 @@ export default async function InvoicesPage({
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-3 py-6 text-muted-foreground">
-                  No tax invoices issued yet. F&amp;B charges live on the guest
-                  folio first; Issue tax invoice there when needed. POS ticket
-                  slips are under POS → Closed today.
+                  No tax invoices issued yet. Guest folios and travel-agent
+                  F&amp;B open items appear here after INV is issued.
                 </td>
               </tr>
             ) : (
@@ -237,6 +267,8 @@ export default async function InvoicesPage({
                     <p className="font-medium text-foreground">{r.label}</p>
                     <p className="font-mono text-xs text-muted-foreground">
                       {r.folioId.slice(0, 8)}
+                      {r.agentName ? ` · ${r.agentName}` : ""}
+                      {r.folio_type === "walk_in" ? " · TA lunch" : ""}
                     </p>
                   </td>
                   <td className="px-3 py-2.5 text-sm text-foreground">
@@ -247,7 +279,7 @@ export default async function InvoicesPage({
                     {formatBtn(r.total)}
                   </td>
                   <td className="px-3 py-2.5">
-                    <StatusPill value={r.status} />
+                    <StatusPill value={r.unpaid ? "unpaid" : r.status} />
                   </td>
                   <td className="px-3 py-2.5 text-right">
                     <div className="flex flex-col items-end gap-1">

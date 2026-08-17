@@ -99,7 +99,7 @@ export function defaultModulesForDeskRole(
         "/erp/folios",
       ];
     case "fnb":
-      return ["dashboard", "/erp/pos", "/erp/kitchen"];
+      return ["dashboard", "/erp/pos", "/erp/kitchen", "/erp/kds"];
     case "kitchen":
       return ["dashboard", "/erp/kitchen", "/erp/kds"];
     case "hk":
@@ -344,10 +344,9 @@ export function pathnameAllowedForModules(
   if (pathname === "/erp" || pathname === "/erp/") return true;
   if (pathname === "/erp/login" || pathname.startsWith("/erp/login"))
     return true;
-  // Wall displays / print sheets are shell-free; never block.
+  // Print sheets are shell-free and stay reachable for receipt/invoice URLs.
+  // Kitchen TV is a real ops screen — module grants apply (HK/laundry stay out).
   if (
-    pathname === "/erp/kds" ||
-    pathname.startsWith("/erp/kds/") ||
     pathname.startsWith("/erp/menu/print/") ||
     /\/print\/?$/.test(pathname) ||
     /\/receipt\/?$/.test(pathname) ||

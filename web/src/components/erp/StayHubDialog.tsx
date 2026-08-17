@@ -54,7 +54,10 @@ import { fetchBookingSettlementEvidence } from "@/app/actions/erp-settlement-pac
 import { RoomNcForm } from "@/components/erp/RoomNcForm";
 import { AgreedRateForm } from "@/components/erp/AgreedRateForm";
 import { GuestRatePromoForm } from "@/components/erp/GuestRatePromoForm";
-import type { GuestRegistrationCardData } from "@/components/erp/GuestRegistrationCard";
+import {
+  GuestRegistrationCard,
+  type GuestRegistrationCardData,
+} from "@/components/erp/GuestRegistrationCard";
 import {
   PostCheckInRegPanel,
   SignedRegCardUploadStrip,
@@ -73,9 +76,6 @@ import {
 import { StayHubAdvancedPanel } from "@/components/erp/stay-hub/StayHubAdvancedPanel";
 import { StayHubPartyCommandBar, type PartyHubTab } from "@/components/erp/stay-hub/StayHubPartyCommandBar";
 import { StayHubPartyRoomList } from "@/components/erp/stay-hub/StayHubPartyRoomList";
-import { StayHubPartyDocsPanel } from "@/components/erp/stay-hub/StayHubPartyDocsPanel";
-import { StayHubPartyMasterBill } from "@/components/erp/stay-hub/StayHubPartyMasterBill";
-import { RoomingListPanel } from "@/components/erp/RoomingListPanel";
 import { extendPartyAll } from "@/app/actions/erp-reservations-party";
 import { StayHubBookingRoomsStrip } from "@/components/erp/stay-hub/StayHubBookingRoomsStrip";
 import { useDebouncedAutoSave } from "@/components/erp/stay-hub/use-debounced-auto-save";
@@ -110,6 +110,7 @@ import {
   roomNightAllInBtn,
 } from "@/lib/folio/stay-rate-quote";
 import { formatGuestBtn } from "@/lib/pricing";
+import { printDeskSheet } from "@/lib/desk-print";
 import { thimphuToday } from "@/lib/erp-lists";
 import { nightsBetween } from "@/lib/stay-dates";
 import { cn } from "@/lib/utils";
@@ -125,6 +126,7 @@ import {
   type ReactNode,
 } from "react";
 import { toast } from "sonner";
+import { createPortal } from "react-dom";
 
 type FolioToolTab = "bill" | "collect" | "advanced";
 type DetailsToolTab = "stay" | "guest" | "rate" | "more";
@@ -459,7 +461,6 @@ export function StayHubDialog({
   const [splitDate, setSplitDate] = useState("");
   const [splitUnitId, setSplitUnitId] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const [voucherOpen, setVoucherOpen] = useState(false);
   const [panel, setPanel] = useState<StayHubStepId>("reserve");
   const [folioTool, setFolioTool] = useState<FolioToolTab>("bill");
   const [detailsTool, setDetailsTool] = useState<DetailsToolTab>("guest");
@@ -512,6 +513,8 @@ export function StayHubDialog({
     useState<GuestRegistrationCardData | null>(null);
   const [party, setParty] = useState<StayHubPartyContext | null>(null);
   const [partyTab, setPartyTab] = useState<PartyHubTab>("rooms");
+  const partyRef = useRef<StayHubPartyContext | null>(null);
+  partyRef.current = party;
   const collectPayRef = useRef<HTMLDivElement | null>(null);
   const postChargesRef = useRef<HTMLDivElement | null>(null);
   /** Sticky money: skip refetch until force (void/pay) or booking change. */
@@ -635,7 +638,6 @@ export function StayHubDialog({
         setSplitDate(addDays(s.checkIn, 1));
         setSplitUnitId("");
         setMessage(null);
-        setVoucherOpen(false);
         setLockHint(null);
         // Keep sticky money for same booking (prefetch / Folio↔Checkout)
         if (moneyBookingIdRef.current !== s.bookingId) {
@@ -862,7 +864,7 @@ export function StayHubDialog({
     }
 
     let cancelled = false;
-    fetchStayHubSummary(bookingId, assignmentId).then((result) => {
+    void fetchStayHubSummary(bookingId, assignmentId).then((result) => {
       if (cancelled) return;
       if (!result.ok) {
         setLoadError(result.error);
@@ -873,11 +875,16 @@ export function StayHubDialog({
       applySummary(result.data, isNewOpen, preferredStep);
     });
 
-    void fetchStayHubPartyContext(bookingId).then((result) => {
-      if (cancelled) return;
-      if (result.ok) setParty(result.data);
-      else setParty(null);
-    });
+    const sibling = partyRef.current?.members.some((m) => m.bookingId === bookingId);
+    if (sibling && partyRef.current) {
+      setParty({ ...partyRef.current, bookingId });
+    } else {
+      void fetchStayHubPartyContext(bookingId).then((result) => {
+        if (cancelled) return;
+        if (result.ok) setParty(result.data);
+        else setParty(null);
+      });
+    }
 
     return () => {
       cancelled = true;
@@ -1861,13 +1868,31 @@ export function StayHubDialog({
     setSummary((s) => (s ? { ...s, status: prev } : s));
   };
 
+  const switchPartyRoom = useCallback(
+    (nextId: string, nextAssignmentId: string | null) => {
+      stayHubCtx?.openStayHub({
+        bookingId: nextId,
+        assignmentId: nextAssignmentId,
+        board: board === "auto" ? "reservations" : board,
+      });
+    },
+    [stayHubCtx, board],
+  );
+
+  const showPartyRooms = Boolean(
+    party &&
+      (party.members.length > 1 ||
+        party.suggested ||
+        Boolean(party.groupId)),
+  );
+
   const advancedExtra =
     summary && folioId ? (
       <StayHubAdvancedPanel
         folioId={folioId}
         masterCandidates={money?.masterCandidates ?? []}
         onRefresh={refreshSummary}
-        onOpenVoucher={() => setVoucherOpen(true)}
+        onOpenVoucher={() => printDeskSheet("voucher")}
         booking={{
           bookingId: summary.bookingId,
           assignmentId: summary.assignmentId,
@@ -1906,7 +1931,7 @@ export function StayHubDialog({
             "top-auto bottom-0 left-0 right-0 z-[60] h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 rounded-none border-0",
             "data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
             "md:top-[50%] md:bottom-auto md:left-[50%] md:right-auto md:h-auto md:max-h-[min(92vh,880px)] md:w-full md:max-w-5xl md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-lg md:border",
-            "lg:max-w-6xl",
+            showPartyRooms ? "lg:max-w-[min(96vw,88rem)]" : "lg:max-w-6xl",
             "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
           )}
         >
@@ -1947,6 +1972,8 @@ export function StayHubDialog({
               party={party}
               tab={partyTab}
               onTabChange={setPartyTab}
+              activeBookingId={summary.bookingId}
+              onSwitch={switchPartyRoom}
               onLinked={() => {
                 if (!summary) return;
                 void fetchStayHubPartyContext(summary.bookingId).then((r) => {
@@ -1990,6 +2017,8 @@ export function StayHubDialog({
                 folioId={folioId}
                 agentId={summary.agentId}
                 confirmationCode={summary.confirmationCode}
+                onPrintVoucher={() => printDeskSheet("voucher")}
+                onPrintRegistration={() => printDeskSheet("reg")}
               />
             </div>
           ) : null}
@@ -2851,6 +2880,14 @@ export function StayHubDialog({
                 </StayHubWorkFrame>
               )}
             </div>
+            {showPartyRooms && party && summary ? (
+              <StayHubPartyRoomList
+                party={party}
+                activeBookingId={summary.bookingId}
+                onSwitch={switchPartyRoom}
+                side="right"
+              />
+            ) : null}
           </div>
 
           <StayHubFooterBar
@@ -2862,19 +2899,22 @@ export function StayHubDialog({
         </DialogContent>
       </Dialog>
 
-      {summary ? (
-        <Dialog open={voucherOpen} onOpenChange={setVoucherOpen}>
-          <DialogContent className="erp max-h-[92vh] overflow-y-auto sm:max-w-xl print:max-w-none">
-            <DialogHeader className="print:hidden">
-              <DialogTitle>Agent voucher</DialogTitle>
-              <DialogDescription>
-                Quote / voucher print — not the tax invoice.
-              </DialogDescription>
-            </DialogHeader>
-            <FastBookVoucher data={voucherFromSummary(summary)} />
-          </DialogContent>
-        </Dialog>
-      ) : null}
+      {typeof document !== "undefined" && summary
+        ? createPortal(
+            <div className="desk-print-host" aria-hidden>
+              <FastBookVoucher
+                data={voucherFromSummary(summary)}
+                property={regProperty ?? undefined}
+              />
+              <GuestRegistrationCard
+                data={postRegData ?? regDataFromStaySummary(summary, draft)}
+                property={regProperty ?? undefined}
+                design={regDesign}
+              />
+            </div>,
+            document.body,
+          )
+        : null}
 
       {summary && rateEditable ? (
         <Dialog open={railRateOpen} onOpenChange={setRailRateOpen}>

@@ -54,6 +54,15 @@ export type AgentDossierPack = {
   guideSignStatus: string | null;
 };
 
+export type AgentDossierOpenItem = {
+  folioId: string;
+  label: string;
+  invoiceNo: string | null;
+  balance: number;
+  createdAt: string;
+  status: string;
+};
+
 export type AgentDossierBooking = {
   id: string;
   contact_name: string | null;
@@ -136,6 +145,7 @@ export type AgentDossierMoney = {
   habit: AgentPaymentHabit;
   openRoomsInHouse: number;
   packs: AgentDossierPack[];
+  openItems: AgentDossierOpenItem[];
 };
 
 export type AgentDossier = {
@@ -399,7 +409,7 @@ export async function loadAgentDossier(
           .order("created_at", { ascending: false })
           .limit(200);
 
-  const payments: AgentDossierPayment[] = (paymentRows ?? []).map((p) => ({
+  const stayPayments: AgentDossierPayment[] = (paymentRows ?? []).map((p) => ({
     id: p.id as string,
     amount_btn: Number(p.amount_btn ?? 0),
     method: (p.method as string) ?? "—",
@@ -429,6 +439,74 @@ export async function loadAgentDossier(
       }
     }
   }
+
+  const { data: openItemFolios } = await admin
+    .from("folios")
+    .select(
+      "id, label, status, created_at, folio_lines(id, total_btn, status, reverses_line_id), fiscal_documents(doc_no, doc_kind, status)",
+    )
+    .eq("property_id", propertyId)
+    .eq("agent_id", agentId)
+    .eq("folio_type", "walk_in")
+    .order("created_at", { ascending: false })
+    .limit(80);
+
+  const openItemFolioIds = (openItemFolios ?? []).map((f) => f.id as string);
+  const openItems: AgentDossierOpenItem[] = (openItemFolios ?? []).map((f) => {
+    const lines =
+      (f.folio_lines as FolioLine[] | null) ?? [];
+    const chargeTotal = lines
+      .filter((l) => l.status === "posted" && Number(l.total_btn) > 0)
+      .reduce((s, l) => s + Number(l.total_btn), 0);
+    folioTotal += chargeTotal;
+    const balance = netFolioBalance(lines);
+    if (Math.abs(balance) > 0.009 && (f.status as string) !== "settled") {
+      aging = addToAging(
+        aging,
+        balance,
+        today,
+        String(f.created_at).slice(0, 10) || today,
+      );
+    }
+    const docs =
+      (f.fiscal_documents as
+        | { doc_no?: string; doc_kind?: string; status?: string }[]
+        | null) ?? [];
+    const inv = docs.find(
+      (d) => d.doc_kind === "invoice" && d.status === "issued",
+    );
+    return {
+      folioId: f.id as string,
+      label: (f.label as string) || (f.id as string).slice(0, 8),
+      invoiceNo: inv?.doc_no ?? null,
+      balance,
+      createdAt: f.created_at as string,
+      status: f.status as string,
+    };
+  });
+
+  let extraPayments: AgentDossierPayment[] = [];
+  if (openItemFolioIds.length > 0) {
+    const { data: openItemPays } = await admin
+      .from("payments")
+      .select(
+        "id, amount_btn, method, kind, created_at, booking_id, reference",
+      )
+      .eq("property_id", propertyId)
+      .in("folio_id", openItemFolioIds)
+      .order("created_at", { ascending: false })
+      .limit(80);
+    extraPayments = (openItemPays ?? []).map((p) => ({
+      id: p.id as string,
+      amount_btn: Number(p.amount_btn ?? 0),
+      method: (p.method as string) ?? "—",
+      kind: (p.kind as string | null) ?? null,
+      created_at: p.created_at as string,
+      booking_id: (p.booking_id as string | null) ?? null,
+      reference: (p.reference as string | null) ?? null,
+    }));
+  }
+  const payments: AgentDossierPayment[] = [...stayPayments, ...extraPayments];
   const paid = payments.reduce((s, p) => s + p.amount_btn, 0);
   const outstanding = folioTotal - paid;
 
@@ -553,6 +631,7 @@ export async function loadAgentDossier(
       habit: buildHabit(payments, bookings),
       openRoomsInHouse,
       packs,
+      openItems,
     },
     rates,
     allotments,

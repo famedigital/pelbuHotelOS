@@ -23,6 +23,15 @@ export type PosBookingOption = {
   guests: { id: string | null; full_name: string; phone: string | null }[];
 };
 
+export type PosCreditAgentOption = {
+  id: string;
+  company_name: string;
+  market: string;
+  status: string;
+  credit_used: number;
+  credit_limit: number;
+};
+
 /** Legacy alias kept so older imports of `DeskBookingOption` still resolve. */
 export type DeskBookingOption = PosBookingOption;
 
@@ -87,6 +96,7 @@ export type TenderDraft = {
   amountBtn: number;
   reference?: string;
   bookingId?: string;
+  agentId?: string;
 };
 
 export type PosLayoutProps = {
@@ -100,6 +110,7 @@ export type PosLayoutProps = {
   /** Settled today — Closed today lane in open-tickets drawer. */
   settledTickets?: OpenPosTicket[];
   bookings: PosBookingOption[];
+  creditAgents?: PosCreditAgentOption[];
   shift: PosShift | null;
   /** Live tender/open-ticket summary for the open shift close tab. */
   shiftCloseSummary?: PosShiftCloseSummary | null;
@@ -111,6 +122,8 @@ export type PosLayoutProps = {
   guestServiceSlot?: React.ReactNode;
   /** Active NC reason codes for POS. */
   ncReasons?: { code: string; label: string }[];
+  /** False for HK/laundry — they cannot send tickets to the kitchen TV. */
+  canFireKot?: boolean;
 };
 
 /** Outlet code is property-scoped text (cafe, rooftop, …). */

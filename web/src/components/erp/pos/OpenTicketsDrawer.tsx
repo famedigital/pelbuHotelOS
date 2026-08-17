@@ -237,6 +237,8 @@ type Props = {
   tables: DiningTable[];
   onSettle: (orderId: string) => void;
   onVoid: (orderId: string) => void;
+  /** HK/laundry cannot park/resume tickets onto the kitchen TV. */
+  canFireKot?: boolean;
 };
 
 export function OpenTicketsDrawer({
@@ -248,6 +250,7 @@ export function OpenTicketsDrawer({
   tables,
   onSettle,
   onVoid,
+  canFireKot = true,
 }: Props) {
   const [parkState, parkAction, parkPending] = useActionState(
     parkOrder,
@@ -459,7 +462,7 @@ export function OpenTicketsDrawer({
         >
           <Link href={`/erp/orders/${t.id}/slip`}>Print slip</Link>
         </Button>
-        {t.is_parked ? (
+        {canFireKot && t.is_parked ? (
           <form action={unparkAction}>
             <input type="hidden" name="order_id" value={t.id} />
             <Button
@@ -472,7 +475,7 @@ export function OpenTicketsDrawer({
               Resume
             </Button>
           </form>
-        ) : (
+        ) : canFireKot ? (
           <form action={parkAction}>
             <input type="hidden" name="order_id" value={t.id} />
             <Button
@@ -485,7 +488,7 @@ export function OpenTicketsDrawer({
               Park
             </Button>
           </form>
-        )}
+        ) : null}
         {t.kot_status === "new" || t.kot_status === "preparing" ? (
           <Button
             type="button"
@@ -699,7 +702,8 @@ export function OpenTicketsDrawer({
                   onSettle={onSettle}
                   onVoid={onVoid}
                   onOpen={setDetailId}
-                  actions={(t) => (
+                  actions={(t) =>
+                    canFireKot ? (
                     <form action={unparkAction}>
                       <input type="hidden" name="order_id" value={t.id} />
                       <Button
@@ -712,7 +716,8 @@ export function OpenTicketsDrawer({
                         Resume
                       </Button>
                     </form>
-                  )}
+                    ) : null
+                  }
                 />
               ) : null}
               {servedUnpaid.length > 0 ? (
@@ -738,6 +743,7 @@ export function OpenTicketsDrawer({
                 onOpen={setDetailId}
                 actions={(t) => (
                   <div className="flex flex-wrap gap-1.5">
+                    {canFireKot ? (
                     <form action={parkAction}>
                       <input type="hidden" name="order_id" value={t.id} />
                       <Button
@@ -750,6 +756,7 @@ export function OpenTicketsDrawer({
                         Park
                       </Button>
                     </form>
+                    ) : null}
                     {t.kot_status === "new" || t.kot_status === "preparing" ? (
                       <Button
                         type="button"

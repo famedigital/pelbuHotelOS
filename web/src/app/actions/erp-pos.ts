@@ -4,10 +4,21 @@ import { writeAuditEvent } from "@/lib/audit";
 import { postPosWalkInTender } from "@/lib/accounting/posting";
 import { periodGuardFromForm } from "@/lib/accounting/period-guard-form";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
-import { isDeskAuthenticated, requireMoneyDesk } from "@/lib/desk-auth";
+import {
+  isDeskAuthenticated,
+  requireKotBoardDesk,
+  requireMoneyDesk,
+  requirePosFireDesk,
+} from "@/lib/desk-auth";
 import { thimphuToday } from "@/lib/erp-lists";
+import { issueFiscalDocument } from "@/lib/fiscal/issue-document";
+import { isAgentOpenItemFolio } from "@/lib/folio/agent-open-item";
 import { allocateSplitGst, postFolioCharge } from "@/lib/folio/post-charge";
-import { postFolioPaymentRecord } from "@/lib/folio/post-payment";
+import {
+  maybeSettleZeroBalanceFolio,
+  postFolioPaymentRecord,
+} from "@/lib/folio/post-payment";
+import { creditAgentIneligibilityMessage } from "@/lib/agents/status";
 import {
   applyDiscountPct,
   resolveBookingPartnerDiscountPct,
@@ -145,6 +156,40 @@ async function ensureOpenFolio(
 
   if (folioError || !folio) {
     throw new Error("Could not create folio.");
+  }
+  return folio.id as string;
+}
+
+async function createWalkInAgentFolio(
+  admin: Admin,
+  propertyId: string,
+  args: {
+    agentId: string;
+    agentName: string;
+    dinerName: string | null;
+  },
+): Promise<string> {
+  const today = thimphuToday();
+  const diner = args.dinerName?.trim() || null;
+  const label = ["TA lunch", args.agentName.trim() || "Agent", today, diner]
+    .filter(Boolean)
+    .join(" · ");
+
+  const { data: folio, error } = await admin
+    .from("folios")
+    .insert({
+      property_id: propertyId,
+      booking_id: null,
+      agent_id: args.agentId,
+      folio_type: "walk_in",
+      label: label.slice(0, 180),
+      status: "open",
+    })
+    .select("id")
+    .single();
+
+  if (error || !folio) {
+    throw new Error("Could not create agent open-item folio.");
   }
   return folio.id as string;
 }
@@ -408,7 +453,7 @@ export async function createDeskOrder(
   formData: FormData,
 ): Promise<DeskPosState> {
   try {
-    await requireMoneyDesk();
+    await requirePosFireDesk();
 
     const customerName = trimRequired(formData.get("customer_name"), "Guest name");
     const phoneRaw = optionalTrim(formData.get("phone"));
@@ -914,7 +959,7 @@ function formatShort(amount: number): string {
 }
 
 export async function updateOrderKotStatus(formData: FormData): Promise<void> {
-  await requireDesk();
+  await requireKotBoardDesk();
 
   const orderId = trimRequired(formData.get("order_id"), "Order");
   const nextStatus = trimRequired(formData.get("kot_status"), "Status");
@@ -1026,7 +1071,7 @@ export async function markOrderItemServed(
   formData: FormData,
 ): Promise<PosActionState> {
   try {
-    await requireDesk();
+    await requireKotBoardDesk();
     const orderId = trimRequired(formData.get("order_id"), "Order");
     const itemId = trimRequired(formData.get("order_item_id"), "Order item");
 
@@ -1467,7 +1512,7 @@ export async function postFolioPayment(
 
     const { data: folio, error: folioError } = await admin
       .from("folios")
-      .select("id, booking_id, status, property_id")
+      .select("id, booking_id, agent_id, status, property_id")
       .eq("id", folioId)
       .eq("property_id", property_id)
       .single();
@@ -1480,7 +1525,17 @@ export async function postFolioPayment(
       throw new Error("Folio is not open.");
     }
 
+    const agentOpenItem = isAgentOpenItemFolio({
+      agent_id: folio.agent_id as string | null,
+      booking_id: folio.booking_id as string | null,
+    });
+
     if (method === "agent_credit") {
+      if (agentOpenItem) {
+        throw new Error(
+          "This is already on the agent AR book. Collect cash or bank when the agency pays.",
+        );
+      }
       const bookingId = folio.booking_id as string | null;
       if (!bookingId) {
         throw new Error("Agent credit needs a booking on this folio.");
@@ -1501,9 +1556,6 @@ export async function postFolioPayment(
         .eq("id", agentId)
         .maybeSingle();
       if (!agentRow) throw new Error("Agent not found.");
-      const { creditAgentIneligibilityMessage } = await import(
-        "@/lib/agents/status"
-      );
       const creditBlocked = creditAgentIneligibilityMessage(
         agentRow.status as string,
         agentRow.company_name as string | null,
@@ -1522,6 +1574,7 @@ export async function postFolioPayment(
       reference,
       notes,
       folio_line_source: "payment",
+      arSide: agentOpenItem ? "agent" : "guest",
       idempotency_key:
         clientKey ??
         (reference
@@ -1532,6 +1585,18 @@ export async function postFolioPayment(
 
     if (pay.alreadyExists) {
       return { ok: true, paymentId: pay.paymentId };
+    }
+
+    if (agentOpenItem && method !== "agent_credit") {
+      const agentId = folio.agent_id as string;
+      const { releaseAgentCredit } = await import("@/app/actions/erp-agents");
+      await releaseAgentCredit(admin, {
+        agentId,
+        amountBtn,
+        paymentId: pay.paymentId,
+        note: notes ?? `Open-item collect · ${folioId.slice(0, 8)}`,
+      });
+      await maybeSettleZeroBalanceFolio(admin, folioId);
     }
 
     if (method === "agent_credit") {
@@ -1570,12 +1635,15 @@ export async function postFolioPayment(
     revalidatePath(`/erp/folios/${folioId}`);
     revalidatePath("/erp/reports");
     revalidatePath("/erp/finance");
+    revalidatePath("/erp/invoices");
+    revalidatePath("/erp/agents");
     return {
       ok: true,
       paymentId: pay.paymentId,
       settleKind: method === "agent_credit" ? "agent_ar" : "cash_like",
-      message:
-        method === "agent_credit"
+      message: agentOpenItem
+        ? `Collected Nu ${amountBtn} against agent invoice.`
+        : method === "agent_credit"
           ? `Charged Nu ${amountBtn} to agent AR book (agent owes). Guest folio reduced.`
           : `Collected Nu ${amountBtn}.`,
     };
@@ -1600,7 +1668,7 @@ export async function parkOrder(
   formData: FormData,
 ): Promise<PosActionState> {
   try {
-    await requireDesk();
+    await requirePosFireDesk();
     const orderId = trimRequired(formData.get("order_id"), "Order");
     const admin = createSupabaseAdminClient();
     const property_id = await propertyId(admin);
@@ -1644,7 +1712,7 @@ export async function unparkOrder(
   formData: FormData,
 ): Promise<PosActionState> {
   try {
-    await requireDesk();
+    await requirePosFireDesk();
     const orderId = trimRequired(formData.get("order_id"), "Order");
     const admin = createSupabaseAdminClient();
     const property_id = await propertyId(admin);
@@ -2026,6 +2094,7 @@ type TenderInput = {
   amountBtn: number;
   reference?: string;
   bookingId?: string;
+  agentId?: string;
 };
 
 function parseTenders(raw: FormDataEntryValue | null): TenderInput[] {
@@ -2059,6 +2128,7 @@ function parseTenders(raw: FormDataEntryValue | null): TenderInput[] {
     }
     const reference = (row as { reference?: string }).reference;
     const bookingId = (row as { bookingId?: string }).bookingId;
+    const agentId = (row as { agentId?: string }).agentId;
     tenders.push({
       method: method as PosTenderMethod,
       amountBtn: roundBtn(amount),
@@ -2070,6 +2140,10 @@ function parseTenders(raw: FormDataEntryValue | null): TenderInput[] {
         typeof bookingId === "string" && bookingId.trim()
           ? bookingId.trim()
           : undefined,
+      agentId:
+        typeof agentId === "string" && agentId.trim()
+          ? agentId.trim()
+          : undefined,
     });
   }
   return tenders;
@@ -2079,6 +2153,7 @@ export type SplitSettleState = {
   ok: boolean;
   orderId?: string;
   folioId?: string;
+  invoiceDocId?: string;
   totalBtn?: number;
   methods?: string[];
   error?: string;
@@ -2138,7 +2213,33 @@ export async function splitSettle(
       throw new Error("Order already has tenders. Use recall first.");
     }
 
+    const agentTenders = tenders.filter((t) => t.method === "agent_credit");
+    const hasAgentOpenItem = agentTenders.length > 0;
+    const hasRoomCharge = tenders.some((t) => t.method === "room_charge");
+    if (hasAgentOpenItem && agentTenders.length > 1) {
+      throw new Error(
+        "Use one Charge agent (invoice later) tender for the full bill.",
+      );
+    }
+    if (hasAgentOpenItem && hasRoomCharge) {
+      throw new Error(
+        "Charge agent (invoice later) cannot mix with charge-to-room. Use separate tickets.",
+      );
+    }
+    if (
+      hasAgentOpenItem &&
+      tenders.some(
+        (t) => t.method !== "agent_credit" && t.method !== "nc",
+      )
+    ) {
+      throw new Error(
+        "Charge agent (invoice later) must be the only payment. Split cash on a separate ticket.",
+      );
+    }
+
     let folioId: string | null = (order.folio_id as string | null) ?? null;
+    let agentOpenItemId: string | null = null;
+    let invoiceDocId: string | undefined;
     for (const tender of tenders) {
       let tenderFolioId: string | null = null;
       const tenderBookingId: string | null = tender.bookingId ?? null;
@@ -2186,6 +2287,85 @@ export async function splitSettle(
               : "Could not post room-charge tender to folio.",
           );
         }
+      }
+
+      if (tender.method === "agent_credit") {
+        const agentId = tender.agentId ?? null;
+        if (!agentId) {
+          throw new Error("Pick the travel agent to invoice.");
+        }
+        const { data: agentRow } = await admin
+          .from("agents")
+          .select("id, status, company_name, credit_limit, credit_used")
+          .eq("id", agentId)
+          .maybeSingle();
+        if (!agentRow) throw new Error("Agent not found.");
+        const creditBlocked = creditAgentIneligibilityMessage(
+          agentRow.status as string,
+          agentRow.company_name as string | null,
+        );
+        if (creditBlocked) throw new Error(creditBlocked);
+
+        const dinerName =
+          (order.customer_name as string | null)?.trim() || null;
+        tenderFolioId = await createWalkInAgentFolio(admin, property_id, {
+          agentId,
+          agentName: (agentRow.company_name as string) ?? "Agent",
+          dinerName,
+        });
+        folioId = tenderFolioId;
+        agentOpenItemId = agentId;
+
+        const orderGst = Number(order.gst_btn ?? 0);
+        const gstShare = allocateSplitGst(
+          tender.amountBtn,
+          totalBtn,
+          orderGst,
+        );
+        const netShare = roundBtn(tender.amountBtn - gstShare);
+        const outlet = (order.outlet as string) || "F&B";
+        const dinerBit = dinerName ? ` · ${dinerName}` : "";
+        const refBit = tender.reference ? ` · ${tender.reference}` : "";
+
+        try {
+          await postFolioCharge(admin, property_id, {
+            folio_id: tenderFolioId,
+            booking_id: null,
+            source_type: "order",
+            source_id: orderId,
+            description: `POS ${outlet}${dinerBit}${refBit}`,
+            qty: 1,
+            unit_price_btn: netShare,
+            amount_btn: netShare,
+            service_charge_rate: 0,
+            service_charge_btn: 0,
+            service_charge_applied: false,
+            gst_applicable: orderGst > 0,
+            gst_btn: gstShare,
+            total_btn: tender.amountBtn,
+            bill_to: "agent",
+          });
+        } catch (e) {
+          throw new Error(
+            e instanceof Error
+              ? e.message
+              : "Could not post agent open-item charge.",
+          );
+        }
+
+        const { chargeAgentCredit } = await import("@/app/actions/erp-agents");
+        await chargeAgentCredit(admin, {
+          agentId,
+          amountBtn: tender.amountBtn,
+          note: `POS open item · ${outlet}${dinerBit}${refBit}`,
+        });
+
+        const doc = await issueFiscalDocument(admin, property_id, {
+          docKind: "invoice",
+          folioId: tenderFolioId,
+          issuedBy: "desk",
+        });
+        invoiceDocId = doc.id;
       }
 
       const { data: tenderRow, error: tenderError } = await admin
@@ -2253,10 +2433,12 @@ export async function splitSettle(
         parked_at: null,
         folio_id: folioId,
         booking_id: roomBookingId ?? order.booking_id,
+        agent_id: agentOpenItemId,
         order_source: hasRoom ? "room_charge" : "desk",
-        posted_to_folio_at: hasRoom
-          ? ((order.posted_to_folio_at as string | null) ?? nowIso)
-          : order.posted_to_folio_at,
+        posted_to_folio_at:
+          hasRoom || hasAgentOpenItem
+            ? ((order.posted_to_folio_at as string | null) ?? nowIso)
+            : order.posted_to_folio_at,
         status: "completed",
         pos_shift_id: posShiftId ?? order.pos_shift_id,
       })
@@ -2278,24 +2460,33 @@ export async function splitSettle(
       action: "pos.order.settle",
       entityType: "orders",
       entityId: orderId,
-      summary: `Settled · ${formatShort(totalBtn)} · ${tenders.length} tender(s)`,
-      meta: { tenders, totalBtn },
+      summary: hasAgentOpenItem
+        ? `Settled open item · ${formatShort(totalBtn)} · invoice later`
+        : `Settled · ${formatShort(totalBtn)} · ${tenders.length} tender(s)`,
+      meta: { tenders, totalBtn, invoiceDocId },
     });
 
     revalidatePath("/erp");
     revalidatePath("/erp/pos");
     revalidatePath(`/erp/orders/${orderId}/receipt`);
     if (folioId) revalidatePath(`/erp/folios/${folioId}`);
+    if (invoiceDocId) revalidatePath(`/erp/invoices/${invoiceDocId}/print`);
+    revalidatePath("/erp/invoices");
+    revalidatePath("/erp/folios");
     revalidatePath("/erp/finance");
+    revalidatePath("/erp/agents");
     const methodList = [...new Set(tenders.map((t) => t.method))];
     const methodText = methodList.join(" + ");
-    const message = folioId
-      ? `Settled ${formatShort(totalBtn)} · ${methodText} · open folio to issue tax invoice`
-      : `Settled ${formatShort(totalBtn)} · ${methodText}`;
+    const message = hasAgentOpenItem
+      ? `Charged ${formatShort(totalBtn)} to agent AR · tax invoice issued · payment later`
+      : folioId
+        ? `Settled ${formatShort(totalBtn)} · ${methodText} · open folio to issue tax invoice`
+        : `Settled ${formatShort(totalBtn)} · ${methodText}`;
     return {
       ok: true,
       orderId,
       folioId: folioId ?? undefined,
+      invoiceDocId,
       totalBtn,
       methods: methodList,
       message,
@@ -2313,7 +2504,7 @@ export async function recallOrder(
   formData: FormData,
 ): Promise<PosActionState> {
   try {
-    await requireDesk();
+    await requireMoneyDesk();
     const orderId = trimRequired(formData.get("order_id"), "Order");
     const admin = createSupabaseAdminClient();
     const property_id = await propertyId(admin);
@@ -2623,7 +2814,7 @@ export async function confirmPublicOrder(
   formData: FormData,
 ): Promise<ConfirmOrderState> {
   try {
-    await requireDesk();
+    await requirePosFireDesk();
     // POS runs on the shared desk PIN; a personal staff session is a bonus we
     // stamp when present, never a requirement.
     const staff = await getStaffSession();

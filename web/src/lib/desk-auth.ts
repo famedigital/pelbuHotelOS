@@ -13,11 +13,31 @@ export type DeskRole =
   | "kitchen"
   | "laundry";
 
-const MONEY_ROLES: ReadonlySet<DeskRole> = new Set([
+/** Settle / void / drawer — not waiters or HK. */
+export const MONEY_ROLES: ReadonlySet<DeskRole> = new Set([
   "cashier",
   "gm",
   "owner",
   "front_desk",
+]);
+
+/** Fire a ticket onto the kitchen TV (Send / unpark). Waiters yes; HK/laundry/cooks no. */
+export const POS_FIRE_ROLES: ReadonlySet<DeskRole> = new Set([
+  "cashier",
+  "fnb",
+  "front_desk",
+  "gm",
+  "owner",
+]);
+
+/** Operate kitchen / pass displays (bump KOT). Cooks + F&B + FO; not HK/laundry. */
+export const KOT_BOARD_ROLES: ReadonlySet<DeskRole> = new Set([
+  "kitchen",
+  "fnb",
+  "cashier",
+  "front_desk",
+  "gm",
+  "owner",
 ]);
 
 const ALL_DESK_ROLES: ReadonlySet<string> = new Set([
@@ -162,6 +182,34 @@ export function mapAccessLevelToDeskRole(
   return "front_desk";
 }
 
+/** HK / laundry — must not be POS servers or fire tickets to the kitchen TV. */
+export function isHouseOpsStaff(args: {
+  deskRole?: string | null;
+  department?: string | null;
+  roleLabel?: string | null;
+}): boolean {
+  const role = normalizeDeskRole(args.deskRole);
+  if (role === "hk" || role === "laundry") return true;
+  const dept = (args.department ?? "").trim().toLowerCase();
+  if (
+    dept === "hk" ||
+    dept === "housekeeping" ||
+    dept.includes("laundry") ||
+    dept.includes("housekeep")
+  ) {
+    return true;
+  }
+  const label = (args.roleLabel ?? "").trim().toLowerCase();
+  if (
+    label.includes("housekeep") ||
+    label.includes("laundry") ||
+    /\bmaid\b/.test(label)
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export async function requireDeskRole(
   allowed: readonly DeskRole[],
 ): Promise<DeskRole> {
@@ -178,6 +226,48 @@ export async function requireDeskRole(
 /** Money paths: cashier, front_desk, gm, owner (not hk/kitchen/fnb-only). */
 export async function requireMoneyDesk(): Promise<DeskRole> {
   return requireDeskRole([...MONEY_ROLES]);
+}
+
+export function isPosFireRole(role: DeskRole | null | undefined): boolean {
+  return role != null && POS_FIRE_ROLES.has(role);
+}
+
+export function isKotBoardRole(role: DeskRole | null | undefined): boolean {
+  return role != null && KOT_BOARD_ROLES.has(role);
+}
+
+/** Send / park / unpark POS tickets that appear on the kitchen display. */
+export async function requirePosFireDesk(): Promise<DeskRole> {
+  try {
+    return await requireDeskRole([...POS_FIRE_ROLES]);
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      err.message === "You do not have permission for this action."
+    ) {
+      throw new Error(
+        "Only F&B, cashier, and front desk can send tickets to the kitchen display.",
+      );
+    }
+    throw err;
+  }
+}
+
+/** Bump KOT on kitchen / pass TV (not housekeeping or laundry). */
+export async function requireKotBoardDesk(): Promise<DeskRole> {
+  try {
+    return await requireDeskRole([...KOT_BOARD_ROLES]);
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      err.message === "You do not have permission for this action."
+    ) {
+      throw new Error(
+        "Housekeeping and laundry cannot operate the kitchen display.",
+      );
+    }
+    throw err;
+  }
 }
 
 /**

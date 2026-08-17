@@ -2,7 +2,8 @@ import { GuestServiceForm } from "@/components/erp/GuestServiceForm";
 import { DeskOfflineQueueStrip } from "@/components/erp/DeskOfflineQueueStrip";
 import { MealServiceBoard } from "@/components/erp/MealServiceBoard";
 import { PosLayout } from "@/components/erp/pos/PosLayout";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { CREDIT_AGENT_STATUSES } from "@/lib/agents/status";
+import { getDeskRole, isDeskAuthenticated, isPosFireRole } from "@/lib/desk-auth";
 import { thimphuToday } from "@/lib/erp-lists";
 import { loadMealServicesForDate } from "@/lib/kitchen/meal-service";
 import { loadMenuByOutlets } from "@/lib/menu-loader";
@@ -57,6 +58,7 @@ export default async function ErpPosPage() {
     shift,
     mealServices,
     { data: todayEvents },
+    deskRole,
   ] = await Promise.all([
       loadMenuByOutlets(
         activeOutletCodes.length > 0
@@ -97,6 +99,7 @@ export default async function ErpPosPage() {
         .eq("event_date", today)
         .neq("status", "cancelled")
         .order("service_time", { ascending: true }),
+      getDeskRole(),
     ]);
 
   const shiftCloseSummary = shift
@@ -127,6 +130,21 @@ export default async function ErpPosPage() {
       return !domains || domains.includes("pos") || domains.includes("all");
     })
     .map((r) => ({ code: r.code as string, label: r.label as string }));
+
+  const { data: creditAgentRows } = await admin
+    .from("agents")
+    .select("id, company_name, market, status, credit_used, credit_limit")
+    .in("status", [...CREDIT_AGENT_STATUSES])
+    .order("company_name")
+    .limit(200);
+  const creditAgents = (creditAgentRows ?? []).map((a) => ({
+    id: a.id as string,
+    company_name: (a.company_name as string) ?? "Agent",
+    market: (a.market as string) ?? "",
+    status: (a.status as string) ?? "",
+    credit_used: Number(a.credit_used ?? 0),
+    credit_limit: Number(a.credit_limit ?? 0),
+  }));
 
   const bookingOptions = (bookings ?? []).map((b) => ({
     id: b.id as string,
@@ -235,6 +253,7 @@ export default async function ErpPosPage() {
         openTickets={openTickets}
         settledTickets={settledTickets}
         bookings={bookingOptions}
+        creditAgents={creditAgents}
         shift={shift}
         shiftCloseSummary={shiftCloseSummary}
         gstRate={property?.gst_rate ?? 0.07}
@@ -246,6 +265,7 @@ export default async function ErpPosPage() {
           voidManagerThresholdBtn: voidManagerThresholdBtn(),
         }}
         ncReasons={ncReasons}
+        canFireKot={isPosFireRole(deskRole)}
         guestServiceSlot={
           <div className="rounded-xl border bg-card p-4">
             <div className="mb-4 space-y-0.5">

@@ -43,6 +43,8 @@ type Props = {
    * form, so every control id needs a unique prefix.
    */
   idPrefix: string;
+  /** HK/laundry cannot fire tickets onto the kitchen display. */
+  canFireKot?: boolean;
 };
 
 function lineUnit(line: CartLine): number {
@@ -74,6 +76,7 @@ export function CartPanel({
   onToggleNc,
   ncReasons = [],
   idPrefix,
+  canFireKot = true,
 }: Props) {
   const gstPct = Math.round(gstRate * 10000) / 100;
   const servicePct = servicePercent || "0";
@@ -370,32 +373,41 @@ export function CartPanel({
         </div>
 
         <div className="grid gap-2">
-          <Button
-            type="submit"
-            name="is_parked"
-            value="0"
-            variant="citrus"
-            size="lg"
-            disabled={pending || cart.length === 0}
-            className="w-full"
-          >
-            {pending
-              ? "Sending…"
-              : cart.length === 0
-                ? "Add items to send"
-                : sendLabel}
-          </Button>
-          <Button
-            type="submit"
-            name="is_parked"
-            value="1"
-            variant="outline"
-            size="lg"
-            disabled={pending || cart.length === 0}
-            className="w-full"
-          >
-            {pending ? "Parking…" : "Park ticket"}
-          </Button>
+          {canFireKot ? (
+            <>
+              <Button
+                type="submit"
+                name="is_parked"
+                value="0"
+                variant="citrus"
+                size="lg"
+                disabled={pending || cart.length === 0}
+                className="w-full"
+              >
+                {pending
+                  ? "Sending…"
+                  : cart.length === 0
+                    ? "Add items to send"
+                    : sendLabel}
+              </Button>
+              <Button
+                type="submit"
+                name="is_parked"
+                value="1"
+                variant="outline"
+                size="lg"
+                disabled={pending || cart.length === 0}
+                className="w-full"
+              >
+                {pending ? "Parking…" : "Park ticket"}
+              </Button>
+            </>
+          ) : (
+            <p className="rounded-lg border border-dashed bg-muted/30 px-3 py-3 text-center text-sm text-muted-foreground">
+              Housekeeping and laundry cannot send tickets to the kitchen
+              display. Ask F&amp;B or the cashier to fire this order.
+            </p>
+          )}
         </div>
       </div>
     </div>

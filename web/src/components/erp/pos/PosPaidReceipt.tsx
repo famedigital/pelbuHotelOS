@@ -5,7 +5,7 @@ const TENDER_LABELS: Record<string, string> = {
   cash: "Cash",
   bank: "Bank transfer",
   card: "Card",
-  agent_credit: "Agent credit",
+  agent_credit: "Charge agent (invoice later)",
   bank_qr: "Bank QR",
   pay_bt: "Pay.bt",
   deposit: "Deposit",

@@ -27,12 +27,12 @@ export default async function CityLedgerPage() {
   const { data: masters } = await admin
     .from("folios")
     .select(
-      "id, label, status, booking_id, created_at, folio_lines(id, total_btn, status, reverses_line_id)",
+      "id, label, status, booking_id, folio_type, agent_id, created_at, agents(company_name), folio_lines(id, total_btn, status, reverses_line_id)",
     )
     .eq("property_id", propertyId)
-    .eq("folio_type", "master")
+    .in("folio_type", ["master", "walk_in"])
     .order("created_at", { ascending: false })
-    .limit(80);
+    .limit(120);
 
   let aging = emptyAging();
   const rows = (masters ?? []).map((f) => {
@@ -50,11 +50,20 @@ export default async function CityLedgerPage() {
     if (Math.abs(balance) > 0.009 && (f.status as string) !== "settled") {
       aging = addToAging(aging, balance, today, openDate);
     }
+    const agentRaw = f.agents as
+      | { company_name?: string | null }
+      | { company_name?: string | null }[]
+      | null;
+    const agentName = Array.isArray(agentRaw)
+      ? agentRaw[0]?.company_name
+      : agentRaw?.company_name;
     return {
       id: f.id as string,
       label: (f.label as string) || (f.id as string).slice(0, 8),
       status: f.status as string,
+      folioType: (f.folio_type as string) ?? "master",
       bookingId: (f.booking_id as string | null) ?? null,
+      agentName: agentName?.trim() || null,
       balance,
       createdAt: f.created_at as string,
       openDate,
@@ -65,11 +74,11 @@ export default async function CityLedgerPage() {
     <DeskListShell
       eyebrow="Money"
       heading="City ledger"
-      blurb="Master folios for groups and agent city ledger. AR aging 30/60/90 below."
+      blurb="Master folios for groups plus travel-agent F&B open items (lunch invoiced, payment later). AR aging 30/60/90 below."
     >
       <section className="rounded-lg border bg-card p-4">
         <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
-          AR aging (open master balances · as of {today})
+          AR aging (open city-ledger balances · as of {today})
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-4">
           {[
@@ -90,7 +99,8 @@ export default async function CityLedgerPage() {
 
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No master folios yet. Open a guest folio and choose{" "}
+          No city-ledger folios yet. Charge a travel-agent lunch on POS
+          (invoice later), or open a guest folio and choose{" "}
           <strong className="font-medium text-foreground">Make master folio</strong>.
         </p>
       ) : (
@@ -109,8 +119,10 @@ export default async function CityLedgerPage() {
                 </Link>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   <span className="uppercase tracking-wide">{r.status}</span>
+                  {r.folioType === "walk_in" ? " · TA lunch" : " · master"}
                   {" · opened "}
                   {r.openDate}
+                  {r.agentName ? ` · ${r.agentName}` : null}
                   {r.bookingId ? (
                     <>
                       {" · "}

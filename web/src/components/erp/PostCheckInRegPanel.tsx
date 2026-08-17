@@ -5,7 +5,6 @@ import {
   type RegCardState,
 } from "@/app/actions/erp-checkin";
 import {
-  GuestRegistrationCard,
   type GuestRegistrationCardData,
   type GuestRegistrationPropertyBits,
 } from "@/components/erp/GuestRegistrationCard";
@@ -14,6 +13,7 @@ import { useActionToast } from "@/hooks/use-action-toast";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { uploadToCloudinary } from "@/lib/cloudinary-direct-upload";
 import type { PropertyRegistrationDesign } from "@/lib/property-settings";
+import { printDeskSheet } from "@/lib/desk-print";
 import { cn } from "@/lib/utils";
 import {
   CameraIcon,
@@ -25,20 +25,6 @@ import {
 import { useActionState, useEffect, useRef, useState } from "react";
 
 const initialSave: RegCardState = { ok: false };
-
-function printRegCardSheet() {
-  const html = document.documentElement;
-  html.setAttribute("data-desk-print", "reg");
-  html.setAttribute("data-doc-paper", "a4");
-  const cleanup = () => {
-    html.removeAttribute("data-desk-print");
-    html.removeAttribute("data-doc-paper");
-    window.removeEventListener("afterprint", cleanup);
-  };
-  window.addEventListener("afterprint", cleanup);
-  window.print();
-  window.setTimeout(cleanup, 1500);
-}
 
 /**
  * After Confirm check-in: print guest registration, then attach signed scan.
@@ -164,7 +150,7 @@ export function PostCheckInRegPanel({
           className="h-11 w-full gap-2"
           onClick={() => {
             setPrinted(true);
-            printRegCardSheet();
+            printDeskSheet("reg");
           }}
         >
           <PrinterIcon className="size-4" aria-hidden />
@@ -279,15 +265,6 @@ export function PostCheckInRegPanel({
           You can still upload later from Guest on this stay.
         </p>
       ) : null}
-
-      {/* Print target — screen-hidden, revealed by data-desk-print=reg */}
-      <div className="desk-print-host" aria-hidden>
-        <GuestRegistrationCard
-          data={regData}
-          property={property}
-          design={design}
-        />
-      </div>
     </div>
   );
 }
@@ -386,7 +363,7 @@ export function SignedRegCardUploadStrip({
               variant="outline"
               size="sm"
               className="h-8 gap-1 text-xs"
-              onClick={() => printRegCardSheet()}
+              onClick={() => printDeskSheet("reg")}
             >
               <PrinterIcon className="size-3.5" />
               Print
@@ -440,15 +417,6 @@ export function SignedRegCardUploadStrip({
       />
       {saveState.error ? (
         <p className="mt-1 text-[10px] text-destructive">{saveState.error}</p>
-      ) : null}
-      {regData ? (
-        <div className="desk-print-host" aria-hidden>
-          <GuestRegistrationCard
-            data={regData}
-            property={property}
-            design={design}
-          />
-        </div>
       ) : null}
     </div>
   );

@@ -21,7 +21,8 @@ export type EdgeJournalKind =
   | "pos_walk_in"
   | "pos_walk_in_gst"
   | "payroll_payout"
-  | "agent_ar_charge";
+  | "agent_ar_charge"
+  | "agent_ar_collect";
 
 function line(
   accountId: string,
@@ -147,6 +148,11 @@ export function buildEdgeJournalLines(
         line("ar_agent", amount, 0, "Agent bill-to AR"),
         line("room_rev", 0, amount, "Room revenue"),
       ];
+    case "agent_ar_collect":
+      return [
+        line("bank", amount, 0, "Agent open-item collection"),
+        line("ar_agent", 0, amount, "Clear agent AR"),
+      ];
     default: {
       const _exhaustive: never = kind;
       throw new Error(`Unknown edge kind: ${_exhaustive}`);
@@ -165,6 +171,7 @@ export function proveEdgeJournals(amountBtn = 1070): EdgeJournalKind[] {
     "pos_walk_in",
     "payroll_payout",
     "agent_ar_charge",
+    "agent_ar_collect",
   ];
   for (const kind of kinds) {
     assertBalancedLines(buildEdgeJournalLines(kind, amountBtn));

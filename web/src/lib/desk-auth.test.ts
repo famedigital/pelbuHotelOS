@@ -1,14 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { mapAccessLevelToDeskRole, type DeskRole } from "./desk-auth";
-
-/** Money roles allowed by requireMoneyDesk (hk excluded). */
-const MONEY_ROLES: ReadonlySet<DeskRole> = new Set([
-  "cashier",
-  "gm",
-  "owner",
-  "front_desk",
-]);
+import {
+  isHouseOpsStaff,
+  isKotBoardRole,
+  isPosFireRole,
+  KOT_BOARD_ROLES,
+  mapAccessLevelToDeskRole,
+  MONEY_ROLES,
+  POS_FIRE_ROLES,
+  type DeskRole,
+} from "./desk-auth";
 
 describe("mapAccessLevelToDeskRole", () => {
   it("maps owner and gm to owner", () => {
@@ -55,5 +56,33 @@ describe("requireMoneyDesk role set", () => {
     // hasDeskPinSession → getDeskRole returns "gm" when ALLOW_DESK_PIN_IN_PROD=1
     const pinRole: DeskRole = "gm";
     assert.equal(MONEY_ROLES.has(pinRole), true);
+  });
+});
+
+describe("POS fire / kitchen display roles", () => {
+  it("lets waiters send to the kitchen TV but not settle money", () => {
+    assert.equal(isPosFireRole("fnb"), true);
+    assert.equal(MONEY_ROLES.has("fnb"), false);
+  });
+
+  it("blocks housekeeping and laundry from send and from the kitchen TV", () => {
+    for (const role of ["hk", "laundry"] as const) {
+      assert.equal(isPosFireRole(role), false);
+      assert.equal(isKotBoardRole(role), false);
+      assert.equal(POS_FIRE_ROLES.has(role), false);
+      assert.equal(KOT_BOARD_ROLES.has(role), false);
+    }
+  });
+
+  it("lets cooks bump the board without firing POS tickets", () => {
+    assert.equal(isKotBoardRole("kitchen"), true);
+    assert.equal(isPosFireRole("kitchen"), false);
+  });
+
+  it("treats HK / laundry labels as house ops even without desk_role", () => {
+    assert.equal(isHouseOpsStaff({ roleLabel: "Room maid" }), true);
+    assert.equal(isHouseOpsStaff({ department: "Housekeeping" }), true);
+    assert.equal(isHouseOpsStaff({ deskRole: "laundry" }), true);
+    assert.equal(isHouseOpsStaff({ deskRole: "fnb", roleLabel: "Waiter" }), false);
   });
 });

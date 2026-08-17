@@ -3,7 +3,9 @@ import { reverseJournal } from "@/lib/accounting/journals";
 import { postPayment } from "@/lib/accounting/posting";
 import type { PeriodGuardOptions } from "@/lib/accounting/period-guard";
 import { assertOpenPeriodForDate } from "@/lib/accounting/period-guard";
+import { netFolioBalance } from "@/lib/folio/balance";
 import { skipsLedgerUntilConfirmed } from "@/lib/payments/bank-proof-flow";
+import { roundBtn } from "@/lib/pricing";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
@@ -24,6 +26,8 @@ export type FolioPaymentInput = {
   /** Bank QR / NEFT proof awaiting desk confirmation — skips folio line + GL until confirmed. */
   confirmation_status?: "confirmed" | "pending_bank";
   proof_url?: string | null;
+  /** Walk-in agent open item: credit agent AR on collect. */
+  arSide?: "guest" | "agent";
 };
 
 export type FolioPaymentResult = {
@@ -129,6 +133,7 @@ export async function postFolioPaymentRecord(
     kind: input.kind ?? "settlement",
     amount_btn: amountBtn,
     notes: input.notes ?? null,
+    arSide: input.arSide,
     period_guard: input.period_guard,
   });
 
@@ -145,6 +150,37 @@ export async function postFolioPaymentRecord(
   }
 
   return { ok: true, paymentId };
+}
+
+/** Mark folio settled when posted lines net to ~0 (open-item collect complete). */
+export async function maybeSettleZeroBalanceFolio(
+  admin: Admin,
+  folioId: string,
+): Promise<void> {
+  const { data: folio } = await admin
+    .from("folios")
+    .select("id, status, folio_lines(id, total_btn, status, reverses_line_id)")
+    .eq("id", folioId)
+    .maybeSingle();
+  if (!folio || (folio.status as string) !== "open") return;
+  const lines =
+    (folio.folio_lines as
+      | {
+          id: string;
+          total_btn: number;
+          status: string;
+          reverses_line_id?: string | null;
+        }[]
+      | null) ?? [];
+  if (Math.abs(roundBtn(netFolioBalance(lines))) > 0.01) return;
+  await admin
+    .from("folios")
+    .update({
+      status: "settled",
+      closed_at: new Date().toISOString(),
+    })
+    .eq("id", folioId)
+    .eq("status", "open");
 }
 
 /**

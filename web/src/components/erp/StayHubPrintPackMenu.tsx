@@ -21,18 +21,21 @@ export function StayHubPrintPackMenu({
   agentId,
   confirmationCode,
   compact = false,
+  onPrintVoucher,
+  onPrintRegistration,
 }: {
   bookingId: string;
   folioId?: string | null;
   agentId?: string | null;
   confirmationCode?: string | null;
   compact?: boolean;
+  onPrintVoucher?: () => void;
+  onPrintRegistration?: () => void;
 }) {
   const folioHref = folioId
     ? `/erp/folios/${folioId}`
     : `/erp/folios?q=${encodeURIComponent(confirmationCode || bookingId)}`;
   const settlementHref = `/erp/bookings/${bookingId}/settlement-pack`;
-  const bookingHref = `/erp/bookings/${bookingId}`;
   const receiptHref = folioId ? `/erp/folios/${folioId}/receipt` : null;
   const statementHref = folioId
     ? `/erp/folios/${folioId}/statement`
@@ -61,9 +64,11 @@ export function StayHubPrintPackMenu({
         <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
           Stay documents
         </DropdownMenuLabel>
-        <DropdownMenuItem asChild>
-          <Link href={bookingHref}>Stay dossier / voucher</Link>
-        </DropdownMenuItem>
+        {onPrintVoucher ? (
+          <DropdownMenuItem onClick={onPrintVoucher}>
+            Print voucher
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem asChild>
           <Link href={folioHref}>Folio · bill</Link>
         </DropdownMenuItem>
@@ -81,14 +86,11 @@ export function StayHubPrintPackMenu({
         <DropdownMenuItem asChild>
           <Link href={settlementHref}>Settlement pack</Link>
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => {
-            // Open StayHub already has reg flow post-CI; deep-link book dossier notes.
-            window.open(bookingHref, "_blank", "noopener,noreferrer");
-          }}
-        >
-          Registration (from dossier)
-        </DropdownMenuItem>
+        {onPrintRegistration ? (
+          <DropdownMenuItem onClick={onPrintRegistration}>
+            Print registration
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link href={`/erp/calendar?q=${encodeURIComponent(bookingId)}`}>

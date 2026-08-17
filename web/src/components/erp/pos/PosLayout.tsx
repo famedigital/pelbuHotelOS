@@ -96,6 +96,7 @@ export function PosLayout({
   openTickets,
   settledTickets = [],
   bookings,
+  creditAgents = [],
   shift,
   shiftCloseSummary = null,
   gstRate,
@@ -104,6 +105,7 @@ export function PosLayout({
   runtimeConfig,
   guestServiceSlot,
   ncReasons = [],
+  canFireKot = true,
 }: PosLayoutProps) {
   const [menuOutlet, setMenuOutlet] = useState<string>("all");
   const posOutlets = useMemo(
@@ -741,11 +743,13 @@ export function PosLayout({
           setTicketsOpen(false);
           setVoidTarget(id);
         }}
+        canFireKot={canFireKot}
       />
       <SettlePanel
         orderId={settleTarget}
         onOpenChange={(open) => !open && setSettleTarget(null)}
         bookings={bookings}
+        creditAgents={creditAgents}
         liveTickets={
           shiftCloseSummary?.openTickets?.length
             ? [
@@ -1281,6 +1285,7 @@ export function PosLayout({
                         onEditLine={editLine}
                         onToggleNc={toggleNc}
                         ncReasons={ncReasons}
+                        canFireKot={canFireKot}
                         idPrefix="cart_desktop"
                       />
                     </aside>
@@ -1346,6 +1351,7 @@ export function PosLayout({
                             onEditLine={editLine}
                             onToggleNc={toggleNc}
                             ncReasons={ncReasons}
+                            canFireKot={canFireKot}
                             idPrefix="cart_mobile"
                           />
                         </div>

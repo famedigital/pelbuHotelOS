@@ -29,11 +29,13 @@ export function StayHubPartyRoomList({
   party,
   activeBookingId,
   onSwitch,
+  side = "left",
   className,
 }: {
   party: StayHubPartyContext;
   activeBookingId: string;
   onSwitch: (bookingId: string, assignmentId: string | null) => void;
+  side?: "left" | "right";
   className?: string;
 }) {
   const [q, setQ] = useState("");
@@ -106,7 +108,8 @@ export function StayHubPartyRoomList({
       ref={listRef}
       tabIndex={0}
       className={cn(
-        "flex w-[13.5rem] shrink-0 flex-col border-r border-border bg-muted/10 outline-none focus-visible:ring-2 focus-visible:ring-ring/40 lg:w-56",
+        "hidden min-h-0 w-[13.5rem] shrink-0 flex-col bg-muted/10 outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:flex lg:w-56",
+        side === "right" ? "border-l border-border" : "border-r border-border",
         className,
       )}
       aria-label="Party rooms"

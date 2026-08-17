@@ -147,7 +147,7 @@ export default async function FiscalInvoicePrintPage({
     ? await admin
         .from("folios")
         .select(
-          "label, booking_id, folio_lines(id, description, total_btn, gst_btn, status, source_type, reverses_line_id)",
+          "label, booking_id, agent_id, folio_type, agents(company_name, contact_email, contact_name), folio_lines(id, description, total_btn, gst_btn, status, source_type, reverses_line_id)",
         )
         .eq("id", folioId)
         .maybeSingle()
@@ -202,6 +202,20 @@ export default async function FiscalInvoicePrintPage({
         .map((row) => firstOf(row.room_units)?.label?.trim())
         .filter((label): label is string => Boolean(label));
     }
+  } else {
+    const agentRaw = (
+      folio as {
+        agents?: MaybeList<{
+          company_name?: string | null;
+          contact_email?: string | null;
+          contact_name?: string | null;
+        }>;
+      } | null
+    )?.agents;
+    const agent = firstOf(agentRaw ?? null);
+    agentName = agent?.company_name?.trim() || null;
+    guestName = agentName;
+    guestEmail = agent?.contact_email?.trim() || null;
   }
 
   const lines = guestVisibleBalanceLines(
@@ -479,10 +493,15 @@ export default async function FiscalInvoicePrintPage({
               Bill to
             </p>
             <p className="font-medium text-neutral-950">
-              {guestName?.trim() || "Guest"}
+              {guestName?.trim() || agentName || "Guest"}
             </p>
             {guestEmail ? (
               <p className="text-[12px] text-neutral-600">{guestEmail}</p>
+            ) : null}
+            {!bookingId && agentName ? (
+              <p className="mt-1 text-[11px] text-neutral-500">
+                F&amp;B open item — payment due, not a stay
+              </p>
             ) : null}
           </div>
           {stayBits.length > 0 ? (

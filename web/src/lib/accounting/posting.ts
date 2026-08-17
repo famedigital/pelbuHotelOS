@@ -79,16 +79,21 @@ export async function postPayment(
     amount_btn: number;
     created_at?: string;
     notes?: string | null;
+    /** Walk-in agent open item: cash/bank/card credits agent AR, not guest AR. */
+    arSide?: "guest" | "agent";
   } & PostingPeriodGuard,
 ): Promise<PostingResult> {
   const kind = (payment.kind ?? "settlement").toLowerCase();
-  let eventType = "payment.bank";
+  const agentAr = payment.arSide === "agent";
+  let eventType = agentAr ? "payment.bank.agent" : "payment.bank";
   if (kind === "deposit") eventType = "payment.deposit";
   else if (kind === "refund") eventType = "payment.refund";
-  else if (payment.method === "cash") eventType = "payment.cash";
-  else if (payment.method === "card") eventType = "payment.card";
-  else if (payment.method === "agent_credit") eventType = "payment.agent_credit";
-  else eventType = "payment.bank";
+  else if (payment.method === "cash") {
+    eventType = agentAr ? "payment.cash.agent" : "payment.cash";
+  } else if (payment.method === "card") {
+    eventType = agentAr ? "payment.card.agent" : "payment.card";
+  } else if (payment.method === "agent_credit") eventType = "payment.agent_credit";
+  else eventType = agentAr ? "payment.bank.agent" : "payment.bank";
 
   return postSimpleEvent(admin, propertyId, {
     eventType,

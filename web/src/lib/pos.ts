@@ -1,4 +1,5 @@
 import { thimphuToday } from "@/lib/erp-lists";
+import { isHouseOpsStaff } from "@/lib/desk-auth";
 import { isOpenCookStatus, isPosBoardVisible } from "@/lib/kot-visibility";
 import type { MenuItem } from "@/lib/menu";
 import type { TableStatus } from "@/lib/pos-tables";
@@ -202,16 +203,25 @@ export async function loadPosStaff(admin?: Admin): Promise<PosStaffOption[]> {
   const propertyId = await resolveActivePropertyId(client);
   const { data } = await client
     .from("staff_members")
-    .select("id, full_name, role_label")
+    .select("id, full_name, role_label, desk_role, department")
     .eq("property_id", propertyId)
     .eq("status", "active")
     .order("full_name");
 
-  return (data ?? []).map((row) => ({
-    id: row.id as string,
-    full_name: row.full_name as string,
-    role_label: (row.role_label as string) ?? "other",
-  }));
+  return (data ?? [])
+    .filter(
+      (row) =>
+        !isHouseOpsStaff({
+          deskRole: (row.desk_role as string | null) ?? null,
+          department: (row.department as string | null) ?? null,
+          roleLabel: (row.role_label as string | null) ?? null,
+        }),
+    )
+    .map((row) => ({
+      id: row.id as string,
+      full_name: row.full_name as string,
+      role_label: (row.role_label as string) ?? "other",
+    }));
 }
 
 export async function loadModifierGroupsForItems(

@@ -25,6 +25,7 @@ import {
 import { loadRoomChargePosOrders } from "@/lib/folio/room-pos-orders";
 import { formatBtn } from "@/lib/pricing";
 import { netFolioBalance } from "@/lib/folio/balance";
+import { isAgentOpenItemFolio } from "@/lib/folio/agent-open-item";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { cn } from "@/lib/utils";
@@ -69,9 +70,15 @@ function isPaymentSource(sourceType: string) {
   return sourceType === "payment" || sourceType === "deposit";
 }
 
-function billToLabel(billTo: string | null | undefined, isPayment: boolean) {
+function billToLabel(
+  billTo: string | null | undefined,
+  isPayment: boolean,
+  openItem: boolean,
+) {
   if (isPayment) return null;
-  if (billTo === "agent") return "Room package → agent";
+  if (billTo === "agent") {
+    return openItem ? "Agent AR · invoice later" : "Room package → agent";
+  }
   return "Food & extras → guest";
 }
 
@@ -172,7 +179,7 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
   const { data: folio } = await admin
     .from("folios")
     .select(
-      "id, label, status, booking_id, master_folio_id, folio_type, property_id, created_at, folio_lines(id, description, total_btn, gst_btn, service_charge_btn, service_charge_applied, source_type, status, is_comp, void_reason, reverses_line_id, created_at, business_date, bill_to)",
+      "id, label, status, booking_id, agent_id, master_folio_id, folio_type, property_id, created_at, agents(company_name), folio_lines(id, description, total_btn, gst_btn, service_charge_btn, service_charge_applied, source_type, status, is_comp, void_reason, reverses_line_id, created_at, business_date, bill_to)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -294,6 +301,10 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
   const folioStatus = (folio.status as string) ?? "open";
   const isOpen = folioStatus === "open";
   const isMaster = (folio.folio_type as string) === "master";
+  const agentOpenItem = isAgentOpenItemFolio({
+    agent_id: folio.agent_id as string | null,
+    booking_id: folio.booking_id as string | null,
+  });
 
   const chargeLines = lines.filter(
     (line) =>
@@ -386,7 +397,11 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
             ? "collect"
             : "collect";
 
-  const statusBlurb = needsDay1
+  const statusBlurb = agentOpenItem
+    ? balance > 0.5
+      ? "Travel-agent F&B open item — invoice issued, collect when the agency pays."
+      : "Agent invoice paid."
+    : needsDay1
     ? "No room charges yet — post day-1 package first so the balance is real."
     : balance > 0.5
       ? "Open balance — collect payment or issue the tax invoice when ready."
@@ -394,8 +409,17 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
         ? "Balance due Nu 0 · Nothing to collect"
         : "Open folio — charges appear after check-in, POS, or night audit.";
 
+  const agentJoin = folio.agents as
+    | { company_name?: string | null }
+    | { company_name?: string | null }[]
+    | null;
+  const folioAgentName = Array.isArray(agentJoin)
+    ? agentJoin[0]?.company_name
+    : agentJoin?.company_name;
+
   const guestTitle =
     (booking?.contact_name as string | undefined)?.trim() ||
+    folioAgentName?.trim() ||
     (folio.label as string);
 
   const folioVersion = folioVersionFingerprint({
@@ -899,7 +923,11 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
                     const amount = Number(line.total_btn);
                     const isPayment = isPaymentSource(line.source_type);
                     const voided = line.status === "voided";
-                    const payor = billToLabel(line.bill_to, isPayment);
+                    const payor = billToLabel(
+                      line.bill_to,
+                      isPayment,
+                      agentOpenItem,
+                    );
                     return (
                       <li key={line.id} className="px-4 py-3 text-sm sm:px-5">
                         <div className="flex flex-wrap items-baseline justify-between gap-2">

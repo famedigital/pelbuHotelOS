@@ -21,7 +21,7 @@ import {
 } from "@/lib/pos-tenders";
 import { TriangleAlertIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useActionState } from "react";
-import type { PosBookingOption, TenderDraft } from "./types";
+import type { PosBookingOption, PosCreditAgentOption, TenderDraft } from "./types";
 
 const initial: SplitSettleState = { ok: false };
 
@@ -58,11 +58,26 @@ function routeReceiptToWindow(orderId: string, shell: Window | null) {
   return false;
 }
 
+function routeInvoiceToWindow(invoiceDocId: string, shell: Window | null) {
+  const url = `/erp/invoices/${invoiceDocId}/print`;
+  if (shell && !shell.closed) {
+    try {
+      shell.location.href = url;
+      shell.focus();
+      return true;
+    } catch {
+      /* fall through */
+    }
+  }
+  window.location.assign(url);
+  return false;
+}
+
 const METHOD_LABELS: Record<string, string> = {
   cash: "Cash",
   bank: "Bank transfer",
   card: "Card",
-  agent_credit: "Agent credit",
+  agent_credit: "Charge agent (invoice later)",
   bank_qr: "Bank QR",
   pay_bt: "Pay.bt",
   mbob: "mBoB",
@@ -98,6 +113,7 @@ type Props = {
   orderId: string | null;
   onOpenChange: (open: boolean) => void;
   bookings: PosBookingOption[];
+  creditAgents: PosCreditAgentOption[];
   liveTickets: OpenPosTicket[];
   tenderMethods: readonly PosTenderMethod[];
 };
@@ -106,6 +122,7 @@ export function SettlePanel({
   orderId,
   onOpenChange,
   bookings,
+  creditAgents,
   liveTickets,
   tenderMethods,
 }: Props) {
@@ -146,8 +163,12 @@ export function SettlePanel({
     const shell = printShellRef.current;
     printShellRef.current = null;
     onOpenChange(false);
-    routeReceiptToWindow(state.orderId, shell);
-  }, [state.ok, state.orderId, onOpenChange]);
+    if (state.invoiceDocId) {
+      routeInvoiceToWindow(state.invoiceDocId, shell);
+    } else {
+      routeReceiptToWindow(state.orderId, shell);
+    }
+  }, [state.ok, state.orderId, state.invoiceDocId, onOpenChange]);
 
   // Close blank shell if settle fails so cashier isn't stuck with an extra tab.
   useEffect(() => {
@@ -204,6 +225,12 @@ export function SettlePanel({
   }
 
   const hasRoomCharge = tenders.some((t) => t.method === "room_charge");
+  const hasAgentOpenItem = tenders.some((t) => t.method === "agent_credit");
+  const agentPicked =
+    !hasAgentOpenItem ||
+    tenders
+      .filter((t) => t.method === "agent_credit")
+      .every((t) => Boolean(t.agentId));
 
   if (!open) return null;
 
@@ -261,6 +288,7 @@ export function SettlePanel({
                   amountBtn: Number(t.amountBtn),
                   reference: t.reference || undefined,
                   bookingId: t.bookingId || undefined,
+                  agentId: t.agentId || undefined,
                 })),
             )}
           />
@@ -340,11 +368,18 @@ export function SettlePanel({
                       placeholder={
                         t.method === "cash"
                           ? "Optional"
-                          : "Txn, slip, or last 4 digits"
+                          : t.method === "agent_credit"
+                            ? "Voucher / PO / group"
+                            : "Txn, slip, or last 4 digits"
                       }
                       className="h-9"
                     />
-                    {t.method !== "cash" && t.method !== "room_charge" ? (
+                    {t.method === "agent_credit" ? (
+                      <p className="text-[10px] text-muted-foreground">
+                        Optional agency voucher, PO, or group name on the
+                        invoice.
+                      </p>
+                    ) : t.method !== "cash" && t.method !== "room_charge" ? (
                       <p className="text-[10px] text-muted-foreground">
                         Bank / card / QR transfer id or receipt number for
                         recon.
@@ -432,6 +467,47 @@ export function SettlePanel({
                     </p>
                   </div>
                 ) : null}
+
+                {t.method === "agent_credit" ? (
+                  <div className="space-y-1">
+                    <Label
+                      htmlFor={`agent_${t.key}`}
+                      className="text-[11px] text-muted-foreground"
+                    >
+                      Travel agent (invoice later)
+                    </Label>
+                    <select
+                      id={`agent_${t.key}`}
+                      className={fieldClass}
+                      value={t.agentId ?? ""}
+                      onChange={(e) =>
+                        updateTender(t.key, { agentId: e.target.value })
+                      }
+                      required
+                    >
+                      <option value="">Select travel agent</option>
+                      {creditAgents.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.company_name}
+                          {a.credit_limit > 0
+                            ? ` · owes ${a.credit_used.toLocaleString("en-BT")} / ${a.credit_limit.toLocaleString("en-BT")} Nu`
+                            : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[10px] text-muted-foreground">
+                      Not collected now. Issues a tax invoice to the agency;
+                      payment stays open on city ledger. In-house F&amp;B stays
+                      Charge to room.
+                    </p>
+                    {creditAgents.length === 0 ? (
+                      <p className="text-[10px] text-destructive">
+                        No credit-eligible agents. Promote a directory listing
+                        on Agents first.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -478,6 +554,13 @@ export function SettlePanel({
             </p>
           ) : null}
 
+          {hasAgentOpenItem ? (
+            <p className="text-[11px] text-muted-foreground">
+              Issues INV-… to the travel agent now. Money stays open until
+              they pay — collect later on that folio.
+            </p>
+          ) : null}
+
           <DialogFooter className="gap-2">
             <Button
               type="button"
@@ -490,13 +573,17 @@ export function SettlePanel({
             <Button
               type="submit"
               variant="citrus"
-              disabled={pending || !balanced}
+              disabled={pending || !balanced || !agentPicked}
             >
               {pending
                 ? "Settling…"
-                : balanced
-                  ? "Settle & print"
-                  : "Balance the tenders"}
+                : !agentPicked
+                  ? "Pick the travel agent"
+                  : balanced
+                    ? hasAgentOpenItem
+                      ? "Invoice agent"
+                      : "Settle & print"
+                    : "Balance the tenders"}
             </Button>
           </DialogFooter>
         </form>

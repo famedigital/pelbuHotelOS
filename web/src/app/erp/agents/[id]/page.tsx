@@ -450,6 +450,50 @@ export default async function AgentDossierPage({ params, searchParams }: Props) 
             <PrintButton label="Print statement" />
           </div>
 
+          <DeskTable
+            caption="F&B open items (lunch invoiced, payment later)"
+            headers={["Invoice", "Opened", "Balance", "Status", ""]}
+          >
+            {money.openItems.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-3 py-6 text-muted-foreground">
+                  No travel-agent lunch invoices yet. Settle POS as Charge
+                  agent (invoice later).
+                </td>
+              </tr>
+            ) : (
+              money.openItems.map((item) => (
+                <tr key={item.folioId} className="border-t">
+                  <td className="px-3 py-2.5">
+                    <p className="font-medium text-foreground">
+                      {item.invoiceNo ?? item.label}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{item.label}</p>
+                  </td>
+                  <td className="px-3 py-2.5 text-sm">
+                    {new Date(item.createdAt).toLocaleDateString("en-BT")}
+                  </td>
+                  <td className="px-3 py-2.5 tabular-nums">
+                    {formatBtn(item.balance)}
+                  </td>
+                  <td className="px-3 py-2.5 text-sm uppercase tracking-wide">
+                    {Math.abs(item.balance) > 0.009 && item.status !== "settled"
+                      ? "unpaid"
+                      : item.status}
+                  </td>
+                  <td className="px-3 py-2.5 print:hidden">
+                    <Link
+                      href={`/erp/folios/${item.folioId}`}
+                      className="text-sm font-medium text-accent underline-offset-4 hover:underline"
+                    >
+                      Collect
+                    </Link>
+                  </td>
+                </tr>
+              ))
+            )}
+          </DeskTable>
+
           <DeskTable caption="Payments" headers={["When", "Amount", "Method", "Ref", ""]}>
             {money.payments.length === 0 ? (
               <tr>

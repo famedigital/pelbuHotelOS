@@ -19,12 +19,16 @@ export function StayHubPartyCommandBar({
   onTabChange,
   onLinked,
   onExtendAll,
+  activeBookingId,
+  onSwitch,
 }: {
   party: StayHubPartyContext;
   tab: PartyHubTab;
   onTabChange: (tab: PartyHubTab) => void;
   onLinked?: () => void;
   onExtendAll?: () => void;
+  activeBookingId?: string;
+  onSwitch?: (bookingId: string, assignmentId: string | null) => void;
 }) {
   const [pending, startTransition] = useTransition();
   const show =
@@ -69,6 +73,25 @@ export function StayHubPartyCommandBar({
           {party.members.length} room
           {party.members.length === 1 ? "" : "s"}
         </span>
+        {onSwitch && party.members.length > 1 ? (
+          <select
+            className="h-7 max-w-[11rem] rounded-md border border-input bg-background px-1.5 text-[11px] md:hidden"
+            value={activeBookingId ?? party.members[0]?.bookingId}
+            aria-label="Switch room"
+            onChange={(e) => {
+              const m = party.members.find((x) => x.bookingId === e.target.value);
+              if (m) onSwitch(m.bookingId, m.assignmentId);
+            }}
+          >
+            {party.members.map((m, i) => (
+              <option key={m.bookingId} value={m.bookingId}>
+                {m.roomLabel?.trim() ||
+                  m.confirmationCode?.trim() ||
+                  `Room ${i + 1}`}
+              </option>
+            ))}
+          </select>
+        ) : null}
         <div className="ml-auto flex flex-wrap items-center gap-1.5">
           {party.groupId && onExtendAll ? (
             <Button

@@ -15,6 +15,13 @@ import {
   printAgentSettlementSheet,
 } from "@/components/erp/AgentSettlementPrintSheet";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -24,6 +31,7 @@ import { formatGuestBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import {
   CameraIcon,
+  ExpandIcon,
   FileUpIcon,
   Loader2Icon,
   MailIcon,
@@ -92,6 +100,7 @@ export function GuideEvidencePanel({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [waiveReason, setWaiveReason] = useState("");
   const [emailTo, setEmailTo] = useState(agentEmail ?? "");
+  const [packLightboxOpen, setPackLightboxOpen] = useState(false);
 
   const [photoState, photoAction, photoPending] = useActionState(
     saveGuideSignPhoto,
@@ -173,11 +182,22 @@ export function GuideEvidencePanel({
   const photoOnFile =
     guideSignStatus === "photo" && Boolean(guideSignPhotoPublicId);
   const waived = guideSignStatus === "waived";
+  /** Desk strip — tall enough to read handwriting without opening. */
   const previewUrl = guideSignPhotoPublicId
     ? cloudinaryUrl(guideSignPhotoPublicId, {
-        width: 640,
-        height: 480,
+        width: 900,
+        height: 1400,
         crop: "limit",
+        quality: "auto:good",
+      })
+    : null;
+  /** Full lightbox — high-res for ink / stamp review. */
+  const fullUrl = guideSignPhotoPublicId
+    ? cloudinaryUrl(guideSignPhotoPublicId, {
+        width: 1800,
+        height: 2400,
+        crop: "limit",
+        quality: "auto:best",
       })
     : null;
 
@@ -321,17 +341,80 @@ export function GuideEvidencePanel({
 
       {(photoOnFile || previewUrl) && (
         <div className="space-y-2 print:hidden">
-          <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300">
-            Signed pack on file
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300">
+              Signed pack on file
+            </p>
+            {previewUrl ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                onClick={() => setPackLightboxOpen(true)}
+              >
+                <ExpandIcon className="size-3.5" />
+                Open full size
+              </Button>
+            ) : null}
+          </div>
           {previewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={previewUrl}
-              alt="Guide signed pack"
-              className="max-h-48 w-full rounded-md border object-contain bg-muted/20"
-            />
+            <button
+              type="button"
+              onClick={() => setPackLightboxOpen(true)}
+              className={cn(
+                "group relative flex w-full cursor-zoom-in items-center justify-center",
+                "min-h-[14rem] rounded-md border bg-muted/30 p-2 text-left",
+                "outline-none transition hover:border-accent focus-visible:ring-2 focus-visible:ring-ring",
+              )}
+              aria-label="Open signed pack full size"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={previewUrl}
+                alt="Guide signed pack — tap to enlarge"
+                className="max-h-[min(70vh,32rem)] w-auto max-w-full object-contain"
+              />
+              <span className="pointer-events-none absolute right-2 bottom-2 rounded-md bg-background/90 px-2 py-1 text-[10px] font-medium text-muted-foreground shadow-sm opacity-90 group-hover:opacity-100">
+                Tap to enlarge
+              </span>
+            </button>
           ) : null}
+
+          <Dialog open={packLightboxOpen} onOpenChange={setPackLightboxOpen}>
+            <DialogContent
+              className="erp flex max-h-[95vh] max-w-[min(96vw,56rem)] flex-col gap-3 overflow-hidden p-3 sm:p-4"
+              showCloseButton
+            >
+              <DialogHeader className="shrink-0 space-y-1 pr-8 text-left">
+                <DialogTitle className="text-base">
+                  Signed settlement pack
+                </DialogTitle>
+                <DialogDescription className="text-xs">
+                  {guestName || "Guest"}
+                  {rooms.length ? ` · ${rooms.join(", ")}` : ""}
+                  {agentName ? ` · ${agentName}` : ""}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="min-h-0 flex-1 overflow-auto rounded-md bg-muted/40 p-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={fullUrl ?? previewUrl ?? undefined}
+                  alt="Guide signed pack full size"
+                  className="mx-auto h-auto max-h-[calc(95vh-7rem)] w-auto max-w-full object-contain"
+                />
+              </div>
+              {fullUrl ? (
+                <div className="flex shrink-0 justify-end gap-2">
+                  <Button type="button" variant="outline" size="sm" asChild>
+                    <a href={fullUrl} target="_blank" rel="noreferrer">
+                      Open in new tab
+                    </a>
+                  </Button>
+                </div>
+              ) : null}
+            </DialogContent>
+          </Dialog>
         </div>
       )}
 

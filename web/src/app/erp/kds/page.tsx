@@ -1,5 +1,5 @@
 import { KitchenDisplayBoard } from "@/components/erp/kds/KitchenDisplayBoard";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { getDeskRole, isDeskAuthenticated, isKotBoardRole } from "@/lib/desk-auth";
 import { loadOpenPosTickets } from "@/lib/pos";
 import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -15,6 +15,9 @@ export const dynamic = "force-dynamic";
 export default async function ErpKdsPage() {
   if (!(await isDeskAuthenticated())) {
     redirect("/erp/login?next=/erp/kds");
+  }
+  if (!isKotBoardRole(await getDeskRole())) {
+    redirect("/erp");
   }
 
   const admin = createSupabaseAdminClient();

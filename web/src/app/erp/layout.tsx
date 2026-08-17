@@ -87,15 +87,6 @@ export default async function ErpLayout({
     /\/statement\/?$/.test(pathname) ||
     /\/slip\/?$/.test(pathname);
 
-  if (isPrintSurface) {
-    return (
-      <>
-        {children}
-        <WorkPwaRegistrar />
-      </>
-    );
-  }
-
   const allowedModuleKeys = await getDeskModuleKeys();
   const deskRole = await getDeskRole();
   const canPreview = canPreviewDashboards(deskRole);
@@ -109,6 +100,15 @@ export default async function ErpLayout({
     !pathnameAllowedForModules(pathname, allowedModuleKeys)
   ) {
     redirect("/erp");
+  }
+
+  if (isPrintSurface) {
+    return (
+      <>
+        {children}
+        <WorkPwaRegistrar />
+      </>
+    );
   }
 
   const admin = createSupabaseAdminClient();
