@@ -4,6 +4,7 @@ import {
   ALLOWED_PARSER_MIMES,
   ALLOWED_RECEIPT_MIMES,
   MAX_FINANCE_UPLOAD_BYTES,
+  normalizeDeskUploadMime,
 } from "@/lib/finance-import/types";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -37,13 +38,13 @@ export async function POST(request: NextRequest) {
   }
 
   const kind = body.kind ?? "receipt";
-  const fileName = String(body.fileName ?? "").trim();
-  const mimeType = String(body.mimeType ?? "").trim().toLowerCase();
+  const fileName =
+    String(body.fileName ?? "").trim() || `upload-${Date.now()}.jpg`;
+  const mimeType = normalizeDeskUploadMime(fileName, body.mimeType);
   const byteSize = Number(body.byteSize ?? 0);
 
-  if (!fileName) return jsonError("fileName is required.");
   if (!Number.isFinite(byteSize) || byteSize <= 0 || byteSize > MAX_FINANCE_UPLOAD_BYTES) {
-    return jsonError("byteSize must be between 1 byte and 25 MB.");
+    return jsonError("File must be between 1 byte and 25 MB.");
   }
 
   if (kind === "parser") {
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
       return jsonError("Parser uploads must be .py files.");
     }
   } else if (!ALLOWED_RECEIPT_MIMES.has(mimeType)) {
-    return jsonError("Only PDF, JPG, PNG, or WebP files are allowed.");
+    return jsonError("Use a photo (JPG, PNG, HEIC, WebP) or a PDF.");
   }
 
   const folder =
@@ -68,13 +69,18 @@ export async function POST(request: NextRequest) {
               : "receipts";
 
   const path = financeStoragePath(propertyId, folder, fileName);
-  const signed = await createFinanceSignedUpload(admin, path);
-
-  return NextResponse.json({
-    bucket: "finance-private",
-    path: signed.path,
-    signedUrl: signed.signedUrl,
-    token: signed.token,
-    maxBytes: MAX_FINANCE_UPLOAD_BYTES,
-  });
+  try {
+    const signed = await createFinanceSignedUpload(admin, path);
+    return NextResponse.json({
+      bucket: "finance-private",
+      path: signed.path,
+      signedUrl: signed.signedUrl,
+      token: signed.token,
+      maxBytes: MAX_FINANCE_UPLOAD_BYTES,
+    });
+  } catch (e) {
+    const message =
+      e instanceof Error ? e.message : "Could not create signed upload URL.";
+    return jsonError(message, 500);
+  }
 }

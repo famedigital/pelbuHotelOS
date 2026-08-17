@@ -7,6 +7,7 @@ import {
   saveDotResponse,
 } from "@/app/actions/erp-dot-assessment";
 import { GATE_EVIDENCE_HINTS } from "@/lib/dot-assessment/guidance";
+import { normalizeDeskUploadMime } from "@/lib/finance-import/types";
 import type {
   CriterionKind,
   DotEvidence,
@@ -28,10 +29,12 @@ import {
   memo,
   useCallback,
   useEffect,
+  useId,
   useRef,
   useState,
   useTransition,
 } from "react";
+import { toast } from "sonner";
 
 export type CriterionRowProps = {
   assessmentId: string;
@@ -103,6 +106,7 @@ function CriterionRowInner({
   );
   const remarksTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const fileInputId = useId();
   const answered = answerState(response);
   const hint = GATE_EVIDENCE_HINTS[code];
 
@@ -213,49 +217,72 @@ function CriterionRowInner({
     }, 500);
   }
 
-  async function onFile(file: File | null) {
-    if (!file || readOnly) return;
+  async function uploadOne(file: File) {
+    const fileName =
+      file.name.trim() || `dot-photo-${Date.now()}.jpg`;
+    const mimeType = normalizeDeskUploadMime(fileName, file.type);
+    const signRes = await fetch("/api/erp/finance/upload", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "dot_assessment",
+        fileName,
+        mimeType,
+        byteSize: file.size,
+      }),
+    });
+    let signed: {
+      signedUrl?: string;
+      path?: string;
+      token?: string;
+      error?: string;
+    } = {};
+    try {
+      signed = (await signRes.json()) as typeof signed;
+    } catch {
+      throw new Error("Upload sign failed.");
+    }
+    if (!signRes.ok || !signed.signedUrl || !signed.path) {
+      throw new Error(signed.error ?? "Upload sign failed.");
+    }
+    const put = await fetch(signed.signedUrl, {
+      method: "PUT",
+      headers: {
+        "content-type": mimeType,
+        ...(signed.token ? { "x-upsert": "false" } : {}),
+      },
+      body: file,
+    });
+    if (!put.ok) throw new Error("Upload to storage failed.");
+    const res = await saveDotEvidence({
+      assessmentId,
+      criterionCode: code,
+      storagePath: signed.path,
+      fileName,
+      mimeType,
+      byteSize: file.size,
+    });
+    if (!res.ok || !res.evidence) throw new Error(res.error ?? "Register failed.");
+    onEvidenceAdd(res.evidence);
+  }
+
+  async function onFiles(list: FileList | null) {
+    if (!list?.length || readOnly) return;
     setError(null);
     setUploading(true);
     try {
-      const signRes = await fetch("/api/erp/finance/upload", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          kind: "dot_assessment",
-          fileName: file.name,
-          mimeType: file.type || "image/jpeg",
-          byteSize: file.size,
-        }),
-      });
-      const signed = (await signRes.json()) as {
-        signedUrl?: string;
-        path?: string;
-        error?: string;
-      };
-      if (!signRes.ok || !signed.signedUrl || !signed.path) {
-        throw new Error(signed.error ?? "Upload sign failed.");
+      for (const file of Array.from(list)) {
+        await uploadOne(file);
       }
-      const put = await fetch(signed.signedUrl, {
-        method: "PUT",
-        headers: { "content-type": file.type || "image/jpeg" },
-        body: file,
-      });
-      if (!put.ok) throw new Error("Upload to storage failed.");
-      const res = await saveDotEvidence({
-        assessmentId,
-        criterionCode: code,
-        storagePath: signed.path,
-        fileName: file.name,
-        mimeType: file.type || "image/jpeg",
-        byteSize: file.size,
-      });
-      if (!res.ok || !res.evidence) throw new Error(res.error ?? "Register failed.");
-      onEvidenceAdd(res.evidence);
       setNotesOpen(true);
       setFlashOk(true);
+      toast.success(
+        list.length === 1 ? "Photo attached" : `${list.length} photos attached`,
+      );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed.");
+      const message = e instanceof Error ? e.message : "Upload failed.";
+      setError(message);
+      toast.error(message);
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -348,7 +375,7 @@ function CriterionRowInner({
               </span>
             )}
             {error && (
-              <span className="text-[10px] text-destructive">{error}</span>
+              <p className="w-full text-xs text-destructive">{error}</p>
             )}
           </div>
           <p className="text-sm leading-snug text-foreground">{text}</p>
@@ -477,31 +504,30 @@ function CriterionRowInner({
               />
             </Button>
             {!readOnly && (
-              <>
+              <label
+                htmlFor={fileInputId}
+                className={cn(
+                  "inline-flex h-8 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-medium",
+                  "text-foreground hover:bg-muted",
+                  uploading && "pointer-events-none opacity-60",
+                )}
+              >
                 <input
+                  id={fileInputId}
                   ref={fileRef}
                   type="file"
-                  accept="image/*,application/pdf"
-                  capture="environment"
+                  accept="image/*,.heic,.heif,application/pdf"
+                  multiple
                   className="sr-only"
-                  onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+                  onChange={(e) => onFiles(e.target.files)}
                 />
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 gap-1 px-2 text-xs"
-                  disabled={uploading}
-                  onClick={() => fileRef.current?.click()}
-                >
-                  {uploading ? (
-                    <Loader2Icon className="size-3.5 animate-spin" />
-                  ) : (
-                    <CameraIcon className="size-3.5" />
-                  )}
-                  Photo
-                </Button>
-              </>
+                {uploading ? (
+                  <Loader2Icon className="size-3.5 animate-spin" />
+                ) : (
+                  <CameraIcon className="size-3.5" />
+                )}
+                Photo
+              </label>
             )}
             {localM != null && !readOnly && (
               <Button

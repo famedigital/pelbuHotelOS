@@ -38,9 +38,33 @@ export const MAX_FINANCE_UPLOAD_BYTES = 25 * 1024 * 1024;
 export const ALLOWED_RECEIPT_MIMES = new Set([
   "application/pdf",
   "image/jpeg",
+  "image/jpg",
   "image/png",
   "image/webp",
+  "image/heic",
+  "image/heif",
 ]);
+
+/** iPhone camera roll often sends HEIC or an empty MIME; infer from the name. */
+export function normalizeDeskUploadMime(
+  fileName: string,
+  mimeType: string | null | undefined,
+): string {
+  const mime = (mimeType ?? "").trim().toLowerCase();
+  if (mime === "image/jpg") return "image/jpeg";
+  if (ALLOWED_RECEIPT_MIMES.has(mime)) {
+    return mime === "image/jpg" ? "image/jpeg" : mime;
+  }
+  const name = fileName.trim().toLowerCase();
+  if (name.endsWith(".pdf")) return "application/pdf";
+  if (name.endsWith(".png")) return "image/png";
+  if (name.endsWith(".webp")) return "image/webp";
+  if (name.endsWith(".heic")) return "image/heic";
+  if (name.endsWith(".heif")) return "image/heif";
+  if (name.endsWith(".jpg") || name.endsWith(".jpeg")) return "image/jpeg";
+  if (mime.startsWith("image/")) return mime;
+  return mime || "image/jpeg";
+}
 
 export const ALLOWED_PARSER_MIMES = new Set([
   "text/x-python",
