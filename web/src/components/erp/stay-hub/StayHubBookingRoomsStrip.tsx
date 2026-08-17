@@ -36,10 +36,8 @@ export function StayHubBookingRoomsStrip({
       </p>
       <div className="flex flex-wrap gap-1.5">
         {lines.map((l) => {
-          const assign =
-            l.assignedLabels.length > 0
-              ? l.assignedLabels.join(", ")
-              : null;
+          const labels = l.assignedLabels ?? [];
+          const assign = labels.length > 0 ? labels.join(", ") : null;
           return (
             <span
               key={`${l.roomTypeId}:${l.inventoryKind}`}

@@ -1,21 +1,21 @@
 "use client";
 
+import { StayHubDialog } from "@/components/erp/StayHubDialog";
 import {
-  StayHubDialog,
+  StayHubContext,
+  useStayHub,
+  useStayHubOptional,
+  type OpenStayHubOptions,
   type StayHubSeedStay,
-} from "@/components/erp/StayHubDialog";
-import type { CalendarAgent } from "@/components/erp/CalendarReservationDialog";
-import type { BookableStaff } from "@/components/erp/StaffPicker";
-import type { RackUnit } from "@/components/erp/RoomRackGrid";
+} from "@/components/erp/StayHubContext";
+import { StayHubErrorBoundary } from "@/components/erp/stay-hub/StayHubErrorBoundary";
 import {
   parseStayHubStep,
   type StayHubStepId,
 } from "@/lib/folio/stay-hub-cycle";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -23,41 +23,12 @@ import {
   type ReactNode,
 } from "react";
 
-export type OpenStayHubOptions = {
-  bookingId: string;
-  assignmentId?: string | null;
-  step?: StayHubStepId | null;
-  seedStay?: StayHubSeedStay | null;
-  agents?: CalendarAgent[];
-  staff?: BookableStaff[];
-  units?: RackUnit[];
-  onToggleLock?: (stay: StayHubSeedStay) => void;
-  board?: "arrivals" | "in_house" | "departures" | "reservations" | "auto";
+export {
+  useStayHub,
+  useStayHubOptional,
+  type OpenStayHubOptions,
+  type StayHubSeedStay,
 };
-
-type StayHubContextValue = {
-  open: boolean;
-  bookingId: string | null;
-  openStayHub: (opts: OpenStayHubOptions) => void;
-  closeStayHub: () => void;
-  /** Rail / body panel change — keeps ?step= in sync without re-forcing preferred. */
-  setStayHubStepInUrl: (step: StayHubStepId | null) => void;
-};
-
-const StayHubContext = createContext<StayHubContextValue | null>(null);
-
-export function useStayHub(): StayHubContextValue {
-  const ctx = useContext(StayHubContext);
-  if (!ctx) {
-    throw new Error("useStayHub must be used within StayHubProvider");
-  }
-  return ctx;
-}
-
-/** Optional hook — returns null when outside provider (rare SSR edges). */
-export function useStayHubOptional(): StayHubContextValue | null {
-  return useContext(StayHubContext);
-}
 
 /**
  * Mount once in DeskShell. Any ERP page can open StayHub by bookingId
@@ -73,9 +44,9 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
     null,
   );
   const [seedStay, setSeedStay] = useState<StayHubSeedStay | null>(null);
-  const [agents, setAgents] = useState<CalendarAgent[]>([]);
-  const [staff, setStaff] = useState<BookableStaff[]>([]);
-  const [units, setUnits] = useState<RackUnit[]>([]);
+  const [agents, setAgents] = useState<OpenStayHubOptions["agents"]>([]);
+  const [staff, setStaff] = useState<OpenStayHubOptions["staff"]>([]);
+  const [units, setUnits] = useState<OpenStayHubOptions["units"]>([]);
   const [board, setBoard] = useState<OpenStayHubOptions["board"]>("auto");
   const onToggleLockRef = useRef<OpenStayHubOptions["onToggleLock"]>(undefined);
   /** Skip writeUrl while hydrating open state from the URL. */
@@ -238,27 +209,29 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
   return (
     <StayHubContext.Provider value={value}>
       {children}
-      <StayHubDialog
-        open={open}
-        bookingId={bookingId}
-        assignmentId={assignmentId}
-        preferredStep={preferredStep}
-        seedStay={seedStay}
-        agents={agents}
-        staff={staff}
-        units={units}
-        board={board}
-        onOpenChange={(next) => {
-          if (!next) closeStayHub();
-        }}
-        onToggleLock={
-          onToggleLockRef.current
-            ? (stay) => onToggleLockRef.current?.(stay)
-            : undefined
-        }
-        onPreferredStepConsumed={clearPreferredStep}
-        onPanelChange={setStayHubStepInUrl}
-      />
+      <StayHubErrorBoundary onCrash={closeStayHub}>
+        <StayHubDialog
+          open={open}
+          bookingId={bookingId}
+          assignmentId={assignmentId}
+          preferredStep={preferredStep}
+          seedStay={seedStay}
+          agents={agents ?? []}
+          staff={staff ?? []}
+          units={units ?? []}
+          board={board}
+          onOpenChange={(next) => {
+            if (!next) closeStayHub();
+          }}
+          onToggleLock={
+            onToggleLockRef.current
+              ? (stay) => onToggleLockRef.current?.(stay)
+              : undefined
+          }
+          onPreferredStepConsumed={clearPreferredStep}
+          onPanelChange={setStayHubStepInUrl}
+        />
+      </StayHubErrorBoundary>
     </StayHubContext.Provider>
   );
 }

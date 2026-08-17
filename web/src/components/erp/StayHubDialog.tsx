@@ -33,7 +33,8 @@ import {
   StayHubNextResBanner,
 } from "@/components/erp/stay-hub/StayHubFoExtrasPanel";
 import { StayHubTasksPanel } from "@/components/erp/stay-hub/StayHubTasksPanel";
-import { useStayHubOptional } from "@/components/erp/StayHubProvider";
+import { useStayHubOptional } from "@/components/erp/StayHubContext";
+import { StayHubPrintHost } from "@/components/erp/stay-hub/StayHubPrintHost";
 import {
   getStayHubCatalogCache,
   setStayHubCatalogCache,
@@ -41,7 +42,6 @@ import {
 import { buildLedgerStripSummary } from "@/lib/folio/ledger-summary";
 import { CheckInForm, CheckOutForm } from "@/components/erp/CheckInForm";
 import {
-  FastBookVoucher,
   type FastBookVoucherData,
 } from "@/components/erp/FastBookVoucher";
 import { DeskSettlePanel } from "@/components/erp/DeskSettlePanel";
@@ -55,7 +55,6 @@ import { RoomNcForm } from "@/components/erp/RoomNcForm";
 import { AgreedRateForm } from "@/components/erp/AgreedRateForm";
 import { GuestRatePromoForm } from "@/components/erp/GuestRatePromoForm";
 import {
-  GuestRegistrationCard,
   type GuestRegistrationCardData,
 } from "@/components/erp/GuestRegistrationCard";
 import {
@@ -126,7 +125,6 @@ import {
   type ReactNode,
 } from "react";
 import { toast } from "sonner";
-import { createPortal } from "react-dom";
 
 type FolioToolTab = "bill" | "collect" | "advanced";
 type DetailsToolTab = "stay" | "guest" | "rate" | "more";
@@ -1411,7 +1409,7 @@ export function StayHubDialog({
     1,
     Math.floor(Number(summary?.rooms ?? 1) || 1),
   );
-  const taxOpts = summary
+  const taxOpts = summary?.roomTax
     ? {
         gstRate: summary.roomTax.gstRate,
         serviceChargeRate: summary.roomTax.serviceChargeRate,
@@ -2285,22 +2283,28 @@ export function StayHubDialog({
                               <p className="mb-2 text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
                                 Night grid (tax split)
                               </p>
-                              <StayHubRateNightsPanel
-                                checkIn={summary.checkIn}
-                                checkOut={summary.checkOut}
-                                baseNightBtn={
-                                  summary.agreedNightlyRateBtn ??
-                                  (sheetRate?.ok
-                                    ? (sheetRate.roomNightlyBtn ?? null)
-                                    : null)
-                                }
-                                adults={summary.adults}
-                                children={summary.children}
-                                tax={summary.roomTax}
-                                taxExemptGst={summary.taxExemptGst}
-                                taxExemptService={summary.taxExemptService}
-                                rateTaxMode={summary.rateTaxMode}
-                              />
+                              {summary.roomTax ? (
+                                <StayHubRateNightsPanel
+                                  checkIn={summary.checkIn}
+                                  checkOut={summary.checkOut}
+                                  baseNightBtn={
+                                    summary.agreedNightlyRateBtn ??
+                                    (sheetRate?.ok
+                                      ? (sheetRate.roomNightlyBtn ?? null)
+                                      : null)
+                                  }
+                                  adults={summary.adults}
+                                  children={summary.children}
+                                  tax={summary.roomTax}
+                                  taxExemptGst={summary.taxExemptGst}
+                                  taxExemptService={summary.taxExemptService}
+                                  rateTaxMode={summary.rateTaxMode}
+                                />
+                              ) : (
+                                <p className="text-xs text-muted-foreground">
+                                  Room tax settings unavailable for this stay.
+                                </p>
+                              )}
                             </div>
                             <div className="mt-4 border-t pt-3">
                               <p className="mb-2 text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
@@ -2899,22 +2903,14 @@ export function StayHubDialog({
         </DialogContent>
       </Dialog>
 
-      {typeof document !== "undefined" && summary
-        ? createPortal(
-            <div className="desk-print-host" aria-hidden>
-              <FastBookVoucher
-                data={voucherFromSummary(summary)}
-                property={regProperty ?? undefined}
-              />
-              <GuestRegistrationCard
-                data={postRegData ?? regDataFromStaySummary(summary, draft)}
-                property={regProperty ?? undefined}
-                design={regDesign}
-              />
-            </div>,
-            document.body,
-          )
-        : null}
+      {open && summary ? (
+        <StayHubPrintHost
+          voucher={voucherFromSummary(summary)}
+          registration={postRegData ?? regDataFromStaySummary(summary, draft)}
+          property={regProperty ?? undefined}
+          design={regDesign}
+        />
+      ) : null}
 
       {summary && rateEditable ? (
         <Dialog open={railRateOpen} onOpenChange={setRailRateOpen}>

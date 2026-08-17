@@ -68,7 +68,7 @@ export function FastBookVoucher({
     design.show_logo && property?.logo_public_id
       ? cloudinaryUrl(property.logo_public_id, { width: 180, crop: "fit" })
       : null;
-  const notes = registrationLines(design.notes_text);
+  const notes = registrationLines(design.notes_text ?? "");
   const conf = bookingConfirmationLabel({
     confirmationCode: data.confirmationCode,
     bookingId: data.bookingId,
@@ -151,7 +151,7 @@ export function FastBookVoucher({
         </div>
       </header>
 
-      {design.intro_text.trim() ? (
+      {(design.intro_text ?? "").trim() ? (
         <p className="mt-2 text-[10px] leading-snug text-neutral-600">
           {design.intro_text}
         </p>
@@ -192,14 +192,14 @@ export function FastBookVoucher({
             </tr>
           </thead>
           <tbody>
-            {data.lines.length === 0 ? (
+            {(data.lines ?? []).length === 0 ? (
               <tr>
                 <td colSpan={2} className="px-2 py-2 text-neutral-500">
                   No room lines.
                 </td>
               </tr>
             ) : (
-              data.lines.map((l) => (
+              (data.lines ?? []).map((l) => (
                 <tr
                   key={`${l.code}-${l.name}`}
                   className="border-t border-neutral-300"
@@ -229,7 +229,7 @@ export function FastBookVoucher({
         </ul>
       ) : null}
 
-      {design.terms_text.trim() ? (
+      {(design.terms_text ?? "").trim() ? (
         <p className="mt-2 rounded border border-neutral-300 bg-neutral-50 px-2 py-1.5 text-[9px] leading-snug text-neutral-700">
           {design.terms_text}
         </p>

@@ -298,7 +298,8 @@ export function mapRegistrationDesign(
 }
 
 /** Split policy / notes / do / don't body into printable lines. */
-export function registrationLines(text: string): string[] {
+export function registrationLines(text: string | null | undefined): string[] {
+  if (typeof text !== "string" || !text.trim()) return [];
   return text
     .split(/\n+/)
     .map((line) => line.replace(/^\s*[•\-\*]\s*/, "").trim())

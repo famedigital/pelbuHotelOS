@@ -127,7 +127,7 @@ export function StayHubHeader(props: StayHubIdentityProps) {
             </button>
           ) : null}
           <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
-            {guestName.trim() || "Walk-in guest"}
+            {(guestName ?? "").trim() || "Walk-in guest"}
           </h2>
           <p className="truncate text-[10px] text-muted-foreground">
             {[
@@ -421,7 +421,7 @@ export function StayHubLeftRail({
 
         <div className="flex flex-wrap items-center gap-1.5">
           <h2 className="min-w-0 flex-1 text-sm font-semibold leading-snug tracking-tight text-foreground">
-            {guestName.trim() || "Walk-in guest"}
+            {(guestName ?? "").trim() || "Walk-in guest"}
           </h2>
           {status ? (
             <Badge

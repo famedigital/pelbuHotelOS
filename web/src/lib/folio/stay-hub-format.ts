@@ -13,7 +13,7 @@ export function statusLabel(status: string): string {
     expired: "Expired",
   };
   const key = (status ?? "").toLowerCase();
-  return map[key] ?? status.replace(/_/g, " ");
+  return map[key] ?? String(status ?? "").replace(/_/g, " ");
 }
 
 export function nightsBetween(checkIn: string, checkOut: string): number {

@@ -77,7 +77,9 @@ export function GuestRegistrationCard({
       ? cloudinaryUrl(property.logo_public_id, { width: 180, crop: "fit" })
       : null;
   const rooms =
-    data.roomLines.map((l) => `${l.qty}× ${l.name}`).join(" · ") || "—";
+    (data.roomLines ?? [])
+      .map((l) => `${l.qty}× ${l.name}`)
+      .join(" · ") || "—";
   const checkInPolicy = property?.check_in_time?.trim() || "14:00";
   const checkOutPolicy = property?.check_out_time?.trim() || "12:00";
   const paxParts: string[] = [];
@@ -183,7 +185,7 @@ export function GuestRegistrationCard({
         </div>
       </header>
 
-      {design.intro_text.trim() ? (
+      {(design.intro_text ?? "").trim() ? (
         <p className="mt-2 text-[10px] leading-snug text-neutral-600">
           {design.intro_text}
         </p>
@@ -287,7 +289,7 @@ export function GuestRegistrationCard({
       </div>
 
       {/* Terms + signatures */}
-      {design.terms_text.trim() ? (
+      {(design.terms_text ?? "").trim() ? (
         <p className="mt-2 border-t border-neutral-200 pt-1.5 text-[9px] leading-snug text-neutral-700">
           <span className="font-semibold">Guest acknowledgment. </span>
           {design.terms_text}
