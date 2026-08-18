@@ -13,7 +13,7 @@ import {
   parseStayHubStep,
   type StayHubStepId,
 } from "@/lib/folio/stay-hub-cycle";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -35,7 +35,6 @@ export {
  * (or via ?booking=&step= deep link).
  */
 export function StayHubProvider({ children }: { children: ReactNode }) {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [bookingId, setBookingId] = useState<string | null>(null);
@@ -52,8 +51,8 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
   /** Skip writeUrl while hydrating open state from the URL. */
   const suppressUrlWrite = useRef(false);
   /**
-   * After close, searchParams still has booking= until router.replace settles.
-   * Without this, the deep-link effect re-opens the modal (double-click close).
+   * After close, `?booking=` can linger on Next's searchParams until a real
+   * navigation. Block the deep-link effect from re-opening StayHub.
    */
   const suppressOpenFromUrl = useRef(false);
   const lastOpenedIdRef = useRef<string | null>(null);
@@ -68,7 +67,11 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
   const writeUrl = useCallback(
     (nextBookingId: string | null, step: StayHubStepId | null) => {
       if (suppressUrlWrite.current) return;
-      const params = new URLSearchParams(searchParams.toString());
+      if (typeof window === "undefined") return;
+      // Native replaceState — do not router.replace. Calendar is force-dynamic
+      // and a booking= URL change refetches the whole rack RSC, which Next
+      // surfaces as "This page couldn't load".
+      const params = new URLSearchParams(window.location.search);
       if (nextBookingId) {
         params.set("booking", nextBookingId);
         if (step) params.set("step", step);
@@ -81,9 +84,11 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
       }
       const qs = params.toString();
       const href = qs ? `${pathname}?${qs}` : pathname;
-      router.replace(href, { scroll: false });
+      const current = `${window.location.pathname}${window.location.search}`;
+      if (current === href) return;
+      window.history.replaceState(window.history.state, "", href);
     },
-    [pathname, router, searchParams],
+    [pathname],
   );
 
   const openStayHub = useCallback(
