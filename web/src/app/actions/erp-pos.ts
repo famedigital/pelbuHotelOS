@@ -30,12 +30,17 @@ import { orderRef } from "@/lib/order-ref";
 import {
   POS_TENDER_METHODS,
   POS_VOID_REASON_CODES,
+  canAddItemsToOpenTicket,
   voidManagerThresholdBtn,
   type PosTenderMethod,
   type PosVoidReasonCode,
 } from "@/lib/pos";
 import { DEFAULT_GST_RATE, percentToRate } from "@/lib/property-settings";
-import { calculateOrderTotals, roundBtn } from "@/lib/pricing";
+import {
+  calculateOrderTotals,
+  roundBtn,
+  type LineForGst,
+} from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { assertPropertyOutlet } from "@/lib/outlets";
 import { resolveDeskActor } from "@/lib/desk/actor";
@@ -446,6 +451,9 @@ export type DeskPosState = {
   settleMode?: "cash" | "room_charge";
   error?: string;
   message?: string;
+  /** True when lines were added to an existing unpaid ticket. */
+  appended?: boolean;
+  courseNo?: number;
 };
 
 export async function createDeskOrder(
@@ -956,6 +964,370 @@ export async function createDeskOrder(
 
 function formatShort(amount: number): string {
   return `Nu ${amount.toLocaleString("en-BT", { maximumFractionDigits: 2 })}`;
+}
+
+function modifiersFromDb(raw: unknown): LineForGst["modifiers"] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((entry) => {
+    const m = entry as {
+      priceBtn?: number;
+      qty?: number;
+      gstApplicable?: boolean;
+    };
+    return {
+      priceBtn: Number(m.priceBtn ?? 0),
+      qty: Number(m.qty ?? 1),
+      gstApplicable: m.gstApplicable !== false,
+    };
+  });
+}
+
+function existingItemToLineForGst(row: {
+  qty: number;
+  unit_price_btn: number;
+  list_unit_price_btn: number | null;
+  gst_applicable: boolean;
+  modifiers: unknown;
+  is_nc: boolean;
+}): LineForGst {
+  if (row.is_nc) {
+    return {
+      qty: Number(row.qty),
+      unitPriceBtn: Number(row.list_unit_price_btn ?? row.unit_price_btn ?? 0),
+      gstApplicable: false,
+      isNc: true,
+      modifiers: [],
+    };
+  }
+  return {
+    qty: Number(row.qty),
+    unitPriceBtn: Number(row.unit_price_btn),
+    gstApplicable: Boolean(row.gst_applicable),
+    isNc: false,
+    modifiers: modifiersFromDb(row.modifiers),
+  };
+}
+
+/**
+ * Add a later course to an unpaid open ticket (guest orders more after send).
+ * Same order_id — does not open a second ticket. Blocked once settled,
+ * charged to room, or paid online.
+ */
+export async function appendDeskOrderItems(
+  _prev: DeskPosState,
+  formData: FormData,
+): Promise<DeskPosState> {
+  try {
+    await requirePosFireDesk();
+
+    const orderId = trimRequired(formData.get("existing_order_id"), "Ticket");
+    const cart = parseCart(formData.get("cart"));
+
+    const admin = createSupabaseAdminClient();
+    const property = await loadPropertyPricing(admin);
+    const property_id = property.propertyId;
+
+    const { data: order } = await admin
+      .from("orders")
+      .select(
+        "id, property_id, voided_at, settled_at, posted_to_folio_at, kot_status, is_parked, service_charge_applied, service_charge_rate, service_charge_reason, promo_discount_btn, order_source, payment_recorded_at, table_id, booking_id, outlet, course_count, status",
+      )
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (!order) throw new Error("Ticket not found.");
+    assertDeskProperty(property_id, order.property_id as string, "Order");
+    if (order.voided_at) {
+      throw new Error("Cannot add items to a voided ticket.");
+    }
+    if (
+      !canAddItemsToOpenTicket({
+        settled_at: (order.settled_at as string | null) ?? null,
+        posted_to_folio_at: (order.posted_to_folio_at as string | null) ?? null,
+        order_source: (order.order_source as string) ?? "desk",
+        payment_recorded_at:
+          (order.payment_recorded_at as string | null) ?? null,
+      })
+    ) {
+      if (order.settled_at) {
+        throw new Error("This ticket is settled. Open a new ticket.");
+      }
+      if (order.posted_to_folio_at) {
+        throw new Error(
+          "This ticket is already on the guest folio. Open a new ticket for extra items.",
+        );
+      }
+      throw new Error(
+        "This online order is already paid. Open a new ticket for extra items.",
+      );
+    }
+
+    const { data: existingItems, error: existingError } = await admin
+      .from("order_items")
+      .select(
+        "qty, unit_price_btn, list_unit_price_btn, gst_applicable, modifiers, is_nc, course_no",
+      )
+      .eq("order_id", orderId)
+      .is("voided_at", null);
+
+    if (existingError) {
+      throw new Error("Could not load ticket items.");
+    }
+
+    const maxCourse = Math.max(
+      1,
+      Number(order.course_count ?? 1),
+      ...((existingItems ?? []).map((row) => Number(row.course_no ?? 1))),
+    );
+    const nextCourse = Math.min(12, maxCourse + 1);
+    const cartForCourse = cart.map((line) => ({
+      ...line,
+      courseNo: nextCourse,
+    }));
+
+    const ids = [...new Set(cartForCourse.map((line) => line.menuItemId))];
+    const { data: menuRows, error: menuError } = await admin
+      .from("menu_items")
+      .select("id, name, price_btn, gst_applicable, outlet, is_available")
+      .in("id", ids)
+      .eq("property_id", property_id)
+      .eq("is_available", true);
+
+    if (menuError || !menuRows || menuRows.length !== ids.length) {
+      throw new Error("One or more menu items are unavailable.");
+    }
+
+    const modifiersByLine = await resolveModifiers(
+      admin,
+      property_id,
+      cartForCourse,
+    );
+    const byId = new Map(menuRows.map((row) => [row.id as string, row]));
+    const hasAnyNc = cartForCourse.some((line) => line.isNc);
+    if (hasAnyNc) {
+      const pin = optionalTrim(formData.get("manager_pin"));
+      if (!pin) {
+        throw new Error("Manager PIN required for non-chargeable (NC) items.");
+      }
+      const verified = await verifyManagerPinForProperty(
+        admin,
+        property_id,
+        pin,
+      );
+      if (!verified.ok) throw new Error(verified.error);
+    }
+
+    const priced = cartForCourse.map((line, idx) => {
+      const item = byId.get(line.menuItemId);
+      if (!item) throw new Error("Menu item missing.");
+      const modifiers = modifiersByLine.get(idx) ?? [];
+      const isNc = Boolean(line.isNc);
+      return {
+        menuItemId: line.menuItemId,
+        qty: line.qty,
+        name: item.name as string,
+        unitPriceBtn: Number(item.price_btn),
+        gstApplicable: Boolean(item.gst_applicable),
+        modifiers,
+        courseNo: nextCourse,
+        seatNo: line.seatNo ?? null,
+        lineNotes: line.lineNotes ?? null,
+        isNc,
+        ncReasonCode: line.ncReasonCode ?? null,
+      };
+    });
+
+    for (const line of priced) {
+      if (line.isNc && line.ncReasonCode) {
+        await assertNcReason(admin, property_id, line.ncReasonCode, "pos");
+      }
+    }
+
+    const serviceChargeApplied = Boolean(order.service_charge_applied);
+    const serviceChargeRate = Number(order.service_charge_rate ?? 0);
+    const existingPromoDiscount = Number(order.promo_discount_btn ?? 0);
+
+    const existingLines: LineForGst[] = (existingItems ?? []).map(
+      existingItemToLineForGst,
+    );
+    const newLines: LineForGst[] = priced.map((line) => ({
+      qty: line.qty,
+      unitPriceBtn: line.unitPriceBtn,
+      gstApplicable: line.gstApplicable,
+      isNc: line.isNc,
+      modifiers: line.modifiers.map((m) => ({
+        priceBtn: m.priceBtn,
+        qty: m.qty,
+        gstApplicable: m.gstApplicable,
+      })),
+    }));
+
+    let {
+      subtotalBtn,
+      serviceChargeBtn,
+      gstBtn,
+      totalBtn,
+      ncValueBtn,
+      listSubtotalBtn,
+    } = calculateOrderTotals([...existingLines, ...newLines], {
+      gstRate: property.gstRate,
+      serviceChargeRate,
+      applyServiceCharge: serviceChargeApplied,
+    });
+
+    if (existingPromoDiscount > 0 && totalBtn > 0) {
+      const disc = Math.min(existingPromoDiscount, totalBtn);
+      const scale = (totalBtn - disc) / totalBtn;
+      subtotalBtn = roundBtn(subtotalBtn * scale);
+      serviceChargeBtn = roundBtn(serviceChargeBtn * scale);
+      gstBtn = roundBtn(gstBtn * scale);
+      totalBtn = roundBtn(subtotalBtn + serviceChargeBtn + gstBtn);
+    }
+
+    const actor = await resolveDeskActor().catch(() => null);
+    const approvedBy = actor?.actor ?? "desk";
+
+    const { data: inserted, error: itemsError } = await admin
+      .from("order_items")
+      .insert(
+        priced.map((line) => {
+          const modUnit = line.modifiers.reduce(
+            (s, m) => s + m.priceBtn * m.qty,
+            0,
+          );
+          const listUnit = roundBtn(line.unitPriceBtn + modUnit);
+          const ncValue = line.isNc ? roundBtn(listUnit * line.qty) : 0;
+          return {
+            order_id: orderId,
+            menu_item_id: line.menuItemId,
+            name_snapshot: line.name,
+            qty: line.qty,
+            unit_price_btn: line.isNc ? 0 : line.unitPriceBtn,
+            list_unit_price_btn: listUnit,
+            gst_applicable: line.isNc ? false : line.gstApplicable,
+            modifiers: line.isNc
+              ? line.modifiers.map((m) => ({ ...m, priceBtn: 0 }))
+              : line.modifiers,
+            course_no: line.courseNo,
+            seat_no: line.seatNo,
+            line_notes: line.lineNotes,
+            is_nc: line.isNc,
+            nc_reason_code: line.ncReasonCode,
+            nc_value_btn: ncValue,
+            nc_approved_by: line.isNc ? approvedBy : null,
+          };
+        }),
+      )
+      .select("id");
+
+    if (itemsError || !inserted || inserted.length === 0) {
+      throw new Error("Could not add items to this ticket.");
+    }
+
+    const newItemIds = inserted.map((row) => row.id as string);
+
+    const { error: stockError } = await admin.rpc("pos_apply_order_stock", {
+      p_order_id: orderId,
+      p_reverse: false,
+    });
+    if (stockError) {
+      await admin.from("order_items").delete().in("id", newItemIds);
+      throw new Error(
+        stockError.message.includes("Insufficient stock")
+          ? stockError.message
+          : "Could not issue menu stock.",
+      );
+    }
+
+    for (const line of priced) {
+      if (!line.isNc || !line.ncReasonCode) continue;
+      const modUnit = line.modifiers.reduce(
+        (s, m) => s + m.priceBtn * m.qty,
+        0,
+      );
+      const listUnit = roundBtn(line.unitPriceBtn + modUnit);
+      await recordNcEvent(admin, {
+        propertyId: property_id,
+        domain: "pos",
+        reasonCode: line.ncReasonCode,
+        listValueBtn: roundBtn(listUnit * line.qty),
+        orderId,
+        bookingId: (order.booking_id as string | null) ?? null,
+        description: `${line.qty}× ${line.name}`,
+        approvedBy,
+      });
+    }
+
+    const prevKot = (order.kot_status as string) ?? "new";
+    const nextKot =
+      prevKot === "ready" || prevKot === "served" || prevKot === "cancelled"
+        ? "new"
+        : prevKot === "preparing"
+          ? "preparing"
+          : "new";
+
+    const { error: updateError } = await admin
+      .from("orders")
+      .update({
+        subtotal_btn: subtotalBtn,
+        service_charge_btn: serviceChargeBtn,
+        gst_btn: gstBtn,
+        total_btn: totalBtn,
+        nc_value_btn: ncValueBtn,
+        list_subtotal_btn: listSubtotalBtn,
+        course_count: nextCourse,
+        kot_status: nextKot,
+        status: "received",
+        is_parked: false,
+        parked_at: null,
+      })
+      .eq("id", orderId)
+      .eq("property_id", property_id);
+
+    if (updateError) {
+      throw new Error("Items saved, but ticket totals could not be updated.");
+    }
+
+    const tableId = (order.table_id as string | null) ?? null;
+    if (tableId) {
+      await admin
+        .from("dining_tables")
+        .update({ status: "ordered" })
+        .eq("id", tableId)
+        .eq("property_id", property_id);
+    }
+
+    await writeAuditEvent(admin, {
+      propertyId: property_id,
+      action: "pos.order.append",
+      entityType: "orders",
+      entityId: orderId,
+      summary: `POS append course ${nextCourse} · ${formatShort(totalBtn)}`,
+      meta: {
+        outlet: order.outlet,
+        tableId,
+        courseNo: nextCourse,
+        addedLines: priced.length,
+        totalBtn,
+      },
+    });
+
+    revalidatePath("/erp");
+    revalidatePath("/erp/pos");
+    return {
+      ok: true,
+      orderId,
+      totalBtn,
+      appended: true,
+      courseNo: nextCourse,
+      message: `Course ${nextCourse} sent · ticket ${formatShort(totalBtn)}`,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Something went wrong.",
+    };
+  }
 }
 
 export async function updateOrderKotStatus(formData: FormData): Promise<void> {

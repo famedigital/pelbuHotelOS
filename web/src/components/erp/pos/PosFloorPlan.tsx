@@ -59,6 +59,7 @@ export function PosFloorPlan({
   onAddTable,
   onEditTable,
   onOpenTicket,
+  onAddItems,
 }: {
   floor: FloorKey;
   onFloorChange: (floor: FloorKey) => void;
@@ -70,6 +71,7 @@ export function PosFloorPlan({
   onAddTable: () => void;
   onEditTable: (table: DiningTable) => void;
   onOpenTicket: (orderId: string) => void;
+  onAddItems?: (orderId: string) => void;
 }) {
   const [statusState, statusAction, statusPending] = useActionState(
     updateTableStatus,
@@ -457,6 +459,7 @@ export function PosFloorPlan({
                 onEdit={() => onEditTable(table)}
                 onStatus={(next) => setStatus(table.id, next)}
                 onOpenTicket={onOpenTicket}
+                onAddItems={onAddItems}
                 onPointerDown={(e, node) => beginDrag(e, table.id, node)}
                 onPointerMove={moveDrag}
                 onPointerUp={(e) => {
@@ -496,6 +499,7 @@ function TableChip({
   onEdit,
   onStatus,
   onOpenTicket,
+  onAddItems,
   onPointerDown,
   onPointerMove,
   onPointerUp,
@@ -510,6 +514,7 @@ function TableChip({
   onEdit: () => void;
   onStatus: (next: TableStatus) => void;
   onOpenTicket: (orderId: string) => void;
+  onAddItems?: (orderId: string) => void;
   onPointerDown: (e: React.PointerEvent, node: HTMLDivElement) => void;
   onPointerMove: (e: React.PointerEvent) => void;
   onPointerUp: (e: React.PointerEvent) => void;
@@ -570,9 +575,14 @@ function TableChip({
               <PencilIcon className="size-4" />
               Edit table
             </DropdownMenuItem>
+            {ticket && onAddItems ? (
+              <DropdownMenuItem onSelect={() => onAddItems(ticket.id)}>
+                Add items
+              </DropdownMenuItem>
+            ) : null}
             {ticket ? (
               <DropdownMenuItem onSelect={() => onOpenTicket(ticket.id)}>
-                Settle open ticket
+                Settle ticket
               </DropdownMenuItem>
             ) : null}
             <DropdownMenuSeparator />

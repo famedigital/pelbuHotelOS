@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  appendDeskOrderItems,
   createDeskOrder,
   updateTableStatus,
   type DeskPosState,
@@ -39,6 +40,11 @@ import {
 import { cn } from "@/lib/utils";
 import { calculateOrderTotals, formatBtn } from "@/lib/pricing";
 import {
+  canAddItemsToOpenTicket,
+  nextCourseNoForTicket,
+  type OpenPosTicket,
+} from "@/lib/pos";
+import {
   readPosFloorPref,
   readPosLastKind,
   readPosMenuOutletPref,
@@ -53,6 +59,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -154,6 +161,9 @@ export function PosLayout({
   const [ticketsOpen, setTicketsOpen] = useState(false);
   const [settleTarget, setSettleTarget] = useState<string | null>(null);
   const [voidTarget, setVoidTarget] = useState<string | null>(null);
+  /** When set, Send appends to this unpaid ticket instead of creating another. */
+  const [appendOrderId, setAppendOrderId] = useState<string | null>(null);
+  const [appendCourseNo, setAppendCourseNo] = useState(1);
   const [tableFormTarget, setTableFormTarget] = useState<TableFormTarget>(null);
 
   const [modifierTarget, setModifierTarget] = useState<
@@ -204,6 +214,8 @@ export function PosLayout({
   );
 
   function startSaleKind(kind: PosSaleKind) {
+    setAppendOrderId(null);
+    setAppendCourseNo(1);
     setSaleKind(kind);
     setMenuUnlocked(false);
     writePosLastKind(kind);
@@ -243,6 +255,8 @@ export function PosLayout({
    */
   function softSwitchSaleKind(kind: PosSaleKind) {
     if (kind === saleKind) return;
+    setAppendOrderId(null);
+    setAppendCourseNo(1);
     setSaleKind(kind);
     setMenuUnlocked(false);
     writePosLastKind(kind);
@@ -282,6 +296,9 @@ export function PosLayout({
     setCategory("all");
     setPromoCode("");
     setManagerPin("");
+    setAppendOrderId(null);
+    setAppendCourseNo(1);
+    setCourseCount("1");
   }
 
   const shortcuts = useMemo<ShortcutBinding[]>(
@@ -398,8 +415,33 @@ export function PosLayout({
   );
   useKeyboardShortcuts(shortcuts);
 
-  const [state, action, pending] = useActionState(createDeskOrder, initial);
-  useActionToast(state);
+  const [createState, createAction, createPending] = useActionState(
+    createDeskOrder,
+    initial,
+  );
+  const [appendState, appendAction, appendPending] = useActionState(
+    appendDeskOrderItems,
+    initial,
+  );
+  const pending = createPending || appendPending;
+  useActionToast(createState);
+  useActionToast(appendState);
+
+  const lastHandledAppend = useRef<string | null>(null);
+  useEffect(() => {
+    if (!appendState.ok || !appendState.appended || !appendState.orderId) {
+      return;
+    }
+    const token = `${appendState.orderId}:${appendState.courseNo}:${appendState.totalBtn}`;
+    if (lastHandledAppend.current === token) return;
+    lastHandledAppend.current = token;
+    setCart([]);
+    setManagerPin("");
+    setCartSheetOpen(false);
+    const next = Math.min(12, (appendState.courseNo ?? 1) + 1);
+    setAppendCourseNo(next);
+    setCourseCount(String(next));
+  }, [appendState]);
 
   /**
    * Table sales lock the sell menu to that table's floor (cafe table → cafe
@@ -470,6 +512,8 @@ export function PosLayout({
     );
   }
 
+  const activeCourseNo = appendOrderId ? appendCourseNo : 1;
+
   function addItemQuick(menuItemId: string) {
     const item = items.find((m) => m.id === menuItemId);
     if (!item) return;
@@ -481,7 +525,7 @@ export function PosLayout({
     const key = lineKey({
       menuItemId,
       mods: [],
-      courseNo: 1,
+      courseNo: activeCourseNo,
       seatNo: undefined,
       lineNotes: undefined,
     });
@@ -503,7 +547,7 @@ export function PosLayout({
           qty: 1,
           modifiers: [],
           modifierSnapshots: [],
-          courseNo: 1,
+          courseNo: activeCourseNo,
           seatNo: undefined,
           lineNotes: undefined,
           prepStation: item.prep_station ?? "kitchen",
@@ -560,8 +604,18 @@ export function PosLayout({
     if (tableId === nextTableId) {
       setTableId("");
       setCovers("");
+      setAppendOrderId(null);
+      setAppendCourseNo(1);
       return;
     }
+    const existing = openTickets.find((t) => t.table_id === nextTableId);
+    if (existing) {
+      beginAppend(existing);
+      return;
+    }
+    setAppendOrderId(null);
+    setAppendCourseNo(1);
+    setCourseCount("1");
     if (!saleKind) setSaleKind("table");
     else if (saleKind === "counter" || saleKind === "room") {
       // Seating from floor under non-table sale: switch context to table.
@@ -588,6 +642,68 @@ export function PosLayout({
     setSection("menu");
   }
 
+  function beginAppend(ticket: OpenPosTicket) {
+    if (!canAddItemsToOpenTicket(ticket)) {
+      setTicketsOpen(false);
+      setSettleTarget(ticket.id);
+      return;
+    }
+    const next = nextCourseNoForTicket(ticket);
+    setAppendOrderId(ticket.id);
+    setAppendCourseNo(next);
+    setCourseCount(String(next));
+    setCart([]);
+    setPromoCode("");
+    setManagerPin("");
+    setTicketsOpen(false);
+    setCartSheetOpen(false);
+
+    if (ticket.table_id) {
+      setSaleKind("table");
+      setSettleMode("cash");
+      setTableId(ticket.table_id);
+      const table = tables.find((t) => t.id === ticket.table_id);
+      setCovers(
+        ticket.covers
+          ? String(ticket.covers)
+          : table
+            ? String(table.seats)
+            : "",
+      );
+      if (table?.outlet) {
+        setMenuOutlet(table.outlet);
+        setCategory("all");
+        setMenuUnlocked(false);
+        setFloorOutlet(table.outlet);
+      }
+      setCustomerName(
+        ticket.customer_name ||
+          (table?.name ? `Table ${table.name}` : "Table guest"),
+      );
+    } else {
+      setSaleKind("counter");
+      setSettleMode("cash");
+      setTableId("");
+      setCovers("");
+      setCustomerName(ticket.customer_name || "Walk-in");
+    }
+    setPhone(ticket.phone === "walk-in" ? "" : ticket.phone);
+    setSection("menu");
+  }
+
+  function cancelAppend() {
+    setAppendOrderId(null);
+    setAppendCourseNo(1);
+    setCourseCount("1");
+    setCart([]);
+    setManagerPin("");
+    if (saleKind === "table") {
+      setTableId("");
+      setCovers("");
+      setSection("floor");
+    }
+  }
+
   const openTicketOnTable = useMemo(
     () =>
       tableId
@@ -598,6 +714,10 @@ export function PosLayout({
 
   /** Clear seat context; if a live ticket holds the table, open void instead. */
   function releaseTable() {
+    if (appendOrderId) {
+      cancelAppend();
+      return;
+    }
     if (!tableId) return;
     if (openTicketOnTable) {
       setVoidTarget(openTicketOnTable.id);
@@ -679,13 +799,13 @@ export function PosLayout({
                 qty: m.qty,
               }))
             : undefined,
-        courseNo: l.courseNo,
+        courseNo: appendOrderId ? appendCourseNo : l.courseNo,
         seatNo: l.seatNo,
         lineNotes: l.lineNotes,
         isNc: l.isNc || undefined,
         ncReasonCode: l.ncReasonCode,
       })),
-    [cart],
+    [cart, appendOrderId, appendCourseNo],
   );
 
   const totals = useMemo(() => {
@@ -738,6 +858,10 @@ export function PosLayout({
         onSettle={(id) => {
           setTicketsOpen(false);
           setSettleTarget(id);
+        }}
+        onAddItems={(id) => {
+          const ticket = openTickets.find((t) => t.id === id);
+          if (ticket) beginAppend(ticket);
         }}
         onVoid={(id) => {
           setTicketsOpen(false);
@@ -804,7 +928,7 @@ export function PosLayout({
   );
 
   // Success strip — mirrors the legacy "order on the KOT board" state.
-  if (state.ok && state.orderId) {
+  if (createState.ok && createState.orderId) {
     return (
       <div className={shellClass}>
         {registerChrome}
@@ -820,28 +944,32 @@ export function PosLayout({
           aria-live="polite"
         >
           <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-            {state.settleMode === "room_charge" && state.folioId
+            {createState.settleMode === "room_charge" && createState.folioId
               ? "Charged to room"
               : "Ticket saved"}
           </p>
           <h2 className="mt-3 text-2xl font-semibold tracking-tight text-foreground">
-            {state.settleMode === "room_charge" && state.folioId
+            {createState.settleMode === "room_charge" && createState.folioId
               ? "On the guest folio"
               : "Order sent to prep"}
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
             Ref{" "}
-            <span className="font-mono text-foreground">{state.orderId}</span>
-            {state.totalBtn != null ? ` · ${formatBtn(state.totalBtn)}` : ""}
-            {state.message ? ` · ${state.message}` : null}
+            <span className="font-mono text-foreground">
+              {createState.orderId}
+            </span>
+            {createState.totalBtn != null
+              ? ` · ${formatBtn(createState.totalBtn)}`
+              : ""}
+            {createState.message ? ` · ${createState.message}` : null}
           </p>
           <div className="mt-8 flex flex-wrap gap-2">
             <Button asChild variant="citrus" className="h-11">
               <a href="/erp/pos">New ticket</a>
             </Button>
-            {state.folioId ? (
+            {createState.folioId ? (
               <Button asChild variant="outline" className="h-11">
-                <a href={`/erp/folios/${state.folioId}`}>Open folio</a>
+                <a href={`/erp/folios/${createState.folioId}`}>Open folio</a>
               </Button>
             ) : null}
             <Button asChild variant="outline" className="h-11">
@@ -920,10 +1048,32 @@ export function PosLayout({
                 serverStaffId={serverStaffId}
                 onServerStaffIdChange={setServerStaffId}
                 onReleaseTable={releaseTable}
-                hasOpenTicketOnTable={Boolean(openTicketOnTable)}
+                hasOpenTicketOnTable={
+                  Boolean(openTicketOnTable) && !appendOrderId
+                }
                 onChangeSaleKind={resetSaleContext}
                 onSwitchSaleKind={softSwitchSaleKind}
               />
+
+              {appendOrderId ? (
+                <Alert>
+                  <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+                    <span>
+                      Adding course {appendCourseNo} to this open ticket. Send
+                      to kitchen — extra items stay on the same bill.
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      onClick={cancelAppend}
+                    >
+                      Cancel
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              ) : null}
 
               {openTickets.length > 0 ? (
                 <KitchenTicketStrip
@@ -947,12 +1097,26 @@ export function PosLayout({
                     setTableFormTarget({ mode: "edit", table })
                   }
                   onOpenTicket={(orderId) => setSettleTarget(orderId)}
+                  onAddItems={(orderId) => {
+                    const ticket = openTickets.find((t) => t.id === orderId);
+                    if (ticket) beginAppend(ticket);
+                  }}
                 />
               ) : null}
 
               {saleReady ? (
-                <form action={action} className="block">
-                  {/* Hidden inputs — contract must match createDeskOrder */}
+                <form
+                  action={appendOrderId ? appendAction : createAction}
+                  className="block"
+                >
+                  {/* Hidden inputs — contract must match createDeskOrder / appendDeskOrderItems */}
+                  {appendOrderId ? (
+                    <input
+                      type="hidden"
+                      name="existing_order_id"
+                      value={appendOrderId}
+                    />
+                  ) : null}
                   <input
                     type="hidden"
                     name="cart"
@@ -999,7 +1163,24 @@ export function PosLayout({
                   <input type="hidden" name="promo_code" value={promoCode} />
                   <input type="hidden" name="manager_pin" value={managerPin} />
 
-                  {cart.some((l) => l.isNc) || promoCode ? (
+                  {appendOrderId ? (
+                    cart.some((l) => l.isNc) ? (
+                      <div className="mb-3 max-w-xs">
+                        <label className="space-y-1 text-xs">
+                          <span className="text-muted-foreground">
+                            Manager PIN (required for NC)
+                          </span>
+                          <input
+                            type="password"
+                            value={managerPin}
+                            onChange={(e) => setManagerPin(e.target.value)}
+                            autoComplete="off"
+                            className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                          />
+                        </label>
+                      </div>
+                    ) : null
+                  ) : cart.some((l) => l.isNc) || promoCode ? (
                     <div className="mb-3 grid gap-2 rounded-lg border bg-card p-3 sm:grid-cols-2">
                       <label className="space-y-1 text-xs">
                         <span className="text-muted-foreground">Promo code</span>
@@ -1048,10 +1229,14 @@ export function PosLayout({
                     </div>
                   )}
 
-                  {state.error ? (
+                  {(appendOrderId ? appendState.error : createState.error) ? (
                     <Alert variant="destructive" className="mb-4">
                       <TriangleAlertIcon />
-                      <AlertDescription>{state.error}</AlertDescription>
+                      <AlertDescription>
+                        {appendOrderId
+                          ? appendState.error
+                          : createState.error}
+                      </AlertDescription>
                     </Alert>
                   ) : null}
 
@@ -1260,6 +1445,12 @@ export function PosLayout({
                             setTableFormTarget({ mode: "edit", table })
                           }
                           onOpenTicket={(orderId) => setSettleTarget(orderId)}
+                          onAddItems={(orderId) => {
+                            const ticket = openTickets.find(
+                              (t) => t.id === orderId,
+                            );
+                            if (ticket) beginAppend(ticket);
+                          }}
                         />
                       </TabsContent>
                     </div>
@@ -1287,6 +1478,9 @@ export function PosLayout({
                         ncReasons={ncReasons}
                         canFireKot={canFireKot}
                         idPrefix="cart_desktop"
+                        appendCourseNo={
+                          appendOrderId ? appendCourseNo : undefined
+                        }
                       />
                     </aside>
                   </div>
@@ -1353,6 +1547,9 @@ export function PosLayout({
                             ncReasons={ncReasons}
                             canFireKot={canFireKot}
                             idPrefix="cart_mobile"
+                            appendCourseNo={
+                              appendOrderId ? appendCourseNo : undefined
+                            }
                           />
                         </div>
                       </SheetContent>
@@ -1397,6 +1594,7 @@ export function PosLayout({
           removeLine(key);
           setModifierTarget(null);
         }}
+        defaultCourseNo={activeCourseNo}
       />
 
       <PosHowToSheet

@@ -30,6 +30,7 @@ type Props = {
   cart: CartLine[];
   onUpsert: (line: CartLine) => void;
   onRemove: (key: string) => void;
+  defaultCourseNo?: number;
 };
 
 type Selection = Record<
@@ -67,6 +68,7 @@ export function ModifierDialog({
   cart,
   onUpsert,
   onRemove,
+  defaultCourseNo = 1,
 }: Props) {
   const open = target !== null;
 
@@ -95,7 +97,7 @@ export function ModifierDialog({
     if (!target || !item) return;
     if (target.mode === "add") {
       setQty(1);
-      setCourseNo(1);
+      setCourseNo(Math.max(1, defaultCourseNo));
       setSeatNo("");
       setLineNotes("");
       const init: Selection = {};
@@ -122,7 +124,7 @@ export function ModifierDialog({
       setSelection(init);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target, item?.id]);
+  }, [target, item?.id, defaultCourseNo]);
 
   if (!target || !item) return null;
 

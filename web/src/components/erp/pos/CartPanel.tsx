@@ -45,6 +45,8 @@ type Props = {
   idPrefix: string;
   /** HK/laundry cannot fire tickets onto the kitchen display. */
   canFireKot?: boolean;
+  /** When set, Send appends this course onto the open ticket (park hidden). */
+  appendCourseNo?: number;
 };
 
 function lineUnit(line: CartLine): number {
@@ -77,6 +79,7 @@ export function CartPanel({
   ncReasons = [],
   idPrefix,
   canFireKot = true,
+  appendCourseNo,
 }: Props) {
   const gstPct = Math.round(gstRate * 10000) / 100;
   const servicePct = servicePercent || "0";
@@ -86,13 +89,16 @@ export function CartPanel({
   const dense = cart.length >= 6;
   const listRef = useRef<HTMLDivElement>(null);
   const prevCountRef = useRef(cart.length);
+  const appending = appendCourseNo != null && appendCourseNo > 0;
 
   const sendLabel = useMemo(
     () =>
       cart.length === 0
         ? "Add items to send"
-        : fireOrderLabel(cart.map((l) => l.prepStation)),
-    [cart],
+        : appending
+          ? `Send course ${appendCourseNo}`
+          : fireOrderLabel(cart.map((l) => l.prepStation)),
+    [cart, appending, appendCourseNo],
   );
 
   const serviceOverridden =
@@ -122,7 +128,7 @@ export function CartPanel({
       <div className="flex shrink-0 items-center justify-between gap-2 border-b px-2.5 py-2">
         <div className="flex min-w-0 items-center gap-1.5">
           <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-            Ticket
+            {appending ? `Course ${appendCourseNo}` : "Ticket"}
           </p>
           <span className="truncate text-xs text-muted-foreground">
             {lineCount > 0 ? `${lineCount} items` : "Empty"}
@@ -145,7 +151,9 @@ export function CartPanel({
           <div className="flex flex-col items-center justify-center gap-1 px-4 py-8 text-center">
             <p className="text-sm font-medium text-foreground">No items yet</p>
             <p className="text-xs text-muted-foreground">
-              Tap menu tiles to build the ticket.
+              {appending
+                ? "Tap menu tiles to add this course to the open ticket."
+                : "Tap menu tiles to build the ticket."}
             </p>
           </div>
         ) : (
@@ -390,17 +398,19 @@ export function CartPanel({
                     ? "Add items to send"
                     : sendLabel}
               </Button>
-              <Button
-                type="submit"
-                name="is_parked"
-                value="1"
-                variant="outline"
-                size="lg"
-                disabled={pending || cart.length === 0}
-                className="w-full"
-              >
-                {pending ? "Parking…" : "Park ticket"}
-              </Button>
+              {!appending ? (
+                <Button
+                  type="submit"
+                  name="is_parked"
+                  value="1"
+                  variant="outline"
+                  size="lg"
+                  disabled={pending || cart.length === 0}
+                  className="w-full"
+                >
+                  {pending ? "Parking…" : "Park ticket"}
+                </Button>
+              ) : null}
             </>
           ) : (
             <p className="rounded-lg border border-dashed bg-muted/30 px-3 py-3 text-center text-sm text-muted-foreground">

@@ -24,7 +24,11 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useActionToast } from "@/hooks/use-action-toast";
-import type { DiningTable, OpenPosTicket } from "@/lib/pos";
+import {
+  canAddItemsToOpenTicket,
+  type DiningTable,
+  type OpenPosTicket,
+} from "@/lib/pos";
 import { formatBtn } from "@/lib/pricing";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -237,6 +241,8 @@ type Props = {
   tables: DiningTable[];
   onSettle: (orderId: string) => void;
   onVoid: (orderId: string) => void;
+  /** Resume an unpaid ticket on the menu to send another course. */
+  onAddItems?: (orderId: string) => void;
   /** HK/laundry cannot park/resume tickets onto the kitchen TV. */
   canFireKot?: boolean;
 };
@@ -250,6 +256,7 @@ export function OpenTicketsDrawer({
   tables,
   onSettle,
   onVoid,
+  onAddItems,
   canFireKot = true,
 }: Props) {
   const [parkState, parkAction, parkPending] = useActionState(
@@ -405,10 +412,24 @@ export function OpenTicketsDrawer({
     }
     return (
       <div className="flex flex-wrap gap-1.5">
-        {!t.settled_at ? (
+        {onAddItems && canFireKot && canAddItemsToOpenTicket(t) ? (
           <Button
             type="button"
             variant="citrus"
+            size="sm"
+            className="h-9"
+            disabled={busy}
+            onClick={() => onAddItems(t.id)}
+          >
+            Add items
+          </Button>
+        ) : null}
+        {!t.settled_at ? (
+          <Button
+            type="button"
+            variant={
+              onAddItems && canAddItemsToOpenTicket(t) ? "outline" : "citrus"
+            }
             size="sm"
             className="h-9"
             disabled={busy}
@@ -560,10 +581,10 @@ export function OpenTicketsDrawer({
           </div>
           <SheetDescription>
             {detail
-              ? "Full ticket — items, money, and every action for this order."
+              ? "Full ticket — add items if they order more, then settle or void."
               : lane === "closed"
                 ? "Settled tickets for today’s business date. Tax invoices issue from the guest folio."
-                : "Tap a ticket to open it. Settle, charge to room, or void from here."}
+                : "Tap a ticket to open it. Add items if they order more, then settle or void."}
           </SheetDescription>
           {!detail ? (
             <div className="flex gap-1 pt-1">

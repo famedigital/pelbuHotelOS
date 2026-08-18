@@ -52,6 +52,7 @@ const HOW_TO = [
       "Table → pick floor tab (Restaurant / Cafe / Bar…).",
       "Tap a free table on that floor (or Add table ··· Edit for setup).",
       "Menu opens locked to that floor — unlock if guest orders across floors.",
+      "They order more later: Open tickets → Add items (or tap the occupied table). Send course 2 on the same bill.",
       "New clears for the next party. Settle from Tickets.",
     ],
   },
