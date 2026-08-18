@@ -8,8 +8,8 @@ import type {
 } from "@/lib/building/types";
 import type { RoomMapUnit } from "@/components/erp/room-map-shared";
 import { Html, OrbitControls, useTexture } from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
-import { Suspense, useCallback, useMemo, useState } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
 
 export const FACADE_TEXTURE_SRC = "/brand/pelbu-olakha-facade.png";
@@ -42,12 +42,26 @@ function isFloorKey(value: string): value is FloorKey {
   return (FLOOR_ORDER as readonly string[]).includes(value);
 }
 
+function useNarrowViewport() {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const sync = () => setNarrow(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  return narrow;
+}
+
 type Props = {
   units: RoomMapUnit[];
   layout: PropertyBuildingLayout;
   spaces: Array<BuildingSpace & { id: string }>;
   selectedUnitIds?: string[];
   legendHint?: string | null;
+  /** `hero` fills the parent and overlays compact floor chips. */
+  variant?: "page" | "hero";
   onSelectRoom?: (unit: RoomMapUnit) => void;
   onSelectSpace?: (space: BuildingSpace & { id: string }) => void;
   onSelectFloorWing?: (floorKey: string, wing: "front" | "back") => void;
@@ -59,10 +73,13 @@ export function HotelFacadeExplore({
   spaces,
   selectedUnitIds = [],
   legendHint = null,
+  variant = "page",
   onSelectRoom,
   onSelectSpace,
   onSelectFloorWing,
 }: Props) {
+  const isHero = variant === "hero";
+  const narrow = useNarrowViewport();
   const [floor, setFloor] = useState<string>("All");
   const [wing, setWing] = useState<"front" | "back">("front");
   const [pickerFloor, setPickerFloor] = useState<FloorKey | null>(null);
@@ -108,61 +125,139 @@ export function HotelFacadeExplore({
     [applyGuestFloor, wing],
   );
 
+  const floorBar = (
+    <div className="flex flex-wrap items-center gap-2">
+      {["All", ...FLOOR_ORDER].map((key) => (
+        <Button
+          key={key}
+          type="button"
+          size="sm"
+          variant={floor === key ? "default" : "outline"}
+          className={isHero ? "h-11 min-w-11 bg-background/90" : "h-11 min-w-11"}
+          onClick={() => {
+            if (key === "All") {
+              setFloor("All");
+              setPickerFloor(null);
+              onSelectFloorWing?.("All", "front");
+              return;
+            }
+            onBandClick(key as FloorKey);
+          }}
+        >
+          {isHero
+            ? key === "All"
+              ? "All"
+              : key === "G"
+                ? "G"
+                : key === "1"
+                  ? "1st"
+                  : key
+            : floorTabLabel(key, layout)}
+        </Button>
+      ))}
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant={wing === "front" ? "default" : "outline"}
+          className={isHero ? "h-11 bg-background/90" : "h-11"}
+          onClick={() => {
+            setWing("front");
+            if (isFloorKey(floor) && !PUBLIC_FLOOR.has(floor)) {
+              applyGuestFloor(floor, "front");
+            }
+          }}
+        >
+          Front
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={wing === "back" ? "default" : "outline"}
+          className={isHero ? "h-11 bg-background/90" : "h-11"}
+          onClick={() => {
+            setWing("back");
+            if (isFloorKey(floor) && !PUBLIC_FLOOR.has(floor)) {
+              applyGuestFloor(floor, "back");
+            }
+          }}
+        >
+          Back
+        </Button>
+      </div>
+    </div>
+  );
+
+  const picker = pickerFloor ? (
+    <div className="flex flex-wrap gap-2 rounded-xl border border-border bg-background/90 p-3 shadow-sm">
+      <p className="w-full text-xs font-medium text-muted-foreground">
+        {pickerFloor === "G" ? "Ground floor" : "First floor"}
+      </p>
+      {programSpaces.map((space) => (
+        <Button
+          key={space.id}
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-11"
+          onClick={() => onSelectSpace?.(space)}
+        >
+          {space.label}
+        </Button>
+      ))}
+    </div>
+  ) : null;
+
+  const canvas = (
+    <Canvas
+      className="h-full w-full touch-none"
+      style={{ touchAction: "none", display: "block" }}
+      dpr={isHero ? [1, 1.5] : [1, 1.75]}
+      gl={{ antialias: !narrow, alpha: true, powerPreference: "high-performance" }}
+      camera={{
+        position: isHero
+          ? narrow
+            ? [35, 58, 155]
+            : [90, 70, 175]
+          : [220, 140, 260],
+        fov: isHero ? (narrow ? 48 : 40) : 38,
+        near: 1,
+        far: 4000,
+      }}
+      onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
+    >
+      <Suspense fallback={null}>
+        <FacadeScene
+          floor={floor}
+          wing={wing}
+          onBandClick={onBandClick}
+          selectedCount={selectedUnitIds.length}
+          hero={isHero}
+          narrow={narrow}
+        />
+      </Suspense>
+    </Canvas>
+  );
+
+  if (isHero) {
+    return (
+      <div className="relative h-full w-full">
+        <div className="absolute inset-0 bg-gradient-to-b from-sky-200/80 via-[#eef4ea] to-[#d9d2c4]" />
+        <div className="absolute inset-0 touch-none overscroll-none">
+          {canvas}
+        </div>
+        {picker ? (
+          <div className="pointer-events-none absolute inset-x-0 top-[max(4.75rem,calc(env(safe-area-inset-top,0px)+3.75rem))] z-10 flex justify-center px-4 md:top-24">
+            <div className="pointer-events-auto w-full max-w-lg">{picker}</div>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        {["All", ...FLOOR_ORDER].map((key) => (
-          <Button
-            key={key}
-            type="button"
-            size="sm"
-            variant={floor === key ? "default" : "outline"}
-            className="h-11 min-w-11"
-            onClick={() => {
-              if (key === "All") {
-                setFloor("All");
-                setPickerFloor(null);
-                onSelectFloorWing?.("All", "front");
-                return;
-              }
-              onBandClick(key as FloorKey);
-            }}
-          >
-            {floorTabLabel(key, layout)}
-          </Button>
-        ))}
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant={wing === "front" ? "default" : "outline"}
-            className="h-11"
-            onClick={() => {
-              setWing("front");
-              if (isFloorKey(floor) && !PUBLIC_FLOOR.has(floor)) {
-                applyGuestFloor(floor, "front");
-              }
-            }}
-          >
-            Front
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={wing === "back" ? "default" : "outline"}
-            className="h-11"
-            onClick={() => {
-              setWing("back");
-              if (isFloorKey(floor) && !PUBLIC_FLOOR.has(floor)) {
-                applyGuestFloor(floor, "back");
-              }
-            }}
-          >
-            Back
-          </Button>
-        </div>
-      </div>
-
+      {floorBar}
       <p className="text-[11px] leading-relaxed text-muted-foreground">
         {legendHint ??
           "Drag to orbit · tap a floor on the building · Ground is lobby, bistro, spa and steam · First is restaurant and meeting."}
@@ -172,44 +267,9 @@ export function HotelFacadeExplore({
           </span>
         ) : null}
       </p>
-
-      {pickerFloor ? (
-        <div className="flex flex-wrap gap-2 rounded-xl border border-border bg-secondary/40 p-3">
-          <p className="w-full text-xs font-medium text-muted-foreground">
-            {pickerFloor === "G" ? "Ground floor" : "First floor"}
-          </p>
-          {programSpaces.map((space) => (
-            <Button
-              key={space.id}
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-11"
-              onClick={() => onSelectSpace?.(space)}
-            >
-              {space.label}
-            </Button>
-          ))}
-        </div>
-      ) : null}
-
-      <div className="relative h-[min(70vh,560px)] w-full overflow-hidden rounded-xl border bg-gradient-to-b from-sky-100/50 via-card to-muted/40">
-        <Canvas
-          className="!touch-none"
-          dpr={[1, 1.75]}
-          gl={{ antialias: true, alpha: true }}
-          camera={{ position: [220, 140, 260], fov: 38, near: 1, far: 4000 }}
-          onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
-        >
-          <Suspense fallback={null}>
-            <FacadeScene
-              floor={floor}
-              wing={wing}
-              onBandClick={onBandClick}
-              selectedCount={selectedUnitIds.length}
-            />
-          </Suspense>
-        </Canvas>
+      {picker}
+      <div className="relative h-[min(70dvh,560px)] min-h-[280px] w-full overflow-hidden rounded-xl border bg-gradient-to-b from-sky-100/50 via-card to-muted/40">
+        {canvas}
       </div>
     </div>
   );
@@ -220,24 +280,52 @@ function FacadeScene({
   wing,
   onBandClick,
   selectedCount,
+  hero = false,
+  narrow = false,
 }: {
   floor: string;
   wing: "front" | "back";
   onBandClick: (key: FloorKey) => void;
   selectedCount: number;
+  hero?: boolean;
+  narrow?: boolean;
 }) {
   const texture = useTexture(FACADE_TEXTURE_SRC);
+  const { camera } = useThree();
   useMemo(() => {
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 8;
     texture.needsUpdate = true;
   }, [texture]);
 
+  const [autoRotate, setAutoRotate] = useState(hero);
+
+  useEffect(() => {
+    if (!hero) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setAutoRotate(false);
+    }
+  }, [hero]);
+
+  useEffect(() => {
+    if (!hero) return;
+    const persp = camera as THREE.PerspectiveCamera;
+    if (narrow) {
+      persp.position.set(35, 58, 155);
+      persp.fov = 48;
+    } else {
+      persp.position.set(90, 70, 175);
+      persp.fov = 40;
+    }
+    persp.updateProjectionMatrix();
+  }, [camera, hero, narrow]);
+
   const showBack =
     wing === "back" && isFloorKey(floor) && !PUBLIC_FLOOR.has(floor);
 
   return (
     <>
+      <group position={[0, hero && narrow ? 22 : 0, 0]}>
       <ambientLight intensity={0.9} />
       <directionalLight intensity={1.05} position={[120, 220, 160]} />
       <hemisphereLight args={["#e0f2fe", "#78716c", 0.4]} />
@@ -298,7 +386,7 @@ function FacadeScene({
             <meshBasicMaterial
               color={highlight ? "#f59e0b" : "#0ea5e9"}
               transparent
-              opacity={highlight ? 0.22 : 0.07}
+              opacity={highlight ? 0.2 : hero ? 0 : 0.07}
               depthWrite={false}
             />
           </mesh>
@@ -330,18 +418,40 @@ function FacadeScene({
         </Html>
       ) : null}
 
+      </group>
+
       <OrbitControls
         makeDefault
         enableDamping
         dampingFactor={0.08}
-        enablePan
-        minDistance={180}
-        maxDistance={720}
-        minPolarAngle={0.35}
-        maxPolarAngle={Math.PI / 2 - 0.08}
-        minAzimuthAngle={-Math.PI * 0.92}
-        maxAzimuthAngle={Math.PI * 0.92}
-        target={[0, H * 0.42, 0]}
+        enablePan={false}
+        enableRotate
+        enableZoom
+        autoRotate={hero && autoRotate}
+        autoRotateSpeed={0.45}
+        minDistance={hero ? (narrow ? 95 : 120) : 180}
+        maxDistance={hero ? 480 : 720}
+        minPolarAngle={0.28}
+        maxPolarAngle={Math.PI / 2 - 0.06}
+        touches={{
+          ONE: THREE.TOUCH.ROTATE,
+          TWO: THREE.TOUCH.DOLLY_ROTATE,
+        }}
+        mouseButtons={{
+          LEFT: THREE.MOUSE.ROTATE,
+          MIDDLE: THREE.MOUSE.DOLLY,
+          RIGHT: THREE.MOUSE.ROTATE,
+        }}
+        {...(hero
+          ? {}
+          : {
+              minAzimuthAngle: -Math.PI * 0.92,
+              maxAzimuthAngle: Math.PI * 0.92,
+            })}
+        target={[0, H * (hero ? (narrow ? 0.5 : 0.36) : 0.42), 0]}
+        onStart={() => {
+          if (hero) setAutoRotate(false);
+        }}
       />
     </>
   );

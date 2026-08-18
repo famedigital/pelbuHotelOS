@@ -18,7 +18,7 @@ const HotelFacadeExplore = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-[min(60vh,480px)] items-center justify-center rounded-xl border border-border bg-secondary/30 text-sm text-muted-foreground">
+      <div className="flex h-full min-h-[min(60vh,480px)] w-full items-center justify-center bg-gradient-to-b from-sky-100/80 via-[#f4efe6] to-[#e4dccf] text-sm text-muted-foreground">
         Loading Pelbu Suites…
       </div>
     ),
@@ -43,6 +43,7 @@ type Props = {
   typeHrefByCode: Record<string, string>;
   selectedUnitIds?: string[];
   legendHint?: string;
+  variant?: "page" | "hero";
   onSelectRoom?: (unit: RoomMapUnit) => void;
   onSelectSpace?: (space: BuildingSpace & { id: string }) => void;
   onSelectFloorWing?: (floorKey: string, wing: "front" | "back") => void;
@@ -58,6 +59,7 @@ export function PublicBuildingExplore({
   typeHrefByCode,
   selectedUnitIds,
   legendHint,
+  variant = "page",
   onSelectRoom,
   onSelectSpace,
   onSelectFloorWing,
@@ -98,6 +100,7 @@ export function PublicBuildingExplore({
       layout={layout}
       spaces={spaces}
       selectedUnitIds={selectedUnitIds}
+      variant={variant}
       onSelectRoom={handleRoom}
       onSelectSpace={handleSpace}
       onSelectFloorWing={onSelectFloorWing}

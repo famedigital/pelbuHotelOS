@@ -140,6 +140,22 @@ export const DEFAULT_HERO_THEME: HeroTheme = {
   navText: "#ffffff",
 };
 
+/** Espresso type over the light 3D house — not the photo-hero ivory-on-ink. */
+export const FACADE_HERO_THEME: HeroTheme = {
+  scrimTop: "#f7f1e8",
+  scrimBottom: "#1a120e",
+  scrimDirection: "bottom-top",
+  eyebrow: "#7c6a46",
+  title: "#1c1917",
+  body: "#44403c",
+  accent: "#c9a227",
+  button: "#1c1917",
+  navTint: "#ffffff",
+  navOpacity: 48,
+  navBlur: 20,
+  navText: "#1c1917",
+};
+
 const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
 export function isHexColor(value: string | null | undefined): boolean {

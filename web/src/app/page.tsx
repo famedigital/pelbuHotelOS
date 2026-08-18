@@ -1,6 +1,7 @@
 import { HomeAgents } from "@/components/home/HomeAgents";
 import { HomeFaqTeaser } from "@/components/home/HomeFaqTeaser";
 import { HomeHero } from "@/components/home/HomeHero";
+import { HomeHeroFacade } from "@/components/home/HomeHeroFacade";
 import { HomeInHouse } from "@/components/home/HomeInHouse";
 import { HomeProof } from "@/components/home/HomeProof";
 import { HomeRooms } from "@/components/home/HomeRooms";
@@ -22,6 +23,7 @@ import {
   DEFAULT_HOMEPAGE_STORY,
 } from "@/lib/home-story";
 import { formatBtn } from "@/lib/pricing";
+import { loadPublicBuildingMap } from "@/lib/public-building-map";
 import { loadPublicPropertyProfile } from "@/lib/public-property";
 import { loadPublicRoomsWithRates } from "@/lib/public-room-rates";
 import { safePublic } from "@/lib/public-safe";
@@ -33,6 +35,7 @@ import {
   websiteJsonLd,
 } from "@/lib/structured-data";
 import { PAGE_SEO, metadataFromCms } from "@/lib/seo";
+import { FACADE_HERO_THEME } from "@/lib/hero-theme";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -63,7 +66,7 @@ function digitsPhone(value: string | null | undefined): string | null {
  * [Restaurant / Lunch / Cafe / Spa deep-dives] → FAQ → Agents
  */
 export default async function HomePage() {
-  const [page, property, rateRooms, heroMedia, story, showcase, faqPage] =
+  const [page, property, rateRooms, heroMedia, story, showcase, faqPage, buildingMap] =
     await Promise.all([
       safePublic("home-cms", () => loadCmsPage("home"), null),
       safePublic("home-property", () => loadPublicPropertyProfile(), null),
@@ -102,6 +105,7 @@ export default async function HomePage() {
         },
       }),
       safePublic("home-faq", () => loadCmsPage("faq"), null),
+      safePublic("home-building", () => loadPublicBuildingMap(), null),
     ]);
 
   const homepageStory = story;
@@ -246,25 +250,47 @@ export default async function HomePage() {
           __html: serializeJsonLd(jsonLd),
         }}
       />
-      <PublicSiteHeader variant="hero" heroTheme={page?.hero_theme} />
+      <PublicSiteHeader
+        variant="hero"
+        heroTheme={buildingMap ? FACADE_HERO_THEME : page?.hero_theme}
+      />
       <main>
-        <HomeHero
-          slides={slides}
-          eyebrow={page?.eyebrow ?? "Olakha · Thimphu · Bhutan"}
-          title={
-            page?.title ??
-            "Hotel in Olakha — stay close to the city, come home to calm."
-          }
-          description={
-            page?.body ??
-            "Quiet rooms at Pelbu Suites with direct rates, live availability, and cafe, restaurant and spa under one roof in Thimphu."
-          }
-          secondaryHref={secondary.href}
-          secondaryLabel={secondary.label}
-          fromPriceBtn={rateRooms.lowestFromBtn}
-          taxInclusive={rateRooms.taxInclusive}
-          theme={page?.hero_theme}
-        />
+        {buildingMap ? (
+          <HomeHeroFacade
+            building={buildingMap}
+            eyebrow={page?.eyebrow ?? "Olakha · Thimphu · Bhutan"}
+            title={
+              page?.title ??
+              "Hotel in Olakha — stay close to the city, come home to calm."
+            }
+            description={
+              page?.body ??
+              "Quiet rooms at Pelbu Suites with direct rates, live availability, and cafe, restaurant and spa under one roof in Thimphu."
+            }
+            secondaryHref={secondary.href}
+            secondaryLabel={secondary.label}
+            fromPriceBtn={rateRooms.lowestFromBtn}
+            taxInclusive={rateRooms.taxInclusive}
+          />
+        ) : (
+          <HomeHero
+            slides={slides}
+            eyebrow={page?.eyebrow ?? "Olakha · Thimphu · Bhutan"}
+            title={
+              page?.title ??
+              "Hotel in Olakha — stay close to the city, come home to calm."
+            }
+            description={
+              page?.body ??
+              "Quiet rooms at Pelbu Suites with direct rates, live availability, and cafe, restaurant and spa under one roof in Thimphu."
+            }
+            secondaryHref={secondary.href}
+            secondaryLabel={secondary.label}
+            fromPriceBtn={rateRooms.lowestFromBtn}
+            taxInclusive={rateRooms.taxInclusive}
+            theme={page?.hero_theme}
+          />
+        )}
 
         {funnel.trust ? (
           <HomeTrustStrip
