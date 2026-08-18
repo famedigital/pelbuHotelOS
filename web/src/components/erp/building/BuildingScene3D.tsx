@@ -54,8 +54,11 @@ type Props = {
    */
   mode?: "desk" | "public";
   legendHint?: string | null;
-  /** Public: map room type code → detail path for click. */
+  /** Public: map room type code → detail path (legacy; navigation is via onOpenRoom). */
   typeHrefByCode?: Record<string, string>;
+  /** Public gallery: amenity click without the ops text sheet. */
+  onSelectSpace?: (space: BuildingSpace & { id: string }) => void;
+  hideSpaceSheet?: boolean;
 };
 
 const SPACE_COLOR: Record<string, string> = {
@@ -65,6 +68,7 @@ const SPACE_COLOR: Record<string, string> = {
   bar: "#5b21b6",
   reception: "#0369a1",
   spa: "#0e7490",
+  steam: "#155e75",
   gym: "#334155",
   meeting: "#3730a3",
   stair: "#52525b",
@@ -100,8 +104,11 @@ export function BuildingScene3D({
   selectedUnitIds = [],
   mode = "desk",
   legendHint = null,
-  typeHrefByCode,
+  typeHrefByCode: _typeHrefByCode,
+  onSelectSpace,
+  hideSpaceSheet = false,
 }: Props) {
+  void _typeHrefByCode;
   const params = layout?.params ?? DEFAULT_BUILDING_PARAMS;
   const corridorAxis = layout?.corridor_axis ?? "ew";
 
@@ -336,20 +343,24 @@ export function BuildingScene3D({
               reduceMotion={reduceMotion}
               resetRef={resetRef}
               onOpenRoom={onOpenRoom}
-              onOpenSpace={setSelectedSpace}
+              onOpenSpace={(space) => {
+                onSelectSpace?.(space);
+                if (!hideSpaceSheet) setSelectedSpace(space);
+              }}
               setHoveredLabel={setHoveredLabel}
               mode={mode}
               selectedSet={selectedSet}
-              typeHrefByCode={typeHrefByCode}
             />
           </Canvas>
         </Suspense>
       </div>
 
-      <BuildingSpaceSheet
-        space={selectedSpace}
-        onClose={() => setSelectedSpace(null)}
-      />
+      {hideSpaceSheet ? null : (
+        <BuildingSpaceSheet
+          space={selectedSpace}
+          onClose={() => setSelectedSpace(null)}
+        />
+      )}
     </div>
   );
 }
@@ -386,7 +397,6 @@ function SceneContents({
   setHoveredLabel,
   mode,
   selectedSet,
-  typeHrefByCode,
 }: {
   floorKeysSorted: string[];
   floorFilter: string;
@@ -403,7 +413,6 @@ function SceneContents({
   setHoveredLabel: (label: string | null) => void;
   mode: "desk" | "public";
   selectedSet: Set<string>;
-  typeHrefByCode?: Record<string, string>;
 }) {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const { camera } = useThree();
@@ -558,10 +567,6 @@ function SceneContents({
             edgeColor={stayEdge}
             edgeEmphasis={!isPublic && stay !== "vacant"}
             onClick={() => {
-              if (isPublic && typeHrefByCode?.[typeCode]) {
-                window.location.href = typeHrefByCode[typeCode]!;
-                return;
-              }
               onOpenRoom(unit.id);
             }}
             onHover={(on) => setHoveredLabel(on ? hoverText : null)}

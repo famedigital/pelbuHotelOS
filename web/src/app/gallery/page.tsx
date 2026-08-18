@@ -1,9 +1,16 @@
 import { MediaGallery } from "@/components/media/MediaGallery";
-import { TrustMediaSection } from "@/components/media/TrustFacetsGallery";
+import { GalleryShowcase } from "@/components/media/GalleryShowcase";
+import type { GalleryBuildingProps } from "@/components/media/GalleryShowcase";
 import { CmsContentSections } from "@/components/site/CmsContentSections";
 import { EngineShell } from "@/components/site/EngineShell";
 import { Button } from "@/components/ui/button";
 import { loadCmsGallery, loadCmsPage } from "@/lib/cms";
+import {
+  buildGalleryChips,
+  uniquePhotosByPublicId,
+  type GalleryPhoto,
+} from "@/lib/gallery-showcase";
+import { loadPublicBuildingMap } from "@/lib/public-building-map";
 import { loadPublicRooms } from "@/lib/public-content";
 import {
   loadPublicFoodMedia,
@@ -11,6 +18,8 @@ import {
   loadPublicMediaByRoomTypeIds,
 } from "@/lib/property-media-loader";
 import { facetLabel } from "@/lib/property-media";
+import { safePublic } from "@/lib/public-safe";
+import { PAGE_SEO, metadataFromCms } from "@/lib/seo";
 import {
   breadcrumbJsonLd,
   serializeJsonLd,
@@ -20,39 +29,120 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
+type PageProps = {
+  searchParams: Promise<{ area?: string }>;
+};
+
 export async function generateMetadata(): Promise<Metadata> {
-  const page = await loadCmsPage("gallery");
-  return {
-    title: page?.seo_title ?? "Photo Gallery | Pelbu Suites",
-    description:
-      page?.meta_description ??
-      "View official photographs of rooms, suites, and shared spaces at Pelbu Suites in Olakha, Thimphu.",
-    alternates: { canonical: "/gallery" },
-  };
+  const page = await safePublic("gallery-seo", () => loadCmsPage("gallery"), null);
+  return metadataFromCms(page, {
+    title: PAGE_SEO.gallery.title,
+    description: PAGE_SEO.gallery.description,
+    path: "/gallery",
+  });
 }
 
-export default async function GalleryPage() {
-  const [page, gallery, propertyMedia, foodMedia, rooms] = await Promise.all([
-    loadCmsPage("gallery"),
-    loadCmsGallery("gallery", 1400),
-    loadPublicPropertyAreaMedia(),
-    loadPublicFoodMedia(),
-    loadPublicRooms(),
-  ]);
+export default async function GalleryPage({ searchParams }: PageProps) {
+  const { area } = await searchParams;
+  const [page, gallery, propertyMedia, foodMedia, rooms, buildingMap] =
+    await Promise.all([
+      safePublic("gallery-cms", () => loadCmsPage("gallery"), null),
+      safePublic("gallery-cms-media", () => loadCmsGallery("gallery", 1400), []),
+      safePublic("gallery-areas", () => loadPublicPropertyAreaMedia(), []),
+      safePublic("gallery-food", () => loadPublicFoodMedia(), []),
+      safePublic("gallery-rooms", () => loadPublicRooms(), []),
+      safePublic("gallery-building", () => loadPublicBuildingMap(), null),
+    ]);
 
-  const roomMediaMap = await loadPublicMediaByRoomTypeIds(rooms.map((r) => r.id));
+  const roomMediaMap = await safePublic(
+    "gallery-room-media",
+    () => loadPublicMediaByRoomTypeIds(rooms.map((r) => r.id)),
+    new Map(),
+  );
 
-  const byPropertyFacet = new Map<string, typeof propertyMedia>();
-  for (const m of propertyMedia) {
-    const list = byPropertyFacet.get(m.facet) ?? [];
-    list.push(m);
-    byPropertyFacet.set(m.facet, list);
+  const facadesByType = new Map<string, Set<string>>();
+  for (const unit of buildingMap?.units ?? []) {
+    const code = unit.room_type_code;
+    if (!code) continue;
+    const set = facadesByType.get(code) ?? new Set<string>();
+    if (unit.facade_side) set.add(unit.facade_side);
+    facadesByType.set(code, set);
   }
 
-  const hasTrust =
-    propertyMedia.length > 0 ||
-    foodMedia.length > 0 ||
-    [...roomMediaMap.values()].some((v) => v.length > 0);
+  const photos: GalleryPhoto[] = [];
+
+  for (const room of rooms) {
+    const extra = roomMediaMap.get(room.id) ?? [];
+    const facades = [...(facadesByType.get(room.code) ?? [])];
+    const seen = new Set<string>();
+    for (const item of extra) {
+      seen.add(item.public_id);
+      photos.push({
+        id: item.id,
+        publicId: item.public_id,
+        resourceType: item.resource_type,
+        posterPublicId: item.poster_public_id,
+        alt: item.alt || room.name,
+        caption: item.caption,
+        filterIds: [room.code, ...facades],
+      });
+    }
+    if (room.imagePublicId && !seen.has(room.imagePublicId)) {
+      photos.push({
+        id: `room-hero-${room.id}`,
+        publicId: room.imagePublicId,
+        resourceType: "image",
+        posterPublicId: null,
+        alt: room.name,
+        caption: room.blurb,
+        filterIds: [room.code, ...facades],
+      });
+    }
+  }
+
+  for (const item of propertyMedia) {
+    photos.push({
+      id: item.id,
+      publicId: item.public_id,
+      resourceType: item.resource_type,
+      posterPublicId: item.poster_public_id,
+      alt: item.alt || facetLabel(item.facet),
+      caption: item.caption,
+      filterIds: [item.facet],
+    });
+  }
+
+  for (const item of foodMedia) {
+    photos.push({
+      id: item.id,
+      publicId: item.public_id,
+      resourceType: item.resource_type,
+      posterPublicId: item.poster_public_id,
+      alt: item.alt || facetLabel(item.facet),
+      caption: item.caption,
+      filterIds: ["restaurant"],
+    });
+  }
+
+  const usedIds = new Set(photos.map((p) => p.publicId));
+  const leftoverCms = gallery.filter(
+    (item) => item.public_id && !usedIds.has(item.public_id),
+  );
+
+  const uniquePhotos = uniquePhotosByPublicId(photos);
+  const chips = buildGalleryChips({
+    photos: uniquePhotos,
+    rooms: rooms.map((r) => ({ code: r.code, name: r.name, slug: r.slug })),
+  });
+
+  const building: GalleryBuildingProps | null = buildingMap
+    ? {
+        units: buildingMap.units,
+        layout: buildingMap.layout,
+        spaces: buildingMap.spaces,
+        typeHrefByCode: buildingMap.typeHrefByCode,
+      }
+    : null;
 
   return (
     <>
@@ -76,19 +166,19 @@ export default async function GalleryPage() {
         title={page?.title ?? "See Pelbu Suites before you arrive."}
         description={
           page?.body ??
-          "Real photographs from the property — rooms, shared spaces, and meals. Not stock imagery."
+          "Real photographs from the house in Olakha — rooms, restaurant, lobby, the building outside, and the street you arrive on. Click the 3D model to jump to a wing."
         }
         actions={
           <>
             <Button asChild variant="citrus">
-              <a href={page?.primary_cta_href ?? "/rooms"}>
-                {page?.primary_cta_label ?? "Explore rooms"}
+              <a href={page?.primary_cta_href ?? "/book"}>
+                {page?.primary_cta_label ?? "Check availability"}
               </a>
             </Button>
             <Button asChild variant="outline">
-              <a href={page?.secondary_cta_href ?? "/book"}>
-                {page?.secondary_cta_label ?? "Check availability"}
-              </a>
+              <Link href={page?.secondary_cta_href ?? "/rooms"}>
+                {page?.secondary_cta_label ?? "Explore rooms"}
+              </Link>
             </Button>
           </>
         }
@@ -96,50 +186,34 @@ export default async function GalleryPage() {
         <div className="space-y-12">
           <CmsContentSections sections={page?.sections_json} />
 
-          {hasTrust ? (
-            <>
-              {[...byPropertyFacet.entries()].map(([facet, items]) => (
-                <TrustMediaSection
-                  key={facet}
-                  heading={facetLabel(facet)}
-                  media={items}
-                />
-              ))}
+          {uniquePhotos.length > 0 || building ? (
+            <GalleryShowcase
+              chips={chips}
+              photos={uniquePhotos}
+              units={(buildingMap?.units ?? []).map((u) => ({
+                id: u.id,
+                label: u.label,
+                room_type_code: u.room_type_code,
+                facade_side: u.facade_side,
+                floor_label: u.floor_label,
+              }))}
+              building={building}
+              initialFilter={area}
+            />
+          ) : leftoverCms.length > 0 ? (
+            <MediaGallery items={leftoverCms} label="Pelbu Suites" />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Photographs are being prepared. Call the desk or browse{" "}
+              <Link href="/rooms" className="underline underline-offset-4">
+                rooms
+              </Link>{" "}
+              in the meantime.
+            </p>
+          )}
 
-              {rooms.map((room) => {
-                const items = roomMediaMap.get(room.id) ?? [];
-                if (items.length === 0) return null;
-                return (
-                  <section key={room.id} className="space-y-3">
-                    <div className="flex flex-wrap items-end justify-between gap-2">
-                      <h2 className="font-display text-2xl text-foreground">
-                        {room.name}
-                      </h2>
-                      <Link
-                        href={`/rooms/${room.slug}`}
-                        className="text-sm font-medium text-sky-800 underline-offset-4 hover:underline"
-                      >
-                        Room details
-                      </Link>
-                    </div>
-                    <TrustMediaSection heading="" media={items} />
-                  </section>
-                );
-              })}
-
-              <TrustMediaSection heading="Food from our kitchens" media={foodMedia} />
-            </>
-          ) : null}
-
-          {!hasTrust || gallery.length > 0 ? (
-            <div className="space-y-4">
-              {hasTrust ? (
-                <h2 className="font-display text-2xl text-foreground">
-                  More photography
-                </h2>
-              ) : null}
-              <MediaGallery items={gallery} label="Pelbu Suites" />
-            </div>
+          {uniquePhotos.length > 0 && leftoverCms.length > 0 ? (
+            <MediaGallery items={leftoverCms} label="More photography" />
           ) : null}
         </div>
       </EngineShell>

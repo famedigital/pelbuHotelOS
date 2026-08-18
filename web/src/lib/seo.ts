@@ -88,7 +88,7 @@ export const PAGE_SEO = {
   gallery: {
     title: "Hotel gallery | Rooms, dining & Olakha",
     description:
-      "Photos of Pelbu Suites hotel in Olakha, Thimphu — rooms, restaurant, cafe, spa and property grounds.",
+      "Photographs and a 3D walk of Pelbu Suites in Olakha, Thimphu — king, twin and suite rooms, restaurant, lobby, the building outside, and the street you arrive on.",
   },
   services: {
     title: "Hotel services & facilities in Thimphu",

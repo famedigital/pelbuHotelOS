@@ -176,17 +176,22 @@ export function floorCardBlurb(summary: FloorWingSummary): string {
   return `${f}: ${summary.front.count} · ${b}: ${summary.back.count}`;
 }
 
-/** Suggest floors for Pelbu-style building (G + N guest + attic). */
+/** Suggest floors for Pelbu-style building (G + optional 1st + N guest + attic). */
 export function suggestFloors(args: {
   includeGround: boolean;
   guestFloorCount: number;
   includeAttic: boolean;
+  /** Public first floor (restaurant / meeting) between ground and guest rooms. */
+  includeFirstPublic?: boolean;
   /** Optional guest keys e.g. ["2","3","4","5"] */
   guestKeys?: string[];
 }): BuildingFloor[] {
   const floors: BuildingFloor[] = [];
   if (args.includeGround) {
     floors.push({ key: "G", label: "Ground", kind: "public" });
+  }
+  if (args.includeFirstPublic) {
+    floors.push({ key: "1", label: "First", kind: "public" });
   }
   const keys =
     args.guestKeys ??

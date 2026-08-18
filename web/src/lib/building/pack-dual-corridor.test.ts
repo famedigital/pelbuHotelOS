@@ -23,6 +23,20 @@ describe("suggestFloors", () => {
     assert.equal(floors[1].kind, "guest");
     assert.equal(floors.at(-1)?.kind, "attic");
   });
+
+  it("inserts public first floor when asked", () => {
+    const floors = suggestFloors({
+      includeGround: true,
+      includeFirstPublic: true,
+      guestFloorCount: 4,
+      includeAttic: false,
+      guestKeys: ["2", "3", "4", "5"],
+    });
+    assert.deepEqual(
+      floors.map((f) => `${f.key}:${f.kind}`),
+      ["G:public", "1:public", "2:guest", "3:guest", "4:guest", "5:guest"],
+    );
+  });
 });
 
 describe("packDualCorridor", () => {
@@ -59,6 +73,29 @@ describe("packDualCorridor", () => {
     assert.equal(s2.front.count + s2.back.count, 3);
     assert.match(floorCardBlurb(s2), /Front/);
     assert.match(floorCardBlurb(s2), /Back/);
+  });
+
+  it("packs seven rooms as 4 front and 3 back", () => {
+    const floors = suggestFloors({
+      includeGround: true,
+      includeFirstPublic: true,
+      guestFloorCount: 1,
+      includeAttic: false,
+      guestKeys: ["2"],
+    });
+    const rooms = [201, 202, 203, 204, 205, 206, 207].map((n) => ({
+      id: String(n),
+      label: String(n),
+      floor_label: "2",
+    }));
+    const { summaries } = packDualCorridor({
+      rooms,
+      floors,
+      corridor_axis: "ns",
+    });
+    const packed = summaries.find((s) => s.floor_key === "2");
+    assert.equal(packed?.front.count, 4);
+    assert.equal(packed?.back.count, 3);
   });
 
   it("reports unmatched without floor", () => {

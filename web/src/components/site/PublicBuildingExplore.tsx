@@ -5,63 +5,106 @@ import type {
   BuildingSpace,
   PropertyBuildingLayout,
 } from "@/lib/building/types";
+import { amenityKindToFilter } from "@/lib/gallery-showcase";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback } from "react";
 
-const BuildingScene3D = dynamic(
+const HotelFacadeExplore = dynamic(
   () =>
-    import("@/components/erp/building/BuildingScene3D").then(
-      (m) => m.BuildingScene3D,
+    import("@/components/site/HotelFacadeExplore").then(
+      (m) => m.HotelFacadeExplore,
     ),
   {
     ssr: false,
     loading: () => (
       <div className="flex h-[min(60vh,480px)] items-center justify-center rounded-xl border border-border bg-secondary/30 text-sm text-muted-foreground">
-        Loading building…
+        Loading Pelbu Suites…
       </div>
     ),
   },
 );
+
+const AMENITY_HREF: Record<string, string> = {
+  restaurant: "/restaurant",
+  cafe: "/cafe",
+  bar: "/bar",
+  lobby: "/contact",
+  reception: "/contact",
+  spa: "/spa",
+  steam: "/spa",
+  meeting: "/meeting",
+};
 
 type Props = {
   units: RoomMapUnit[];
   layout: PropertyBuildingLayout;
   spaces: Array<BuildingSpace & { id: string }>;
   typeHrefByCode: Record<string, string>;
+  selectedUnitIds?: string[];
+  legendHint?: string;
+  onSelectRoom?: (unit: RoomMapUnit) => void;
+  onSelectSpace?: (space: BuildingSpace & { id: string }) => void;
+  onSelectFloorWing?: (floorKey: string, wing: "front" | "back") => void;
 };
 
 /**
- * Marketing massing — type colours only, no ops status.
+ * Public 3D — architectural facade of Pelbu Suites Olakha.
  */
 export function PublicBuildingExplore({
   units,
   layout,
   spaces,
   typeHrefByCode,
+  selectedUnitIds,
+  legendHint,
+  onSelectRoom,
+  onSelectSpace,
+  onSelectFloorWing,
 }: Props) {
   const router = useRouter();
 
-  const onOpenRoom = useCallback(
-    (unitId: string) => {
-      const unit = units.find((u) => u.id === unitId);
-      if (!unit) return;
+  const handleRoom = useCallback(
+    (unit: RoomMapUnit) => {
+      if (onSelectRoom) {
+        onSelectRoom(unit);
+        return;
+      }
       const code = unit.room_type_code;
-      const href = typeHrefByCode[code] ?? (code ? `/rooms/${code.toLowerCase()}` : "/rooms");
+      const href =
+        typeHrefByCode[code] ??
+        (code ? `/rooms/${code.toLowerCase()}` : "/rooms");
       router.push(href);
     },
-    [router, typeHrefByCode, units],
+    [onSelectRoom, router, typeHrefByCode],
+  );
+
+  const handleSpace = useCallback(
+    (space: BuildingSpace & { id: string }) => {
+      if (onSelectSpace) {
+        onSelectSpace(space);
+        return;
+      }
+      const kind = amenityKindToFilter(space.kind);
+      const href = kind ? AMENITY_HREF[kind] : null;
+      if (href) router.push(href);
+    },
+    [onSelectSpace, router],
   );
 
   return (
-    <BuildingScene3D
+    <HotelFacadeExplore
       units={units}
       layout={layout}
       spaces={spaces}
-      mode="public"
-      onOpenRoom={onOpenRoom}
-      typeHrefByCode={typeHrefByCode}
-      legendHint="How the house sits — orbit and click a room type to open details."
+      selectedUnitIds={selectedUnitIds}
+      onSelectRoom={handleRoom}
+      onSelectSpace={handleSpace}
+      onSelectFloorWing={onSelectFloorWing}
+      legendHint={
+        legendHint ??
+        "Orbit the house — tap Ground for lobby, bistro, spa and steam; First for restaurant and meeting; floors 2–5 for guest rooms."
+      }
     />
   );
 }

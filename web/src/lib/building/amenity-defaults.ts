@@ -14,12 +14,13 @@ import { DEFAULT_BUILDING_PARAMS } from "@/lib/building/types";
 const LABELS: Record<BuildingSpaceKind, string> = {
   lobby: "Lobby",
   restaurant: "Restaurant",
-  cafe: "Cafe",
+  cafe: "Bistro",
   bar: "Bar",
   reception: "Reception",
   spa: "Spa",
+  steam: "Steam",
   gym: "Gym",
-  meeting: "Meeting",
+  meeting: "Board meeting",
   stair: "Stairs",
   lift: "Lift",
   service: "Service",
@@ -37,7 +38,10 @@ export function defaultAmenityKindsForFloor(
   floor: BuildingFloor,
 ): BuildingSpaceKind[] {
   if (floor.kind === "public") {
-    return ["lobby", "reception", "restaurant", "cafe", "stair", "lift"];
+    if (floor.key === "1") {
+      return ["meeting", "restaurant", "stair", "lift"];
+    }
+    return ["lobby", "cafe", "spa", "steam", "stair", "lift"];
   }
   if (floor.kind === "attic") {
     return ["attic", "service", "stair", "lift"];
@@ -103,7 +107,10 @@ export function buildAmenitySpaces(args: {
     programKinds.forEach((kind, i) => {
       const wing = i % 2 === 0 ? structure.front : structure.back;
       const isLarge =
-        kind === "lobby" || kind === "restaurant" || kind === "attic";
+        kind === "lobby" ||
+        kind === "restaurant" ||
+        kind === "spa" ||
+        kind === "attic";
       const width = isLarge ? 36 : 22;
       const depth = isLarge ? Math.max(14, wing.max - wing.min - 1) : 16;
       // Spread along corridor
@@ -140,6 +147,7 @@ export const PROGRAM_KIND_OPTIONS: BuildingSpaceKind[] = [
   "cafe",
   "bar",
   "spa",
+  "steam",
   "gym",
   "meeting",
   "attic",

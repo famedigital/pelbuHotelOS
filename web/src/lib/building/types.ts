@@ -46,6 +46,7 @@ export type BuildingSpaceKind =
   | "bar"
   | "reception"
   | "spa"
+  | "steam"
   | "gym"
   | "meeting"
   | "stair"

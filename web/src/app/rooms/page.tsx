@@ -134,8 +134,9 @@ export default async function RoomsPage() {
                   The house in Olakha
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Sketch of how guest floors and common spaces sit together —
-                  not a live availability board. Check dates to book.
+                  Pelbu Suites in Olakha — Ground is lobby, bistro, spa and
+                  steam; First is the restaurant and meeting room; floors 2–5
+                  are guest rooms. Tap the building, then book dates below.
                 </p>
               </div>
               <PublicBuildingExplore

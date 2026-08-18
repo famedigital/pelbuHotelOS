@@ -153,6 +153,9 @@ export function BuildingWizard({
   const [step, setStep] = useState<Step>(1);
 
   const [includeGround, setIncludeGround] = useState(true);
+  const [includeFirstPublic, setIncludeFirstPublic] = useState(
+    () => layout?.floors?.some((f) => f.key === "1") ?? true,
+  );
   const [includeAttic, setIncludeAttic] = useState(true);
   const [guestCount, setGuestCount] = useState(4);
   const [guestKeys, setGuestKeys] = useState("2,3,4,5");
@@ -161,6 +164,7 @@ export function BuildingWizard({
       ? layout.floors
       : suggestFloors({
           includeGround: true,
+          includeFirstPublic: true,
           guestFloorCount: 4,
           includeAttic: true,
           guestKeys: ["2", "3", "4", "5"],
@@ -234,6 +238,7 @@ export function BuildingWizard({
       .filter(Boolean);
     const next = suggestFloors({
       includeGround,
+      includeFirstPublic,
       guestFloorCount: guestCount,
       includeAttic,
       guestKeys: keys.length ? keys : undefined,
@@ -246,7 +251,7 @@ export function BuildingWizard({
       }
       return map;
     });
-  }, [guestCount, guestKeys, includeAttic, includeGround]);
+  }, [guestCount, guestKeys, includeAttic, includeFirstPublic, includeGround]);
 
   const runPreview = useCallback(() => {
     startPreview(async () => {
@@ -369,7 +374,15 @@ export function BuildingWizard({
                 checked={includeGround}
                 onChange={(e) => setIncludeGround(e.target.checked)}
               />
-              Ground (lobby / F&B)
+              Ground (lobby / bistro / spa / steam)
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={includeFirstPublic}
+                onChange={(e) => setIncludeFirstPublic(e.target.checked)}
+              />
+              First floor (restaurant / meeting)
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input

@@ -44,6 +44,8 @@ async function requireMapEditor() {
 function revalidateMap() {
   revalidatePath("/erp/rooms/layout");
   revalidatePath("/erp/rooms");
+  revalidatePath("/rooms");
+  revalidatePath("/gallery");
 }
 
 function parseFloorsJson(raw: FormDataEntryValue | null): BuildingFloor[] {

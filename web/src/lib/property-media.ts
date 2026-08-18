@@ -36,6 +36,10 @@ export const PROPERTY_AREA_FACETS = [
   "facilities",
   "exterior",
   "parking",
+  "nearby",
+  "spa",
+  "steam",
+  "meeting",
   "other",
 ] as const;
 export type PropertyAreaFacet = (typeof PROPERTY_AREA_FACETS)[number];
@@ -69,12 +73,16 @@ export const PROPERTY_AREA_LABELS: Record<PropertyAreaFacet, string> = {
   lobby: "Lobby",
   reception: "Reception",
   restaurant: "Restaurant",
-  cafe: "Cafe",
+  cafe: "Bistro",
   bar: "Bar",
   building: "Building",
   facilities: "Facilities",
   exterior: "Exterior",
   parking: "Parking",
+  nearby: "Nearby",
+  spa: "Spa",
+  steam: "Steam",
+  meeting: "Meeting room",
   other: "Other",
 };
 
