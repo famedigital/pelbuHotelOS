@@ -4,7 +4,7 @@
  */
 
 import type { DeskRole } from "@/lib/desk-auth";
-import type { ErpModule } from "@/lib/erp-nav";
+import type { ErpModule, ErpNavLeaf } from "@/lib/erp-nav";
 import {
   filterErpNavByGrants,
   moduleVisibleFromGrants,
@@ -71,10 +71,11 @@ export function defaultWorkspaceForRole(
 }
 
 export function workspaceLandingHref(workspace: DeskWorkspace): string {
-  return workspace === "back_office" ? "/erp/finance" : "/erp/arrivals";
+  return workspace === "back_office" ? "/erp/finance" : "/erp/today";
 }
 
 const FRONT_DESK_LANDING_CANDIDATES = [
+  "/erp/today",
   "/erp/arrivals",
   "/erp/calendar",
   "/erp/in-house",
@@ -155,6 +156,7 @@ export function canUseFrontDeskWorkspace(
       g === "front-desk" ||
       g === "calendar" ||
       g === "rooms" ||
+      g.startsWith("/erp/today") ||
       g.startsWith("/erp/arrivals") ||
       g.startsWith("/erp/in-house") ||
       g.startsWith("/erp/departures") ||
@@ -203,6 +205,63 @@ export function filterModulesForWorkspace(
   }
 
   return filterErpNavByGrants(scoped, grants ?? null);
+}
+
+/** FO icon rail — Today, Stay View, Housekeeping, POS (daily tabs only). */
+export const FO_SIDEBAR_MODULE_KEYS = [
+  "front-desk",
+  "calendar",
+  "rooms",
+  "pos",
+] as const;
+
+const FO_SIDEBAR_TITLES: Record<string, string> = {
+  "front-desk": "Today",
+  calendar: "Stay View",
+  rooms: "Housekeeping",
+  pos: "POS",
+};
+
+export function isFoDailyTab(tab: ErpNavLeaf): boolean {
+  return (tab.rail ?? "more") === "daily";
+}
+
+export function isFoMoreTab(tab: ErpNavLeaf): boolean {
+  return (tab.rail ?? "more") === "more";
+}
+
+export function isFoHiddenTab(tab: ErpNavLeaf): boolean {
+  return tab.rail === "hidden";
+}
+
+/** Sidebar modules for Front desk workspace — four destinations, daily tabs. */
+export function foSidebarModules(modules: readonly ErpModule[]): ErpModule[] {
+  const byKey = new Map(modules.map((m) => [m.key, m]));
+  const out: ErpModule[] = [];
+  for (const key of FO_SIDEBAR_MODULE_KEYS) {
+    const module = byKey.get(key);
+    if (!module) continue;
+    const daily = module.tabs.filter(isFoDailyTab);
+    if (daily.length === 0) continue;
+    out.push({
+      ...module,
+      title: FO_SIDEBAR_TITLES[key] ?? module.title,
+      href: daily[0]?.href ?? module.href,
+      tabs: daily,
+    });
+  }
+  return out;
+}
+
+/** More sheet: lists + city ledger / night audit — not daily rail, not hidden. */
+export function foMoreModules(modules: readonly ErpModule[]): ErpModule[] {
+  return modules
+    .map((m) => {
+      const tabs = m.tabs.filter(isFoMoreTab);
+      if (tabs.length === 0) return null;
+      return { ...m, href: tabs[0]?.href ?? m.href, tabs };
+    })
+    .filter((m): m is ErpModule => m != null);
 }
 
 export function parseWorkspaceCookie(

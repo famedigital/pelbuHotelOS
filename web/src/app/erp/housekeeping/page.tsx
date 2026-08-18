@@ -26,6 +26,7 @@ export default async function HousekeepingPage() {
     { data: assignments },
     { data: arrivals },
     { data: departures },
+    { data: inHouse },
   ] = await Promise.all([
     admin
       .from("room_units")
@@ -66,6 +67,13 @@ export default async function HousekeepingPage() {
       .eq("property_id", propertyId)
       .eq("check_out", today)
       .in("status", ["checked_in", "confirmed"]),
+    admin
+      .from("bookings")
+      .select("id, check_out, room_assignments(room_unit_id)")
+      .eq("property_id", propertyId)
+      .eq("status", "checked_in")
+      .neq("check_out", today)
+      .limit(200),
   ]);
 
   const arrivalRoomIds = new Set<string>();
@@ -82,6 +90,15 @@ export default async function HousekeepingPage() {
       | { room_unit_id: string }[]
       | null) ?? []) {
       departureRoomIds.add(assignment.room_unit_id);
+    }
+  }
+
+  const stayoverRoomIds = new Set<string>();
+  for (const booking of inHouse ?? []) {
+    for (const assignment of (booking.room_assignments as
+      | { room_unit_id: string }[]
+      | null) ?? []) {
+      stayoverRoomIds.add(assignment.room_unit_id);
     }
   }
 
@@ -133,13 +150,14 @@ export default async function HousekeepingPage() {
     assignments: assignmentSnapshots,
     arrivalRoomIds,
     departureRoomIds,
+    stayoverRoomIds,
   });
 
   return (
     <DeskListShell
       eyebrow="Housekeeping"
       heading={`Assignments · ${fmtDate(today)}`}
-      blurb="Open work shows dirty rooms, service requests, and today's check-in/checkout turns. Filters narrow the list — assign and checklist from each row."
+      blurb="Due out · Stayovers · Dirty · Clean ready. Open work is the turn list — assign and checklist from each row."
       headerAside={<FrontDeskLiveRefresh />}
     >
       <HousekeepingBoard

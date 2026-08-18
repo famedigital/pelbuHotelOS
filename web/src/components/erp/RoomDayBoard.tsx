@@ -84,7 +84,7 @@ const STATUS_STYLES: Record<RoomRowStatus, string> = {
   stay: "bg-citrus/15 text-citrus",
   depart: "bg-amber-500/15 text-amber-900 dark:text-amber-200",
   ooo: "bg-maroon/15 text-maroon",
-  dirty: "bg-muted text-muted-foreground",
+  dirty: "bg-rose-500/15 text-rose-800 dark:text-rose-200",
 };
 
 const STATUS_LABEL: Record<RoomRowStatus, string> = {

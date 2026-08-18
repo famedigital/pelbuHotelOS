@@ -408,6 +408,12 @@ export function DeskSettlePanel({
           <p className="text-[11px] font-medium text-muted-foreground">
             {agentName ? "Settle · cash or agent AR" : "Collect payment"}
           </p>
+          <p className="text-[11px] leading-snug text-muted-foreground">
+            Confirmation <span className="font-medium text-foreground">PS-…</span>{" "}
+            is the stay note. Tax invoice{" "}
+            <span className="font-medium text-foreground">INV-…</span> is issued
+            from Folio when GST needs it.
+          </p>
           <FolioPaymentForm
             key={`pay-${payPreset?.method ?? "cash"}-${payPreset?.amount ?? guestDue}-${localAgentStatus ?? "x"}`}
             folioId={folioId}

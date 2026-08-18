@@ -50,12 +50,14 @@ async function propertyId(admin: Admin) {
 
 function revalidateCheckIn(folioId?: string) {
   revalidatePath("/erp");
+  revalidatePath("/erp/today");
   revalidatePath("/erp/check-in");
   revalidatePath("/erp/arrivals");
   revalidatePath("/erp/in-house");
   revalidatePath("/erp/departures");
   revalidatePath("/erp/calendar");
   revalidatePath("/erp/rooms");
+  revalidatePath("/erp/housekeeping");
   revalidatePath("/erp/agents");
   if (folioId) revalidatePath(`/erp/folios/${folioId}`);
 }

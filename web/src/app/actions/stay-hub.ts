@@ -115,6 +115,7 @@ export type StayHubSummary = {
   assignmentId: string | null;
   roomUnitId: string | null;
   roomLabel: string | null;
+  roomHkStatus: string | null;
   roomTypeId: string | null;
   roomTypeName: string | null;
   /**
@@ -258,7 +259,7 @@ export async function fetchStayHubSummary(
       booking_rooms(qty, inventory_kind, room_type_id, rate_request_status, room_types(id, name, code)),
       room_assignments(id, room_unit_id, is_locked, from_date, to_date,
         chargeable, nc_reason_code,
-        room_units(id, label, room_type_id, room_types(id, name))),
+        room_units(id, label, room_type_id, hk_status, room_types(id, name))),
       folios(id, status, folio_lines(total_btn, status, source_type))
     `,
       )
@@ -318,6 +319,7 @@ export async function fetchStayHubSummary(
                 id?: string;
                 label?: string;
                 room_type_id?: string;
+                hk_status?: string;
                 room_types?:
                   | { id?: string; name?: string }
                   | { id?: string; name?: string }[]
@@ -327,6 +329,7 @@ export async function fetchStayHubSummary(
                 id?: string;
                 label?: string;
                 room_type_id?: string;
+                hk_status?: string;
                 room_types?:
                   | { id?: string; name?: string }
                   | { id?: string; name?: string }[]
@@ -548,6 +551,7 @@ export async function fetchStayHubSummary(
       assignmentId: preferred?.id ?? null,
       roomUnitId,
       roomLabel: unit?.label ?? null,
+      roomHkStatus: (unit?.hk_status as string | null) ?? null,
       roomTypeId: unit?.room_type_id ?? rt?.id ?? null,
       roomTypeName: rt?.name ?? null,
       roomLines,

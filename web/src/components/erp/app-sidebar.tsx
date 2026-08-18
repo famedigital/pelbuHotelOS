@@ -38,7 +38,7 @@ import {
   resolveModule,
 } from "@/lib/erp-nav";
 import { firstAllowedHrefForModule, moduleVisibleFromGrants } from "@/lib/erp/desk-modules";
-import { filterModulesForWorkspace } from "@/lib/erp/desk-workspace";
+import { filterModulesForWorkspace, foSidebarModules } from "@/lib/erp/desk-workspace";
 import { filterModulesForProductPack } from "@/lib/product-pack";
 import { pushErpRecent } from "@/lib/erp-recents";
 import { cn } from "@/lib/utils";
@@ -71,8 +71,10 @@ export function AppSidebar({
         ? null
         : allowedModuleKeys;
     let list = filterModulesForWorkspace(ERP_MODULES, workspace, grants);
-    // Settings stays in footer — restore hotel module visibility check from full catalog.
     list = filterModulesForProductPack(list, productPack);
+    if (workspace === "front_desk") {
+      list = foSidebarModules(list);
+    }
     return list;
   }, [allowedModuleKeys, productPack, workspace]);
   const showSettings =

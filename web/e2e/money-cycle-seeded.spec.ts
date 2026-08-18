@@ -27,6 +27,7 @@ test.describe("Money cycle (gated)", () => {
   }) => {
     await deskLogin(page);
     await softGoto(page, "/erp/fast-book", /book|guest|room|rate/i);
+    await softGoto(page, "/erp/today", /today|job|walk-?in|stay view|check-?in/i);
     await softGoto(page, "/erp/arrivals", /arrival|check-?in|guest/i);
     await softGoto(page, "/erp/folios", /folio|ledger|balance/i);
     await softGoto(page, "/erp/payments", /payment|pay|cash|collect/i);

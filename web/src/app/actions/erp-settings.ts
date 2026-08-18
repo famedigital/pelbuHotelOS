@@ -1400,6 +1400,7 @@ export async function wipeOperationalData(
     revalidatePath("/erp");
     revalidatePath("/erp/settings");
     revalidatePath("/erp/calendar");
+    revalidatePath("/erp/today");
     revalidatePath("/erp/arrivals");
     revalidatePath("/erp/reservations");
     revalidatePath("/erp/folios");

@@ -1,21 +1,42 @@
-export type HkCategory = "check_in" | "checkout" | "dirty" | "service";
-
-export type HkFilterKey =
-  | "open"
-  | "all"
+export type HkCategory =
   | "check_in"
   | "checkout"
   | "dirty"
-  | "service";
+  | "service"
+  | "stayover"
+  | "clean";
+
+export type HkFilterKey =
+  | "open"
+  | "checkout"
+  | "stayover"
+  | "dirty"
+  | "clean"
+  | "check_in"
+  | "service"
+  | "all";
 
 export const HK_FILTER_LABEL: Record<HkFilterKey, string> = {
   open: "Open work",
-  all: "All",
-  check_in: "Check-in",
-  checkout: "Checkout",
+  checkout: "Due out",
+  stayover: "Stayovers",
   dirty: "Dirty",
+  clean: "Clean ready",
+  check_in: "Check-in",
   service: "Service",
+  all: "All",
 };
+
+export const HK_CHIP_ORDER: HkFilterKey[] = [
+  "open",
+  "checkout",
+  "stayover",
+  "dirty",
+  "clean",
+  "check_in",
+  "service",
+  "all",
+];
 
 export type HkBoardRow = {
   id: string;
@@ -66,10 +87,12 @@ export function buildHkCategories(
   serviceRequestedAt: string | null,
   arrivalRoomIds: ReadonlySet<string>,
   departureRoomIds: ReadonlySet<string>,
+  stayoverRoomIds: ReadonlySet<string> = new Set(),
 ): HkCategory[] {
   const categories: HkCategory[] = [];
   const isArrival = arrivalRoomIds.has(roomUnitId);
   const isDeparture = departureRoomIds.has(roomUnitId);
+  const isStayover = stayoverRoomIds.has(roomUnitId);
 
   if (serviceRequestedAt) categories.push("service");
   if (hkStatus === "dirty" || hkStatus === "inspect" || hkStatus === "ooo") {
@@ -90,6 +113,10 @@ export function buildHkCategories(
   ) {
     categories.push("checkout");
   }
+  if (isStayover) categories.push("stayover");
+  if (hkStatus === "clean" && !isStayover && !isDeparture) {
+    categories.push("clean");
+  }
 
   return categories;
 }
@@ -102,14 +129,22 @@ export function rowMatchesFilter(
   row: HkBoardRow,
   filter: HkFilterKey,
 ): boolean {
-  if (!rowHasActionableWork(row)) return false;
-  if (filter === "all") return true;
+  if (filter === "clean") {
+    return row.categories.includes("clean") && row.status !== "done";
+  }
+  if (filter === "stayover") {
+    return row.categories.includes("stayover") && row.status !== "done";
+  }
+  if (!rowHasActionableWork(row) && filter !== "all") return false;
+  if (filter === "all") {
+    return row.categories.length > 0;
+  }
   if (filter === "open") {
     if (row.status === "done") return false;
-    return true;
+    return rowHasActionableWork(row);
   }
   if (row.status === "done") return false;
-  return row.categories.includes(filter);
+  return row.categories.includes(filter as HkCategory);
 }
 
 /** Build the actionable HK board — never one row per hotel room by default. */
@@ -118,10 +153,12 @@ export function buildHousekeepingBoardRows(input: {
   assignments: AssignmentSnapshot[];
   arrivalRoomIds: ReadonlySet<string>;
   departureRoomIds: ReadonlySet<string>;
+  stayoverRoomIds?: ReadonlySet<string>;
 }): HkBoardRow[] {
   const unitById = new Map(input.units.map((unit) => [unit.id, unit]));
   const openAssignmentRoomIds = new Set<string>();
   const boardRows: HkBoardRow[] = [];
+  const stayoverRoomIds = input.stayoverRoomIds ?? new Set<string>();
 
   for (const assignment of input.assignments) {
     if (assignment.status === "done") continue;
@@ -135,6 +172,7 @@ export function buildHousekeepingBoardRows(input: {
       serviceRequestedAt,
       input.arrivalRoomIds,
       input.departureRoomIds,
+      stayoverRoomIds,
     );
     if (categories.length === 0) continue;
 
@@ -167,6 +205,7 @@ export function buildHousekeepingBoardRows(input: {
       unit.service_requested_at,
       input.arrivalRoomIds,
       input.departureRoomIds,
+      stayoverRoomIds,
     );
     if (categories.length === 0) continue;
 

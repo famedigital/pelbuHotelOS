@@ -10,6 +10,7 @@ import {
   previousStayHubPanel,
   recommendStayHubStep,
   stayHubBackTargetLabel,
+  stayHubBoardPath,
 } from "@/lib/folio/stay-hub-cycle";
 
 test("confirmed + sdf incomplete → current Arrival", () => {
@@ -220,6 +221,14 @@ test("buildStayHubReopenHref and buildFolioPageHref stay return context", () => 
       board: "in_house",
     }),
     "/erp/in-house?booking=abc-123&step=check_out",
+  );
+  assert.equal(stayHubBoardPath("auto"), "/erp/today");
+  assert.equal(
+    buildStayHubReopenHref({
+      bookingId: "abc-123",
+      panel: "check_in",
+    }),
+    "/erp/today?booking=abc-123&step=check_in",
   );
   assert.equal(
     buildFolioPageHref({

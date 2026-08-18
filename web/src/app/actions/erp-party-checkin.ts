@@ -157,6 +157,7 @@ export async function checkInParty(
     }
 
     revalidatePath("/erp/calendar");
+    revalidatePath("/erp/today");
     revalidatePath("/erp/arrivals");
     revalidatePath("/erp/reservations");
     revalidatePath("/erp/in-house");

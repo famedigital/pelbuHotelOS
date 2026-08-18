@@ -1424,12 +1424,15 @@ export function CheckOutForm({
 
   if (state.ok) {
     return (
-      <p
-        className="erp rounded-lg border bg-card px-4 py-3 text-sm text-foreground"
+      <div
+        className="erp space-y-3 rounded-lg border bg-card px-4 py-3 text-sm text-foreground"
         role="status"
       >
-        Checked out. Rooms marked dirty for housekeeping.
-      </p>
+        <p>Checked out. Room is Dirty — next job is Housekeeping.</p>
+        <Button asChild variant="citrus" className="min-h-11">
+          <Link href="/erp/housekeeping">Open Housekeeping</Link>
+        </Button>
+      </div>
     );
   }
 

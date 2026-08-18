@@ -10,7 +10,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "City ledger | Pelbu OS",
+  title: "City Ledger | Pelbu OS",
   robots: { index: false, follow: false },
 };
 
@@ -73,7 +73,7 @@ export default async function CityLedgerPage() {
   return (
     <DeskListShell
       eyebrow="Money"
-      heading="City ledger"
+      heading="City Ledger"
       blurb="Master folios for groups plus travel-agent F&B open items (lunch invoiced, payment later). AR aging 30/60/90 below."
     >
       <section className="rounded-lg border bg-card p-4">

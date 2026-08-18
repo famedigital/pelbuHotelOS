@@ -80,6 +80,7 @@ async function requireDesk() {
 
 function revalidateCalendarHeavy() {
   revalidatePath("/erp");
+  revalidatePath("/erp/today");
   revalidatePath("/erp/calendar");
   revalidatePath("/erp/group");
   revalidatePath("/erp/arrivals");

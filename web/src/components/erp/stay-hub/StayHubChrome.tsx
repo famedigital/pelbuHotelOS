@@ -13,6 +13,7 @@ import {
 import { isCreditAgentStatus } from "@/lib/agents/status";
 import { formatGuestBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 import {
   ChevronLeftIcon,
   MoreHorizontalIcon,
@@ -47,6 +48,7 @@ export type StayHubIdentityProps = {
   backLabel?: string | null;
   onBack?: () => void;
   dueChipBtn?: number | null;
+  hkStatus?: string | null;
 };
 
 /** Fixed left-rail amount foot (Desk Book parity) — editable nightly. */
@@ -74,9 +76,43 @@ function statusBadgeVariant(
   return "secondary";
 }
 
-function paymentModeShort(mode: string | null | undefined): string {
-  if (!mode) return "";
+function hkChipClass(status: string): string {
+  const s = status.toLowerCase();
+  if (s === "clean") return "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200";
+  if (s === "dirty") return "border-rose-500/40 bg-rose-500/10 text-rose-800 dark:text-rose-200";
+  if (s === "inspect") return "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200";
+  if (s === "ooo") return "border-slate-400/40 bg-slate-500/10 text-slate-700 dark:text-slate-200";
+  return "border-sky-500/40 bg-sky-500/10 text-sky-800 dark:text-sky-200";
+}
+
+function paymentModeShort(mode: string): string {
+  const key = mode.trim().toLowerCase();
+  if (key === "on_credit") return "On credit";
+  if (key === "prepaid") return "Prepaid";
+  if (key === "partial") return "Partial";
+  if (key === "cash") return "Cash";
   return mode.replace(/_/g, " ");
+}
+
+function HkStatusChip({
+  status,
+}: {
+  status: string | null | undefined;
+}) {
+  const value = status?.trim();
+  if (!value) return null;
+  return (
+    <Link
+      href="/erp/housekeeping"
+      className={cn(
+        "inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
+        hkChipClass(value),
+      )}
+      title="Housekeeping"
+    >
+      HK {value}
+    </Link>
+  );
 }
 
 /**
@@ -100,6 +136,7 @@ export function StayHubHeader(props: StayHubIdentityProps) {
     backLabel,
     onBack,
     dueChipBtn,
+    hkStatus,
   } = props;
 
   const showDueChip =
@@ -122,10 +159,14 @@ export function StayHubHeader(props: StayHubIdentityProps) {
               aria-label={backLabel}
               className="-ml-1 inline-flex min-h-9 items-center gap-0.5 rounded-md px-1 text-xs font-medium text-muted-foreground"
             >
-              <ChevronLeftIcon className="size-3.5 shrink-0" aria-hidden />
-              <span className="truncate">{backLabel}</span>
+              <ChevronLeftIcon className="size-3.5" aria-hidden />
+              {backLabel}
             </button>
-          ) : null}
+          ) : (
+            <p className="text-[9px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+              Edit Transaction
+            </p>
+          )}
           <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
             {(guestName ?? "").trim() || "Walk-in guest"}
           </h2>
@@ -156,6 +197,7 @@ export function StayHubHeader(props: StayHubIdentityProps) {
               {statusLabel(status)}
             </Badge>
           ) : null}
+          <HkStatusChip status={hkStatus} />
           {saveStatus && saveStatus !== "idle" ? (
             <span className="text-[10px] text-muted-foreground">
               {saveStatus === "saving"
@@ -259,6 +301,7 @@ export function StayHubLeftRail({
     backLabel,
     onBack,
     dueChipBtn,
+    hkStatus,
   } = identity;
 
   const showDue =
@@ -415,7 +458,7 @@ export function StayHubLeftRail({
           </button>
         ) : (
           <p className="text-[9px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-            Stay
+            Edit Transaction
           </p>
         )}
 
@@ -431,6 +474,7 @@ export function StayHubLeftRail({
               {statusLabel(status)}
             </Badge>
           ) : null}
+          <HkStatusChip status={hkStatus} />
         </div>
 
         {checkIn && checkOut ? (

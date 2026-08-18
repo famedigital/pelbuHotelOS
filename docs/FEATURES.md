@@ -64,7 +64,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Feature | Notes |
 |---------|--------|
 | Layout | `web/src/app/erp/layout.tsx` → authenticated `DeskShell` |
-| Sidebar IA | Header **Front desk \| Back office** · Dashboard · Calendar · Front desk · Rooms · **POS** · Money · Channels · **Team** · **Inventory** · Hotel (Settings footer) |
+| Sidebar IA | Header **Front desk \| Back office** · **Today** · Stay View · Housekeeping · **POS** (FO rail). Lists / City Ledger / Night Audit under More. Dashboard KPI tiles stay for owner/GM. |
 | Desk shift gate | **Default OFF** — any staff with `can_login` + `can_access_desk` may open `/erp` any time. Optional Settings → Identity → **Restrict hotel desk to scheduled shifts** limits non-management staff to a covering published `staff_shifts` (Thimphu); Owner/GM/manager + DESK_PIN bypass. Not POS cashier shifts. |
 | **F&B IA (fixed)** | **No standalone F&B sidebar.** Sell/settle = POS register + menu + KDS; daily ops = **Kitchen board** `/erp/kitchen` (F&B ops home); property FO/GM home = Dashboard `/erp`. Do not merge kitchen into `/erp` or add a duplicate F&B root. |
 | Property switcher | Header; multi-property helpers + wizard exist |
@@ -80,16 +80,17 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 
 | Module | Route | Status |
 |--------|-------|--------|
-| **Dashboard** (role home) | `/erp` (+ role lands: FO → arrivals, kitchen → kitchen, cashier/F&B → POS) | **Per desk role:** tab-level defaults via `desk_module_keys` NULL (cashier: POS+payments+folios; kitchen: kitchen+KDS; FO: arrivals…night-audit without sales/loyalty/group). Owner/GM full catalog. Login redirects to role home. |
-| **Calendar / Timeline** | `/erp/calendar` | **v1–v2 shipped (2026-07-29)** — see below |
+| **Dashboard** (role home) | `/erp` (+ role lands: FO → **Today**, kitchen → kitchen, cashier/F&B → POS) | **Per desk role:** tab-level defaults via `desk_module_keys` NULL. Owner/GM full catalog. FO PIN lands **Today** (not Arrivals). |
+| **Stay View** | `/erp/calendar` | Room × date Gantt (eZee Stay View). Legend: Vacant · Occupied · Reserved · O/O · Due Out · Dirty. Empty cell → Walk In. Stay click → Edit Transaction on recommended step. |
 | Calendar day sheet | `/erp/calendar/day-sheet` | Printable arrivals / departures / stayovers / blocks |
+| **Today (FO home)** | `/erp/today` | Ranked worklist from hotel truth (not an LLM): CI / Collect / Checkout / vacant Dirty / hold. One CTA per row. Night Audit banner when working date is stale. |
 | Fast book | Modal on `/erp/reservations?new=1` (deeplink `/erp/fast-book` redirects) | **DeskBook re-engineer (2026-08-10):** StayHub-style left price rail + dense form — guest origin vs bill-to-agent, meal/children/extra, multi-category rooms, **guide/driver comps**, live **remaining inventory**, package bill break (rooms/meal/extra), walk-in **rate tier** (public/friends/family/mutual), promo + notes + email, preferred rack unit chip, agent **room-cap soft warn**. Classic FastBook path retired. Confirm pack or **same-day → StayHub Check-in** (footer Confirm check-in). |
 | **Stay confirmation #** | `bookings.confirmation_code` | **`PS-YYYY-#####`** gapless per property (Thimphu year); trigger on insert + backfill. Searchable. **Not** a tax invoice. Tax = **`INV-YYYY-####`** from folio fiscal issue only. |
-| **StayHub (FO hub)** | Modal from calendar / boards / reservations | One surface: Details → Check-in → **Folio** → Checkout. In-house **opens Folio** (not Checkout). **Details footer Continue to check-in** when confirmed; Confirm token refreshes + advances CI. Dense origin-aware CI/guest (local hides guide/driver/SDF). Rail + URL `?step=` in sync. Folio tools: **Bill · Collect · Advanced**; tabs **All · Room · POS**; POS strip + **Guest pays F&B** / **Charge agent AR** / **Put F&B on agent tab**. Settle labels: cash = Collect; agent = **Charge agent AR**. **Confirm #** on header/boards. Agent leave: print pack → guide ink → camera/file → leave when photo/waived. `/erp/bookings/[id]/settlement-pack`. **Open-room cap** on CI. Soft confirm_mode / advance badges. See [FO-AGENT-COMMERCE-CHECKLIST.md](FO-AGENT-COMMERCE-CHECKLIST.md). |
+| **Edit Transaction (StayHub)** | Modal from Today / Stay View / lists | On-screen title **Edit Transaction**. Recommended step + one footer CTA. **HK chip**. Folio tools: **Folio · Collect**; Invoice `INV-` / Advanced under More. In-house opens Folio. Rail + URL `?step=`. See hang-card. |
 | Check-in / out | StayHub panels + `/erp/check-in` | Compact origin-aware form (local CID; intl/regional passport/SDF/guide); driver only when comps/tours; business-date gate; sticky Confirm CI; **post-CI guest registration print + signed-card camera/file upload** (`bookings.reg_card_photo_public_id`); **ERP-editable print docs** (Settings → Documents: Invoice, Receipt, Voucher, Checkout settlement pack, Registration — logo/title/intro/notes/terms); re-upload on Guest while in-house; Undo CI when folio simple; CO → dirty; agent CO gated on guide evidence |
 | Arrivals / in-house / departures | `/erp/arrivals` etc. | Boards open StayHub (CI / Stay-Money / CO); show **PS** conf #; today’s worklists only for A/D |
 | Reservations / guests | `/erp/reservations`, `/erp/guests` | **Party board** (groups + suggested multi-room); rooming list; filters room/dates/sort; search guest/phone/agent/room/**PS conf #**; Ctrl+K globally |
-| **POS / F&B** | `/erp/pos` (+ tabs) | Register · Menu · Recipe cost · Kitchen board · Food cost · Kitchen TV. Open tickets + Closed today; floor plan; shifts. Room-charge → folio with item serve/void on StayHub POS. Guest Nu 0/5 on F&B bills. **Bar packs** |
+| **POS / F&B** | `/erp/pos` (+ tabs) | Cashier daily: **Register · Menu · Kitchen board · Day pack · Kitchen TV**. Recipe/engineering/compliance stay off the daily rail. Open tickets + Closed today; floor plan; shifts. Room-charge → folio. Guest Nu 0/5 on F&B bills. **Bar packs** |
 | **Menu (catalog + bar)** | `/erp/menu` | Catalog · **Bar packs** (spirit pek+bottle, beer case, waste) · Stock & recipes · Categories. Spirits in **ml**; default 30 ml pek |
 | **Laundry** | `/erp/laundry` · guest `/laundry` · staff `/staff/laundry` | Bag QR; scan/login hardened; reprint without invalidating stickers; maid board → folio post |
 | Folio | `/erp/folios/[id]` (+ `/receipt`) | Payments (cash vs agent AR), void, comp, minibar/damage; INV/RCP issue; day-1 post; POS serve/void; whole-Nu hotel rate adj (room/F&B); Group/master Advanced |
@@ -295,15 +296,18 @@ Spirits / beer share **one inventory ledger** across multiple sell sizes. Checko
 
 `AppSidebar` / `erp-nav.ts` groups + header **Front desk | Back office** workspace chip (`pelbu_workspace_v1` cookie):
 
-- **Front desk workspace:** Dashboard · Calendar · Arrivals · In-house · Departures · Reservations (**New reservation** → Fast Book → StayHub) · Guests · **Groups** · Rooms · Housekeeping · Maintenance · Laundry · Desk money (Payments · City ledger · Night audit) · POS
-- **Back office workspace:** Money (Finance · Expenses · Banking · GST · Invoices · Payments · City ledger · Reports · Night audit) · Channels/Agents · Inventory · **Team** · POS
+- **Front desk rail:** **Today** · **Stay View** · **Housekeeping** · **POS**
+- **Front desk More:** Arrival List · Guest Ledger · Departure List · Reservation List · Guests · City Ledger · Night Audit (Payments still in More). Sales claims, Loyalty, Rate approvals, Group hotels, Finance/GST/Banking are off the FO rail (Ctrl+K only).
+- **Back office workspace:** Money (Finance · Expenses · Banking · GST · Invoices · Payments · City Ledger · Reports · Night Audit) · Channels/Agents · Inventory · **Team** · POS
 - **Footer (Configuration):** Settings · Add hotel — not inside FO rail
-- **Role land:** FO → Arrivals · Owner/GM → Finance · Cashier → POS · workspace chip flip navigates to that world’s home
-- **Shared PIN:** lands Arrivals (or stored workspace home); staff Auth uses role home + seeds `pelbu_workspace_v1`
+- **Role land:** FO → **Today** · Owner/GM → Finance · Cashier → POS · workspace chip flip navigates to that world’s home
+- **Shared PIN:** lands Today (or stored workspace home); staff Auth uses role home + seeds `pelbu_workspace_v1`
 
-Absolute Back Office map: Pay Out → Finance/expenses · Business Source → Agents · Cityledger → Agent AR / City ledger · Misc Sales → POS · Undo → folio/NA void. See [FO hang-card](ops/fo-ezee-to-pelbu-hang-card.md).
+**Desk AI:** Phase 1 is deterministic hotel truth (`fo-next-action` + `recommendStayHubStep`). Do not wire Cursor or Claude into desk runtime. Optional later: Gemini (`GEMINI_API_KEY`) explain/fill only — never posts folio, payment, invoice, or Night Audit.
 
-Default ops home for room inventory: **`/erp/calendar`**. Agent click → **`/erp/agents/[id]`** dossier.
+Absolute Back Office map: Pay Out → Finance/expenses · Business Source → Agents · Cityledger → Agent AR / City Ledger · Misc Sales → POS · Undo → folio/NA void. See [FO hang-card](ops/fo-ezee-to-pelbu-hang-card.md).
+
+Default ops home for room inventory: **Stay View** (`/erp/calendar`). Agent click → **`/erp/agents/[id]`** dossier.
 
 ---
 

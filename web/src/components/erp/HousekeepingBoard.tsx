@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { usePendingFeedback } from "@/hooks/use-pending-feedback";
 import {
+  HK_CHIP_ORDER,
   HK_FILTER_LABEL,
   rowMatchesFilter,
   type HkBoardRow,
@@ -70,7 +71,7 @@ export function HousekeepingBoard({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        {(Object.keys(HK_FILTER_LABEL) as HkFilterKey[]).map((key) => (
+        {HK_CHIP_ORDER.map((key) => (
           <Button
             key={key}
             type="button"

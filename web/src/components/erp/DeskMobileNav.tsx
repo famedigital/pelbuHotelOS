@@ -10,7 +10,7 @@ import {
   erpNavSearchHaystack,
 } from "@/lib/erp-nav-search";
 import { tabVisibleFromGrants } from "@/lib/erp/desk-modules";
-import { filterModulesForWorkspace } from "@/lib/erp/desk-workspace";
+import { filterModulesForWorkspace, foMoreModules } from "@/lib/erp/desk-workspace";
 import { pushErpRecent } from "@/lib/erp-recents";
 import { Input } from "@/components/ui/input";
 import {
@@ -24,8 +24,8 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import {
-  BedDoubleIcon,
   CalendarDaysIcon,
+  ClipboardListIcon,
   EllipsisIcon,
   SearchIcon,
   ShoppingCartIcon,
@@ -38,22 +38,22 @@ import { usePathname } from "next/navigation";
 
 const PRIMARY_FRONT_DESK = [
   {
-    title: "Calendar",
+    title: "Today",
+    href: "/erp/today",
+    icon: ClipboardListIcon,
+    moduleKey: "front-desk",
+  },
+  {
+    title: "Stay View",
     href: "/erp/calendar",
     icon: CalendarDaysIcon,
     moduleKey: "calendar",
   },
   {
-    title: "Book",
-    href: "/erp/fast-book",
+    title: "HK",
+    href: "/erp/housekeeping",
     icon: SparklesIcon,
-    moduleKey: "front-desk",
-  },
-  {
-    title: "Stay",
-    href: "/erp/in-house",
-    icon: BedDoubleIcon,
-    moduleKey: "front-desk",
+    moduleKey: "rooms",
   },
   {
     title: "POS",
@@ -117,12 +117,13 @@ export function DeskMobileNav({
     return tabVisibleFromGrants(item.moduleKey, item.href, allow);
   });
   const sections = useMemo(() => {
-    return filterModulesForWorkspace(ERP_MODULES, workspace, allow).map(
-      (m) => ({
-        label: m.title,
-        items: m.tabs,
-      }),
-    );
+    const filtered = filterModulesForWorkspace(ERP_MODULES, workspace, allow);
+    const list =
+      workspace === "front_desk" ? foMoreModules(filtered) : filtered;
+    return list.map((m) => ({
+      label: m.title,
+      items: m.tabs,
+    }));
   }, [allow, workspace]);
 
   const filteredSections = useMemo(() => {

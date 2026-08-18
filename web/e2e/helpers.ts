@@ -155,6 +155,7 @@ export async function assertNoHorizontalOverflow(page: Page): Promise<void> {
 /** ERP nav hrefs — keep in sync with erp-nav ERP_MODULES tabs. */
 export const ERP_NAV_HREFS = [
   "/erp",
+  "/erp/today",
   "/erp/calendar",
   "/erp/calendar/day-sheet",
   "/erp/arrivals",
@@ -253,7 +254,12 @@ export const WAVE_AB_ROUTES: ReadonlyArray<{
   expectText: RegExp;
   cta?: RegExp;
 }> = [
-  { path: "/erp/calendar", expectText: /calendar|rack|room|occupancy/i },
+  {
+    path: "/erp/today",
+    expectText: /today|job|walk-?in|stay view|check-?in/i,
+    cta: /check.?in|collect|checkout|housekeeping|stay view/i,
+  },
+  { path: "/erp/calendar", expectText: /stay view|calendar|rack|room|occupancy/i },
   { path: "/erp/calendar/day-sheet", expectText: /day sheet|occupancy|room/i },
   {
     path: "/erp/arrivals",

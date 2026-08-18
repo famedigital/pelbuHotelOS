@@ -28,7 +28,7 @@ test("check-in category only tags arrivals that still need prep", () => {
   );
   assert.deepEqual(
     buildHkCategories("room-arrival", "clean", null, arrival, departure),
-    [],
+    ["clean"],
   );
   assert.deepEqual(
     buildHkCategories("room-arrival", "inspect", null, arrival, departure),
@@ -44,6 +44,20 @@ test("checkout category tags departing rooms still occupied or dirty", () => {
   assert.deepEqual(
     buildHkCategories("room-departure", "clean", null, arrival, departure),
     [],
+  );
+});
+
+test("stayover chip tags occupied in-house rooms that are not due out", () => {
+  assert.deepEqual(
+    buildHkCategories(
+      "room-stay",
+      "occupied",
+      null,
+      new Set(),
+      new Set(),
+      new Set(["room-stay"]),
+    ),
+    ["stayover"],
   );
 });
 
@@ -98,7 +112,7 @@ test("open and category filters hide done rows and uncategorized rows", () => {
   assert.equal(rowMatchesFilter(emptyRow, "all"), false);
 });
 
-test("buildHousekeepingBoardRows skips clean rooms and done assignments", () => {
+test("buildHousekeepingBoardRows keeps clean rooms on Clean ready, not Open work", () => {
   const rows = buildHousekeepingBoardRows({
     units: [
       {
@@ -136,10 +150,13 @@ test("buildHousekeepingBoardRows skips clean rooms and done assignments", () => 
     departureRoomIds: new Set(),
   });
 
-  assert.equal(rows.length, 2);
+  assert.equal(rows.length, 3);
   assert.ok(rows.some((row) => row.roomLabel === "DIRTY-01"));
   assert.ok(rows.some((row) => row.roomLabel === "ARR-01"));
-  assert.ok(!rows.some((row) => row.roomLabel === "CLEAN-01"));
+  const clean = rows.find((row) => row.roomLabel === "CLEAN-01");
+  assert.ok(clean);
+  assert.equal(rowMatchesFilter(clean!, "clean"), true);
+  assert.equal(rowMatchesFilter(clean!, "open"), false);
 });
 
 test("check-in filter only returns arrival prep rows", () => {

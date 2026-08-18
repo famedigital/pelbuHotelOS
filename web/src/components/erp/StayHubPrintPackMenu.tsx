@@ -77,6 +77,15 @@ export function StayHubPrintPackMenu({
             <Link href={receiptHref}>Folio · receipt</Link>
           </DropdownMenuItem>
         ) : null}
+        {folioId ? (
+          <DropdownMenuItem asChild>
+            <Link href={`/erp/folios/${folioId}`}>Tax invoice (INV-)</Link>
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem asChild>
+            <Link href="/erp/invoices">Invoices (INV-)</Link>
+          </DropdownMenuItem>
+        )}
         {statementHref ? (
           <DropdownMenuItem asChild>
             <Link href={statementHref}>Master / group statement</Link>

@@ -116,6 +116,7 @@ export function defaultModulesForDeskRole(
     case "front_desk":
       return [
         "dashboard",
+        "/erp/today",
         "/erp/arrivals",
         "/erp/in-house",
         "/erp/departures",
@@ -141,7 +142,7 @@ export function deskHomeHrefForRole(
 ): string {
   switch (role) {
     case "front_desk":
-      return "/erp/arrivals";
+      return "/erp/today";
     case "kitchen":
       return "/erp/kitchen";
     case "cashier":
@@ -155,20 +156,20 @@ export function deskHomeHrefForRole(
     case "gm":
       return "/erp/finance";
     default:
-      return "/erp/arrivals";
+      return "/erp/today";
   }
 }
 
 /**
  * Post-login desk home — prefers role home; shared PIN with no staff role →
- * Front desk Arrivals (not bare `/erp`).
+ * Front desk Today (not bare `/erp`).
  */
 export function resolveDeskHomeHref(opts: {
   deskRole: DeskRole | null | undefined;
   pinOnlySession?: boolean;
 }): string {
   if (opts.pinOnlySession && !opts.deskRole) {
-    return "/erp/arrivals";
+    return "/erp/today";
   }
   return deskHomeHrefForRole(opts.deskRole);
 }
@@ -267,6 +268,13 @@ function tabHrefGranted(href: string, grants: readonly string[]): boolean {
   if (parent && grants.includes(parent.key)) return true;
   // Dashboard module is only `/erp`.
   if (href === "/erp" && grants.includes("dashboard")) return true;
+  // Today is the FO home; legacy arrivals grants still open it.
+  if (
+    href === "/erp/today" &&
+    (grants.includes("/erp/arrivals") || grants.includes("front-desk"))
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -279,7 +287,7 @@ export function moduleVisibleFromGrants(
   if (moduleFullyGranted(moduleKey, grants)) return true;
   const mod = DESK_MODULE_CATALOG.find((m) => m.key === moduleKey);
   if (!mod) return false;
-  return mod.tabs.some((t) => grants.includes(t.href));
+  return mod.tabs.some((t) => tabHrefGranted(t.href, grants));
 }
 
 export function tabVisibleFromGrants(
@@ -289,7 +297,7 @@ export function tabVisibleFromGrants(
 ): boolean {
   if (!grants || grants.length === 0) return true;
   if (moduleFullyGranted(moduleKey, grants)) return true;
-  return grants.includes(tabHref);
+  return tabHrefGranted(tabHref, grants);
 }
 
 /** First allowed landing for a module (for sidebar primary link). */
@@ -300,7 +308,7 @@ export function firstAllowedHrefForModule(
   if (!grants || grants.length === 0) return module.href;
   if (moduleFullyGranted(module.key, grants)) return module.href;
   for (const tab of module.tabs) {
-    if (grants.includes(tab.href)) return tab.href;
+    if (tabHrefGranted(tab.href, grants)) return tab.href;
   }
   return module.href;
 }
@@ -321,7 +329,7 @@ export function filterErpNavByGrants(
       if (moduleFullyGranted(m.key, grants)) {
         return { ...m, tabs: [...m.tabs] };
       }
-      const tabs = m.tabs.filter((t) => grants.includes(t.href));
+      const tabs = m.tabs.filter((t) => tabHrefGranted(t.href, grants));
       if (tabs.length === 0) return null;
       return {
         ...m,

@@ -64,6 +64,7 @@ function revalidatePartySurfaces() {
   revalidatePath("/erp/reservations");
   revalidatePath("/erp/group");
   revalidatePath("/erp/calendar");
+  revalidatePath("/erp/today");
   revalidatePath("/erp/arrivals");
 }
 

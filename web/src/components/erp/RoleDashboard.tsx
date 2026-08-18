@@ -1131,9 +1131,9 @@ function FrontDeskBoard({
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Kpi
-          href="/erp/arrivals"
+          href="/erp/today"
           icon={ClipboardListIcon}
-          label="Arrivals today"
+          label="Today"
           value={String(snap.arrivalsToday)}
         />
         <Kpi

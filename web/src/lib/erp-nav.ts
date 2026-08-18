@@ -27,12 +27,19 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+export type ErpNavRail = "daily" | "more" | "hidden";
+
 export type ErpNavLeaf = {
   title: string;
   href: string;
   icon: LucideIcon;
   /** Ops slang for Ctrl+K / mobile More search (hk, billing, walk-in, …). */
   keywords?: string[];
+  /**
+   * Front-desk workspace density: daily = rail, more = More sheet,
+   * hidden = Ctrl+K / deep link only.
+   */
+  rail?: ErpNavRail;
 };
 
 export type ErpModule = {
@@ -46,8 +53,19 @@ export type ErpModule = {
 
 /** Extra search aliases keyed by tab href (merged into palette / mobile search). */
 export const ERP_NAV_KEYWORDS: Record<string, string[]> = {
+  "/erp/today": ["today", "worklist", "fo home", "front office", "desk jobs", "edit transaction"],
   "/erp": ["home", "dashboard", "desk"],
-  "/erp/calendar": ["rack", "room rack", "grid", "availability"],
+  "/erp/calendar": [
+    "rack",
+    "room rack",
+    "grid",
+    "availability",
+    "stay view",
+    "vacant",
+    "occupied",
+    "due out",
+    "dirty",
+  ],
   "/erp/calendar/day-sheet": ["day sheet", "daily", "occupancy"],
   "/erp/arrivals": ["ci", "checkin", "check-in", "arrival", "walk-in", "walkin"],
   "/erp/in-house": ["inhouse", "in house", "stay", "guests in house"],
@@ -118,6 +136,7 @@ function leaf(
   href: string,
   icon: LucideIcon,
   extraKeywords?: string[],
+  rail: ErpNavRail = "more",
 ): ErpNavLeaf {
   const merged = [
     ...(ERP_NAV_KEYWORDS[href] ?? []),
@@ -127,6 +146,7 @@ function leaf(
     title,
     href,
     icon,
+    rail,
     keywords: merged.length > 0 ? merged : undefined,
   };
 }
@@ -146,11 +166,11 @@ export const ERP_MODULES: ErpModule[] = [
   },
   {
     key: "calendar",
-    title: "Calendar",
+    title: "Stay View",
     icon: CalendarClockIcon,
     href: "/erp/calendar",
     tabs: [
-      leaf("Room rack", "/erp/calendar", CalendarClockIcon),
+      leaf("Stay View", "/erp/calendar", CalendarClockIcon, ["stay view", "rack"], "daily"),
       leaf("Day sheet", "/erp/calendar/day-sheet", ScrollTextIcon),
     ],
   },
@@ -158,17 +178,18 @@ export const ERP_MODULES: ErpModule[] = [
     key: "front-desk",
     title: "Front desk",
     icon: UsersIcon,
-    href: "/erp/arrivals",
+    href: "/erp/today",
     tabs: [
-      leaf("Arrivals", "/erp/arrivals", ClipboardListIcon),
-      leaf("In-house", "/erp/in-house", BedDoubleIcon),
-      leaf("Departures", "/erp/departures", ScrollTextIcon),
-      leaf("Reservations", "/erp/reservations", ReceiptTextIcon),
-      leaf("Sales claims", "/erp/sales-claims", ReceiptTextIcon),
-      leaf("Rate approvals", "/erp/rate-approvals", TagsIcon),
+      leaf("Today", "/erp/today", ClipboardListIcon, ["worklist", "fo"], "daily"),
+      leaf("Arrival List", "/erp/arrivals", ClipboardListIcon, ["arrivals"]),
+      leaf("Guest Ledger", "/erp/in-house", BedDoubleIcon, ["in-house", "inhouse"]),
+      leaf("Departure List", "/erp/departures", ScrollTextIcon, ["departures"]),
+      leaf("Reservation List", "/erp/reservations", ReceiptTextIcon, ["bookings"]),
+      leaf("Sales claims", "/erp/sales-claims", ReceiptTextIcon, undefined, "hidden"),
+      leaf("Rate approvals", "/erp/rate-approvals", TagsIcon, undefined, "hidden"),
       leaf("Guests", "/erp/guests", UsersIcon),
-      leaf("Loyalty", "/erp/loyalty", SparklesIcon),
-      leaf("Group hotels", "/erp/group", HotelIcon),
+      leaf("Loyalty", "/erp/loyalty", SparklesIcon, undefined, "hidden"),
+      leaf("Group hotels", "/erp/group", HotelIcon, undefined, "hidden"),
     ],
   },
   {
@@ -179,7 +200,7 @@ export const ERP_MODULES: ErpModule[] = [
     tabs: [
       leaf("Rooms", "/erp/rooms", HotelIcon),
       leaf("Floor map", "/erp/rooms/layout", MapIcon),
-      leaf("Housekeeping", "/erp/housekeeping", SparklesIcon),
+      leaf("Housekeeping", "/erp/housekeeping", SparklesIcon, ["hk"], "daily"),
       leaf("Lost & found", "/erp/lost-found", ClipboardListIcon),
       leaf("Maintenance", "/erp/maintenance", WrenchIcon),
       leaf("Laundry", "/erp/laundry", ShirtIcon),
@@ -191,21 +212,21 @@ export const ERP_MODULES: ErpModule[] = [
     icon: ShoppingCartIcon,
     href: "/erp/pos",
     tabs: [
-      leaf("Register", "/erp/pos", ShoppingCartIcon),
-      leaf("Menu", "/erp/menu", SoupIcon),
+      leaf("Register", "/erp/pos", ShoppingCartIcon, undefined, "daily"),
+      leaf("Menu", "/erp/menu", SoupIcon, undefined, "daily"),
       leaf("Print menu", "/erp/menu/print", ScrollTextIcon),
       leaf("Reservations", "/erp/pos/reservations", CalendarClockIcon),
-      leaf("Recipe cost", "/erp/pos/recipe-cost", ReceiptTextIcon),
-      leaf("Menu engineering", "/erp/pos/menu-engineering", TagsIcon),
-      leaf("Loyalty stamps", "/erp/pos/loyalty", SparklesIcon),
-      leaf("Kitchen board", "/erp/kitchen", SoupIcon),
-      leaf("Day pack", "/erp/kitchen/day-pack", ScrollTextIcon),
-      leaf("Outlet rollup", "/erp/kitchen/outlets", BoxesIcon),
-      leaf("Compliance", "/erp/kitchen/compliance", ClipboardListIcon),
-      leaf("Shopping list", "/erp/kitchen/shopping", BoxesIcon),
-      leaf("Labor / covers", "/erp/kitchen/labor", UsersIcon),
-      leaf("Food cost", "/erp/kitchen/food-cost", ReceiptTextIcon),
-      leaf("Kitchen TV", "/erp/kds", MonitorIcon),
+      leaf("Recipe cost", "/erp/pos/recipe-cost", ReceiptTextIcon, undefined, "hidden"),
+      leaf("Menu engineering", "/erp/pos/menu-engineering", TagsIcon, undefined, "hidden"),
+      leaf("Loyalty stamps", "/erp/pos/loyalty", SparklesIcon, undefined, "hidden"),
+      leaf("Kitchen board", "/erp/kitchen", SoupIcon, ["kot"], "daily"),
+      leaf("Day pack", "/erp/kitchen/day-pack", ScrollTextIcon, undefined, "daily"),
+      leaf("Outlet rollup", "/erp/kitchen/outlets", BoxesIcon, undefined, "hidden"),
+      leaf("Compliance", "/erp/kitchen/compliance", ClipboardListIcon, undefined, "hidden"),
+      leaf("Shopping list", "/erp/kitchen/shopping", BoxesIcon, undefined, "hidden"),
+      leaf("Labor / covers", "/erp/kitchen/labor", UsersIcon, undefined, "hidden"),
+      leaf("Food cost", "/erp/kitchen/food-cost", ReceiptTextIcon, undefined, "hidden"),
+      leaf("Kitchen TV", "/erp/kds", MonitorIcon, undefined, "daily"),
     ],
   },
   {
@@ -216,8 +237,8 @@ export const ERP_MODULES: ErpModule[] = [
     tabs: [
       leaf("Payments", "/erp/payments", CreditCardIcon),
       leaf("Invoices", "/erp/invoices", ReceiptTextIcon),
-      leaf("City ledger", "/erp/folios", WalletIcon),
-      leaf("Night audit", "/erp/night-audit", ScrollTextIcon),
+      leaf("City Ledger", "/erp/folios", WalletIcon),
+      leaf("Night Audit", "/erp/night-audit", ScrollTextIcon),
       leaf("Banking", "/erp/finance/banking", CreditCardIcon),
       leaf("Expenses", "/erp/finance/expenses", ReceiptTextIcon),
       leaf("GST", "/erp/finance/gst", ScrollTextIcon),
@@ -300,10 +321,13 @@ export const NAV_SECTIONS = ERP_MODULES.map((m) => ({
 
 /** Frequent desk jumps for Ctrl+K — subset of module tabs, no duplicate nav source. */
 export const ERP_QUICK_ACTIONS: ErpNavLeaf[] = [
+  leaf("Today", "/erp/today", ClipboardListIcon, ["fo", "worklist"]),
   leaf("Check-in", "/erp/arrivals", UsersIcon, ["ci", "arrival", "walk-in"]),
   leaf("Check-out", "/erp/departures", WalletIcon, ["co", "departure"]),
+  leaf("Stay View", "/erp/calendar", CalendarClockIcon, ["rack"]),
+  leaf("Housekeeping", "/erp/housekeeping", SparklesIcon, ["hk", "dirty"]),
   leaf("POS register", "/erp/pos", ShoppingCartIcon, ["pos", "fnb"]),
-  leaf("Night audit", "/erp/night-audit", ScrollTextIcon, ["na", "close day"]),
+  leaf("Night Audit", "/erp/night-audit", ScrollTextIcon, ["na", "close day"]),
   leaf("Settings", "/erp/settings", SettingsIcon),
   leaf("Training", "/erp/training", ScrollTextIcon),
   leaf("DOT assessment", "/erp/dot-assessment", ClipboardListIcon),

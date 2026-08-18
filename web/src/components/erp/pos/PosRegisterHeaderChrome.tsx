@@ -222,10 +222,17 @@ function RegisterActions({
               <Link href="/erp/kds">Kitchen TV</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href="/erp/kitchen/food-cost">Food cost</Link>
+              <Link href="/erp/menu">Menu</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href="/erp/menu">CMS menu</Link>
+              <Link href="/erp/kitchen/day-pack">Day pack</Link>
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel>Costing</DropdownMenuLabel>
+          <DropdownMenuGroup>
+            <DropdownMenuItem asChild>
+              <Link href="/erp/kitchen/food-cost">Food cost</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href="/erp/pos/recipe-cost">Recipe cost</Link>

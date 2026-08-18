@@ -390,6 +390,34 @@ function hkStatusClass(status?: string | null): string {
   return "bg-muted-foreground/40";
 }
 
+const STAY_VIEW_LEGEND = [
+  { swatch: "bg-muted", label: "Vacant" },
+  { swatch: "bg-emerald-600", label: "Occupied" },
+  { swatch: "bg-sky-700", label: "Reserved" },
+  { swatch: "bg-slate-500", label: "O/O" },
+  { swatch: "bg-amber-500", label: "Due Out" },
+  { swatch: "bg-rose-500", label: "Dirty" },
+] as const;
+
+function StayViewLegend({ compact = false }: { compact?: boolean }) {
+  return (
+    <ul
+      aria-label="Stay View legend"
+      className={cn(
+        "flex flex-wrap items-center gap-x-2.5 gap-y-1",
+        compact ? "text-[9px]" : "text-[10px]",
+      )}
+    >
+      {STAY_VIEW_LEGEND.map((row) => (
+        <li key={row.label} className="flex items-center gap-1 text-muted-foreground">
+          <span className={cn("size-2 shrink-0 rounded-sm", row.swatch)} />
+          <span>{row.label}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function blockBarClass(kind: RoomBlock["block_kind"]): string {
   if (kind === "ooo") return "border-slate-700 bg-slate-700 text-white";
   if (kind === "oos") return "border-rose-700 bg-rose-600 text-white";
@@ -1803,6 +1831,7 @@ export function RoomRackGrid({
             <p className="text-[10px] text-muted-foreground">
               Tap room or guest · Needs room → assign
             </p>
+            <StayViewLegend compact />
           </div>
           <CalendarLiveRefresh />
         </div>
@@ -1895,6 +1924,7 @@ export function RoomRackGrid({
             {label}
           </Link>
         ))}
+        <StayViewLegend />
         <Popover>
           <PopoverTrigger asChild>
             <Button
@@ -1915,13 +1945,14 @@ export function RoomRackGrid({
             </p>
             <ul className="space-y-1.5 text-xs">
               {[
+                { swatch: "bg-muted", label: "Vacant" },
+                { swatch: "bg-emerald-600", label: "Occupied" },
+                { swatch: "bg-sky-700", label: "Reserved" },
+                { swatch: "bg-slate-500", label: "O/O" },
+                { swatch: "bg-amber-500", label: "Due Out" },
+                { swatch: "bg-rose-500", label: "Dirty" },
                 { swatch: "bg-sky-500", label: "Arriving today" },
-                { swatch: "bg-emerald-600", label: "In-house" },
-                { swatch: "bg-amber-500", label: "Departing today" },
-                { swatch: "bg-sky-700", label: "Confirmed (future)" },
-                { swatch: "bg-amber-300", label: "Held / pending" },
                 { swatch: "bg-rose-700", label: "Overdue checkout" },
-                { swatch: "bg-slate-500", label: "Checked out" },
               ].map((row) => (
                 <li key={row.label} className="flex items-center gap-2">
                   <span
@@ -2627,6 +2658,10 @@ export function RoomRackGrid({
                             "absolute top-0 h-full cursor-cell border-r",
                             isWeekend(day) && "bg-muted/30",
                             day === today && "bg-accent/5",
+                            (unit.hk_status === "dirty" ||
+                              unit.hk_status === "inspect") &&
+                              "bg-rose-500/12",
+                            unit.hk_status === "ooo" && "bg-slate-500/15",
                             selected &&
                               "bg-sky-500/35 ring-1 ring-inset ring-sky-600",
                             selectedPool &&

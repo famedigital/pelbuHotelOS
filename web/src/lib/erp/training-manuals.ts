@@ -76,10 +76,10 @@ export const TRAINING_MANUALS: TrainingManual[] = [
     audiences: ["owner", "gm", "front_desk"],
     steps: [
       {
-        id: "arrivals",
-        title: "Review arrivals board",
-        body: "Click a row to open the booking dossier.",
-        href: "/erp/arrivals",
+        id: "today",
+        title: "Start on Today",
+        body: "Ranked jobs with one button each — Check-in, Collect, Checkout, Housekeeping.",
+        href: "/erp/today",
       },
       {
         id: "checkin",

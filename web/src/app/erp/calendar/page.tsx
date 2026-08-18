@@ -21,7 +21,7 @@ import { getStaffSession } from "@/lib/staff-auth";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Calendar | Pelbu OS",
+  title: "Stay View | Pelbu OS",
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";

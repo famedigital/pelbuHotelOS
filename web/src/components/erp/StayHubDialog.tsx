@@ -220,6 +220,7 @@ function summaryFromSeed(stay: StayHubSeedStay): StayHubSummary {
     assignmentId: stay.id,
     roomUnitId: stay.room_unit_id,
     roomLabel: stay.room_label,
+    roomHkStatus: null,
     roomTypeId: stay.room_type_id,
     roomTypeName: stay.room_type_name,
     roomLines: stay.room_label
@@ -1524,6 +1525,14 @@ export function StayHubDialog({
   const primaryCta = (() => {
     if (!summary) return null;
 
+    if (summary.status === "checked_out") {
+      return (
+        <Button asChild variant="citrus" className="min-h-11 flex-1 sm:flex-none">
+          <Link href="/erp/housekeeping">Send to HK</Link>
+        </Button>
+      );
+    }
+
     if (isDetailsPanel) {
       if (["pending", "confirmed"].includes(summary.status)) {
         if (arrivalTooFar) {
@@ -1699,6 +1708,13 @@ export function StayHubDialog({
     });
   }
   if (folioId) {
+    moreActions.push({
+      key: "invoice",
+      label: "Invoice (INV-)",
+      onSelect: () => {
+        window.open(`/erp/folios/${folioId}`, "_blank", "noopener,noreferrer");
+      },
+    });
     const receiptHref = buildFolioPageHref({
       folioId,
       pathSuffix: "/receipt",
@@ -1763,7 +1779,7 @@ export function StayHubDialog({
     { id: "more", label: "More" },
   ];
   const folioTabs = [
-    { id: "bill", label: "Bill" },
+    { id: "bill", label: "Folio" },
     ...(balanceOpen
       ? [
           {
@@ -1772,7 +1788,6 @@ export function StayHubDialog({
           },
         ]
       : []),
-    { id: "advanced", label: "Advanced" },
   ];
 
   const toolTabsNode = (() => {
@@ -1934,7 +1949,7 @@ export function StayHubDialog({
           )}
         >
           <DialogTitle className="sr-only">
-            Stay hub · {titleName}
+            Edit Transaction · {titleName}
           </DialogTitle>
 
           {/* Mobile compact identity — desktop lives in left rail */}
@@ -1963,6 +1978,7 @@ export function StayHubDialog({
             backLabel={backLabel}
             onBack={backTarget ? handleBack : undefined}
             dueChipBtn={balanceOpen ? dues : null}
+            hkStatus={summary?.roomHkStatus}
           />
 
           {party && summary ? (
@@ -2052,6 +2068,7 @@ export function StayHubDialog({
                 backLabel,
                 onBack: backTarget ? handleBack : undefined,
                 dueChipBtn: balanceOpen ? dues : null,
+                hkStatus: summary?.roomHkStatus,
               }}
               amount={
                 summary
@@ -2678,7 +2695,7 @@ export function StayHubDialog({
                       </div>
                     ) : null}
 
-                    {/* Folio — Bill | Collect | Advanced */}
+                    {/* Folio — Folio | Collect; Advanced under More */}
                     {panel === "stay_money" ? (
                       <div className="space-y-2">
                         {summary.rooms > 1 && folioTool === "advanced" ? (

@@ -303,8 +303,9 @@ export function stayHubBoardPath(
       return "/erp/reservations";
     case "in_house":
       return "/erp/in-house";
+    case "today":
     default:
-      return "/erp/in-house";
+      return "/erp/today";
   }
 }
 

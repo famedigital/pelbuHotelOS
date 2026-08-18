@@ -15,7 +15,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Night audit | Pelbu OS",
+  title: "Night Audit | Pelbu OS",
   robots: { index: false, follow: false },
 };
 

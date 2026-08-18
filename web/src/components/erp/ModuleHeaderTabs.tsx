@@ -6,6 +6,8 @@ import {
   type DashboardView,
 } from "@/lib/erp/dashboard-views";
 import { resolveModule } from "@/lib/erp-nav";
+import { isFoDailyTab } from "@/lib/erp/desk-workspace";
+import { useDeskWorkspace } from "@/components/erp/DeskWorkspaceProvider";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -38,6 +40,7 @@ export function ModuleHeaderTabs({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const match = resolveModule(pathname);
+  const { workspace } = useDeskWorkspace();
 
   if (!match) return null;
 
@@ -86,14 +89,23 @@ export function ModuleHeaderTabs({
     );
   }
 
-  const tabs =
-    allowedModuleKeys && allowedModuleKeys.length > 0
-      ? match.module.tabs.filter(
-          (tab) =>
-            allowedModuleKeys.includes(match.module.key) ||
-            allowedModuleKeys.includes(tab.href),
-        )
-      : match.module.tabs;
+  const tabs = (() => {
+    const granted =
+      allowedModuleKeys && allowedModuleKeys.length > 0
+        ? match.module.tabs.filter(
+            (tab) =>
+              allowedModuleKeys.includes(match.module.key) ||
+              allowedModuleKeys.includes(tab.href),
+          )
+        : match.module.tabs;
+    if (match.module.key === "pos") {
+      return granted.filter(isFoDailyTab);
+    }
+    if (workspace === "front_desk") {
+      return granted.filter(isFoDailyTab);
+    }
+    return granted.filter((tab) => tab.rail !== "hidden");
+  })();
 
   if (tabs.length < 2) return null;
 
