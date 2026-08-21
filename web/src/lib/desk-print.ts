@@ -1,4 +1,9 @@
-export type DeskPrintTarget = "note" | "voucher" | "reg" | "settlement";
+export type DeskPrintTarget =
+  | "note"
+  | "voucher"
+  | "reg"
+  | "reg-party"
+  | "settlement";
 
 /** Reveal `#print-*` sheets via html[data-desk-print] (see globals.css). */
 export function printDeskSheet(target: DeskPrintTarget) {

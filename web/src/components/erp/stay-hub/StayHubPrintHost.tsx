@@ -1,5 +1,6 @@
 "use client";
 
+import type { RoomingListPayload } from "@/app/actions/erp-reservations-party";
 import {
   FastBookVoucher,
   type FastBookVoucherData,
@@ -9,6 +10,7 @@ import {
   type GuestRegistrationCardData,
   type GuestRegistrationPropertyBits,
 } from "@/components/erp/GuestRegistrationCard";
+import { PartyRegistrationSheet } from "@/components/erp/PartyRegistrationSheet";
 import type { PropertyRegistrationDesign } from "@/lib/property-settings";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -21,11 +23,17 @@ import { StayHubErrorBoundary } from "@/components/erp/stay-hub/StayHubErrorBoun
 export function StayHubPrintHost({
   voucher,
   registration,
+  partyRooming = null,
+  partyAgentLabel = null,
+  partyGuideNumber = null,
   property,
   design,
 }: {
   voucher: FastBookVoucherData;
   registration: GuestRegistrationCardData;
+  partyRooming?: RoomingListPayload | null;
+  partyAgentLabel?: string | null;
+  partyGuideNumber?: string | null;
   property?: GuestRegistrationPropertyBits;
   design?: PropertyRegistrationDesign | null;
 }) {
@@ -60,6 +68,16 @@ export function StayHubPrintHost({
           property={property}
           design={design}
         />
+        {partyRooming && partyRooming.lines.length > 1 ? (
+          <PartyRegistrationSheet
+            rooming={partyRooming}
+            agentLabel={partyAgentLabel}
+            guideNumber={partyGuideNumber}
+            confirmationCode={registration.confirmationCode}
+            property={property}
+            design={design}
+          />
+        ) : null}
       </div>
     </StayHubErrorBoundary>,
     document.body,

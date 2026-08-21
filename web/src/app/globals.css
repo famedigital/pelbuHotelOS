@@ -720,6 +720,8 @@ html[data-splash="done"] #pelbu-splash {
   html[data-desk-print="voucher"] #print-agent-voucher *,
   html[data-desk-print="reg"] #print-reg-card,
   html[data-desk-print="reg"] #print-reg-card *,
+  html[data-desk-print="reg-party"] #print-reg-party,
+  html[data-desk-print="reg-party"] #print-reg-party *,
   html[data-desk-print="settlement"] #print-agent-settlement,
   html[data-desk-print="settlement"] #print-agent-settlement * {
     visibility: visible !important;
@@ -738,6 +740,16 @@ html[data-splash="done"] #pelbu-splash {
     background: white !important;
     color: #111 !important;
     z-index: 2147483647 !important;
+    box-sizing: border-box !important;
+  }
+  html[data-desk-print="reg-party"] #print-reg-party {
+    position: static !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 10mm 12mm !important;
+    background: white !important;
+    color: #111 !important;
     box-sizing: border-box !important;
   }
 }

@@ -30,6 +30,14 @@ export type GuestRegistrationCardData = {
   roomLines: { name: string; qty: number }[];
   rateNightlyBtn?: number | null;
   stayTotalBtn?: number | null;
+  /** Formal party / group name (StayHub group registration). */
+  partyName?: string;
+  /** This room’s place in the party (1-based). */
+  roomOf?: { index: number; total: number };
+  /** Booker when the in-room guest is still unnamed. */
+  bookerName?: string;
+  /** True when contact name is the group, not the occupant. */
+  unnamedRoomGuest?: boolean;
 };
 
 export type GuestRegistrationPropertyBits = {
@@ -180,7 +188,7 @@ export function GuestRegistrationCard({
             className="rounded px-1.5 py-0.5 text-[8px] font-semibold tracking-wider text-white uppercase"
             style={{ backgroundColor: design.accent_color }}
           >
-            Hotel copy
+            {data.partyName ? "Room copy" : "Hotel copy"}
           </p>
         </div>
       </header>
@@ -210,11 +218,44 @@ export function GuestRegistrationCard({
         <div>
           <SectionLabel color={design.brand_color}>Guest</SectionLabel>
           <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-            <Field
-              className="col-span-2"
-              label="Full name"
-              value={data.guestName || "—"}
-            />
+            {data.partyName ? (
+              <Field
+                className="col-span-2"
+                label="Group / party"
+                value={data.partyName}
+              />
+            ) : null}
+            {data.unnamedRoomGuest ? (
+              <>
+                <Field
+                  className="col-span-2"
+                  label="Booker / group"
+                  value={data.bookerName || data.guestName || "—"}
+                />
+                <Field
+                  className="col-span-2"
+                  label="In-room guest"
+                  value="—"
+                />
+              </>
+            ) : (
+              <>
+                <Field
+                  className="col-span-2"
+                  label="Full name"
+                  value={data.guestName || "—"}
+                />
+                {data.bookerName &&
+                data.bookerName.trim().toLowerCase() !==
+                  (data.guestName || "").trim().toLowerCase() ? (
+                  <Field
+                    className="col-span-2"
+                    label="Booker"
+                    value={data.bookerName}
+                  />
+                ) : null}
+              </>
+            )}
             <Field label="Phone" value={data.guestPhone?.trim() || "—"} />
             <Field
               label="Origin"
@@ -235,7 +276,15 @@ export function GuestRegistrationCard({
         <div>
           <SectionLabel color={design.brand_color}>Stay</SectionLabel>
           <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-            <Field className="col-span-2" label="Room(s)" value={rooms} />
+            <Field
+              className="col-span-2"
+              label="Room(s)"
+              value={
+                data.roomOf && data.roomOf.total > 1
+                  ? `${rooms} · ${data.roomOf.index} of ${data.roomOf.total}`
+                  : rooms
+              }
+            />
             <Field label="Pax" value={paxLabel} />
             <Field label="Meal plan" value={data.mealPlanCode || "EP"} />
             <Field
