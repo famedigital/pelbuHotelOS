@@ -39,11 +39,11 @@ import {
 } from "@/hooks/use-keyboard-shortcuts";
 import { cn } from "@/lib/utils";
 import { calculateOrderTotals, formatBtn } from "@/lib/pricing";
+import type { OpenPosTicket } from "@/lib/pos";
 import {
   canAddItemsToOpenTicket,
   nextCourseNoForTicket,
-  type OpenPosTicket,
-} from "@/lib/pos";
+} from "@/lib/pos-ticket";
 import {
   readPosFloorPref,
   readPosLastKind,
@@ -161,6 +161,7 @@ export function PosLayout({
   const [ticketsOpen, setTicketsOpen] = useState(false);
   const [settleTarget, setSettleTarget] = useState<string | null>(null);
   const [voidTarget, setVoidTarget] = useState<string | null>(null);
+  const [voidItemId, setVoidItemId] = useState<string | null>(null);
   /** When set, Send appends to this unpaid ticket instead of creating another. */
   const [appendOrderId, setAppendOrderId] = useState<string | null>(null);
   const [appendCourseNo, setAppendCourseNo] = useState(1);
@@ -712,6 +713,29 @@ export function PosLayout({
     [openTickets, tableId],
   );
 
+  const appendTicket = useMemo(
+    () =>
+      appendOrderId
+        ? (openTickets.find((t) => t.id === appendOrderId) ?? null)
+        : null,
+    [openTickets, appendOrderId],
+  );
+  const sentLines = useMemo(
+    () =>
+      (appendTicket?.order_items ?? []).map((i) => ({
+        id: i.id,
+        name: i.name_snapshot,
+        qty: i.qty,
+        courseNo: i.course_no,
+      })),
+    [appendTicket],
+  );
+
+  function closeVoidDialog() {
+    setVoidTarget(null);
+    setVoidItemId(null);
+  }
+
   /** Clear seat context; if a live ticket holds the table, open void instead. */
   function releaseTable() {
     if (appendOrderId) {
@@ -720,6 +744,7 @@ export function PosLayout({
     }
     if (!tableId) return;
     if (openTicketOnTable) {
+      setVoidItemId(null);
       setVoidTarget(openTicketOnTable.id);
       return;
     }
@@ -865,6 +890,7 @@ export function PosLayout({
         }}
         onVoid={(id) => {
           setTicketsOpen(false);
+          setVoidItemId(null);
           setVoidTarget(id);
         }}
         canFireKot={canFireKot}
@@ -888,7 +914,10 @@ export function PosLayout({
       />
       <VoidReasonDialog
         orderId={voidTarget}
-        onOpenChange={(open) => !open && setVoidTarget(null)}
+        orderItemId={voidItemId}
+        onOpenChange={(open) => {
+          if (!open) closeVoidDialog();
+        }}
         ticket={
           openTickets.find((t) => t.id === voidTarget) ??
           shiftCloseSummary?.openTickets.find((t) => t.id === voidTarget) ??
@@ -1059,8 +1088,8 @@ export function PosLayout({
                 <Alert>
                   <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
                     <span>
-                      Adding course {appendCourseNo} to this open ticket. Send
-                      to kitchen — extra items stay on the same bill.
+                      {appendTicket?.customer_name || "This ticket"} is on the
+                      register. Add from the menu, or void a line on the ticket.
                     </span>
                     <Button
                       type="button"
@@ -1069,7 +1098,7 @@ export function PosLayout({
                       className="h-8"
                       onClick={cancelAppend}
                     >
-                      Cancel
+                      Done
                     </Button>
                   </AlertDescription>
                 </Alert>
@@ -1481,6 +1510,12 @@ export function PosLayout({
                         appendCourseNo={
                           appendOrderId ? appendCourseNo : undefined
                         }
+                        sentLines={sentLines}
+                        onVoidSentLine={(itemId) => {
+                          if (!appendOrderId) return;
+                          setVoidItemId(itemId);
+                          setVoidTarget(appendOrderId);
+                        }}
                       />
                     </aside>
                   </div>
@@ -1490,7 +1525,7 @@ export function PosLayout({
                     Prior bug: bottom ~0.75rem + z-30 hid the bar under z-40 tabs.
                   */}
                   <div className="lg:hidden">
-                    {lineCount > 0 ? (
+                    {(lineCount > 0 || sentLines.length > 0) ? (
                       <button
                         type="button"
                         onClick={() => setCartSheetOpen(true)}
@@ -1501,16 +1536,22 @@ export function PosLayout({
                           "bottom-[calc(4rem_+_env(safe-area-inset-bottom,0px)+_0.5rem)]",
                           "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-200",
                         )}
-                        aria-label={`Open ticket, ${lineCount} item${lineCount === 1 ? "" : "s"}, ${formatBtn(totals.totalBtn)}`}
+                        aria-label={
+                          lineCount > 0
+                            ? `Open ticket, ${lineCount} item${lineCount === 1 ? "" : "s"}, ${formatBtn(totals.totalBtn)}`
+                            : `Open ticket, ${sentLines.length} on bill`
+                        }
                       >
                         <span className="flex items-center gap-2 text-sm font-medium">
                           <span className="inline-flex size-7 items-center justify-center rounded-full bg-primary-foreground/20 text-xs font-semibold tabular-nums">
-                            {lineCount}
+                            {lineCount > 0 ? lineCount : sentLines.length}
                           </span>
-                          View ticket
+                          {lineCount > 0 ? "View ticket" : "Edit ticket"}
                         </span>
                         <span className="text-sm font-semibold tabular-nums">
-                          {formatBtn(totals.totalBtn)}
+                          {lineCount > 0
+                            ? formatBtn(totals.totalBtn)
+                            : "Void / add"}
                         </span>
                       </button>
                     ) : null}
@@ -1550,6 +1591,12 @@ export function PosLayout({
                             appendCourseNo={
                               appendOrderId ? appendCourseNo : undefined
                             }
+                            sentLines={sentLines}
+                            onVoidSentLine={(itemId) => {
+                              if (!appendOrderId) return;
+                              setVoidItemId(itemId);
+                              setVoidTarget(appendOrderId);
+                            }}
                           />
                         </div>
                       </SheetContent>
@@ -1574,7 +1621,10 @@ export function PosLayout({
             shift={shift}
             closeSummary={shiftCloseSummary}
             onSettleTicket={(id) => setSettleTarget(id)}
-            onVoidTicket={(id) => setVoidTarget(id)}
+            onVoidTicket={(id) => {
+              setVoidItemId(null);
+              setVoidTarget(id);
+            }}
           />
         </TabsContent>
         <TabsContent value="service">{guestServiceSlot}</TabsContent>

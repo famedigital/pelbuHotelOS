@@ -33,23 +33,19 @@ export class StayHubErrorBoundary extends Component<
 
     return (
       <div
-        className="erp fixed inset-x-0 bottom-0 z-[80] flex justify-center p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+        className="erp fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[80] md:inset-x-auto md:right-4 md:bottom-4"
         role="alert"
       >
-        <div className="w-full max-w-md rounded-lg border bg-background p-4 shadow-lg">
-          <p className="text-sm font-semibold tracking-tight">
-            Stay could not open
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            The reservations list is still usable. Retry this stay, or open the
-            room rack from a fresh tab.
+        <div className="flex max-w-md items-center gap-2 rounded-md border bg-background px-3 py-2 shadow-lg">
+          <p className="min-w-0 flex-1 text-xs text-foreground">
+            Couldn’t open stay — retry from the rack.
           </p>
           <button
             type="button"
-            className="mt-3 inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground"
+            className="shrink-0 text-xs font-medium text-accent"
             onClick={() => this.setState({ error: null })}
           >
-            Dismiss
+            OK
           </button>
         </div>
       </div>

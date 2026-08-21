@@ -5,7 +5,10 @@ import {
   type DeskBookIntent,
   type FastBookState,
 } from "@/app/actions/fast-book";
-import { previewDeskStayQuote } from "@/app/actions/desk-book-preview";
+import {
+  previewDeskStayQuote,
+  type DeskAvailLine,
+} from "@/app/actions/desk-book-preview";
 import { AgentPicker, type BookableAgent } from "@/components/erp/AgentPicker";
 import { AgentVoucherEmailButton } from "@/components/erp/AgentVoucherEmailButton";
 import {
@@ -176,6 +179,42 @@ function isMouAgentTier(tier: string | null | undefined): boolean {
   return tier === "mou_agents" || tier === "mou_agent";
 }
 
+function SegmentedToggle<T extends string>({
+  value,
+  options,
+  onChange,
+  ariaLabel,
+}: {
+  value: T;
+  options: { id: T; label: string }[];
+  onChange: (next: T) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label={ariaLabel}
+      className="inline-flex rounded-md border border-border/70 p-0.5"
+    >
+      {options.map((opt) => (
+        <button
+          key={opt.id}
+          type="button"
+          onClick={() => onChange(opt.id)}
+          className={cn(
+            "rounded px-1.5 py-0.5 text-[10px] font-medium",
+            value === opt.id
+              ? "bg-foreground text-background"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function fmtShort(iso: string): string {
   if (!iso) return "—";
   const d = new Date(`${iso}T12:00:00`);
@@ -328,7 +367,7 @@ export function DeskBookForm({
     defaults?.roomUnitLabel?.trim() ||
     cleanUnits.find((u) => u.id === preferredUnitId)?.label ||
     null;
-  const [cleanOnly, setCleanOnly] = useState(true);
+  const [cleanOnly, setCleanOnly] = useState(false);
   const [rateTaxMode, setRateTaxMode] = useState<"inclusive" | "exclusive">(
     "exclusive",
   );
@@ -431,6 +470,10 @@ export function DeskBookForm({
   const [remainingByType, setRemainingByType] = useState<
     Record<string, number>
   >({});
+  const [availByType, setAvailByType] = useState<
+    Record<string, DeskAvailLine>
+  >({});
+  const [guestRateKind, setGuestRateKind] = useState<"rack" | "comp">("rack");
   const [agentOpenRooms, setAgentOpenRooms] = useState<number | null>(null);
   const [agentRoomCap, setAgentRoomCap] = useState<number | null>(null);
   const [quotePending, startQuote] = useTransition();
@@ -456,10 +499,10 @@ export function DeskBookForm({
     pickerAgents.find((a) => a.id === agentId) ?? null;
 
   const bookedBy = useMemo(() => {
-    if (!billAgent || !agentId) return "reservation";
+    if (!agentId) return "reservation";
     if (isMouAgentTier(selectedAgent?.rate_tier)) return "mou_agent";
     return "agent";
-  }, [billAgent, agentId, selectedAgent?.rate_tier]);
+  }, [agentId, selectedAgent?.rate_tier]);
 
   const origin = guestOrigin;
 
@@ -530,13 +573,31 @@ export function DeskBookForm({
       .map((l) => {
         const rt = guestTypes.find((g) => g.id === l.roomTypeId);
         if (!rt) return null;
-        const left = remainingByType[l.roomTypeId];
-        if (left == null) return null;
-        return `${rt.code || rt.name} ${left} left`;
+        const a = availByType[l.roomTypeId];
+        const cap = a?.capacity ?? rt.unit_count;
+        const sold = a?.sold ?? Math.max(0, cap - (remainingByType[l.roomTypeId] ?? cap));
+        const rem =
+          a?.remaining ?? remainingByType[l.roomTypeId] ?? rt.unit_count;
+        const ob = Math.max(sold - cap, 0);
+        const code = (rt.code || rt.name).trim();
+        return `${code} T${cap} · S${sold} · A${rem}${ob > 0 ? ` · OB${ob}` : ""}`;
       })
       .filter(Boolean)
       .join(" · ");
-  }, [roomLines, guestTypes, remainingByType]);
+  }, [roomLines, guestTypes, remainingByType, availByType]);
+
+  const assignUnits = useMemo(() => {
+    const typeIds = new Set(roomLines.map((l) => l.roomTypeId));
+    let list = cleanUnits.filter(
+      (u) => typeIds.size === 0 || typeIds.has(u.roomTypeId),
+    );
+    if (cleanOnly) {
+      list = list.filter((u) =>
+        ["clean", "inspect"].includes((u.hkStatus || "").toLowerCase()),
+      );
+    }
+    return list;
+  }, [cleanUnits, roomLines, cleanOnly]);
 
   function leftFor(roomTypeId: string, unitCount: number): number {
     if (remainingByType[roomTypeId] != null) {
@@ -657,8 +718,8 @@ export function DeskBookForm({
         extraBeds,
         mealPlanCode,
         source: bookedBy,
-        agentId: billAgent ? agentId || null : null,
-        rateTier: billAgent ? null : walkinRateTier,
+        agentId: agentId || null,
+        rateTier: agentId ? null : walkinRateTier,
       });
       if (!r.ok) {
         setQuoteHint(r.error);
@@ -688,6 +749,11 @@ export function DeskBookForm({
       setQuoteExtraStay(r.extraBedStayBtn);
       setQuoteLines(r.lines);
       setRemainingByType(r.remainingByRoomTypeId ?? {});
+      setAvailByType(
+        Object.fromEntries(
+          (r.availability ?? []).map((a) => [a.roomTypeId, a]),
+        ),
+      );
       setAgentOpenRooms(r.agentOpenRooms);
       setAgentRoomCap(r.agentRoomCap);
       setRoomLines((prev) =>
@@ -700,10 +766,19 @@ export function DeskBookForm({
               : l.agreedNightlyBtn == null
                 ? q.nightlyBtn
                 : l.sheetNightlyBtn;
+          if (guestRateKind === "comp") {
+            return {
+              ...l,
+              sheetNightlyBtn: sheet ?? l.sheetNightlyBtn,
+              agreedNightlyBtn: 0,
+            };
+          }
           return { ...l, sheetNightlyBtn: sheet ?? l.sheetNightlyBtn };
         }),
       );
-      if (!rateDirty && r.systemNightlyBtn != null) {
+      if (guestRateKind === "comp") {
+        setDisplayRate("0");
+      } else if (!rateDirty && r.systemNightlyBtn != null) {
         setDisplayRate(String(Math.round(r.systemNightlyBtn)));
       }
     });
@@ -723,6 +798,7 @@ export function DeskBookForm({
     agentId,
     walkinRateTier,
     rateDirty,
+    guestRateKind,
   ]);
 
   useEffect(() => {
@@ -751,8 +827,7 @@ export function DeskBookForm({
   useEffect(() => {
     if (billAgent) {
       if (paymentMode === "cash") setPaymentMode("on_credit");
-    } else {
-      setAgentId("");
+    } else if (paymentMode === "on_credit") {
       setPaymentMode("cash");
     }
   }, [billAgent]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -909,6 +984,32 @@ export function DeskBookForm({
     setPinOpen(true);
   };
 
+  const applyGuestRateKind = (kind: "rack" | "comp") => {
+    setGuestRateKind(kind);
+    if (kind === "comp") {
+      setRateDirty(true);
+      setDisplayRate("0");
+      setRateEditReason("comp");
+      setRoomLines((prev) =>
+        prev.map((l) => ({
+          ...l,
+          agreedNightlyBtn: 0,
+          ratePendingApproval: !canInstantApproveRates,
+        })),
+      );
+      return;
+    }
+    setRateDirty(false);
+    setRateEditReason("");
+    setRoomLines((prev) =>
+      prev.map((l) => ({
+        ...l,
+        agreedNightlyBtn: null,
+        ratePendingApproval: false,
+      })),
+    );
+  };
+
   const applyRateDialog = () => {
     const n = Number(draftRate);
     if (!Number.isFinite(n) || n < 0) return;
@@ -956,6 +1057,7 @@ export function DeskBookForm({
     );
     setDisplayRate(String(Math.round(n)));
     setRateDirty(true);
+    setGuestRateKind(Math.round(n) === 0 && differs ? "comp" : "rack");
     setPinOpen(false);
     setRateEditLineId(null);
   };
@@ -1238,7 +1340,7 @@ export function DeskBookForm({
         <input type="hidden" name="promo_code" value={promoCode} />
         <input type="hidden" name="meal_plan_code" value={mealPlanCode} />
         <input type="hidden" name="payment_mode" value={paymentMode} />
-        <input type="hidden" name="agent_id" value={billAgent ? agentId : ""} />
+        <input type="hidden" name="agent_id" value={agentId} />
         <input
           type="hidden"
           name="sold_by_staff_id"
@@ -1248,9 +1350,10 @@ export function DeskBookForm({
         <input type="hidden" name="children" value={String(children)} />
         <input type="hidden" name="extra_beds" value={String(extraBeds)} />
         <input type="hidden" name="guide_number" value={guideNumber} />
-        {!billAgent ? (
+        {!agentId ? (
           <input type="hidden" name="rate_tier" value={walkinRateTier} />
         ) : null}
+        <input type="hidden" name="rate_tax_mode" value={rateTaxMode} />
         <input type="hidden" name="passport_or_cid" value={docId} />
         <input
           type="hidden"
@@ -1371,9 +1474,9 @@ export function DeskBookForm({
                 : ""}
             </p>
             <p className="mt-0.5 truncate text-[11px] capitalize text-muted-foreground">
-              {billAgent && selectedAgent
+              {selectedAgent
                 ? selectedAgent.company_name
-                : `${guestOrigin}${!billAgent ? ` · ${walkinRateTier.replace("_", " ")}` : ""}`}
+                : `${guestOrigin}${!agentId ? ` · ${walkinRateTier.replace("_", " ")}` : ""}`}
             </p>
           </div>
 
@@ -1408,7 +1511,7 @@ export function DeskBookForm({
             <p className="mt-1 truncate text-[11px] tabular-nums text-muted-foreground">
               {displayRate &&
               Number.isFinite(Number(displayRate)) &&
-              Number(displayRate) > 0
+              (Number(displayRate) > 0 || guestRateKind === "comp")
                 ? `${formatGuestBtn(Number(displayRate))}/n`
                 : "Pick a room"}
               {mealPlanCode ? ` · ${mealPlanCode}` : ""}
@@ -1420,6 +1523,27 @@ export function DeskBookForm({
               </p>
             ) : null}
           </button>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            <SegmentedToggle
+              ariaLabel="Rate tax"
+              value={rateTaxMode}
+              onChange={setRateTaxMode}
+              options={[
+                { id: "exclusive", label: "Exclusive" },
+                { id: "inclusive", label: "Inclusive" },
+              ]}
+            />
+            <SegmentedToggle
+              ariaLabel="Rack or complementary"
+              value={guestRateKind}
+              onChange={applyGuestRateKind}
+              options={[
+                { id: "rack", label: "Rack" },
+                { id: "comp", label: "Comp" },
+              ]}
+            />
+          </div>
 
           {availStrip ? (
             <p className="text-[10px] leading-snug text-muted-foreground">
@@ -1542,43 +1666,48 @@ export function DeskBookForm({
                   </div>
                 ) : null}
               </div>
-              {cleanUnits.length > 0 && !preferredUnitId ? (
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Label className="text-xs font-normal text-muted-foreground">
-                      Prefer clean unit
-                    </Label>
-                    <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                      <input
-                        type="checkbox"
-                        checked={cleanOnly}
-                        onChange={(e) => setCleanOnly(e.target.checked)}
-                        className="size-3 accent-foreground"
-                      />
-                      Clean / inspect only
-                    </label>
-                  </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Label className="text-xs font-normal text-muted-foreground">
+                    Assign room
+                  </Label>
+                  <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={cleanOnly}
+                      onChange={(e) => setCleanOnly(e.target.checked)}
+                      className="size-3 accent-foreground"
+                    />
+                    Clean / inspect only
+                  </label>
+                </div>
+                {assignUnits.length > 0 ? (
                   <select
                     className="h-9 w-full rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring"
                     value={preferredUnitId}
                     onChange={(e) => setPreferredUnitId(e.target.value)}
                   >
-                    <option value="">— No preferred unit —</option>
-                    {(cleanOnly
-                      ? cleanUnits.filter((u) =>
-                          ["clean", "inspect"].includes(
-                            (u.hkStatus || "").toLowerCase(),
-                          ),
-                        )
-                      : cleanUnits
-                    ).map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.label} · {u.hkStatus}
-                      </option>
-                    ))}
+                    <option value="">— No assigned unit —</option>
+                    {assignUnits.map((u) => {
+                      const rt = guestTypes.find((g) => g.id === u.roomTypeId);
+                      const typeHint = rt
+                        ? `${rt.code || rt.name}`
+                        : "";
+                      return (
+                        <option key={u.id} value={u.id}>
+                          {u.label}
+                          {typeHint ? ` · ${typeHint}` : ""}
+                          {u.hkStatus ? ` · ${u.hkStatus}` : ""}
+                        </option>
+                      );
+                    })}
                   </select>
-                </div>
-              ) : null}
+                ) : (
+                  <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-[11px] leading-snug">
+                    No free unit in this type for these dates
+                  </p>
+                )}
+              </div>
               </section>
 
               <div className="grid gap-4 md:grid-cols-12 md:gap-4">
@@ -1656,31 +1785,7 @@ export function DeskBookForm({
                   </Select>
                 </div>
 
-                {!billAgent ? (
-                  <div className="space-y-0.5 lg:col-span-2">
-                    <Label className="text-[10px] font-normal text-muted-foreground">
-                      Rate tier
-                    </Label>
-                    <Select
-                      value={walkinRateTier}
-                      onValueChange={(v) => {
-                        setWalkinRateTier(v as WalkinRateTier);
-                        setRateDirty(false);
-                      }}
-                    >
-                      <SelectTrigger className="h-8 text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {WALKIN_TIERS.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ) : (
+                {!billAgent ? null : (
                   <div className="space-y-0.5 lg:col-span-2">
                     <Label className="text-[10px] font-normal text-muted-foreground">
                       Payment
@@ -1707,7 +1812,14 @@ export function DeskBookForm({
                     <input
                       type="checkbox"
                       checked={billAgent}
-                      onChange={(e) => setBillAgent(e.target.checked)}
+                      onChange={(e) => {
+                        const next = e.target.checked;
+                        setBillAgent(next);
+                        if (next && agentId) setPaymentMode("on_credit");
+                        if (!next && paymentMode === "on_credit") {
+                          setPaymentMode("cash");
+                        }
+                      }}
                       className="size-3.5 accent-foreground"
                     />
                     Bill to agent
@@ -1833,72 +1945,71 @@ export function DeskBookForm({
                 </div>
               ) : null}
 
-              {billAgent ? (
-                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                  <div className="space-y-0.5 sm:col-span-2">
-                    <Label className="text-[10px] font-normal text-muted-foreground">
-                      Agent
-                    </Label>
-                    <AgentPicker
-                      agents={pickerAgents}
-                      value={agentId}
-                      onValueChange={(id) => {
-                        setAgentId(id);
-                        if (id) setPaymentMode("on_credit");
+              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                <div className="space-y-0.5 sm:col-span-2">
+                  <Label className="text-[10px] font-normal text-muted-foreground">
+                    Agent
+                  </Label>
+                  <AgentPicker
+                    agents={pickerAgents}
+                    value={agentId}
+                    onValueChange={(id) => {
+                      setAgentId(id);
+                      if (id && billAgent) setPaymentMode("on_credit");
+                    }}
+                    creditMode={billAgent && paymentMode === "on_credit"}
+                    className="h-8 min-h-8"
+                  />
+                </div>
+                {billAgent && blockCredit && selectedAgent ? (
+                  <div className="sm:col-span-2">
+                    <CreditAgentPromotePanel
+                      agent={selectedAgent}
+                      variant="compact"
+                      onPromoted={(a) =>
+                        setAgentPatches((p) => ({ ...p, [a.id]: a }))
+                      }
+                      onUseCash={() => {
+                        setPaymentMode("cash");
+                        toast.message("Payment set to pay at checkout");
                       }}
-                      creditMode={paymentMode === "on_credit"}
-                      className="h-8 min-h-8"
                     />
                   </div>
-                  {blockCredit && selectedAgent ? (
-                    <div className="sm:col-span-2">
-                      <CreditAgentPromotePanel
-                        agent={selectedAgent}
-                        variant="compact"
-                        onPromoted={(a) =>
-                          setAgentPatches((p) => ({ ...p, [a.id]: a }))
-                        }
-                        onUseCash={() => {
-                          setPaymentMode("cash");
-                          toast.message("Payment set to pay at checkout");
-                        }}
-                      />
-                    </div>
-                  ) : null}
-                  {selectedAgent &&
-                  paymentMode === "on_credit" &&
-                  !blockCredit ? (
-                    <p className="rounded border border-amber-500/25 bg-amber-500/8 px-1.5 py-1 text-[10px] leading-snug text-amber-950 sm:col-span-2 dark:text-amber-50">
-                      {selectedAgent.company_name} · agent AR outstanding{" "}
-                      <span className="font-semibold tabular-nums">
-                        {formatGuestBtn(
-                          Number(selectedAgent.credit_used ?? 0),
-                        )}
-                      </span>
-                      {Number(selectedAgent.credit_limit ?? 0) > 0
-                        ? ` · soft ceiling ${formatGuestBtn(Number(selectedAgent.credit_limit))}`
-                        : " · no hard credit limit"}
-                      {agentOpenRooms != null && agentRoomCap != null
-                        ? ` · open rooms ${agentOpenRooms}/${agentRoomCap}`
-                        : ""}
-                      {selectedAgent.rate_tier
-                        ? ` · rate ${selectedAgent.rate_tier.replace(/_/g, " ")}`
-                        : ""}
-                    </p>
-                  ) : null}
-                  {selectedAgent && paymentMode !== "on_credit" ? (
-                    <p className="text-[10px] text-muted-foreground sm:col-span-2">
-                      Source rate
-                      {selectedAgent.rate_tier
-                        ? `: ${selectedAgent.rate_tier.replace(/_/g, " ")}`
-                        : " · agent sheet"}
-                      {selectedAgent.commission_pct != null
-                        ? ` · commission ${Number(selectedAgent.commission_pct)}%`
-                        : ""}
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
+                ) : null}
+                {billAgent &&
+                selectedAgent &&
+                paymentMode === "on_credit" &&
+                !blockCredit ? (
+                  <p className="rounded border border-amber-500/25 bg-amber-500/8 px-1.5 py-1 text-[10px] leading-snug text-amber-950 sm:col-span-2 dark:text-amber-50">
+                    {selectedAgent.company_name} · agent AR outstanding{" "}
+                    <span className="font-semibold tabular-nums">
+                      {formatGuestBtn(
+                        Number(selectedAgent.credit_used ?? 0),
+                      )}
+                    </span>
+                    {Number(selectedAgent.credit_limit ?? 0) > 0
+                      ? ` · soft ceiling ${formatGuestBtn(Number(selectedAgent.credit_limit))}`
+                      : " · no hard credit limit"}
+                    {agentOpenRooms != null && agentRoomCap != null
+                      ? ` · open rooms ${agentOpenRooms}/${agentRoomCap}`
+                      : ""}
+                    {selectedAgent.rate_tier
+                      ? ` · rate ${selectedAgent.rate_tier.replace(/_/g, " ")}`
+                      : ""}
+                  </p>
+                ) : null}
+                {selectedAgent && (!billAgent || paymentMode !== "on_credit") ? (
+                  <p className="text-[10px] text-muted-foreground sm:col-span-2">
+                    Source rate
+                    {selectedAgent.rate_tier
+                      ? `: ${selectedAgent.rate_tier.replace(/_/g, " ")}`
+                      : " · agent sheet"}
+                    {selectedAgent.commission_pct != null
+                      ? ` · commission ${Number(selectedAgent.commission_pct)}%`
+                      : ""}
+                  </p>
+                ) : null}
+              </div>
 
               </section>
 
@@ -1924,18 +2035,47 @@ export function DeskBookForm({
                     (line.sheetNightlyBtn == null ||
                       Math.abs(line.agreedNightlyBtn - line.sheetNightlyBtn) >
                         0.009);
+                  const a = availByType[line.roomTypeId];
+                  const cap = a?.capacity ?? rt.unit_count;
+                  const sold =
+                    a?.sold ??
+                    Math.max(
+                      0,
+                      cap - (remainingByType[line.roomTypeId] ?? cap),
+                    );
+                  const remaining =
+                    a?.remaining ?? remainingByType[line.roomTypeId] ?? left;
+                  const overbook = Math.max(sold - cap, 0);
                   return (
                     <div
                       key={line.roomTypeId}
                       className="space-y-1.5 rounded border border-border/60 bg-card/40 px-2 py-1.5"
                     >
                       <div className="flex flex-wrap items-center gap-1.5 text-sm">
-                        <span className="min-w-0 flex-1 truncate font-medium">
+                        <span className="min-w-0 flex-1 font-medium">
                           {rt.name}
-                          <span className="ml-1 font-normal text-muted-foreground">
-                            {left} left
-                          </span>
+                          {rt.code ? (
+                            <span className="ml-1 font-mono text-[11px] font-normal uppercase text-muted-foreground">
+                              {rt.code}
+                            </span>
+                          ) : null}
                         </span>
+                        <SegmentedToggle
+                          ariaLabel={`Rack or complementary for ${rt.name}`}
+                          value={
+                            line.agreedNightlyBtn === 0 ? "comp" : "rack"
+                          }
+                          onChange={(kind) => {
+                            const current =
+                              line.agreedNightlyBtn === 0 ? "comp" : "rack";
+                            if (kind === current) return;
+                            applyGuestRateKind(kind);
+                          }}
+                          options={[
+                            { id: "rack", label: "Rack" },
+                            { id: "comp", label: "Comp" },
+                          ]}
+                        />
                         <button
                           type="button"
                           onClick={() => openRateDialog(line.roomTypeId)}
@@ -1987,6 +2127,10 @@ export function DeskBookForm({
                           </button>
                         ) : null}
                       </div>
+                      <p className="text-[10px] tabular-nums text-muted-foreground">
+                        Total {cap} · Sold {sold} · Avail {remaining} · OB{" "}
+                        {overbook}
+                      </p>
                       {line.ratePendingApproval ? (
                         <p className="text-[10px] text-amber-800 dark:text-amber-100">
                           Awaiting GM rate approval on confirm
@@ -2026,7 +2170,7 @@ export function DeskBookForm({
                         </div>
                         <div className="space-y-0.5">
                           <Label className="text-[10px] font-normal text-muted-foreground">
-                            Occupancy
+                            Occupancy (pax)
                           </Label>
                           <Select
                             value={line.occupancy}
@@ -2135,7 +2279,8 @@ export function DeskBookForm({
                               disabled={left < 1}
                             >
                               {rt.name}
-                              {left < 1 ? " · sold" : ` · ${left}`}
+                              {rt.code ? ` (${rt.code})` : ""}
+                              {left < 1 ? " · sold" : ` · ${left} avail`}
                             </SelectItem>
                           );
                         })}
@@ -2200,30 +2345,35 @@ export function DeskBookForm({
 
               <details className="rounded-md border border-border/60 bg-muted/10 px-3 py-2">
                 <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
-                  More · tax, release, promo, notes
+                  More · release, promo, notes, rate tier
                 </summary>
                 <div className="mt-3 space-y-3">
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    <div className="col-span-2 space-y-1 sm:col-span-1">
+                  {!agentId ? (
+                    <div className="max-w-xs space-y-1">
                       <Label className="text-xs font-normal text-muted-foreground">
-                        Rate tax
+                        Rate tier
                       </Label>
-                      <select
-                        name="rate_tax_mode"
-                        value={rateTaxMode}
-                        onChange={(e) =>
-                          setRateTaxMode(
-                            e.target.value === "inclusive"
-                              ? "inclusive"
-                              : "exclusive",
-                          )
-                        }
-                        className="h-9 w-full rounded-md border border-input bg-transparent px-2 text-xs"
+                      <Select
+                        value={walkinRateTier}
+                        onValueChange={(v) => {
+                          setWalkinRateTier(v as WalkinRateTier);
+                          setRateDirty(false);
+                        }}
                       >
-                        <option value="exclusive">Exclusive tax</option>
-                        <option value="inclusive">Inclusive tax</option>
-                      </select>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {WALKIN_TIERS.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>
+                              {t.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
+                  ) : null}
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <input
                         type="checkbox"
@@ -2397,7 +2547,7 @@ export function DeskBookForm({
                     ? "Submit · rate approval"
                     : checkIn === todayIso()
                       ? "Confirm check-in"
-                      : "Confirm booking"}
+                      : "Confirm reservation"}
               </Button>
             </div>
             {anyRatePendingSubmit ? (

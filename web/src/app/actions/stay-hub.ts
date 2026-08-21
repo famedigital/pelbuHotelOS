@@ -1807,3 +1807,43 @@ export async function fetchStayHubPartyContext(
     };
   }
 }
+
+/**
+ * One round-trip to open Edit Transaction: summary + party + check-in
+ * (+ catalog when the desk tab has not cached it yet).
+ */
+export async function fetchStayHubOpen(
+  bookingId: string,
+  preferredAssignmentId?: string | null,
+  opts?: { catalog?: boolean },
+): Promise<
+  Result<{
+    summary: StayHubSummary;
+    party: StayHubPartyContext | null;
+    checkIn: StayHubCheckInPayload | null;
+    catalog: Extract<
+      Awaited<ReturnType<typeof fetchStayHubCatalog>>,
+      { ok: true }
+    >["data"] | null;
+  }>
+> {
+  const [summaryRes, partyRes, checkInRes, catalogRes] = await Promise.all([
+    fetchStayHubSummary(bookingId, preferredAssignmentId),
+    fetchStayHubPartyContext(bookingId),
+    fetchStayHubCheckIn(bookingId),
+    opts?.catalog
+      ? fetchStayHubCatalog()
+      : Promise.resolve(null as Awaited<ReturnType<typeof fetchStayHubCatalog>> | null),
+  ]);
+  if (!summaryRes.ok) return summaryRes;
+  return {
+    ok: true,
+    data: {
+      summary: summaryRes.data,
+      party: partyRes.ok ? partyRes.data : null,
+      checkIn: checkInRes.ok ? checkInRes.data : null,
+      catalog:
+        catalogRes && catalogRes.ok ? catalogRes.data : null,
+    },
+  };
+}

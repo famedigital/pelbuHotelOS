@@ -100,6 +100,20 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
       lastOpenedIdRef.current = id;
       setBookingId(id);
       setAssignmentId(opts.assignmentId ?? null);
+
+      if (opts.replaceInParty) {
+        // Keep the sheet mounted. Drop preferred-step so a stale ?step=
+        // does not yank the new room off the form staff were already on.
+        appliedPreferredKeyRef.current = opts.step
+          ? `${id}:${opts.step}`
+          : null;
+        setPreferredStep(opts.step ?? null);
+        setSeedStay(null);
+        if (opts.board) setBoard(opts.board);
+        writeUrl(id, opts.step ?? null);
+        return;
+      }
+
       // Only apply preferred step when opening a different stay or explicit step
       if (isNew || opts.step) {
         if (opts.step) {

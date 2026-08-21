@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  voidOrder,
+  voidOrderOrItem,
   type PosActionState,
 } from "@/app/actions/erp-pos";
 import {
@@ -45,9 +45,8 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   /** Optional ticket context to surface amount and gate manager PIN. */
   ticket?: OpenPosTicket | null;
-  /** If true, the dialog is for an order-level void; false = line-level
-   *  (kept for forward-compat — current POS only voids orders). */
-  lineMode?: boolean;
+  /** When set, voids this line only instead of the whole ticket. */
+  orderItemId?: string | null;
   voidReasonCodes: readonly PosVoidReasonCode[];
   voidManagerThresholdBtn: number;
 };
@@ -56,18 +55,26 @@ export function VoidReasonDialog({
   orderId,
   onOpenChange,
   ticket,
-  lineMode = false,
+  orderItemId = null,
   voidReasonCodes,
   voidManagerThresholdBtn,
 }: Props) {
   const open = orderId !== null;
-  const [state, action, pending] = useActionState(voidOrder, initial);
-  useActionToast(state, { successMessage: "Order voided" });
+  const lineMode = Boolean(orderItemId);
+  const line = lineMode
+    ? (ticket?.order_items.find((i) => i.id === orderItemId) ?? null)
+    : null;
+  const [state, action, pending] = useActionState(voidOrderOrItem, initial);
+  useActionToast(state, {
+    successMessage: lineMode ? "Item taken off the bill" : "Order voided",
+  });
 
   const [reasonCode, setReasonCode] = useState<string>("guest_change");
   const [needsPin, setNeedsPin] = useState(false);
 
-  const amount = ticket?.total_btn ?? 0;
+  const amount = line
+    ? line.unit_price_btn * line.qty
+    : (ticket?.total_btn ?? 0);
 
   useEffect(() => {
     if (open) {
@@ -108,9 +115,11 @@ export function VoidReasonDialog({
                   {resolvedTicket.id.slice(0, 8)}
                 </span>
                 {` · ${resolvedTicket.customer_name || "Walk-in"}`}
-                {` · ${resolvedTicket.total_btn.toLocaleString("en-BT", {
-                  maximumFractionDigits: 2,
-                })} Nu`}
+                {line
+                  ? ` · ${line.qty}× ${line.name_snapshot}`
+                  : ` · ${resolvedTicket.total_btn.toLocaleString("en-BT", {
+                      maximumFractionDigits: 2,
+                    })} Nu`}
               </>
             ) : (
               "Select a reason. Manager PIN is required for comps or large amounts."
@@ -136,6 +145,9 @@ export function VoidReasonDialog({
 
         <form action={action} className="space-y-4">
           <input type="hidden" name="order_id" value={orderId ?? ""} />
+          {orderItemId ? (
+            <input type="hidden" name="order_item_id" value={orderItemId} />
+          ) : null}
 
           <div className="space-y-1.5">
             <Label htmlFor="void_reason_code">Reason</Label>

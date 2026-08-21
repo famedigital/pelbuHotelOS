@@ -7,6 +7,11 @@ import { roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
+export {
+  canAddItemsToOpenTicket,
+  nextCourseNoForTicket,
+} from "@/lib/pos-ticket";
+
 export type { TableStatus };
 
 export {
@@ -133,35 +138,14 @@ export type OpenPosTicket = {
   amount_tendered_btn: number;
   tenders: PosTenderLine[];
   order_items: {
+    id: string;
     name_snapshot: string;
     qty: number;
     course_no: number;
     prep_station: string;
+    unit_price_btn: number;
   }[];
 };
-
-/** Settled / charged / paid-online tickets cannot take extra courses. */
-export function canAddItemsToOpenTicket(ticket: {
-  settled_at: string | null;
-  posted_to_folio_at: string | null;
-  order_source: string;
-  payment_recorded_at: string | null;
-}): boolean {
-  if (ticket.settled_at) return false;
-  if (ticket.posted_to_folio_at) return false;
-  if (ticket.order_source === "public" && ticket.payment_recorded_at) {
-    return false;
-  }
-  return true;
-}
-
-export function nextCourseNoForTicket(ticket: {
-  order_items: { course_no: number }[];
-}): number {
-  const courses = ticket.order_items.map((i) => i.course_no || 1);
-  const max = courses.length > 0 ? Math.max(1, ...courses) : 1;
-  return Math.min(12, max + 1);
-}
 
 /** Settled / closed tickets for the business-day history lane. */
 export type SettledPosTicket = OpenPosTicket;
@@ -301,7 +285,7 @@ export async function loadModifierGroupsForItems(
 }
 
 const POS_TICKET_SELECT =
-  "id, customer_name, phone, outlet, total_btn, kot_status, is_parked, table_id, covers, created_at, order_source, delivery_type, delivery_area, confirmed_at, confirmed_by, payment_recorded_at, payment_journal_no, settled_at, posted_to_folio_at, folio_id, booking_id, order_tenders(method, amount_btn), order_items(name_snapshot, qty, course_no, menu_items(prep_station))";
+  "id, customer_name, phone, outlet, total_btn, kot_status, is_parked, table_id, covers, created_at, order_source, delivery_type, delivery_area, confirmed_at, confirmed_by, payment_recorded_at, payment_journal_no, settled_at, posted_to_folio_at, folio_id, booking_id, order_tenders(method, amount_btn), order_items(id, name_snapshot, qty, course_no, unit_price_btn, voided_at, menu_items(prep_station))";
 
 type RawOrderTicketRow = {
   id: string;
@@ -330,9 +314,12 @@ type RawOrderTicketRow = {
     | null;
   order_items:
     | {
+        id: string;
         name_snapshot: string;
         qty: number;
         course_no: number;
+        unit_price_btn: number | null;
+        voided_at: string | null;
         menu_items:
           | { prep_station: string | null }
           | { prep_station: string | null }[]
@@ -372,18 +359,22 @@ function mapPosTicketRow(row: RawOrderTicketRow): OpenPosTicket {
     booking_id: row.booking_id ?? null,
     amount_tendered_btn: amountTendered,
     tenders,
-    order_items: (row.order_items ?? []).map((i) => {
-      const mi = i.menu_items;
-      const prepFromJoin = Array.isArray(mi)
-        ? (mi[0]?.prep_station as string | null)
-        : (mi?.prep_station as string | null);
-      return {
-        name_snapshot: i.name_snapshot,
-        qty: Number(i.qty),
-        course_no: Number(i.course_no ?? 1),
-        prep_station: prepFromJoin ?? "kitchen",
-      };
-    }),
+    order_items: (row.order_items ?? [])
+      .filter((i) => !i.voided_at)
+      .map((i) => {
+        const mi = i.menu_items;
+        const prepFromJoin = Array.isArray(mi)
+          ? (mi[0]?.prep_station as string | null)
+          : (mi?.prep_station as string | null);
+        return {
+          id: i.id,
+          name_snapshot: i.name_snapshot,
+          qty: Number(i.qty),
+          course_no: Number(i.course_no ?? 1),
+          prep_station: prepFromJoin ?? "kitchen",
+          unit_price_btn: Number(i.unit_price_btn ?? 0),
+        };
+      }),
   };
 }
 

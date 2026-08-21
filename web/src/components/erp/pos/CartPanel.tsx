@@ -47,6 +47,9 @@ type Props = {
   canFireKot?: boolean;
   /** When set, Send appends this course onto the open ticket (park hidden). */
   appendCourseNo?: number;
+  /** Lines already fired on the open ticket — void from here, add from the menu. */
+  sentLines?: { id: string; name: string; qty: number; courseNo: number }[];
+  onVoidSentLine?: (itemId: string) => void;
 };
 
 function lineUnit(line: CartLine): number {
@@ -80,6 +83,8 @@ export function CartPanel({
   idPrefix,
   canFireKot = true,
   appendCourseNo,
+  sentLines = [],
+  onVoidSentLine,
 }: Props) {
   const gstPct = Math.round(gstRate * 10000) / 100;
   const servicePct = servicePercent || "0";
@@ -131,7 +136,11 @@ export function CartPanel({
             {appending ? `Course ${appendCourseNo}` : "Ticket"}
           </p>
           <span className="truncate text-xs text-muted-foreground">
-            {lineCount > 0 ? `${lineCount} items` : "Empty"}
+            {lineCount > 0
+              ? `${lineCount} to send`
+              : sentLines.length > 0
+                ? `${sentLines.length} on bill`
+                : "Empty"}
           </span>
         </div>
         {cart.length > 0 ? (
@@ -147,12 +156,50 @@ export function CartPanel({
       </div>
 
       <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto">
+        {sentLines.length > 0 ? (
+          <div className="border-b bg-muted/30">
+            <p className="px-2.5 pt-2 text-[10px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+              On this bill
+            </p>
+            <ul className="divide-y divide-border/60">
+              {sentLines.map((line) => (
+                <li
+                  key={line.id}
+                  className="flex items-center justify-between gap-2 px-2.5 py-2"
+                >
+                  <p className="min-w-0 truncate text-sm text-foreground">
+                    {line.qty}× {line.name}
+                    {line.courseNo > 1 ? (
+                      <span className="text-muted-foreground">
+                        {" "}
+                        · c{line.courseNo}
+                      </span>
+                    ) : null}
+                  </p>
+                  {onVoidSentLine ? (
+                    <button
+                      type="button"
+                      onClick={() => onVoidSentLine(line.id)}
+                      className="inline-flex h-8 shrink-0 items-center rounded-md px-2 text-xs text-destructive hover:bg-destructive/5"
+                    >
+                      Void
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {cart.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-1 px-4 py-8 text-center">
-            <p className="text-sm font-medium text-foreground">No items yet</p>
+            <p className="text-sm font-medium text-foreground">
+              {sentLines.length > 0 ? "Add more from the menu" : "No items yet"}
+            </p>
             <p className="text-xs text-muted-foreground">
               {appending
-                ? "Tap menu tiles to add this course to the open ticket."
+                ? sentLines.length > 0
+                  ? "Tap a tile to add. Void a line above to take it off the bill."
+                  : "Tap menu tiles to add this course to the open ticket."
                 : "Tap menu tiles to build the ticket."}
             </p>
           </div>

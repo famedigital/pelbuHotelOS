@@ -24,11 +24,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useActionToast } from "@/hooks/use-action-toast";
-import {
-  canAddItemsToOpenTicket,
-  type DiningTable,
-  type OpenPosTicket,
-} from "@/lib/pos";
+import type { DiningTable, OpenPosTicket } from "@/lib/pos";
+import { canAddItemsToOpenTicket } from "@/lib/pos-ticket";
 import { formatBtn } from "@/lib/pricing";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -333,6 +330,26 @@ export function OpenTicketsDrawer({
   }, [confirmState, router]);
 
   const isOnline = (t: OpenPosTicket) => t.order_source === "public";
+
+  function openTicketOnRegister(id: string, closedLane = false) {
+    if (closedLane) {
+      setDetailId(id);
+      return;
+    }
+    const t = tickets.find((x) => x.id === id);
+    if (
+      t &&
+      onAddItems &&
+      canFireKot &&
+      canAddItemsToOpenTicket(t) &&
+      !t.is_parked &&
+      !(isOnline(t) && !t.confirmed_at)
+    ) {
+      onAddItems(t.id);
+      return;
+    }
+    setDetailId(id);
+  }
   const pendingConfirm = tickets.filter(
     (t) => isOnline(t) && !t.confirmed_at && !t.is_parked,
   );
@@ -581,10 +598,10 @@ export function OpenTicketsDrawer({
           </div>
           <SheetDescription>
             {detail
-              ? "Full ticket — add items if they order more, then settle or void."
+              ? "This ticket is open on the register — add from the menu, void a line, then settle."
               : lane === "closed"
                 ? "Settled tickets for today’s business date. Tax invoices issue from the guest folio."
-                : "Tap a ticket to open it. Add items if they order more, then settle or void."}
+                : "Tap a ticket to open it on the register. Add or void lines there, then settle."}
           </SheetDescription>
           {!detail ? (
             <div className="flex gap-1 pt-1">
@@ -749,7 +766,7 @@ export function OpenTicketsDrawer({
                   busy={busy}
                   onSettle={onSettle}
                   onVoid={onVoid}
-                  onOpen={setDetailId}
+                  onOpen={(id) => openTicketOnRegister(id)}
                   highlight
                   actions={(t) => ticketActions(t, false)}
                 />
@@ -761,7 +778,7 @@ export function OpenTicketsDrawer({
                 busy={busy}
                 onSettle={onSettle}
                 onVoid={onVoid}
-                onOpen={setDetailId}
+                onOpen={(id) => openTicketOnRegister(id)}
                 actions={(t) => (
                   <div className="flex flex-wrap gap-1.5">
                     {canFireKot ? (

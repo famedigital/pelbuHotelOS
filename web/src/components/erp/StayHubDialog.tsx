@@ -10,6 +10,7 @@ import {
   fetchStayHubCatalog,
   fetchStayHubCheckIn,
   fetchStayHubMoney,
+  fetchStayHubOpen,
   fetchStayHubPartyContext,
   fetchStayHubSummary,
   previewStayHubSheetRate,
@@ -17,6 +18,7 @@ import {
   type StayHubCheckInPayload,
   type StayHubMoneyPayload,
   type StayHubPartyContext,
+  type StayHubPartyMember,
   type StayHubSummary,
 } from "@/app/actions/stay-hub";
 import { undoCheckIn } from "@/app/actions/erp-checkin";
@@ -75,7 +77,11 @@ import {
 import { StayHubAdvancedPanel } from "@/components/erp/stay-hub/StayHubAdvancedPanel";
 import { StayHubPartyCommandBar, type PartyHubTab } from "@/components/erp/stay-hub/StayHubPartyCommandBar";
 import { StayHubPartyRoomList } from "@/components/erp/stay-hub/StayHubPartyRoomList";
-import { extendPartyAll } from "@/app/actions/erp-reservations-party";
+import {
+  StayHubPartyDocsPanel,
+  StayHubPartyMoneyPanel,
+} from "@/components/erp/stay-hub/StayHubPartyHubPanels";
+import { extendPartyAll, fetchRoomingList, type RoomingListPayload } from "@/app/actions/erp-reservations-party";
 import { StayHubBookingRoomsStrip } from "@/components/erp/stay-hub/StayHubBookingRoomsStrip";
 import { useDebouncedAutoSave } from "@/components/erp/stay-hub/use-debounced-auto-save";
 import { useStayHubConcurrentLock } from "@/components/erp/stay-hub/use-stay-hub-concurrent-lock";
@@ -293,9 +299,49 @@ function summaryFromSeed(stay: StayHubSeedStay): StayHubSummary {
   };
 }
 
+/** Instant party-room paint before that sibling's summary returns. */
+function overlayPartyMember(
+  prev: StayHubSummary,
+  member: StayHubPartyMember,
+): StayHubSummary {
+  return {
+    ...prev,
+    bookingId: member.bookingId,
+    confirmationCode: member.confirmationCode,
+    contactName: member.contactName,
+    status: member.status,
+    assignmentId: member.assignmentId,
+    roomLabel: member.roomLabel,
+    hasRoomAssigned: Boolean(member.roomLabel || member.assignmentId),
+    roomUnitId: null,
+    roomHkStatus: null,
+    folioId: null,
+    folioBalance: 0,
+    guests: [],
+    auditTrail: [],
+    nextRes: null,
+    openTasks: [],
+    agreedNightlyRateBtn: null,
+    agreedRateReason: null,
+    sdfIncomplete: true,
+    isLocked: false,
+    checkedInAt: null,
+    checkedOutAt: null,
+    regCardPhotoPublicId: null,
+    regCardSignedAt: null,
+  };
+}
+
+function partyFormStep(status: string): StayHubStepId {
+  const st = (status ?? "").toLowerCase();
+  if (st === "held" || st === "pending" || st === "confirmed") return "confirm";
+  return "reserve";
+}
+
 function regDataFromStaySummary(
   s: StayHubSummary,
   d?: Draft | null,
+  party?: StayHubPartyContext | null,
 ): GuestRegistrationCardData {
   const cin = (s.checkIn ?? "").slice(0, 10);
   const cout = (s.checkOut ?? "").slice(0, 10);
@@ -307,14 +353,23 @@ function regDataFromStaySummary(
       : 1;
   const roomName =
     [s.roomLabel, s.roomTypeName].filter(Boolean).join(" · ") || "Room";
+  const booker = d?.contactName?.trim() || s.contactName?.trim() || "Guest";
+  const lead = s.guests.find((g) => g.fullName?.trim()) ?? null;
+  const partyName = party?.groupName?.trim() || undefined;
+  const isParty = Boolean(
+    party && (party.members.length > 1 || party.groupId || party.suggested),
+  );
+  const roomIndex = party
+    ? party.members.findIndex((m) => m.bookingId === s.bookingId) + 1
+    : 0;
   return {
     bookingId: s.bookingId,
     confirmationCode: s.confirmationCode ?? undefined,
-    guestName: d?.contactName?.trim() || s.contactName || "Guest",
+    guestName: lead?.fullName.trim() || booker,
     guestPhone: d?.contactPhone?.trim() || s.contactPhone || undefined,
     guestOrigin: d?.guestOrigin || s.guestOrigin || undefined,
-    guideNumber:
-      d?.guideNumber?.trim() || s.guideNumber || undefined,
+    passportOrCid: lead?.passportOrCid || undefined,
+    guideNumber: d?.guideNumber?.trim() || s.guideNumber || undefined,
     agentLabel: s.agentName || undefined,
     checkIn: cin,
     checkOut: cout,
@@ -323,9 +378,16 @@ function regDataFromStaySummary(
     children: Math.max(0, Number(d?.children) || s.children || 0),
     extraBeds: Math.max(0, Number(d?.extraBeds) || s.extraBeds || 0),
     mealPlanCode: d?.mealPlanCode || s.mealPlanCode || undefined,
-    roomLines: [{ name: roomName, qty: Math.max(1, s.rooms || 1) }],
+    roomLines: [{ name: roomName, qty: 1 }],
     rateNightlyBtn: s.agreedNightlyRateBtn,
     stayTotalBtn: null,
+    partyName: isParty ? partyName || "Party" : undefined,
+    roomOf:
+      isParty && party && party.members.length > 1 && roomIndex > 0
+        ? { index: roomIndex, total: party.members.length }
+        : undefined,
+    bookerName: isParty ? booker : undefined,
+    unnamedRoomGuest: isParty && !lead,
   };
 }
 
@@ -396,6 +458,14 @@ function resolveOpenPanel(
     recommended = "arrival";
   }
 
+  // Unassigned pending/confirmed: land Check-in so Assign room is first.
+  // Future arrivals stay on Arrival (Check-in is locked until hotel day).
+  const unassigned =
+    !s.hasRoomAssigned && !(s.roomLabel ?? "").trim();
+  if ((st === "pending" || st === "confirmed") && unassigned) {
+    recommended = tooFar ? "arrival" : "check_in";
+  }
+
   // In-house: ignore reserve/confirm/arrival/check_in seed/URL hints when
   // domain says Stay/Money or Check-out — fixes progress vs body mismatch.
   if (st === "checked_in") {
@@ -464,8 +534,6 @@ export function StayHubDialog({
   const [folioTool, setFolioTool] = useState<FolioToolTab>("bill");
   const [detailsTool, setDetailsTool] = useState<DetailsToolTab>("guest");
   const [checkInTool, setCheckInTool] = useState<CheckInToolTab>("guest");
-  /** Once per booking open: prefer Guest when room already assigned. */
-  const checkInTabLandedRef = useRef<string | null>(null);
   const [lockHint, setLockHint] = useState<string | null>(null);
   const [money, setMoney] = useState<StayHubMoneyPayload | null>(null);
   const [checkInPayload, setCheckInPayload] =
@@ -512,14 +580,33 @@ export function StayHubDialog({
     useState<GuestRegistrationCardData | null>(null);
   const [party, setParty] = useState<StayHubPartyContext | null>(null);
   const [partyTab, setPartyTab] = useState<PartyHubTab>("rooms");
+  const [partyRooming, setPartyRooming] = useState<RoomingListPayload | null>(
+    null,
+  );
+
+  /** All refs before effects/callbacks so Fast Refresh cannot TDZ `summaryRef`. */
+  const checkInTabLandedRef = useRef<string | null>(null);
   const partyRef = useRef<StayHubPartyContext | null>(null);
-  partyRef.current = party;
+  const partyTabRef = useRef<PartyHubTab>("rooms");
+  const summaryRef = useRef<StayHubSummary | null>(null);
+  const summaryCacheRef = useRef(new Map<string, StayHubSummary>());
+  const checkInCacheRef = useRef(new Map<string, StayHubCheckInPayload>());
+  const partyPrefetchKeyRef = useRef<string | null>(null);
+  const checkInLoadedForRef = useRef<string | null>(null);
   const collectPayRef = useRef<HTMLDivElement | null>(null);
   const postChargesRef = useRef<HTMLDivElement | null>(null);
-  /** Sticky money: skip refetch until force (void/pay) or booking change. */
   const moneyBookingIdRef = useRef<string | null>(null);
   const moneyForceRef = useRef(false);
   const statusRollbackRef = useRef<string | null>(null);
+  const sessionBookingIdRef = useRef<string | null>(null);
+  const draftDirtyRef = useRef(false);
+  const serverTruthRef = useRef(false);
+  const prevStatusRef = useRef<string | null>(null);
+  const openLandedRef = useRef(false);
+  const lastDateKey = useRef<string | null>(null);
+  partyRef.current = party;
+  partyTabRef.current = partyTab;
+  summaryRef.current = summary;
 
   const agents = useMemo(() => {
     if (localAgents.length > 0) return localAgents;
@@ -572,6 +659,12 @@ export function StayHubDialog({
       return;
     }
 
+    // Open bundle loads catalog in the same round-trip as the stay.
+    if (bookingId) {
+      setCatalogLoading(true);
+      return;
+    }
+
     setCatalogLoading(true);
     void fetchStayHubCatalog().then((r) => {
       if (cancelled) return;
@@ -589,16 +682,19 @@ export function StayHubDialog({
   // Live sheet rate for left-rail amount + Details → Rate.
   useEffect(() => {
     if (!open || !bookingId || !draft) return;
-    startSheetRate(async () => {
-      const r = await previewStayHubSheetRate({
-        bookingId,
-        mealPlanCode: draft.mealPlanCode,
-        adults: Number(draft.adults) || 1,
-        children: Number(draft.children) || 0,
-        extraBeds: Number(draft.extraBeds) || 0,
+    const timer = window.setTimeout(() => {
+      startSheetRate(async () => {
+        const r = await previewStayHubSheetRate({
+          bookingId,
+          mealPlanCode: draft.mealPlanCode,
+          adults: Number(draft.adults) || 1,
+          children: Number(draft.children) || 0,
+          extraBeds: Number(draft.extraBeds) || 0,
+        });
+        setSheetRate(r);
       });
-      setSheetRate(r);
-    });
+    }, 280);
+    return () => window.clearTimeout(timer);
   }, [
     open,
     bookingId,
@@ -611,17 +707,9 @@ export function StayHubDialog({
     summary?.agreedNightlyRateBtn,
   ]);
 
-  /** Bound to booking id only — never reset panel on summary rehydrate. */
-  const sessionBookingIdRef = useRef<string | null>(null);
-  const draftDirtyRef = useRef(false);
-  /** After server fetch is trustworthy, seed must not overwrite lifecycle status. */
-  const serverTruthRef = useRef(false);
-  const prevStatusRef = useRef<string | null>(null);
-  /** Once-per-open auto-land for checked_in vs stale reserve panel. */
-  const openLandedRef = useRef(false);
-
   const applySummary = useCallback(
     (s: StayHubSummary, resetPanel: boolean, stepHint?: StayHubStepId | null) => {
+      summaryRef.current = s;
       setSummary(s);
       if (!draftDirtyRef.current) {
         setDraft(draftFromSummary(s));
@@ -691,11 +779,20 @@ export function StayHubDialog({
       const roomName =
         [s?.roomLabel, s?.roomTypeName].filter(Boolean).join(" · ") ||
         "Room";
+      const p = partyRef.current;
+      const partyName = p?.groupName?.trim() || undefined;
+      const isParty = Boolean(
+        p && (p.members.length > 1 || p.groupId || p.suggested),
+      );
+      const roomIndex = p
+        ? p.members.findIndex((m) => m.bookingId === id) + 1
+        : 0;
+      const namedGuest = payload.leadGuest?.fullName?.trim();
       setPostRegData({
         bookingId: id,
         confirmationCode: s?.confirmationCode ?? undefined,
         guestName:
-          payload.leadGuest?.fullName?.trim() ||
+          namedGuest ||
           d?.contactName?.trim() ||
           s?.contactName ||
           "Guest",
@@ -719,11 +816,20 @@ export function StayHubDialog({
         roomLines: [
           {
             name: roomName,
-            qty: Math.max(1, s?.rooms || 1),
+            qty: 1,
           },
         ],
         rateNightlyBtn: s?.agreedNightlyRateBtn ?? null,
         stayTotalBtn: null,
+        partyName: isParty ? partyName || "Party" : undefined,
+        roomOf:
+          isParty && p && p.members.length > 1 && roomIndex > 0
+            ? { index: roomIndex, total: p.members.length }
+            : undefined,
+        bookerName: isParty
+          ? d?.contactName?.trim() || s?.contactName || undefined
+          : undefined,
+        unnamedRoomGuest: isParty && !namedGuest,
       });
       setPostCheckInOpen(true);
       setPanel("check_in");
@@ -833,17 +939,121 @@ export function StayHubDialog({
       serverTruthRef.current = false;
       prevStatusRef.current = null;
       openLandedRef.current = false;
+      partyPrefetchKeyRef.current = null;
+      summaryCacheRef.current.clear();
+      checkInCacheRef.current.clear();
       setSummary(null);
       setDraft(null);
       setLoadError(null);
       setPostCheckInOpen(false);
       setPostRegData(null);
       setParty(null);
+      setPartyTab("rooms");
+      setPartyRooming(null);
       return;
     }
 
-    const isNewOpen = sessionBookingIdRef.current !== bookingId;
+    const prevSessionId = sessionBookingIdRef.current;
+    const isNewOpen = prevSessionId !== bookingId;
+    const sibling = Boolean(
+      prevSessionId &&
+        partyRef.current?.members.some((m) => m.bookingId === bookingId),
+    );
+
     sessionBookingIdRef.current = bookingId;
+
+    // Party room tap: keep the sheet, swap the form. Never blank to "Loading stay…".
+    if (isNewOpen && sibling) {
+      const cached = summaryCacheRef.current.get(bookingId);
+      const member = partyRef.current?.members.find(
+        (m) => m.bookingId === bookingId,
+      );
+      const prevSummary = summaryRef.current;
+      const instant =
+        cached ??
+        (member && prevSummary
+          ? overlayPartyMember(prevSummary, member)
+          : null);
+
+      draftDirtyRef.current = false;
+      serverTruthRef.current = Boolean(cached);
+      prevStatusRef.current = null;
+      openLandedRef.current = true;
+      setPostCheckInOpen(false);
+      setPostRegData(null);
+      moneyBookingIdRef.current = null;
+      moneyForceRef.current = false;
+      setMoney(null);
+      setSheetRate(null);
+      setLoadError(null);
+      setMessage(null);
+
+      if (partyRef.current) {
+        setParty({ ...partyRef.current, bookingId });
+      }
+
+      const formHint = partyFormStep(
+        instant?.status ?? member?.status ?? "confirmed",
+      );
+      if (instant) {
+        applySummary(instant, true, formHint);
+        if (partyTabRef.current === "rooms") {
+          setPanel(formHint);
+          setDetailsTool("guest");
+          onPanelChange?.(formHint);
+        }
+      }
+
+      const cachedCi = checkInCacheRef.current.get(bookingId);
+      if (cachedCi && instant) {
+        setCheckInPayload(cachedCi);
+        checkInLoadedForRef.current = `${bookingId}:${instant.checkIn}:${instant.checkOut}`;
+      } else {
+        setCheckInPayload(null);
+        checkInLoadedForRef.current = null;
+      }
+
+      let cancelled = false;
+      void fetchStayHubSummary(bookingId, assignmentId).then((result) => {
+        if (cancelled) return;
+        if (!result.ok) {
+          setLoadError(result.error);
+          return;
+        }
+        serverTruthRef.current = true;
+        summaryCacheRef.current.set(bookingId, result.data);
+        applySummary(result.data, false);
+        if (!draftDirtyRef.current) {
+          setDraft(draftFromSummary(result.data));
+          setCheckIn(result.data.checkIn);
+          setCheckOut(result.data.checkOut);
+        }
+        setParty((p) => {
+          if (!p) return p;
+          return {
+            ...p,
+            bookingId,
+            members: p.members.map((m) =>
+              m.bookingId === bookingId
+                ? {
+                    ...m,
+                    confirmationCode: result.data.confirmationCode,
+                    contactName: result.data.contactName,
+                    status: result.data.status,
+                    roomLabel: result.data.roomLabel,
+                    assignmentId: result.data.assignmentId,
+                  }
+                : m,
+            ),
+          };
+        });
+      });
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
     if (isNewOpen) {
       serverTruthRef.current = false;
       prevStatusRef.current = null;
@@ -852,6 +1062,7 @@ export function StayHubDialog({
       setPostRegData(null);
       moneyBookingIdRef.current = null;
       moneyForceRef.current = false;
+      checkInLoadedForRef.current = null;
     }
 
     if (isNewOpen && seedStay && seedStay.booking_id === bookingId) {
@@ -863,27 +1074,43 @@ export function StayHubDialog({
     }
 
     let cancelled = false;
-    void fetchStayHubSummary(bookingId, assignmentId).then((result) => {
+    const needCatalog = !getStayHubCatalogCache();
+    void fetchStayHubOpen(bookingId, assignmentId, {
+      catalog: needCatalog,
+    }).then((result) => {
       if (cancelled) return;
       if (!result.ok) {
         setLoadError(result.error);
+        setCatalogLoading(false);
         return;
       }
       serverTruthRef.current = true;
-      // Same id rehydrate: update summary for strip truth; keep panel/draft if dirty
-      applySummary(result.data, isNewOpen, preferredStep);
+      summaryCacheRef.current.set(bookingId, result.data.summary);
+      applySummary(result.data.summary, isNewOpen, preferredStep);
+      if (result.data.party) setParty(result.data.party);
+      else setParty(null);
+      if (result.data.checkIn) {
+        checkInCacheRef.current.set(bookingId, result.data.checkIn);
+        setCheckInPayload(result.data.checkIn);
+        checkInLoadedForRef.current = `${bookingId}:${result.data.summary.checkIn}:${result.data.summary.checkOut}`;
+      }
+      if (result.data.catalog) {
+        setStayHubCatalogCache(result.data.catalog);
+        setLocalAgents(
+          result.data.catalog.agents.map((a) => ({
+            id: a.id,
+            company_name: a.company_name,
+            market: a.market,
+            status: a.status,
+          })),
+        );
+        setLocalStaff(result.data.catalog.staff);
+        setMealPlans(result.data.catalog.mealPlans);
+        setRegDesign(result.data.catalog.registration.design);
+        setRegProperty(result.data.catalog.registration.property);
+      }
+      setCatalogLoading(false);
     });
-
-    const sibling = partyRef.current?.members.some((m) => m.bookingId === bookingId);
-    if (sibling && partyRef.current) {
-      setParty({ ...partyRef.current, bookingId });
-    } else {
-      void fetchStayHubPartyContext(bookingId).then((result) => {
-        if (cancelled) return;
-        if (result.ok) setParty(result.data);
-        else setParty(null);
-      });
-    }
 
     return () => {
       cancelled = true;
@@ -891,6 +1118,69 @@ export function StayHubDialog({
     // seedStay intentionally only seeds on new open id — not every rehydrate
     // eslint-disable-next-line react-hooks/exhaustive-deps -- stay thrash fix: key by bookingId/open only
   }, [open, bookingId, assignmentId]);
+
+  // Warm sibling summaries so the next room tap paints the form immediately.
+  useEffect(() => {
+    if (!open || !party?.members.length) return;
+    const key = party.members
+      .map((m) => m.bookingId)
+      .slice()
+      .sort()
+      .join(",");
+    if (partyPrefetchKeyRef.current === key) return;
+    partyPrefetchKeyRef.current = key;
+
+    let cancelled = false;
+    const pending = party.members.filter(
+      (m) => !summaryCacheRef.current.has(m.bookingId),
+    );
+    const run = () => {
+      void Promise.all(
+        pending.slice(0, 12).map(async (m) => {
+          const r = await fetchStayHubSummary(m.bookingId, m.assignmentId);
+          if (cancelled || !r.ok) return;
+          summaryCacheRef.current.set(m.bookingId, r.data);
+        }),
+      );
+    };
+
+    const ric = (
+      window as Window & {
+        requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+        cancelIdleCallback?: (id: number) => void;
+      }
+    ).requestIdleCallback;
+    if (typeof ric === "function") {
+      const idleId = ric(run, { timeout: 900 });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback?.(idleId);
+      };
+    }
+    const t = window.setTimeout(run, 80);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [open, party]);
+
+  // Party rooming list for group registration print (keyed by group, not room).
+  useEffect(() => {
+    if (!open || !party?.groupId) {
+      if (!open || !party) setPartyRooming(null);
+      return;
+    }
+    const anchor = party.members[0]?.bookingId ?? party.bookingId;
+    if (!anchor) return;
+    let cancelled = false;
+    void fetchRoomingList(anchor).then((r) => {
+      if (cancelled || !r.ok) return;
+      setPartyRooming(r.data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, party?.groupId]);
 
   // Seed rehydrate: room/label/lock only after server truth; never downgrade status
   useEffect(() => {
@@ -1082,14 +1372,19 @@ export function StayHubDialog({
     if (!open || !bookingId || !summary) return;
     const st = summary.status;
     if (!["pending", "confirmed"].includes(st)) return;
+    const checkInKey = `${bookingId}:${summary.checkIn}:${summary.checkOut}`;
+    if (checkInLoadedForRef.current === checkInKey) return;
     // Prefetch when hub opens (not only when CI step clicked)
     let cancelled = false;
     setCheckInLoading(true);
     fetchStayHubCheckIn(bookingId)
       .then((r) => {
         if (cancelled) return;
-        if (r.ok) setCheckInPayload(r.data);
-        else setCheckInPayload(null);
+        if (r.ok) {
+          checkInCacheRef.current.set(bookingId, r.data);
+          setCheckInPayload(r.data);
+          checkInLoadedForRef.current = checkInKey;
+        } else setCheckInPayload(null);
       })
       .finally(() => {
         if (!cancelled) setCheckInLoading(false);
@@ -1185,6 +1480,7 @@ export function StayHubDialog({
   const goPanel = useCallback(
     (id: StayHubStepId) => {
       setLockHint(null);
+      setPartyTab("rooms");
       setPanel(id);
       if (id === "stay_money") setFolioTool("bill");
       onPanelChange?.(id);
@@ -1323,7 +1619,6 @@ export function StayHubDialog({
 
   // Debounced date resize when assignment exists
   const dateKey = `${checkIn}|${checkOut}`;
-  const lastDateKey = useRef<string | null>(null);
   useEffect(() => {
     lastDateKey.current = null;
   }, [bookingId]);
@@ -1382,6 +1677,19 @@ export function StayHubDialog({
       setFolioTool((t) => (t === "collect" ? "bill" : t));
     }
   }, [money?.balanceBtn, summary?.folioBalance]);
+
+  const switchPartyRoom = useCallback(
+    (nextId: string, nextAssignmentId: string | null) => {
+      if (!nextId || nextId === bookingId) return;
+      stayHubCtx?.openStayHub({
+        bookingId: nextId,
+        assignmentId: nextAssignmentId,
+        board: board === "auto" ? "reservations" : board,
+        replaceInParty: true,
+      });
+    },
+    [stayHubCtx, board, bookingId],
+  );
 
   if (!open || !bookingId) return null;
 
@@ -1881,17 +2189,6 @@ export function StayHubDialog({
     setSummary((s) => (s ? { ...s, status: prev } : s));
   };
 
-  const switchPartyRoom = useCallback(
-    (nextId: string, nextAssignmentId: string | null) => {
-      stayHubCtx?.openStayHub({
-        bookingId: nextId,
-        assignmentId: nextAssignmentId,
-        board: board === "auto" ? "reservations" : board,
-      });
-    },
-    [stayHubCtx, board],
-  );
-
   const showPartyRooms = Boolean(
     party &&
       (party.members.length > 1 ||
@@ -2117,8 +2414,50 @@ export function StayHubDialog({
                 <p className="text-sm text-destructive">{loadError}</p>
               ) : !summary || !draft ? (
                 <p className="text-sm text-muted-foreground">Loading stay…</p>
+              ) : showPartyRooms && party && partyTab === "money" ? (
+                <StayHubPartyMoneyPanel
+                  bookingId={summary.bookingId}
+                  groupId={party.groupId}
+                  activeBookingId={summary.bookingId}
+                  onSwitch={(id, assignmentId) => {
+                    const member = party.members.find((m) => m.bookingId === id);
+                    switchPartyRoom(
+                      id,
+                      assignmentId ?? member?.assignmentId ?? null,
+                    );
+                  }}
+                  onOpenFolio={(id, assignmentId) => {
+                    const member = party.members.find((m) => m.bookingId === id);
+                    switchPartyRoom(
+                      id,
+                      assignmentId ?? member?.assignmentId ?? null,
+                    );
+                    setPartyTab("rooms");
+                    setPanel("stay_money");
+                    onPanelChange?.("stay_money");
+                  }}
+                />
+              ) : showPartyRooms && party && partyTab === "docs" ? (
+                <StayHubPartyDocsPanel
+                  party={party}
+                  summary={summary}
+                  folioId={folioId}
+                  regData={
+                    postRegData ??
+                    regDataFromStaySummary(summary, draft, party)
+                  }
+                  property={regProperty}
+                  design={regDesign}
+                  canPrintGroup={Boolean(
+                    partyRooming && partyRooming.lines.length > 1,
+                  )}
+                  onPrintGroup={() => printDeskSheet("reg-party")}
+                  onSwitch={switchPartyRoom}
+                  onUploaded={() => refreshSummary()}
+                />
               ) : (
                 <StayHubWorkFrame
+                  key={bookingId}
                   title={panelLabel}
                   description={panelDescription(panel)}
                   dense={
@@ -2458,6 +2797,7 @@ export function StayHubDialog({
                                 regData={regDataFromStaySummary(
                                   summary,
                                   draft,
+                                  party,
                                 )}
                                 property={regProperty ?? undefined}
                                 design={regDesign}
@@ -2923,7 +3263,12 @@ export function StayHubDialog({
       {open && summary ? (
         <StayHubPrintHost
           voucher={voucherFromSummary(summary)}
-          registration={postRegData ?? regDataFromStaySummary(summary, draft)}
+          registration={
+            postRegData ?? regDataFromStaySummary(summary, draft, party)
+          }
+          partyRooming={partyRooming}
+          partyAgentLabel={summary.agentName}
+          partyGuideNumber={draft?.guideNumber || summary.guideNumber}
           property={regProperty ?? undefined}
           design={regDesign}
         />
@@ -3264,18 +3609,13 @@ function GuestIdentityFields({
           <p className="rounded-md border bg-muted/20 px-2 py-1.5 text-[11px] text-muted-foreground">
             Loading agents…
           </p>
-        ) : agents.length === 0 ? (
-          <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-[11px]">
-            No agents in directory. Add under Agents or use Add agent in picker.
-          </p>
-        ) : (
-          <AgentPicker
-            agents={agents}
-            value={draft.agentId}
-            onValueChange={(next) => onUpdate("agentId", next)}
-            className={cn("bg-background", denseInputClass)}
-          />
-        )}
+        ) : null}
+        <AgentPicker
+          agents={agents}
+          value={draft.agentId}
+          onValueChange={(next) => onUpdate("agentId", next)}
+          className={cn("bg-background", denseInputClass)}
+        />
         {needsAgent && !draft.agentId ? (
           <p className="mt-0.5 text-[10px] text-amber-800 dark:text-amber-200">
             Select agent for agent / MoU bookings.

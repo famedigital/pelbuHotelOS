@@ -2461,6 +2461,16 @@ export async function voidOrderItem(
   }
 }
 
+/** Order void, or a single line when `order_item_id` is present. */
+export async function voidOrderOrItem(
+  prev: PosActionState,
+  formData: FormData,
+): Promise<PosActionState> {
+  const itemId = optionalTrim(formData.get("order_item_id"));
+  if (itemId) return voidOrderItem(prev, formData);
+  return voidOrder(prev, formData);
+}
+
 type TenderInput = {
   method: PosTenderMethod;
   amountBtn: number;

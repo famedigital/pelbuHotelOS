@@ -19,6 +19,8 @@ export type OpenStayHubOptions = {
   units?: RackUnit[];
   onToggleLock?: (stay: StayHubSeedStay) => void;
   board?: "arrivals" | "in_house" | "departures" | "reservations" | "auto";
+  /** Party room strip: swap the form in-place. Do not remount the dialog. */
+  replaceInParty?: boolean;
 };
 
 export type StayHubContextValue = {

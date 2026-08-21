@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import {
   canAddItemsToOpenTicket,
   nextCourseNoForTicket,
-} from "./pos";
+} from "./pos-ticket";
 
 describe("canAddItemsToOpenTicket", () => {
   const open = {
