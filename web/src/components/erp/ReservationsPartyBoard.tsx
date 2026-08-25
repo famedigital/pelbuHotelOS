@@ -5,6 +5,7 @@ import type { BookingRow } from "@/components/erp/BookingsTable";
 import { AgentNameLink } from "@/components/erp/AgentNameLink";
 import { BookingDetailPanelLoader } from "@/components/erp/BookingDetailPanelLoader";
 import { RoomingListPanel } from "@/components/erp/RoomingListPanel";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import {
   Accordion,
@@ -450,9 +451,11 @@ export function ReservationsPartyBoard({
 
   if (parties.length === 0) {
     return (
-      <p className="rounded-xl border border-border bg-card px-4 py-6 text-sm text-muted-foreground">
-        {emptyMessage}
-      </p>
+      <EmptyState
+        title="No reservations"
+        description={emptyMessage}
+        className="bg-card"
+      />
     );
   }
 

@@ -1,11 +1,13 @@
 "use client";
 
+import { fetchPosTicketsSnapshot } from "@/app/actions/desk-read-loaders";
 import {
   appendDeskOrderItems,
   createDeskOrder,
   updateTableStatus,
   type DeskPosState,
 } from "@/app/actions/erp-pos";
+import { DeskSyncChip } from "@/components/erp/DeskSyncChip";
 import { CartPanel } from "@/components/erp/pos/CartPanel";
 import {
   DiningTableForm,
@@ -15,6 +17,7 @@ import { KitchenTicketStrip } from "@/components/erp/pos/KitchenTicketStrip";
 import { MenuGrid } from "@/components/erp/pos/MenuGrid";
 import { ModifierDialog } from "@/components/erp/pos/ModifierDialog";
 import { OpenTicketsDrawer } from "@/components/erp/pos/OpenTicketsDrawer";
+import { PosBootstrapCacheWriter } from "@/components/erp/pos/PosBootstrapCacheWriter";
 import { PosFloorPlan, type FloorKey } from "@/components/erp/pos/PosFloorPlan";
 import { PosHowToSheet } from "@/components/erp/pos/PosHowToSheet";
 import { PosRegisterHeaderChrome } from "@/components/erp/pos/PosRegisterHeaderChrome";
@@ -31,12 +34,18 @@ import { VoidReasonDialog } from "@/components/erp/pos/VoidReasonDialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
   useKeyboardShortcuts,
   type ShortcutBinding,
 } from "@/hooks/use-keyboard-shortcuts";
+import {
+  DESK_CACHE_TTL,
+  deskCacheKey,
+  setDeskReadCache,
+} from "@/lib/desk/desk-read-cache";
 import { cn } from "@/lib/utils";
 import { calculateOrderTotals, formatBtn } from "@/lib/pricing";
 import type { OpenPosTicket } from "@/lib/pos";
@@ -95,13 +104,14 @@ function lineKey(args: {
 }
 
 export function PosLayout({
+  propertyId,
   items,
   outlets,
   modifierGroups,
   tables,
   staff,
-  openTickets,
-  settledTickets = [],
+  openTickets: openTicketsProp,
+  settledTickets: settledTicketsProp = [],
   bookings,
   creditAgents = [],
   shift,
@@ -114,6 +124,42 @@ export function PosLayout({
   ncReasons = [],
   canFireKot = true,
 }: PosLayoutProps) {
+  const [openTickets, setOpenTickets] = useState(openTicketsProp);
+  const [settledTickets, setSettledTickets] = useState(settledTicketsProp);
+  const [ticketsSyncing, setTicketsSyncing] = useState(false);
+  const [menuReady, setMenuReady] = useState(items.length > 0);
+
+  useEffect(() => {
+    setOpenTickets(openTicketsProp);
+  }, [openTicketsProp]);
+  useEffect(() => {
+    setSettledTickets(settledTicketsProp);
+  }, [settledTicketsProp]);
+  useEffect(() => {
+    setMenuReady(items.length > 0);
+  }, [items.length]);
+
+  const patchTicketsFromNetwork = useCallback(async () => {
+    setTicketsSyncing(true);
+    try {
+      const snap = await fetchPosTicketsSnapshot();
+      if (!snap.ok) throw new Error(snap.error);
+      setOpenTickets(snap.openTickets);
+      setSettledTickets(snap.settledTickets);
+      await setDeskReadCache({
+        key: deskCacheKey("pos:tickets", propertyId),
+        propertyId,
+        payload: {
+          openTickets: snap.openTickets,
+          settledTickets: snap.settledTickets,
+        },
+        hardMs: DESK_CACHE_TTL.posTickets.hardMs,
+      });
+    } finally {
+      setTicketsSyncing(false);
+    }
+  }, [propertyId]);
+
   const [menuOutlet, setMenuOutlet] = useState<string>("all");
   const posOutlets = useMemo(
     () => outlets.map((o) => ({ value: o.code, label: o.name })),
@@ -894,6 +940,7 @@ export function PosLayout({
           setVoidTarget(id);
         }}
         canFireKot={canFireKot}
+        onInvalidate={patchTicketsFromNetwork}
       />
       <SettlePanel
         orderId={settleTarget}
@@ -953,6 +1000,12 @@ export function PosLayout({
       cssFullscreen={cssFullscreen}
       onCssFullscreenChange={setCssFullscreen}
       saleActive={Boolean(saleKind)}
+      syncChip={
+        <DeskSyncChip
+          syncing={ticketsSyncing}
+          source={ticketsSyncing ? "none" : "network"}
+        />
+      }
     />
   );
 
@@ -965,6 +1018,7 @@ export function PosLayout({
           <KitchenTicketStrip
             openTickets={openTickets}
             onOpenTickets={() => setTicketsOpen(true)}
+            onInvalidate={patchTicketsFromNetwork}
           />
         ) : null}
         <div
@@ -1015,12 +1069,31 @@ export function PosLayout({
 
   return (
     <div className={shellClass}>
+      <PosBootstrapCacheWriter
+        propertyId={propertyId}
+        openTickets={openTickets}
+        settledTickets={settledTickets}
+        menuItemCount={items.length}
+        tableCount={tables.length}
+      />
       <Tabs
         value={section}
         onValueChange={(v) => setSection(v as PosSection)}
         className="gap-4"
       >
         {registerChrome}
+
+        {!menuReady ? (
+          <div
+            className="grid gap-2 sm:grid-cols-3"
+            aria-busy="true"
+            aria-label="Loading menu"
+          >
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+        ) : null}
 
         {section === "stock" || section === "closing" || section === "service" ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -1108,6 +1181,7 @@ export function PosLayout({
                 <KitchenTicketStrip
                   openTickets={openTickets}
                   onOpenTickets={() => setTicketsOpen(true)}
+                  onInvalidate={patchTicketsFromNetwork}
                 />
               ) : null}
 

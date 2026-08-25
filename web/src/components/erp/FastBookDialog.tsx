@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { DeskBookIntent } from "@/app/actions/fast-book";
+import { invalidateDeskCachesAfterBooking } from "@/lib/desk/desk-read-cache";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -33,7 +34,7 @@ export type FastBookDialogProps = {
   registrationDesign?: DeskBookFormProps["registrationDesign"];
   defaults?: DeskBookFormProps["defaults"];
   canInstantApproveRates?: boolean;
-  /** @deprecated Classic FastBook form removed — DeskBook is the only path. */
+  /** @deprecated Classic FastBookForm removed — DeskBook is the only path. */
   classic?: boolean;
 };
 
@@ -41,6 +42,13 @@ function stepForIntent(intent: DeskBookIntent) {
   if (intent === "check_in") return "check_in" as const;
   if (intent === "reserve") return "reserve" as const;
   return "confirm" as const;
+}
+
+function shouldRefreshAfterBook(): boolean {
+  return (
+    process.env.NEXT_PUBLIC_DESK_REFRESH_AFTER_BOOK === "1" ||
+    process.env.NEXT_PUBLIC_DESK_REFRESH_AFTER_BOOK === "true"
+  );
 }
 
 /**
@@ -64,6 +72,10 @@ export function FastBookDialog({
     intent: DeskBookIntent = "confirm",
   ) => {
     onCreated?.(bookingId);
+    const propertyId = formProps.property?.id;
+    if (propertyId) {
+      void invalidateDeskCachesAfterBooking(propertyId);
+    }
     if (stayHub) {
       stayHub.openStayHub({
         bookingId,
@@ -75,7 +87,11 @@ export function FastBookDialog({
     onOpenChange(false);
     setFormKey((k) => k + 1);
     setStage("form");
-    router.refresh();
+    // Default: do NOT router.refresh() — that rebuilds calendar/reservations RSC
+    // and makes Save feel endless. Escape hatch: NEXT_PUBLIC_DESK_REFRESH_AFTER_BOOK=1
+    if (shouldRefreshAfterBook()) {
+      router.refresh();
+    }
   };
 
   return (
@@ -98,6 +114,7 @@ export function FastBookDialog({
           "md:top-[50%] md:bottom-auto md:left-[50%] md:right-auto md:h-[700px] md:max-h-[min(88dvh,700px)] md:w-[min(96vw,1120px)] md:max-w-[1120px] md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-lg md:border",
           "lg:w-[min(96vw,1120px)] lg:max-w-[1120px] lg:h-[700px] lg:max-h-[min(90dvh,700px)]",
           "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
+          "motion-safe:duration-200",
         )}
       >
         <DialogHeader className="flex h-14 shrink-0 flex-row items-center space-y-0 border-b px-4 pr-12 text-left print:hidden">
@@ -128,7 +145,14 @@ export function FastBookDialog({
             canInstantApproveRates={formProps.canInstantApproveRates}
             onSaved={() => {
               setStage("confirm");
-              router.refresh();
+              const propertyId = formProps.property?.id;
+              if (propertyId) {
+                void invalidateDeskCachesAfterBooking(propertyId);
+              }
+              // Stay on confirm pack — do not refresh parent rack here.
+              if (shouldRefreshAfterBook()) {
+                router.refresh();
+              }
             }}
             onOpenStay={openStayHub}
             onBookAnother={() => {

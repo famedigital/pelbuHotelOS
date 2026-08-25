@@ -85,6 +85,7 @@ export type StayHubMoneyPayload = {
 
 export type StayHubSummary = {
   bookingId: string;
+  propertyId: string;
   /** Stay confirmation PS-YYYY-##### (searchable). Not a tax invoice. */
   confirmationCode: string | null;
   contactName: string | null;
@@ -512,6 +513,7 @@ export async function fetchStayHubSummary(
     ok: true,
     data: {
       bookingId: data.id as string,
+      propertyId,
       confirmationCode:
         (data.confirmation_code as string | null) ?? null,
       contactName: (data.contact_name as string | null) ?? null,
@@ -1107,6 +1109,7 @@ export type StayHubCatalogStaff = {
 /** Agents, staff, meal plans for StayHub pickers (works on deep-link open). */
 export async function fetchStayHubCatalog(): Promise<
   Result<{
+    propertyId: string;
     agents: StayHubCatalogAgent[];
     staff: StayHubCatalogStaff[];
     mealPlans: StayHubCatalogMealPlan[];
@@ -1180,6 +1183,7 @@ export async function fetchStayHubCatalog(): Promise<
   return {
     ok: true,
     data: {
+      propertyId,
       agents: (agents ?? []).map((a) => ({
         id: a.id as string,
         company_name: (a.company_name as string) || "Agent",

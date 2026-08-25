@@ -39,8 +39,17 @@ import { useStayHubOptional } from "@/components/erp/StayHubContext";
 import { StayHubPrintHost } from "@/components/erp/stay-hub/StayHubPrintHost";
 import {
   getStayHubCatalogCache,
+  loadStayHubCatalogFromIdb,
+  loadStayHubSummaryFromIdb,
+  persistStayHubCatalogToIdb,
+  persistStayHubSummaryToIdb,
   setStayHubCatalogCache,
 } from "@/lib/folio/stay-hub-catalog-cache";
+import {
+  DESK_CACHE_TTL,
+  deskCacheKey,
+  setDeskReadCache,
+} from "@/lib/desk/desk-read-cache";
 import { buildLedgerStripSummary } from "@/lib/folio/ledger-summary";
 import { CheckInForm, CheckOutForm } from "@/components/erp/CheckInForm";
 import {
@@ -86,6 +95,7 @@ import { StayHubBookingRoomsStrip } from "@/components/erp/stay-hub/StayHubBooki
 import { useDebouncedAutoSave } from "@/components/erp/stay-hub/use-debounced-auto-save";
 import { useStayHubConcurrentLock } from "@/components/erp/stay-hub/use-stay-hub-concurrent-lock";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -196,8 +206,13 @@ function mergeSeedStatus(prevStatus: string, seedStatus: string): string {
 }
 
 function summaryFromSeed(stay: StayHubSeedStay): StayHubSummary {
+  const propertyId =
+    (typeof sessionStorage !== "undefined"
+      ? sessionStorage.getItem("pelbu-desk-property-id")
+      : null) ?? "";
   return {
     bookingId: stay.booking_id,
+    propertyId,
     confirmationCode: null,
     contactName: stay.contact_name,
     contactPhone: stay.contact_phone,
@@ -642,6 +657,9 @@ export function StayHubDialog({
       setMealPlans(data.mealPlans);
       setRegDesign(data.registration.design);
       setRegProperty(data.registration.property);
+      if (typeof sessionStorage !== "undefined" && data.propertyId) {
+        sessionStorage.setItem("pelbu-desk-property-id", data.propertyId);
+      }
     };
 
     const cached = getStayHubCatalogCache();
@@ -666,13 +684,27 @@ export function StayHubDialog({
     }
 
     setCatalogLoading(true);
-    void fetchStayHubCatalog().then((r) => {
+    void (async () => {
+      const lastPid =
+        typeof sessionStorage !== "undefined"
+          ? sessionStorage.getItem("pelbu-desk-property-id")
+          : null;
+      if (lastPid) {
+        const fromDisk = await loadStayHubCatalogFromIdb(lastPid);
+        if (!cancelled && fromDisk) {
+          setStayHubCatalogCache(fromDisk);
+          applyCatalog(fromDisk);
+          setCatalogLoading(false);
+        }
+      }
+      const r = await fetchStayHubCatalog();
       if (cancelled) return;
       setCatalogLoading(false);
       if (!r.ok) return;
       setStayHubCatalogCache(r.data);
+      void persistStayHubCatalogToIdb(r.data.propertyId, r.data);
       applyCatalog(r.data);
-    });
+    })();
     return () => {
       cancelled = true;
     };
@@ -711,6 +743,10 @@ export function StayHubDialog({
     (s: StayHubSummary, resetPanel: boolean, stepHint?: StayHubStepId | null) => {
       summaryRef.current = s;
       setSummary(s);
+      void persistStayHubSummaryToIdb(s.propertyId, s.bookingId, s);
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.setItem("pelbu-desk-property-id", s.propertyId);
+      }
       if (!draftDirtyRef.current) {
         setDraft(draftFromSummary(s));
         setCheckIn(s.checkIn);
@@ -1065,15 +1101,29 @@ export function StayHubDialog({
       checkInLoadedForRef.current = null;
     }
 
+    let cancelled = false;
+
     if (isNewOpen && seedStay && seedStay.booking_id === bookingId) {
       applySummary(summaryFromSeed(seedStay), true, preferredStep);
     } else if (isNewOpen) {
       setSummary(null);
       setDraft(null);
       setLoadError(null);
+      const lastPid =
+        typeof sessionStorage !== "undefined"
+          ? sessionStorage.getItem("pelbu-desk-property-id")
+          : null;
+      if (lastPid) {
+        void loadStayHubSummaryFromIdb<StayHubSummary>(lastPid, bookingId).then(
+          (cached) => {
+            if (!cached || cancelled) return;
+            if (serverTruthRef.current) return;
+            applySummary(cached, true, preferredStep);
+          },
+        );
+      }
     }
 
-    let cancelled = false;
     const needCatalog = !getStayHubCatalogCache();
     void fetchStayHubOpen(bookingId, assignmentId, {
       catalog: needCatalog,
@@ -1096,6 +1146,10 @@ export function StayHubDialog({
       }
       if (result.data.catalog) {
         setStayHubCatalogCache(result.data.catalog);
+        void persistStayHubCatalogToIdb(
+          result.data.catalog.propertyId,
+          result.data.catalog,
+        );
         setLocalAgents(
           result.data.catalog.agents.map((a) => ({
             id: a.id,
@@ -1314,6 +1368,15 @@ export function StayHubDialog({
       moneyBookingIdRef.current = bookingId;
       moneyForceRef.current = false;
       setMoney(r.data);
+      const pid = summaryRef.current?.propertyId;
+      if (pid) {
+        void setDeskReadCache({
+          key: deskCacheKey("stayhub:money", pid, `b:${bookingId}`),
+          propertyId: pid,
+          payload: { ...r.data, advisoryAsOf: new Date().toISOString() },
+          hardMs: DESK_CACHE_TTL.stayhubMoney.hardMs,
+        });
+      }
     });
     return () => {
       cancelled = true;
@@ -2413,7 +2476,19 @@ export function StayHubDialog({
               {loadError ? (
                 <p className="text-sm text-destructive">{loadError}</p>
               ) : !summary || !draft ? (
-                <p className="text-sm text-muted-foreground">Loading stay…</p>
+                <div
+                  className="desk-premium-enter space-y-3"
+                  aria-busy="true"
+                  aria-label="Loading stay"
+                >
+                  <Skeleton className="h-8 w-2/3" />
+                  <Skeleton className="h-24 w-full" />
+                  <Skeleton className="h-24 w-full" />
+                  <p className="text-xs text-muted-foreground">
+                    Loading stay…
+                    {summary ? " · Balance as of last sync may appear first" : ""}
+                  </p>
+                </div>
               ) : showPartyRooms && party && partyTab === "money" ? (
                 <StayHubPartyMoneyPanel
                   bookingId={summary.bookingId}
@@ -3276,7 +3351,7 @@ export function StayHubDialog({
 
       {summary && rateEditable ? (
         <Dialog open={railRateOpen} onOpenChange={setRailRateOpen}>
-          <DialogContent className="erp max-h-[90vh] overflow-y-auto sm:max-w-md">
+          <DialogContent layer="nested" className="erp max-h-[90vh] overflow-y-auto sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Nightly rate</DialogTitle>
               <DialogDescription>

@@ -263,6 +263,35 @@
   }
 }
 
+/* Desk premium utilities — scoped under .erp only (public brand untouched). */
+.erp .desk-premium-empty {
+  animation: desk-premium-fade-in 180ms ease-out;
+}
+
+.erp .desk-premium-enter {
+  animation: desk-premium-fade-in 200ms ease-out;
+}
+
+@keyframes desk-premium-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .erp .desk-premium-empty,
+  .erp .desk-premium-enter,
+  .erp .motion-safe\:duration-200 {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -523,6 +552,20 @@ body.pos-fs .erp [data-slot="sidebar-wrapper"] {
   --sidebar-width: 0px !important;
   --sidebar-width-mobile: 0px !important;
 }
+/* Stay View phone: hide the desk header so the day list / rack gets the screen.
+   Landscape / short screens also hide the bottom nav — the rack overlay covers it. */
+@media (max-width: 767px) {
+  .erp:has([data-stay-view]) [data-slot="sidebar-inset"] > header {
+    display: none !important;
+  }
+}
+@media (max-height: 640px) and (orientation: landscape) {
+  .erp:has([data-stay-view]) [data-slot="sidebar-inset"] > header,
+  .erp:has([data-stay-view]) [data-slot="desk-mobile-nav"] {
+    display: none !important;
+  }
+}
+
 body.pos-fs .erp [data-slot="sidebar-inset"] {
   width: 100% !important;
 }

@@ -100,6 +100,8 @@ export type TenderDraft = {
 };
 
 export type PosLayoutProps = {
+  /** Active property — scopes IndexedDB read cache. */
+  propertyId: string;
   items: MenuItem[];
   /** Active property outlets for filters and table forms. */
   outlets: { code: string; name: string }[];

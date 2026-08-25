@@ -90,6 +90,7 @@ export type DeskBookFormProps = {
   /** Owner/GM session — custom rates confirm instantly (PIN still accepted). */
   canInstantApproveRates?: boolean;
   property?: {
+    id?: string;
     name: string;
     legal_name?: string | null;
     address?: string | null;
@@ -215,6 +216,34 @@ function SegmentedToggle<T extends string>({
   );
 }
 
+/** Comp posts agreed 0; rack must not send stale zero from a prior comp toggle. */
+function quoteAgreedNightly(
+  line: { agreedNightlyBtn: number | null },
+  guestRateKind: "rack" | "comp",
+): number | null {
+  if (guestRateKind === "comp") return 0;
+  if (line.agreedNightlyBtn == null || line.agreedNightlyBtn === 0) return null;
+  return line.agreedNightlyBtn;
+}
+
+function lineDisplayNightly(
+  line: {
+    agreedNightlyBtn: number | null;
+    sheetNightlyBtn: number | null;
+  },
+  qLine: { nightlyBtn: number | null } | undefined,
+  guestRateKind: "rack" | "comp",
+  packageNightly: number | null,
+  singleCategory: boolean,
+): number | null {
+  if (guestRateKind === "comp") return 0;
+  if (line.agreedNightlyBtn != null && line.agreedNightlyBtn > 0) {
+    return line.agreedNightlyBtn;
+  }
+  if (singleCategory && packageNightly != null) return packageNightly;
+  return line.sheetNightlyBtn ?? qLine?.nightlyBtn ?? null;
+}
+
 function fmtShort(iso: string): string {
   if (!iso) return "—";
   const d = new Date(`${iso}T12:00:00`);
@@ -275,6 +304,8 @@ export function DeskBookForm({
         : "Reservation saved",
   });
   const savedNotified = useRef(false);
+  /** Ignore stale async quote responses (prevents rack/comp rate flicker). */
+  const quoteGenRef = useRef(0);
 
   const guestTypes = useMemo(
     () => roomTypes.filter((r) => r.inventory_kind === "sellable_guest"),
@@ -698,6 +729,8 @@ export function DeskBookForm({
   const refreshQuote = useCallback(() => {
     if (roomLines.length === 0 || totalGuestRooms < 1 || !checkIn || nights < 1)
       return;
+    const quoteGen = ++quoteGenRef.current;
+    const rateKindAtRequest = guestRateKind;
     startQuote(async () => {
       const r = await previewDeskStayQuote({
         checkIn,
@@ -710,7 +743,7 @@ export function DeskBookForm({
           adults: l.adults,
           children: l.children,
           extraBeds: l.extraBeds,
-          agreedNightlyBtn: l.agreedNightlyBtn,
+          agreedNightlyBtn: quoteAgreedNightly(l, rateKindAtRequest),
         })),
         adults,
         occupancy,
@@ -721,6 +754,7 @@ export function DeskBookForm({
         agentId: agentId || null,
         rateTier: agentId ? null : walkinRateTier,
       });
+      if (quoteGen !== quoteGenRef.current) return;
       if (!r.ok) {
         setQuoteHint(r.error);
         setSystemNightly(null);
@@ -756,8 +790,8 @@ export function DeskBookForm({
       );
       setAgentOpenRooms(r.agentOpenRooms);
       setAgentRoomCap(r.agentRoomCap);
-      setRoomLines((prev) =>
-        prev.map((l) => {
+      setRoomLines((prev) => {
+        const next = prev.map((l) => {
           const q = r.lines.find((x) => x.roomTypeId === l.roomTypeId);
           if (!q) return l;
           const sheet =
@@ -766,20 +800,41 @@ export function DeskBookForm({
               : l.agreedNightlyBtn == null
                 ? q.nightlyBtn
                 : l.sheetNightlyBtn;
-          if (guestRateKind === "comp") {
+          if (rateKindAtRequest === "comp") {
             return {
               ...l,
               sheetNightlyBtn: sheet ?? l.sheetNightlyBtn,
               agreedNightlyBtn: 0,
+              ratePendingApproval: false,
             };
           }
-          return { ...l, sheetNightlyBtn: sheet ?? l.sheetNightlyBtn };
-        }),
-      );
-      if (guestRateKind === "comp") {
+          const customAgreed =
+            l.agreedNightlyBtn != null &&
+            l.agreedNightlyBtn > 0 &&
+            (sheet == null ||
+              Math.abs(l.agreedNightlyBtn - sheet) > 0.009);
+          return {
+            ...l,
+            sheetNightlyBtn: sheet ?? l.sheetNightlyBtn,
+            agreedNightlyBtn: customAgreed ? l.agreedNightlyBtn : null,
+            ratePendingApproval: customAgreed
+              ? l.ratePendingApproval
+              : false,
+          };
+        });
+        const unchanged = prev.every(
+          (l, i) =>
+            l.sheetNightlyBtn === next[i]?.sheetNightlyBtn &&
+            l.agreedNightlyBtn === next[i]?.agreedNightlyBtn &&
+            l.ratePendingApproval === next[i]?.ratePendingApproval,
+        );
+        return unchanged ? prev : next;
+      });
+      const nightlyDisplay = r.packageNightlyBtn ?? r.systemNightlyBtn;
+      if (rateKindAtRequest === "comp") {
         setDisplayRate("0");
-      } else if (!rateDirty && r.systemNightlyBtn != null) {
-        setDisplayRate(String(Math.round(r.systemNightlyBtn)));
+      } else if (!rateDirty && nightlyDisplay != null) {
+        setDisplayRate(String(Math.round(nightlyDisplay)));
       }
     });
   }, [
@@ -866,7 +921,8 @@ export function DeskBookForm({
   ]);
 
   const anyLineCustomRate = roomLines.some((l) => {
-    if (l.agreedNightlyBtn == null) return false;
+    if (guestRateKind === "comp") return false;
+    if (l.agreedNightlyBtn == null || l.agreedNightlyBtn <= 0) return false;
     if (l.sheetNightlyBtn == null) return true;
     return Math.abs(l.agreedNightlyBtn - l.sheetNightlyBtn) > 0.009;
   });
@@ -874,14 +930,28 @@ export function DeskBookForm({
     anyLineCustomRate && !canInstantApproveRates && !ratePin.trim();
 
   const editedRate = Number(displayRate);
+  const packageNightlyPerRoom = useMemo(() => {
+    if (
+      quotePackageStay != null &&
+      nights > 0 &&
+      totalGuestRooms > 0
+    ) {
+      return quotePackageStay / (totalGuestRooms * nights);
+    }
+    if (systemNightly != null) return systemNightly;
+    return null;
+  }, [quotePackageStay, nights, totalGuestRooms, systemNightly]);
+
   const rateDiffers =
-    (systemNightly != null &&
-      Number.isFinite(editedRate) &&
-      Math.abs(editedRate - systemNightly) > 0.009) ||
-    (systemNightly == null &&
-      displayRate.trim() !== "" &&
-      Number.isFinite(editedRate)) ||
-    anyLineCustomRate;
+    guestRateKind === "comp"
+      ? false
+      : (systemNightly != null &&
+          Number.isFinite(editedRate) &&
+          Math.abs(editedRate - systemNightly) > 0.009) ||
+        (systemNightly == null &&
+          displayRate.trim() !== "" &&
+          Number.isFinite(editedRate)) ||
+        anyLineCustomRate;
 
   /** Package total from quote (per-line rates already included). */
   const stayTotal = useMemo(() => {
@@ -985,16 +1055,18 @@ export function DeskBookForm({
   };
 
   const applyGuestRateKind = (kind: "rack" | "comp") => {
+    quoteGenRef.current += 1;
     setGuestRateKind(kind);
     if (kind === "comp") {
-      setRateDirty(true);
+      setRateDirty(false);
       setDisplayRate("0");
       setRateEditReason("comp");
+      setRatePin("");
       setRoomLines((prev) =>
         prev.map((l) => ({
           ...l,
           agreedNightlyBtn: 0,
-          ratePendingApproval: !canInstantApproveRates,
+          ratePendingApproval: false,
         })),
       );
       return;
@@ -1442,9 +1514,12 @@ export function DeskBookForm({
                     type="hidden"
                     name={`line_agreed_${rt.code}`}
                     value={
-                      line.agreedNightlyBtn != null
-                        ? String(line.agreedNightlyBtn)
-                        : ""
+                      guestRateKind === "comp"
+                        ? "0"
+                        : line.agreedNightlyBtn != null &&
+                            line.agreedNightlyBtn > 0
+                          ? String(line.agreedNightlyBtn)
+                          : ""
                     }
                   />
                 </>
@@ -1509,11 +1584,16 @@ export function DeskBookForm({
                 : "—"}
             </p>
             <p className="mt-1 truncate text-[11px] tabular-nums text-muted-foreground">
-              {displayRate &&
-              Number.isFinite(Number(displayRate)) &&
-              (Number(displayRate) > 0 || guestRateKind === "comp")
-                ? `${formatGuestBtn(Number(displayRate))}/n`
-                : "Pick a room"}
+              {guestRateKind === "comp"
+                ? `${formatGuestBtn(0)}/n · comp`
+                : packageNightlyPerRoom != null &&
+                    Number.isFinite(packageNightlyPerRoom)
+                  ? `${formatGuestBtn(Math.round(packageNightlyPerRoom))}/n`
+                  : displayRate &&
+                      Number.isFinite(Number(displayRate)) &&
+                      Number(displayRate) > 0
+                    ? `${formatGuestBtn(Number(displayRate))}/n`
+                    : "Pick a room"}
               {mealPlanCode ? ` · ${mealPlanCode}` : ""}
               {occupancy === "single" ? " · SGL" : " · DBL"}
             </p>
@@ -2026,12 +2106,17 @@ export function DeskBookForm({
                   const qLine = quoteLines.find(
                     (q) => q.roomTypeId === line.roomTypeId,
                   );
-                  const showRate =
-                    line.agreedNightlyBtn ??
-                    line.sheetNightlyBtn ??
-                    qLine?.nightlyBtn;
+                  const showRate = lineDisplayNightly(
+                    line,
+                    qLine,
+                    guestRateKind,
+                    packageNightlyPerRoom,
+                    !mixedCategories,
+                  );
                   const custom =
+                    guestRateKind !== "comp" &&
                     line.agreedNightlyBtn != null &&
+                    line.agreedNightlyBtn > 0 &&
                     (line.sheetNightlyBtn == null ||
                       Math.abs(line.agreedNightlyBtn - line.sheetNightlyBtn) >
                         0.009);
@@ -2060,22 +2145,6 @@ export function DeskBookForm({
                             </span>
                           ) : null}
                         </span>
-                        <SegmentedToggle
-                          ariaLabel={`Rack or complementary for ${rt.name}`}
-                          value={
-                            line.agreedNightlyBtn === 0 ? "comp" : "rack"
-                          }
-                          onChange={(kind) => {
-                            const current =
-                              line.agreedNightlyBtn === 0 ? "comp" : "rack";
-                            if (kind === current) return;
-                            applyGuestRateKind(kind);
-                          }}
-                          options={[
-                            { id: "rack", label: "Rack" },
-                            { id: "comp", label: "Comp" },
-                          ]}
-                        />
                         <button
                           type="button"
                           onClick={() => openRateDialog(line.roomTypeId)}
@@ -2562,7 +2631,7 @@ export function DeskBookForm({
       </form>
 
       <Dialog open={pinOpen} onOpenChange={setPinOpen}>
-        <DialogContent className="erp sm:max-w-md">
+        <DialogContent layer="nested" className="erp sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
               {rateEditLineId ? "Edit category rate" : "Change nightly rate"}

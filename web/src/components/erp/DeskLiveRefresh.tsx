@@ -6,15 +6,18 @@ import { safetyPollMs as freeTierSafetyPollMs } from "@/lib/free-tier";
 
 /**
  * POS / desk inbox live badge. Push via KOT SSE (no 2s Vercel poll).
- * On order change → debounced router.refresh(). Safety poll is free-tier paced.
+ * Prefer onInvalidate (patch cache / tickets) over full router.refresh().
  */
 export function DeskLiveRefresh({
   label = "Live",
   safetyPollMs,
+  onInvalidate,
 }: {
   label?: string;
   /** Backup poll only — high to protect free Vercel limits. */
   safetyPollMs?: number;
+  /** When set, called instead of router.refresh on KOT events (fallback to refresh on throw). */
+  onInvalidate?: () => void | Promise<void>;
 }) {
   const pollMs = safetyPollMs ?? freeTierSafetyPollMs();
   const router = useRouter();
@@ -22,6 +25,8 @@ export function DeskLiveRefresh({
   const [error, setError] = useState(false);
   const [parked, setParked] = useState<number | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onInvalidateRef = useRef(onInvalidate);
+  onInvalidateRef.current = onInvalidate;
 
   useEffect(() => {
     let cancelled = false;
@@ -32,7 +37,15 @@ export function DeskLiveRefresh({
     const scheduleRefresh = () => {
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
       refreshTimer.current = setTimeout(() => {
-        if (!cancelled) router.refresh();
+        if (cancelled) return;
+        const custom = onInvalidateRef.current;
+        if (custom) {
+          void Promise.resolve(custom()).catch(() => {
+            router.refresh();
+          });
+          return;
+        }
+        router.refresh();
       }, 250);
     };
 
@@ -60,7 +73,7 @@ export function DeskLiveRefresh({
     const connect = () => {
       if (cancelled) return;
       if (document.visibilityState === "hidden") return;
-      es = new EventSource("/api/erp/kot/stream");
+      es = new EventSource("/api/erp/kot-stream");
       es.addEventListener("ready", () => {
         if (!cancelled) {
           setLive(true);

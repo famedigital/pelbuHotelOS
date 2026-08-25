@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { PosFullscreenToggle } from "@/components/erp/pos/PosFullscreenToggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,8 @@ type Props = {
   onCssFullscreenChange: (v: boolean) => void;
   /** False while the Table / Room / Counter gate is showing. */
   saleActive?: boolean;
+  /** Optional Syncing chip from ticket SWR / live patch. */
+  syncChip?: ReactNode;
 };
 
 /**
@@ -143,9 +146,11 @@ function RegisterActions({
   onOpenHelp,
   cssFullscreen,
   onCssFullscreenChange,
+  syncChip,
 }: Props) {
   return (
     <>
+      {syncChip}
       <Button
         type="button"
         variant="outline"

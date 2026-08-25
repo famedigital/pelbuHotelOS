@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -191,18 +192,19 @@ export function CartPanel({
           </div>
         ) : null}
         {cart.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-1 px-4 py-8 text-center">
-            <p className="text-sm font-medium text-foreground">
-              {sentLines.length > 0 ? "Add more from the menu" : "No items yet"}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {appending
+          <EmptyState
+            className="border-0 bg-transparent py-8"
+            title={
+              sentLines.length > 0 ? "Add more from the menu" : "No items yet"
+            }
+            description={
+              appending
                 ? sentLines.length > 0
                   ? "Tap a tile to add. Void a line above to take it off the bill."
                   : "Tap menu tiles to add this course to the open ticket."
-                : "Tap menu tiles to build the ticket."}
-            </p>
-          </div>
+                : "Tap menu tiles to build the ticket."
+            }
+          />
         ) : (
           <ul className="divide-y">
             {cart.map((line) => {

@@ -493,33 +493,31 @@ export async function createFastBooking(
     let creditChargeBtn = 0;
     let quotedRoomsBtn = 0;
     {
-      const season = await resolveSeasonKind(
-        admin,
-        property.id as string,
-        checkIn,
+      const [season, taxSettings] = await Promise.all([
+        resolveSeasonKind(admin, property.id as string, checkIn),
+        loadRoomRateTaxSettings(admin, property.id as string),
+      ]);
+      const sellable = lines.filter((l) => l.inventory_kind === "sellable_guest");
+      const sheetRates = await Promise.all(
+        sellable.map((line) =>
+          lookupRoomRateBtn(admin, {
+            propertyId: property.id as string,
+            roomTypeId: line.room_type_id,
+            seasonKind: season,
+            rateTier: tier,
+            adults: line.adults,
+            occupancy: line.occupancy,
+          }),
+        ),
       );
-      const taxSettings = await loadRoomRateTaxSettings(
-        admin,
-        property.id as string,
-      );
-      for (const line of lines) {
-        if (line.inventory_kind !== "sellable_guest") continue;
-        const sheetRate = await lookupRoomRateBtn(admin, {
-          propertyId: property.id as string,
-          roomTypeId: line.room_type_id,
-          seasonKind: season,
-          rateTier: tier,
-          adults: line.adults,
-          occupancy: line.occupancy,
-        });
+      for (let i = 0; i < sellable.length; i++) {
+        const line = sellable[i];
+        const sheetRate = sheetRates[i];
         const sheetAllIn =
           sheetRate != null
             ? calculateRoomNightTax(sheetRate, taxSettings).totalBtn
             : null;
-        if (
-          line.sheet_nightly_rate_btn == null &&
-          sheetAllIn != null
-        ) {
+        if (line.sheet_nightly_rate_btn == null && sheetAllIn != null) {
           line.sheet_nightly_rate_btn = roundBtn(sheetAllIn);
         }
         const rate =
@@ -531,47 +529,31 @@ export async function createFastBooking(
         }
       }
       quotedRoomsBtn = roundBtn(quotedRoomsBtn);
-    }
 
-    if (paymentMode === "on_credit" && agentId) {
-      const season = await resolveSeasonKind(
-        admin,
-        property.id as string,
-        checkIn,
-      );
-      const taxSettings = await loadRoomRateTaxSettings(
-        admin,
-        property.id as string,
-      );
-      let estimate = 0;
-      for (const line of lines) {
-        if (line.inventory_kind !== "sellable_guest") continue;
-        const sheetRate = await lookupRoomRateBtn(admin, {
-          propertyId: property.id as string,
-          roomTypeId: line.room_type_id,
-          seasonKind: season,
-          rateTier: tier,
-          adults: line.adults,
-          occupancy: line.occupancy,
-        });
-        const sheetAllIn =
-          sheetRate != null
-            ? calculateRoomNightTax(sheetRate, taxSettings).totalBtn
-            : null;
-        const rate =
-          line.agreed_nightly_rate_btn != null
-            ? line.agreed_nightly_rate_btn
-            : sheetAllIn;
-        if (rate == null) {
-          throw new Error(
-            "No room rate for this season/tier. Set rates before on-credit booking.",
-          );
+      if (paymentMode === "on_credit" && agentId) {
+        let estimate = 0;
+        for (let i = 0; i < sellable.length; i++) {
+          const line = sellable[i];
+          const sheetRate = sheetRates[i];
+          const sheetAllIn =
+            sheetRate != null
+              ? calculateRoomNightTax(sheetRate, taxSettings).totalBtn
+              : null;
+          const rate =
+            line.agreed_nightly_rate_btn != null
+              ? line.agreed_nightly_rate_btn
+              : sheetAllIn;
+          if (rate == null) {
+            throw new Error(
+              "No room rate for this season/tier. Set rates before on-credit booking.",
+            );
+          }
+          estimate += rate * line.qty * nights;
         }
-        estimate += rate * line.qty * nights;
-      }
-      creditChargeBtn = roundBtn(estimate);
-      if (creditChargeBtn <= 0) {
-        throw new Error("Could not estimate on-credit amount from rates.");
+        creditChargeBtn = roundBtn(estimate);
+        if (creditChargeBtn <= 0) {
+          throw new Error("Could not estimate on-credit amount from rates.");
+        }
       }
     }
 
@@ -839,10 +821,9 @@ export async function createFastBooking(
       "fast_book.create",
     ).catch((err) => console.error("enqueueAfterBookingChange fast_book", err));
 
-    revalidatePath("/erp");
     revalidatePath("/erp/calendar");
     revalidatePath("/erp/reservations");
-    revalidatePath("/erp/rate-approvals");
+    if (anyRatePending) revalidatePath("/erp/rate-approvals");
     if (agentId) revalidatePath("/erp/agents");
 
     return {

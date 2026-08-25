@@ -242,6 +242,8 @@ type Props = {
   onAddItems?: (orderId: string) => void;
   /** HK/laundry cannot park/resume tickets onto the kitchen TV. */
   canFireKot?: boolean;
+  /** Prefer ticket patch over full router.refresh. */
+  onInvalidate?: () => void | Promise<void>;
 };
 
 export function OpenTicketsDrawer({
@@ -255,6 +257,7 @@ export function OpenTicketsDrawer({
   onVoid,
   onAddItems,
   canFireKot = true,
+  onInvalidate,
 }: Props) {
   const [parkState, parkAction, parkPending] = useActionState(
     parkOrder,
@@ -594,7 +597,7 @@ export function OpenTicketsDrawer({
                   ? "Closed today"
                   : "Open tickets"}
             </SheetTitle>
-            <DeskLiveRefresh label="Live" />
+            <DeskLiveRefresh label="Live" onInvalidate={onInvalidate} />
           </div>
           <SheetDescription>
             {detail

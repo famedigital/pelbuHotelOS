@@ -2,6 +2,7 @@ import type { BookingRow } from "@/components/erp/BookingsTable";
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { DeskMetricRow } from "@/components/erp/DeskMetricRow";
 import { NewReservationLauncher } from "@/components/erp/NewReservationLauncher";
+import { ReservationsListCacheBridge } from "@/components/erp/ReservationsListCacheBridge";
 import { ReservationsFilterForm } from "@/components/erp/ReservationsFilterForm";
 import { ReservationsPartyBoard } from "@/components/erp/ReservationsPartyBoard";
 import { ReservationsStatusChrome } from "@/components/erp/ReservationsStatusChrome";
@@ -448,6 +449,7 @@ export default async function ReservationsPage({
         : "",
     property: property
       ? {
+          id: property.id,
           name: property.name,
           legal_name: property.legal_name,
           address: property.address,
@@ -691,6 +693,11 @@ export default async function ReservationsPage({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs">
+          <ReservationsListCacheBridge
+            propertyId={propertyId}
+            bucket={bucket}
+            rowCount={parties.length}
+          />
           {needsRoomFilter || needsOnly > 0 ? (
             <Link
               href="/erp/calendar"

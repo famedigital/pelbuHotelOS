@@ -29,7 +29,7 @@ export type KotBoardCounts = {
  * Kitchen / Pass live notifier — push via SSE (Supabase Realtime bridge),
  * not a 1.5s poll that hammers Vercel.
  *
- * - Primary: EventSource `/api/erp/kot/stream` → on `kot` fetch counts once
+ * - Primary: EventSource `/api/erp/kot-stream` → on `kot` fetch counts once
  * - Safety: version poll every 90s (free-tier) + on tab focus
  * - Siren/voice when counts move in the expected direction
  */
@@ -281,7 +281,7 @@ export function useKotNotifier({
     const connect = () => {
       if (stopped) return;
       if (document.visibilityState === "hidden") return;
-      es = new EventSource("/api/erp/kot/stream");
+      es = new EventSource("/api/erp/kot-stream");
       es.addEventListener("ready", () => {
         setStatus("live");
         void fetchVersion();

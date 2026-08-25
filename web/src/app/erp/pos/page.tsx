@@ -59,6 +59,8 @@ export default async function ErpPosPage() {
     mealServices,
     { data: todayEvents },
     deskRole,
+    { data: ncReasonRows },
+    { data: creditAgentRows },
   ] = await Promise.all([
       loadMenuByOutlets(
         activeOutletCodes.length > 0
@@ -100,11 +102,28 @@ export default async function ErpPosPage() {
         .neq("status", "cancelled")
         .order("service_time", { ascending: true }),
       getDeskRole(),
+      admin
+        .from("nc_reason_codes")
+        .select("code, label, domains")
+        .eq("property_id", propertyId)
+        .eq("active", true)
+        .order("sort_order")
+        .limit(40),
+      admin
+        .from("agents")
+        .select("id, company_name, market, status, credit_used, credit_limit")
+        .in("status", [...CREDIT_AGENT_STATUSES])
+        .order("company_name")
+        .limit(200),
     ]);
 
-  const shiftCloseSummary = shift
-    ? await loadPosShiftCloseSummary(shift, admin)
-    : null;
+  const [shiftCloseSummary, modifierGroups] = await Promise.all([
+    shift ? loadPosShiftCloseSummary(shift, admin) : Promise.resolve(null),
+    loadModifierGroupsForItems(
+      items.map((i) => i.id),
+      admin,
+    ),
+  ]);
 
   const dayEvents = [...(todayEvents ?? [])].sort((a, b) => {
     const ta = (a.service_time as string | null) ?? "99:99";
@@ -112,18 +131,6 @@ export default async function ErpPosPage() {
     return ta.localeCompare(tb);
   });
 
-  const modifierGroups = await loadModifierGroupsForItems(
-    items.map((i) => i.id),
-    admin,
-  );
-
-  const { data: ncReasonRows } = await admin
-    .from("nc_reason_codes")
-    .select("code, label, domains")
-    .eq("property_id", propertyId)
-    .eq("active", true)
-    .order("sort_order")
-    .limit(40);
   const ncReasons = (ncReasonRows ?? [])
     .filter((r) => {
       const domains = r.domains as string[] | null;
@@ -131,12 +138,6 @@ export default async function ErpPosPage() {
     })
     .map((r) => ({ code: r.code as string, label: r.label as string }));
 
-  const { data: creditAgentRows } = await admin
-    .from("agents")
-    .select("id, company_name, market, status, credit_used, credit_limit")
-    .in("status", [...CREDIT_AGENT_STATUSES])
-    .order("company_name")
-    .limit(200);
   const creditAgents = (creditAgentRows ?? []).map((a) => ({
     id: a.id as string,
     company_name: (a.company_name as string) ?? "Agent",
@@ -245,6 +246,7 @@ export default async function ErpPosPage() {
       />
 
       <PosLayout
+        propertyId={propertyId}
         items={items}
         outlets={outlets.map((o) => ({ code: o.code, name: o.name }))}
         modifierGroups={modifierGroups}

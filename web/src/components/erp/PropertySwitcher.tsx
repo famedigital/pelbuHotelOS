@@ -1,6 +1,7 @@
 "use client";
 
 import { switchActiveProperty } from "@/app/actions/erp-holds";
+import { deleteDeskReadCacheByProperty } from "@/lib/desk/desk-read-cache";
 import type { PropertySwitcherOption } from "@/lib/property-types";
 
 export function PropertySwitcher({
@@ -19,7 +20,14 @@ export function PropertySwitcher({
         id="property_id"
         name="property_id"
         defaultValue={activePropertyId}
-        onChange={(e) => e.currentTarget.form?.requestSubmit()}
+        onChange={(e) => {
+          const next = e.currentTarget.value;
+          void deleteDeskReadCacheByProperty(activePropertyId);
+          if (typeof sessionStorage !== "undefined") {
+            sessionStorage.setItem("pelbu-desk-property-id", next);
+          }
+          e.currentTarget.form?.requestSubmit();
+        }}
         className="h-9 max-w-[200px] truncate rounded-md border border-input bg-transparent px-2.5 text-xs font-medium text-foreground outline-none transition-colors hover:bg-muted focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
       >
         {properties.map((p) => (

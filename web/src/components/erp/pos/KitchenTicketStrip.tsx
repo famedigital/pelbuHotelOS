@@ -8,9 +8,14 @@ import { useMemo } from "react";
 type Props = {
   openTickets: OpenPosTicket[];
   onOpenTickets: () => void;
+  onInvalidate?: () => void | Promise<void>;
 };
 
-export function KitchenTicketStrip({ openTickets, onOpenTickets }: Props) {
+export function KitchenTicketStrip({
+  openTickets,
+  onOpenTickets,
+  onInvalidate,
+}: Props) {
   const counts = useMemo(() => {
     const byStatus = new Map<string, number>();
     let parked = 0;
@@ -116,7 +121,7 @@ export function KitchenTicketStrip({ openTickets, onOpenTickets }: Props) {
           ) : null}
         </div>
       </div>
-      <DeskLiveRefresh label="Live" />
+      <DeskLiveRefresh label="Live" onInvalidate={onInvalidate} />
     </button>
   );
 }

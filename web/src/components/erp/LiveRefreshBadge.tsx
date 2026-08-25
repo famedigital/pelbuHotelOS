@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 /**
  * Fingerprint poll → route refresh. Free-tier slower to protect Vercel+Supabase.
+ * Prefer onInvalidate (patch cache) over full router.refresh when provided.
  * Skips network while the tab is hidden.
  */
 export function LiveRefreshBadge({
@@ -15,18 +16,23 @@ export function LiveRefreshBadge({
   title = "Polling for changes",
   className = "text-[10px] font-medium tracking-[0.14em] text-muted-foreground uppercase",
   toastOnChange = true,
+  onInvalidate,
 }: {
   endpoint: string;
   intervalMs?: number;
   title?: string;
   className?: string;
   toastOnChange?: boolean;
+  /** When set, called instead of router.refresh (fallback to refresh on throw). */
+  onInvalidate?: () => void | Promise<void>;
 }) {
   const router = useRouter();
   const lastVersion = useRef<string | null>(null);
   const [live, setLive] = useState(false);
   const [error, setError] = useState(false);
   const pollMs = intervalMs ?? deskPollMs();
+  const onInvalidateRef = useRef(onInvalidate);
+  onInvalidateRef.current = onInvalidate;
 
   useEffect(() => {
     let cancelled = false;
@@ -62,7 +68,14 @@ export function LiveRefreshBadge({
                 duration: 2200,
               });
             }
-            router.refresh();
+            const custom = onInvalidateRef.current;
+            if (custom) {
+              void Promise.resolve(custom()).catch(() => {
+                router.refresh();
+              });
+            } else {
+              router.refresh();
+            }
           }
           lastVersion.current = version;
         }
