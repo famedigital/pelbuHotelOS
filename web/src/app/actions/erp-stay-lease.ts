@@ -41,19 +41,8 @@ export async function claimStayLease(
     if (!id || !token) return { ok: false, error: "Missing booking or token." };
 
     const admin = createSupabaseAdminClient();
-    const propertyId = await resolveActivePropertyId(admin);
-    const { actor, staffId } = await resolveDeskActor();
-    const holderLabel = actor === "desk" ? "Desk (PIN)" : actor;
     const now = new Date().toISOString();
     const expiresAt = leaseExpiryIso();
-
-    const { data: booking } = await admin
-      .from("bookings")
-      .select("id, property_id")
-      .eq("id", id)
-      .maybeSingle();
-    if (!booking) return { ok: false, error: "Booking not found." };
-    assertDeskProperty(propertyId, booking.property_id as string, "Booking");
 
     const { data: existing } = await admin
       .from("booking_stay_leases")
@@ -65,6 +54,18 @@ export async function claimStayLease(
       const exp = new Date(existing.expires_at as string).getTime();
       const live = Number.isFinite(exp) && exp > Date.now();
       const sameClient = (existing.client_token as string) === token;
+      if (live && sameClient && !opts?.force) {
+        await admin
+          .from("booking_stay_leases")
+          .update({ expires_at: expiresAt })
+          .eq("booking_id", id);
+        return {
+          ok: true,
+          holding: true,
+          peerLabel: null,
+          expiresAt,
+        };
+      }
       if (live && !sameClient && !opts?.force) {
         return {
           ok: true,
@@ -78,6 +79,18 @@ export async function claimStayLease(
         };
       }
     }
+
+    const propertyId = await resolveActivePropertyId(admin);
+    const { actor, staffId } = await resolveDeskActor();
+    const holderLabel = actor === "desk" ? "Desk (PIN)" : actor;
+
+    const { data: booking } = await admin
+      .from("bookings")
+      .select("id, property_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (!booking) return { ok: false, error: "Booking not found." };
+    assertDeskProperty(propertyId, booking.property_id as string, "Booking");
 
     const forceNote = optionalTrim(opts?.forceNote ?? null);
     const row = {

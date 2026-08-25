@@ -2,6 +2,7 @@
 
 import { updateDotAssessmentMeta } from "@/app/actions/erp-dot-assessment";
 import { CriterionRow } from "@/components/erp/dot-assessment/CriterionRow";
+import { DotAssessmentDeleteButton } from "@/components/erp/dot-assessment/DotAssessmentDeleteButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -516,6 +517,14 @@ export function DotAssessmentShell({
               {board.totals.answered}/{board.totals.totalScorable} answered
             </p>
           </div>
+          {!readOnly ? (
+            <DotAssessmentDeleteButton
+              assessmentId={assessment.id}
+              starLevel={assessment.starLevel}
+              status={assessment.status}
+              progressPct={board.totals.progressPct}
+            />
+          ) : null}
           <Button asChild variant="outline" size="sm" className="shrink-0 gap-1">
             <Link href={`/erp/dot-assessment/${assessment.id}/print`}>
               <PrinterIcon className="size-3.5" />

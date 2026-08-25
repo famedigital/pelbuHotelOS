@@ -549,7 +549,10 @@ export default async function CalendarPage({ searchParams }: Props) {
       : "";
 
   return (
-    <div className="flex min-h-0 flex-col overflow-hidden max-md:h-[calc(100svh-3.5rem-4rem-env(safe-area-inset-bottom,0px))] md:h-[calc(100svh-3.5rem)]">
+    <div
+      data-stay-view
+      className="flex min-h-0 flex-col overflow-hidden max-md:h-[calc(100svh-4rem-env(safe-area-inset-bottom,0px))] max-md:landscape:h-[100dvh] md:h-[calc(100svh-3.5rem)]"
+    >
       <div className="shrink-0">
         <DeskOfflineQueueStrip defaultKind="hold_draft" />
       </div>

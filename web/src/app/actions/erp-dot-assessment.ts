@@ -17,6 +17,7 @@ import {
   assertPropertyScopedPath,
   createFinanceSignedPreview,
 } from "@/lib/finance-import/storage";
+import { FINANCE_PRIVATE_BUCKET } from "@/lib/finance-import/types";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
@@ -592,4 +593,92 @@ export async function archiveDotAssessment(formData: FormData): Promise<State> {
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
   }
+}
+
+async function purgeAssessment(
+  admin: ReturnType<typeof createSupabaseAdminClient>,
+  propertyId: string,
+  id: string,
+) {
+  const { data: evid } = await admin
+    .from("dot_assessment_evidence")
+    .select("storage_path")
+    .eq("assessment_id", id);
+  const paths = (evid ?? [])
+    .map((e) => String(e.storage_path ?? ""))
+    .filter((p) => p.startsWith(`${propertyId}/`));
+  if (paths.length > 0) {
+    const { error: storageError } = await admin.storage
+      .from(FINANCE_PRIVATE_BUCKET)
+      .remove(paths);
+    if (storageError) {
+      console.error("dot assessment evidence storage remove failed", storageError);
+    }
+  }
+  const { error } = await admin
+    .from("dot_assessments")
+    .delete()
+    .eq("id", id)
+    .eq("property_id", propertyId);
+  if (error) throw new Error(error.message);
+}
+
+/** Permanently remove a walk-through (answers + photos). Cascades DB rows. */
+export async function deleteDotAssessment(formData: FormData): Promise<void> {
+  await requireWriteAccess();
+  const admin = createSupabaseAdminClient();
+  const id = trimRequired(formData.get("assessment_id"), "Assessment");
+  const { propertyId, row } = await loadOwnedAssessment(admin, id);
+  await purgeAssessment(admin, propertyId, id);
+  await writeAuditEvent(admin, {
+    propertyId,
+    entityType: "dot_assessments",
+    entityId: id,
+    action: "dot_assessment.delete",
+    summary: `Deleted ${row.starLevel}-star DOT assessment (${row.status})`,
+  });
+  revalidatePath("/erp/dot-assessment");
+  redirect("/erp/dot-assessment");
+}
+
+/** Remove unused drafts (0 answers) — duplicate Start clicks. */
+export async function deleteEmptyDotDrafts(): Promise<void> {
+  await requireWriteAccess();
+  const admin = createSupabaseAdminClient();
+  const propertyId = await resolveActivePropertyId(admin);
+  const { data: drafts, error } = await admin
+    .from("dot_assessments")
+    .select("id")
+    .eq("property_id", propertyId)
+    .eq("status", "draft");
+  if (error) throw new Error(error.message);
+
+  let removed = 0;
+  for (const draft of drafts ?? []) {
+    const id = draft.id as string;
+    const [{ count: answered }, { count: photos }] = await Promise.all([
+      admin
+        .from("dot_assessment_responses")
+        .select("id", { count: "exact", head: true })
+        .eq("assessment_id", id)
+        .neq("status", "pending"),
+      admin
+        .from("dot_assessment_evidence")
+        .select("id", { count: "exact", head: true })
+        .eq("assessment_id", id),
+    ]);
+    if ((answered ?? 0) > 0 || (photos ?? 0) > 0) continue;
+    await purgeAssessment(admin, propertyId, id);
+    removed += 1;
+  }
+
+  if (removed > 0) {
+    await writeAuditEvent(admin, {
+      propertyId,
+      entityType: "dot_assessments",
+      action: "dot_assessment.delete_empty_drafts",
+      summary: `Deleted ${removed} unused DOT assessment draft${removed === 1 ? "" : "s"}`,
+    });
+  }
+  revalidatePath("/erp/dot-assessment");
 }

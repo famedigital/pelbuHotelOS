@@ -39,44 +39,41 @@ export function RackPartySelectionBar({
   };
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-accent/30 bg-accent/10 px-2 py-1.5">
-      <p className="text-xs font-medium text-foreground">
-        <span className="tabular-nums">{n}</span> room
-        {n === 1 ? "" : "s"} selected
+    <div className="flex shrink-0 items-center gap-2">
+      <p className="text-xs text-muted-foreground">
+        <span className="font-medium tabular-nums text-foreground">{n}</span>{" "}
+        selected
       </p>
-      <div className="ml-auto flex flex-wrap items-center gap-1.5">
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className="h-7 text-[11px]"
-          disabled={pending}
-          onClick={onClear}
-        >
-          Clear
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="h-7 text-[11px]"
-          disabled={pending || n < 1}
-          onClick={onOpenParty}
-        >
-          Open party
-        </Button>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={onClear}
+        className="h-8 px-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+      >
+        Clear
+      </button>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        className="h-8 px-2 text-xs"
+        disabled={pending || n < 1}
+        onClick={onOpenParty}
+      >
+        Open
+      </Button>
+      {n >= 2 ? (
         <Button
           type="button"
           size="sm"
           variant="citrus"
-          className="h-7 text-[11px]"
-          disabled={pending || n < 2}
-          title={n < 2 ? "Select at least two rooms to link" : undefined}
+          className="h-8 px-2.5 text-xs"
+          disabled={pending}
           onClick={link}
         >
-          {pending ? "Linking…" : "Link as group"}
+          {pending ? "Linking…" : "Link group"}
         </Button>
-      </div>
+      ) : null}
     </div>
   );
 }

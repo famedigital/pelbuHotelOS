@@ -1,6 +1,10 @@
 import { createDotAssessment, listDotAssessments } from "@/app/actions/erp-dot-assessment";
+import {
+  ClearEmptyDotDraftsButton,
+  DotAssessmentDeleteButton,
+} from "@/components/erp/dot-assessment/DotAssessmentDeleteButton";
 import { Button } from "@/components/ui/button";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { getDeskRole, isDeskAuthenticated } from "@/lib/desk-auth";
 import { getCatalog } from "@/lib/dot-assessment/catalog";
 import { computeScoreboard } from "@/lib/dot-assessment/score";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -20,6 +24,9 @@ export const dynamic = "force-dynamic";
 
 export default async function DotAssessmentListPage() {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
+  const role = await getDeskRole();
+  const canWrite =
+    role === "owner" || role === "gm" || role === "front_desk";
 
   let assessments: Awaited<ReturnType<typeof listDotAssessments>> = [];
   let loadError: string | null = null;
@@ -108,9 +115,20 @@ export default async function DotAssessmentListPage() {
       )}
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
-          Continue
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+            Continue
+          </h2>
+          {canWrite ? (
+            <ClearEmptyDotDraftsButton
+              count={
+                withProgress.filter(
+                  ({ a, pct }) => a.status === "draft" && pct === 0,
+                ).length
+              }
+            />
+          ) : null}
+        </div>
         {withProgress.length === 0 && !loadError ? (
           <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
             No assessments yet — start a 3★ or 4★ walk-through above.
@@ -118,56 +136,69 @@ export default async function DotAssessmentListPage() {
         ) : (
           <ul className="space-y-2">
             {withProgress.map(({ a, pct, gate, ready }) => (
-              <li key={a.id}>
-                <Link
-                  href={`/erp/dot-assessment/${a.id}?step=${pct > 0 ? "gate" : "guide"}`}
-                  className="block rounded-xl border bg-card p-4 transition-all hover:border-sky-400/60 hover:shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-medium">
-                        {a.starLevel}★ checklist
-                        <span className="ml-2 text-xs font-normal capitalize text-muted-foreground">
-                          {a.status}
-                        </span>
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {new Date(a.updatedAt).toLocaleString(undefined, {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        })}
-                        {a.leadAssessor ? ` · ${a.leadAssessor}` : ""}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-semibold tabular-nums">
-                        {pct}%
-                      </p>
-                      <p
-                        className={cn(
-                          "text-[11px] font-medium",
-                          ready
-                            ? "text-emerald-600"
+              <li
+                key={a.id}
+                className="rounded-xl border bg-card p-4 transition-all hover:border-sky-400/60 hover:shadow-sm"
+              >
+                <div className="flex items-start gap-1">
+                  <Link
+                    href={`/erp/dot-assessment/${a.id}?step=${pct > 0 ? "gate" : "guide"}`}
+                    className="min-w-0 flex-1"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium">
+                          {a.starLevel}★ checklist
+                          <span className="ml-2 text-xs font-normal capitalize text-muted-foreground">
+                            {a.status}
+                          </span>
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {new Date(a.updatedAt).toLocaleString(undefined, {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })}
+                          {a.leadAssessor ? ` · ${a.leadAssessor}` : ""}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-semibold tabular-nums">
+                          {pct}%
+                        </p>
+                        <p
+                          className={cn(
+                            "text-[11px] font-medium",
+                            ready
+                              ? "text-emerald-600"
+                              : gate
+                                ? "text-sky-600"
+                                : "text-amber-700",
+                          )}
+                        >
+                          {ready
+                            ? "Ready"
                             : gate
-                              ? "text-sky-600"
-                              : "text-amber-700",
-                        )}
-                      >
-                        {ready
-                          ? "Ready"
-                          : gate
-                            ? "Gate OK"
-                            : "Gate open"}
-                      </p>
+                              ? "Gate OK"
+                              : "Gate open"}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-sky-500 to-emerald-500"
-                      style={{ width: `${pct}%` }}
+                    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-sky-500 to-emerald-500"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </Link>
+                  {canWrite ? (
+                    <DotAssessmentDeleteButton
+                      assessmentId={a.id}
+                      starLevel={a.starLevel}
+                      status={a.status}
+                      progressPct={pct}
                     />
-                  </div>
-                </Link>
+                  ) : null}
+                </div>
               </li>
             ))}
           </ul>

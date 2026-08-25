@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
+  CalendarRangeIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   PlusIcon,
@@ -112,6 +113,7 @@ export function RoomDayBoard({
   onBookVacant,
   onAssignUnassigned,
   onBookFab,
+  onOpenTimeline,
 }: {
   units: RackUnit[];
   stays: RackStay[];
@@ -124,6 +126,7 @@ export function RoomDayBoard({
   onBookVacant: (unit: RackUnit, date: string) => void;
   onAssignUnassigned: (item: UnassignedBooking) => void;
   onBookFab: () => void;
+  onOpenTimeline?: () => void;
 }) {
   const [filter, setFilter] = useState<DayFilter>("all");
   const [query, setQuery] = useState("");
@@ -275,6 +278,16 @@ export function RoomDayBoard({
               {label}
             </button>
           ))}
+          {onOpenTimeline ? (
+            <button
+              type="button"
+              onClick={onOpenTimeline}
+              className="ml-auto inline-flex h-8 shrink-0 items-center gap-1 rounded-md border border-accent/40 bg-accent/10 px-2.5 text-xs font-medium text-accent"
+            >
+              <CalendarRangeIcon className="size-3.5" aria-hidden />
+              Timeline
+            </button>
+          ) : null}
         </div>
 
         {showSearch || q ? (

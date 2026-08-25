@@ -26,6 +26,48 @@ function tabClass(active: boolean) {
  * On `/erp`, when the session can preview boards, Owner / Manager / Front desk…
  * lives here too — not a second strip under the header.
  */
+function DashboardBoardTabs({
+  homeDashboardView,
+}: {
+  homeDashboardView: DashboardView;
+}) {
+  const searchParams = useSearchParams();
+  const requested = parseDashboardView(searchParams.get("view"));
+  const active: DashboardView = requested ?? homeDashboardView;
+  const forecastMonth = searchParams.get("forecastMonth");
+
+  return (
+    <nav
+      aria-label="Desk dashboard boards"
+      className="ml-1 flex min-w-0 max-w-[min(100%,52rem)] items-center gap-0.5 overflow-x-auto rounded-md border bg-muted/40 p-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
+      {DASHBOARD_VIEWS.map((v) => {
+        const isActive = v.id === active;
+        const params = new URLSearchParams();
+        if (v.id !== homeDashboardView) {
+          params.set("view", v.id);
+        }
+        if (forecastMonth && /^\d{4}-\d{2}$/.test(forecastMonth)) {
+          params.set("forecastMonth", forecastMonth);
+        }
+        const q = params.toString();
+        const href = q ? `/erp?${q}` : "/erp";
+        return (
+          <Link
+            key={v.id}
+            href={href}
+            aria-current={isActive ? "page" : undefined}
+            title={v.blurb}
+            className={tabClass(isActive)}
+          >
+            {v.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 export function ModuleHeaderTabs({
   canPreviewDashboards = false,
   homeDashboardView = "front_desk",
@@ -38,7 +80,6 @@ export function ModuleHeaderTabs({
   allowedModuleKeys?: readonly string[];
 } = {}) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const match = resolveModule(pathname);
   const { workspace } = useDeskWorkspace();
 
@@ -53,40 +94,7 @@ export function ModuleHeaderTabs({
     (pathname === "/erp" || pathname === "/erp/");
 
   if (onDashboard && canPreviewDashboards) {
-    const requested = parseDashboardView(searchParams.get("view"));
-    const active: DashboardView = requested ?? homeDashboardView;
-    const forecastMonth = searchParams.get("forecastMonth");
-
-    return (
-      <nav
-        aria-label="Desk dashboard boards"
-        className="ml-1 flex min-w-0 max-w-[min(100%,52rem)] items-center gap-0.5 overflow-x-auto rounded-md border bg-muted/40 p-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      >
-        {DASHBOARD_VIEWS.map((v) => {
-          const isActive = v.id === active;
-          const params = new URLSearchParams();
-          if (v.id !== homeDashboardView) {
-            params.set("view", v.id);
-          }
-          if (forecastMonth && /^\d{4}-\d{2}$/.test(forecastMonth)) {
-            params.set("forecastMonth", forecastMonth);
-          }
-          const q = params.toString();
-          const href = q ? `/erp?${q}` : "/erp";
-          return (
-            <Link
-              key={v.id}
-              href={href}
-              aria-current={isActive ? "page" : undefined}
-              title={v.blurb}
-              className={tabClass(isActive)}
-            >
-              {v.label}
-            </Link>
-          );
-        })}
-      </nav>
-    );
+    return <DashboardBoardTabs homeDashboardView={homeDashboardView} />;
   }
 
   const tabs = (() => {

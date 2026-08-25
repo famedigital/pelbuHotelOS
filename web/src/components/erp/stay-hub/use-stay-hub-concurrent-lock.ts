@@ -14,8 +14,8 @@ import { useEffect, useRef, useState } from "react";
 
 const CHANNEL = "pelbu-stay-hub-edit-lock";
 const STORAGE_PREFIX = "pelbu-stay-lock:";
-const HEARTBEAT_MS = 8_000;
-const STALE_MS = 20_000;
+const HEARTBEAT_MS = 40_000;
+const STALE_MS = 90_000;
 
 type LockPayload = {
   bookingId: string;
@@ -169,7 +169,10 @@ export function useStayHubConcurrentLock(
       channel = null;
     }
 
+    let inFlight = false;
     async function renewServer(force = false, forceNote?: string) {
+      if (inFlight && !force) return;
+      inFlight = true;
       try {
         const res = await claimStayLease(bookingId!, clientId, {
           force,
@@ -194,6 +197,8 @@ export function useStayHubConcurrentLock(
         }
       } catch {
         /* offline — local lock still helps same browser */
+      } finally {
+        inFlight = false;
       }
     }
 

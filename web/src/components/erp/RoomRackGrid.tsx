@@ -54,6 +54,7 @@ import { cn } from "@/lib/utils";
 import { mergeBookingsIntoGroup } from "@/app/actions/erp-reservations-party";
 import {
   BanIcon,
+  ListIcon,
   MoreHorizontalIcon,
   PencilIcon,
   PlusIcon,
@@ -177,7 +178,6 @@ const CATEGORY_H = 24;
 const ROW_H = 44;
 const HEADER_H = 48;
 const FOOTER_H = 32;
-const TOOLBAR_H = 40;
 
 type CellZoom = "sm" | "md" | "lg";
 
@@ -399,23 +399,15 @@ const STAY_VIEW_LEGEND = [
   { swatch: "bg-rose-500", label: "Dirty" },
 ] as const;
 
-function StayViewLegend({ compact = false }: { compact?: boolean }) {
-  return (
-    <ul
-      aria-label="Stay View legend"
-      className={cn(
-        "flex flex-wrap items-center gap-x-2.5 gap-y-1",
-        compact ? "text-[9px]" : "text-[10px]",
-      )}
-    >
-      {STAY_VIEW_LEGEND.map((row) => (
-        <li key={row.label} className="flex items-center gap-1 text-muted-foreground">
-          <span className={cn("size-2 shrink-0 rounded-sm", row.swatch)} />
-          <span>{row.label}</span>
-        </li>
-      ))}
-    </ul>
-  );
+function fmtStayRange(checkIn: string, checkOut: string): string {
+  const opt: Intl.DateTimeFormatOptions = {
+    day: "numeric",
+    month: "short",
+    timeZone: "Asia/Thimphu",
+  };
+  const a = new Date(`${checkIn}T12:00:00`).toLocaleDateString("en-GB", opt);
+  const b = new Date(`${checkOut}T12:00:00`).toLocaleDateString("en-GB", opt);
+  return `${a}–${b}`;
 }
 
 function blockBarClass(kind: RoomBlock["block_kind"]): string {
@@ -955,6 +947,12 @@ export function RoomRackGrid({
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const isMdUp = useMediaQuery("(min-width: 768px)");
+  const isLandscape = useMediaQuery("(orientation: landscape)");
+  const isShort = useMediaQuery("(max-height: 640px)");
+  const [forceTimeline, setForceTimeline] = useState(false);
+  /** Portrait phone: day list. Short / landscape phone: rack with one bar. */
+  const useDayBoard = !isMdUp && !isLandscape && !forceTimeline;
+  const compactRack = !useDayBoard && (!isMdUp || isShort);
   const stayHub = useStayHubOptional();
   const leftWidth = useLeftPaneWidth();
   const [cellZoom, setCellZoom] = useState<CellZoom>(
@@ -1000,6 +998,14 @@ export function RoomRackGrid({
   const [editUnit, setEditUnit] = useState<RackUnit | null>(null);
   const [, startResizing] = useTransition();
   const [dayBoardDate, setDayBoardDate] = useState(today);
+
+  useEffect(() => {
+    setForceTimeline(false);
+  }, [isLandscape]);
+
+  useEffect(() => {
+    if (compactRack) setCellZoom("sm");
+  }, [compactRack]);
 
   const deskRoomTypes: FastBookRoomType[] = useMemo(() => {
     const map = new Map<string, FastBookRoomType>();
@@ -1341,6 +1347,30 @@ export function RoomRackGrid({
       departures: unique(stays.filter((stay) => stay.check_out === today)),
     };
   }, [stays, today]);
+
+  const unassignedClusters = useMemo(() => {
+    const map = new Map<string, UnassignedBooking[]>();
+    for (const item of unassigned) {
+      const key = `${item.contact_name}\0${item.check_in}\0${item.check_out}`;
+      const list = map.get(key) ?? [];
+      list.push(item);
+      map.set(key, list);
+    }
+    return [...map.values()].map((items) => {
+      const head = items[0]!;
+      return {
+        key: `${head.contact_name}:${head.check_in}:${head.check_out}`,
+        items,
+        head,
+        rooms: items.reduce((n, i) => n + i.missing_rooms, 0),
+        typeLabel: [
+          ...new Set(
+            items.map((i) => i.room_type_code || i.room_type_name),
+          ),
+        ].join(" · "),
+      };
+    });
+  }, [unassigned]);
 
   const matchesDayFilter = useCallback(
     (stay: RackStay) => {
@@ -1820,21 +1850,10 @@ export function RoomRackGrid({
     [],
   );
 
-  // Phone: Day board (not pinch Gantt). Desktop/tablet keep full rack.
-  // Height fills DeskShell content (header + bottom-nav padding already accounted for).
-  if (!isMdUp) {
+  // Phone portrait: Day board. Short / landscape / Timeline: compact rack.
+  if (useDayBoard) {
     return (
       <div className="erp flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b px-3 py-1.5">
-          <div className="min-w-0">
-            <p className="text-sm font-medium">Day board</p>
-            <p className="text-[10px] text-muted-foreground">
-              Tap room or guest · Needs room → assign
-            </p>
-            <StayViewLegend compact />
-          </div>
-          <CalendarLiveRefresh />
-        </div>
         <RoomDayBoard
           units={units}
           stays={stays}
@@ -1848,6 +1867,7 @@ export function RoomRackGrid({
           onAssignUnassigned={(item) =>
             setAssignGuide({ kind: "single", item })
           }
+          onOpenTimeline={() => setForceTimeline(true)}
           onBookFab={() => {
             setSelection({
               checkIn: dayBoardDate,
@@ -1899,41 +1919,77 @@ export function RoomRackGrid({
   }
 
   return (
-    <div className="erp flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+    <div
+      className={cn(
+        "erp flex h-full min-h-0 min-w-0 flex-col overflow-hidden",
+        compactRack &&
+          "fixed inset-0 z-[45] bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
+      )}
+    >
       <div
-        className="flex shrink-0 flex-wrap items-center gap-1.5 border-b bg-background px-2"
-        style={{ minHeight: TOOLBAR_H }}
+        className={cn(
+          "flex shrink-0 items-center border-b border-border/50 bg-background",
+          compactRack
+            ? "h-11 gap-2 overflow-x-auto px-2"
+            : "h-12 gap-3 px-4",
+        )}
       >
-        {[
-          { n: 30, label: "30d" },
-          { n: 60, label: "60d" },
-          { n: 90, label: "90d" },
-          { n: 180, label: "6m" },
-        ].map(({ n, label }) => (
-          <Link
-            key={n}
-            href={`/erp/calendar?days=${n}&start=${start}`}
-            className={cn(
-              "inline-flex h-7 items-center rounded-md border px-2 text-[11px] font-medium",
-              windowDays === n
-                ? "border-accent bg-accent/10 text-accent"
-                : "bg-card text-muted-foreground hover:bg-muted/50",
-            )}
-            title={n === 180 ? "6 months (~180 days)" : `${n} days`}
+        {compactRack && !isLandscape ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 shrink-0 gap-1 px-2 text-xs"
+            onClick={() => setForceTimeline(false)}
           >
-            {label}
-          </Link>
-        ))}
-        <StayViewLegend />
+            <ListIcon className="size-3.5" aria-hidden />
+            Day list
+          </Button>
+        ) : null}
+        <div className={cn(compactRack ? "hidden" : "contents")}>
+        <div
+          className="inline-flex h-8 items-center rounded-md bg-muted/40 p-0.5"
+          role="group"
+          aria-label="Visible days"
+        >
+          {[
+            { n: 30, label: "30d" },
+            { n: 60, label: "60d" },
+            { n: 90, label: "90d" },
+            { n: 180, label: "6m" },
+          ].map(({ n, label }) => (
+            <Link
+              key={n}
+              href={`/erp/calendar?days=${n}&start=${start}`}
+              className={cn(
+                "inline-flex h-7 items-center rounded px-2.5 text-xs font-medium",
+                windowDays === n
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              title={n === 180 ? "6 months (~180 days)" : `${n} days`}
+            >
+              {label}
+            </Link>
+          ))}
+        </div>
         <Popover>
           <PopoverTrigger asChild>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="sm"
-              className="h-7 px-2 text-[11px] font-medium"
+              className="h-8 gap-1.5 px-2 text-xs font-medium text-muted-foreground"
             >
-              Stay colors
+              <span className="flex items-center gap-0.5" aria-hidden>
+                {STAY_VIEW_LEGEND.map((row) => (
+                  <span
+                    key={row.label}
+                    className={cn("size-1.5 rounded-sm", row.swatch)}
+                  />
+                ))}
+              </span>
+              <span className="hidden lg:inline">Legend</span>
             </Button>
           </PopoverTrigger>
           <PopoverContent
@@ -1972,63 +2028,40 @@ export function RoomRackGrid({
                 <span>Passport / SDF incomplete</span>
               </li>
             </ul>
+            {visibleCategories.length > 0 ? (
+              <div className="border-t border-border/60 pt-2">
+                <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+                  Categories
+                </p>
+                <ul className="mt-1 space-y-1">
+                  {visibleCategories.map((cat) => (
+                    <li
+                      key={cat.id}
+                      className="flex items-center gap-2 text-xs"
+                    >
+                      <span
+                        className="inline-flex min-w-[2rem] shrink-0 items-center justify-center rounded px-1.5 py-0.5 font-mono text-[10px] font-bold text-white"
+                        style={{ backgroundColor: categoryColor(cat.id) }}
+                      >
+                        {cat.code}
+                      </span>
+                      <span className="truncate text-foreground">{cat.name}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </PopoverContent>
         </Popover>
         <Popover>
           <PopoverTrigger asChild>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="sm"
-              className="h-7 px-2 text-[11px] font-medium"
+              className="h-8 px-2 text-xs font-medium tabular-nums text-muted-foreground"
             >
-              Categories
-              {visibleCategories.length > 0 ? (
-                <span className="ml-1 tabular-nums text-muted-foreground">
-                  {visibleCategories.length}
-                </span>
-              ) : null}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent
-            align="start"
-            className="erp w-auto max-w-[min(92vw,320px)] space-y-2 p-3"
-          >
-            <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-              Room categories
-            </p>
-            <ul className="space-y-1">
-              {visibleCategories.map((cat) => (
-                <li
-                  key={cat.id}
-                  className="flex items-center gap-2 rounded-md px-1 py-0.5 text-xs"
-                >
-                  <span
-                    className="inline-flex min-w-[2rem] shrink-0 items-center justify-center rounded px-1.5 py-0.5 font-mono text-[10px] font-bold text-white"
-                    style={{ backgroundColor: categoryColor(cat.id) }}
-                  >
-                    {cat.code}
-                  </span>
-                  <span className="truncate text-foreground">{cat.name}</span>
-                </li>
-              ))}
-            </ul>
-          </PopoverContent>
-        </Popover>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-7 px-2 text-[11px] font-medium"
-            >
-              Occupancy
-              {monthStats[0] ? (
-                <span className="ml-1 tabular-nums text-muted-foreground">
-                  {monthStats[0].percent}%
-                </span>
-              ) : null}
+              {monthStats[0] ? `${monthStats[0].percent}%` : "Occ"}
             </Button>
           </PopoverTrigger>
           <PopoverContent
@@ -2085,28 +2118,43 @@ export function RoomRackGrid({
             </div>
           </PopoverContent>
         </Popover>
-        <label className="inline-flex h-7 items-center gap-1 rounded-md border bg-card px-1.5 text-[10px] text-muted-foreground">
-          <span className="hidden sm:inline">Go to</span>
-          <input
-            type="date"
-            value={start}
-            aria-label="Go to date"
-            className="h-6 max-w-[9.5rem] border-0 bg-transparent text-[11px] text-foreground outline-none"
-            onChange={(event) => {
-              const next = event.target.value;
-              if (!/^\d{4}-\d{2}-\d{2}$/.test(next)) return;
-              router.push(`/erp/calendar?days=${windowDays}&start=${next}`);
-            }}
-          />
-        </label>
-        <Link
-          href={`/erp/calendar?days=${windowDays}&start=${today}`}
-          className="inline-flex h-7 items-center rounded-md border px-2 text-[11px] text-muted-foreground hover:bg-muted/50"
-        >
-          Today
-        </Link>
+        </div>
+        <div className="inline-flex h-8 items-center gap-0.5">
+          <label className="inline-flex h-8 items-center text-xs text-muted-foreground">
+            <input
+              type="date"
+              value={start}
+              aria-label="Go to date"
+              className="h-8 max-w-[9.5rem] border-0 bg-transparent text-xs text-foreground outline-none"
+              onChange={(event) => {
+                const next = event.target.value;
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(next)) return;
+                router.push(`/erp/calendar?days=${windowDays}&start=${next}`);
+              }}
+            />
+          </label>
+          <Link
+            href={`/erp/calendar?days=${windowDays}&start=${today}`}
+            className="inline-flex h-8 items-center px-2 text-xs text-muted-foreground hover:text-foreground"
+          >
+            Today
+          </Link>
+          <Link
+            href={`/erp/calendar?days=${windowDays}&start=${addDays(start, -windowDays)}`}
+            className="inline-flex size-8 items-center justify-center text-muted-foreground hover:text-foreground"
+          >
+            ←
+          </Link>
+          <Link
+            href={`/erp/calendar?days=${windowDays}&start=${addDays(start, windowDays)}`}
+            className="inline-flex size-8 items-center justify-center text-muted-foreground hover:text-foreground"
+          >
+            →
+          </Link>
+        </div>
+        <div className={cn(compactRack ? "hidden" : "contents")}>
         <div
-          className="inline-flex h-7 items-center gap-0.5 rounded-md border bg-card p-0.5"
+          className="inline-flex h-7 items-center gap-0.5 rounded-md bg-muted/40 p-0.5"
           role="group"
           aria-label="Day column zoom"
         >
@@ -2124,8 +2172,8 @@ export function RoomRackGrid({
               className={cn(
                 "inline-flex h-6 min-w-6 items-center justify-center rounded px-1.5 text-[10px] font-semibold",
                 cellZoom === z
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:bg-muted/60",
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground",
               )}
               onClick={() => setCellZoom(z)}
             >
@@ -2133,22 +2181,8 @@ export function RoomRackGrid({
             </button>
           ))}
         </div>
-        <Link
-          href={`/erp/calendar?days=${windowDays}&start=${addDays(start, -windowDays)}`}
-          className="inline-flex h-7 items-center rounded-md border px-2 text-[11px] text-muted-foreground hover:bg-muted/50"
-        >
-          ←
-        </Link>
-        <Link
-          href={`/erp/calendar?days=${windowDays}&start=${addDays(start, windowDays)}`}
-          className="inline-flex h-7 items-center rounded-md border px-2 text-[11px] text-muted-foreground hover:bg-muted/50"
-        >
-          →
-        </Link>
-        <div className="relative ml-1 flex items-center gap-1 rounded-md border border-accent/30 bg-accent/5 pl-2">
-          <span className="text-[9px] font-semibold tracking-wide text-accent uppercase">
-            Search
-          </span>
+        </div>
+        <div className="relative ml-auto flex min-w-0 max-w-[16rem] flex-1 items-center">
           <Input
             type="search"
             value={searchQuery}
@@ -2159,32 +2193,21 @@ export function RoomRackGrid({
                 focusStay(searchMatches[0]);
               }
             }}
-            placeholder="Guest, phone, guide #…"
+            placeholder="Guest, phone, guide…"
             aria-label="Search calendar stays"
-            className="h-7 w-36 border-0 bg-transparent py-1 pr-8 text-xs shadow-none focus-visible:ring-1 sm:w-52"
+            className="h-8 border-0 bg-muted/40 px-3 text-xs shadow-none focus-visible:ring-1"
           />
           {deferredSearch ? (
-            <span className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-[9px] text-muted-foreground">
+            <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-[10px] tabular-nums text-muted-foreground">
               {searchMatches.length}
             </span>
           ) : null}
         </div>
-        <span className="ml-auto truncate text-[11px] text-muted-foreground">
-          {start} → {addDays(start, days.length - 1)} · {units.length} rooms
-          {conflict ? (
-            <span className="ml-2 text-destructive">{conflict}</span>
-          ) : null}
-          {draft && !conflict ? (
-            <span className="ml-2 text-accent">Drag to select nights…</span>
-          ) : null}
-          {partySelectMode ? (
-            <span className="ml-2 text-accent">Select rooms · Link as group</span>
-          ) : null}
-        </span>
+        <div className={cn(compactRack ? "hidden" : "contents")}>
         <button
           type="button"
           aria-pressed={partySelectMode}
-          title="Tap stays to multi-select, then Link as group (mobile-friendly)"
+          title="Tap stays to multi-select, then Link as group"
           onClick={() => {
             setPartySelectMode((v) => {
               const next = !v;
@@ -2193,34 +2216,41 @@ export function RoomRackGrid({
             });
           }}
           className={cn(
-            "inline-flex h-7 shrink-0 items-center rounded-md border px-2 text-[11px] font-medium",
+            "inline-flex h-8 shrink-0 items-center px-2 text-xs font-medium",
             partySelectMode
-              ? "border-accent bg-accent/15 text-accent"
-              : "bg-card text-muted-foreground hover:bg-muted/50",
+              ? "text-accent"
+              : "text-muted-foreground hover:text-foreground",
           )}
         >
           Select
         </button>
-        <span
-          className="inline-flex h-7 items-center rounded-md border border-violet-300 bg-violet-50/70 px-2 text-[10px] font-medium text-violet-700 dark:border-violet-800 dark:bg-violet-950/25 dark:text-violet-300"
-          title="Click any room number in the frozen left column to create an OOO, OOS, or hold block."
-        >
-          Blocks {blocks.length}
-        </span>
+        {blocks.length > 0 ? (
+          <span
+            className="hidden h-8 items-center px-1.5 text-xs tabular-nums text-muted-foreground lg:inline-flex"
+            title="Click a room number to add OOO / OOS / hold."
+          >
+            {blocks.length} blocked
+          </span>
+        ) : null}
+        {(conflict || (draft && !conflict) || partySelectMode) ? (
+          <span className="hidden max-w-[12rem] truncate text-xs text-muted-foreground xl:inline">
+            {conflict
+              ? conflict
+              : draft
+                ? "Drag to select nights"
+                : "Select rooms, then link"}
+          </span>
+        ) : null}
         <CalendarLiveRefresh />
+        </div>
       </div>
 
-      <RackPartySelectionBar
-        selectedBookingIds={selectedBookingIds}
-        onClear={clearPartySelection}
-        onOpenParty={openPartyFromSelection}
-        onLinked={() => router.refresh()}
-      />
-
-      <div className="flex shrink-0 items-center gap-1.5 border-b bg-muted/20 px-2 py-1">
-        <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          Today
-        </span>
+      <div
+        className={cn(
+          "flex shrink-0 items-center gap-2 border-b border-border/50 px-4 py-2",
+          compactRack && "hidden",
+        )}
+      >
         {(
           [
             ["arrivals", "Arrivals"],
@@ -2238,14 +2268,14 @@ export function RoomRackGrid({
               if (next && dayGroups[next][0]) focusStay(dayGroups[next][0]);
             }}
             className={cn(
-              "inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[11px] font-medium",
+              "inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs",
               dayFilter === key
-                ? "border-accent bg-accent/10 text-accent"
-                : "bg-card text-muted-foreground hover:bg-muted/50",
+                ? "bg-accent/10 font-medium text-accent"
+                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
             )}
           >
             {label}
-            <span className="rounded-full bg-muted px-1.5 text-[9px] tabular-nums text-foreground">
+            <span className="tabular-nums text-foreground/80">
               {dayGroups[key].length}
             </span>
           </button>
@@ -2255,104 +2285,121 @@ export function RoomRackGrid({
             type="button"
             onClick={undoLastMove}
             disabled={movingPending}
-            className="inline-flex h-7 items-center rounded-md border border-amber-400 bg-amber-50 px-2 text-[11px] font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50 dark:bg-amber-950/30 dark:text-amber-200"
+            className="inline-flex h-8 items-center px-2.5 text-xs font-medium text-amber-800 hover:bg-muted/50 disabled:opacity-50"
           >
-            Undo room move
+            Undo move
           </button>
         ) : null}
         {operationMessage ? (
           <span
             aria-live="polite"
-            className="max-w-72 truncate text-[10px] text-muted-foreground"
+            className="max-w-72 truncate text-xs text-muted-foreground"
           >
             {operationMessage}
           </span>
         ) : null}
-        {searchMatches.length > 1 ? (
-          <div className="ml-auto flex min-w-0 gap-1 overflow-x-auto">
-            {searchMatches.slice(0, 6).map((stay) => (
-              <button
-                key={stay.id}
-                type="button"
-                onClick={() => focusStay(stay)}
-                className="shrink-0 rounded-md border bg-card px-2 py-1 text-[10px] hover:border-accent"
-              >
-                {stay.contact_name ?? "Guest"} · {stay.room_label}
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
-
-      {unassigned.length > 0 ? (
-        <div className="flex shrink-0 items-center gap-2 border-b bg-amber-50/70 px-2 py-1.5 dark:bg-amber-950/20">
-          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">
-            Unassigned {unassigned.reduce((n, item) => n + item.missing_rooms, 0)}
-          </span>
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            disabled={
-              assigning || (assignGuide != null && assignGuide.kind === "bulk")
-            }
-            className="h-7 shrink-0 gap-1 px-2 text-[11px]"
-            title="Fill free rooms for every unassigned stay. No overlaps. Prefers eZee room numbers in notes when labels match."
-            onClick={() => {
-              setAssignGuide({ kind: "bulk", items: unassigned });
-              setAssignMessage(null);
-            }}
+        {assignMessage ? (
+          <span
+            aria-live="polite"
+            className="max-w-64 truncate text-xs text-muted-foreground"
           >
-            <WandSparklesIcon className="size-3.5" aria-hidden />
-            Auto-assign all
-          </Button>
-          <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
-            {unassigned.map((item) => {
-              const selected = selectedPool?.id === item.id;
-              return (
+            {assignMessage}
+          </span>
+        ) : null}
+        <div className="ml-auto flex min-w-0 items-center gap-3">
+          {searchMatches.length > 1 ? (
+            <div className="flex min-w-0 gap-1 overflow-x-auto">
+              {searchMatches.slice(0, 6).map((stay) => (
                 <button
-                  key={item.id}
+                  key={stay.id}
                   type="button"
-                  aria-pressed={selected}
-                  onClick={() => {
-                    setAssignGuide({ kind: "single", item });
-                    setSelectedPool(item);
-                    setAssignMessage(
-                      `Guided assign open — or click an amber ${item.room_type_name} cell on the grid.`,
-                    );
-                  }}
-                  className={cn(
-                    "shrink-0 rounded-md border bg-card px-2 py-1 text-left text-[11px] shadow-xs",
-                    selected
-                      ? "border-amber-600 ring-2 ring-amber-500/30"
-                      : "hover:border-amber-400",
-                  )}
+                  onClick={() => focusStay(stay)}
+                  className="shrink-0 px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
                 >
-                  <span className="font-medium text-foreground">
-                    {item.contact_name}
-                  </span>
-                  <span className="ml-1 text-muted-foreground">
-                    {item.room_type_code || item.room_type_name} · {item.check_in}
-                    →{item.check_out}
-                    {item.missing_rooms > 1
-                      ? ` · ${item.missing_rooms} rooms`
-                      : ""}
-                    {" · Assign"}
-                  </span>
+                  {stay.contact_name ?? "Guest"} · {stay.room_label}
                 </button>
-              );
-            })}
-          </div>
-          {assignMessage ? (
-            <span
-              aria-live="polite"
-              className="max-w-72 shrink-0 truncate text-[11px] text-muted-foreground"
-            >
-              {assignMessage}
-            </span>
+              ))}
+            </div>
           ) : null}
+          {unassigned.length > 0 && selectedBookingIds.length === 0 ? (
+            <div className="flex min-w-0 items-center gap-2">
+              <p className="shrink-0 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground tabular-nums">
+                  {unassigned.reduce((n, item) => n + item.missing_rooms, 0)}
+                </span>{" "}
+                unassigned
+              </p>
+              <div className="flex min-w-0 max-w-[28rem] items-center gap-1 overflow-x-auto">
+                {unassignedClusters.map((cluster) => {
+                  const selected = cluster.items.some(
+                    (item) => selectedPool?.id === item.id,
+                  );
+                  return (
+                    <button
+                      key={cluster.key}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => {
+                        if (cluster.items.length === 1) {
+                          const item = cluster.head;
+                          setAssignGuide({ kind: "single", item });
+                          setSelectedPool(item);
+                        } else {
+                          setAssignGuide({
+                            kind: "bulk",
+                            items: cluster.items,
+                          });
+                          setSelectedPool(cluster.head);
+                        }
+                        setAssignMessage(null);
+                      }}
+                      className={cn(
+                        "shrink-0 rounded-md px-2 py-1 text-left text-xs capitalize",
+                        selected
+                          ? "bg-accent/10 text-foreground"
+                          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                      )}
+                    >
+                      {cluster.head.contact_name}
+                      <span className="ml-1 font-normal normal-case text-muted-foreground">
+                        · {cluster.rooms} rm ·{" "}
+                        {fmtStayRange(
+                          cluster.head.check_in,
+                          cluster.head.check_out,
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                disabled={
+                  assigning ||
+                  (assignGuide != null && assignGuide.kind === "bulk")
+                }
+                className="h-8 shrink-0 gap-1 px-2 text-xs"
+                title="Fill free rooms for every unassigned stay."
+                onClick={() => {
+                  setAssignGuide({ kind: "bulk", items: unassigned });
+                  setAssignMessage(null);
+                }}
+              >
+                <WandSparklesIcon className="size-3.5" aria-hidden />
+                Assign
+              </Button>
+            </div>
+          ) : null}
+          <RackPartySelectionBar
+            selectedBookingIds={selectedBookingIds}
+            onClear={clearPartySelection}
+            onOpenParty={openPartyFromSelection}
+            onLinked={() => router.refresh()}
+          />
         </div>
-      ) : null}
+      </div>
 
       {units.length === 0 ? (
         <p className="p-6 text-sm text-muted-foreground">
