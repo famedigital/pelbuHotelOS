@@ -108,6 +108,11 @@ export function SettingsCompliancePanel({ categories, documents }: Props) {
           <p className="max-w-2xl text-sm text-muted-foreground">
             Upload PDFs and scans to the private finance vault. Lease category
             accepts agreement, deposit slip, and handover inventory references.
+            Printable ISR, log books, and BAFRA wall posters:{" "}
+            <a href="/erp/compliance" className="text-sky-700 underline">
+              Compliance pack
+            </a>
+            .
           </p>
         </div>
 

@@ -60,8 +60,13 @@ function parseKind(ind) {
   const t = (ind || "").trim();
   if (t === "M") return { kind: "M" };
   if (t === "Q") return { kind: "Q" };
-  if (t === "X") return { kind: "X" };
+  if (t === "X" || /^x$/i.test(t)) return { kind: "X" };
   if (/^\d+$/.test(t)) return { kind: "P", maxPoints: Number(t) };
+  // Size / qty thresholds written in the Indicator column (e.g. "22 sqm+", "4 psc", "25 cm +(M)")
+  // are Mandatory on the HCS score sheet — keep the threshold text as notes.
+  if (t && (/\(M\)/i.test(t) || /\bsqm\b/i.test(t) || /\bcm\b/i.test(t) || /\bp(?:s)?c\b/i.test(t))) {
+    return { kind: "M", notes: t };
+  }
   if (t) return { kind: "custom", notes: t };
   return { kind: "custom", notes: "" };
 }

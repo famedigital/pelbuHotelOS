@@ -1,4 +1,8 @@
-import { createDotAssessment, listDotAssessments } from "@/app/actions/erp-dot-assessment";
+import {
+  copyDotAssessmentToStar,
+  createDotAssessment,
+  listDotAssessments,
+} from "@/app/actions/erp-dot-assessment";
 import {
   ClearEmptyDotDraftsButton,
   DotAssessmentDeleteButton,
@@ -191,12 +195,43 @@ export default async function DotAssessmentListPage() {
                     </div>
                   </Link>
                   {canWrite ? (
-                    <DotAssessmentDeleteButton
-                      assessmentId={a.id}
-                      starLevel={a.starLevel}
-                      status={a.status}
-                      progressPct={pct}
-                    />
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      {a.starLevel === 4 ? (
+                        <form action={copyDotAssessmentToStar}>
+                          <input type="hidden" name="assessment_id" value={a.id} />
+                          <input type="hidden" name="star_level" value="3" />
+                          <Button
+                            type="submit"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 text-xs text-sky-700"
+                            title="Duplicate onto 3★ checklist with mapped scores"
+                          >
+                            Copy → 3★
+                          </Button>
+                        </form>
+                      ) : a.starLevel === 3 ? (
+                        <form action={copyDotAssessmentToStar}>
+                          <input type="hidden" name="assessment_id" value={a.id} />
+                          <input type="hidden" name="star_level" value="4" />
+                          <Button
+                            type="submit"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 text-xs text-sky-700"
+                            title="Duplicate onto 4★ checklist with mapped scores"
+                          >
+                            Copy → 4★
+                          </Button>
+                        </form>
+                      ) : null}
+                      <DotAssessmentDeleteButton
+                        assessmentId={a.id}
+                        starLevel={a.starLevel}
+                        status={a.status}
+                        progressPct={pct}
+                      />
+                    </div>
                   ) : null}
                 </div>
               </li>

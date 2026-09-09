@@ -56,9 +56,14 @@ export default async function KitchenCompliancePage() {
         title="BFDA / kitchen compliance"
         description={`Waste book · fridge temps · cleaning sign-off · LPG · ${day}. Print this page for inspections.`}
       />
-      <Link href="/erp/kitchen" className="text-sm text-muted-foreground">
-        ← Kitchen board
-      </Link>
+      <div className="flex flex-wrap gap-3 text-sm">
+        <Link href="/erp/kitchen" className="text-muted-foreground underline">
+          ← Kitchen board
+        </Link>
+        <Link href="/erp/compliance" className="text-sky-700 underline">
+          Printable log books & BAFRA posters →
+        </Link>
+      </div>
 
       <ComplianceForms
         wasteAction={logFnbWaste}

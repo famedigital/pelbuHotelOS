@@ -171,6 +171,246 @@ export async function createDotAssessment(formData: FormData): Promise<void> {
   redirect(`/erp/dot-assessment/${data.id}?step=guide`);
 }
 
+type CatalogCriterionMeta = {
+  sectionKey: string;
+  kind: string;
+  maxPoints: number | null;
+};
+
+function buildCatalogMeta(
+  catalog: ReturnType<typeof getCatalog>,
+): Map<string, CatalogCriterionMeta> {
+  const meta = new Map<string, CatalogCriterionMeta>();
+  for (const g of catalog.entryGate) {
+    meta.set(g.code, { sectionKey: "gate", kind: "M", maxPoints: null });
+  }
+  for (const s of catalog.sections) {
+    for (const c of s.criteria) {
+      meta.set(c.code, {
+        sectionKey: s.key,
+        kind: c.kind,
+        maxPoints: c.maxPoints,
+      });
+    }
+  }
+  return meta;
+}
+
+/**
+ * Remap a 4★ (or other) response onto a target-star criterion.
+ * M→P: Yes → full P points; No → 0. Other kinds keep scores when valid.
+ * Not exported — "use server" files may only export async actions.
+ */
+function remapResponseForStar(
+  target: CatalogCriterionMeta,
+  source: {
+    status: ResponseStatus;
+    scoreM: number | null;
+    scoreQ: number | null;
+    scoreP: number | null;
+    remarks: string | null;
+  },
+): {
+  sectionKey: string;
+  status: ResponseStatus;
+  scoreM: number | null;
+  scoreQ: number | null;
+  scoreP: number | null;
+  remarks: string | null;
+} | null {
+  if (target.kind === "X") return null;
+
+  let status = source.status;
+  let scoreM = source.scoreM;
+  let scoreQ = source.scoreQ;
+  let scoreP = source.scoreP;
+
+  const yes =
+    source.status === "yes" || source.scoreM === 1;
+  const no =
+    source.status === "no" || source.scoreM === 0;
+
+  if (target.kind === "P" || (target.kind === "custom" && target.maxPoints != null)) {
+    const max = target.maxPoints ?? 0;
+    if (source.scoreP != null && Number.isFinite(source.scoreP)) {
+      scoreP = Math.max(0, Math.min(Number(source.scoreP), max || Number(source.scoreP)));
+      status = source.status === "na" ? "na" : "scored";
+      scoreM = null;
+    } else if (yes) {
+      scoreP = max;
+      status = "scored";
+      scoreM = null;
+    } else if (no) {
+      scoreP = 0;
+      status = "scored";
+      scoreM = null;
+    } else if (source.status === "na") {
+      status = "na";
+      scoreP = null;
+      scoreM = null;
+    }
+  } else if (target.kind === "M") {
+    if (yes) {
+      status = "yes";
+      scoreM = 1;
+    } else if (no) {
+      status = "no";
+      scoreM = 0;
+    } else if (source.scoreP != null && Number(source.scoreP) > 0) {
+      status = "yes";
+      scoreM = 1;
+      scoreP = null;
+    } else if (source.scoreP === 0) {
+      status = "no";
+      scoreM = 0;
+      scoreP = null;
+    }
+  }
+
+  if (target.kind === "Q" && scoreQ == null && status !== "na" && status !== "pending") {
+    // Keep as-is if Q missing — still copy remarks / pending state
+  }
+
+  if (status === "pending" && scoreM == null && scoreQ == null && scoreP == null) {
+    return null;
+  }
+
+  return {
+    sectionKey: target.sectionKey,
+    status,
+    scoreM,
+    scoreQ,
+    scoreP,
+    remarks: source.remarks,
+  };
+}
+
+/** Copy an assessment onto another star checklist (same property data + mapped answers/evidence). */
+export async function copyDotAssessmentToStar(
+  formData: FormData,
+): Promise<void> {
+  await requireWriteAccess();
+  const admin = createSupabaseAdminClient();
+  const sourceId = trimRequired(formData.get("assessment_id"), "Assessment");
+  const starRaw = Number(formData.get("star_level"));
+  if (starRaw !== 3 && starRaw !== 4) {
+    throw new Error("Choose 3-star or 4-star checklist.");
+  }
+  const targetStar = starRaw as StarLevel;
+  const { propertyId, row: source } = await loadOwnedAssessment(admin, sourceId);
+  if (source.starLevel === targetStar) {
+    throw new Error(`Assessment is already ${targetStar}-star.`);
+  }
+
+  const targetCatalog = getCatalog(targetStar);
+  const meta = buildCatalogMeta(targetCatalog);
+
+  const [{ data: resp }, { data: evid }] = await Promise.all([
+    admin
+      .from("dot_assessment_responses")
+      .select("*")
+      .eq("assessment_id", sourceId),
+    admin
+      .from("dot_assessment_evidence")
+      .select("*")
+      .eq("assessment_id", sourceId),
+  ]);
+
+  const noteLine = `Copied from ${source.starLevel}★ assessment ${sourceId} → ${targetStar}★ scoring.`;
+  const notes = source.notes?.trim()
+    ? `${source.notes.trim()}\n${noteLine}`
+    : noteLine;
+
+  const { data: created, error: createError } = await admin
+    .from("dot_assessments")
+    .insert({
+      property_id: propertyId,
+      star_level: targetStar,
+      status: source.status === "archived" ? "in_progress" : source.status,
+      catalog_version: targetCatalog.version,
+      catalog_source: targetCatalog.sourceFile,
+      property_info: source.propertyInfo,
+      lead_assessor: source.leadAssessor,
+      assessor_2: source.assessor2,
+      assessor_3: source.assessor3,
+      assessed_on: source.assessedOn,
+      notes,
+      na_sections: source.naSections,
+    })
+    .select("id")
+    .single();
+  if (createError) throw new Error(createError.message);
+  const newId = created.id as string;
+
+  const responseRows: Array<Record<string, unknown>> = [];
+  for (const r of resp ?? []) {
+    const code = String(r.criterion_code);
+    const target = meta.get(code);
+    if (!target) continue;
+    const mapped = remapResponseForStar(target, {
+      status: r.status as ResponseStatus,
+      scoreM: r.score_m as number | null,
+      scoreQ: r.score_q as number | null,
+      scoreP: r.score_p != null ? Number(r.score_p) : null,
+      remarks: (r.remarks as string | null) ?? null,
+    });
+    if (!mapped) continue;
+    responseRows.push({
+      assessment_id: newId,
+      criterion_code: code,
+      section_key: mapped.sectionKey,
+      status: mapped.status,
+      score_m: mapped.scoreM,
+      score_q: mapped.scoreQ,
+      score_p: mapped.scoreP,
+      remarks: mapped.remarks,
+      updated_at: (r.updated_at as string) ?? new Date().toISOString(),
+    });
+  }
+
+  if (responseRows.length > 0) {
+    const { error } = await admin
+      .from("dot_assessment_responses")
+      .insert(responseRows);
+    if (error) throw new Error(error.message);
+  }
+
+  const evidenceRows = (evid ?? [])
+    .filter((e) => {
+      const code = String(e.criterion_code);
+      const t = meta.get(code);
+      return t != null && t.kind !== "X";
+    })
+    .map((e) => ({
+      assessment_id: newId,
+      criterion_code: e.criterion_code,
+      storage_path: e.storage_path,
+      file_name: e.file_name,
+      mime_type: e.mime_type,
+      byte_size: e.byte_size,
+      caption: e.caption,
+      uploaded_at: e.uploaded_at,
+    }));
+
+  if (evidenceRows.length > 0) {
+    const { error } = await admin
+      .from("dot_assessment_evidence")
+      .insert(evidenceRows);
+    if (error) throw new Error(error.message);
+  }
+
+  await writeAuditEvent(admin, {
+    propertyId,
+    entityType: "dot_assessments",
+    entityId: newId,
+    action: "dot_assessment.copy_star",
+    summary: `Copied ${source.starLevel}★ → ${targetStar}★ (${responseRows.length} answers, ${evidenceRows.length} evidence)`,
+  });
+
+  revalidatePath("/erp/dot-assessment");
+  redirect(`/erp/dot-assessment/${newId}?step=guide`);
+}
+
 export async function updateDotAssessmentMeta(
   _prev: State,
   formData: FormData,

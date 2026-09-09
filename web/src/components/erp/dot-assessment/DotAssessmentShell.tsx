@@ -48,7 +48,7 @@ export type DotStep =
   | "score"
   | `s:${string}`;
 
-type FilterMode = "open" | "all" | "done" | "fail";
+type FilterMode = "open" | "all" | "done" | "fail" | "must";
 
 function parseStep(raw: string | null, catalog: DotCatalog): DotStep {
   if (!raw || raw === "guide") return "guide";
@@ -77,6 +77,16 @@ function isFail(r?: DotResponse): boolean {
   return r.status === "no" || r.scoreM === 0;
 }
 
+/** Unmet mandatory leaf: open or failed M only (not optional custom). */
+function isMandatoryGap(
+  c: DotCriterion | { kind: "M" | "custom" },
+  response: DotResponse | undefined,
+): boolean {
+  if (c.kind !== "M") return false;
+  if (!response || response.status === "pending") return true;
+  return isFail(response);
+}
+
 function filterCriterion(
   c: DotCriterion,
   response: DotResponse | undefined,
@@ -87,7 +97,23 @@ function filterCriterion(
   if (mode === "open") return !isAnswered(response);
   if (mode === "done") return isAnswered(response);
   if (mode === "fail") return isFail(response);
+  if (mode === "must") return isMandatoryGap(c, response);
   return true;
+}
+
+function criterionLabel(
+  catalog: DotCatalog,
+  code: string,
+): { text: string; kind: string } {
+  if (code.startsWith("gate.")) {
+    const g = catalog.entryGate.find((x) => x.code === code);
+    return { text: g?.text ?? code, kind: "M" };
+  }
+  for (const s of catalog.sections) {
+    const c = s.criteria.find((x) => x.code === code);
+    if (c) return { text: c.text, kind: c.kind };
+  }
+  return { text: code, kind: "?" };
 }
 
 function GuidanceBlock({
@@ -132,16 +158,21 @@ function GuidanceBlock({
 
 function ScoreboardPanel({
   board,
+  catalog,
   assessmentId,
   naSections,
   onGoSection,
+  onGoGap,
 }: {
   board: Scoreboard;
+  catalog: DotCatalog;
   assessmentId: string;
   naSections: string[];
   onGoSection: (key: string) => void;
+  onGoGap: (sectionKey: string) => void;
 }) {
   const [state, action] = useActionState(updateDotAssessmentMeta, { ok: false });
+  const gaps = board.mandatoryGaps;
   return (
     <div className="space-y-4 pb-24">
       <section className="rounded-xl border bg-card p-4 md:p-5">
@@ -174,9 +205,13 @@ function ScoreboardPanel({
             },
             {
               label: "Mandatory",
-              value: `${board.totals.mAchieved}/${board.totals.mRequired}`,
-              sub: `−${board.totals.mShortfall}`,
-              ok: board.totals.mShortfall === 0,
+              value: `${board.totals.mLeafAchieved}/${board.totals.mLeafRequired}`,
+              sub: board.mandatoryPass
+                ? board.totals.mSheetOnlyGap > 0
+                  ? `Pass · sheet lists +${board.totals.mSheetOnlyGap}`
+                  : "Pass"
+                : `${board.totals.mLeafShortfall} leaf gap`,
+              ok: board.mandatoryPass,
             },
             {
               label: "Quality",
@@ -213,6 +248,21 @@ function ScoreboardPanel({
           ))}
         </div>
 
+        {board.totals.mSheetOnlyGap > 0 && (
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+            Official HCS sheet target is{" "}
+            <span className="font-medium tabular-nums">
+              {board.totals.mRequired} M
+            </span>
+            ; this checklist has{" "}
+            <span className="font-medium tabular-nums">
+              {board.totals.mLeafRequired}
+            </span>{" "}
+            digitisable M rows. Sheet-only gap of {board.totals.mSheetOnlyGap}{" "}
+            does not block Ready.
+          </p>
+        )}
+
         <div className="mt-4">
           <div className="mb-1.5 flex justify-between text-xs text-muted-foreground">
             <span>Overall</span>
@@ -229,48 +279,115 @@ function ScoreboardPanel({
         </div>
       </section>
 
-      <section className="divide-y overflow-hidden rounded-xl border bg-card">
-        {board.sections.map((s) => {
-          const pct =
-            s.totalScorable > 0
-              ? Math.round((s.answered / s.totalScorable) * 100)
-              : s.na
-                ? 100
-                : 0;
-          return (
-            <button
-              key={s.sectionKey}
-              type="button"
-              onClick={() => onGoSection(s.sectionKey)}
-              className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="truncate text-sm font-medium">{s.title}</p>
-                  {s.na && (
-                    <span className="text-[10px] text-muted-foreground">N/A</span>
-                  )}
-                </div>
-                <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className={cn(
-                      "h-full rounded-full transition-[width]",
-                      pct === 100 ? "bg-emerald-500" : "bg-sky-500",
+      {gaps.length > 0 && (
+        <section className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-4">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold text-amber-950 dark:text-amber-100">
+                Mandatory not fulfilled ({gaps.length})
+              </h3>
+              <p className="mt-0.5 text-xs text-amber-900/80 dark:text-amber-100/80">
+                Fix these, or mark Recreation / MICE as N/A if the hotel has none.
+              </p>
+            </div>
+          </div>
+          <ul className="divide-y divide-amber-500/15 overflow-hidden rounded-lg border border-amber-500/20 bg-background/80">
+            {gaps.map((g) => {
+              const { text, kind } = criterionLabel(catalog, g.code);
+              return (
+                <li key={`${g.sectionKey}:${g.code}`}>
+                  <button
+                    type="button"
+                    onClick={() => onGoGap(g.sectionKey)}
+                    className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-amber-500/10"
+                  >
+                    <span className="mt-0.5 shrink-0 rounded bg-amber-500/15 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-amber-900">
+                      {g.code}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="line-clamp-2 text-sm">{text}</span>
+                      <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                        [{kind}]{" "}
+                        {g.reason === "no" ? "Answered No" : "Not answered"} ·{" "}
+                        {g.sectionKey === "gate" ? "Entry gate" : g.sectionKey}
+                      </span>
+                    </span>
+                    <ArrowRightIcon className="mt-1 size-4 shrink-0 text-amber-800/60" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      <section className="overflow-hidden rounded-xl border bg-card">
+        <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 border-b bg-muted/40 px-4 py-2 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+          <span>Area</span>
+          <span className="w-16 text-right">M leaf</span>
+          <span className="w-14 text-right">Sheet</span>
+          <span className="w-14 text-right">Done</span>
+        </div>
+        <div className="divide-y">
+          {board.sections.map((s) => {
+            const pct =
+              s.totalScorable > 0
+                ? Math.round((s.answered / s.totalScorable) * 100)
+                : s.na
+                  ? 100
+                  : 0;
+            const mGap =
+              !s.na &&
+              (s.incompleteMCodes.length > 0 || s.failedMCodes.length > 0);
+            return (
+              <button
+                key={s.sectionKey}
+                type="button"
+                onClick={() => onGoSection(s.sectionKey)}
+                className="grid w-full grid-cols-[1fr_auto_auto_auto] items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-muted/50"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-sm font-medium">{s.title}</p>
+                    {s.na && (
+                      <span className="text-[10px] text-muted-foreground">
+                        N/A
+                      </span>
                     )}
-                    style={{ width: `${pct}%` }}
-                  />
+                    {mGap && (
+                      <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
+                        M gap
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-[width]",
+                        pct === 100 ? "bg-emerald-500" : "bg-sky-500",
+                      )}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="shrink-0 text-right text-xs tabular-nums text-muted-foreground">
-                <p>
-                  M {s.na ? "—" : `${s.mAchieved}/${s.mRequired}`}
+                <p
+                  className={cn(
+                    "w-16 text-right text-xs tabular-nums",
+                    mGap ? "font-semibold text-amber-800" : "text-muted-foreground",
+                  )}
+                >
+                  {s.na ? "—" : `${s.mAchieved}/${s.mLeafRequired}`}
                 </p>
-                <p>{s.na ? "—" : `${s.answered}/${s.totalScorable}`}</p>
-              </div>
-              <ArrowRightIcon className="size-4 shrink-0 text-muted-foreground" />
-            </button>
-          );
-        })}
+                <p className="w-14 text-right text-xs tabular-nums text-muted-foreground">
+                  {s.na ? "—" : s.mRequired}
+                </p>
+                <p className="w-14 text-right text-xs tabular-nums text-muted-foreground">
+                  {s.na ? "—" : `${s.answered}/${s.totalScorable}`}
+                </p>
+              </button>
+            );
+          })}
+        </div>
       </section>
 
       <form action={action} className="space-y-3 rounded-xl border bg-card p-4">
@@ -473,6 +590,7 @@ export function DotAssessmentShell({
       if (filter === "open") return !isAnswered(r);
       if (filter === "done") return isAnswered(r);
       if (filter === "fail") return isFail(r);
+      if (filter === "must") return isMandatoryGap({ kind: "M" }, r);
       return true;
     });
   }, [catalog.entryGate, filter, responseMap]);
@@ -746,8 +864,9 @@ export function DotAssessmentShell({
               {(
                 [
                   ["open", "Open"],
-                  ["all", "All"],
+                  ["must", "M gap"],
                   ["fail", "Fail"],
+                  ["all", "All"],
                   ["done", "Done"],
                 ] as const
               ).map(([id, label]) => (
@@ -758,12 +877,33 @@ export function DotAssessmentShell({
                   className={cn(
                     "flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
                     filter === id
-                      ? "bg-sky-500 text-white"
+                      ? id === "must"
+                        ? "bg-amber-600 text-white"
+                        : "bg-sky-500 text-white"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {id === "open" && <FilterIcon className="size-3" />}
+                  {(id === "open" || id === "must") && (
+                    <FilterIcon className="size-3" />
+                  )}
                   {label}
+                  {id === "must" && board.mandatoryGaps.filter((g) =>
+                    step === "gate"
+                      ? g.sectionKey === "gate"
+                      : currentSection
+                        ? g.sectionKey === currentSection.key
+                        : true,
+                  ).length > 0
+                    ? ` (${
+                        board.mandatoryGaps.filter((g) =>
+                          step === "gate"
+                            ? g.sectionKey === "gate"
+                            : currentSection
+                              ? g.sectionKey === currentSection.key
+                              : true,
+                        ).length
+                      })`
+                    : ""}
                 </button>
               ))}
             </div>
@@ -928,9 +1068,14 @@ export function DotAssessmentShell({
       {step === "score" && (
         <ScoreboardPanel
           board={board}
+          catalog={catalog}
           assessmentId={assessment.id}
           naSections={naSections}
           onGoSection={(key) => go(`s:${key}`)}
+          onGoGap={(key) => {
+            setFilter("must");
+            go(key === "gate" ? "gate" : `s:${key}`);
+          }}
         />
       )}
 
@@ -990,7 +1135,9 @@ function EmptyFilter({
           ? "Nothing open here — nice work."
           : filter === "fail"
             ? "No failed items in this filter."
-            : "No matching items."}
+            : filter === "must"
+              ? "No unmet mandatory items in this section."
+              : "No matching items."}
       </p>
       {filter !== "all" && (
         <Button

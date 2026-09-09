@@ -36,7 +36,7 @@ export const SCORING_GUIDANCE: GuidanceSection = {
     "Q — Quality: rate 1–5. These evaluate cleanliness, maintenance, and guest experience in more detail. A rating below 1 on required quality indicators fails the property.",
     "P — Optional / premium points: award 0 up to the maximum shown on that criterion. Useful to lift excellence bands; they cannot replace failed M items.",
     "X — Not applicable for this star level. Leave as N/A; no score entry.",
-    "Custom / size notes (e.g. “22 sqm+”): follow the text on the form; record pass/fail or points as best matches the assessor intent and add a remark with measured values.",
+    "Custom size / qty notes (e.g. “22 sqm+”, “4 psc”) are Mandatory — measure and answer Yes/No; put the measured value in remarks.",
   ],
   bullets: [
     "Entry gate: all 20 items Yes before you treat the assessment as “ready.”",
@@ -75,9 +75,9 @@ export const SECTION_GUIDANCE: Record<
       "Public liability & statutory insurance: certificates with dates visible.",
       "Pest control contract: signed, recent service records.",
       "24/7 contact + security: roster or SOP showing coverage.",
-      "Fire drills, disaster plan, incident SOP, training attendance: paper or digital logs with dates.",
+      "Fire drills, disaster plan, incident SOP, training attendance: paper or digital logs with dates — print blanks from /erp/compliance.",
       "Water treatment & QMS/SOP evidence: link operations SOPs (front desk, HK, kitchen).",
-      "Upload photos or PDFs on each failed/pending row; also store masters in Settings → Compliance vault.",
+      "Upload photos or PDFs on each failed/pending row; masters in Settings → Compliance and printable pack at /erp/compliance.",
     ],
   },
   general: {

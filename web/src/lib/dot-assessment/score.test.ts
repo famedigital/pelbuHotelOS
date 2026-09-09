@@ -13,6 +13,12 @@ describe("DOT catalog", () => {
     assert.equal(c.scoring.mandatoryRequired, 163);
     const mCaps = c.sections.reduce((n, s) => n + (s.caps.M ?? 0), 0);
     assert.equal(mCaps, 163);
+    const mLeaf = c.sections.reduce(
+      (n, s) => n + s.criteria.filter((x) => x.kind === "M").length,
+      0,
+    );
+    assert.equal(mLeaf, 163);
+    assert.equal(c.stats.mandatoryLeafCount, 163);
   });
 
   it("4-star catalog has 324 leaves and M required 192", () => {
@@ -59,5 +65,27 @@ describe("computeScoreboard", () => {
       withNa.sections.find((s) => s.sectionKey === "recreation")?.na,
       true,
     );
+  });
+
+  it("size-threshold M rows count toward leaf mandatory (no sheet-only gap)", () => {
+    const catalog = getCatalog(3);
+    assert.equal(catalog.totals?.mSheetOnlyGap, undefined);
+    assert.equal(catalog.stats.mandatoryLeafCount, catalog.scoring.mandatoryRequired);
+    const sizeCodes = ["3.1.1", "3.3.1", "3.3.9", "3.4.6", "4.1.1", "11.1.1"];
+    for (const code of sizeCodes) {
+      let found = false;
+      for (const s of catalog.sections) {
+        const c = s.criteria.find((x) => x.code === code);
+        if (c) {
+          assert.equal(c.kind, "M", `${code} should be M`);
+          found = true;
+          break;
+        }
+      }
+      assert.equal(found, true, `${code} missing`);
+    }
+    const board = computeScoreboard(catalog, []);
+    assert.equal(board.totals.mSheetOnlyGap, 0);
+    assert.equal(board.totals.mLeafRequired, 163);
   });
 });

@@ -904,9 +904,9 @@
         {
           "code": "3.1.1",
           "text": "Minimum size of rooms (inlcuding bathrooms)",
-          "kind": "custom",
+          "kind": "M",
           "maxPoints": null,
-          "notes": "22 sqm+",
+          "notes": "22 sqm+ (M)",
           "groupCode": "3.1"
         },
         {
@@ -1000,9 +1000,9 @@
         {
           "code": "3.3.1",
           "text": "Bed system with a well kept  mattress with minimum thickness",
-          "kind": "custom",
+          "kind": "M",
           "maxPoints": null,
-          "notes": "20 cm +",
+          "notes": "20 cm + (M)",
           "groupCode": "3.3"
         },
         {
@@ -1064,9 +1064,9 @@
         {
           "code": "3.3.9",
           "text": "Number of pillows per single bed/double bed",
-          "kind": "custom",
+          "kind": "M",
           "maxPoints": null,
-          "notes": "",
+          "notes": "Mandatory (sheet M)",
           "groupCode": "3.3"
         },
         {
@@ -1184,9 +1184,9 @@
         {
           "code": "3.4.6",
           "text": "Coat hangers with minimum number per wardrobe",
-          "kind": "custom",
+          "kind": "M",
           "maxPoints": null,
-          "notes": "4 psc",
+          "notes": "4 psc (M)",
           "groupCode": "3.4"
         },
         {
@@ -1564,9 +1564,9 @@
         {
           "code": "4.1.1",
           "text": "Ensuite bathroom in every room with a minimum size which allows defined features per category",
-          "kind": "custom",
+          "kind": "M",
           "maxPoints": null,
-          "notes": "4 sqm +",
+          "notes": "4 sqm + (M)",
           "groupCode": "4.1"
         },
         {
@@ -2010,7 +2010,7 @@
           "groupCode": "5.3"
         },
         {
-          "code": "3.3.2",
+          "code": "5.3.2",
           "text": "Restaurant with breakfast and  lunch offer for at least 3 hours (if not fully open)",
           "kind": "P",
           "maxPoints": 1,
@@ -3032,9 +3032,9 @@
         {
           "code": "11.1.1",
           "text": "Indoor and outdoor activities provided (archery, cooking classes, community activates, bike rentals, etc.)",
-          "kind": "custom",
+          "kind": "M",
           "maxPoints": null,
-          "notes": "",
+          "notes": "Mandatory (sheet M)",
           "groupCode": "11.1"
         },
         {
@@ -3310,7 +3310,7 @@
   ],
   "stats": {
     "leafCriteria": 324,
-    "mandatoryLeafCount": 157,
+    "mandatoryLeafCount": 163,
     "entryGateCount": 20,
     "sectionCount": 12
   }

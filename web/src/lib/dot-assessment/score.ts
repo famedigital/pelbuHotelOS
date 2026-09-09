@@ -9,8 +9,11 @@ export type SectionScore = {
   title: string;
   order: number;
   na: boolean;
+  /** Official HCS sheet M target for the section (may exceed leaf M rows). */
   mRequired: number;
   mAchieved: number;
+  /** Count of kind=M leaf criteria in the digital checklist. */
+  mLeafRequired: number;
   qMax: number;
   qAchieved: number;
   pMax: number;
@@ -19,6 +22,14 @@ export type SectionScore = {
   totalScorable: number;
   incompleteCodes: string[];
   failedMCodes: string[];
+  /** Leaf M not yet Yes (pending / missing). */
+  incompleteMCodes: string[];
+};
+
+export type MandatoryGap = {
+  code: string;
+  sectionKey: string;
+  reason: "no" | "pending";
 };
 
 export type Scoreboard = {
@@ -36,6 +47,11 @@ export type Scoreboard = {
     mRequired: number;
     mAchieved: number;
     mShortfall: number;
+    mLeafRequired: number;
+    mLeafAchieved: number;
+    mLeafShortfall: number;
+    /** Official sheet target above digitisable leaf M rows. */
+    mSheetOnlyGap: number;
     qAchieved: number;
     qMax: number;
     pAchieved: number;
@@ -46,10 +62,14 @@ export type Scoreboard = {
   };
   qualityBand: { rank: number; label: string } | null;
   pBand: { rank: number; label: string } | null;
+  /** All digitisable leaf M Yes (sheet-only gap ignored). */
   mandatoryPass: boolean;
   entryGatePass: boolean;
   readyForInspection: boolean;
   failedMCodes: string[];
+  incompleteMCodes: string[];
+  /** Actionable M / gate gaps with jump targets. */
+  mandatoryGaps: MandatoryGap[];
 };
 
 function responseMap(responses: DotResponse[]): Map<string, DotResponse> {
@@ -150,8 +170,12 @@ export function computeScoreboard(
 
   const sections: SectionScore[] = [];
   const allFailedM: string[] = [];
+  const allIncompleteM: string[] = [];
+  const mandatoryGaps: MandatoryGap[] = [];
   let mRequired = 0;
   let mAchieved = 0;
+  let mLeafRequired = 0;
+  let mLeafAchieved = 0;
   let qAchieved = 0;
   let qMax = 0;
   let pAchieved = 0;
@@ -164,6 +188,7 @@ export function computeScoreboard(
     const scorable = sectionScorable(section);
     const incompleteCodes: string[] = [];
     const failedMCodes: string[] = [];
+    const incompleteMCodes: string[] = [];
     let secMReq = 0;
     let secMAch = 0;
     let secQ = 0;
@@ -199,9 +224,20 @@ export function computeScoreboard(
           secAns += 1;
         } else if (m === 0) {
           failedMCodes.push(c.code);
+          mandatoryGaps.push({
+            code: c.code,
+            sectionKey: section.key,
+            reason: "no",
+          });
           secAns += 1;
         } else {
           incompleteCodes.push(c.code);
+          incompleteMCodes.push(c.code);
+          mandatoryGaps.push({
+            code: c.code,
+            sectionKey: section.key,
+            reason: "pending",
+          });
         }
       }
       for (const c of qCriteria) {
@@ -226,9 +262,7 @@ export function computeScoreboard(
         const q = scoreQOf(r);
         if (m != null || q != null || (r && r.scoreP != null) || r?.status === "na") {
           secAns += 1;
-          if (m === 1) {
-            /* optional */
-          } else if (m === 0) failedMCodes.push(c.code);
+          // Custom rows are optional / free-form — Yes/No does not move the M total.
           if (q != null) secQ += q;
           if (r?.scoreP != null) secP += scorePOf(r, null);
         } else incompleteCodes.push(c.code);
@@ -236,12 +270,15 @@ export function computeScoreboard(
 
       mRequired += secMReq;
       mAchieved += secMAch;
+      mLeafRequired += mCriteria.length;
+      mLeafAchieved += secMAch;
       qAchieved += secQ;
       qMax += secQMax;
       pAchieved += secP;
       pMax += secPMax || (section.caps.P ?? 0);
       answered += secAns;
       allFailedM.push(...failedMCodes);
+      allIncompleteM.push(...incompleteMCodes);
     }
 
     sections.push({
@@ -251,6 +288,7 @@ export function computeScoreboard(
       na,
       mRequired: na ? 0 : secMReq,
       mAchieved: na ? 0 : secMAch,
+      mLeafRequired: na ? 0 : mCriteria.length,
       qMax: na ? 0 : secQMax,
       qAchieved: na ? 0 : secQ,
       pMax: na ? 0 : secPMax || (section.caps.P ?? 0),
@@ -259,11 +297,18 @@ export function computeScoreboard(
       totalScorable: na ? 0 : scorable.length,
       incompleteCodes: na ? [] : incompleteCodes,
       failedMCodes: na ? [] : failedMCodes,
+      incompleteMCodes: na ? [] : incompleteMCodes,
     });
   }
 
   // Entry answers count toward progress
   answered += yes + no;
+  for (const code of failedCodes) {
+    mandatoryGaps.push({ code, sectionKey: "gate", reason: "no" });
+  }
+  for (const code of pendingCodes) {
+    mandatoryGaps.push({ code, sectionKey: "gate", reason: "pending" });
+  }
 
   // Align required M with official scoring sheet when no optional sections are excluded
   if (naSet.size === 0) {
@@ -271,6 +316,8 @@ export function computeScoreboard(
   }
 
   const mShortfall = Math.max(0, mRequired - mAchieved);
+  const mLeafShortfall = Math.max(0, mLeafRequired - mLeafAchieved);
+  const mSheetOnlyGap = Math.max(0, mRequired - mLeafRequired);
   const progressPct = totalScorable
     ? Math.round((answered / totalScorable) * 100)
     : 0;
@@ -285,8 +332,12 @@ export function computeScoreboard(
 
   const pBand = bandFromPercent(catalog, pPct);
 
-  // Quality fail if any answered Q is missing scale (already treated) — also if any Q score would be 0 (not allowed)
-  const mandatoryPass = mShortfall === 0 && allFailedM.length === 0;
+  // Pass when every digitisable leaf M is Yes and no failed customs.
+  // Official sheet can list a higher M target than leaf rows — that gap is informational only.
+  const mandatoryPass =
+    mLeafShortfall === 0 &&
+    allFailedM.length === 0 &&
+    allIncompleteM.length === 0;
   const readyForInspection =
     entryGatePass && mandatoryPass && progressPct >= 100;
 
@@ -305,6 +356,10 @@ export function computeScoreboard(
       mRequired,
       mAchieved,
       mShortfall,
+      mLeafRequired,
+      mLeafAchieved,
+      mLeafShortfall,
+      mSheetOnlyGap,
       qAchieved,
       qMax,
       pAchieved,
@@ -319,6 +374,8 @@ export function computeScoreboard(
     entryGatePass,
     readyForInspection,
     failedMCodes: allFailedM,
+    incompleteMCodes: allIncompleteM,
+    mandatoryGaps,
   };
 }
 

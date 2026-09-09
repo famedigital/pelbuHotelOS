@@ -87,6 +87,16 @@ export default async function ErpHrIsrPage() {
             PDF. Staff and auditors treat the active signed file as the in-force
             ISR.
           </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button asChild variant="citrus" className="min-h-11">
+              <Link href="/erp/compliance/isr">
+                Print Pelbu Suites ISR (MoLHR cover)
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="min-h-11">
+              <Link href="/erp/compliance">All log books & posters</Link>
+            </Button>
+          </div>
         </div>
         <Button asChild variant="outline" className="min-h-11">
           <Link href="/erp/hr">← Staff directory</Link>

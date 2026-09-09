@@ -878,7 +878,7 @@
         {
           "code": "3.1.1",
           "text": "Minimum size of rooms (including bathrooms)",
-          "kind": "custom",
+          "kind": "M",
           "maxPoints": null,
           "notes": "25 sqm +(M)",
           "groupCode": "3.1"
@@ -974,9 +974,9 @@
         {
           "code": "3.3.1",
           "text": "Bed system with a well kept  mattress with minimum thickness",
-          "kind": "custom",
+          "kind": "M",
           "maxPoints": null,
-          "notes": "25 cm +",
+          "notes": "25 cm + (M)",
           "groupCode": "3.3"
         },
         {
@@ -1038,9 +1038,9 @@
         {
           "code": "3.3.9",
           "text": "Number of pillows per single bed/double bed",
-          "kind": "custom",
+          "kind": "M",
           "maxPoints": null,
-          "notes": "",
+          "notes": "Mandatory (sheet M)",
           "groupCode": "3.3"
         },
         {
@@ -1158,9 +1158,9 @@
         {
           "code": "3.4.6",
           "text": "Coat hangers with minimum number per wardrobe",
-          "kind": "custom",
+          "kind": "M",
           "maxPoints": null,
-          "notes": "6 psc",
+          "notes": "6 psc (M)",
           "groupCode": "3.4"
         },
         {
@@ -1538,7 +1538,7 @@
         {
           "code": "4.1.1",
           "text": "Ensuite bathroom in every room with a minimum size which allows defined features per category",
-          "kind": "custom",
+          "kind": "M",
           "maxPoints": null,
           "notes": "5 sqm + (M)",
           "groupCode": "4.1"
@@ -3284,7 +3284,7 @@
   ],
   "stats": {
     "leafCriteria": 324,
-    "mandatoryLeafCount": 188,
+    "mandatoryLeafCount": 193,
     "entryGateCount": 20,
     "sectionCount": 12
   }
