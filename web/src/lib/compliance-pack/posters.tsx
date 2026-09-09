@@ -1,6 +1,8 @@
 import { PELBU_PROPERTY } from "@/lib/compliance-pack/catalog";
 import type { ReactElement } from "react";
 
+const POSTER_FOOTER = `${PELBU_PROPERTY.name} · ${PELBU_PROPERTY.address} · BAFRA / BFDA prep poster — laminate & display`;
+
 export function PosterWasteBins() {
   const bins = [
     { label: "WET / FOOD", color: "bg-emerald-700", tip: "Kitchen scraps, leftover food" },
@@ -27,7 +29,7 @@ export function PosterWasteBins() {
       <p className="text-sm text-neutral-600">
         Lids closed · No mixing · Report full bins to HK / kitchen lead
       </p>
-      <p className="text-xs text-neutral-500">{PEL_FOOTER}</p>
+      <p className="text-xs text-neutral-500">{POSTER_FOOTER}</p>
     </div>
   );
 }
@@ -56,7 +58,7 @@ export function PosterRecycling() {
       <p className="text-sm text-neutral-600">
         Guests: ask reception. Staff: log collections on Waste segregation form.
       </p>
-      <p className="text-xs text-neutral-500">{SIDE_FOOTER}</p>
+      <p className="text-xs text-neutral-500">{POSTER_FOOTER}</p>
     </div>
   );
 }
@@ -91,7 +93,7 @@ export function PosterHandwash() {
       <p className="text-center text-sm font-medium text-neutral-700">
         After toilet · After waste · After raw food · Before plating
       </p>
-      <p className="text-center text-xs text-neutral-500">{SIDE_FOOTER}</p>
+      <p className="text-center text-xs text-neutral-500">{POSTER_FOOTER}</p>
     </div>
   );
 }
@@ -138,12 +140,10 @@ export function PosterFoodSafety() {
           </div>
         ))}
       </div>
-      <p className="text-center text-xs text-neutral-500">{SIDE_FOOTER}</p>
+      <p className="text-center text-xs text-neutral-500">{POSTER_FOOTER}</p>
     </div>
   );
 }
-
-const SIDE_FOOTER = `${PELBU_PROPERTY.name} · ${PELBU_PROPERTY.address} · BAFRA / BFDA prep poster — laminate & display`;
 
 export const POSTER_RENDERERS: Record<string, () => ReactElement> = {
   "waste-bins": PosterWasteBins,
