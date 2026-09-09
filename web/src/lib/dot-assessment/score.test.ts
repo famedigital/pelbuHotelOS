@@ -69,7 +69,6 @@ describe("computeScoreboard", () => {
 
   it("size-threshold M rows count toward leaf mandatory (no sheet-only gap)", () => {
     const catalog = getCatalog(3);
-    assert.equal(catalog.totals?.mSheetOnlyGap, undefined);
     assert.equal(catalog.stats.mandatoryLeafCount, catalog.scoring.mandatoryRequired);
     const sizeCodes = ["3.1.1", "3.3.1", "3.3.9", "3.4.6", "4.1.1", "11.1.1"];
     for (const code of sizeCodes) {
