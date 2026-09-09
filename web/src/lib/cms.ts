@@ -1,4 +1,10 @@
+import { cache } from "react";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  cachedPublicByProperty,
+  cmsTag,
+  homeTag,
+} from "@/lib/public-cache";
 import {
   cloudinaryHeroUrl,
   cloudinaryMediaThumbUrl,
@@ -9,7 +15,6 @@ import {
   parseHeroTheme,
   type HeroTheme,
 } from "@/lib/hero-theme";
-import { resolvePublicPropertyId } from "@/lib/tenant/resolve-public-property";
 
 /** Same remap as menu-loader — keep gallery thumbs off broken seed IDs. */
 const CMS_MEDIA_REMAP: Record<string, string> = {
@@ -92,9 +97,10 @@ function contentSections(value: unknown): CmsContentSection[] {
   });
 }
 
-export async function loadCmsPage(slug: string): Promise<CmsPage | null> {
-  const propertyId = await resolvePublicPropertyId();
-  if (!propertyId) return null;
+async function loadCmsPageForProperty(
+  propertyId: string,
+  slug: string,
+): Promise<CmsPage | null> {
   const admin = createSupabaseAdminClient();
 
   const { data } = await admin
@@ -131,6 +137,17 @@ export async function loadCmsPage(slug: string): Promise<CmsPage | null> {
   };
 }
 
+export const loadCmsPage = cache(
+  async (slug: string): Promise<CmsPage | null> => {
+    return cachedPublicByProperty(
+      ["cms-page", slug],
+      (id) => (slug === "home" ? [cmsTag(id), homeTag(id)] : cmsTag(id)),
+      (propertyId) => loadCmsPageForProperty(propertyId, slug),
+      null,
+    );
+  },
+);
+
 /** Prefer `kind=hero`, else first item with a resolved URL. */
 export function pickHeroSrc(items: CmsMediaItem[]): string | null {
   return (
@@ -145,75 +162,97 @@ export function pickHeroSrc(items: CmsMediaItem[]): string | null {
  * loader rewrites keep a real c_fill + gravity pair (width-only fill URLs
  * leave height undefined and the loader dropped gravity — soft crops).
  */
-export async function loadCmsGallery(
-  pageSlug: string,
-  width = 960,
-  options?: { height?: number; heroQuality?: boolean },
-): Promise<CmsMediaItem[]> {
-  const propertyId = await resolvePublicPropertyId();
-  if (!propertyId) return [];
-  const admin = createSupabaseAdminClient();
+export const loadCmsGallery = cache(
+  async (
+    pageSlug: string,
+    width = 960,
+    options?: { height?: number; heroQuality?: boolean },
+  ): Promise<CmsMediaItem[]> => {
+    return cachedPublicByProperty(
+      [
+        "cms-gallery",
+        pageSlug,
+        String(width),
+        String(options?.height ?? ""),
+        String(Boolean(options?.heroQuality)),
+      ],
+      (id) =>
+        pageSlug === "home" ? [cmsTag(id), homeTag(id)] : cmsTag(id),
+      async (propertyId) => {
+        const admin = createSupabaseAdminClient();
+        const { data } = await admin
+          .from("cms_media")
+          .select(
+            "id, public_id, alt, kind, sort_order, resource_type, poster_public_id, focal_x, focal_y",
+          )
+          .eq("property_id", propertyId)
+          .eq("page_slug", pageSlug)
+          .eq("is_published", true)
+          .order("sort_order");
 
-  const { data } = await admin
-    .from("cms_media")
-    .select(
-      "id, public_id, alt, kind, sort_order, resource_type, poster_public_id, focal_x, focal_y",
-    )
-    .eq("property_id", propertyId)
-    .eq("page_slug", pageSlug)
-    .eq("is_published", true)
-    .order("sort_order");
-
-  return (data ?? []).map((row) => {
-    const publicId = resolveCmsPublicId(row.public_id as string);
-    const resourceType =
-      row.resource_type === "video" ? ("video" as const) : ("image" as const);
-    const poster = (row.poster_public_id as string | null) ?? null;
-    const focal = normalizeFocal(
-      row.focal_x == null ? 0.5 : Number(row.focal_x),
-      row.focal_y == null ? 0.5 : Number(row.focal_y),
-    );
-    const kind = row.kind as string;
-    const isHero = kind === "hero" || kind === "hero_mobile";
-    const outW = isHero && options?.heroQuality ? Math.max(width, 2880) : width;
-    // 4:3 default for gallery thumbs; hero freer 16:10 so fill always has height.
-    const outH =
-      options?.height ??
-      (isHero ? Math.round(outW * (10 / 16)) : Math.round(outW * (3 / 4)));
-    const transform = {
-      width: outW,
-      height: outH,
-      crop: "fill" as const,
-      gravity: focal,
-      ...(isHero && options?.heroQuality
-        ? {
-            quality: "auto:best" as const,
-            sharpen: true,
-            improve: false,
-          }
-        : {}),
-    };
-    const assetId = poster || publicId;
-    const src =
-      isHero && options?.heroQuality && resourceType === "image" && !poster
-        ? cloudinaryHeroUrl(publicId, transform)
-        : cloudinaryMediaThumbUrl(
-            assetId,
-            poster ? "image" : resourceType,
-            transform,
+        return (data ?? []).map((row) => {
+          const publicId = resolveCmsPublicId(row.public_id as string);
+          const resourceType =
+            row.resource_type === "video"
+              ? ("video" as const)
+              : ("image" as const);
+          const poster = (row.poster_public_id as string | null) ?? null;
+          const focal = normalizeFocal(
+            row.focal_x == null ? 0.5 : Number(row.focal_x),
+            row.focal_y == null ? 0.5 : Number(row.focal_y),
           );
-    return {
-      id: row.id as string,
-      public_id: publicId,
-      alt: (row.alt as string) || "",
-      kind,
-      sort_order: Number(row.sort_order),
-      resource_type: resourceType,
-      poster_public_id: poster,
-      focal_x: focal.x,
-      focal_y: focal.y,
-      src,
-    };
-  });
-}
+          const kind = row.kind as string;
+          const isHero = kind === "hero" || kind === "hero_mobile";
+          const outW =
+            isHero && options?.heroQuality
+              ? Math.min(Math.max(width, 1920), 2400)
+              : width;
+          const outH =
+            options?.height ??
+            (isHero
+              ? Math.round(outW * (10 / 16))
+              : Math.round(outW * (3 / 4)));
+          const transform = {
+            width: outW,
+            height: outH,
+            crop: "fill" as const,
+            gravity: focal,
+            ...(isHero && options?.heroQuality
+              ? {
+                  quality: "auto:best" as const,
+                  sharpen: true,
+                  improve: false,
+                }
+              : {}),
+          };
+          const assetId = poster || publicId;
+          const src =
+            isHero &&
+            options?.heroQuality &&
+            resourceType === "image" &&
+            !poster
+              ? cloudinaryHeroUrl(publicId, transform)
+              : cloudinaryMediaThumbUrl(
+                  assetId,
+                  poster ? "image" : resourceType,
+                  transform,
+                );
+          return {
+            id: row.id as string,
+            public_id: publicId,
+            alt: (row.alt as string) || "",
+            kind,
+            sort_order: Number(row.sort_order),
+            resource_type: resourceType,
+            poster_public_id: poster,
+            focal_x: focal.x,
+            focal_y: focal.y,
+            src,
+          };
+        });
+      },
+      [],
+    );
+  },
+);
 

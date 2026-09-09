@@ -8,7 +8,7 @@ import type {
 import { amenityKindToFilter } from "@/lib/gallery-showcase";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const HotelFacadeExplore = dynamic(
   () =>
@@ -51,6 +51,7 @@ type Props = {
 
 /**
  * Public 3D — architectural facade of Pelbu Suites Olakha.
+ * Three.js loads only after the section scrolls near the viewport.
  */
 export function PublicBuildingExplore({
   units,
@@ -65,6 +66,24 @@ export function PublicBuildingExplore({
   onSelectFloorWing,
 }: Props) {
   const router = useRouter();
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setReady(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "200px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   const handleRoom = useCallback(
     (unit: RoomMapUnit) => {
@@ -95,19 +114,27 @@ export function PublicBuildingExplore({
   );
 
   return (
-    <HotelFacadeExplore
-      units={units}
-      layout={layout}
-      spaces={spaces}
-      selectedUnitIds={selectedUnitIds}
-      variant={variant}
-      onSelectRoom={handleRoom}
-      onSelectSpace={handleSpace}
-      onSelectFloorWing={onSelectFloorWing}
-      legendHint={
-        legendHint ??
-        "Orbit the house — tap Ground for lobby, bistro, spa and steam; First for restaurant and meeting; floors 2–5 for guest rooms."
-      }
-    />
+    <div ref={hostRef} className="h-full min-h-[min(60vh,480px)] w-full">
+      {ready ? (
+        <HotelFacadeExplore
+          units={units}
+          layout={layout}
+          spaces={spaces}
+          selectedUnitIds={selectedUnitIds}
+          variant={variant}
+          onSelectRoom={handleRoom}
+          onSelectSpace={handleSpace}
+          onSelectFloorWing={onSelectFloorWing}
+          legendHint={
+            legendHint ??
+            "Orbit the house — tap Ground for lobby, bistro, spa and steam; First for restaurant and meeting; floors 2–5 for guest rooms."
+          }
+        />
+      ) : (
+        <div className="flex h-full min-h-[min(60vh,480px)] w-full items-center justify-center bg-gradient-to-b from-sky-100/80 via-[#f4efe6] to-[#e4dccf] text-sm text-muted-foreground">
+          Explore the building…
+        </div>
+      )}
+    </div>
   );
 }

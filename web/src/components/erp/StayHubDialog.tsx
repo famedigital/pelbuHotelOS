@@ -1191,7 +1191,7 @@ export function StayHubDialog({
     );
     const run = () => {
       void Promise.all(
-        pending.slice(0, 12).map(async (m) => {
+        pending.slice(0, 3).map(async (m) => {
           const r = await fetchStayHubSummary(m.bookingId, m.assignmentId);
           if (cancelled || !r.ok) return;
           summaryCacheRef.current.set(m.bookingId, r.data);

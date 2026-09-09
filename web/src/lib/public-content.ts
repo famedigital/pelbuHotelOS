@@ -1,5 +1,10 @@
+import { cache } from "react";
 import { resolveRoomImagePublicId } from "@/lib/brand";
 import { cloudinaryUrl } from "@/lib/cloudinary";
+import {
+  cachedPublicByProperty,
+  roomsMktTag,
+} from "@/lib/public-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { resolvePublicPropertyId } from "@/lib/tenant/resolve-public-property";
 
@@ -33,9 +38,38 @@ export function publicRoomSlug(code: string): string {
     .replace(/^-|-$/g, "");
 }
 
-export async function loadPublicRooms(): Promise<PublicRoom[]> {
-  const propertyId = await resolvePublicPropertyId();
-  if (!propertyId) return [];
+function mapPublicRoom(row: {
+  id: string;
+  code: string;
+  name: string;
+  blurb: string | null;
+  image_public_id: string | null;
+}): PublicRoom {
+  const code = row.code;
+  const name = row.name;
+  const publicId = resolveRoomImagePublicId({
+    code,
+    name,
+    imagePublicId: row.image_public_id,
+  });
+  return {
+    id: row.id,
+    code,
+    slug: publicRoomSlug(code),
+    name,
+    blurb: row.blurb,
+    imagePublicId: publicId,
+    imageSrc: cloudinaryUrl(publicId, {
+      width: 1400,
+      height: 900,
+      crop: "fill",
+    }),
+  };
+}
+
+async function loadPublicRoomsForProperty(
+  propertyId: string,
+): Promise<PublicRoom[]> {
   const admin = createSupabaseAdminClient();
   const { data } = await admin
     .from("room_types")
@@ -44,33 +78,37 @@ export async function loadPublicRooms(): Promise<PublicRoom[]> {
     .eq("inventory_kind", "sellable_guest")
     .order("code");
 
-  return (data ?? []).map((row) => {
-    const code = row.code as string;
-    const name = row.name as string;
-    const publicId = resolveRoomImagePublicId({
-      code,
-      name,
-      imagePublicId: (row.image_public_id as string | null) ?? null,
-    });
-    return {
+  return (data ?? []).map((row) =>
+    mapPublicRoom({
       id: row.id as string,
-      code,
-      slug: publicRoomSlug(code),
-      name,
+      code: row.code as string,
+      name: row.name as string,
       blurb: (row.blurb as string | null) ?? null,
-      imagePublicId: publicId,
-      imageSrc: cloudinaryUrl(publicId, {
-        width: 1400,
-        height: 900,
-        crop: "fill",
-      }),
-    };
-  });
+      image_public_id: (row.image_public_id as string | null) ?? null,
+    }),
+  );
 }
 
+/** Request-deduped + tagged cross-request cache for room marketing list. */
+export const loadPublicRooms = cache(async (): Promise<PublicRoom[]> => {
+  return cachedPublicByProperty(
+    ["public-rooms"],
+    roomsMktTag,
+    loadPublicRoomsForProperty,
+    [],
+  );
+});
+
+/** Prefer shared room list (React.cache + tagged) over a third independent query. */
+export const loadPublicRoomBySlug = cache(
+  async (slug: string): Promise<PublicRoom | null> => {
+    const rooms = await loadPublicRooms();
+    return rooms.find((room) => room.slug === slug) ?? null;
+  },
+);
+
 export async function loadPublicRoom(slug: string): Promise<PublicRoom | null> {
-  const rooms = await loadPublicRooms();
-  return rooms.find((room) => room.slug === slug) ?? null;
+  return loadPublicRoomBySlug(slug);
 }
 
 export async function loadGuidePosts(): Promise<GuidePost[]> {

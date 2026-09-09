@@ -33,9 +33,12 @@ import {
   websiteJsonLd,
 } from "@/lib/structured-data";
 import { PAGE_SEO, metadataFromCms } from "@/lib/seo";
+import { publicMarketingCache } from "@/lib/public-marketing-cache";
 import type { Metadata } from "next";
 
-export const dynamic = "force-dynamic";
+const cache = publicMarketingCache();
+export const dynamic = cache.dynamic;
+export const revalidate = cache.revalidate;
 
 export async function generateMetadata(): Promise<Metadata> {
   const page = await safePublic("home-meta", () => loadCmsPage("home"), null);
@@ -128,22 +131,24 @@ export default async function HomePage() {
         const desktopSrc =
           item.resource_type === "video"
             ? (item.src ?? undefined)
-            : cloudinaryHeroUrl(item.public_id, {
-                // Wide source — CSS object-position frames live; avoid forced crop soft blobs.
-                width: 3840,
-                crop: "limit",
-              }) ??
-              item.src ??
-              undefined;
+            : i === 0
+              ? cloudinaryHeroUrl(item.public_id, {
+                  width: 2400,
+                  crop: "limit",
+                }) ??
+                item.src ??
+                undefined
+              : item.src ?? undefined;
 
         const mobileSrc =
           (mobile?.resource_type === "video" ? mobile.src : null) ??
           (item.resource_type === "image" || !item.resource_type
-            ? cloudinaryHeroUrl(mobile?.public_id ?? item.public_id, {
-                // Tall phone source at high quality; framing via object-position on device.
-                width: 1600,
-                crop: "limit",
-              })
+            ? i === 0
+              ? cloudinaryHeroUrl(mobile?.public_id ?? item.public_id, {
+                  width: 1200,
+                  crop: "limit",
+                })
+              : null
             : item.src);
 
         return {
@@ -161,19 +166,23 @@ export default async function HomePage() {
           mobileFocalY: mobileFocal.y,
         };
       })
-    : HOME_HERO_SLIDES.map((slide) => ({
+    : HOME_HERO_SLIDES.map((slide, i) => ({
         ...slide,
         resourceType: "image" as const,
         src:
-          cloudinaryHeroUrl(slide.publicId, {
-            width: 3840,
-            crop: "limit",
-          }) ?? undefined,
+          i === 0
+            ? cloudinaryHeroUrl(slide.publicId, {
+                width: 2400,
+                crop: "limit",
+              }) ?? undefined
+            : undefined,
         mobileSrc:
-          cloudinaryHeroUrl(slide.publicId, {
-            width: 1600,
-            crop: "limit",
-          }) ?? undefined,
+          i === 0
+            ? cloudinaryHeroUrl(slide.publicId, {
+                width: 1200,
+                crop: "limit",
+              }) ?? undefined
+            : undefined,
         mobilePublicId: slide.publicId,
         focalX: 0.5,
         focalY: 0.45,

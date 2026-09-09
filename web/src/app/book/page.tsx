@@ -1,3 +1,4 @@
+import { previewStayCost } from "@/app/actions/bookings";
 import { BookingCheckoutShell } from "@/components/book/BookingCheckoutShell";
 import { BookingWizard } from "@/components/book/BookingWizard";
 import { resolveLogoSrc } from "@/lib/logo-src";
@@ -11,6 +12,9 @@ export const metadata = {
   alternates: { canonical: "/book" },
   robots: { index: false, follow: true },
 };
+
+/** Booking preview must stay live — never ISR availability/totals. */
+export const dynamic = "force-dynamic";
 
 type BookSearchParams = {
   checkIn?: string | string[];
@@ -41,12 +45,30 @@ export default async function BookPage({
     rooms: first(params.rooms),
   });
 
+  let initialPreview = null;
+  if (initialStay.checkIn && initialStay.checkOut) {
+    try {
+      const preview = await previewStayCost({
+        checkIn: initialStay.checkIn,
+        checkOut: initialStay.checkOut,
+        rooms: initialStay.rooms ?? 1,
+        adults: initialStay.adults ?? 2,
+      });
+      if (preview.ok) initialPreview = preview.preview;
+    } catch {
+      initialPreview = null;
+    }
+  }
+
   return (
     <BookingCheckoutShell
       phone={property?.phone}
       logoSrc={resolveLogoSrc(property?.logoPublicId)}
     >
-      <BookingWizard initialStay={initialStay} />
+      <BookingWizard
+        initialStay={initialStay}
+        initialPreview={initialPreview}
+      />
     </BookingCheckoutShell>
   );
 }

@@ -1,13 +1,20 @@
 # Café geometric standees — PSD handoff
 
-Layered Photoshop masters from [`menu-standee-sketch-35x72.html`](../menu-standee-sketch-35x72.html) (barista dual-standee plan).
+Layered Photoshop masters from [`menu-standee-sketch-35x72.html`](../menu-standee-sketch-35x72.html).
+
+## Roles
+
+| Standee | Theme |
+|---------|--------|
+| 1 | **Café food favourites** — Korean chicken BBQ, fry, rolls, fries (hits first); other plates lower |
+| 2 | **Coffee · tea · cold** — latte, chai, mojito, boba & related fast sellers |
 
 ## Files
 
 | Standee | PSD | Composite preview |
 |---------|-----|-------------------|
-| 1 — Barista & café (radial) | [standee-1-barista-cafe.psd](standee-1-barista-cafe.psd) | [exports/standee-1-barista/composite.png](exports/standee-1-barista/composite.png) |
-| 2 — Café + restaurant (angled) | [standee-2-cafe-restaurant.psd](standee-2-cafe-restaurant.psd) | [exports/standee-2-cafe-resto/composite.png](exports/standee-2-cafe-resto/composite.png) |
+| 1 — Café food (radial) | [standee-1-barista-cafe.psd](standee-1-barista-cafe.psd) | [exports/standee-1-barista/composite.png](exports/standee-1-barista/composite.png) |
+| 2 — Drinks (angled) | [standee-2-cafe-restaurant.psd](standee-2-cafe-restaurant.psd) | [exports/standee-2-cafe-resto/composite.png](exports/standee-2-cafe-resto/composite.png) |
 
 ## Spec
 
@@ -38,12 +45,12 @@ Layered Photoshop masters from [`menu-standee-sketch-35x72.html`](../menu-stande
 | `01_composite_flat` | Full flat |
 | `02_s2_top` | Headline + feature circle |
 | `03_s2_mid` | Services + brand message |
-| `04_s2_angled` | Angled café panels |
-| `05_s2_resto_label` | “Also available…” |
-| `06_s2_resto` | Restaurant strip |
+| `04_s2_angled` | Angled drink panels |
+| `05_s2_resto_label` | “Also cool…” |
+| `06_s2_resto` | Secondary drinks strip |
 | `07_s2_footer` | Contact + QR bar |
 | `08_logo` | Logo |
-| `09_feature_circle` | Featured dish circle |
+| `09_feature_circle` | Featured drink circle |
 | `10_qr` | Menu QR |
 
 Per-layer TIFF slices also live under `exports/<id>/`.

@@ -16,8 +16,11 @@ import {
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { publicMarketingCache } from "@/lib/public-marketing-cache";
 
-export const dynamic = "force-dynamic";
+const cache = publicMarketingCache();
+export const dynamic = cache.dynamic;
+export const revalidate = cache.revalidate;
 
 export async function generateMetadata({
   params,
@@ -59,22 +62,22 @@ export default async function RoomDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const [room, rateCtx] = await Promise.all([
-    loadPublicRoom(slug),
-    loadPublicRoomsWithRates(),
-  ]);
+  const room = await loadPublicRoom(slug);
   if (!room) notFound();
+
+  const [rateCtx, trustMedia] = await Promise.all([
+    loadPublicRoomsWithRates(),
+    loadPublicPropertyMedia({
+      scope: "room_type",
+      scopeId: room.id,
+    }),
+  ]);
   const priced = rateCtx.rooms.find((r) => r.slug === room.slug);
 
   const lead = resolveRoomImagePublicId({
     code: room.code,
     name: room.name,
     imagePublicId: room.imagePublicId,
-  });
-
-  const trustMedia = await loadPublicPropertyMedia({
-    scope: "room_type",
-    scopeId: room.id,
   });
 
   const fallback =

@@ -151,39 +151,46 @@
       right: 0;
       bottom: 0;
       z-index: 2;
-      padding: 0.55in 0.45in 0.4in;
-      background: linear-gradient(to top, rgba(12, 9, 7, 0.88) 0%, rgba(12, 9, 7, 0.35) 55%, transparent 100%);
+      padding: 0.7in 0.5in 0.48in;
+      background: linear-gradient(to top, rgba(12, 9, 7, 0.92) 0%, rgba(12, 9, 7, 0.42) 58%, transparent 100%);
       color: var(--paper);
     }
 
     .seg .cap .tag {
-      font-size: 0.32in;
+      font-size: 0.48in;
       font-weight: 700;
       letter-spacing: 0.14em;
       text-transform: uppercase;
       color: var(--gold);
-      margin-bottom: 0.08in;
+      margin-bottom: 0.1in;
     }
 
     .seg .cap h3 {
       font-family: "Cormorant Garamond", Georgia, serif;
-      font-size: 0.72in;
+      font-size: 1.05in;
       font-weight: 600;
       line-height: 1.05;
-      margin-bottom: 0.1in;
+      margin-bottom: 0.12in;
     }
 
     .seg .cap .nu {
-      font-size: 0.42in;
+      font-size: 0.62in;
       font-weight: 700;
       letter-spacing: 0.02em;
     }
 
     .seg .cap .nu span {
       font-weight: 500;
-      font-size: 0.32in;
+      font-size: 0.45in;
       opacity: 0.85;
       margin-right: 0.08in;
+    }
+
+    .seg .cap .ask {
+      font-size: 0.48in;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      opacity: 0.92;
     }
 
     /* ========== STANDEE 1 — radial (idea1) ========== */
@@ -358,9 +365,16 @@
       border-radius: 0.55in 0.55in 1.8in 1.8in;
     }
 
-    .s1 .radial .seg:nth-child(1) .cap h3 { font-size: 1.05in; }
-    .s1 .radial .seg:nth-child(1) .cap .nu { font-size: 0.55in; }
-    .s1 .radial .seg:nth-child(6) .cap h3 { font-size: 0.95in; }
+    .s1 .radial .seg:nth-child(1) .cap h3 { font-size: 1.35in; }
+    .s1 .radial .seg:nth-child(1) .cap .nu,
+    .s1 .radial .seg:nth-child(1) .cap .ask { font-size: 0.72in; }
+    .s1 .radial .seg:nth-child(1) .cap {
+      padding-left: 1.35in;
+      padding-right: 0.7in;
+      padding-bottom: 0.55in;
+    }
+    .s1 .radial .seg:nth-child(6) .cap h3 { font-size: 1.25in; }
+    .s1 .radial .seg:nth-child(6) .cap .nu { font-size: 0.72in; }
 
     .s1 .cta-block {
       position: absolute;
@@ -377,7 +391,7 @@
 
     .s1 .cta-block h2 {
       font-family: "Cormorant Garamond", Georgia, serif;
-      font-size: 1.35in;
+      font-size: 1.55in;
       font-weight: 600;
       font-style: italic;
       line-height: 1.05;
@@ -386,21 +400,21 @@
     }
 
     .s1 .cta-block .cta-copy {
-      font-size: 0.48in;
-      line-height: 1.35;
+      font-size: 0.72in;
+      line-height: 1.3;
       color: #3a2f26;
       margin-bottom: 0.35in;
     }
 
     .s1 .cta-block .walk {
       display: inline-block;
-      font-size: 0.52in;
+      font-size: 0.68in;
       font-weight: 800;
       letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--paper);
       background: var(--ink);
-      padding: 0.35in 0.7in;
+      padding: 0.4in 0.8in;
       border-radius: 999px;
     }
 
@@ -419,7 +433,7 @@
     }
 
     .s1 .cta-block .qr-wrap p {
-      font-size: 0.28in;
+      font-size: 0.4in;
       font-weight: 700;
       letter-spacing: 0.08em;
       text-transform: uppercase;
@@ -436,8 +450,8 @@
       display: flex;
       justify-content: space-between;
       gap: 0.5in;
-      font-size: 0.34in;
-      font-weight: 600;
+      font-size: 0.52in;
+      font-weight: 700;
       color: #4a3f34;
     }
 
@@ -549,24 +563,24 @@
     }
 
     .s2-top .feature-circle .cap .tag {
-      font-size: 0.35in;
+      font-size: 0.52in;
       font-weight: 700;
       letter-spacing: 0.16em;
       text-transform: uppercase;
       color: var(--gold);
-      margin-bottom: 0.12in;
+      margin-bottom: 0.14in;
     }
 
     .s2-top .feature-circle .cap h3 {
       font-family: "Cormorant Garamond", Georgia, serif;
-      font-size: 1.15in;
+      font-size: 1.45in;
       font-weight: 600;
     }
 
     .s2-top .feature-circle .cap .nu {
-      font-size: 0.55in;
+      font-size: 0.75in;
       font-weight: 700;
-      margin-top: 0.12in;
+      margin-top: 0.14in;
     }
 
     .s2-mid {
@@ -588,11 +602,11 @@
       display: inline-block;
       background: var(--copper);
       color: var(--paper);
-      font-size: 0.34in;
+      font-size: 0.48in;
       font-weight: 800;
       letter-spacing: 0.14em;
       text-transform: uppercase;
-      padding: 0.22in 0.55in;
+      padding: 0.28in 0.6in;
       border-radius: 999px;
       margin-bottom: 0.7in;
     }
@@ -602,21 +616,21 @@
       align-items: center;
       gap: 0.4in;
       margin-bottom: 0.48in;
-      font-size: 0.52in;
+      font-size: 0.72in;
       font-weight: 700;
       letter-spacing: 0.04em;
       text-transform: uppercase;
     }
 
     .s2-mid .svc .dot {
-      width: 0.85in;
-      height: 0.85in;
+      width: 1in;
+      height: 1in;
       border-radius: 50%;
       background: var(--copper);
       flex-shrink: 0;
       display: grid;
       place-items: center;
-      font-size: 0.38in;
+      font-size: 0.48in;
       font-weight: 800;
       color: var(--paper);
     }
@@ -676,15 +690,17 @@
       clip-path: polygon(0 0.55in, 100% 0, 100% 100%, 0 100%);
     }
 
-    .s2-angled .seg .cap h3 { font-size: 0.58in; }
-    .s2-angled .seg .cap .nu { font-size: 0.36in; }
-    .s2-angled .seg .cap { padding: 0.45in 0.3in 0.32in; }
+    .s2-angled .seg .cap h3 { font-size: 0.88in; }
+    .s2-angled .seg .cap .nu,
+    .s2-angled .seg .cap .ask { font-size: 0.55in; }
+    .s2-angled .seg .cap .tag { font-size: 0.4in; }
+    .s2-angled .seg .cap { padding: 0.55in 0.32in 0.38in; }
 
     .s2-resto-label {
       flex-shrink: 0;
       padding: 0.55in 2in 0.35in;
       background: var(--paper);
-      font-size: 0.4in;
+      font-size: 0.58in;
       font-weight: 800;
       letter-spacing: 0.16em;
       text-transform: uppercase;
@@ -707,10 +723,11 @@
       box-shadow: 0 0.2in 0.55in rgba(22, 17, 14, 0.12);
     }
 
-    .s2-resto .seg .cap h3 { font-size: 0.52in; }
-    .s2-resto .seg .cap .tag { font-size: 0.28in; }
-    .s2-resto .seg .cap .nu { font-size: 0.34in; }
-    .s2-resto .seg .cap { padding: 0.4in 0.28in 0.28in; }
+    .s2-resto .seg .cap h3 { font-size: 0.8in; }
+    .s2-resto .seg .cap .tag { font-size: 0.4in; }
+    .s2-resto .seg .cap .nu,
+    .s2-resto .seg .cap .ask { font-size: 0.52in; }
+    .s2-resto .seg .cap { padding: 0.5in 0.3in 0.35in; }
 
     .s2-footer {
       margin-top: auto;
@@ -729,17 +746,17 @@
 
     .s2-footer h2 {
       font-family: "Cormorant Garamond", Georgia, serif;
-      font-size: 1.15in;
+      font-size: 1.4in;
       font-weight: 600;
-      margin-bottom: 0.35in;
+      margin-bottom: 0.4in;
     }
 
     .s2-footer .lines {
       display: flex;
       flex-direction: column;
-      gap: 0.22in;
-      font-size: 0.42in;
-      font-weight: 600;
+      gap: 0.28in;
+      font-size: 0.62in;
+      font-weight: 700;
     }
 
     .s2-footer .qr-wrap {
@@ -757,7 +774,7 @@
 
     .s2-footer .qr-wrap p {
       color: var(--ink);
-      font-size: 0.26in;
+      font-size: 0.38in;
       font-weight: 700;
       letter-spacing: 0.08em;
       text-transform: uppercase;
@@ -793,7 +810,7 @@
     <div>
       <strong>Pelbu Suites · Geometric café standees</strong>
       <div class="meta">
-        Commercial radial + angled mosaic · Standee 1 barista &amp; café · Standee 2 café + restaurant · 35.5 × 72 in.
+        Commercial radial + angled mosaic · Standee 1 café food favourites · Standee 2 coffee · tea · cold · 35.5 × 72 in.
         Lunch orders <b>11 AM – 8 PM</b>. Print → Save as PDF · 100% · backgrounds ON · margins none.
       </div>
     </div>
@@ -801,11 +818,11 @@
   </div>
 
   <div class="stage">
-    <!-- ========== STANDEE 1 — radial ========== -->
-    <p class="side-tag no-print">Standee 1 · Barista &amp; café · radial mosaic</p>
+    <!-- ========== STANDEE 1 — radial food ========== -->
+    <p class="side-tag no-print">Standee 1 · Café food favourites · radial mosaic</p>
     <div class="preview-frame">
       <div class="preview-scale">
-        <article class="sheet s1" aria-label="Pelbu barista and café radial standee">
+        <article class="sheet s1" aria-label="Pelbu café food favourites radial standee">
           <div class="brand-block">
             <div class="brand-row">
               <div>
@@ -815,60 +832,60 @@
               <img src="logo-mark.png" alt="Pelbu Suites" />
             </div>
             <p class="kicker">Skip the long queue · Walk in now</p>
-            <h1>Barista &amp; café</h1>
-            <p class="sub">Coffee, boba, bakery, club &amp; burgers — day visitors welcome.</p>
+            <h1>Café favourites</h1>
+            <p class="sub">Korean chicken BBQ · fry · rolls · fries — day visitors welcome.</p>
             <div class="chips">
               <div class="chip"><span class="k">Orders</span><span class="v">11 AM – 8 PM</span></div>
-              <div class="chip soft"><span class="k">Coffee from</span><span class="v">Nu 160</span></div>
+              <div class="chip soft"><span class="k">Town hits</span><span class="v">Walk in</span></div>
             </div>
           </div>
 
           <div class="radial-wrap" aria-hidden="false">
             <div class="radial">
               <article class="seg">
-                <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_1200,h_1400,f_jpg,q_auto:best/pelbu/menu/cafe-beef-burger" alt="" />
+                <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_1200,h_1400,f_jpg,q_auto:best/pelbu/menu/cafe-grilled-chicken-plate" alt="" />
                 <div class="cap">
-                  <p class="tag">Signature</p>
-                  <h3>Beef burger</h3>
-                  <p class="nu"><span>Nu</span>350</p>
+                  <p class="tag">Town hit</p>
+                  <h3>Korean BBQ</h3>
+                  <p class="ask">Ask / scan menu</p>
                 </div>
               </article>
               <article class="seg">
-                <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_1200,h_1200,f_jpg,q_auto:best/pelbu/menu/cafe-latte" alt="" />
+                <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_1200,h_1200,f_jpg,q_auto:best/pelbu/menu/cafe-fried-chicken" alt="" />
                 <div class="cap">
-                  <p class="tag">Barista</p>
-                  <h3>Latte / Cappuccino</h3>
-                  <p class="nu"><span>from Nu</span>160</p>
+                  <p class="tag">Fry</p>
+                  <h3>Fried chicken</h3>
+                  <p class="nu"><span>Nu</span>300</p>
                 </div>
               </article>
               <article class="seg">
-                <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_1200,h_1200,f_jpg,q_auto:best/pelbu/menu/cafe-masala-chai" alt="" />
+                <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_1200,h_1200,f_jpg,q_auto:best/pelbu/menu/cafe-chicken-momos" alt="" />
                 <div class="cap">
-                  <p class="tag">Tea</p>
-                  <h3>Masala chai · Suja</h3>
-                  <p class="nu"><span>from Nu</span>100</p>
+                  <p class="tag">Rolls</p>
+                  <h3>Chicken rolls</h3>
+                  <p class="ask">Ask / scan</p>
                 </div>
               </article>
               <article class="seg">
-                <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_1200,h_1200,f_jpg,q_auto:best/pelbu/menu/cafe-boba-classic" alt="" />
+                <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_1200,h_1200,f_jpg,q_auto:best/pelbu/menu/cafe-french-fries" alt="" />
                 <div class="cap">
-                  <p class="tag">Cold</p>
-                  <h3>Milk tea boba</h3>
-                  <p class="nu"><span>Nu</span>220</p>
+                  <p class="tag">Sides</p>
+                  <h3>French fries</h3>
+                  <p class="nu"><span>Nu</span>180</p>
                 </div>
               </article>
               <article class="seg">
-                <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_1200,h_1200,f_jpg,q_auto:best/pelbu/menu/cafe-chocolate-croissant" alt="" />
+                <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_1200,h_1200,f_jpg,q_auto:best/pelbu/menu/cafe-chicken-lollipop" alt="" />
                 <div class="cap">
-                  <p class="tag">Bakery</p>
-                  <h3>Croissant</h3>
-                  <p class="nu"><span>from Nu</span>150</p>
+                  <p class="tag">Also</p>
+                  <h3>Chicken lollipop</h3>
+                  <p class="nu"><span>Nu</span>300</p>
                 </div>
               </article>
               <article class="seg">
                 <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_1600,h_1200,f_jpg,q_auto:best/pelbu/menu/cafe-olakha-club-sandwich" alt="" />
                 <div class="cap">
-                  <p class="tag">Sandwich</p>
+                  <p class="tag">Also on the menu</p>
                   <h3>Olakha club</h3>
                   <p class="nu"><span>Nu</span>300</p>
                 </div>
@@ -897,26 +914,26 @@
       </div>
     </div>
 
-    <!-- ========== STANDEE 2 — color blocks ========== -->
-    <p class="side-tag no-print">Standee 2 · Café + restaurant · angled mosaic</p>
+    <!-- ========== STANDEE 2 — drinks ========== -->
+    <p class="side-tag no-print">Standee 2 · Coffee · tea · cold · angled mosaic</p>
     <div class="preview-frame">
       <div class="preview-scale">
-        <article class="sheet s2" aria-label="Pelbu café and restaurant geometric standee">
+        <article class="sheet s2" aria-label="Pelbu coffee tea and cold drinks geometric standee">
           <div class="s2-top">
             <div class="head">
               <div class="brand-mini">
                 <img src="logo-mark.png" alt="Pelbu Suites" />
                 <p>Pelbu Suites</p>
               </div>
-              <h1><span class="a">Café plates.</span><br /><span class="b">Honest Nu.</span></h1>
-              <p class="sub">Walk-in café favourites — plus restaurant dishes when you want more.</p>
+              <h1><span class="a">Coffee. Tea.</span><br /><span class="b">Cold.</span></h1>
+              <p class="sub">Latte, chai, mojito &amp; more — what sells fast in Thimphu.</p>
             </div>
             <div class="feature-circle">
-              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_1200,h_1200,f_jpg,q_auto:best/pelbu/menu/cafe-olakha-club-sandwich" alt="" />
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_1200,h_1200,f_jpg,q_auto:best/pelbu/menu/cafe-latte" alt="" />
               <div class="cap">
-                <p class="tag">Café favourite</p>
-                <h3>Olakha club</h3>
-                <p class="nu">Nu 300</p>
+                <p class="tag">Barista</p>
+                <h3>Latte / Cappuccino</h3>
+                <p class="nu">from Nu 160</p>
               </div>
             </div>
           </div>
@@ -930,102 +947,102 @@
               <div class="svc"><span class="dot">04</span> WhatsApp +975 1619 3410</div>
             </div>
             <div class="message">
-              <h2>Good food <span class="hi">brings people together.</span></h2>
-              <p class="tagline">Come hungry, leave happy.</p>
-              <p class="hours">Lunch orders <strong>11 AM – 8 PM</strong></p>
+              <h2>Good drinks <span class="hi">bring people together.</span></h2>
+              <p class="tagline">Come thirsty, leave happy.</p>
+              <p class="hours">Café orders <strong>11 AM – 8 PM</strong></p>
             </div>
           </div>
 
-          <div class="s2-angled" aria-label="Café dishes">
+          <div class="s2-angled" aria-label="Café drinks">
             <article class="seg">
-              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_900,h_1400,f_jpg,q_auto:best/pelbu/menu/cafe-olakha-club-sandwich" alt="" />
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_900,h_1400,f_jpg,q_auto:best/pelbu/menu/cafe-cappuccino" alt="" />
               <div class="cap">
-                <p class="tag">Club</p>
-                <h3>Olakha club</h3>
-                <p class="nu"><span>Nu</span>300</p>
+                <p class="tag">Coffee</p>
+                <h3>Cappuccino</h3>
+                <p class="nu"><span>from Nu</span>160</p>
               </div>
             </article>
             <article class="seg">
-              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_900,h_1400,f_jpg,q_auto:best/pelbu/menu/cafe-crispy-chilli-potato" alt="" />
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_900,h_1400,f_jpg,q_auto:best/pelbu/menu/cafe-masala-chai" alt="" />
               <div class="cap">
-                <p class="tag">Share</p>
-                <h3>Crispy chilli potato</h3>
-                <p class="nu"><span>Nu</span>200</p>
+                <p class="tag">Tea</p>
+                <h3>Masala chai · Suja</h3>
+                <p class="nu"><span>from Nu</span>100</p>
+              </div>
+            </article>
+            <article class="seg">
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_900,h_1400,f_jpg,q_auto:best/pelbu/menu/cafe-fresh-lime-soda" alt="" />
+              <div class="cap">
+                <p class="tag">Cold</p>
+                <h3>Mojito</h3>
+                <p class="ask">Ask / scan</p>
               </div>
             </article>
             <article class="seg">
               <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_900,h_1400,f_jpg,q_auto:best/pelbu/menu/cafe-boba-classic" alt="" />
               <div class="cap">
-                <p class="tag">Drink</p>
+                <p class="tag">Boba</p>
                 <h3>Milk tea boba</h3>
                 <p class="nu"><span>Nu</span>220</p>
               </div>
             </article>
             <article class="seg">
-              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_900,h_1400,f_jpg,q_auto:best/pelbu/menu/cafe-chicken-burger" alt="" />
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_900,h_1400,f_jpg,q_auto:best/pelbu/menu/cafe-iced-latte" alt="" />
               <div class="cap">
-                <p class="tag">Burger</p>
-                <h3>Chicken burger</h3>
-                <p class="nu"><span>Nu</span>300</p>
-              </div>
-            </article>
-            <article class="seg">
-              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_900,h_1400,f_jpg,q_auto:best/pelbu/menu/cafe-latte" alt="" />
-              <div class="cap">
-                <p class="tag">Barista</p>
-                <h3>Latte</h3>
+                <p class="tag">Iced</p>
+                <h3>Iced latte</h3>
                 <p class="nu"><span>from Nu</span>160</p>
               </div>
             </article>
           </div>
 
-          <p class="s2-resto-label">Also available in our restaurant</p>
-          <div class="s2-resto" aria-label="Restaurant cuisine teasers">
+          <p class="s2-resto-label">Also cool on the menu</p>
+          <div class="s2-resto" aria-label="More café drinks">
             <article class="seg">
-              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_900,h_1400,f_jpg,q_auto:best/pelbu/menu/restaurant-braised-chicken" alt="" />
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_900,h_1400,f_jpg,q_auto:best/pelbu/menu/cafe-chocolate-shake" alt="" />
               <div class="cap">
-                <p class="tag">Western</p>
-                <h3>Braised chicken</h3>
-                <p class="nu"><span>Nu</span>450</p>
+                <p class="tag">Shake</p>
+                <h3>Chocolate shake</h3>
+                <p class="ask">Ask / scan</p>
               </div>
             </article>
             <article class="seg">
-              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_900,h_1400,f_jpg,q_auto:best/pelbu/menu/restaurant-kung-pao" alt="" />
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_900,h_1400,f_jpg,q_auto:best/pelbu/menu/cafe-mango-lassi" alt="" />
               <div class="cap">
-                <p class="tag">Asian</p>
-                <h3>Kung pao chicken</h3>
-                <p class="nu"><span>Nu</span>400</p>
+                <p class="tag">Lassi</p>
+                <h3>Mango lassi</h3>
+                <p class="ask">Ask / scan</p>
               </div>
             </article>
             <article class="seg">
-              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_900,h_1400,f_jpg,q_auto:best/pelbu/menu/cafe-ezay" alt="" />
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_900,h_1400,f_jpg,q_auto:best/pelbu/menu/cafe-fresh-lime-soda" alt="" />
               <div class="cap">
-                <p class="tag">Highland</p>
-                <h3>Ezay chilli cheese</h3>
-                <p class="nu"><span>Nu</span>180</p>
+                <p class="tag">Soda</p>
+                <h3>Fresh lime soda</h3>
+                <p class="ask">Ask / scan</p>
               </div>
             </article>
             <article class="seg">
-              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_900,h_1400,f_jpg,q_auto:best/pelbu/menu/indian-butter-chicken" alt="" />
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_900,h_1400,f_jpg,q_auto:best/pelbu/menu/cafe-hot-chocolate" alt="" />
               <div class="cap">
-                <p class="tag">Indian</p>
-                <h3>Butter chicken</h3>
-                <p class="nu"><span>Nu</span>580</p>
+                <p class="tag">Hot</p>
+                <h3>Hot chocolate</h3>
+                <p class="ask">Ask / scan</p>
               </div>
             </article>
             <article class="seg">
-              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_900,h_1400,f_jpg,q_auto:best/pelbu/menu/restaurant-ramen" alt="" />
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_900,h_1400,f_jpg,q_auto:best/pelbu/menu/cafe-cold-brew" alt="" />
               <div class="cap">
-                <p class="tag">Japanese</p>
-                <h3>Ramen</h3>
-                <p class="nu"><span>Nu</span>200</p>
+                <p class="tag">Brew</p>
+                <h3>Cold brew</h3>
+                <p class="ask">Ask / scan</p>
               </div>
             </article>
           </div>
 
           <footer class="s2-footer">
             <div>
-              <h2>Full café + restaurant on scan</h2>
+              <h2>Full drinks menu on scan</h2>
               <div class="lines">
                 <span>pelbusuites.bt/menu</span>
                 <span>WhatsApp +975 1619 3410</span>

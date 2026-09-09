@@ -20,6 +20,7 @@ All Pelbu OS docs live in this folder (`C:\GitHub\pelbusuites\docs`).
 | [BTCL-ADAPTATION.md](BTCL-ADAPTATION.md) | Multi-hotel chain adaptation (BTCL) |
 | [FINANCE-UAT.md](FINANCE-UAT.md) | Period / GST / bank recon / edge journals |
 | [OPS-RUNBOOK.md](OPS-RUNBOOK.md) | Night audit / payments / hosts / channel / FO digests |
+| [PERF-BUDGET.md](PERF-BUDGET.md) | Free-tier caps, DNS first-load, Web Vitals budgets, ship gates |
 | [CHANNEX-CERT.md](CHANNEX-CERT.md) | Live Channel certification |
 | [GST-EINVOICE.md](GST-EINVOICE.md) | Bhutan DRC e-invoice stub vs live |
 | [IMAGE_SERVER.md](IMAGE_SERVER.md) | Cloudinary + MCP |

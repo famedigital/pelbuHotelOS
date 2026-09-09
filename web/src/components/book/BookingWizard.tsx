@@ -74,8 +74,10 @@ function CopyReference({ value }: { value: string }) {
 
 export function BookingWizard({
   initialStay,
+  initialPreview = null,
 }: {
   initialStay?: Partial<StaySearchParams> | null;
+  initialPreview?: StayPreview | null;
 } = {}) {
   const [state, action, pending] = useActionState(createBooking, initial);
   const stay = useMemo(
@@ -95,7 +97,7 @@ export function BookingWizard({
   );
   const minCheckIn = useMemo(() => todayIso(), []);
 
-  const [step, setStep] = useState<Step>(1);
+  const [step, setStep] = useState<Step>(initialPreview ? 2 : 1);
 
   // Stay state lifted so we can drive the room-step preview.
   const [checkIn, setCheckIn] = useState<string>(stay.checkIn);
@@ -104,13 +106,20 @@ export function BookingWizard({
   const [children, setChildren] = useState<number>(0);
   const [rooms, setRooms] = useState<number>(stay.rooms);
   const [extraBeds, setExtraBeds] = useState<number>(0);
-  const [mealPlanCode, setMealPlanCode] = useState<string>("EP");
+  const [mealPlanCode, setMealPlanCode] = useState<string>(
+    initialPreview?.mealPlans[0]?.code ?? "EP",
+  );
 
-  // Preview + selection.
-  const [preview, setPreview] = useState<StayPreview | null>(null);
+  // Preview + selection — SSR can seed first paint when dates are in the URL.
+  const [preview, setPreview] = useState<StayPreview | null>(initialPreview);
   const [previewLoading, setPreviewLoading] = useState<boolean>(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  const seededPreviewKey = useRef(
+    initialPreview
+      ? `${stay.checkIn}|${stay.checkOut}|${stay.rooms}|${stay.adults}`
+      : null,
+  );
 
   // Reference to the form so step 3 submit can trigger it programmatically.
   const formRef = useRef<HTMLFormElement>(null);
@@ -130,6 +139,11 @@ export function BookingWizard({
       }, 0);
       return () => window.clearTimeout(clearTimer);
     }
+    const key = `${checkIn}|${checkOut}|${rooms}|${adults}`;
+    if (seededPreviewKey.current === key && preview) {
+      return;
+    }
+    seededPreviewKey.current = null;
     let cancelled = false;
     // Async stay preview; loading flags are intentional external sync.
     /* eslint-disable react-hooks/set-state-in-effect -- fetch lifecycle */

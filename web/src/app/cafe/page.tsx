@@ -10,12 +10,13 @@ import {
 
 import { PAGE_SEO, buildPageMetadata } from "@/lib/seo";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = buildPageMetadata({
   ...PAGE_SEO.cafe,
   path: "/cafe",
 });
 
-export const dynamic = "force-dynamic";
 
 const FALLBACK = {
   eyebrow: "Cafe & Pastry",

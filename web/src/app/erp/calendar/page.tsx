@@ -83,7 +83,7 @@ export default async function CalendarPage({ searchParams }: Props) {
       .eq("property_id", propertyId)
       .lt("from_date", endExclusive)
       .gt("to_date", start)
-      .limit(5000),
+      .limit(Math.min(1500, Math.max(200, windowDays * 40))),
     admin
       .from("agents")
       .select(
@@ -112,7 +112,7 @@ export default async function CalendarPage({ searchParams }: Props) {
         "checked_in",
         "checked_out",
       ])
-      .limit(2000),
+      .limit(Math.min(800, Math.max(120, windowDays * 25))),
     admin
       .from("room_blocks")
       .select("id, room_unit_id, block_kind, from_date, to_date, reason")

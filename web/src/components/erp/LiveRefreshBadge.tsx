@@ -1,6 +1,10 @@
 "use client";
 
-import { deskPollMs } from "@/lib/free-tier";
+import {
+  deskHiddenPollMs,
+  deskPollMs,
+  deskSafetyRefreshMs,
+} from "@/lib/free-tier";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -8,7 +12,7 @@ import { toast } from "sonner";
 /**
  * Fingerprint poll → route refresh. Free-tier slower to protect Vercel+Supabase.
  * Prefer onInvalidate (patch cache) over full router.refresh when provided.
- * Skips network while the tab is hidden.
+ * Hidden tabs poll slowly; periodic safety full refresh heals rare drift.
  */
 export function LiveRefreshBadge({
   endpoint,
@@ -31,16 +35,33 @@ export function LiveRefreshBadge({
   const [live, setLive] = useState(false);
   const [error, setError] = useState(false);
   const pollMs = intervalMs ?? deskPollMs();
+  const hiddenMs = deskHiddenPollMs();
+  const safetyMs = deskSafetyRefreshMs();
   const onInvalidateRef = useRef(onInvalidate);
   onInvalidateRef.current = onInvalidate;
 
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let safetyTimer: ReturnType<typeof setInterval> | undefined;
+
+    async function applyChange() {
+      const custom = onInvalidateRef.current;
+      if (custom) {
+        try {
+          await Promise.resolve(custom());
+          return;
+        } catch {
+          // fall through to full refresh
+        }
+      }
+      router.refresh();
+    }
 
     async function tick() {
-      if (document.visibilityState === "hidden") {
-        timer = setTimeout(tick, pollMs);
+      const hidden = document.visibilityState === "hidden";
+      if (hidden) {
+        timer = setTimeout(tick, hiddenMs);
         return;
       }
       try {
@@ -68,14 +89,7 @@ export function LiveRefreshBadge({
                 duration: 2200,
               });
             }
-            const custom = onInvalidateRef.current;
-            if (custom) {
-              void Promise.resolve(custom()).catch(() => {
-                router.refresh();
-              });
-            } else {
-              router.refresh();
-            }
+            void applyChange();
           }
           lastVersion.current = version;
         }
@@ -89,11 +103,17 @@ export function LiveRefreshBadge({
     }
 
     void tick();
+    safetyTimer = setInterval(() => {
+      if (document.visibilityState === "hidden") return;
+      router.refresh();
+    }, safetyMs);
+
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
+      if (safetyTimer) clearInterval(safetyTimer);
     };
-  }, [endpoint, pollMs, router, toastOnChange]);
+  }, [endpoint, pollMs, hiddenMs, safetyMs, router, toastOnChange]);
 
   return (
     <span

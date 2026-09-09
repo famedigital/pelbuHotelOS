@@ -12,6 +12,8 @@ import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
+import { bustPublicTag } from "@/lib/bust-public-tag";
+import { cmsTag, roomsMktTag } from "@/lib/public-cache";
 
 export type PropertyMediaState = {
   ok: boolean;
@@ -55,7 +57,7 @@ function optionalNumber(value: FormDataEntryValue | null): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function revalidateTrustPaths() {
+function revalidateTrustPaths(propertyId?: string) {
   revalidatePath("/erp/front-public/media");
   revalidatePath("/erp/front-public");
   revalidatePath("/erp/rooms/layout");
@@ -67,6 +69,10 @@ function revalidateTrustPaths() {
   revalidatePath("/cafe");
   revalidatePath("/restaurant");
   revalidatePath("/bar");
+  if (propertyId) {
+    bustPublicTag(cmsTag(propertyId));
+    bustPublicTag(roomsMktTag(propertyId));
+  }
 }
 
 function assertFacet(scope: PropertyMediaScope, facet: string) {
@@ -193,7 +199,7 @@ export async function addPropertyMedia(
       meta: { scope, scopeId, facet, publicId, resourceType },
     });
 
-    revalidateTrustPaths();
+    revalidateTrustPaths(propertyId);
     return { ok: true, message: "Photo saved." };
   } catch (e) {
     return {
@@ -263,7 +269,7 @@ export async function updatePropertyMedia(
         .eq("property_id", propertyId);
     }
 
-    revalidateTrustPaths();
+    revalidateTrustPaths(propertyId);
     return { ok: true, message: "Updated." };
   } catch (e) {
     return {
@@ -325,7 +331,7 @@ export async function replacePropertyMediaAsset(
         .eq("property_id", propertyId);
     }
 
-    revalidateTrustPaths();
+    revalidateTrustPaths(propertyId);
     return { ok: true, message: "Asset replaced." };
   } catch (e) {
     return {
@@ -385,7 +391,7 @@ export async function movePropertyMedia(
       .update({ sort_order: a.sort_order })
       .eq("id", b.id);
 
-    revalidateTrustPaths();
+    revalidateTrustPaths(propertyId);
     return { ok: true, message: "Reordered." };
   } catch (e) {
     return {
@@ -416,7 +422,7 @@ export async function deletePropertyMedia(
       entityId: id,
       summary: "Deleted trust media",
     });
-    revalidateTrustPaths();
+    revalidateTrustPaths(propertyId);
     return { ok: true, message: "Deleted." };
   } catch (e) {
     return {

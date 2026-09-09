@@ -1,11 +1,16 @@
 import type { MenuItem } from "@/lib/menu";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { resolveActivePropertyId } from "@/lib/property-context";
+import {
+  cachedPublicByProperty,
+  menuCatalogTag,
+} from "@/lib/public-cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   formatMenuStockLabel,
   loadMenuStockMap,
 } from "@/lib/menu-stock";
+import { cache } from "react";
 
 /**
  * Seed IDs that were never uploaded to Cloudinary. Keep in sync with
@@ -39,12 +44,22 @@ function resolveMenuImageId(publicId: string | null): string | null {
   return MENU_IMAGE_REMAP[publicId] ?? publicId;
 }
 
-export async function loadMenuByOutlets(
-  outlets: string[],
-): Promise<MenuItem[]> {
-  const admin = createSupabaseAdminClient();
-  const propertyId = await resolveActivePropertyId(admin);
+type CatalogRow = Omit<
+  MenuItem,
+  | "stock_mode"
+  | "stock_on_hand"
+  | "stock_unit"
+  | "sold_out"
+  | "stock_inventory_item_id"
+  | "stock_qty_per_sale"
+  | "stock_label"
+>;
 
+async function loadMenuCatalogForProperty(
+  propertyId: string,
+  outlets: string[],
+): Promise<CatalogRow[]> {
+  const admin = createSupabaseAdminClient();
   const { data } = await admin
     .from("menu_items")
     .select(
@@ -56,12 +71,6 @@ export async function loadMenuByOutlets(
     .order("sort_order");
 
   const rows = data ?? [];
-  const stock = await loadMenuStockMap(
-    admin,
-    propertyId,
-    rows.map((row) => row.id as string),
-  );
-
   const itemIds = rows.map((row) => row.id as string);
   const trustImages = new Map<string, string>();
   if (itemIds.length > 0) {
@@ -93,7 +102,6 @@ export async function loadMenuByOutlets(
       trustImages.get(id) ??
         ((row.image_public_id as string | null) ?? null),
     );
-    const itemStock = stock.get(id);
     const sellSize = (row.sell_size as MenuItem["sell_size"]) ?? null;
     return {
       id,
@@ -110,17 +118,52 @@ export async function loadMenuByOutlets(
         : null,
       is_popular: Boolean(row.is_popular),
       prep_station: (row.prep_station as MenuItem["prep_station"]) ?? "kitchen",
+      family_id: (row.family_id as string | null) ?? null,
+      sell_size: sellSize,
+    };
+  });
+}
+
+/** Cached catalog (no stock). Stock is always live in loadMenuByOutlets. */
+export const loadMenuCatalogByOutlets = cache(
+  async (outlets: string[]): Promise<CatalogRow[]> => {
+    const key = [...outlets].sort().join(",");
+    return cachedPublicByProperty(
+      ["menu-catalog", key],
+      menuCatalogTag,
+      (propertyId) => loadMenuCatalogForProperty(propertyId, outlets),
+      [],
+    );
+  },
+);
+
+export async function loadMenuByOutlets(
+  outlets: string[],
+): Promise<MenuItem[]> {
+  const admin = createSupabaseAdminClient();
+  const propertyId = await resolveActivePropertyId(admin);
+  const catalog = await loadMenuCatalogByOutlets(outlets);
+
+  // Stock is always live — never baked into ISR HTML.
+  const stock = await loadMenuStockMap(
+    admin,
+    propertyId,
+    catalog.map((row) => row.id),
+  );
+
+  return catalog.map((row) => {
+    const itemStock = stock.get(row.id);
+    return {
+      ...row,
       stock_mode: itemStock?.mode ?? "untracked",
       stock_on_hand: itemStock?.availableSales ?? null,
       stock_unit: itemStock?.unit ?? null,
       sold_out: itemStock?.soldOut ?? false,
       stock_inventory_item_id: itemStock?.inventoryItemId ?? null,
       stock_qty_per_sale: itemStock?.qtyPerSale ?? 1,
-      family_id: (row.family_id as string | null) ?? null,
-      sell_size: sellSize,
       stock_label: formatMenuStockLabel(
         itemStock?.availableSales,
-        sellSize,
+        row.sell_size,
         itemStock?.mode,
       ),
     };

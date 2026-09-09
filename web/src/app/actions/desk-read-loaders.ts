@@ -2,6 +2,8 @@
 
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/desk-property";
+import type { FoTodaySnapshot } from "@/lib/erp/fo-today";
+import { loadFoTodaySnapshot } from "@/lib/erp/fo-today";
 import {
   loadOpenPosTickets,
   loadSettledPosTickets,
@@ -37,6 +39,28 @@ export async function fetchPosTicketsSnapshot(): Promise<
     return {
       ok: false,
       error: e instanceof Error ? e.message : "Failed to load tickets",
+    };
+  }
+}
+
+export type FoTodaySnapshotResult =
+  | { ok: true; data: FoTodaySnapshot }
+  | { ok: false; error: string };
+
+/** Patch Today board without full layout RSC when fingerprint changes. */
+export async function fetchFoTodaySnapshot(): Promise<FoTodaySnapshotResult> {
+  if (!(await isDeskAuthenticated())) {
+    return { ok: false, error: "Unauthorized" };
+  }
+  try {
+    const admin = createSupabaseAdminClient();
+    const propertyId = await requireDeskPropertyId();
+    const data = await loadFoTodaySnapshot(admin, propertyId);
+    return { ok: true, data };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Failed to load Today",
     };
   }
 }

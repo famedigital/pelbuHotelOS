@@ -92,6 +92,13 @@ export function HomeHero({
     const fx = slide.focalX ?? 0.5;
     const fy = slide.focalY ?? 0.5;
     const objectPosition = `${fx * 100}% ${fy * 100}%`;
+    // Mount active + first (LCP) + neighbors only — cuts carousel bandwidth.
+    const near =
+      i === 0 ||
+      i === index ||
+      i === (index + 1) % Math.max(slideCount, 1) ||
+      i === (index - 1 + slideCount) % Math.max(slideCount, 1);
+    if (!near) return null;
 
     return (
       <div
@@ -109,7 +116,7 @@ export function HomeHero({
           posterPublicId={slide.posterPublicId}
           fill
           priority={i === 0}
-          quality={95}
+          quality={i === 0 ? 90 : 75}
           disableBlur
           sizes="100vw"
           cinematic={isVideo}

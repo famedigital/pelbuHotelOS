@@ -48,16 +48,30 @@ export async function lookupRoomRateBtn(
     adults?: number;
   },
 ): Promise<number | null> {
-  const { data } = await admin
-    .from("room_rates")
-    .select("amount_btn, amount_single_btn")
-    .eq("property_id", args.propertyId)
-    .eq("room_type_id", args.roomTypeId)
-    .eq("season_kind", args.seasonKind)
-    .eq("rate_tier", args.rateTier)
-    .maybeSingle();
+  const map = await lookupRoomRatesBatch(admin, {
+    propertyId: args.propertyId,
+    roomTypeIds: [args.roomTypeId],
+    seasonKind: args.seasonKind,
+    rateTier: args.rateTier,
+    occupancy: args.occupancy,
+    adults: args.adults,
+  });
+  return map.get(args.roomTypeId) ?? null;
+}
 
-  if (data?.amount_btn == null && data?.amount_single_btn == null) return null;
+/** Shared amount pick — batch and single lookups must stay identical. */
+export function pickRoomRateAmount(
+  row: {
+    amount_btn?: number | null;
+    amount_single_btn?: number | null;
+  } | null,
+  args: {
+    occupancy?: "single" | "double";
+    adults?: number;
+  },
+): number | null {
+  if (!row) return null;
+  if (row.amount_btn == null && row.amount_single_btn == null) return null;
 
   const wantSingle =
     args.occupancy === "single" ||
@@ -66,14 +80,53 @@ export async function lookupRoomRateBtn(
       Number(args.adults) === 1);
 
   if (wantSingle) {
-    const single = data.amount_single_btn;
+    const single = row.amount_single_btn;
     if (single != null && Number.isFinite(Number(single))) {
       return Number(single);
     }
   }
 
-  if (data.amount_btn == null) return null;
-  return Number(data.amount_btn);
+  if (row.amount_btn == null) return null;
+  return Number(row.amount_btn);
+}
+
+/** One query for many room types — parity with lookupRoomRateBtn per id. */
+export async function lookupRoomRatesBatch(
+  admin: Admin,
+  args: {
+    propertyId: string;
+    roomTypeIds: string[];
+    seasonKind: SeasonKind;
+    rateTier: RateTier;
+    occupancy?: "single" | "double";
+    adults?: number;
+  },
+): Promise<Map<string, number | null>> {
+  const out = new Map<string, number | null>();
+  const ids = [...new Set(args.roomTypeIds.filter(Boolean))];
+  for (const id of ids) out.set(id, null);
+  if (ids.length === 0) return out;
+
+  const { data } = await admin
+    .from("room_rates")
+    .select("room_type_id, amount_btn, amount_single_btn")
+    .eq("property_id", args.propertyId)
+    .eq("season_kind", args.seasonKind)
+    .eq("rate_tier", args.rateTier)
+    .in("room_type_id", ids);
+
+  for (const row of data ?? []) {
+    const roomTypeId = row.room_type_id as string;
+    out.set(
+      roomTypeId,
+      pickRoomRateAmount(row, {
+        occupancy: args.occupancy,
+        adults: args.adults,
+      }),
+    );
+  }
+
+  return out;
 }
 
 export function nightsBetween(checkIn: string, checkOut: string): number {

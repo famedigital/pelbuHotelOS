@@ -53,3 +53,7 @@ web/home.html
 # One-shot eZee parse dumps â€” do not commit
 marketing/old bookings/reservation-list-parsed.json
 marketing/old bookings/*.json
+
+# PSD masters exceed GitHub 100MB limit — keep local only
+marketing/print/standee-psd/*.psd
+

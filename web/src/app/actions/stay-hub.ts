@@ -11,6 +11,7 @@ import { calculateRoomNightTax, roundBtn } from "@/lib/pricing";
 import {
   agentRateTier,
   lookupRoomRateBtn,
+  lookupRoomRatesBatch,
   nightsBetween,
   resolveSeasonKind,
 } from "@/lib/rates";
@@ -732,15 +733,18 @@ export async function fetchStayHubCheckIn(
         .eq("id", agentId)
         .maybeSingle();
       const tier = agentRateTier(agentRow?.rate_tier as string | undefined);
+      const guestLines = rooms.filter(
+        (line) => line.inventory_kind === "sellable_guest",
+      );
+      const rateByType = await lookupRoomRatesBatch(admin, {
+        propertyId,
+        roomTypeIds: guestLines.map((line) => line.room_type_id),
+        seasonKind: season,
+        rateTier: tier,
+      });
       let estimate = 0;
-      for (const line of rooms) {
-        if (line.inventory_kind !== "sellable_guest") continue;
-        const rate = await lookupRoomRateBtn(admin, {
-          propertyId,
-          roomTypeId: line.room_type_id,
-          seasonKind: season,
-          rateTier: tier,
-        });
+      for (const line of guestLines) {
+        const rate = rateByType.get(line.room_type_id) ?? null;
         if (rate != null) {
           const nightAllIn = calculateRoomNightTax(rate, taxSettings).totalBtn;
           estimate += nightAllIn * Number(line.qty) * nights;
@@ -1813,13 +1817,14 @@ export async function fetchStayHubPartyContext(
 }
 
 /**
- * One round-trip to open Edit Transaction: summary + party + check-in
- * (+ catalog when the desk tab has not cached it yet).
+ * One round-trip to open Edit Transaction: summary + party
+ * (+ catalog when needed). Check-in payload loads only for arrivals /
+ * holds — not for every in-house Folio open.
  */
 export async function fetchStayHubOpen(
   bookingId: string,
   preferredAssignmentId?: string | null,
-  opts?: { catalog?: boolean },
+  opts?: { catalog?: boolean; checkIn?: boolean },
 ): Promise<
   Result<{
     summary: StayHubSummary;
@@ -1831,23 +1836,36 @@ export async function fetchStayHubOpen(
     >["data"] | null;
   }>
 > {
-  const [summaryRes, partyRes, checkInRes, catalogRes] = await Promise.all([
+  const [summaryRes, partyRes, catalogRes] = await Promise.all([
     fetchStayHubSummary(bookingId, preferredAssignmentId),
     fetchStayHubPartyContext(bookingId),
-    fetchStayHubCheckIn(bookingId),
     opts?.catalog
       ? fetchStayHubCatalog()
-      : Promise.resolve(null as Awaited<ReturnType<typeof fetchStayHubCatalog>> | null),
+      : Promise.resolve(
+          null as Awaited<ReturnType<typeof fetchStayHubCatalog>> | null,
+        ),
   ]);
   if (!summaryRes.ok) return summaryRes;
+
+  const status = summaryRes.data.status;
+  const needCheckIn =
+    opts?.checkIn === true ||
+    (opts?.checkIn !== false &&
+      (status === "pending" ||
+        status === "confirmed" ||
+        status === "held"));
+
+  const checkInRes = needCheckIn
+    ? await fetchStayHubCheckIn(bookingId)
+    : null;
+
   return {
     ok: true,
     data: {
       summary: summaryRes.data,
       party: partyRes.ok ? partyRes.data : null,
-      checkIn: checkInRes.ok ? checkInRes.data : null,
-      catalog:
-        catalogRes && catalogRes.ok ? catalogRes.data : null,
+      checkIn: checkInRes && checkInRes.ok ? checkInRes.data : null,
+      catalog: catalogRes && catalogRes.ok ? catalogRes.data : null,
     },
   };
 }

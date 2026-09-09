@@ -29,9 +29,30 @@ export function deskPollMs(): number {
   return numEnv("NEXT_PUBLIC_DESK_POLL_MS", 15_000, 5_000);
 }
 
+/**
+ * When the desk tab is hidden, poll much slower to protect Hobby invocations
+ * and Supabase API/egress. Free: 90s; paid: 30s.
+ */
+export function deskHiddenPollMs(): number {
+  return numEnv("NEXT_PUBLIC_DESK_HIDDEN_POLL_MS", 90_000, 30_000);
+}
+
+/** Full RSC safety refresh interval while FO boards are open (ms). */
+export function deskSafetyRefreshMs(): number {
+  return numEnv("NEXT_PUBLIC_DESK_SAFETY_REFRESH_MS", 300_000, 180_000);
+}
+
 /** Room rack calendar fingerprint (ms). Free: 15s; paid: 4s. */
 export function calendarPollMs(): number {
   return numEnv("NEXT_PUBLIC_CALENDAR_POLL_MS", 15_000, 4_000);
+}
+
+/** Whether public marketing pages must stay fully dynamic (stale-cache kill-switch). */
+export function publicForceDynamic(): boolean {
+  return (
+    process.env.PUBLIC_FORCE_DYNAMIC === "1" ||
+    process.env.PUBLIC_FORCE_DYNAMIC === "true"
+  );
 }
 
 /** Folio stale check (ms). Free: 30s; paid: 10s. */

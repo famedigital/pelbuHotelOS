@@ -1,5 +1,6 @@
+import { cache } from "react";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { resolvePublicPropertyId } from "@/lib/tenant/resolve-public-property";
+import { cachedPublicByProperty, homeTag } from "@/lib/public-cache";
 import {
   DEFAULT_LOGO_NAV_GAP_REM,
   DEFAULT_LOGO_NAV_OFFSET_PCT,
@@ -84,89 +85,98 @@ function amenitiesList(value: unknown): string[] {
 }
 
 /** Public NAP + verified facts — never invent phone, star, or prices. */
-export async function loadPublicPropertyProfile(): Promise<PublicPropertyProfile | null> {
-  const propertyId = await resolvePublicPropertyId();
-  if (!propertyId) return null;
-  const admin = createSupabaseAdminClient();
+export const loadPublicPropertyProfile = cache(
+  async (): Promise<PublicPropertyProfile | null> => {
+    return cachedPublicByProperty(
+      ["public-property-profile"],
+      homeTag,
+      async (propertyId) => {
+        const admin = createSupabaseAdminClient();
 
-  const [{ data }, { data: facts }] = await Promise.all([
-    admin
-      .from("properties")
-      .select(
-        "name, phone, email, address, whatsapp, maps_url, instagram_handle, facebook_url, tiktok_url, logo_public_id, logo_nav_size_rem, logo_nav_offset_pct, logo_nav_gap_rem, logo_nav_shift_x_rem",
-      )
-      .eq("id", propertyId)
-      .maybeSingle(),
-    admin
-      .from("property_facts")
-      .select(
-        "check_in_time, check_out_time, star_rating, room_count, latitude, longitude, amenities_json",
-      )
-      .eq("property_id", propertyId)
-      .maybeSingle(),
-  ]);
+        const [{ data }, { data: facts }] = await Promise.all([
+          admin
+            .from("properties")
+            .select(
+              "name, phone, email, address, whatsapp, maps_url, instagram_handle, facebook_url, tiktok_url, logo_public_id, logo_nav_size_rem, logo_nav_offset_pct, logo_nav_gap_rem, logo_nav_shift_x_rem",
+            )
+            .eq("id", propertyId)
+            .maybeSingle(),
+          admin
+            .from("property_facts")
+            .select(
+              "check_in_time, check_out_time, star_rating, room_count, latitude, longitude, amenities_json",
+            )
+            .eq("property_id", propertyId)
+            .maybeSingle(),
+        ]);
 
-  if (!data) return null;
+        if (!data) return null;
 
-  const phone = (data.phone as string | null) ?? null;
-  const whatsappRaw = (data.whatsapp as string | null) ?? null;
-  // Guest WA link: dedicated number when set, else desk phone (common single line).
-  const whatsapp = whatsappRaw?.trim() || phone;
+        const phone = (data.phone as string | null) ?? null;
+        const whatsappRaw = (data.whatsapp as string | null) ?? null;
+        const whatsapp = whatsappRaw?.trim() || phone;
+        const amenities = amenitiesList(facts?.amenities_json);
+        const sizeRaw = Number(data.logo_nav_size_rem);
+        const offsetRaw = Number(data.logo_nav_offset_pct);
+        const gapRaw = Number(data.logo_nav_gap_rem);
+        const shiftRaw = Number(data.logo_nav_shift_x_rem);
 
-  const amenities = amenitiesList(facts?.amenities_json);
-
-  const sizeRaw = Number(data.logo_nav_size_rem);
-  const offsetRaw = Number(data.logo_nav_offset_pct);
-  const gapRaw = Number(data.logo_nav_gap_rem);
-  const shiftRaw = Number(data.logo_nav_shift_x_rem);
-
-  return {
-    name: (data.name as string) || "Pelbu Suites",
-    phone,
-    email: (data.email as string | null) ?? null,
-    address: (data.address as string | null) ?? null,
-    whatsapp,
-    mapsUrl: (data.maps_url as string | null) ?? null,
-    instagram: instagramUrl((data.instagram_handle as string | null) ?? null),
-    facebook: (data.facebook_url as string | null) ?? null,
-    tiktok: (data.tiktok_url as string | null) ?? null,
-    logoPublicId: (data.logo_public_id as string | null) ?? null,
-    logoNavSizeRem: Number.isFinite(sizeRaw)
-      ? Math.min(12, Math.max(4, sizeRaw))
-      : DEFAULT_LOGO_NAV_SIZE_REM,
-    logoNavOffsetPct: Number.isFinite(offsetRaw)
-      ? Math.min(70, Math.max(20, offsetRaw))
-      : DEFAULT_LOGO_NAV_OFFSET_PCT,
-    logoNavGapRem: Number.isFinite(gapRaw)
-      ? Math.min(3, Math.max(0, Math.round(gapRaw * 100) / 100))
-      : DEFAULT_LOGO_NAV_GAP_REM,
-    logoNavShiftXRem: Number.isFinite(shiftRaw)
-      ? clampLogoShiftX(shiftRaw)
-      : DEFAULT_LOGO_NAV_SHIFT_X_REM,
-    checkInTime:
-      formatClockTime(
-        (facts?.check_in_time as string | null | undefined) ?? null,
-      ) ?? STANDARD_CHECK_IN,
-    checkOutTime:
-      formatClockTime(
-        (facts?.check_out_time as string | null | undefined) ?? null,
-      ) ?? STANDARD_CHECK_OUT,
-    starRating:
-      facts?.star_rating != null && Number.isFinite(Number(facts.star_rating))
-        ? Number(facts.star_rating)
-        : null,
-    roomCount:
-      facts?.room_count != null && Number.isFinite(Number(facts.room_count))
-        ? Number(facts.room_count)
-        : null,
-    latitude:
-      facts?.latitude != null && Number.isFinite(Number(facts.latitude))
-        ? Number(facts.latitude)
-        : null,
-    longitude:
-      facts?.longitude != null && Number.isFinite(Number(facts.longitude))
-        ? Number(facts.longitude)
-        : null,
-    amenities: amenities.length ? amenities : FLAGSHIP_AMENITIES,
-  };
-}
+        return {
+          name: (data.name as string) || "Pelbu Suites",
+          phone,
+          email: (data.email as string | null) ?? null,
+          address: (data.address as string | null) ?? null,
+          whatsapp,
+          mapsUrl: (data.maps_url as string | null) ?? null,
+          instagram: instagramUrl(
+            (data.instagram_handle as string | null) ?? null,
+          ),
+          facebook: (data.facebook_url as string | null) ?? null,
+          tiktok: (data.tiktok_url as string | null) ?? null,
+          logoPublicId: (data.logo_public_id as string | null) ?? null,
+          logoNavSizeRem: Number.isFinite(sizeRaw)
+            ? Math.min(12, Math.max(4, sizeRaw))
+            : DEFAULT_LOGO_NAV_SIZE_REM,
+          logoNavOffsetPct: Number.isFinite(offsetRaw)
+            ? Math.min(70, Math.max(20, offsetRaw))
+            : DEFAULT_LOGO_NAV_OFFSET_PCT,
+          logoNavGapRem: Number.isFinite(gapRaw)
+            ? Math.min(3, Math.max(0, Math.round(gapRaw * 100) / 100))
+            : DEFAULT_LOGO_NAV_GAP_REM,
+          logoNavShiftXRem: Number.isFinite(shiftRaw)
+            ? clampLogoShiftX(shiftRaw)
+            : DEFAULT_LOGO_NAV_SHIFT_X_REM,
+          checkInTime:
+            formatClockTime(
+              (facts?.check_in_time as string | null | undefined) ?? null,
+            ) ?? STANDARD_CHECK_IN,
+          checkOutTime:
+            formatClockTime(
+              (facts?.check_out_time as string | null | undefined) ?? null,
+            ) ?? STANDARD_CHECK_OUT,
+          starRating:
+            facts?.star_rating != null &&
+            Number.isFinite(Number(facts.star_rating))
+              ? Number(facts.star_rating)
+              : null,
+          roomCount:
+            facts?.room_count != null &&
+            Number.isFinite(Number(facts.room_count))
+              ? Number(facts.room_count)
+              : null,
+          latitude:
+            facts?.latitude != null && Number.isFinite(Number(facts.latitude))
+              ? Number(facts.latitude)
+              : null,
+          longitude:
+            facts?.longitude != null &&
+            Number.isFinite(Number(facts.longitude))
+              ? Number(facts.longitude)
+              : null,
+          amenities: amenities.length ? amenities : FLAGSHIP_AMENITIES,
+        };
+      },
+      null,
+    );
+  },
+);

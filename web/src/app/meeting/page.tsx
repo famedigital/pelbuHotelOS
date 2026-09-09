@@ -11,13 +11,16 @@ import {
 } from "@/lib/structured-data";
 
 import { PAGE_SEO, buildPageMetadata } from "@/lib/seo";
+import { publicMarketingCache } from "@/lib/public-marketing-cache";
+const __pelbuPubCache = publicMarketingCache();
+export const dynamic = __pelbuPubCache.dynamic;
+export const revalidate = __pelbuPubCache.revalidate;
 
 export const metadata = buildPageMetadata({
   ...PAGE_SEO.meeting,
   path: "/meeting",
 });
 
-export const dynamic = "force-dynamic";
 
 export default async function MeetingPage() {
   const [offerings, page] = await Promise.all([

@@ -21,13 +21,15 @@ import type { Metadata } from "next";
 
 import { PAGE_SEO, buildPageMetadata } from "@/lib/seo";
 
+/** Cookie-gated agent rates — must stay per-request. */
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = buildPageMetadata({
   ...PAGE_SEO.rates,
   path: "/rates",
   robots: { index: true, follow: true },
 });
 
-export const dynamic = "force-dynamic";
 
 export default async function RatesPage() {
   const propertyId = await resolvePublicPropertyId();

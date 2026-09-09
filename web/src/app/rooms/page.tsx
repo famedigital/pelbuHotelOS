@@ -11,6 +11,7 @@ import { loadPublicBuildingMap } from "@/lib/public-building-map";
 import { loadPublicRoomsWithRates } from "@/lib/public-room-rates";
 import { safePublic } from "@/lib/public-safe";
 import { PAGE_SEO, metadataFromCms } from "@/lib/seo";
+import { publicMarketingCache } from "@/lib/public-marketing-cache";
 import {
   breadcrumbJsonLd,
   hotelRoomJsonLd,
@@ -30,7 +31,9 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
-export const dynamic = "force-dynamic";
+const cache = publicMarketingCache();
+export const dynamic = cache.dynamic;
+export const revalidate = cache.revalidate;
 
 async function loadCompBeds() {
   const propertyId = await resolvePublicPropertyId();

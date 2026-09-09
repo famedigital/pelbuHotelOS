@@ -15,6 +15,8 @@ import { syncRoomUnits } from "@/lib/rooms/sync-room-units";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
+import { bustPublicTag } from "@/lib/bust-public-tag";
+import { allPublicTags } from "@/lib/public-cache";
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
 
@@ -453,6 +455,7 @@ export async function setPropertyLogo(
     revalidatePath("/menu");
     revalidatePath("/rooms");
     revalidatePath("/rates");
+    for (const tag of allPublicTags(id)) bustPublicTag(tag);
     return {
       ok: true,
       propertyId: id,

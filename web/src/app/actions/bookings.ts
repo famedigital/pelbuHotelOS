@@ -23,6 +23,7 @@ import {
 import { loadRoomRateTaxSettings } from "@/lib/room-rate-tax";
 import {
   lookupRoomRateBtn,
+  lookupRoomRatesBatch,
   nightsBetween,
   resolveSeasonKind,
   type SeasonKind,
@@ -154,18 +155,20 @@ export async function previewStayCost(
       availability.map((a) => [a.roomTypeId, a.remaining]),
     );
 
+    const rateByType = await lookupRoomRatesBatch(admin, {
+      propertyId,
+      roomTypeIds: (roomTypes ?? []).map((rt) => rt.id as string),
+      seasonKind: season,
+      rateTier: "public",
+      adults,
+    });
+
     const options: RoomOption[] = [];
     for (const rt of roomTypes ?? []) {
       const roomTypeId = rt.id as string;
       const capacity = Number(rt.unit_count ?? 0);
       const remaining = remainingByTypeId.get(roomTypeId) ?? 0;
-      const rate = await lookupRoomRateBtn(admin, {
-        propertyId,
-        roomTypeId,
-        seasonKind: season,
-        rateTier: "public",
-        adults,
-      });
+      const rate = rateByType.get(roomTypeId) ?? null;
       const perNight =
         rate == null
           ? null

@@ -9,6 +9,8 @@ import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
+import { bustPublicTag } from "@/lib/bust-public-tag";
+import { cmsTag, homeTag } from "@/lib/public-cache";
 
 export type CmsEditorState = {
   ok: boolean;
@@ -341,6 +343,8 @@ export async function publishCmsPage(
     revalidatePath("/", "layout");
     revalidatePath("/erp/front-public");
     revalidatePath(`/erp/front-public/pages/${slug}`);
+    bustPublicTag(cmsTag(context.propertyId));
+    if (slug === "home") bustPublicTag(homeTag(context.propertyId));
 
     return {
       ok: true,
