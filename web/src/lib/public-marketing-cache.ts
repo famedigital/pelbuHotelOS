@@ -1,15 +1,8 @@
-import { publicForceDynamic } from "@/lib/free-tier";
-
 /**
- * Marketing page cache mode. Kill-switch: PUBLIC_FORCE_DYNAMIC=1.
- * Menu stays force-dynamic separately (live stock).
+ * Marketing pages use a static `export const revalidate = 60` (Next requires
+ * route segment config to be statically analyzable — do not assign from a helper).
+ *
+ * Kill-switch `PUBLIC_FORCE_DYNAMIC=1` skips `unstable_cache` in loaders
+ * (`cachedPublicByProperty`). Tag bust on publish still refreshes CDN HTML.
  */
-export function publicMarketingCache(): {
-  dynamic: "force-dynamic" | "auto";
-  revalidate: number | false;
-} {
-  if (publicForceDynamic()) {
-    return { dynamic: "force-dynamic", revalidate: false };
-  }
-  return { dynamic: "auto", revalidate: 60 };
-}
+export const PUBLIC_MARKETING_REVALIDATE_SECONDS = 60;

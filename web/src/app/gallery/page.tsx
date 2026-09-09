@@ -26,10 +26,8 @@ import {
 } from "@/lib/structured-data";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { publicMarketingCache } from "@/lib/public-marketing-cache";
-const __pelbuPubCache = publicMarketingCache();
-export const dynamic = __pelbuPubCache.dynamic;
-export const revalidate = __pelbuPubCache.revalidate;
+export const revalidate = 60;
+
 
 
 type PageProps = {

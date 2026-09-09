@@ -65,5 +65,5 @@ Check weekly: Vercel Usage + Supabase Usage. Alert mentally at **70%**.
 - [ ] Today board: check-in on tab A updates tab B without full white flash
 - [ ] StayHub: open in-house Folio without loading check-in; open arrival still loads check-in
 - [ ] Vercel + Supabase usage still under ~70% soft cap after a desk day
-- [ ] Kill-switch: `PUBLIC_FORCE_DYNAMIC=1` forces marketing pages dynamic if needed
+- [ ] Kill-switch: `PUBLIC_FORCE_DYNAMIC=1` skips public data cache (loaders); tag bust refreshes HTML
 

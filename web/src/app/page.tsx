@@ -33,12 +33,10 @@ import {
   websiteJsonLd,
 } from "@/lib/structured-data";
 import { PAGE_SEO, metadataFromCms } from "@/lib/seo";
-import { publicMarketingCache } from "@/lib/public-marketing-cache";
 import type { Metadata } from "next";
 
-const cache = publicMarketingCache();
-export const dynamic = cache.dynamic;
-export const revalidate = cache.revalidate;
+/** ISR — Next requires a static literal (not a helper return). */
+export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
   const page = await safePublic("home-meta", () => loadCmsPage("home"), null);

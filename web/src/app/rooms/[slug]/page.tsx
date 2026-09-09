@@ -16,11 +16,8 @@ import {
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { publicMarketingCache } from "@/lib/public-marketing-cache";
 
-const cache = publicMarketingCache();
-export const dynamic = cache.dynamic;
-export const revalidate = cache.revalidate;
+export const revalidate = 60;
 
 export async function generateMetadata({
   params,
