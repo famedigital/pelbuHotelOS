@@ -1446,7 +1446,11 @@ export function CheckOutForm({
       : null;
 
   return (
-    <form action={action} className="erp space-y-4 rounded-lg border bg-card p-6">
+    <form
+      id="stay-hub-checkout-form"
+      action={action}
+      className="erp space-y-4 rounded-lg border bg-card p-6"
+    >
       <input type="hidden" name="booking_id" value={bookingId} />
       {state.error ? (
         <Alert variant="destructive">

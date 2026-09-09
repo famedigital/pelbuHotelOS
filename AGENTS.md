@@ -31,7 +31,7 @@ Multi-agent build (**Cursor architect** + **z.ai/GLM implementer** + optional Cl
 - Channex ARI queue / payments wiring
 - Writing z.ai briefs and reviewing z.ai PRs/diffs
 
-Feature status for agents: [`docs/FEATURES.md`](docs/FEATURES.md).
+Feature status for agents: [`docs/FEATURES.md`](docs/FEATURES.md). Full module / route / API / middleware map: [`docs/PROJECT-AUDIT.md`](docs/PROJECT-AUDIT.md).
 
 ## z.ai owns (when briefed)
 

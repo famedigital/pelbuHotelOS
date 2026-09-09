@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pelbu Suites — Full-bleed Walk-in Standees · 35.5 × 72 in</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #120e0b;
+      --ivory: #faf7f2;
+      --gold: #d4b45a;
+      --copper: #c45c26;
+      --preview-scale: 0.135;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    @page {
+      size: 35.5in 72in;
+      margin: 0;
+    }
+
+    html, body {
+      background: #8a7a68;
+      color: var(--ivory);
+      font-family: "Outfit", "Segoe UI", Arial, sans-serif;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .print-bar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 18px;
+      background: var(--ink);
+      color: var(--ivory);
+      font-size: 12.5px;
+    }
+
+    .print-bar strong {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .print-bar .meta {
+      opacity: 0.88;
+      font-size: 11px;
+      max-width: 74ch;
+      line-height: 1.45;
+      margin-top: 3px;
+    }
+
+    .print-bar button {
+      border: 0;
+      cursor: pointer;
+      font: 700 11px/1 "Outfit", sans-serif;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 12px 18px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--copper), var(--gold));
+      color: var(--ink);
+      white-space: nowrap;
+    }
+
+    .stage {
+      padding: 28px 16px 64px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 36px;
+    }
+
+    .side-tag {
+      width: calc(35.5in * var(--preview-scale));
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #3d342c;
+      margin-bottom: -24px;
+    }
+
+    .preview-frame {
+      width: calc(35.5in * var(--preview-scale));
+      height: calc(72in * var(--preview-scale));
+      position: relative;
+      box-shadow: 0 28px 80px rgba(14, 11, 9, 0.4);
+    }
+
+    .preview-scale {
+      width: 35.5in;
+      height: 72in;
+      transform: scale(var(--preview-scale));
+      transform-origin: top left;
+    }
+
+    .sheet {
+      width: 35.5in;
+      height: 72in;
+      position: relative;
+      overflow: hidden;
+      background: var(--ink);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ——— Full-bleed band ——— */
+    .band {
+      position: relative;
+      flex-shrink: 0;
+      overflow: hidden;
+      isolation: isolate;
+      color: var(--ivory);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+
+    .band-photo {
+      position: absolute;
+      inset: 0;
+      z-index: -2;
+    }
+
+    .band-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .band-veil {
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .band.hero {
+      flex: 0 0 19in;
+      padding: 1.5in 2.1in 1.2in;
+      justify-content: flex-end;
+    }
+
+    .sheet.a .band.hero .band-photo img {
+      object-position: center 28%;
+      filter: saturate(1.05) brightness(0.88);
+    }
+
+    .sheet.b .band.hero .band-photo img {
+      object-position: center 32%;
+      filter: saturate(1.06) brightness(0.85);
+    }
+
+    .band.hero .band-veil {
+      background:
+        linear-gradient(180deg, rgba(18, 14, 11, 0.25) 0%, rgba(18, 14, 11, 0.2) 35%, rgba(18, 14, 11, 0.92) 100%),
+        linear-gradient(90deg, rgba(196, 92, 38, 0.28), transparent 55%);
+    }
+
+    .band.dish {
+      flex: 1 1 0;
+      min-height: 0;
+      padding: 0 2.1in 0.85in;
+      justify-content: flex-end;
+    }
+
+    .band.dish .band-veil {
+      background:
+        linear-gradient(90deg, rgba(12, 9, 7, 0.88) 0%, rgba(12, 9, 7, 0.45) 42%, rgba(12, 9, 7, 0.15) 72%, transparent 100%),
+        linear-gradient(180deg, transparent 40%, rgba(12, 9, 7, 0.55) 100%);
+    }
+
+    .band.dish .band-photo img {
+      filter: saturate(1.08) contrast(1.04);
+    }
+
+    .band.cta {
+      flex: 0 0 10.5in;
+      padding: 1in 2in 0.55in;
+      justify-content: center;
+    }
+
+    .band.cta .band-veil {
+      background:
+        linear-gradient(180deg, rgba(10, 8, 6, 0.72) 0%, rgba(10, 8, 6, 0.88) 100%),
+        linear-gradient(90deg, rgba(196, 92, 38, 0.25), transparent 50%);
+    }
+
+    .base-safe {
+      flex: 0 0 3in;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .base-safe .band-photo {
+      z-index: 0;
+    }
+
+    .base-safe .band-veil {
+      z-index: 1;
+      background: linear-gradient(180deg, rgba(10, 8, 6, 0.55), rgba(10, 8, 6, 0.92));
+    }
+
+    .base-safe p {
+      position: relative;
+      z-index: 2;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.26in;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(250, 247, 242, 0.4);
+      text-align: center;
+      padding: 0 2in;
+    }
+
+    .rule {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 0.035in;
+      background: linear-gradient(90deg, transparent, rgba(212, 180, 90, 0.55), transparent);
+      z-index: 5;
+    }
+
+    /* ——— Hero type ——— */
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4in;
+      margin-bottom: 0.55in;
+    }
+
+    .brand-row img {
+      width: 1.2in;
+      height: 1.2in;
+      object-fit: contain;
+      filter: drop-shadow(0 0.06in 0.15in rgba(0, 0, 0, 0.4));
+    }
+
+    .brand-row .wm {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 1.4in;
+      font-weight: 600;
+      line-height: 0.95;
+    }
+
+    .brand-row .wm span { color: var(--gold); }
+
+    .brand-row .place {
+      margin-top: 0.1in;
+      font-size: 0.24in;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      opacity: 0.85;
+    }
+
+    .kicker {
+      font-size: 0.34in;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.35in;
+    }
+
+    .band.hero h1 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 2.9in;
+      font-weight: 600;
+      line-height: 0.92;
+      max-width: 30in;
+      text-shadow: 0 0.08in 0.25in rgba(0, 0, 0, 0.45);
+    }
+
+    .band.hero .sub {
+      margin-top: 0.4in;
+      max-width: 26in;
+      font-size: 0.4in;
+      font-weight: 500;
+      line-height: 1.3;
+      opacity: 0.95;
+    }
+
+    .chips {
+      margin-top: 0.7in;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3in;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 0.22in;
+      padding: 0.28in 0.5in;
+      background: linear-gradient(135deg, var(--copper), #d4892a);
+      color: var(--ink);
+    }
+
+    .chip.ghost {
+      background: rgba(18, 14, 11, 0.55);
+      color: var(--ivory);
+      border: 0.03in solid rgba(212, 180, 90, 0.55);
+    }
+
+    .chip .k {
+      font-size: 0.24in;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .chip .v {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 0.7in;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    /* ——— Dish overlay ——— */
+    .dish-copy {
+      max-width: 22in;
+    }
+
+    .dish-copy .tag {
+      font-size: 0.28in;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.25in;
+    }
+
+    .dish-copy h2 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 2.2in;
+      font-weight: 600;
+      line-height: 0.92;
+    }
+
+    .dish-copy .bits {
+      margin-top: 0.22in;
+      font-size: 0.36in;
+      font-weight: 500;
+      opacity: 0.9;
+      max-width: 18in;
+    }
+
+    .dish-price {
+      position: absolute;
+      right: 2.1in;
+      bottom: 0.95in;
+      text-align: right;
+    }
+
+    .dish-price .cur {
+      display: block;
+      font-size: 0.28in;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+
+    .dish-price .amt {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 2.4in;
+      font-weight: 700;
+      line-height: 0.9;
+      text-shadow: 0 0.06in 0.2in rgba(0, 0, 0, 0.5);
+    }
+
+    /* ——— CTA ——— */
+    .cta-grid {
+      display: grid;
+      grid-template-columns: 1.4fr auto;
+      gap: 1in;
+      align-items: center;
+      width: 100%;
+    }
+
+    .cta-grid h2 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 1.7in;
+      font-weight: 600;
+      line-height: 1.02;
+      max-width: 18in;
+    }
+
+    .cta-grid .pitch {
+      margin-top: 0.4in;
+      font-size: 0.38in;
+      line-height: 1.35;
+      opacity: 0.92;
+      max-width: 16in;
+    }
+
+    .cta-grid .contacts {
+      margin-top: 0.55in;
+      display: flex;
+      flex-direction: column;
+      gap: 0.22in;
+      font-size: 0.36in;
+      font-weight: 500;
+    }
+
+    .cta-grid .contacts strong {
+      color: var(--gold);
+      font-weight: 700;
+    }
+
+    .cta-aside {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.45in;
+    }
+
+    .lunch-pill {
+      padding: 0.35in 0.65in;
+      background: linear-gradient(135deg, var(--copper), #d4892a);
+      color: var(--ink);
+      text-align: center;
+    }
+
+    .lunch-pill .k {
+      font-size: 0.24in;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .lunch-pill .v {
+      margin-top: 0.08in;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 0.85in;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .qr-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25in;
+      padding: 0.4in;
+      background: var(--ivory);
+      color: var(--ink);
+      text-align: center;
+    }
+
+    .qr-block img {
+      width: 4.4in;
+      height: 4.4in;
+      object-fit: contain;
+      display: block;
+    }
+
+    .qr-block span {
+      font-size: 0.28in;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .qr-block .go {
+      font-size: 0.48in;
+      font-weight: 700;
+      color: var(--copper);
+      letter-spacing: 0.04em;
+    }
+
+    .spec {
+      width: min(720px, 92vw);
+      background: #efe6da;
+      color: #1a120e;
+      padding: 22px 24px;
+      border-left: 4px solid var(--copper);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .spec h3 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 22px;
+      margin-bottom: 10px;
+    }
+
+    .spec ul { padding-left: 18px; }
+    .spec li + li { margin-top: 6px; }
+    .spec code {
+      font-size: 12px;
+      background: rgba(26, 18, 14, 0.06);
+      padding: 1px 5px;
+    }
+
+    @media print {
+      html, body { background: #fff; }
+      .no-print { display: none !important; }
+      .stage { padding: 0; gap: 0; display: block; }
+      .preview-frame {
+        width: 35.5in;
+        height: 72in;
+        box-shadow: none;
+        page-break-after: always;
+        break-after: page;
+      }
+      .preview-frame:last-of-type {
+        page-break-after: auto;
+        break-after: auto;
+      }
+      .preview-scale { transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-bar no-print">
+    <div>
+      <strong>Pelbu Suites · Full-bleed walk-in standees</strong>
+      <div class="meta">
+        Two posters · 35.5 × 72 in · photo + text overlay · no cream whitespace.
+        Print: Destination → <b>Save as PDF</b> · Scale <b>100%</b> · Background graphics <b>ON</b> · Margins <b>None</b>.
+      </div>
+    </div>
+    <button type="button" onclick="window.print()">Print / Save PDF</button>
+  </div>
+
+  <div class="stage">
+    <!-- ========== STANDEE A ========== -->
+    <p class="side-tag no-print">Standee A · Café · full-bleed</p>
+    <div class="preview-frame">
+      <div class="preview-scale">
+        <article class="sheet a" aria-label="Pelbu Suites café walk-in standee">
+          <section class="band hero">
+            <div class="band-photo" aria-hidden="true">
+              <img src="standee-hero-cafe-guests.jpg" alt="" />
+            </div>
+            <div class="band-veil" aria-hidden="true"></div>
+            <div class="brand-row">
+              <img src="logo-mark.png" alt="Pelbu Suites" />
+              <div>
+                <p class="wm">Pelbu <span>Suites</span></p>
+                <p class="place">Café · Olakha · Thimphu</p>
+              </div>
+            </div>
+            <p class="kicker">Skip the long queue · Walk in now</p>
+            <h1>Different menu.<br />Same street.</h1>
+            <p class="sub">Barista, house sandwiches, burgers &amp; café plates you won’t get at every shop next door.</p>
+            <div class="chips">
+              <div class="chip"><span class="k">Coffee from</span><span class="v">Nu 160</span></div>
+              <div class="chip ghost"><span class="k">Club</span><span class="v">Nu 300</span></div>
+              <div class="chip ghost"><span class="k">Day visitors</span><span class="v">Welcome</span></div>
+            </div>
+            <div class="rule" aria-hidden="true"></div>
+          </section>
+
+          <section class="band dish">
+            <div class="band-photo" aria-hidden="true">
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_2200,h_1200,f_jpg,q_auto:best/pelbu/menu/cafe-olakha-club-sandwich" alt="" />
+            </div>
+            <div class="band-veil" aria-hidden="true"></div>
+            <div class="dish-copy">
+              <p class="tag">01 · Signature</p>
+              <h2>Olakha club</h2>
+              <p class="bits">House triple-stack · café classic</p>
+            </div>
+            <div class="dish-price"><span class="cur">Nu</span><span class="amt">300</span></div>
+            <div class="rule" aria-hidden="true"></div>
+          </section>
+
+          <section class="band dish">
+            <div class="band-photo" aria-hidden="true">
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_2200,h_1200,f_jpg,q_auto:best/pelbu/menu/cafe-boba-classic" alt="" />
+            </div>
+            <div class="band-veil" aria-hidden="true"></div>
+            <div class="dish-copy">
+              <p class="tag">02 · Unique</p>
+              <h2>Milk tea boba</h2>
+              <p class="bits">Pearl cup · café favourite</p>
+            </div>
+            <div class="dish-price"><span class="cur">Nu</span><span class="amt">220</span></div>
+            <div class="rule" aria-hidden="true"></div>
+          </section>
+
+          <section class="band dish">
+            <div class="band-photo" aria-hidden="true">
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_2200,h_1200,f_jpg,q_auto:best/pelbu/menu/cafe-beef-burger" alt="" />
+            </div>
+            <div class="band-veil" aria-hidden="true"></div>
+            <div class="dish-copy">
+              <p class="tag">03 · Grill</p>
+              <h2>Beef burger</h2>
+              <p class="bits">House beef · soft bun · melt</p>
+            </div>
+            <div class="dish-price"><span class="cur">Nu</span><span class="amt">350</span></div>
+            <div class="rule" aria-hidden="true"></div>
+          </section>
+
+          <section class="band dish">
+            <div class="band-photo" aria-hidden="true">
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_2200,h_1200,f_jpg,q_auto:best/pelbu/menu/cafe-latte" alt="" />
+            </div>
+            <div class="band-veil" aria-hidden="true"></div>
+            <div class="dish-copy">
+              <p class="tag">04 · Barista</p>
+              <h2>Latte / cappuccino</h2>
+              <p class="bits">Silky milk coffee · quick order</p>
+            </div>
+            <div class="dish-price"><span class="cur">from</span><span class="amt">160</span></div>
+            <div class="rule" aria-hidden="true"></div>
+          </section>
+
+          <section class="band cta">
+            <div class="band-photo" aria-hidden="true">
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_2200,h_1400,f_jpg,q_auto:best/pelbu/menu/cafe-crispy-chilli-potato" alt="" />
+            </div>
+            <div class="band-veil" aria-hidden="true"></div>
+            <div class="cta-grid">
+              <div>
+                <h2>Come inside · eat now</h2>
+                <p class="pitch">Tired of waiting elsewhere? Walk into Pelbu café — coffee, club, burger. Day visitors welcome.</p>
+                <div class="contacts">
+                  <p><strong>Web</strong> &nbsp; pelbusuites.bt/menu</p>
+                  <p><strong>WhatsApp</strong> &nbsp; +975 1619 3410</p>
+                  <p>Next to Number 7 / Asha Bakery · Olakha</p>
+                </div>
+              </div>
+              <div class="cta-aside">
+                <div class="lunch-pill">
+                  <p class="k">Lunch package</p>
+                  <p class="v">Nu 400 pp</p>
+                </div>
+                <div class="qr-block">
+                  <img src="qr-web.png" width="420" height="420" alt="Scan for Pelbu menu" />
+                  <span>Scan · Full menu</span>
+                  <p class="go">Walk in →</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div class="base-safe" aria-hidden="true">
+            <div class="band-photo">
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_2200,h_600,f_jpg,q_auto:good/pelbu/menu/cafe-crispy-chilli-potato" alt="" />
+            </div>
+            <div class="band-veil"></div>
+            <p>Pelbu Suites café · Olakha · day visitors welcome</p>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <!-- ========== STANDEE B ========== -->
+    <p class="side-tag no-print">Standee B · Restaurant · full-bleed</p>
+    <div class="preview-frame">
+      <div class="preview-scale">
+        <article class="sheet b" aria-label="Pelbu Suites restaurant walk-in standee">
+          <section class="band hero">
+            <div class="band-photo" aria-hidden="true">
+              <img src="standee-hero-restaurant-friends.jpg" alt="" />
+            </div>
+            <div class="band-veil" aria-hidden="true"></div>
+            <div class="brand-row">
+              <img src="logo-mark.png" alt="Pelbu Suites" />
+              <div>
+                <p class="wm">Pelbu <span>Suites</span></p>
+                <p class="place">Restaurant · Olakha · Thimphu</p>
+              </div>
+            </div>
+            <p class="kicker">Skip the long queue · Walk in now</p>
+            <h1>Six kitchens.<br />One table.</h1>
+            <p class="sub">Western · Asian · Indian · Japanese — signature plates, clear prices, day visitors welcome.</p>
+            <div class="chips">
+              <div class="chip"><span class="k">Ramen</span><span class="v">Nu 200</span></div>
+              <div class="chip ghost"><span class="k">Lunch pkg</span><span class="v">Nu 400</span></div>
+              <div class="chip ghost"><span class="k">Mains from</span><span class="v">Nu 400</span></div>
+            </div>
+            <div class="rule" aria-hidden="true"></div>
+          </section>
+
+          <section class="band dish">
+            <div class="band-photo" aria-hidden="true">
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_2200,h_1200,f_jpg,q_auto:best/pelbu/menu/restaurant-thai-curry" alt="" />
+            </div>
+            <div class="band-veil" aria-hidden="true"></div>
+            <div class="dish-copy">
+              <p class="tag">01 · Asian</p>
+              <h2>Thai curry</h2>
+              <p class="bits">Green or red · choose protein</p>
+            </div>
+            <div class="dish-price"><span class="cur">from</span><span class="amt">450</span></div>
+            <div class="rule" aria-hidden="true"></div>
+          </section>
+
+          <section class="band dish">
+            <div class="band-photo" aria-hidden="true">
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_2200,h_1200,f_jpg,q_auto:best/pelbu/menu/restaurant-tonkatsu" alt="" />
+            </div>
+            <div class="band-veil" aria-hidden="true"></div>
+            <div class="dish-copy">
+              <p class="tag">02 · Japanese</p>
+              <h2>Tonkatsu</h2>
+              <p class="bits">Chicken or pork cutlet · house sauce</p>
+            </div>
+            <div class="dish-price"><span class="cur">Nu</span><span class="amt">450</span></div>
+            <div class="rule" aria-hidden="true"></div>
+          </section>
+
+          <section class="band dish">
+            <div class="band-photo" aria-hidden="true">
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_2200,h_1200,f_jpg,q_auto:best/pelbu/menu/indian-butter-chicken" alt="" />
+            </div>
+            <div class="band-veil" aria-hidden="true"></div>
+            <div class="dish-copy">
+              <p class="tag">03 · Indian</p>
+              <h2>Butter chicken</h2>
+              <p class="bits">With naan · full plate</p>
+            </div>
+            <div class="dish-price"><span class="cur">Nu</span><span class="amt">580</span></div>
+            <div class="rule" aria-hidden="true"></div>
+          </section>
+
+          <section class="band dish">
+            <div class="band-photo" aria-hidden="true">
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_2200,h_1200,f_jpg,q_auto:best/pelbu/menu/restaurant-ramen" alt="" />
+            </div>
+            <div class="band-veil" aria-hidden="true"></div>
+            <div class="dish-copy">
+              <p class="tag">04 · Bowl</p>
+              <h2>Ramen</h2>
+              <p class="bits">Noodles · broth · quick lunch</p>
+            </div>
+            <div class="dish-price"><span class="cur">Nu</span><span class="amt">200</span></div>
+            <div class="rule" aria-hidden="true"></div>
+          </section>
+
+          <section class="band cta">
+            <div class="band-photo" aria-hidden="true">
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_2200,h_1400,f_jpg,q_auto:best/pelbu/menu/restaurant-braised-chicken" alt="" />
+            </div>
+            <div class="band-veil" aria-hidden="true"></div>
+            <div class="cta-grid">
+              <div>
+                <h2>Come inside · eat now</h2>
+                <p class="pitch">Want a different plate than the usual street set? Walk into Pelbu — scan prices, sit down, order.</p>
+                <div class="contacts">
+                  <p><strong>Web</strong> &nbsp; pelbusuites.bt/menu</p>
+                  <p><strong>WhatsApp</strong> &nbsp; +975 1619 3410</p>
+                  <p>Next to Number 7 / Asha Bakery · Olakha</p>
+                </div>
+              </div>
+              <div class="cta-aside">
+                <div class="lunch-pill">
+                  <p class="k">Lunch package · tax in</p>
+                  <p class="v">Nu 400 pp</p>
+                </div>
+                <div class="qr-block">
+                  <img src="qr-web.png" width="420" height="420" alt="Scan for Pelbu menu" />
+                  <span>Scan · Full menu</span>
+                  <p class="go">Walk in →</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div class="base-safe" aria-hidden="true">
+            <div class="band-photo">
+              <img src="https://res.cloudinary.com/hkkchsfy/image/upload/c_fill,g_auto,w_2200,h_600,f_jpg,q_auto:good/pelbu/menu/restaurant-braised-chicken" alt="" />
+            </div>
+            <div class="band-veil"></div>
+            <p>Pelbu Suites restaurant · Olakha · day visitors welcome</p>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <aside class="spec no-print">
+      <h3>Print-house brief · Full-bleed standees</h3>
+      <ul>
+        <li><strong>File:</strong> <code>marketing/print/menu-standee-35x72.html</code> + <code>qr-web.png</code>, <code>logo-mark.png</code>, hero JPGs.</li>
+        <li><strong>Layout:</strong> edge-to-edge photo bands · text overlay · no cream card grids.</li>
+        <li><strong>Size:</strong> 35.5 × 72 in · 2 pages. Bottom ~3 in base-safe (no critical type).</li>
+        <li><strong>PDF:</strong> Print / Save PDF · Scale 100% · Margins None · Background graphics ON.</li>
+      </ul>
+    </aside>
+  </div>
+</body>
+</html>

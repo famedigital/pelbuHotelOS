@@ -6,6 +6,8 @@ Product HEAD at docs write: `main` including uncommitted desk FO (agent commerce
 
 Property #1: `pelbu-suites-olakha` (`template_id` 1). Work login supports staff Auth with desk access; `DESK_PIN` remains a temporary single-hotel fallback — **never share across hotels**.
 
+Full module / route / API / middleware inventory: **[PROJECT-AUDIT.md](PROJECT-AUDIT.md)**.
+
 **Verdict:** **v1.0 ready** for single-hotel Pelbu Olakha — see **[RELEASE-v1.md](RELEASE-v1.md)**. Core desk OS + public conversion PWA are **built**. **2026-08-06:** StayHub walk-in. **2026-08-06→10:** bar packs · desk Ctrl+K search · party reservations · agreed rates · folio POS serve/void · guest Nu 0/5 · one book modal · public menu immerse · agent commerce (guide evidence, room cap, AR labels) · stay confirmation **`PS-YYYY-#####`**. Day-1 ops: **[GO-LIVE-TOMORROW.md](GO-LIVE-TOMORROW.md)**; agent FO: **[FO-AGENT-COMMERCE-CHECKLIST.md](FO-AGENT-COMMERCE-CHECKLIST.md)**; cutover: **[LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md)**. Residuals: live Channex cert, Stripe self-serve, SEC-01 admin client purge.
 
 **Palette (FINAL):** **Sky & Citrus** — sky-500 `#0ea5e9` accent + amber-500 `#f59e0b` citrus. Shipped on the desk (`.erp` scope). Pelbu-pink / Bubblegum is **retired**.

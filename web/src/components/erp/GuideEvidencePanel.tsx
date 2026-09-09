@@ -383,6 +383,7 @@ export function GuideEvidencePanel({
 
           <Dialog open={packLightboxOpen} onOpenChange={setPackLightboxOpen}>
             <DialogContent
+              layer="nested"
               className="erp flex max-h-[95vh] max-w-[min(96vw,56rem)] flex-col gap-3 overflow-hidden p-3 sm:p-4"
               showCloseButton
             >

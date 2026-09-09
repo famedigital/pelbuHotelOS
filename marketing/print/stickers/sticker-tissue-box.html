@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pelbu Suites — Tissue box sticker · 65 × 65 mm</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #1a0f0a;
+      --cream: #fffaf3;
+      --copper: #c45c26;
+      --trim: 65mm;
+      --bleed: 3mm;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    @page {
+      size: 71mm 71mm;
+      margin: 0;
+    }
+
+    html, body {
+      background: #c9b6a0;
+      color: var(--ink);
+      font-family: "Outfit", "Segoe UI", Arial, sans-serif;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .print-bar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 20px;
+      background: var(--ink);
+      color: var(--cream);
+      font-size: 13px;
+    }
+
+    .print-bar strong {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .print-bar span.meta {
+      opacity: 0.8;
+      font-size: 11.5px;
+      line-height: 1.45;
+      max-width: 56ch;
+    }
+
+    .print-bar button {
+      appearance: none;
+      border: 0;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 10px 18px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #c45c26, #e8a838);
+      color: var(--ink);
+    }
+
+    .stage {
+      padding: 28px 20px 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(26, 15, 10, 0.55);
+    }
+
+    .artboard {
+      width: calc(var(--trim) + var(--bleed) * 2);
+      height: calc(var(--trim) + var(--bleed) * 2);
+      position: relative;
+      box-shadow: 0 18px 42px rgba(26, 15, 10, 0.28);
+    }
+
+    .bleed-frame {
+      position: absolute;
+      inset: 0;
+      background: var(--cream);
+    }
+
+    .trim-guide {
+      position: absolute;
+      inset: var(--bleed);
+      border: 0.25mm dashed rgba(196, 92, 38, 0.35);
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .sticker {
+      position: absolute;
+      inset: var(--bleed);
+      background: transparent;
+      color: var(--ink);
+      padding: 2.5mm 2mm;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      justify-content: center;
+      gap: 0.6mm;
+    }
+
+    .logo {
+      width: 24mm;
+      height: 24mm;
+      object-fit: contain;
+    }
+
+    .rule {
+      width: 18mm;
+      height: 0.4mm;
+      background: var(--copper);
+      margin: 0.3mm 0;
+    }
+
+    .wordmark {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 6.5mm;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .website {
+      font-size: 2.8mm;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: #3d2a22;
+    }
+
+    .qr {
+      width: 22mm;
+      height: 22mm;
+      object-fit: contain;
+      margin-top: 0.3mm;
+    }
+
+    .qr-caption {
+      font-size: 2.6mm;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #3d2a22;
+    }
+
+    .bleed-note {
+      width: 100%;
+      max-width: 210mm;
+      margin: 0 auto;
+      padding: 18px 20px 40px;
+      font-size: 12px;
+      line-height: 1.55;
+      color: #3d2a22;
+    }
+
+    .bleed-note h3 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+
+    .bleed-note ul { padding-left: 1.2em; }
+    .bleed-note li { margin-bottom: 6px; }
+    .bleed-note code {
+      font-size: 11px;
+      background: rgba(26, 15, 10, 0.06);
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    @media print {
+      .print-bar, .bleed-note, .label { display: none !important; }
+      html, body { background: #fff; }
+      .stage { padding: 0; }
+      .artboard { box-shadow: none; }
+      .trim-guide { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-bar no-print">
+    <div>
+      <strong>Tissue box sticker</strong><br />
+      <span class="meta">Trim 65 × 65 mm · 3 mm bleed · espresso ink on white/cream stock · QR → WhatsApp</span>
+    </div>
+    <button type="button" onclick="window.print()">Print / Save PDF</button>
+  </div>
+
+  <div class="stage">
+    <span class="label no-print">Trim + bleed preview</span>
+    <div class="artboard" aria-label="Tissue box sticker artwork">
+      <div class="bleed-frame"></div>
+      <div class="trim-guide no-print" aria-hidden="true"></div>
+      <div class="sticker">
+        <img class="logo" src="assets/logo-mark-color.png" width="512" height="512" alt="Pelbu Suites logo" />
+        <div class="rule" aria-hidden="true"></div>
+        <p class="wordmark">Pelbu Suites</p>
+        <p class="website">www.pelbusuites.bt</p>
+        <img class="qr" src="assets/qr-whatsapp-97516193410.png" width="200" height="200" alt="WhatsApp QR code" />
+        <p class="qr-caption">Scan · WhatsApp us</p>
+      </div>
+    </div>
+  </div>
+
+  <aside class="bleed-note no-print">
+    <h3>Print-house brief</h3>
+    <ul>
+      <li><strong>Trim:</strong> 65 × 65 mm square. <strong>Bleed:</strong> 3 mm (artboard 71 × 71 mm).</li>
+      <li><strong>Stock:</strong> white or cream tissue box lid / side panel.</li>
+      <li><strong>Ink:</strong> espresso #1a0f0a text; full-colour logo; copper rule #c45c26.</li>
+      <li><strong>QR:</strong> ≥18 mm square (artwork uses 20 mm) · <code>https://wa.me/97516193410</code>.</li>
+      <li><strong>PSD:</strong> <code>sticker-tissue-box.psd</code> — layered for designer edits.</li>
+    </ul>
+  </aside>
+</body>
+</html>

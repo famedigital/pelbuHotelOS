@@ -81,8 +81,8 @@ Honest module-level status — **Shipped** = desk can run a shift; **Partial** =
 
 | ID | Sev | Finding | Evidence | Correction |
 |----|-----|---------|----------|------------|
-| AC-01 | **P0** | Not every folio charge/payment is proven to create a **balanced** journal with a posting event. | `lib/accounting/posting.ts` + call sites | Single `postFolioLine` / `postPayment` gateway; unit tests for balance; forbid raw inserts of `folio_lines` |
-| AC-02 | **P0** | Posted folio lines may be mutable / deletable without a reversing entry pattern. | Inspect mutations on `folio_lines` | Status machine: `posted` → only `voided` via reversing line; store `reverses_line_id`, actor, reason |
+| AC-01 | **P0** — **Shipped** | Not every folio charge/payment is proven to create a **balanced** journal with a posting event. | **Shipped 2026-08-01:** `postFolioCharge` / `postFolioPaymentRecord` (§5 Phase B) | Keep gateways; forbid raw `folio_lines` inserts |
+| AC-02 | **P0** — **Shipped** | Posted folio lines may be mutable / deletable without a reversing entry pattern. | **Shipped 2026-08-01:** `voidFolioLineWithReversal` (§5 Phase A) | Status machine: `posted` → only `voided` via reversing line |
 | AC-03 | **P1** | Invoice / receipt / journal sequence gapless-ness and concurrency not guaranteed. | Sequence helpers / DB sequences | **Shipped 2026-08-01/02:** `property_sequences` + `next_property_sequence` RPC; `allocateJournalNo` / `allocateFiscalDocNo` use row-locked upsert; fiscal **CN** issue + print. **Still open:** journal numbers gapless but not legally immutable; live Bhutan e-invoice API |
 | AC-04 | **P1** | Idempotency: double-click payment / webhook replay can double-post. | Payment actions / webhooks | **Shipped 2026-08-01:** `payments (property_id, idempotency_key)` unique partial index; gateway webhook + deposit link + folio desk + POS tender + agent credit keys; desk deposit link `open→processing` claim |
 | AC-05 | **P2** | GST inclusive vs exclusive + rounding (`roundBtn`) must be one documented rule. | `lib/pricing` | **Documented 2026-08-01:** see §5.1 — exclusive-add GST, `roundBtn` on every BTN total; property `gst_rate` from seed |
@@ -111,7 +111,7 @@ Honest module-level status — **Shipped** = desk can run a shift; **Partial** =
 | ID | Sev | Finding | Evidence | Correction |
 |----|-----|---------|----------|------------|
 | SEC-01 | **P1** (was P0) | Desk server paths use `createSupabaseAdminClient` broadly. RLS does not protect against a buggy action that forgets `property_id`. | Grep of admin client + Wave 2 AuthZ purge 2026-08-01 | **Partial — Wave 2 AuthZ purge:** money/privileged writes gated with `requireMoneyDesk` / `requireDeskRole`; id-based loads fenced with `assertDeskProperty`. Full staff-scoped client rewrite still open (see §5 Phase B item 5 + §7.4) |
-| SEC-02 | **P1** | RLS on, **no policies**: `booking_guests`, `booking_rooms`, `booking_drivers`, `guides`, `drivers`, `order_items`. | Advisor + SQL | Policies matching sibling tables, or revoke grants to `anon`/`authenticated` |
+| SEC-02 | **P1** — **Shipped** | RLS on, **no policies**: `booking_guests`, `booking_rooms`, `booking_drivers`, `guides`, `drivers`, `order_items`. | **Shipped 2026-08-01:** `service_role` policies (§5 Phase A) | Keep policies; tighten further with staff-scoped client (SEC-01 residual) |
 | SEC-03 | **P1** | Auth leaked-password protection disabled. | Supabase Auth advisor | Enable HaveIBeenPwned check |
 | SEC-04 | **P2** | Extension `btree_gist` in `public` schema. | Advisor | Move to `extensions` schema |
 

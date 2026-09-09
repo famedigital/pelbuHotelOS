@@ -554,6 +554,7 @@ export function StayHubDialog({
   const [checkInPayload, setCheckInPayload] =
     useState<StayHubCheckInPayload | null>(null);
   const [checkInLoading, setCheckInLoading] = useState(false);
+  const [checkInLoadError, setCheckInLoadError] = useState(false);
   const [settlementPacks, setSettlementPacks] = useState<
     Array<{
       id: string;
@@ -1440,6 +1441,7 @@ export function StayHubDialog({
     // Prefetch when hub opens (not only when CI step clicked)
     let cancelled = false;
     setCheckInLoading(true);
+    setCheckInLoadError(false);
     fetchStayHubCheckIn(bookingId)
       .then((r) => {
         if (cancelled) return;
@@ -1447,7 +1449,16 @@ export function StayHubDialog({
           checkInCacheRef.current.set(bookingId, r.data);
           setCheckInPayload(r.data);
           checkInLoadedForRef.current = checkInKey;
-        } else setCheckInPayload(null);
+          setCheckInLoadError(false);
+        } else {
+          setCheckInPayload(null);
+          setCheckInLoadError(true);
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setCheckInPayload(null);
+        setCheckInLoadError(true);
       })
       .finally(() => {
         if (!cancelled) setCheckInLoading(false);
@@ -1456,6 +1467,30 @@ export function StayHubDialog({
       cancelled = true;
     };
   }, [open, bookingId, summary?.status, summary?.checkIn, summary?.checkOut]);
+
+  const retryCheckInLoad = useCallback(() => {
+    if (!bookingId || !summary) return;
+    checkInLoadedForRef.current = null;
+    setCheckInLoading(true);
+    setCheckInLoadError(false);
+    fetchStayHubCheckIn(bookingId)
+      .then((r) => {
+        if (r.ok) {
+          checkInCacheRef.current.set(bookingId, r.data);
+          setCheckInPayload(r.data);
+          checkInLoadedForRef.current = `${bookingId}:${summary.checkIn}:${summary.checkOut}`;
+          setCheckInLoadError(false);
+        } else {
+          setCheckInPayload(null);
+          setCheckInLoadError(true);
+        }
+      })
+      .catch(() => {
+        setCheckInPayload(null);
+        setCheckInLoadError(true);
+      })
+      .finally(() => setCheckInLoading(false));
+  }, [bookingId, summary]);
 
   // Prefer Guest tab when room is already assigned (FO captures IDs next).
   useEffect(() => {
@@ -1905,6 +1940,44 @@ export function StayHubDialog({
     }
 
     if (isDetailsPanel) {
+      if (
+        (summary.status === "held" || summary.status === "pending") &&
+        summary.ratePendingApproval
+      ) {
+        return (
+          <Button
+            asChild
+            variant="citrus"
+            className="min-h-11 flex-1 sm:flex-none"
+          >
+            <Link href="/erp/rate-approvals">Open rate approvals</Link>
+          </Button>
+        );
+      }
+      if (summary.status === "held") {
+        if (panel !== "confirm") {
+          return (
+            <Button
+              type="button"
+              variant="citrus"
+              className="min-h-11 flex-1 sm:flex-none"
+              onClick={() => goPanel("confirm")}
+            >
+              Confirm reservation
+            </Button>
+          );
+        }
+        return (
+          <Button
+            type="submit"
+            form="stay-hub-confirm-token-form"
+            variant="citrus"
+            className="min-h-11 flex-1 sm:flex-none"
+          >
+            Confirm reservation
+          </Button>
+        );
+      }
       if (["pending", "confirmed"].includes(summary.status)) {
         if (arrivalTooFar) {
           return (
@@ -1942,6 +2015,29 @@ export function StayHubDialog({
     }
 
     if (isCheckInPanel) {
+      if (summary.status === "held") {
+        if (summary.ratePendingApproval) {
+          return (
+            <Button
+              asChild
+              variant="citrus"
+              className="min-h-11 flex-1 sm:flex-none"
+            >
+              <Link href="/erp/rate-approvals">Open rate approvals</Link>
+            </Button>
+          );
+        }
+        return (
+          <Button
+            type="button"
+            variant="citrus"
+            className="min-h-11 flex-1 sm:flex-none"
+            onClick={() => goPanel("confirm")}
+          >
+            Confirm reservation
+          </Button>
+        );
+      }
       if (["pending", "confirmed"].includes(summary.status)) {
         if (arrivalTooFar) {
           return (
@@ -1955,7 +2051,18 @@ export function StayHubDialog({
             </Button>
           );
         }
-        if (checkInLoading || !checkInPayload) {
+        if (summary.ratePendingApproval) {
+          return (
+            <Button
+              asChild
+              variant="citrus"
+              className="min-h-11 flex-1 sm:flex-none"
+            >
+              <Link href="/erp/rate-approvals">Open rate approvals</Link>
+            </Button>
+          );
+        }
+        if (checkInLoading) {
           return (
             <Button
               type="button"
@@ -1964,6 +2071,18 @@ export function StayHubDialog({
               disabled
             >
               Loading check-in…
+            </Button>
+          );
+        }
+        if (checkInLoadError || !checkInPayload) {
+          return (
+            <Button
+              type="button"
+              variant="citrus"
+              className="min-h-11 flex-1 sm:flex-none"
+              onClick={retryCheckInLoad}
+            >
+              Retry check-in load
             </Button>
           );
         }
@@ -2038,17 +2157,37 @@ export function StayHubDialog({
       );
     }
 
-    if (panel === "check_out" && isInHouse && balanceOpen) {
-      return (
-        <Button
-          type="button"
-          variant="citrus"
-          className="min-h-11 flex-1 sm:flex-none"
-          onClick={openCollect}
-        >
-          {summary.agentId ? "Settle due first" : "Collect payment first"}
-        </Button>
-      );
+    if (panel === "check_out" && isInHouse) {
+      if (balanceOpen) {
+        return (
+          <Button
+            type="button"
+            variant="citrus"
+            className="min-h-11 flex-1 sm:flex-none"
+            onClick={openCollect}
+          >
+            {summary.agentId ? "Settle due first" : "Collect payment first"}
+          </Button>
+        );
+      }
+      if (
+        guideEvidenceAllowsLeave({
+          agentId: summary.agentId,
+          guideSignStatus: summary.guideSignStatus,
+        })
+      ) {
+        return (
+          <Button
+            type="submit"
+            form="stay-hub-checkout-form"
+            variant="citrus"
+            className="min-h-11 flex-1 sm:flex-none"
+          >
+            Confirm check-out
+          </Button>
+        );
+      }
+      return null;
     }
 
     return null;
@@ -2577,6 +2716,23 @@ export function StayHubDialog({
                           </Callout>
                         ) : null}
 
+                        {panel === "confirm" &&
+                        (summary.status === "held" ||
+                          summary.status === "pending") &&
+                        !summary.ratePendingApproval &&
+                        !terminal ? (
+                          <WorkSection title="Confirm reservation">
+                            <BookingLifecycleActions
+                              bookingId={summary.bookingId}
+                              status={summary.status}
+                              ratePendingApproval={summary.ratePendingApproval}
+                              onSuccess={refreshSummary}
+                              onOptimisticStatus={patchOptimisticStatus}
+                              onOptimisticRollback={rollbackOptimisticStatus}
+                            />
+                          </WorkSection>
+                        ) : null}
+
                         {arrivalTooFar ? (
                           <Callout
                             tone="amber"
@@ -2808,7 +2964,13 @@ export function StayHubDialog({
                                 </WorkSection>
                               </>
                             ) : null}
-                            {!terminal ? (
+                            {!terminal &&
+                            !(
+                              panel === "confirm" &&
+                              (summary.status === "held" ||
+                                summary.status === "pending") &&
+                              !summary.ratePendingApproval
+                            ) ? (
                               <WorkSection title="Cancel / no-show">
                                 <BookingLifecycleActions
                                   bookingId={summary.bookingId}
@@ -3089,10 +3251,22 @@ export function StayHubDialog({
                                 />
                               </WorkSection>
                             </div>
-                          ) : checkInTool !== "more" ? (
-                            <p className="text-sm text-muted-foreground">
-                              Could not load check-in form for this stay.
-                            </p>
+                          ) : checkInLoadError || !checkInPayload ? (
+                            checkInTool !== "more" ? (
+                              <div className="space-y-2">
+                                <p className="text-sm text-muted-foreground">
+                                  Could not load check-in form for this stay.
+                                </p>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={retryCheckInLoad}
+                                >
+                                  Retry
+                                </Button>
+                              </div>
+                            ) : null
                           ) : null
                         ) : summary.status === "checked_in" &&
                           checkInTool !== "more" ? (

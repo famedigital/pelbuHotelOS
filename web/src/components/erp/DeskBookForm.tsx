@@ -303,6 +303,12 @@ export function DeskBookForm({
           }`
         : "Reservation saved",
   });
+  useEffect(() => {
+    if (!state.ok || !state.warnings?.length) return;
+    for (const w of state.warnings) {
+      toast.warning(w);
+    }
+  }, [state.ok, state.warnings]);
   const savedNotified = useRef(false);
   /** Ignore stale async quote responses (prevents rack/comp rate flicker). */
   const quoteGenRef = useRef(0);
@@ -513,11 +519,14 @@ export function DeskBookForm({
     Record<string, BookableAgent>
   >({});
 
+  /** Prefer server intent after save — client state can lag submit-button FormData. */
   const skipConfirmationPack = useMemo(() => {
-    if (intent === "check_in") return true;
-    if (intent === "confirm" && checkIn === todayIso()) return true;
+    const i =
+      state.ok && state.intent ? state.intent : intent;
+    if (i === "check_in") return true;
+    if (i === "confirm" && checkIn === todayIso()) return true;
     return false;
-  }, [intent, checkIn]);
+  }, [intent, checkIn, state.ok, state.intent]);
 
   const pickerAgents = useMemo(() => {
     const extras = Object.values(agentPatches).filter(
@@ -1381,8 +1390,16 @@ export function DeskBookForm({
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
-            setIntent(checkIn === todayIso() ? "check_in" : "confirm");
-            (e.currentTarget as HTMLFormElement).requestSubmit();
+            const next: DeskBookIntent =
+              checkIn === todayIso() ? "check_in" : "confirm";
+            setIntent(next);
+            // Submit via the citrus button so FormData gets its name="intent" value
+            // (React setState is too late for the same-tick submit).
+            const form = e.currentTarget as HTMLFormElement;
+            const btn = form.querySelector<HTMLButtonElement>(
+              `button[type="submit"][name="intent"][value="${next}"]`,
+            );
+            if (btn && !btn.disabled) form.requestSubmit(btn);
             return;
           }
           if (e.key !== "Enter") return;
@@ -1393,7 +1410,6 @@ export function DeskBookForm({
           focusNextFoField(e.currentTarget, e.target);
         }}
       >
-        <input type="hidden" name="intent" value={intent} />
         <input type="hidden" name="source" value={bookedBy} />
         <input type="hidden" name="guest_origin" value={origin} />
         <input type="hidden" name="check_in" value={checkIn} />
@@ -2575,6 +2591,8 @@ export function DeskBookForm({
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="submit"
+                name="intent"
+                value="reserve"
                 variant="outline"
                 disabled={pending || blockCredit || totalGuestRooms < 1}
                 className="h-9 px-3 text-xs"
@@ -2592,6 +2610,8 @@ export function DeskBookForm({
               </p>
               <Button
                 type="submit"
+                name="intent"
+                value={checkIn === todayIso() ? "check_in" : "confirm"}
                 variant="citrus"
                 disabled={
                   pending ||
@@ -2607,7 +2627,9 @@ export function DeskBookForm({
                 title={
                   anyRatePendingSubmit
                     ? "Awaiting GM rate approval"
-                    : undefined
+                    : checkIn === todayIso()
+                      ? "Saves the stay and opens check-in (docs still required)"
+                      : undefined
                 }
               >
                 {pending
@@ -2615,7 +2637,7 @@ export function DeskBookForm({
                   : anyRatePendingSubmit
                     ? "Submit · rate approval"
                     : checkIn === todayIso()
-                      ? "Confirm check-in"
+                      ? "Save & open check-in"
                       : "Confirm reservation"}
               </Button>
             </div>

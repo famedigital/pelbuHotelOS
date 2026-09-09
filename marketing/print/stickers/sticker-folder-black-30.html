@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pelbu Suites — Folder sticker · 60 × 30 mm · Black</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --white: #ffffff;
+      --black: #000000;
+      --trim-w: 60mm;
+      --trim-h: 30mm;
+      --bleed: 3mm;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    @page { size: 66mm 36mm; margin: 0; }
+    html, body {
+      background: #2a2a2a;
+      color: var(--white);
+      font-family: "Outfit", "Segoe UI", Arial, sans-serif;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .print-bar {
+      position: sticky; top: 0; z-index: 50;
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 12px; padding: 14px 20px; background: #111; color: #f5f5f5; font-size: 13px;
+    }
+    .print-bar strong { font-family: "Cormorant Garamond", Georgia, serif; font-size: 18px; font-weight: 700; }
+    .print-bar span.meta { opacity: 0.8; font-size: 11.5px; line-height: 1.45; max-width: 56ch; }
+    .print-bar button {
+      appearance: none; border: 0; cursor: pointer; font-family: inherit;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 10px 18px; border-radius: 6px; background: var(--white); color: #111;
+    }
+    .stage { padding: 28px 20px 48px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+    .label { font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.55); }
+    .artboard {
+      width: calc(var(--trim-w) + var(--bleed) * 2);
+      height: calc(var(--trim-h) + var(--bleed) * 2);
+      position: relative; box-shadow: 0 18px 42px rgba(0,0,0,0.45);
+    }
+    .bleed-frame { position: absolute; inset: 0; background: var(--black); }
+    .trim-guide {
+      position: absolute; inset: var(--bleed);
+      border: 0.25mm dashed rgba(255,255,255,0.25); pointer-events: none; z-index: 5;
+    }
+    .sticker {
+      position: absolute; inset: var(--bleed);
+      background: var(--black); color: var(--white);
+      padding: 1mm;
+      display: flex; align-items: center; gap: 1mm;
+    }
+    .logo { width: 18mm; height: 18mm; object-fit: contain; flex-shrink: 0; }
+    .copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.5mm; justify-content: center; }
+    .wordmark {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 4.6mm; font-weight: 700; line-height: 0.95;
+    }
+    .website { font-size: 2.2mm; font-weight: 700; letter-spacing: 0.02em; }
+    .qr-caption { font-size: 2.3mm; font-weight: 700; letter-spacing: 0.03em; }
+    .qr-block { display: flex; flex-direction: column; align-items: center; gap: 0; flex-shrink: 0; }
+    .qr {
+      width: 18mm; height: 18mm; object-fit: contain;
+      background: var(--white); padding: 0.5mm; border-radius: 0.4mm;
+    }
+    .bleed-note {
+      width: 100%; max-width: 210mm; margin: 0 auto; padding: 18px 20px 40px;
+      font-size: 12px; line-height: 1.55; color: rgba(255,255,255,0.75);
+    }
+    .bleed-note h3 { font-family: "Cormorant Garamond", Georgia, serif; font-size: 18px; color: #fff; margin-bottom: 10px; }
+    .bleed-note ul { padding-left: 1.2em; }
+    .bleed-note li { margin-bottom: 6px; }
+    .bleed-note code { font-size: 11px; background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 3px; }
+    @media print {
+      .print-bar, .bleed-note, .label { display: none !important; }
+      html, body { background: #fff; }
+      .stage { padding: 0; }
+      .artboard { box-shadow: none; }
+      .trim-guide { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-bar no-print">
+    <div>
+      <strong>Folder sticker · 3 cm H</strong><br />
+      <span class="meta">Trim 60 × 30 mm · single-row lockup · PSD @ 600 dpi for designer play</span>
+    </div>
+    <button type="button" onclick="window.print()">Print / Save PDF</button>
+  </div>
+  <div class="stage">
+    <span class="label no-print">Trim + bleed preview</span>
+    <div class="artboard" aria-label="Folder sticker 30 mm height">
+      <div class="bleed-frame"></div>
+      <div class="trim-guide no-print" aria-hidden="true"></div>
+      <div class="sticker">
+        <img class="logo" src="assets/logo-mark-white.png" width="512" height="512" alt="Pelbu Suites logo" />
+        <div class="copy">
+          <p class="wordmark">Pelbu<br />Suites</p>
+          <p class="website">pelbusuites.bt</p>
+          <p class="qr-caption">WhatsApp</p>
+        </div>
+        <div class="qr-block">
+          <img class="qr" src="assets/qr-whatsapp-97516193410.png" width="200" height="200" alt="WhatsApp QR code" />
+        </div>
+      </div>
+    </div>
+  </div>
+  <aside class="bleed-note no-print">
+    <h3>Print-house brief</h3>
+    <ul>
+      <li><strong>Trim:</strong> 60 × 30 mm (height 3 cm). <strong>Bleed:</strong> 3 mm.</li>
+      <li><strong>PSD:</strong> <code>sticker-folder-black-30.psd</code> @ 600 dpi — layers editable.</li>
+      <li><strong>Layout:</strong> single row — logo · wordmark/URL · QR (fits 3 cm height precisely).</li>
+      <li><strong>QR:</strong> 18 mm in artwork (fills height) · do not shrink below 12 mm.</li>
+    </ul>
+  </aside>
+</body>
+</html>

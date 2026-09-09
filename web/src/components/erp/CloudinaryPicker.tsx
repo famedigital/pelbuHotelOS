@@ -300,7 +300,10 @@ export function CloudinaryPicker({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="erp flex max-h-[92dvh] flex-col gap-4 overflow-hidden sm:max-w-4xl">
+      <DialogContent
+        layer="nested"
+        className="erp flex max-h-[92dvh] flex-col gap-4 overflow-hidden sm:max-w-4xl"
+      >
         <DialogHeader className="shrink-0">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>

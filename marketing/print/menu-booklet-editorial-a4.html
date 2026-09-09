@@ -8,6 +8,7 @@
     Print brief (saddle-stitch, reader order):
     Chrome → Print / PDF · A4 · margins none · background graphics ON
     Duplex long-edge · shop: fold centre + 2 staples (saddle)
+    Print-house live: 12mm left/right · 10mm top/bottom
     Page count is multiple of 4. Heroes: menu-editorial/hero-*.jpg
   -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -25,7 +26,8 @@
       --cream: #f7f0e8;
       --muted: #6b5850;
       --muted-soft: #8a7060;
-      --cut: 5mm;
+      --margin-x: 12mm;
+      --margin-y: 10mm;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -111,15 +113,15 @@
 
     .sheet .safe {
       position: absolute;
-      inset: var(--cut);
+      inset: var(--margin-y) var(--margin-x);
       display: flex;
       flex-direction: column;
     }
 
     .folio {
       position: absolute;
-      bottom: var(--cut);
-      right: var(--cut);
+      bottom: var(--margin-y);
+      right: var(--margin-x);
       font-size: 2.2mm;
       letter-spacing: 0.16em;
       color: rgba(26, 16, 12, 0.35);
@@ -184,7 +186,7 @@
     .cover-content {
       position: absolute;
       z-index: 2;
-      inset: var(--cut);
+      inset: var(--margin-y) var(--margin-x);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -467,9 +469,9 @@
     .visual-caption {
       position: absolute;
       z-index: 3;
-      left: var(--cut);
-      right: var(--cut);
-      bottom: calc(var(--cut) + 6mm);
+      left: var(--margin-x);
+      right: var(--margin-x);
+      bottom: calc(var(--margin-y) + 6mm);
       color: var(--cream);
     }
 
@@ -499,7 +501,7 @@
 
     .dark-safe {
       position: absolute;
-      inset: var(--cut);
+      inset: var(--margin-y) var(--margin-x);
       display: flex;
       flex-direction: column;
       z-index: 2;
@@ -673,7 +675,7 @@
       <span class="meta">
         A4 booklet · sample-style (list + photo faces) · <b>saddle-stitch ready</b> (page count ÷ 4).
         Chrome → Print → A4 · margins <b>none</b> · background graphics <b>ON</b> · duplex long-edge · shop folds &amp; staples.
-        Safe type margin 5&nbsp;mm.
+        Print-house live: 12&nbsp;mm left/right · 10&nbsp;mm top/bottom.
       </span>
     </div>
     <button type="button" onclick="window.print()">Print / PDF</button>
@@ -686,6 +688,7 @@
     <ul>
       <li><strong>File:</strong> <code>marketing/print/menu-booklet-editorial-a4.html</code> + <code>menu-editorial/*.jpg</code> + <code>qr-web.png</code></li>
       <li><strong>Trim:</strong> A4 210×297 mm · reader order · total pages multiple of 4</li>
+      <li><strong>Margins:</strong> 12 mm left/right · 10 mm top/bottom (type, folio, captions)</li>
       <li><strong>Bind:</strong> saddle-stitch (fold centre, 2 staples) — shop imposition from this PDF</li>
       <li><strong>Style:</strong> ivory list pages · full-bleed visual faces · charcoal main/Asian feature</li>
       <li><strong>Charges:</strong> Prices Nu (BTN) · 10% service charge · 5% GST on every list page</li>

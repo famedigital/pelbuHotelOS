@@ -163,6 +163,7 @@ function ConfirmTokenForm({
   useOptimisticRollback(state, onRollback);
   return (
     <form
+      id="stay-hub-confirm-token-form"
       action={action}
       className="flex flex-wrap items-end gap-2"
       onSubmit={() => onOptimistic?.()}
@@ -292,7 +293,7 @@ function CancelForm({
           Cancel
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent layer="nested">
         <DialogHeader>
           <DialogTitle>Cancel this booking?</DialogTitle>
           <DialogDescription>
@@ -390,7 +391,7 @@ function NoShowForm({
           No-show
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent layer="nested">
         <DialogHeader>
           <DialogTitle>Mark as no-show?</DialogTitle>
           <DialogDescription>

@@ -57,6 +57,8 @@ export type FastBookState = {
   intent?: DeskBookIntent;
   /** FO custom rate queued for GM — booking is held until approved. */
   ratePendingApproval?: boolean;
+  /** Non-fatal issues (unassigned room, missing guest row) — booking still saved. */
+  warnings?: string[];
   error?: string;
 };
 
@@ -735,6 +737,8 @@ export async function createFastBooking(
       throw new Error("Could not save room lines. Apply fast-book migration.");
     }
 
+    const warnings: string[] = [];
+
     try {
       const { assignRoomsForBooking } = await import("@/lib/room-assignments");
       const preferredUnitId = optionalTrim(formData.get("room_unit_id"));
@@ -748,7 +752,11 @@ export async function createFastBooking(
       });
     } catch (assignErr) {
       console.error("createFastBooking assign failed", assignErr);
-      // Booking stays; rack may show unassigned until ensureAssignments runs.
+      warnings.push(
+        assignErr instanceof Error
+          ? `Saved without room assign: ${assignErr.message}`
+          : "Saved without room assign — assign on Stay View before check-in.",
+      );
     }
 
     if (paymentMode === "on_credit" && agentId && creditChargeBtn > 0 && !anyRatePending) {
@@ -766,12 +774,18 @@ export async function createFastBooking(
       }
     }
 
-    await admin.from("booking_guests").insert({
+    const { error: guestInsertError } = await admin.from("booking_guests").insert({
       booking_id: booking.id,
       full_name: contactName,
       passport_or_cid: passportOrCid,
       sdf_ref: sdfRef,
     });
+    if (guestInsertError) {
+      console.error("createFastBooking guest insert failed", guestInsertError);
+      warnings.push(
+        "Saved without guest row — add the guest on check-in before confirming.",
+      );
+    }
 
     if (agreedNightly != null) {
       await writeAuditEvent(admin, {
@@ -833,6 +847,7 @@ export async function createFastBooking(
         (booking.confirmation_code as string | null) ?? undefined,
       intent: anyRatePending ? "reserve" : intent,
       ratePendingApproval: anyRatePending,
+      warnings: warnings.length > 0 ? warnings : undefined,
     };
   } catch (err) {
     const message =
