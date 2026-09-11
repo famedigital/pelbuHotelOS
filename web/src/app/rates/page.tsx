@@ -105,8 +105,8 @@ export default async function RatesPage() {
         title="Room rates"
         description={
           seasonNote
-            ? `Room and meal package rates by season at ${propertyName}, Olakha. ${seasonNote}`
-            : `Room and meal package rates by season at ${propertyName}, Olakha.`
+            ? `2026–2027 public rack at ${propertyName}, Olakha. All-in (SC + GST). ${seasonNote}`
+            : `2026–2027 public rack at ${propertyName}, Olakha. All-in (SC + GST).`
         }
         actions={
           <Button asChild variant="citrus">
@@ -135,12 +135,15 @@ export default async function RatesPage() {
                     id="package-rates-heading"
                     className="font-display text-2xl text-foreground md:text-3xl"
                   >
-                    Rate packages
+                    Public rate packages
                   </h2>
                   <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-                    Prices per room / night. Meal package columns include double
-                    occupancy meals (adult meal rate × 2). Room only is EP.
-                    Choose Peak, Lean, or Off season.
+                    Choose <strong className="font-medium text-foreground">2026</strong> or{" "}
+                    <strong className="font-medium text-foreground">2027</strong>, then Peak /
+                    Lean / Off. Figures are per room / night, all-in. Meal columns include
+                    double occupancy (adult meal × 2). Room only is EP. Agent / trade rates
+                    start from Nu 5,600 EP (peak deluxe) and stay behind the soft gate below —
+                    public rack is higher.
                   </p>
                 </div>
                 <Badge variant="sky">{taxLabel}</Badge>
@@ -156,6 +159,8 @@ export default async function RatesPage() {
                 currentSeasonKind={card.currentSeasonKind}
                 mode="public"
                 taxInclusive={card.inclusiveOfGstSc}
+                showYearTabs
+                baseYear={2026}
               />
 
               {card.defaultMealPlan || card.mealPlans.length > 0 ? (

@@ -4,13 +4,24 @@ import { Badge } from "@/components/ui/badge";
 import { formatBtn } from "@/lib/pricing";
 import {
   PACKAGE_OCCUPANCY_ADULTS,
+  scalePackageRateCard,
   type PackageRateCard,
 } from "@/lib/rate-packages";
 import type { SeasonKind } from "@/lib/rates";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 const SEASON_ORDER: SeasonKind[] = ["peak", "lean", "off"];
+
+/** Published rack years on the public rates page. */
+export const RATE_YEARS = [2026, 2027] as const;
+export type RateYear = (typeof RATE_YEARS)[number];
+
+/** 2027 all-in = 2026 all-in × 1.20 (base +20%; SC+GST already included). */
+export const RATE_YEAR_UPLIFT: Record<RateYear, number> = {
+  2026: 1,
+  2027: 1.2,
+};
 
 function seasonLabel(kind: SeasonKind): string {
   if (kind === "peak") return "Peak";
@@ -35,6 +46,10 @@ type Props = {
   taxInclusive?: boolean;
   className?: string;
   emptyMessage?: string;
+  /** When true, show 2026 / 2027 year tabs (public site). */
+  showYearTabs?: boolean;
+  /** Base year for `card` amounts (DB rack). Default 2026. */
+  baseYear?: RateYear;
 };
 
 function formatShortDate(iso: string): string {
@@ -60,12 +75,21 @@ export function RatePackagesTable({
   taxInclusive,
   className,
   emptyMessage = "Rates are being updated. Call the desk or book for a live quote.",
+  showYearTabs = false,
+  baseYear = 2026,
 }: Props) {
   const initialSeason =
     currentSeasonKind && SEASON_ORDER.includes(currentSeasonKind)
       ? currentSeasonKind
       : SEASON_ORDER[0];
   const [activeSeason, setActiveSeason] = useState<SeasonKind>(initialSeason);
+  const [activeYear, setActiveYear] = useState<RateYear>(baseYear);
+
+  const displayCard = useMemo(() => {
+    const factor = RATE_YEAR_UPLIFT[activeYear] / RATE_YEAR_UPLIFT[baseYear];
+    if (factor === 1) return card;
+    return scalePackageRateCard(card, factor);
+  }, [card, activeYear, baseYear]);
 
   if (card.rooms.length === 0) {
     return <p className="text-sm text-muted-foreground">{emptyMessage}</p>;
@@ -73,14 +97,52 @@ export function RatePackagesTable({
 
   const seasonMeta = seasons.find((s) => s.kind === activeSeason);
   const isPublic = mode === "public";
-  const occupancy = card.occupancyAdults || PACKAGE_OCCUPANCY_ADULTS;
+  const occupancy = displayCard.occupancyAdults || PACKAGE_OCCUPANCY_ADULTS;
 
   return (
     <div className={cn("space-y-4", className)}>
+      {showYearTabs ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {RATE_YEARS.map((year) => {
+            const isActive = year === activeYear;
+            return (
+              <button
+                key={year}
+                type="button"
+                onClick={() => setActiveYear(year)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md border px-3.5 py-2 text-sm font-semibold tracking-wide transition-colors",
+                  isActive
+                    ? "border-sky-600/50 bg-sky-600 text-white shadow-sm"
+                    : "border-input text-muted-foreground hover:bg-muted",
+                )}
+              >
+                {year}
+                {year === 2027 ? (
+                  <span
+                    className={cn(
+                      "text-[10px] font-medium uppercase tracking-wider",
+                      isActive ? "text-sky-100" : "text-muted-foreground",
+                    )}
+                  >
+                    +20% base
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
+          <p className="w-full text-xs text-muted-foreground sm:ml-2 sm:w-auto">
+            {activeYear === 2026
+              ? "2026 public rack · all-in (10% SC + 5% GST)."
+              : "2027 = 2026 base +20%, then SC+GST (shown all-in). Bookings in 2026 use the 2026 tab."}
+          </p>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-2">
         {SEASON_ORDER.map((kind) => {
           const isActive = kind === activeSeason;
-          const isNow = kind === currentSeasonKind;
+          const isNow = kind === currentSeasonKind && activeYear === baseYear;
           return (
             <button
               key={kind}
@@ -129,11 +191,20 @@ export function RatePackagesTable({
       ) : null}
 
       <p className="text-xs text-muted-foreground">
-        Per room / night. Meal packages include{" "}
+        Per room / night
+        {showYearTabs ? (
+          <>
+            {" "}
+            · <span className="font-medium text-foreground">{activeYear}</span>{" "}
+            public rack
+          </>
+        ) : null}
+        . Meal packages include{" "}
         <span className="font-medium text-foreground">
           {occupancy} adults
         </span>{" "}
-        at the adult meal rate (double occupancy).
+        at the adult meal rate (double occupancy). Trade / agent rates are
+        separate (from Nu 5,600 EP peak deluxe) — not shown on this public card.
       </p>
 
       <div className="overflow-x-auto rounded-lg border bg-card">
@@ -146,7 +217,7 @@ export function RatePackagesTable({
               >
                 Room
               </th>
-              {card.columns.map((col) => (
+              {displayCard.columns.map((col) => (
                 <th
                   key={col.id}
                   scope="col"
@@ -169,7 +240,7 @@ export function RatePackagesTable({
             </tr>
           </thead>
           <tbody>
-            {card.rooms.map((room) => {
+            {displayCard.rooms.map((room) => {
               const cells = room.bySeason[activeSeason] ?? [];
               return (
                 <tr key={room.id} className="border-b last:border-0">
@@ -184,7 +255,7 @@ export function RatePackagesTable({
                       </span>
                     ) : null}
                   </th>
-                  {card.columns.map((col) => {
+                  {displayCard.columns.map((col) => {
                     const cell = cells.find((c) => c.columnId === col.id);
                     const total = cell?.totalBtn;
                     return (
@@ -220,7 +291,7 @@ export function RatePackagesTable({
       </div>
 
       <p className="text-xs leading-relaxed text-muted-foreground">
-        {card.childNote}
+        {displayCard.childNote}
       </p>
     </div>
   );

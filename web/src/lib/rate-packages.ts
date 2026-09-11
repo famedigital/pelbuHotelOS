@@ -217,3 +217,44 @@ export function roomsFromPublicRates(
     };
   });
 }
+
+/** Round guest rack display to whole hundreds (Nu 6,500). */
+export function roundRackHundreds(amount: number): number {
+  return Math.round(amount / 100) * 100;
+}
+
+/**
+ * Scale a package card for a future year tab.
+ * 2027 = prior-year all-in × 1.20 (base +20%; SC+GST already in all-in).
+ */
+export function scalePackageRateCard(
+  card: PackageRateCard,
+  factor: number,
+): PackageRateCard {
+  const scale = (n: number | null | undefined) =>
+    n == null || !Number.isFinite(Number(n))
+      ? n ?? null
+      : roundRackHundreds(Number(n) * factor);
+
+  return {
+    ...card,
+    columns: card.columns.map((col) => ({
+      ...col,
+      amountPerAdultNight: scale(col.amountPerAdultNight),
+      amountPerChildNight: scale(col.amountPerChildNight),
+    })),
+    rooms: card.rooms.map((room) => {
+      const bySeason: PackageRoomRow["bySeason"] = {};
+      for (const [season, cells] of Object.entries(room.bySeason)) {
+        bySeason[season as SeasonKind] = (cells ?? []).map((cell) => ({
+          ...cell,
+          totalBtn: scale(cell.totalBtn),
+          roomBtn: scale(cell.roomBtn),
+          mealAdultsBtn: scale(cell.mealAdultsBtn) ?? 0,
+          childMealBtn: scale(cell.childMealBtn) ?? 0,
+        }));
+      }
+      return { ...room, bySeason };
+    }),
+  };
+}
