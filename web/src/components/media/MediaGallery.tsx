@@ -24,12 +24,12 @@ export function MediaGallery({ items, label = "Gallery" }: Props) {
   return (
     <section aria-label={label} className="space-y-5">
       <div>
-        <p className="text-sm font-medium text-sky-700">Gallery</p>
+        <p className="text-sm font-medium text-juniper">Gallery</p>
         <h2 className="mt-1 font-display text-2xl text-foreground">{label}</h2>
       </div>
 
       {lead ? (
-        <div className="overflow-hidden rounded-2xl bg-secondary shadow-[0_24px_50px_-30px_rgba(8,47,73,0.45)]">
+        <div className="overflow-hidden rounded-2xl bg-secondary shadow-[0_24px_50px_-30px_rgba(18,26,23,0.4)]">
           <CloudinaryMedia
             publicId={lead.public_id}
             src={lead.src}

@@ -87,7 +87,7 @@ export function BookingSummary({
       )}
       aria-label="Booking summary"
     >
-      <div className="border-b border-border bg-frost-2/60 px-5 py-4">
+      <div className="border-b border-border bg-mist-1/60 px-5 py-4">
         <p className="text-sm font-semibold text-foreground">Your stay</p>
         <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
           {fmtHuman(checkIn)} → {fmtHuman(checkOut)}
@@ -148,14 +148,14 @@ export function BookingSummary({
         </p>
       </div>
 
-      <ul className="space-y-1.5 border-t border-border bg-frost-1 px-5 py-4">
+      <ul className="space-y-1.5 border-t border-border bg-mist-0 px-5 py-4">
         {ASSURANCES.map((item) => (
           <li
             key={item}
             className="flex items-start gap-2 text-xs text-muted-foreground"
           >
             <CheckIcon
-              className="mt-0.5 size-3.5 shrink-0 text-mint-600"
+              className="mt-0.5 size-3.5 shrink-0 text-juniper"
               aria-hidden
             />
             {item}

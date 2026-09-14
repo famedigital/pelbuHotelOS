@@ -92,28 +92,123 @@ export function FormSopPersonalHygiene() {
       <SopHeader
         code="SOP 01"
         title="Personal Hygiene and Health of Food Handlers"
-        objective="Prevent food contamination from personnel."
+        objective="Prevent food contamination from personnel — all kitchen, pastry, stores handlers, and F&B service staff."
         dept="Kitchen + F&B Service (HR enforces medical certificates)"
       />
-      <p className="font-semibold">Procedure</p>
+      <p className="font-semibold">1. Scope</p>
+      <p>
+        Applies to every person who prepares, cooks, plates, serves, or handles
+        food or food-contact surfaces at Pelbu Suites (kitchen, pastry, stores
+        receiving, restaurant, café, bar).
+      </p>
+      <p className="font-semibold">2. Medical fitness</p>
       <ol className="list-decimal space-y-1 pl-5">
         <li>
-          Wear clean, light-coloured aprons, hairnets/caps, and closed-toe
-          non-slip shoes.
+          Valid medical / fitness certificate on file with HR before first food
+          duty; renew as directed by local health authority.
         </li>
         <li>
-          Wash hands thoroughly with soap and warm water for at least 20 seconds
-          before starting work, after handling raw meat, after using the
-          restroom, and after touching waste.
-        </li>
-        <li>Jewellery, watches, and artificial nails are prohibited in the kitchen.</li>
-        <li>
-          Staff with cuts, open wounds, fever, diarrhoea, or respiratory
-          infections must report immediately and be reassigned away from food
-          handling until medically cleared.
+          No certificate or expired certificate → staff must not handle food
+          until cleared.
         </li>
       </ol>
-      <SignOff labels={["Kitchen lead", "F&B lead", "HR / GM"]} />
+      <p className="font-semibold">3. Uniform & appearance</p>
+      <ol className="list-decimal space-y-1 pl-5">
+        <li>
+          Clean, light-coloured apron or outlet uniform; change if soiled with
+          food, blood, or chemicals.
+        </li>
+        <li>
+          Hair fully covered with hairnet / cap; beard net where required.
+        </li>
+        <li>Closed-toe, non-slip shoes; clean socks.</li>
+        <li>
+          No strong perfume / aftershave in food production areas (odour
+          transfer).
+        </li>
+        <li>
+          Fingernails short, clean, unpolished; no artificial nails or nail
+          jewellery.
+        </li>
+      </ol>
+      <p className="font-semibold">4. Jewellery & personal items</p>
+      <ol className="list-decimal space-y-1 pl-5">
+        <li>
+          Kitchen / pastry: no watches, rings, bracelets, dangling earrings, or
+          facial jewellery that can fall into food. Plain wedding band only if
+          covered by a glove and HOD allows.
+        </li>
+        <li>
+          Service staff: no jewellery that contacts food or drink; remove before
+          plating or clearing.
+        </li>
+        <li>
+          Personal phones, bags, and outdoor coats stay outside prep zones;
+          wash hands after any personal-item contact.
+        </li>
+      </ol>
+      <p className="font-semibold">5. Handwashing (mandatory)</p>
+      <p>
+        Wash with liquid soap and warm running water for at least{" "}
+        <strong>20 seconds</strong>, then dry with single-use towels (or air
+        dryer). Never use cloth towels shared between staff.
+      </p>
+      <p className="text-xs text-neutral-600">Wash hands:</p>
+      <ul className="list-disc space-y-1 pl-5">
+        <li>Before starting work and when returning to station</li>
+        <li>After using the restroom</li>
+        <li>After handling raw meat, poultry, seafood, or eggs</li>
+        <li>After touching waste, cleaning chemicals, or dirty plates</li>
+        <li>After coughing, sneezing, smoking break, or eating</li>
+        <li>After handling money (cashiers) before touching food again</li>
+        <li>Whenever hands look or feel dirty</li>
+      </ul>
+      <p className="font-semibold">6. Illness & injury reporting</p>
+      <ol className="list-decimal space-y-1 pl-5">
+        <li>
+          Report immediately to HOD / HR if you have: fever, diarrhoea,
+          vomiting, jaundice, sore throat with fever, open infected wound, or
+          respiratory infection with cough/sneeze into hands.
+        </li>
+        <li>
+          Do not handle food until medically cleared or HOD reassigns you away
+          from food contact.
+        </li>
+        <li>
+          Cuts / burns: wash, cover with waterproof coloured plaster (blue
+          preferred), wear disposable glove over plaster; replace if wet or
+          loose.
+        </li>
+      </ol>
+      <p className="font-semibold">7. Behaviour in food areas</p>
+      <ol className="list-decimal space-y-1 pl-5">
+        <li>No smoking, chewing gum, or eating in prep / service pass areas.</li>
+        <li>No tasting with fingers or shared spoons without a clean utensil.</li>
+        <li>
+          Do not sit on prep tables; do not use kitchen sinks for handwash of
+          personal items.
+        </li>
+        <li>
+          Cover coughs/sneezes with tissue or elbow; wash hands immediately
+          after.
+        </li>
+      </ol>
+      <p className="font-semibold">8. Training & enforcement</p>
+      <ol className="list-decimal space-y-1 pl-5">
+        <li>
+          Induction on this SOP before first food duty; refresh annually or
+          after any BAFRA finding.
+        </li>
+        <li>
+          Supervisors may send staff off station for uniform / hygiene breaches
+          until corrected.
+        </li>
+        <li>
+          Repeated breaches → documented counselling (HR) and may block food
+          duty.
+        </li>
+      </ol>
+      <SignOff labels={["Staff acknowledgment", "Kitchen lead", "F&B lead", "HR / GM"]} />
     </div>
   );
 }

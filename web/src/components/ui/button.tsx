@@ -20,8 +20,10 @@ const buttonVariants = cva(
         link: "text-foreground underline-offset-4 hover:underline",
         gold: "bg-gold text-espresso hover:bg-gold-soft",
         brass: "bg-brass text-foreground hover:bg-brass-soft",
-        citrus: "bg-citrus text-sky-ink hover:bg-citrus-soft",
-        mint: "bg-mint-500 text-white hover:bg-mint-600",
+        citrus: "bg-ember text-white hover:bg-ember-deep",
+        ember: "bg-ember text-white hover:bg-ember-deep",
+        mint: "bg-juniper text-white hover:bg-juniper-soft",
+        juniper: "bg-juniper text-white hover:bg-juniper-soft",
       },
       size: {
         default: "h-10 px-4 py-2 has-[>svg]:px-3",

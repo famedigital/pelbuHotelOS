@@ -57,7 +57,7 @@ export default async function MegaMenuNavigationPage() {
       <DeskPageTitle
         eyebrow="Website CMS"
         title="Mega menu photos"
-        description="Thumbnails on Stay / Menu / Wellness / Business / About dropdowns and the right-rail promo tiles. Stay room photos can also be set on each room type under Settings."
+        description="Thumbnails on Rooms / Dine / Wellness / Meetings / About dropdowns and the right-rail promo tiles. Room photos can also be set on each room type under Settings."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Badge

@@ -3,19 +3,21 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 const EYEBROW_ACCENT = {
-  sky: "from-sky-600 to-sky-500",
-  citrus: "from-citrus-600 to-citrus",
-  mint: "from-mint-600 to-mint-500",
+  sky: "text-juniper",
+  citrus: "text-ember",
+  mint: "text-juniper-soft",
+  juniper: "text-juniper",
+  ember: "text-ember",
 } as const;
 
 export type SectionAccent = keyof typeof EYEBROW_ACCENT;
 
-/** Shared section header: gradient eyebrow, display heading, optional side link. */
+/** Shared section header — quiet uppercase label, display heading. */
 export function HomeSectionHead({
   eyebrow,
   title,
   description,
-  accent = "sky",
+  accent = "juniper",
   link,
   className,
 }: {
@@ -38,7 +40,7 @@ export function HomeSectionHead({
       <div className={cn("max-w-2xl", centered && "mx-auto w-full max-w-2xl")}>
         <p
           className={cn(
-            "bg-gradient-to-r bg-clip-text text-xs font-semibold uppercase tracking-[0.24em] text-transparent",
+            "text-xs font-semibold uppercase tracking-[0.2em]",
             EYEBROW_ACCENT[accent],
           )}
         >
@@ -57,7 +59,7 @@ export function HomeSectionHead({
         <Link
           href={link.href}
           className={cn(
-            "shrink-0 text-sm font-semibold text-sky-700 underline-offset-4 hover:underline",
+            "shrink-0 text-sm font-semibold text-juniper underline-offset-4 hover:underline",
             centered && "self-center",
           )}
         >

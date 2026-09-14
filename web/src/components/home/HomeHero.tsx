@@ -161,104 +161,105 @@ export function HomeHero({
           aria-hidden
         />
 
-        <div className="relative mx-auto flex min-h-svh max-w-[1200px] flex-col justify-end px-8 pb-16 pt-32">
-          <div className="grid items-end gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
-            <motion.div
-              className="min-w-0"
-              {...settle}
-              transition={{ duration: 0.5, ease: "easeOut" }}
+        <div className="relative mx-auto flex min-h-svh max-w-[1200px] flex-col justify-end px-8 pb-20 pt-32">
+          <motion.div
+            className="max-w-3xl"
+            {...settle}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+          >
+            <p
+              className="text-xs font-semibold uppercase tracking-[0.24em]"
+              style={{ color: theme.eyebrow }}
             >
-              <p
-                className="text-xs font-semibold uppercase tracking-[0.24em]"
-                style={{ color: theme.eyebrow }}
+              {eyebrow}
+            </p>
+
+            <h1
+              className="mt-4 font-display text-4xl font-semibold leading-[1.08] tracking-tight md:text-6xl lg:text-7xl"
+              style={{ color: theme.title }}
+            >
+              {title}
+            </h1>
+
+            <p
+              className="mt-5 max-w-lg line-clamp-3 text-base leading-relaxed"
+              style={{ color: hexAlpha(theme.body, 0.82) }}
+            >
+              {description}
+            </p>
+
+            <div className="mt-8 flex flex-wrap items-center gap-4">
+              <Link
+                href="/book"
+                className="inline-flex h-12 items-center rounded-md bg-ember px-6 text-sm font-semibold text-white transition-all hover:bg-ember-deep motion-safe:hover:-translate-y-0.5"
               >
-                {eyebrow}
-              </p>
-
-              <h1
-                className="mt-4 max-w-3xl font-display text-4xl leading-[1.08] md:text-6xl"
-                style={{ color: theme.title }}
+                Book a stay
+              </Link>
+              <Link
+                href={secondaryHref}
+                className="inline-flex h-12 items-center rounded-md border px-5 text-sm font-semibold backdrop-blur-md transition-opacity hover:opacity-95"
+                style={{
+                  color: theme.button,
+                  borderColor: hexAlpha(theme.button, 0.5),
+                  backgroundColor: hexAlpha(theme.button, 0.14),
+                }}
               >
-                {title}
-              </h1>
+                {secondaryLabel}
+              </Link>
 
-              <p
-                className="mt-5 max-w-lg line-clamp-3 text-base leading-relaxed"
-                style={{ color: hexAlpha(theme.body, 0.82) }}
-              >
-                {description}
-              </p>
-
-              <div className="mt-6 flex flex-wrap items-center gap-4">
-                <Link
-                  href={secondaryHref}
-                  className="inline-flex h-11 items-center rounded-xl border px-5 text-sm font-semibold backdrop-blur-md transition-opacity hover:opacity-95"
-                  style={{
-                    color: theme.button,
-                    borderColor: hexAlpha(theme.button, 0.5),
-                    backgroundColor: hexAlpha(theme.button, 0.14),
-                    boxShadow: `inset 0 1px 0 0 ${hexAlpha(theme.button, 0.28)}, 0 8px 24px -12px ${hexAlpha(theme.scrimBottom, 0.55)}`,
-                  }}
-                >
-                  {secondaryLabel}
-                </Link>
-
-                {slideCount > 1 ? (
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="flex gap-1.5"
-                      role="tablist"
-                      aria-label="Hero media"
-                      onMouseEnter={() => setPaused(true)}
-                      onMouseLeave={() => setPaused(false)}
-                    >
-                      {safeSlides.map((slide, i) => (
-                        <button
-                          key={`${slide.publicId}-dot-${i}`}
-                          type="button"
-                          role="tab"
-                          aria-selected={i === index}
-                          aria-label={slide.label}
-                          onClick={() => setIndex(i)}
-                          className={cn(
-                            "h-1.5 rounded-full transition-all duration-300",
-                            i === index ? "w-10" : "w-5 hover:opacity-80",
-                          )}
-                          style={{
-                            backgroundColor:
-                              i === index
-                                ? theme.accent
-                                : hexAlpha(theme.button, 0.35),
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <p
-                      className="text-xs font-medium tracking-wide"
-                      style={{ color: hexAlpha(theme.body, 0.72) }}
-                      aria-live="polite"
-                    >
-                      {safeSlides[index]?.label}
-                    </p>
+              {slideCount > 1 ? (
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex gap-1.5"
+                    role="tablist"
+                    aria-label="Hero media"
+                    onMouseEnter={() => setPaused(true)}
+                    onMouseLeave={() => setPaused(false)}
+                  >
+                    {safeSlides.map((slide, i) => (
+                      <button
+                        key={`${slide.publicId}-dot-${i}`}
+                        type="button"
+                        role="tab"
+                        aria-selected={i === index}
+                        aria-label={slide.label}
+                        onClick={() => setIndex(i)}
+                        className={cn(
+                          "h-1.5 rounded-full transition-all duration-300",
+                          i === index ? "w-10" : "w-5 hover:opacity-80",
+                        )}
+                        style={{
+                          backgroundColor:
+                            i === index
+                              ? theme.accent
+                              : hexAlpha(theme.button, 0.35),
+                        }}
+                      />
+                    ))}
                   </div>
-                ) : null}
-              </div>
-            </motion.div>
-
-            <motion.div
-              className="w-full self-end"
-              {...settle}
-              transition={{ duration: 0.55, ease: "easeOut", delay: 0.08 }}
-            >
-              <HeroBookingSearch
-                variant="card"
-                fromPriceBtn={fromPriceBtn}
-                taxInclusive={taxInclusive}
-              />
-            </motion.div>
-          </div>
+                  <p
+                    className="text-xs font-medium tracking-wide"
+                    style={{ color: hexAlpha(theme.body, 0.72) }}
+                    aria-live="polite"
+                  >
+                    {safeSlides[index]?.label}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </motion.div>
         </div>
       </section>
+
+      <div className="relative z-10 -mt-8 hidden px-8 md:block">
+        <div className="mx-auto max-w-[1200px]">
+          <HeroBookingSearch
+            variant="bar"
+            fromPriceBtn={fromPriceBtn}
+            taxInclusive={taxInclusive}
+          />
+        </div>
+      </div>
     </>
   );
 }

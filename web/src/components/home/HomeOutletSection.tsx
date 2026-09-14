@@ -10,16 +10,19 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 
 const SURFACE: Record<SectionAccent, string> = {
-  sky: "bg-gradient-to-br from-sky-100/80 via-background to-background",
-  citrus: "bg-gradient-to-br from-citrus-tint/80 via-background to-background",
-  mint: "bg-gradient-to-br from-mint-100/80 via-background to-background",
+  sky: "bg-mist-0",
+  citrus: "bg-mist-1",
+  mint: "bg-mist-0",
+  juniper: "bg-mist-0",
+  ember: "bg-mist-1",
 };
 
 const CTA: Record<SectionAccent, string> = {
-  sky: "bg-gradient-to-r from-sky-600 to-sky-500 text-white shadow-[0_16px_40px_-18px_rgba(2,132,199,0.9)]",
-  citrus:
-    "bg-gradient-to-r from-citrus-soft to-citrus text-sky-ink shadow-[0_16px_40px_-18px_rgba(245,158,11,0.9)]",
-  mint: "bg-gradient-to-r from-mint-500 to-mint-600 text-white shadow-[0_16px_40px_-18px_rgba(16,185,129,0.9)]",
+  sky: "bg-juniper text-white hover:bg-juniper-soft",
+  citrus: "bg-ember text-white hover:bg-ember-deep",
+  mint: "bg-juniper text-white hover:bg-juniper-soft",
+  juniper: "bg-juniper text-white hover:bg-juniper-soft",
+  ember: "bg-ember text-white hover:bg-ember-deep",
 };
 
 type Props = {
@@ -62,7 +65,7 @@ export function HomeOutletSection({
         <PhotoSlideshow
           photos={photos}
           className={cn(
-            "aspect-[4/3] w-full rounded-2xl shadow-[0_30px_60px_-32px_rgba(8,47,73,0.5)]",
+            "aspect-[4/3] w-full rounded-2xl shadow-[0_30px_60px_-32px_rgba(18,26,23,0.45)]",
             reverse && "lg:order-2",
           )}
           sizes="(max-width: 1024px) 100vw, 560px"
@@ -77,13 +80,13 @@ export function HomeOutletSection({
           />
 
           {note ? (
-            <p className="mt-4 inline-flex rounded-full bg-white/70 px-4 py-1.5 text-xs font-medium text-sky-700 backdrop-blur">
+            <p className="mt-4 inline-flex rounded-full bg-white/70 px-4 py-1.5 text-xs font-medium text-juniper backdrop-blur">
               {note}
             </p>
           ) : null}
 
           {items.length > 0 ? (
-            <ul className="mt-6 divide-y divide-border/70 rounded-2xl border border-white/80 bg-white/80 shadow-[0_20px_50px_-28px_rgba(8,47,73,0.35)] backdrop-blur">
+            <ul className="mt-6 divide-y divide-border/70 rounded-2xl border border-white/80 bg-white/80 shadow-[0_20px_50px_-28px_rgba(18,26,23,0.32)] backdrop-blur">
               {items.map((item) => (
                 <li
                   key={item.id}
@@ -94,12 +97,12 @@ export function HomeOutletSection({
                       {item.name}
                     </span>
                     {item.is_popular ? (
-                      <span className="ml-2 rounded-full bg-citrus-tint px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-citrus-600">
+                      <span className="ml-2 rounded-full bg-ember-tint px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ember-deep">
                         Popular
                       </span>
                     ) : null}
                   </span>
-                  <span className="shrink-0 text-sm font-semibold tabular-nums text-sky-700">
+                  <span className="shrink-0 text-sm font-semibold tabular-nums text-juniper">
                     {formatBtn(item.price_btn)}
                   </span>
                 </li>

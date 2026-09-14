@@ -87,21 +87,21 @@ export function buildFooterColumns(rooms: PublicRoom[]): FooterColumn[] {
 
   return [
     {
-      heading: "Stay",
+      heading: "Rooms",
       links: [
         ...stayLinks,
-        { href: "/book", label: "Book a stay" },
+        { href: "/book", label: "Book now" },
         { href: "/rooms", label: "All rooms" },
-        { href: "/rates", label: "Room rates" },
+        { href: "/rates", label: "Rate card" },
         { href: "/stay/hotels-in-thimphu", label: "Hotels in Thimphu" },
-        { href: "/stay/olakha-thimphu", label: "Staying in Olakha" },
+        { href: "/stay/olakha-thimphu", label: "Olakha neighbourhood" },
         { href: "/stay/facilities-service", label: "Facilities & service" },
       ],
     },
     {
-      heading: "Menu",
+      heading: "Dine",
       links: [
-        { href: "/menu", label: "Menu & prices" },
+        { href: "/menu", label: "Full menu & prices" },
         { href: "/order", label: "Order online" },
         { href: "/restaurant", label: "Restaurant" },
         { href: "/cafe", label: "Cafe" },
@@ -119,17 +119,17 @@ export function buildFooterColumns(rooms: PublicRoom[]): FooterColumn[] {
       ],
     },
     {
-      heading: "Business",
+      heading: "Meetings",
       links: [
-        { href: "/meeting", label: "Meeting room" },
-        { href: "/agents", label: "Travel agents" },
+        { href: "/meeting", label: "Conference room" },
+        { href: "/agents", label: "Travel trade" },
         { href: "/agents/login", label: "Agent portal" },
       ],
     },
     {
       heading: "About",
       links: [
-        { href: "/contact", label: "About & contact" },
+        { href: "/contact", label: "Contact & hours" },
         { href: "/careers", label: "Careers" },
         { href: "/services", label: "Hotel services" },
         { href: "/gallery", label: "Photo gallery" },
@@ -142,7 +142,7 @@ export function buildFooterColumns(rooms: PublicRoom[]): FooterColumn[] {
 
 /** CMS / ERP image overrides for mega menu thumbs and promo tiles. */
 export type MegaMenuMediaOverrides = {
-  /** Right-rail feature image by top-level menu label (Stay, Menu, …). */
+  /** Right-rail feature image by top-level menu label (Rooms, Dine, …). */
   features: Record<string, string>;
   /** Primary-row image keyed `"MenuLabel::/href"`. */
   items: Record<string, string>;
@@ -193,17 +193,31 @@ export function applyMegaMenuMedia(
   menus: MegaMenu[],
   media: MegaMenuMediaOverrides,
 ): MegaMenu[] {
+  /** Legacy CMS keys before public labels were renamed. */
+  const legacyLabel = (label: string): string | null => {
+    if (label === "Dine") return "Menu";
+    if (label === "Rooms") return "Stay";
+    if (label === "Meetings") return "Business";
+    return null;
+  };
+
   return menus.map((menu) => {
-    const featureId = media.features[menu.label];
+    const featureId =
+      media.features[menu.label] ??
+      (legacyLabel(menu.label)
+        ? media.features[legacyLabel(menu.label)!]
+        : undefined);
     return {
       ...menu,
       primary: menu.primary.map((group) => ({
         ...group,
         items: group.items.map((item) => {
-          const override = media.items[megaItemKey(menu.label, item.href)];
-          return override
-            ? { ...item, publicId: override }
-            : item;
+          const override =
+            media.items[megaItemKey(menu.label, item.href)] ??
+            (legacyLabel(menu.label)
+              ? media.items[megaItemKey(legacyLabel(menu.label)!, item.href)]
+              : undefined);
+          return override ? { ...item, publicId: override } : item;
         }),
       })),
       feature: featureId
@@ -229,12 +243,15 @@ export type MegaMediaSlot = {
 
 function folderForMenu(label: string): string {
   switch (label) {
+    case "Rooms":
     case "Stay":
       return "pelbu/rooms";
+    case "Dine":
     case "Menu":
       return "pelbu/restaurant";
     case "Wellness":
       return "pelbu/spa";
+    case "Meetings":
     case "Business":
       return "pelbu/hotel";
     case "About":
@@ -287,15 +304,15 @@ export function buildMegaMenus(
 ): MegaMenu[] {
   const menus: MegaMenu[] = [
     {
-      label: "Stay",
+      label: "Rooms",
       primary: [
-        { heading: "Room categories", items: roomLinks(rooms) },
+        { heading: "Categories", items: roomLinks(rooms) },
         {
-          heading: "Plan your stay",
+          heading: "Reserve",
           items: [
             {
               href: "/book",
-              title: "Book a stay",
+              title: "Book now",
               description:
                 "Live availability, room rates and meal plans at Pelbu Suites, Thimphu.",
               publicId: BRAND_CLOUDINARY.roomsSuiteView,
@@ -309,7 +326,7 @@ export function buildMegaMenus(
             },
             {
               href: "/rates",
-              title: "Room rates",
+              title: "Rate card",
               description:
                 "Public rack rates by season at Pelbu Suites, Olakha — book direct for BAR.",
               publicId: BRAND_CLOUDINARY.roomsSuiteAlt,
@@ -321,7 +338,6 @@ export function buildMegaMenus(
         {
           heading: "Good to know",
           items: [
-            { href: "/rates", title: "Room rates" },
             { href: "/faq", title: "FAQ" },
             { href: "/services", title: "Hotel services" },
             { href: "/gallery", title: "Photo gallery" },
@@ -330,7 +346,7 @@ export function buildMegaMenus(
         {
           heading: "Around Olakha",
           items: [
-            { href: "/stay/olakha-thimphu", title: "Stay in Olakha" },
+            { href: "/stay/olakha-thimphu", title: "Olakha neighbourhood" },
             { href: "/guide", title: "Local guides" },
             { href: "/contact", title: "Directions" },
           ],
@@ -353,7 +369,7 @@ export function buildMegaMenus(
     },
 
     {
-      label: "Menu",
+      label: "Dine",
       primary: [
         {
           heading: "Outlets",
@@ -474,7 +490,7 @@ export function buildMegaMenus(
         {
           heading: "Plan",
           items: [
-            { href: "/book", title: "Book a stay" },
+            { href: "/book", title: "Book now" },
             { href: "/rooms", title: "Rooms" },
             { href: "/faq", title: "FAQ" },
           ],
@@ -504,14 +520,14 @@ export function buildMegaMenus(
     },
 
     {
-      label: "Business",
+      label: "Meetings",
       primary: [
         {
-          heading: "Meet",
+          heading: "Venue",
           items: [
             {
               href: "/meeting",
-              title: "Meeting room",
+              title: "Conference room",
               description:
                 "Conference layouts, catering and delegate rooms in Thimphu.",
               publicId: BRAND_CLOUDINARY.roomsSuperior,
@@ -519,11 +535,11 @@ export function buildMegaMenus(
           ],
         },
         {
-          heading: "Trade partners",
+          heading: "Travel trade",
           items: [
             {
               href: "/agents",
-              title: "Travel agents",
+              title: "Become a partner",
               description:
                 "Contracted rates, credit terms and allotments for Bhutan tour operators.",
               publicId: BRAND_CLOUDINARY.roomsSuiteAlt,
@@ -549,7 +565,7 @@ export function buildMegaMenus(
           ],
         },
         {
-          heading: "Hotel",
+          heading: "Also useful",
           items: [
             { href: "/services", title: "Hotel services" },
             { href: "/careers", title: "Careers" },
@@ -608,7 +624,7 @@ export function buildMegaMenus(
           items: [
             {
               href: "/stay/olakha-thimphu",
-              title: "Staying in Olakha",
+              title: "Olakha neighbourhood",
               description:
                 "Why Olakha works as a base for getting around Thimphu, Bhutan.",
               publicId: BRAND_CLOUDINARY.roomsSuiteAlt,

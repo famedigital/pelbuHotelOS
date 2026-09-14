@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Geist_Mono, Manrope } from "next/font/google";
+import { Cormorant_Garamond, Geist_Mono, Outfit } from "next/font/google";
 import { Suspense } from "react";
 import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 import { resolveShareImage } from "@/lib/og-share";
@@ -17,17 +17,17 @@ import { Toaster } from "@/components/ui/sonner";
 import { BRAND_ICONS } from "@/lib/brand";
 import "./globals.css";
 
-const fontSans = Manrope({
-  variable: "--font-manrope",
+const fontSans = Outfit({
+  variable: "--font-outfit",
   subsets: ["latin"],
   display: "swap",
 });
 
-const fontDisplay = Fraunces({
-  variable: "--font-fraunces",
+const fontDisplay = Cormorant_Garamond({
+  variable: "--font-cormorant",
   subsets: ["latin"],
   display: "swap",
-  axes: ["opsz", "SOFT"],
+  weight: ["400", "500", "600", "700"],
 });
 
 const fontMono = Geist_Mono({
@@ -116,8 +116,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7fbfd" },
-    { media: "(prefers-color-scheme: dark)", color: "#082f49" },
+    { media: "(prefers-color-scheme: light)", color: "#faf7f2" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e1613" },
   ],
   colorScheme: "light",
 };

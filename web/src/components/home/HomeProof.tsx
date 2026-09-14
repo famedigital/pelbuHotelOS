@@ -49,66 +49,43 @@ const PROOFS: {
   },
 ];
 
-/**
- * Verifiable proof — not invented star ratings. Each line maps to a real product path.
- * Mobile: stacked rows (mature list, not card soup). Desktop: four-column copy.
- */
+/** Quiet proof strip — demoted after story/outlets in the new spine. */
 export function HomeProof() {
   return (
     <section
       id="proof"
       aria-label="Why book direct"
-      className="border-b border-border/70 bg-background"
+      className="border-y border-cedar-rule bg-white"
     >
-      {/* Mobile — calm list rows */}
-      <ul className="divide-y divide-border/70 md:hidden">
+      <ul className="mx-auto grid max-w-[1200px] divide-y divide-cedar-rule md:grid-cols-4 md:divide-x md:divide-y-0">
         {PROOFS.map((item) => {
           const Icon = item.icon;
           return (
             <li key={item.title}>
               <Link
                 href={item.href}
-                className="flex min-h-14 items-start gap-3 px-5 py-4 transition-colors active:bg-sky-50/50"
+                className="flex min-h-14 flex-col gap-2 px-5 py-5 transition-colors hover:bg-mist-1 md:min-h-[9.5rem] md:px-6"
               >
-                <span className="mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-700">
+                <span className="inline-flex size-8 items-center justify-center text-juniper">
                   <Icon className="size-4" aria-hidden />
                 </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="text-[15px] font-semibold text-foreground">
-                      {item.title}
-                    </span>
-                    <span className="shrink-0 text-xs font-semibold text-sky-700">
-                      {item.linkLabel} →
-                    </span>
-                  </span>
-                  <span className="mt-0.5 block text-sm leading-5 text-muted-foreground">
-                    {item.shortBody}
-                  </span>
+                <span className="text-[15px] font-semibold text-foreground">
+                  {item.title}
+                </span>
+                <span className="hidden text-sm leading-6 text-muted-foreground md:block">
+                  {item.body}
+                </span>
+                <span className="text-sm text-muted-foreground md:hidden">
+                  {item.shortBody}
+                </span>
+                <span className="mt-auto text-xs font-semibold text-ember">
+                  {item.linkLabel} →
                 </span>
               </Link>
             </li>
           );
         })}
       </ul>
-
-      {/* Desktop grid */}
-      <div className="mx-auto hidden max-w-[1200px] gap-8 px-5 py-12 sm:grid-cols-2 md:grid md:grid-cols-2 md:px-8 md:py-14 lg:grid-cols-4">
-        {PROOFS.map((item) => (
-          <div key={item.title} className="min-w-0">
-            <p className="text-sm font-semibold text-foreground">{item.title}</p>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              {item.body}
-            </p>
-            <Link
-              href={item.href}
-              className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-sky-700 hover:text-sky-900"
-            >
-              {item.linkLabel} →
-            </Link>
-          </div>
-        ))}
-      </div>
     </section>
   );
 }

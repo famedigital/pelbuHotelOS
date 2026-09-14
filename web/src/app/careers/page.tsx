@@ -211,7 +211,7 @@ export default async function CareersPage() {
       />
       <PublicSiteHeader />
       <main>
-        <section className="border-b border-border/60 bg-gradient-to-b from-sky-50/80 to-background">
+        <section className="border-b border-border/60 bg-gradient-to-b from-mist-0/80 to-background">
           <div className="mx-auto max-w-[900px] px-5 py-12 md:px-8 md:py-16">
             <SiteBreadcrumbs
               items={[
@@ -223,7 +223,7 @@ export default async function CareersPage() {
             <p className="text-xs font-semibold tracking-[0.2em] text-accent uppercase">
               Careers
             </p>
-            <h1 className="mt-3 font-[family-name:var(--font-display)] text-4xl font-semibold tracking-tight text-sky-ink md:text-5xl">
+            <h1 className="mt-3 font-[family-name:var(--font-display)] text-4xl font-semibold tracking-tight text-cedar-ink md:text-5xl">
               Work at Pelbu Suites
             </h1>
             <p className="mt-4 max-w-xl text-base leading-relaxed text-muted-foreground">
@@ -280,7 +280,7 @@ export default async function CareersPage() {
                         </p>
                       </div>
                       {role.salaryLine ? (
-                        <p className="mt-2 text-sm font-medium text-sky-ink">
+                        <p className="mt-2 text-sm font-medium text-cedar-ink">
                           {role.salaryLine}
                         </p>
                       ) : null}

@@ -224,15 +224,15 @@ export function BookingWizard({
     return (
       <div className="mx-auto max-w-xl">
         <Card className="gap-0 overflow-hidden py-0" role="status">
-          <div className="flex items-center gap-3 border-b border-border bg-mint-100 px-6 py-5">
-            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-mint-500 text-white">
+          <div className="flex items-center gap-3 border-b border-border bg-mist-1 px-6 py-5">
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-juniper-soft text-white">
               <CheckIcon className="size-5" aria-hidden />
             </span>
             <div>
               <h2 className="font-display text-xl text-foreground">
                 Rooms held
               </h2>
-              <p className="text-sm text-mint-600">
+              <p className="text-sm text-juniper">
                 Your reference is ready below.
               </p>
             </div>
@@ -251,7 +251,7 @@ export function BookingWizard({
                   )}.`
                 : ""}
             </p>
-            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-frost-1 px-4 py-3">
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-mist-0 px-4 py-3">
               <span className="font-mono text-sm break-all text-foreground">
                 {state.bookingId}
               </span>
@@ -378,7 +378,7 @@ export function BookingWizard({
       />
 
       {step === 3 ? (
-        <div className="rounded-xl border border-border bg-frost-2/50 px-4 py-3 text-sm lg:hidden">
+        <div className="rounded-xl border border-border bg-mist-1/50 px-4 py-3 text-sm lg:hidden">
           <p className="font-medium text-foreground">
             {selectedOption?.name ?? "Room selected"}
           </p>
@@ -474,9 +474,9 @@ function Stepper({ step }: { step: Step }) {
                 className={[
                   "grid size-7 shrink-0 place-items-center rounded-full text-xs font-semibold transition-colors",
                   done
-                    ? "bg-mint-500 text-white"
+                    ? "bg-juniper-soft text-white"
                     : active
-                      ? "bg-sky-700 text-white"
+                      ? "bg-juniper text-white"
                       : "bg-secondary text-muted-foreground",
                 ].join(" ")}
               >
@@ -497,7 +497,7 @@ function Stepper({ step }: { step: Step }) {
                   aria-hidden
                   className={[
                     "h-px flex-1 rounded-full",
-                    done ? "bg-mint-500/50" : "bg-border",
+                    done ? "bg-juniper-soft/50" : "bg-border",
                   ].join(" ")}
                 />
               ) : null}

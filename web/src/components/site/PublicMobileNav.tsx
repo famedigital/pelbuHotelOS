@@ -31,7 +31,7 @@ const ITEMS = [
     emphasize: true,
     openSheet: true,
   },
-  { href: "/menu", label: "Menu", icon: SoupIcon, match: "prefix" as const },
+  { href: "/menu", label: "Dine", icon: SoupIcon, match: "prefix" as const },
   { href: "/spa", label: "Spa", icon: SparklesIcon, match: "prefix" as const },
 ] as const;
 
@@ -52,10 +52,8 @@ export function PublicMobileNav() {
   const menuChrome = usePublicMenuChromeOptional();
   if (hidesPublicChrome(pathname)) return null;
 
-  // Cart owns the bottom bar on mobile /menu.
   if (menuChrome?.cartActive) return null;
 
-  // Immersive browse: slim footer with back-to-top (header only at absolute top).
   if (menuChrome?.immersive) {
     return (
       <>
@@ -63,11 +61,11 @@ export function PublicMobileNav() {
           className="h-[calc(3.25rem_+_env(safe-area-inset-bottom,0px))] md:hidden"
           aria-hidden
         />
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_28px_-18px_rgba(8,47,73,0.28)] backdrop-blur-md md:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-cedar-rule bg-mist-0/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_28px_-18px_rgba(14,22,19,0.28)] backdrop-blur-md md:hidden">
           <button
             type="button"
             onClick={scrollDocumentToTop}
-            className="mx-auto flex h-12 w-full max-w-lg items-center justify-center gap-2 text-sm font-semibold text-sky-800"
+            className="mx-auto flex h-12 w-full max-w-lg items-center justify-center gap-2 text-sm font-semibold text-juniper"
             aria-label="Back to top"
           >
             <ArrowUpIcon className="size-4" aria-hidden />
@@ -86,7 +84,7 @@ export function PublicMobileNav() {
       />
       <nav
         aria-label="Primary"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_28px_-18px_rgba(8,47,73,0.28)] backdrop-blur-md md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-cedar-rule bg-mist-0/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_28px_-18px_rgba(14,22,19,0.28)] backdrop-blur-md md:hidden"
       >
         <div className="mx-auto grid h-16 max-w-lg grid-cols-5">
           {ITEMS.map((item) => {
@@ -101,8 +99,8 @@ export function PublicMobileNav() {
 
             const className = cn(
               "relative flex min-h-11 flex-col items-center justify-center gap-1 text-[11px] font-medium text-muted-foreground",
-              active && "text-sky-700",
-              emphasize && !active && "text-sky-800",
+              active && "text-juniper",
+              emphasize && !active && "text-juniper-soft",
             );
 
             const content = (
@@ -110,7 +108,7 @@ export function PublicMobileNav() {
                 <span
                   className={cn(
                     emphasize &&
-                      "flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-citrus-soft to-citrus text-sky-ink shadow-sm -mt-3 mb-0.5",
+                      "mb-0.5 -mt-3 flex size-10 items-center justify-center rounded-full bg-ember text-white shadow-sm",
                   )}
                 >
                   <Icon
@@ -118,13 +116,13 @@ export function PublicMobileNav() {
                     strokeWidth={active || emphasize ? 2.4 : 1.8}
                   />
                 </span>
-                <span className={cn(emphasize && "font-semibold text-sky-900")}>
+                <span className={cn(emphasize && "font-semibold text-cedar-ink")}>
                   {item.label}
                 </span>
                 {active && !emphasize ? (
                   <span
                     aria-hidden
-                    className="absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-citrus"
+                    className="absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-ember"
                   />
                 ) : null}
               </>

@@ -301,8 +301,18 @@ function docShell(dept, children) {
 async function save(filename, doc) {
   const buffer = await Packer.toBuffer(doc);
   const path = join(OUT, filename);
-  writeFileSync(path, buffer);
-  console.log("Wrote", filename);
+  try {
+    writeFileSync(path, buffer);
+    console.log("Wrote", filename);
+  } catch (err) {
+    if (err && err.code === "EBUSY") {
+      const alt = filename.replace(/\.docx$/i, ".new.docx");
+      writeFileSync(join(OUT, alt), buffer);
+      console.warn("LOCKED — wrote", alt, "(close Word and rename over", filename + ")");
+      return;
+    }
+    throw err;
+  }
 }
 
 // ─── Shared content fragments ───────────────────────────────────────────────
@@ -411,14 +421,28 @@ async function buildHR() {
       "Status",
       "HR sign",
     ]),
-    h1("4. SOP link — personal hygiene (enforce with Kitchen & F&B)"),
-    bullet("Staff with cuts, open wounds, fever, diarrhoea, or respiratory infection must report immediately."),
-    bullet("HR / HOD reassigns away from food handling until medically cleared."),
-    bullet("Jewellery, watches, and artificial nails prohibited in kitchen — include in induction."),
+    h1("4. SOP 01 — Personal Hygiene Policy (HR enforcement)"),
+    sectionIntro(
+      "Full procedure lives in Kitchen and F&B manuals. HR owns medical certificates, induction sign-off, and return-to-work clearance."
+    ),
+    h2("Medical fitness"),
+    bullet("Valid medical / fitness certificate on file before first food duty."),
+    bullet("Renew semi-annually or annually as directed by local health authority."),
+    bullet("No certificate / expired → staff must not handle food until cleared."),
+    h2("Illness & injury"),
+    bullet("Staff must report: fever, diarrhoea, vomiting, jaundice, sore throat with fever, open infected wound, respiratory infection."),
+    bullet("HR / HOD reassigns away from food contact until medically cleared."),
+    bullet("Cuts/burns: waterproof coloured plaster (blue preferred) + glove; replace if wet/loose."),
+    h2("Induction must cover"),
+    bullet("Uniform, hairnets, closed-toe shoes; no artificial nails."),
+    bullet("Jewellery ban in kitchen; limited rules for service."),
+    bullet("20-second handwash moments (start of shift, restroom, raw food, waste, after illness symptoms)."),
+    bullet("No smoking / eating / gum in prep or pass areas."),
     h1("5. HR weekly check"),
     checkItem("All active food handlers have certificates within validity."),
-    checkItem("New joiners inducted on personal hygiene before kitchen/outlet duty."),
+    checkItem("New joiners inducted and signed SOP 01 before kitchen/outlet duty."),
     checkItem("Sick-leave returns include fitness-to-handle-food clearance when required."),
+    checkItem("Hygiene breach counselling logged when supervisors escalate."),
   ]);
   await save("02-Human-Resources-BAFRA-Compliance.docx", doc);
 }
@@ -486,17 +510,67 @@ async function buildKitchen() {
     makeLogTable(cleaningCols),
     h1("3. SOP 01 — Personal Hygiene and Health of Food Handlers"),
     h2("Objective"),
-    p("Prevent food contamination from personnel."),
-    h2("Procedure"),
+    p(
+      "Prevent food contamination from personnel — all kitchen, pastry, and food-contact staff."
+    ),
+    h2("Scope"),
+    p(
+      "Applies to every person who prepares, cooks, plates, or handles food or food-contact surfaces in kitchen and pastry."
+    ),
+    h2("Medical fitness"),
     numbered(
-      "Wear clean, light-coloured aprons, hairnets/caps, and closed-toe non-slip shoes."
+      "Valid medical / fitness certificate on file with HR before first food duty; renew as directed by local health authority."
     ),
     numbered(
-      "Wash hands thoroughly with soap and warm water for at least 20 seconds before starting work, after handling raw meat, after using the restroom, and after touching waste."
+      "No certificate or expired certificate → staff must not handle food until cleared."
     ),
-    numbered("Jewellery, watches, and artificial nails are prohibited in the kitchen."),
+    h2("Uniform & appearance"),
     numbered(
-      "Staff with cuts, open wounds, fever, diarrhoea, or respiratory infections must report immediately and be reassigned away from food handling until medically cleared."
+      "Clean, light-coloured apron; change if soiled with food, blood, or chemicals."
+    ),
+    numbered("Hair fully covered with hairnet / cap; beard net where required."),
+    numbered("Closed-toe, non-slip shoes; clean socks."),
+    numbered(
+      "Fingernails short, clean, unpolished; no artificial nails or nail jewellery."
+    ),
+    numbered("No strong perfume / aftershave in food production areas."),
+    h2("Jewellery & personal items"),
+    numbered(
+      "No watches, rings, bracelets, dangling earrings, or facial jewellery that can fall into food. Plain wedding band only if covered by a glove and HOD allows."
+    ),
+    numbered(
+      "Personal phones, bags, and outdoor coats stay outside prep zones; wash hands after any personal-item contact."
+    ),
+    h2("Handwashing (mandatory)"),
+    p(
+      "Wash with liquid soap and warm running water for at least 20 seconds; dry with single-use towels. Never share cloth towels between staff."
+    ),
+    bullet("Before starting work and when returning to station."),
+    bullet("After using the restroom."),
+    bullet("After handling raw meat, poultry, seafood, or eggs."),
+    bullet("After touching waste, cleaning chemicals, or dirty plates."),
+    bullet("After coughing, sneezing, smoking break, or eating."),
+    bullet("Whenever hands look or feel dirty."),
+    h2("Illness & injury reporting"),
+    numbered(
+      "Report immediately: fever, diarrhoea, vomiting, jaundice, sore throat with fever, open infected wound, or respiratory infection."
+    ),
+    numbered(
+      "Do not handle food until medically cleared or HOD reassigns away from food contact."
+    ),
+    numbered(
+      "Cuts / burns: wash, cover with waterproof coloured plaster (blue preferred), wear disposable glove over plaster; replace if wet or loose."
+    ),
+    h2("Behaviour in food areas"),
+    numbered("No smoking, chewing gum, or eating in prep / service pass areas."),
+    numbered("No tasting with fingers or shared spoons without a clean utensil."),
+    numbered("Do not sit on prep tables; cover coughs/sneezes then wash hands."),
+    h2("Training & enforcement"),
+    numbered(
+      "Induction on this SOP before first food duty; refresh annually or after any BAFRA finding."
+    ),
+    numbered(
+      "Supervisors may send staff off station for uniform / hygiene breaches until corrected."
     ),
     h1("4. SOP 02 — Safe Food Storage (Kitchen cold & dry)"),
     numbered("Apply FIFO to all dry and cold stores under kitchen control."),
@@ -528,6 +602,8 @@ async function buildKitchen() {
     checkItem("Temp logs AM/PM complete for all kitchen chillers/freezers."),
     checkItem("Colour-coded boards in use; no cross-use observed."),
     checkItem("Handwash station has soap, water, single-use towels."),
+    checkItem("All cooks wearing hairnets/aprons; no jewellery or artificial nails."),
+    checkItem("Illness / cut plaster protocol followed if any injury on shift."),
     checkItem("No expired/damaged food in fridges or dry store."),
     checkItem("Chemicals stored away from food prep."),
   ]);
@@ -544,10 +620,33 @@ async function buildFnB() {
     bullet("Medical fitness certificates for all service staff (via HR)."),
     bullet("Cleaning & Sanitization Log for dining room, service stations, and bar."),
     bullet("Hot/cold holding spot checks during service (record on service sheet or attach to Kitchen cold/hot log)."),
-    h1("3. SOP 01 — Personal Hygiene (Service staff)"),
-    numbered("Clean uniform, hair restrained, closed-toe shoes."),
-    numbered("Handwash before service, after clearing soiled plates, after restroom, after handling waste."),
-    numbered("No jewellery that contacts food; report illness immediately."),
+    h1("3. SOP 01 — Personal Hygiene Policy (Service staff)"),
+    h2("Objective"),
+    p("Prevent guest-facing contamination from restaurant, café, and bar staff."),
+    h2("Uniform & appearance"),
+    numbered("Clean outlet uniform; change if soiled."),
+    numbered("Hair restrained (tied back / covered as outlet standard); closed-toe shoes."),
+    numbered("Fingernails short and clean; no artificial nails when plating or handling open food."),
+    h2("Jewellery"),
+    numbered(
+      "No jewellery that contacts food or drink; remove before plating, garnishing, or clearing soiled ware into food areas."
+    ),
+    h2("Handwashing"),
+    numbered(
+      "Wash hands ≥ 20 seconds with soap before service, after clearing soiled plates, after restroom, after handling waste or money, and before returning to guest food."
+    ),
+    numbered("Dry with single-use towels; do not wipe hands on apron or cloths used for tables."),
+    h2("Illness"),
+    numbered(
+      "Report fever, diarrhoea, vomiting, open infected wounds, or respiratory infection immediately — do not serve food until cleared / reassigned."
+    ),
+    numbered(
+      "Cuts: waterproof plaster + glove when handling food or drinkware."
+    ),
+    h2("Service behaviour"),
+    numbered("No smoking, gum, or eating at guest stations or pass."),
+    numbered("Do not taste guest drinks/food with used glassware or shared spoons."),
+    numbered("Cover coughs/sneezes; wash hands before returning to service."),
     h1("4. SOP 03 — Holding & service temperatures"),
     bullet("Hot holding maintained above 60°C."),
     bullet("Cold holding at or below 4°C (salad bars, dairy, chilled desserts)."),
@@ -561,6 +660,8 @@ async function buildFnB() {
     checkItem("Handwash / sanitizer available at service points as required."),
     checkItem("Buffet/hot wells within temperature; logged if used."),
     checkItem("Serviceware clean; cracked crockery removed."),
+    checkItem("Service staff in clean uniform; hair restrained; jewellery rules followed."),
+    checkItem("No ill staff on food duty; cuts covered if any."),
     checkItem("Chemicals and cleaning cloths not stored with food."),
     checkItem("Waste cleared; no pest attractants in outlet."),
   ]);

@@ -249,7 +249,7 @@ export function GalleryShowcase({
                   className={cn(
                     "inline-flex h-11 shrink-0 items-center rounded-xl border px-4 text-sm font-medium transition-colors",
                     selected
-                      ? "border-sky-800 bg-sky-800 text-white"
+                      ? "border-juniper bg-juniper text-white"
                       : "border-border bg-background text-foreground hover:bg-secondary",
                   )}
                 >

@@ -141,7 +141,7 @@ export function BrandLockup({
           hero
             ? cn(
                 // Brand gold gradient — reads as the product name, not flat white nav chrome.
-                "bg-gradient-to-br from-[#fff6d8] via-citrus-soft to-citrus bg-clip-text text-transparent",
+                "bg-gradient-to-br from-[#fff6d8] via-ember-soft to-ember bg-clip-text text-transparent",
                 "[filter:drop-shadow(0_1px_2px_rgb(0_0_0/0.55))_drop-shadow(0_0_18px_rgb(251_191_36/0.35))]",
                 "tracking-[-0.02em]",
               )

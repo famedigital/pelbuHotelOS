@@ -242,7 +242,7 @@ export function HotelFacadeExplore({
   if (isHero) {
     return (
       <div className="relative h-full w-full">
-        <div className="absolute inset-0 bg-gradient-to-b from-sky-200/80 via-[#eef4ea] to-[#d9d2c4]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-mist-1 via-[#eef4ea] to-[#d9d2c4]" />
         <div className="absolute inset-0 touch-none overscroll-none">
           {canvas}
         </div>
@@ -268,7 +268,7 @@ export function HotelFacadeExplore({
         ) : null}
       </p>
       {picker}
-      <div className="relative h-[min(70dvh,560px)] min-h-[280px] w-full overflow-hidden rounded-xl border bg-gradient-to-b from-sky-100/50 via-card to-muted/40">
+      <div className="relative h-[min(70dvh,560px)] min-h-[280px] w-full overflow-hidden rounded-xl border bg-gradient-to-b from-mist-1/80 via-card to-muted/40">
         {canvas}
       </div>
     </div>

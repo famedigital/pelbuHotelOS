@@ -57,15 +57,15 @@ export function MenuSections({
                   <article
                     className={cn(
                       "media-card group flex min-h-36 overflow-hidden rounded-2xl border border-border bg-card transition-shadow",
-                      href && "hover:border-sky-200 hover:shadow-md",
+                      href && "hover:border-cedar-rule hover:shadow-md",
                     )}
                   >
                     <div className="flex min-w-0 flex-1 flex-col p-4">
                       <div className="flex items-start justify-between gap-3">
-                        <p className="text-[15px] font-semibold leading-snug text-foreground group-hover:text-sky-700">
+                        <p className="text-[15px] font-semibold leading-snug text-foreground group-hover:text-juniper">
                           {item.name}
                         </p>
-                        <p className="shrink-0 text-sm font-semibold tabular-nums text-sky-700">
+                        <p className="shrink-0 text-sm font-semibold tabular-nums text-juniper">
                           {formatBtn(item.price_btn)}
                         </p>
                       </div>
@@ -82,7 +82,7 @@ export function MenuSections({
                           <Badge variant="secondary">Sold out</Badge>
                         ) : null}
                         {href ? (
-                          <span className="ml-auto text-xs font-medium text-sky-700 opacity-0 transition-opacity group-hover:opacity-100">
+                          <span className="ml-auto text-xs font-medium text-juniper opacity-0 transition-opacity group-hover:opacity-100">
                             Add to order →
                           </span>
                         ) : null}

@@ -69,10 +69,10 @@ export function MediaCard({
             regardless of how long the copy is. */}
         <CardContent className="flex flex-1 flex-col gap-2 p-5">
           <div className="flex min-h-14 items-start justify-between gap-3">
-            <h3 className="line-clamp-2 font-display text-xl leading-snug text-foreground transition-colors group-hover:text-sky-700">
+            <h3 className="line-clamp-2 font-display text-xl leading-snug text-foreground transition-colors group-hover:text-juniper">
               {title}
             </h3>
-            <ArrowUpRightIcon className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-sky-700" />
+            <ArrowUpRightIcon className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-juniper" />
           </div>
           <p className="line-clamp-2 min-h-12 text-sm leading-6 text-muted-foreground">
             {description?.trim() ? description : "\u00a0"}

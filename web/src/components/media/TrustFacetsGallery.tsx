@@ -191,7 +191,7 @@ export function TrustFacetsGallery({
           <div className="space-y-6">
             {byFacet.map(([facet, items]) => (
               <section key={facet}>
-                <h3 className="text-sm font-semibold tracking-wide text-sky-800 uppercase">
+                <h3 className="text-sm font-semibold tracking-wide text-juniper uppercase">
                   {facetLabel(facet)}
                 </h3>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

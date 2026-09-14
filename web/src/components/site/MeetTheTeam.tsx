@@ -6,9 +6,9 @@ export function MeetTheTeam({ members }: { members: PublicTeamMember[] }) {
   if (members.length === 0) return null;
 
   return (
-    <section className="border-t border-border bg-sky-50/40 py-14 md:py-16">
+    <section className="border-t border-border bg-mist-1/40 py-14 md:py-16">
       <div className="mx-auto max-w-[1120px] px-5 md:px-8">
-        <p className="text-sm font-medium text-sky-700">Meet the team</p>
+        <p className="text-sm font-medium text-juniper">Meet the team</p>
         <h2 className="mt-2 font-display text-3xl text-foreground md:text-4xl">
           People you can message.
         </h2>

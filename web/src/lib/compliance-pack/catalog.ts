@@ -186,7 +186,8 @@ export const COMPLIANCE_PACK: ComplianceDocMeta[] = [
     slug: "sop-personal-hygiene",
     kind: "form",
     title: "SOP 01 — Personal hygiene of food handlers",
-    blurb: "Uniform, 20-second handwash, no jewellery, illness reporting.",
+    blurb:
+      "Full policy: medical fitness, uniform, jewellery, 20-second handwash, illness/injury, training.",
     checklistCodes: ["6.2.6", "6.2.4", "gate.4"],
     href: "/erp/compliance/forms/sop-personal-hygiene",
     department: "kitchen",

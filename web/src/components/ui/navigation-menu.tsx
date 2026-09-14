@@ -23,7 +23,7 @@ function NavigationMenu({
       data-slot="navigation-menu"
       data-viewport={viewport}
       className={cn(
-        "group/navigation-menu relative flex max-w-max flex-1 items-center justify-center",
+        "group/navigation-menu relative flex flex-1 items-center justify-center",
         className,
       )}
       {...props}
@@ -128,19 +128,16 @@ function NavigationMenuViewport({
   className,
   ...props
 }: React.ComponentProps<typeof NavigationMenuPrimitive.Viewport>) {
-  // Centred on the trigger row rather than pinned to its left edge: the mega
-  // panels are far wider than the nav itself and would otherwise run off the
-  // right of the screen.
-  //
-  // No `isolate` here. `isolation: isolate` creates a backdrop root, which
-  // leaves the viewport's `backdrop-filter` sampling an empty backdrop — the
-  // panel renders with its tint but no blur at all.
+  // Full-bleed under a full-width nav root — center on viewport, no column offset.
   return (
-    <div className="absolute top-full left-1/2 z-50 flex -translate-x-1/2 justify-center">
+    <div
+      className="absolute top-full left-1/2 z-50 w-screen max-w-[100vw] -translate-x-1/2"
+      data-slot="navigation-menu-viewport-root"
+    >
       <NavigationMenuPrimitive.Viewport
         data-slot="navigation-menu-viewport"
         className={cn(
-          "origin-top-center bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-90 relative mt-2 h-[var(--radix-navigation-menu-viewport-height)] w-full overflow-hidden rounded-2xl border border-border shadow-xl md:w-[var(--radix-navigation-menu-viewport-width)]",
+          "origin-top bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 relative mt-0 h-[var(--radix-navigation-menu-viewport-height)] w-full overflow-hidden border border-border shadow-xl md:w-full",
           className,
         )}
         {...props}

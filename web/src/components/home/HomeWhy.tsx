@@ -2,40 +2,27 @@ import { HomeSectionHead } from "@/components/home/HomeSectionHead";
 import { HomeWhyReasons } from "@/components/home/HomeWhyReasons";
 import Link from "next/link";
 
-/**
- * Why book Pelbu — interactive reasons (accordion on phone, tabs on desktop)
- * plus a soft CTA band to convert.
- */
+/** Why Pelbu — timeline-style reasons + forest CTA band. */
 export function HomeWhy() {
   return (
-    <section
-      id="why"
-      className="bg-gradient-to-b from-background via-frost-2/50 to-background py-12 md:py-20"
-    >
+    <section id="why" className="bg-mist-1 py-16 md:py-24">
       <div className="mx-auto max-w-[1200px] px-5 md:px-8">
         <HomeSectionHead
           eyebrow="Why Pelbu Suites"
           title="A hotel that behaves like a good host."
           description="Straight pricing, real people at the desk, and every service you need for a Thimphu trip in the same building."
-          accent="citrus"
+          accent="ember"
         />
 
-        <div className="mt-7 md:mt-10">
+        <div className="mt-10 border-l-2 border-ember/40 pl-6 md:pl-10">
           <HomeWhyReasons />
         </div>
 
-        <div className="relative mt-10 overflow-hidden rounded-2xl bg-sky-ink px-5 py-9 md:mt-14 md:rounded-[2rem] md:px-12 md:py-12">
-          <div
-            className="absolute -left-10 top-0 size-72 rounded-full bg-sky-500/30 blur-[100px]"
-            aria-hidden
-          />
-          <div
-            className="absolute -right-10 bottom-0 size-72 rounded-full bg-citrus/20 blur-[100px]"
-            aria-hidden
-          />
+        <div className="relative mt-14 overflow-hidden bg-forest px-5 py-10 text-[#f2f4f3] md:px-12 md:py-14">
+          <div className="absolute inset-x-0 top-0 h-0.5 bg-ember" aria-hidden />
           <div className="relative flex flex-col gap-5 md:flex-row md:items-center md:justify-between md:gap-6">
             <div className="max-w-xl">
-              <h2 className="font-display text-2xl leading-tight text-white md:text-4xl">
+              <h2 className="font-display text-2xl leading-tight md:text-4xl">
                 Ready when you are.
               </h2>
               <p className="mt-2 text-[15px] leading-relaxed text-white/75 md:mt-3">
@@ -46,13 +33,13 @@ export function HomeWhy() {
             <div className="relative flex flex-wrap gap-3">
               <Link
                 href="/book"
-                className="inline-flex h-11 items-center rounded-xl bg-gradient-to-r from-citrus-soft to-citrus px-5 text-sm font-semibold text-sky-ink shadow-[0_16px_40px_-16px_rgba(245,158,11,0.9)] transition-transform motion-safe:hover:-translate-y-0.5 md:h-12 md:px-6"
+                className="inline-flex h-12 items-center rounded-md bg-ember px-6 text-sm font-semibold text-white hover:bg-ember-deep"
               >
                 Book a stay
               </Link>
               <Link
                 href="/contact"
-                className="inline-flex h-11 items-center rounded-xl border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white backdrop-blur hover:bg-white/20 md:h-12 md:px-6"
+                className="inline-flex h-12 items-center rounded-md border border-white/30 bg-white/10 px-6 text-sm font-semibold text-white hover:bg-white/20"
               >
                 Talk to the desk
               </Link>

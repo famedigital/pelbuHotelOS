@@ -59,9 +59,8 @@ function digitsPhone(value: string | null | undefined): string | null {
 }
 
 /**
- * Conversion spine (aabdcaa) + optional ERP story bands:
- * Hero → Trust → Proof → [About] → Rooms → Why → In-house →
- * [Restaurant / Lunch / Cafe / Spa deep-dives] → FAQ → Agents
+ * Conversion spine (Olakha Cedar):
+ * Hero → Rooms → About → In-house → Why → story bands → Proof/Trust → FAQ → Agents
  */
 export default async function HomePage() {
   const [page, property, rateRooms, heroMedia, story, showcase, faqPage] =
@@ -273,22 +272,6 @@ export default async function HomePage() {
           theme={page?.hero_theme}
         />
 
-        {funnel.trust ? (
-          <HomeTrustStrip
-            property={property}
-            fromPriceBtn={rateRooms.lowestFromBtn}
-            seasonName={rateRooms.seasonName}
-            taxInclusive={rateRooms.taxInclusive}
-            ratesMissing={ratesMissing}
-          />
-        ) : null}
-
-        {funnel.proof ? <HomeProof /> : null}
-
-        {homepageStory.about.enabled ? (
-          <HomeStorySection id="about" block={homepageStory.about} />
-        ) : null}
-
         {homepageStory.rooms.enabled ? (
           <HomeRooms
             rooms={rateRooms.rooms}
@@ -300,11 +283,14 @@ export default async function HomePage() {
           />
         ) : null}
 
-        {funnel.why ? <HomeWhy /> : null}
+        {homepageStory.about.enabled ? (
+          <HomeStorySection id="about" block={homepageStory.about} />
+        ) : null}
 
         {funnel.inHouse ? <HomeInHouse /> : null}
 
-        {/* Optional ERP deep-dives (magazine bands) — after clustered in-house */}
+        {funnel.why ? <HomeWhy /> : null}
+
         <HomeStorySection
           id="restaurant"
           block={homepageStory.restaurant}
@@ -330,10 +316,22 @@ export default async function HomePage() {
 
         <HomeStorySection id="spa" block={homepageStory.spa} />
 
+        {funnel.proof ? <HomeProof /> : null}
+
+        {funnel.trust ? (
+          <HomeTrustStrip
+            property={property}
+            fromPriceBtn={rateRooms.lowestFromBtn}
+            seasonName={rateRooms.seasonName}
+            taxInclusive={rateRooms.taxInclusive}
+            ratesMissing={ratesMissing}
+          />
+        ) : null}
+
         {funnel.faq ? <HomeFaqTeaser items={faqItems} /> : null}
 
         {page?.sections_json?.length ? (
-          <section className="bg-gradient-to-b from-background to-sky-50/50 px-5 py-12 md:px-8 md:py-16">
+          <section className="bg-mist-1 px-5 py-12 md:px-8 md:py-16">
             <CmsContentSections
               sections={page.sections_json}
               className="mx-auto max-w-[1120px]"

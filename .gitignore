@@ -41,6 +41,7 @@ next-env.d.ts
 # local refs / large dumps
 ref/
 *.xlsx
+backups/
 
 # scratch / agent temp (never commit)
 .tmp/

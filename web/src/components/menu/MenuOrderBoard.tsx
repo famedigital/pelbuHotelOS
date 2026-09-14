@@ -252,7 +252,7 @@ export function MenuOrderBoard({
       <div
         role="status"
         aria-live="polite"
-        className="mx-auto max-w-lg rounded-2xl border border-mint-100 bg-mint-100/40 px-6 py-10 text-center"
+        className="mx-auto max-w-lg rounded-2xl border border-mint-100 bg-mist-1/40 px-6 py-10 text-center"
       >
         <h2 className="font-display text-2xl text-foreground">
           {state.chargedToRoom ? "Charged to your room" : "Order received"}
@@ -347,7 +347,7 @@ export function MenuOrderBoard({
                     className={cn(
                       "h-8 shrink-0 rounded-md border px-2.5 text-[12px] font-medium transition-colors",
                       outlet === entry.id
-                        ? "border-sky-600 bg-sky-600 text-white"
+                        ? "border-juniper bg-juniper text-white"
                         : "border-border bg-card text-foreground hover:bg-secondary",
                     )}
                   >
@@ -370,7 +370,7 @@ export function MenuOrderBoard({
                   className={cn(
                     "h-7 shrink-0 rounded-md px-2 text-[11px] font-semibold uppercase tracking-[0.08em] transition-colors",
                     category === entry
-                      ? "bg-mint-100 text-mint-600"
+                      ? "bg-mist-1 text-juniper"
                       : "bg-secondary/80 text-muted-foreground hover:text-foreground",
                   )}
                 >
@@ -409,7 +409,7 @@ export function MenuOrderBoard({
                   className={cn(
                     "shrink-0 rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors",
                     outlet === entry.id
-                      ? "border-sky-600 bg-sky-600 text-white"
+                      ? "border-juniper bg-juniper text-white"
                       : "border-border bg-card text-foreground hover:bg-secondary",
                   )}
                 >
@@ -427,7 +427,7 @@ export function MenuOrderBoard({
                   className={cn(
                     "shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] transition-colors",
                     category === entry
-                      ? "bg-mint-100 text-mint-600"
+                      ? "bg-mist-1 text-juniper"
                       : "bg-secondary text-muted-foreground hover:text-foreground",
                   )}
                 >
@@ -465,7 +465,7 @@ export function MenuOrderBoard({
       ) : (
         <>
           {cartCount > 0 ? (
-            <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] shadow-[0_-8px_30px_rgba(8,47,73,0.12)] lg:hidden">
+            <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] shadow-[0_-8px_30px_rgba(18,26,23,0.12)] lg:hidden">
               <Button
                 type="button"
                 variant="citrus"
@@ -554,7 +554,7 @@ function MenuTile({
       className={cn(
         "media-card flex scroll-mt-40 flex-col overflow-hidden rounded-xl border bg-card",
         highlighted
-          ? "border-sky-600 ring-2 ring-sky-600/25"
+          ? "border-juniper ring-2 ring-juniper/25"
           : "border-border",
       )}
     >
@@ -567,12 +567,12 @@ function MenuTile({
           sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, (max-width: 1536px) 22vw, 16vw"
         />
         {qty > 0 ? (
-          <span className="absolute left-2 top-2 inline-flex size-7 items-center justify-center rounded-full bg-sky-600 text-xs font-semibold text-white shadow-sm">
+          <span className="absolute left-2 top-2 inline-flex size-7 items-center justify-center rounded-full bg-juniper text-xs font-semibold text-white shadow-sm">
             {qty}
           </span>
         ) : null}
         {item.is_popular ? (
-          <span className="absolute right-2 top-2 rounded-full bg-citrus px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-ink">
+          <span className="absolute right-2 top-2 rounded-full bg-ember px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-cedar-ink">
             Popular
           </span>
         ) : null}
@@ -591,7 +591,7 @@ function MenuTile({
           {item.gst_applicable ? " · +GST" : ""}
         </p>
         <div className="mt-auto flex items-center justify-between gap-2 pt-2">
-          <span className="text-[13px] font-semibold tabular-nums text-sky-700">
+          <span className="text-[13px] font-semibold tabular-nums text-juniper">
             {formatBtn(item.price_btn)}
           </span>
           {item.sold_out ? (
@@ -607,7 +607,7 @@ function MenuTile({
               type="button"
               aria-label={`Add ${item.name}`}
               onClick={onAdd}
-              className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-citrus text-sky-ink transition-colors hover:bg-citrus-soft"
+              className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-ember text-cedar-ink transition-colors hover:bg-ember-soft"
             >
               <PlusIcon className="size-4" />
             </button>
@@ -810,7 +810,7 @@ function OrderCart({
                 className={cn(
                   "flex min-h-11 cursor-pointer items-center justify-center rounded-xl border px-1 text-center text-xs font-medium transition-colors sm:text-sm",
                   deliveryType === option
-                    ? "border-sky-600 bg-sky-100 text-sky-700"
+                    ? "border-juniper bg-mist-1 text-juniper"
                     : "border-border text-foreground hover:bg-secondary",
                 )}
               >
@@ -1006,7 +1006,7 @@ function RoomVerifyPanel({
 
   if (roomToken && roomLabel) {
     return (
-      <div className="rounded-xl border border-mint-100 bg-mint-100/40 px-3 py-3 text-sm">
+      <div className="rounded-xl border border-mint-100 bg-mist-1/40 px-3 py-3 text-sm">
         <p className="font-medium text-foreground">
           In-house · Room {roomLabel}
         </p>
@@ -1017,7 +1017,7 @@ function RoomVerifyPanel({
         <button
           type="button"
           onClick={onClear}
-          className="mt-2 text-xs font-medium text-sky-700 underline-offset-4 hover:underline"
+          className="mt-2 text-xs font-medium text-juniper underline-offset-4 hover:underline"
         >
           Use a different room
         </button>

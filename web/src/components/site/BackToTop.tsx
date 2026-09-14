@@ -52,7 +52,7 @@ export function BackToTop() {
         "fixed right-4 z-30 inline-flex size-11 items-center justify-center rounded-full",
         "border border-border/70 bg-background/90 text-foreground shadow-lg backdrop-blur",
         "transition-[opacity,transform] duration-300 ease-out",
-        "hover:border-sky-200 hover:bg-white hover:text-sky-700",
+        "hover:border-cedar-rule hover:bg-white hover:text-juniper",
         "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40",
         "bottom-[calc(4.75rem_+_env(safe-area-inset-bottom,0px))] md:bottom-6 md:right-6",
         visible

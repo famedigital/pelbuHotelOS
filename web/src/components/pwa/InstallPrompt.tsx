@@ -137,7 +137,7 @@ export function InstallPrompt() {
   return (
     <aside
       aria-label="Install Pelbu Suites"
-      className="fixed inset-x-3 bottom-[calc(4.75rem_+_env(safe-area-inset-bottom,0px))] z-[45] mx-auto max-w-md rounded-2xl border border-sky-ink/10 bg-sky-ink p-4 text-ivory shadow-2xl md:bottom-6 md:z-[80]"
+      className="fixed inset-x-3 bottom-[calc(4.75rem_+_env(safe-area-inset-bottom,0px))] z-[45] mx-auto max-w-md rounded-2xl border border-cedar-ink/10 bg-forest p-4 text-ivory shadow-2xl md:bottom-6 md:z-[80]"
     >
       <button
         type="button"
@@ -148,7 +148,7 @@ export function InstallPrompt() {
         <X className="size-4" />
       </button>
       <div className="flex gap-3 pr-10">
-        <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-citrus text-sky-ink">
+        <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-ember text-cedar-ink">
           <Download className="size-5" />
         </div>
         <div>
@@ -167,7 +167,7 @@ export function InstallPrompt() {
       <button
         type="button"
         onClick={install}
-        className="mt-4 min-h-11 w-full rounded-xl bg-gradient-to-r from-citrus-soft to-citrus px-4 text-sm font-semibold text-sky-ink transition hover:brightness-105"
+        className="mt-4 min-h-11 w-full rounded-xl bg-gradient-to-r from-ember-soft to-ember px-4 text-sm font-semibold text-cedar-ink transition hover:brightness-105"
       >
         Install Pelbu Suites
       </button>

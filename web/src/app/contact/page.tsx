@@ -117,7 +117,7 @@ export default async function ContactPage() {
       />
       <PublicSiteHeader variant="solid" />
       <main>
-        <section className="border-b border-border bg-gradient-to-b from-sky-100/40 to-background">
+        <section className="border-b border-border bg-gradient-to-b from-mist-1/40 to-background">
           <div className="mx-auto grid max-w-[1120px] gap-10 px-5 py-14 md:grid-cols-2 md:items-center md:px-8 md:py-20">
             <div>
               <SiteBreadcrumbs
@@ -127,7 +127,7 @@ export default async function ContactPage() {
                 ]}
                 className="mb-3"
               />
-              <p className="text-sm font-medium text-sky-700">{eyebrow}</p>
+              <p className="text-sm font-medium text-juniper">{eyebrow}</p>
               <h1 className="mt-3 font-display text-4xl leading-tight text-foreground md:text-5xl">
                 {title}
               </h1>
@@ -190,7 +190,7 @@ export default async function ContactPage() {
           </div>
         </section>
 
-        <section className="border-y border-border bg-frost-2/60 px-5 py-14 md:px-8 md:py-16">
+        <section className="border-y border-border bg-mist-1/60 px-5 py-14 md:px-8 md:py-16">
           <div className="mx-auto grid max-w-[1120px] gap-10 md:grid-cols-[1fr_1.1fr]">
             <div>
               <h2 className="font-display text-2xl text-foreground">
@@ -219,7 +219,7 @@ export default async function ContactPage() {
                     <dd className="mt-1">
                       <a
                         href={`tel:${property.phone}`}
-                        className="font-medium text-sky-700 hover:underline"
+                        className="font-medium text-juniper hover:underline"
                       >
                         {property.phone}
                       </a>
@@ -232,7 +232,7 @@ export default async function ContactPage() {
                     <dd className="mt-1">
                       <a
                         href={`https://wa.me/${property.whatsapp.replace(/\D+/g, "")}`}
-                        className="font-medium text-sky-700 hover:underline"
+                        className="font-medium text-juniper hover:underline"
                         target="_blank"
                         rel="noreferrer"
                       >
@@ -247,7 +247,7 @@ export default async function ContactPage() {
                     <dd className="mt-1">
                       <a
                         href={`mailto:${property.email}`}
-                        className="font-medium text-sky-700 hover:underline"
+                        className="font-medium text-juniper hover:underline"
                       >
                         {property.email}
                       </a>
@@ -260,7 +260,7 @@ export default async function ContactPage() {
                     <dd className="mt-1">
                       <a
                         href={property.mapsUrl}
-                        className="font-medium text-sky-700 hover:underline"
+                        className="font-medium text-juniper hover:underline"
                         target="_blank"
                         rel="noreferrer"
                       >

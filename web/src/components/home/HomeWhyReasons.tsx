@@ -39,8 +39,8 @@ const REASONS: Reason[] = [
     href: "/book",
     linkLabel: "Check availability",
     icon: BadgeCheckIcon,
-    accent: "bg-sky-600",
-    iconTone: "from-sky-600 to-sky-500",
+    accent: "bg-juniper",
+    iconTone: "from-juniper to-juniper-soft",
   },
   {
     id: "location",
@@ -50,8 +50,8 @@ const REASONS: Reason[] = [
     href: "/contact",
     linkLabel: "Find us",
     icon: MapPinIcon,
-    accent: "bg-mint-600",
-    iconTone: "from-mint-500 to-mint-600",
+    accent: "bg-juniper-soft",
+    iconTone: "from-juniper-soft to-juniper",
   },
   {
     id: "services",
@@ -61,8 +61,8 @@ const REASONS: Reason[] = [
     href: "/services",
     linkLabel: "See services",
     icon: SparklesIcon,
-    accent: "bg-citrus",
-    iconTone: "from-citrus-soft to-citrus",
+    accent: "bg-ember",
+    iconTone: "from-ember-soft to-ember",
   },
   {
     id: "live",
@@ -72,8 +72,8 @@ const REASONS: Reason[] = [
     href: "/book",
     linkLabel: "Open calendar",
     icon: ClockIcon,
-    accent: "bg-sky-500",
-    iconTone: "from-sky-500 to-mint-500",
+    accent: "bg-forest",
+    iconTone: "from-forest to-juniper",
   },
 ];
 
@@ -92,7 +92,7 @@ export function HomeWhyReasons() {
           type="single"
           collapsible
           defaultValue={REASONS[0].id}
-          className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-[0_16px_48px_-28px_rgba(8,47,73,0.35)]"
+          className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-[0_16px_48px_-28px_rgba(18,26,23,0.32)]"
         >
           {REASONS.map((reason, index) => {
             const Icon = reason.icon;
@@ -105,7 +105,7 @@ export function HomeWhyReasons() {
                 <AccordionTrigger
                   className={cn(
                     "items-center gap-3 px-4 py-3.5 min-h-14 hover:no-underline",
-                    "data-[state=open]:bg-sky-ink/[0.03]",
+                    "data-[state=open]:bg-forest/[0.03]",
                   )}
                 >
                   <span className="flex min-w-0 flex-1 items-center gap-3">
@@ -134,7 +134,7 @@ export function HomeWhyReasons() {
                     </p>
                     <Link
                       href={reason.href}
-                      className="mt-3 inline-flex text-sm font-semibold text-sky-700 underline-offset-4 hover:underline"
+                      className="mt-3 inline-flex text-sm font-semibold text-juniper underline-offset-4 hover:underline"
                     >
                       {reason.linkLabel} →
                     </Link>
@@ -147,9 +147,9 @@ export function HomeWhyReasons() {
       </div>
 
       {/* ——— Desktop: vertical tabs + spotlight panel ——— */}
-      <div className="mt-10 hidden overflow-hidden rounded-[1.75rem] border border-border/70 bg-card shadow-[0_24px_64px_-40px_rgba(8,47,73,0.35)] md:grid md:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
+      <div className="mt-10 hidden overflow-hidden rounded-[1.75rem] border border-border/70 bg-card shadow-[0_24px_64px_-40px_rgba(18,26,23,0.32)] md:grid md:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
         <div
-          className="flex flex-col border-b border-border/70 bg-frost-2/40 md:border-b-0 md:border-r"
+          className="flex flex-col border-b border-border/70 bg-mist-1/40 md:border-b-0 md:border-r"
           role="tablist"
           aria-label="Why stay at Pelbu"
         >
@@ -227,7 +227,7 @@ export function HomeWhyReasons() {
           className="relative flex min-h-[20rem] flex-col justify-center overflow-hidden px-8 py-10 lg:px-12 lg:py-12"
         >
           <span
-            className="pointer-events-none absolute -right-4 -top-6 select-none font-display text-[9rem] leading-none text-sky-ink/[0.05]"
+            className="pointer-events-none absolute -right-4 -top-6 select-none font-display text-[9rem] leading-none text-cedar-ink/[0.05]"
             aria-hidden
           >
             {String(activeIndex + 1).padStart(2, "0")}
@@ -259,7 +259,7 @@ export function HomeWhyReasons() {
             </p>
             <Link
               href={active.href}
-              className="mt-6 inline-flex h-11 items-center rounded-xl bg-sky-ink px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+              className="mt-6 inline-flex h-11 items-center rounded-xl bg-forest px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
             >
               {active.linkLabel} →
             </Link>

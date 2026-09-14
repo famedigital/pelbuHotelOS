@@ -183,7 +183,7 @@ export default async function RoomsPage() {
                       meta={
                         room.fromPriceBtn != null ? (
                           <div className="flex flex-col gap-0.5">
-                            <span className="text-sm font-semibold text-sky-800">
+                            <span className="text-sm font-semibold text-juniper">
                               From {formatBtn(room.fromPriceBtn)}
                               <span className="font-medium text-muted-foreground">
                                 {" "}
@@ -198,7 +198,7 @@ export default async function RoomsPage() {
                             </span>
                           </div>
                         ) : (
-                          <span className="text-sm font-medium text-sky-700">
+                          <span className="text-sm font-medium text-juniper">
                             Check dates →
                           </span>
                         )
@@ -212,7 +212,7 @@ export default async function RoomsPage() {
 
           {compBeds.length > 0 ? (
             <section className="rounded-2xl border border-border bg-card p-6">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-sky-700">
+              <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-juniper">
                 Guide &amp; driver beds
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">

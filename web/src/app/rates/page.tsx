@@ -118,7 +118,7 @@ export default async function RatesPage() {
           <p className="text-sm text-muted-foreground">
             Rates will appear once the property rate matrix is configured. Call
             the desk or{" "}
-            <a href="/book" className="font-medium text-sky-700 underline">
+            <a href="/book" className="font-medium text-juniper underline">
               check live availability
             </a>
             .

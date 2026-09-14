@@ -18,7 +18,7 @@ const HotelFacadeExplore = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full min-h-[min(60vh,480px)] w-full items-center justify-center bg-gradient-to-b from-sky-100/80 via-[#f4efe6] to-[#e4dccf] text-sm text-muted-foreground">
+      <div className="flex h-full min-h-[min(60vh,480px)] w-full items-center justify-center bg-gradient-to-b from-mist-1/80 via-[#f4efe6] to-[#e4dccf] text-sm text-muted-foreground">
         Loading Pelbu Suites…
       </div>
     ),
@@ -131,7 +131,7 @@ export function PublicBuildingExplore({
           }
         />
       ) : (
-        <div className="flex h-full min-h-[min(60vh,480px)] w-full items-center justify-center bg-gradient-to-b from-sky-100/80 via-[#f4efe6] to-[#e4dccf] text-sm text-muted-foreground">
+        <div className="flex h-full min-h-[min(60vh,480px)] w-full items-center justify-center bg-gradient-to-b from-mist-1/80 via-[#f4efe6] to-[#e4dccf] text-sm text-muted-foreground">
           Explore the building…
         </div>
       )}

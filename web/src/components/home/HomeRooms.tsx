@@ -1,7 +1,6 @@
 import { HomeSectionHead } from "@/components/home/HomeSectionHead";
 import { Reveal } from "@/components/home/Reveal";
-import { MediaCard } from "@/components/site/MediaCard";
-import { Badge } from "@/components/ui/badge";
+import { CloudinaryImage } from "@/components/media/CloudinaryImage";
 import type { PublicRoomWithRate } from "@/lib/public-room-rates";
 import { formatBtn } from "@/lib/pricing";
 import Link from "next/link";
@@ -15,6 +14,7 @@ type Props = {
   description?: string;
 };
 
+/** Featured room + horizontal strip — not a uniform card grid. */
 export function HomeRooms({
   rooms,
   seasonName,
@@ -25,37 +25,27 @@ export function HomeRooms({
 }: Props) {
   if (rooms.length === 0) {
     return (
-      <section
-        id="rooms"
-        className="bg-gradient-to-b from-background via-sky-100/50 to-background py-12 md:py-20"
-      >
+      <section id="rooms" className="bg-mist-0 py-16 md:py-24">
         <div className="mx-auto max-w-[1200px] px-5 md:px-8">
           <HomeSectionHead
-            className="mx-auto max-w-2xl flex-col items-center text-center md:flex-col md:items-center"
             eyebrow={eyebrow}
             title={title}
             description={description}
-            accent="sky"
+            accent="juniper"
             link={{ href: "/book", label: "Book dates" }}
           />
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-8 flex flex-wrap gap-3">
             <Link
               href="/book"
-              className="inline-flex h-12 items-center rounded-xl bg-gradient-to-r from-sky-600 to-sky-500 px-6 text-sm font-semibold text-white"
+              className="inline-flex h-12 items-center rounded-md bg-ember px-6 text-sm font-semibold text-white hover:bg-ember-deep"
             >
               Check availability
             </Link>
             <Link
               href="/rates"
-              className="inline-flex h-12 items-center rounded-xl border border-border bg-card px-6 text-sm font-semibold text-foreground"
+              className="inline-flex h-12 items-center rounded-md border border-cedar-rule bg-white px-6 text-sm font-semibold text-foreground"
             >
               Rate card
-            </Link>
-            <Link
-              href="/contact"
-              className="inline-flex h-12 items-center rounded-xl border border-border bg-card px-6 text-sm font-semibold text-foreground"
-            >
-              Call the desk
             </Link>
           </div>
         </div>
@@ -63,98 +53,114 @@ export function HomeRooms({
     );
   }
 
-  const colClass =
-    rooms.length === 1
-      ? "max-w-md mx-auto grid-cols-1"
-      : rooms.length === 2
-        ? "max-w-3xl mx-auto sm:grid-cols-2"
-        : rooms.length === 3
-          ? "max-w-5xl mx-auto sm:grid-cols-2 lg:grid-cols-3"
-          : "sm:grid-cols-2 lg:grid-cols-4";
+  const [featured, ...rest] = rooms;
 
   return (
-    <section
-      id="rooms"
-      className="bg-gradient-to-b from-background via-sky-100/50 to-background py-12 md:py-20"
-    >
+    <section id="rooms" className="bg-mist-0 py-16 md:py-24">
       <div className="mx-auto max-w-[1200px] px-5 md:px-8">
         <Reveal>
           <HomeSectionHead
-            className="mx-auto max-w-2xl flex-col items-center text-center md:flex-col md:items-center"
             eyebrow={eyebrow}
             title={title}
             description={description}
-            accent="sky"
+            accent="juniper"
             link={{ href: "/rooms", label: "All rooms" }}
           />
         </Reveal>
 
-        <ul
-          className={`mt-10 grid auto-rows-fr justify-center gap-6 ${colClass}`}
-        >
-          {rooms.map((room, index) => (
-            <li key={room.code} className="h-full">
-              <Reveal delay={Math.min(index, 3) * 0.06} className="h-full">
-                <MediaCard
-                  href={`/rooms/${room.slug}`}
-                  title={room.name}
-                  description={
-                    room.blurb?.trim() ||
-                    `${room.name} at Pelbu Suites, Olakha — book direct at live rates.`
-                  }
-                  publicId={room.imagePublicId}
-                  src={room.imageSrc}
-                  ratio="4/3"
-                  priority={index < 2}
-                  badge={<Badge variant="sky">Guest room</Badge>}
-                  meta={
-                    room.fromPriceBtn != null ? (
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-sm font-semibold text-sky-800">
-                          From {formatBtn(room.fromPriceBtn)}
-                          <span className="font-medium text-muted-foreground">
-                            {" "}
-                            / night
-                          </span>
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {seasonName ? `${seasonName} · ` : ""}
-                          room only
-                          {taxInclusive ? " · inc. GST+SC" : ""}
-                          {" · "}
-                          Book →
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-sm font-semibold text-sky-700">
-                        Check dates →
-                      </span>
-                    )
-                  }
-                />
-              </Reveal>
-            </li>
-          ))}
-        </ul>
+        <Reveal className="mt-10">
+          <Link
+            href={`/rooms/${featured.slug}`}
+            className="group grid overflow-hidden border border-cedar-rule bg-white lg:grid-cols-[1.35fr_1fr]"
+          >
+            <div className="relative aspect-[4/3] lg:aspect-auto lg:min-h-[28rem]">
+              <CloudinaryImage
+                publicId={featured.imagePublicId}
+                src={featured.imageSrc}
+                alt=""
+                fill
+                priority
+                sizes="(max-width: 1024px) 100vw, 60vw"
+                imgClassName="object-cover transition-transform duration-700 motion-safe:group-hover:scale-[1.03]"
+              />
+            </div>
+            <div className="flex flex-col justify-center gap-4 p-6 md:p-10">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-juniper">
+                Featured stay
+              </p>
+              <h3 className="font-display text-3xl leading-tight text-foreground md:text-4xl">
+                {featured.name}
+              </h3>
+              <p className="text-[15px] leading-relaxed text-muted-foreground">
+                {featured.blurb?.trim() ||
+                  `${featured.name} at Pelbu Suites, Olakha — book direct at live rates.`}
+              </p>
+              {featured.fromPriceBtn != null ? (
+                <p className="text-sm font-semibold text-cedar-ink">
+                  From {formatBtn(featured.fromPriceBtn)}
+                  <span className="font-medium text-muted-foreground">
+                    {" "}
+                    / night
+                    {seasonName ? ` · ${seasonName}` : ""}
+                    {taxInclusive ? " · inc. GST+SC" : ""}
+                  </span>
+                </p>
+              ) : null}
+              <span className="mt-2 inline-flex text-sm font-semibold text-ember group-hover:underline">
+                View room →
+              </span>
+            </div>
+          </Link>
+        </Reveal>
 
-        <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+        {rest.length > 0 ? (
+          <ul className="mt-6 flex gap-4 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {rest.map((room) => (
+              <li key={room.code} className="w-[min(78vw,280px)] shrink-0">
+                <Link
+                  href={`/rooms/${room.slug}`}
+                  className="group flex h-full flex-col border border-cedar-rule bg-white"
+                >
+                  <div className="relative aspect-[4/3] overflow-hidden">
+                    <CloudinaryImage
+                      publicId={room.imagePublicId}
+                      src={room.imageSrc}
+                      alt=""
+                      fill
+                      sizes="280px"
+                      imgClassName="object-cover transition-transform duration-500 motion-safe:group-hover:scale-105"
+                    />
+                  </div>
+                  <div className="flex flex-1 flex-col gap-1 p-4">
+                    <p className="font-semibold text-foreground group-hover:text-juniper">
+                      {room.name}
+                    </p>
+                    {room.fromPriceBtn != null ? (
+                      <p className="text-sm text-muted-foreground">
+                        From {formatBtn(room.fromPriceBtn)} / night
+                      </p>
+                    ) : (
+                      <p className="text-sm text-juniper">Check dates →</p>
+                    )}
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        <div className="mt-10 flex flex-wrap gap-3">
           <Link
             href="/book"
-            className="inline-flex h-12 items-center rounded-xl bg-gradient-to-r from-sky-600 to-sky-500 px-6 text-sm font-semibold text-white shadow-[0_16px_40px_-18px_rgba(2,132,199,0.9)] transition-transform motion-safe:hover:-translate-y-0.5"
+            className="inline-flex h-12 items-center rounded-md bg-ember px-6 text-sm font-semibold text-white hover:bg-ember-deep"
           >
             Check live availability
           </Link>
           <Link
             href="/rates"
-            className="inline-flex h-12 items-center rounded-xl border border-border bg-card px-6 text-sm font-semibold text-foreground hover:bg-secondary"
+            className="inline-flex h-12 items-center rounded-md border border-cedar-rule bg-white px-6 text-sm font-semibold text-foreground hover:bg-mist-1"
           >
             Full rate card
-          </Link>
-          <Link
-            href="/rooms"
-            className="inline-flex h-12 items-center rounded-xl border border-border bg-card px-6 text-sm font-semibold text-foreground hover:bg-secondary"
-          >
-            Compare room types
           </Link>
         </div>
       </div>

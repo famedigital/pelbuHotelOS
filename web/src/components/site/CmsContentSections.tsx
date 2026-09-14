@@ -15,7 +15,7 @@ export function CmsContentSections({
       {sections.map((section, index) => (
         <section
           key={`${section.heading}-${index}`}
-          className="overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-white via-sky-50/45 to-mint-100/35 p-6 shadow-sm md:p-8"
+          className="overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-white via-mist-1/45 to-mist-1/35 p-6 shadow-sm md:p-8"
         >
           <h2 className="font-display text-2xl leading-tight text-foreground md:text-3xl">
             {section.heading}
@@ -32,9 +32,9 @@ export function CmsContentSections({
               {section.items.map((item) => (
                 <li
                   key={item}
-                  className="flex gap-2.5 rounded-xl border border-sky-200/60 bg-white/75 px-3.5 py-3 text-sm leading-5 text-foreground"
+                  className="flex gap-2.5 rounded-xl border border-cedar-rule/60 bg-white/75 px-3.5 py-3 text-sm leading-5 text-foreground"
                 >
-                  <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-mint-100 text-mint-600">
+                  <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-mist-1 text-juniper">
                     <CheckIcon className="size-3.5" aria-hidden />
                   </span>
                   {item}

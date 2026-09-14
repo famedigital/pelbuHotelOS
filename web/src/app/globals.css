@@ -4,11 +4,13 @@
 @custom-variant dark (&:is(.dark *));
 
 /* =========================================================================
-   Pelbu Suites — public design tokens ("Sky, Citrus, Mint")
+   Pelbu Suites — public design tokens ("Olakha Cedar")
    Legacy brand anchors (ivory / espresso / brass / paper) stay defined so
    ERP utilities that still reference them continue to resolve. Public
-   shadcn semantics map onto the sky/citrus/mint ramp. Desk `.erp` below
-   overrides every semantic token and is unaffected by this public remap.
+   shadcn semantics map onto the cedar / juniper / ember ramp. Desk `.erp`
+   below overrides every semantic token and is unaffected by this remap.
+   Sky/citrus/mint variable names remain as aliases → cedar so stray public
+   utilities do not revive the licensed-out blue/amber skin.
    ========================================================================= */
 
 :root {
@@ -26,139 +28,152 @@
   --brass: #c19548;
   --brass-soft: #d9b173;
   --brass-hairline: rgba(193, 149, 72, 0.42);
-  --ink: #082f49;
-  --ink-soft: #0c4a6e;
-  --ink-rule: rgba(8, 47, 73, 0.12);
-  --paper-0: #f7fbfd;
-  --paper-1: #f0f7fb;
-  --paper-2: #eef4f8;
-  --paper-3: #d9e5ee;
-  --paper-4: #b8cddc;
-  --paper-5: #64748b;
+  --ink: #121a17;
+  --ink-soft: #1f4d40;
+  --ink-rule: rgba(18, 26, 23, 0.12);
+  --paper-0: #faf7f2;
+  --paper-1: #f3efe8;
+  --paper-2: #efeae2;
+  --paper-3: #ddd5c8;
+  --paper-4: #b8ad9c;
+  --paper-5: #6b6258;
 
-  /* --- Sky / Citrus / Mint premium ramp --- */
-  --sky-ink: #082f49;
-  --sky-900: #0c4a6e;
-  --sky-800: #075985;
-  --sky-700: #0369a1;
-  --sky-600: #0284c7;
-  --sky-500: #0ea5e9;
-  --sky-100: #e0f2fe;
-  --citrus-600: #d97706;
-  --citrus-500: #f59e0b;
-  --citrus-100: #fef3c7;
-  /* Deep evergreen anchor for the mint ramp. Dark enough to carry white body
-     text at glass opacities, where mint-600 is far too light. */
-  --mint-ink: #053b2f;
-  --mint-600: #059669;
-  --mint-500: #10b981;
-  --mint-100: #d1fae5;
-  --frost-0: #f7fbfd;
-  --frost-1: #f0f7fb;
-  --frost-2: #eef4f8;
-  --frost-3: #d9e5ee;
+  /* --- Olakha Cedar ramp (warm linen — not steel gray) --- */
+  --mist-0: #faf7f2;
+  --mist-1: #f3efe8;
+  --cedar-rule: #ddd5c8;
+  --cedar-ink: #121a17;
+  --juniper: #1f4d40;
+  --juniper-soft: #2f5d50;
+  --ember: #c45c26;
+  --ember-deep: #a34a1c;
+  --ember-soft: #d4783f;
+  --ember-tint: #f3e2d6;
+  --celadon: #a8c5b5;
+  --forest: #0e1613;
+  --forest-soft: #1a2420;
 
-  --muted: #475569;
+  /* Aliases — retired Sky/Citrus/Mint names → cedar (public only) */
+  --sky-ink: var(--cedar-ink);
+  --sky-900: var(--forest);
+  --sky-800: var(--juniper);
+  --sky-700: var(--juniper-soft);
+  --sky-600: var(--juniper);
+  --sky-500: var(--juniper-soft);
+  --sky-100: var(--mist-1);
+  --citrus-600: var(--ember-deep);
+  --citrus-500: var(--ember);
+  --citrus-100: var(--ember-tint);
+  --mint-ink: var(--forest);
+  --mint-600: var(--juniper);
+  --mint-500: var(--juniper-soft);
+  --mint-100: #d8e8e0;
+  --frost-0: var(--mist-0);
+  --frost-1: var(--mist-1);
+  --frost-2: var(--mist-1);
+  --frost-3: var(--cedar-rule);
 
-  --citrus: #f59e0b;
-  --citrus-soft: #fbbf24;
-  --citrus-tint: #fef3c7;
+  --muted: #6b6258;
 
-  /* --- shadcn scale mapped to Sky / Citrus / Mint --- */
-  --background: var(--frost-0);
-  --foreground: var(--sky-ink);
+  --citrus: var(--ember);
+  --citrus-soft: var(--ember-soft);
+  --citrus-tint: var(--ember-tint);
+
+  /* --- shadcn scale mapped to Olakha Cedar --- */
+  --background: var(--mist-0);
+  --foreground: var(--cedar-ink);
 
   --card: #ffffff;
-  --card-foreground: var(--sky-ink);
+  --card-foreground: var(--cedar-ink);
 
   --popover: #ffffff;
-  --popover-foreground: var(--sky-ink);
+  --popover-foreground: var(--cedar-ink);
 
-  --primary: var(--sky-600);
+  --primary: var(--juniper);
   --primary-foreground: #ffffff;
 
-  --secondary: var(--frost-2);
-  --secondary-foreground: var(--sky-ink);
+  --secondary: var(--mist-1);
+  --secondary-foreground: var(--cedar-ink);
 
-  --muted-shadcn: var(--frost-2);
+  --muted-shadcn: var(--mist-1);
   --muted-foreground: var(--muted);
 
-  --accent: var(--citrus-500);
-  --accent-foreground: var(--sky-ink);
+  --accent: var(--ember);
+  --accent-foreground: #ffffff;
 
   --destructive: var(--maroon);
   --destructive-foreground: #ffffff;
 
-  --border: var(--frost-3);
-  --input: var(--frost-3);
-  --ring: var(--sky-600);
+  --border: var(--cedar-rule);
+  --input: var(--cedar-rule);
+  --ring: var(--juniper);
 
-  --chart-1: var(--sky-600);
-  --chart-2: var(--citrus-500);
-  --chart-3: var(--mint-500);
-  --chart-4: var(--sky-800);
-  --chart-5: var(--mint-600);
+  --chart-1: var(--juniper);
+  --chart-2: var(--ember);
+  --chart-3: var(--celadon);
+  --chart-4: var(--forest);
+  --chart-5: var(--juniper-soft);
 
-  --sidebar: var(--sky-ink);
-  --sidebar-foreground: #f8fafc;
-  --sidebar-primary: var(--sky-500);
+  --sidebar: var(--forest);
+  --sidebar-foreground: #f2f4f3;
+  --sidebar-primary: var(--ember);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: var(--sky-800);
-  --sidebar-accent-foreground: #f8fafc;
-  --sidebar-border: var(--sky-800);
-  --sidebar-ring: var(--sky-500);
+  --sidebar-accent: var(--juniper);
+  --sidebar-accent-foreground: #f2f4f3;
+  --sidebar-border: var(--juniper);
+  --sidebar-ring: var(--ember);
 
-  --radius: 0.875rem;
+  --radius: 0.5rem;
 
-  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-cormorant), Georgia, "Times New Roman", serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
 .dark {
-  /* Public evening mode — sky ink surfaces, citrus / mint accents */
-  --background: var(--sky-ink);
-  --foreground: #f8fafc;
+  /* Public evening mode — forest surfaces, ember accents */
+  --background: var(--forest);
+  --foreground: #f2f4f3;
 
-  --card: #0c4a6e;
-  --card-foreground: #f8fafc;
+  --card: var(--forest-soft);
+  --card-foreground: #f2f4f3;
 
-  --popover: #0c4a6e;
-  --popover-foreground: #f8fafc;
+  --popover: var(--forest-soft);
+  --popover-foreground: #f2f4f3;
 
-  --primary: var(--sky-500);
-  --primary-foreground: #ffffff;
+  --primary: var(--celadon);
+  --primary-foreground: var(--forest);
 
-  --secondary: #0c4a6e;
-  --secondary-foreground: #f8fafc;
+  --secondary: var(--juniper);
+  --secondary-foreground: #f2f4f3;
 
-  --muted-shadcn: #0c4a6e;
-  --muted-foreground: #94a3b8;
+  --muted-shadcn: var(--juniper);
+  --muted-foreground: #a8b5ae;
 
-  --accent: var(--citrus-500);
-  --accent-foreground: var(--sky-ink);
+  --accent: var(--ember);
+  --accent-foreground: #ffffff;
 
   --destructive: var(--maroon-soft);
   --destructive-foreground: #ffffff;
 
-  --border: #075985;
-  --input: #075985;
-  --ring: var(--sky-500);
+  --border: var(--juniper);
+  --input: var(--juniper);
+  --ring: var(--ember);
 
-  --chart-1: var(--sky-500);
-  --chart-2: var(--citrus-500);
-  --chart-3: var(--mint-500);
-  --chart-4: #94a3b8;
-  --chart-5: var(--mint-100);
+  --chart-1: var(--celadon);
+  --chart-2: var(--ember);
+  --chart-3: var(--juniper-soft);
+  --chart-4: #a8b5ae;
+  --chart-5: var(--ember-tint);
 
-  --sidebar: #051f33;
-  --sidebar-foreground: #f8fafc;
-  --sidebar-primary: var(--sky-500);
+  --sidebar: #080c0a;
+  --sidebar-foreground: #f2f4f3;
+  --sidebar-primary: var(--ember);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #0c4a6e;
-  --sidebar-accent-foreground: #f8fafc;
-  --sidebar-border: #0c4a6e;
-  --sidebar-ring: var(--sky-500);
+  --sidebar-accent: var(--juniper);
+  --sidebar-accent-foreground: #f2f4f3;
+  --sidebar-border: var(--juniper);
+  --sidebar-ring: var(--ember);
 }
 
 /* =========================================================================
@@ -327,15 +342,27 @@
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
 
-  /* Citrus (amber) — success/money callouts. Bg/text/tint utilities:
-     bg-citrus, text-citrus, bg-citrus-tint, border-citrus, etc. */
+  /* Ember / citrus alias — CTA and money callouts */
   --color-citrus: var(--citrus);
   --color-citrus-soft: var(--citrus-soft);
   --color-citrus-tint: var(--citrus-tint);
   --color-citrus-500: var(--citrus-500);
   --color-citrus-600: var(--citrus-600);
+  --color-ember: var(--ember);
+  --color-ember-deep: var(--ember-deep);
+  --color-ember-soft: var(--ember-soft);
+  --color-ember-tint: var(--ember-tint);
 
-  /* Public Sky / Mint ramp */
+  /* Olakha Cedar ramp (+ retired sky/mint aliases) */
+  --color-mist-0: var(--mist-0);
+  --color-mist-1: var(--mist-1);
+  --color-cedar-rule: var(--cedar-rule);
+  --color-cedar-ink: var(--cedar-ink);
+  --color-juniper: var(--juniper);
+  --color-juniper-soft: var(--juniper-soft);
+  --color-celadon: var(--celadon);
+  --color-forest: var(--forest);
+  --color-forest-soft: var(--forest-soft);
   --color-sky-ink: var(--sky-ink);
   --color-sky-900: var(--sky-900);
   --color-sky-800: var(--sky-800);
@@ -393,8 +420,8 @@
   --radius-lg: calc(var(--radius) + 2px);
   --radius-xl: calc(var(--radius) + 6px);
 
-  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-cormorant), Georgia, serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 
   --animate-accordion-down: accordion-down 0.2s ease-out;
@@ -437,11 +464,10 @@
     font-feature-settings: "ss01", "cv11";
   }
 
-  /* Display headings pick up the Fraunces face via the .font-display utility.
-     Use `font-display` on h1/h2 heroes. Everything else inherits Inter. */
+  /* Display headings pick up Cormorant via the .font-display utility. */
 
   ::selection {
-    background: var(--sky-600);
+    background: var(--juniper);
     color: #ffffff;
   }
 }
@@ -463,12 +489,14 @@
   .font-display {
     font-family: var(--font-display);
     font-feature-settings: "ss01";
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
 
   .lede {
     font-size: clamp(1rem, 0.96rem + 0.15vw, 1.0625rem);
     line-height: 1.65;
-    color: color-mix(in oklab, var(--sky-ink) 72%, var(--muted));
+    color: color-mix(in oklab, var(--cedar-ink) 72%, var(--muted));
   }
 
   .media-card {
@@ -483,7 +511,7 @@
       border-color 300ms ease;
   }
   .media-card:hover {
-    border-color: color-mix(in oklab, var(--sky-600) 35%, var(--border));
+    border-color: color-mix(in oklab, var(--juniper) 35%, var(--border));
     box-shadow:
       0 18px 40px -24px rgba(8, 47, 73, 0.35),
       0 8px 16px -12px rgba(8, 47, 73, 0.18);
