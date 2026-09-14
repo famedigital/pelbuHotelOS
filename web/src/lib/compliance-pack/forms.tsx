@@ -2,6 +2,7 @@ import {
   BlankRows,
   SignOff,
 } from "@/components/erp/compliance/CompliancePrintShell";
+import { BAFRA_FORM_RENDERERS } from "@/lib/compliance-pack/bafra-forms";
 import type { ReactElement } from "react";
 
 export function FormFireDrill() {
@@ -195,8 +196,8 @@ export function FormTempLog() {
   return (
     <div className="space-y-3 text-sm">
       <p>
-        Week of: ________ &nbsp; Targets: Chiller 0–5°C · Freezer ≤ −18°C
-        (adjust to your SOPs)
+        Week of: ________ &nbsp; Targets: Chiller ≤ 4°C · Freezer ≤ −18°C
+        (BAFRA)
       </p>
       <BlankRows
         cols={[
@@ -314,4 +315,5 @@ export const FORM_RENDERERS: Record<string, () => ReactElement> = {
   "medical-cert": FormMedicalCert,
   "waste-segregation": FormWasteSegregation,
   "security-patrol": FormSecurityPatrol,
+  ...BAFRA_FORM_RENDERERS,
 };
