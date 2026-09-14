@@ -1,0 +1,60 @@
+# dependencies
+node_modules/
+web/node_modules/
+.pnp
+.pnp.js
+
+# env / secrets
+.env
+.env.*
+!.env.example
+web/.env
+web/.env.local
+web/.env.*.local
+
+# next
+web/.next/
+web/out/
+web/build/
+
+# debug / os
+npm-debug.log*
+.DS_Store
+Thumbs.db
+*.pem
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE
+.idea/
+.vscode/
+.cursor/mcp.json
+!.cursor/mcp.json.example
+!.cursor/rules/
+!.cursor/skills/
+
+# local refs / large dumps (PII — Pelbu project1 only; never commit)
+ref/
+*.xlsx
+backups/
+
+# scratch / agent temp (never commit)
+.tmp/
+.tmp*
+.tmp_*.sql
+.tmp_*.json
+web/eslint-pass.json
+web/eslint-pos.json
+web/home.html
+# One-shot eZee parse dumps â€” do not commit
+marketing/old bookings/reservation-list-parsed.json
+marketing/old bookings/*.json
+
+# PSD masters exceed GitHub 100MB limit — keep local only
+marketing/print/standee-psd/*.psd
+

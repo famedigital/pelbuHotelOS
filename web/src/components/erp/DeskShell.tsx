@@ -1,0 +1,220 @@
+import { deskLogout } from "@/app/actions/desk";
+import { AppSidebar } from "@/components/erp/app-sidebar";
+import { ModuleHeaderTabs } from "@/components/erp/ModuleHeaderTabs";
+import { DeskHelpHint } from "@/components/erp/DeskHelpHint";
+import { DeskMobileNav } from "@/components/erp/DeskMobileNav";
+import { DeskWorkspaceProvider } from "@/components/erp/DeskWorkspaceProvider";
+import { DeskWorkspaceToggle } from "@/components/erp/DeskWorkspaceToggle";
+import { ErpCommandPalette } from "@/components/erp/ErpCommandPalette";
+import { NavigationProgress } from "@/components/erp/NavigationProgress";
+import { DeskSearchHint } from "@/components/erp/DeskSearchHint";
+import { PropertySwitcher } from "@/components/erp/PropertySwitcher";
+import { StayHubShell } from "@/components/erp/StayHubShell";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { Separator } from "@/components/ui/separator";
+import type { DeskRole } from "@/lib/desk-auth";
+import type { PropertyRow } from "@/lib/property-types";
+import Link from "next/link";
+import { Suspense, type ReactNode } from "react";
+
+/**
+ * ERP shell: icon sidebar + pinned header row (does not scroll away).
+ * Module sub-destinations sit **in that header** (compact segment control), not
+ * a second menu row under it — keeps desk workspace tall. POS register portals
+ * Sell | Floor + ticket actions into the same row.
+ * Page body scrolls inside the inset under the header so sticky filters (`top-14`) work.
+ */
+export function DeskShell({
+  title,
+  properties,
+  activePropertyId,
+  logoSrc,
+  businessDate,
+  allowedModuleKeys,
+  deskRole,
+  canPreviewDashboards,
+  homeDashboardView,
+  productPack = "hotel",
+  children,
+}: {
+  title?: string;
+  properties?: PropertyRow[];
+  activePropertyId?: string;
+  logoSrc?: string | null;
+  /**
+   * Open hotel business date (eZee “working date”). Distinct from wall-clock;
+   * advances after night audit.
+   */
+  businessDate?: string | null;
+  /** ERP_MODULES keys the session may open. */
+  allowedModuleKeys?: readonly string[];
+  /** Drives Front desk vs Back office default when no cookie yet. */
+  deskRole?: DeskRole | null;
+  /** Owner/GM: department boards as first-row tabs on `/erp`. */
+  canPreviewDashboards?: boolean;
+  homeDashboardView?: import("@/lib/erp/role-dashboard").DashboardView;
+  productPack?: "hotel" | "restaurant";
+  children: ReactNode;
+}) {
+  const bizLabel = businessDate?.slice(0, 10) ?? null;
+
+  return (
+    <div className="erp">
+      <NavigationProgress />
+      <DeskWorkspaceProvider
+        deskRole={deskRole}
+        allowedModuleKeys={allowedModuleKeys}
+      >
+        <SidebarProvider defaultOpen={false} defaultState="collapsed">
+          <AppSidebar
+            brandName={title}
+            logoSrc={logoSrc}
+            allowedModuleKeys={allowedModuleKeys}
+            productPack={productPack}
+          />
+          <ErpCommandPalette allowedModuleKeys={allowedModuleKeys} />
+          <SidebarInset className="max-h-svh overflow-hidden">
+            <StayHubShell>
+              <header className="z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 print:hidden">
+                <SidebarTrigger className="-ml-1 hidden md:inline-flex" />
+                <Separator
+                  orientation="vertical"
+                  className="mr-1 hidden h-4! md:block"
+                />
+                {title ? (
+                  <h1 className="hidden max-w-[8rem] truncate text-sm font-medium text-muted-foreground lg:max-w-[12rem] xl:block">
+                    {title}
+                  </h1>
+                ) : null}
+                <DeskWorkspaceToggle className="hidden sm:inline-flex" />
+                {bizLabel ? (
+                  <Link
+                    href="/erp/night-audit"
+                    title="Business date (open hotel day). Click for night audit."
+                    className="hidden shrink-0 sm:inline-flex"
+                  >
+                    <Badge
+                      variant="secondary"
+                      className="font-mono text-[10px] tracking-tight tabular-nums"
+                    >
+                      Biz {bizLabel.slice(5)}
+                    </Badge>
+                  </Link>
+                ) : null}
+                <Suspense fallback={null}>
+                  <ModuleHeaderTabs
+                    canPreviewDashboards={canPreviewDashboards}
+                    homeDashboardView={homeDashboardView}
+                    allowedModuleKeys={allowedModuleKeys}
+                  />
+                </Suspense>
+                {/* POS register portals Sell | Floor here (see PosRegisterHeaderChrome). */}
+                <div
+                  data-slot="erp-header-pos-modes"
+                  className="flex min-w-0 items-center empty:hidden"
+                />
+
+                <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+                  {/* POS register portals Tickets / More / help / FS here. */}
+                  <div
+                    data-slot="erp-header-pos-actions"
+                    className="flex shrink-0 items-center gap-1.5 empty:hidden"
+                  />
+                  <DeskSearchHint />
+                  {properties && properties.length > 0 && activePropertyId ? (
+                    <PropertySwitcher
+                      properties={properties}
+                      activePropertyId={activePropertyId}
+                    />
+                  ) : null}
+                  <form action={deskLogout}>
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      size="sm"
+                      className="hidden h-9 md:inline-flex"
+                    >
+                      Sign out
+                    </Button>
+                  </form>
+                </div>
+              </header>
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0 print:overflow-visible print:pb-0">
+                {children}
+              </div>
+              <div className="shrink-0 print:hidden">
+                <DeskMobileNav allowedModuleKeys={allowedModuleKeys} />
+              </div>
+            </StayHubShell>
+          </SidebarInset>
+        </SidebarProvider>
+      </DeskWorkspaceProvider>
+    </div>
+  );
+}
+
+
+/** Compact top-of-page title strip — same grammar as DeskListShell (non-list pages).
+ *  Horizontal inset cancels parent page padding so title lines up with body content. */
+export function DeskPageTitle({
+  eyebrow,
+  title,
+  description,
+  actions,
+}: {
+  eyebrow?: string;
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+}) {
+  // Re-export pattern via lazy import would cycle; keep layout in sync with DeskListShell.
+  const short =
+    description && description.length <= 96 ? description : undefined;
+  const long =
+    description && description.length > 96 ? description : undefined;
+
+  return (
+    <div className="erp border-b border-border/80 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/85 md:sticky md:top-0 md:z-20 md:-mx-6 md:px-6 -mx-4">
+      <div className="flex flex-col gap-3 py-3 sm:flex-row sm:items-start sm:justify-between md:py-3.5">
+        <div className="min-w-0 flex-1 space-y-1">
+          {eyebrow ? (
+            <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
+              {eyebrow}
+            </p>
+          ) : null}
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">
+              {title}
+            </h1>
+            {long ? (
+              <DeskHelpHint>
+                <p>{long}</p>
+              </DeskHelpHint>
+            ) : null}
+          </div>
+          {short ? (
+            <p className="max-w-2xl text-sm leading-snug text-muted-foreground line-clamp-2 sm:line-clamp-1">
+              {short}
+            </p>
+          ) : null}
+        </div>
+        {actions ? (
+          <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+            {actions}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** Small badge to drop into the page title row. */
+export function DeskTitleBadge({ children }: { children: ReactNode }) {
+  return <Badge variant="secondary">{children}</Badge>;
+}

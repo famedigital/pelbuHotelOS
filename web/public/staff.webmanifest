@@ -1,0 +1,19 @@
+{
+  "name": "Pelbu Staff",
+  "short_name": "Pelbu Staff",
+  "description": "Staff shifts, notices, leave and clock-in for Pelbu Suites.",
+  "start_url": "/staff",
+  "scope": "/staff",
+  "display": "standalone",
+  "background_color": "#f7f3ec",
+  "theme_color": "#1c1612",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/icons/staff-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

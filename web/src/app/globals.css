@@ -1,0 +1,902 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* =========================================================================
+   Pelbu Suites — public design tokens ("Sky, Citrus, Mint")
+   Legacy brand anchors (ivory / espresso / brass / paper) stay defined so
+   ERP utilities that still reference them continue to resolve. Public
+   shadcn semantics map onto the sky/citrus/mint ramp. Desk `.erp` below
+   overrides every semantic token and is unaffected by this public remap.
+   ========================================================================= */
+
+:root {
+  /* --- Legacy brand anchors (kept for ERP / portal utility classes) --- */
+  --ivory: #f7f3ec;
+  --ivory-soft: #fbf8f2;
+  --ivory-deep: #efe7d8;
+  --espresso: #1c1612;
+  --espresso-soft: #2a221c;
+  --espresso-mute: #3a3027;
+  --maroon: #7a1f1f;
+  --maroon-soft: #9a3535;
+  --gold: #b8892c;
+  --gold-soft: #d4a852;
+  --brass: #c19548;
+  --brass-soft: #d9b173;
+  --brass-hairline: rgba(193, 149, 72, 0.42);
+  --ink: #082f49;
+  --ink-soft: #0c4a6e;
+  --ink-rule: rgba(8, 47, 73, 0.12);
+  --paper-0: #f7fbfd;
+  --paper-1: #f0f7fb;
+  --paper-2: #eef4f8;
+  --paper-3: #d9e5ee;
+  --paper-4: #b8cddc;
+  --paper-5: #64748b;
+
+  /* --- Sky / Citrus / Mint premium ramp --- */
+  --sky-ink: #082f49;
+  --sky-900: #0c4a6e;
+  --sky-800: #075985;
+  --sky-700: #0369a1;
+  --sky-600: #0284c7;
+  --sky-500: #0ea5e9;
+  --sky-100: #e0f2fe;
+  --citrus-600: #d97706;
+  --citrus-500: #f59e0b;
+  --citrus-100: #fef3c7;
+  /* Deep evergreen anchor for the mint ramp. Dark enough to carry white body
+     text at glass opacities, where mint-600 is far too light. */
+  --mint-ink: #053b2f;
+  --mint-600: #059669;
+  --mint-500: #10b981;
+  --mint-100: #d1fae5;
+  --frost-0: #f7fbfd;
+  --frost-1: #f0f7fb;
+  --frost-2: #eef4f8;
+  --frost-3: #d9e5ee;
+
+  --muted: #475569;
+
+  --citrus: #f59e0b;
+  --citrus-soft: #fbbf24;
+  --citrus-tint: #fef3c7;
+
+  /* --- shadcn scale mapped to Sky / Citrus / Mint --- */
+  --background: var(--frost-0);
+  --foreground: var(--sky-ink);
+
+  --card: #ffffff;
+  --card-foreground: var(--sky-ink);
+
+  --popover: #ffffff;
+  --popover-foreground: var(--sky-ink);
+
+  --primary: var(--sky-600);
+  --primary-foreground: #ffffff;
+
+  --secondary: var(--frost-2);
+  --secondary-foreground: var(--sky-ink);
+
+  --muted-shadcn: var(--frost-2);
+  --muted-foreground: var(--muted);
+
+  --accent: var(--citrus-500);
+  --accent-foreground: var(--sky-ink);
+
+  --destructive: var(--maroon);
+  --destructive-foreground: #ffffff;
+
+  --border: var(--frost-3);
+  --input: var(--frost-3);
+  --ring: var(--sky-600);
+
+  --chart-1: var(--sky-600);
+  --chart-2: var(--citrus-500);
+  --chart-3: var(--mint-500);
+  --chart-4: var(--sky-800);
+  --chart-5: var(--mint-600);
+
+  --sidebar: var(--sky-ink);
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: var(--sky-500);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--sky-800);
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: var(--sky-800);
+  --sidebar-ring: var(--sky-500);
+
+  --radius: 0.875rem;
+
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+.dark {
+  /* Public evening mode — sky ink surfaces, citrus / mint accents */
+  --background: var(--sky-ink);
+  --foreground: #f8fafc;
+
+  --card: #0c4a6e;
+  --card-foreground: #f8fafc;
+
+  --popover: #0c4a6e;
+  --popover-foreground: #f8fafc;
+
+  --primary: var(--sky-500);
+  --primary-foreground: #ffffff;
+
+  --secondary: #0c4a6e;
+  --secondary-foreground: #f8fafc;
+
+  --muted-shadcn: #0c4a6e;
+  --muted-foreground: #94a3b8;
+
+  --accent: var(--citrus-500);
+  --accent-foreground: var(--sky-ink);
+
+  --destructive: var(--maroon-soft);
+  --destructive-foreground: #ffffff;
+
+  --border: #075985;
+  --input: #075985;
+  --ring: var(--sky-500);
+
+  --chart-1: var(--sky-500);
+  --chart-2: var(--citrus-500);
+  --chart-3: var(--mint-500);
+  --chart-4: #94a3b8;
+  --chart-5: var(--mint-100);
+
+  --sidebar: #051f33;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: var(--sky-500);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #0c4a6e;
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: #0c4a6e;
+  --sidebar-ring: var(--sky-500);
+}
+
+/* =========================================================================
+   ERP scope — "Sky & Citrus" (Tailwind sky + amber defaults).
+   Applied on any element carrying the `.erp` class (and inherited by
+   descendants). The public site palette is untouched. Only shadcn semantic
+   tokens are repointed here so every primitive re-themes automatically.
+   ========================================================================= */
+.erp {
+  --background: #f8fafc;            /* slate-50 */
+  --foreground: #0c1726;            /* deep ink (slate-950-ish) */
+
+  --card: #ffffff;
+  --card-foreground: #0c1726;
+
+  --popover: #ffffff;
+  --popover-foreground: #0c1726;
+
+  --primary: #0c1726;               /* deep ink */
+  --primary-foreground: #f8fafc;
+
+  --secondary: #e2e8f0;             /* slate-200 */
+  --secondary-foreground: #0c1726;
+
+  --muted-shadcn: #f1f5f9;          /* slate-100 */
+  --muted-foreground: #475569;      /* slate-600 */
+
+  --accent: #0ea5e9;                /* sky-500 */
+  --accent-foreground: #ffffff;
+
+  --destructive: #dc2626;           /* red-600, replaces maroon */
+  --destructive-foreground: #ffffff;
+
+  --border: #e2e8f0;                /* slate-200 */
+  --input: #e2e8f0;
+  --ring: #0ea5e9;                  /* sky-500 */
+
+  --chart-1: #0ea5e9;               /* sky-500 */
+  --chart-2: #f59e0b;               /* amber-500 */
+  --chart-3: #10b981;               /* emerald-500 */
+  --chart-4: #6366f1;               /* indigo-500 */
+  --chart-5: #ec4899;               /* pink-500 */
+
+  --sidebar: #0c1726;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: #0ea5e9;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1e293b;        /* slate-800 */
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: #1e293b;
+  --sidebar-ring: #0ea5e9;
+
+  /* Citrus (amber) — ERP-only success / money callout color */
+  --citrus: #f59e0b;                /* amber-500 */
+  --citrus-soft: #fbbf24;           /* amber-400 */
+  --citrus-tint: #fef3c7;           /* amber-100 */
+
+  /* Shadcn default radius — rounded edges everywhere in ERP.
+     Public site keeps the tight 4px --radius from :root. */
+  --radius: 0.625rem;               /* shadcn default style */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ERP mobile ergonomics: every legacy data table remains usable while modules
+   are progressively promoted to card views. :has is supported by the PWA
+   browser targets and turns old overflow-hidden table shells into scroll rails. */
+@media (max-width: 767px) {
+  .erp input,
+  .erp select,
+  .erp textarea {
+    font-size: 16px;
+  }
+
+  .erp :is(button, a)[class*="h-9"],
+  .erp :is(button, a)[class*="h-10"] {
+    min-height: 44px;
+  }
+
+  .erp .overflow-hidden:has(> table) {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .erp .overflow-hidden:has(> table) > table {
+    min-width: 680px;
+  }
+
+  .erp table th:first-child,
+  .erp table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--card);
+  }
+
+  .erp table thead th:first-child {
+    background: var(--muted-shadcn);
+  }
+}
+
+/* Desk premium utilities — scoped under .erp only (public brand untouched). */
+.erp .desk-premium-empty {
+  animation: desk-premium-fade-in 180ms ease-out;
+}
+
+.erp .desk-premium-enter {
+  animation: desk-premium-fade-in 200ms ease-out;
+}
+
+@keyframes desk-premium-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .erp .desk-premium-empty,
+  .erp .desk-premium-enter,
+  .erp .motion-safe\:duration-200 {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted-shadcn);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Citrus (amber) — success/money callouts. Bg/text/tint utilities:
+     bg-citrus, text-citrus, bg-citrus-tint, border-citrus, etc. */
+  --color-citrus: var(--citrus);
+  --color-citrus-soft: var(--citrus-soft);
+  --color-citrus-tint: var(--citrus-tint);
+  --color-citrus-500: var(--citrus-500);
+  --color-citrus-600: var(--citrus-600);
+
+  /* Public Sky / Mint ramp */
+  --color-sky-ink: var(--sky-ink);
+  --color-sky-900: var(--sky-900);
+  --color-sky-800: var(--sky-800);
+  --color-sky-700: var(--sky-700);
+  --color-sky-600: var(--sky-600);
+  --color-sky-500: var(--sky-500);
+  --color-sky-100: var(--sky-100);
+  --color-mint-ink: var(--mint-ink);
+  --color-mint-600: var(--mint-600);
+  --color-mint-500: var(--mint-500);
+  --color-mint-100: var(--mint-100);
+  --color-frost-0: var(--frost-0);
+  --color-frost-1: var(--frost-1);
+  --color-frost-2: var(--frost-2);
+  --color-frost-3: var(--frost-3);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Brand names exposed to Tailwind as `bg-ivory`, `text-gold`, etc. */
+  --color-ivory: var(--ivory);
+  --color-ivory-soft: var(--ivory-soft);
+  --color-ivory-deep: var(--ivory-deep);
+  --color-espresso: var(--espresso);
+  --color-espresso-soft: var(--espresso-soft);
+  --color-espresso-mute: var(--espresso-mute);
+  --color-maroon: var(--maroon);
+  --color-maroon-soft: var(--maroon-soft);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+
+  /* Direction B additions */
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-brass: var(--brass);
+  --color-brass-soft: var(--brass-soft);
+  --color-paper-0: var(--paper-0);
+  --color-paper-1: var(--paper-1);
+  --color-paper-2: var(--paper-2);
+  --color-paper-3: var(--paper-3);
+  --color-paper-4: var(--paper-4);
+  --color-paper-5: var(--paper-5);
+  /* Note: brand brown #6b5e52 is exposed as `text-muted-foreground`
+     (see above). `bg-muted` / `border-muted` resolve to the soft cream
+     per the shadcn contract — do not re-alias --color-muted here. */
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+}
+
+@keyframes accordion-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+    outline-color: color-mix(in oklab, var(--ring) 50%, transparent);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  /* Display headings pick up the Fraunces face via the .font-display utility.
+     Use `font-display` on h1/h2 heroes. Everything else inherits Inter. */
+
+  ::selection {
+    background: var(--sky-600);
+    color: #ffffff;
+  }
+}
+
+/* Quiet utilities — no brochure chrome (no bar-eyebrows, no brass rules). */
+
+@layer components {
+  /* Soft section label — plain text, not a PPT eyebrow. */
+  .label-quiet {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    font-weight: 500;
+    color: var(--muted);
+  }
+  .label-quiet--on-ink {
+    color: color-mix(in oklab, var(--ivory) 55%, transparent);
+  }
+
+  .font-display {
+    font-family: var(--font-display);
+    font-feature-settings: "ss01";
+  }
+
+  .lede {
+    font-size: clamp(1rem, 0.96rem + 0.15vw, 1.0625rem);
+    line-height: 1.65;
+    color: color-mix(in oklab, var(--sky-ink) 72%, var(--muted));
+  }
+
+  .media-card {
+    overflow: hidden;
+    border-radius: 1rem;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--card-foreground);
+    transition:
+      box-shadow 300ms ease,
+      transform 300ms ease,
+      border-color 300ms ease;
+  }
+  .media-card:hover {
+    border-color: color-mix(in oklab, var(--sky-600) 35%, var(--border));
+    box-shadow:
+      0 18px 40px -24px rgba(8, 47, 73, 0.35),
+      0 8px 16px -12px rgba(8, 47, 73, 0.18);
+  }
+  .media-card img {
+    transition: transform 400ms ease;
+  }
+  @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .media-card:hover img {
+      transform: scale(1.05);
+    }
+  }
+}
+
+@layer utilities {
+  .reveal {
+    opacity: 0;
+    transform: translateY(6px);
+    transition:
+      opacity 350ms ease-out,
+      transform 350ms ease-out;
+    will-change: opacity, transform;
+  }
+  .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  .ink-panel {
+    background: var(--ink);
+    color: var(--ivory);
+  }
+}
+
+/* =========================================================================
+   POS / KDS fullscreen.
+   The fullscreen toggle calls the native Fullscreen API on documentElement
+   (true browser fullscreen). We *also* add `body.pos-fs` so the desk
+   sidebar / header / mobile nav hide while in fullscreen — the native API
+   promotes the page but doesn't remove those elements from the DOM.
+   .pos-fs-shell switches the surface to `fixed inset-0` for the CSS-only
+   fallback (iOS Safari before 16.4 / locked webviews).
+   ========================================================================= */
+body.pos-fs {
+  overflow: hidden;
+}
+/* Hide desk chrome inside fullscreen — the sidebar rail, its trigger, the
+   desk header bar, and the mobile bottom nav. The `sidebar-inset` is the
+   POS content's <main> wrapper, so we must NOT hide it; we only let it
+   stretch to fill the now-hidden sidebar's space. */
+body.pos-fs .erp [data-sidebar="sidebar"],
+body.pos-fs .erp [data-sidebar="rail"],
+body.pos-fs .erp [data-slot="sidebar"],
+body.pos-fs .erp [data-slot="sidebar-trigger"],
+body.pos-fs .erp [data-slot="sidebar-rail"],
+body.pos-fs .erp [data-slot="sidebar-inset"] > header,
+body.pos-fs .erp [data-slot="desk-mobile-nav"],
+body.pos-fs .erp [data-slot="desk-nav-trigger"] {
+  display: none !important;
+}
+/* The inset normally reserves space beside the sidebar; with the sidebar
+   gone it should fill the viewport. The shadcn SidebarProvider sets a CSS
+   var for sidebar width on the wrapper — overriding it to 0 collapses the
+   gap so the POS gets the full width. */
+body.pos-fs .erp [data-slot="sidebar-wrapper"] {
+  --sidebar-width: 0px !important;
+  --sidebar-width-mobile: 0px !important;
+}
+/* Stay View phone: hide the desk header so the day list / rack gets the screen.
+   Landscape / short screens also hide the bottom nav — the rack overlay covers it. */
+@media (max-width: 767px) {
+  .erp:has([data-stay-view]) [data-slot="sidebar-inset"] > header {
+    display: none !important;
+  }
+}
+@media (max-height: 640px) and (orientation: landscape) {
+  .erp:has([data-stay-view]) [data-slot="sidebar-inset"] > header,
+  .erp:has([data-stay-view]) [data-slot="desk-mobile-nav"] {
+    display: none !important;
+  }
+}
+
+body.pos-fs .erp [data-slot="sidebar-inset"] {
+  width: 100% !important;
+}
+.pos-fs-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow-y: auto;
+  background: var(--background);
+  color: var(--foreground);
+  padding: 0.75rem;
+}
+.pos-fs-shell > * {
+  min-width: 0;
+}
+
+/* Keyboard shortcut chip — used in the help overlay and inline hints. */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid hsl(var(--border));
+  border-bottom-width: 2px;
+  border-radius: 0.35rem;
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* =========================================================================
+   Branded first-paint splash (BrandSplash + SplashController).
+   SSR overlay shown on the public site while the app loads, then faded out.
+   ========================================================================= */
+#pelbu-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 24px;
+  background: var(--ivory-soft);
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 500ms ease;
+}
+/* Driven by data-splash on <html> — never mutate #pelbu-splash itself. */
+html[data-splash="off"] #pelbu-splash {
+  display: none;
+}
+html[data-splash="done"] #pelbu-splash {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 500ms ease,
+    visibility 0s linear 500ms;
+}
+
+.pelbu-splash__stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+}
+
+.pelbu-splash__mark {
+  width: 96px;
+  height: 96px;
+  border-radius: 22px;
+  animation: pelbu-splash-pop 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Thin rotating gold arc orbiting the mark. */
+.pelbu-splash__ring {
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 62%,
+    var(--gold-soft) 90%,
+    transparent 100%
+  );
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 4px),
+    #000 calc(100% - 3px)
+  );
+  mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 4px),
+    #000 calc(100% - 3px)
+  );
+  animation: pelbu-splash-spin 900ms linear infinite;
+}
+
+.pelbu-splash__word {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  letter-spacing: 0.02em;
+  color: var(--espresso);
+  animation: pelbu-splash-rise 620ms ease-out 120ms both;
+}
+
+@keyframes pelbu-splash-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes pelbu-splash-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes pelbu-splash-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+  /* Keep the splash legible but static for reduced-motion users. */
+  .pelbu-splash__ring {
+    animation: none;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0 62%,
+      var(--gold-soft) 90%,
+      transparent 100%
+    );
+  }
+}
+
+/* Desk booking confirmation: host is screen-hidden; print reveals one sheet */
+.desk-print-host {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  pointer-events: none;
+}
+
+@media print {
+  html[data-desk-print] body * {
+    visibility: hidden !important;
+  }
+  html[data-desk-print] .desk-print-host {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    clip: auto !important;
+    white-space: normal !important;
+    pointer-events: auto !important;
+  }
+  html[data-desk-print="note"] #print-booking-note,
+  html[data-desk-print="note"] #print-booking-note *,
+  html[data-desk-print="voucher"] #print-agent-voucher,
+  html[data-desk-print="voucher"] #print-agent-voucher *,
+  html[data-desk-print="reg"] #print-reg-card,
+  html[data-desk-print="reg"] #print-reg-card *,
+  html[data-desk-print="reg-party"] #print-reg-party,
+  html[data-desk-print="reg-party"] #print-reg-party *,
+  html[data-desk-print="settlement"] #print-agent-settlement,
+  html[data-desk-print="settlement"] #print-agent-settlement * {
+    visibility: visible !important;
+  }
+  html[data-desk-print="note"] #print-booking-note,
+  html[data-desk-print="voucher"] #print-agent-voucher,
+  html[data-desk-print="reg"] #print-reg-card,
+  html[data-desk-print="settlement"] #print-agent-settlement {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 10mm 12mm !important;
+    background: white !important;
+    color: #111 !important;
+    z-index: 2147483647 !important;
+    box-sizing: border-box !important;
+  }
+  html[data-desk-print="reg-party"] #print-reg-party {
+    position: static !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 10mm 12mm !important;
+    background: white !important;
+    color: #111 !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* Desk booking confirmation: print only the active sheet */
+@media print {
+  .catalogue-print {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  .catalogue-print img {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .catalogue-print section {
+    break-inside: avoid;
+  }
+
+  /* Default document margins (A4 / untagged pages) */
+  @page {
+    margin: 12mm;
+  }
+
+  /* Document print sizes (invoice / receipt) — set data-doc-paper on <html> */
+  html[data-doc-paper="a4"] {
+    width: auto;
+    page: a4-doc;
+  }
+  html[data-doc-paper="a4"] body {
+    background: white !important;
+  }
+  html[data-doc-paper="thermal"] {
+    page: thermal-doc;
+  }
+  html[data-doc-paper="thermal"] body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}
+
+@page a4-doc {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
+@page thermal-doc {
+  size: 80mm auto;
+  margin: 3mm;
+}
+
+@media print {
+  html[data-doc-paper="a4"] .doc-print-sheet {
+    max-width: 720px !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+  html[data-doc-paper="thermal"] .doc-print-sheet {
+    max-width: 72mm !important;
+    width: 72mm !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    font-size: 11px !important;
+  }
+  html[data-doc-paper="thermal"] .doc-print-sheet h1 {
+    font-size: 1.05rem !important;
+  }
+  html[data-doc-paper="thermal"] .doc-print-sheet img {
+    max-height: 40px !important;
+  }
+  /* Fiscal tax invoice — compact thermal, preserve A4 letterhead hierarchy */
+  html[data-doc-paper="thermal"] .fiscal-invoice-sheet {
+    padding: 0 !important;
+  }
+  html[data-doc-paper="thermal"] .fiscal-invoice-letterhead {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+  html[data-doc-paper="thermal"] .fiscal-invoice-sheet .fiscal-invoice-lines th,
+  html[data-doc-paper="thermal"] .fiscal-invoice-sheet .fiscal-invoice-lines td {
+    padding-top: 0.35rem !important;
+    padding-bottom: 0.35rem !important;
+  }
+  html[data-doc-paper="thermal"] .fiscal-invoice-stay {
+    margin-top: 0.65rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+  html[data-doc-paper="thermal"] .fiscal-invoice-stay dl {
+    grid-template-columns: 1fr !important;
+    gap: 0.35rem !important;
+  }
+  html[data-doc-paper="thermal"] .fiscal-invoice-stay-note {
+    display: none !important;
+  }
+  html[data-doc-paper="a4"] .fiscal-invoice-sheet {
+    color: #171717 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

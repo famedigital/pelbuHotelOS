@@ -1,0 +1,18 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["sin1"],
+  "crons": [
+    {
+      "path": "/api/cron/expire-holds",
+      "schedule": "5 2 * * *"
+    },
+    {
+      "path": "/api/staff/notifications/drain",
+      "schedule": "20 2 * * *"
+    },
+    {
+      "path": "/api/cron/night-audit",
+      "schedule": "0 18 * * *"
+    }
+  ]
+}

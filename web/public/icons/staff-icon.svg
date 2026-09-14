@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Pelbu Staff">
+  <rect width="512" height="512" rx="112" fill="#1c1612"/>
+  <path d="M128 352V160h132c74 0 124 37 124 101 0 65-50 103-124 103h-58v-54h56c34 0 54-17 54-48 0-30-20-47-54-47h-58v137z" fill="#f7f3ec"/>
+  <circle cx="382" cy="132" r="34" fill="#c69b56"/>
+</svg>

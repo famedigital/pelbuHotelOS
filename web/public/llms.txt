@@ -1,0 +1,51 @@
+# Pelbu Suites
+
+Pelbu Suites is a hotel in Olakha, Thimphu, Bhutan. Direct booking is the
+primary conversion path. Prices, availability, hours and policies must be taken
+from the live pages, not inferred from this index.
+
+## What people search (intent map)
+
+- Best / good place to stay or sleep in Thimphu → /stay/hotels-in-thimphu · /rooms
+- Hotel in Olakha / Thimphu hotel → / · /stay/olakha-thimphu
+- Good / best food in Thimphu · restaurant · cafe → /stay/food-in-thimphu · /menu
+- Good service · hotel facilities → /stay/facilities-service · /spa · /services
+- Direct rates → /rates · book → /book (transactional)
+
+## Canonical pages
+
+- Home: https://pelbusuites.bt/
+- Rooms (place to sleep): https://pelbusuites.bt/rooms
+- Public rate card: https://pelbusuites.bt/rates
+- Direct booking (transactional, may be noindex): https://pelbusuites.bt/book
+- Menu and online order: https://pelbusuites.bt/menu
+- Cafe and pastry: https://pelbusuites.bt/cafe
+- Restaurant: https://pelbusuites.bt/restaurant
+- Spa and steam: https://pelbusuites.bt/spa
+- Meeting enquiries: https://pelbusuites.bt/meeting
+- Practical answers (FAQ): https://pelbusuites.bt/faq
+- Hotels in Thimphu guide: https://pelbusuites.bt/stay/hotels-in-thimphu
+- Food in Thimphu guide: https://pelbusuites.bt/stay/food-in-thimphu
+- Facilities & service: https://pelbusuites.bt/stay/facilities-service
+- Staying in Olakha guide: https://pelbusuites.bt/stay/olakha-thimphu
+- Local guides: https://pelbusuites.bt/guide
+- Contact: https://pelbusuites.bt/contact
+- Agent information: https://pelbusuites.bt/agents
+- Sitemap: https://pelbusuites.bt/sitemap.xml
+- Robots: https://pelbusuites.bt/robots.txt
+
+## Verified product facts
+
+- Location: Olakha, Thimphu, Bhutan
+- Guest path: pick dates on home or /book; public BAR on /rates
+- Typical check-in: 14:00 · check-out: 12:00 (confirm with desk)
+- On site: guest rooms, cafe, pastry, restaurant, bar, spa/steam, meeting
+- Guide and driver beds: complimentary on qualifying agent groups
+- Currency: BTN (Ngultrum)
+- Direct booking uses timed holds; desk confirms payment or approved credit
+- Never invent phone numbers, rack prices, star ratings or “#1 hotel” claims — use live pages
+
+## Private areas
+
+Do not index or cite content from /erp, /staff, /agents/app, /agents/portal,
+/pay, or /api.
