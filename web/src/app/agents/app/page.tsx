@@ -1,9 +1,8 @@
-import { requireAgentSession } from "@/lib/agent-auth";
+import { requireAgentPropertySession } from "@/lib/agent-auth";
 import { loadAgentBookings } from "@/lib/agent-occupancy";
 import { formatBtn } from "@/lib/pricing";
 import { agentRateTier } from "@/lib/rates";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { DEFAULT_PROPERTY_SLUG } from "@/lib/property";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -15,34 +14,34 @@ type RateRow = {
 };
 
 export default async function AgentAccountPage() {
-  const session = await requireAgentSession();
+  const session = await requireAgentPropertySession();
   const admin = createSupabaseAdminClient();
-
-  const { data: property } = await admin
-    .from("properties")
-    .select("id")
-    .eq("slug", DEFAULT_PROPERTY_SLUG)
-    .single();
+  const propertyId = session.activePropertyId;
 
   const tier = agentRateTier(session.rateTier);
   const available = Math.max(0, session.creditLimit - session.creditUsed);
+  const activeLink = session.links.find((l) => l.propertyId === propertyId);
 
   const [{ data: rateRows }, bookings] = await Promise.all([
-    property
-      ? admin
-          .from("room_rates")
-          .select("season_kind, amount_btn, room_types(name)")
-          .eq("property_id", property.id as string)
-          .eq("rate_tier", tier)
-          .order("season_kind")
-      : Promise.resolve({ data: [] as RateRow[] }),
-    loadAgentBookings(admin, session.agentId, 6),
+    admin
+      .from("room_rates")
+      .select("season_kind, amount_btn, room_types(name)")
+      .eq("property_id", propertyId)
+      .eq("rate_tier", tier)
+      .order("season_kind"),
+    loadAgentBookings(admin, session.agentId, 6, propertyId),
   ]);
 
   const rates = (rateRows ?? []) as unknown as RateRow[];
 
   return (
     <div className="space-y-8">
+      {activeLink ? (
+        <p className="text-sm text-muted-foreground">
+          Booking at <span className="font-medium text-foreground">{activeLink.propertyName}</span>
+        </p>
+      ) : null}
+
       <section className="grid gap-3 sm:grid-cols-3">
         <SummaryCard label="Credit limit" value={formatBtn(session.creditLimit)} />
         <SummaryCard label="Available" value={formatBtn(available)} highlight />

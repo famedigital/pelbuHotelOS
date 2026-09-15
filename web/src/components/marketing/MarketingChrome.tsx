@@ -3,17 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { InnoraLogo } from "@/components/marketing/InnoraLogo";
+import { MarketingMegaNav } from "@/components/marketing/MarketingMegaNav";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 import { cn } from "@/lib/utils";
-
-const NAV = [
-  { href: "/pricing", label: "Pricing" },
-  { href: "/for/leased", label: "Leased" },
-  { href: "/for/independent", label: "Independent" },
-  { href: "/for/chain", label: "Chains" },
-  { href: "/conditions", label: "Conditions" },
-  { href: "/demo", label: "Demo" },
-];
 
 export function MarketingHeader() {
   const pathname = usePathname();
@@ -27,7 +19,7 @@ export function MarketingHeader() {
           : "border-b border-border/60 bg-background/90",
       )}
     >
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
+      <div className="relative mx-auto flex max-w-6xl items-center justify-between gap-4">
         <Link href="/" className="transition-opacity hover:opacity-90">
           <InnoraLogo
             variant={onHome ? "light" : "default"}
@@ -35,59 +27,28 @@ export function MarketingHeader() {
             wordmarkClassName={onHome ? "text-white" : "text-foreground"}
           />
         </Link>
-        <nav
-          className={cn(
-            "hidden items-center gap-6 text-sm lg:flex",
-            onHome ? "text-white/80" : "text-muted-foreground",
-          )}
-        >
-          {NAV.map((item) => {
-            const active =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "relative transition-colors",
-                  onHome ? "hover:text-white" : "hover:text-foreground",
-                  active && (onHome ? "text-white" : "text-foreground"),
-                )}
-              >
-                {item.label}
-                <span
-                  className={cn(
-                    "absolute -bottom-1 left-0 h-0.5 w-full origin-left rounded-full bg-cta transition-transform duration-300",
-                    active ? "scale-x-100" : "scale-x-0",
-                  )}
-                />
-              </Link>
-            );
-          })}
-          <Link
-            href="/login"
-            className={cn(
-              "rounded-full px-3.5 py-1.5 transition",
-              onHome
-                ? "bg-white/15 text-white hover:bg-white/25"
-                : "bg-secondary text-secondary-foreground hover:opacity-90",
-            )}
-          >
-            Login
-          </Link>
-          <Link
-            href="/demo"
-            className="rounded-full bg-cta px-3.5 py-1.5 text-sm font-semibold transition"
-          >
-            Book a demo
-          </Link>
-        </nav>
-        <Link
-          href="/demo"
-          className="rounded-full bg-cta px-3.5 py-1.5 text-sm font-semibold lg:hidden"
-        >
-          Demo
-        </Link>
+        <div className="flex flex-1 items-center justify-end gap-3 lg:justify-between lg:pl-8">
+          <MarketingMegaNav onHome={onHome} />
+          <div className="hidden items-center gap-2 lg:flex">
+            <Link
+              href="/login"
+              className={cn(
+                "rounded-full px-3.5 py-1.5 text-sm transition",
+                onHome
+                  ? "bg-white/15 text-white hover:bg-white/25"
+                  : "bg-secondary text-secondary-foreground hover:opacity-90",
+              )}
+            >
+              Login
+            </Link>
+            <Link
+              href="/demo"
+              className="rounded-full bg-cta px-3.5 py-1.5 text-sm font-semibold transition"
+            >
+              Book a demo
+            </Link>
+          </div>
+        </div>
       </div>
     </header>
   );

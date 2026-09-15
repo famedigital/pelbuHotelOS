@@ -8,11 +8,17 @@ import {
   provisionAgentAuthUser,
   validateAgentPin,
 } from "@/lib/agent-auth";
-import { CREDIT_AGENT_STATUSES, isCreditAgentStatus } from "@/lib/agents/status";
+import { isCreditAgentStatus } from "@/lib/agents/status";
+import {
+  AGENT_PROPERTY_COOKIE,
+  getAgentPropertyLink,
+  loadApprovedAgentLinks,
+} from "@/lib/erp/agent-property-links";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { trimRequired } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 export type AgentLoginState = {
@@ -27,6 +33,20 @@ function isRedirect(error: unknown): boolean {
     "digest" in error &&
     String((error as { digest?: string }).digest).startsWith("NEXT_REDIRECT")
   );
+}
+
+async function setAgentPropertyCookie(propertyId: string | null) {
+  const jar = await cookies();
+  if (!propertyId) {
+    jar.delete(AGENT_PROPERTY_COOKIE);
+    return;
+  }
+  jar.set(AGENT_PROPERTY_COOKIE, propertyId, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 90,
+  });
 }
 
 export async function agentLogin(
@@ -44,12 +64,20 @@ export async function agentLogin(
       .from("agents")
       .select("id, company_name, login_code, auth_user_id, can_login, status")
       .eq("login_code", loginCode)
-      .in("status", [...CREDIT_AGENT_STATUSES])
       .maybeSingle();
 
     if (error) throw new Error("Could not look up agent login.");
     if (!agent || !agent.can_login || !agent.auth_user_id) {
       return { ok: false, error: "Incorrect agent code or PIN." };
+    }
+
+    const links = await loadApprovedAgentLinks(admin, agent.id as string);
+    if (links.length === 0) {
+      return {
+        ok: false,
+        error:
+          "No hotel has enabled portal access for this agent yet. Ask the front desk to link you.",
+      };
     }
 
     const supabase = await createSupabaseServerClient();
@@ -66,7 +94,13 @@ export async function agentLogin(
       .update({ last_login_at: new Date().toISOString() })
       .eq("id", agent.id);
 
-    redirect("/agents/app");
+    if (links.length === 1) {
+      await setAgentPropertyCookie(links[0]!.propertyId);
+      redirect("/agents/app");
+    }
+
+    await setAgentPropertyCookie(null);
+    redirect("/agents/app/select-property");
   } catch (error) {
     if (isRedirect(error)) throw error;
     return {
@@ -78,13 +112,34 @@ export async function agentLogin(
 
 export async function agentLogout(): Promise<void> {
   const supabase = await createSupabaseServerClient();
+  await setAgentPropertyCookie(null);
   await supabase.auth.signOut();
   redirect("/agents/login");
 }
 
+export async function setAgentActiveProperty(
+  formData: FormData,
+): Promise<void> {
+  const session = await getAgentSession();
+  if (!session) redirect("/agents/login");
+
+  const propertyId = String(formData.get("property_id") ?? "").trim();
+  const allowed = session.links.some(
+    (l) => l.propertyId === propertyId && l.status === "approved",
+  );
+  if (!allowed) {
+    redirect("/agents/app/select-property");
+  }
+
+  await setAgentPropertyCookie(propertyId);
+  revalidatePath("/agents/app");
+  redirect("/agents/app");
+}
+
 /**
- * Desk-only: enable agent code + PIN login. Requires an active desk session and
- * an approved/demo agent. Generates a stable login code if none exists.
+ * Desk-only: enable agent code + PIN login. Linking a hotel does not create Auth;
+ * PIN is once per agent identity. Requires approved link at active hotel or
+ * legacy approved/demo status.
  */
 export async function setAgentPortalPin(
   _previous: { ok: boolean; error?: string; message?: string },
@@ -110,8 +165,14 @@ export async function setAgentPortalPin(
       .eq("id", agentId)
       .maybeSingle();
     if (error || !agent) throw new Error("Agent not found.");
-    if (!isCreditAgentStatus(agent.status as string)) {
-      throw new Error("Only approved or demo agents can receive a login PIN.");
+
+    const link = await getAgentPropertyLink(admin, agentId, propertyId);
+    const creditOk = isCreditAgentStatus(agent.status as string);
+    const linkOk = link?.status === "approved";
+    if (!creditOk && !linkOk) {
+      throw new Error(
+        "Link this agent to the hotel (approved) before enabling a portal PIN.",
+      );
     }
 
     let loginCode = (agent.login_code as string | null) ?? null;

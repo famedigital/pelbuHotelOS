@@ -1,4 +1,10 @@
-import { isCreditAgentStatus } from "@/lib/agents/status";
+import { cookies } from "next/headers";
+import {
+  AGENT_PROPERTY_COOKIE,
+  loadApprovedAgentLinks,
+  resolveActiveLinkFromCookie,
+  type AgentPropertyLink,
+} from "@/lib/erp/agent-property-links";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
@@ -10,9 +16,15 @@ export type AgentSession = {
   authUserId: string;
   companyName: string;
   market: string;
+  /** Platform registry status on agents row. */
   status: string;
-  rateTier: string;
   loginCode: string;
+  /** Approved hotel memberships. */
+  links: AgentPropertyLink[];
+  /** Active hotel from cookie (null when agent must pick). */
+  activePropertyId: string | null;
+  /** Commercial terms for active hotel; null until property selected. */
+  rateTier: string;
   creditLimit: number;
   creditUsed: number;
 };
@@ -35,7 +47,19 @@ export function normalizeAgentLoginCode(value: string): string {
   return value.trim().toUpperCase().replace(/\s+/g, "-");
 }
 
-/** Approved/demo agents only — a session for any other status is treated as none. */
+async function readAgentPropertyCookie(): Promise<string | null> {
+  try {
+    const jar = await cookies();
+    return jar.get(AGENT_PROPERTY_COOKIE)?.value?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Portal session: Auth + can_login + ≥1 approved property link.
+ * Platform agents.status may be directory/approved/demo — membership is the link.
+ */
 export async function getAgentSession(): Promise<AgentSession | null> {
   const supabase = await createSupabaseServerClient();
   const {
@@ -47,18 +71,25 @@ export async function getAgentSession(): Promise<AgentSession | null> {
   const { data } = await admin
     .from("agents")
     .select(
-      "id, company_name, market, status, rate_tier, login_code, credit_limit, credit_used, can_login, auth_user_id",
+      "id, company_name, market, status, login_code, can_login, auth_user_id",
     )
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
-  if (
-    !data ||
-    !data.can_login ||
-    !isCreditAgentStatus(data.status as string)
-  ) {
+  if (!data || !data.can_login) {
     return null;
   }
+
+  let links: AgentPropertyLink[];
+  try {
+    links = await loadApprovedAgentLinks(admin, data.id as string);
+  } catch {
+    return null;
+  }
+  if (links.length === 0) return null;
+
+  const cookieId = await readAgentPropertyCookie();
+  const active = resolveActiveLinkFromCookie(links, cookieId);
 
   return {
     agentId: data.id as string,
@@ -66,10 +97,12 @@ export async function getAgentSession(): Promise<AgentSession | null> {
     companyName: data.company_name as string,
     market: data.market as string,
     status: data.status as string,
-    rateTier: data.rate_tier as string,
     loginCode: (data.login_code as string | null) ?? "",
-    creditLimit: Number(data.credit_limit ?? 0),
-    creditUsed: Number(data.credit_used ?? 0),
+    links,
+    activePropertyId: active?.propertyId ?? null,
+    rateTier: active?.rateTier ?? "agents",
+    creditLimit: active?.creditLimit ?? 0,
+    creditUsed: active?.creditUsed ?? 0,
   };
 }
 
@@ -77,6 +110,17 @@ export async function requireAgentSession(): Promise<AgentSession> {
   const session = await getAgentSession();
   if (!session) redirect("/agents/login");
   return session;
+}
+
+/** Require session with an active approved property (redirect to picker if needed). */
+export async function requireAgentPropertySession(): Promise<
+  AgentSession & { activePropertyId: string }
+> {
+  const session = await requireAgentSession();
+  if (!session.activePropertyId) {
+    redirect("/agents/app/select-property");
+  }
+  return session as AgentSession & { activePropertyId: string };
 }
 
 export async function provisionAgentAuthUser(

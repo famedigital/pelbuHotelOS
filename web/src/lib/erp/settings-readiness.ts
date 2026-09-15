@@ -10,6 +10,7 @@ export type SettingsTabKey =
   | "rooms"
   | "compliance"
   | "finance-imports"
+  | "website-api"
   | "danger";
 
 export type SettingsCheck = {
@@ -62,6 +63,23 @@ export const SETTINGS_SEARCH_INDEX: SettingsSearchEntry[] = [
       "scheduled",
     ],
     blurb: "Name, logo, address, and desk shift restriction",
+  },
+  {
+    label: "Website & channel API",
+    tab: "website-api",
+    keywords: [
+      "api",
+      "key",
+      "website",
+      "channel",
+      "manager",
+      "ari",
+      "inventory",
+      "integration",
+      "channex",
+      "ota",
+    ],
+    blurb: "API keys for hotel website and channel managers",
   },
   {
     label: "Room inventory",
@@ -351,6 +369,12 @@ export const SETTINGS_DIRECTORY: {
     label: "Finance imports",
     tab: "finance-imports",
     blurb: "Bank and receipt parsers",
+    group: "Advanced",
+  },
+  {
+    label: "Website & channel API",
+    tab: "website-api",
+    blurb: "API keys for website and channel managers",
     group: "Advanced",
   },
 ];

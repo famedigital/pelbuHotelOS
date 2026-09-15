@@ -31,22 +31,34 @@ export function StaffLoginForm({
       <input type="hidden" name="workspace" value={workspace} />
       {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
       <div className="space-y-1.5">
-        <Label htmlFor="employee_code">Employee code</Label>
+        <Label htmlFor="hotel_code">Hotel code</Label>
         <Input
-          id="employee_code"
-          name="employee_code"
+          id="hotel_code"
+          name="hotel_code"
+          autoCapitalize="characters"
+          autoComplete="organization"
+          placeholder="PELBU-SUITES-OLAKHA"
+          required
+          className="h-11 uppercase"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="user_id">User ID</Label>
+        <Input
+          id="user_id"
+          name="user_id"
           autoCapitalize="characters"
           autoComplete="username"
-          placeholder="EMP-0001"
+          placeholder="OWNER"
           required
           className="h-11"
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="staff_pin">PIN</Label>
+        <Label htmlFor="staff_password">Password</Label>
         <Input
-          id="staff_pin"
-          name="pin"
+          id="staff_password"
+          name="password"
           type="password"
           inputMode="numeric"
           autoComplete="current-password"

@@ -209,15 +209,70 @@ export async function onboardHotel(formData: FormData): Promise<void> {
         amc_amount_btn: amcAmount || null,
         go_live_checklist: checklist,
         is_demo: false,
+        setup_step: 1,
+        setup_completed_at: null,
       })
-      .select("id")
+      .select("id, slug")
       .single();
 
     if (pErr) throw new Error(pErr.message);
 
+    // First owner credentials (eZee-style hotel code + user ID + password).
+    const { provisionStaffAuthUser } = await import("@/lib/staff-auth");
+    const ownerUserId = "OWNER";
+    const ownerPassword = String(
+      10000000 + Math.floor(Math.random() * 90000000),
+    ); // 8-digit initial password
+    const { data: ownerStaff, error: ownerErr } = await admin
+      .from("staff_members")
+      .insert({
+        property_id: property.id,
+        full_name: ownerName,
+        role_label: "manager",
+        employee_code: ownerUserId,
+        access_level: "owner",
+        desk_role: "owner",
+        can_login: false,
+        can_access_desk: true,
+        status: "active",
+        employment_type: "full_time",
+      })
+      .select("id, property_id, employee_code, full_name, access_level, auth_user_id")
+      .single();
+    if (ownerErr || !ownerStaff) {
+      throw new Error(ownerErr?.message || "Could not create owner staff.");
+    }
+
+    const authUserId = await provisionStaffAuthUser(
+      admin,
+      {
+        id: ownerStaff.id as string,
+        property_id: ownerStaff.property_id as string,
+        employee_code: ownerStaff.employee_code as string,
+        full_name: ownerStaff.full_name as string,
+        access_level: ownerStaff.access_level as string,
+        auth_user_id: null,
+      },
+      ownerPassword,
+    );
+    await admin
+      .from("staff_members")
+      .update({
+        auth_user_id: authUserId,
+        can_login: true,
+        pin_set_at: new Date().toISOString(),
+      })
+      .eq("id", ownerStaff.id);
+
     await audit(
       "hotel.onboard",
-      { hotelName, packageCode, amcAmount },
+      {
+        hotelName,
+        packageCode,
+        amcAmount,
+        hotelCode: property.slug,
+        ownerUserId,
+      },
       {
         actor_email: actorEmail,
         actor_role: actorRole,
@@ -229,10 +284,15 @@ export async function onboardHotel(formData: FormData): Promise<void> {
 
     revalidatePath("/admin/hotels");
     revalidatePath("/partner/hotels");
+    const credQs = new URLSearchParams({
+      hotel_code: String(property.slug),
+      user_id: ownerUserId,
+      password: ownerPassword,
+    });
     if (actorRole === "distributor") {
-      redirect(`/partner/hotels/${property.id}`);
+      redirect(`/partner/hotels/${property.id}?${credQs.toString()}`);
     }
-    redirect(`/admin/hotels/${property.id}`);
+    redirect(`/admin/hotels/${property.id}?${credQs.toString()}`);
   } catch (e) {
     if (isRedirectError(e)) throw e;
     throw e instanceof Error ? e : new Error("Failed");

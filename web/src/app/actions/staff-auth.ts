@@ -37,33 +37,52 @@ export async function staffLogin(
       };
     }
 
-    const employeeCode = trimRequired(formData.get("employee_code"), "Employee code")
+    // eZee-style: Hotel code + User ID + Password (password field; legacy "pin" accepted).
+    const hotelCode = trimRequired(formData.get("hotel_code"), "Hotel code")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-");
+    const employeeCode = trimRequired(
+      formData.get("user_id") ?? formData.get("employee_code"),
+      "User ID",
+    )
       .toUpperCase()
       .replace(/\s+/g, "-");
-    const pin = validateStaffPin(String(formData.get("pin") ?? ""));
+    const passwordRaw = String(
+      formData.get("password") ?? formData.get("pin") ?? "",
+    );
+    const pin = validateStaffPin(passwordRaw);
     const { safeStaffNextPath } = await import("@/lib/safe-staff-next");
     const returnNext = safeStaffNextPath(String(formData.get("next") ?? ""));
 
     const admin = createSupabaseAdminClient();
-    const { data: staff, error } = await admin
+    const { data: property, error: propError } = await admin
+      .from("properties")
+      .select("id, slug")
+      .ilike("slug", hotelCode)
+      .maybeSingle();
+    if (propError) throw new Error("Could not look up hotel code.");
+    if (!property) {
+      return { ok: false, error: "Incorrect hotel code, user ID, or password." };
+    }
+
+    const { data: member, error } = await admin
       .from("staff_members")
       .select(
         "id, property_id, employee_code, full_name, access_level, desk_role, auth_user_id, can_login, can_access_desk, status",
       )
+      .eq("property_id", property.id as string)
       .eq("employee_code", employeeCode)
       .in("status", ["active", "on_leave"])
-      .limit(2);
+      .maybeSingle();
 
     if (error) throw new Error("Could not look up staff login.");
-    if (!staff?.length) throw new Error("Incorrect employee code or PIN.");
-    if (staff.length > 1) {
-      throw new Error("Multiple properties share this code. Contact HR.");
+    if (!member) {
+      return { ok: false, error: "Incorrect hotel code, user ID, or password." };
     }
-
-    const member = staff[0];
     if (!member.can_login || !member.auth_user_id) {
       throw new Error(
-        "Ask HR to enable your staff login PIN first (Team → person → Set PIN).",
+        "Ask HR to enable your staff login password first (Team → person → Set PIN).",
       );
     }
 
@@ -80,7 +99,7 @@ export async function staffLogin(
       password: pin,
     });
     if (signInError) {
-      return { ok: false, error: "Incorrect employee code or PIN." };
+      return { ok: false, error: "Incorrect hotel code, user ID, or password." };
     }
 
     if (wantsDesk && !member.can_access_desk) {
@@ -88,7 +107,7 @@ export async function staffLogin(
       return {
         ok: false,
         error:
-          "Your PIN works, but hotel desk is off for this account. Ask HR or a manager to turn on “Allow hotel desk (/erp)” and set a desk role (front desk, cashier, etc.).",
+          "Your password works, but hotel desk is off for this account. Ask HR or a manager to turn on “Allow hotel desk (/erp)” and set a desk role (front desk, cashier, etc.).",
       };
     }
 
@@ -144,20 +163,30 @@ export async function staffLogin(
     const deskRole = normalizeDeskRole((member.desk_role as string | null) ?? null);
     const deskHome = resolveDeskHomeHref({ deskRole, pinOnlySession: false });
 
-    if (mayOpenDesk) {
+    {
       const { cookies } = await import("next/headers");
+      const { ACTIVE_PROPERTY_COOKIE } = await import("@/lib/property-context");
       const jar = await cookies();
-      const stored = jar.get(DESK_WORKSPACE_COOKIE)?.value;
-      const workspace = isDeskWorkspace(stored)
-        ? stored
-        : defaultWorkspaceForRole(deskRole);
-      jar.set(DESK_WORKSPACE_COOKIE, workspace, {
-        httpOnly: false,
+      jar.set(ACTIVE_PROPERTY_COOKIE, member.property_id as string, {
+        httpOnly: true,
         sameSite: "lax",
         secure: process.env.NODE_ENV === "production",
         path: "/",
-        maxAge: DESK_WORKSPACE_COOKIE_MAX_AGE,
+        maxAge: 60 * 60 * 24 * 90,
       });
+      if (mayOpenDesk) {
+        const stored = jar.get(DESK_WORKSPACE_COOKIE)?.value;
+        const workspace = isDeskWorkspace(stored)
+          ? stored
+          : defaultWorkspaceForRole(deskRole);
+        jar.set(DESK_WORKSPACE_COOKIE, workspace, {
+          httpOnly: false,
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+          path: "/",
+          maxAge: DESK_WORKSPACE_COOKIE_MAX_AGE,
+        });
+      }
     }
 
     // Prefer return URL (bag QR scan) over default desk/staff home.

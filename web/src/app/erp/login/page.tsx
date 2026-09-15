@@ -1,13 +1,7 @@
-import { DeskLoginForm } from "@/components/erp/DeskLoginForm";
 import { StaffLoginForm } from "@/components/erp/StaffAuthForms";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { BRAND_ICONS } from "@/lib/brand";
-import {
-  deskPinAllowedInProduction,
-  deskPinConfigured,
-  isDeskAuthenticated,
-} from "@/lib/desk-auth";
+import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { DESK_OUTSIDE_SHIFT_MESSAGE } from "@/lib/desk-shift-gate";
 import { getStaffSession } from "@/lib/staff-auth";
 import { SITE_NAME } from "@/lib/site";
@@ -27,7 +21,6 @@ export default async function DeskLoginPage() {
     redirect("/erp");
   }
 
-  // Staff Auth present but blocked by shift restriction → clear denial, not a mystery bounce.
   let outsideShiftBanner: string | null = null;
   try {
     const staff = await getStaffSession();
@@ -44,10 +37,6 @@ export default async function DeskLoginPage() {
   } catch {
     // ignore
   }
-
-  const pinOk =
-    deskPinConfigured() &&
-    (process.env.NODE_ENV !== "production" || deskPinAllowedInProduction());
 
   return (
     <main className="erp relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-16">
@@ -73,8 +62,8 @@ export default async function DeskLoginPage() {
               Front desk
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Sign in with your employee code and PIN for this property. Staff
-              with desk access enabled by HR can open Work — not only Owner / GM.
+              Sign in with your hotel code, user ID, and password — same shape as
+              eZee Absolute. Your role comes from HR after login.
             </p>
           </div>
         </div>
@@ -88,43 +77,28 @@ export default async function DeskLoginPage() {
           </Alert>
         ) : null}
 
-        <div className="space-y-2">
-          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            Staff Auth
-          </p>
-          <StaffLoginForm workspace="desk" />
+        <StaffLoginForm workspace="desk" />
+
+        <div className="space-y-2 border-t border-border pt-6 text-center text-sm">
+          <Link
+            href="/agents/login"
+            className="block text-foreground underline-offset-4 hover:underline"
+          >
+            Travel agent portal →
+          </Link>
+          <Link
+            href="/login"
+            className="block text-muted-foreground underline-offset-4 hover:underline"
+          >
+            Other workspaces
+          </Link>
+          <Link
+            href="/staff/login"
+            className="block text-muted-foreground underline-offset-4 hover:underline"
+          >
+            Staff HR portal
+          </Link>
         </div>
-
-        {pinOk ? (
-          <div className="space-y-2 border-t border-border pt-6">
-            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              Shared desk PIN
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Single-hotel escape hatch only — prefer named staff accounts.
-            </p>
-            <DeskLoginForm />
-          </div>
-        ) : deskPinConfigured() ? (
-          <Alert>
-            <AlertTitle>Shared desk PIN off in production</AlertTitle>
-            <AlertDescription>
-              Use staff Auth above. Shared PIN stays disabled by design.
-            </AlertDescription>
-          </Alert>
-        ) : null}
-
-        {process.env.NODE_ENV !== "production" && !deskPinConfigured() ? (
-          <Button asChild variant="outline" className="h-11 w-full">
-            <a href="/erp">Continue without PIN (dev)</a>
-          </Button>
-        ) : null}
-        <Link
-          href="/login"
-          className="block text-center text-sm text-muted-foreground underline-offset-4 hover:underline"
-        >
-          Use a different workspace
-        </Link>
         <p className="pt-2 text-center font-mono text-[10px] tracking-wide text-muted-foreground/70">
           build {process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "local"}
           {process.env.VERCEL_DEPLOYMENT_ID

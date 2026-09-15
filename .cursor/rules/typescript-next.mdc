@@ -1,0 +1,13 @@
+---
+description: TypeScript and Next.js conventions for Hotel OS web app
+globs: web/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# TypeScript / Next.js
+
+- Prefer App Router server components; add `"use client"` only when needed.
+- Colocate feature code under `web/src` following existing module folders.
+- Money, auth, and RLS paths: no silent catch — log and rethrow or return typed errors.
+- Do not hardcode property IDs, rates, or menus in UI — load from CMS/ERP/DB.
+- Ops boards (KOT, POS, room status): prefer Supabase Realtime over polling.

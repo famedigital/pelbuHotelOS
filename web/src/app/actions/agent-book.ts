@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAgentSession } from "@/lib/agent-auth";
+import { requireAgentPropertySession } from "@/lib/agent-auth";
 import { holdExpiresAtFromNow, resolveHoldTtlHours } from "@/lib/holds";
 import { soldQtyByRoomType } from "@/lib/inventory-availability";
 import {
@@ -11,7 +11,6 @@ import {
   agentRateTier,
   lookupRoomRateBtn,
   nightsBetween,
-  pelbuPropertyId,
   resolveSeasonKind,
 } from "@/lib/rates";
 import { loadRoomRateTaxSettings } from "@/lib/room-rate-tax";
@@ -50,13 +49,13 @@ export async function previewAgentStay(input: {
   { ok: true; preview: AgentStayPreview } | { ok: false; error: string }
 > {
   try {
-    const session = await requireAgentSession();
+    const session = await requireAgentPropertySession();
     const { checkIn, checkOut } = input;
     const rooms = Math.max(1, Math.min(10, Math.floor(input.rooms)));
     assertStayDates(checkIn, checkOut);
 
     const admin = createSupabaseAdminClient();
-    const propertyId = await pelbuPropertyId(admin);
+    const propertyId = session.activePropertyId;
     const season = await resolveSeasonKind(admin, propertyId, checkIn);
     const nights = nightsBetween(checkIn, checkOut);
     const tier = agentRateTier(session.rateTier);
@@ -129,7 +128,7 @@ export async function createAgentBooking(
   formData: FormData,
 ): Promise<AgentBookingState> {
   try {
-    const session = await requireAgentSession();
+    const session = await requireAgentPropertySession();
 
     const checkIn = trimRequired(formData.get("check_in"), "Check-in");
     const checkOut = trimRequired(formData.get("check_out"), "Check-out");
@@ -144,7 +143,7 @@ export async function createAgentBooking(
     );
 
     const admin = createSupabaseAdminClient();
-    const propertyId = await pelbuPropertyId(admin);
+    const propertyId = session.activePropertyId;
     const season = await resolveSeasonKind(admin, propertyId, checkIn);
     const nights = nightsBetween(checkIn, checkOut);
     const tier = agentRateTier(session.rateTier);

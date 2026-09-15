@@ -1,0 +1,11 @@
+---
+description: No hardcoded rates or menus — CMS/ERP only
+globs: web/src/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Rates and menus from data
+
+- Room rates, seasons, menus, tax: read from DB/ERP settings — never bake into components.
+- Public CMS content resolves by Host / property slug, not hard-coded Pelbu copy.
+- Seed data belongs in migrations or admin tools, not duplicated in React constants (except demo fixtures clearly marked).
