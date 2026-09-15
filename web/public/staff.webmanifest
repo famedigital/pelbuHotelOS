@@ -1,19 +1,19 @@
 {
-  "name": "BHO Staff",
-  "short_name": "BHO Staff",
-  "description": "BHO staff portal \u2014 attendance, rota, leave.",
+  "name": "Innora Staff",
+  "short_name": "Innora Staff",
+  "description": "Innora staff portal — attendance, rota, leave.",
   "start_url": "/staff",
   "scope": "/staff",
   "display": "standalone",
-  "background_color": "#f7f3ec",
-  "theme_color": "#1c1612",
+  "background_color": "#f5f9fc",
+  "theme_color": "#34d399",
   "lang": "en",
   "icons": [
     {
-      "src": "/icons/staff-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "src": "/icons/icon-192.png?v=20260916",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

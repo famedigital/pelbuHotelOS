@@ -1,0 +1,15 @@
+[data-theme="default-light"] {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.205 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --radius: 0.5rem;
+}
+
+[data-theme="default-dark"] {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --radius: 0.5rem;
+}

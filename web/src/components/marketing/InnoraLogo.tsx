@@ -2,33 +2,30 @@ import { BRAND_ICONS } from "@/lib/brand";
 import { SITE_FULL_NAME, SITE_NAME } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
-type BhoLogoProps = {
-  /** Use light SVG on dark backgrounds. */
+type InnoraLogoProps = {
   variant?: "default" | "light";
-  /** Show the BHO wordmark beside the mark. */
   showWordmark?: boolean;
-  /** Optional full name under or beside the wordmark. */
-  showFullName?: boolean;
+  showTagline?: boolean;
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
   wordmarkClassName?: string;
 };
 
 const SIZE = {
-  sm: { mark: 28, word: "text-lg", full: "text-[0.65rem]" },
-  md: { mark: 36, word: "text-xl", full: "text-xs" },
-  lg: { mark: 48, word: "text-3xl", full: "text-sm" },
-  xl: { mark: 64, word: "text-5xl md:text-7xl", full: "text-sm md:text-base" },
+  sm: { mark: 28, word: "text-lg", tag: "text-[0.65rem]" },
+  md: { mark: 36, word: "text-xl", tag: "text-xs" },
+  lg: { mark: 48, word: "text-3xl", tag: "text-sm" },
+  xl: { mark: 72, word: "text-5xl md:text-6xl", tag: "text-sm md:text-base" },
 } as const;
 
-export function BhoLogo({
+export function InnoraLogo({
   variant = "default",
   showWordmark = true,
-  showFullName = false,
+  showTagline = false,
   size = "md",
   className,
   wordmarkClassName,
-}: BhoLogoProps) {
+}: InnoraLogoProps) {
   const s = SIZE[size];
   const src = variant === "light" ? BRAND_ICONS.markLight : BRAND_ICONS.mark;
 
@@ -40,7 +37,7 @@ export function BhoLogo({
         alt=""
         width={s.mark}
         height={s.mark}
-        className="shrink-0 object-contain"
+        className="shrink-0 rounded-2xl object-contain shadow-sm"
         aria-hidden
       />
       {showWordmark ? (
@@ -54,19 +51,19 @@ export function BhoLogo({
           >
             {SITE_NAME}
           </span>
-          {showFullName ? (
+          {showTagline ? (
             <span
               className={cn(
-                "mt-1 font-sans font-medium tracking-[0.12em] uppercase opacity-70",
-                s.full,
+                "mt-1.5 font-sans font-medium tracking-[0.08em] text-muted-foreground",
+                s.tag,
               )}
             >
-              {SITE_FULL_NAME}
+              hotel software for Bhutan
             </span>
           ) : null}
         </span>
       ) : (
-        <span className="sr-only">{SITE_NAME}</span>
+        <span className="sr-only">{SITE_FULL_NAME}</span>
       )}
     </span>
   );

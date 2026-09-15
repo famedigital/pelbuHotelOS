@@ -53,7 +53,7 @@ export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
   const meta = REPORT_CATALOG.find((r) => r.slug === slug);
   return {
-    title: meta ? `${meta.title} | BHO` : "Report",
+    title: meta ? `${meta.title} | Innora` : "Report",
     robots: { index: false, follow: false },
   };
 }

@@ -16,7 +16,7 @@ export default function StatusPage() {
             <p className="font-medium text-[var(--mint-ink)]">All systems normal</p>
             <p className="mt-1 text-sm text-[var(--muted)]">
               No active incidents reported. If your hotel Wi‑Fi or local power is
-              down, that is outside BHO — check fiber and power first.
+              down, that is outside Innora — check fiber and power first.
             </p>
           </div>
           <p className="mt-6 text-xs text-[var(--muted)]">

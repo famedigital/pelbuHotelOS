@@ -2,10 +2,10 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { MarketingHero } from "@/components/marketing/MarketingHero";
 import { MarketingReveal } from "@/components/marketing/MarketingReveal";
-import { SITE_DESCRIPTION, SITE_FULL_NAME, SITE_NAME } from "@/lib/site";
+import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: `${SITE_NAME} — ${SITE_FULL_NAME}`,
+  title: `${SITE_NAME} — hotel software for Bhutan`,
   description: SITE_DESCRIPTION,
   robots: { index: true, follow: true },
 };
@@ -81,24 +81,27 @@ export default function MarketingHomePage() {
     <>
       <MarketingHero />
 
-      <section className="mx-auto max-w-5xl px-6 py-20 md:px-10">
+      <section className="mx-auto max-w-5xl px-6 py-24 md:px-10">
         <MarketingReveal>
-          <h2 className="font-display text-3xl text-[var(--sky-ink)] md:text-4xl">
-            Modules that run the hotel
+          <p className="text-xs font-semibold tracking-[0.2em] text-primary uppercase">
+            Modules
+          </p>
+          <h2 className="mt-3 font-display text-3xl tracking-tight text-foreground md:text-4xl">
+            Everything the hotel needs to run
           </h2>
-          <p className="mt-3 max-w-2xl text-[var(--muted)]">
+          <p className="mt-4 max-w-2xl text-muted-foreground">
             The same product categories you see in international cloud PMS —
             wired for Bhutan operations.
           </p>
         </MarketingReveal>
-        <div className="mt-12 space-y-0 border-t border-[var(--ink-rule)]">
+        <div className="mt-14 space-y-0 border-t border-border">
           {MODULES.map((m, i) => (
-            <MarketingReveal key={m.title} delay={0.05 * (i + 1)}>
-              <div className="grid gap-3 border-b border-[var(--ink-rule)] py-7 md:grid-cols-[minmax(0,0.4fr)_minmax(0,0.6fr)] md:gap-10">
-                <h3 className="font-display text-xl text-[var(--sky-ink)]">
+            <MarketingReveal key={m.title} delay={0.04 * (i + 1)}>
+              <div className="grid gap-3 border-b border-border py-8 md:grid-cols-[minmax(0,0.38fr)_minmax(0,0.62fr)] md:gap-12">
+                <h3 className="font-display text-xl text-foreground md:text-2xl">
                   {m.title}
                 </h3>
-                <p className="text-sm leading-relaxed text-[var(--muted)] md:text-base">
+                <p className="text-sm leading-relaxed text-muted-foreground md:text-base">
                   {m.body}
                 </p>
               </div>
@@ -107,27 +110,26 @@ export default function MarketingHomePage() {
         </div>
       </section>
 
-      <section className="border-y border-[var(--ink-rule)] bg-[var(--frost-1)] px-6 py-20 md:px-10">
+      <section className="border-y border-border bg-secondary/50 px-6 py-24 md:px-10">
         <div className="mx-auto max-w-5xl">
           <MarketingReveal>
-            <h2 className="font-display text-3xl text-[var(--sky-ink)] md:text-4xl">
+            <p className="text-xs font-semibold tracking-[0.2em] text-primary uppercase">
               How it works
-            </h2>
-            <p className="mt-3 max-w-2xl text-[var(--muted)]">
-              Onboard, train, go live — clear steps before the desk depends on
-              the system.
             </p>
+            <h2 className="mt-3 font-display text-3xl tracking-tight md:text-4xl">
+              Onboard. Train. Go live.
+            </h2>
           </MarketingReveal>
-          <div className="mt-12 grid gap-8 md:grid-cols-3">
+          <div className="mt-14 grid gap-10 md:grid-cols-3 md:gap-8">
             {HOW.map((h, i) => (
-              <MarketingReveal key={h.step} delay={0.08 * (i + 1)}>
-                <p className="font-mono text-xs tracking-[0.2em] text-[var(--sky-600)]">
+              <MarketingReveal key={h.step} delay={0.06 * (i + 1)}>
+                <p className="font-mono text-xs tracking-[0.2em] text-primary">
                   {h.step}
                 </p>
-                <h3 className="mt-3 font-display text-2xl text-[var(--sky-ink)]">
+                <h3 className="mt-4 font-display text-2xl text-foreground">
                   {h.title}
                 </h3>
-                <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                   {h.body}
                 </p>
               </MarketingReveal>
@@ -136,81 +138,86 @@ export default function MarketingHomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-5xl px-6 py-20 md:px-10">
+      <section className="mx-auto max-w-5xl px-6 py-24 md:px-10">
         <MarketingReveal>
-          <h2 className="font-display text-3xl text-[var(--sky-ink)] md:text-4xl">
-            Who BHO is for
+          <p className="text-xs font-semibold tracking-[0.2em] text-primary uppercase">
+            Who it is for
+          </p>
+          <h2 className="mt-3 font-display text-3xl tracking-tight md:text-4xl">
+            Built for how hotels actually run here
           </h2>
-          <p className="mt-3 max-w-2xl text-[var(--muted)]">
+          <p className="mt-4 max-w-2xl text-muted-foreground">
             Independent hotels, leased multi-location owners, and branded
-            chains — pick your situation.
+            chains.
           </p>
         </MarketingReveal>
-        <div className="mt-10 grid gap-6 md:grid-cols-3">
+        <div className="mt-12 grid gap-6 md:grid-cols-3">
           {SEGMENTS.map((s, i) => (
-            <MarketingReveal key={s.href} delay={0.08 * (i + 1)}>
-              <Link
-                href={s.href}
-                className={`group block border p-6 transition duration-300 hover:-translate-y-0.5 hover:shadow-md ${
-                  s.primary
-                    ? "border-[var(--citrus-500)] bg-[var(--citrus-100)]"
-                    : "border-[var(--ink-rule)] bg-white"
-                }`}
-              >
-                <p className="text-xs font-semibold tracking-wider text-[var(--sky-600)] uppercase">
+            <MarketingReveal key={s.href} delay={0.06 * (i + 1)}>
+              <Link href={s.href} className={segmentClass(s.primary)}>
+                <p className="text-xs font-semibold tracking-wider text-primary uppercase">
                   {s.primary ? "Most common" : "Segment"}
                 </p>
-                <h3 className="mt-2 font-display text-xl group-hover:text-[var(--sky-700)]">
+                <h3 className="mt-3 font-display text-xl text-foreground">
                   {s.label}
                 </h3>
-                <p className="mt-2 text-sm text-[var(--muted)]">{s.blurb}</p>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  {s.blurb}
+                </p>
               </Link>
             </MarketingReveal>
           ))}
         </div>
       </section>
 
-      <section className="border-y border-[var(--ink-rule)] bg-[var(--frost-1)] px-6 py-16 md:px-10">
+      <section className="border-y border-border bg-accent/40 px-6 py-20 md:px-10">
         <div className="mx-auto max-w-5xl">
           <MarketingReveal>
-            <h2 className="font-display text-2xl md:text-3xl">Why BHO</h2>
-            <ul className="mt-6 grid gap-4 text-sm md:grid-cols-2">
-              <li className="border-l-2 border-[var(--mint-500)] pl-4">
-                Leased multi-hotel owners — one login, many properties
+            <h2 className="font-display text-2xl tracking-tight md:text-3xl">
+              Why Innora
+            </h2>
+            <ul className="mt-8 grid gap-5 text-sm md:grid-cols-2">
+              <li className="border-l-2 border-primary pl-4 text-muted-foreground">
+                <span className="text-foreground">
+                  Leased multi-hotel owners
+                </span>{" "}
+                — one login, many properties
               </li>
-              <li className="border-l-2 border-[var(--mint-500)] pl-4">
-                BTN pricing and bank AMC with local distributors
+              <li className="border-l-2 border-primary pl-4 text-muted-foreground">
+                <span className="text-foreground">BTN pricing</span> and bank
+                AMC with local distributors
               </li>
-              <li className="border-l-2 border-[var(--mint-500)] pl-4">
-                DOT / BAFRA / ISR compliance tools inside the ERP
+              <li className="border-l-2 border-primary pl-4 text-muted-foreground">
+                <span className="text-foreground">DOT / BAFRA / ISR</span>{" "}
+                compliance tools inside the ERP
               </li>
-              <li className="border-l-2 border-[var(--mint-500)] pl-4">
-                Training in Bhutan business hours — conditions protect both
-                sides
+              <li className="border-l-2 border-primary pl-4 text-muted-foreground">
+                <span className="text-foreground">Training</span> in Bhutan
+                business hours — conditions protect both sides
               </li>
             </ul>
           </MarketingReveal>
         </div>
       </section>
 
-      <section className="mx-auto max-w-5xl px-6 py-20 md:px-10">
+      <section className="mx-auto max-w-5xl px-6 py-24 md:px-10">
         <MarketingReveal>
-          <h2 className="font-display text-3xl text-[var(--sky-ink)] md:text-4xl">
-            See BHO on your hotels
+          <h2 className="font-display text-3xl tracking-tight text-foreground md:text-4xl">
+            See Innora on your hotels
           </h2>
-          <p className="mt-3 max-w-xl text-[var(--muted)]">
+          <p className="mt-4 max-w-xl text-muted-foreground">
             Request a walkthrough, or review packages in BTN before you commit.
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-9 flex flex-wrap gap-3">
             <Link
               href="/demo"
-              className="rounded-md bg-[var(--sky-600)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--sky-700)]"
+              className="inline-flex h-12 items-center rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground shadow-md transition hover:opacity-90"
             >
               Request a demo
             </Link>
             <Link
               href="/pricing"
-              className="rounded-md border border-[var(--ink-rule)] px-5 py-2.5 text-sm transition hover:bg-white"
+              className="inline-flex h-12 items-center rounded-full border border-border bg-card px-7 text-sm font-medium transition hover:bg-secondary"
             >
               Pricing
             </Link>
@@ -219,4 +226,10 @@ export default function MarketingHomePage() {
       </section>
     </>
   );
+}
+
+function segmentClass(primary?: boolean) {
+  return primary
+    ? "group block rounded-2xl border border-primary/40 bg-accent/50 p-6 transition duration-300 hover:-translate-y-0.5 hover:shadow-md"
+    : "group block rounded-2xl border border-border bg-card p-6 transition duration-300 hover:-translate-y-0.5 hover:shadow-md";
 }

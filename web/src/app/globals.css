@@ -1,14 +1,13 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "../styles/themes/index.css";
 
 @custom-variant dark (&:is(.dark *));
 
 /* =========================================================================
-   Pelbu Suites — public design tokens ("Sky, Citrus, Mint")
-   Legacy brand anchors (ivory / espresso / brass / paper) stay defined so
-   ERP utilities that still reference them continue to resolve. Public
-   shadcn semantics map onto the sky/citrus/mint ramp. Desk `.erp` below
-   overrides every semantic token and is unaffected by this public remap.
+   Innora — public tokens come from tweakcn Ocean Breeze via [data-theme].
+   Legacy brand anchors stay defined for ERP utilities. Desk `.erp` below
+   overrides every semantic token.
    ========================================================================= */
 
 :root {
@@ -64,54 +63,55 @@
   --citrus-soft: #fbbf24;
   --citrus-tint: #fef3c7;
 
-  /* --- shadcn scale mapped to Sky / Citrus / Mint --- */
-  --background: var(--frost-0);
-  --foreground: var(--sky-ink);
+  /* Fallback public semantics — Ocean Breeze light (data-theme overrides). */
+  --background: oklch(0.98 0.01 244.25);
+  --foreground: oklch(0.37 0.03 259.73);
 
-  --card: #ffffff;
-  --card-foreground: var(--sky-ink);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.37 0.03 259.73);
 
-  --popover: #ffffff;
-  --popover-foreground: var(--sky-ink);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.37 0.03 259.73);
 
-  --primary: var(--sky-600);
-  --primary-foreground: #ffffff;
+  --primary: oklch(0.72 0.19 149.58);
+  --primary-foreground: oklch(1 0 0);
 
-  --secondary: var(--frost-2);
-  --secondary-foreground: var(--sky-ink);
+  --secondary: oklch(0.95 0.03 236.82);
+  --secondary-foreground: oklch(0.45 0.03 256.8);
 
-  --muted-shadcn: var(--frost-2);
-  --muted-foreground: var(--muted);
+  --muted-shadcn: oklch(0.97 0 264.54);
+  --muted-foreground: oklch(0.55 0.02 264.36);
 
-  --accent: var(--citrus-500);
-  --accent-foreground: var(--sky-ink);
+  --accent: oklch(0.95 0.05 163.05);
+  --accent-foreground: oklch(0.37 0.03 259.73);
 
-  --destructive: var(--maroon);
-  --destructive-foreground: #ffffff;
+  --destructive: oklch(0.64 0.21 25.33);
+  --destructive-foreground: oklch(1 0 0);
 
-  --border: var(--frost-3);
-  --input: var(--frost-3);
-  --ring: var(--sky-600);
+  --border: oklch(0.93 0.01 264.53);
+  --input: oklch(0.93 0.01 264.53);
+  --ring: oklch(0.72 0.19 149.58);
 
-  --chart-1: var(--sky-600);
-  --chart-2: var(--citrus-500);
-  --chart-3: var(--mint-500);
-  --chart-4: var(--sky-800);
-  --chart-5: var(--mint-600);
+  --chart-1: oklch(0.72 0.19 149.58);
+  --chart-2: oklch(0.7 0.15 162.48);
+  --chart-3: oklch(0.6 0.13 163.23);
+  --chart-4: oklch(0.51 0.1 165.61);
+  --chart-5: oklch(0.43 0.09 166.91);
 
-  --sidebar: var(--sky-ink);
-  --sidebar-foreground: #f8fafc;
-  --sidebar-primary: var(--sky-500);
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: var(--sky-800);
-  --sidebar-accent-foreground: #f8fafc;
-  --sidebar-border: var(--sky-800);
-  --sidebar-ring: var(--sky-500);
+  --sidebar: oklch(0.95 0.03 236.82);
+  --sidebar-foreground: oklch(0.37 0.03 259.73);
+  --sidebar-primary: oklch(0.72 0.19 149.58);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.95 0.05 163.05);
+  --sidebar-accent-foreground: oklch(0.37 0.03 259.73);
+  --sidebar-border: oklch(0.93 0.01 264.53);
+  --sidebar-ring: oklch(0.72 0.19 149.58);
 
-  --radius: 0.875rem;
+  --radius: 0.5rem;
 
-  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-dm-sans), "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-serif: var(--font-lora), Lora, Georgia, serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
@@ -393,7 +393,7 @@
   --radius-lg: calc(var(--radius) + 2px);
   --radius-xl: calc(var(--radius) + 6px);
 
-  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-dm-sans), "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-fraunces), Georgia, serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 

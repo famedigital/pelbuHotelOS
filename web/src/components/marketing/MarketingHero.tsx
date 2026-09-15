@@ -1,11 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { BhoLogo } from "@/components/marketing/BhoLogo";
-import { AnimatedGridPattern } from "@/components/ui/animated-grid-pattern";
+import { InnoraLogo } from "@/components/marketing/InnoraLogo";
 import { BlurFade } from "@/components/ui/blur-fade";
-import { Marquee } from "@/components/ui/marquee";
-import { ShimmerButton } from "@/components/ui/shimmer-button";
 import { cn } from "@/lib/utils";
 
 const PROOF = [
@@ -19,58 +16,45 @@ const PROOF = [
 
 export function MarketingHero() {
   return (
-    <section className="relative flex min-h-[100svh] flex-col justify-end overflow-hidden bg-[var(--sky-ink)] px-6 pb-16 pt-28 md:px-10 md:pb-24">
+    <section className="relative flex min-h-[100svh] flex-col justify-end overflow-hidden bg-background px-6 pb-16 pt-28 md:px-10 md:pb-24">
       <div
-        className="pointer-events-none absolute inset-0 opacity-55"
+        className="pointer-events-none absolute inset-0"
         style={{
           backgroundImage:
-            "radial-gradient(ellipse 90% 65% at 72% 18%, #0284c7 0%, transparent 55%), radial-gradient(ellipse 50% 40% at 15% 80%, #0c4a6e 0%, transparent 60%), linear-gradient(180deg, transparent 35%, #061e2e 100%)",
+            "radial-gradient(ellipse 90% 70% at 80% 0%, oklch(0.92 0.06 163) 0%, transparent 55%), radial-gradient(ellipse 60% 50% at 10% 90%, oklch(0.94 0.04 236) 0%, transparent 50%), linear-gradient(180deg, oklch(0.99 0.01 244) 0%, oklch(0.97 0.02 200) 100%)",
         }}
       />
-      <AnimatedGridPattern
-        numSquares={28}
-        maxOpacity={0.18}
-        duration={3.2}
-        className="inset-0 h-full w-full text-sky-100/35 [mask-image:radial-gradient(ellipse_at_center,white,transparent_75%)]"
+      <div
+        className="pointer-events-none absolute -right-24 top-20 size-[28rem] rounded-full opacity-40 blur-3xl"
+        style={{ background: "oklch(0.85 0.12 149)" }}
       />
 
       <div className="relative z-10 mx-auto w-full max-w-5xl">
-        <BlurFade delay={0.05} inView>
-          <BhoLogo
-            variant="light"
-            showFullName
-            size="xl"
-            wordmarkClassName="text-white"
-            className="text-white/75"
-          />
+        <BlurFade delay={0.04} inView>
+          <InnoraLogo showTagline size="xl" wordmarkClassName="text-foreground" />
         </BlurFade>
-        <BlurFade delay={0.18} inView>
-          <h1 className="mt-8 max-w-3xl text-xl font-medium leading-snug text-white/95 md:text-3xl">
-            Cloud hotel OS for Bhutan — desk, folio, POS, multi-property.
+        <BlurFade delay={0.14} inView>
+          <h1 className="mt-10 max-w-2xl font-display text-3xl font-medium leading-[1.15] tracking-tight text-foreground md:text-5xl">
+            Run the desk properly — one hotel or many.
           </h1>
         </BlurFade>
-        <BlurFade delay={0.28} inView>
-          <p className="mt-4 max-w-xl text-base text-white/70 md:text-lg">
-            Run front office the way international PMS systems do, with
-            operations built for Bhutan hotels.
+        <BlurFade delay={0.24} inView>
+          <p className="mt-5 max-w-lg text-base leading-relaxed text-muted-foreground md:text-lg">
+            Front office, folio, POS, and multi-property control built for Bhutan
+            hotels — with BTN pricing and local support.
           </p>
         </BlurFade>
-        <BlurFade delay={0.38} inView>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Link href="/demo" className="inline-flex">
-              <ShimmerButton
-                type="button"
-                background="var(--citrus-500)"
-                shimmerColor="#082f49"
-                borderRadius="0.375rem"
-                className="h-11 px-5 text-sm font-semibold text-[var(--sky-ink)] border-transparent"
-              >
-                Request a demo
-              </ShimmerButton>
+        <BlurFade delay={0.34} inView>
+          <div className="mt-9 flex flex-wrap items-center gap-3">
+            <Link
+              href="/demo"
+              className="inline-flex h-12 items-center rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground shadow-md transition hover:opacity-90"
+            >
+              Request a demo
             </Link>
             <Link
               href="/pricing"
-              className="inline-flex h-11 items-center rounded-md border border-white/30 px-5 text-sm font-medium text-white transition hover:bg-white/10"
+              className="inline-flex h-12 items-center rounded-full border border-border bg-card/80 px-7 text-sm font-medium text-foreground backdrop-blur transition hover:bg-card"
             >
               See pricing
             </Link>
@@ -78,19 +62,19 @@ export function MarketingHero() {
         </BlurFade>
       </div>
 
-      <div className="relative z-10 mx-auto mt-14 w-full max-w-5xl border-t border-white/10 pt-4">
-        <Marquee pauseOnHover className="[--duration:28s] [--gap:2rem] p-0">
+      <div className="relative z-10 mx-auto mt-16 w-full max-w-5xl border-t border-border/80 pt-5">
+        <div className="flex flex-wrap gap-x-8 gap-y-2">
           {PROOF.map((item) => (
             <span
               key={item}
               className={cn(
-                "text-xs font-semibold tracking-[0.18em] text-white/55 uppercase",
+                "text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase",
               )}
             >
               {item}
             </span>
           ))}
-        </Marquee>
+        </div>
       </div>
     </section>
   );

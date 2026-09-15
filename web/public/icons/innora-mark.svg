@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Innora">
+  <defs>
+    <linearGradient id="innoraDepth" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5EEAD4"/>
+      <stop offset="0.45" stop-color="#34D399"/>
+      <stop offset="1" stop-color="#14B8A6"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="url(#innoraDepth)"/>
+  <!-- Soft highlight -->
+  <path d="M12 18c8-10 32-10 40 0" stroke="#FFFFFF" stroke-opacity="0.28" stroke-width="2" stroke-linecap="round"/>
+  <!-- Stylized I mark / doorway -->
+  <path
+    d="M28 18h8v6.5c0 1.2-.4 2.1-1.2 2.7L32 29.5l-2.8-2.3c-.8-.6-1.2-1.5-1.2-2.7V18z"
+    fill="#FFFFFF"
+    fill-opacity="0.95"
+  />
+  <path
+    d="M22 42.5c0-6.2 4.5-10.5 10-10.5s10 4.3 10 10.5V48H22v-5.5z"
+    fill="#FFFFFF"
+    fill-opacity="0.95"
+  />
+  <circle cx="32" cy="34.5" r="2.2" fill="#0F766E"/>
+</svg>

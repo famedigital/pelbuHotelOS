@@ -1,13 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Geist_Mono, Manrope } from "next/font/google";
+import { DM_Sans, Fraunces, Geist_Mono, Lora } from "next/font/google";
 import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
-import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { BRAND_ICONS } from "@/lib/brand";
 import "./globals.css";
 
-const fontSans = Manrope({
-  variable: "--font-manrope",
+const fontSans = DM_Sans({
+  variable: "--font-dm-sans",
   subsets: ["latin"],
   display: "swap",
 });
@@ -19,6 +19,12 @@ const fontDisplay = Fraunces({
   axes: ["opsz", "SOFT"],
 });
 
+const fontSerif = Lora({
+  variable: "--font-lora",
+  subsets: ["latin"],
+  display: "swap",
+});
+
 const fontMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
@@ -28,8 +34,8 @@ const fontMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: getSiteUrl(),
   title: {
-    default: "BHO — Bhutan Hotel OS",
-    template: "%s | BHO",
+    default: "Innora — hotel software for Bhutan",
+    template: "%s | Innora",
   },
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,
@@ -82,8 +88,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7fbfd" },
-    { media: "(prefers-color-scheme: dark)", color: "#082f49" },
+    { media: "(prefers-color-scheme: light)", color: "#f5f9fc" },
+    { media: "(prefers-color-scheme: dark)", color: "#1a2332" },
   ],
   colorScheme: "light",
 };
@@ -94,16 +100,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" data-theme="ocean-breeze-light" suppressHydrationWarning>
       <body
-        className={`${fontSans.variable} ${fontDisplay.variable} ${fontMono.variable} antialiased`}
+        className={`${fontSans.variable} ${fontDisplay.variable} ${fontSerif.variable} ${fontMono.variable} bg-background font-sans text-foreground antialiased`}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
+        <ThemeProvider>
           {children}
           <Toaster position="top-right" richColors closeButton />
         </ThemeProvider>
