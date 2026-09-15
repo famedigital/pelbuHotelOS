@@ -69,7 +69,13 @@ const HOW = [
   },
 ] as const;
 
-const SEGMENTS = [
+const SEGMENTS: Array<{
+  href: string;
+  label: string;
+  blurb: string;
+  media: (typeof MARKETING_MEDIA)[keyof typeof MARKETING_MEDIA];
+  primary?: boolean;
+}> = [
   {
     href: "/for/leased",
     label: "Leased portfolios",
@@ -89,7 +95,7 @@ const SEGMENTS = [
     blurb: "Shared standards across properties, room to grow.",
     media: MARKETING_MEDIA.segmentChain,
   },
-] as const;
+];
 
 export default function MarketingHomePage() {
   return (
