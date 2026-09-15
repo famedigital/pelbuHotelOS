@@ -8,7 +8,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Rooms HK | Hotel OS",
+  title: "Rooms HK",
   robots: { index: false, follow: false },
 };
 

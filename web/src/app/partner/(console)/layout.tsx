@@ -19,7 +19,7 @@ export default async function PartnerConsoleLayout({
   if (!session) redirect("/partner/login");
   return (
     <PortalShell
-      brand="Hotel OS · Partner"
+      brand="BHO · Partner"
       subtitle={session.distributorName}
       nav={NAV}
       userEmail={session.email}

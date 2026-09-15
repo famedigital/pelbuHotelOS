@@ -24,7 +24,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Agent dossier | Hotel OS",
+  title: "Agent dossier",
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";

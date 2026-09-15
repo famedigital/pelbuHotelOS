@@ -29,7 +29,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Payroll run | Hotel OS",
+  title: "Payroll run",
   robots: { index: false, follow: false },
 };
 

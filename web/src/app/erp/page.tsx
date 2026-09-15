@@ -16,7 +16,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Desk dashboard | Hotel OS",
+  title: "Desk dashboard",
   robots: { index: false, follow: false },
 };
 

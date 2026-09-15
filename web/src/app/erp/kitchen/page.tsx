@@ -30,7 +30,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Kitchen board | Hotel OS",
+  title: "Kitchen board",
   robots: { index: false, follow: false },
 };
 

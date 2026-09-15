@@ -10,7 +10,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Rate plans | Hotel OS",
+  title: "Rate plans",
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";

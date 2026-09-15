@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { SITE_NAME } from "@/lib/site";
+import { BhoLogo } from "@/components/marketing/BhoLogo";
+import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -17,13 +18,10 @@ const NAV = [
 export function MarketingHeader() {
   const pathname = usePathname();
   return (
-    <header className="fixed inset-x-0 top-0 z-30 border-b border-white/10 bg-[var(--sky-ink)]/95 px-6 py-4 backdrop-blur md:px-10">
+    <header className="fixed inset-x-0 top-0 z-30 border-b border-white/10 bg-[var(--sky-ink)]/95 px-6 py-3.5 backdrop-blur md:px-10">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
-        <Link
-          href="/"
-          className="font-display text-xl tracking-tight text-white transition-opacity hover:opacity-90 md:text-2xl"
-        >
-          {SITE_NAME}
+        <Link href="/" className="transition-opacity hover:opacity-90">
+          <BhoLogo variant="light" size="sm" wordmarkClassName="text-white" />
         </Link>
         <nav className="hidden items-center gap-5 text-sm text-white/85 lg:flex">
           {NAV.map((item) => {
@@ -71,11 +69,8 @@ export function MarketingFooter() {
     <footer className="border-t border-[var(--ink-rule)] bg-[var(--sky-ink)] px-6 py-12 text-[var(--frost-2)] md:px-10">
       <div className="mx-auto flex max-w-5xl flex-col gap-8 md:flex-row md:justify-between">
         <div>
-          <p className="font-display text-2xl text-white">{SITE_NAME}</p>
-          <p className="mt-2 max-w-sm text-sm text-white/70">
-            Hotel ERP for Bhutan — independent hotels, chains, and leased
-            multi-location owners.
-          </p>
+          <BhoLogo variant="light" size="md" wordmarkClassName="text-white" />
+          <p className="mt-3 max-w-sm text-sm text-white/70">{SITE_DESCRIPTION}</p>
         </div>
         <div className="grid grid-cols-2 gap-8 text-sm">
           <div className="flex flex-col gap-2">

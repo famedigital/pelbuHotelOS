@@ -41,6 +41,7 @@ import { firstAllowedHrefForModule, moduleVisibleFromGrants } from "@/lib/erp/de
 import { filterModulesForWorkspace, foSidebarModules } from "@/lib/erp/desk-workspace";
 import { filterModulesForProductPack } from "@/lib/product-pack";
 import { pushErpRecent } from "@/lib/erp-recents";
+import { SITE_NAME } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 export { NAV_SECTIONS } from "@/lib/erp-nav";
@@ -52,7 +53,7 @@ export { NAV_SECTIONS } from "@/lib/erp-nav";
  * - When the rail is collapsed, sub-items open as a right flyout (click).
  */
 export function AppSidebar({
-  brandName = "Hotel OS",
+  brandName = SITE_NAME,
   logoSrc,
   allowedModuleKeys,
   productPack = "hotel",

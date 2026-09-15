@@ -12,7 +12,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Work call task | Hotel OS",
+  title: "Work call task",
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";

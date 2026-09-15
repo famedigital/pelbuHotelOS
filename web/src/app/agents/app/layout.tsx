@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Agent app | Hotel OS",
+  title: "Agent app",
   robots: { index: false, follow: false },
   manifest: "/work.webmanifest",
   appleWebApp: {

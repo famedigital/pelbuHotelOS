@@ -12,7 +12,7 @@ import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
-  title: "Laundry | Hotel OS",
+  title: "Laundry",
   robots: { index: false, follow: false },
 };
 

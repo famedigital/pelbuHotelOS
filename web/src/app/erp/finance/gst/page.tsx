@@ -15,7 +15,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Finance · GST | Hotel OS",
+  title: "Finance · GST",
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";

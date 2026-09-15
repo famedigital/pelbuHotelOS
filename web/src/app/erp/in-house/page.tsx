@@ -13,7 +13,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "In-house | Hotel OS",
+  title: "In-house",
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";

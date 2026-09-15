@@ -45,7 +45,7 @@ import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Settings | Hotel OS",
+  title: "Settings",
   robots: { index: false, follow: false },
 };
 

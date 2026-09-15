@@ -1,7 +1,9 @@
-export const SITE_NAME = "Hotel OS";
-/** Platform blurb — white-label multi-tenant hotel ERP / PMS. */
+export const SITE_NAME = "BHO";
+/** Full product name for titles and lockups. */
+export const SITE_FULL_NAME = "Bhutan Hotel OS";
+/** Platform blurb — cloud PMS for Bhutan operations. */
 export const SITE_DESCRIPTION =
-  "Hotel ERP for Bhutan — independent hotels, chains, and leased multi-location owners. BTN pricing, local distributors, clear conditions.";
+  "Cloud hotel OS for Bhutan — front desk, folio, POS, and multi-property control. International PMS modules with local ops, BTN pricing, and distributor support.";
 
 /** Marketing pages that may be indexed. */
 export const PUBLIC_INDEXABLE_ROUTES = [

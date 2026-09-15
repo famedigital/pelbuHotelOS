@@ -12,7 +12,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Payslip | Hotel OS",
+  title: "Payslip",
   robots: { index: false, follow: false },
 };
 

@@ -7,7 +7,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Finance · Bank proofs | Hotel OS",
+  title: "Finance · Bank proofs",
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";

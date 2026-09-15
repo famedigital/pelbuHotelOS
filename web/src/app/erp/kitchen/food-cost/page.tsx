@@ -9,7 +9,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Food cost | Hotel OS",
+  title: "Food cost",
   robots: { index: false, follow: false },
 };
 

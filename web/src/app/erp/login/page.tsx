@@ -10,6 +10,7 @@ import {
 } from "@/lib/desk-auth";
 import { DESK_OUTSIDE_SHIFT_MESSAGE } from "@/lib/desk-shift-gate";
 import { getStaffSession } from "@/lib/staff-auth";
+import { SITE_NAME } from "@/lib/site";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { DeskBlurFade } from "@/components/erp/DeskBlurFade";
 import { DotPattern } from "@/components/ui/dot-pattern";
@@ -17,7 +18,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Desk login | Hotel OS",
+  title: "Desk login",
   robots: { index: false, follow: false },
 };
 
@@ -59,14 +60,14 @@ export default async function DeskLoginPage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={BRAND_ICONS.mark}
-            alt="Hotel OS"
+            alt={SITE_NAME}
             className="h-12 w-12 object-contain"
             width={48}
             height={48}
           />
           <div>
             <p className="text-xs font-semibold tracking-[0.2em] text-accent uppercase">
-              Hotel OS
+              {SITE_NAME}
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
               Front desk

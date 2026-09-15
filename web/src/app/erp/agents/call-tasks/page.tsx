@@ -17,7 +17,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Agent call tasks | Hotel OS",
+  title: "Agent call tasks",
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";

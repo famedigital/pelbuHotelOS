@@ -21,7 +21,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Floor map | Hotel OS",
+  title: "Floor map",
   robots: { index: false, follow: false },
 };
 

@@ -8,7 +8,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Guest profile | Hotel OS",
+  title: "Guest profile",
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";

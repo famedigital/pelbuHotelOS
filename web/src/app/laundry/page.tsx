@@ -3,7 +3,7 @@ import { LaundryGuestPortal } from "@/components/laundry/LaundryGuestPortal";
 import { loadGuestLaundryData } from "@/app/actions/laundry";
 
 export const metadata: Metadata = {
-  title: "Laundry | Hotel OS",
+  title: "Laundry",
   description:
     "Guest and walk-in laundry collection at Pelbu Suites — pay by bank transfer or charge to your room folio.",
   robots: { index: false, follow: false },

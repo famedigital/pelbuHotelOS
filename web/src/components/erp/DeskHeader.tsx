@@ -2,6 +2,7 @@ import { deskLogout } from "@/app/actions/desk";
 import { PropertySwitcher } from "@/components/erp/PropertySwitcher";
 import { BRAND_ICONS } from "@/lib/brand";
 import type { PropertyRow } from "@/lib/property-types";
+import { SITE_NAME } from "@/lib/site";
 import Link from "next/link";
 
 export function DeskHeader({
@@ -14,7 +15,7 @@ export function DeskHeader({
   activePropertyId?: string;
 }) {
   const active = properties?.find((p) => p.id === activePropertyId);
-  const brand = active?.name ?? "Hotel OS";
+  const brand = active?.name ?? SITE_NAME;
 
   return (
     <header className="border-b border-black/30 bg-espresso text-ivory">

@@ -18,7 +18,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Groups | Hotel OS",
+  title: "Groups",
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";

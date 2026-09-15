@@ -6,7 +6,7 @@ import { PricingPackages } from "@/components/marketing/PricingPackages";
 export const metadata: Metadata = {
   title: "Pricing",
   description:
-    "Hotel OS packages in BTN — Classic, Plus, Pro, Portfolio, Chain — plus onboarding and training fees.",
+    "BHO packages in BTN — Classic, Plus, Pro, Portfolio, Chain — plus onboarding and desk training fees.",
   robots: { index: true, follow: true },
 };
 
@@ -15,10 +15,13 @@ export default function PricingPage() {
     <div className="pt-24">
       <div className="mx-auto max-w-5xl px-6 py-12 md:px-10">
         <MarketingReveal>
-          <h1 className="font-display text-4xl text-[var(--sky-ink)]">Pricing</h1>
+          <h1 className="font-display text-4xl text-[var(--sky-ink)]">
+            BHO pricing
+          </h1>
           <p className="mt-3 max-w-2xl text-[var(--muted)]">
-            Clear packages in BTN. Service starts only after onboarding and
-            training fees are received and you accept our{" "}
+            Packages cover front office, folio, POS, and multi-property modules.
+            Prices are in BTN. Service starts only after onboarding and training
+            fees are received and you accept our{" "}
             <Link href="/conditions" className="underline">
               conditions
             </Link>

@@ -18,7 +18,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Menu | Hotel OS",
+  title: "Menu",
   robots: { index: false, follow: false },
 };
 

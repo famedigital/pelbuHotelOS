@@ -9,7 +9,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Payments | Hotel OS",
+  title: "Payments",
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";

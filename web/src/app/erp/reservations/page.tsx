@@ -40,7 +40,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 export const metadata = {
-  title: "Reservations | Hotel OS",
+  title: "Reservations",
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";

@@ -15,7 +15,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const doc = getComplianceDoc(slug);
   return {
-    title: doc ? `${doc.title} | Hotel OS` : "Compliance form",
+    title: doc ? `${doc.title} | BHO` : "Compliance form",
     robots: { index: false, follow: false },
   };
 }

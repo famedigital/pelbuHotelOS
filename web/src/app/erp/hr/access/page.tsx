@@ -16,7 +16,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Module access | Hotel OS",
+  title: "Module access",
   robots: { index: false, follow: false },
 };
 

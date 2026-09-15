@@ -6,7 +6,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Pass / Expo Display | Hotel OS",
+  title: "Pass / Expo Display",
   robots: { index: false, follow: false },
 };
 

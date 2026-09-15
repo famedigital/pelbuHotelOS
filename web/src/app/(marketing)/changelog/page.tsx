@@ -9,7 +9,12 @@ export const metadata: Metadata = {
 const ENTRIES = [
   {
     date: "2026-09-15",
-    title: "Hotel OS platform launch prep",
+    title: "BHO public site rebrand",
+    body: "Bhutan Hotel OS naming, silhouette mark, and Cloudbeds-style marketing narrative for modules, onboarding, and segments.",
+  },
+  {
+    date: "2026-09-15",
+    title: "Platform launch prep",
     body: "Marketing site, pricing, conditions, partner and admin portals for Bhutan channel.",
   },
 ];

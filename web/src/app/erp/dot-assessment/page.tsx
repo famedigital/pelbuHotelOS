@@ -18,7 +18,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "DOT Assessment | Hotel OS",
+  title: "DOT Assessment",
   description:
     "Digital Hotel Classification System 2024 self-assessment (DOT, Trade, BFDA).",
   robots: { index: false, follow: false },

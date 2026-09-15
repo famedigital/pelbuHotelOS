@@ -24,7 +24,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Positions & TOR | Hotel OS",
+  title: "Positions & TOR",
   robots: { index: false, follow: false },
 };
 

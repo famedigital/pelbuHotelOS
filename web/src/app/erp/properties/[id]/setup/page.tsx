@@ -24,7 +24,7 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Hotel setup | Hotel OS",
+  title: "Hotel setup",
   robots: { index: false, follow: false },
 };
 

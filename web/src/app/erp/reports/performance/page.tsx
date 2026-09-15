@@ -22,7 +22,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Owner performance | Hotel OS",
+  title: "Owner performance",
   robots: { index: false, follow: false },
 };
 

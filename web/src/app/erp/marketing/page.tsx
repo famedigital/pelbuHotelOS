@@ -33,7 +33,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Sales & Marketing | Hotel OS",
+  title: "Sales & Marketing",
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";

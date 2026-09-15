@@ -7,7 +7,7 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 
 export const metadata: Metadata = {
-  title: "DOT Assessment worksheet | Hotel OS",
+  title: "DOT Assessment worksheet",
   robots: { index: false, follow: false },
 };
 

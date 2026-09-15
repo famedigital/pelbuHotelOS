@@ -15,7 +15,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { notFound, redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Receipt | Hotel OS",
+  title: "Receipt",
   robots: { index: false, follow: false },
 };
 

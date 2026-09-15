@@ -15,7 +15,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 export const metadata = {
-  title: "POS receipt | Hotel OS",
+  title: "POS receipt",
   robots: { index: false, follow: false },
 };
 

@@ -19,7 +19,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Rota | Hotel OS",
+  title: "Rota",
   robots: { index: false, follow: false },
 };
 

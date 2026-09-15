@@ -6,7 +6,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Agent login | Hotel OS",
+  title: "Agent login",
   description: "Approved travel partners sign in to book and track credit.",
   robots: { index: false, follow: false },
 };

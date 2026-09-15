@@ -23,7 +23,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { notFound, redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Tax invoice | Hotel OS",
+  title: "Tax invoice",
   robots: { index: false, follow: false },
 };
 

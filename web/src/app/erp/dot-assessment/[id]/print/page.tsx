@@ -11,7 +11,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "DOT Assessment print pack | Hotel OS",
+  title: "DOT Assessment print pack",
   robots: { index: false, follow: false },
 };
 

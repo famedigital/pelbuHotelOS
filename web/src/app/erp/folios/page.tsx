@@ -10,7 +10,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "City Ledger | Hotel OS",
+  title: "City Ledger",
   robots: { index: false, follow: false },
 };
 

@@ -1,7 +1,7 @@
 {
-  "name": "Pelbu Staff",
-  "short_name": "Pelbu Staff",
-  "description": "Staff shifts, notices, leave and clock-in for Pelbu Suites.",
+  "name": "BHO Staff",
+  "short_name": "BHO Staff",
+  "description": "BHO staff portal \u2014 attendance, rota, leave.",
   "start_url": "/staff",
   "scope": "/staff",
   "display": "standalone",

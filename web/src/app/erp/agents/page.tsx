@@ -21,7 +21,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 export const metadata: Metadata = {
-  title: "Agents | Hotel OS",
+  title: "Agents",
   robots: { index: false, follow: false },
 };
 

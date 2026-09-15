@@ -16,7 +16,7 @@ import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Login",
-  description: "Hotel OS login hub — desk, staff, agents, partners, platform admin.",
+  description: "BHO login hub — desk, staff, agents, partners, platform admin.",
   robots: { index: false, follow: false },
 };
 

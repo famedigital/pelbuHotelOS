@@ -8,7 +8,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Training | Hotel OS",
+  title: "Training",
   description: "Role-filtered desk manuals and go-live checklist.",
   robots: { index: false, follow: false },
 };

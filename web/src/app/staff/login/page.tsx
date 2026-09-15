@@ -1,13 +1,14 @@
 import { StaffLoginForm } from "@/components/erp/StaffAuthForms";
 import { BRAND_ICONS } from "@/lib/brand";
 import { safeStaffNextPath } from "@/lib/safe-staff-next";
+import { SITE_NAME } from "@/lib/site";
 import { getStaffSession } from "@/lib/staff-auth";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Staff login | Hotel OS",
+  title: "Staff login",
   robots: { index: false, follow: false },
   manifest: "/staff.webmanifest",
 };
@@ -31,14 +32,14 @@ export default async function StaffLoginPage({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={BRAND_ICONS.mark}
-            alt="Pelbu Suites"
+            alt={SITE_NAME}
             className="h-12 w-12 object-contain"
             width={48}
             height={48}
           />
           <div>
             <p className="text-xs font-semibold tracking-[0.2em] text-accent uppercase">
-              Staff portal
+              {SITE_NAME} · Staff
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight">
               Sign in

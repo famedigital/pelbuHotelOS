@@ -6,7 +6,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 
 export const metadata = {
-  title: "Loyalty | Hotel OS",
+  title: "Loyalty",
   description: "Look up your Pelbu Suites loyalty points balance.",
 };
 

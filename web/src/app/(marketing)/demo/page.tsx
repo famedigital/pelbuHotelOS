@@ -15,10 +15,11 @@ export default function DemoPage() {
     <div className="pt-24">
       <div className="mx-auto max-w-lg px-6 py-12 md:px-10">
         <BlurFade inView>
-          <h1 className="font-display text-4xl">Request a demo</h1>
+          <h1 className="font-display text-4xl">Request a BHO demo</h1>
           <p className="mt-3 text-sm text-[var(--muted)]">
-            Tell us about your hotels. We or your local distributor will contact
-            you. Service starts after fees and{" "}
+            Tell us how many hotels you run and what modules you need (desk,
+            folio, POS, multi-property). We or your local distributor will
+            contact you. Service starts after fees and{" "}
             <Link href="/conditions" className="underline">
               conditions
             </Link>{" "}

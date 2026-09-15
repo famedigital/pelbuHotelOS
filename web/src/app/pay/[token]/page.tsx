@@ -9,7 +9,7 @@ import { notFound } from "next/navigation";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Pay token | Hotel OS",
+  title: "Pay token",
   robots: { index: false, follow: false },
 };
 

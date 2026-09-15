@@ -18,7 +18,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Confirmed agents · contact list | Hotel OS",
+  title: "Confirmed agents · contact list",
   robots: { index: false, follow: false },
 };
 

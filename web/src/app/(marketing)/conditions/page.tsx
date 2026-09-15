@@ -6,7 +6,7 @@ import { CONDITION_RULES, CONDITIONS_VERSION, SUPPORT_HOURS } from "@/lib/condit
 export const metadata: Metadata = {
   title: "Service conditions",
   description:
-    "Hotel OS client conditions — payment, fair-use support, authorised contacts, and no-abuse rules.",
+    "BHO client conditions — payment, fair-use support, authorised contacts, and no-abuse rules.",
   robots: { index: true, follow: true },
 };
 

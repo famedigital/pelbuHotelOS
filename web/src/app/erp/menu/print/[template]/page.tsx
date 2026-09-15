@@ -23,7 +23,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { notFound, redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Print menu · sheet | Hotel OS",
+  title: "Print menu · sheet",
   robots: { index: false, follow: false },
 };
 

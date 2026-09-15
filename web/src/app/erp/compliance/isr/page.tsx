@@ -9,7 +9,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Pelbu Suites ISR — MoLHR draft | Hotel OS",
+  title: "Pelbu Suites ISR — MoLHR draft",
   robots: { index: false, follow: false },
 };
 

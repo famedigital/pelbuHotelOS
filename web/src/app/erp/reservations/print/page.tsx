@@ -12,7 +12,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Print · Reservations | Hotel OS",
+  title: "Print · Reservations",
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";

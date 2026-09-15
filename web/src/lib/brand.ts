@@ -7,7 +7,7 @@
  * Bump when replacing files under `web/public/icons` so browsers/PWA drop stale caches.
  * Keep in sync with `?v=` on icons in `*.webmanifest` and SW precache lists.
  */
-export const BRAND_ICON_VERSION = "20260805";
+export const BRAND_ICON_VERSION = "20260915";
 
 function iconPath(path: string): string {
   return `${path}?v=${BRAND_ICON_VERSION}`;
@@ -18,8 +18,12 @@ export const BRAND_ICONS = {
   favicon: iconPath("/favicon.ico"),
   favicon16: iconPath("/icons/favicon-16.png"),
   favicon32: iconPath("/icons/favicon-32.png"),
-  /** Brand mark — use on dark chrome (header, ERP fallback). */
-  mark: iconPath("/icons/icon-192.png"),
+  /** Primary SVG silhouette mark — light backgrounds / general chrome. */
+  mark: iconPath("/icons/bho-mark.svg"),
+  /** SVG mark for dark chrome (header, hero, night ERP chrome). */
+  markLight: iconPath("/icons/bho-mark-light.svg"),
+  /** Raster mark for img contexts that need PNG (PWA / OG). */
+  markRaster: iconPath("/icons/icon-192.png"),
   markLg: iconPath("/icons/icon-512.png"),
   markMaskable: iconPath("/icons/icon-512-maskable.png"),
   appleTouch: iconPath("/icons/apple-touch-icon.png"),

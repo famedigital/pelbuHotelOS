@@ -21,7 +21,7 @@ import { getStaffSession } from "@/lib/staff-auth";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Stay View | Hotel OS",
+  title: "Stay View",
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";

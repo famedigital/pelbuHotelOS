@@ -33,7 +33,7 @@ import { folioVersionFingerprint } from "@/lib/folio/version-fingerprint";
 import { notFound, redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Folio | Hotel OS",
+  title: "Folio",
   robots: { index: false, follow: false },
 };
 

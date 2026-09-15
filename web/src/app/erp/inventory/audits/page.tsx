@@ -13,7 +13,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Stock assessment | Hotel OS",
+  title: "Stock assessment",
   robots: { index: false, follow: false },
 };
 

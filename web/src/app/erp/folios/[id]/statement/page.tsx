@@ -9,7 +9,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Group AR statement | Hotel OS",
+  title: "Group AR statement",
   robots: { index: false, follow: false },
 };
 

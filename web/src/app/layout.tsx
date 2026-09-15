@@ -28,8 +28,8 @@ const fontMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: getSiteUrl(),
   title: {
-    default: SITE_NAME,
-    template: "%s | Hotel OS",
+    default: "BHO — Bhutan Hotel OS",
+    template: "%s | BHO",
   },
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,
@@ -66,7 +66,8 @@ export const metadata: Metadata = {
       { url: BRAND_ICONS.favicon32, sizes: "32x32", type: "image/png" },
       { url: BRAND_ICONS.favicon16, sizes: "16x16", type: "image/png" },
       { url: BRAND_ICONS.favicon, sizes: "any" },
-      { url: BRAND_ICONS.mark, sizes: "192x192", type: "image/png" },
+      { url: BRAND_ICONS.mark, type: "image/svg+xml" },
+      { url: BRAND_ICONS.markRaster, sizes: "192x192", type: "image/png" },
       { url: BRAND_ICONS.markLg, sizes: "512x512", type: "image/png" },
     ],
     apple: [

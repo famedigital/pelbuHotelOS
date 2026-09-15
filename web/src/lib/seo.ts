@@ -6,7 +6,7 @@ import type { Metadata } from "next";
 export const SEO_LOCALE = "Olakha, Thimphu, Bhutan";
 
 /**
- * Default SERP copy for public routes (title without brand — root template adds “| Hotel OS”).
+ * Default SERP copy for public routes (title without brand — root template adds “| BHO”).
  * CMS seo_title / meta_description override these when present.
  */
 export const PAGE_SEO = {

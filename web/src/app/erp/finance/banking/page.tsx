@@ -20,7 +20,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Finance · Banking | Hotel OS",
+  title: "Finance · Banking",
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";

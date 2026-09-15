@@ -13,7 +13,7 @@ import { notFound, redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "Settlement pack | Hotel OS",
+  title: "Settlement pack",
   robots: { index: false, follow: false },
 };
 

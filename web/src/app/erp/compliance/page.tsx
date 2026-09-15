@@ -12,7 +12,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Compliance pack | Hotel OS",
+  title: "Compliance pack",
   description:
     "ISR, BAFRA department SOPs, kitchen cleaning logs, and wall posters for DOT / MoLHR inspections.",
   robots: { index: false, follow: false },

@@ -11,7 +11,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { loadLaundryBagsForOrder } from "@/app/actions/laundry-bags";
 
 export const metadata: Metadata = {
-  title: "Laundry bag labels | Hotel OS",
+  title: "Laundry bag labels",
   robots: { index: false, follow: false },
 };
 

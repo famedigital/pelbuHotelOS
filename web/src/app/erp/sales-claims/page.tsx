@@ -19,7 +19,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Sales claims | Hotel OS",
+  title: "Sales claims",
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";

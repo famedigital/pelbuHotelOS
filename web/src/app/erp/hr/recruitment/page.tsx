@@ -21,7 +21,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Recruitment | Hotel OS",
+  title: "Recruitment",
   robots: { index: false, follow: false },
 };
 

@@ -2,7 +2,7 @@ import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Fast book | Hotel OS",
+  title: "Fast book",
   robots: { index: false, follow: false },
 };
 

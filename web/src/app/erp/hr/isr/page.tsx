@@ -9,7 +9,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Internal Service Rules | Hotel OS",
+  title: "Internal Service Rules",
   robots: { index: false, follow: false },
 };
 

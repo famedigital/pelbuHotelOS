@@ -10,7 +10,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Laundry QR cards | Hotel OS",
+  title: "Laundry QR cards",
   robots: { index: false, follow: false },
 };
 

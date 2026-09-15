@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Staff | Hotel OS",
+  title: "Staff",
   robots: { index: false, follow: false },
   manifest: "/staff.webmanifest",
   appleWebApp: {

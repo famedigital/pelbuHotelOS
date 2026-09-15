@@ -9,7 +9,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Day sheet | Hotel OS",
+  title: "Day sheet",
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";
