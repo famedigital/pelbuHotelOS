@@ -2,9 +2,9 @@
 
 import { deskLogin, type DeskLoginState } from "@/app/actions/desk";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ShimmerButton } from "@/components/ui/shimmer-button";
 import { TriangleAlertIcon } from "lucide-react";
 import { useActionState } from "react";
 
@@ -32,14 +32,16 @@ export function DeskLoginForm() {
           <AlertDescription>{state.error}</AlertDescription>
         </Alert>
       ) : null}
-      <Button
+      <ShimmerButton
         type="submit"
-        variant="citrus"
         disabled={pending}
-        className="h-11 w-full"
+        background="var(--citrus-500)"
+        shimmerColor="#082f49"
+        borderRadius="0.5rem"
+        className="h-11 w-full text-sm font-semibold text-[var(--sky-ink)] border-transparent disabled:opacity-60"
       >
         {pending ? "Opening…" : "Open desk"}
-      </Button>
+      </ShimmerButton>
     </form>
   );
 }

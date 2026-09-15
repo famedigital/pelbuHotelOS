@@ -1,4 +1,6 @@
 import { BookingLifecycleActions } from "@/components/erp/BookingLifecycleActions";
+import { DeskBlurFade } from "@/components/erp/DeskBlurFade";
+import { DeskMetricTicker } from "@/components/erp/DeskMetricTicker";
 import { DeskLiveRefresh } from "@/components/erp/DeskLiveRefresh";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -82,6 +84,7 @@ function Kpi({
         ? "text-citrus"
         : "text-destructive";
   return (
+    <DeskBlurFade>
     <Link
       href={href}
       className="group block rounded-xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
@@ -93,7 +96,7 @@ function Kpi({
             <Icon className={`size-4 shrink-0 ${toneClass}`} />
           </div>
           <p className={`mt-2 text-2xl font-semibold tracking-tight ${toneClass}`}>
-            {value}
+            <DeskMetricTicker value={value} className={toneClass} />
           </p>
           {hint ? (
             <p className="mt-0.5 text-xs text-muted-foreground">
@@ -106,6 +109,7 @@ function Kpi({
         </CardContent>
       </Card>
     </Link>
+    </DeskBlurFade>
   );
 }
 

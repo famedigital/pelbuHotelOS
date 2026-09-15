@@ -81,7 +81,7 @@ export function DeskShell({
           <ErpCommandPalette allowedModuleKeys={allowedModuleKeys} />
           <SidebarInset className="max-h-svh overflow-hidden">
             <StayHubShell>
-              <header className="z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 print:hidden">
+              <header className="z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border/80 bg-background/95 px-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80 print:hidden">
                 <SidebarTrigger className="-ml-1 hidden md:inline-flex" />
                 <Separator
                   orientation="vertical"

@@ -3,6 +3,7 @@
 import { setStaffPortalPin, staffLogin, type StaffLoginState } from "@/app/actions/staff-auth";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { ShimmerButton } from "@/components/ui/shimmer-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -61,9 +62,16 @@ export function StaffLoginForm({
           <AlertDescription>{state.error}</AlertDescription>
         </Alert>
       ) : null}
-      <Button type="submit" variant="citrus" disabled={pending} className="h-11 w-full">
+      <ShimmerButton
+        type="submit"
+        disabled={pending}
+        background="var(--citrus-500)"
+        shimmerColor="#082f49"
+        borderRadius="0.5rem"
+        className="h-11 w-full text-sm font-semibold text-[var(--sky-ink)] border-transparent disabled:opacity-60"
+      >
         {pending ? "Signing in…" : "Sign in"}
-      </Button>
+      </ShimmerButton>
     </form>
   );
 }

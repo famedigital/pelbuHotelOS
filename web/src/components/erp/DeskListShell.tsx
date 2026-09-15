@@ -1,3 +1,4 @@
+import { DeskBlurFade } from "@/components/erp/DeskBlurFade";
 import { DeskHelpHint } from "@/components/erp/DeskHelpHint";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,6 +76,7 @@ export function DeskListShell({
         className,
       )}
     >
+      <DeskBlurFade>
       <div className="border-b border-border/80 bg-background px-4 py-3 md:px-6 md:py-3.5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex-1 space-y-1">
@@ -110,6 +112,7 @@ export function DeskListShell({
           ) : null}
         </div>
       </div>
+      </DeskBlurFade>
 
       {filters ? (
         <div
