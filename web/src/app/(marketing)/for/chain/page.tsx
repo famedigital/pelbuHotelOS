@@ -26,9 +26,9 @@ export default function Page() {
           <div className="mt-10 flex flex-wrap gap-3">
             <Link
               href="/demo"
-              className="inline-flex h-11 items-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground"
+              className="inline-flex h-11 items-center rounded-full bg-cta px-6 text-sm font-semibold"
             >
-              Talk to us
+              Book a demo
             </Link>
             <Link
               href="/pricing"

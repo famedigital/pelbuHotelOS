@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { MarketingHero } from "@/components/marketing/MarketingHero";
 import { MarketingReveal } from "@/components/marketing/MarketingReveal";
+import { MARKETING_MEDIA } from "@/lib/marketing-assets";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -10,26 +11,39 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
-const MODULES: Array<{ title: string; body: string }> = [
+const PROOF = [
+  "Front office",
+  "Folio & night audit",
+  "POS / F&B",
+  "Multi-property",
+  "BTN pricing",
+  "DOT / BAFRA-ready",
+];
+
+const MODULES: Array<{
+  title: string;
+  body: string;
+  media: (typeof MARKETING_MEDIA)[keyof typeof MARKETING_MEDIA];
+}> = [
   {
-    title: "Front office & reservations",
-    body: "Arrivals, departures, room assignment, and stay view — the desk workflow hotels expect from a cloud PMS.",
+    title: "Front desk that runs cleanly",
+    body: "Arrivals, room assignment, and guest profiles — hotel-code login so each property stays isolated.",
+    media: MARKETING_MEDIA.staffDesk,
   },
   {
-    title: "Folio & night audit",
-    body: "Guest folios, charges, payments, and night audit close so daily revenue posts cleanly.",
+    title: "Rooms & folio in one place",
+    body: "Stay view, charges, payments, and night audit close without spreadsheet handoffs.",
+    media: MARKETING_MEDIA.roomGuest,
   },
   {
-    title: "POS / F&B",
-    body: "Outlet orders that post to the room folio or settle at the counter — restaurant, café, and bar.",
+    title: "POS that posts to the room",
+    body: "Restaurant and outlet orders settle to the folio or the counter — F&B built for hotels.",
+    media: MARKETING_MEDIA.foodFnb,
   },
   {
-    title: "Multi-property / portfolio",
-    body: "One owner account, separate properties. Switch hotels without mixing rates, staff, or folios.",
-  },
-  {
-    title: "Reporting & compliance",
-    body: "Operational reports plus DOT / BAFRA-ready tooling inside the ERP — factual checklists, not slogans.",
+    title: "Ops the team can trust",
+    body: "Housekeeping status, training, and fair-use support in Bhutan business hours.",
+    media: MARKETING_MEDIA.housekeeping,
   },
 ];
 
@@ -37,17 +51,17 @@ const HOW: Array<{ step: string; title: string; body: string }> = [
   {
     step: "01",
     title: "Onboard",
-    body: "Property setup, rooms, rates, and staff access — with your distributor or Fame Digital.",
+    body: "Property setup, rooms, rates, and owner credentials — with your distributor or Fame Digital.",
   },
   {
     step: "02",
     title: "Train",
-    body: "Desk training in Bhutan business hours so the team can run check-in, folio, and night audit.",
+    body: "Desk training so check-in, folio, and night audit are muscle memory before go-live.",
   },
   {
     step: "03",
     title: "Go live",
-    body: "Service starts after onboarding fees and conditions acceptance. Support stays fair-use.",
+    body: "Service starts after fees and conditions. Multi-property owners switch hotels without mixing data.",
   },
 ];
 
@@ -60,19 +74,18 @@ const SEGMENTS: Array<{
   {
     href: "/for/leased",
     label: "Leased portfolios",
-    blurb:
-      "One owner, many hotels in different places — the most common Bhutan reality.",
+    blurb: "One owner, many hotels — the most common Bhutan reality.",
     primary: true,
   },
   {
     href: "/for/independent",
     label: "Independent",
-    blurb: "One building, clear desk, night audit without spreadsheet chaos.",
+    blurb: "One building, clear desk, night audit without chaos.",
   },
   {
     href: "/for/chain",
     label: "Chains",
-    blurb: "Shared standards across properties, with room to grow.",
+    blurb: "Shared standards across properties, room to grow.",
   },
 ];
 
@@ -81,37 +94,67 @@ export default function MarketingHomePage() {
     <>
       <MarketingHero />
 
-      <section className="mx-auto max-w-5xl px-6 py-24 md:px-10">
+      <section className="border-b border-border bg-background px-6 py-6 md:px-10">
+        <div className="mx-auto flex max-w-6xl flex-wrap gap-x-10 gap-y-2">
+          {PROOF.map((item) => (
+            <span
+              key={item}
+              className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase"
+            >
+              {item}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-6 py-24 md:px-10">
         <MarketingReveal>
           <p className="text-xs font-semibold tracking-[0.2em] text-primary uppercase">
-            Modules
+            Platform
           </p>
-          <h2 className="mt-3 font-display text-3xl tracking-tight text-foreground md:text-4xl">
-            Everything the hotel needs to run
+          <h2 className="mt-3 max-w-2xl font-display text-3xl tracking-tight md:text-4xl">
+            Everything your hotel needs to run — in one system
           </h2>
           <p className="mt-4 max-w-2xl text-muted-foreground">
-            The same product categories you see in international cloud PMS —
-            wired for Bhutan operations.
+            Built like an international cloud PMS, shaped for Bhutan: BTN
+            pricing, multi-property owners, and desk workflows that beat
+            spreadsheet PMS workarounds.
           </p>
         </MarketingReveal>
-        <div className="mt-14 space-y-0 border-t border-border">
+
+        <div className="mt-16 space-y-20">
           {MODULES.map((m, i) => (
-            <MarketingReveal key={m.title} delay={0.04 * (i + 1)}>
-              <div className="grid gap-3 border-b border-border py-8 md:grid-cols-[minmax(0,0.38fr)_minmax(0,0.62fr)] md:gap-12">
-                <h3 className="font-display text-xl text-foreground md:text-2xl">
-                  {m.title}
-                </h3>
-                <p className="text-sm leading-relaxed text-muted-foreground md:text-base">
-                  {m.body}
-                </p>
+            <MarketingReveal key={m.title} delay={0.05 * (i + 1)}>
+              <div
+                className={`grid items-center gap-10 md:grid-cols-2 md:gap-14 ${
+                  i % 2 === 1 ? "md:[&>*:first-child]:order-2" : ""
+                }`}
+              >
+                <div className="overflow-hidden rounded-2xl">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={m.media.src}
+                    alt={m.media.alt}
+                    className="aspect-[4/3] h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+                <div>
+                  <h3 className="font-display text-2xl tracking-tight md:text-3xl">
+                    {m.title}
+                  </h3>
+                  <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+                    {m.body}
+                  </p>
+                </div>
               </div>
             </MarketingReveal>
           ))}
         </div>
       </section>
 
-      <section className="border-y border-border bg-secondary/50 px-6 py-24 md:px-10">
-        <div className="mx-auto max-w-5xl">
+      <section className="border-y border-border bg-secondary px-6 py-24 md:px-10">
+        <div className="mx-auto max-w-6xl">
           <MarketingReveal>
             <p className="text-xs font-semibold tracking-[0.2em] text-primary uppercase">
               How it works
@@ -120,15 +163,13 @@ export default function MarketingHomePage() {
               Onboard. Train. Go live.
             </h2>
           </MarketingReveal>
-          <div className="mt-14 grid gap-10 md:grid-cols-3 md:gap-8">
+          <div className="mt-14 grid gap-10 md:grid-cols-3">
             {HOW.map((h, i) => (
               <MarketingReveal key={h.step} delay={0.06 * (i + 1)}>
                 <p className="font-mono text-xs tracking-[0.2em] text-primary">
                   {h.step}
                 </p>
-                <h3 className="mt-4 font-display text-2xl text-foreground">
-                  {h.title}
-                </h3>
+                <h3 className="mt-4 font-display text-2xl">{h.title}</h3>
                 <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                   {h.body}
                 </p>
@@ -138,86 +179,83 @@ export default function MarketingHomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-5xl px-6 py-24 md:px-10">
+      <section className="mx-auto max-w-6xl px-6 py-24 md:px-10">
         <MarketingReveal>
           <p className="text-xs font-semibold tracking-[0.2em] text-primary uppercase">
             Who it is for
           </p>
           <h2 className="mt-3 font-display text-3xl tracking-tight md:text-4xl">
-            Built for how hotels actually run here
+            Independent, leased, or chain
           </h2>
-          <p className="mt-4 max-w-2xl text-muted-foreground">
-            Independent hotels, leased multi-location owners, and branded
-            chains.
-          </p>
         </MarketingReveal>
         <div className="mt-12 grid gap-6 md:grid-cols-3">
           {SEGMENTS.map((s, i) => (
             <MarketingReveal key={s.href} delay={0.06 * (i + 1)}>
-              <Link href={s.href} className={segmentClass(s.primary)}>
+              <Link
+                href={s.href}
+                className={
+                  s.primary
+                    ? "block rounded-2xl border border-primary/30 bg-secondary p-6 transition hover:-translate-y-0.5 hover:shadow-md"
+                    : "block rounded-2xl border border-border bg-card p-6 transition hover:-translate-y-0.5 hover:shadow-md"
+                }
+              >
                 <p className="text-xs font-semibold tracking-wider text-primary uppercase">
                   {s.primary ? "Most common" : "Segment"}
                 </p>
-                <h3 className="mt-3 font-display text-xl text-foreground">
-                  {s.label}
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  {s.blurb}
-                </p>
+                <h3 className="mt-3 font-display text-xl">{s.label}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{s.blurb}</p>
               </Link>
             </MarketingReveal>
           ))}
         </div>
       </section>
 
-      <section className="border-y border-border bg-accent/40 px-6 py-20 md:px-10">
-        <div className="mx-auto max-w-5xl">
+      <section className="border-y border-border bg-secondary/80 px-6 py-20 md:px-10">
+        <div className="mx-auto max-w-6xl">
           <MarketingReveal>
             <h2 className="font-display text-2xl tracking-tight md:text-3xl">
               Why Innora
             </h2>
             <ul className="mt-8 grid gap-5 text-sm md:grid-cols-2">
               <li className="border-l-2 border-primary pl-4 text-muted-foreground">
-                <span className="text-foreground">
-                  Leased multi-hotel owners
-                </span>{" "}
-                — one login, many properties
+                <span className="text-foreground">Hotel-code multi-tenant</span>{" "}
+                — each property isolated, owners switch cleanly
               </li>
               <li className="border-l-2 border-primary pl-4 text-muted-foreground">
-                <span className="text-foreground">BTN pricing</span> and bank
-                AMC with local distributors
+                <span className="text-foreground">BTN pricing</span> and local
+                distributors — not USD-only SaaS
               </li>
               <li className="border-l-2 border-primary pl-4 text-muted-foreground">
-                <span className="text-foreground">DOT / BAFRA / ISR</span>{" "}
-                compliance tools inside the ERP
+                <span className="text-foreground">Desk + folio + POS</span> in
+                one product, not bolted modules
               </li>
               <li className="border-l-2 border-primary pl-4 text-muted-foreground">
-                <span className="text-foreground">Training</span> in Bhutan
-                business hours — conditions protect both sides
+                <span className="text-foreground">DOT / BAFRA-ready</span>{" "}
+                tooling inside the ERP
               </li>
             </ul>
           </MarketingReveal>
         </div>
       </section>
 
-      <section className="mx-auto max-w-5xl px-6 py-24 md:px-10">
+      <section className="mx-auto max-w-6xl px-6 py-24 md:px-10">
         <MarketingReveal>
-          <h2 className="font-display text-3xl tracking-tight text-foreground md:text-4xl">
+          <h2 className="font-display text-3xl tracking-tight md:text-4xl">
             See Innora on your hotels
           </h2>
           <p className="mt-4 max-w-xl text-muted-foreground">
-            Request a walkthrough, or review packages in BTN before you commit.
+            Book a walkthrough, or review packages in BTN before you commit.
           </p>
           <div className="mt-9 flex flex-wrap gap-3">
             <Link
               href="/demo"
-              className="inline-flex h-12 items-center rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground shadow-md transition hover:opacity-90"
+              className="inline-flex h-12 items-center rounded-full bg-cta px-8 text-sm font-semibold transition"
             >
-              Request a demo
+              Book a demo
             </Link>
             <Link
               href="/pricing"
-              className="inline-flex h-12 items-center rounded-full border border-border bg-card px-7 text-sm font-medium transition hover:bg-secondary"
+              className="inline-flex h-12 items-center rounded-full border border-border bg-card px-8 text-sm font-medium transition hover:bg-secondary"
             >
               Pricing
             </Link>
@@ -226,10 +264,4 @@ export default function MarketingHomePage() {
       </section>
     </>
   );
-}
-
-function segmentClass(primary?: boolean) {
-  return primary
-    ? "group block rounded-2xl border border-primary/40 bg-accent/50 p-6 transition duration-300 hover:-translate-y-0.5 hover:shadow-md"
-    : "group block rounded-2xl border border-border bg-card p-6 transition duration-300 hover:-translate-y-0.5 hover:shadow-md";
 }

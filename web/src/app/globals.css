@@ -480,7 +480,44 @@
   }
 }
 
-/* Quiet utilities — no brochure chrome (no bar-eyebrows, no brass rules). */
+/* =========================================================================
+   Marketing hybrid (Mews surfaces + Ocean Breeze teal + magenta CTA)
+   Scoped under .marketing so ERP `.erp` is unaffected.
+   ========================================================================= */
+.marketing {
+  --background: oklch(0.995 0.002 250);
+  --foreground: oklch(0.28 0.03 260);
+  --card: oklch(1 0 0);
+  --muted-foreground: oklch(0.48 0.02 260);
+  --secondary: oklch(0.96 0.01 250);
+  --border: oklch(0.92 0.01 250);
+  /* Ocean Breeze teal for accents / links */
+  --primary: oklch(0.62 0.14 170);
+  --primary-foreground: oklch(1 0 0);
+  /* Mews-inspired magenta for primary CTAs only */
+  --cta: oklch(0.62 0.22 350);
+  --cta-foreground: oklch(1 0 0);
+  --cta-soft: oklch(0.72 0.18 350);
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.marketing .bg-cta {
+  background-color: var(--cta);
+  color: var(--cta-foreground);
+}
+
+.marketing .bg-cta:hover {
+  background-color: var(--cta-soft);
+}
+
+.marketing .text-cta {
+  color: var(--cta);
+}
+
+.marketing .border-cta {
+  border-color: var(--cta);
+}
 
 @layer components {
   /* Soft section label — plain text, not a PPT eyebrow. */

@@ -17,9 +17,9 @@ export default function DemoPage() {
         <BlurFade inView>
           <h1 className="font-display text-4xl">Request an Innora demo</h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            Tell us how many hotels you run and what modules you need (desk,
-            folio, POS, multi-property). We or your local distributor will
-            contact you. Service starts after fees and{" "}
+            Tell us how many hotels you run and what you need — desk, folio,
+            POS, multi-property. We or your distributor will follow up. Service
+            starts after fees and{" "}
             <Link href="/conditions" className="underline">
               conditions
             </Link>{" "}

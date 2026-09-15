@@ -17,13 +17,30 @@ const NAV = [
 
 export function MarketingHeader() {
   const pathname = usePathname();
+  const onHome = pathname === "/";
   return (
-    <header className="fixed inset-x-0 top-0 z-30 border-b border-border/60 bg-background/80 px-6 py-3.5 backdrop-blur-md md:px-10">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
+    <header
+      className={cn(
+        "fixed inset-x-0 top-0 z-30 px-6 py-3.5 backdrop-blur-md md:px-10",
+        onHome
+          ? "border-b border-white/15 bg-black/20"
+          : "border-b border-border/60 bg-background/90",
+      )}
+    >
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
         <Link href="/" className="transition-opacity hover:opacity-90">
-          <InnoraLogo size="sm" wordmarkClassName="text-foreground" />
+          <InnoraLogo
+            variant={onHome ? "light" : "default"}
+            size="sm"
+            wordmarkClassName={onHome ? "text-white" : "text-foreground"}
+          />
         </Link>
-        <nav className="hidden items-center gap-6 text-sm text-muted-foreground lg:flex">
+        <nav
+          className={cn(
+            "hidden items-center gap-6 text-sm lg:flex",
+            onHome ? "text-white/80" : "text-muted-foreground",
+          )}
+        >
           {NAV.map((item) => {
             const active =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -32,14 +49,15 @@ export function MarketingHeader() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "relative transition-colors hover:text-foreground",
-                  active && "text-foreground",
+                  "relative transition-colors",
+                  onHome ? "hover:text-white" : "hover:text-foreground",
+                  active && (onHome ? "text-white" : "text-foreground"),
                 )}
               >
                 {item.label}
                 <span
                   className={cn(
-                    "absolute -bottom-1 left-0 h-0.5 w-full origin-left rounded-full bg-primary transition-transform duration-300",
+                    "absolute -bottom-1 left-0 h-0.5 w-full origin-left rounded-full bg-cta transition-transform duration-300",
                     active ? "scale-x-100" : "scale-x-0",
                   )}
                 />
@@ -48,14 +66,25 @@ export function MarketingHeader() {
           })}
           <Link
             href="/login"
-            className="rounded-full bg-secondary px-3.5 py-1.5 text-secondary-foreground transition hover:opacity-90"
+            className={cn(
+              "rounded-full px-3.5 py-1.5 transition",
+              onHome
+                ? "bg-white/15 text-white hover:bg-white/25"
+                : "bg-secondary text-secondary-foreground hover:opacity-90",
+            )}
           >
             Login
+          </Link>
+          <Link
+            href="/demo"
+            className="rounded-full bg-cta px-3.5 py-1.5 text-sm font-semibold transition"
+          >
+            Book a demo
           </Link>
         </nav>
         <Link
           href="/demo"
-          className="rounded-full bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 lg:hidden"
+          className="rounded-full bg-cta px-3.5 py-1.5 text-sm font-semibold lg:hidden"
         >
           Demo
         </Link>
@@ -66,8 +95,8 @@ export function MarketingHeader() {
 
 export function MarketingFooter() {
   return (
-    <footer className="border-t border-border bg-secondary/40 px-6 py-14 text-foreground md:px-10">
-      <div className="mx-auto flex max-w-5xl flex-col gap-10 md:flex-row md:justify-between">
+    <footer className="border-t border-border bg-secondary px-6 py-14 text-foreground md:px-10">
+      <div className="mx-auto flex max-w-6xl flex-col gap-10 md:flex-row md:justify-between">
         <div>
           <InnoraLogo size="md" wordmarkClassName="text-foreground" />
           <p className="mt-4 max-w-sm text-sm leading-relaxed text-muted-foreground">
@@ -86,7 +115,7 @@ export function MarketingFooter() {
               Conditions
             </Link>
             <Link href="/demo" className="transition hover:text-foreground">
-              Request demo
+              Book a demo
             </Link>
           </div>
           <div className="flex flex-col gap-2.5 text-muted-foreground">
@@ -105,7 +134,7 @@ export function MarketingFooter() {
           </div>
         </div>
       </div>
-      <p className="mx-auto mt-12 max-w-5xl text-xs text-muted-foreground">
+      <p className="mx-auto mt-12 max-w-6xl text-xs text-muted-foreground">
         © {new Date().getFullYear()} Fame Digital · {SITE_NAME}
       </p>
     </footer>

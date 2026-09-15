@@ -6,7 +6,7 @@ import { PricingPackages } from "@/components/marketing/PricingPackages";
 export const metadata: Metadata = {
   title: "Pricing",
   description:
-    "Innora packages in BTN — Classic, Plus, Pro, Portfolio, Chain — plus onboarding and desk training fees.",
+    "Innora packages in BTN — Classic through Chain. Front office, folio, POS, multi-property. Clear onboarding and desk training.",
   robots: { index: true, follow: true },
 };
 
@@ -19,9 +19,9 @@ export default function PricingPage() {
             Innora pricing
           </h1>
           <p className="mt-4 max-w-2xl text-muted-foreground">
-            Packages cover front office, folio, POS, and multi-property modules.
-            Prices are in BTN. Service starts only after onboarding and training
-            fees are received and you accept our{" "}
+            Packages cover the full hotel OS: reservations, folio, POS, and
+            multi-property. Prices in BTN. Service starts after onboarding,
+            training fees, and{" "}
             <Link href="/conditions" className="underline underline-offset-2">
               conditions
             </Link>
