@@ -20,11 +20,7 @@ const PROOF = [
   "DOT / BAFRA-ready",
 ];
 
-const MODULES: Array<{
-  title: string;
-  body: string;
-  media: (typeof MARKETING_MEDIA)[keyof typeof MARKETING_MEDIA];
-}> = [
+const MODULES = [
   {
     title: "Front desk that runs cleanly",
     body: "Arrivals, room assignment, and guest profiles — hotel-code login so each property stays isolated.",
@@ -41,53 +37,59 @@ const MODULES: Array<{
     media: MARKETING_MEDIA.foodFnb,
   },
   {
+    title: "Kitchen & outlet service",
+    body: "Plating, pass, and guest dining that connect back to the stay — not a separate island.",
+    media: MARKETING_MEDIA.kitchenPass,
+  },
+  {
     title: "Ops the team can trust",
     body: "Housekeeping status, training, and fair-use support in Bhutan business hours.",
     media: MARKETING_MEDIA.housekeeping,
   },
-];
+] as const;
 
-const HOW: Array<{ step: string; title: string; body: string }> = [
+const HOW = [
   {
     step: "01",
     title: "Onboard",
     body: "Property setup, rooms, rates, and owner credentials — with your distributor or Fame Digital.",
+    media: MARKETING_MEDIA.howOnboard,
   },
   {
     step: "02",
     title: "Train",
     body: "Desk training so check-in, folio, and night audit are muscle memory before go-live.",
+    media: MARKETING_MEDIA.howTrain,
   },
   {
     step: "03",
     title: "Go live",
     body: "Service starts after fees and conditions. Multi-property owners switch hotels without mixing data.",
+    media: MARKETING_MEDIA.howLive,
   },
-];
+] as const;
 
-const SEGMENTS: Array<{
-  href: string;
-  label: string;
-  blurb: string;
-  primary?: boolean;
-}> = [
+const SEGMENTS = [
   {
     href: "/for/leased",
     label: "Leased portfolios",
     blurb: "One owner, many hotels — the most common Bhutan reality.",
+    media: MARKETING_MEDIA.segmentLeased,
     primary: true,
   },
   {
     href: "/for/independent",
     label: "Independent",
     blurb: "One building, clear desk, night audit without chaos.",
+    media: MARKETING_MEDIA.segmentIndependent,
   },
   {
     href: "/for/chain",
     label: "Chains",
     blurb: "Shared standards across properties, room to grow.",
+    media: MARKETING_MEDIA.segmentChain,
   },
-];
+] as const;
 
 export default function MarketingHomePage() {
   return (
@@ -110,15 +112,14 @@ export default function MarketingHomePage() {
       <section className="mx-auto max-w-6xl px-6 py-24 md:px-10">
         <MarketingReveal>
           <p className="text-xs font-semibold tracking-[0.2em] text-primary uppercase">
-            Platform
+            On property
           </p>
           <h2 className="mt-3 max-w-2xl font-display text-3xl tracking-tight md:text-4xl">
-            Everything your hotel needs to run — in one system
+            Built around how Bhutan hotels actually run
           </h2>
           <p className="mt-4 max-w-2xl text-muted-foreground">
-            Built like an international cloud PMS, shaped for Bhutan: BTN
-            pricing, multi-property owners, and desk workflows that beat
-            spreadsheet PMS workarounds.
+            Desk, rooms, dining, and housekeeping — photographed on the floor,
+            not as software screenshots.
           </p>
         </MarketingReveal>
 
@@ -153,6 +154,31 @@ export default function MarketingHomePage() {
         </div>
       </section>
 
+      <section className="relative overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={MARKETING_MEDIA.howLive.src}
+          alt={MARKETING_MEDIA.howLive.alt}
+          className="absolute inset-0 h-full w-full object-cover"
+          loading="lazy"
+        />
+        <div className="absolute inset-0 bg-black/45" />
+        <div className="relative z-10 mx-auto max-w-6xl px-6 py-28 md:px-10 md:py-36">
+          <MarketingReveal>
+            <p className="text-xs font-semibold tracking-[0.2em] text-white/70 uppercase">
+              For Bhutan operators
+            </p>
+            <h2 className="mt-4 max-w-xl font-display text-3xl tracking-tight text-white md:text-4xl">
+              One system for every property you run
+            </h2>
+            <p className="mt-4 max-w-lg text-white/80">
+              Hotel-code multi-tenant, BTN pricing, and local support — without
+              spreadsheet handoffs between desk and night audit.
+            </p>
+          </MarketingReveal>
+        </div>
+      </section>
+
       <section className="border-y border-border bg-secondary px-6 py-24 md:px-10">
         <div className="mx-auto max-w-6xl">
           <MarketingReveal>
@@ -166,10 +192,19 @@ export default function MarketingHomePage() {
           <div className="mt-14 grid gap-10 md:grid-cols-3">
             {HOW.map((h, i) => (
               <MarketingReveal key={h.step} delay={0.06 * (i + 1)}>
-                <p className="font-mono text-xs tracking-[0.2em] text-primary">
+                <div className="overflow-hidden rounded-2xl">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={h.media.src}
+                    alt={h.media.alt}
+                    className="aspect-[16/10] w-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+                <p className="mt-5 font-mono text-xs tracking-[0.2em] text-primary">
                   {h.step}
                 </p>
-                <h3 className="mt-4 font-display text-2xl">{h.title}</h3>
+                <h3 className="mt-3 font-display text-2xl">{h.title}</h3>
                 <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                   {h.body}
                 </p>
@@ -193,17 +228,22 @@ export default function MarketingHomePage() {
             <MarketingReveal key={s.href} delay={0.06 * (i + 1)}>
               <Link
                 href={s.href}
-                className={
-                  s.primary
-                    ? "block rounded-2xl border border-primary/30 bg-secondary p-6 transition hover:-translate-y-0.5 hover:shadow-md"
-                    : "block rounded-2xl border border-border bg-card p-6 transition hover:-translate-y-0.5 hover:shadow-md"
-                }
+                className="group block overflow-hidden rounded-2xl border border-border bg-card transition hover:-translate-y-0.5 hover:shadow-md"
               >
-                <p className="text-xs font-semibold tracking-wider text-primary uppercase">
-                  {s.primary ? "Most common" : "Segment"}
-                </p>
-                <h3 className="mt-3 font-display text-xl">{s.label}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{s.blurb}</p>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={s.media.src}
+                  alt={s.media.alt}
+                  className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+                  loading="lazy"
+                />
+                <div className="p-6">
+                  <p className="text-xs font-semibold tracking-wider text-primary uppercase">
+                    {s.primary ? "Most common" : "Segment"}
+                  </p>
+                  <h3 className="mt-3 font-display text-xl">{s.label}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">{s.blurb}</p>
+                </div>
               </Link>
             </MarketingReveal>
           ))}
@@ -238,29 +278,40 @@ export default function MarketingHomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-6 py-24 md:px-10">
-        <MarketingReveal>
-          <h2 className="font-display text-3xl tracking-tight md:text-4xl">
-            See Innora on your hotels
-          </h2>
-          <p className="mt-4 max-w-xl text-muted-foreground">
-            Book a walkthrough, or review packages in BTN before you commit.
-          </p>
-          <div className="mt-9 flex flex-wrap gap-3">
-            <Link
-              href="/demo"
-              className="inline-flex h-12 items-center rounded-full bg-cta px-8 text-sm font-semibold transition"
-            >
-              Book a demo
-            </Link>
-            <Link
-              href="/pricing"
-              className="inline-flex h-12 items-center rounded-full border border-border bg-card px-8 text-sm font-medium transition hover:bg-secondary"
-            >
-              Pricing
-            </Link>
-          </div>
-        </MarketingReveal>
+      <section className="relative overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={MARKETING_MEDIA.heroLobby.src}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+          loading="lazy"
+          aria-hidden
+        />
+        <div className="absolute inset-0 bg-black/50" />
+        <div className="relative z-10 mx-auto max-w-6xl px-6 py-24 md:px-10">
+          <MarketingReveal>
+            <h2 className="font-display text-3xl tracking-tight text-white md:text-4xl">
+              See Innora on your hotels
+            </h2>
+            <p className="mt-4 max-w-xl text-white/80">
+              Book a walkthrough, or review packages in BTN before you commit.
+            </p>
+            <div className="mt-9 flex flex-wrap gap-3">
+              <Link
+                href="/demo"
+                className="inline-flex h-12 items-center rounded-full bg-cta px-8 text-sm font-semibold transition"
+              >
+                Book a demo
+              </Link>
+              <Link
+                href="/pricing"
+                className="inline-flex h-12 items-center rounded-full border border-white/35 bg-white/10 px-8 text-sm font-medium text-white backdrop-blur transition hover:bg-white/20"
+              >
+                Pricing
+              </Link>
+            </div>
+          </MarketingReveal>
+        </div>
       </section>
     </>
   );

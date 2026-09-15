@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { MarketingPageBanner } from "@/components/marketing/MarketingPageBanner";
 import { MarketingReveal } from "@/components/marketing/MarketingReveal";
+import { MARKETING_MEDIA } from "@/lib/marketing-assets";
 
 export const metadata: Metadata = {
   title: "Independent hotels",
@@ -11,23 +13,35 @@ export const metadata: Metadata = {
 
 export default function Page() {
   return (
-    <div className="pt-24">
-      <div className="mx-auto max-w-3xl px-6 py-12 md:px-10">
+    <>
+      <MarketingPageBanner
+        media={MARKETING_MEDIA.segmentIndependent}
+        title="Independent hotels"
+        description="One building, one desk team — reservations, folio, night audit, and optional POS without spreadsheet chaos."
+      />
+      <div className="mx-auto max-w-3xl px-6 py-14 md:px-10">
         <MarketingReveal>
-          <h1 className="font-display text-4xl tracking-tight">
-            Independent hotels
-          </h1>
-          <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
-            One building, one desk team. Innora gives you reservations, room
-            assignment, guest folios, night audit, and optional POS — without
-            spreadsheet chaos. Classic or Plus package, with onboarding and
-            staff training before go-live.
-          </p>
-          <ul className="mt-8 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
+          <ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground">
             <li>Front office: arrivals, departures, stay view</li>
             <li>Folio posting and night audit close</li>
             <li>Training so the desk can run day one</li>
           </ul>
+          <div className="mt-10 grid gap-4 sm:grid-cols-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={MARKETING_MEDIA.roomGuest.src}
+              alt={MARKETING_MEDIA.roomGuest.alt}
+              className="aspect-[4/3] w-full rounded-2xl object-cover"
+              loading="lazy"
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={MARKETING_MEDIA.housekeeping.src}
+              alt={MARKETING_MEDIA.housekeeping.alt}
+              className="aspect-[4/3] w-full rounded-2xl object-cover"
+              loading="lazy"
+            />
+          </div>
           <div className="mt-10 flex flex-wrap gap-3">
             <Link
               href="/demo"
@@ -44,6 +58,6 @@ export default function Page() {
           </div>
         </MarketingReveal>
       </div>
-    </div>
+    </>
   );
 }

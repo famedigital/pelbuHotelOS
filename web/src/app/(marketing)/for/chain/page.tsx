@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { MarketingPageBanner } from "@/components/marketing/MarketingPageBanner";
 import { MarketingReveal } from "@/components/marketing/MarketingReveal";
+import { MARKETING_MEDIA } from "@/lib/marketing-assets";
 
 export const metadata: Metadata = {
   title: "Hotel chains",
@@ -11,17 +13,26 @@ export const metadata: Metadata = {
 
 export default function Page() {
   return (
-    <div className="pt-24">
-      <div className="mx-auto max-w-3xl px-6 py-12 md:px-10">
+    <>
+      <MarketingPageBanner
+        media={MARKETING_MEDIA.segmentChain}
+        title="Chains & brands"
+        description="Shared operating standards across properties with room to grow — each hotel keeps its own rooms, rates, and folios."
+      />
+      <div className="mx-auto max-w-3xl px-6 py-14 md:px-10">
         <MarketingReveal>
-          <h1 className="font-display text-4xl tracking-tight">
-            Chains & brands
-          </h1>
-          <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
-            Shared operating standards across properties with room to grow. Each
-            hotel keeps its own rooms, rates, and folios; the group gets one
-            owner view. Chain package starts from a clear floor price — custom
-            quote for larger groups.
+          <div className="overflow-hidden rounded-2xl">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={MARKETING_MEDIA.howTrain.src}
+              alt={MARKETING_MEDIA.howTrain.alt}
+              className="aspect-[16/9] w-full object-cover"
+              loading="lazy"
+            />
+          </div>
+          <p className="mt-8 text-muted-foreground">
+            Chain package starts from a clear floor price — custom quote for
+            larger groups.
           </p>
           <div className="mt-10 flex flex-wrap gap-3">
             <Link
@@ -39,6 +50,6 @@ export default function Page() {
           </div>
         </MarketingReveal>
       </div>
-    </div>
+    </>
   );
 }

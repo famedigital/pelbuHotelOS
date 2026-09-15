@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { MarketingPageBanner } from "@/components/marketing/MarketingPageBanner";
 import { MarketingReveal } from "@/components/marketing/MarketingReveal";
+import { MARKETING_MEDIA } from "@/lib/marketing-assets";
 
 export const metadata: Metadata = {
   title: "Leased hotel portfolios",
@@ -11,26 +13,36 @@ export const metadata: Metadata = {
 
 export default function Page() {
   return (
-    <div className="pt-24">
-      <div className="mx-auto max-w-3xl px-6 py-12 md:px-10">
+    <>
+      <MarketingPageBanner
+        media={MARKETING_MEDIA.segmentLeased}
+        eyebrow="Most common in Bhutan"
+        title="One owner. Many leased hotels."
+        description="Operate hotels in different locations under different trade names — without mixing folios, rates, or staff."
+      />
+      <div className="mx-auto max-w-3xl px-6 py-14 md:px-10">
         <MarketingReveal>
-          <p className="text-xs font-semibold tracking-[0.2em] text-primary uppercase">
-            Most common in Bhutan
-          </p>
-          <h1 className="mt-3 font-display text-4xl tracking-tight">
-            One owner. Many leased hotels.
-          </h1>
-          <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
-            You lease or operate hotels in different locations — often under
-            different trade names. Innora gives you one owner account and a desk
-            for each property. Switch location without mixing folios, rates, or
-            staff.
-          </p>
-          <ul className="mt-8 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
+          <ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground">
             <li>Separate rates, rooms, and night audit per property</li>
             <li>Cheaper setup for each extra location under the same owner</li>
             <li>Portfolio package pricing on the pricing page</li>
           </ul>
+          <div className="mt-10 grid gap-4 sm:grid-cols-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={MARKETING_MEDIA.howLive.src}
+              alt={MARKETING_MEDIA.howLive.alt}
+              className="aspect-[4/3] w-full rounded-2xl object-cover"
+              loading="lazy"
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={MARKETING_MEDIA.staffDesk.src}
+              alt={MARKETING_MEDIA.staffDesk.alt}
+              className="aspect-[4/3] w-full rounded-2xl object-cover"
+              loading="lazy"
+            />
+          </div>
           <div className="mt-10 flex flex-wrap gap-3">
             <Link
               href="/demo"
@@ -47,6 +59,6 @@ export default function Page() {
           </div>
         </MarketingReveal>
       </div>
-    </div>
+    </>
   );
 }
