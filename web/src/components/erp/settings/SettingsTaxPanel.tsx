@@ -48,6 +48,17 @@ export function SettingsTaxPanel({ property }: { property: PropertyRow }) {
         </div>
         <div className="flex min-h-11 items-center gap-3 rounded-lg border px-4 py-3">
           <Checkbox
+            id="gst_default_on"
+            name="gst_default_on"
+            value="1"
+            defaultChecked={property.gst_default_on !== false}
+          />
+          <Label htmlFor="gst_default_on" className="text-sm text-foreground">
+            Apply GST by default on new POS bills
+          </Label>
+        </div>
+        <div className="flex min-h-11 items-center gap-3 rounded-lg border px-4 py-3">
+          <Checkbox
             id="service_charge_default_on"
             name="service_charge_default_on"
             value="1"

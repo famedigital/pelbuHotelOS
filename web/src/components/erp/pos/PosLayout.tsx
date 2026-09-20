@@ -20,6 +20,7 @@ import { OpenTicketsDrawer } from "@/components/erp/pos/OpenTicketsDrawer";
 import { PosBootstrapCacheWriter } from "@/components/erp/pos/PosBootstrapCacheWriter";
 import { PosFloorPlan, type FloorKey } from "@/components/erp/pos/PosFloorPlan";
 import { PosHowToSheet } from "@/components/erp/pos/PosHowToSheet";
+import { PosKioskChrome } from "@/components/erp/pos/PosKioskChrome";
 import { PosRegisterHeaderChrome } from "@/components/erp/pos/PosRegisterHeaderChrome";
 import { PosClosingPanel } from "@/components/erp/pos/PosClosingPanel";
 import {
@@ -119,6 +120,13 @@ export function PosLayout({
   gstRate,
   serviceChargeRate,
   serviceChargeDefaultOn,
+  gstDefaultOn = true,
+  setMeals = [],
+  lockedOutlet = null,
+  kioskMode = false,
+  initialSaleKind = null,
+  kioskOutletLabel,
+  propertyName,
   runtimeConfig,
   guestServiceSlot,
   ncReasons = [],
@@ -161,20 +169,25 @@ export function PosLayout({
   }, [propertyId]);
 
   const [menuOutlet, setMenuOutlet] = useState<string>("all");
-  const posOutlets = useMemo(
-    () => outlets.map((o) => ({ value: o.code, label: o.name })),
-    [outlets],
-  );
-  const defaultOutletCode = posOutlets[0]?.value ?? "cafe";
+  const posOutlets = useMemo(() => {
+    const all = outlets.map((o) => ({ value: o.code, label: o.name }));
+    if (!lockedOutlet) return all;
+    return all.filter((o) => o.value === lockedOutlet);
+  }, [outlets, lockedOutlet]);
+  const defaultOutletCode = lockedOutlet ?? posOutlets[0]?.value ?? "cafe";
   /** Which outlet floor the plan is showing (null = Shared tables). */
   const [floorOutlet, setFloorOutlet] = useState<FloorKey>(defaultOutletCode);
   /** null = Table / Room / Counter start gate (menu locked). */
-  const [saleKind, setSaleKind] = useState<PosSaleKind | null>(null);
+  const [saleKind, setSaleKind] = useState<PosSaleKind | null>(
+    initialSaleKind,
+  );
   /** Let staff mix floors on a table seat when needed. */
   const [menuUnlocked, setMenuUnlocked] = useState(false);
   const [lastKindPref, setLastKindPref] = useState<PosSaleKind | null>(null);
   const [prefsReady, setPrefsReady] = useState(false);
-  const [section, setSection] = useState<PosSection>("menu");
+  const [section, setSection] = useState<PosSection>(
+    initialSaleKind === "table" ? "floor" : "menu",
+  );
   const [cart, setCart] = useState<CartLine[]>([]);
   const [settleMode, setSettleMode] = useState<"cash" | "room_charge">("cash");
   const [tableId, setTableId] = useState<string>("");
@@ -184,6 +197,9 @@ export function PosLayout({
   const [applyServiceCharge, setApplyServiceCharge] = useState(
     serviceChargeDefaultOn,
   );
+  const [applyGst, setApplyGst] = useState(gstDefaultOn);
+  const [gstReason, setGstReason] = useState("");
+  const [setMealId, setSetMealId] = useState("");
   const [servicePercent, setServicePercent] = useState(
     String(Math.round(serviceChargeRate * 10000) / 100),
   );
@@ -229,6 +245,22 @@ export function PosLayout({
 
   // Hydrate floor / last path prefs once on mount (client only).
   useEffect(() => {
+    if (kioskMode && initialSaleKind) {
+      if (lockedOutlet) {
+        setFloorOutlet(lockedOutlet);
+        setMenuOutlet(lockedOutlet);
+      } else {
+        const floor = readPosFloorPref(defaultOutletCode);
+        if (floor === null || posOutlets.some((o) => o.value === floor)) {
+          setFloorOutlet(floor);
+        }
+      }
+      setSaleKind(initialSaleKind);
+      setLastKindPref(initialSaleKind);
+      setSection(initialSaleKind === "table" ? "floor" : "menu");
+      setPrefsReady(true);
+      return;
+    }
     const floor = readPosFloorPref(defaultOutletCode);
     if (floor === null || posOutlets.some((o) => o.value === floor)) {
       setFloorOutlet(floor);
@@ -236,7 +268,7 @@ export function PosLayout({
     setLastKindPref(readPosLastKind());
     setMenuOutlet(readPosMenuOutletPref("all"));
     setPrefsReady(true);
-  }, [defaultOutletCode, posOutlets]);
+  }, [defaultOutletCode, posOutlets, kioskMode, initialSaleKind, lockedOutlet]);
 
   useEffect(() => {
     if (!prefsReady) return;
@@ -247,6 +279,14 @@ export function PosLayout({
     if (!prefsReady) return;
     writePosMenuOutletPref(menuOutlet);
   }, [menuOutlet, prefsReady]);
+
+  useEffect(() => {
+    if (!setMealId) return;
+    const qty = Math.min(40, Math.max(1, Number(covers) || 1));
+    setCart((prev) =>
+      prev.map((l) => (l.lineKind === "set_meal" ? { ...l, qty } : l)),
+    );
+  }, [covers, setMealId]);
 
   /** Menu / cart only after context is ready for this sale kind. */
   const saleReady =
@@ -329,7 +369,13 @@ export function PosLayout({
   }
 
   function resetSaleContext() {
-    setSaleKind(null);
+    if (kioskMode && initialSaleKind) {
+      setSaleKind(initialSaleKind);
+      setSection(initialSaleKind === "table" ? "floor" : "menu");
+    } else {
+      setSaleKind(null);
+      setSection("menu");
+    }
     setMenuUnlocked(false);
     setTableId("");
     setCovers("");
@@ -337,12 +383,15 @@ export function PosLayout({
     setBookingId("");
     setBookingGuestId("");
     setSettleMode("cash");
-    setSection("menu");
     setCart([]);
+    setSetMealId("");
     setSearch("");
     setCategory("all");
     setPromoCode("");
     setManagerPin("");
+    setGstReason("");
+    setApplyGst(gstDefaultOn);
+    setApplyServiceCharge(serviceChargeDefaultOn);
     setAppendOrderId(null);
     setAppendCourseNo(1);
     setCourseCount("1");
@@ -496,11 +545,12 @@ export function PosLayout({
    * Shared tables and Counter/Room keep the full chip filter.
    */
   const lockedMenuOutlet = useMemo(() => {
+    if (lockedOutlet && !menuUnlocked) return lockedOutlet;
     if (menuUnlocked) return null;
     if (saleKind !== "table" || !tableId) return null;
     const table = tables.find((t) => t.id === tableId);
     return table?.outlet ?? null;
-  }, [menuUnlocked, saleKind, tableId, tables]);
+  }, [menuUnlocked, saleKind, tableId, tables, lockedOutlet]);
 
   const effectiveMenuOutlet = lockedMenuOutlet ?? menuOutlet;
 
@@ -540,7 +590,19 @@ export function PosLayout({
     return set;
   }, [menuItems]);
 
-  const allTables = tables;
+  const allTables = useMemo(() => {
+    if (!lockedOutlet) return tables;
+    return tables.filter(
+      (t) => t.outlet == null || t.outlet === lockedOutlet,
+    );
+  }, [tables, lockedOutlet]);
+
+  const visibleSetMeals = useMemo(() => {
+    if (!lockedOutlet) return setMeals;
+    return setMeals.filter(
+      (m) => m.outlet == null || m.outlet === lockedOutlet,
+    );
+  }, [setMeals, lockedOutlet]);
 
   function setMenuOutletFilter(next: string) {
     if (lockedMenuOutlet) return;
@@ -553,6 +615,10 @@ export function PosLayout({
     if (!outlet || outlet === "all") return;
     setCart((prev) =>
       prev.filter((line) => {
+        if (line.lineKind === "set_meal") {
+          const meal = setMeals.find((m) => m.id === line.setMealId);
+          return !meal?.outlet || meal.outlet === outlet;
+        }
         const item = items.find((m) => m.id === line.menuItemId);
         return !item || item.outlet === outlet;
       }),
@@ -619,6 +685,20 @@ export function PosLayout({
   }
 
   function setLineQty(key: string, qty: number) {
+    const line = cart.find((l) => l.key === key);
+    if (line?.lineKind === "set_meal") {
+      if (qty <= 0) {
+        setSetMealId("");
+        setCart((prev) => prev.filter((l) => l.key !== key));
+        return;
+      }
+      const next = Math.min(40, qty);
+      setCovers(String(next));
+      setCart((prev) =>
+        prev.map((l) => (l.key === key ? { ...l, qty: next } : l)),
+      );
+      return;
+    }
     setCart((prev) => {
       if (qty <= 0) return prev.filter((l) => l.key !== key);
       return prev.map((l) =>
@@ -628,11 +708,46 @@ export function PosLayout({
   }
 
   function removeLine(key: string) {
+    const line = cart.find((l) => l.key === key);
+    if (line?.lineKind === "set_meal") setSetMealId("");
     setCart((prev) => prev.filter((l) => l.key !== key));
   }
 
+  function applySetMeal(id: string) {
+    setSetMealId(id);
+    if (!id) {
+      setCart((prev) => prev.filter((l) => l.lineKind !== "set_meal"));
+      return;
+    }
+    const meal = visibleSetMeals.find((m) => m.id === id);
+    if (!meal) return;
+    const qty = Math.min(40, Math.max(1, Number(covers) || 1));
+    if (!covers) setCovers(String(qty));
+    setCart((prev) => {
+      const rest = prev.filter((l) => l.lineKind !== "set_meal");
+      return [
+        {
+          key: `setmeal:${meal.id}`,
+          menuItemId: "",
+          setMealId: meal.id,
+          lineKind: "set_meal" as const,
+          name: meal.name,
+          unitPriceBtn: meal.priceBtn,
+          gstApplicable: meal.gstApplicable,
+          qty,
+          modifiers: [],
+          modifierSnapshots: [],
+          courseNo: 1,
+        },
+        ...rest,
+      ];
+    });
+    setCartBump((n) => n + 1);
+  }
+
   function editLine(key: string) {
-    if (!cart.some((l) => l.key === key)) return;
+    const line = cart.find((l) => l.key === key);
+    if (!line || line.lineKind === "set_meal") return;
     setModifierTarget({ mode: "edit", lineKey: key });
   }
 
@@ -644,6 +759,7 @@ export function PosLayout({
 
   function clearCart() {
     setCart([]);
+    setSetMealId("");
   }
 
   /** Selecting a table on the floor plan seats the ticket and jumps to the menu. */
@@ -849,6 +965,10 @@ export function PosLayout({
       else setSection("floor");
       return;
     }
+    if (next === "menu" && saleKind === "table" && !tableId) {
+      setSection("floor");
+      return;
+    }
     if (next === "menu" && !saleKind) {
       // Stay on gate — section menu with no kind still shows the start cards.
       setSection("menu");
@@ -860,7 +980,9 @@ export function PosLayout({
   const cartPayload = useMemo(
     () =>
       cart.map((l) => ({
-        menuItemId: l.menuItemId,
+        menuItemId: l.menuItemId || undefined,
+        setMealId: l.setMealId,
+        lineKind: l.lineKind ?? "item",
         qty: l.qty,
         modifiers:
           l.modifiers.length > 0
@@ -895,8 +1017,9 @@ export function PosLayout({
       gstRate,
       serviceChargeRate: Number(servicePercent || 0) / 100,
       applyServiceCharge,
+      applyGst,
     });
-  }, [cart, applyServiceCharge, gstRate, servicePercent]);
+  }, [cart, applyServiceCharge, applyGst, gstRate, servicePercent]);
 
   function toggleNc(key: string) {
     const defaultReason = ncReasons[0]?.code ?? "service_recovery";
@@ -922,10 +1045,18 @@ export function PosLayout({
       <OpenTicketsDrawer
         open={ticketsOpen}
         onOpenChange={setTicketsOpen}
-        tickets={openTickets}
-        settledTickets={settledTickets}
+        tickets={
+          lockedOutlet
+            ? openTickets.filter((t) => t.outlet === lockedOutlet)
+            : openTickets
+        }
+        settledTickets={
+          lockedOutlet
+            ? settledTickets.filter((t) => t.outlet === lockedOutlet)
+            : settledTickets
+        }
         bookings={bookings}
-        tables={tables}
+        tables={allTables}
         onSettle={(id) => {
           setTicketsOpen(false);
           setSettleTarget(id);
@@ -987,7 +1118,28 @@ export function PosLayout({
     </>
   );
 
-  const registerChrome = (
+  const kioskChrome = kioskMode ? (
+    <PosKioskChrome
+      outletLabel={
+        kioskOutletLabel ??
+        posOutlets.find((o) => o.value === lockedOutlet)?.label ??
+        "POS"
+      }
+      propertyName={propertyName ?? "Pelbu Suites"}
+      shiftOpen={Boolean(shift)}
+      openTicketsCount={
+        lockedOutlet
+          ? openTickets.filter((t) => t.outlet === lockedOutlet).length
+          : openTickets.length
+      }
+      onOpenTickets={() => setTicketsOpen(true)}
+      section={section}
+      onSection={handleHeaderSection}
+      showFloor={initialSaleKind === "table"}
+    />
+  ) : null;
+
+  const registerChrome = kioskMode ? kioskChrome : (
     <PosRegisterHeaderChrome
       section={section}
       onSection={handleHeaderSection}
@@ -1048,16 +1200,26 @@ export function PosLayout({
           </p>
           <div className="mt-8 flex flex-wrap gap-2">
             <Button asChild variant="citrus" className="h-11">
-              <a href="/erp/pos">New ticket</a>
+              <a
+                href={
+                  kioskMode && lockedOutlet
+                    ? `/pos/${lockedOutlet}`
+                    : "/erp/pos"
+                }
+              >
+                New ticket
+              </a>
             </Button>
             {createState.folioId ? (
               <Button asChild variant="outline" className="h-11">
                 <a href={`/erp/folios/${createState.folioId}`}>Open folio</a>
               </Button>
             ) : null}
-            <Button asChild variant="outline" className="h-11">
-              <a href="/erp">Order board</a>
-            </Button>
+            {kioskMode ? null : (
+              <Button asChild variant="outline" className="h-11">
+                <a href="/erp">Order board</a>
+              </Button>
+            )}
           </div>
         </div>
         {sharedDialogs}
@@ -1112,6 +1274,7 @@ export function PosLayout({
 
         <div className={cn("space-y-4", !sellMode && "hidden")}>
           {!saleKind ? (
+            kioskMode ? null : (
             <PosSaleStartGate
               onPick={startSaleKind}
               tableCount={allTables.length}
@@ -1121,6 +1284,7 @@ export function PosLayout({
               lastKind={lastKindPref}
               onOpenHelp={() => setShortcutsOpen(true)}
             />
+            )
           ) : (
             <>
               <TicketHeader
@@ -1139,11 +1303,14 @@ export function PosLayout({
                 bookings={bookings}
                 notes={notes}
                 onNotesChange={setNotes}
-                tables={tables}
+                tables={allTables}
                 tableId={tableId}
                 onTableIdChange={setTableId}
                 covers={covers}
                 onCoversChange={setCovers}
+                setMeals={visibleSetMeals}
+                setMealId={setMealId}
+                onSetMealIdChange={applySetMeal}
                 courseCount={courseCount}
                 onCourseCountChange={setCourseCount}
                 staff={staff}
@@ -1191,7 +1358,7 @@ export function PosLayout({
                   floor={floorOutlet}
                   onFloorChange={setFloorOutlet}
                   outlets={posOutlets}
-                  tables={tables}
+                  tables={allTables}
                   openTickets={openTickets}
                   selectedTableId={tableId}
                   onSelectTable={selectTable}
@@ -1263,6 +1430,15 @@ export function PosLayout({
                     name="service_charge_reason"
                     value={serviceReason}
                   />
+                  <input
+                    type="hidden"
+                    name="gst_applied"
+                    value={applyGst ? "1" : "0"}
+                  />
+                  <input type="hidden" name="gst_reason" value={gstReason} />
+                  {lockedOutlet ? (
+                    <input type="hidden" name="outlet" value={lockedOutlet} />
+                  ) : null}
                   <input type="hidden" name="promo_code" value={promoCode} />
                   <input type="hidden" name="manager_pin" value={managerPin} />
 
@@ -1344,7 +1520,14 @@ export function PosLayout({
                   ) : null}
 
                   {/* Cart: compact rail (~17–19.5rem). Menu gets the leftover width. */}
-                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_clamp(17rem,20vw,19.5rem)]">
+                  <div
+                    className={cn(
+                      "grid gap-3",
+                      kioskMode
+                        ? "grid-cols-[minmax(0,1fr)_minmax(16rem,38%)]"
+                        : "lg:grid-cols-[minmax(0,1fr)_clamp(17rem,20vw,19.5rem)]",
+                    )}
+                  >
                     <div className="min-w-0">
                       <TabsContent
                         value="menu"
@@ -1522,7 +1705,12 @@ export function PosLayout({
                               search={search}
                               onAdd={addItemQuick}
                               onEditLine={editLine}
-                              className="pb-[calc(5.5rem_+_4rem_+_env(safe-area-inset-bottom,0px))] lg:pb-0"
+                              dense={kioskMode}
+                              className={
+                                kioskMode
+                                  ? "pb-2"
+                                  : "pb-[calc(5.5rem_+_4rem_+_env(safe-area-inset-bottom,0px))] lg:pb-0"
+                              }
                             />
                           </div>
                         </div>
@@ -1537,7 +1725,7 @@ export function PosLayout({
                           floor={floorOutlet}
                           onFloorChange={setFloorOutlet}
                           outlets={posOutlets}
-                          tables={tables}
+                          tables={allTables}
                           openTickets={openTickets}
                           selectedTableId={tableId}
                           onSelectTable={selectTable}
@@ -1558,7 +1746,13 @@ export function PosLayout({
                       </TabsContent>
                     </div>
 
-                    <aside className="hidden lg:sticky lg:top-3 lg:block lg:self-start">
+                    <aside
+                      className={
+                        kioskMode
+                          ? "sticky top-3 self-start"
+                          : "hidden lg:sticky lg:top-3 lg:block lg:self-start"
+                      }
+                    >
                       <CartPanel
                         cart={cart}
                         totals={totals}
@@ -1569,6 +1763,11 @@ export function PosLayout({
                         serviceReason={serviceReason}
                         applyServiceCharge={applyServiceCharge}
                         serviceChargeDefaultOn={serviceChargeDefaultOn}
+                        applyGst={applyGst}
+                        gstReason={gstReason}
+                        gstDefaultOn={gstDefaultOn}
+                        onApplyGstChange={setApplyGst}
+                        onGstReasonChange={setGstReason}
                         onApplyServiceChargeChange={setApplyServiceCharge}
                         onServicePercentChange={setServicePercent}
                         onServiceReasonChange={setServiceReason}
@@ -1598,6 +1797,7 @@ export function PosLayout({
                     Mobile cart dock — MUST sit above DeskMobileNav (h-16 + safe).
                     Prior bug: bottom ~0.75rem + z-30 hid the bar under z-40 tabs.
                   */}
+                  {!kioskMode ? (
                   <div className="lg:hidden">
                     {(lineCount > 0 || sentLines.length > 0) ? (
                       <button
@@ -1650,6 +1850,11 @@ export function PosLayout({
                             serviceReason={serviceReason}
                             applyServiceCharge={applyServiceCharge}
                             serviceChargeDefaultOn={serviceChargeDefaultOn}
+                            applyGst={applyGst}
+                            gstReason={gstReason}
+                            gstDefaultOn={gstDefaultOn}
+                            onApplyGstChange={setApplyGst}
+                            onGstReasonChange={setGstReason}
                             onApplyServiceChargeChange={setApplyServiceCharge}
                             onServicePercentChange={setServicePercent}
                             onServiceReasonChange={setServiceReason}
@@ -1676,6 +1881,7 @@ export function PosLayout({
                       </SheetContent>
                     </Sheet>
                   </div>
+                  ) : null}
                 </form>
               ) : saleKind === "room" && !roomUnitId ? (
                 <p className="rounded-lg border border-dashed bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">

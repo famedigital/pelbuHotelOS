@@ -29,6 +29,11 @@ type Props = {
   applyServiceCharge: boolean;
   /** Default from property settings — used to auto-open the service disclosure on override. */
   serviceChargeDefaultOn?: boolean;
+  applyGst: boolean;
+  gstReason: string;
+  gstDefaultOn?: boolean;
+  onApplyGstChange: (v: boolean) => void;
+  onGstReasonChange: (v: string) => void;
   onApplyServiceChargeChange: (v: boolean) => void;
   onServicePercentChange: (v: string) => void;
   onServiceReasonChange: (v: string) => void;
@@ -71,6 +76,11 @@ export function CartPanel({
   serviceReason,
   applyServiceCharge,
   serviceChargeDefaultOn = true,
+  applyGst,
+  gstReason,
+  gstDefaultOn = true,
+  onApplyGstChange,
+  onGstReasonChange,
   onApplyServiceChargeChange,
   onServicePercentChange,
   onServiceReasonChange,
@@ -90,6 +100,8 @@ export function CartPanel({
   const gstPct = Math.round(gstRate * 10000) / 100;
   const servicePct = servicePercent || "0";
   const applyId = `${idPrefix}_apply_service`;
+  const gstApplyId = `${idPrefix}_apply_gst`;
+  const gstReasonId = `${idPrefix}_gst_reason`;
   const pctId = `${idPrefix}_service_pct`;
   const reasonId = `${idPrefix}_service_reason`;
   const dense = cart.length >= 6;
@@ -106,10 +118,14 @@ export function CartPanel({
           : fireOrderLabel(cart.map((l) => l.prepStation)),
     [cart, appending, appendCourseNo],
   );
+  const gstWaiverMissing = !applyGst && !gstReason.trim();
+  const sendBlocked = pending || cart.length === 0 || gstWaiverMissing;
 
   const serviceOverridden =
     Boolean(serviceReason.trim()) ||
-    applyServiceCharge !== serviceChargeDefaultOn;
+    applyServiceCharge !== serviceChargeDefaultOn ||
+    applyGst !== gstDefaultOn ||
+    Boolean(gstReason.trim());
 
   const [serviceOpen, setServiceOpen] = useState(serviceOverridden);
 
@@ -327,6 +343,33 @@ export function CartPanel({
       </div>
 
       <div className="shrink-0 space-y-2 border-t bg-card px-2.5 py-2.5">
+        <div className="grid grid-cols-2 gap-1.5">
+          <button
+            type="button"
+            onClick={() => onApplyGstChange(!applyGst)}
+            className={`flex h-11 items-center justify-center rounded-lg border text-sm font-medium ${
+              applyGst
+                ? "border-accent/40 bg-accent/10 text-foreground"
+                : "border-input bg-muted/40 text-muted-foreground"
+            }`}
+            aria-pressed={applyGst}
+          >
+            GST {applyGst ? "on" : "off"}
+          </button>
+          <button
+            type="button"
+            onClick={() => onApplyServiceChargeChange(!applyServiceCharge)}
+            className={`flex h-11 items-center justify-center rounded-lg border text-sm font-medium ${
+              applyServiceCharge
+                ? "border-accent/40 bg-accent/10 text-foreground"
+                : "border-input bg-muted/40 text-muted-foreground"
+            }`}
+            aria-pressed={applyServiceCharge}
+          >
+            Service {applyServiceCharge ? "on" : "off"}
+          </button>
+        </div>
+
         <div className="rounded-md border bg-muted/30">
           <button
             type="button"
@@ -335,14 +378,11 @@ export function CartPanel({
             aria-expanded={serviceOpen}
           >
             <span className="min-w-0 truncate">
+              {applyGst ? `GST ${gstPct}%` : "GST waived"}
+              {" · "}
               {applyServiceCharge
                 ? `Service ${servicePct}%`
                 : "Service waived"}
-              {serviceReason.trim() ? (
-                <span className="ml-1.5 text-xs text-muted-foreground">
-                  · {serviceReason.trim()}
-                </span>
-              ) : null}
             </span>
             <ChevronDownIcon
               className={`size-4 shrink-0 text-muted-foreground transition-transform ${
@@ -353,6 +393,35 @@ export function CartPanel({
 
           {serviceOpen ? (
             <div className="space-y-2 border-t px-2.5 py-2">
+              <div className="flex h-9 items-center gap-2">
+                <Checkbox
+                  id={gstApplyId}
+                  checked={applyGst}
+                  onCheckedChange={(v) => onApplyGstChange(Boolean(v))}
+                />
+                <Label htmlFor={gstApplyId} className="text-sm text-foreground">
+                  Apply GST
+                </Label>
+              </div>
+              {!applyGst ? (
+                <div className="space-y-1">
+                  <Label
+                    htmlFor={gstReasonId}
+                    className="text-[11px] text-muted-foreground"
+                  >
+                    GST waiver reason
+                  </Label>
+                  <Input
+                    id={gstReasonId}
+                    type="text"
+                    value={gstReason}
+                    onChange={(e) => onGstReasonChange(e.target.value)}
+                    placeholder="Friends / house / exempt"
+                    className="h-9"
+                    required
+                  />
+                </div>
+              ) : null}
               <div className="flex h-9 items-center gap-2">
                 <Checkbox
                   id={applyId}
@@ -389,7 +458,7 @@ export function CartPanel({
                     htmlFor={reasonId}
                     className="text-[11px] text-muted-foreground"
                   >
-                    Reason / note
+                    Service reason / note
                   </Label>
                   <Input
                     id={reasonId}
@@ -416,7 +485,10 @@ export function CartPanel({
             label={`Service${applyServiceCharge ? ` (${servicePct}%)` : " (waived)"}`}
             value={totals.serviceChargeBtn}
           />
-          <Row label={`GST (${gstPct}%)`} value={totals.gstBtn} />
+          <Row
+            label={applyGst ? `GST (${gstPct}%)` : "GST (off)"}
+            value={totals.gstBtn}
+          />
           <div className="mt-1 flex justify-between border-t pt-2 text-base font-semibold text-foreground">
             <span>Total</span>
             <span className="tabular-nums">
@@ -438,14 +510,16 @@ export function CartPanel({
                 value="0"
                 variant="citrus"
                 size="lg"
-                disabled={pending || cart.length === 0}
+                disabled={sendBlocked}
                 className="w-full"
               >
                 {pending
                   ? "Sending…"
-                  : cart.length === 0
-                    ? "Add items to send"
-                    : sendLabel}
+                  : gstWaiverMissing
+                    ? "GST reason required"
+                    : cart.length === 0
+                      ? "Add items to send"
+                      : sendLabel}
               </Button>
               {!appending ? (
                 <Button
@@ -454,7 +528,7 @@ export function CartPanel({
                   value="1"
                   variant="outline"
                   size="lg"
-                  disabled={pending || cart.length === 0}
+                  disabled={sendBlocked}
                   className="w-full"
                 >
                   {pending ? "Parking…" : "Park ticket"}

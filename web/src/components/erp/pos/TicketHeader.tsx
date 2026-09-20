@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { DiningTable, PosStaffOption } from "@/lib/pos";
+import type { PosSetMeal } from "@/lib/pos-set-meals";
 import { ChevronDownIcon, XIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { PosSaleKind } from "./PosSaleStartGate";
@@ -45,6 +46,9 @@ type Props = {
   onTableIdChange: (v: string) => void;
   covers: string;
   onCoversChange: (v: string) => void;
+  setMeals?: PosSetMeal[];
+  setMealId?: string;
+  onSetMealIdChange?: (id: string) => void;
   courseCount: string;
   onCourseCountChange: (v: string) => void;
   staff: PosStaffOption[];
@@ -83,6 +87,9 @@ export function TicketHeader({
   onTableIdChange,
   covers,
   onCoversChange,
+  setMeals = [],
+  setMealId = "",
+  onSetMealIdChange,
   courseCount,
   onCourseCountChange,
   staff,
@@ -135,9 +142,11 @@ export function TicketHeader({
 
   const primaryLine = (() => {
     if (saleKind === "table" && selectedTable) {
+      const meal = setMeals.find((m) => m.id === setMealId);
       return [
         selectedTable.name,
         covers ? `${covers} covers` : null,
+        meal ? meal.name : null,
         billLabel,
       ]
         .filter(Boolean)
@@ -471,6 +480,35 @@ export function TicketHeader({
                   onChange={(e) => onCoversChange(e.target.value)}
                 />
               </div>
+
+              {onSetMealIdChange && setMeals.length > 0 ? (
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label
+                    htmlFor="th_set_meal"
+                    className="text-xs text-muted-foreground"
+                  >
+                    Set meal (per head)
+                  </Label>
+                  <Select
+                    value={setMealId || NONE}
+                    onValueChange={(v) =>
+                      onSetMealIdChange(v === NONE ? "" : v)
+                    }
+                  >
+                    <SelectTrigger id="th_set_meal" className="w-full">
+                      <SelectValue placeholder="A la carte only" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>No set meal</SelectItem>
+                      {setMeals.map((meal) => (
+                        <SelectItem key={meal.id} value={meal.id}>
+                          {meal.name} · Nu {meal.priceBtn.toLocaleString("en-BT")}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
 
               <div className="space-y-1.5">
                 <Label

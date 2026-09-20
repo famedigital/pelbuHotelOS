@@ -1,4 +1,5 @@
 import type { MenuItem } from "@/lib/menu";
+import type { PosSetMeal } from "@/lib/pos-set-meals";
 import type {
   DiningTable,
   ModifierGroup,
@@ -62,11 +63,14 @@ export type CartLine = {
   ncReasonCode?: string;
   /** Where the line is prepared — drives "Send to bar" vs kitchen CTA. */
   prepStation?: string;
+  /** Per-head set meal (qty = covers). */
+  lineKind?: "item" | "set_meal";
+  setMealId?: string;
 };
 
 /** Wire shape for the hidden `cart` JSON input consumed by `createDeskOrder`. */
 export type CartLineInput = {
-  menuItemId: string;
+  menuItemId?: string;
   qty: number;
   modifiers?: { groupId: string; optionId: string; qty?: number }[];
   courseNo?: number;
@@ -74,6 +78,8 @@ export type CartLineInput = {
   lineNotes?: string;
   isNc?: boolean;
   ncReasonCode?: string;
+  lineKind?: "item" | "set_meal";
+  setMealId?: string;
 };
 
 export type TenderDraft = {
@@ -119,6 +125,10 @@ export type PosLayoutProps = {
   gstRate: number;
   serviceChargeRate: number;
   serviceChargeDefaultOn: boolean;
+  /** When true, new tickets apply GST (staff can still waive). */
+  gstDefaultOn?: boolean;
+  /** Per-head set meal offers (Lunch 600 / 650). */
+  setMeals?: PosSetMeal[];
   runtimeConfig: PosRuntimeConfig;
   /** Guest-service panel rendered by the server page into the sub-tab. */
   guestServiceSlot?: React.ReactNode;
@@ -126,6 +136,15 @@ export type PosLayoutProps = {
   ncReasons?: { code: string; label: string }[];
   /** False for HK/laundry — they cannot send tickets to the kitchen TV. */
   canFireKot?: boolean;
+  /** Kiosk till: lock menu + floor to this outlet code. */
+  lockedOutlet?: string | null;
+  /** Dedicated /pos surface — dense till layout, skip hotel chrome assumptions. */
+  kioskMode?: boolean;
+  /** Skip Table/Room/Counter gate and start in this kind. */
+  initialSaleKind?: "table" | "room" | "counter" | null;
+  /** Shown in the kiosk header (Barista vs Cafe). */
+  kioskOutletLabel?: string;
+  propertyName?: string;
 };
 
 /** Outlet code is property-scoped text (cafe, rooftop, …). */

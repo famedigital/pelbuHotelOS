@@ -25,6 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   EllipsisVerticalIcon,
+  GripVerticalIcon,
   PencilIcon,
   PlusIcon,
   UsersIcon,
@@ -40,6 +41,14 @@ import {
 } from "react";
 
 const initial: PosActionState = { ok: false };
+
+/** Floor positions are percent of the canvas; snap so tables sit on the dots. */
+const GRID_PCT = 5;
+
+function snapPct(n: number, max: number): number {
+  const snapped = Math.round(n / GRID_PCT) * GRID_PCT;
+  return Math.max(0, Math.min(max, snapped));
+}
 
 /** `null` = Shared (no outlet) · string = property outlet code. */
 export type FloorKey = string | null;
@@ -196,78 +205,74 @@ export function PosFloorPlan({
     });
   }, [outletTables]);
 
-  // Live position is held in a ref + applied directly to the dragged node via
-  // transform; we never call setState during the drag. That keeps each pointer
-  // move to a single DOM write on the compositor thread (no React reconciliation
-  // for the whole floor plan on every frame), which is what makes the drag feel
-  // instant instead of janky.
+  // Live position is held in a ref. During the drag we write a compositor
+  // translate3d (pixels) — never React state and never left/top — so the chip
+  // tracks the finger without reconciling the rest of the floor.
   const livePosRef = useRef<{ id: string; x: number; y: number } | null>(null);
   const draggedNodeRef = useRef<HTMLDivElement | null>(null);
-  // Track the pointer-down origin + whether it actually moved past the drag
-  // threshold. A pointer down→up without movement is a *click* (select the
-  // table); movement past ~4px is a *drag* (reposition). Without this the
-  // pointer capture in beginDrag swallows the inner button's onClick.
-  const downRef = useRef<{ x: number; y: number } | null>(null);
+  const downRef = useRef<{
+    x: number;
+    y: number;
+    startLeft: number;
+    startTop: number;
+    rectW: number;
+    rectH: number;
+  } | null>(null);
   const movedRef = useRef(false);
-  // rAF handle for the next compositor-frame flush of the dragged transform.
   const rafRef = useRef<number | null>(null);
+  const pendingPxRef = useRef<{ dx: number; dy: number } | null>(null);
 
   const flushDragTransform = useCallback(() => {
     rafRef.current = null;
     const node = draggedNodeRef.current;
-    const pos = livePosRef.current;
-    if (!node || !pos) return;
-    // Direct DOM write on the dragged node only. Bypassing React state here
-    // means no reconciliation of the floor plan on every pointermove — only
-    // this single node repaints, on the compositor frame.
-    node.style.left = `${pos.x}%`;
-    node.style.top = `${pos.y}%`;
+    const px = pendingPxRef.current;
+    if (!node || !px) return;
+    node.style.transform = `translate3d(${px.dx}px, ${px.dy}px, 0)`;
   }, []);
 
   const beginDrag = useCallback(
     (e: React.PointerEvent, tableId: string, node: HTMLDivElement) => {
-      // Ignore interactions that start from the kebab menu or a button inside
-      // the card (those have their own behaviour and must not start a drag).
       const target = e.target as HTMLElement;
-      if (target.closest("[data-no-drag]")) return;
+      if (!target.closest("[data-drag-handle]")) return;
+      if (!canvasRef.current) return;
       const row = positioned.find((t) => t.id === tableId);
       if (!row) return;
-      // Capture so we get the pointermove/up even if the cursor leaves the
-      // card, but do NOT preventDefault — that's what killed the click.
+      e.preventDefault();
+      e.stopPropagation();
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-      downRef.current = { x: e.clientX, y: e.clientY };
+      const rect = canvasRef.current.getBoundingClientRect();
+      downRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        startLeft: row.x,
+        startTop: row.y,
+        rectW: rect.width,
+        rectH: rect.height,
+      };
       movedRef.current = false;
       draggedNodeRef.current = node;
       livePosRef.current = { id: tableId, x: row.x, y: row.y };
       setDragId(tableId);
-      // Promote the dragged node to its own compositor layer so transforms
-      // don't trigger paint of the surrounding canvas.
-      node.style.willChange = "left, top";
+      node.style.willChange = "transform";
     },
     [positioned],
   );
 
   const moveDrag = useCallback(
     (e: React.PointerEvent) => {
+      const origin = downRef.current;
       const id = livePosRef.current?.id;
-      if (!id || !canvasRef.current) return;
-      // Mark as moved once the pointer travels past a small threshold so a
-      // tiny jitter on click doesn't get mistaken for a drag.
-      if (downRef.current && !movedRef.current) {
-        const dx = e.clientX - downRef.current.x;
-        const dy = e.clientY - downRef.current.y;
-        if (dx * dx + dy * dy > 16) movedRef.current = true;
-      }
+      if (!origin || !id) return;
+      const dx = e.clientX - origin.x;
+      const dy = e.clientY - origin.y;
+      if (!movedRef.current && dx * dx + dy * dy > 16) movedRef.current = true;
       if (!movedRef.current) return;
-      const rect = canvasRef.current.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
       livePosRef.current = {
         id,
-        x: Math.max(0, Math.min(96, x)),
-        y: Math.max(0, Math.min(94, y)),
+        x: Math.max(0, Math.min(95, origin.startLeft + (dx / origin.rectW) * 100)),
+        y: Math.max(0, Math.min(90, origin.startTop + (dy / origin.rectH) * 100)),
       };
-      // Coalesce to one DOM write per animation frame.
+      pendingPxRef.current = { dx, dy };
       if (rafRef.current == null) {
         rafRef.current = requestAnimationFrame(flushDragTransform);
       }
@@ -275,76 +280,65 @@ export function PosFloorPlan({
     [flushDragTransform],
   );
 
-  const endDrag = useCallback(
-    (tableId: string, covers: number, opts?: { fromControls?: boolean }) => {
-      const node = draggedNodeRef.current;
-      const pos = livePosRef.current;
-      const pressStarted = downRef.current != null;
-      if (rafRef.current != null) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-      if (node) node.style.willChange = "auto";
+  const endDrag = useCallback((tableId: string) => {
+    const node = draggedNodeRef.current;
+    const pos = livePosRef.current;
+    const pressStarted = downRef.current != null;
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    if (node) {
+      node.style.willChange = "auto";
+      node.style.transform = "";
+    }
 
-      // Kebab / header controls never began a chip press — do not seat the table
-      // (seating jumps to Sell and detaches the Radix menu to top-left).
-      if (opts?.fromControls || !pressStarted) {
-        downRef.current = null;
-        movedRef.current = false;
-        draggedNodeRef.current = null;
-        livePosRef.current = null;
-        setDragId(null);
-        return;
-      }
-
-      if (!movedRef.current) {
-        // Click (no movement) → select the table.
-        downRef.current = null;
-        movedRef.current = false;
-        draggedNodeRef.current = null;
-        livePosRef.current = null;
-        setDragId(null);
-        onSelectTable(tableId, covers);
-        return;
-      }
-      // Drag → persist the new position.
-      if (pos) {
-        // Hold the dropped spot locally so the chip doesn't snap back during
-        // the re-render before the server action revalidates.
-        setOptimistic((prev) => ({ ...prev, [tableId]: { x: pos.x, y: pos.y } }));
-        const fd = new FormData();
-        fd.set("table_id", tableId);
-        fd.set("pos_x", String(Math.round(pos.x * 100) / 100));
-        fd.set("pos_y", String(Math.round(pos.y * 100) / 100));
-        startTransition(() => {
-          void saveTablePosition(fd);
-        });
-      }
+    if (!pressStarted) {
       downRef.current = null;
       movedRef.current = false;
       draggedNodeRef.current = null;
       livePosRef.current = null;
+      pendingPxRef.current = null;
       setDragId(null);
-    },
-    [onSelectTable],
-  );
+      return;
+    }
 
-  // Safety: drop the drag state if the user tabs away mid-drag. We cancel
-  // (no select, no persist) because the pointer-up likely happened off-canvas.
+    if (!movedRef.current) {
+      downRef.current = null;
+      movedRef.current = false;
+      draggedNodeRef.current = null;
+      livePosRef.current = null;
+      pendingPxRef.current = null;
+      setDragId(null);
+      return;
+    }
+
+    if (pos) {
+      const x = snapPct(pos.x, 95);
+      const y = snapPct(pos.y, 90);
+      setOptimistic((prev) => ({ ...prev, [tableId]: { x, y } }));
+      const fd = new FormData();
+      fd.set("table_id", tableId);
+      fd.set("pos_x", String(x));
+      fd.set("pos_y", String(y));
+      startTransition(() => {
+        void saveTablePosition(fd);
+      });
+    }
+    downRef.current = null;
+    movedRef.current = false;
+    draggedNodeRef.current = null;
+    livePosRef.current = null;
+    pendingPxRef.current = null;
+    setDragId(null);
+  }, []);
+
+  // pointerup may land on window if capture is lost; persist via endDrag.
   useEffect(() => {
     if (!dragId) return;
+    const id = dragId;
     function onUp() {
-      if (rafRef.current != null) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-      const node = draggedNodeRef.current;
-      if (node) node.style.willChange = "auto";
-      downRef.current = null;
-      movedRef.current = false;
-      draggedNodeRef.current = null;
-      livePosRef.current = null;
-      setDragId(null);
+      endDrag(id);
     }
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);
@@ -352,7 +346,7 @@ export function PosFloorPlan({
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
     };
-  }, [dragId]);
+  }, [dragId, endDrag]);
 
   function setStatus(tableId: string, next: TableStatus) {
     const fd = new FormData();
@@ -406,7 +400,7 @@ export function PosFloorPlan({
           <p className="text-sm text-muted-foreground">
             {counts.total === 0
               ? `No tables on ${floorLabel} yet — add one for this floor.`
-              : `${counts.total} tables · ${counts.seatsTotal} seats · ${counts.occupied} occupied · ${counts.free} free · drag to reposition · ··· to edit`}
+              : `${counts.total} tables · ${counts.seatsTotal} seats · ${counts.occupied} occupied · ${counts.free} free · grip to move · tap to seat`}
           </p>
         </div>
         <Button
@@ -460,16 +454,10 @@ export function PosFloorPlan({
                 onStatus={(next) => setStatus(table.id, next)}
                 onOpenTicket={onOpenTicket}
                 onAddItems={onAddItems}
+                onSelect={() => onSelectTable(table.id, table.seats)}
                 onPointerDown={(e, node) => beginDrag(e, table.id, node)}
                 onPointerMove={moveDrag}
-                onPointerUp={(e) => {
-                  const fromControls = Boolean(
-                    (e.target as HTMLElement | null)?.closest?.(
-                      "[data-no-drag]",
-                    ),
-                  );
-                  endDrag(table.id, table.seats, { fromControls });
-                }}
+                onPointerUp={() => endDrag(table.id)}
               />
             );
           })}
@@ -500,6 +488,7 @@ function TableChip({
   onStatus,
   onOpenTicket,
   onAddItems,
+  onSelect,
   onPointerDown,
   onPointerMove,
   onPointerUp,
@@ -515,12 +504,11 @@ function TableChip({
   onStatus: (next: TableStatus) => void;
   onOpenTicket: (orderId: string) => void;
   onAddItems?: (orderId: string) => void;
+  onSelect: () => void;
   onPointerDown: (e: React.PointerEvent, node: HTMLDivElement) => void;
   onPointerMove: (e: React.PointerEvent) => void;
-  onPointerUp: (e: React.PointerEvent) => void;
+  onPointerUp: () => void;
 }) {
-  // Only the dragged chip's transform is mutated imperatively during a drag,
-  // so a normal ref is fine here — we read it on pointer down before capture.
   const rootRef = useRef<HTMLDivElement | null>(null);
   return (
     <div
@@ -528,26 +516,47 @@ function TableChip({
       className={`absolute flex w-[14%] min-w-[88px] max-w-[140px] flex-col rounded-xl border shadow-sm ${
         STATUS_STYLES[table.status]
       } ${selected ? "ring-[3px] ring-ring/40" : ""} ${
-        dragging ? "z-20 cursor-grabbing shadow-lg" : "cursor-grab"
+        dragging ? "z-20 shadow-lg" : "cursor-pointer"
       }`}
       style={{ left: `${x}%`, top: `${y}%` }}
-      onPointerDown={(e) => {
-        if (rootRef.current) onPointerDown(e, rootRef.current);
-      }}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
       role="button"
       tabIndex={0}
       aria-pressed={selected}
       aria-label={`Select ${table.name}, seats ${table.seats}, ${TABLE_STATUS_LABELS[table.status]}`}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
     >
       <div
         className="flex items-center justify-between gap-1 rounded-t-xl px-2 py-1"
         data-no-drag
-        onPointerDown={(e) => e.stopPropagation()}
-        onPointerUp={(e) => e.stopPropagation()}
       >
         <div className="flex min-w-0 items-center gap-1">
+          <button
+            type="button"
+            data-drag-handle
+            className={`inline-flex size-7 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 ${
+              dragging ? "cursor-grabbing" : "cursor-grab"
+            }`}
+            aria-label={`Move ${table.name}`}
+            title="Drag to move"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              if (rootRef.current) onPointerDown(e, rootRef.current);
+            }}
+            onPointerMove={onPointerMove}
+            onPointerUp={(e) => {
+              e.stopPropagation();
+              onPointerUp();
+            }}
+          >
+            <GripVerticalIcon className="size-3.5" />
+          </button>
           <span className="truncate text-xs font-semibold text-foreground">
             {table.name}
           </span>
@@ -559,6 +568,7 @@ function TableChip({
               className="inline-flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
               aria-label={`Actions for ${table.name}`}
               disabled={busy}
+              onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => e.stopPropagation()}
               onPointerUp={(e) => e.stopPropagation()}
             >

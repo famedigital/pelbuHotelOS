@@ -196,6 +196,25 @@ export async function staffLogout(): Promise<void> {
   redirect("/login");
 }
 
+export async function posKioskLogout(): Promise<void> {
+  const session = await getStaffSession();
+  const supabase = await createSupabaseServerClient();
+  await supabase.auth.signOut();
+  if (session) {
+    const admin = createSupabaseAdminClient();
+    await writeAuditEvent(admin, {
+      propertyId: session.propertyId,
+      action: "staff.logout",
+      entityType: "staff_members",
+      entityId: session.staffId,
+      summary: `${session.fullName} signed out of POS till`,
+      actor: session.employeeCode,
+      meta: { workspace: "pos" },
+    });
+  }
+  redirect("/pos/login");
+}
+
 export async function setStaffPortalPin(
   _previous: { ok: boolean; error?: string; message?: string },
   formData: FormData,

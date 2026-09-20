@@ -12,6 +12,7 @@ type Props = {
   onAdd: (menuItemId: string) => void;
   onEditLine?: (key: string) => void;
   className?: string;
+  dense?: boolean;
 };
 
 export function MenuGrid({
@@ -20,6 +21,7 @@ export function MenuGrid({
   search,
   onAdd,
   className,
+  dense = false,
 }: Props) {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -46,7 +48,8 @@ export function MenuGrid({
   return (
     <div
       className={cn(
-        "grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4",
+        "grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4",
+        dense && "gap-2 sm:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6",
         className,
       )}
     >
@@ -54,6 +57,7 @@ export function MenuGrid({
         <MenuTile
           key={item.id}
           item={item}
+          dense={dense}
           onClick={() => onAdd(item.id)}
         />
       ))}

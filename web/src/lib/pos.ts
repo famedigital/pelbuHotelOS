@@ -2,6 +2,7 @@ import { thimphuToday } from "@/lib/erp-lists";
 import { isHouseOpsStaff } from "@/lib/desk-auth";
 import { isOpenCookStatus, isPosBoardVisible } from "@/lib/kot-visibility";
 import type { MenuItem } from "@/lib/menu";
+import type { PosSetMeal } from "@/lib/pos-set-meals";
 import type { TableStatus } from "@/lib/pos-tables";
 import { roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
@@ -202,6 +203,37 @@ export async function loadDiningTables(
     pos_y: row.pos_y == null ? null : Number(row.pos_y),
     sort_order: Number(row.sort_order ?? 0),
   }));
+}
+
+export async function loadPosSetMeals(
+  admin?: Admin,
+  outlet?: string | null,
+): Promise<PosSetMeal[]> {
+  const client = admin ?? createSupabaseAdminClient();
+  const propertyId = await resolveActivePropertyId(client);
+  let query = client
+    .from("pos_set_meals")
+    .select("id, outlet, name, price_btn, gst_applicable, sort_order")
+    .eq("property_id", propertyId)
+    .eq("is_active", true)
+    .order("sort_order")
+    .order("name");
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data ?? [])
+    .filter((row) => {
+      const rowOutlet = (row.outlet as string | null) ?? null;
+      if (!outlet) return true;
+      return rowOutlet == null || rowOutlet === outlet;
+    })
+    .map((row) => ({
+      id: row.id as string,
+      outlet: (row.outlet as string | null) ?? null,
+      name: row.name as string,
+      priceBtn: Number(row.price_btn),
+      gstApplicable: Boolean(row.gst_applicable),
+      sortOrder: Number(row.sort_order ?? 0),
+    }));
 }
 
 /** Active staff who can be assigned as the POS server on a ticket. */

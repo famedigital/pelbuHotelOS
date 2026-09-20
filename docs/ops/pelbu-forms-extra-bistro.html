@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pelbu Suites — Extra forms · Bistro · CI/Dinner buffer · Guest mix</title>
+  <style>
+/* Pelbu printable forms — A4 landscape, readable */
+:root {
+  --ink: #1a1410;
+  --muted: #5c534c;
+  --line: #2a221c;
+  --soft: #e8e2da;
+  --peak: #f3e6d8;
+  --ok: #eef2ea;
+  --box: #f7f4ef;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  color: var(--ink);
+  font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
+  background: #f5f2ed;
+}
+.sheet {
+  width: 297mm;
+  min-height: 210mm;
+  margin: 14px auto;
+  padding: 10mm 12mm;
+  background: #fff;
+  box-shadow: 0 2px 16px rgba(0,0,0,.08);
+}
+h1 { margin: 0 0 4px; font-size: 20px; letter-spacing: .01em; }
+h2 { margin: 10px 0 6px; font-size: 15px; border-bottom: 2px solid var(--line); padding-bottom: 3px; }
+.sub { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+.meta {
+  display: flex; flex-wrap: wrap; gap: 6px 16px;
+  margin-bottom: 8px; padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink); font-size: 13px;
+}
+table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+th, td {
+  border: 1px solid var(--line);
+  padding: 7px 8px;
+  vertical-align: top;
+  text-align: left;
+  font-size: 12.5px;
+}
+th { background: var(--soft); font-size: 12px; font-weight: 700; }
+.peak { background: var(--peak); }
+.ok { background: var(--ok); }
+.box {
+  border: 1px solid var(--line);
+  background: var(--box);
+  padding: 8px 10px;
+  margin: 8px 0;
+  font-size: 12.5px;
+}
+.form {
+  border: 1px solid var(--line);
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: #faf8f5;
+  font-size: 12.5px;
+}
+.blank { border-bottom: 1px solid #666; display: inline-block; min-width: 48px; height: 1.1em; }
+.slot { display: block; border-bottom: 1px dotted #666; min-height: 18px; margin: 4px 0; }
+.sign {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 12.5px;
+}
+.sign3 { grid-template-columns: 1fr 1fr 1fr; }
+.sign4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.sign .box-s {
+  border: 1.5px solid var(--line);
+  padding: 8px 10px;
+  min-height: 88px;
+}
+.sign .line { border-bottom: 1.5px solid var(--ink); height: 28px; margin-top: 18px; }
+.check td:first-child { width: 28px; text-align: center; font-size: 14px; }
+.toc { font-size: 13px; }
+.toc li { margin-bottom: 4px; }
+.dept-tag {
+  display: inline-block;
+  border: 2px solid var(--ink);
+  padding: 4px 10px;
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+.lab { font-size: 11px; color: var(--muted); }
+.small { font-size: 11px; color: var(--muted); }
+.page-break { page-break-before: always; }
+.no-print { margin: 10px auto; width: 297mm; text-align: right; }
+.no-print button {
+  border: 1px solid var(--ink); background: var(--ink); color: #fff;
+  padding: 10px 16px; font: 14px/1 "Segoe UI", system-ui, sans-serif; cursor: pointer;
+}
+@media print {
+  body { background: #fff; }
+  .sheet { margin: 0; box-shadow: none; width: auto; min-height: auto; padding: 8mm 10mm; }
+  .no-print { display: none !important; }
+  @page { size: A4 landscape; margin: 8mm; }
+}
+
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    <button type="button" onclick="window.print()">Print extra forms + bistro</button>
+  </div>
+
+  <!-- INDEX -->
+  <section class="sheet">
+    <h1>Extra forms pack — what was missing + Bistro + CI/Dinner buffer</h1>
+    <p class="sub">Pairs with <code>pelbu-all-forms-pack.html</code> (Forms A–H) · FO TL delivers all to Rajiv</p>
+    <div class="meta">
+      <div><strong>FO TL:</strong> _______________</div>
+      <div><strong>Date:</strong> _______________</div>
+    </div>
+    <div class="box">
+      <b>Guest mix (from your bookings 17–28 Sep):</b>
+      ~<b>38 local</b> (mostly EP) + ~<b>26 international</b> (via Bhutan agents, mix EP/MAP).
+      Nationality fields in system are mostly blank — FO must write origin at CI.
+      Menu = Bhutanese + mild Indian + Continental; non-veg = <b>chicken &amp; fish only</b>.
+      Bistro coffee/drinks must stay open through <b>check-in buffer</b> (guests arrive thirsty before dinner).
+    </div>
+    <h2>This pack</h2>
+    <table>
+      <thead><tr><th>Form</th><th>Name</th><th>Who</th></tr></thead>
+      <tbody>
+        <tr><td><b>I</b></td><td>Check-in ↔ Dinner buffer / late meal hold</td><td>FO + F&amp;B + Kitchen</td></tr>
+        <tr><td><b>J</b></td><td>Bistro rota (coffee / drinks) 06:30–22:00</td><td>Priya + FO flex</td></tr>
+        <tr><td><b>K</b></td><td>Bistro week menu + shopping</td><td>Priya / F&amp;B → FO TL → Rajiv</td></tr>
+        <tr><td><b>L</b></td><td>Guest origin / meal preference (per arrival or daily list)</td><td>FO at CI</td></tr>
+        <tr><td><b>M</b></td><td>Cash / POS float Hand over Take over</td><td>FO / F&amp;B / Bistro</td></tr>
+        <tr><td><b>N</b></td><td>Guest complaint / incident</td><td>Any → FO TL → Heads</td></tr>
+        <tr><td><b>O</b></td><td>Maintenance / TV / Internet ticket</td><td>FO / HK</td></tr>
+        <tr><td><b>P</b></td><td>Key &amp; rack closing</td><td>FO shift end</td></tr>
+        <tr><td><b>Q</b></td><td>Arrival welcome checklist (dinner + bistro hours)</td><td>FO at CI</td></tr>
+        <tr><td><b>R</b></td><td>Lost &amp; found</td><td>FO / HK</td></tr>
+      </tbody>
+    </table>
+    <div class="sign sign3">
+      <div class="box-s">Choki<div class="line"></div></div>
+      <div class="box-s">Tshering<div class="line"></div></div>
+      <div class="box-s">Rajiv<div class="line"></div></div>
+    </div>
+  </section>
+
+  <!-- FORM I: CI / DINNER BUFFER -->
+  <section class="sheet page-break">
+    <h1>FORM I — Check-in ↔ Dinner buffer (late arrival meal hold)</h1>
+    <p class="sub">Guests arrive ≈17:00–21:00 · Dinner must not finish before late CI · Bistro covers the wait</p>
+    <div class="meta">
+      <div><strong>Date:</strong> _______________</div>
+      <div><strong>Expected Arr heads:</strong> _______________</div>
+      <div><strong>Dinner start:</strong> _______________</div>
+    </div>
+    <div class="box">
+      <b>Standard buffer times (post &amp; follow)</b><br>
+      · Dinner service window: <b>18:00 – 21:30</b> (kitchen last order <b>21:00</b>)<br>
+      · CI guest arriving <b>17:00–19:00</b>: normal dinner seating after CI (allow <b>20–30 min</b> buffer after keys)<br>
+      · CI guest arriving <b>19:00–20:30</b>: FO tells F&amp;B/Kitchen <b>hold plate / late cover</b> · guest to bistro coffee first if hungry wait<br>
+      · CI guest arriving <b>20:30–21:30</b>: offer <b>late plate</b> or <b>room tray</b> (chicken/fish + rice + one veg) — not full buffet rebuild<br>
+      · After <b>21:30</b>: bistro snacks/drinks only unless head approves exception
+    </div>
+    <h2>Today’s late CI meal board (FO fills as guests arrive)</h2>
+    <table>
+      <thead>
+        <tr><th>Conf / Name</th><th>ETA / Arr time</th><th>Pax</th><th>Local / Intl</th><th>Dinner plan</th><th>Kitchen told?</th></tr>
+      </thead>
+      <tbody>
+        <tr><td></td><td></td><td></td><td>☐ L ☐ I</td><td>☐ Seat ☐ Hold ☐ Tray ☐ Bistro only</td><td>☐ Time __</td></tr>
+        <tr><td></td><td></td><td></td><td>☐ L ☐ I</td><td>☐ Seat ☐ Hold ☐ Tray ☐ Bistro only</td><td>☐ Time __</td></tr>
+        <tr><td></td><td></td><td></td><td>☐ L ☐ I</td><td>☐ Seat ☐ Hold ☐ Tray ☐ Bistro only</td><td>☐ Time __</td></tr>
+        <tr><td></td><td></td><td></td><td>☐ L ☐ I</td><td>☐ Seat ☐ Hold ☐ Tray ☐ Bistro only</td><td>☐ Time __</td></tr>
+        <tr><td></td><td></td><td></td><td>☐ L ☐ I</td><td>☐ Seat ☐ Hold ☐ Tray ☐ Bistro only</td><td>☐ Time __</td></tr>
+      </tbody>
+    </table>
+    <div class="sign sign3">
+      <div class="box-s">FO hand over to F&amp;B/Kitchen<div class="line"></div></div>
+      <div class="box-s">F&amp;B / Kitchen take over<div class="line"></div></div>
+      <div class="box-s">FO TL → Rajiv pack<div class="line"></div></div>
+    </div>
+  </section>
+
+  <!-- FORM J: BISTRO ROTA -->
+  <section class="sheet page-break">
+    <h1>FORM J — Bistro rota (coffee &amp; drinks) · blank names</h1>
+    <p class="sub">Cover bistro during CI buffer + after dinner coffee · 06:30–22:00 window · Priya lead + FO flex backup</p>
+    <div class="meta">
+      <div><strong>Week:</strong> _______________</div>
+      <div><strong>Lead:</strong> Priya / _______________</div>
+      <div><strong>Submit → FO TL → Choki · Tshering · Rajiv</strong></div>
+    </div>
+    <div class="box">
+      <b>Must-open slots:</b> BF coffee 06:30–10:30 · Soft midday (optional short) ·
+      <b>CI buffer 16:30–19:30</b> (arrivals want drinks) ·
+      Post-dinner coffee 19:30–22:00 on peak nights.
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Day</th>
+          <th>A Morning bistro<br>06:30–____</th>
+          <th>CI buffer<br>16:30–19:30</th>
+          <th>C Evening<br>→22:00</th>
+          <th>Off</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Thu __</td><td><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Fri __</td><td><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Sat __</td><td><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Sun __</td><td><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr class="peak"><td>Mon __</td><td><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr class="peak"><td>Tue __</td><td><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Wed __</td><td><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+      </tbody>
+    </table>
+    <table>
+      <tr><td>☐</td><td>Priya initial ____</td><td>☐</td><td>FO backup name ____</td><td>☐</td><td>F&amp;B backup ____</td></tr>
+    </table>
+    <div class="sign sign3">
+      <div class="box-s">Choki<div class="line"></div></div>
+      <div class="box-s">Tshering<div class="line"></div></div>
+      <div class="box-s">Rajiv<div class="line"></div></div>
+    </div>
+  </section>
+
+  <!-- FORM K: BISTRO MENU + SHOPPING -->
+  <section class="sheet page-break">
+    <h1>FORM K — Bistro menu (week) + shopping</h1>
+    <p class="sub">From your live menu · Local guests: suja, milk tea, masala chai, snacks · Intl: espresso drinks, iced, juice · CI buffer always stocked</p>
+    <div class="meta">
+      <div><strong>Week:</strong> 17–23 Sep 2026</div>
+      <div><strong>Cups sold target (blank):</strong> Day ____</div>
+    </div>
+
+    <h2>Always-on bistro board (post at counter)</h2>
+    <table>
+      <thead><tr><th>For local guests</th><th>For international guests</th><th>Shared / both</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>
+            Suja (butter tea)<br>
+            Milk tea · Masala chai<br>
+            Assam black · Green tea<br>
+            Ezay / cheese chilli toast<br>
+            Peanut masala · Mountain biscuits
+          </td>
+          <td>
+            Espresso · Americano · Latte<br>
+            Cappuccino · Flat white · Mocha<br>
+            Iced latte / americano · Cold brew<br>
+            Fresh orange juice · Smoothie<br>
+            Hot chocolate
+          </td>
+          <td>
+            Mineral water<br>
+            Fresh lime soda<br>
+            Mango lassi<br>
+            French fries · Crispy chilli potato<br>
+            Boba (optional peak evenings)
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>CI buffer offer (16:30–19:30) — every arrival day</h2>
+    <div class="box">
+      Welcome drink prompt at FO: “Coffee / suja / water while we finish check-in?” ·
+      Charge to room or cash · Log on POS · Don’t make hungry arrivals wait with nothing until dinner.
+    </div>
+
+    <h2>Bistro shopping (blank qty)</h2>
+    <table class="check">
+      <thead><tr><th>☐</th><th>Item</th><th>On hand</th><th>Buy</th><th>☐</th><th>Item</th><th>On hand</th><th>Buy</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td>Coffee beans / ground</td><td></td><td></td><td>☐</td><td>Milk (extra for latte)</td><td></td><td></td></tr>
+        <tr><td>☐</td><td>Tea · suja butter · masala</td><td></td><td></td><td>☐</td><td>Sugar · syrup · cocoa</td><td></td><td></td></tr>
+        <tr><td>☐</td><td>Cups · lids · straws · napkins</td><td></td><td></td><td>☐</td><td>Orange · banana · mango (juice/lassi)</td><td></td><td></td></tr>
+        <tr><td>☐</td><td>Potato (fries) · oil</td><td></td><td></td><td>☐</td><td>Bread · cheese · chilli (toast)</td><td></td><td></td></tr>
+        <tr><td>☐</td><td>Mineral water stock</td><td></td><td></td><td>☐</td><td>Boba pearls / taro (if selling)</td><td></td><td></td></tr>
+        <tr><td>☐</td><td>Biscuits / nuts snacks</td><td></td><td></td><td>☐</td><td>Cleaning for machine / steamer</td><td></td><td></td></tr>
+      </tbody>
+    </table>
+    <div class="sign sign3">
+      <div class="box-s">Priya / Bistro HOTO<div class="line"></div></div>
+      <div class="box-s">FO TL take over<div class="line"></div></div>
+      <div class="box-s">Rajiv ☐ Buy ☐ Partial<div class="line"></div></div>
+    </div>
+  </section>
+
+  <!-- FORM L: GUEST ORIGIN -->
+  <section class="sheet page-break">
+    <h1>FORM L — Guest origin &amp; meal preference (FO at CI)</h1>
+    <p class="sub">System nationality often blank — FO must capture · Guides kitchen spice / bistro push</p>
+    <div class="meta">
+      <div><strong>Date:</strong> _______________</div>
+      <div><strong>FO:</strong> _______________</div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Room</th><th>Name</th><th>Origin</th><th>Nationality (write)</th><th>MAP/EP</th><th>Spice</th><th>Dinner seat / hold / tray</th><th>Bistro?</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td></td><td></td><td>☐L ☐I</td><td></td><td>☐M ☐E</td><td>☐Mild ☐Med ☐Hot</td><td>☐S ☐H ☐T</td><td>☐</td></tr>
+        <tr><td></td><td></td><td>☐L ☐I</td><td></td><td>☐M ☐E</td><td>☐Mild ☐Med ☐Hot</td><td>☐S ☐H ☐T</td><td>☐</td></tr>
+        <tr><td></td><td></td><td>☐L ☐I</td><td></td><td>☐M ☐E</td><td>☐Mild ☐Med ☐Hot</td><td>☐S ☐H ☐T</td><td>☐</td></tr>
+        <tr><td></td><td></td><td>☐L ☐I</td><td></td><td>☐M ☐E</td><td>☐Mild ☐Med ☐Hot</td><td>☐S ☐H ☐T</td><td>☐</td></tr>
+        <tr><td></td><td></td><td>☐L ☐I</td><td></td><td>☐M ☐E</td><td>☐Mild ☐Med ☐Hot</td><td>☐S ☐H ☐T</td><td>☐</td></tr>
+        <tr><td></td><td></td><td>☐L ☐I</td><td></td><td>☐M ☐E</td><td>☐Mild ☐Med ☐Hot</td><td>☐S ☐H ☐T</td><td>☐</td></tr>
+        <tr><td></td><td></td><td>☐L ☐I</td><td></td><td>☐M ☐E</td><td>☐Mild ☐Med ☐Hot</td><td>☐S ☐H ☐T</td><td>☐</td></tr>
+        <tr><td></td><td></td><td>☐L ☐I</td><td></td><td>☐M ☐E</td><td>☐Mild ☐Med ☐Hot</td><td>☐S ☐H ☐T</td><td>☐</td></tr>
+      </tbody>
+    </table>
+    <div class="box">
+      <b>Kitchen cue:</b> If mostly <b>Local</b> → keep ema/kewa strong, chilli OK.
+      If mostly <b>International</b> → mild non-veg (grilled chicken / fish), less chilli on side, Continental BF cooked item preferred.
+      Mixed house (your usual) → always offer both paths on the buffet.
+    </div>
+    <div class="sign">
+      <div class="box-s">FO hand over to Kitchen/F&amp;B<div class="line"></div></div>
+      <div class="box-s">Kitchen / F&amp;B take over<div class="line"></div></div>
+    </div>
+  </section>
+
+  <!-- FORMS M–R compact -->
+  <section class="sheet page-break">
+    <h1>FORM M — Cash / POS float HOTO</h1>
+    <div class="meta"><div><strong>Date:</strong> ____</div><div><strong>Outlet:</strong> ☐ FO ☐ F&amp;B ☐ Bistro</div></div>
+    <table>
+      <tr><td>Opening float Nu</td><td></td><td>Closing float Nu</td><td></td></tr>
+      <tr><td>Cash sales</td><td></td><td>QR / card</td><td></td></tr>
+      <tr><td>Room charge total</td><td></td><td>Variance</td><td></td></tr>
+    </table>
+    <div class="sign">
+      <div class="box-s">HAND OVER<div class="line"></div></div>
+      <div class="box-s">TAKE OVER + FO TL<div class="line"></div></div>
+    </div>
+
+    <h2>FORM N — Complaint / incident</h2>
+    <table>
+      <tr><td>Time / Room / Guest</td><td><span class="slot"></span></td></tr>
+      <tr><td>What happened</td><td><span class="slot"></span><span class="slot"></span></td></tr>
+      <tr><td>Action taken</td><td><span class="slot"></span></td></tr>
+      <tr><td>Escalate head?</td><td>☐ Choki ☐ Tshering ☐ Rajiv · Time ____</td></tr>
+    </table>
+    <div class="sign">
+      <div class="box-s">Reporter<div class="line"></div></div>
+      <div class="box-s">FO TL / Head take over<div class="line"></div></div>
+    </div>
+
+    <h2>FORM O — Maintenance / TV / Internet</h2>
+    <table>
+      <tr><td>Room / Area</td><td></td><td>☐ TV ☐ Wi‑Fi ☐ Water ☐ Other</td></tr>
+      <tr><td>Issue</td><td colspan="2"><span class="slot"></span></td></tr>
+      <tr><td>Guest informed?</td><td>☐ Y ☐ N</td><td>ETA / fix by ____</td></tr>
+    </table>
+    <div class="sign">
+      <div class="box-s">FO / HK raise<div class="line"></div></div>
+      <div class="box-s">Fixer / Head close<div class="line"></div></div>
+    </div>
+  </section>
+
+  <section class="sheet page-break">
+    <h1>FORM P — Key &amp; rack closing (FO end of shift)</h1>
+    <div class="meta"><div><strong>Date:</strong> ____</div><div><strong>Shift:</strong> ☐ A ☐ C</div></div>
+    <table class="check">
+      <tr><td>☐</td><td>All keys accounted / missing key rooms: ________</td></tr>
+      <tr><td>☐</td><td>Rack matches IH list</td></tr>
+      <tr><td>☐</td><td>Dirty / Clean / OOO status current</td></tr>
+      <tr><td>☐</td><td>Form E FO↔HK done today</td></tr>
+      <tr><td>☐</td><td>Form D FO shift HOTO done</td></tr>
+    </table>
+    <div class="sign">
+      <div class="box-s">HAND OVER FO<div class="line"></div></div>
+      <div class="box-s">TAKE OVER FO / FO TL<div class="line"></div></div>
+    </div>
+
+    <h2>FORM Q — Arrival welcome checklist (say + tick)</h2>
+    <table class="check">
+      <tr><td>☐</td><td>Wi‑Fi password given</td></tr>
+      <tr><td>☐</td><td>Dinner time + <b>buffer</b> explained (last order 21:00)</td></tr>
+      <tr><td>☐</td><td>Bistro coffee/drinks during wait / after dinner offered</td></tr>
+      <tr><td>☐</td><td>Breakfast time tomorrow</td></tr>
+      <tr><td>☐</td><td>Spice preference asked (Form L)</td></tr>
+      <tr><td>☐</td><td>Origin / nationality noted (Form L)</td></tr>
+    </table>
+    <div class="sign">
+      <div class="box-s">FO at CI<div class="line"></div></div>
+      <div class="box-s">Guest initial (optional)<div class="line"></div></div>
+    </div>
+
+    <h2>FORM R — Lost &amp; found</h2>
+    <table>
+      <tr><td>Item / where found</td><td></td><td>Date/time</td><td></td></tr>
+      <tr><td>Found by</td><td></td><td>Stored where</td><td></td></tr>
+      <tr><td>Claimed by / ID</td><td colspan="3"></td></tr>
+    </table>
+    <div class="sign">
+      <div class="box-s">Finder / FO log<div class="line"></div></div>
+      <div class="box-s">Claim / close<div class="line"></div></div>
+    </div>
+  </section>
+
+  <!-- MENU ALIGNMENT NOTE -->
+  <section class="sheet page-break">
+    <h1>Menu alignment — local + international (your live mix)</h1>
+    <p class="sub">Bookings show ~local + ~international · Update kitchen board · FO TL uses Form L daily</p>
+    <table>
+      <thead><tr><th>Daypart</th><th>Local-leaning</th><th>International-leaning</th><th>Always both</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Breakfast cooked</b></td>
+          <td>Aloo paratha · Chole · Poha</td>
+          <td>Hash brown &amp; beans · Pancakes · French toast · Toast</td>
+          <td>Bread/jam/butter · Cornflakes · Eggs · 2 fruits</td>
+        </tr>
+        <tr>
+          <td><b>Dinner veg</b></td>
+          <td>Ema / Kewa / Pe Datshi (Bhutanese slot)</td>
+          <td>Dal · Paneer · Mix veg · Stir-fry (mild)</td>
+          <td>2 veg every night (1 + 1)</td>
+        </tr>
+        <tr>
+          <td><b>Dinner non-veg</b></td>
+          <td>Chicken curry · Butter chicken</td>
+          <td>Grilled / roast chicken · Fish · Sweet-sour chicken</td>
+          <td><b>Chicken or fish only</b></td>
+        </tr>
+        <tr>
+          <td><b>Bistro</b></td>
+          <td>Suja · Milk tea · Masala chai</td>
+          <td>Espresso bar · Iced · Juice</td>
+          <td>Water · Lime soda · Light snacks · CI buffer open</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="box">
+      Your week menu (Form A) already rotates Indian/Continental cooked BF and Bhutanese + Ind/Cont dinner veg.
+      On heavy <b>international</b> arrival nights (check Form L): keep chilli on the side for ema; push grilled/fish; open bistro early for CI buffer.
+      On heavy <b>local</b> nights: full chilli OK; suja + milk tea prominent at bistro.
+    </div>
+    <div class="sign sign3">
+      <div class="box-s">Kitchen<div class="line"></div></div>
+      <div class="box-s">F&amp;B / Bistro<div class="line"></div></div>
+      <div class="box-s">FO TL / Heads<div class="line"></div></div>
+    </div>
+  </section>
+</body>
+</html>

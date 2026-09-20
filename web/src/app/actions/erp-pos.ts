@@ -103,11 +103,14 @@ async function loadPropertyPricing(admin: Admin): Promise<{
   gstRate: number;
   serviceChargeRate: number;
   serviceChargeDefaultOn: boolean;
+  gstDefaultOn: boolean;
 }> {
   const activePropertyId = await propertyId(admin);
   const { data } = await admin
     .from("properties")
-    .select("gst_rate, service_charge_rate, service_charge_default_on")
+    .select(
+      "gst_rate, service_charge_rate, service_charge_default_on, gst_default_on",
+    )
     .eq("id", activePropertyId)
     .maybeSingle();
   return {
@@ -115,6 +118,7 @@ async function loadPropertyPricing(admin: Admin): Promise<{
     gstRate: Number(data?.gst_rate ?? DEFAULT_GST_RATE),
     serviceChargeRate: Number(data?.service_charge_rate ?? 0),
     serviceChargeDefaultOn: Boolean(data?.service_charge_default_on),
+    gstDefaultOn: data?.gst_default_on == null ? true : Boolean(data.gst_default_on),
   };
 }
 
@@ -205,17 +209,6 @@ type CartModifierInput = {
   qty?: number;
 };
 
-type CartLineInput = {
-  menuItemId: string;
-  qty: number;
-  modifiers?: CartModifierInput[];
-  courseNo?: number;
-  seatNo?: number;
-  lineNotes?: string;
-  isNc?: boolean;
-  ncReasonCode?: string;
-};
-
 type ModifierSnapshot = {
   groupId: string;
   optionId: string;
@@ -223,6 +216,36 @@ type ModifierSnapshot = {
   qty: number;
   priceBtn: number;
   gstApplicable: boolean;
+};
+
+type CartLineInput = {
+  menuItemId?: string;
+  qty: number;
+  modifiers?: CartModifierInput[];
+  courseNo?: number;
+  seatNo?: number;
+  lineNotes?: string;
+  isNc?: boolean;
+  ncReasonCode?: string;
+  lineKind?: "item" | "set_meal";
+  setMealId?: string;
+};
+
+type PricedCartLine = {
+  menuItemId: string | null;
+  setMealId: string | null;
+  lineKind: "item" | "set_meal";
+  qty: number;
+  name: string;
+  unitPriceBtn: number;
+  gstApplicable: boolean;
+  modifiers: ModifierSnapshot[];
+  courseNo: number;
+  seatNo: number | null;
+  lineNotes: string | null;
+  isNc: boolean;
+  ncReasonCode: string | null;
+  outlet: string | null;
 };
 
 function parseCart(raw: FormDataEntryValue | null): CartLineInput[] {
@@ -240,35 +263,41 @@ function parseCart(raw: FormDataEntryValue | null): CartLineInput[] {
   }
   const lines: CartLineInput[] = [];
   for (const item of parsed) {
-    if (
-      !item ||
-      typeof item !== "object" ||
-      typeof (item as CartLineInput).menuItemId !== "string" ||
-      typeof (item as CartLineInput).qty !== "number"
-    ) {
+    if (!item || typeof item !== "object") {
       throw new Error("Cart data is invalid.");
     }
-    const qty = (item as CartLineInput).qty;
-    if (!Number.isInteger(qty) || qty < 1 || qty > 40) {
+    const rec = item as CartLineInput;
+    const qty = rec.qty;
+    if (typeof qty !== "number" || !Number.isInteger(qty) || qty < 1 || qty > 40) {
       throw new Error("Each item quantity must be between 1 and 40.");
     }
-    const courseNo = (item as CartLineInput).courseNo;
+    const courseNo = rec.courseNo;
     if (
       courseNo != null &&
       (!Number.isInteger(courseNo) || courseNo < 1 || courseNo > 12)
     ) {
       throw new Error("Course number must be between 1 and 12.");
     }
-    const seatNo = (item as CartLineInput).seatNo;
+    const seatNo = rec.seatNo;
     if (
       seatNo != null &&
       (!Number.isInteger(seatNo) || seatNo < 1 || seatNo > 40)
     ) {
       throw new Error("Seat number must be between 1 and 40.");
     }
-    const modifiersRaw = (item as CartLineInput).modifiers;
+    const isSetMeal =
+      rec.lineKind === "set_meal" ||
+      (typeof rec.setMealId === "string" && rec.setMealId.length > 0);
+    if (isSetMeal) {
+      if (typeof rec.setMealId !== "string" || !rec.setMealId.trim()) {
+        throw new Error("Set meal is missing.");
+      }
+    } else if (typeof rec.menuItemId !== "string" || !rec.menuItemId.trim()) {
+      throw new Error("Cart data is invalid.");
+    }
+    const modifiersRaw = rec.modifiers;
     const modifiers: CartModifierInput[] = [];
-    if (modifiersRaw != null) {
+    if (!isSetMeal && modifiersRaw != null) {
       if (!Array.isArray(modifiersRaw)) {
         throw new Error("Cart modifiers are invalid.");
       }
@@ -292,9 +321,9 @@ function parseCart(raw: FormDataEntryValue | null): CartLineInput[] {
         });
       }
     }
-    const lineNotes = (item as CartLineInput).lineNotes;
-    const isNc = Boolean((item as CartLineInput).isNc);
-    const ncReasonCodeRaw = (item as CartLineInput).ncReasonCode;
+    const lineNotes = rec.lineNotes;
+    const isNc = Boolean(rec.isNc);
+    const ncReasonCodeRaw = rec.ncReasonCode;
     const ncReasonCode =
       typeof ncReasonCodeRaw === "string" && ncReasonCodeRaw.trim()
         ? ncReasonCodeRaw.trim().toLowerCase().slice(0, 40)
@@ -303,7 +332,9 @@ function parseCart(raw: FormDataEntryValue | null): CartLineInput[] {
       throw new Error("NC items need a reason code.");
     }
     lines.push({
-      menuItemId: (item as CartLineInput).menuItemId,
+      menuItemId: isSetMeal ? undefined : rec.menuItemId,
+      setMealId: isSetMeal ? rec.setMealId!.trim() : undefined,
+      lineKind: isSetMeal ? "set_meal" : "item",
       qty,
       modifiers: modifiers.length ? modifiers : undefined,
       courseNo: courseNo ?? 1,
@@ -331,7 +362,16 @@ async function resolveModifiers(
     ),
   ];
 
-  const itemIds = [...new Set(cart.map((l) => l.menuItemId))];
+  const itemIds = [
+    ...new Set(
+      cart
+        .map((l) => l.menuItemId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  if (itemIds.length === 0) {
+    return byLine;
+  }
   const { data: allGroups } = await admin
     .from("menu_modifier_groups")
     .select("id, menu_item_id, min_sel, max_sel, is_required")
@@ -347,7 +387,8 @@ async function resolveModifiers(
 
   if (optionIds.length === 0) {
     for (let idx = 0; idx < cart.length; idx++) {
-      const required = (groupsByItem.get(cart[idx].menuItemId) ?? []).filter(
+      if (cart[idx].lineKind === "set_meal" || !cart[idx].menuItemId) continue;
+      const required = (groupsByItem.get(cart[idx].menuItemId!) ?? []).filter(
         (g) => Boolean(g.is_required) || Number(g.min_sel) > 0,
       );
       if (required.length > 0) {
@@ -374,6 +415,7 @@ async function resolveModifiers(
   );
 
   cart.forEach((line, idx) => {
+    if (line.lineKind === "set_meal" || !line.menuItemId) return;
     const mods = line.modifiers ?? [];
     const snapshots: ModifierSnapshot[] = [];
     const countByGroup = new Map<string, number>();
@@ -400,7 +442,7 @@ async function resolveModifiers(
       });
     }
 
-    for (const g of groupsByItem.get(line.menuItemId) ?? []) {
+    for (const g of groupsByItem.get(line.menuItemId ?? "") ?? []) {
       const count = countByGroup.get(g.id as string) ?? 0;
       const minSel = Number(g.min_sel);
       const maxSel = Number(g.max_sel);
@@ -419,6 +461,150 @@ async function resolveModifiers(
   });
 
   return byLine;
+}
+
+async function priceDeskCart(
+  admin: Admin,
+  propertyId: string,
+  cart: CartLineInput[],
+): Promise<PricedCartLine[]> {
+  const modifiersByLine = await resolveModifiers(admin, propertyId, cart);
+  const menuIds = [
+    ...new Set(
+      cart
+        .filter((l) => l.lineKind !== "set_meal" && l.menuItemId)
+        .map((l) => l.menuItemId!),
+    ),
+  ];
+  const setMealIds = [
+    ...new Set(
+      cart
+        .filter((l) => l.lineKind === "set_meal" && l.setMealId)
+        .map((l) => l.setMealId!),
+    ),
+  ];
+
+  const menuById = new Map<
+    string,
+    { name: string; price: number; gst: boolean; outlet: string }
+  >();
+  if (menuIds.length > 0) {
+    const { data: menuRows, error: menuError } = await admin
+      .from("menu_items")
+      .select("id, name, price_btn, gst_applicable, outlet, is_available")
+      .in("id", menuIds)
+      .eq("property_id", propertyId)
+      .eq("is_available", true);
+    if (menuError || !menuRows || menuRows.length !== menuIds.length) {
+      throw new Error("One or more menu items are unavailable.");
+    }
+    for (const row of menuRows) {
+      menuById.set(row.id as string, {
+        name: row.name as string,
+        price: Number(row.price_btn),
+        gst: Boolean(row.gst_applicable),
+        outlet: row.outlet as string,
+      });
+    }
+  }
+
+  const mealById = new Map<
+    string,
+    { id: string; name: string; price: number; gst: boolean; outlet: string | null }
+  >();
+  if (setMealIds.length > 0) {
+    const { data: mealRows, error: mealError } = await admin
+      .from("pos_set_meals")
+      .select("id, name, price_btn, gst_applicable, outlet, is_active")
+      .in("id", setMealIds)
+      .eq("property_id", propertyId)
+      .eq("is_active", true);
+    if (mealError || !mealRows || mealRows.length !== setMealIds.length) {
+      throw new Error("Set meal is unavailable.");
+    }
+    for (const row of mealRows) {
+      mealById.set(row.id as string, {
+        id: row.id as string,
+        name: row.name as string,
+        price: Number(row.price_btn),
+        gst: Boolean(row.gst_applicable),
+        outlet: (row.outlet as string | null) ?? null,
+      });
+    }
+  }
+
+  return cart.map((line, idx) => {
+    const isNc = Boolean(line.isNc);
+    if (line.lineKind === "set_meal") {
+      const meal = mealById.get(line.setMealId ?? "");
+      if (!meal) throw new Error("Set meal is unavailable.");
+      return {
+        menuItemId: null,
+        setMealId: meal.id,
+        lineKind: "set_meal" as const,
+        qty: line.qty,
+        name: meal.name,
+        unitPriceBtn: meal.price,
+        gstApplicable: meal.gst,
+        modifiers: [],
+        courseNo: line.courseNo ?? 1,
+        seatNo: line.seatNo ?? null,
+        lineNotes: line.lineNotes ?? null,
+        isNc,
+        ncReasonCode: line.ncReasonCode ?? null,
+        outlet: meal.outlet,
+      };
+    }
+    const item = menuById.get(line.menuItemId ?? "");
+    if (!item) throw new Error("Menu item missing.");
+    return {
+      menuItemId: line.menuItemId ?? null,
+      setMealId: null,
+      lineKind: "item" as const,
+      qty: line.qty,
+      name: item.name,
+      unitPriceBtn: item.price,
+      gstApplicable: item.gst,
+      modifiers: modifiersByLine.get(idx) ?? [],
+      courseNo: line.courseNo ?? 1,
+      seatNo: line.seatNo ?? null,
+      lineNotes: line.lineNotes ?? null,
+      isNc,
+      ncReasonCode: line.ncReasonCode ?? null,
+      outlet: item.outlet,
+    };
+  });
+}
+
+function orderItemInsertRow(
+  orderId: string,
+  line: PricedCartLine,
+  approvedBy: string,
+) {
+  const modUnit = line.modifiers.reduce((s, m) => s + m.priceBtn * m.qty, 0);
+  const listUnit = roundBtn(line.unitPriceBtn + modUnit);
+  const ncValue = line.isNc ? roundBtn(listUnit * line.qty) : 0;
+  return {
+    order_id: orderId,
+    menu_item_id: line.menuItemId,
+    set_meal_id: line.setMealId,
+    line_kind: line.lineKind,
+    name_snapshot: line.name,
+    qty: line.qty,
+    unit_price_btn: line.isNc ? 0 : line.unitPriceBtn,
+    list_unit_price_btn: listUnit,
+    gst_applicable: line.isNc ? false : line.gstApplicable,
+    modifiers: line.isNc
+      ? line.modifiers.map((m) => ({ ...m, priceBtn: 0 }))
+      : line.modifiers,
+    course_no: line.courseNo,
+    seat_no: line.seatNo,
+    line_notes: line.lineNotes,
+    is_nc: line.isNc,
+    nc_reason_code: line.ncReasonCode,
+    nc_value_btn: ncValue,
+    nc_approved_by: line.isNc ? approvedBy : null,
+  };
 }
 
 async function requireVoidManagerPin(
@@ -564,29 +750,19 @@ export async function createDeskOrder(
       if (!staff) throw new Error("Server staff not found.");
     }
 
-    const ids = [...new Set(cart.map((line) => line.menuItemId))];
-    const { data: menuRows, error: menuError } = await admin
-      .from("menu_items")
-      .select("id, name, price_btn, gst_applicable, outlet, is_available")
-      .in("id", ids)
-      .eq("property_id", property_id)
-      .eq("is_available", true);
-
-    if (menuError || !menuRows || menuRows.length !== ids.length) {
-      throw new Error("One or more menu items are unavailable.");
-    }
-
-    // Derive a primary outlet for the order row (KOT label only — the cart can
-    // mix outlets). Prefer the table's outlet, else the first cart item's outlet.
-    const cartOutlets = menuRows.map((row) => row.outlet as string);
-    const outlet = tableOutlet ?? cartOutlets[0];
+    const priced = await priceDeskCart(admin, property_id, cart);
+    const outletFromForm = optionalTrim(formData.get("outlet"));
+    const outlet =
+      tableOutlet ??
+      outletFromForm ??
+      priced.find((line) => line.outlet)?.outlet ??
+      null;
     if (!outlet) {
       throw new Error("Could not determine outlet for this ticket.");
     }
+    await assertPropertyOutlet(admin, property_id, outlet);
 
-    const modifiersByLine = await resolveModifiers(admin, property_id, cart);
-    const byId = new Map(menuRows.map((row) => [row.id as string, row]));
-    const hasAnyNc = cart.some((line) => line.isNc);
+    const hasAnyNc = priced.some((line) => line.isNc);
     if (hasAnyNc) {
       const pin = optionalTrim(formData.get("manager_pin"));
       if (!pin) {
@@ -596,33 +772,16 @@ export async function createDeskOrder(
       if (!verified.ok) throw new Error(verified.error);
     }
 
-    const priced = cart.map((line, idx) => {
-      const item = byId.get(line.menuItemId);
-      if (!item) throw new Error("Menu item missing.");
-      const modifiers = modifiersByLine.get(idx) ?? [];
-      const isNc = Boolean(line.isNc);
-      if (isNc && line.ncReasonCode) {
-        // Validated below in batch for unique reasons; keep code on line.
-      }
-      return {
-        menuItemId: line.menuItemId,
-        qty: line.qty,
-        name: item.name as string,
-        unitPriceBtn: Number(item.price_btn),
-        gstApplicable: Boolean(item.gst_applicable),
-        modifiers,
-        courseNo: line.courseNo ?? 1,
-        seatNo: line.seatNo ?? null,
-        lineNotes: line.lineNotes ?? null,
-        isNc,
-        ncReasonCode: line.ncReasonCode ?? null,
-      };
-    });
-
     for (const line of priced) {
       if (line.isNc && line.ncReasonCode) {
         await assertNcReason(admin, property_id, line.ncReasonCode, "pos");
       }
+    }
+
+    const gstApplied = formData.get("gst_applied") !== "0";
+    const gstReason = optionalTrim(formData.get("gst_reason"));
+    if (!gstApplied && !gstReason) {
+      throw new Error("GST waiver needs a short reason.");
     }
 
     const {
@@ -648,6 +807,7 @@ export async function createDeskOrder(
         gstRate: property.gstRate,
         serviceChargeRate,
         applyServiceCharge: serviceChargeApplied,
+        applyGst: gstApplied,
       },
     );
 
@@ -697,6 +857,8 @@ export async function createDeskOrder(
         service_charge_btn: serviceChargeBtn,
         service_charge_applied: serviceChargeApplied,
         service_charge_reason: serviceChargeReason,
+        gst_applied: gstApplied,
+        gst_reason: gstReason,
         gst_btn: gstBtn,
         total_btn: totalBtn,
         nc_value_btn: ncValueBtn,
@@ -761,33 +923,7 @@ export async function createDeskOrder(
     const approvedBy = actor?.actor ?? "desk";
 
     const { error: itemsError } = await admin.from("order_items").insert(
-      priced.map((line) => {
-        const modUnit = line.modifiers.reduce(
-          (s, m) => s + m.priceBtn * m.qty,
-          0,
-        );
-        const listUnit = roundBtn(line.unitPriceBtn + modUnit);
-        const ncValue = line.isNc ? roundBtn(listUnit * line.qty) : 0;
-        return {
-          order_id: order.id,
-          menu_item_id: line.menuItemId,
-          name_snapshot: line.name,
-          qty: line.qty,
-          unit_price_btn: line.isNc ? 0 : line.unitPriceBtn,
-          list_unit_price_btn: listUnit,
-          gst_applicable: line.isNc ? false : line.gstApplicable,
-          modifiers: line.isNc
-            ? line.modifiers.map((m) => ({ ...m, priceBtn: 0 }))
-            : line.modifiers,
-          course_no: line.courseNo,
-          seat_no: line.seatNo,
-          line_notes: line.lineNotes,
-          is_nc: line.isNc,
-          nc_reason_code: line.ncReasonCode,
-          nc_value_btn: ncValue,
-          nc_approved_by: line.isNc ? approvedBy : null,
-        };
-      }),
+      priced.map((line) => orderItemInsertRow(order.id as string, line, approvedBy)),
     );
 
     if (itemsError) {
@@ -940,6 +1076,7 @@ export async function createDeskOrder(
 
     revalidatePath("/erp");
     revalidatePath("/erp/pos");
+    revalidatePath("/pos", "layout");
     const message =
       settleMode === "room_charge" && folioId
         ? `Charged to room · ${formatShort(totalBtn)} · guest pays at checkout`
@@ -1030,7 +1167,7 @@ export async function appendDeskOrderItems(
     const { data: order } = await admin
       .from("orders")
       .select(
-        "id, property_id, voided_at, settled_at, posted_to_folio_at, kot_status, is_parked, service_charge_applied, service_charge_rate, service_charge_reason, promo_discount_btn, order_source, payment_recorded_at, table_id, booking_id, outlet, course_count, status",
+        "id, property_id, voided_at, settled_at, posted_to_folio_at, kot_status, is_parked, service_charge_applied, service_charge_rate, service_charge_reason, promo_discount_btn, order_source, payment_recorded_at, table_id, booking_id, outlet, course_count, status, gst_applied, gst_reason",
       )
       .eq("id", orderId)
       .maybeSingle();
@@ -1085,25 +1222,8 @@ export async function appendDeskOrderItems(
       courseNo: nextCourse,
     }));
 
-    const ids = [...new Set(cartForCourse.map((line) => line.menuItemId))];
-    const { data: menuRows, error: menuError } = await admin
-      .from("menu_items")
-      .select("id, name, price_btn, gst_applicable, outlet, is_available")
-      .in("id", ids)
-      .eq("property_id", property_id)
-      .eq("is_available", true);
-
-    if (menuError || !menuRows || menuRows.length !== ids.length) {
-      throw new Error("One or more menu items are unavailable.");
-    }
-
-    const modifiersByLine = await resolveModifiers(
-      admin,
-      property_id,
-      cartForCourse,
-    );
-    const byId = new Map(menuRows.map((row) => [row.id as string, row]));
-    const hasAnyNc = cartForCourse.some((line) => line.isNc);
+    const priced = await priceDeskCart(admin, property_id, cartForCourse);
+    const hasAnyNc = priced.some((line) => line.isNc);
     if (hasAnyNc) {
       const pin = optionalTrim(formData.get("manager_pin"));
       if (!pin) {
@@ -1117,26 +1237,6 @@ export async function appendDeskOrderItems(
       if (!verified.ok) throw new Error(verified.error);
     }
 
-    const priced = cartForCourse.map((line, idx) => {
-      const item = byId.get(line.menuItemId);
-      if (!item) throw new Error("Menu item missing.");
-      const modifiers = modifiersByLine.get(idx) ?? [];
-      const isNc = Boolean(line.isNc);
-      return {
-        menuItemId: line.menuItemId,
-        qty: line.qty,
-        name: item.name as string,
-        unitPriceBtn: Number(item.price_btn),
-        gstApplicable: Boolean(item.gst_applicable),
-        modifiers,
-        courseNo: nextCourse,
-        seatNo: line.seatNo ?? null,
-        lineNotes: line.lineNotes ?? null,
-        isNc,
-        ncReasonCode: line.ncReasonCode ?? null,
-      };
-    });
-
     for (const line of priced) {
       if (line.isNc && line.ncReasonCode) {
         await assertNcReason(admin, property_id, line.ncReasonCode, "pos");
@@ -1146,6 +1246,7 @@ export async function appendDeskOrderItems(
     const serviceChargeApplied = Boolean(order.service_charge_applied);
     const serviceChargeRate = Number(order.service_charge_rate ?? 0);
     const existingPromoDiscount = Number(order.promo_discount_btn ?? 0);
+    const gstApplied = order.gst_applied == null ? true : Boolean(order.gst_applied);
 
     const existingLines: LineForGst[] = (existingItems ?? []).map(
       existingItemToLineForGst,
@@ -1173,6 +1274,7 @@ export async function appendDeskOrderItems(
       gstRate: property.gstRate,
       serviceChargeRate,
       applyServiceCharge: serviceChargeApplied,
+      applyGst: gstApplied,
     });
 
     if (existingPromoDiscount > 0 && totalBtn > 0) {
@@ -1190,33 +1292,7 @@ export async function appendDeskOrderItems(
     const { data: inserted, error: itemsError } = await admin
       .from("order_items")
       .insert(
-        priced.map((line) => {
-          const modUnit = line.modifiers.reduce(
-            (s, m) => s + m.priceBtn * m.qty,
-            0,
-          );
-          const listUnit = roundBtn(line.unitPriceBtn + modUnit);
-          const ncValue = line.isNc ? roundBtn(listUnit * line.qty) : 0;
-          return {
-            order_id: orderId,
-            menu_item_id: line.menuItemId,
-            name_snapshot: line.name,
-            qty: line.qty,
-            unit_price_btn: line.isNc ? 0 : line.unitPriceBtn,
-            list_unit_price_btn: listUnit,
-            gst_applicable: line.isNc ? false : line.gstApplicable,
-            modifiers: line.isNc
-              ? line.modifiers.map((m) => ({ ...m, priceBtn: 0 }))
-              : line.modifiers,
-            course_no: line.courseNo,
-            seat_no: line.seatNo,
-            line_notes: line.lineNotes,
-            is_nc: line.isNc,
-            nc_reason_code: line.ncReasonCode,
-            nc_value_btn: ncValue,
-            nc_approved_by: line.isNc ? approvedBy : null,
-          };
-        }),
+        priced.map((line) => orderItemInsertRow(orderId, line, approvedBy)),
       )
       .select("id");
 
@@ -1314,6 +1390,7 @@ export async function appendDeskOrderItems(
 
     revalidatePath("/erp");
     revalidatePath("/erp/pos");
+    revalidatePath("/pos", "layout");
     return {
       ok: true,
       orderId,
@@ -2269,7 +2346,7 @@ export async function voidOrderItem(
 
     const { data: order, error: orderError } = await admin
       .from("orders")
-      .select("id, voided_at, gst_btn, total_btn, subtotal_btn, service_charge_rate, service_charge_applied, service_charge_btn, property_id")
+      .select("id, voided_at, gst_btn, total_btn, subtotal_btn, service_charge_rate, service_charge_applied, service_charge_btn, property_id, gst_applied")
       .eq("id", orderId)
       .single();
     if (orderError || !order) throw new Error("Order not found.");
@@ -2336,6 +2413,7 @@ export async function voidOrderItem(
     const property = await loadPropertyPricing(admin);
     const serviceChargeApplied = Boolean(order.service_charge_applied);
     const serviceChargeRate = Number(order.service_charge_rate ?? 0);
+    const gstApplied = order.gst_applied == null ? true : Boolean(order.gst_applied);
     const totals = calculateOrderTotals(
       (liveItems ?? []).map((row) => {
         const rowMods = (row.modifiers as ModifierSnapshot[] | null) ?? [];
@@ -2354,6 +2432,7 @@ export async function voidOrderItem(
         gstRate: property.gstRate,
         serviceChargeRate,
         applyServiceCharge: serviceChargeApplied,
+        applyGst: gstApplied,
       },
     );
 
@@ -2451,6 +2530,7 @@ export async function voidOrderItem(
 
     revalidatePath("/erp");
     revalidatePath("/erp/pos");
+    revalidatePath("/pos", "layout");
     revalidatePath("/erp/folios");
     return { ok: true, orderId };
   } catch (err) {
@@ -2850,6 +2930,7 @@ export async function splitSettle(
 
     revalidatePath("/erp");
     revalidatePath("/erp/pos");
+    revalidatePath("/pos", "layout");
     revalidatePath(`/erp/orders/${orderId}/receipt`);
     if (folioId) revalidatePath(`/erp/folios/${folioId}`);
     if (invoiceDocId) revalidatePath(`/erp/invoices/${invoiceDocId}/print`);

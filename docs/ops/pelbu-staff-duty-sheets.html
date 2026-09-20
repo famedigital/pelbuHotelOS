@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pelbu Suites — Staff duty sheets · shopping · daily inventory</title>
+  <style>
+/* Pelbu printable forms — A4 landscape, readable */
+:root {
+  --ink: #1a1410;
+  --muted: #5c534c;
+  --line: #2a221c;
+  --soft: #e8e2da;
+  --peak: #f3e6d8;
+  --ok: #eef2ea;
+  --box: #f7f4ef;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  color: var(--ink);
+  font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
+  background: #f5f2ed;
+}
+.sheet {
+  width: 297mm;
+  min-height: 210mm;
+  margin: 14px auto;
+  padding: 10mm 12mm;
+  background: #fff;
+  box-shadow: 0 2px 16px rgba(0,0,0,.08);
+}
+h1 { margin: 0 0 4px; font-size: 20px; letter-spacing: .01em; }
+h2 { margin: 10px 0 6px; font-size: 15px; border-bottom: 2px solid var(--line); padding-bottom: 3px; }
+.sub { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+.meta {
+  display: flex; flex-wrap: wrap; gap: 6px 16px;
+  margin-bottom: 8px; padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink); font-size: 13px;
+}
+table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+th, td {
+  border: 1px solid var(--line);
+  padding: 7px 8px;
+  vertical-align: top;
+  text-align: left;
+  font-size: 12.5px;
+}
+th { background: var(--soft); font-size: 12px; font-weight: 700; }
+.peak { background: var(--peak); }
+.ok { background: var(--ok); }
+.box {
+  border: 1px solid var(--line);
+  background: var(--box);
+  padding: 8px 10px;
+  margin: 8px 0;
+  font-size: 12.5px;
+}
+.form {
+  border: 1px solid var(--line);
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: #faf8f5;
+  font-size: 12.5px;
+}
+.blank { border-bottom: 1px solid #666; display: inline-block; min-width: 48px; height: 1.1em; }
+.slot { display: block; border-bottom: 1px dotted #666; min-height: 18px; margin: 4px 0; }
+.sign {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 12.5px;
+}
+.sign3 { grid-template-columns: 1fr 1fr 1fr; }
+.sign4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.sign .box-s {
+  border: 1.5px solid var(--line);
+  padding: 8px 10px;
+  min-height: 88px;
+}
+.sign .line { border-bottom: 1.5px solid var(--ink); height: 28px; margin-top: 18px; }
+.check td:first-child { width: 28px; text-align: center; font-size: 14px; }
+.toc { font-size: 13px; }
+.toc li { margin-bottom: 4px; }
+.dept-tag {
+  display: inline-block;
+  border: 2px solid var(--ink);
+  padding: 4px 10px;
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+.lab { font-size: 11px; color: var(--muted); }
+.small { font-size: 11px; color: var(--muted); }
+.page-break { page-break-before: always; }
+.no-print { margin: 10px auto; width: 297mm; text-align: right; }
+.no-print button {
+  border: 1px solid var(--ink); background: var(--ink); color: #fff;
+  padding: 10px 16px; font: 14px/1 "Segoe UI", system-ui, sans-serif; cursor: pointer;
+}
+@media print {
+  body { background: #fff; }
+  .sheet { margin: 0; box-shadow: none; width: auto; min-height: auto; padding: 8mm 10mm; }
+  .no-print { display: none !important; }
+  @page { size: A4 landscape; margin: 8mm; }
+}
+
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    <button type="button" onclick="window.print()">Print all sheets</button>
+  </div>
+
+  <!-- ========== 1. RELATION + WHO DOES WHAT ========== -->
+  <section class="sheet">
+    <h1>Pelbu Suites Olakha — Who reports to whom</h1>
+    <p class="sub">Basic relation · workload truth · shopping focal · keep with duty sheets</p>
+    <div class="meta">
+      <div><strong>Overall heads:</strong> Rajiv · Tshering · Choki (08:30–17:30)</div>
+      <div><strong>Duty FO:</strong> _______________</div>
+      <div><strong>Date:</strong> _______________</div>
+      <div><strong>Pairs with:</strong> rota · outcomes · busy-day</div>
+    </div>
+
+    <h2>1. Reporting relation (simple)</h2>
+    <div class="flow">
+      <span class="peak"><b>Rajiv · Tshering · Choki</b> (overall ops &amp; mgt)</span>
+      <span class="arrow">←</span>
+      <span><b>Duty FO</b> (shopping + inventory pack)</span>
+      <span class="arrow">←</span>
+      <span>Kitchen · F&amp;B · HK</span>
+    </div>
+    <div class="box">
+      <b>Shopping / procurement focal = Front Office (Duty FO of the day)</b><br>
+      Kitchen, F&amp;B and HK do <u>not</u> buy on their own. Lists by <b>10:30</b> → Duty FO → <b>Rajiv</b> (money). Choki/Tshering may also instruct any dept (08:30–17:30 for Choki).<br>
+      Primary FO process owner: <b>Anjana</b>. Backup: <b>Rigzang</b> → Mohan / Meg Raj.
+    </div>
+
+    <h2>2. Workload truth (where attention goes)</h2>
+    <table>
+      <thead>
+        <tr><th>Area</th><th>Busy?</th><th>Why</th><th>Staff must</th></tr>
+      </thead>
+      <tbody>
+        <tr class="peak"><td><b>Kitchen</b></td><td>Most busy</td><td>Continuous prep, BF/dinner, water, stock, hygiene</td><td>Stay on station; list shopping early; clean + water checks daily</td></tr>
+        <tr class="peak"><td><b>F&amp;B</b></td><td>Most busy / guest-facing</td><td>Service, crockery, menu, pax, toilets help</td><td>Know today’s pax; keep floor/toilet/surroundings guest-ready</td></tr>
+        <tr class="ok"><td><b>Rooms (HK)</b></td><td>Manageable</td><td>Rooms are fine if checkout→clean→ready for CI is on time</td><td>Rooms + laundry + support CI/CO; don’t idle at FO</td></tr>
+        <tr class="ok"><td><b>FO + grounds</b></td><td>Works if shifts match guests</td><td>Peaks morning + evening; toilets &amp; surroundings are FO/barista duty</td><td>Desk + toilet/surrounding clean; evening cover to 21:00 on busy nights</td></tr>
+      </tbody>
+    </table>
+
+    <h2>3. Department job summary (full)</h2>
+    <table>
+      <thead><tr><th>Dept</th><th>Must do every day</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>FO &amp; Barista / flex</b><br>Anjana · Rigzang · Mohan · Meg Raj · Priya</td>
+          <td>
+            Guest desk (arrive / leave / settle) · <b>ad-hoc / walk-in check-in</b> · phones · room assignment<br>
+            <b>Toilet + surrounding cleaning</b> (FO &amp; Priya) · shopping pack → Rajiv · café when Priya on F&amp;B side
+          </td>
+        </tr>
+        <tr>
+          <td><b>F&amp;B</b><br>Susma · Chunu · Krishna</td>
+          <td>
+            Service · crockery · menu · pax for BF / dinner / <b>ad-hoc lunch</b><br>
+            Toilet + surrounding help · <b>staff morning &amp; evening snacks</b> · <b>staff drop &amp; pickup</b> with Kitchen<br>
+            Inventory signed daily
+          </td>
+        </tr>
+        <tr>
+          <td><b>HK</b><br>Lobzang · Sherab · Renuka · Rinzin · Sonam</td>
+          <td>
+            Rooms · laundry · CI/CO readiness · keep <b>1–2 buffer Clean rooms</b> for ad-hoc CI
+          </td>
+        </tr>
+        <tr>
+          <td><b>Kitchen</b><br>Kelden · Khem · Rocklee</td>
+          <td>
+            Cook for pax · <b>ad-hoc lunch backup menu</b> · shopping list · clean · water checks<br>
+            <b>Staff morning &amp; evening snacks</b> with F&amp;B · support drop/pickup timing
+          </td>
+        </tr>
+        <tr>
+          <td><b>Management</b><br>Rajiv · Tshering · Choki</td>
+          <td>
+            Overall ops &amp; mgt — all depts report to all three · Choki <b>08:30–17:30</b> (+ reservations)<br>
+            Conduct / money / ad-hoc escalation
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="sign-row">
+      <div>Explained to staff (Tshering)<div class="line"></div></div>
+      <div>Duty FO understood<div class="line"></div></div>
+      <div>Approved (Rajiv)<div class="line"></div></div>
+    </div>
+  </section>
+
+  <!-- ========== 2. FO + PRIYA NAME SHEETS ========== -->
+  <section class="sheet page-break">
+    <h1>Name sheets — FO &amp; flex</h1>
+    <p class="sub">Hand one card / read aloud · tick duties on shift · toilet &amp; surrounding is FO work</p>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="name">Anjana Rai</div>
+        <div class="role">Front Office · Primary shopping / inventory focal when on duty</div>
+        <b>You must</b>
+        <ul>
+          <li>Open desk: Arr / Out / IH from Choki or Today board</li>
+          <li>Check-in / check-out / settle guests; assign clean rooms</li>
+          <li><b>Clean FO toilets + surroundings / entrance / lobby edges</b></li>
+          <li>By <b>10:30</b>: collect Kitchen + F&amp;B + HK shopping lists → one pack → <b>Rajiv</b></li>
+          <li>File signed Kitchen + F&amp;B daily inventory (proof)</li>
+          <li>Evening duty days: stay for arrivals till cover ends (see rota)</li>
+        </ul>
+        <div class="tick"><div>Shift A / C · Date ______ · Sign ______</div></div>
+      </div>
+
+      <div class="card">
+        <div class="name">Rigzang Dolma</div>
+        <div class="role">Front Office · Backup shopping focal</div>
+        <b>You must</b>
+        <ul>
+          <li>Same desk standards as Anjana (CI / CO / phones / room status)</li>
+          <li><b>Toilet + surrounding cleaning</b> on your shift zone</li>
+          <li>If Anjana off: you own shopping pack + inventory file to Rajiv</li>
+          <li>Help Priya when café and desk clash on peak arrivals</li>
+          <li>Never leave evening arrivals with only one junior alone on peak nights</li>
+        </ul>
+        <div class="tick"><div>Shift A / C · Date ______ · Sign ______</div></div>
+      </div>
+
+      <div class="card">
+        <div class="name">Mohan</div>
+        <div class="role">Front Office</div>
+        <b>You must</b>
+        <ul>
+          <li>Guest arrival / departure desk work; folio settle when trained</li>
+          <li><b>Toilet + surrounding cleaning</b> — FO owns this, not “HK’s job”</li>
+          <li>Support luggage / room direction on big arrival nights</li>
+          <li>Pass any purchase request to Duty FO (do not buy yourself)</li>
+          <li>On C shift: stay until 21:00 when rota says peak</li>
+        </ul>
+        <div class="tick"><div>Shift A / C · Date ______ · Sign ______</div></div>
+      </div>
+
+      <div class="card">
+        <div class="name">Meg Raj</div>
+        <div class="role">Front Office</div>
+        <b>You must</b>
+        <ul>
+          <li>Desk cover with Mohan / Anjana / Rigzang per rota</li>
+          <li><b>Toilet + surrounding / grounds touch-up</b> each shift</li>
+          <li>Know today’s Arr / Out / IH numbers before guests ask</li>
+          <li>Keep lobby / desk area neat; report maintenance to Duty FO</li>
+          <li>Evening peak: check-in line + luggage / direction</li>
+        </ul>
+        <div class="tick"><div>Shift A / C · Date ______ · Sign ______</div></div>
+      </div>
+
+      <div class="card" style="grid-column: 1 / -1">
+        <div class="name">Priya</div>
+        <div class="role">Flex — FO &amp; F&amp;B (café / barista + desk help)</div>
+        <b>You must</b>
+        <ul>
+          <li><b>Café / barista:</b> BF drinks, guest café, soft-day lunch café menu</li>
+          <li><b>FO help on peak:</b> check-in support, queue, guest direction (22 Sep style nights)</li>
+          <li><b>Toilet + surrounding cleaning</b> with FO team (shared FO/barista duty)</li>
+          <li>Help F&amp;B with crockery / service when café is quiet and dinner is busy</li>
+          <li>Help <b>ad-hoc lunch</b> if FO calls backup (café short menu / tray)</li>
+          <li>Soft days: café first. Peak nights: desk second priority after café BF close</li>
+          <li>Any stock short (milk, cups, syrup) → write on F&amp;B list for Duty FO</li>
+        </ul>
+        <div class="tick"><div>Today focus: ☐ Café &nbsp; ☐ FO desk &nbsp; ☐ Both · Date ______ · Sign ______</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 3. F&B + KITCHEN ========== -->
+  <section class="sheet page-break">
+    <h1>Name sheets — F&amp;B &amp; Kitchen</h1>
+    <p class="sub">Attentive areas · busiest · pax + crockery + water + daily inventory proof</p>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="name">Susma</div>
+        <div class="role">F&amp;B</div>
+        <b>You must</b>
+        <ul>
+          <li>Know <b>no. of pax</b> for BF / dinner / ad-hoc lunch before service (ask FO / Choki)</li>
+          <li><b>Menu</b> ready; <b>ad-hoc lunch</b> = short set / café menu only unless group pre-booked</li>
+          <li><b>Crockery:</b> wash, dry, set, count — enough for today’s pax</li>
+          <li><b>Toilet + surrounding help</b> when guest toilets / dining edges need it</li>
+          <li><b>Staff morning + evening snacks</b> with Kitchen · help <b>drop &amp; pickup</b> timing</li>
+          <li>Service attentive — guests see F&amp;B more than rooms</li>
+          <li>Sign <b>F&amp;B daily inventory</b>; give shopping needs to Duty FO by 10:30</li>
+        </ul>
+        <div class="tick"><div>Date ______ · Pax BF __ Dinner __ · Sign ______</div></div>
+      </div>
+
+      <div class="card">
+        <div class="name">Chunu</div>
+        <div class="role">F&amp;B</div>
+        <b>You must</b>
+        <ul>
+          <li>Same F&amp;B standards: service · crockery · menu · pax awareness</li>
+          <li>Help toilets / surroundings with FO when dining area is empty</li>
+          <li>Station mise-en-place before first guest sits</li>
+          <li>Clear, reset, wipe after each turn; no dirty crockery stack in guest view</li>
+          <li>Evening C shift: stay through dinner settle on peak nights</li>
+        </ul>
+        <div class="tick"><div>Date ______ · Shift A / C · Sign ______</div></div>
+      </div>
+
+      <div class="card">
+        <div class="name">Krishna</div>
+        <div class="role">F&amp;B</div>
+        <b>You must</b>
+        <ul>
+          <li>Service + crockery + menu checks with Susma / Chunu</li>
+          <li>Count covers served vs expected pax; tell kitchen if overrun</li>
+          <li>Toilet / surrounding help as assigned by Duty FO</li>
+          <li>End of day: leftover food note + short stock on F&amp;B list</li>
+          <li>Do not leave inventory sheet unsigned — it is proof for owner</li>
+        </ul>
+        <div class="tick"><div>Date ______ · Sign ______</div></div>
+      </div>
+
+      <div class="card">
+        <div class="name">Kelden</div>
+        <div class="role">Kitchen (lead cook when on)</div>
+        <b>You must</b>
+        <ul>
+          <li>Cook for expected pax (BF / dinner) + keep <b>ad-hoc lunch backup</b> items ready (see backup plan)</li>
+          <li>Write <b>shopping list</b> with qty; give to <b>Duty FO by 10:30</b></li>
+          <li><b>Staff morning &amp; evening snacks</b> with F&amp;B — on time, not after guest service fails</li>
+          <li>Help procurement detail (what brand / approx cost / where last bought)</li>
+          <li><b>Kitchen cleaning</b> daily (floor, counters, sink, stove)</li>
+          <li><b>Mainline water check</b> + <b>storage water</b> — tick inventory sheet</li>
+          <li>Sign kitchen daily inventory (proof)</li>
+        </ul>
+        <div class="tick"><div>Date ______ · Water OK ☐ · Clean OK ☐ · Sign ______</div></div>
+      </div>
+
+      <div class="card">
+        <div class="name">Khem</div>
+        <div class="role">Kitchen</div>
+        <b>You must</b>
+        <ul>
+          <li>Prep / cook support; follow Kelden / Rocklee station plan</li>
+          <li>Help write what is short for shopping list</li>
+          <li>Kitchen cleaning after each meal period</li>
+          <li>Assist water storage check (lids, dirt, refill need)</li>
+          <li>No guest-area roaming during service — kitchen first</li>
+        </ul>
+        <div class="tick"><div>Date ______ · Sign ______</div></div>
+      </div>
+
+      <div class="card">
+        <div class="name">Rocklee</div>
+        <div class="role">Kitchen</div>
+        <b>You must</b>
+        <ul>
+          <li>Cook / prep on A or C per rota; evening dinner on peak nights</li>
+          <li>Shopping list input when you see shortage mid-prep</li>
+          <li>Kitchen deep clean when house is soft (use empty midday)</li>
+          <li>Mainline water pressure / tap issues → report Duty FO same day</li>
+          <li>Sign inventory when you close kitchen</li>
+        </ul>
+        <div class="tick"><div>Date ______ · Sign ______</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 4. HK + RES + OWNERS ========== -->
+  <section class="sheet page-break">
+    <h1>Name sheets — HK · Reservation · Owners</h1>
+    <p class="sub">Rooms are fine if CI/CO flow is tight · laundry · lists to Duty FO</p>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="name">Lobzang</div>
+        <div class="role">Housekeeping</div>
+        <b>You must</b>
+        <ul>
+          <li><b>Rooms:</b> checkout dirty → clean → ready for check-in</li>
+          <li><b>Laundry:</b> collect, wash/process, return; note shorts to Duty FO</li>
+          <li>Support <b>check-in / check-out</b>: which rooms ready, which blocked</li>
+          <li>Late flex on peak days only (see rota)</li>
+          <li>Chemicals / linen / amenities list → Duty FO by 10:30</li>
+        </ul>
+        <div class="tick"><div>Rooms done __ / __ · Date ______ · Sign ______</div></div>
+      </div>
+
+      <div class="card">
+        <div class="name">Sherab</div>
+        <div class="role">Housekeeping / laundry</div>
+        <b>You must</b>
+        <ul>
+          <li>Rooms + laundry as assigned with Lobzang team</li>
+          <li>Prioritise arrival rooms before vacant storage cleans</li>
+          <li>On peak: late dirty / turnaround support</li>
+          <li>Do not take over FO toilets as default — FO owns those; help if asked</li>
+        </ul>
+        <div class="tick"><div>Date ______ · Sign ______</div></div>
+      </div>
+
+      <div class="card">
+        <div class="name">Renuka</div>
+        <div class="role">Housekeeping</div>
+        <b>You must</b>
+        <ul>
+          <li>Room cleaning to checklist (bed, bath, amenities, dust)</li>
+          <li>Report damage / missing items to Duty FO same day</li>
+          <li>Help checkout strip + laundry bag flow</li>
+          <li>Soft house: deep clean / public only if Duty FO assigns</li>
+        </ul>
+        <div class="tick"><div>Date ______ · Sign ______</div></div>
+      </div>
+
+      <div class="card">
+        <div class="name">Rinzin</div>
+        <div class="role">Housekeeping</div>
+        <b>You must</b>
+        <ul>
+          <li>Rooms + support CI/CO readiness board</li>
+          <li>Late flex when rota names you</li>
+          <li>Linen count honesty — wrong count breaks tomorrow’s CI</li>
+        </ul>
+        <div class="tick"><div>Date ______ · Sign ______</div></div>
+      </div>
+
+      <div class="card">
+        <div class="name">Sonam</div>
+        <div class="role">Housekeeping</div>
+        <b>You must</b>
+        <ul>
+          <li>Rooms + laundry assist</li>
+          <li>Keep trolley stocked; short items on HK shopping list</li>
+          <li>Peak days: stay until arrival rooms clear</li>
+        </ul>
+        <div class="tick"><div>Date ______ · Sign ______</div></div>
+      </div>
+
+      <div class="card">
+        <div class="name">Choki Wangmo</div>
+        <div class="role">Overall ops &amp; management head · Reservations · 08:30–17:30</div>
+        <b>You must</b>
+        <ul>
+          <li>With Rajiv &amp; Tshering: overall hotel operations &amp; management — staff must listen to you</li>
+          <li>Bookings / agents / groups; confirmations</li>
+          <li>Before <b>17:30 leave:</b> hand FO + Kitchen/F&amp;B tomorrow’s Arr / Out / IH + meal pax + any <b>ad-hoc lunch / late CI</b> risk</li>
+          <li>During 08:30–17:30: unblock FO/F&amp;B/Kitchen/HK; enforce conduct with other heads</li>
+          <li>After 17:30: evening desk is Duty FO + Rajiv/Tshering float — not Choki alone on night desk</li>
+        </ul>
+        <div class="tick"><div>Date ______ · Handoff done ☐ · Sign ______</div></div>
+      </div>
+
+      <div class="card">
+        <div class="name">Tshering</div>
+        <div class="role">Overall ops &amp; management head</div>
+        <b>You must</b>
+        <ul>
+          <li>With Rajiv &amp; Choki: standards, quality, discipline</li>
+          <li>Spot-check toilets, F&amp;B attentiveness, kitchen clean, room ready, staff snacks on time</li>
+          <li>Morning quality on busy BF / ad-hoc lunch days</li>
+          <li>Conduct: slang, disrespect, ignore leaders — act same day with other heads</li>
+        </ul>
+        <div class="tick"><div>Date ______ · Sign ______</div></div>
+      </div>
+
+      <div class="card">
+        <div class="name">Rajiv</div>
+        <div class="role">Owner · overall ops &amp; management head</div>
+        <b>You must</b>
+        <ul>
+          <li>With Tshering &amp; Choki: lead whole hotel; money approval; exits</li>
+          <li>Approve shopping pack; file inventory proof</li>
+          <li>Evening float on peak / ad-hoc late CI nights</li>
+          <li>Night 22:00–07:00 WhatsApp backup</li>
+        </ul>
+        <div class="tick"><div>Pack received ☐ · Date ______ · Sign ______</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 5. DAILY SHOPPING PACK (FO → RAJIV) ========== -->
+  <section class="sheet page-break">
+    <h1>Daily shopping pack — Duty FO → Rajiv</h1>
+    <p class="sub">One focal person (Duty FO) collects Kitchen + F&amp;B + HK · report to owner · keep as proof</p>
+    <div class="meta">
+      <div><strong>Date:</strong> _______________</div>
+      <div><strong>Duty FO:</strong> _______________</div>
+      <div><strong>Arr / Out / IH guests:</strong> ____ / ____ / ____</div>
+      <div><strong>Submitted to Rajiv:</strong> ☐ time ______</div>
+    </div>
+
+    <div class="box peak">
+      <b>Rule:</b> No department buys alone. Lists ready by <b>10:30</b>. Duty FO checks “already in stock?” then one pack to Rajiv.
+      Primary process owner: <b>Anjana</b> · Backup: <b>Rigzang</b>.
+    </div>
+
+    <h2>Kitchen needs</h2>
+    <table>
+      <thead><tr><th>#</th><th>Item</th><th>Qty</th><th>Urgent?</th><th>Kitchen sign</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td></td><td></td><td>☐ Y ☐ N</td><td></td></tr>
+        <tr><td>2</td><td></td><td></td><td>☐ Y ☐ N</td><td></td></tr>
+        <tr><td>3</td><td></td><td></td><td>☐ Y ☐ N</td><td></td></tr>
+        <tr><td>4</td><td></td><td></td><td>☐ Y ☐ N</td><td></td></tr>
+        <tr><td>5</td><td></td><td></td><td>☐ Y ☐ N</td><td></td></tr>
+      </tbody>
+    </table>
+
+    <h2>F&amp;B / café needs</h2>
+    <table>
+      <thead><tr><th>#</th><th>Item</th><th>Qty</th><th>Urgent?</th><th>F&amp;B sign</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td></td><td></td><td>☐ Y ☐ N</td><td></td></tr>
+        <tr><td>2</td><td></td><td></td><td>☐ Y ☐ N</td><td></td></tr>
+        <tr><td>3</td><td></td><td></td><td>☐ Y ☐ N</td><td></td></tr>
+        <tr><td>4</td><td></td><td></td><td>☐ Y ☐ N</td><td></td></tr>
+      </tbody>
+    </table>
+
+    <h2>HK needs (linen / chemical / amenities)</h2>
+    <table>
+      <thead><tr><th>#</th><th>Item</th><th>Qty</th><th>Urgent?</th><th>HK sign</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td></td><td></td><td>☐ Y ☐ N</td><td></td></tr>
+        <tr><td>2</td><td></td><td></td><td>☐ Y ☐ N</td><td></td></tr>
+        <tr><td>3</td><td></td><td></td><td>☐ Y ☐ N</td><td></td></tr>
+      </tbody>
+    </table>
+
+    <h2>FO recommendation to owner</h2>
+    <div class="box">
+      Buy today: _______________________________________________________________<br><br>
+      Can wait: _______________________________________________________________<br><br>
+      Approx total Nu: _____________ &nbsp; Cash / account: _____________
+    </div>
+
+    <div class="sign-row">
+      <div>Duty FO<div class="line"></div></div>
+      <div>Rajiv decision: ☐ Buy ☐ Partial ☐ Hold<div class="line"></div></div>
+      <div>Bought by / bill attached ☐<div class="line"></div></div>
+    </div>
+  </section>
+
+  <!-- ========== 6. KITCHEN DAILY INVENTORY PROOF ========== -->
+  <section class="sheet page-break">
+    <h1>Kitchen daily inventory — proof sheet</h1>
+    <p class="sub">Fill every day · Duty FO files to Rajiv · busiest area control</p>
+    <div class="meta">
+      <div><strong>Date:</strong> _______________</div>
+      <div><strong>Meal pax expected:</strong> BF ____ · Lunch ____ · Dinner ____</div>
+      <div><strong>Cook on duty:</strong> _______________</div>
+    </div>
+
+    <h2>A. Stock spot-check (tick + rough qty / OK / Low / Out)</h2>
+    <table class="check">
+      <thead><tr><th>☐</th><th>Item / area</th><th>Status</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td>Rice / grains</td><td>OK / Low / Out</td><td></td></tr>
+        <tr><td>☐</td><td>Oil / ghee</td><td>OK / Low / Out</td><td></td></tr>
+        <tr><td>☐</td><td>Vegetables (today)</td><td>OK / Low / Out</td><td></td></tr>
+        <tr><td>☐</td><td>Meat / egg / dairy</td><td>OK / Low / Out</td><td></td></tr>
+        <tr><td>☐</td><td>Spices / sauces</td><td>OK / Low / Out</td><td></td></tr>
+        <tr><td>☐</td><td>Gas / fuel</td><td>OK / Low / Out</td><td></td></tr>
+        <tr><td>☐</td><td>Dry store sealed / pest-free</td><td>OK / Issue</td><td></td></tr>
+        <tr><td>☐</td><td>Fridge / freezer temp feel + smell</td><td>OK / Issue</td><td></td></tr>
+      </tbody>
+    </table>
+
+    <h2>B. Water &amp; cleaning (mandatory)</h2>
+    <table class="check">
+      <thead><tr><th>☐</th><th>Check</th><th>Result</th><th>Sign</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td><b>Mainline water</b> — pressure / running / any leak</td><td>OK / Issue</td><td></td></tr>
+        <tr><td>☐</td><td><b>Storage water</b> — level, cover, clean, refill need</td><td>OK / Issue</td><td></td></tr>
+        <tr><td>☐</td><td>Kitchen floor / counters / sink cleaned after service</td><td>OK / Not yet</td><td></td></tr>
+        <tr><td>☐</td><td>Stove / hood / waste bins done</td><td>OK / Not yet</td><td></td></tr>
+        <tr><td>☐</td><td>Shopping list given to Duty FO (or “nil”)</td><td>Yes / Nil</td><td></td></tr>
+      </tbody>
+    </table>
+
+    <h2>C. Issues for owner</h2>
+    <div class="box" style="min-height: 48px"></div>
+
+    <div class="sign-row">
+      <div>Kitchen staff<div class="line"></div></div>
+      <div>Duty FO received<div class="line"></div></div>
+      <div>Rajiv filed (proof)<div class="line"></div></div>
+    </div>
+    <p class="small">Keep this sheet with the shopping pack for the day. Photo OK if paper will get wet.</p>
+  </section>
+
+  <!-- ========== 7. F&B DAILY INVENTORY PROOF ========== -->
+  <section class="sheet page-break">
+    <h1>F&amp;B daily inventory — proof sheet</h1>
+    <p class="sub">Fill every day · crockery · menu · pax · toilet help · Duty FO → Rajiv</p>
+    <div class="meta">
+      <div><strong>Date:</strong> _______________</div>
+      <div><strong>Pax:</strong> BF ____ · Dinner ____ · Walk-in ____</div>
+      <div><strong>F&amp;B on duty:</strong> _______________</div>
+    </div>
+
+    <h2>A. Service readiness</h2>
+    <table class="check">
+      <thead><tr><th>☐</th><th>Check</th><th>Result</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td><b>No. of pax</b> confirmed with FO / Choki before BF</td><td>Yes / No</td><td></td></tr>
+        <tr><td>☐</td><td><b>Menu</b> available / printed / explained to team</td><td>OK / Gap</td><td></td></tr>
+        <tr><td>☐</td><td><b>Crockery</b> count enough for pax (plates / cups / glasses / cutlery)</td><td>OK / Short</td><td></td></tr>
+        <tr><td>☐</td><td>Crockery washed &amp; dry before service</td><td>OK / Not</td><td></td></tr>
+        <tr><td>☐</td><td>Dining tables / chairs / side station guest-ready</td><td>OK / Not</td><td></td></tr>
+        <tr><td>☐</td><td>Café / barista stock (if Priya / café open)</td><td>OK / Low / N/A</td><td></td></tr>
+      </tbody>
+    </table>
+
+    <h2>B. Toilet &amp; surrounding help</h2>
+    <table class="check">
+      <thead><tr><th>☐</th><th>Check</th><th>Result</th><th>Sign</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td>Guest toilet near dining checked / helped FO clean</td><td>OK / Needed help</td><td></td></tr>
+        <tr><td>☐</td><td>Surrounding / dining edges wiped (no litter)</td><td>OK / Not</td><td></td></tr>
+      </tbody>
+    </table>
+
+    <h2>C. Stock spot-check</h2>
+    <table class="check">
+      <thead><tr><th>☐</th><th>Item</th><th>Status</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td>Tea / coffee / milk / sugar</td><td>OK / Low / Out</td><td></td></tr>
+        <tr><td>☐</td><td>Soft drinks / water for service</td><td>OK / Low / Out</td><td></td></tr>
+        <tr><td>☐</td><td>Napkins / tissue / detergent for crockery</td><td>OK / Low / Out</td><td></td></tr>
+        <tr><td>☐</td><td>Broken crockery counted &amp; reported</td><td>Nil / Qty __</td><td></td></tr>
+        <tr><td>☐</td><td>Shopping list to Duty FO (or nil)</td><td>Yes / Nil</td><td></td></tr>
+      </tbody>
+    </table>
+
+    <h2>D. Issues for owner</h2>
+    <div class="box" style="min-height: 48px"></div>
+
+    <div class="sign-row">
+      <div>F&amp;B staff<div class="line"></div></div>
+      <div>Duty FO received<div class="line"></div></div>
+      <div>Rajiv filed (proof)<div class="line"></div></div>
+    </div>
+    <p class="small">File with kitchen inventory + shopping pack same day. This is your proof trail.</p>
+  </section>
+</body>
+</html>

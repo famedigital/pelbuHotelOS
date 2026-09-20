@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pelbu Suites — Blank staff rota · 06:30–22:00</title>
+  <style>
+/* Pelbu printable forms — A4 landscape, readable */
+:root {
+  --ink: #1a1410;
+  --muted: #5c534c;
+  --line: #2a221c;
+  --soft: #e8e2da;
+  --peak: #f3e6d8;
+  --ok: #eef2ea;
+  --box: #f7f4ef;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  color: var(--ink);
+  font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
+  background: #f5f2ed;
+}
+.sheet {
+  width: 297mm;
+  min-height: 210mm;
+  margin: 14px auto;
+  padding: 10mm 12mm;
+  background: #fff;
+  box-shadow: 0 2px 16px rgba(0,0,0,.08);
+}
+h1 { margin: 0 0 4px; font-size: 20px; letter-spacing: .01em; }
+h2 { margin: 10px 0 6px; font-size: 15px; border-bottom: 2px solid var(--line); padding-bottom: 3px; }
+.sub { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+.meta {
+  display: flex; flex-wrap: wrap; gap: 6px 16px;
+  margin-bottom: 8px; padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink); font-size: 13px;
+}
+table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+th, td {
+  border: 1px solid var(--line);
+  padding: 7px 8px;
+  vertical-align: top;
+  text-align: left;
+  font-size: 12.5px;
+}
+th { background: var(--soft); font-size: 12px; font-weight: 700; }
+.peak { background: var(--peak); }
+.ok { background: var(--ok); }
+.box {
+  border: 1px solid var(--line);
+  background: var(--box);
+  padding: 8px 10px;
+  margin: 8px 0;
+  font-size: 12.5px;
+}
+.form {
+  border: 1px solid var(--line);
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: #faf8f5;
+  font-size: 12.5px;
+}
+.blank { border-bottom: 1px solid #666; display: inline-block; min-width: 48px; height: 1.1em; }
+.slot { display: block; border-bottom: 1px dotted #666; min-height: 18px; margin: 4px 0; }
+.sign {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 12.5px;
+}
+.sign3 { grid-template-columns: 1fr 1fr 1fr; }
+.sign4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.sign .box-s {
+  border: 1.5px solid var(--line);
+  padding: 8px 10px;
+  min-height: 88px;
+}
+.sign .line { border-bottom: 1.5px solid var(--ink); height: 28px; margin-top: 18px; }
+.check td:first-child { width: 28px; text-align: center; font-size: 14px; }
+.toc { font-size: 13px; }
+.toc li { margin-bottom: 4px; }
+.dept-tag {
+  display: inline-block;
+  border: 2px solid var(--ink);
+  padding: 4px 10px;
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+.lab { font-size: 11px; color: var(--muted); }
+.small { font-size: 11px; color: var(--muted); }
+.page-break { page-break-before: always; }
+.no-print { margin: 10px auto; width: 297mm; text-align: right; }
+.no-print button {
+  border: 1px solid var(--ink); background: var(--ink); color: #fff;
+  padding: 10px 16px; font: 14px/1 "Segoe UI", system-ui, sans-serif; cursor: pointer;
+}
+@media print {
+  body { background: #fff; }
+  .sheet { margin: 0; box-shadow: none; width: auto; min-height: auto; padding: 8mm 10mm; }
+  .no-print { display: none !important; }
+  @page { size: A4 landscape; margin: 8mm; }
+}
+
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    <button type="button" onclick="window.print()">Print blank rota</button>
+  </div>
+
+  <!-- PAGE 1: 17–28 Sep blank with guest counts -->
+  <section class="sheet">
+    <h1>Pelbu Suites — Blank staff rota (write your names)</h1>
+    <p class="sub">Hotel cover window <b>06:30 – 22:00</b> · Staff fill A / C names in pencil · Heads: Rajiv · Tshering · Choki (08:30–17:30)</p>
+
+    <div class="meta">
+      <div><strong>Week:</strong> 17–28 Sep 2026</div>
+      <div><strong>Published by:</strong> _________________</div>
+      <div><strong>Rule:</strong> Every day needs Morning (A) from 06:30 + Evening (C) until 22:00. Midday (B) stays small.</div>
+    </div>
+
+    <div class="bands">
+      <div class="band"><b>Hotel open cover</b><span>06:30 → 22:00 (not 08:30–18:00 only)</span></div>
+      <div class="band"><b>A — Morning</b><span>06:30–15:00 · BF / checkout / open</span></div>
+      <div class="band"><b>B — Core</b><span>08:30–17:30 · clean / prep (keep small)</span></div>
+      <div class="band"><b>C — Evening</b><span>13:00–22:00 · CI / dinner / late settle</span></div>
+    </div>
+
+    <table class="rota">
+      <thead>
+        <tr>
+          <th class="dept">Dept</th>
+          <th class="soft-day">Thu 17<br><span class="hint">Arr <b>1</b> Out <b>5</b> IH <b>1</b></span></th>
+          <th class="soft-day">Fri 18<br><span class="hint">Arr <b>4</b> Out <b>0</b> IH <b>5</b></span></th>
+          <th class="soft-day">Sat 19<br><span class="hint">Arr <b>0</b> Out <b>1</b> IH <b>4</b></span></th>
+          <th class="soft-day">Sun 20<br><span class="hint">Arr <b>3</b> Out <b>1</b> IH <b>6</b></span></th>
+          <th class="peak">Mon 21<br><span class="hint">Arr <b>11</b> Out <b>3</b> IH <b>14</b></span></th>
+          <th class="peak">Tue 22<br><span class="hint">Arr <b>21</b> Out <b>14</b> IH <b>21</b></span></th>
+          <th class="peak">Wed 23<br><span class="hint">Arr <b>6</b> Out <b>15</b> IH <b>12</b></span></th>
+          <th>Thu 24<br><span class="hint">Arr <b>9</b> Out <b>12</b> IH <b>9</b></span></th>
+          <th>Fri 25<br><span class="hint">Arr <b>0</b> Out <b>0</b> IH <b>9</b></span></th>
+          <th class="peak">Sat 26<br><span class="hint">Arr <b>10</b> Out <b>1</b> IH <b>18</b></span></th>
+          <th class="soft-day">Sun 27<br><span class="hint">Arr <b>0</b> Out <b>13</b> IH <b>5</b></span></th>
+          <th class="soft-day">Mon 28<br><span class="hint">Arr <b>0</b> Out <b>2</b> IH <b>3</b></span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- FO -->
+        <tr>
+          <td class="dept">FO<br><span class="hint">write names</span></td>
+          <td class="soft-day"><span class="lab">A 06:30</span><span class="slot"></span><span class="lab">C →22:00</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">A 06:30</span><span class="slot"></span><span class="lab">C →22:00</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">A 06:30</span><span class="slot"></span><span class="lab">C →22:00</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">A 06:30</span><span class="slot"></span><span class="lab">C →22:00</span><span class="slot"></span></td>
+          <td class="peak"><span class="lab">A 06:30</span><span class="slot"></span><span class="lab">C →22:00</span><span class="slot"></span></td>
+          <td class="peak"><span class="lab">A 06:30</span><span class="slot"></span><span class="lab">C →22:00</span><span class="slot"></span></td>
+          <td class="peak"><span class="lab">A 06:30</span><span class="slot"></span><span class="lab">C →22:00</span><span class="slot"></span></td>
+          <td><span class="lab">A 06:30</span><span class="slot"></span><span class="lab">C →22:00</span><span class="slot"></span></td>
+          <td><span class="lab">A 06:30</span><span class="slot"></span><span class="lab">C →22:00</span><span class="slot"></span></td>
+          <td class="peak"><span class="lab">A 06:30</span><span class="slot"></span><span class="lab">C →22:00</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">A 06:30</span><span class="slot"></span><span class="lab">C →22:00</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">A 06:30</span><span class="slot"></span><span class="lab">C →22:00</span><span class="slot"></span></td>
+        </tr>
+        <tr>
+          <td class="dept">Priya<br><span class="hint">flex</span></td>
+          <td class="soft-day"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="peak"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="peak"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="peak"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="peak"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+        </tr>
+        <tr>
+          <td class="dept">F&amp;B</td>
+          <td class="soft-day"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="peak"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="peak"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="peak"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="peak"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+        </tr>
+        <tr>
+          <td class="dept">Kitchen</td>
+          <td class="soft-day"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="peak"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="peak"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="peak"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="peak"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+        </tr>
+        <tr>
+          <td class="dept">HK<br><span class="hint">day / late</span></td>
+          <td class="soft-day"><span class="lab">Day</span><span class="slot"></span><span class="lab">Late</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">Day</span><span class="slot"></span><span class="lab">Late</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">Day</span><span class="slot"></span><span class="lab">Late</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">Day</span><span class="slot"></span><span class="lab">Late</span><span class="slot"></span></td>
+          <td class="peak"><span class="lab">Day</span><span class="slot"></span><span class="lab">Late</span><span class="slot"></span></td>
+          <td class="peak"><span class="lab">Day</span><span class="slot"></span><span class="lab">Late</span><span class="slot"></span></td>
+          <td class="peak"><span class="lab">Day</span><span class="slot"></span><span class="lab">Late</span><span class="slot"></span></td>
+          <td><span class="lab">Day</span><span class="slot"></span><span class="lab">Late</span><span class="slot"></span></td>
+          <td><span class="lab">Day</span><span class="slot"></span><span class="lab">Late</span><span class="slot"></span></td>
+          <td class="peak"><span class="lab">Day</span><span class="slot"></span><span class="lab">Late</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">Day</span><span class="slot"></span><span class="lab">Late</span><span class="slot"></span></td>
+          <td class="soft-day"><span class="lab">Day</span><span class="slot"></span><span class="lab">Late</span><span class="slot"></span></td>
+        </tr>
+        <tr>
+          <td class="dept">Off / OT<br><span class="hint">notes</span></td>
+          <td class="soft-day"><span class="slot"></span><span class="slot"></span></td>
+          <td class="soft-day"><span class="slot"></span><span class="slot"></span></td>
+          <td class="soft-day"><span class="slot"></span><span class="slot"></span></td>
+          <td class="soft-day"><span class="slot"></span><span class="slot"></span></td>
+          <td class="peak"><span class="slot"></span><span class="slot"></span></td>
+          <td class="peak"><span class="slot"></span><span class="slot"></span></td>
+          <td class="peak"><span class="slot"></span><span class="slot"></span></td>
+          <td><span class="slot"></span><span class="slot"></span></td>
+          <td><span class="slot"></span><span class="slot"></span></td>
+          <td class="peak"><span class="slot"></span><span class="slot"></span></td>
+          <td class="soft-day"><span class="slot"></span><span class="slot"></span></td>
+          <td class="soft-day"><span class="slot"></span><span class="slot"></span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="staff-box">
+      <b>Name pool (tick who wrote on rota):</b>
+      FO: Anjana ____ Rigzang ____ Mohan ____ Meg Raj ____ &nbsp;
+      Flex: Priya ____ &nbsp;
+      F&amp;B: Susma ____ Chunu ____ Krishna ____ &nbsp;
+      Kitchen: Kelden ____ Khem ____ Rocklee ____ &nbsp;
+      HK: Lobzang ____ Sherab ____ Renuka ____ Rinzin ____ Sonam ____ &nbsp;
+      Heads: Choki 08:30–17:30 · Rajiv · Tshering (eve float as needed)
+      <br><span class="hint">Peak days (peach) need stronger C cover to 22:00. Soft days (green) still need someone from 06:30 and someone until close — not empty evenings.</span>
+    </div>
+  </section>
+
+  <!-- PAGE 2: fully blank any week -->
+  <section class="sheet page-break">
+    <h1>Pelbu Suites — Blank rota (any week)</h1>
+    <p class="sub">Fill dates + Arr/Out/IH + names · Cover <b>06:30 – 22:00</b> every day</p>
+
+    <div class="meta">
+      <div><strong>Week starting:</strong> _______________</div>
+      <div><strong>Published by:</strong> _______________</div>
+      <div><strong>Duty FO week:</strong> _______________</div>
+    </div>
+
+    <div class="bands">
+      <div class="band"><b>A Morning</b><span>06:30–15:00</span></div>
+      <div class="band"><b>B Core</b><span>08:30–17:30 (small)</span></div>
+      <div class="band"><b>C Evening</b><span>13:00–22:00</span></div>
+      <div class="band"><b>Must cover</b><span>06:30 open → 22:00 close</span></div>
+    </div>
+
+    <table class="rota">
+      <thead>
+        <tr>
+          <th class="dept">Dept</th>
+          <th>Day 1<br><span class="hint">Date ____ Arr __ Out __ IH __</span></th>
+          <th>Day 2<br><span class="hint">Date ____ Arr __ Out __ IH __</span></th>
+          <th>Day 3<br><span class="hint">Date ____ Arr __ Out __ IH __</span></th>
+          <th>Day 4<br><span class="hint">Date ____ Arr __ Out __ IH __</span></th>
+          <th>Day 5<br><span class="hint">Date ____ Arr __ Out __ IH __</span></th>
+          <th>Day 6<br><span class="hint">Date ____ Arr __ Out __ IH __</span></th>
+          <th>Day 7<br><span class="hint">Date ____ Arr __ Out __ IH __</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="dept">FO</td>
+          <td><span class="lab">A 06:30</span><span class="slot"></span><span class="lab">C →22:00</span><span class="slot"></span></td>
+          <td><span class="lab">A 06:30</span><span class="slot"></span><span class="lab">C →22:00</span><span class="slot"></span></td>
+          <td><span class="lab">A 06:30</span><span class="slot"></span><span class="lab">C →22:00</span><span class="slot"></span></td>
+          <td><span class="lab">A 06:30</span><span class="slot"></span><span class="lab">C →22:00</span><span class="slot"></span></td>
+          <td><span class="lab">A 06:30</span><span class="slot"></span><span class="lab">C →22:00</span><span class="slot"></span></td>
+          <td><span class="lab">A 06:30</span><span class="slot"></span><span class="lab">C →22:00</span><span class="slot"></span></td>
+          <td><span class="lab">A 06:30</span><span class="slot"></span><span class="lab">C →22:00</span><span class="slot"></span></td>
+        </tr>
+        <tr>
+          <td class="dept">Priya flex</td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+        </tr>
+        <tr>
+          <td class="dept">F&amp;B</td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+        </tr>
+        <tr>
+          <td class="dept">Kitchen</td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+          <td><span class="lab">A</span><span class="slot"></span><span class="lab">C</span><span class="slot"></span></td>
+        </tr>
+        <tr>
+          <td class="dept">HK</td>
+          <td><span class="lab">Day</span><span class="slot"></span><span class="lab">Late</span><span class="slot"></span></td>
+          <td><span class="lab">Day</span><span class="slot"></span><span class="lab">Late</span><span class="slot"></span></td>
+          <td><span class="lab">Day</span><span class="slot"></span><span class="lab">Late</span><span class="slot"></span></td>
+          <td><span class="lab">Day</span><span class="slot"></span><span class="lab">Late</span><span class="slot"></span></td>
+          <td><span class="lab">Day</span><span class="slot"></span><span class="lab">Late</span><span class="slot"></span></td>
+          <td><span class="lab">Day</span><span class="slot"></span><span class="lab">Late</span><span class="slot"></span></td>
+          <td><span class="lab">Day</span><span class="slot"></span><span class="lab">Late</span><span class="slot"></span></td>
+        </tr>
+        <tr>
+          <td class="dept">Off / notes</td>
+          <td><span class="slot"></span><span class="slot"></span></td>
+          <td><span class="slot"></span><span class="slot"></span></td>
+          <td><span class="slot"></span><span class="slot"></span></td>
+          <td><span class="slot"></span><span class="slot"></span></td>
+          <td><span class="slot"></span><span class="slot"></span></td>
+          <td><span class="slot"></span><span class="slot"></span></td>
+          <td><span class="slot"></span><span class="slot"></span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="staff-box">
+      <b>Check before posting:</b>
+      ☐ Someone on FO from 06:30 every day &nbsp;
+      ☐ Someone on FO / F&amp;B / Kitchen until 22:00 on peak &amp; arrival nights &nbsp;
+      ☐ No “everyone 08:30–18:00 only” &nbsp;
+      ☐ Choki 08:30–17:30 + handoff &nbsp;
+      ☐ Staff snacks / drop-pickup times noted on Off/notes if needed
+      <br><br>
+      Heads sign: Choki ________ Tshering ________ Rajiv ________
+    </div>
+  </section>
+</body>
+</html>

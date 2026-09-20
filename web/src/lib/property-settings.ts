@@ -54,6 +54,8 @@ export type PropertySettings = {
   gst_rate: number;
   service_charge_rate: number;
   service_charge_default_on: boolean;
+  /** When true, new POS tickets apply GST. Staff can still waive per bill. */
+  gst_default_on: boolean;
   doc_invoice: PropertyDocumentDesign;
   doc_receipt: PropertyDocumentDesign;
   doc_voucher: PropertyDocumentDesign;
@@ -322,6 +324,8 @@ export function mapPropertySettings(row: Record<string, unknown>): PropertySetti
     gst_rate: clampRate(row.gst_rate, DEFAULT_GST_RATE),
     service_charge_rate: clampRate(row.service_charge_rate, 0),
     service_charge_default_on: Boolean(row.service_charge_default_on),
+    gst_default_on:
+      row.gst_default_on == null ? true : Boolean(row.gst_default_on),
     doc_invoice: mapDocumentDesign(row.doc_invoice, "invoice"),
     doc_receipt: mapDocumentDesign(row.doc_receipt, "receipt"),
     doc_voucher: mapDocumentDesign(row.doc_voucher, "voucher"),

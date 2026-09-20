@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pelbu Suites — Week BF/Dinner menu + shopping · chicken &amp; fish only</title>
+  <style>
+/* Pelbu printable forms — A4 landscape, readable */
+:root {
+  --ink: #1a1410;
+  --muted: #5c534c;
+  --line: #2a221c;
+  --soft: #e8e2da;
+  --peak: #f3e6d8;
+  --ok: #eef2ea;
+  --box: #f7f4ef;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  color: var(--ink);
+  font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
+  background: #f5f2ed;
+}
+.sheet {
+  width: 297mm;
+  min-height: 210mm;
+  margin: 14px auto;
+  padding: 10mm 12mm;
+  background: #fff;
+  box-shadow: 0 2px 16px rgba(0,0,0,.08);
+}
+h1 { margin: 0 0 4px; font-size: 20px; letter-spacing: .01em; }
+h2 { margin: 10px 0 6px; font-size: 15px; border-bottom: 2px solid var(--line); padding-bottom: 3px; }
+.sub { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+.meta {
+  display: flex; flex-wrap: wrap; gap: 6px 16px;
+  margin-bottom: 8px; padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink); font-size: 13px;
+}
+table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+th, td {
+  border: 1px solid var(--line);
+  padding: 7px 8px;
+  vertical-align: top;
+  text-align: left;
+  font-size: 12.5px;
+}
+th { background: var(--soft); font-size: 12px; font-weight: 700; }
+.peak { background: var(--peak); }
+.ok { background: var(--ok); }
+.box {
+  border: 1px solid var(--line);
+  background: var(--box);
+  padding: 8px 10px;
+  margin: 8px 0;
+  font-size: 12.5px;
+}
+.form {
+  border: 1px solid var(--line);
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: #faf8f5;
+  font-size: 12.5px;
+}
+.blank { border-bottom: 1px solid #666; display: inline-block; min-width: 48px; height: 1.1em; }
+.slot { display: block; border-bottom: 1px dotted #666; min-height: 18px; margin: 4px 0; }
+.sign {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 12.5px;
+}
+.sign3 { grid-template-columns: 1fr 1fr 1fr; }
+.sign4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.sign .box-s {
+  border: 1.5px solid var(--line);
+  padding: 8px 10px;
+  min-height: 88px;
+}
+.sign .line { border-bottom: 1.5px solid var(--ink); height: 28px; margin-top: 18px; }
+.check td:first-child { width: 28px; text-align: center; font-size: 14px; }
+.toc { font-size: 13px; }
+.toc li { margin-bottom: 4px; }
+.dept-tag {
+  display: inline-block;
+  border: 2px solid var(--ink);
+  padding: 4px 10px;
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+.lab { font-size: 11px; color: var(--muted); }
+.small { font-size: 11px; color: var(--muted); }
+.page-break { page-break-before: always; }
+.no-print { margin: 10px auto; width: 297mm; text-align: right; }
+.no-print button {
+  border: 1px solid var(--ink); background: var(--ink); color: #fff;
+  padding: 10px 16px; font: 14px/1 "Segoe UI", system-ui, sans-serif; cursor: pointer;
+}
+@media print {
+  body { background: #fff; }
+  .sheet { margin: 0; box-shadow: none; width: auto; min-height: auto; padding: 8mm 10mm; }
+  .no-print { display: none !important; }
+  @page { size: A4 landscape; margin: 8mm; }
+}
+
+  </style>
+</head>
+<body>
+  <div class="no-print"><button type="button" onclick="window.print()">Print menu + shopping</button></div>
+  <section class="sheet">
+    <h1>Week menu — Breakfast &amp; Dinner · 17–23 Sep 2026</h1>
+    <p class="sub">Pax blank for FO/F&amp;B · Non-veg = <b>chicken &amp; fish only</b> · Same as FORM A in all-forms pack</p>
+    <div class="form">
+      <b>BF:</b> Bread+jam+butter · Cornflakes+milk · Boiled egg or omelette · Fruit 2 options · 1 cooked (Ind/Cont)<br>
+      <b>Dinner:</b> 2 veg (Ind/Cont + Bhutanese) · 1 non-veg (chicken or fish) · Rice · Noodles or Roti · Dessert
+    </div>
+    <table>
+      <thead><tr><th>Day</th><th>Pax BF/Din</th><th>Breakfast</th><th>Dinner</th></tr></thead>
+      <tbody>
+        <tr class="ok"><td><b>Thu 17</b></td><td>BF <span class="blank"></span><br>Din <span class="blank"></span></td><td>Staples + Banana/Apple · Cooked: Hash brown &amp; baked beans</td><td>Veg stir-fry · Ema Datshi · <b>Grilled chicken</b> · Rice · Roti · Fruit custard</td></tr>
+        <tr><td><b>Fri 18</b></td><td>BF <span class="blank"></span><br>Din <span class="blank"></span></td><td>Staples + Watermelon/Banana · Cooked: Aloo paratha + curd</td><td>Dal tadka · Kewa Datshi · <b>Butter chicken</b> · Jeera rice · Naan · Gulab jamun</td></tr>
+        <tr><td><b>Sat 19</b></td><td>BF <span class="blank"></span><br>Din <span class="blank"></span></td><td>Staples + Apple/Watermelon · Cooked: Pancakes + honey</td><td>Paneer butter masala · Ema Datshi · <b>Fish</b> · Rice · Veg noodles · Kheer</td></tr>
+        <tr><td><b>Sun 20</b></td><td>BF <span class="blank"></span><br>Din <span class="blank"></span></td><td>Staples + Banana/Apple · Cooked: Poha</td><td>Palak paneer · Pe/Kewa Datshi · <b>Chicken curry</b> · Rice · Roti · Cut fruit</td></tr>
+        <tr class="peak"><td><b>Mon 21</b></td><td>BF <span class="blank"></span><br>Din <span class="blank"></span></td><td>Staples + Watermelon/Banana · Cooked: French toast</td><td>Mix veg curry · Ema Datshi · <b>Roast chicken</b> · Rice · Egg noodles · Brownie</td></tr>
+        <tr class="peak"><td><b>Tue 22</b></td><td>BF <span class="blank"></span><br>Din <span class="blank"></span></td><td>Staples + Watermelon/Apple · Cooked: Chole + paratha</td><td>Dal makhani · Ema+Kewa · <b>Chicken tikka masala or Fish curry</b> · Rice · Roti+naan · Rasmalai/Gulab</td></tr>
+        <tr><td><b>Wed 23</b></td><td>BF <span class="blank"></span><br>Din <span class="blank"></span></td><td>Staples + Banana/Apple · Cooked: Beans/mushroom toast</td><td>Veg stir · Ema Datshi · <b>Sweet-sour chicken or Fish fry</b> · Rice · Hakka · Ice cream</td></tr>
+      </tbody>
+    </table>
+    <div class="sign">
+      <div>Kitchen<div class="line"></div></div>
+      <div>F&amp;B<div class="line"></div></div>
+      <div>FO TL<div class="line"></div></div>
+    </div>
+  </section>
+  <section class="sheet page-break">
+    <h1>Shopping list — chicken &amp; fish only</h1>
+    <p class="sub">No mutton · FO TL → Rajiv</p>
+    <table class="check">
+      <thead><tr><th>☐</th><th>Item</th><th>On hand</th><th>Buy</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td>Bread · jam · butter · cornflakes · milk · eggs</td><td></td><td></td></tr>
+        <tr><td>☐</td><td>Watermelon · banana · apple</td><td></td><td></td></tr>
+        <tr><td>☐</td><td>BF cooked extras (beans, atta, poha, chole, honey, mushroom…)</td><td></td><td></td></tr>
+        <tr><td>☐</td><td>Datshi · chilli · potato · dal · paneer · veg · cream</td><td></td><td></td></tr>
+        <tr><td>☐</td><td><b>Chicken</b> (week)</td><td></td><td></td></tr>
+        <tr><td>☐</td><td><b>Fish</b> (Sat / Tue / Wed as chosen)</td><td></td><td></td></tr>
+        <tr><td>☐</td><td>Rice · atta · noodles · desserts · oil · spices · gas · staff snacks</td><td></td><td></td></tr>
+      </tbody>
+    </table>
+    <div class="box">Nu _____ · Rajiv ☐ Buy ☐ Partial ☐ Hold</div>
+    <div class="sign">
+      <div>Kitchen HOTO<div class="line"></div></div>
+      <div>FO TL<div class="line"></div></div>
+      <div>Rajiv<div class="line"></div></div>
+    </div>
+  </section>
+</body>
+</html>

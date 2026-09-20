@@ -18,8 +18,15 @@ export function safeStaffNextPath(
   ) {
     return null;
   }
-  // Only staff portal destinations (bag QR lives under /staff/laundry/bags).
-  if (path !== "/staff" && !path.startsWith("/staff/")) {
+  // Only staff portal, POS kiosk, or desk destinations.
+  if (
+    path !== "/staff" &&
+    !path.startsWith("/staff/") &&
+    path !== "/pos" &&
+    !path.startsWith("/pos/") &&
+    path !== "/erp" &&
+    !path.startsWith("/erp/")
+  ) {
     return null;
   }
   // Cap length (token URLs can be long but not unbounded).

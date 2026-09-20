@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pelbu Suites — Staff rota worksheet · 17–28 Sep 2026</title>
+  <style>
+/* Pelbu printable forms — A4 landscape, readable */
+:root {
+  --ink: #1a1410;
+  --muted: #5c534c;
+  --line: #2a221c;
+  --soft: #e8e2da;
+  --peak: #f3e6d8;
+  --ok: #eef2ea;
+  --box: #f7f4ef;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  color: var(--ink);
+  font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
+  background: #f5f2ed;
+}
+.sheet {
+  width: 297mm;
+  min-height: 210mm;
+  margin: 14px auto;
+  padding: 10mm 12mm;
+  background: #fff;
+  box-shadow: 0 2px 16px rgba(0,0,0,.08);
+}
+h1 { margin: 0 0 4px; font-size: 20px; letter-spacing: .01em; }
+h2 { margin: 10px 0 6px; font-size: 15px; border-bottom: 2px solid var(--line); padding-bottom: 3px; }
+.sub { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+.meta {
+  display: flex; flex-wrap: wrap; gap: 6px 16px;
+  margin-bottom: 8px; padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink); font-size: 13px;
+}
+table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+th, td {
+  border: 1px solid var(--line);
+  padding: 7px 8px;
+  vertical-align: top;
+  text-align: left;
+  font-size: 12.5px;
+}
+th { background: var(--soft); font-size: 12px; font-weight: 700; }
+.peak { background: var(--peak); }
+.ok { background: var(--ok); }
+.box {
+  border: 1px solid var(--line);
+  background: var(--box);
+  padding: 8px 10px;
+  margin: 8px 0;
+  font-size: 12.5px;
+}
+.form {
+  border: 1px solid var(--line);
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: #faf8f5;
+  font-size: 12.5px;
+}
+.blank { border-bottom: 1px solid #666; display: inline-block; min-width: 48px; height: 1.1em; }
+.slot { display: block; border-bottom: 1px dotted #666; min-height: 18px; margin: 4px 0; }
+.sign {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 12.5px;
+}
+.sign3 { grid-template-columns: 1fr 1fr 1fr; }
+.sign4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.sign .box-s {
+  border: 1.5px solid var(--line);
+  padding: 8px 10px;
+  min-height: 88px;
+}
+.sign .line { border-bottom: 1.5px solid var(--ink); height: 28px; margin-top: 18px; }
+.check td:first-child { width: 28px; text-align: center; font-size: 14px; }
+.toc { font-size: 13px; }
+.toc li { margin-bottom: 4px; }
+.dept-tag {
+  display: inline-block;
+  border: 2px solid var(--ink);
+  padding: 4px 10px;
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+.lab { font-size: 11px; color: var(--muted); }
+.small { font-size: 11px; color: var(--muted); }
+.page-break { page-break-before: always; }
+.no-print { margin: 10px auto; width: 297mm; text-align: right; }
+.no-print button {
+  border: 1px solid var(--ink); background: var(--ink); color: #fff;
+  padding: 10px 16px; font: 14px/1 "Segoe UI", system-ui, sans-serif; cursor: pointer;
+}
+@media print {
+  body { background: #fff; }
+  .sheet { margin: 0; box-shadow: none; width: auto; min-height: auto; padding: 8mm 10mm; }
+  .no-print { display: none !important; }
+  @page { size: A4 landscape; margin: 8mm; }
+}
+
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    <button type="button" onclick="window.print()">Print worksheet</button>
+  </div>
+
+  <!-- PAGE 1: week rota -->
+  <section class="sheet">
+    <h1>Pelbu Suites Olakha — Staff rota worksheet</h1>
+    <p class="sub">17–28 Sep 2026 · Pencil over names as needed · Post at FO + staff board</p>
+
+    <div class="meta">
+      <div><strong>Property:</strong> Pelbu Suites, Olakha</div>
+      <div><strong>Sellable rooms:</strong> 27</div>
+      <div><strong>Published by:</strong> _________________</div>
+      <div><strong>Date:</strong> 17 Sep 2026</div>
+      <div><strong>Rule:</strong> Every day needs Morning (A) + Evening (C). Shrink midday Core (B).</div>
+    </div>
+
+    <div class="bands">
+      <div class="band"><b>A — Morning</b><span>06:45–15:15 · BF / checkout / FO open</span></div>
+      <div class="band"><b>B — Core</b><span>08:30–17:30 · clean / prep / admin (keep small)</span></div>
+      <div class="band"><b>C — Evening</b><span>12:30–21:00 · arrivals / dinner / settle</span></div>
+    </div>
+
+    <table class="rota">
+      <thead>
+        <tr>
+          <th class="dept">Dept</th>
+          <th class="day soft-day">Thu 17<br><span class="hint">Arr <b>1</b> · Out <b>5</b> · IH <b>1</b></span></th>
+          <th class="day soft-day">Fri 18<br><span class="hint">Arr <b>4</b> · Out <b>0</b> · IH <b>5</b></span></th>
+          <th class="day soft-day">Sat 19<br><span class="hint">Arr <b>0</b> · Out <b>1</b> · IH <b>4</b></span></th>
+          <th class="day soft-day">Sun 20<br><span class="hint">Arr <b>3</b> · Out <b>1</b> · IH <b>6</b></span></th>
+          <th class="day peak">Mon 21<br><span class="hint">Arr <b>11</b> · Out <b>3</b> · IH <b>14</b></span></th>
+          <th class="day peak">Tue 22<br><span class="hint">Arr <b>21</b> · Out <b>14</b> · IH <b>21</b></span></th>
+          <th class="day peak">Wed 23<br><span class="hint">Arr <b>6</b> · Out <b>15</b> · IH <b>12</b></span></th>
+          <th class="day">Thu 24<br><span class="hint">Arr <b>9</b> · Out <b>12</b> · IH <b>9</b></span></th>
+          <th class="day">Fri 25<br><span class="hint">Arr <b>0</b> · Out <b>0</b> · IH <b>9</b></span></th>
+          <th class="day peak">Sat 26<br><span class="hint">Arr <b>10</b> · Out <b>1</b> · IH <b>18</b></span></th>
+          <th class="day soft-day">Sun 27<br><span class="hint">Arr <b>0</b> · Out <b>13</b> · IH <b>5</b></span></th>
+          <th class="day soft-day">Mon 28<br><span class="hint">Arr <b>0</b> · Out <b>2</b> · IH <b>3</b></span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="dept">FO<br><span class="hint">A / C · 4</span></td>
+          <td class="soft-day">A: Anjana<br>C: Mohan<span class="write"></span></td>
+          <td class="soft-day">A: Rigzang<br>C: Meg Raj<span class="write"></span></td>
+          <td class="soft-day">A: Meg Raj<br>C: Anjana<span class="write"></span></td>
+          <td class="soft-day">A: Mohan<br>C: Rigzang<span class="write"></span></td>
+          <td class="peak">A: Anjana+Meg Raj<br>C: Mohan+Rigzang<span class="write"></span></td>
+          <td class="peak">A: Rigzang+Mohan<br>C: Anjana+Meg Raj<span class="write"></span></td>
+          <td class="peak">A: Meg Raj+Anjana<br>C: Rigzang+Mohan<span class="write"></span></td>
+          <td>A: Anjana<br>C: Mohan+Meg Raj<span class="write"></span></td>
+          <td>A: Rigzang<br>C: Meg Raj<span class="write"></span></td>
+          <td class="peak">A: Anjana+Mohan<br>C: Rigzang+Meg Raj<span class="write"></span></td>
+          <td class="soft-day">A: Meg Raj<br>C: Anjana<span class="write"></span></td>
+          <td class="soft-day">A: Mohan<br>C: Rigzang<span class="write"></span></td>
+        </tr>
+        <tr>
+          <td class="dept">Priya<br><span class="hint">flex FO / F&amp;B</span></td>
+          <td class="soft-day">A: café / FO help<br>C: off<span class="write"></span></td>
+          <td class="soft-day">A: café<br>C: FO support<span class="write"></span></td>
+          <td class="soft-day">A: café<br>C: off<span class="write"></span></td>
+          <td class="soft-day">A: café<br>C: FO support<span class="write"></span></td>
+          <td class="peak">A: café BF<br>C: FO check-in help<span class="write"></span></td>
+          <td class="peak">A: café BF<br>C: FO (3rd desk) →21:00<span class="write"></span></td>
+          <td class="peak">A: café BF<br>C: F&amp;B / FO float<span class="write"></span></td>
+          <td>A: café<br>C: FO support<span class="write"></span></td>
+          <td>A: café<br>C: café / F&amp;B<span class="write"></span></td>
+          <td class="peak">A: café BF<br>C: FO check-in help<span class="write"></span></td>
+          <td class="soft-day">A: café<br>C: off<span class="write"></span></td>
+          <td class="soft-day">A: café<br>C: off / short<span class="write"></span></td>
+        </tr>
+        <tr>
+          <td class="dept">F&amp;B<br><span class="hint">A / C</span></td>
+          <td class="soft-day">A: Susma<br>C: café only<span class="write"></span></td>
+          <td class="soft-day">A: Chunu<br>C: Krishna<span class="write"></span></td>
+          <td class="soft-day">A: Krishna<br>C: Susma<span class="write"></span></td>
+          <td class="soft-day">A: Susma<br>C: Chunu<span class="write"></span></td>
+          <td class="peak">A: Susma<br>C: Krishna+Chunu<span class="write"></span></td>
+          <td class="peak">A: Chunu<br>C: Susma+Krishna<span class="write"></span></td>
+          <td class="peak">A: Krishna<br>C: Susma+Chunu<span class="write"></span></td>
+          <td>A: Susma<br>C: Krishna<span class="write"></span></td>
+          <td>A: Chunu<br>C: Susma<span class="write"></span></td>
+          <td class="peak">A: Susma<br>C: Krishna+Chunu<span class="write"></span></td>
+          <td class="soft-day">A: Chunu<br>C: café / Susma<span class="write"></span></td>
+          <td class="soft-day">A: Krishna<br>C: café<span class="write"></span></td>
+        </tr>
+        <tr>
+          <td class="dept">Kitchen<br><span class="hint">A / C</span></td>
+          <td class="soft-day">A: Kelden<br>C: off / prep<span class="write"></span></td>
+          <td class="soft-day">A: Khem<br>C: Rocklee<span class="write"></span></td>
+          <td class="soft-day">A: Rocklee<br>C: Kelden<span class="write"></span></td>
+          <td class="soft-day">A: Kelden<br>C: Khem<span class="write"></span></td>
+          <td class="peak">A: Kelden+Khem<br>C: Rocklee+Kelden<span class="write"></span></td>
+          <td class="peak">A: Khem+Rocklee<br>C: Kelden+Khem<span class="write"></span></td>
+          <td class="peak">A: Kelden<br>C: Rocklee+Khem<span class="write"></span></td>
+          <td>A: Khem<br>C: Kelden<span class="write"></span></td>
+          <td>A: Rocklee<br>C: Khem<span class="write"></span></td>
+          <td class="peak">A: Kelden+Rocklee<br>C: Khem+Kelden<span class="write"></span></td>
+          <td class="soft-day">A: Khem<br>C: light<span class="write"></span></td>
+          <td class="soft-day">A: Rocklee<br>C: light<span class="write"></span></td>
+        </tr>
+        <tr>
+          <td class="dept">HK<br><span class="hint">day / late</span></td>
+          <td class="soft-day">Day: Lobzang+Sherab<br>Late: —<span class="write"></span></td>
+          <td class="soft-day">Day: Renuka+Rinzin+Sonam<br>Late: —<span class="write"></span></td>
+          <td class="soft-day">Day: Lobzang+Sherab<br>Late: —<span class="write"></span></td>
+          <td class="soft-day">Day: Renuka+Rinzin+Sonam<br>Late: —<span class="write"></span></td>
+          <td class="peak">Day: all 5<br>Late: Lobzang<span class="write"></span></td>
+          <td class="peak">Day: all 5<br>Late: Sherab+Renuka<span class="write"></span></td>
+          <td class="peak">Day: 4<br>Late: Rinzin<span class="write"></span></td>
+          <td>Day: 3–4<br>Late: Sonam<span class="write"></span></td>
+          <td>Day: 3<br>Late: —<span class="write"></span></td>
+          <td class="peak">Day: all 5<br>Late: Lobzang<span class="write"></span></td>
+          <td class="soft-day">Day: 2<br>Late: —<span class="write"></span></td>
+          <td class="soft-day">Day: 2<br>Late: —<span class="write"></span></td>
+        </tr>
+        <tr>
+          <td class="dept">Res / Mgmt</td>
+          <td class="soft-day">Choki 08:30–17:30<br>handoff<span class="write"></span></td>
+          <td class="soft-day">Choki 08:30–17:30<span class="write"></span></td>
+          <td class="soft-day">Choki off / WA<br>Rajiv·Tshering<span class="write"></span></td>
+          <td class="soft-day">Choki 08:30–17:30<span class="write"></span></td>
+          <td class="peak">Choki 08:30–17:30<br>Rajiv eve float<span class="write"></span></td>
+          <td class="peak">Choki handoff 17:30<br>Rajiv+Tshering eve<span class="write"></span></td>
+          <td class="peak">Choki 08:30–17:30<br>Tshering AM QA<span class="write"></span></td>
+          <td>Choki 08:30–17:30<span class="write"></span></td>
+          <td>Choki 08:30–17:30<span class="write"></span></td>
+          <td class="peak">Choki handoff 17:30<br>Rajiv eve float<span class="write"></span></td>
+          <td class="soft-day">Choki WA / off<span class="write"></span></td>
+          <td class="soft-day">Choki 08:30–17:30<span class="write"></span></td>
+        </tr>
+        <tr>
+          <td class="dept">Notes / OT</td>
+          <td class="soft-day"><span class="write"></span><span class="write"></span></td>
+          <td class="soft-day"><span class="write"></span><span class="write"></span></td>
+          <td class="soft-day"><span class="write"></span><span class="write"></span></td>
+          <td class="soft-day"><span class="write"></span><span class="write"></span></td>
+          <td class="peak"><span class="write"></span><span class="write"></span></td>
+          <td class="peak"><span class="write"></span><span class="write"></span></td>
+          <td class="peak"><span class="write"></span><span class="write"></span></td>
+          <td><span class="write"></span><span class="write"></span></td>
+          <td><span class="write"></span><span class="write"></span></td>
+          <td class="peak"><span class="write"></span><span class="write"></span></td>
+          <td class="soft-day"><span class="write"></span><span class="write"></span></td>
+          <td class="soft-day"><span class="write"></span><span class="write"></span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="hint" style="margin:6px 0 0"><b>Arr</b> = arriving guests · <b>Out</b> = checkout guests · <b>IH</b> = in-house overnight guests (adults+children from bookings). Peak (peach) = heavy Arr or IH. Soft (green) = light house. Counts as of 17 Sep 2026 — refresh from /erp if agents change groups. Rooms ≈ guests on most days (many 1-pax bookings).</p>
+  </section>
+
+  <!-- PAGE 2: rules + sign-off -->
+  <section class="sheet page-break">
+    <h1>Cover rules · lunch · sign-off</h1>
+    <p class="sub">Keep with the rota · one page · staff may initial after huddle</p>
+
+    <div class="rules">
+      <div>
+        <table>
+          <thead>
+            <tr>
+              <th>Rooms on rack</th>
+              <th>Day FO</th>
+              <th>Eve FO</th>
+              <th>Kitchen eve</th>
+              <th>HK day</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>0–4</td><td>1–2</td><td>1</td><td>0–1 / café</td><td>2</td></tr>
+            <tr><td>5–12</td><td>2</td><td>2</td><td>1–2</td><td>3</td></tr>
+            <tr><td>13–21</td><td>2–3</td><td>2–3</td><td>2</td><td>4 + late</td></tr>
+          </tbody>
+        </table>
+
+        <div class="staff-box" style="margin-top:8px">
+          <div><b>FO</b> Anjana · Rigzang · Mohan · Meg Raj</div>
+          <div><b>Management heads</b> Rajiv · Tshering · Choki (08:30–17:30)</div>
+          <div><b>Flex FO / F&amp;B</b> Priya</div>
+          <div><b>F&amp;B</b> Susma · Chunu · Krishna (+ staff snacks &amp; drop/pickup with Kitchen)</div>
+          <div><b>Kitchen</b> Kelden · Khem · Rocklee</div>
+          <div><b>HK</b> Lobzang · Sherab · Renuka · Rinzin · Sonam</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="staff-box">
+          <b>Hard rules</b>
+          <ul class="checklist">
+            <li>Priya is flex FO / F&amp;B — peak nights put her on desk; soft days keep her on café.</li>
+            <li>Do not finish everyone at 18:00 on arrival nights.</li>
+            <li>Evening cover until <strong>21:00</strong>: FO + F&amp;B + kitchen (min).</li>
+            <li>Morning cover from <strong>06:45 / 07:00</strong> on MAP / busy checkout days.</li>
+            <li>Pre-assign rooms by <strong>noon</strong> so evening FO only checks in.</li>
+            <li>Empty midday → cut FO/HK; use for prep, laundry, training.</li>
+            <li>Night 22:00–07:00 = owner WhatsApp (no night auditor yet).</li>
+          </ul>
+        </div>
+        <div class="staff-box">
+          <b>Lunch (EP-heavy house)</b>
+          <ul class="checklist">
+            <li>~80% EP bookings → lunch will stay soft.</li>
+            <li>Quiet days: short café menu only 12:00–14:30.</li>
+            <li>Full kitchen lunch only if group / meeting booked.</li>
+            <li>Move lunch labour to evening C, not idle midday.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="staff-box">
+      <b>This week focus (write actuals)</b>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
+        <div>Biggest arrival night covered? _______________</div>
+        <div>Who stayed till 21:00 on 22 Sep? _______________</div>
+        <div>Any guest wait &gt;10 min at FO? Y / N · note: _______________</div>
+        <div>Dinner complaints / OT hours: _______________</div>
+      </div>
+    </div>
+
+    <div class="staff-box">
+      <b>Huddle attendance (initial)</b>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px 10px;margin-top:6px;font-size:10px">
+        <div>Anjana ____</div><div>Rigzang ____</div><div>Mohan ____</div><div>Meg Raj ____</div>
+        <div>Priya (flex) ____</div><div>Choki ____</div><div>Susma ____</div><div>Chunu ____</div>
+        <div>Krishna ____</div><div>Kelden ____</div><div>Khem ____</div><div>Rocklee ____</div>
+        <div>Lobzang ____</div><div>Sherab ____</div><div>Renuka ____</div><div>Rinzin ____</div>
+        <div>Sonam ____</div><div>Rajiv ____</div><div>Tshering ____</div>
+      </div>
+    </div>
+
+    <div class="sign">
+      <div>Duty FO (week)<div class="line"></div></div>
+      <div>Operations (Tshering)<div class="line"></div></div>
+      <div>Owner (Rajiv)<div class="line"></div></div>
+    </div>
+
+    <p class="hint" style="margin-top:10px">File: docs/ops/pelbu-staff-rota-worksheet.html · Print A4 landscape · Refresh rack numbers from /erp if bookings change.</p>
+  </section>
+</body>
+</html>

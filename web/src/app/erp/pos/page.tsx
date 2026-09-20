@@ -16,6 +16,7 @@ import {
   loadModifierGroupsForItems,
   loadOpenPosTickets,
   loadOpenPosShift,
+  loadPosSetMeals,
   loadPosShiftCloseSummary,
   loadPosStaff,
   loadSettledPosTickets,
@@ -61,6 +62,7 @@ export default async function ErpPosPage() {
     deskRole,
     { data: ncReasonRows },
     { data: creditAgentRows },
+    setMeals,
   ] = await Promise.all([
       loadMenuByOutlets(
         activeOutletCodes.length > 0
@@ -115,6 +117,7 @@ export default async function ErpPosPage() {
         .in("status", [...CREDIT_AGENT_STATUSES])
         .order("company_name")
         .limit(200),
+      loadPosSetMeals(admin),
     ]);
 
   const [shiftCloseSummary, modifierGroups] = await Promise.all([
@@ -261,6 +264,8 @@ export default async function ErpPosPage() {
         gstRate={property?.gst_rate ?? 0.07}
         serviceChargeRate={property?.service_charge_rate ?? 0}
         serviceChargeDefaultOn={property?.service_charge_default_on ?? false}
+        gstDefaultOn={property?.gst_default_on !== false}
+        setMeals={setMeals}
         runtimeConfig={{
           voidReasonCodes: POS_VOID_REASON_CODES,
           tenderMethods: POS_TENDER_METHODS,

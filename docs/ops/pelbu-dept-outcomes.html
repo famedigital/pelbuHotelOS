@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pelbu Suites — Department outcomes &amp; owner control</title>
+  <style>
+/* Pelbu printable forms — A4 landscape, readable */
+:root {
+  --ink: #1a1410;
+  --muted: #5c534c;
+  --line: #2a221c;
+  --soft: #e8e2da;
+  --peak: #f3e6d8;
+  --ok: #eef2ea;
+  --box: #f7f4ef;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  color: var(--ink);
+  font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
+  background: #f5f2ed;
+}
+.sheet {
+  width: 297mm;
+  min-height: 210mm;
+  margin: 14px auto;
+  padding: 10mm 12mm;
+  background: #fff;
+  box-shadow: 0 2px 16px rgba(0,0,0,.08);
+}
+h1 { margin: 0 0 4px; font-size: 20px; letter-spacing: .01em; }
+h2 { margin: 10px 0 6px; font-size: 15px; border-bottom: 2px solid var(--line); padding-bottom: 3px; }
+.sub { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+.meta {
+  display: flex; flex-wrap: wrap; gap: 6px 16px;
+  margin-bottom: 8px; padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink); font-size: 13px;
+}
+table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+th, td {
+  border: 1px solid var(--line);
+  padding: 7px 8px;
+  vertical-align: top;
+  text-align: left;
+  font-size: 12.5px;
+}
+th { background: var(--soft); font-size: 12px; font-weight: 700; }
+.peak { background: var(--peak); }
+.ok { background: var(--ok); }
+.box {
+  border: 1px solid var(--line);
+  background: var(--box);
+  padding: 8px 10px;
+  margin: 8px 0;
+  font-size: 12.5px;
+}
+.form {
+  border: 1px solid var(--line);
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: #faf8f5;
+  font-size: 12.5px;
+}
+.blank { border-bottom: 1px solid #666; display: inline-block; min-width: 48px; height: 1.1em; }
+.slot { display: block; border-bottom: 1px dotted #666; min-height: 18px; margin: 4px 0; }
+.sign {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 12.5px;
+}
+.sign3 { grid-template-columns: 1fr 1fr 1fr; }
+.sign4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.sign .box-s {
+  border: 1.5px solid var(--line);
+  padding: 8px 10px;
+  min-height: 88px;
+}
+.sign .line { border-bottom: 1.5px solid var(--ink); height: 28px; margin-top: 18px; }
+.check td:first-child { width: 28px; text-align: center; font-size: 14px; }
+.toc { font-size: 13px; }
+.toc li { margin-bottom: 4px; }
+.dept-tag {
+  display: inline-block;
+  border: 2px solid var(--ink);
+  padding: 4px 10px;
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+.lab { font-size: 11px; color: var(--muted); }
+.small { font-size: 11px; color: var(--muted); }
+.page-break { page-break-before: always; }
+.no-print { margin: 10px auto; width: 297mm; text-align: right; }
+.no-print button {
+  border: 1px solid var(--ink); background: var(--ink); color: #fff;
+  padding: 10px 16px; font: 14px/1 "Segoe UI", system-ui, sans-serif; cursor: pointer;
+}
+@media print {
+  body { background: #fff; }
+  .sheet { margin: 0; box-shadow: none; width: auto; min-height: auto; padding: 8mm 10mm; }
+  .no-print { display: none !important; }
+  @page { size: A4 landscape; margin: 8mm; }
+}
+
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    <button type="button" onclick="window.print()">Print outcomes pack</button>
+  </div>
+
+  <!-- PAGE 1: OWNER RULE + OUTCOMES -->
+  <section class="sheet">
+    <h1>Pelbu Suites — Department main work &amp; expected outcome</h1>
+    <p class="sub">Post on staff board · read in huddle · this is how the hotel is secured</p>
+    <div class="meta">
+      <div><strong>Overall heads:</strong> Rajiv · Tshering · Choki</div>
+      <div><strong>Choki hours:</strong> 08:30–17:30</div>
+      <div><strong>Effective:</strong> _______________</div>
+    </div>
+
+    <div class="rule">
+      <b>Company rule (non-negotiable)</b><br>
+      Staff work for Pelbu Suites. Pelbu Suites does not work for staff habits.<br>
+      <b>Overall operations &amp; management heads:</b> <u>Rajiv</u> (Owner) · <u>Tshering</u> (Operations) · <u>Choki Wangmo</u> (08:30–17:30). Any of the three may instruct any department. Ignoring a head = misconduct.<br>
+      Heads are not the backup for unfinished duties. If an outcome fails, the department on duty owns it — not WhatsApp panic.<br>
+      “Doing my stuff” is not duty. <b>Duty = guest result + company result.</b>
+    </div>
+
+    <h2>Why owner feels unsecured today</h2>
+    <div class="box bad">
+      Staff present ≠ staff on duty. When people only protect their comfort (finish at 6, skip toilet, ignore stock, leave evening arrivals thin), the company absorbs the risk — and the owner stays on alert.
+      This sheet fixes that: <b>clear outcome, named owner, daily proof, consequence.</b>
+    </div>
+
+    <h2>Each department — main work → expected outcome</h2>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:14%">Dept</th>
+          <th style="width:28%">Main work (what you are paid for)</th>
+          <th style="width:30%">Expected outcome (pass)</th>
+          <th style="width:28%">Fail = company harmed (examples)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>FO</b><br><span class="small">Anjana · Rigzang · Mohan · Meg Raj</span></td>
+          <td>
+            Guest control desk: arrive / leave / settle<br>
+            Room ready status<br>
+            Toilet + surrounding clean<br>
+            Collect shopping + inventory proof → Rajiv
+          </td>
+          <td class="ok">
+            Guest not waiting &gt;10 min at peak<br>
+            Toilets &amp; entrance guest-ready all day<br>
+            Shopping pack to owner by 10:30<br>
+            Evening cover until rota end — without calling owner to “come fill”
+          </td>
+          <td class="bad">
+            Owner called to check-in / settle<br>
+            Dirty toilet / litter at entrance<br>
+            No list / no inventory filed<br>
+            Everyone gone by 18:00 on arrival night
+          </td>
+        </tr>
+        <tr>
+          <td><b>Flex FO/F&amp;B</b><br><span class="small">Priya</span></td>
+          <td>
+            Café / barista service<br>
+            FO help on busy arrivals<br>
+            Toilet + surrounding with FO
+          </td>
+          <td class="ok">
+            Café ready when guests need drinks<br>
+            On peak nights: desk help without being asked twice<br>
+            Shared toilets/surroundings done
+          </td>
+          <td class="bad">
+            Café closed while guests wait<br>
+            Hides in café while FO queue overflows<br>
+            “Not my toilet”
+          </td>
+        </tr>
+        <tr>
+          <td><b>F&amp;B</b><br><span class="small">Susma · Chunu · Krishna</span></td>
+          <td>
+            Attentive guest service<br>
+            Crockery · menu · know pax<br>
+            Toilet / surrounding help<br>
+            <b>Staff morning &amp; evening snacks</b> (with Kitchen)<br>
+            <b>Staff drop &amp; pickup</b> support (with Kitchen)
+          </td>
+          <td class="ok">
+            Guests served without chasing staff<br>
+            Crockery enough &amp; clean for today’s pax<br>
+            Menu known; pax matched before service<br>
+            Staff snacks ready on time (morning + evening)<br>
+            Staff drop/pickup organised — no chaos / no guest conflict<br>
+            F&amp;B inventory signed daily
+          </td>
+          <td class="bad">
+            Guests wait / self-serve feel<br>
+            Short crockery mid-service<br>
+            Wrong / no pax → kitchen chaos<br>
+            Staff snacks late / forgotten · transport mess<br>
+            No inventory / no stock note
+          </td>
+        </tr>
+        <tr>
+          <td><b>Kitchen</b><br><span class="small">Kelden · Khem · Rocklee</span></td>
+          <td>
+            Cook for expected pax<br>
+            Shopping list + stock honesty<br>
+            Kitchen clean<br>
+            Mainline + storage water check<br>
+            <b>Staff morning &amp; evening snacks</b> (with F&amp;B)<br>
+            Help <b>staff drop &amp; pickup</b> timing with F&amp;B
+          </td>
+          <td class="ok">
+            Food out on time for BF / dinner pax<br>
+            List to Duty FO by 10:30 (or “nil”)<br>
+            Kitchen clean after service<br>
+            Water checked &amp; signed — no surprise empty tank<br>
+            Staff snacks prepared on schedule
+          </td>
+          <td class="bad">
+            Late food / guest complaint<br>
+            “Nothing to cook” but no list earlier<br>
+            Dirty kitchen / smell<br>
+            Water fail mid-service · snacks skipped · staff waiting hungry/late for van
+          </td>
+        </tr>
+        <tr>
+          <td><b>HK</b><br><span class="small">Lobzang · Sherab · Renuka · Rinzin · Sonam</span></td>
+          <td>
+            Rooms clean for CI<br>
+            Laundry moving<br>
+            Support check-in / check-out readiness
+          </td>
+          <td class="ok">
+            Arrival rooms ready before guest arrives<br>
+            Dirty rooms not blocking walk-in / CI<br>
+            Laundry not piled for “tomorrow” without flag<br>
+            HK list to Duty FO when short
+          </td>
+          <td class="bad">
+            Guest waits for room that should be ready<br>
+            Laundry backlog hidden<br>
+            Idle after rooms done while FO/F&amp;B drowning
+          </td>
+        </tr>
+        <tr>
+          <td><b>Management</b><br><span class="small">Rajiv · Tshering · Choki</span></td>
+          <td>
+            Overall operations &amp; management of whole hotel<br>
+            Choki also: reservations / agents · on duty <b>08:30–17:30</b><br>
+            Set standards · approve money · discipline · remove blockers
+          </td>
+          <td class="ok">
+            Departments clear on who leads today<br>
+            Choki: tomorrow Arr/Out/IH/meal pax to FO + F&amp;B/Kitchen before she leaves (17:30)<br>
+            Staff follow instructions from any of the three heads<br>
+            Conduct rules enforced (not ignored)
+          </td>
+          <td class="bad">
+            Staff ignore Choki / Tshering / Rajiv<br>
+            Surprise arrivals after Choki left with no handoff<br>
+            Misconduct with no written action
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="small">Pair with: duty sheets + rota + daily inventory. Owner does not re-do department work — owner only checks outcomes.</p>
+  </section>
+
+  <!-- PAGE 2: ON DUTY VS DOING STUFF + OWNER CONTROL -->
+  <section class="sheet page-break">
+    <h1>On duty vs “just doing my stuff”</h1>
+    <p class="sub">Read aloud once · then no debate — outcomes decide</p>
+
+    <h2>Same hours — two different jobs</h2>
+    <table>
+      <thead>
+        <tr><th>“Just doing my stuff” (not acceptable)</th><th>On duty for the company (required)</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="bad">Finish personal tasks and leave at 18:00 even if arrivals start at 17:00</td>
+          <td class="ok">Stay until rota C end when guests still need desk / dinner</td>
+        </tr>
+        <tr>
+          <td class="bad">“Toilet is HK” / “surrounding is not my job”</td>
+          <td class="ok">FO &amp; Priya own toilets + surroundings; F&amp;B helps — guest sees Pelbu, not your title</td>
+        </tr>
+        <tr>
+          <td class="bad">Cook / serve without knowing pax</td>
+          <td class="ok">Ask FO/Choki for pax before service — protect food cost and guest wait</td>
+        </tr>
+        <tr>
+          <td class="bad">Tell owner at 7pm “we have no oil / no cups”</td>
+          <td class="ok">List by 10:30 to Duty FO → Rajiv. Surprise shortage = department failure</td>
+        </tr>
+        <tr>
+          <td class="bad">Idle midday chatting while evening will be thin</td>
+          <td class="ok">Use soft midday for prep, clean, laundry, training — evening is the real job</td>
+        </tr>
+        <tr>
+          <td class="bad">Call / WhatsApp owner for every small gap</td>
+          <td class="ok">Fix inside department first; escalate only money, safety, or true shortage after list</td>
+        </tr>
+        <tr>
+          <td class="bad">Hide mistakes / skip inventory so “no problem”</td>
+          <td class="ok">Sign daily inventory — proof protects staff and company</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Who works for whom</h2>
+    <div class="box">
+      <b>Overall heads (all departments report to):</b> Rajiv · Tshering · Choki (08:30–17:30).<br>
+      <b>Heads:</b> set standards, approve money, discipline, check outcomes.<br>
+      <b>Staff:</b> deliver outcomes; obey team leaders and the three heads without argument on the floor.<br>
+      If a head must constantly alert / fill gaps, the department did not work that day.
+    </div>
+
+    <h2>Staff snacks &amp; drop / pickup</h2>
+    <div class="box ok">
+      <b>F&amp;B + Kitchen</b> own staff <b>morning snacks</b> and <b>evening snacks</b>, and organise <b>drop &amp; pickup</b> for staff transport timing so guest service is not blocked.<br>
+      Snacks late / transport chaos = F&amp;B + Kitchen outcome fail — not a management scramble.
+    </div>
+
+    <h2>STRICT CONDUCT — zero soft pass</h2>
+    <table>
+      <thead><tr><th>Offence</th><th>1st</th><th>2nd</th><th>3rd / serious</th></tr></thead>
+      <tbody>
+        <tr class="bad">
+          <td><b>Drinking</b> on duty / on property / reporting drunk · smell of alcohol on shift</td>
+          <td>Send home + written warning · unpaid that day</td>
+          <td>Final warning · possible suspension</td>
+          <td><b>Immediate exit</b> — no debate</td>
+        </tr>
+        <tr class="bad">
+          <td><b>Misbehaving</b> with guest or staff · fighting · harassment · throwing things</td>
+          <td>Written warning · apology if guest</td>
+          <td>Suspension / final warning</td>
+          <td>Exit</td>
+        </tr>
+        <tr class="bad">
+          <td><b>Slang / abusive / dirty words</b> at colleagues or in guest hearing</td>
+          <td>On-spot correction + note on scorecard</td>
+          <td>Written warning</td>
+          <td>Final warning / exit</td>
+        </tr>
+        <tr class="bad">
+          <td><b>No respect</b> among colleagues · mockery · bullying · public shame</td>
+          <td>Mediation by Tshering/Choki + note</td>
+          <td>Written warning both parties if shared</td>
+          <td>Duty change / exit if toxic</td>
+        </tr>
+        <tr class="bad">
+          <td><b>Not listening</b> to team leaders or to Rajiv / Tshering / Choki</td>
+          <td>On-spot: follow order now + note</td>
+          <td>Written warning — refusal of chain of command</td>
+          <td>Final warning / exit</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="rule">
+      Guest-facing abuse, drinking on duty, or open refusal of a head’s order = <b>same-day action</b>, not “talk tomorrow.”
+      Any of the three heads may start discipline; money/exit decisions: <b>Rajiv</b>.
+    </div>
+
+    <h2>Owner daily security check (10 minutes — not all day alert)</h2>
+    <p class="small">Do this once morning + once evening. If all ☐ green, you can stop hovering.</p>
+    <table>
+      <thead><tr><th>☐</th><th>Check</th><th>Who owns if red</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td>Duty FO named today; shopping pack status known (done / nil)</td><td>FO</td></tr>
+        <tr><td>☐</td><td>Kitchen inventory signed + water ticked</td><td>Kitchen</td></tr>
+        <tr><td>☐</td><td>F&amp;B inventory signed + pax known before service</td><td>F&amp;B</td></tr>
+        <tr><td>☐</td><td>Guest toilets + entrance acceptable (walk 2 minutes)</td><td>FO / Priya (+ F&amp;B help)</td></tr>
+        <tr><td>☐</td><td>Tonight’s Arr known; evening FO+F&amp;B+Kitchen names present</td><td>FO + rota</td></tr>
+        <tr><td>☐</td><td>Arrival rooms ready / HK not blocking CI</td><td>HK</td></tr>
+        <tr><td>☐</td><td>No guest complaint open without a named fixer</td><td>Dept of issue</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Outcome miss ladder (work standards — separate from conduct)</h2>
+    <table>
+      <thead><tr><th>Step</th><th>When</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>First miss of outcome</td><td>Correct on the spot + note on day’s sheet</td></tr>
+        <tr><td>2</td><td>Repeat same miss in 7 days</td><td>Written warning (any head signs · file with Rajiv)</td></tr>
+        <tr><td>3</td><td>Still no change / company harmed</td><td>Duty cut / shift change / final warning</td></tr>
+        <tr><td>4</td><td>Refusal or sabotage</td><td>Exit</td></tr>
+      </tbody>
+    </table>
+    <p class="small">Conduct offences (drink / abuse / slang / disrespect / ignore heads) use the STRICT CONDUCT table above — faster, harsher.</p>
+
+    <div class="rule">
+      <b>Huddle line to say once:</b><br>
+      “You work for Pelbu under Rajiv, Tshering and Choki. I will not do your job. I will check your outcome. Drinking, slang, disrespect, or ignoring leaders — strict action, same day.”
+    </div>
+
+    <div class="sign-row">
+      <div>Explained to all staff (date)<div class="line"></div></div>
+      <div>Tshering<div class="line"></div></div>
+      <div>Rajiv<div class="line"></div></div>
+    </div>
+    <p class="small" style="margin-top:8px">File: docs/ops/pelbu-dept-outcomes.html · Print · post beside rota · each staff initials on duty pack after reading.</p>
+  </section>
+
+  <!-- PAGE 3: DEPT OUTCOME SCORECARD (DAILY) -->
+  <section class="sheet page-break">
+    <h1>Daily department scorecard — proof for owner calm</h1>
+    <p class="sub">Duty FO fills at close of day · 2 minutes · Rajiv only reads red rows</p>
+    <div class="meta">
+      <div><strong>Date:</strong> _______________</div>
+      <div><strong>Duty FO:</strong> _______________</div>
+      <div><strong>Arr / Out / IH:</strong> ____ / ____ / ____</div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Dept</th>
+          <th>Outcome today</th>
+          <th>Pass?</th>
+          <th>If Fail — what / who</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>FO</td>
+          <td>Desk cover on shift · toilets/surroundings OK · shopping pack done · no owner fill-in</td>
+          <td>☐ Pass ☐ Fail</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Priya flex</td>
+          <td>Café / desk help as rota · toilets shared OK</td>
+          <td>☐ Pass ☐ Fail ☐ N/A</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>F&amp;B</td>
+          <td>Pax known · menu/crockery OK · attentive service · inventory signed</td>
+          <td>☐ Pass ☐ Fail</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Kitchen</td>
+          <td>Food on time · list/nil · clean · water checked · inventory signed</td>
+          <td>☐ Pass ☐ Fail</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>HK</td>
+          <td>CI rooms ready · laundry moving · no guest wait for dirty room</td>
+          <td>☐ Pass ☐ Fail</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Management</td>
+          <td>Heads clear · Choki handoff by 17:30 · ad-hoc CI/lunch logged · conduct enforced</td>
+          <td>☐ Pass ☐ Fail</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Ad-hoc</td>
+          <td>Walk-in CI / lunch handled with backup plan (not owner panic)</td>
+          <td>☐ Pass ☐ Fail ☐ None today</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Staff snacks / transport</td>
+          <td>Morning + evening snacks · drop/pickup on time without blocking guests</td>
+          <td>☐ Pass ☐ Fail</td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Owner feeling check (be honest)</h2>
+    <div class="box">
+      Today I felt: ☐ Secure &nbsp; ☐ Uneasy &nbsp; ☐ On alert all day<br><br>
+      Why (one line): _________________________________________________________________<br><br>
+      Tomorrow must change: _____________________________________________________________
+    </div>
+
+    <div class="sign-row">
+      <div>Duty FO<div class="line"></div></div>
+      <div>Tshering seen<div class="line"></div></div>
+      <div>Rajiv filed<div class="line"></div></div>
+    </div>
+
+    <h2>Staff acknowledgement (one-time)</h2>
+    <p class="small">I understand: my pay is for company outcomes, not for “being present.” I will not leave gaps for the owner to fill.</p>
+    <table>
+      <thead><tr><th>Name</th><th>Dept</th><th>Initial</th><th>Name</th><th>Dept</th><th>Initial</th></tr></thead>
+      <tbody>
+        <tr><td>Anjana</td><td>FO</td><td></td><td>Susma</td><td>F&amp;B</td><td></td></tr>
+        <tr><td>Rigzang</td><td>FO</td><td></td><td>Chunu</td><td>F&amp;B</td><td></td></tr>
+        <tr><td>Mohan</td><td>FO</td><td></td><td>Krishna</td><td>F&amp;B</td><td></td></tr>
+        <tr><td>Meg Raj</td><td>FO</td><td></td><td>Kelden</td><td>Kitchen</td><td></td></tr>
+        <tr><td>Priya</td><td>Flex</td><td></td><td>Khem</td><td>Kitchen</td><td></td></tr>
+        <tr><td>Choki</td><td>Mgt</td><td></td><td>Rocklee</td><td>Kitchen</td><td></td></tr>
+        <tr><td>Lobzang</td><td>HK</td><td></td><td>Sherab</td><td>HK</td><td></td></tr>
+        <tr><td>Renuka</td><td>HK</td><td></td><td>Rinzin</td><td>HK</td><td></td></tr>
+        <tr><td>Sonam</td><td>HK</td><td></td><td></td><td></td><td></td></tr>
+      </tbody>
+    </table>
+  </section>
+</body>
+</html>

@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pelbu Suites — Whole hotel busy-day checklist</title>
+  <style>
+/* Pelbu printable forms — A4 landscape, readable */
+:root {
+  --ink: #1a1410;
+  --muted: #5c534c;
+  --line: #2a221c;
+  --soft: #e8e2da;
+  --peak: #f3e6d8;
+  --ok: #eef2ea;
+  --box: #f7f4ef;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  color: var(--ink);
+  font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
+  background: #f5f2ed;
+}
+.sheet {
+  width: 297mm;
+  min-height: 210mm;
+  margin: 14px auto;
+  padding: 10mm 12mm;
+  background: #fff;
+  box-shadow: 0 2px 16px rgba(0,0,0,.08);
+}
+h1 { margin: 0 0 4px; font-size: 20px; letter-spacing: .01em; }
+h2 { margin: 10px 0 6px; font-size: 15px; border-bottom: 2px solid var(--line); padding-bottom: 3px; }
+.sub { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+.meta {
+  display: flex; flex-wrap: wrap; gap: 6px 16px;
+  margin-bottom: 8px; padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink); font-size: 13px;
+}
+table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+th, td {
+  border: 1px solid var(--line);
+  padding: 7px 8px;
+  vertical-align: top;
+  text-align: left;
+  font-size: 12.5px;
+}
+th { background: var(--soft); font-size: 12px; font-weight: 700; }
+.peak { background: var(--peak); }
+.ok { background: var(--ok); }
+.box {
+  border: 1px solid var(--line);
+  background: var(--box);
+  padding: 8px 10px;
+  margin: 8px 0;
+  font-size: 12.5px;
+}
+.form {
+  border: 1px solid var(--line);
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: #faf8f5;
+  font-size: 12.5px;
+}
+.blank { border-bottom: 1px solid #666; display: inline-block; min-width: 48px; height: 1.1em; }
+.slot { display: block; border-bottom: 1px dotted #666; min-height: 18px; margin: 4px 0; }
+.sign {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 12.5px;
+}
+.sign3 { grid-template-columns: 1fr 1fr 1fr; }
+.sign4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.sign .box-s {
+  border: 1.5px solid var(--line);
+  padding: 8px 10px;
+  min-height: 88px;
+}
+.sign .line { border-bottom: 1.5px solid var(--ink); height: 28px; margin-top: 18px; }
+.check td:first-child { width: 28px; text-align: center; font-size: 14px; }
+.toc { font-size: 13px; }
+.toc li { margin-bottom: 4px; }
+.dept-tag {
+  display: inline-block;
+  border: 2px solid var(--ink);
+  padding: 4px 10px;
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+.lab { font-size: 11px; color: var(--muted); }
+.small { font-size: 11px; color: var(--muted); }
+.page-break { page-break-before: always; }
+.no-print { margin: 10px auto; width: 297mm; text-align: right; }
+.no-print button {
+  border: 1px solid var(--ink); background: var(--ink); color: #fff;
+  padding: 10px 16px; font: 14px/1 "Segoe UI", system-ui, sans-serif; cursor: pointer;
+}
+@media print {
+  body { background: #fff; }
+  .sheet { margin: 0; box-shadow: none; width: auto; min-height: auto; padding: 8mm 10mm; }
+  .no-print { display: none !important; }
+  @page { size: A4 landscape; margin: 8mm; }
+}
+
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    <button type="button" onclick="window.print()">Print busy-day checklist</button>
+  </div>
+
+  <!-- PAGE 1: HEADER + MORNING -->
+  <section class="sheet">
+    <h1>Pelbu Suites — Whole hotel busy-day checklist</h1>
+    <p class="sub">One sheet per busy day · Duty FO drives · departments tick · owner only reviews reds</p>
+    <div class="meta">
+      <div><strong>Date:</strong> _______________</div>
+      <div><strong>Duty FO:</strong> _______________</div>
+      <div><strong>Arr guests:</strong> ____</div>
+      <div><strong>Out guests:</strong> ____</div>
+      <div><strong>IH guests:</strong> ____</div>
+      <div><strong>BF pax:</strong> ____</div>
+      <div><strong>Dinner pax:</strong> ____</div>
+      <div><strong>Peak?</strong> ☐ Yes ☐ Soft</div>
+    </div>
+
+    <div class="box">
+      <b>Busy windows:</b> Morning = BF + Checkout · Midday = <b>ad-hoc CI + ad-hoc lunch</b> risk · Evening = Check-in + Dinner ·
+      All day = in-house · shopping · water · TV · internet · bills · staff snacks / drop-pickup.<br>
+      <b>Heads:</b> Rajiv · Tshering · Choki (08:30–17:30). Staff own ticks — heads check outcomes.
+    </div>
+
+    <h2 class="am">A. BREAKFAST + CHECKOUT (morning peak)</h2>
+    <table>
+      <thead><tr><th>☐</th><th>Task</th><th>Owner</th><th>Done by</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td><b>Board open:</b> Out list + BF pax + dirty rooms expected</td><td>Duty FO + Choki</td><td>06:45</td></tr>
+        <tr><td>☐</td><td>FO toilets + entrance / surroundings clean before first guest</td><td>FO / Priya</td><td>07:00</td></tr>
+        <tr><td>☐</td><td>Kitchen open · water OK · BF mise ready for pax count</td><td>Kitchen</td><td>06:45</td></tr>
+        <tr><td>☐</td><td>F&amp;B: crockery count for BF pax · menu/station ready</td><td>F&amp;B</td><td>07:00</td></tr>
+        <tr><td>☐</td><td>Café / drinks ready (Priya or F&amp;B)</td><td>Priya / F&amp;B</td><td>07:00</td></tr>
+        <tr><td>☐</td><td>Breakfast service attentive — no guest chasing staff</td><td>F&amp;B + Kitchen</td><td>07–10</td></tr>
+        <tr><td>☐</td><td>Checkout: folio settle / agent note · keys · room marked Dirty</td><td>FO</td><td>as guests leave</td></tr>
+        <tr><td>☐</td><td>HK strip + clean priority = today’s arrival rooms first</td><td>HK</td><td>from 08:00</td></tr>
+        <tr><td>☐</td><td>Laundry moving (checkout linen not piled “for later”)</td><td>HK</td><td>morning</td></tr>
+        <tr><td>☐</td><td>Late checkout / unpaid / dispute escalated with name — not left floating</td><td>FO → Rajiv if money</td><td>by 11:00</td></tr>
+        <tr><td>☐</td><td>Morning guest toilets re-check after BF rush</td><td>FO + F&amp;B help</td><td>10:30</td></tr>
+        <tr><td>☐</td><td>Departure rooms counted vs Out list (none missing / none wrong status)</td><td>FO + HK</td><td>10:30</td></tr>
+      </tbody>
+    </table>
+
+    <h2 class="all">B. IN-HOUSE (all day — between peaks)</h2>
+    <table>
+      <thead><tr><th>☐</th><th>Task</th><th>Owner</th><th>Done by</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td>In-house list known (who is staying · meal plan EP/MAP)</td><td>FO</td><td>morning</td></tr>
+        <tr><td>☐</td><td>Wake-up / taxi / special requests logged with owner name</td><td>FO</td><td>ongoing</td></tr>
+        <tr><td>☐</td><td>Stayover rooms: HK refresh if needed (not only checkouts)</td><td>HK</td><td>midday</td></tr>
+        <tr><td>☐</td><td>Guest complaint / NC: named fixer + time — not “later”</td><td>Dept + FO</td><td>same day</td></tr>
+        <tr><td>☐</td><td>Public areas / lobby neat between peaks (use soft midday)</td><td>FO / Priya</td><td>midday</td></tr>
+        <tr><td>☐</td><td>Tomorrow Arr / Out / IH / dinner pax + known ad-hoc risks handed to FO before Choki leaves</td><td>Choki</td><td>by 17:00</td></tr>
+        <tr><td>☐</td><td><b>Staff morning snacks</b> ready (F&amp;B + Kitchen) — not blocking guest BF</td><td>F&amp;B + Kitchen</td><td>morning</td></tr>
+        <tr><td>☐</td><td><b>Staff evening snacks</b> plan set · drop &amp; pickup timing agreed</td><td>F&amp;B + Kitchen</td><td>by 16:00</td></tr>
+        <tr><td>☐</td><td><b>Ad-hoc lunch standby:</b> short menu + crockery + who cooks if walk-in lunch arrives</td><td>F&amp;B + Kitchen</td><td>by 11:00</td></tr>
+        <tr><td>☐</td><td><b>Ad-hoc CI buffer:</b> at least 1–2 Clean rooms held / known for walk-in</td><td>FO + HK</td><td>all day</td></tr>
+      </tbody>
+    </table>
+
+    <h2 class="all">B2. AD-HOC CHECK-IN · AD-HOC LUNCH (when it hits)</h2>
+    <table>
+      <thead><tr><th>☐</th><th>Task</th><th>Owner</th><th>Done by</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td>Walk-in / early / late CI: Duty FO owns desk · call Priya if queue · do not freeze</td><td>Duty FO</td><td>at once</td></tr>
+        <tr><td>☐</td><td>Room from Clean buffer · if none: HK 20-min express OR wait with café / seat</td><td>FO + HK</td><td>at once</td></tr>
+        <tr><td>☐</td><td>Ad-hoc lunch request: offer <b>backup short menu only</b> (not full à la carte) unless group pre-booked</td><td>F&amp;B</td><td>at once</td></tr>
+        <tr><td>☐</td><td>Kitchen: cook from backup list · if cook off, Priya/café tray OR “kitchen closed — dinner from __”</td><td>Kitchen / F&amp;B</td><td>at once</td></tr>
+        <tr><td>☐</td><td>Log ad-hoc CI / lunch on board (pax · room · time) so heads see it</td><td>Duty FO</td><td>same hour</td></tr>
+        <tr><td>☐</td><td>If money / rate / agent fight: escalate head on site (Choki if before 17:30 · else Rajiv/Tshering)</td><td>FO → Head</td><td>same hour</td></tr>
+      </tbody>
+    </table>
+
+    <h2 class="all">C. SHOPPING (before midday)</h2>
+    <table>
+      <thead><tr><th>☐</th><th>Task</th><th>Owner</th><th>Done by</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td>Kitchen list written (or NIL)</td><td>Kitchen</td><td>10:30</td></tr>
+        <tr><td>☐</td><td>F&amp;B / café list written (or NIL)</td><td>F&amp;B / Priya</td><td>10:30</td></tr>
+        <tr><td>☐</td><td>HK linen / chemical / amenities list (or NIL)</td><td>HK</td><td>10:30</td></tr>
+        <tr><td>☐</td><td>Duty FO merges one shopping pack → Rajiv</td><td>Duty FO</td><td>10:30</td></tr>
+        <tr><td>☐</td><td>Rajiv decision: Buy / Partial / Hold · bill path clear</td><td>Rajiv</td><td>midday</td></tr>
+        <tr><td>☐</td><td>Bought items received &amp; stored (not left at desk)</td><td>Dept that ordered</td><td>same day</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sign-row">
+      <div>Morning FO<div class="line"></div></div>
+      <div>F&amp;B<div class="line"></div></div>
+      <div>Kitchen<div class="line"></div></div>
+      <div>HK<div class="line"></div></div>
+    </div>
+  </section>
+
+  <!-- PAGE 2: EVENING + UTILITIES + MONEY -->
+  <section class="sheet page-break">
+    <h1>Busy-day checklist — evening + utilities + money</h1>
+    <p class="sub">Same date as page 1 · Check-in + Dinner · water · TV · internet · bills/dues/payments</p>
+    <div class="meta">
+      <div><strong>Date:</strong> _______________</div>
+      <div><strong>Evening FO:</strong> _______________</div>
+      <div><strong>Evening F&amp;B:</strong> _______________</div>
+      <div><strong>Evening Kitchen:</strong> _______________</div>
+    </div>
+
+    <h2 class="pm">D. CHECK-IN + DINNER (evening peak)</h2>
+    <table>
+      <thead><tr><th>☐</th><th>Task</th><th>Owner</th><th>Done by</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td>Arrival rooms pre-assigned &amp; Clean before first arrival</td><td>FO + HK</td><td>16:00</td></tr>
+        <tr><td>☐</td><td>Evening FO cover present (not one junior alone on peak)</td><td>FO / rota</td><td>17:00</td></tr>
+        <tr><td>☐</td><td>Toilets + entrance re-clean before arrivals</td><td>FO / Priya</td><td>16:30</td></tr>
+        <tr><td>☐</td><td>Check-in: ID/docs · room · keys · Wi‑Fi / TV brief · meal note</td><td>FO (+ Priya help)</td><td>17–21</td></tr>
+        <tr><td>☐</td><td>Late / no-show / walk-in handled with status update (not forgotten)</td><td>FO</td><td>ongoing</td></tr>
+        <tr><td>☐</td><td>Dinner pax confirmed with Kitchen (MAP + walk-in estimate)</td><td>F&amp;B + FO</td><td>16:30</td></tr>
+        <tr><td>☐</td><td>Kitchen dinner mise · water OK · cook on station</td><td>Kitchen</td><td>16:30</td></tr>
+        <tr><td>☐</td><td>F&amp;B: crockery · menu · dining ready for dinner pax</td><td>F&amp;B</td><td>17:00</td></tr>
+        <tr><td>☐</td><td>Dinner service attentive · crockery cycling · no guest ignore</td><td>F&amp;B + Kitchen</td><td>18–21</td></tr>
+        <tr><td>☐</td><td>Room charge / settle dinner tickets linked to folio when needed</td><td>F&amp;B + FO</td><td>during / after</td></tr>
+        <tr><td>☐</td><td>Post-dinner: kitchen clean start · F&amp;B reset · toilets check</td><td>Kitchen + F&amp;B + FO</td><td>by close</td></tr>
+        <tr><td>☐</td><td>Evening cover stays until rota end (≈21:00 peak) — no silent early leave</td><td>All on C</td><td>21:00</td></tr>
+      </tbody>
+    </table>
+
+    <h2 class="all">E. WATER</h2>
+    <table>
+      <thead><tr><th>☐</th><th>Task</th><th>Owner</th><th>Time</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td>Mainline water: running / pressure / leak check</td><td>Kitchen (+ FO note)</td><td>AM + before dinner</td></tr>
+        <tr><td>☐</td><td>Storage water: level · cover · clean · refill need</td><td>Kitchen</td><td>AM inventory</td></tr>
+        <tr><td>☐</td><td>Guest floors / toilets water OK (no dry taps reported)</td><td>FO / HK</td><td>AM + PM</td></tr>
+        <tr><td>☐</td><td>If issue: named person + escalate to Rajiv same day (not mid-service surprise)</td><td>Finder → Duty FO</td><td>same day</td></tr>
+      </tbody>
+    </table>
+
+    <h2 class="all">F. TV · INTERNET</h2>
+    <table>
+      <thead><tr><th>☐</th><th>Task</th><th>Owner</th><th>Time</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td>Lobby / desk Wi‑Fi password ready to give (printed / known)</td><td>FO</td><td>all day</td></tr>
+        <tr><td>☐</td><td>Internet up? Spot-check phone/laptop · note if down</td><td>Duty FO</td><td>AM + PM</td></tr>
+        <tr><td>☐</td><td>If internet down: ISP / router check · guest apology script · ETA</td><td>FO → Rajiv</td><td>within 30 min</td></tr>
+        <tr><td>☐</td><td>Arrival rooms: TV powers on / basic channels (spot-check ready rooms)</td><td>HK / FO</td><td>before CI</td></tr>
+        <tr><td>☐</td><td>TV fault logged with room # · spare / move / fix plan</td><td>FO + HK</td><td>same day</td></tr>
+        <tr><td>☐</td><td>Guest told honestly if TV/Wi‑Fi limited — no pretend</td><td>FO</td><td>at CI</td></tr>
+      </tbody>
+    </table>
+
+    <h2 class="all">G. BILLS · DUES · PAYMENTS</h2>
+    <table>
+      <thead><tr><th>☐</th><th>Task</th><th>Owner</th><th>Time</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td>Today’s checkout balances cleared or named exception</td><td>FO</td><td>by 11:00</td></tr>
+        <tr><td>☐</td><td>In-house open dues list (who owes · why · when collect)</td><td>FO</td><td>midday</td></tr>
+        <tr><td>☐</td><td>Agent AR / credit: no silent over-limit — flag Rajiv</td><td>FO</td><td>before CI if needed</td></tr>
+        <tr><td>☐</td><td>Cash / QR / card takes logged · float not mixed with personal</td><td>FO / F&amp;B POS</td><td>ongoing</td></tr>
+        <tr><td>☐</td><td>Dinner / POS tickets closed or parked with reason</td><td>F&amp;B</td><td>by close</td></tr>
+        <tr><td>☐</td><td>Vendor / shopping bills attached to shopping pack</td><td>Duty FO</td><td>same day</td></tr>
+        <tr><td>☐</td><td>Utility / internet / other due dates noted if payment day</td><td>Rajiv / Duty FO</td><td>as due</td></tr>
+        <tr><td>☐</td><td>Night: no unowned open folio for departed guest</td><td>FO</td><td>before leave</td></tr>
+      </tbody>
+    </table>
+
+    <h2 class="all">H. END-OF-DAY PROOF (owner calm)</h2>
+    <table>
+      <thead><tr><th>☐</th><th>Pack to file</th><th>Owner</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td>Kitchen daily inventory signed (water included)</td><td>Kitchen → Duty FO</td></tr>
+        <tr><td>☐</td><td>F&amp;B daily inventory signed</td><td>F&amp;B → Duty FO</td></tr>
+        <tr><td>☐</td><td>Shopping pack decision + bills</td><td>Duty FO → Rajiv</td></tr>
+        <tr><td>☐</td><td>Department scorecard Pass/Fail (red rows only to owner)</td><td>Duty FO</td></tr>
+        <tr><td>☐</td><td>Open issues list for tomorrow (max 5 lines)</td><td>Duty FO</td></tr>
+      </tbody>
+    </table>
+
+    <div class="box">
+      <b>Open issues for tomorrow:</b><br>
+      1. _________________________________________________________________<br>
+      2. _________________________________________________________________<br>
+      3. _________________________________________________________________
+    </div>
+
+    <div class="sign-row">
+      <div>Evening FO<div class="line"></div></div>
+      <div>F&amp;B / Kitchen<div class="line"></div></div>
+      <div>Duty FO pack done<div class="line"></div></div>
+      <div>Rajiv seen<div class="line"></div></div>
+    </div>
+    <p class="small" style="margin-top:6px">File: docs/ops/pelbu-busy-day-checklist.html · Print blank pads · use with rota + duty + outcomes packs.</p>
+  </section>
+
+  <!-- PAGE 3: QUICK WALL CARD (HALF-DAY VIEW) -->
+  <section class="sheet page-break">
+    <h1>Wall card — busy day at a glance</h1>
+    <p class="sub">Post at FO · large type · who moves when</p>
+    <div class="meta">
+      <div><strong>Date:</strong> _______________</div>
+      <div><strong>Arr ____ · Out ____ · IH ____</strong></div>
+      <div><strong>BF pax ____ · Dinner pax ____</strong></div>
+    </div>
+
+    <div class="grid2">
+      <div class="box" style="background:var(--am)">
+        <b>07:00–10:30 · BREAKFAST + CHECKOUT</b>
+        <table>
+          <tr><td>☐</td><td>FO desk + toilets/surroundings</td></tr>
+          <tr><td>☐</td><td>Kitchen + F&amp;B BF for pax</td></tr>
+          <tr><td>☐</td><td>Checkout settle + Dirty</td></tr>
+          <tr><td>☐</td><td>HK: arrival rooms first</td></tr>
+          <tr><td>☐</td><td>Laundry moving</td></tr>
+        </table>
+      </div>
+      <div class="box" style="background:var(--pm)">
+        <b>17:00–21:00 · CHECK-IN + DINNER</b>
+        <table>
+          <tr><td>☐</td><td>Rooms Clean + assigned</td></tr>
+          <tr><td>☐</td><td>FO cover (Priya help if peak)</td></tr>
+          <tr><td>☐</td><td>CI + Wi‑Fi/TV brief</td></tr>
+          <tr><td>☐</td><td>Dinner pax → kitchen/F&amp;B</td></tr>
+          <tr><td>☐</td><td>Stay to rota end</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:6px">
+      <div class="box" style="background:var(--soft)">
+        <b>11:00–16:00 · AD-HOC RISK + SNACKS</b>
+        <table>
+          <tr><td>☐</td><td>Buffer Clean rooms for walk-in CI</td></tr>
+          <tr><td>☐</td><td>Short lunch backup menu posted</td></tr>
+          <tr><td>☐</td><td>Staff morning snacks done</td></tr>
+          <tr><td>☐</td><td>Evening snacks + drop/pickup set</td></tr>
+          <tr><td>☐</td><td>Choki handoff before 17:30</td></tr>
+        </table>
+      </div>
+      <div class="box">
+        <b>ON DUTY NAMES TODAY</b>
+        <table>
+          <tr><td>FO A</td><td>________________</td></tr>
+          <tr><td>FO C</td><td>________________</td></tr>
+          <tr><td>Priya</td><td>________________</td></tr>
+          <tr><td>F&amp;B</td><td>________________</td></tr>
+          <tr><td>Kitchen</td><td>________________</td></tr>
+          <tr><td>HK lead</td><td>________________</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <h2 class="all">Quick money / utility red flags (escalate same day)</h2>
+    <table>
+      <thead><tr><th>☐</th><th>Flag</th><th>Escalate to</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td>Checkout unpaid / dispute</td><td>Rajiv</td></tr>
+        <tr><td>☐</td><td>Agent over credit / no evidence</td><td>Rajiv / Choki (if before 17:30)</td></tr>
+        <tr><td>☐</td><td>Ad-hoc CI with no Clean room &gt;30 min</td><td>Duty FO → Tshering/Rajiv</td></tr>
+        <tr><td>☐</td><td>Ad-hoc lunch over capacity / angry group</td><td>F&amp;B → Head on duty</td></tr>
+        <tr><td>☐</td><td>Water storage critically low / mainline dead</td><td>Rajiv + Kitchen</td></tr>
+        <tr><td>☐</td><td>Internet down &gt;30 min</td><td>Rajiv</td></tr>
+        <tr><td>☐</td><td>Multiple TVs dead on arrival floor</td><td>FO + Rajiv</td></tr>
+        <tr><td>☐</td><td>POS / cash mismatch</td><td>Rajiv</td></tr>
+        <tr><td>☐</td><td>Drinking / slang / ignore head / fight</td><td>Any head — same-day action</td></tr>
+      </tbody>
+    </table>
+
+    <div class="box" style="margin-top:8px">
+      <b>Owner 10-min check:</b>
+      ☐ Morning board looks real &nbsp;
+      ☐ Shopping pack exists &nbsp;
+      ☐ Water ticked &nbsp;
+      ☐ Evening names present &nbsp;
+      ☐ Dues list not empty-of-ownership &nbsp;
+      ☐ Inventory proofs filed
+    </div>
+
+    <div class="sign-row">
+      <div>Duty FO<div class="line"></div></div>
+      <div>Tshering<div class="line"></div></div>
+      <div>Rajiv<div class="line"></div></div>
+      <div></div>
+    </div>
+    <p class="small">Use pages 1–2 on busy days (21–23, 26 Sep style). Soft days: wall card only + shopping + water + inventory. <b>Page 4 = backup plans for ad-hoc CI &amp; lunch.</b></p>
+  </section>
+
+  <!-- PAGE 4: BACKUP PLANS -->
+  <section class="sheet page-break">
+    <h1>Backup plans — ad-hoc check-in &amp; ad-hoc lunch</h1>
+    <p class="sub">Print · post at FO + kitchen · no panic · no calling heads for basic gaps</p>
+    <div class="meta">
+      <div><strong>Heads:</strong> Rajiv · Tshering · Choki (08:30–17:30)</div>
+      <div><strong>Duty FO owns the call</strong> until money / safety / exit</div>
+    </div>
+
+    <h2 class="pm">1. AD-HOC CHECK-IN (walk-in · early · late · wrong-day)</h2>
+    <table>
+      <thead><tr><th>If this happens</th><th>Do this (backup)</th><th>Do NOT</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Walk-in while FO alone / queue</td>
+          <td>Duty FO takes guest · <b>Priya</b> or 2nd FO called to desk · HK told “need room now”</td>
+          <td>Leave guest standing · WhatsApp Rajiv first for basic CI</td>
+        </tr>
+        <tr>
+          <td>No Clean room ready</td>
+          <td><b>Plan A:</b> HK express clean (target 20–30 min) + guest to café/seat with water<br>
+              <b>Plan B:</b> offer later check-in time · hold luggage<br>
+              <b>Plan C:</b> upgrade / move if only dirty standard left (FO + head if rate cut)</td>
+          <td>Promise “5 minutes” repeatedly · check into Dirty room</td>
+        </tr>
+        <tr>
+          <td>CI after Choki left (after 17:30)</td>
+          <td>Duty FO + evening rota · agent issues → <b>Rajiv / Tshering</b> · use Choki handoff notes</td>
+          <td>Call Choki for every normal CI</td>
+        </tr>
+        <tr>
+          <td>CI during BF rush (07–10)</td>
+          <td>One FO on CI · one on CO/phones if possible · Priya flex to desk · HK still on Out rooms first unless buffer empty</td>
+          <td>Stop all BF service for one walk-in</td>
+        </tr>
+        <tr>
+          <td>CI during dinner rush</td>
+          <td>FO desk priority · F&amp;B stays on dinner · Priya to desk if FO thin · room from evening Clean list</td>
+          <td>Pull both F&amp;B off floor for luggage</td>
+        </tr>
+        <tr>
+          <td>Docs / rate / agent fight</td>
+          <td>Hold room · polite wait · escalate <b>head on duty</b> (Choki before 17:30 · else Rajiv/Tshering)</td>
+          <td>Invent discount · argue in lobby</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 class="am">2. AD-HOC LUNCH (walk-in eaters · late group · surprise pax)</h2>
+    <table>
+      <thead><tr><th>If this happens</th><th>Do this (backup)</th><th>Do NOT</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>1–4 guests want lunch · kitchen soft</td>
+          <td><b>Short backup menu only</b> (posted): e.g. fried rice / thukpa / omelette / café sandwich / instant set — 30–40 min promise max</td>
+          <td>Open full dinner menu · empty fridge “experiments”</td>
+        </tr>
+        <tr>
+          <td>Cook is on break / off / shopping</td>
+          <td><b>Plan A:</b> other kitchen name on rota · <b>Plan B:</b> Priya café tray · <b>Plan C:</b> “Kitchen lunch closed — café only / dinner from __”</td>
+          <td>Say yes to full meal with nobody cooking</td>
+        </tr>
+        <tr>
+          <td>Group lunch with no notice</td>
+          <td>Cap pax you can feed from stock · offer set · if over capacity: honest decline or delay · alert head if agent expects free MAP lunch</td>
+          <td>Silent over-promise · steal dinner mise without restock plan</td>
+        </tr>
+        <tr>
+          <td>Lunch hits same time as staff snacks / pickup</td>
+          <td>Guest lunch first · staff snacks delayed 15–20 min · F&amp;B+Kitchen own both · Duty FO told</td>
+          <td>Feed staff first while guests wait</td>
+        </tr>
+        <tr>
+          <td>No crockery / gas / water for lunch</td>
+          <td>Café disposable / tray backup if approved · or close lunch · fix utility · note on inventory</td>
+          <td>Hide the failure until guest complains</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 class="all">3. STANDING BACKUPS (prepare every morning — 5 minutes)</h2>
+    <table>
+      <thead><tr><th>☐</th><th>Standing backup</th><th>Owner</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td>Write today’s <b>ad-hoc lunch short menu</b> (3–5 items max) on kitchen board</td><td>Kitchen + F&amp;B</td></tr>
+        <tr><td>☐</td><td>Name who cooks if Kelden off · who serves if Susma off</td><td>Kitchen / F&amp;B leads</td></tr>
+        <tr><td>☐</td><td>Hold <b>1–2 Clean buffer rooms</b> on FO board for walk-in</td><td>FO + HK</td></tr>
+        <tr><td>☐</td><td>Staff snack times written · drop/pickup time written (guest peaks protected)</td><td>F&amp;B + Kitchen</td></tr>
+        <tr><td>☐</td><td>Choki handoff before 17:30 includes “possible late CI / lunch?”</td><td>Choki</td></tr>
+        <tr><td>☐</td><td>Head on-call after 17:30 named: Rajiv / Tshering</td><td>Heads</td></tr>
+      </tbody>
+    </table>
+
+    <div class="box">
+      <b>Today’s short lunch backup menu (write):</b><br>
+      1. _______________  2. _______________  3. _______________  4. _______________  5. _______________<br><br>
+      <b>Buffer Clean rooms:</b> _______ / _______ &nbsp; <b>Backup cook:</b> _______ &nbsp; <b>Backup FO:</b> _______
+    </div>
+
+    <div class="sign-row">
+      <div>Duty FO understood<div class="line"></div></div>
+      <div>Kitchen / F&amp;B<div class="line"></div></div>
+      <div>Choki / Tshering<div class="line"></div></div>
+      <div>Rajiv<div class="line"></div></div>
+    </div>
+  </section>
+</body>
+</html>

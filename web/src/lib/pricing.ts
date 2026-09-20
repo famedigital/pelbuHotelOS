@@ -29,6 +29,8 @@ export type PricingOptions = {
   gstRate?: number;
   serviceChargeRate?: number;
   applyServiceCharge?: boolean;
+  /** When false, GST is waived for the whole ticket (gst_btn = 0). */
+  applyGst?: boolean;
 };
 
 export function roundBtn(amount: number): number {
@@ -162,7 +164,10 @@ export function calculateOrderTotals(
   const serviceChargeBtn = roundBtn(subtotalBtn * serviceChargeRate);
   const taxableShare = subtotalBtn > 0 ? gstBase / subtotalBtn : 0;
   const taxableServiceCharge = roundBtn(serviceChargeBtn * taxableShare);
-  const gstRate = Math.max(0, Number(options.gstRate ?? BHUTAN_GST_RATE));
+  const gstRate =
+    options.applyGst === false
+      ? 0
+      : Math.max(0, Number(options.gstRate ?? BHUTAN_GST_RATE));
   const gstBtn = roundBtn((gstBase + taxableServiceCharge) * gstRate);
   const totalBtn = roundBtn(subtotalBtn + serviceChargeBtn + gstBtn);
 

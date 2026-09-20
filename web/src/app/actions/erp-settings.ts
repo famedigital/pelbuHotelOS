@@ -560,6 +560,8 @@ export async function updatePropertyTaxSettings(
     );
     const serviceChargeDefaultOn =
       formData.get("service_charge_default_on") === "1";
+    const gstDefaultOn =
+      formData.get("gst_default_on") === "1";
     const postDay1RoomAtCheckin =
       formData.get("post_day1_room_at_checkin") === "1";
     const closeTime = normalizeCloseTime(
@@ -572,6 +574,7 @@ export async function updatePropertyTaxSettings(
         gst_rate: gstRate,
         service_charge_rate: serviceChargeRate,
         service_charge_default_on: serviceChargeDefaultOn,
+        gst_default_on: gstDefaultOn,
         post_day1_room_at_checkin: postDay1RoomAtCheckin,
         night_audit_close_time: closeTime,
       })
@@ -588,6 +591,7 @@ export async function updatePropertyTaxSettings(
         gst_rate: gstRate,
         service_charge_rate: serviceChargeRate,
         service_charge_default_on: serviceChargeDefaultOn,
+        gst_default_on: gstDefaultOn,
         post_day1_room_at_checkin: postDay1RoomAtCheckin,
         night_audit_close_time: closeTime,
       },
@@ -595,6 +599,7 @@ export async function updatePropertyTaxSettings(
 
     revalidatePath("/erp/settings");
     revalidatePath("/erp/pos");
+    revalidatePath("/pos");
     revalidatePath("/erp/night-audit");
     return { ok: true, propertyId, message: "Tax & night-audit defaults saved." };
   } catch (e) {

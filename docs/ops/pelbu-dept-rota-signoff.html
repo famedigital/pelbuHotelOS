@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pelbu Suites — Department rota · submit &amp; sign</title>
+  <style>
+/* Pelbu printable forms — A4 landscape, readable */
+:root {
+  --ink: #1a1410;
+  --muted: #5c534c;
+  --line: #2a221c;
+  --soft: #e8e2da;
+  --peak: #f3e6d8;
+  --ok: #eef2ea;
+  --box: #f7f4ef;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  color: var(--ink);
+  font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
+  background: #f5f2ed;
+}
+.sheet {
+  width: 297mm;
+  min-height: 210mm;
+  margin: 14px auto;
+  padding: 10mm 12mm;
+  background: #fff;
+  box-shadow: 0 2px 16px rgba(0,0,0,.08);
+}
+h1 { margin: 0 0 4px; font-size: 20px; letter-spacing: .01em; }
+h2 { margin: 10px 0 6px; font-size: 15px; border-bottom: 2px solid var(--line); padding-bottom: 3px; }
+.sub { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+.meta {
+  display: flex; flex-wrap: wrap; gap: 6px 16px;
+  margin-bottom: 8px; padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink); font-size: 13px;
+}
+table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+th, td {
+  border: 1px solid var(--line);
+  padding: 7px 8px;
+  vertical-align: top;
+  text-align: left;
+  font-size: 12.5px;
+}
+th { background: var(--soft); font-size: 12px; font-weight: 700; }
+.peak { background: var(--peak); }
+.ok { background: var(--ok); }
+.box {
+  border: 1px solid var(--line);
+  background: var(--box);
+  padding: 8px 10px;
+  margin: 8px 0;
+  font-size: 12.5px;
+}
+.form {
+  border: 1px solid var(--line);
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: #faf8f5;
+  font-size: 12.5px;
+}
+.blank { border-bottom: 1px solid #666; display: inline-block; min-width: 48px; height: 1.1em; }
+.slot { display: block; border-bottom: 1px dotted #666; min-height: 18px; margin: 4px 0; }
+.sign {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 12.5px;
+}
+.sign3 { grid-template-columns: 1fr 1fr 1fr; }
+.sign4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.sign .box-s {
+  border: 1.5px solid var(--line);
+  padding: 8px 10px;
+  min-height: 88px;
+}
+.sign .line { border-bottom: 1.5px solid var(--ink); height: 28px; margin-top: 18px; }
+.check td:first-child { width: 28px; text-align: center; font-size: 14px; }
+.toc { font-size: 13px; }
+.toc li { margin-bottom: 4px; }
+.dept-tag {
+  display: inline-block;
+  border: 2px solid var(--ink);
+  padding: 4px 10px;
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+.lab { font-size: 11px; color: var(--muted); }
+.small { font-size: 11px; color: var(--muted); }
+.page-break { page-break-before: always; }
+.no-print { margin: 10px auto; width: 297mm; text-align: right; }
+.no-print button {
+  border: 1px solid var(--ink); background: var(--ink); color: #fff;
+  padding: 10px 16px; font: 14px/1 "Segoe UI", system-ui, sans-serif; cursor: pointer;
+}
+@media print {
+  body { background: #fff; }
+  .sheet { margin: 0; box-shadow: none; width: auto; min-height: auto; padding: 8mm 10mm; }
+  .no-print { display: none !important; }
+  @page { size: A4 landscape; margin: 8mm; }
+}
+
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    <button type="button" onclick="window.print()">Print department rotas</button>
+  </div>
+
+  <!-- COVER / INSTRUCTIONS -->
+  <section class="sheet">
+    <h1>Department rota — fill · submit · acknowledge · sign</h1>
+    <p class="sub">Each department fills its own sheet · Duty lead submits to heads · Signed by Choki · Tshering · Rajiv</p>
+    <div class="meta">
+      <div><strong>Cover window:</strong> 06:30 – 22:00</div>
+      <div><strong>Week:</strong> _______________ to _______________</div>
+      <div><strong>Heads:</strong> Choki (08:30–17:30) · Tshering · Rajiv</div>
+    </div>
+
+    <div class="box">
+      <b>How to use</b>
+      <ol style="margin:4px 0 0;padding-left:16px">
+        <li>Print one sheet per department (FO · Priya flex · F&amp;B · Kitchen · HK).</li>
+        <li>Department writes <b>names</b> on A (06:30) and C (→22:00) for each day.</li>
+        <li>Staff on the sheet <b>initial</b> the acknowledgement box.</li>
+        <li>Dept lead <b>submits</b> to Choki (or Duty FO → Choki) before week starts.</li>
+        <li><b>Choki · Tshering · Rajiv</b> each sign — rota is not valid until all three signed.</li>
+        <li>Post signed copy at FO + department wall. Keep one file copy with Rajiv.</li>
+      </ol>
+    </div>
+
+    <h2>Submit register (heads desk)</h2>
+    <table>
+      <thead>
+        <tr><th>Dept</th><th>Submitted by</th><th>Time</th><th>Choki</th><th>Tshering</th><th>Rajiv</th><th>Filed</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>FO</td><td></td><td></td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+        <tr><td>Priya flex</td><td></td><td></td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+        <tr><td>F&amp;B</td><td></td><td></td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+        <tr><td>Kitchen</td><td></td><td></td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+        <tr><td>HK</td><td></td><td></td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+      </tbody>
+    </table>
+
+    <div class="box">
+      <b>Reject / send back if:</b> nobody on A 06:30 · nobody on C to 22:00 on peak/arrival days · same person alone all week evenings · blank cells · no staff initials.
+    </div>
+
+    <div class="sign">
+      <div class="box-s">Choki received pack<div class="line"></div>Date</div>
+      <div class="box-s">Tshering reviewed<div class="line"></div>Date</div>
+      <div class="box-s">Rajiv approved<div class="line"></div>Date</div>
+    </div>
+  </section>
+
+  <!-- FO -->
+  <section class="sheet page-break">
+    <div class="dept-tag">DEPARTMENT: FRONT OFFICE</div>
+    <h1>Weekly rota — fill &amp; submit</h1>
+    <p class="sub">A = 06:30–15:00 · C = 13:00–22:00 · Write names · Peak nights need 2 on C</p>
+    <div class="meta">
+      <div><strong>Week:</strong> _______________</div>
+      <div><strong>Dept lead:</strong> _______________</div>
+      <div><strong>Submitted:</strong> _______________</div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Day / date</th>
+          <th>Arr / Out / IH</th>
+          <th>A Morning 06:30 (name)</th>
+          <th>C Evening →22:00 (name)</th>
+          <th>Off</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Thu / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Fri / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Sat / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Sun / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Mon / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Tue / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Wed / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+      </tbody>
+    </table>
+    <div class="box">Pool: Anjana · Rigzang · Mohan · Meg Raj &nbsp;|&nbsp; Also: toilets + surroundings · shopping pack to Rajiv · ad-hoc CI</div>
+    <h2>Staff acknowledge (I can work these shifts)</h2>
+    <table class="ack">
+      <thead><tr><th>☐</th><th>Name</th><th>Initial</th><th>☐</th><th>Name</th><th>Initial</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td>Anjana</td><td></td><td>☐</td><td>Rigzang</td><td></td></tr>
+        <tr><td>☐</td><td>Mohan</td><td></td><td>☐</td><td>Meg Raj</td><td></td></tr>
+      </tbody>
+    </table>
+    <div class="sign">
+      <div class="box-s"><b>Choki</b> acknowledge<div class="line"></div>Date / sign</div>
+      <div class="box-s"><b>Tshering</b> acknowledge<div class="line"></div>Date / sign</div>
+      <div class="box-s"><b>Rajiv</b> approve<div class="line"></div>Date / sign</div>
+    </div>
+  </section>
+
+  <!-- PRIYA -->
+  <section class="sheet page-break">
+    <div class="dept-tag">DEPARTMENT: PRIYA — FLEX FO / F&amp;B</div>
+    <h1>Weekly rota — fill &amp; submit</h1>
+    <p class="sub">Write focus each day: Café / FO desk / Both · Cover within 06:30–22:00 as assigned</p>
+    <div class="meta">
+      <div><strong>Week:</strong> _______________</div>
+      <div><strong>Submitted:</strong> _______________</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Day / date</th><th>A 06:30 focus</th><th>C →22:00 focus</th><th>Off?</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Thu / ____</td><td><span class="lab">Café / FO / Both</span><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Fri / ____</td><td><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Sat / ____</td><td><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Sun / ____</td><td><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Mon / ____</td><td><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Tue / ____</td><td><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Wed / ____</td><td><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+      </tbody>
+    </table>
+    <div class="box">Duties: café + FO help + toilets/surroundings with FO · peak CI support · ad-hoc lunch café backup</div>
+    <table class="ack"><tr><td>☐</td><td>Priya acknowledge / initial: _______________</td></tr></table>
+    <div class="sign">
+      <div class="box-s"><b>Choki</b><div class="line"></div></div>
+      <div class="box-s"><b>Tshering</b><div class="line"></div></div>
+      <div class="box-s"><b>Rajiv</b><div class="line"></div></div>
+    </div>
+  </section>
+
+  <!-- F&B -->
+  <section class="sheet page-break">
+    <div class="dept-tag">DEPARTMENT: F&amp;B</div>
+    <h1>Weekly rota — fill &amp; submit</h1>
+    <p class="sub">A BF service · C dinner →22:00 · Also staff snacks + drop/pickup with Kitchen</p>
+    <div class="meta">
+      <div><strong>Week:</strong> _______________</div>
+      <div><strong>Dept lead:</strong> _______________</div>
+      <div><strong>Submitted:</strong> _______________</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Day / date</th><th>BF pax / Dinner pax</th><th>A Morning names</th><th>C Evening →22:00</th><th>Snacks AM/PM who</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Thu / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Fri / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Sat / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Sun / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Mon / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Tue / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Wed / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+      </tbody>
+    </table>
+    <div class="box">Pool: Susma · Chunu · Krishna · (+ Priya if flex) &nbsp;|&nbsp; Crockery · menu · pax · toilet help · ad-hoc lunch short menu</div>
+    <table class="ack">
+      <tr><td>☐</td><td>Susma ____</td><td>☐</td><td>Chunu ____</td><td>☐</td><td>Krishna ____</td></tr>
+    </table>
+    <div class="sign">
+      <div class="box-s"><b>Choki</b><div class="line"></div></div>
+      <div class="box-s"><b>Tshering</b><div class="line"></div></div>
+      <div class="box-s"><b>Rajiv</b><div class="line"></div></div>
+    </div>
+  </section>
+
+  <!-- KITCHEN -->
+  <section class="sheet page-break">
+    <div class="dept-tag">DEPARTMENT: KITCHEN</div>
+    <h1>Weekly rota — fill &amp; submit</h1>
+    <p class="sub">A BF cook · C dinner →22:00 · Water checks · staff snacks with F&amp;B · shopping list 10:30</p>
+    <div class="meta">
+      <div><strong>Week:</strong> _______________</div>
+      <div><strong>Dept lead:</strong> _______________</div>
+      <div><strong>Submitted:</strong> _______________</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Day / date</th><th>Menu note</th><th>A Morning cook</th><th>C Evening →22:00</th><th>Water AM/PM ✓</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Thu / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Fri / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Sat / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Sun / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Mon / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Tue / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Wed / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+      </tbody>
+    </table>
+    <div class="box">Pool: Kelden · Khem · Rocklee &nbsp;|&nbsp; Backup cook name if lead off: _______________</div>
+    <table class="ack">
+      <tr><td>☐</td><td>Kelden ____</td><td>☐</td><td>Khem ____</td><td>☐</td><td>Rocklee ____</td></tr>
+    </table>
+    <div class="sign">
+      <div class="box-s"><b>Choki</b><div class="line"></div></div>
+      <div class="box-s"><b>Tshering</b><div class="line"></div></div>
+      <div class="box-s"><b>Rajiv</b><div class="line"></div></div>
+    </div>
+  </section>
+
+  <!-- HK -->
+  <section class="sheet page-break">
+    <div class="dept-tag">DEPARTMENT: HOUSEKEEPING</div>
+    <h1>Weekly rota — fill &amp; submit</h1>
+    <p class="sub">Day clean after checkout · Late flex on peak CI days · Buffer Clean rooms for ad-hoc</p>
+    <div class="meta">
+      <div><strong>Week:</strong> _______________</div>
+      <div><strong>Dept lead:</strong> _______________</div>
+      <div><strong>Submitted:</strong> _______________</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Day / date</th><th>Out / Arr rooms</th><th>Day team names</th><th>Late flex name</th><th>Off</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Thu / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Fri / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Sat / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Sun / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Mon / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Tue / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+        <tr><td>Wed / ____</td><td><span class="slot"></span></td><td><span class="slot"></span><span class="slot"></span></td><td><span class="slot"></span></td><td><span class="slot"></span></td></tr>
+      </tbody>
+    </table>
+    <div class="box">Pool: Lobzang · Sherab · Renuka · Rinzin · Sonam &nbsp;|&nbsp; Rooms · laundry · CI/CO readiness</div>
+    <table class="ack">
+      <tr><td>☐</td><td>Lobzang ____</td><td>☐</td><td>Sherab ____</td><td>☐</td><td>Renuka ____</td></tr>
+      <tr><td>☐</td><td>Rinzin ____</td><td>☐</td><td>Sonam ____</td><td></td><td></td></tr>
+    </table>
+    <div class="sign">
+      <div class="box-s"><b>Choki</b><div class="line"></div></div>
+      <div class="box-s"><b>Tshering</b><div class="line"></div></div>
+      <div class="box-s"><b>Rajiv</b><div class="line"></div></div>
+    </div>
+  </section>
+</body>
+</html>

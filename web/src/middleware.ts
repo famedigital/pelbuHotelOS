@@ -70,6 +70,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/erp/login", request.url));
   }
 
+  const isPosKiosk = pathname === "/pos" || pathname.startsWith("/pos/");
+  if (
+    isPosKiosk &&
+    pathname !== "/pos/login" &&
+    !pathname.startsWith("/pos/login") &&
+    !erpCredentialsPresent(request)
+  ) {
+    const login = new URL("/pos/login", request.url);
+    login.searchParams.set("next", pathname);
+    return NextResponse.redirect(login);
+  }
+
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-pathname", pathname);
 
@@ -179,6 +191,8 @@ export const config = {
     "/meeting",
     "/erp",
     "/erp/:path*",
+    "/pos",
+    "/pos/:path*",
     "/staff/:path*",
     "/agents/app/:path*",
     "/agents/login",

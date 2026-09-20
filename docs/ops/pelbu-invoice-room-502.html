@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bills — Pelbu Suites · Room 502 · Lunch 2 heads Nu 2,992 · Breakfast Nu 1,386</title>
+  <style>
+    :root {
+      --ink: #1a1410;
+      --muted: #5c534c;
+      --line: #2a221c;
+      --soft: #e8e2da;
+      --box: #f7f4ef;
+      --gold: #b8893a;
+      --maroon: #6e2c2c;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      color: var(--ink);
+      font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
+      background: #ece7df;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .no-print {
+      max-width: 210mm;
+      margin: 12px auto 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 0 8px;
+    }
+    .no-print p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12.5px;
+    }
+    .no-print button {
+      border: 0;
+      background: var(--ink);
+      color: #fff;
+      padding: 10px 18px;
+      font: 700 13px/1 "Segoe UI", system-ui, sans-serif;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .sheet {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 12px auto 28px;
+      padding: 16mm 16mm 14mm;
+      background: #fff;
+      box-shadow: 0 2px 18px rgba(0,0,0,.08);
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: flex-start;
+      border-bottom: 2.5px solid var(--ink);
+      padding-bottom: 12px;
+    }
+    .brand {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      min-width: 0;
+    }
+    .brand img {
+      width: 52px;
+      height: 52px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+    .hotel-name {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: .04em;
+      font-weight: 750;
+      line-height: 1.1;
+    }
+    .legal {
+      margin: 2px 0 6px;
+      font-size: 11px;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--maroon);
+      font-weight: 700;
+    }
+    address {
+      font-style: normal;
+      font-size: 12px;
+      line-height: 1.45;
+      color: #3a322c;
+    }
+    .doc-meta {
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .doc-meta .kind {
+      margin: 0;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--maroon);
+    }
+    .doc-meta h2 {
+      margin: 2px 0 8px;
+      font-size: 20px;
+      letter-spacing: .02em;
+    }
+    .doc-meta table { border-collapse: collapse; margin-left: auto; }
+    .doc-meta td {
+      padding: 1px 0 1px 14px;
+      font-size: 12px;
+      vertical-align: top;
+    }
+    .doc-meta td:first-child { color: var(--muted); text-align: right; }
+    .parties {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 16px 0 8px;
+    }
+    .label {
+      margin: 0 0 4px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .party {
+      border: 1px solid #d8d0c6;
+      background: var(--box);
+      padding: 10px 12px;
+      min-height: 92px;
+    }
+    [contenteditable="true"] { outline: none; }
+    [contenteditable="true"]:hover,
+    [contenteditable="true"]:focus { background: #fff8ee; }
+    table.lines {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+    }
+    table.lines th {
+      background: var(--ink);
+      color: #fff;
+      font-size: 11px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      text-align: left;
+      padding: 8px 10px;
+    }
+    table.lines th.num, table.lines td.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    table.lines td {
+      border-bottom: 1px solid #ddd6cc;
+      padding: 10px;
+      vertical-align: top;
+    }
+    table.lines .desc { font-weight: 650; }
+    .totals {
+      margin-top: 0;
+      margin-left: auto;
+      width: 62%;
+      border-collapse: collapse;
+    }
+    .totals td {
+      padding: 7px 10px;
+      font-size: 13px;
+    }
+    .totals td:last-child {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      width: 8.5rem;
+    }
+    .totals .muted { color: var(--muted); }
+    .totals .grand {
+      border-top: 2px solid var(--ink);
+      font-size: 16px;
+      font-weight: 750;
+    }
+    .totals .grand td { padding-top: 10px; }
+    .words {
+      margin: 14px 0 0;
+      padding: 10px 12px;
+      background: var(--box);
+      border-left: 3px solid var(--gold);
+      font-size: 12.5px;
+    }
+    .words strong { font-weight: 750; }
+    .notes {
+      margin-top: 14px;
+      font-size: 12px;
+      color: #3a322c;
+    }
+    .notes ul { margin: 4px 0 0; padding-left: 1.15em; }
+    .notes li { margin: 3px 0; }
+    .sign {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 28px;
+      margin-top: auto;
+      padding-top: 28px;
+    }
+    .sign .box-s { min-height: 88px; }
+    .sign .line {
+      border-bottom: 1.5px solid var(--ink);
+      height: 40px;
+      margin: 8px 0 6px;
+    }
+    .sign .lab { font-size: 11px; color: var(--muted); }
+    footer {
+      margin-top: 18px;
+      padding-top: 10px;
+      border-top: 1px solid #d8d0c6;
+      font-size: 10.5px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .sheet + .sheet { page-break-before: always; }
+    @page { size: A4 portrait; margin: 12mm; }
+    @media print {
+      html, body { background: #fff; }
+      .no-print { display: none !important; }
+      .sheet {
+        margin: 0;
+        padding: 0;
+        width: auto;
+        min-height: 0;
+        box-shadow: none;
+        page-break-after: always;
+      }
+      .sheet:last-of-type { page-break-after: auto; }
+      [contenteditable="true"]:hover,
+      [contenteditable="true"]:focus { background: transparent; }
+    }
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    <p>A4 · Room 502 · lunch (2 heads) + breakfast · two pages · then Print.</p>
+    <button type="button" onclick="window.print()">Print A4</button>
+  </div>
+
+  <article class="sheet" aria-label="Pelbu Suites lunch bill room 502">
+    <header>
+      <div class="brand">
+        <img
+          src="https://res.cloudinary.com/hkkchsfy/image/upload/w_160,h_160,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1"
+          alt="Pelbu Suites"
+        />
+        <div>
+          <p class="hotel-name">PELBU SUITES</p>
+          <p class="legal">Hotel · Olakha, Thimphu</p>
+          <address>
+            Next to Shop No. 7 / Asha Bakery<br />
+            Olakha, Thimphu, Bhutan<br />
+            T +975 1619 3410 · WhatsApp +975 1619 3410<br />
+            pelbusuites@gmail.com · www.pelbusuites.bt
+          </address>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <p class="kind">Lunch · room charge</p>
+        <h2>BILL</h2>
+        <table>
+          <tr>
+            <td>Date</td>
+            <td>20 Sep 2026</td>
+          </tr>
+          <tr>
+            <td>Room</td>
+            <td><strong>502</strong></td>
+          </tr>
+          <tr>
+            <td>Heads</td>
+            <td><strong>2</strong></td>
+          </tr>
+          <tr>
+            <td>Currency</td>
+            <td>BTN (Ngultrum)</td>
+          </tr>
+        </table>
+      </div>
+    </header>
+
+    <div class="parties">
+      <div>
+        <p class="label">Bill to</p>
+        <div class="party">
+          <strong>Room 502</strong><br />
+          <span contenteditable="true">Guest name</span><br />
+          Lunch · 2 heads · charge to room folio
+        </div>
+      </div>
+      <div>
+        <p class="label">From</p>
+        <div class="party">
+          <strong>Pelbu Suites</strong><br />
+          Restaurant · lunch<br />
+          Olakha, Thimphu, Bhutan<br />
+          +975 1619 3410
+        </div>
+      </div>
+    </div>
+
+    <table class="lines">
+      <thead>
+        <tr>
+          <th style="width:8%">#</th>
+          <th>Description</th>
+          <th class="num" style="width:10%">Qty</th>
+          <th class="num" style="width:16%">Rate (Nu)</th>
+          <th class="num" style="width:14%">SC 10%</th>
+          <th class="num" style="width:18%">Amount (Nu)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td><span class="desc">Egg fried rice</span></td>
+          <td class="num">2</td>
+          <td class="num">250.00</td>
+          <td class="num">50.00</td>
+          <td class="num">550.00</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td><span class="desc">Chicken butter masala</span></td>
+          <td class="num">2</td>
+          <td class="num">400.00</td>
+          <td class="num">80.00</td>
+          <td class="num">880.00</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td><span class="desc">Chicken sausages</span></td>
+          <td class="num">2</td>
+          <td class="num">180.00</td>
+          <td class="num">36.00</td>
+          <td class="num">396.00</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td><span class="desc">Paneer butter masala</span></td>
+          <td class="num">2</td>
+          <td class="num">350.00</td>
+          <td class="num">70.00</td>
+          <td class="num">770.00</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td><span class="desc">Steamed rice</span></td>
+          <td class="num">2</td>
+          <td class="num">180.00</td>
+          <td class="num">36.00</td>
+          <td class="num">396.00</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <table class="totals">
+      <tr class="muted">
+        <td>Subtotal</td>
+        <td>2,720.00</td>
+      </tr>
+      <tr class="muted">
+        <td>Service charge 10%</td>
+        <td>272.00</td>
+      </tr>
+      <tr class="muted">
+        <td>GST</td>
+        <td>Nil</td>
+      </tr>
+      <tr class="grand">
+        <td>Total payable</td>
+        <td>Nu 2,992.00</td>
+      </tr>
+    </table>
+
+    <p class="words">
+      Amount in words:
+      <strong>Ngultrum two thousand nine hundred ninety-two only.</strong>
+    </p>
+
+    <div class="notes">
+      <p class="label">Notes</p>
+      <ul>
+        <li>Charged to <strong>Room 502</strong> · lunch for <strong>2 heads</strong>.</li>
+        <li>Each line is menu rate plus <strong>10% service charge</strong>.</li>
+        <li><strong>No GST</strong> is charged on this bill.</li>
+        <li contenteditable="true">Payment: settle with room folio / cash as agreed.</li>
+      </ul>
+    </div>
+
+    <div class="sign">
+      <div class="box-s">
+        <p class="label">Received by</p>
+        <div class="line"></div>
+        <p class="lab">Name &amp; signature · date</p>
+      </div>
+      <div class="box-s">
+        <p class="label">For Pelbu Suites</p>
+        <div class="line"></div>
+        <p class="lab">Authorised signatory · stamp</p>
+      </div>
+    </div>
+
+    <footer>
+      Pelbu Suites · Next to Shop No. 7 / Asha Bakery, Olakha, Thimphu, Bhutan<br />
+      T +975 1619 3410 · pelbusuites@gmail.com · www.pelbusuites.bt<br />
+      Thank you for dining with us.
+    </footer>
+  </article>
+
+  <article class="sheet" aria-label="Pelbu Suites breakfast bill room 502">
+    <header>
+      <div class="brand">
+        <img
+          src="https://res.cloudinary.com/hkkchsfy/image/upload/w_160,h_160,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1"
+          alt="Pelbu Suites"
+        />
+        <div>
+          <p class="hotel-name">PELBU SUITES</p>
+          <p class="legal">Hotel · Olakha, Thimphu</p>
+          <address>
+            Next to Shop No. 7 / Asha Bakery<br />
+            Olakha, Thimphu, Bhutan<br />
+            T +975 1619 3410 · WhatsApp +975 1619 3410<br />
+            pelbusuites@gmail.com · www.pelbusuites.bt
+          </address>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <p class="kind">Breakfast · room charge</p>
+        <h2>BILL</h2>
+        <table>
+          <tr>
+            <td>Date</td>
+            <td>20 Sep 2026</td>
+          </tr>
+          <tr>
+            <td>Room</td>
+            <td><strong>502</strong></td>
+          </tr>
+          <tr>
+            <td>Currency</td>
+            <td>BTN (Ngultrum)</td>
+          </tr>
+        </table>
+      </div>
+    </header>
+
+    <div class="parties">
+      <div>
+        <p class="label">Bill to</p>
+        <div class="party">
+          <strong>Room 502</strong><br />
+          <span contenteditable="true">Guest name</span><br />
+          Charge to room folio
+        </div>
+      </div>
+      <div>
+        <p class="label">From</p>
+        <div class="party">
+          <strong>Pelbu Suites</strong><br />
+          Breakfast<br />
+          Olakha, Thimphu, Bhutan<br />
+          +975 1619 3410
+        </div>
+      </div>
+    </div>
+
+    <table class="lines">
+      <thead>
+        <tr>
+          <th style="width:8%">#</th>
+          <th>Description</th>
+          <th class="num" style="width:10%">Qty</th>
+          <th class="num" style="width:16%">Rate (Nu)</th>
+          <th class="num" style="width:14%">SC 10%</th>
+          <th class="num" style="width:18%">Amount (Nu)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td><span class="desc">Omelette</span></td>
+          <td class="num">2</td>
+          <td class="num">120.00</td>
+          <td class="num">24.00</td>
+          <td class="num">264.00</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td><span class="desc">Milk coffee</span></td>
+          <td class="num">2</td>
+          <td class="num">120.00</td>
+          <td class="num">24.00</td>
+          <td class="num">264.00</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td><span class="desc">Apple juice</span></td>
+          <td class="num">1</td>
+          <td class="num">280.00</td>
+          <td class="num">28.00</td>
+          <td class="num">308.00</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td><span class="desc">Egg fried rice</span></td>
+          <td class="num">2</td>
+          <td class="num">250.00</td>
+          <td class="num">50.00</td>
+          <td class="num">550.00</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <table class="totals">
+      <tr class="muted">
+        <td>Subtotal</td>
+        <td>1,260.00</td>
+      </tr>
+      <tr class="muted">
+        <td>Service charge 10%</td>
+        <td>126.00</td>
+      </tr>
+      <tr class="muted">
+        <td>GST</td>
+        <td>Nil</td>
+      </tr>
+      <tr class="grand">
+        <td>Total payable</td>
+        <td>Nu 1,386.00</td>
+      </tr>
+    </table>
+
+    <p class="words">
+      Amount in words:
+      <strong>Ngultrum one thousand three hundred eighty-six only.</strong>
+    </p>
+
+    <div class="notes">
+      <p class="label">Notes</p>
+      <ul>
+        <li>Charged to <strong>Room 502</strong>.</li>
+        <li>Each line is menu rate plus <strong>10% service charge</strong>.</li>
+        <li><strong>No GST</strong> is charged on this bill.</li>
+        <li contenteditable="true">Payment: settle with room folio / cash as agreed.</li>
+      </ul>
+    </div>
+
+    <div class="sign">
+      <div class="box-s">
+        <p class="label">Received by</p>
+        <div class="line"></div>
+        <p class="lab">Name &amp; signature · date</p>
+      </div>
+      <div class="box-s">
+        <p class="label">For Pelbu Suites</p>
+        <div class="line"></div>
+        <p class="lab">Authorised signatory · stamp</p>
+      </div>
+    </div>
+
+    <footer>
+      Pelbu Suites · Next to Shop No. 7 / Asha Bakery, Olakha, Thimphu, Bhutan<br />
+      T +975 1619 3410 · pelbusuites@gmail.com · www.pelbusuites.bt<br />
+      Thank you for dining with us.
+    </footer>
+  </article>
+</body>
+</html>

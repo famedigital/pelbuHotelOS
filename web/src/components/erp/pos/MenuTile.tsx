@@ -21,9 +21,11 @@ function firstLetter(name: string): string {
 export function MenuTile({
   item,
   onClick,
+  dense = false,
 }: {
   item: MenuItem;
   onClick: () => void;
+  dense?: boolean;
 }) {
   const letter = firstLetter(item.name);
   const bg = monogramColor(item.id || item.name);
@@ -34,7 +36,7 @@ export function MenuTile({
       type="button"
       onClick={onClick}
       disabled={soldOut}
-      className="group flex h-full flex-col overflow-hidden rounded-lg border bg-card text-left transition-all hover:border-accent/50 hover:shadow-sm focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-55"
+      className="group flex min-h-11 h-full flex-col overflow-hidden rounded-lg border bg-card text-left transition-all hover:border-accent/50 hover:shadow-sm focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-55"
       aria-label={
         soldOut
           ? `${item.name}, sold out`
@@ -54,6 +56,7 @@ export function MenuTile({
             : undefined
       }
     >
+      {!dense ? (
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-secondary">
         {item.image_src ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -88,7 +91,8 @@ export function MenuTile({
           </span>
         ) : null}
       </div>
-      <div className="flex flex-1 flex-col gap-1 p-3">
+      ) : null}
+      <div className={`flex flex-1 flex-col gap-1 ${dense ? "p-2.5" : "p-3"}`}>
         <p className="line-clamp-2 text-sm font-medium leading-snug text-foreground">
           {item.name}
         </p>
