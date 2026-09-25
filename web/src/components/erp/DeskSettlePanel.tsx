@@ -204,6 +204,28 @@ export function DeskSettlePanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per folio
   }, [folioId]);
 
+  // Must stay above early returns — folio load used to add this hook mid-render
+  // and crash StayHub ("Rendered more hooks than during the previous render").
+  const ledgerLinesForTab = useMemo(() => {
+    if (tab === "room") {
+      return lines.filter((l) => {
+        const st = (l.status ?? "posted").toLowerCase();
+        if (st !== "posted" && st !== "voided") return false;
+        if (st === "posted") {
+          const g = classifyBillLine(l);
+          return g === "room" || g === "hotel_adj" || g === "other";
+        }
+        // voided room-ish: same classification
+        const g = classifyBillLine(l);
+        return g === "room" || g === "hotel_adj" || g === "other";
+      });
+    }
+    if (tab === "pos") {
+      return lines.filter((l) => classifyBillLine(l) === "fnb");
+    }
+    return lines;
+  }, [lines, tab]);
+
   function openSettle(opts?: {
     amount?: number;
     method?: FolioSettleMethod;
@@ -287,26 +309,6 @@ export function DeskSettlePanel({
   const collectExpanded = toolTab === "collect" && showCollect;
   const showBill = toolTab === "bill";
   const showAdvanced = toolTab === "advanced";
-
-  const ledgerLinesForTab = useMemo(() => {
-    if (tab === "room") {
-      return lines.filter((l) => {
-        const st = (l.status ?? "posted").toLowerCase();
-        if (st !== "posted" && st !== "voided") return false;
-        if (st === "posted") {
-          const g = classifyBillLine(l);
-          return g === "room" || g === "hotel_adj" || g === "other";
-        }
-        // voided room-ish: same classification
-        const g = classifyBillLine(l);
-        return g === "room" || g === "hotel_adj" || g === "other";
-      });
-    }
-    if (tab === "pos") {
-      return lines.filter((l) => classifyBillLine(l) === "fnb");
-    }
-    return lines;
-  }, [lines, tab]);
 
   const ledgerEmpty =
     !money?.hasCharges
