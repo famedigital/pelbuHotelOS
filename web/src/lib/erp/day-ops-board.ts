@@ -334,7 +334,10 @@ export async function loadDayOpsBoard(
       : ["arrivals", "departures", "in_house"],
   );
 
-  const empty = Promise.resolve({ data: [] as Record<string, unknown>[] | null });
+  const emptyRes = {
+    data: null as Record<string, unknown>[] | null,
+    error: null as { message?: string } | null,
+  };
 
   const [
     { data: arrivalRows, error: arrivalErr },
@@ -350,7 +353,7 @@ export async function loadDayOpsBoard(
           .in("status", ["pending", "confirmed"])
           .order("contact_name")
           .limit(150)
-      : empty,
+      : Promise.resolve(emptyRes),
     want.has("departures")
       ? admin
           .from("bookings")
@@ -360,7 +363,7 @@ export async function loadDayOpsBoard(
           .not("status", "in", '("cancelled","no_show")')
           .order("contact_name")
           .limit(150)
-      : empty,
+      : Promise.resolve(emptyRes),
     want.has("in_house")
       ? admin
           .from("bookings")
@@ -371,7 +374,7 @@ export async function loadDayOpsBoard(
           )
           .order("check_out")
           .limit(200)
-      : empty,
+      : Promise.resolve(emptyRes),
   ]);
 
   if (arrivalErr || departureErr || inHouseErr) {
