@@ -26,7 +26,9 @@ export default async function ArrivalsPage() {
   const propertyId = await requireDeskPropertyId();
   const today = thimphuToday();
 
-  const dayOps = await loadDayOpsBoard(admin, propertyId, today);
+  const dayOps = await loadDayOpsBoard(admin, propertyId, today, {
+    slices: ["arrivals"],
+  });
   const boardRows = dayOps.arrivals.map(dayOpsRowToBoardRaw);
   const summary = {
     bookings: dayOps.arrivals.length,

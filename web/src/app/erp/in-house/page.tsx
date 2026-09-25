@@ -29,7 +29,7 @@ export default async function InHousePage() {
   const today = thimphuToday();
 
   const [dayOps, { data: taskRows }] = await Promise.all([
-    loadDayOpsBoard(admin, propertyId, today),
+    loadDayOpsBoard(admin, propertyId, today, { slices: ["in_house"] }),
     admin
       .from("inhouse_tasks")
       .select(

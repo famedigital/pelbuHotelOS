@@ -44,18 +44,35 @@ export function LiveRefreshBadge({
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let safetyTimer: ReturnType<typeof setInterval> | undefined;
+    let refreshInFlight = false;
+    let refreshQueued = false;
 
     async function applyChange() {
-      const custom = onInvalidateRef.current;
-      if (custom) {
-        try {
-          await Promise.resolve(custom());
-          return;
-        } catch {
-          // fall through to full refresh
+      if (refreshInFlight) {
+        refreshQueued = true;
+        return;
+      }
+      refreshInFlight = true;
+      try {
+        const custom = onInvalidateRef.current;
+        if (custom) {
+          try {
+            await Promise.resolve(custom());
+            return;
+          } catch {
+            // fall through to full refresh
+          }
+        }
+        router.refresh();
+        // Give RSC a beat before allowing another stacked refresh.
+        await new Promise((r) => setTimeout(r, 750));
+      } finally {
+        refreshInFlight = false;
+        if (refreshQueued && !cancelled) {
+          refreshQueued = false;
+          void applyChange();
         }
       }
-      router.refresh();
     }
 
     async function tick() {
@@ -105,7 +122,7 @@ export function LiveRefreshBadge({
     void tick();
     safetyTimer = setInterval(() => {
       if (document.visibilityState === "hidden") return;
-      router.refresh();
+      void applyChange();
     }, safetyMs);
 
     return () => {

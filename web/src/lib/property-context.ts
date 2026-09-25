@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { cookies, headers } from "next/headers";
+import { flagshipSlug } from "@/lib/free-tier";
 import { DEFAULT_PROPERTY_SLUG } from "@/lib/property";
 import { mapPropertySettings } from "@/lib/property-settings";
 import {
@@ -50,7 +51,16 @@ const resolveActivePropertyIdImpl = cache(async (): Promise<string> => {
     // headers() unavailable outside request scope
   }
 
-  return propertyIdBySlugUncached(admin, DEFAULT_PROPERTY_SLUG);
+  // Prefer flagship env slug (production) over the demo seed slug.
+  const preferred = flagshipSlug() || DEFAULT_PROPERTY_SLUG;
+  try {
+    return await propertyIdBySlugUncached(admin, preferred);
+  } catch {
+    if (preferred !== DEFAULT_PROPERTY_SLUG) {
+      return propertyIdBySlugUncached(admin, DEFAULT_PROPERTY_SLUG);
+    }
+    throw new Error("Hotel property is not configured.");
+  }
 });
 
 /** Active property for desk session; falls back to Host header then flagship slug. */

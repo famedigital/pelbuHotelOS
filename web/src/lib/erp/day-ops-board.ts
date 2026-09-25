@@ -319,43 +319,68 @@ function mealPax(rows: DayOpsRow[]): number {
 /**
  * Load arrivals / departures / in-house for a business date with meal,
  * agent/guide/driver contacts, folio balance, and open laundry.
+ *
+ * Pass `slices` to fetch only the boards a page needs (FO list pages).
  */
 export async function loadDayOpsBoard(
   admin: Admin,
   propertyId: string,
   businessDate: string,
+  opts?: { slices?: DayOpsSlice[] },
 ): Promise<DayOpsBoard> {
+  const want = new Set<DayOpsSlice>(
+    opts?.slices?.length
+      ? opts.slices
+      : ["arrivals", "departures", "in_house"],
+  );
+
+  const empty = Promise.resolve({ data: [] as Record<string, unknown>[] | null });
+
   const [
-    { data: arrivalRows },
-    { data: departureRows },
-    { data: inHouseRows },
+    { data: arrivalRows, error: arrivalErr },
+    { data: departureRows, error: departureErr },
+    { data: inHouseRows, error: inHouseErr },
   ] = await Promise.all([
-    admin
-      .from("bookings")
-      .select(DAY_OPS_BOARD_SELECT)
-      .eq("property_id", propertyId)
-      .eq("check_in", businessDate)
-      .in("status", ["pending", "confirmed"])
-      .order("contact_name")
-      .limit(150),
-    admin
-      .from("bookings")
-      .select(DAY_OPS_BOARD_SELECT)
-      .eq("property_id", propertyId)
-      .eq("check_out", businessDate)
-      .not("status", "in", '("cancelled","no_show")')
-      .order("contact_name")
-      .limit(150),
-    admin
-      .from("bookings")
-      .select(DAY_OPS_BOARD_SELECT)
-      .eq("property_id", propertyId)
-      .or(
-        `status.eq.checked_in,and(status.eq.confirmed,check_in.lte.${businessDate},check_out.gte.${businessDate})`,
-      )
-      .order("check_out")
-      .limit(200),
+    want.has("arrivals")
+      ? admin
+          .from("bookings")
+          .select(DAY_OPS_BOARD_SELECT)
+          .eq("property_id", propertyId)
+          .eq("check_in", businessDate)
+          .in("status", ["pending", "confirmed"])
+          .order("contact_name")
+          .limit(150)
+      : empty,
+    want.has("departures")
+      ? admin
+          .from("bookings")
+          .select(DAY_OPS_BOARD_SELECT)
+          .eq("property_id", propertyId)
+          .eq("check_out", businessDate)
+          .not("status", "in", '("cancelled","no_show")')
+          .order("contact_name")
+          .limit(150)
+      : empty,
+    want.has("in_house")
+      ? admin
+          .from("bookings")
+          .select(DAY_OPS_BOARD_SELECT)
+          .eq("property_id", propertyId)
+          .or(
+            `status.eq.checked_in,and(status.eq.confirmed,check_in.lte.${businessDate},check_out.gte.${businessDate})`,
+          )
+          .order("check_out")
+          .limit(200)
+      : empty,
   ]);
+
+  if (arrivalErr || departureErr || inHouseErr) {
+    console.error("loadDayOpsBoard query failed", {
+      arrivalErr,
+      departureErr,
+      inHouseErr,
+    });
+  }
 
   const allIds = [
     ...new Set(
