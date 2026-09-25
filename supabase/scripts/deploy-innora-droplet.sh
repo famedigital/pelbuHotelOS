@@ -19,14 +19,13 @@ ANON_KEY=$(get_env NEXT_PUBLIC_SUPABASE_ANON_KEY)
 SITE_URL=$(get_env NEXT_PUBLIC_SITE_URL)
 echo "SUPABASE_URL set=$( [ -n "$SUPABASE_URL" ] && echo yes || echo no )"
 
-echo "== docker build innora:local (BuildKit + cache-from) =="
+echo "== docker build innora:local (BuildKit; keep layer cache) =="
 export DOCKER_BUILDKIT=1
+# Bare --cache-from TAG hits the registry and fails for local-only tags.
 docker build \
   --build-arg "NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}" \
   --build-arg "NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY}" \
   --build-arg "NEXT_PUBLIC_SITE_URL=${SITE_URL}" \
-  --cache-from innora:local \
-  --build-arg BUILDKIT_INLINE_CACHE=1 \
   -t innora:local \
   -f Dockerfile \
   .

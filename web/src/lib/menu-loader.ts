@@ -79,13 +79,18 @@ async function loadMenuCatalogForProperty(
       error.code === "42703" ||
       error.code === "PGRST204";
     if (missingBarcode) {
-      ({ data, error } = await admin
+      const fallback = await admin
         .from("menu_items")
         .select(baseCols)
         .eq("property_id", propertyId)
         .eq("is_available", true)
         .in("outlet", outlets)
-        .order("sort_order"));
+        .order("sort_order");
+      data = (fallback.data ?? []).map((row) => ({
+        ...row,
+        sell_barcode: null as string | null,
+      }));
+      error = fallback.error;
     }
   }
 
