@@ -168,13 +168,21 @@ export function SettingsWebsiteApiPanel({
                 </div>
                 {canEdit && !k.revokedAt ? (
                   <div className="flex gap-2">
-                    <form action={rotateIntegrationApiKeyAction}>
+                    <form
+                      action={async (formData) => {
+                        await rotateIntegrationApiKeyAction(formData);
+                      }}
+                    >
                       <input type="hidden" name="key_id" value={k.id} />
                       <Button type="submit" variant="outline" size="sm">
                         Rotate
                       </Button>
                     </form>
-                    <form action={revokeIntegrationApiKeyAction}>
+                    <form
+                      action={async (formData) => {
+                        await revokeIntegrationApiKeyAction(formData);
+                      }}
+                    >
                       <input type="hidden" name="key_id" value={k.id} />
                       <Button type="submit" variant="destructive" size="sm">
                         Revoke
