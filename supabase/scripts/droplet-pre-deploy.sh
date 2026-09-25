@@ -9,9 +9,10 @@ df -h / | tail -1
 
 echo "======== tmp / probe leftovers ========"
 rm -f /tmp/probe-*.sh /tmp/probe-*.mjs /tmp/run-probe-*.sh \
-  /tmp/droplet-*.sh /tmp/ih.html /tmp/pub-ih.html /tmp/out.html \
+  /tmp/ih.html /tmp/pub-ih.html /tmp/out.html \
   /tmp/fdv.json /tmp/innora_health_body.txt /tmp/_db_probe.sql \
   /tmp/coolify_*.sh 2>/dev/null || true
+# Keep /tmp/droplet-pre-deploy.sh, droplet-post-deploy.sh, deploy-innora*.sh
 
 echo "======== stopped containers + dangling images only ========"
 docker container prune -f >/dev/null 2>&1 || true
