@@ -115,13 +115,14 @@ export async function loadOccupancyWindow(
   });
 }
 
-/** The agent's OWN bookings only, scoped by agent_id. */
+/** The agent's OWN bookings only, scoped by agent_id (optional property filter). */
 export async function loadAgentBookings(
   admin: Admin,
   agentId: string,
   limit = 60,
+  propertyId?: string | null,
 ): Promise<AgentBookingSummary[]> {
-  const { data } = await admin
+  let q = admin
     .from("bookings")
     .select(
       "id, check_in, check_out, status, guide_number, quoted_total_btn, created_at, booking_rooms(qty)",
@@ -129,6 +130,10 @@ export async function loadAgentBookings(
     .eq("agent_id", agentId)
     .order("check_in", { ascending: false })
     .limit(limit);
+  if (propertyId) {
+    q = q.eq("property_id", propertyId);
+  }
+  const { data } = await q;
 
   return (data ?? []).map((row) => ({
     id: row.id as string,
