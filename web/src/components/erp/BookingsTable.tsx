@@ -455,7 +455,18 @@ export function BookingsTable({
           searchPlaceholder="Guest, phone, agent…"
           className="erp"
           searchable={false}
-          getRowHref={(row) => boardActionHref(row.status, row.id, board)}
+          // Prefer modal openStayHub — router.push(?booking=) races the
+          // post-close deep-link suppress and leaves the sheet dead.
+          onRowClick={
+            stayHub
+              ? (row) => openRow(stayHub, row, board)
+              : undefined
+          }
+          getRowHref={
+            stayHub
+              ? undefined
+              : (row) => boardActionHref(row.status, row.id, board)
+          }
         />
       </div>
     </>

@@ -52,9 +52,10 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
   const suppressUrlWrite = useRef(false);
   /**
    * After close, `?booking=` can linger on Next's searchParams until a real
-   * navigation. Block the deep-link effect from re-opening StayHub.
+   * navigation. Block the deep-link effect from re-opening that same stay.
+   * Store the closed booking id — a different ?booking= must still open.
    */
-  const suppressOpenFromUrl = useRef(false);
+  const suppressOpenFromUrl = useRef<string | null>(null);
   const lastOpenedIdRef = useRef<string | null>(null);
   /**
    * Last step we applied as preferred for this booking.
@@ -91,11 +92,15 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
     [pathname],
   );
 
+  const [boundaryEpoch, setBoundaryEpoch] = useState(0);
+
   const openStayHub = useCallback(
     (opts: OpenStayHubOptions) => {
       const id = opts.bookingId.trim();
       if (!id) return;
-      suppressOpenFromUrl.current = false;
+      suppressOpenFromUrl.current = null;
+      // Remount error boundary so a prior StayHub crash does not swallow the sheet.
+      setBoundaryEpoch((n) => n + 1);
       const isNew = lastOpenedIdRef.current !== id;
       lastOpenedIdRef.current = id;
       setBookingId(id);
@@ -136,8 +141,9 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
   );
 
   const closeStayHub = useCallback(() => {
-    // Block deep-link re-open until booking is gone from the URL.
-    suppressOpenFromUrl.current = true;
+    // Block deep-link re-open of *this* booking until it leaves the URL.
+    const closingId = lastOpenedIdRef.current;
+    suppressOpenFromUrl.current = closingId;
     lastOpenedIdRef.current = null;
     appliedPreferredKeyRef.current = null;
     setBookingId(null);
@@ -171,10 +177,15 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
     const fromUrl = (searchParams.get("booking") ?? "").trim();
     if (!fromUrl) {
       // URL stripped — deep links / openStayHub can hydrate again.
-      suppressOpenFromUrl.current = false;
+      suppressOpenFromUrl.current = null;
       return;
     }
-    if (suppressOpenFromUrl.current) return;
+    // Only suppress re-opening the stay we just closed (stale searchParams).
+    // A different booking via row click / soft nav must open.
+    if (suppressOpenFromUrl.current === fromUrl) return;
+    if (suppressOpenFromUrl.current) {
+      suppressOpenFromUrl.current = null;
+    }
     const step = parseStayHubStep(searchParams.get("step"));
     const pathBoard = (() => {
       if (pathname.includes("/arrivals")) return "arrivals" as const;
@@ -228,7 +239,10 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
   return (
     <StayHubContext.Provider value={value}>
       {children}
-      <StayHubErrorBoundary onCrash={closeStayHub}>
+      <StayHubErrorBoundary
+        resetToken={boundaryEpoch}
+        onCrash={closeStayHub}
+      >
         <StayHubDialog
           open={open}
           bookingId={bookingId}

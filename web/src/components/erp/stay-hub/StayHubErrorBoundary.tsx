@@ -13,6 +13,8 @@ export class StayHubErrorBoundary extends Component<
     onCrash?: () => void;
     /** When set, render this instead of the stay-open banner (e.g. print host). */
     fallback?: ReactNode;
+    /** Bump to clear a caught error without unmounting the dialog tree. */
+    resetToken?: number;
   },
   { error: Error | null }
 > {
@@ -20,6 +22,15 @@ export class StayHubErrorBoundary extends Component<
 
   static getDerivedStateFromError(error: Error) {
     return { error };
+  }
+
+  componentDidUpdate(prevProps: Readonly<{ resetToken?: number }>) {
+    if (
+      prevProps.resetToken !== this.props.resetToken &&
+      this.state.error
+    ) {
+      this.setState({ error: null });
+    }
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
