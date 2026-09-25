@@ -44,6 +44,7 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import {
   Popover,
@@ -54,12 +55,14 @@ import { cn } from "@/lib/utils";
 import { mergeBookingsIntoGroup } from "@/app/actions/erp-reservations-party";
 import {
   BanIcon,
+  CalendarIcon,
   ListIcon,
   MoreHorizontalIcon,
   PencilIcon,
   PlusIcon,
   WandSparklesIcon,
 } from "lucide-react";
+import { parseISO } from "date-fns";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -949,9 +952,10 @@ export function RoomRackGrid({
   const isMdUp = useMediaQuery("(min-width: 768px)");
   const isLandscape = useMediaQuery("(orientation: landscape)");
   const isShort = useMediaQuery("(max-height: 640px)");
-  const [forceTimeline, setForceTimeline] = useState(false);
-  /** Portrait phone: day list. Short / landscape phone: rack with one bar. */
-  const useDayBoard = !isMdUp && !isLandscape && !forceTimeline;
+  /** Portrait default is the multi-day rack; day list is opt-in. */
+  const [preferDayList, setPreferDayList] = useState(false);
+  const [startPickerOpen, setStartPickerOpen] = useState(false);
+  const useDayBoard = !isMdUp && !isLandscape && preferDayList;
   const compactRack = !useDayBoard && (!isMdUp || isShort);
   const stayHub = useStayHubOptional();
   const leftWidth = useLeftPaneWidth();
@@ -1000,12 +1004,13 @@ export function RoomRackGrid({
   const [dayBoardDate, setDayBoardDate] = useState(today);
 
   useEffect(() => {
-    setForceTimeline(false);
-  }, [isLandscape]);
-
-  useEffect(() => {
     if (compactRack) setCellZoom("sm");
   }, [compactRack]);
+
+  useEffect(() => {
+    // Landscape already uses the rack; clear stale day-list preference.
+    if (isLandscape && preferDayList) setPreferDayList(false);
+  }, [isLandscape, preferDayList]);
 
   const deskRoomTypes: FastBookRoomType[] = useMemo(() => {
     const map = new Map<string, FastBookRoomType>();
@@ -1850,7 +1855,7 @@ export function RoomRackGrid({
     [],
   );
 
-  // Phone portrait: Day board. Short / landscape / Timeline: compact rack.
+  // Portrait: multi-day rack by default; Day list is opt-in.
   if (useDayBoard) {
     return (
       <div className="erp flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
@@ -1867,7 +1872,7 @@ export function RoomRackGrid({
           onAssignUnassigned={(item) =>
             setAssignGuide({ kind: "single", item })
           }
-          onOpenTimeline={() => setForceTimeline(true)}
+          onOpenTimeline={() => setPreferDayList(false)}
           onBookFab={() => {
             setSelection({
               checkIn: dayBoardDate,
@@ -1923,6 +1928,7 @@ export function RoomRackGrid({
       className={cn(
         "erp flex h-full min-h-0 min-w-0 flex-col overflow-hidden",
         compactRack &&
+          isLandscape &&
           "fixed inset-0 z-[45] bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
       )}
     >
@@ -1940,15 +1946,14 @@ export function RoomRackGrid({
             variant="ghost"
             size="sm"
             className="h-8 shrink-0 gap-1 px-2 text-xs"
-            onClick={() => setForceTimeline(false)}
+            onClick={() => setPreferDayList(true)}
           >
             <ListIcon className="size-3.5" aria-hidden />
             Day list
           </Button>
         ) : null}
-        <div className={cn(compactRack ? "hidden" : "contents")}>
         <div
-          className="inline-flex h-8 items-center rounded-md bg-muted/40 p-0.5"
+          className="inline-flex h-8 shrink-0 items-center rounded-md bg-muted/40 p-0.5"
           role="group"
           aria-label="Visible days"
         >
@@ -1973,6 +1978,38 @@ export function RoomRackGrid({
             </Link>
           ))}
         </div>
+        <Popover open={startPickerOpen} onOpenChange={setStartPickerOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 shrink-0 gap-1.5 px-2 text-xs font-medium"
+              aria-label="Jump to start date"
+            >
+              <CalendarIcon className="size-3.5" aria-hidden />
+              <span className="tabular-nums">{start.slice(5)}</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-auto p-0">
+            <Calendar
+              mode="single"
+              selected={parseISO(`${start}T12:00:00`)}
+              defaultMonth={parseISO(`${start}T12:00:00`)}
+              onSelect={(d) => {
+                if (!d) return;
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, "0");
+                const day = String(d.getDate()).padStart(2, "0");
+                setStartPickerOpen(false);
+                router.push(
+                  `/erp/calendar?days=${windowDays}&start=${y}-${m}-${day}`,
+                );
+              }}
+            />
+          </PopoverContent>
+        </Popover>
+        <div className={cn(compactRack ? "hidden" : "contents")}>
         <Popover>
           <PopoverTrigger asChild>
             <Button

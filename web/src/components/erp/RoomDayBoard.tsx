@@ -8,8 +8,15 @@ import type {
 } from "@/components/erp/RoomRackGrid";
 import { AgentNameLink } from "@/components/erp/AgentNameLink";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { parseISO } from "date-fns";
 import {
   CalendarRangeIcon,
   ChevronLeftIcon,
@@ -203,15 +210,33 @@ export function RoomDayBoard({
           >
             <ChevronRightIcon className="size-4" />
           </Button>
-          <Input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => {
-              if (e.target.value) onDateChange(e.target.value);
-            }}
-            className="h-10 w-[7.5rem] shrink-0 px-1.5 text-xs"
-            aria-label="Go to date"
-          />
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-10 shrink-0"
+                aria-label="Go to date"
+              >
+                <CalendarRangeIcon className="size-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-auto p-0">
+              <Calendar
+                mode="single"
+                selected={parseISO(`${selectedDate}T12:00:00`)}
+                defaultMonth={parseISO(`${selectedDate}T12:00:00`)}
+                onSelect={(d) => {
+                  if (!d) return;
+                  const y = d.getFullYear();
+                  const m = String(d.getMonth() + 1).padStart(2, "0");
+                  const day = String(d.getDate()).padStart(2, "0");
+                  onDateChange(`${y}-${m}-${day}`);
+                }}
+              />
+            </PopoverContent>
+          </Popover>
           <Button
             type="button"
             variant={showSearch || q ? "secondary" : "outline"}
