@@ -7,6 +7,13 @@ import {
 } from "@/lib/property-settings";
 import { cn } from "@/lib/utils";
 import type { CSSProperties } from "react";
+import {
+  FiscalDocFooter,
+  FiscalLetterhead,
+  FiscalParties,
+  FiscalSignOff,
+  FiscalTotalsBlock,
+} from "@/components/erp/print/FiscalLetterhead";
 
 export type ReceiptProperty = {
   name: string;
@@ -104,70 +111,77 @@ export function FolioReceipt({
           "bg-[linear-gradient(180deg,color-mix(in_srgb,var(--doc-accent)_10%,white)_0%,white_22%)]",
       )}
     >
-      <header
-        className={cn(
-          "flex items-start justify-between gap-3 border-b-2 pb-2.5",
-          isThermal && "flex-col",
-        )}
-        style={{ borderColor: design.brand_color }}
-      >
-        <div className="min-w-0 flex-1">
-          <p
-            className="text-[9px] font-semibold tracking-[0.2em] uppercase"
-            style={{ color: design.brand_color }}
-          >
-            {legalName}
-          </p>
-          <h1
-            className={cn(
-              "mt-0.5 font-semibold tracking-tight",
-              isThermal ? "text-base" : "text-lg",
-            )}
-            style={{ color: design.brand_color }}
-          >
-            {design.title}
-          </h1>
-          <p className="mt-0.5 text-[10px] text-neutral-600">
-            {design.header_text}
-          </p>
-          {!isThermal ? (
-            <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] text-neutral-500">
-              {design.show_address && property.address ? (
-                <span>{property.address}</span>
-              ) : null}
-              {design.show_phone && property.phone ? (
-                <span>T {property.phone}</span>
-              ) : null}
-              {design.show_email && property.email ? (
-                <span>{property.email}</span>
-              ) : null}
-              {design.show_tax_id && property.tax_id ? (
-                <span>Tax {property.tax_id}</span>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
+      {!isThermal ? (
+        <>
+          <div className="mb-2">
+            <FiscalLetterhead
+              property={{
+                name: brandName,
+                legal_name: legalName,
+                address: property.address,
+                phone: property.phone,
+                email: property.email,
+                tax_id: property.tax_id,
+                logo_public_id: property.logo_public_id,
+              }}
+              kind="Folio"
+              title="FOLIO"
+              meta={[
+                ...(data.docNo
+                  ? [{ label: "Doc no.", value: data.docNo }]
+                  : []),
+                { label: "Folio", value: data.label },
+                { label: "Issued", value: fmtDateTime(data.createdAt) },
+                { label: "Currency", value: "Nu (BTN)" },
+              ]}
+            />
+          </div>
+          <FiscalParties
+            billTo="Guest / bill party"
+            from={brandName}
+            fromDetail={
+              property.address ? <p>{property.address}</p> : undefined
+            }
+          />
+        </>
+      ) : (
+        <header
+          className={cn(
+            "flex items-start justify-between gap-3 border-b-2 pb-2.5",
+            isThermal && "flex-col",
+          )}
+          style={{ borderColor: design.brand_color }}
+        >
+          <div className="min-w-0 flex-1">
+            <p
+              className="text-[9px] font-semibold tracking-[0.2em] uppercase"
+              style={{ color: design.brand_color }}
+            >
+              {legalName}
+            </p>
+            <h1
+              className={cn(
+                "mt-0.5 font-semibold tracking-tight",
+                isThermal ? "text-base" : "text-lg",
+              )}
+              style={{ color: design.brand_color }}
+            >
+              {design.title}
+            </h1>
+            <p className="mt-0.5 text-[10px] text-neutral-600">
+              {design.header_text}
+            </p>
+          </div>
           {logoSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={logoSrc}
               alt=""
-              className={
-                isThermal
-                  ? "h-10 w-auto object-contain"
-                  : "h-12 w-auto max-w-[7rem] object-contain"
-              }
+              className="h-10 w-auto object-contain"
             />
           ) : null}
-          <p
-            className="rounded px-1.5 py-0.5 text-[8px] font-semibold tracking-wider text-white uppercase"
-            style={{ backgroundColor: design.accent_color }}
-          >
-            Folio receipt
-          </p>
-        </div>
-      </header>
+        </header>
+      )}
 
       {design.intro_text.trim() ? (
         <p className="mt-2 text-[10px] leading-snug text-neutral-600">
@@ -232,18 +246,29 @@ export function FolioReceipt({
         className="mt-2.5 space-y-1 rounded border px-3 py-2.5 text-[10px]"
         style={{ borderColor: design.brand_color }}
       >
-        <Money label="Charges" value={chargeTotal} />
-        {serviceTotal > 0 ? (
-          <Money label="Service charge" value={serviceTotal} />
-        ) : null}
-        {gstTotal > 0 ? <Money label="GST" value={gstTotal} /> : null}
-        {paidTotal > 0 ? <Money label="Paid" value={-paidTotal} /> : null}
-        <div className="flex justify-between border-t border-neutral-300 pt-1.5 text-[12px] font-semibold text-neutral-900">
-          <span>Balance due</span>
-          <span className="tabular-nums">
-            {formatBtn(Math.max(balance, 0))}
-          </span>
-        </div>
+        {!isThermal ? (
+          <FiscalTotalsBlock
+            subtotal={Math.max(0, chargeTotal - gstTotal - serviceTotal)}
+            serviceCharge={serviceTotal}
+            gst={gstTotal}
+            total={Math.max(balance, 0)}
+          />
+        ) : (
+          <>
+            <Money label="Charges" value={chargeTotal} />
+            {serviceTotal > 0 ? (
+              <Money label="Service charge" value={serviceTotal} />
+            ) : null}
+            {gstTotal > 0 ? <Money label="GST" value={gstTotal} /> : null}
+            {paidTotal > 0 ? <Money label="Paid" value={-paidTotal} /> : null}
+            <div className="flex justify-between border-t border-neutral-300 pt-1.5 text-[12px] font-semibold text-neutral-900">
+              <span>Balance due</span>
+              <span className="tabular-nums">
+                {formatBtn(Math.max(balance, 0))}
+              </span>
+            </div>
+          </>
+        )}
       </div>
 
       {payments.length > 0 ? (
@@ -287,20 +312,29 @@ export function FolioReceipt({
         </p>
       ) : null}
 
-      <footer className="mt-3 space-y-0.5 border-t border-neutral-200 pt-2 text-[9px] text-neutral-500">
-        {isThermal ? (
-          <>
-            {design.show_address && property.address ? (
-              <p>{property.address}</p>
-            ) : null}
-            {design.show_phone && property.phone ? <p>{property.phone}</p> : null}
-            {design.show_tax_id && property.tax_id ? (
-              <p>Tax {property.tax_id}</p>
-            ) : null}
-          </>
-        ) : null}
-        <p>{design.footer_text}</p>
-      </footer>
+      {!isThermal ? (
+        <>
+          <FiscalSignOff hotelName={brandName} />
+          <FiscalDocFooter
+            property={{
+              name: brandName,
+              address: property.address,
+            }}
+            thankYou={design.footer_text || undefined}
+          />
+        </>
+      ) : (
+        <footer className="mt-3 space-y-0.5 border-t border-neutral-200 pt-2 text-[9px] text-neutral-500">
+          {design.show_address && property.address ? (
+            <p>{property.address}</p>
+          ) : null}
+          {design.show_phone && property.phone ? <p>{property.phone}</p> : null}
+          {design.show_tax_id && property.tax_id ? (
+            <p>Tax {property.tax_id}</p>
+          ) : null}
+          <p>{design.footer_text}</p>
+        </footer>
+      )}
     </section>
   );
 }

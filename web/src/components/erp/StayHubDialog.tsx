@@ -38,6 +38,11 @@ import { StayHubTasksPanel } from "@/components/erp/stay-hub/StayHubTasksPanel";
 import { useStayHubOptional } from "@/components/erp/StayHubContext";
 import { StayHubPrintHost } from "@/components/erp/stay-hub/StayHubPrintHost";
 import {
+  defaultCheckInToolTab,
+  defaultFolioToolTab,
+  deskBriefingLine,
+} from "@/lib/folio/desk-briefing";
+import {
   getStayHubCatalogCache,
   loadStayHubCatalogFromIdb,
   loadStayHubSummaryFromIdb,
@@ -1428,7 +1433,26 @@ export function StayHubDialog({
     if (!open || !bookingId || !preferredStep) return;
     setLockHint(null);
     setPanel(preferredStep);
-    if (preferredStep === "stay_money") setFolioTool("bill");
+    if (preferredStep === "stay_money" || preferredStep === "check_out") {
+      const bal = summaryRef.current?.folioBalance ?? 0;
+      const coToday =
+        (summaryRef.current?.checkOut ?? "").slice(0, 10) ===
+        (summaryRef.current?.openBusinessDate ?? "").slice(0, 10);
+      setFolioTool(
+        defaultFolioToolTab({
+          step: preferredStep,
+          balanceBtn: bal,
+          checkOutToday: coToday,
+        }),
+      );
+    }
+    if (preferredStep === "check_in") {
+      setCheckInTool(
+        defaultCheckInToolTab({
+          hasRoomAssigned: Boolean(summaryRef.current?.roomUnitId),
+        }),
+      );
+    }
     onPreferredStepConsumed?.();
   }, [open, bookingId, preferredStep, onPreferredStepConsumed]);
 
@@ -1580,7 +1604,26 @@ export function StayHubDialog({
       setLockHint(null);
       setPartyTab("rooms");
       setPanel(id);
-      if (id === "stay_money") setFolioTool("bill");
+      if (id === "stay_money" || id === "check_out") {
+        const bal = summaryRef.current?.folioBalance ?? 0;
+        const coToday =
+          (summaryRef.current?.checkOut ?? "").slice(0, 10) ===
+          (summaryRef.current?.openBusinessDate ?? "").slice(0, 10);
+        setFolioTool(
+          defaultFolioToolTab({
+            step: id,
+            balanceBtn: bal,
+            checkOutToday: coToday,
+          }),
+        );
+      }
+      if (id === "check_in") {
+        setCheckInTool(
+          defaultCheckInToolTab({
+            hasRoomAssigned: Boolean(summaryRef.current?.roomUnitId),
+          }),
+        );
+      }
       onPanelChange?.(id);
     },
     [onPanelChange],
@@ -2682,6 +2725,21 @@ export function StayHubDialog({
                   tools={toolTabsNode}
                 >
                   <div className="min-w-0 space-y-2">
+                    {summary ? (
+                      <p className="rounded-md border border-accent/25 bg-accent/5 px-3 py-2 text-xs text-foreground">
+                        <span className="font-semibold text-accent">Next · </span>
+                        {deskBriefingLine({
+                          status: summary.status,
+                          balanceBtn: summary.folioBalance,
+                          hasRoomAssigned: Boolean(summary.roomUnitId),
+                          sdfIncomplete: summary.sdfIncomplete,
+                          checkOutToday:
+                            summary.checkOut.slice(0, 10) ===
+                            summary.openBusinessDate.slice(0, 10),
+                          lockReason: lockHint,
+                        })}
+                      </p>
+                    ) : null}
                     {/* Details — Stay | Guest | Rate | More */}
                     {isDetailsPanel ? (
                       <div className="space-y-2">

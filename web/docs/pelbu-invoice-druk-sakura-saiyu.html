@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Invoice — Pelbu Suites · Druk Sakura · SAIYU GRP26-5 · Nu 45,333.33</title>
+  <style>
+    :root {
+      --ink: #1a1410;
+      --muted: #5c534c;
+      --line: #2a221c;
+      --soft: #e8e2da;
+      --box: #f7f4ef;
+      --gold: #b8893a;
+      --maroon: #6e2c2c;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      color: var(--ink);
+      font: 12px/1.35 "Segoe UI", system-ui, sans-serif;
+      background: #ece7df;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .no-print {
+      max-width: 210mm;
+      margin: 12px auto 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 0 8px;
+    }
+    .no-print p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12.5px;
+    }
+    .no-print button {
+      border: 0;
+      background: var(--ink);
+      color: #fff;
+      padding: 10px 18px;
+      font: 700 13px/1 "Segoe UI", system-ui, sans-serif;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .sheet {
+      width: 210mm;
+      margin: 12px auto 28px;
+      padding: 10mm 12mm 8mm;
+      background: #fff;
+      box-shadow: 0 2px 18px rgba(0,0,0,.08);
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: flex-start;
+      border-bottom: 2px solid var(--ink);
+      padding-bottom: 8px;
+    }
+    .brand {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      min-width: 0;
+    }
+    .brand img {
+      width: 44px;
+      height: 44px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+    .hotel-name {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: .04em;
+      font-weight: 750;
+      line-height: 1.1;
+    }
+    .legal {
+      margin: 2px 0 4px;
+      font-size: 10px;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--maroon);
+      font-weight: 700;
+    }
+    address {
+      font-style: normal;
+      font-size: 11px;
+      line-height: 1.35;
+      color: #3a322c;
+    }
+    .doc-meta {
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .doc-meta .kind {
+      margin: 0;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--maroon);
+    }
+    .doc-meta h2 {
+      margin: 2px 0 4px;
+      font-size: 18px;
+      letter-spacing: .02em;
+    }
+    .doc-meta table { border-collapse: collapse; margin-left: auto; }
+    .doc-meta td {
+      padding: 1px 0 1px 14px;
+      font-size: 12px;
+      vertical-align: top;
+    }
+    .doc-meta td:first-child { color: var(--muted); text-align: right; }
+    .parties {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 10px 0 6px;
+    }
+    .label {
+      margin: 0 0 3px;
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .party {
+      border: 1px solid #d8d0c6;
+      background: var(--box);
+      padding: 7px 10px;
+    }
+    .stay {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px 12px;
+      margin: 6px 0 0;
+      padding: 7px 10px;
+      border: 1px solid #d8d0c6;
+      background: var(--box);
+    }
+    .stay div { min-width: 0; }
+    .stay p {
+      margin: 0;
+      font-size: 11.5px;
+    }
+    table.lines td.foc {
+      color: var(--muted);
+    }
+    [contenteditable="true"] {
+      outline: none;
+    }
+    [contenteditable="true"]:hover,
+    [contenteditable="true"]:focus {
+      background: #fff8ee;
+    }
+    .blank {
+      border-bottom: 1px solid #8a8076;
+      min-width: 10em;
+      display: inline-block;
+      min-height: 1.15em;
+    }
+    table.lines {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    table.lines th {
+      background: var(--ink);
+      color: #fff;
+      font-size: 10px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      text-align: left;
+      padding: 6px 8px;
+    }
+    table.lines th.num, table.lines td.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    table.lines td {
+      border-bottom: 1px solid #ddd6cc;
+      padding: 6px 8px;
+      vertical-align: top;
+    }
+    table.lines .desc { font-weight: 650; }
+    table.lines .hint {
+      display: block;
+      margin-top: 1px;
+      font-size: 10.5px;
+      color: var(--muted);
+      font-weight: 400;
+    }
+    .totals {
+      margin-top: 0;
+      margin-left: auto;
+      width: 62%;
+      border-collapse: collapse;
+    }
+    .totals td {
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+    .totals td:last-child {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      width: 8.5rem;
+    }
+    .totals .muted { color: var(--muted); }
+    .totals .grand {
+      border-top: 2px solid var(--ink);
+      font-size: 14px;
+      font-weight: 750;
+    }
+    .totals .grand td { padding-top: 6px; }
+    .words {
+      margin: 8px 0 0;
+      padding: 6px 10px;
+      background: var(--box);
+      border-left: 3px solid var(--gold);
+      font-size: 11.5px;
+    }
+    .words strong { font-weight: 750; }
+    .notes {
+      margin-top: 8px;
+      font-size: 11px;
+      color: #3a322c;
+    }
+    .notes ul { margin: 2px 0 0; padding-left: 1.15em; }
+    .notes li { margin: 2px 0; }
+    .sign {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 14px;
+      padding-top: 4px;
+    }
+    .sign .line {
+      border-bottom: 1.5px solid var(--ink);
+      height: 28px;
+      margin: 4px 0 4px;
+    }
+    .sign .lab { font-size: 10px; color: var(--muted); }
+    footer {
+      margin-top: 10px;
+      padding-top: 6px;
+      border-top: 1px solid #d8d0c6;
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    @page { size: A4 portrait; margin: 8mm; }
+    @media print {
+      html, body { background: #fff; }
+      .no-print { display: none !important; }
+      .sheet {
+        margin: 0;
+        padding: 0;
+        width: auto;
+        box-shadow: none;
+      }
+      [contenteditable="true"]:hover,
+      [contenteditable="true"]:focus { background: transparent; }
+    }
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    <p>A4 invoice · Druk Sakura · SAIYU GRP26-5 · 22–23 Sep 2026 · then Print.</p>
+    <button type="button" onclick="window.print()">Print A4</button>
+  </div>
+
+  <article class="sheet" aria-label="Pelbu Suites invoice">
+    <header>
+      <div class="brand">
+        <img
+          src="https://res.cloudinary.com/hkkchsfy/image/upload/w_160,h_160,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1"
+          alt="Pelbu Suites"
+        />
+        <div>
+          <p class="hotel-name">PELBU SUITES</p>
+          <p class="legal">Hotel · Olakha, Thimphu</p>
+          <address>
+            Next to Shop No. 7 / Asha Bakery, Olakha, Thimphu<br />
+            T +975 1619 3410 · pelbusuites@gmail.com
+          </address>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <p class="kind">Room · MAP · tax invoice</p>
+        <h2>INVOICE</h2>
+        <table>
+          <tr>
+            <td>Date</td>
+            <td><span contenteditable="true">22 Sep 2026</span></td>
+          </tr>
+          <tr>
+            <td>Invoice no.</td>
+            <td><span class="blank" contenteditable="true">INV-</span></td>
+          </tr>
+          <tr>
+            <td>Nights</td>
+            <td><strong>1</strong> · 22–23 Sep</td>
+          </tr>
+          <tr>
+            <td>Currency</td>
+            <td>BTN (Ngultrum)</td>
+          </tr>
+        </table>
+      </div>
+    </header>
+
+    <div class="parties">
+      <div>
+        <p class="label">Bill to</p>
+        <div class="party">
+          <strong>Druk Sakura Tours</strong> · SAIYU GRP26-5<br />
+          15 pax (14 + 1 TC) · Japanese
+        </div>
+      </div>
+      <div>
+        <p class="label">From</p>
+        <div class="party">
+          <strong>Pelbu Suites</strong><br />
+          Olakha, Thimphu · +975 1619 3410
+        </div>
+      </div>
+    </div>
+
+    <div class="stay">
+      <div>
+        <p class="label">Stay</p>
+        <p>22–23 Sep 2026 · 1 night MAP</p>
+      </div>
+      <div>
+        <p class="label">Rooms</p>
+        <p>11 · 4 TWN + 7 SGL (1 FOC)</p>
+      </div>
+      <div>
+        <p class="label">Guide</p>
+        <p>Jimmy (Mr) · #17770777</p>
+      </div>
+    </div>
+
+    <table class="lines">
+      <thead>
+        <tr>
+          <th style="width:8%">#</th>
+          <th>Description</th>
+          <th class="num" style="width:12%">Qty</th>
+          <th class="num" style="width:18%">Rate (Nu)</th>
+          <th class="num" style="width:18%">Amount (Nu)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>
+            <span class="desc">Twin / double — MAP</span>
+            <span class="hint">1 night. Incl. 10% SC. GST removed from Nu 5,600 tariff.</span>
+          </td>
+          <td class="num">4</td>
+          <td class="num">5,333.33</td>
+          <td class="num">21,333.33</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>
+            <span class="desc">Single — MAP</span>
+            <span class="hint">1 night. Incl. 10% SC. GST removed from Nu 4,200 tariff.</span>
+          </td>
+          <td class="num">6</td>
+          <td class="num">4,000.00</td>
+          <td class="num">24,000.00</td>
+        </tr>
+        <tr>
+          <td class="foc">3</td>
+          <td class="foc">
+            <span class="desc">Single — MAP · FOC</span>
+            <span class="hint">1 of 7 singles complimentary (TC).</span>
+          </td>
+          <td class="num foc">1</td>
+          <td class="num foc">4,000.00</td>
+          <td class="num foc">0.00</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <table class="totals">
+      <tr class="muted">
+        <td>Chargeable rooms (4 TWN + 6 SGL)</td>
+        <td>45,333.33</td>
+      </tr>
+      <tr class="muted">
+        <td>Service charge 10%</td>
+        <td>Included</td>
+      </tr>
+      <tr class="muted">
+        <td>FOC single (1)</td>
+        <td>0.00</td>
+      </tr>
+      <tr class="muted">
+        <td>GST</td>
+        <td>Nil</td>
+      </tr>
+      <tr class="grand">
+        <td>Total payable</td>
+        <td>Nu 45,333.33</td>
+      </tr>
+    </table>
+
+    <p class="words">
+      Amount in words:
+      <strong>Ngultrum forty-five thousand three hundred thirty-three and chetrum thirty-three only.</strong>
+    </p>
+
+    <div class="notes">
+      <p class="label">House notes</p>
+      <ul>
+        <li>Rooming list and passports received. ETA <strong>16:00–16:30</strong>. Dinner <strong>18:00–19:00</strong>. Diet: <strong>no spicy</strong>.</li>
+        <li>Tariff Nu 5,600 / 4,200 was incl. 5% GST + 10% SC. GST stripped; SC remains. Payment: agent credit.</li>
+      </ul>
+    </div>
+
+    <div class="sign">
+      <div class="box-s">
+        <p class="label">Received by</p>
+        <div class="line"></div>
+        <p class="lab">Name &amp; signature · date</p>
+      </div>
+      <div class="box-s">
+        <p class="label">For Pelbu Suites</p>
+        <div class="line"></div>
+        <p class="lab">Authorised signatory · stamp</p>
+      </div>
+    </div>
+
+    <footer>
+      Pelbu Suites · Olakha, Thimphu · +975 1619 3410 · pelbusuites@gmail.com · Thank you for staying with us.
+    </footer>
+  </article>
+</body>
+</html>

@@ -2,6 +2,7 @@ import { HousekeepingBoard } from "@/components/erp/HousekeepingBoard";
 import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { loadDayOpsBoard } from "@/lib/erp/day-ops-board";
 import { fmtDate, thimphuToday } from "@/lib/erp-lists";
 import { requireDeskPropertyId } from "@/lib/desk-property";
 import { buildHousekeepingBoardRows } from "@/lib/hk/board";
@@ -153,15 +154,47 @@ export default async function HousekeepingPage() {
     stayoverRoomIds,
   });
 
+  // Enrich with guest / meal / laundry from day-ops (by room label).
+  const dayOps = await loadDayOpsBoard(admin, propertyId, today);
+  const stayByRoom = new Map<
+    string,
+    { guest: string; meal: string; pax: number; laundry: number }
+  >();
+  for (const slice of [dayOps.arrivals, dayOps.departures, dayOps.inHouse]) {
+    for (const stay of slice) {
+      for (const label of (stay.room_labels ?? "").split(",")) {
+        const key = label.trim();
+        if (!key) continue;
+        stayByRoom.set(key, {
+          guest: stay.contact_name ?? "Guest",
+          meal: stay.meal_plan_code,
+          pax: stay.pax,
+          laundry: stay.open_laundry_count,
+        });
+      }
+    }
+  }
+  const enrichedRows = boardRows.map((row) => {
+    const snap = stayByRoom.get(row.roomLabel);
+    if (!snap) return row;
+    return {
+      ...row,
+      guestName: snap.guest,
+      mealPlan: snap.meal,
+      pax: snap.pax,
+      openLaundry: snap.laundry,
+    };
+  });
+
   return (
     <DeskListShell
       eyebrow="Housekeeping"
       heading={`Assignments · ${fmtDate(today)}`}
-      blurb="Due out · Stayovers · Dirty · Clean ready. Open work is the turn list — assign and checklist from each row."
+      blurb="Due out · Stayovers · Dirty · Clean ready. Guest, meal plan, and open laundry show under each room. Open work is the turn list — assign and checklist from each row."
       headerAside={<FrontDeskLiveRefresh />}
     >
       <HousekeepingBoard
-        rows={boardRows}
+        rows={enrichedRows}
         today={today}
         units={unitSnapshots.map((unit) => ({
           id: unit.id,

@@ -99,9 +99,20 @@ export function defaultModulesForDeskRole(
         "/erp/folios",
       ];
     case "fnb":
-      return ["dashboard", "/erp/pos", "/erp/kitchen", "/erp/kds"];
+      return [
+        "dashboard",
+        "/erp/pos",
+        "/erp/kitchen",
+        "/erp/fnb/day",
+        "/erp/kds",
+      ];
     case "kitchen":
-      return ["dashboard", "/erp/kitchen", "/erp/kds"];
+      return [
+        "dashboard",
+        "/erp/kitchen",
+        "/erp/fnb/day",
+        "/erp/kds",
+      ];
     case "hk":
       return [
         "dashboard",

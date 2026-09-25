@@ -3,11 +3,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BRAND_ICONS } from "@/lib/brand";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { DESK_OUTSIDE_SHIFT_MESSAGE } from "@/lib/desk-shift-gate";
+import { LOGIN_HOTEL_CODE_COOKIE } from "@/lib/hotel-codes";
 import { getStaffSession } from "@/lib/staff-auth";
 import { SITE_NAME } from "@/lib/site";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { DeskBlurFade } from "@/components/erp/DeskBlurFade";
 import { DotPattern } from "@/components/ui/dot-pattern";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -38,6 +40,23 @@ export default async function DeskLoginPage() {
     // ignore
   }
 
+  const jar = await cookies();
+  const savedCode = jar.get(LOGIN_HOTEL_CODE_COOKIE)?.value?.trim() || null;
+  let savedName: string | null = null;
+  if (savedCode) {
+    try {
+      const admin = createSupabaseAdminClient();
+      const { data } = await admin
+        .from("properties")
+        .select("name")
+        .eq("hotel_code", savedCode)
+        .maybeSingle();
+      savedName = (data?.name as string | undefined) ?? null;
+    } catch {
+      savedName = null;
+    }
+  }
+
   return (
     <main className="erp relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-16">
       <DotPattern
@@ -62,8 +81,8 @@ export default async function DeskLoginPage() {
               Front desk
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Sign in with your hotel code, user ID, and password — same shape as
-              eZee Absolute. Your role comes from HR after login.
+              Enter your hotel code first. Then sign in with user ID and
+              password. Your role comes from HR after login.
             </p>
           </div>
         </div>
@@ -77,7 +96,11 @@ export default async function DeskLoginPage() {
           </Alert>
         ) : null}
 
-        <StaffLoginForm workspace="desk" />
+        <StaffLoginForm
+          workspace="desk"
+          initialHotelCode={savedCode}
+          initialPropertyName={savedName}
+        />
 
         <div className="space-y-2 border-t border-border pt-6 text-center text-sm">
           <Link

@@ -90,8 +90,8 @@ function revalidateAgents() {
 }
 
 /**
- * Desk-created trade partner, immediately bookable (approved or demo).
- * Used from reservation pickers so staff do not leave Fast Book / Calendar.
+ * Desk-created trade partner. Starts as pending so Innora can verify license;
+ * hotel gets a local link immediately for booking while verification is open.
  */
 export async function createDeskAgent(
   _prev: CreateDeskAgentState,
@@ -100,6 +100,7 @@ export async function createDeskAgent(
   try {
     await requireDesk();
     const admin = createSupabaseAdminClient();
+    const propId = await propertyId(admin);
 
     const companyName = trimRequired(formData.get("company_name"), "Company name");
     const market = trimRequired(formData.get("market"), "Market").toLowerCase();
@@ -114,10 +115,17 @@ export async function createDeskAgent(
     const contactEmail = optionalTrim(formData.get("contact_email"));
     assertOptionalEmail(contactEmail);
     const notes = optionalTrim(formData.get("notes"));
+    const licenseNo = optionalTrim(formData.get("license_no"));
 
-    const statusRaw = (optionalTrim(formData.get("status")) ?? "approved").toLowerCase();
-    if (statusRaw !== "approved" && statusRaw !== "demo") {
-      throw new Error("Desk agents must be approved or demo.");
+    // Hotel-typed agents are bookable as directory while Innora verifies license.
+    const statusRaw = (optionalTrim(formData.get("status")) ?? "directory").toLowerCase();
+    if (
+      statusRaw !== "approved" &&
+      statusRaw !== "demo" &&
+      statusRaw !== "directory" &&
+      statusRaw !== "pending"
+    ) {
+      throw new Error("Invalid agent status.");
     }
 
     const { data: agent, error } = await admin
@@ -128,7 +136,9 @@ export async function createDeskAgent(
         contact_name: contactName,
         contact_phone: contactPhone,
         contact_email: contactEmail,
-        notes,
+        notes: [notes, licenseNo ? `license:${licenseNo}` : null]
+          .filter(Boolean)
+          .join("\n"),
         wants_mou: formData.get("wants_mou") === "on",
         status: statusRaw,
         rate_tier: "agents",
@@ -143,6 +153,35 @@ export async function createDeskAgent(
       console.error("createDeskAgent insert failed", error);
       throw new Error("Could not create agent. Please try again.");
     }
+
+    const { upsertAgentPropertyLink } = await import(
+      "@/lib/erp/agent-property-links"
+    );
+    await upsertAgentPropertyLink(admin, {
+      agentId: agent.id as string,
+      propertyId: propId,
+      status: statusRaw === "pending" ? "invited" : "approved",
+    });
+
+    // Always notify Innora when a hotel types a new agent (verify license / details).
+    const { enqueuePlatformVerification } = await import(
+      "@/lib/platform-verification"
+    );
+    await enqueuePlatformVerification(admin, {
+      entityType: "agent",
+      entityId: agent.id as string,
+      propertyId: propId,
+      submittedBy: "desk",
+      payload: {
+        companyName,
+        contactName,
+        contactPhone,
+        contactEmail,
+        licenseNo,
+        market,
+        status: statusRaw,
+      },
+    });
 
     revalidateAgents();
     return {
@@ -640,8 +679,20 @@ export async function uploadAgentDocument(
       throw new Error("Could not save document link.");
     }
 
+    if (kind === "mou_signed") {
+      const { upsertAgentPropertyLink } = await import(
+        "@/lib/erp/agent-property-links"
+      );
+      await upsertAgentPropertyLink(admin, {
+        agentId,
+        propertyId: propId,
+        status: "approved",
+        mouSignedAt: new Date().toISOString(),
+      });
+    }
+
     revalidateAgents();
-    return { ok: true, message: "Document added." };
+    return { ok: true, message: kind === "mou_signed" ? "MoU recorded — agent can see rates & inventory for this hotel." : "Document added." };
   } catch (err) {
     return {
       ok: false,

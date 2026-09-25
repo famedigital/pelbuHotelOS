@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pelbu Suites — All ops forms pack</title>
+  <style>
+/* Pelbu printable forms — A4 landscape, readable */
+:root {
+  --ink: #1a1410;
+  --muted: #5c534c;
+  --line: #2a221c;
+  --soft: #e8e2da;
+  --peak: #f3e6d8;
+  --ok: #eef2ea;
+  --box: #f7f4ef;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  color: var(--ink);
+  font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
+  background: #f5f2ed;
+}
+.sheet {
+  width: 297mm;
+  min-height: 210mm;
+  margin: 14px auto;
+  padding: 10mm 12mm;
+  background: #fff;
+  box-shadow: 0 2px 16px rgba(0,0,0,.08);
+}
+h1 { margin: 0 0 4px; font-size: 20px; letter-spacing: .01em; }
+h2 { margin: 10px 0 6px; font-size: 15px; border-bottom: 2px solid var(--line); padding-bottom: 3px; }
+.sub { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+.meta {
+  display: flex; flex-wrap: wrap; gap: 6px 16px;
+  margin-bottom: 8px; padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink); font-size: 13px;
+}
+table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+th, td {
+  border: 1px solid var(--line);
+  padding: 7px 8px;
+  vertical-align: top;
+  text-align: left;
+  font-size: 12.5px;
+}
+th { background: var(--soft); font-size: 12px; font-weight: 700; }
+.peak { background: var(--peak); }
+.ok { background: var(--ok); }
+.box {
+  border: 1px solid var(--line);
+  background: var(--box);
+  padding: 8px 10px;
+  margin: 8px 0;
+  font-size: 12.5px;
+}
+.form {
+  border: 1px solid var(--line);
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: #faf8f5;
+  font-size: 12.5px;
+}
+.blank { border-bottom: 1px solid #666; display: inline-block; min-width: 48px; height: 1.1em; }
+.slot { display: block; border-bottom: 1px dotted #666; min-height: 18px; margin: 4px 0; }
+.sign {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 12.5px;
+}
+.sign3 { grid-template-columns: 1fr 1fr 1fr; }
+.sign4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.sign .box-s {
+  border: 1.5px solid var(--line);
+  padding: 8px 10px;
+  min-height: 88px;
+}
+.sign .line { border-bottom: 1.5px solid var(--ink); height: 28px; margin-top: 18px; }
+.check td:first-child { width: 28px; text-align: center; font-size: 14px; }
+.toc { font-size: 13px; }
+.toc li { margin-bottom: 4px; }
+.dept-tag {
+  display: inline-block;
+  border: 2px solid var(--ink);
+  padding: 4px 10px;
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+.lab { font-size: 11px; color: var(--muted); }
+.small { font-size: 11px; color: var(--muted); }
+.page-break { page-break-before: always; }
+.no-print { margin: 10px auto; width: 297mm; text-align: right; }
+.no-print button {
+  border: 1px solid var(--ink); background: var(--ink); color: #fff;
+  padding: 10px 16px; font: 14px/1 "Segoe UI", system-ui, sans-serif; cursor: pointer;
+}
+@media print {
+  body { background: #fff; }
+  .sheet { margin: 0; box-shadow: none; width: auto; min-height: auto; padding: 8mm 10mm; }
+  .no-print { display: none !important; }
+  @page { size: A4 landscape; margin: 8mm; }
+}
+
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    <button type="button" onclick="window.print()">Print all forms</button>
+  </div>
+
+  <!-- 0. INDEX -->
+  <section class="sheet">
+    <h1>Pelbu Suites — All required forms (print pack)</h1>
+    <p class="sub">FO Team Leader owns the daily pack to Rajiv · Heads: Rajiv · Tshering · Choki (08:30–17:30) · Non-veg = chicken &amp; fish only</p>
+    <div class="meta">
+      <div><strong>Pack date:</strong> _______________</div>
+      <div><strong>FO Team Leader:</strong> _______________</div>
+    </div>
+    <div class="box">
+      <b>Rule:</b> Forms without <b>Hand over + Take over signatures</b> are not proof. FO Team Leader collects all dept HOTO / counts and delivers one pack to Rajiv (copy Tshering / Choki when on duty).
+    </div>
+    <h2>Contents</h2>
+    <ol class="toc">
+      <li><b>FORM A</b> — Week breakfast &amp; dinner menu (blank pax) · chicken/fish only</li>
+      <li><b>FORM B</b> — Week shopping list (blank qty) → FO → Rajiv</li>
+      <li><b>FORM C</b> — Meal service headcount (BF / Lunch / Dinner) — F&amp;B or FO fill</li>
+      <li><b>FORM D</b> — FO shift Hand over / Take over</li>
+      <li><b>FORM E</b> — FO ↔ HK Hand over / Take over (rooms ready)</li>
+      <li><b>FORM F</b> — F&amp;B / Kitchen meal Hand over / Take over</li>
+      <li><b>FORM G</b> — FO Team Leader daily pack → Rajiv (all depts)</li>
+      <li><b>FORM H</b> — End-of-day / end-of-week acknowledgement (Choki · Tshering · Rajiv)</li>
+    </ol>
+    <div class="box">
+      <b>Also print:</b> <code>docs/ops/pelbu-forms-extra-bistro.html</code> —
+      Forms <b>I–R</b> (CI/Dinner buffer · Bistro rota/menu/shopping · Guest origin · Cash HOTO · Complaint · Maintenance · Keys · Welcome checklist · Lost &amp; found)
+      + menu alignment for local/international mix from your bookings.
+    </div>
+    <div class="sign sign3">
+      <div class="box-s">Choki seen<div class="line"></div></div>
+      <div class="box-s">Tshering seen<div class="line"></div></div>
+      <div class="box-s">Rajiv filed<div class="line"></div></div>
+    </div>
+  </section>
+
+  <!-- FORM A: MENU -->
+  <section class="sheet page-break">
+    <h1>FORM A — Week menu BF &amp; Dinner · 17–23 Sep 2026</h1>
+    <p class="sub">Structure fixed · dishes named · <b>Pax / heads blank</b> — F&amp;B or FO fill daily · Non-veg = <b>chicken or fish only</b> (no mutton/beef/pork as main)</p>
+    <div class="meta">
+      <div><strong>Kitchen:</strong> _______________</div>
+      <div><strong>F&amp;B:</strong> _______________</div>
+      <div><strong>FO TL:</strong> _______________</div>
+    </div>
+    <div class="form">
+      <b>BF every day:</b> Bread+jam+butter · Cornflakes+milk · Boiled egg <i>or</i> omelette · Fruit <b>2 options</b> (watermelon/banana/apple) · <b>1 cooked</b> (Indian or Continental)<br>
+      <b>Dinner every day:</b> 2 veg (1 Ind/Cont + 1 Bhutanese) · 1 non-veg (chicken <i>or</i> fish) · Rice · Noodles <i>or</i> Roti · Dessert
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Day</th>
+          <th>Pax BF / Dinner<br><span class="small">(FO/F&amp;B fill)</span></th>
+          <th>Breakfast</th>
+          <th>Dinner</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="ok">
+          <td><b>Thu 17</b></td>
+          <td>BF <span class="blank"></span><br>Din <span class="blank"></span></td>
+          <td>
+            Bread, jam, butter · Cornflakes, milk<br>
+            Egg: Boiled <i>or</i> Plain omelette<br>
+            Fruit: Banana + Apple<br>
+            Cooked (Cont): <b>Hash brown &amp; baked beans</b>
+          </td>
+          <td>
+            Veg Ind/Cont: <b>Vegetable stir-fry</b><br>
+            Veg Bhutanese: <b>Ema Datshi</b><br>
+            Non-veg: <b>Grilled chicken</b><br>
+            Rice · <b>Roti</b> · Dessert: <b>Fruit custard</b>
+          </td>
+        </tr>
+        <tr>
+          <td><b>Fri 18</b></td>
+          <td>BF <span class="blank"></span><br>Din <span class="blank"></span></td>
+          <td>
+            Bread, jam, butter · Cornflakes, milk<br>
+            Egg: Boiled <i>or</i> Masala omelette<br>
+            Fruit: Watermelon + Banana<br>
+            Cooked (Ind): <b>Aloo paratha with curd</b>
+          </td>
+          <td>
+            Veg Ind/Cont: <b>Dal tadka</b><br>
+            Veg Bhutanese: <b>Kewa Datshi</b><br>
+            Non-veg: <b>Butter chicken</b><br>
+            <b>Jeera rice</b> · Naan/Roti · <b>Gulab jamun</b>
+          </td>
+        </tr>
+        <tr>
+          <td><b>Sat 19</b></td>
+          <td>BF <span class="blank"></span><br>Din <span class="blank"></span></td>
+          <td>
+            Bread, jam, butter · Cornflakes, milk<br>
+            Egg: Boiled <i>or</i> Cheese omelette<br>
+            Fruit: Apple + Watermelon<br>
+            Cooked (Cont): <b>Pancakes with honey</b>
+          </td>
+          <td>
+            Veg Ind/Cont: <b>Paneer butter masala</b><br>
+            Veg Bhutanese: <b>Ema Datshi</b><br>
+            Non-veg: <b>Steamed / fried fish</b><br>
+            Rice · <b>Veg noodles</b> · <b>Kheer</b>
+          </td>
+        </tr>
+        <tr>
+          <td><b>Sun 20</b></td>
+          <td>BF <span class="blank"></span><br>Din <span class="blank"></span></td>
+          <td>
+            Bread, jam, butter · Cornflakes, milk<br>
+            Egg: Boiled <i>or</i> Onion omelette<br>
+            Fruit: Banana + Apple<br>
+            Cooked (Ind): <b>Poha</b>
+          </td>
+          <td>
+            Veg Ind/Cont: <b>Palak paneer / mix veg</b><br>
+            Veg Bhutanese: <b>Pe / Kewa Datshi</b><br>
+            Non-veg: <b>Chicken curry</b><br>
+            Rice · <b>Roti</b> · Cut fruit + honey
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="sub">Continued → Mon–Wed on next page</p>
+  </section>
+
+  <section class="sheet page-break">
+    <h1>FORM A (cont.) — Week menu · Mon 21 – Wed 23</h1>
+    <p class="sub">Blank pax · chicken/fish only · peak nights highlighted</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Day</th>
+          <th>Pax BF / Dinner<br><span class="small">(FO/F&amp;B fill)</span></th>
+          <th>Breakfast</th>
+          <th>Dinner</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="peak">
+          <td><b>Mon 21</b></td>
+          <td>BF <span class="blank"></span><br>Din <span class="blank"></span></td>
+          <td>
+            Bread, jam, butter · Cornflakes, milk<br>
+            Egg: Boiled <i>or</i> Tomato omelette<br>
+            Fruit: Watermelon + Banana<br>
+            Cooked (Cont): <b>French toast</b>
+          </td>
+          <td>
+            Veg Ind/Cont: <b>Mixed vegetable curry</b><br>
+            Veg Bhutanese: <b>Ema Datshi</b><br>
+            Non-veg: <b>Roast chicken</b><br>
+            Rice · <b>Egg noodles</b> · Brownie slice
+          </td>
+        </tr>
+        <tr class="peak">
+          <td><b>Tue 22</b></td>
+          <td>BF <span class="blank"></span><br>Din <span class="blank"></span></td>
+          <td>
+            Bread, jam, butter · Cornflakes, milk (extra)<br>
+            Egg: Boiled <i>or</i> Plain omelette (batch)<br>
+            Fruit: Watermelon + Apple<br>
+            Cooked (Ind): <b>Chole + plain paratha</b>
+          </td>
+          <td>
+            Veg Ind/Cont: <b>Dal makhani</b><br>
+            Veg Bhutanese: <b>Ema Datshi + Kewa Datshi</b><br>
+            Non-veg: <b>Chicken tikka masala</b> <i>or</i> <b>Fish curry</b><br>
+            Steamed + jeera rice · Roti + naan<br>
+            Dessert: Rasmalai / Gulab jamun
+          </td>
+        </tr>
+        <tr>
+          <td><b>Wed 23</b></td>
+          <td>BF <span class="blank"></span><br>Din <span class="blank"></span></td>
+          <td>
+            Bread, jam, butter · Cornflakes, milk<br>
+            Egg: Boiled <i>or</i> Masala omelette<br>
+            Fruit: Banana + Apple<br>
+            Cooked (Cont): <b>Beans / mushroom on toast</b>
+          </td>
+          <td>
+            Veg Ind/Cont: <b>Veg stir / manchurian</b><br>
+            Veg Bhutanese: <b>Ema Datshi</b><br>
+            Non-veg: <b>Sweet &amp; sour chicken</b> <i>or</i> <b>Fish fry</b><br>
+            Rice · <b>Hakka noodles</b> · Ice cream / leftover
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="sign sign3">
+      <div class="box-s">Kitchen<div class="line"></div></div>
+      <div class="box-s">F&amp;B<div class="line"></div></div>
+      <div class="box-s">FO TL → Heads<div class="line"></div></div>
+    </div>
+  </section>
+
+  <!-- FORM B: SHOPPING -->
+  <section class="sheet page-break">
+    <h1>FORM B — Week shopping list (chicken &amp; fish only)</h1>
+    <p class="sub">Kitchen fills on-hand / buy · FO TL submits to Rajiv · No mutton on list</p>
+    <div class="meta">
+      <div><strong>Date:</strong> _______________</div>
+      <div><strong>Kitchen:</strong> _______________</div>
+      <div><strong>FO TL:</strong> _______________</div>
+    </div>
+    <table class="check">
+      <thead><tr><th>☐</th><th>Item</th><th>On hand</th><th>Buy</th><th>☐</th><th>Item</th><th>On hand</th><th>Buy</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td>Bread · jam · butter</td><td></td><td></td><td>☐</td><td>Cornflakes · milk</td><td></td><td></td></tr>
+        <tr><td>☐</td><td>Eggs</td><td></td><td></td><td>☐</td><td>Watermelon · banana · apple</td><td></td><td></td></tr>
+        <tr><td>☐</td><td>Atta · rice · jeera · noodles</td><td></td><td></td><td>☐</td><td>Dal · chole · poha · pancake/honey</td><td></td><td></td></tr>
+        <tr><td>☐</td><td>Potato · chilli · datshi · onion/garlic/tomato</td><td></td><td></td><td>☐</td><td>Paneer · spinach · mix veg · cream</td><td></td><td></td></tr>
+        <tr><td>☐</td><td><b>Chicken</b></td><td></td><td></td><td>☐</td><td><b>Fish</b> (Sat / Tue / Wed as menu)</td><td></td><td></td></tr>
+        <tr><td>☐</td><td>Baked beans · hash brown · mushroom</td><td></td><td></td><td>☐</td><td>Dessert: custard · gulab · kheer · brownie · ice cream</td><td></td><td></td></tr>
+        <tr><td>☐</td><td>Oil · ghee · spices · tea · coffee · gas</td><td></td><td></td><td>☐</td><td>Staff snacks items</td><td></td><td></td></tr>
+      </tbody>
+    </table>
+    <div class="box">Approx Nu _____________ &nbsp; Rajiv: ☐ Buy ☐ Partial ☐ Hold &nbsp; Notes: _______________________________</div>
+    <div class="sign sign3">
+      <div class="box-s">Kitchen hand over list<div class="line"></div></div>
+      <div class="box-s">FO TL take over / submit<div class="line"></div></div>
+      <div class="box-s">Rajiv decision<div class="line"></div></div>
+    </div>
+  </section>
+
+  <!-- FORM C: HEADCOUNT -->
+  <section class="sheet page-break">
+    <h1>FORM C — Meal headcount (blank — F&amp;B or FO fill)</h1>
+    <p class="sub">Fill before each meal · Kitchen cooks to this number · Attach to FO TL daily pack</p>
+    <div class="meta">
+      <div><strong>Date:</strong> _______________</div>
+      <div><strong>Filled by:</strong> ☐ FO &nbsp; ☐ F&amp;B &nbsp; Name: _______________</div>
+      <div><strong>Given to Kitchen at:</strong> _______</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Meal</th><th>MAP pax</th><th>EP / walk-in</th><th>Staff meals</th><th>Total heads to cook</th><th>Kitchen received ✓</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><b>Breakfast</b></td><td></td><td></td><td></td><td></td><td>☐ Time ____</td></tr>
+        <tr><td><b>Ad-hoc lunch</b> (if any)</td><td></td><td></td><td></td><td></td><td>☐ / NIL</td></tr>
+        <tr><td><b>Dinner</b></td><td></td><td></td><td></td><td></td><td>☐ Time ____</td></tr>
+      </tbody>
+    </table>
+    <div class="box">
+      Arr today ____ · Out ____ · IH ____ (FO fill) · Special diet / allergy: _______________________________
+    </div>
+    <div class="sign">
+      <div class="box-s"><b>HAND OVER</b> — FO / F&amp;B<br>Name · Sign · Time<div class="line"></div></div>
+      <div class="box-s"><b>TAKE OVER</b> — Kitchen<br>Name · Sign · Time<div class="line"></div></div>
+    </div>
+    <p class="sub" style="margin-top:10px">Print extra blanks — one form per day.</p>
+  </section>
+
+  <!-- FORM D: FO SHIFT HOTO -->
+  <section class="sheet page-break">
+    <h1>FORM D — FO shift Hand over / Take over</h1>
+    <p class="sub">Morning A ↔ Evening C · Proof of shift change · FO TL keeps copy</p>
+    <div class="meta">
+      <div><strong>Date:</strong> _______________</div>
+      <div><strong>From shift:</strong> ☐ A 06:30 &nbsp; ☐ C →22:00 &nbsp; ☐ Other ____</div>
+      <div><strong>To shift:</strong> ☐ A &nbsp; ☐ C &nbsp; ☐ Other ____</div>
+    </div>
+    <table>
+      <thead><tr><th>Item</th><th>Status / note</th></tr></thead>
+      <tbody>
+        <tr><td>Arr / Out / IH today</td><td>Arr ____ Out ____ IH ____</td></tr>
+        <tr><td>Pending check-ins</td><td><span class="slot"></span></td></tr>
+        <tr><td>Pending check-outs / dues</td><td><span class="slot"></span></td></tr>
+        <tr><td>Open folio / cash / QR issues</td><td><span class="slot"></span></td></tr>
+        <tr><td>Room blocks / VIP / complaints</td><td><span class="slot"></span></td></tr>
+        <tr><td>Keys / walkie / desk float</td><td><span class="slot"></span></td></tr>
+        <tr><td>Shopping / inventory status</td><td><span class="slot"></span></td></tr>
+        <tr><td>Internet / TV / water flags</td><td><span class="slot"></span></td></tr>
+        <tr><td>Headcount given to Kitchen?</td><td>☐ Yes BF ☐ Yes Dinner ☐ No — why ____</td></tr>
+        <tr><td>HK HOTO done? (Form E)</td><td>☐ Yes ☐ Pending</td></tr>
+      </tbody>
+    </table>
+    <div class="sign">
+      <div class="box-s"><b>HAND OVER</b> (outgoing FO)<br>Name _______________ Time _______<div class="line"></div>Sign</div>
+      <div class="box-s"><b>TAKE OVER</b> (incoming FO)<br>Name _______________ Time _______<div class="line"></div>Sign</div>
+    </div>
+    <div class="box" style="margin-top:8px">FO TL seen: _______________ · Attach to Form G same day</div>
+  </section>
+
+  <!-- FORM E: FO ↔ HK -->
+  <section class="sheet page-break">
+    <h1>FORM E — FO ↔ HK Hand over / Take over (rooms)</h1>
+    <p class="sub">FO asks · HK delivers Clean rooms · Both sign · Critical for CI / ad-hoc CI</p>
+    <div class="meta">
+      <div><strong>Date:</strong> _______________</div>
+      <div><strong>Time:</strong> _______________</div>
+      <div><strong>Purpose:</strong> ☐ Morning after Out &nbsp; ☐ Pre-evening CI &nbsp; ☐ Ad-hoc &nbsp; ☐ Night close</div>
+    </div>
+    <h2>1. FO hand over to HK (what FO needs)</h2>
+    <table>
+      <thead><tr><th>Need</th><th>Room nos / count</th><th>Priority</th></tr></thead>
+      <tbody>
+        <tr><td>Checkout Dirty → Clean</td><td></td><td>☐ Now ☐ Next</td></tr>
+        <tr><td>Arrival rooms needed by ____</td><td></td><td>☐ Peak</td></tr>
+        <tr><td>Stayover refresh</td><td></td><td>☐</td></tr>
+        <tr><td>Buffer Clean for walk-in (min 1–2)</td><td></td><td>☐ Must</td></tr>
+        <tr><td>Blocked / maintenance</td><td></td><td></td></tr>
+      </tbody>
+    </table>
+    <div class="sign">
+      <div class="box-s"><b>HAND OVER</b> — FO<br>Name · Sign · Time<div class="line"></div></div>
+      <div class="box-s"><b>TAKE OVER</b> — HK<br>Name · Sign · Time<div class="line"></div></div>
+    </div>
+
+    <h2>2. HK hand over back to FO (what is ready)</h2>
+    <table>
+      <thead><tr><th>Status</th><th>Room numbers</th><th>Count</th></tr></thead>
+      <tbody>
+        <tr><td>Vacant Clean (ready CI)</td><td></td><td></td></tr>
+        <tr><td>Still Dirty / in progress</td><td></td><td></td></tr>
+        <tr><td>Out of order</td><td></td><td></td></tr>
+        <tr><td>Laundry backlog flag</td><td>☐ Nil ☐ Yes: ________</td><td></td></tr>
+      </tbody>
+    </table>
+    <div class="sign">
+      <div class="box-s"><b>HAND OVER</b> — HK<br>Name · Sign · Time<div class="line"></div></div>
+      <div class="box-s"><b>TAKE OVER</b> — FO<br>I accept room status · Sign · Time<div class="line"></div></div>
+    </div>
+    <div class="box">Dispute / delay reason: _______________________________________________ · Escalate FO TL / Head if &gt;30 min on arrival rooms</div>
+  </section>
+
+  <!-- FORM F: F&B / KITCHEN HOTO -->
+  <section class="sheet page-break">
+    <h1>FORM F — F&amp;B ↔ Kitchen meal Hand over / Take over</h1>
+    <p class="sub">Before BF and Dinner · Menu + headcount + allergies · Both sides sign</p>
+    <div class="meta">
+      <div><strong>Date:</strong> _______________</div>
+      <div><strong>Meal:</strong> ☐ Breakfast &nbsp; ☐ Ad-hoc lunch &nbsp; ☐ Dinner</div>
+      <div><strong>Total heads (from Form C):</strong> _______________</div>
+    </div>
+    <table>
+      <thead><tr><th>☐</th><th>Check</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td>Today’s set menu confirmed (Form A)</td><td></td></tr>
+        <tr><td>☐</td><td>Headcount Form C attached / numbers agree</td><td></td></tr>
+        <tr><td>☐</td><td>Non-veg today = chicken / fish only (name: ________)</td><td></td></tr>
+        <tr><td>☐</td><td>Crockery enough for heads</td><td></td></tr>
+        <tr><td>☐</td><td>Allergy / no-onion / no-chilli noted</td><td></td></tr>
+        <tr><td>☐</td><td>Staff snacks time set (not blocking guest meal)</td><td></td></tr>
+        <tr><td>☐</td><td>Water OK for cook</td><td></td></tr>
+      </tbody>
+    </table>
+    <div class="sign">
+      <div class="box-s"><b>HAND OVER</b> — F&amp;B<br>Name · Sign · Time<div class="line"></div></div>
+      <div class="box-s"><b>TAKE OVER</b> — Kitchen<br>Name · Sign · Time<div class="line"></div></div>
+    </div>
+    <h2 style="margin-top:12px">After meal — reverse HOTO (leftovers / issues)</h2>
+    <table>
+      <tr><td>Leftover / wastage note</td><td><span class="slot"></span></td></tr>
+      <tr><td>Guest complaint food</td><td><span class="slot"></span></td></tr>
+      <tr><td>Stock short for next meal</td><td><span class="slot"></span></td></tr>
+    </table>
+    <div class="sign">
+      <div class="box-s"><b>HAND OVER</b> — Kitchen<div class="line"></div></div>
+      <div class="box-s"><b>TAKE OVER</b> — F&amp;B / FO TL<div class="line"></div></div>
+    </div>
+  </section>
+
+  <!-- FORM G: FO TL DAILY PACK -->
+  <section class="sheet page-break">
+    <h1>FORM G — FO Team Leader daily pack → Rajiv</h1>
+    <p class="sub">FO TL collects <b>all department</b> details · one delivery to owner · this is your control sheet</p>
+    <div class="meta">
+      <div><strong>Date:</strong> _______________</div>
+      <div><strong>FO Team Leader:</strong> _______________</div>
+      <div><strong>Delivered to Rajiv at:</strong> _______________</div>
+    </div>
+    <div class="box">
+      FO TL must attach or tick: Form C headcount · Form D FO HOTO · Form E FO↔HK · Form F meal HOTO · shopping if any · inventory proofs. Missing attach = incomplete pack.
+    </div>
+
+    <h2>1. House numbers (FO)</h2>
+    <table>
+      <tr><td>Arr ____</td><td>Out ____</td><td>IH ____</td><td>Walk-in / ad-hoc CI ____</td></tr>
+      <tr><td>BF heads ____</td><td>Lunch heads ____</td><td>Dinner heads ____</td><td>Filled by ☐ FO ☐ F&amp;B</td></tr>
+    </table>
+
+    <h2>2. Department status (FO TL ticks after checking)</h2>
+    <table>
+      <thead><tr><th>Dept</th><th>Pass?</th><th>Issue / note</th><th>HOTO signed?</th></tr></thead>
+      <tbody>
+        <tr><td>FO</td><td>☐ P ☐ F</td><td></td><td>☐ Form D</td></tr>
+        <tr><td>HK</td><td>☐ P ☐ F</td><td></td><td>☐ Form E</td></tr>
+        <tr><td>F&amp;B</td><td>☐ P ☐ F</td><td></td><td>☐ Form F</td></tr>
+        <tr><td>Kitchen</td><td>☐ P ☐ F</td><td></td><td>☐ Form F + water/inventory</td></tr>
+        <tr><td>Priya flex</td><td>☐ P ☐ F ☐ N/A</td><td></td><td>☐</td></tr>
+        <tr><td>Shopping</td><td>☐ Done ☐ Nil ☐ Pending Rajiv</td><td></td><td>☐ Form B</td></tr>
+        <tr><td>Bills / dues</td><td>☐ Clear ☐ Open list attached</td><td></td><td>☐</td></tr>
+        <tr><td>Water / TV / Internet</td><td>☐ OK ☐ Issue:</td><td></td><td>☐</td></tr>
+        <tr><td>Bistro / CI buffer drinks</td><td>☐ Open 16:30–19:30 ☐ Issue</td><td></td><td>☐ Form J/K</td></tr>
+        <tr><td>CI ↔ Dinner holds</td><td>☐ Board current ☐ None</td><td></td><td>☐ Form I</td></tr>
+        <tr><td>Guest origin / spice (Form L)</td><td>☐ Done ☐ Partial</td><td></td><td>☐ Form L</td></tr>
+      </tbody>
+    </table>
+
+    <h2>3. What FO TL needs from Rajiv today</h2>
+    <div class="box" style="min-height:36px"></div>
+
+    <h2>4. Delivery proof</h2>
+    <div class="sign sign3">
+      <div class="box-s"><b>HAND OVER</b><br>FO Team Leader<br>Sign · Time<div class="line"></div></div>
+      <div class="box-s"><b>TAKE OVER</b><br>Rajiv (or Tshering if delegated)<br>Sign · Time<div class="line"></div></div>
+      <div class="box-s">Choki copy (if on duty)<br>☐ Seen<div class="line"></div></div>
+    </div>
+  </section>
+
+  <!-- FORM H: HEADS ACK -->
+  <section class="sheet page-break">
+    <h1>FORM H — Heads acknowledgement (day / week)</h1>
+    <p class="sub">Choki · Tshering · Rajiv sign that FO TL pack was received and actions decided</p>
+    <div class="meta">
+      <div><strong>Period:</strong> ☐ Day ________ &nbsp; ☐ Week ________</div>
+      <div><strong>FO TL packs received:</strong> ____ days</div>
+    </div>
+    <table>
+      <thead><tr><th>Topic</th><th>Decision</th><th>Owner</th></tr></thead>
+      <tbody>
+        <tr><td>Rota / cover 06:30–22:00</td><td></td><td></td></tr>
+        <tr><td>Shopping / money</td><td></td><td></td></tr>
+        <tr><td>Menu / pax / food issues</td><td></td><td></td></tr>
+        <tr><td>FO↔HK room flow</td><td></td><td></td></tr>
+        <tr><td>Conduct / discipline</td><td></td><td></td></tr>
+        <tr><td>Other</td><td></td><td></td></tr>
+      </tbody>
+    </table>
+    <div class="sign sign3">
+      <div class="box-s"><b>Choki</b> acknowledge<br>Sign · Date<div class="line"></div></div>
+      <div class="box-s"><b>Tshering</b> acknowledge<br>Sign · Date<div class="line"></div></div>
+      <div class="box-s"><b>Rajiv</b> approve / close<br>Sign · Date<div class="line"></div></div>
+    </div>
+    <div class="box" style="margin-top:12px">
+      <b>FO Team Leader role (reminder):</b> You are the single pipe of truth to Rajiv — house numbers, all dept Pass/Fail, all HOTO proofs, shopping, dues, utilities, conduct. Departments do not bypass you to dump raw chaos on the owner. You deliver the pack; heads decide.
+    </div>
+  </section>
+</body>
+</html>

@@ -17,6 +17,8 @@ export type AgentPropertyLink = {
   creditLimit: number;
   creditUsed: number;
   openRoomCap: number | null;
+  /** Partner portal rates/inventory require a signed MoU with this hotel. */
+  mouSignedAt: string | null;
   propertyName: string;
   propertySlug: string;
 };
@@ -30,6 +32,7 @@ type LinkRow = {
   credit_limit: number | string;
   credit_used: number | string;
   open_room_cap: number | null;
+  mou_signed_at: string | null;
   properties:
     | { name: string; slug: string }
     | { name: string; slug: string }[]
@@ -50,13 +53,14 @@ function mapLink(row: LinkRow): AgentPropertyLink {
     creditUsed: Number(row.credit_used ?? 0),
     openRoomCap:
       row.open_room_cap == null ? null : Number(row.open_room_cap),
+    mouSignedAt: row.mou_signed_at ?? null,
     propertyName: prop?.name ?? "Hotel",
     propertySlug: prop?.slug ?? "",
   };
 }
 
 const LINK_SELECT =
-  "id, agent_id, property_id, status, rate_tier, credit_limit, credit_used, open_room_cap, properties(name, slug)";
+  "id, agent_id, property_id, status, rate_tier, credit_limit, credit_used, open_room_cap, mou_signed_at, properties(name, slug)";
 
 export async function loadApprovedAgentLinks(
   admin: Admin,
@@ -70,6 +74,19 @@ export async function loadApprovedAgentLinks(
     .order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
   return ((data ?? []) as unknown as LinkRow[]).map(mapLink);
+}
+
+/** Portal rates/inventory: approved link + signed MoU with that hotel. */
+export async function loadMouAgentLinks(
+  admin: Admin,
+  agentId: string,
+): Promise<AgentPropertyLink[]> {
+  const links = await loadApprovedAgentLinks(admin, agentId);
+  return links.filter((l) => Boolean(l.mouSignedAt));
+}
+
+export function linkHasMou(link: AgentPropertyLink): boolean {
+  return Boolean(link.mouSignedAt);
 }
 
 export async function loadAgentLinksForProperty(
@@ -127,6 +144,7 @@ export type UpsertAgentPropertyLinkInput = {
   openRoomCap?: number | null;
   linkedByStaffId?: string | null;
   notes?: string | null;
+  mouSignedAt?: string | null;
 };
 
 export async function upsertAgentPropertyLink(
@@ -152,6 +170,7 @@ export async function upsertAgentPropertyLink(
     payload.linked_by_staff_id = input.linkedByStaffId;
   }
   if (input.notes !== undefined) payload.notes = input.notes;
+  if (input.mouSignedAt !== undefined) payload.mou_signed_at = input.mouSignedAt;
 
   if (!existing) {
     if (payload.rate_tier == null) payload.rate_tier = "agents";

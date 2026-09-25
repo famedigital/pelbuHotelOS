@@ -34,8 +34,8 @@ export default async function AgentLoginPage() {
               Agent sign in
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Use the agent code and PIN issued by the Pelbu desk to book on your
-              rate and track credit.
+              Use your agent code and PIN. After sign-in you only see hotels
+              where an MoU is signed — rates and inventory stay hotel-scoped.
             </p>
           </div>
         </div>

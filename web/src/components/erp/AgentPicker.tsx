@@ -135,8 +135,9 @@ function CreateDeskAgentSheet({
         <SheetHeader className="shrink-0 space-y-1.5 border-b px-5 py-5 pr-12 text-left">
           <SheetTitle className="text-lg tracking-tight">Add agent</SheetTitle>
           <SheetDescription className="text-pretty text-sm leading-relaxed">
-            Creates an approved trade partner you can attach to this booking
-            immediately.
+            Adds the operator to the national directory for this booking and
+            notifies Innora to verify their license. Portal rates need a signed
+            MoU later.
           </SheetDescription>
         </SheetHeader>
 
@@ -183,10 +184,11 @@ function CreateDeskAgentSheet({
                 <select
                   id="desk_agent_status"
                   name="status"
-                  defaultValue="approved"
+                  defaultValue="directory"
                   className={fieldSelectClass}
                 >
-                  <option value="approved">Approved</option>
+                  <option value="directory">Directory (verify with Innora)</option>
+                  <option value="approved">Approved (trade)</option>
                   <option value="demo">Demo</option>
                 </select>
               </Field>

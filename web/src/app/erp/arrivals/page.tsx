@@ -4,6 +4,10 @@ import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
 import { StayMoneyCycleLegend } from "@/components/erp/StayMoneyCycleLegend";
 import { Card, CardContent } from "@/components/ui/card";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
+import {
+  dayOpsRowToBoardRaw,
+  loadDayOpsBoard,
+} from "@/lib/erp/day-ops-board";
 import { fmtDate, thimphuToday } from "@/lib/erp-lists";
 import { requireDeskPropertyId } from "@/lib/desk-property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -16,34 +20,25 @@ export const metadata = {
 };
 export const dynamic = "force-dynamic";
 
-const BOARD_SELECT = `
-  id, confirmation_code, contact_name, contact_phone, check_in, check_out, status, adults, rooms,
-  source, guest_origin, guide_number, payment_mode,
-  token_required_btn, token_received_btn,
-  agents(company_name),
-  room_assignments(
-    room_units(label, hk_status, room_types(inventory_kind))
-  )
-`;
-
 export default async function ArrivalsPage() {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
   const admin = createSupabaseAdminClient();
   const propertyId = await requireDeskPropertyId();
   const today = thimphuToday();
 
-  const { data: rows } = await admin
-    .from("bookings")
-    .select(BOARD_SELECT)
-    .eq("property_id", propertyId)
-    .eq("check_in", today)
-    .in("status", ["pending", "confirmed"])
-    .order("check_in")
-    .order("contact_name")
-    .limit(150);
-
-  const boardRows = (rows as Record<string, unknown>[]) ?? [];
-  const summary = summarizeArrivals(boardRows);
+  const dayOps = await loadDayOpsBoard(admin, propertyId, today);
+  const boardRows = dayOps.arrivals.map(dayOpsRowToBoardRaw);
+  const summary = {
+    bookings: dayOps.arrivals.length,
+    guests: dayOps.arrivals.reduce((s, r) => s + r.pax, 0),
+    rooms: dayOps.arrivals.reduce((s, r) => s + r.rooms, 0),
+    ready: dayOps.arrivals.filter(
+      (r) =>
+        r.rooms > 0 &&
+        r.assigned_count >= r.rooms &&
+        !r.has_unready_guest_room,
+    ).length,
+  };
 
   return (
     <DeskListShell
@@ -91,7 +86,7 @@ export default async function ArrivalsPage() {
           </h2>
           <p className="text-xs text-muted-foreground">
             Review readiness here; open StayHub for docs, room assignment, and
-            check-in.
+            check-in. Meal plan, agent phone, guide and driver show on each row.
           </p>
         </div>
         <BookingBoardTable rows={boardRows} board="arrivals" />
@@ -133,66 +128,4 @@ function ArrivalStat({
       </CardContent>
     </Card>
   );
-}
-
-function summarizeArrivals(rows: Record<string, unknown>[]) {
-  let guests = 0;
-  let rooms = 0;
-  let ready = 0;
-
-  for (const row of rows) {
-    guests += Number(row.adults ?? 0);
-    const bookedRooms = Number(row.rooms ?? 0);
-    rooms += bookedRooms;
-
-    const assignments =
-      (row.room_assignments as
-        | Array<{
-            room_units:
-              | {
-                  hk_status?: string;
-                  room_types?:
-                    | { inventory_kind?: string }
-                    | { inventory_kind?: string }[]
-                    | null;
-                }
-              | {
-                  hk_status?: string;
-                  room_types?:
-                    | { inventory_kind?: string }
-                    | { inventory_kind?: string }[]
-                    | null;
-                }[]
-              | null;
-          }>
-        | null) ?? [];
-
-    const guestRooms = assignments
-      .map((assignment) =>
-        Array.isArray(assignment.room_units)
-          ? assignment.room_units[0]
-          : assignment.room_units,
-      )
-      .filter((unit) => {
-        const roomType = Array.isArray(unit?.room_types)
-          ? unit.room_types[0]
-          : unit?.room_types;
-        return (
-          unit &&
-          (roomType?.inventory_kind ?? "sellable_guest") === "sellable_guest"
-        );
-      });
-
-    if (
-      bookedRooms > 0 &&
-      guestRooms.length >= bookedRooms &&
-      guestRooms.every((unit) =>
-        ["clean", "inspect"].includes(unit?.hk_status ?? ""),
-      )
-    ) {
-      ready += 1;
-    }
-  }
-
-  return { bookings: rows.length, guests, rooms, ready };
 }

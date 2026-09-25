@@ -51,6 +51,11 @@ export type HkBoardRow = {
   linenOk: boolean;
   amenitiesOk: boolean;
   categories: HkCategory[];
+  /** Optional stay snapshot for desk context. */
+  guestName?: string | null;
+  mealPlan?: string | null;
+  pax?: number | null;
+  openLaundry?: number;
 };
 
 const WORK_CATEGORIES = new Set<HkCategory>([

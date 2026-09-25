@@ -1,9 +1,10 @@
+import { submitDeskNationalGuide } from "@/app/actions/platform-vault";
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { PartnersTable } from "@/components/erp/PartnersTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { DEFAULT_PROPERTY_SLUG } from "@/lib/property";
+import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 
@@ -39,14 +40,10 @@ export default async function PartnersPage({
   const query = (q ?? "").trim().toLowerCase();
 
   const admin = createSupabaseAdminClient();
-
-  const { data: property } = await admin
-    .from("properties")
-    .select("id")
-    .eq("slug", DEFAULT_PROPERTY_SLUG)
-    .single();
-
-  if (!property) {
+  let propertyId: string;
+  try {
+    propertyId = await resolveActivePropertyId(admin);
+  } catch {
     return (
       <DeskListShell eyebrow="Directory" heading="Guides & drivers">
         <p className="text-sm text-muted-foreground">Property not configured.</p>
@@ -54,24 +51,31 @@ export default async function PartnersPage({
     );
   }
 
-  const [{ data: guideRows }, { data: driverRows }] = await Promise.all([
-    admin
-      .from("guides")
-      .select(
-        "id, full_name, phone, guide_number, visit_count, last_seen_at, discount_pct",
-      )
-      .eq("property_id", property.id as string)
-      .order("visit_count", { ascending: false })
-      .limit(200),
-    admin
-      .from("drivers")
-      .select(
-        "id, full_name, phone, vehicle_no, license_no, visit_count, last_seen_at, discount_pct",
-      )
-      .eq("property_id", property.id as string)
-      .order("visit_count", { ascending: false })
-      .limit(200),
-  ]);
+  const [{ data: guideRows }, { data: driverRows }, { data: national }] =
+    await Promise.all([
+      admin
+        .from("guides")
+        .select(
+          "id, full_name, phone, guide_number, visit_count, last_seen_at, discount_pct",
+        )
+        .eq("property_id", propertyId)
+        .order("visit_count", { ascending: false })
+        .limit(200),
+      admin
+        .from("drivers")
+        .select(
+          "id, full_name, phone, vehicle_no, license_no, visit_count, last_seen_at, discount_pct",
+        )
+        .eq("property_id", propertyId)
+        .order("visit_count", { ascending: false })
+        .limit(200),
+      admin
+        .from("national_guides")
+        .select("id, full_name, phone, license_no, city, status")
+        .eq("status", "verified")
+        .order("full_name", { ascending: true })
+        .limit(300),
+    ]);
 
   const filterFn = (r: PartnerRow): boolean => {
     if (!query) return true;
@@ -86,12 +90,18 @@ export default async function PartnersPage({
 
   const guides = ((guideRows as PartnerRow[] | null) ?? []).filter(filterFn);
   const drivers = ((driverRows as PartnerRow[] | null) ?? []).filter(filterFn);
+  const nationalFiltered = (national ?? []).filter((g) => {
+    if (!query) return true;
+    return [g.full_name, g.phone, g.license_no, g.city].some((v) =>
+      (v ?? "").toLowerCase().includes(query),
+    );
+  });
 
   return (
     <DeskListShell
       eyebrow="Repeat partners"
       heading="Guides & drivers"
-      blurb="Every guide and driver who has brought guests to the property. Set a suggested discount % for returning partners — desk applies it on fast-book / rate override."
+      blurb="National verified guides are shared across all hotels. Local visit stats and discounts stay on this property. New guides you type are sent to Innora for license verification."
       filters={
         <form
           className="flex items-center gap-2"
@@ -117,10 +127,74 @@ export default async function PartnersPage({
         </form>
       }
     >
+      <section className="space-y-3 rounded-xl border p-4">
+        <h2 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+          Submit guide for Innora verification
+        </h2>
+        <form action={submitDeskNationalGuide} className="grid gap-2 sm:grid-cols-4">
+          <Input name="license_no" required placeholder="License no" className="h-10" />
+          <Input name="full_name" required placeholder="Full name" className="h-10" />
+          <Input name="phone" placeholder="Phone" className="h-10" />
+          <Input name="city" placeholder="City" className="h-10" />
+          <Button type="submit" className="h-10 sm:col-span-4">
+            Submit to vault
+          </Button>
+        </form>
+      </section>
+
       <section className="space-y-3">
         <div className="flex items-baseline justify-between">
           <h2 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-            Guides
+            National verified guides
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            {nationalFiltered.length} shown
+          </p>
+        </div>
+        <div className="overflow-x-auto rounded-xl border">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b bg-muted/40">
+              <tr>
+                <th className="px-3 py-2">Name</th>
+                <th className="px-3 py-2">License</th>
+                <th className="px-3 py-2">Phone</th>
+                <th className="px-3 py-2">City</th>
+              </tr>
+            </thead>
+            <tbody>
+              {nationalFiltered.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="px-3 py-4 text-muted-foreground"
+                  >
+                    No verified national guides yet — import from vault or
+                    submit above.
+                  </td>
+                </tr>
+              ) : (
+                nationalFiltered.map((g) => (
+                  <tr key={g.id} className="border-b last:border-0">
+                    <td className="px-3 py-2">{g.full_name}</td>
+                    <td className="px-3 py-2 font-mono text-xs">
+                      {g.license_no}
+                    </td>
+                    <td className="px-3 py-2">{g.phone ?? "—"}</td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {g.city ?? "—"}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+            Local guide visits
           </h2>
           <p className="text-xs text-muted-foreground">{guides.length} shown</p>
         </div>

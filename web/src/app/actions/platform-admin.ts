@@ -146,6 +146,12 @@ export async function onboardHotel(formData: FormData): Promise<void> {
     const trainingPaid = String(formData.get("training_paid") ?? "") === "1";
     const contact1 = String(formData.get("contact_1") ?? "").trim();
     const contact2 = String(formData.get("contact_2") ?? "").trim();
+    const dzongkhagCode = String(formData.get("dzongkhag_code") ?? "THI")
+      .trim()
+      .toUpperCase();
+    const areaCode = String(formData.get("area_code") ?? "01")
+      .trim()
+      .padStart(2, "0");
 
     if (!hotelName) throw new Error("Hotel name required.");
     if (!acceptConditions) throw new Error("Client must accept conditions.");
@@ -153,8 +159,29 @@ export async function onboardHotel(formData: FormData): Promise<void> {
       throw new Error("Mark onboarding and training fees as paid.");
     }
     if (!contact1) throw new Error("At least one authorised contact required.");
+    if (!/^[A-Z]{3}$/.test(dzongkhagCode)) {
+      throw new Error("Invalid dzongkhag code.");
+    }
+    if (!/^[0-9]{2}$/.test(areaCode)) {
+      throw new Error("Invalid area code.");
+    }
 
     const admin = createSupabaseAdminClient();
+
+    const { data: areaOk } = await admin
+      .from("bhutan_hotel_areas")
+      .select("code")
+      .eq("dzongkhag_code", dzongkhagCode)
+      .eq("code", areaCode)
+      .maybeSingle();
+    if (!areaOk) throw new Error("Unknown dzongkhag / area combination.");
+
+    const { buildHotelCode, nextHotelCodeSequence } = await import(
+      "@/lib/hotel-codes"
+    );
+    const seq = await nextHotelCodeSequence(admin, dzongkhagCode, areaCode);
+    const hotelCode = buildHotelCode(dzongkhagCode, areaCode, seq);
+
     let tenantId = existingTenantId || null;
 
     if (!tenantId) {
@@ -202,6 +229,9 @@ export async function onboardHotel(formData: FormData): Promise<void> {
       .insert({
         name: hotelName,
         slug: propSlug,
+        hotel_code: hotelCode,
+        dzongkhag_code: dzongkhagCode,
+        area_code: areaCode,
         tenant_id: tenantId,
         distributor_id: distributorId,
         package_code: packageCode,
@@ -212,7 +242,7 @@ export async function onboardHotel(formData: FormData): Promise<void> {
         setup_step: 1,
         setup_completed_at: null,
       })
-      .select("id, slug")
+      .select("id, slug, hotel_code")
       .single();
 
     if (pErr) throw new Error(pErr.message);
@@ -270,7 +300,7 @@ export async function onboardHotel(formData: FormData): Promise<void> {
         hotelName,
         packageCode,
         amcAmount,
-        hotelCode: property.slug,
+        hotelCode: property.hotel_code ?? property.slug,
         ownerUserId,
       },
       {
@@ -285,7 +315,7 @@ export async function onboardHotel(formData: FormData): Promise<void> {
     revalidatePath("/admin/hotels");
     revalidatePath("/partner/hotels");
     const credQs = new URLSearchParams({
-      hotel_code: String(property.slug),
+      hotel_code: String(property.hotel_code ?? property.slug),
       user_id: ownerUserId,
       password: ownerPassword,
     });

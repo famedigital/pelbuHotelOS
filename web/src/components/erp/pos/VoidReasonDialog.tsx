@@ -91,6 +91,7 @@ export function VoidReasonDialog({
     setNeedsPin(requires);
   }, [open, amount, reasonCode, voidManagerThresholdBtn]);
 
+  // Parent remounts this dialog (key) on each open so ok does not stick true.
   useEffect(() => {
     if (state.ok && open) {
       onOpenChange(false);
@@ -98,8 +99,6 @@ export function VoidReasonDialog({
   }, [state.ok, open, onOpenChange]);
 
   const resolvedTicket = useMemo(() => ticket ?? null, [ticket]);
-
-  if (!open) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -12,7 +12,7 @@ import { isCreditAgentStatus } from "@/lib/agents/status";
 import {
   AGENT_PROPERTY_COOKIE,
   getAgentPropertyLink,
-  loadApprovedAgentLinks,
+  loadMouAgentLinks,
 } from "@/lib/erp/agent-property-links";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -71,12 +71,12 @@ export async function agentLogin(
       return { ok: false, error: "Incorrect agent code or PIN." };
     }
 
-    const links = await loadApprovedAgentLinks(admin, agent.id as string);
+    const links = await loadMouAgentLinks(admin, agent.id as string);
     if (links.length === 0) {
       return {
         ok: false,
         error:
-          "No hotel has enabled portal access for this agent yet. Ask the front desk to link you.",
+          "No hotel MoU is on file for this agent yet. Rates and inventory open after the hotel and Innora record a signed MoU.",
       };
     }
 
@@ -125,7 +125,10 @@ export async function setAgentActiveProperty(
 
   const propertyId = String(formData.get("property_id") ?? "").trim();
   const allowed = session.links.some(
-    (l) => l.propertyId === propertyId && l.status === "approved",
+    (l) =>
+      l.propertyId === propertyId &&
+      l.status === "approved" &&
+      Boolean(l.mouSignedAt),
   );
   if (!allowed) {
     redirect("/agents/app/select-property");
@@ -172,6 +175,11 @@ export async function setAgentPortalPin(
     if (!creditOk && !linkOk) {
       throw new Error(
         "Link this agent to the hotel (approved) before enabling a portal PIN.",
+      );
+    }
+    if (!link?.mouSignedAt) {
+      throw new Error(
+        "Record a signed MoU for this hotel before enabling portal login (rates & inventory).",
       );
     }
 

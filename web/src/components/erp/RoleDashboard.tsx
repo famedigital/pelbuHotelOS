@@ -1228,18 +1228,18 @@ function FnbBoard({
           hint={`${snap.kotByStatus.new} new · ${snap.kotByStatus.ready} ready`}
         />
         <Kpi
-          href="/erp/kitchen"
+          href="/erp/fnb/day"
           icon={UsersIcon}
-          label="Lunch pax"
-          value={String(snap.mealCovers.lunch)}
-          hint="Meal plan + events"
+          label="Arriving meal pax"
+          value={String(snap.arrivingMealPax)}
+          hint="Today’s arrivals on BB/MAP/AP"
           tone="citrus"
         />
         <Kpi
-          href="/erp/kitchen"
+          href="/erp/fnb/day"
           icon={SoupIcon}
-          label="Dinner pax"
-          value={String(snap.mealCovers.dinner)}
+          label="In-house meal pax"
+          value={String(snap.inHouseMealPax)}
         />
         <Kpi
           href="/erp/kitchen"
@@ -1262,10 +1262,10 @@ function FnbBoard({
           <OpenKotList snap={snap} />
         </Section>
         <Section
-          title="Events & menus today"
+          title="Day meal board"
           action={
-            <Link href="/erp/kitchen" className="text-xs text-accent hover:underline">
-              Events →
+            <Link href="/erp/fnb/day" className="text-xs text-accent hover:underline">
+              Guest × meal →
             </Link>
           }
         >
@@ -1275,6 +1275,7 @@ function FnbBoard({
       <QuickLinks
         links={[
           { href: "/erp/pos", label: "POS register" },
+          { href: "/erp/fnb/day", label: "F&B day board" },
           { href: "/erp/kds", label: "Kitchen TV" },
           { href: "/erp/kds/pass", label: "Pass / Expo TV" },
           { href: "/erp/menu", label: "Menu" },
@@ -1319,6 +1320,13 @@ function KitchenBoard({
           tone="citrus"
         />
         <Kpi
+          href="/erp/fnb/day"
+          icon={CalendarClockIcon}
+          label="Arriving meal"
+          value={String(snap.arrivingMealPax)}
+          hint="Heads arriving today on meal plan"
+        />
+        <Kpi
           href="/erp/inventory"
           icon={SoupIcon}
           label="LPG full"
@@ -1345,6 +1353,7 @@ function KitchenBoard({
       <QuickLinks
         links={[
           { href: "/erp/kitchen", label: "Full kitchen board" },
+          { href: "/erp/fnb/day", label: "Arrivals / due-out meals" },
           { href: "/erp/kds", label: "Kitchen TV" },
           { href: "/erp/kds/pass", label: "Pass / Expo TV" },
           { href: "/erp/pos", label: "POS" },
@@ -1410,7 +1419,11 @@ function HkBoard({
       <Section title="FO pressure">
         <p className="text-sm text-muted-foreground">
           {snap.arrivalsToday} arrival(s) today · {snap.departuresToday}{" "}
-          departure(s) — prioritise dirty rooms for same-day turnover.
+          departure(s)
+          {snap.departuresWithLaundry > 0
+            ? ` · ${snap.departuresWithLaundry} due out with open laundry`
+            : ""}{" "}
+          — prioritise dirty rooms for same-day turnover.
         </p>
         <div className="mt-3">
           <QuickLinks
@@ -1418,6 +1431,7 @@ function HkBoard({
               { href: "/erp/housekeeping", label: "HK board" },
               { href: "/erp/rooms", label: "Rooms" },
               { href: "/erp/arrivals", label: "Arrivals" },
+              { href: "/erp/departures", label: "Departures" },
               { href: "/erp/lost-found", label: "Lost & found" },
               { href: "/erp/maintenance", label: "Maintenance" },
             ]}
@@ -1479,15 +1493,23 @@ function LaundryBoard({
           hint="Deliver to room / FO"
         />
       </div>
-      <Section title="Shift actions">
-        <QuickLinks
-          links={[
-            { href: "/erp/laundry", label: "Desk laundry" },
-            { href: "/erp/laundry/qr", label: "Scan bag QR" },
-            { href: "/staff/laundry", label: "Staff laundry board" },
-            { href: "/erp/in-house", label: "In-house rooms" },
-          ]}
-        />
+      <Section title="Due out with open laundry">
+        <p className="text-sm text-muted-foreground">
+          {snap.departuresWithLaundry > 0
+            ? `${snap.departuresWithLaundry} departure(s) still have open laundry — clear before checkout.`
+            : "No due-out stays with open laundry."}
+        </p>
+        <div className="mt-3">
+          <QuickLinks
+            links={[
+              { href: "/erp/laundry", label: "Desk laundry" },
+              { href: "/erp/laundry/qr", label: "Scan bag QR" },
+              { href: "/staff/laundry", label: "Staff laundry board" },
+              { href: "/erp/departures", label: "Departures" },
+              { href: "/erp/in-house", label: "In-house rooms" },
+            ]}
+          />
+        </div>
         <p className="mt-3 text-xs text-muted-foreground">
           Intake photos + bag labels on desk · staff scan on `/staff/laundry`.
         </p>

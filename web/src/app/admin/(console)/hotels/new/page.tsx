@@ -1,5 +1,7 @@
 import { CATALOG_PACKAGES, ONE_TIME_FEES, formatBtn } from "@/lib/pricing-catalog";
 import { onboardHotel } from "@/app/actions/platform-admin";
+import { HotelLocationFields } from "@/components/platform/HotelLocationFields";
+import { buildHotelCode, nextHotelCodeSequence } from "@/lib/hotel-codes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 
@@ -8,10 +10,27 @@ export const metadata = { title: "Onboard hotel", robots: { index: false, follow
 
 export default async function AdminOnboardHotelPage() {
   let distributors: Array<{ id: string; name: string }> = [];
+  let dzongkhags: Array<{ code: string; name: string }> = [];
+  let areas: Array<{ dzongkhag_code: string; code: string; name: string }> = [];
+  let suggestedCode = "THI01001";
   try {
     const admin = createSupabaseAdminClient();
-    const { data } = await admin.from("distributors").select("id, name").eq("status", "active");
-    distributors = data ?? [];
+    const [{ data: dists }, { data: dz }, { data: ar }] = await Promise.all([
+      admin.from("distributors").select("id, name").eq("status", "active"),
+      admin
+        .from("bhutan_dzongkhags")
+        .select("code, name")
+        .order("sort_order", { ascending: true }),
+      admin
+        .from("bhutan_hotel_areas")
+        .select("dzongkhag_code, code, name")
+        .order("sort_order", { ascending: true }),
+    ]);
+    distributors = dists ?? [];
+    dzongkhags = dz ?? [];
+    areas = ar ?? [];
+    const seq = await nextHotelCodeSequence(admin, "THI", "01");
+    suggestedCode = buildHotelCode("THI", "01", seq);
   } catch {
     distributors = [];
   }
@@ -28,6 +47,22 @@ export default async function AdminOnboardHotelPage() {
       <form action={onboardHotel} className="space-y-3 rounded-xl border p-4">
         <input name="hotel_name" required placeholder="Hotel / property name" className="w-full rounded-md border px-3 py-2 text-sm" />
         <input name="owner_name" placeholder="Owner / tenant name" className="w-full rounded-md border px-3 py-2 text-sm" />
+        <HotelLocationFields
+          dzongkhags={
+            dzongkhags.length
+              ? dzongkhags
+              : [{ code: "THI", name: "Thimphu" }]
+          }
+          areas={
+            areas.length
+              ? areas
+              : [
+                  { dzongkhag_code: "THI", code: "01", name: "Main town" },
+                  { dzongkhag_code: "THI", code: "02", name: "Olakha" },
+                ]
+          }
+          suggestedCode={suggestedCode}
+        />
         <select name="owner_kind" className="w-full rounded-md border px-3 py-2 text-sm" defaultValue="leased">
           <option value="independent">Independent</option>
           <option value="leased">Leased portfolio</option>

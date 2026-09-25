@@ -2,14 +2,17 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { loadLaundryBagsByOrders } from "@/app/actions/laundry-bags";
 import { LaundryDesk, type LaundryBookingOption } from "@/components/laundry/LaundryDesk";
+import { DayOpsGuestPanel } from "@/components/erp/DayOpsGuestPanel";
 import { DeskPageTitle } from "@/components/erp/DeskShell";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { loadDayOpsBoard } from "@/lib/erp/day-ops-board";
 import type {
   LaundryCatalogItem,
   LaundryOrder,
 } from "@/lib/laundry";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { thimphuToday } from "@/lib/erp-lists";
 
 export const metadata: Metadata = {
   title: "Laundry",
@@ -22,11 +25,13 @@ export default async function ErpLaundryPage() {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
   const admin = createSupabaseAdminClient();
   const propertyId = await resolveActivePropertyId(admin);
+  const today = thimphuToday();
   const [
     { data: catalog },
     { data: orders },
     { data: bookings, error: bookingsError },
     { data: staff },
+    dayOps,
   ] = await Promise.all([
       admin
         .from("laundry_catalog_items")
@@ -58,6 +63,7 @@ export default async function ErpLaundryPage() {
         .eq("property_id", propertyId)
         .in("status", ["active", "on_leave"])
         .order("full_name"),
+      loadDayOpsBoard(admin, propertyId, today),
     ]);
 
   const catalogRows = (catalog ?? []).map((row) => ({
@@ -143,6 +149,14 @@ export default async function ErpLaundryPage() {
         eyebrow="Guest service"
         title="Laundry"
         description="Reception intake, bag labels, garment photos, live processing, folio charges, and delivery tracking."
+      />
+      <DayOpsGuestPanel
+        title={`Due out today with open laundry · ${dayOps.departuresWithLaundry}`}
+        blurb="Clear these before FO checkout. Click a row for folio link and contacts."
+        rows={dayOps.departures.filter((r) => r.open_laundry_count > 0)}
+        showLaundry
+        showFolio
+        emptyMessage="No due-out stays with open laundry."
       />
       <LaundryDesk
         catalog={catalogRows}

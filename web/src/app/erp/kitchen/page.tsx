@@ -7,6 +7,7 @@ import {
 } from "@/components/erp/KitchenEventsPanel";
 import { KitchenCoversSection } from "@/components/erp/KitchenCoversSection";
 import { KitchenStaffSection } from "@/components/erp/KitchenStaffSection";
+import { DayOpsGuestPanel } from "@/components/erp/DayOpsGuestPanel";
 import { MealServiceBoard } from "@/components/erp/MealServiceBoard";
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { loadDayOpsBoard } from "@/lib/erp/day-ops-board";
 import { computeMealCovers } from "@/lib/kitchen/covers";
 import { computeFoodCostPeriod } from "@/lib/kitchen/food-cost";
 import { loadMealServicesForDate } from "@/lib/kitchen/meal-service";
@@ -53,6 +55,7 @@ export default async function KitchenBoardPage() {
     staffBoard,
     foodCost,
     mealServices,
+    dayOps,
     gasRes,
     stockRes,
     expiryRes,
@@ -64,6 +67,7 @@ export default async function KitchenBoardPage() {
       computeKitchenStaffBoard(admin, propertyId, today),
       computeFoodCostPeriod(admin, propertyId, from, today),
       loadMealServicesForDate(admin, propertyId, today),
+      loadDayOpsBoard(admin, propertyId, today),
       admin
         .from("inventory_items")
         .select("sku, name, qty_on_hand, reorder_level")
@@ -219,6 +223,21 @@ export default async function KitchenBoardPage() {
     >
       <section className="space-y-4" aria-label="Service readiness">
         <KitchenCoversSection covers={covers} businessDate={today} />
+        <div className="grid gap-6 lg:grid-cols-2">
+          <DayOpsGuestPanel
+            title={`Arrivals · meal plans · ${dayOps.arrivingMealPax} pax`}
+            blurb="Heads arriving today — prep before first service."
+            rows={dayOps.arrivals.filter((r) => r.meal_plan_code !== "EP")}
+            emptyMessage="No meal-plan arrivals today."
+          />
+          <DayOpsGuestPanel
+            title="Due out · last meal"
+            blurb="Departing stays — confirm final breakfast before CO."
+            rows={dayOps.departures.filter((r) => r.meal_plan_code !== "EP")}
+            showFolio
+            emptyMessage="No meal-plan departures today."
+          />
+        </div>
         <div className="grid gap-4 lg:grid-cols-2">
           <PublishMealServiceForm
             defaultDate={today}

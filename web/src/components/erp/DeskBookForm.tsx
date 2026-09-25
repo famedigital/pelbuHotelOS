@@ -580,6 +580,9 @@ export function DeskBookForm({
           code: rt.code,
           qty: l.qty,
           kind: "guest" as const,
+          rateBtn: Number.isFinite(Number(displayRate))
+            ? Number(displayRate)
+            : null,
         };
       })
       .filter(Boolean) as Array<{
@@ -587,6 +590,7 @@ export function DeskBookForm({
       code: string;
       qty: number;
       kind: string;
+      rateBtn?: number | null;
     }>;
     const comps = compTypes
       .map((rt) => {
@@ -597,6 +601,8 @@ export function DeskBookForm({
           code: rt.code,
           qty,
           kind: rt.inventory_kind,
+          rateBtn: 0,
+          amountBtn: 0,
         };
       })
       .filter(Boolean) as Array<{
@@ -604,9 +610,11 @@ export function DeskBookForm({
       code: string;
       qty: number;
       kind: string;
+      rateBtn?: number | null;
+      amountBtn?: number | null;
     }>;
     return [...guest, ...comps];
-  }, [roomLines, guestTypes, compTypes, compQtyByTypeId]);
+  }, [roomLines, guestTypes, compTypes, compQtyByTypeId, displayRate]);
 
   const availStrip = useMemo(() => {
     return roomLines
@@ -1175,6 +1183,7 @@ export function DeskBookForm({
       sourceLabel: bookedBy,
       paymentLabel: PAYMENT_LABELS[paymentMode] ?? paymentMode,
       lines: packLines,
+      totalBtn: stayTotal,
     };
 
     const voucherData: FastBookVoucherData = {

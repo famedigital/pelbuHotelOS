@@ -25,7 +25,7 @@ export default async function AdminHotelDetailPage({
   const { data: prop } = await admin
     .from("properties")
     .select(
-      "id, name, slug, package_code, amc_amount_btn, go_live_checklist, go_live_at, desk_host, is_demo, distributor_id, setup_completed_at",
+      "id, name, slug, hotel_code, dzongkhag_code, area_code, package_code, amc_amount_btn, go_live_checklist, go_live_at, desk_host, is_demo, distributor_id, setup_completed_at",
     )
     .eq("id", id)
     .maybeSingle();
@@ -38,7 +38,18 @@ export default async function AdminHotelDetailPage({
       <div>
         <h1 className="text-2xl font-semibold">{prop.name}</h1>
         <p className="text-sm text-muted-foreground">
-          Hotel code <span className="font-mono uppercase">{prop.slug}</span> ·{" "}
+          Desk login code{" "}
+          <span className="font-mono uppercase">
+            {prop.hotel_code ?? prop.slug}
+          </span>
+          {prop.dzongkhag_code ? (
+            <>
+              {" "}
+              · {prop.dzongkhag_code}
+              {prop.area_code ?? ""}
+            </>
+          ) : null}{" "}
+          · slug <span className="font-mono">{prop.slug}</span> ·{" "}
           {prop.package_code ?? "no package"} · desk {prop.desk_host ?? "—"}
         </p>
         <p className="mt-1 text-sm">

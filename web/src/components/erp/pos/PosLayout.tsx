@@ -208,6 +208,8 @@ export function PosLayout({
   const [settleTarget, setSettleTarget] = useState<string | null>(null);
   const [voidTarget, setVoidTarget] = useState<string | null>(null);
   const [voidItemId, setVoidItemId] = useState<string | null>(null);
+  /** Remount VoidReasonDialog so useActionState does not keep ok=true after a void. */
+  const [voidSession, setVoidSession] = useState(0);
   /** When set, Send appends to this unpaid ticket instead of creating another. */
   const [appendOrderId, setAppendOrderId] = useState<string | null>(null);
   const [appendCourseNo, setAppendCourseNo] = useState(1);
@@ -782,6 +784,12 @@ export function PosLayout({
     setVoidItemId(null);
   }
 
+  function beginVoid(orderId: string, itemId: string | null = null) {
+    setVoidSession((n) => n + 1);
+    setVoidItemId(itemId);
+    setVoidTarget(orderId);
+  }
+
   /** Clear seat context; if a live ticket holds the table, open void instead. */
   function releaseTable() {
     if (appendOrderId) {
@@ -790,8 +798,7 @@ export function PosLayout({
     }
     if (!tableId) return;
     if (openTicketOnTable) {
-      setVoidItemId(null);
-      setVoidTarget(openTicketOnTable.id);
+      beginVoid(openTicketOnTable.id);
       return;
     }
     const occupied =
@@ -936,8 +943,7 @@ export function PosLayout({
         }}
         onVoid={(id) => {
           setTicketsOpen(false);
-          setVoidItemId(null);
-          setVoidTarget(id);
+          beginVoid(id);
         }}
         canFireKot={canFireKot}
         onInvalidate={patchTicketsFromNetwork}
@@ -960,6 +966,7 @@ export function PosLayout({
         tenderMethods={runtimeConfig.tenderMethods}
       />
       <VoidReasonDialog
+        key={voidSession}
         orderId={voidTarget}
         orderItemId={voidItemId}
         onOpenChange={(open) => {
@@ -1587,8 +1594,7 @@ export function PosLayout({
                         sentLines={sentLines}
                         onVoidSentLine={(itemId) => {
                           if (!appendOrderId) return;
-                          setVoidItemId(itemId);
-                          setVoidTarget(appendOrderId);
+                          beginVoid(appendOrderId, itemId);
                         }}
                       />
                     </aside>
@@ -1668,8 +1674,7 @@ export function PosLayout({
                             sentLines={sentLines}
                             onVoidSentLine={(itemId) => {
                               if (!appendOrderId) return;
-                              setVoidItemId(itemId);
-                              setVoidTarget(appendOrderId);
+                              beginVoid(appendOrderId, itemId);
                             }}
                           />
                         </div>
@@ -1696,8 +1701,7 @@ export function PosLayout({
             closeSummary={shiftCloseSummary}
             onSettleTicket={(id) => setSettleTarget(id)}
             onVoidTicket={(id) => {
-              setVoidItemId(null);
-              setVoidTarget(id);
+              beginVoid(id);
             }}
           />
         </TabsContent>

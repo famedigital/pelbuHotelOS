@@ -52,6 +52,8 @@ export function HousekeepingBoard({
       if (!q) return true;
       const haystack = [
         row.roomLabel,
+        row.guestName ?? "",
+        row.mealPlan ?? "",
         row.staffName ?? "",
         row.notes ?? "",
         row.status,
@@ -167,7 +169,21 @@ export function HousekeepingBoard({
             ) : (
               filtered.map((row) => (
                 <TableRow key={row.id} className="align-top">
-                  <TableCell className="font-medium">{row.roomLabel}</TableCell>
+                  <TableCell className="font-medium">
+                    <div>
+                      <p>{row.roomLabel}</p>
+                      {row.guestName ? (
+                        <p className="text-xs text-muted-foreground">
+                          {row.guestName}
+                          {row.mealPlan ? ` · ${row.mealPlan}` : ""}
+                          {row.pax != null ? ` · ${row.pax}p` : ""}
+                          {(row.openLaundry ?? 0) > 0
+                            ? ` · laundry ${row.openLaundry}`
+                            : ""}
+                        </p>
+                      ) : null}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     {row.categories.length ? (
                       <div className="flex flex-wrap gap-1">

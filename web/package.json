@@ -14,7 +14,11 @@
     "test:e2e:waves": "playwright test e2e/wave-ab-clickthrough.spec.ts",
     "test:e2e:layout": "playwright test e2e/layout-overflow.spec.ts",
     "import:tcb": "node --env-file=.env.local scripts/import-tcb-tour-operators.mjs",
-    "import:tcb:dry": "node --env-file=.env.local scripts/import-tcb-tour-operators.mjs --dry-run"
+    "import:tcb:dry": "node --env-file=.env.local scripts/import-tcb-tour-operators.mjs --dry-run",
+    "import:guides": "node --env-file=.env.local scripts/import-national-guides.mjs",
+    "import:guides:dry": "node --env-file=.env.local scripts/import-national-guides.mjs --dry-run",
+    "import:catalog-hotels": "node --env-file=.env.local scripts/import-catalog-hotels.mjs",
+    "import:catalog-hotels:dry": "node --env-file=.env.local scripts/import-catalog-hotels.mjs --dry-run"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.20",

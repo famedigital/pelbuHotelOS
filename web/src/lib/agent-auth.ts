@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import {
   AGENT_PROPERTY_COOKIE,
-  loadApprovedAgentLinks,
+  loadMouAgentLinks,
   resolveActiveLinkFromCookie,
   type AgentPropertyLink,
 } from "@/lib/erp/agent-property-links";
@@ -57,8 +57,8 @@ async function readAgentPropertyCookie(): Promise<string | null> {
 }
 
 /**
- * Portal session: Auth + can_login + ≥1 approved property link.
- * Platform agents.status may be directory/approved/demo — membership is the link.
+ * Portal session: Auth + can_login + ≥1 MoU-signed property link.
+ * Rates and inventory are only for hotels with a signed MoU.
  */
 export async function getAgentSession(): Promise<AgentSession | null> {
   const supabase = await createSupabaseServerClient();
@@ -82,7 +82,7 @@ export async function getAgentSession(): Promise<AgentSession | null> {
 
   let links: AgentPropertyLink[];
   try {
-    links = await loadApprovedAgentLinks(admin, data.id as string);
+    links = await loadMouAgentLinks(admin, data.id as string);
   } catch {
     return null;
   }

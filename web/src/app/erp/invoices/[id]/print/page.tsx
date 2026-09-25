@@ -1,5 +1,15 @@
 import { DocPrintControls } from "@/components/erp/DocPrintControls";
 import { FiscalDocEmailForm } from "@/components/erp/FiscalDocEmailForm";
+import {
+  FiscalDocFooter,
+  FiscalLetterhead,
+  FiscalLinesTable,
+  FiscalParties,
+  FiscalSignOff,
+  FiscalStayStrip,
+  FiscalTotalsBlock,
+  type FiscalLineRow,
+} from "@/components/erp/print/FiscalLetterhead";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
@@ -299,6 +309,21 @@ export default async function FiscalInvoicePrintPage({
     : null;
   const issueDate = fmtHotelDate(String(doc.issued_at));
   const folioLabel = (folio?.label as string | null) ?? null;
+  const netSubtotal = roundBtn(Math.max(0, totalBtn - gstBtn));
+  const fiscalLines: FiscalLineRow[] = onBill.map((line) => ({
+    id: line.id,
+    description: line.description,
+    hint:
+      classifyBillLine(line) === "fnb"
+        ? "F&B"
+        : classifyBillLine(line) === "room"
+          ? "Room"
+          : null,
+    qty: 1,
+    rate: Number(line.total_btn),
+    amount: Number(line.total_btn),
+    foc: Number(line.total_btn) === 0,
+  }));
 
   const stayBits = [
     checkIn && checkOut
@@ -365,6 +390,17 @@ export default async function FiscalInvoicePrintPage({
       </section>
     );
   }
+
+  void stayBits;
+  void logoSrc;
+  void roomSub;
+  void fnbSub;
+  void otherSub;
+  void hotelAdjSub;
+  void hotelAdjShown;
+  void SectionTable;
+  void BILL_KIND_TITLES;
+  void kindTitle;
 
   const basePrintHref = `/erp/invoices/${id}/print`;
   const billLinks: { kind: BillKind; label: string }[] = [
@@ -438,222 +474,139 @@ export default async function FiscalInvoicePrintPage({
       ) : null}
 
       <article
-        className="fiscal-invoice-sheet doc-print-sheet mx-auto max-w-[640px] border border-neutral-300 bg-white px-6 py-6 text-neutral-900 shadow-sm print:border-0 print:px-0 print:py-0 print:shadow-none"
+        className="fiscal-invoice-sheet doc-print-sheet mx-auto max-w-[210mm] border border-[#d8d0c6] bg-white px-[12mm] py-[10mm] text-[#1a1410] shadow-sm print:border-0 print:px-0 print:py-0 print:shadow-none"
         aria-label={`${kindLabel} ${doc.doc_no as string}`}
       >
-        <header className="flex items-start justify-between gap-4 border-b border-neutral-900 pb-3">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-xl font-semibold tracking-tight text-neutral-950">
-              {hotelName}
-            </h1>
-            {legalName && legalName !== hotelName ? (
-              <p className="text-[12px] text-neutral-600">{legalName}</p>
-            ) : null}
-            <div className="mt-1.5 space-y-0.5 text-[11px] leading-snug text-neutral-600">
-              {property?.address ? <p>{property.address}</p> : null}
-              <p className="flex flex-wrap gap-x-2">
-                {property?.phone ? <span>T {property.phone}</span> : null}
-                {property?.tax_id ? (
-                  <span className="font-mono">TPN {property.tax_id}</span>
-                ) : null}
-              </p>
-            </div>
-          </div>
-          {logoSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={logoSrc}
-              alt=""
-              className="h-12 w-auto shrink-0 object-contain"
-            />
-          ) : null}
-        </header>
+        <FiscalLetterhead
+          property={{
+            name: hotelName,
+            legal_name: legalName,
+            address: property?.address,
+            phone: property?.phone,
+            email: property?.email,
+            tax_id: property?.tax_id,
+            logo_public_id: property?.logo_public_id,
+            tagline: legalName && legalName !== hotelName ? legalName : null,
+          }}
+          kind={
+            kind === "receipt"
+              ? "Receipt"
+              : kind === "credit_note"
+                ? "Credit note"
+                : "Tax invoice"
+          }
+          title={
+            kind === "receipt"
+              ? "RECEIPT"
+              : kind === "credit_note"
+                ? "CREDIT NOTE"
+                : bill === "fnb"
+                  ? "BILL"
+                  : "INVOICE"
+          }
+          meta={[
+            { label: "Date", value: issueDate },
+            { label: "Inv no.", value: String(doc.doc_no) },
+            ...(roomUnitLabels.length
+              ? [{ label: "Room", value: roomUnitLabels.join(", ") }]
+              : []),
+            ...(stayNights != null
+              ? [
+                  {
+                    label: "Nights",
+                    value: String(stayNights),
+                  },
+                ]
+              : []),
+            { label: "Currency", value: "Nu (BTN)" },
+            ...(folioLabel ? [{ label: "Folio", value: folioLabel }] : []),
+          ]}
+        />
 
-        <div className="mt-3 flex flex-wrap items-end justify-between gap-3 border-b border-neutral-200 pb-3">
-          <div>
-            <p className="text-[10px] font-semibold tracking-[0.2em] text-neutral-500 uppercase">
-              {kindTitle}
-            </p>
-            <p className="font-mono text-base font-semibold tabular-nums">
-              {doc.doc_no as string}
-            </p>
-          </div>
-          <div className="text-right text-[12px] text-neutral-700">
-            <p>
-              <span className="text-neutral-500">Date </span>
-              {issueDate}
-            </p>
-            {folioLabel ? <p className="text-neutral-600">{folioLabel}</p> : null}
-          </div>
-        </div>
+        <FiscalParties
+          billTo={guestName?.trim() || agentName || "Guest"}
+          billToDetail={
+            <>
+              {guestEmail ? <p>{guestEmail}</p> : null}
+              {agentName && guestName ? <p>Agent: {agentName}</p> : null}
+              {!bookingId && agentName ? (
+                <p className="mt-1 text-[11px] text-[#5c534c]">
+                  F&amp;B open item — payment due, not a stay
+                </p>
+              ) : null}
+            </>
+          }
+          from={hotelName}
+          fromDetail={
+            property?.address ? <p>{property.address}</p> : undefined
+          }
+        />
 
-        <div className="mt-3 grid gap-1 border-b border-neutral-200 pb-3 text-[13px] sm:grid-cols-2">
-          <div>
-            <p className="text-[10px] font-semibold tracking-[0.14em] text-neutral-500 uppercase">
-              Bill to
-            </p>
-            <p className="font-medium text-neutral-950">
-              {guestName?.trim() || agentName || "Guest"}
-            </p>
-            {guestEmail ? (
-              <p className="text-[12px] text-neutral-600">{guestEmail}</p>
-            ) : null}
-            {!bookingId && agentName ? (
-              <p className="mt-1 text-[11px] text-neutral-500">
-                F&amp;B open item — payment due, not a stay
-              </p>
-            ) : null}
-          </div>
-          {stayBits.length > 0 ? (
-            <div className="sm:text-right">
-              <p className="text-[10px] font-semibold tracking-[0.14em] text-neutral-500 uppercase">
-                Stay
-              </p>
-              <p className="text-[12px] leading-snug text-neutral-800">
-                {stayBits.join(" · ")}
-              </p>
-            </div>
-          ) : null}
-        </div>
+        <FiscalStayStrip
+          items={[
+            ...(checkIn && checkOut
+              ? [
+                  {
+                    label: "Stay",
+                    value: `${fmtHotelDate(checkIn)} → ${fmtHotelDate(checkOut)}`,
+                  },
+                ]
+              : []),
+            ...(roomUnitLabels.length || roomProductLines.length
+              ? [
+                  {
+                    label: "Rooms",
+                    value:
+                      roomUnitLabels.join(", ") ||
+                      roomProductLines.join("; "),
+                  },
+                ]
+              : []),
+            ...(agentName
+              ? [{ label: "Agent", value: agentName }]
+              : []),
+          ]}
+        />
 
-        {(bill === "master" || bill === "room") && (
-          <SectionTable
-            title="Room charges"
-            rows={[...roomLines, ...streamAdjRoom]}
-            subtotalLabel="Room bill subtotal"
-            subtotal={roomSub}
-          />
-        )}
-        {(bill === "master" || bill === "fnb") && (
-          <SectionTable
-            title="Food & beverage"
-            rows={[...fnbLines, ...streamAdjFnb]}
-            subtotalLabel="F&B bill subtotal"
-            subtotal={fnbSub}
-          />
-        )}
-        {bill === "master" ? (
-          <SectionTable
-            title="Other charges"
-            rows={otherLines}
-            subtotalLabel="Other subtotal"
-            subtotal={otherSub}
-          />
-        ) : null}
-
-        {hotelAdjShown.length > 0 ? (
-          <section className="mt-4">
-            <p className="border-b border-neutral-900 pb-1 text-[10px] font-semibold tracking-[0.16em] text-neutral-700 uppercase">
-              Hotel adjustment (not charged to guest)
-            </p>
-            <p className="mt-1 text-[11px] leading-snug text-neutral-500">
-              Rounding to whole Nu ending in 0 or 5 is absorbed from hotel rates
-              — guest is not billed the difference.
-            </p>
-            <table className="mt-1 w-full border-collapse text-[13px]">
-              <tbody>
-                {hotelAdjShown.map((line) => (
-                  <tr
-                    key={line.id}
-                    className="border-b border-neutral-200/80"
-                  >
-                    <td className="py-1.5 pr-2 align-top text-neutral-800">
-                      {line.description}
-                    </td>
-                    <td className="w-[6.5rem] py-1.5 pl-2 text-right align-top font-mono tabular-nums text-neutral-800">
-                      {formatGuestBtn(Number(line.total_btn))}
-                    </td>
-                  </tr>
-                ))}
-                <tr>
-                  <td className="pt-2 pr-2 text-right text-[12px] font-medium text-neutral-700">
-                    Hotel adj subtotal
-                  </td>
-                  <td className="pt-2 pl-2 text-right font-mono text-[13px] font-semibold tabular-nums">
-                    {formatGuestBtn(hotelAdjSub)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </section>
-        ) : null}
-
-        {onBill.length === 0 ? (
-          <p className="mt-6 text-center text-sm text-neutral-500">
+        {fiscalLines.length > 0 ? (
+          <FiscalLinesTable rows={fiscalLines} />
+        ) : (
+          <p className="mt-6 text-center text-sm text-[#5c534c]">
             No posted charge lines for this bill.
           </p>
-        ) : null}
+        )}
 
-        <div className="mt-5 border-t-2 border-neutral-900 pt-3">
-          <div className="ml-auto w-full max-w-[15rem] space-y-1 text-[13px]">
-            {gstBtn !== 0 ? (
-              <div className="flex justify-between gap-4 text-neutral-600">
-                <span>GST included in lines</span>
-                <span className="font-mono tabular-nums">
-                  {formatGuestBtn(gstBtn)}
-                </span>
-              </div>
-            ) : null}
-            {bill === "master" && roomLines.length + streamAdjRoom.length > 0 ? (
-              <div className="flex justify-between gap-4 text-neutral-600">
-                <span>Room bill</span>
-                <span className="font-mono tabular-nums">
-                  {formatGuestBtn(roomSub)}
-                </span>
-              </div>
-            ) : null}
-            {bill === "master" && fnbLines.length + streamAdjFnb.length > 0 ? (
-              <div className="flex justify-between gap-4 text-neutral-600">
-                <span>F&amp;B bill</span>
-                <span className="font-mono tabular-nums">
-                  {formatGuestBtn(fnbSub)}
-                </span>
-              </div>
-            ) : null}
-            {hotelAdjShown.length > 0 ? (
-              <div className="flex justify-between gap-4 text-neutral-600">
-                <span>Hotel adj</span>
-                <span className="font-mono tabular-nums">
-                  {formatGuestBtn(hotelAdjSub)}
-                </span>
-              </div>
-            ) : null}
-            <div className="flex items-baseline justify-between gap-4 border-t border-neutral-400 pt-2">
-              <span className="text-[11px] font-semibold tracking-[0.12em] text-neutral-950 uppercase">
-                {bill === "master"
-                  ? "Master total"
-                  : bill === "room"
-                    ? "Room bill total"
-                    : "F&B bill total"}
-              </span>
-              <span className="font-mono text-lg font-semibold tabular-nums text-neutral-950">
-                {formatGuestBtn(totalBtn)}
-              </span>
-            </div>
-            <p className="text-right text-[10px] text-neutral-500">
-              BTN · whole Nu · ends on 0 or 5 (hotel absorbs remainder)
-            </p>
-          </div>
-        </div>
+        <FiscalTotalsBlock
+          subtotal={netSubtotal}
+          serviceCharge={0}
+          gst={gstBtn}
+          total={totalBtn}
+          serviceChargeRatePct={
+            Number(property?.service_charge_rate ?? 0) > 0
+              ? Number(property?.service_charge_rate) * 100
+              : 10
+          }
+        />
 
         {memo ? (
-          <div className="mt-4 border-t border-neutral-200 pt-3">
-            <p className="text-[10px] font-semibold tracking-[0.14em] text-neutral-500 uppercase">
-              Notes
-            </p>
-            <p className="mt-1 text-[12px] leading-relaxed text-neutral-700">
-              {memo}
-            </p>
+          <div className="notes mt-2 text-[11px] text-[#3a322c]">
+            <p className="font-semibold">Notes</p>
+            <p className="mt-0.5">{memo}</p>
           </div>
-        ) : null}
+        ) : (
+          <div className="notes mt-2 text-[11px] text-[#3a322c]">
+            <ul className="mt-0.5 list-disc pl-4">
+              <li>
+                Service charge and GST shown as Nil when not separately charged
+                on this bill.
+              </li>
+              <li>Guest totals whole Nu ending 0 or 5 (hotel absorbs remainder).</li>
+            </ul>
+          </div>
+        )}
 
-        <footer className="mt-6 space-y-1 border-t border-neutral-200 pt-3 text-[10px] leading-relaxed text-neutral-500">
-          <p>
-            Computer-generated tax document. Gapless document no. per property.
-            Print → Save as PDF for records.
-          </p>
-          <p className="text-neutral-400">Thank you for staying with {hotelName}.</p>
-        </footer>
+        <FiscalSignOff hotelName={hotelName} />
+        <FiscalDocFooter property={{ name: hotelName, address: property?.address }} />
       </article>
     </div>
   );

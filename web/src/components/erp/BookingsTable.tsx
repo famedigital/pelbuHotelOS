@@ -25,8 +25,21 @@ export type BookingRow = {
   source: string | null;
   agent_id?: string | null;
   agent_name: string | null;
+  agent_phone?: string | null;
   adults: number | null;
+  children?: number | null;
+  /** adults + children when known */
+  pax?: number | null;
   rooms: number | null;
+  meal_plan_code?: string | null;
+  guide_number?: string | null;
+  guide_name?: string | null;
+  guide_phone?: string | null;
+  driver_name?: string | null;
+  driver_phone?: string | null;
+  folio_id?: string | null;
+  folio_balance_btn?: number | null;
+  open_laundry_count?: number;
   status: string | null;
   room_labels?: string | null;
   /** Assigned physical units vs sold room count. */
@@ -99,7 +112,7 @@ function openRow(
   const step = recommendStayHubStep({
     status: row.status ?? "confirmed",
     board,
-    balanceBtn: 0,
+    balanceBtn: row.folio_balance_btn ?? 0,
     hasRoomAssigned: Boolean(row.room_labels),
     sdfIncomplete: row.badges?.some((b) => b.key === "sdf") ?? false,
   });
@@ -174,6 +187,11 @@ export function BookingsTable({
               />
             </span>
           ) : null}
+          {row.original.agent_phone ? (
+            <span className="block text-xs tabular-nums">
+              {row.original.agent_phone}
+            </span>
+          ) : null}
         </div>
       ),
       enableSorting: false,
@@ -181,22 +199,117 @@ export function BookingsTable({
     },
     {
       accessorKey: "rooms",
-      header: "Rooms",
-      cell: ({ row }) => (
-        <div className="text-sm">
-          <span className="tabular-nums">
-            {Number(row.original.rooms ?? 0)} /{" "}
-            {Number(row.original.adults ?? 0)} pax
-          </span>
-          {row.original.room_labels ? (
-            <span className="mt-0.5 block text-xs text-muted-foreground">
-              {row.original.room_labels}
+      header: "Rooms / pax",
+      cell: ({ row }) => {
+        const pax =
+          row.original.pax ??
+          Number(row.original.adults ?? 0) +
+            Math.max(0, Number(row.original.children ?? 0));
+        const children = Math.max(0, Number(row.original.children ?? 0));
+        return (
+          <div className="text-sm">
+            <span className="tabular-nums">
+              {Number(row.original.rooms ?? 0)} rm · {pax} pax
+              {children > 0 ? (
+                <span className="text-muted-foreground">
+                  {" "}
+                  ({row.original.adults ?? 0}+{children})
+                </span>
+              ) : null}
             </span>
-          ) : null}
-        </div>
-      ),
+            {row.original.room_labels ? (
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                {row.original.room_labels}
+              </span>
+            ) : null}
+          </div>
+        );
+      },
       meta: { className: "px-3" },
     },
+    {
+      id: "meal",
+      header: "Meal",
+      cell: ({ row }) => (
+        <span className="text-sm font-medium tabular-nums">
+          {(row.original.meal_plan_code ?? "EP").toUpperCase()}
+        </span>
+      ),
+      enableSorting: false,
+      meta: { className: "px-3" },
+    },
+    {
+      id: "guide_driver",
+      header: "Guide / driver",
+      cell: ({ row }) => {
+        const guide =
+          row.original.guide_name ||
+          row.original.guide_number ||
+          null;
+        const driver = row.original.driver_name;
+        if (!guide && !driver) {
+          return <span className="text-sm text-muted-foreground">—</span>;
+        }
+        return (
+          <div className="max-w-[10rem] text-xs text-muted-foreground">
+            {guide ? (
+              <p className="truncate text-foreground" title={guide}>
+                G: {guide}
+                {row.original.guide_phone
+                  ? ` · ${row.original.guide_phone}`
+                  : ""}
+              </p>
+            ) : null}
+            {driver ? (
+              <p className="truncate" title={driver}>
+                D: {driver}
+                {row.original.driver_phone
+                  ? ` · ${row.original.driver_phone}`
+                  : ""}
+              </p>
+            ) : null}
+          </div>
+        );
+      },
+      enableSorting: false,
+      meta: { className: "px-3" },
+    },
+    ...(board === "departures" || board === "in_house"
+      ? ([
+          {
+            id: "folio_laundry",
+            header: board === "departures" ? "Folio / laundry" : "Folio",
+            cell: ({ row }: { row: { original: BookingRow } }) => {
+              const bal = row.original.folio_balance_btn;
+              const laundry = row.original.open_laundry_count ?? 0;
+              return (
+                <div className="text-sm tabular-nums">
+                  {bal != null ? (
+                    <p
+                      className={
+                        bal > 0
+                          ? "font-medium text-amber-800 dark:text-amber-200"
+                          : "text-muted-foreground"
+                      }
+                    >
+                      Nu {Math.round(bal).toLocaleString()}
+                    </p>
+                  ) : (
+                    <p className="text-muted-foreground">—</p>
+                  )}
+                  {board === "departures" && laundry > 0 ? (
+                    <p className="text-xs font-medium text-destructive">
+                      {laundry} laundry open
+                    </p>
+                  ) : null}
+                </div>
+              );
+            },
+            enableSorting: false,
+            meta: { className: "px-3" },
+          },
+        ] as ColumnDef<BookingRow>[])
+      : []),
     {
       id: "readiness",
       header: "Readiness",
@@ -294,9 +407,30 @@ export function BookingsTable({
                 ) : null}
               </p>
               <p className="mt-1 text-sm tabular-nums text-muted-foreground">
-                {Number(row.rooms ?? 0)} rooms / {Number(row.adults ?? 0)} pax
+                {Number(row.rooms ?? 0)} rooms /{" "}
+                {row.pax ??
+                  Number(row.adults ?? 0) +
+                    Math.max(0, Number(row.children ?? 0))}{" "}
+                pax
+                {row.meal_plan_code ? ` · ${row.meal_plan_code}` : ""}
                 {row.room_labels ? ` · ${row.room_labels}` : ""}
               </p>
+              {row.agent_phone || row.guide_name || row.driver_name ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {row.agent_phone ? `Agent ${row.agent_phone}` : null}
+                  {row.guide_name
+                    ? `${row.agent_phone ? " · " : ""}Guide ${row.guide_name}`
+                    : null}
+                  {row.driver_name
+                    ? `${row.agent_phone || row.guide_name ? " · " : ""}Driver ${row.driver_name}`
+                    : null}
+                </p>
+              ) : null}
+              {board === "departures" && (row.open_laundry_count ?? 0) > 0 ? (
+                <p className="mt-1 text-xs font-medium text-destructive">
+                  {row.open_laundry_count} laundry open
+                </p>
+              ) : null}
               {(row.badges?.length ?? 0) > 0 ? (
                 <div className="mt-3 flex flex-wrap gap-1">
                   {row.badges?.map((badge) => (

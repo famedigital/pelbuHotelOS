@@ -58,17 +58,39 @@ function folioBalance(
 
 const STAY_SELECT = `
   id, contact_name, confirmation_code, status, check_in, check_out,
-  token_required_btn, token_received_btn, deposit_due_on,
-  room_assignments(room_units(label)),
+  token_required_btn, token_received_btn, deposit_due_on, guest_origin, guide_number,
+  room_assignments(room_units(label, hk_status, room_types(inventory_kind))),
   folios(status, folio_lines(id, total_btn, status, reverses_line_id))
 `;
+
+function roomUnreadyFromAssigns(assigns: unknown): boolean {
+  if (!Array.isArray(assigns) || assigns.length === 0) return false;
+  for (const a of assigns) {
+    const raw = (a as { room_units?: unknown }).room_units;
+    const unit = Array.isArray(raw) ? raw[0] : raw;
+    if (!unit) continue;
+    const hk = (unit as { hk_status?: string }).hk_status ?? "";
+    const rtRaw = (unit as { room_types?: unknown }).room_types;
+    const rt = Array.isArray(rtRaw) ? rtRaw[0] : rtRaw;
+    const kind =
+      ((rt as { inventory_kind?: string } | null)?.inventory_kind ??
+        "sellable_guest") === "sellable_guest";
+    if (
+      kind &&
+      !["clean", "inspect", "occupied"].includes(hk)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
 
 export async function loadFoTodaySnapshot(
   admin: Admin,
   propertyId: string,
 ): Promise<FoTodaySnapshot> {
   const wallToday = thimphuToday();
-  const [{ data: property }, arrivals, departures, holds, dirtyUnits, occAssigns] =
+  const [{ data: property }, arrivals, departures, holds, dirtyUnits, occAssigns, laundryRows] =
     await Promise.all([
       admin
         .from("properties")
@@ -115,7 +137,20 @@ export async function loadFoTodaySnapshot(
         .lte("from_date", wallToday)
         .gt("to_date", wallToday)
         .limit(200),
+      admin
+        .from("laundry_orders")
+        .select("booking_id, status")
+        .eq("property_id", propertyId)
+        .not("status", "in", "(delivered,cancelled)")
+        .limit(300),
     ]);
+
+  const laundryByBooking = new Map<string, number>();
+  for (const row of laundryRows.data ?? []) {
+    const bid = row.booking_id as string;
+    if (!bid) continue;
+    laundryByBooking.set(bid, (laundryByBooking.get(bid) ?? 0) + 1);
+  }
 
   const businessDate =
     (property?.current_business_date as string | null)?.slice(0, 10) ||
@@ -158,6 +193,12 @@ export async function loadFoTodaySnapshot(
           ? Number(row.token_received_btn)
           : null,
       depositDueOn: (row.deposit_due_on as string | null) ?? null,
+      roomUnready: roomUnreadyFromAssigns(row.room_assignments),
+      sdfIncomplete:
+        ((row.guest_origin as string | null) ?? "").toLowerCase() ===
+          "international" &&
+        !(row.guide_number as string | null)?.trim(),
+      openLaundryCount: laundryByBooking.get(id) ?? 0,
     };
     const kind = recommendFoStayJob(facts);
     if (!kind) return;

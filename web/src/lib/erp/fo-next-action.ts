@@ -1,4 +1,5 @@
 import type { StayHubStepId } from "@/lib/folio/stay-hub-cycle";
+import { deskBriefingLine } from "@/lib/folio/desk-briefing";
 
 /** Ranked FO jobs for the Today worklist (eZee jobs, one CTA each). */
 export type FoNextKind =
@@ -35,6 +36,10 @@ export type FoStayFacts = {
   tokenRequiredBtn?: number | null;
   tokenReceivedBtn?: number | null;
   depositDueOn?: string | null;
+  /** HK / room not ready for CI. */
+  roomUnready?: boolean;
+  sdfIncomplete?: boolean;
+  openLaundryCount?: number;
 };
 
 export type FoDirtyRoomFacts = {
@@ -110,11 +115,27 @@ export function foActionFromStay(
   const meta = KIND_META[kind];
   const why =
     kind === "check_in"
-      ? "Arrival today — not checked in"
+      ? deskBriefingLine({
+          status: facts.status,
+          hasRoomAssigned: facts.hasRoomAssigned,
+          roomUnready: facts.roomUnready,
+          sdfIncomplete: facts.sdfIncomplete,
+          depositIncomplete: depositIncomplete(facts),
+        })
       : kind === "collect"
-        ? "Due today — collect before checkout"
+        ? deskBriefingLine({
+            status: facts.status,
+            balanceBtn: facts.balanceBtn,
+            checkOutToday: true,
+            openLaundryCount: facts.openLaundryCount,
+          })
         : kind === "checkout"
-          ? "Balance clear — checkout"
+          ? deskBriefingLine({
+              status: facts.status,
+              balanceBtn: 0,
+              checkOutToday: true,
+              openLaundryCount: facts.openLaundryCount,
+            })
           : "Hold / deposit due";
   return {
     id: `stay:${facts.bookingId}`,

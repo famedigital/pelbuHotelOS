@@ -1,6 +1,12 @@
 "use server";
 
 import { writeAuditEvent } from "@/lib/audit";
+import {
+  LOGIN_HOTEL_CODE_COOKIE,
+  LOGIN_HOTEL_CODE_COOKIE_MAX_AGE,
+  isValidHotelCodeFormat,
+  normalizeHotelCodeInput,
+} from "@/lib/hotel-codes";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import {
   getStaffSession,
@@ -12,13 +18,111 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { trimRequired } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 export type StaffLoginState = {
   ok: boolean;
   error?: string;
 };
+
+export type ResolveHotelCodeState = {
+  ok: boolean;
+  error?: string;
+  hotelCode?: string;
+  propertyName?: string;
+};
+
+async function lookupPropertyByHotelCode(hotelCodeRaw: string) {
+  const hotelCode = normalizeHotelCodeInput(hotelCodeRaw);
+  if (!isValidHotelCodeFormat(hotelCode)) {
+    return { error: "Hotel code must be 6–8 letters or numbers only." as const };
+  }
+
+  const admin = createSupabaseAdminClient();
+  const { data: byCode, error: codeErr } = await admin
+    .from("properties")
+    .select("id, slug, name, hotel_code")
+    .eq("hotel_code", hotelCode)
+    .maybeSingle();
+  if (codeErr) throw new Error("Could not look up hotel code.");
+  if (byCode) return { property: byCode, hotelCode };
+
+  // Migration fallback: slug still accepted until hotel_code is assigned.
+  const slugGuess = hotelCodeRaw
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-");
+  const { data: bySlug, error: slugErr } = await admin
+    .from("properties")
+    .select("id, slug, name, hotel_code")
+    .ilike("slug", slugGuess)
+    .maybeSingle();
+  if (slugErr) throw new Error("Could not look up hotel code.");
+  if (bySlug) {
+    return {
+      property: bySlug,
+      hotelCode: (bySlug.hotel_code as string | null) ?? hotelCode,
+    };
+  }
+  return { error: "invalid" as const };
+}
+
+/** Step 1: validate hotel code and remember it for the credentials step. */
+export async function resolveHotelCode(
+  _previous: ResolveHotelCodeState,
+  formData: FormData,
+): Promise<ResolveHotelCodeState> {
+  try {
+    const h = await headers();
+    const rl = await rateLimit(`hotel-code-resolve:${clientIp(h)}`, {
+      limit: 30,
+      windowMs: 15 * 60_000,
+    });
+    if (!rl.ok) {
+      return {
+        ok: false,
+        error: "Too many attempts. Wait a few minutes.",
+      };
+    }
+
+    const raw = trimRequired(formData.get("hotel_code"), "Hotel code");
+    const result = await lookupPropertyByHotelCode(raw);
+    if ("error" in result && result.error === "invalid") {
+      return { ok: false, error: "That hotel code was not found." };
+    }
+    if ("error" in result) {
+      return { ok: false, error: result.error };
+    }
+
+    const { property, hotelCode } = result;
+    const jar = await cookies();
+    jar.set(LOGIN_HOTEL_CODE_COOKIE, hotelCode, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: LOGIN_HOTEL_CODE_COOKIE_MAX_AGE,
+    });
+
+    return {
+      ok: true,
+      hotelCode,
+      propertyName: property.name as string,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error ? error.message : "Could not check hotel code.",
+    };
+  }
+}
+
+export async function clearLoginHotelCode(): Promise<void> {
+  const jar = await cookies();
+  jar.delete(LOGIN_HOTEL_CODE_COOKIE);
+}
 
 export async function staffLogin(
   _previous: StaffLoginState,
@@ -37,11 +141,26 @@ export async function staffLogin(
       };
     }
 
-    // eZee-style: Hotel code + User ID + Password (password field; legacy "pin" accepted).
-    const hotelCode = trimRequired(formData.get("hotel_code"), "Hotel code")
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, "-");
+    const jar = await cookies();
+    const cookieCode = jar.get(LOGIN_HOTEL_CODE_COOKIE)?.value?.trim() ?? "";
+    const formCode = String(formData.get("hotel_code") ?? "").trim();
+    const hotelCodeRaw = formCode || cookieCode;
+    if (!hotelCodeRaw) {
+      return { ok: false, error: "Enter your hotel code first." };
+    }
+
+    const looked = await lookupPropertyByHotelCode(hotelCodeRaw);
+    if ("error" in looked) {
+      return {
+        ok: false,
+        error:
+          looked.error === "invalid"
+            ? "Incorrect hotel code, user ID, or password."
+            : looked.error,
+      };
+    }
+    const property = looked.property;
+
     const employeeCode = trimRequired(
       formData.get("user_id") ?? formData.get("employee_code"),
       "User ID",
@@ -56,15 +175,6 @@ export async function staffLogin(
     const returnNext = safeStaffNextPath(String(formData.get("next") ?? ""));
 
     const admin = createSupabaseAdminClient();
-    const { data: property, error: propError } = await admin
-      .from("properties")
-      .select("id, slug")
-      .ilike("slug", hotelCode)
-      .maybeSingle();
-    if (propError) throw new Error("Could not look up hotel code.");
-    if (!property) {
-      return { ok: false, error: "Incorrect hotel code, user ID, or password." };
-    }
 
     const { data: member, error } = await admin
       .from("staff_members")
@@ -86,8 +196,6 @@ export async function staffLogin(
       );
     }
 
-    // "desk" when signing in from /erp/login — fail closed with a clear HR path
-    // instead of silently opening the staff portal (looks like "login failed").
     const wantsDesk = String(formData.get("workspace") ?? "") === "desk";
 
     const supabase = await createSupabaseServerClient();
@@ -127,7 +235,6 @@ export async function staffLogin(
           await supabase.auth.signOut();
           return { ok: false, error: gate.message };
         }
-        // Staff portal login: keep session but route to /staff, not /erp.
         mayOpenDesk = false;
       }
     }
@@ -149,6 +256,7 @@ export async function staffLogin(
         deskOpened: mayOpenDesk,
         workspace: wantsDesk ? "desk" : "staff",
         returnNext: returnNext ?? null,
+        hotelCode: looked.hotelCode,
       },
     });
 
@@ -164,9 +272,7 @@ export async function staffLogin(
     const deskHome = resolveDeskHomeHref({ deskRole, pinOnlySession: false });
 
     {
-      const { cookies } = await import("next/headers");
       const { ACTIVE_PROPERTY_COOKIE } = await import("@/lib/property-context");
-      const jar = await cookies();
       jar.set(ACTIVE_PROPERTY_COOKIE, member.property_id as string, {
         httpOnly: true,
         sameSite: "lax",
@@ -174,6 +280,7 @@ export async function staffLogin(
         path: "/",
         maxAge: 60 * 60 * 24 * 90,
       });
+      jar.delete(LOGIN_HOTEL_CODE_COOKIE);
       if (mayOpenDesk) {
         const stored = jar.get(DESK_WORKSPACE_COOKIE)?.value;
         const workspace = isDeskWorkspace(stored)
@@ -189,7 +296,6 @@ export async function staffLogin(
       }
     }
 
-    // Prefer return URL (bag QR scan) over default desk/staff home.
     redirect(returnNext ?? (mayOpenDesk ? deskHome : "/staff"));
   } catch (error) {
     if (
@@ -269,11 +375,6 @@ export async function setStaffPortalPin(
       pin,
     );
 
-    // can_access_desk semantics:
-    // - "on" → grant desk
-    // - field present but not "on" (dossier hidden "off") → explicit revoke/keep off
-    // - field absent (unchecked checkbox on bulk form) → preserve existing so a PIN
-    //   reset cannot accidentally strip desk that Access already granted
     const deskField = formData.get("can_access_desk");
     let nextCanAccessDesk = Boolean(staff.can_access_desk);
     if (deskField === "on") {
@@ -289,7 +390,6 @@ export async function setStaffPortalPin(
       pin_set_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-    // Desk flag without RBAC role breaks Access UX require-desk-role; default FO.
     if (
       nextCanAccessDesk &&
       !(staff.desk_role as string | null)?.trim()

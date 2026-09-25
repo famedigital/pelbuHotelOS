@@ -58,3 +58,9 @@ marketing/old bookings/*.json
 # PSD masters exceed GitHub 100MB limit — keep local only
 marketing/print/standee-psd/*.psd
 
+
+# local migrate smoke helpers
+supabase/scripts/_smoke*.sql
+supabase/scripts/_db_probe.sql
+supabase/scripts/_which_db.sql
+

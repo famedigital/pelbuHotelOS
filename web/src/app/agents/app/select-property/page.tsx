@@ -25,8 +25,8 @@ export default async function AgentSelectPropertyPage() {
           Choose a hotel
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          {session.companyName} — pick which hotel to book for. Same login works
-          for every hotel that linked you.
+          {session.companyName} — hotels with a signed MoU. Rates and inventory
+          open only for those properties.
         </p>
       </div>
       <ul className="space-y-2">

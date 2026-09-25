@@ -6,6 +6,10 @@ import {
   type InhouseTaskRow,
 } from "@/components/erp/InhouseTasksPanel";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
+import {
+  dayOpsRowToBoardRaw,
+  loadDayOpsBoard,
+} from "@/lib/erp/day-ops-board";
 import { fmtDate, thimphuToday } from "@/lib/erp-lists";
 import { requireDeskPropertyId } from "@/lib/desk-property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -24,27 +28,8 @@ export default async function InHousePage() {
   const propertyId = await requireDeskPropertyId();
   const today = thimphuToday();
 
-  const [{ data: rows }, { data: taskRows }] = await Promise.all([
-    admin
-      .from("bookings")
-      .select(
-        `id, confirmation_code, contact_name, contact_phone, check_in, check_out, status, adults, rooms,
-         source, guest_origin, guide_number, payment_mode,
-         token_required_btn, token_received_btn,
-         agents(company_name),
-         room_assignments(
-           room_units(label, hk_status, room_types(inventory_kind))
-         ),
-         folios(status, folio_lines(total_btn, status))`,
-      )
-      .eq("property_id", propertyId)
-      // Same rule as POS room charge: stay after midnight of departure day until
-      // status is no longer checked_in (checkout), not calendar occupancy only.
-      .or(
-        `status.eq.checked_in,and(status.eq.confirmed,check_in.lte.${today},check_out.gte.${today})`,
-      )
-      .order("check_out")
-      .limit(200),
+  const [dayOps, { data: taskRows }] = await Promise.all([
+    loadDayOpsBoard(admin, propertyId, today),
     admin
       .from("inhouse_tasks")
       .select(
@@ -57,23 +42,12 @@ export default async function InHousePage() {
       .limit(40),
   ]);
 
-  const bookingOptions = (rows ?? []).map((b) => {
-    const assigns =
-      (b.room_assignments as
-        | { room_units?: { label?: string } | { label?: string }[] }[]
-        | null) ?? [];
-    const rooms = assigns
-      .map((a) => {
-        const u = Array.isArray(a.room_units) ? a.room_units[0] : a.room_units;
-        return u?.label;
-      })
-      .filter(Boolean)
-      .join(", ");
-    return {
-      id: b.id as string,
-      label: `${(b.contact_name as string) ?? "Guest"}${rooms ? ` · ${rooms}` : ""}`,
-    };
-  });
+  const boardRows = dayOps.inHouse.map(dayOpsRowToBoardRaw);
+
+  const bookingOptions = dayOps.inHouse.map((b) => ({
+    id: b.id,
+    label: `${b.contact_name ?? "Guest"}${b.room_labels ? ` · ${b.room_labels}` : ""}`,
+  }));
 
   const tasks: InhouseTaskRow[] = (taskRows ?? []).map((t) => {
     const booking = (
@@ -107,7 +81,7 @@ export default async function InHousePage() {
     <DeskListShell
       eyebrow="Today"
       heading={`In-house · ${fmtDate(today)}`}
-      blurb="Guests currently staying. Open StayHub at Stay / Money for charges, payments, invoice, tasks — then hand off to Check-out when settled."
+      blurb="Guests currently staying. Open StayHub at Stay / Money for charges, payments, invoice, tasks — then hand off to Check-out when settled. Meal plan and room numbers on every row."
       filters={
         <div className="flex flex-wrap items-center justify-end gap-3">
           <div className="flex items-center gap-3">
@@ -123,11 +97,10 @@ export default async function InHousePage() {
       }
     >
       <InhouseTasksPanel tasks={tasks} bookingOptions={bookingOptions} />
-      <p className="text-xs text-muted-foreground">{rows?.length ?? 0} shown</p>
-      <BookingBoardTable
-        rows={(rows as Record<string, unknown>[]) ?? []}
-        board="in_house"
-      />
+      <p className="text-xs text-muted-foreground">
+        {dayOps.inHouse.length} shown · {dayOps.inHouseMealPax} meal pax
+      </p>
+      <BookingBoardTable rows={boardRows} board="in_house" />
     </DeskListShell>
   );
 }

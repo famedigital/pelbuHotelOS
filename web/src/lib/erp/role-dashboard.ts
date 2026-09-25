@@ -1,4 +1,4 @@
-import type { DeskRole } from "@/lib/desk-auth";
+import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { countOpenCallItemsDueToday } from "@/lib/erp/agent-call-tasks";
 import {
   loadGuestForecast,
@@ -11,9 +11,10 @@ import {
   parseDashboardView,
   type DashboardView,
 } from "@/lib/erp/dashboard-views";
+import { loadDayOpsBoard } from "@/lib/erp/day-ops-board";
 import { thimphuToday } from "@/lib/erp-lists";
 import { computeMealCovers, type MealCovers } from "@/lib/kitchen/covers";
-import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import type { DeskRole } from "@/lib/desk-auth";
 
 export type { DashboardView };
 export {
@@ -105,6 +106,10 @@ export type RoleDashboardSnapshot = {
   /** Agent call-downs due today or earlier (FO work). */
   agentCallTasksDue: number;
   agentCallPending: number;
+  /** Day-ops meal / laundry pressure for dept boards. */
+  arrivingMealPax: number;
+  inHouseMealPax: number;
+  departuresWithLaundry: number;
 };
 
 export async function loadRoleDashboardSnapshot(
@@ -118,6 +123,7 @@ export async function loadRoleDashboardSnapshot(
   const [
     mealCovers,
     guestForecast,
+    dayOps,
     { data: property },
     { data: bookings },
     { data: orders },
@@ -136,6 +142,7 @@ export async function loadRoleDashboardSnapshot(
     loadGuestForecast(admin, propertyId, {
       monthYm: options?.forecastMonthYm,
     }),
+    loadDayOpsBoard(admin, propertyId, today),
     admin
       .from("properties")
       .select("name, setup_completed_at, tax_id, bank_accounts")
@@ -366,5 +373,8 @@ export async function loadRoleDashboardSnapshot(
     guestForecast,
     agentCallTasksDue: agentCall.tasksDue,
     agentCallPending: agentCall.pendingCalls,
+    arrivingMealPax: dayOps.arrivingMealPax,
+    inHouseMealPax: dayOps.inHouseMealPax,
+    departuresWithLaundry: dayOps.departuresWithLaundry,
   };
 }

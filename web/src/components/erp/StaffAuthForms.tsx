@@ -1,6 +1,13 @@
 "use client";
 
-import { setStaffPortalPin, staffLogin, type StaffLoginState } from "@/app/actions/staff-auth";
+import {
+  clearLoginHotelCode,
+  resolveHotelCode,
+  setStaffPortalPin,
+  staffLogin,
+  type ResolveHotelCodeState,
+  type StaffLoginState,
+} from "@/app/actions/staff-auth";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ShimmerButton } from "@/components/ui/shimmer-button";
@@ -8,40 +15,125 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { TriangleAlertIcon } from "lucide-react";
-import { useActionState } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 
 const loginInitial: StaffLoginState = { ok: false };
-const pinInitial = { ok: false as boolean, error: undefined as string | undefined, message: undefined as string | undefined };
+const resolveInitial: ResolveHotelCodeState = { ok: false };
+const pinInitial = {
+  ok: false as boolean,
+  error: undefined as string | undefined,
+  message: undefined as string | undefined,
+};
 const selectClass =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
 
 export function StaffLoginForm({
   workspace = "staff",
   nextPath,
+  initialHotelCode,
+  initialPropertyName,
 }: {
-  /** desk: require can_access_desk; staff: staff portal is enough */
   workspace?: "staff" | "desk";
-  /** Safe relative path to open after sign-in (e.g. scanned bag QR). */
   nextPath?: string | null;
+  /** From httpOnly cookie when returning to step 2. */
+  initialHotelCode?: string | null;
+  initialPropertyName?: string | null;
 }) {
-  const [state, action, pending] = useActionState(staffLogin, loginInitial);
+  const [hotelStep, setHotelStep] = useState<{
+    code: string;
+    name: string;
+  } | null>(
+    initialHotelCode
+      ? { code: initialHotelCode, name: initialPropertyName ?? initialHotelCode }
+      : null,
+  );
+  const [resolveState, resolveAction, resolvePending] = useActionState(
+    resolveHotelCode,
+    resolveInitial,
+  );
+  const [loginState, loginAction, loginPending] = useActionState(
+    staffLogin,
+    loginInitial,
+  );
+  const [clearPending, startClear] = useTransition();
+
+  useEffect(() => {
+    if (resolveState.ok && resolveState.hotelCode) {
+      setHotelStep({
+        code: resolveState.hotelCode,
+        name: resolveState.propertyName ?? resolveState.hotelCode,
+      });
+    }
+  }, [resolveState]);
+
+  if (!hotelStep) {
+    return (
+      <form action={resolveAction} className="space-y-4" noValidate>
+        <div className="space-y-1.5">
+          <Label htmlFor="hotel_code">Hotel code</Label>
+          <Input
+            id="hotel_code"
+            name="hotel_code"
+            autoCapitalize="characters"
+            autoComplete="organization"
+            placeholder="THI02001"
+            required
+            maxLength={8}
+            pattern="[A-Za-z0-9]{6,8}"
+            title="6–8 letters or numbers, no spaces or symbols"
+            className="h-11 uppercase tracking-wider"
+          />
+          <p className="text-xs text-muted-foreground">
+            Letters and numbers only (e.g. THI02001). No spaces or symbols.
+          </p>
+        </div>
+        {resolveState.error ? (
+          <Alert variant="destructive">
+            <TriangleAlertIcon />
+            <AlertDescription>{resolveState.error}</AlertDescription>
+          </Alert>
+        ) : null}
+        <ShimmerButton
+          type="submit"
+          disabled={resolvePending}
+          background="var(--citrus-500)"
+          shimmerColor="#082f49"
+          borderRadius="0.5rem"
+          className="h-11 w-full text-sm font-semibold text-[var(--sky-ink)] border-transparent disabled:opacity-60"
+        >
+          {resolvePending ? "Checking…" : "Continue"}
+        </ShimmerButton>
+      </form>
+    );
+  }
 
   return (
-    <form action={action} className="space-y-4" noValidate>
+    <form action={loginAction} className="space-y-4" noValidate>
       <input type="hidden" name="workspace" value={workspace} />
+      <input type="hidden" name="hotel_code" value={hotelStep.code} />
       {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
-      <div className="space-y-1.5">
-        <Label htmlFor="hotel_code">Hotel code</Label>
-        <Input
-          id="hotel_code"
-          name="hotel_code"
-          autoCapitalize="characters"
-          autoComplete="organization"
-          placeholder="PELBU-SUITES-OLAKHA"
-          required
-          className="h-11 uppercase"
-        />
+
+      <div className="rounded-md border border-border bg-muted/40 px-3 py-2.5">
+        <p className="text-xs text-muted-foreground">Hotel</p>
+        <p className="font-medium text-foreground">{hotelStep.name}</p>
+        <p className="font-mono text-xs tracking-wider text-muted-foreground">
+          {hotelStep.code}
+        </p>
+        <button
+          type="button"
+          className="mt-1 text-xs text-foreground underline-offset-4 hover:underline disabled:opacity-50"
+          disabled={clearPending}
+          onClick={() => {
+            startClear(async () => {
+              await clearLoginHotelCode();
+              setHotelStep(null);
+            });
+          }}
+        >
+          Change hotel
+        </button>
       </div>
+
       <div className="space-y-1.5">
         <Label htmlFor="user_id">User ID</Label>
         <Input
@@ -68,21 +160,21 @@ export function StaffLoginForm({
           className="h-11"
         />
       </div>
-      {state.error ? (
+      {loginState.error ? (
         <Alert variant="destructive">
           <TriangleAlertIcon />
-          <AlertDescription>{state.error}</AlertDescription>
+          <AlertDescription>{loginState.error}</AlertDescription>
         </Alert>
       ) : null}
       <ShimmerButton
         type="submit"
-        disabled={pending}
+        disabled={loginPending}
         background="var(--citrus-500)"
         shimmerColor="#082f49"
         borderRadius="0.5rem"
         className="h-11 w-full text-sm font-semibold text-[var(--sky-ink)] border-transparent disabled:opacity-60"
       >
-        {pending ? "Signing in…" : "Sign in"}
+        {loginPending ? "Signing in…" : "Sign in"}
       </ShimmerButton>
     </form>
   );
