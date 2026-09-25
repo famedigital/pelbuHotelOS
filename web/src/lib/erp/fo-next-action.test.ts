@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   foActionFromDirtyRoom,
+  foActionFromStay,
   recommendFoStayJob,
   sortFoNextActions,
   type FoNextAction,
@@ -96,6 +97,16 @@ test("vacant dirty room → housekeeping; occupied skipped", () => {
     }),
     null,
   );
+});
+
+test("check_in action includes arrival playbook + Assign CTA when unassigned", () => {
+  const action = foActionFromStay(
+    stay({ hasRoomAssigned: false, roomLabel: null }),
+    "check_in",
+  );
+  assert.equal(action.cta, "Assign → CI");
+  assert.ok(action.playbook?.length);
+  assert.equal(action.playbook?.find((s) => s.id === "assign")?.current, true);
 });
 
 test("sortFoNextActions ranks CI before collect before HK", () => {

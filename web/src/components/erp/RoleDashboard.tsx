@@ -39,7 +39,6 @@ import {
   SparklesIcon,
   UsersIcon,
   WalletIcon,
-  PhoneIcon,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -1133,71 +1132,57 @@ function FrontDeskBoard({
       view={view}
       homeView={homeView}
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="rounded-xl border border-accent/30 bg-accent/5 px-4 py-4">
+        <p className="text-sm font-semibold text-foreground">
+          Daily desk lives on Today
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Check-in, check-out, in-house, and agent pay follow-up — open the
+          boards instead of hunting Ctrl+K lists.
+        </p>
+        <Button asChild variant="citrus" className="mt-3 min-h-11">
+          <Link href="/erp/today">Open Today</Link>
+        </Button>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
           href="/erp/today"
           icon={ClipboardListIcon}
-          label="Today"
+          label="Arrivals today"
           value={String(snap.arrivalsToday)}
         />
         <Kpi
-          href="/erp/in-house"
+          href="/erp/today"
           icon={HotelIcon}
           label="In-house"
           value={String(snap.inHouse)}
           tone="citrus"
         />
         <Kpi
-          href="/erp/departures"
+          href="/erp/today"
           icon={CalendarClockIcon}
           label="Departures"
           value={String(snap.departuresToday)}
         />
         <Kpi
-          href="/erp/reservations"
-          icon={CalendarClockIcon}
-          label="Holds"
-          value={String(snap.holdsCount)}
-          tone={snap.holdsCount > 0 ? "destructive" : "accent"}
+          href="/erp/today"
+          icon={WalletIcon}
+          label="Open folio $"
+          value={formatBtn(snap.folioBalanceBtn)}
+          tone={snap.folioBalanceBtn > 0 ? "destructive" : "accent"}
         />
-        <Kpi
-          href="/erp/agents/call-tasks"
-          icon={PhoneIcon}
-          label="Agent calls due"
-          value={String(snap.agentCallPending)}
-          hint={
-            snap.agentCallTasksDue > 0
-              ? `${snap.agentCallTasksDue} list${snap.agentCallTasksDue === 1 ? "" : "s"} due`
-              : "No open call tasks due"
-          }
-          tone={snap.agentCallPending > 0 ? "destructive" : "accent"}
-        />
-      </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Section title="Holds awaiting token">
-          <HoldsList snap={snap} />
-        </Section>
-        <Section title="Open folio balance">
-          <p className="text-3xl font-semibold tabular-nums text-accent">
-            {formatBtn(snap.folioBalanceBtn)}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Sum of posted lines on open folios
-          </p>
-          <div className="mt-3">
-            <QuickLinks
-              links={[
-                { href: "/erp/folios", label: "City ledger" },
-                { href: "/erp/payments", label: "Payments" },
-                { href: "/erp/calendar", label: "Room rack" },
-                { href: "/erp/agents/call-tasks", label: "Agent call tasks" },
-                { href: "/erp/reservations?new=1", label: "New reservation" },
-              ]}
-            />
-          </div>
-        </Section>
       </div>
       <MealPaxStrip snap={snap} />
+      <QuickLinks
+        links={[
+          { href: "/erp/today", label: "Today boards" },
+          { href: "/erp/calendar", label: "Stay View" },
+          { href: "/erp/hr/rota", label: "Rota" },
+          { href: "/erp/inventory/moves", label: "Store issues" },
+          { href: "/erp/agents/call-tasks", label: "Agent call tasks" },
+          { href: "/erp/folios", label: "City ledger" },
+        ]}
+      />
     </Shell>
   );
 }

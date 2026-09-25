@@ -68,6 +68,9 @@ export function MenuStockManager({
   const [qtyPerSale, setQtyPerSale] = useState(
     String(selected?.stock_qty_per_sale ?? 1),
   );
+  const [sellBarcode, setSellBarcode] = useState(
+    selected?.sell_barcode ?? "",
+  );
   const [ingredients, setIngredients] = useState<IngredientDraft[]>(() =>
     recipes
       .filter((row) => row.menu_item_id === menuItemId)
@@ -88,6 +91,7 @@ export function MenuStockManager({
     setMode(item?.stock_mode ?? "untracked");
     setInventoryItemId(item?.stock_inventory_item_id ?? "");
     setQtyPerSale(String(item?.stock_qty_per_sale ?? 1));
+    setSellBarcode(item?.sell_barcode ?? "");
     setIngredients(
       recipes
         .filter((row) => row.menu_item_id === id)
@@ -209,6 +213,24 @@ export function MenuStockManager({
               </div>
             </div>
           ) : null}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="sell_barcode">Sell barcode / UPC (optional)</Label>
+            <Input
+              id="sell_barcode"
+              name="sell_barcode"
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="Scan or type UPC / PLU"
+              value={sellBarcode}
+              onChange={(e) => setSellBarcode(e.target.value)}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Register scan adds this dish. Finished-good also copies to the
+              inventory SKU barcode.
+            </p>
+          </div>
 
           {mode === "recipe" ? (
             <div className="space-y-3 rounded-lg border p-3">

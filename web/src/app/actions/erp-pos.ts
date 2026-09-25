@@ -52,6 +52,12 @@ import {
   trimRequired,
 } from "@/lib/validation";
 import { captureServerError } from "@/lib/observability";
+import {
+  applyPosOrderItemStock,
+  applyPosOrderStock,
+  isPosTrainingMode,
+  normalizePartyName,
+} from "@/lib/pos-training";
 import { revalidatePath } from "next/cache";
 
 const KOT_STATUSES = new Set(["new", "preparing", "ready", "served", "cancelled"]);
@@ -463,7 +469,9 @@ export async function createDeskOrder(
   try {
     await requirePosFireDesk();
 
-    const customerName = trimRequired(formData.get("customer_name"), "Guest name");
+    const customerName = normalizePartyName(
+      optionalTrim(formData.get("customer_name")),
+    );
     const phoneRaw = optionalTrim(formData.get("phone"));
     const phone = phoneRaw ?? "walk-in";
     if (phoneRaw) assertPhone(phoneRaw);
@@ -815,17 +823,15 @@ export async function createDeskOrder(
     }
 
     if (!parkOnCreate) {
-      const { error: stockError } = await admin.rpc("pos_apply_order_stock", {
-        p_order_id: order.id,
-        p_reverse: false,
-      });
-      if (stockError) {
+      try {
+        await applyPosOrderStock(admin, {
+          propertyId: property_id,
+          orderId: order.id as string,
+          reverse: false,
+        });
+      } catch (stockErr) {
         await admin.from("orders").delete().eq("id", order.id);
-        throw new Error(
-          stockError.message.includes("Insufficient stock")
-            ? stockError.message
-            : "Could not issue menu stock.",
-        );
+        throw stockErr;
       }
     }
 
@@ -1226,17 +1232,15 @@ export async function appendDeskOrderItems(
 
     const newItemIds = inserted.map((row) => row.id as string);
 
-    const { error: stockError } = await admin.rpc("pos_apply_order_stock", {
-      p_order_id: orderId,
-      p_reverse: false,
-    });
-    if (stockError) {
+    try {
+      await applyPosOrderStock(admin, {
+        propertyId: property_id,
+        orderId,
+        reverse: false,
+      });
+    } catch (stockErr) {
       await admin.from("order_items").delete().in("id", newItemIds);
-      throw new Error(
-        stockError.message.includes("Insufficient stock")
-          ? stockError.message
-          : "Could not issue menu stock.",
-      );
+      throw stockErr;
     }
 
     for (const line of priced) {
@@ -2098,17 +2102,11 @@ export async function unparkOrder(
     if (error || !order) throw new Error("Order not found.");
     if (order.voided_at) throw new Error("Cannot unpark a voided order.");
 
-    const { error: stockError } = await admin.rpc("pos_apply_order_stock", {
-      p_order_id: orderId,
-      p_reverse: false,
+    await applyPosOrderStock(admin, {
+      propertyId: property_id,
+      orderId,
+      reverse: false,
     });
-    if (stockError) {
-      throw new Error(
-        stockError.message.includes("Insufficient stock")
-          ? stockError.message
-          : "Could not issue menu stock.",
-      );
-    }
 
     const { error: patchError } = await admin
       .from("orders")
@@ -2164,11 +2162,11 @@ export async function voidOrder(
     const amountBtn = Number(order.total_btn);
     await requireVoidManagerPin(admin, property_id, amountBtn, reasonCode, formData);
 
-    const { error: stockError } = await admin.rpc("pos_apply_order_stock", {
-      p_order_id: orderId,
-      p_reverse: true,
+    await applyPosOrderStock(admin, {
+      propertyId: property_id,
+      orderId,
+      reverse: true,
     });
-    if (stockError) throw new Error("Could not restore order stock.");
 
     const { actor } = await resolveDeskActor();
 
@@ -2306,14 +2304,11 @@ export async function voidOrderItem(
 
     await requireVoidManagerPin(admin, property_id, lineAmount, reasonCode, formData);
 
-    const { error: stockError } = await admin.rpc(
-      "pos_apply_order_item_stock",
-      {
-        p_order_item_id: itemId,
-        p_reverse: true,
-      },
-    );
-    if (stockError) throw new Error("Could not restore item stock.");
+    await applyPosOrderItemStock(admin, {
+      propertyId: property_id,
+      orderItemId: itemId,
+      reverse: true,
+    });
 
     const nowIso = new Date().toISOString();
     const { error: patchItemError } = await admin
@@ -2553,6 +2548,7 @@ export async function splitSettle(
 
     const admin = createSupabaseAdminClient();
     const property_id = await propertyId(admin);
+    const trainingMode = await isPosTrainingMode(admin, property_id);
     const posShiftId = await openShiftId(admin, property_id);
     const needsDrawer = tenders.some(
       (tender) =>
@@ -2560,7 +2556,7 @@ export async function splitSettle(
         tender.method !== "agent_credit" &&
         tender.method !== "nc",
     );
-    if (needsDrawer && !posShiftId) {
+    if (needsDrawer && !posShiftId && !trainingMode) {
       throw new Error("Open a POS shift before taking guest payment.");
     }
 
@@ -2782,21 +2778,23 @@ export async function splitSettle(
             idempotency_key: `pos_tender:${orderId}:${tender.method}:${tender.amountBtn}:${tender.reference ?? ""}`,
           });
         } else {
-          const orderGst = Number(order.gst_btn ?? 0);
-          const gstShare = allocateSplitGst(
-            tender.amountBtn,
-            totalBtn,
-            orderGst,
-          );
-          const gl = await postPosWalkInTender(admin, property_id, {
-            id: tenderRow.id as string,
-            method: tender.method,
-            amount_btn: tender.amountBtn,
-            gst_btn: gstShare,
-            notes: `POS walk-in · order ${orderId.slice(0, 8)} · ${order.customer_name as string}`,
-          });
-          if (!gl.ok) {
-            throw new Error(gl.error ?? "Could not post walk-in sale to ledger.");
+          if (!trainingMode) {
+            const orderGst = Number(order.gst_btn ?? 0);
+            const gstShare = allocateSplitGst(
+              tender.amountBtn,
+              totalBtn,
+              orderGst,
+            );
+            const gl = await postPosWalkInTender(admin, property_id, {
+              id: tenderRow.id as string,
+              method: tender.method,
+              amount_btn: tender.amountBtn,
+              gst_btn: gstShare,
+              notes: `POS walk-in · order ${orderId.slice(0, 8)} · ${order.customer_name as string}`,
+            });
+            if (!gl.ok) {
+              throw new Error(gl.error ?? "Could not post walk-in sale to ledger.");
+            }
           }
         }
       }
@@ -3044,26 +3042,38 @@ export async function saveDiningTable(
 
 export async function saveTablePosition(
   formData: FormData,
-): Promise<void> {
+): Promise<PosActionState> {
   try {
     await requireDesk();
     const tableId = trimRequired(formData.get("table_id"), "Table");
     const xRaw = Number(formData.get("pos_x"));
     const yRaw = Number(formData.get("pos_y"));
-    if (!Number.isFinite(xRaw) || !Number.isFinite(yRaw)) return;
+    if (!Number.isFinite(xRaw) || !Number.isFinite(yRaw)) {
+      return { ok: false, error: "Invalid table position." };
+    }
     const pos_x = Math.max(0, Math.min(100, xRaw));
     const pos_y = Math.max(0, Math.min(100, yRaw));
 
     const admin = createSupabaseAdminClient();
     const activePropertyId = await propertyId(admin);
 
-    await admin
+    const { error } = await admin
       .from("dining_tables")
       .update({ pos_x, pos_y })
       .eq("id", tableId)
       .eq("property_id", activePropertyId);
+    if (error) {
+      return { ok: false, error: "Could not save table position." };
+    }
+
+    revalidatePath("/erp/pos");
+    return { ok: true, message: "Table position saved" };
   } catch (err) {
     console.error("saveTablePosition failed", err);
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Could not save position.",
+    };
   }
 }
 
@@ -3513,17 +3523,11 @@ export async function recordOnlineOrderPayment(
       return { ok: true, orderId };
     }
 
-    const { error: stockError } = await admin.rpc("pos_apply_order_stock", {
-      p_order_id: orderId,
-      p_reverse: false,
+    await applyPosOrderStock(admin, {
+      propertyId: property_id,
+      orderId,
+      reverse: false,
     });
-    if (stockError) {
-      throw new Error(
-        stockError.message.includes("Insufficient stock")
-          ? stockError.message
-          : "Could not issue menu stock.",
-      );
-    }
 
     const { error: patchError } = await admin
       .from("orders")

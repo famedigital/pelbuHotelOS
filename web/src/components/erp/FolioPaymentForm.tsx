@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { isCreditAgentStatus } from "@/lib/agents/status";
+import { FO_TENDER_LABELS } from "@/lib/folio/fo-settlement";
 import { formatBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -238,7 +239,7 @@ export function FolioPaymentForm({
         >
           <div className="space-y-1">
             <Label htmlFor="method" className={dense ? "text-xs" : undefined}>
-              How to settle
+              How to collect
             </Label>
             <select
               id="method"
@@ -247,15 +248,13 @@ export function FolioPaymentForm({
               onChange={(e) => setMethod(e.target.value as FolioSettleMethod)}
               className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
             >
-              <option value="cash">Cash (collect)</option>
-              <option value="bank">Bank transfer (collect)</option>
-              <option value="bank_qr">Bank QR (collect)</option>
-              <option value="pay_bt">Pay.bt (collect)</option>
-              <option value="card">Card (collect)</option>
-              <option value="deposit">Apply deposit</option>
-              <option value="agent_credit">
-                Agent AR book (charge — agent owes)
-              </option>
+              <option value="cash">{FO_TENDER_LABELS.cash}</option>
+              <option value="bank">{FO_TENDER_LABELS.bank}</option>
+              <option value="bank_qr">{FO_TENDER_LABELS.bank_qr}</option>
+              <option value="pay_bt">{FO_TENDER_LABELS.pay_bt}</option>
+              <option value="card">{FO_TENDER_LABELS.card}</option>
+              <option value="deposit">{FO_TENDER_LABELS.deposit}</option>
+              <option value="agent_credit">{FO_TENDER_LABELS.agent_credit}</option>
             </select>
           </div>
           <div className="space-y-1">

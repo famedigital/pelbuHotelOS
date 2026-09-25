@@ -12,6 +12,12 @@ export function PosStockPanel({ items }: { items: MenuItem[] }) {
         (a.stock_on_hand ?? Infinity) - (b.stock_on_hand ?? Infinity) ||
         a.name.localeCompare(b.name),
     );
+  const untracked = items.filter(
+    (item) => !item.stock_mode || item.stock_mode === "untracked",
+  );
+  const zeroStock = tracked.filter(
+    (item) => item.sold_out || (item.stock_on_hand != null && item.stock_on_hand <= 0),
+  );
 
   return (
     <section className="rounded-xl border bg-card p-4 md:p-5">
@@ -24,11 +30,33 @@ export function PosStockPanel({ items }: { items: MenuItem[] }) {
           <p className="mt-1 text-sm text-muted-foreground">
             Available servings after recipe and finished-goods consumption.
           </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <Badge variant="outline" className="tabular-nums">
+              Tracked {tracked.length}
+            </Badge>
+            {untracked.length > 0 ? (
+              <Badge variant="secondary" className="tabular-nums">
+                Untracked {untracked.length}
+              </Badge>
+            ) : null}
+            {zeroStock.length > 0 ? (
+              <Badge variant="destructive" className="tabular-nums">
+                0 stock {zeroStock.length}
+              </Badge>
+            ) : null}
+          </div>
         </div>
         <Button asChild variant="outline" size="sm">
           <Link href="/erp/menu">Receive or configure stock</Link>
         </Button>
       </div>
+      {untracked.length > 0 ? (
+        <p className="mt-3 text-xs text-muted-foreground">
+          {untracked.length} menu item
+          {untracked.length === 1 ? "" : "s"} have no stock profile — wire
+          finished-good or recipe under Menu → Stock &amp; recipes.
+        </p>
+      ) : null}
       {tracked.length === 0 ? (
         <div className="mt-5 rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
           No tracked menu items. Configure purchased items or recipes in Menu.

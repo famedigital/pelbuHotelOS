@@ -16,6 +16,10 @@ import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
 import type { OpenPosTicket } from "@/lib/pos";
 import {
+  openPrintShell,
+  routeSettlePrints,
+} from "@/lib/pos-print-prefs";
+import {
   tenderMethodLabel,
   type PosTenderMethod,
 } from "@/lib/pos-tenders";
@@ -24,39 +28,6 @@ import { useEffect, useMemo, useRef, useState, useActionState } from "react";
 import type { PosBookingOption, PosCreditAgentOption, TenderDraft } from "./types";
 
 const initial: SplitSettleState = { ok: false };
-
-/** Opens a same-named shell so we can navigate it after settle without popup-block. */
-function openReceiptShell(): Window | null {
-  try {
-    const w = window.open("about:blank", "posReceiptPrint");
-    if (!w) return null;
-    w.document.open();
-    w.document.write(
-      `<!doctype html><html><head><title>Printing…</title></head>` +
-        `<body style="font:14px system-ui;padding:24px;color:#111">` +
-        `Settling — preparing guest receipt…</body></html>`,
-    );
-    w.document.close();
-    return w;
-  } catch {
-    return null;
-  }
-}
-
-function routeReceiptToWindow(orderId: string, shell: Window | null) {
-  const url = `/erp/orders/${orderId}/receipt?print=1`;
-  if (shell && !shell.closed) {
-    try {
-      shell.location.href = url;
-      shell.focus();
-      return true;
-    } catch {
-      /* fall through */
-    }
-  }
-  window.location.assign(url);
-  return false;
-}
 
 function routeInvoiceToWindow(invoiceDocId: string, shell: Window | null) {
   const url = `/erp/invoices/${invoiceDocId}/print`;
@@ -166,7 +137,7 @@ export function SettlePanel({
     if (state.invoiceDocId) {
       routeInvoiceToWindow(state.invoiceDocId, shell);
     } else {
-      routeReceiptToWindow(state.orderId, shell);
+      routeSettlePrints(state.orderId, shell);
     }
   }, [state.ok, state.orderId, state.invoiceDocId, onOpenChange]);
 
@@ -273,7 +244,10 @@ export function SettlePanel({
           className="space-y-4"
           onSubmit={() => {
             // Open during the click gesture so browsers allow the print window.
-            printShellRef.current = openReceiptShell();
+            printShellRef.current = openPrintShell(
+              "posReceiptPrint",
+              "Settling — preparing guest receipt…",
+            );
           }}
         >
           <input type="hidden" name="order_id" value={orderId ?? ""} />

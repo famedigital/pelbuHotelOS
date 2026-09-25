@@ -51,7 +51,7 @@ export type ErpModule = {
 
 /** Extra search aliases keyed by tab href (merged into palette / mobile search). */
 export const ERP_NAV_KEYWORDS: Record<string, string[]> = {
-  "/erp/today": ["today", "worklist", "fo home", "front office", "desk jobs", "edit transaction"],
+  "/erp/today": ["today", "worklist", "fo home", "front office", "desk jobs", "daily desk", "check-in list", "check-out list", "in-house", "agent pay"],
   "/erp": ["home", "dashboard", "desk"],
   "/erp/calendar": [
     "rack",
@@ -187,7 +187,7 @@ export const ERP_MODULES: ErpModule[] = [
     icon: UsersIcon,
     href: "/erp/today",
     tabs: [
-      leaf("Today", "/erp/today", ClipboardListIcon, ["worklist", "fo"], "daily"),
+      leaf("Today", "/erp/today", ClipboardListIcon, ["worklist", "fo", "daily desk"], "daily"),
       leaf("Arrival List", "/erp/arrivals", ClipboardListIcon, ["arrivals"]),
       leaf("Guest Ledger", "/erp/in-house", BedDoubleIcon, ["in-house", "inhouse"]),
       leaf("Departure List", "/erp/departures", ScrollTextIcon, ["departures"]),

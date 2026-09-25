@@ -1,6 +1,7 @@
 "use client";
 
 import { AgentNameLink } from "@/components/erp/AgentNameLink";
+import { ArrivalPlaybookStrip } from "@/components/erp/ArrivalPlaybookStrip";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { useStayHubOptional } from "@/components/erp/StayHubProvider";
@@ -11,6 +12,7 @@ import {
   type ArrivalBadge,
 } from "@/lib/arrival-board";
 import { bookingConfirmationLabel } from "@/lib/booking-ref";
+import { buildArrivalPlaybook } from "@/lib/folio/fo-settlement";
 import { recommendStayHubStep } from "@/lib/folio/stay-hub-cycle";
 import { seedStayFromBoardRow } from "@/lib/folio/stay-hub-seed";
 
@@ -145,20 +147,31 @@ export function BookingsTable({
     {
       accessorKey: "contact_name",
       header: "Guest",
-      cell: ({ row }) => (
-        <div>
-          <p className="font-medium text-foreground">
-            {row.original.contact_name ?? "Guest"}
-          </p>
-          <p className="font-mono text-xs text-muted-foreground">
-            {bookingConfirmationLabel({
-              confirmationCode: row.original.confirmation_code,
-              bookingId: row.original.id,
-            })}{" "}
-            · {row.original.contact_phone ?? "—"}
-          </p>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const playbook =
+          board === "arrivals"
+            ? buildArrivalPlaybook({
+                status: row.original.status ?? "",
+                hasRoomAssigned: Boolean(row.original.room_labels?.trim()),
+                balanceBtn: row.original.folio_balance_btn ?? undefined,
+              })
+            : null;
+        return (
+          <div className="space-y-1">
+            <p className="font-medium text-foreground">
+              {row.original.contact_name ?? "Guest"}
+            </p>
+            <p className="font-mono text-xs text-muted-foreground">
+              {bookingConfirmationLabel({
+                confirmationCode: row.original.confirmation_code,
+                bookingId: row.original.id,
+              })}{" "}
+              · {row.original.contact_phone ?? "—"}
+            </p>
+            {playbook ? <ArrivalPlaybookStrip steps={playbook} /> : null}
+          </div>
+        );
+      },
       meta: { className: "px-3" },
     },
     {
@@ -376,7 +389,7 @@ export function BookingsTable({
               className="cursor-pointer rounded-xl border border-border bg-card p-4 shadow-xs"
             >
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0 space-y-1">
                   <p className="font-medium text-foreground">
                     {row.contact_name ?? "Guest"}
                   </p>
@@ -387,6 +400,15 @@ export function BookingsTable({
                     })}{" "}
                     · {row.contact_phone ?? "—"}
                   </p>
+                  {board === "arrivals" ? (
+                    <ArrivalPlaybookStrip
+                      steps={buildArrivalPlaybook({
+                        status: row.status ?? "",
+                        hasRoomAssigned: Boolean(row.room_labels?.trim()),
+                        balanceBtn: row.folio_balance_btn ?? undefined,
+                      })}
+                    />
+                  ) : null}
                 </div>
                 <StatusPill value={row.status ?? ""} />
               </div>

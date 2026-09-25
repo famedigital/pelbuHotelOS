@@ -9,6 +9,7 @@ import { calculateRoomNightTax, formatGuestBtn, roundBtn } from "@/lib/pricing";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import {
   agentRateTier,
+  isRateTier,
   lookupRoomRateBtn,
   nightsBetween,
   resolveSeasonKind,
@@ -87,13 +88,6 @@ export type DeskStayQuote = {
 
 export type DeskStayQuoteError = { ok: false; error: string };
 
-const WALKIN_TIERS: ReadonlySet<string> = new Set([
-  "public",
-  "friends",
-  "family",
-  "mutual_friends",
-]);
-
 /**
  * Live price preview for DeskBookModal (no inventory lock).
  * Accepts multi-category `lines` or legacy single roomTypeId + qty.
@@ -120,8 +114,8 @@ export async function previewDeskStayQuote(input: {
   source?: string;
   agentId?: string | null;
   /**
-   * Explicit walk-in / friends tier when no agent.
-   * Agent always wins when bookable agentId is set.
+   * Explicit FO rate pickup tier (public / personal / agent / special).
+   * When set to a known RateTier, wins over agent profile default.
    */
   rateTier?: string | null;
 }): Promise<DeskStayQuote | DeskStayQuoteError> {
@@ -188,8 +182,8 @@ export async function previewDeskStayQuote(input: {
     const source = (input.source ?? "reservation").trim();
     if (source === "mou_agent") tier = agentRateTier("mou_agents");
     else if (source === "agent") tier = agentRateTier("agents");
-    else if (input.rateTier && WALKIN_TIERS.has(input.rateTier)) {
-      tier = input.rateTier as RateTier;
+    else if (input.rateTier && isRateTier(input.rateTier)) {
+      tier = input.rateTier;
     }
 
     let agentOpenRooms: number | null = null;
@@ -203,7 +197,10 @@ export async function previewDeskStayQuote(input: {
         .eq("id", input.agentId)
         .maybeSingle();
       if (agent && isBookableAgentStatus(agent.status as string)) {
-        tier = agentRateTier(agent.rate_tier as string);
+        // Profile default; FO rate pickup may override below.
+        if (!isRateTier(input.rateTier ?? null)) {
+          tier = agentRateTier(agent.rate_tier as string);
+        }
         agentCompanyName = (agent.company_name as string) ?? null;
         agentRoomCap = Math.max(0, Number(agent.open_room_cap ?? 15));
         try {
@@ -215,6 +212,11 @@ export async function previewDeskStayQuote(input: {
           agentOpenRooms = null;
         }
       }
+    }
+
+    // Explicit FO rate pickup always wins when valid.
+    if (isRateTier(input.rateTier ?? null)) {
+      tier = input.rateTier as RateTier;
     }
 
     const season = await resolveSeasonKind(admin, propertyId, checkIn);

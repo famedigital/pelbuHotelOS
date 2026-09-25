@@ -19,6 +19,10 @@ import {
   postCancelPolicyFeeIfDue,
   postNoShowPolicyFeeIfDue,
 } from "@/lib/folio/policy-fee";
+import {
+  formatBookingCancelReason,
+  isBookingCancelReasonCode,
+} from "@/lib/folio/booking-cancel-reasons";
 import { resolveCancelPolicyContext } from "@/lib/policies/cancel-policy";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -514,7 +518,22 @@ export async function cancelBooking(
     const admin = createSupabaseAdminClient();
     const pid = await propertyId(admin);
     const bookingId = trimRequired(formData.get("booking_id"), "Booking");
-    const reason = optionalTrim(formData.get("cancel_reason")) ?? "desk_cancel";
+    const codeRaw = optionalTrim(formData.get("cancel_reason_code"));
+    const detail = optionalTrim(formData.get("cancel_reason_detail"));
+    const legacyReason = optionalTrim(formData.get("cancel_reason"));
+
+    let reason: string;
+    if (isBookingCancelReasonCode(codeRaw)) {
+      if (codeRaw === "other" && !detail) {
+        throw new Error("Add a short note when reason is Other.");
+      }
+      reason = formatBookingCancelReason(codeRaw, detail);
+    } else if (legacyReason) {
+      // Older callers / scripts that still post free-text cancel_reason.
+      reason = legacyReason;
+    } else {
+      throw new Error("Select a cancel reason.");
+    }
 
     const { data: booking, error } = await admin
       .from("bookings")

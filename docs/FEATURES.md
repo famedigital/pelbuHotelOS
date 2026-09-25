@@ -66,7 +66,7 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | Feature | Notes |
 |---------|--------|
 | Layout | `web/src/app/erp/layout.tsx` → authenticated `DeskShell` |
-| Sidebar IA | Header **Front desk \| Back office** · **Today** · Stay View · Housekeeping · **POS** (FO rail). Lists / City Ledger / Night Audit under More. Dashboard KPI tiles stay for owner/GM. |
+| Sidebar IA | Header **Front desk \| Back office** · **Today** (Daily Desk: CI/CO/in-house/agent pay) · Stay View · Housekeeping · **POS** (FO rail). Lists / City Ledger / Night Audit under More. Owner/GM KPI tiles stay on `/erp`. |
 | Desk shift gate | **Default OFF** — any staff with `can_login` + `can_access_desk` may open `/erp` any time. Optional Settings → Identity → **Restrict hotel desk to scheduled shifts** limits non-management staff to a covering published `staff_shifts` (Thimphu); Owner/GM/manager + DESK_PIN bypass. Not POS cashier shifts. |
 | **F&B IA (fixed)** | **No standalone F&B sidebar.** Sell/settle = POS register + menu + KDS; daily ops = **Kitchen board** `/erp/kitchen` (F&B ops home); property FO/GM home = Dashboard `/erp`. Do not merge kitchen into `/erp` or add a duplicate F&B root. |
 | Property switcher | Header; multi-property helpers + wizard exist |
@@ -85,14 +85,14 @@ Plans: `calendar_drag_booking_64bad6ba` · `erp_shadcn_reskin_d79ac669` · `erp_
 | **Dashboard** (role home) | `/erp` (+ role lands: FO → **Today**, kitchen → kitchen, cashier/F&B → POS) | **Per desk role:** tab-level defaults via `desk_module_keys` NULL. Owner/GM full catalog. FO PIN lands **Today** (not Arrivals). |
 | **Stay View** | `/erp/calendar` | Room × date Gantt (eZee Stay View). Legend: Vacant · Occupied · Reserved · O/O · Due Out · Dirty. Empty cell → Walk In. Stay click → Edit Transaction on recommended step. |
 | Calendar day sheet | `/erp/calendar/day-sheet` | Printable arrivals / departures / stayovers / blocks |
-| **Today (FO home)** | `/erp/today` | Ranked worklist from hotel truth (not an LLM): CI / Collect / Checkout / vacant Dirty / hold. One CTA per row. Night Audit banner when working date is stale. |
+| **Today (FO home)** | `/erp/today` | **Daily Desk:** tabs for Check-in (agent, guide #, rooms, room #, meal) · Check-out (agent, pay status, room #, folio, meal) · In-house (room #, meal) · **Agent pay follow-up** (paid / unpaid / agent AR + settlement pack). Count chips + live refresh. Bottom strip: **rota today**, store issues/POs, compliance forms. Ranked “Do next” worklist kept as optional tab when jobs exist. |
 | Fast book | Modal on `/erp/reservations?new=1` (deeplink `/erp/fast-book` redirects) | **DeskBook re-engineer (2026-08-10):** StayHub-style left price rail + dense form — guest origin vs bill-to-agent, meal/children/extra, multi-category rooms, **guide/driver comps**, live **remaining inventory**, package bill break (rooms/meal/extra), walk-in **rate tier** (public/friends/family/mutual), promo + notes + email, preferred rack unit chip, agent **room-cap soft warn**. Classic FastBook path retired. Confirm pack or **same-day → StayHub Check-in** (footer Confirm check-in). |
 | **Stay confirmation #** | `bookings.confirmation_code` | **`PS-YYYY-#####`** gapless per property (Thimphu year); trigger on insert + backfill. Searchable. **Not** a tax invoice. Tax = **`INV-YYYY-####`** from folio fiscal issue only. |
 | **Edit Transaction (StayHub)** | Modal from Today / Stay View / lists | On-screen title **Edit Transaction**. Recommended step + one footer CTA. **HK chip**. Folio tools: **Folio · Collect**; Invoice `INV-` / Advanced under More. In-house opens Folio. Rail + URL `?step=`. See hang-card. |
 | Check-in / out | StayHub panels + `/erp/check-in` | Compact origin-aware form (local CID; intl/regional passport/SDF/guide); driver only when comps/tours; business-date gate; sticky Confirm CI; **post-CI guest registration print + signed-card camera/file upload** (`bookings.reg_card_photo_public_id`); **ERP-editable print docs** (Settings → Documents: Invoice, Receipt, Voucher, Checkout settlement pack, Registration — logo/title/intro/notes/terms); re-upload on Guest while in-house; Undo CI when folio simple; CO → dirty; agent CO gated on guide evidence |
 | Arrivals / in-house / departures | `/erp/arrivals` etc. | Boards open StayHub (CI / Stay-Money / CO); show **PS** conf #; today’s worklists only for A/D |
 | Reservations / guests | `/erp/reservations`, `/erp/guests` | **Party board** (groups + suggested multi-room); rooming list; filters room/dates/sort; search guest/phone/agent/room/**PS conf #**; Ctrl+K globally |
-| **POS / F&B** | `/erp/pos` (+ tabs) | Cashier daily: **Register · Menu · Kitchen board · Day pack · Kitchen TV**. Recipe/engineering/compliance stay off the daily rail. Open tickets + Closed today; floor plan; shifts. Room-charge → folio. Guest Nu 0/5 on F&B bills. **Bar packs** |
+| **POS / F&B** | `/erp/pos` (+ tabs) | Cashier daily: **Register · Menu · Kitchen board · Day pack · Kitchen TV**. Recipe/engineering/compliance stay off the daily rail. Open tickets + Closed today; floor plan; shifts. Room-charge → folio. Guest Nu 0/5 on F&B bills. **Bar packs**. **Party name** (typed) on ticket/KOT/receipt. **Printers** prefs (KOT + receipt, same/separate). Training mode skips stock/GL. |
 | **Menu (catalog + bar)** | `/erp/menu` | Catalog · **Bar packs** (spirit pek+bottle, beer case, waste) · Stock & recipes · Categories. Spirits in **ml**; default 30 ml pek |
 | **Laundry** | `/erp/laundry` · guest `/laundry` · staff `/staff/laundry` | Bag QR; scan/login hardened; reprint without invalidating stickers; maid board → folio post |
 | Folio | `/erp/folios/[id]` (+ `/receipt`) | Payments (cash vs agent AR), void, comp, minibar/damage; INV/RCP issue; day-1 post; POS serve/void; whole-Nu hotel rate adj (room/F&B); Group/master Advanced |
@@ -270,6 +270,22 @@ Spirits / beer share **one inventory ledger** across multiple sell sizes. Checko
 
 ---
 
+## Restaurant POS production invariants
+
+Borrowed from Kora retail production rules; hotel restaurant scope:
+
+1. **Money first** — settle/folio post before receipt print  
+2. **Stock fail-closed** — `pos_apply_order_stock` errors abort create/append/unpark  
+3. **Print after persist** — KOT/receipt only after server `ok`  
+4. **Idempotent stock** — `inventory_movements.source_key`  
+5. **Property isolation** — print pages assert desk property  
+6. **Training safe** — `properties.pos_training_mode` skips stock + walk-in GL  
+7. **Party on every ticket** — `customer_name` normalized to Walk-in; hero on KOT/receipt  
+
+Print prefs: localStorage `pelbu.pos.printPrefs` (More → Printers). Routes: `/erp/orders/[id]/receipt`, `/erp/orders/[id]/kot`.
+
+---
+
 ## Not done / partial
 
 | Item | Status |
@@ -284,7 +300,8 @@ Spirits / beer share **one inventory ledger** across multiple sell sizes. Checko
 | **Bhutan live e-invoice** | Stub **shipped** — live API only when DRC mandates ([GST-EINVOICE.md](GST-EINVOICE.md)) |
 | **Tenants Stripe / domain automation** | Foundation + billing/seats/cert UI **shipped**; Stripe self-serve + Vercel domains API still open |
 | **SEC-01 staff-scoped client** | Wave 2 money gates **shipped**; full admin-client rewrite still residual — [ERP-AUDIT.md](ERP-AUDIT.md) |
-| **Purchase cost trends (Phase C)** | **Not started** — MoM item price / gas-grocery analytics need `unit_cost_btn` written on every inventory **receive** (movement value is partial today). Do not fake trends from a single `inventory_items.unit_cost_btn` |
+| **Purchase cost trends (Phase C)** | **Partial** — receive + PO receive now require `unit_cost_btn` on movements; MoM analytics UI still open |
+| **Restaurant POS production** | **In progress** — invariants (training/stock fail-closed/print-after-persist), KOT+receipt prefs, party name, barcode/UPC schema, location-aware POS stock. LAN ESC/POS / house accounts / e2e ACCEPTANCE still open |
 | **Partner perks** | Discount % auto-applied on public book quote (guide_number → guide) + calendar on-credit + POS; spa auto-apply still open |
 | **Agent voucher PDF/email** | Print + Resend text email shipped; high-quality print CSS improved; native PDF attachment still soft |
 | **Extra templates** | Only flagship `template_id=1` |

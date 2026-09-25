@@ -72,7 +72,4 @@ export function panelDescription(panel: StayHubStepId): string {
   }
 }
 
-export function paymentModeLabel(mode: string | null | undefined): string {
-  if (!mode) return "Unset";
-  return mode.replace(/_/g, " ");
-}
+export { foPaymentModeLabel as paymentModeLabel } from "@/lib/folio/fo-settlement";

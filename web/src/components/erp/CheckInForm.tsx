@@ -26,6 +26,10 @@ import {
 import { countryComboboxOptions, nationalityRequired } from "@/lib/countries";
 import { cloudinaryOriginalUrl, cloudinaryUrl } from "@/lib/cloudinary";
 import { thimphuToday } from "@/lib/erp-lists";
+import {
+  FO_PAYMENT_MODE_OPTIONS,
+  foPaymentModeHint,
+} from "@/lib/folio/fo-settlement";
 import { formatBtn } from "@/lib/pricing";
 import type {
   CheckInAssignmentSlot,
@@ -1071,7 +1075,7 @@ export function CheckInForm({
         )}
         <div className="space-y-0.5">
           <Label htmlFor="payment_mode" className={FIELD_LABEL}>
-            Payment mode
+            How they pay the hotel
           </Label>
           <select
             id="payment_mode"
@@ -1080,16 +1084,15 @@ export function CheckInForm({
             onChange={(e) => setPaymentMode(e.target.value)}
             className="flex h-8 w-full rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
           >
-            {/* cash = soft pay-at-end (local default): collect Folio at leave */}
-            <option value="cash">Pay at checkout</option>
-            <option value="prepaid">Prepaid (already paid)</option>
-            <option value="partial">Partial / deposit</option>
-            <option value="on_credit">On credit (agent)</option>
+            {FO_PAYMENT_MODE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
           </select>
-          {paymentMode === "cash" ? (
+          {foPaymentModeHint(paymentMode) ? (
             <p className="text-[10px] text-muted-foreground">
-              Guest settles on leave — Folio → Collect (cash / QR / bank). Not
-              collected at check-in.
+              {foPaymentModeHint(paymentMode)}
             </p>
           ) : null}
           {paymentMode === "on_credit" && booking.stay_estimate_btn != null ? (
@@ -1423,15 +1426,29 @@ export function CheckOutForm({
   }, [state.ok, onCheckedOut]);
 
   if (state.ok) {
+    const roomsHref =
+      rooms.length > 0
+        ? `/erp/rooms?focus=${encodeURIComponent(rooms.join(","))}&hk=dirty`
+        : "/erp/rooms?hk=dirty";
     return (
       <div
         className="erp space-y-3 rounded-lg border bg-card px-4 py-3 text-sm text-foreground"
         role="status"
       >
-        <p>Checked out. Room is Dirty — next job is Housekeeping.</p>
-        <Button asChild variant="citrus" className="min-h-11">
-          <Link href="/erp/housekeeping">Open Housekeeping</Link>
-        </Button>
+        <p className="font-medium">Checked out</p>
+        <p className="text-xs text-muted-foreground">
+          {rooms.length > 0
+            ? `${rooms.join(", ")} marked dirty — next job is housekeeping.`
+            : "Rooms marked dirty — next job is housekeeping."}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="citrus" className="min-h-11">
+            <Link href={roomsHref}>Open dirty rooms</Link>
+          </Button>
+          <Button asChild variant="outline" className="min-h-11">
+            <Link href="/erp/housekeeping">HK assignments</Link>
+          </Button>
+        </div>
       </div>
     );
   }

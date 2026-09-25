@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { orderRef } from "@/lib/order-ref";
+import { normalizePartyName } from "@/lib/pos-training";
 import type { DocumentPaperSize } from "@/lib/property-settings";
 import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -62,9 +63,6 @@ export default async function OrderPaidReceiptPage({
     notFound();
   }
 
-  if (order.voided_at) {
-    redirect(`/erp/orders/${id}/slip`);
-  }
   if (!order.settled_at) {
     // Not paid yet — send cashier to open slip / tickets flow.
     redirect(`/erp/pos`);
@@ -127,7 +125,7 @@ export default async function OrderPaidReceiptPage({
   const data: PosPaidReceiptData = {
     orderId: order.id as string,
     outlet: (order.outlet as string) ?? "outlet",
-    customerName: (order.customer_name as string) || "Guest",
+    customerName: normalizePartyName(order.customer_name as string | null),
     phone: (order.phone as string | null) ?? null,
     tableName,
     covers: order.covers == null ? null : Number(order.covers),
@@ -141,6 +139,7 @@ export default async function OrderPaidReceiptPage({
     lines,
     tenders,
     folioId: (order.folio_id as string | null) ?? null,
+    voidedAt: (order.voided_at as string | null) ?? null,
   };
 
   return (

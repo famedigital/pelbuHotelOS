@@ -28,6 +28,7 @@ import {
 } from "@/lib/sales-claims";
 import {
   agentRateTier,
+  isRateTier,
   lookupRoomRateBtn,
   nightsBetween,
   resolveSeasonKind,
@@ -51,6 +52,12 @@ export type DeskBookIntent = "reserve" | "confirm" | "check_in";
 export type FastBookState = {
   ok: boolean;
   bookingId?: string;
+  /** Formal party master when multi-room DeskBook (≥2 guest rooms). */
+  groupId?: string;
+  /** Sellable guest room count saved on this booking. */
+  guestRoomCount?: number;
+  /** FO should open rooming / assign before send pack. */
+  needsRooming?: boolean;
   /** Human stay confirmation PS-YYYY-##### */
   confirmationCode?: string;
   /** How the desk created this stay — clients open the right StayHub panel. */
@@ -355,9 +362,8 @@ export async function createFastBooking(
     }
 
     let tier = rateTierFromSource(source);
-    const walkinTier = resolveWalkinRateTier(
-      optionalTrim(formData.get("rate_tier")),
-    );
+    const pickupTierRaw = optionalTrim(formData.get("rate_tier"));
+    const walkinTier = resolveWalkinRateTier(pickupTierRaw);
     if (!agentId && walkinTier) {
       tier = walkinTier;
     }
@@ -382,6 +388,10 @@ export async function createFastBooking(
         );
       }
       tier = agentRateTier(agent.rate_tier as string);
+    }
+    // FO rate pickup (public / personal / agent / special) wins when valid.
+    if (isRateTier(pickupTierRaw)) {
+      tier = pickupTierRaw;
     }
 
     const intentRaw = (optionalTrim(formData.get("intent")) ?? "confirm") as string;
@@ -835,6 +845,57 @@ export async function createFastBooking(
       "fast_book.create",
     ).catch((err) => console.error("enqueueAfterBookingChange fast_book", err));
 
+    let groupId: string | undefined;
+    const needsRooming = guestRooms > 1;
+    if (needsRooming) {
+      try {
+        const groupName =
+          [contactName, agentId ? "party" : null, `${guestRooms} rooms`]
+            .filter(Boolean)
+            .join(" · ") || `${guestRooms}-room party`;
+        const { data: group, error: gErr } = await admin
+          .from("booking_groups")
+          .insert({
+            property_id: property.id,
+            name: groupName,
+            agent_id: agentId || null,
+            check_in: checkIn,
+            check_out: checkOut,
+            status: "open",
+            notes: `DeskBook multi-room (${guestRooms} guest rooms).`,
+          })
+          .select("id")
+          .single();
+        if (gErr || !group) {
+          throw new Error(gErr?.message ?? "Could not create party group.");
+        }
+        groupId = group.id as string;
+        const { error: mErr } = await admin
+          .from("booking_group_members")
+          .insert({
+            group_id: groupId,
+            booking_id: booking.id,
+          });
+        if (mErr) throw new Error(mErr.message);
+        await writeAuditEvent(admin, {
+          propertyId: property.id as string,
+          action: "reservations.party.desk_book",
+          entityType: "booking_groups",
+          entityId: groupId,
+          summary: `DeskBook linked ${guestRooms}-room stay as party`,
+          meta: { booking_id: booking.id, guest_rooms: guestRooms },
+        });
+        revalidatePath("/erp/group");
+      } catch (groupErr) {
+        console.error("createFastBooking party group failed", groupErr);
+        warnings.push(
+          groupErr instanceof Error
+            ? `Saved without party group: ${groupErr.message}`
+            : "Saved without party group — link rooms on Reservations.",
+        );
+      }
+    }
+
     revalidatePath("/erp/calendar");
     revalidatePath("/erp/reservations");
     if (anyRatePending) revalidatePath("/erp/rate-approvals");
@@ -843,6 +904,9 @@ export async function createFastBooking(
     return {
       ok: true,
       bookingId: booking.id as string,
+      groupId,
+      guestRoomCount: guestRooms,
+      needsRooming: needsRooming || undefined,
       confirmationCode:
         (booking.confirmation_code as string | null) ?? undefined,
       intent: anyRatePending ? "reserve" : intent,

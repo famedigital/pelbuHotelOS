@@ -21,10 +21,12 @@ import {
   ListOrderedIcon,
   LockKeyholeIcon,
   MoreHorizontalIcon,
+  PrinterIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { PosPrinterSettings } from "./PosPrinterSettings";
 import type { PosSection } from "./types";
 
 function segmentClass(active: boolean) {
@@ -148,6 +150,8 @@ function RegisterActions({
   onCssFullscreenChange,
   syncChip,
 }: Props) {
+  const [printerOpen, setPrinterOpen] = useState(false);
+
   return (
     <>
       {syncChip}
@@ -216,6 +220,10 @@ function RegisterActions({
               <ConciergeBellIcon className="size-4" />
               Guest service
             </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setPrinterOpen(true)}>
+              <PrinterIcon className="size-4" />
+              Printers
+            </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuLabel>Kitchen &amp; setup</DropdownMenuLabel>
@@ -261,6 +269,7 @@ function RegisterActions({
         active={cssFullscreen}
         onChange={onCssFullscreenChange}
       />
+      <PosPrinterSettings open={printerOpen} onOpenChange={setPrinterOpen} />
     </>
   );
 }

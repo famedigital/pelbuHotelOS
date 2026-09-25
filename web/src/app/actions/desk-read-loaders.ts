@@ -2,6 +2,10 @@
 
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/desk-property";
+import {
+  loadDailyDeskSnapshot,
+  type DailyDeskSnapshot,
+} from "@/lib/erp/daily-desk";
 import type { FoTodaySnapshot } from "@/lib/erp/fo-today";
 import { loadFoTodaySnapshot } from "@/lib/erp/fo-today";
 import {
@@ -61,6 +65,28 @@ export async function fetchFoTodaySnapshot(): Promise<FoTodaySnapshotResult> {
     return {
       ok: false,
       error: e instanceof Error ? e.message : "Failed to load Today",
+    };
+  }
+}
+
+export type DailyDeskSnapshotResult =
+  | { ok: true; data: DailyDeskSnapshot }
+  | { ok: false; error: string };
+
+/** Patch Daily Desk (CI/CO/in-house + agent follow-up) without full RSC. */
+export async function fetchDailyDeskSnapshot(): Promise<DailyDeskSnapshotResult> {
+  if (!(await isDeskAuthenticated())) {
+    return { ok: false, error: "Unauthorized" };
+  }
+  try {
+    const admin = createSupabaseAdminClient();
+    const propertyId = await requireDeskPropertyId();
+    const data = await loadDailyDeskSnapshot(admin, propertyId);
+    return { ok: true, data };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Failed to load Daily Desk",
     };
   }
 }

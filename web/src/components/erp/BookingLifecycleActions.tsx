@@ -24,6 +24,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
+import {
+  BOOKING_CANCEL_REASON_CODES,
+  BOOKING_CANCEL_REASON_LABELS,
+  type BookingCancelReasonCode,
+} from "@/lib/folio/booking-cancel-reasons";
 import { useActionState, useEffect, useRef, useState } from "react";
 
 const channelInitial: ErpChannelState = { ok: false };
@@ -141,6 +146,44 @@ export function BookingLifecycleActions({
   );
 }
 
+/**
+ * Controllable cancel dialog for StayHub footer ⋯ (and other hosts).
+ * Soft-cancels the reservation; inventory is released.
+ */
+export function CancelReservationDialog({
+  bookingId,
+  open,
+  onOpenChange,
+  cancelPolicySummary,
+  isMouAgent,
+  onSuccess,
+  onOptimistic,
+  onRollback,
+}: {
+  bookingId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  cancelPolicySummary?: string;
+  isMouAgent?: boolean;
+  onSuccess?: () => void;
+  onOptimistic?: () => void;
+  onRollback?: () => void;
+}) {
+  return (
+    <CancelDialogBody
+      bookingId={bookingId}
+      open={open}
+      onOpenChange={onOpenChange}
+      cancelPolicySummary={cancelPolicySummary}
+      isMouAgent={isMouAgent}
+      onSuccess={onSuccess}
+      onOptimistic={onOptimistic}
+      onRollback={onRollback}
+      showTrigger={false}
+    />
+  );
+}
+
 function ConfirmTokenForm({
   bookingId,
   tokenRequired,
@@ -198,11 +241,7 @@ function ConfirmTokenForm({
         placeholder="Txn ref"
         className={fieldXs}
       />
-      <Button
-        type="submit"
-        size="sm"
-        disabled={pending}
-      >
+      <Button type="submit" size="sm" disabled={pending}>
         {pending ? "Confirming…" : "Confirm token"}
       </Button>
       <label className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -276,30 +315,83 @@ function CancelForm({
   onOptimistic?: () => void;
   onRollback?: () => void;
 }) {
-  const [state, action, pending] = useActionState(cancelBooking, channelInitial);
-  useActionToast(state, { successMessage: "Booking cancelled" });
-  useActionSuccess(state, onSuccess);
-  useOptimisticRollback(state, onRollback);
   const [open, setOpen] = useState(false);
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="min-h-9 text-xs font-medium text-destructive hover:bg-destructive/5 hover:text-destructive"
-        >
-          Cancel
-        </Button>
-      </DialogTrigger>
+    <CancelDialogBody
+      bookingId={bookingId}
+      open={open}
+      onOpenChange={setOpen}
+      cancelPolicySummary={cancelPolicySummary}
+      isMouAgent={isMouAgent}
+      onSuccess={onSuccess}
+      onOptimistic={onOptimistic}
+      onRollback={onRollback}
+      showTrigger
+    />
+  );
+}
+
+function CancelDialogBody({
+  bookingId,
+  open,
+  onOpenChange,
+  cancelPolicySummary,
+  isMouAgent,
+  onSuccess,
+  onOptimistic,
+  onRollback,
+  showTrigger,
+}: {
+  bookingId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  cancelPolicySummary?: string;
+  isMouAgent?: boolean;
+  onSuccess?: () => void;
+  onOptimistic?: () => void;
+  onRollback?: () => void;
+  showTrigger: boolean;
+}) {
+  const [state, action, pending] = useActionState(cancelBooking, channelInitial);
+  useActionToast(state, { successMessage: "Reservation cancelled" });
+  useActionSuccess(state, () => {
+    onOpenChange(false);
+    onSuccess?.();
+  });
+  useOptimisticRollback(state, onRollback);
+  const [code, setCode] = useState<BookingCancelReasonCode | "">("");
+  const [detail, setDetail] = useState("");
+
+  useEffect(() => {
+    if (!open) {
+      setCode("");
+      setDetail("");
+    }
+  }, [open]);
+
+  const canSubmit =
+    Boolean(code) && (code !== "other" || detail.trim().length > 0);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {showTrigger ? (
+        <DialogTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="min-h-9 text-xs font-medium text-destructive hover:bg-destructive/5 hover:text-destructive"
+          >
+            Cancel reservation
+          </Button>
+        </DialogTrigger>
+      ) : null}
       <DialogContent layer="nested">
         <DialogHeader>
-          <DialogTitle>Cancel this booking?</DialogTitle>
+          <DialogTitle>Cancel this reservation?</DialogTitle>
           <DialogDescription>
-            This marks the booking cancelled and frees its held inventory. The
-            action is irreversible — only proceed if the guest is genuinely not
-            coming.
+            Soft-cancels the booking and frees held rooms. Folio history stays
+            for audit — this cannot be undone from the desk.
           </DialogDescription>
         </DialogHeader>
         {isMouAgent ? (
@@ -319,13 +411,48 @@ function CancelForm({
         <form action={action} className="space-y-3">
           <input type="hidden" name="booking_id" value={bookingId} />
           <div className="space-y-1.5">
-            <Label htmlFor="cancel_reason" className="text-xs text-muted-foreground">
+            <Label
+              htmlFor="cancel_reason_code"
+              className="text-xs text-muted-foreground"
+            >
               Reason
             </Label>
+            <select
+              id="cancel_reason_code"
+              name="cancel_reason_code"
+              required
+              value={code}
+              onChange={(e) =>
+                setCode(e.target.value as BookingCancelReasonCode | "")
+              }
+              className={`${selectXs} w-full text-sm`}
+            >
+              <option value="" disabled>
+                Select reason…
+              </option>
+              {BOOKING_CANCEL_REASON_CODES.map((c) => (
+                <option key={c} value={c}>
+                  {BOOKING_CANCEL_REASON_LABELS[c]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label
+              htmlFor="cancel_reason_detail"
+              className="text-xs text-muted-foreground"
+            >
+              {code === "other" ? "Note (required)" : "Note (optional)"}
+            </Label>
             <Input
-              id="cancel_reason"
-              name="cancel_reason"
-              placeholder="Why is this being cancelled?"
+              id="cancel_reason_detail"
+              name="cancel_reason_detail"
+              value={detail}
+              onChange={(e) => setDetail(e.target.value)}
+              placeholder={
+                code === "other" ? "Brief explanation" : "Optional detail"
+              }
+              required={code === "other"}
               className="text-sm"
             />
           </div>
@@ -338,17 +465,17 @@ function CancelForm({
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="outline" size="sm">
-                Keep booking
+                Keep reservation
               </Button>
             </DialogClose>
             <Button
               type="submit"
               variant="destructive"
               size="sm"
-              disabled={pending}
+              disabled={pending || !canSubmit}
               onClick={() => {
+                if (!canSubmit) return;
                 onOptimistic?.();
-                setOpen(false);
               }}
             >
               {pending ? "Cancelling…" : "Confirm cancel"}

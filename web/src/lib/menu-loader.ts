@@ -60,15 +60,39 @@ async function loadMenuCatalogForProperty(
   outlets: string[],
 ): Promise<CatalogRow[]> {
   const admin = createSupabaseAdminClient();
-  const { data } = await admin
+  const baseCols =
+    "id, outlet, category, name, description, price_btn, gst_applicable, sort_order, image_public_id, is_popular, prep_station, family_id, sell_size";
+
+  // Prefer sell_barcode when migration is applied; fall back if column missing
+  // so POS never goes blank on older DBs.
+  let { data, error } = await admin
     .from("menu_items")
-    .select(
-      "id, outlet, category, name, description, price_btn, gst_applicable, sort_order, image_public_id, is_popular, prep_station, family_id, sell_size",
-    )
+    .select(`${baseCols}, sell_barcode`)
     .eq("property_id", propertyId)
     .eq("is_available", true)
     .in("outlet", outlets)
     .order("sort_order");
+
+  if (error) {
+    const missingBarcode =
+      /sell_barcode/i.test(error.message) ||
+      error.code === "42703" ||
+      error.code === "PGRST204";
+    if (missingBarcode) {
+      ({ data, error } = await admin
+        .from("menu_items")
+        .select(baseCols)
+        .eq("property_id", propertyId)
+        .eq("is_available", true)
+        .in("outlet", outlets)
+        .order("sort_order"));
+    }
+  }
+
+  if (error) {
+    console.error("loadMenuCatalogForProperty failed", error.message);
+    return [];
+  }
 
   const rows = data ?? [];
   const itemIds = rows.map((row) => row.id as string);
@@ -103,6 +127,7 @@ async function loadMenuCatalogForProperty(
         ((row.image_public_id as string | null) ?? null),
     );
     const sellSize = (row.sell_size as MenuItem["sell_size"]) ?? null;
+    const rowRec = row as Record<string, unknown>;
     return {
       id,
       outlet: row.outlet as string,
@@ -120,6 +145,8 @@ async function loadMenuCatalogForProperty(
       prep_station: (row.prep_station as MenuItem["prep_station"]) ?? "kitchen",
       family_id: (row.family_id as string | null) ?? null,
       sell_size: sellSize,
+      sell_barcode:
+        typeof rowRec.sell_barcode === "string" ? rowRec.sell_barcode : null,
     };
   });
 }
@@ -128,8 +155,9 @@ async function loadMenuCatalogForProperty(
 export const loadMenuCatalogByOutlets = cache(
   async (outlets: string[]): Promise<CatalogRow[]> => {
     const key = [...outlets].sort().join(",");
+    // v2: bust stuck empty caches from sell_barcode select failures pre-migration.
     return cachedPublicByProperty(
-      ["menu-catalog", key],
+      ["menu-catalog-v2", key],
       menuCatalogTag,
       (propertyId) => loadMenuCatalogForProperty(propertyId, outlets),
       [],
@@ -142,7 +170,9 @@ export async function loadMenuByOutlets(
 ): Promise<MenuItem[]> {
   const admin = createSupabaseAdminClient();
   const propertyId = await resolveActivePropertyId(admin);
-  const catalog = await loadMenuCatalogByOutlets(outlets);
+  // Desk POS must use the active property catalog — not the public ISR cache
+  // (wrong tenant / stuck empty after a bad select).
+  const catalog = await loadMenuCatalogForProperty(propertyId, outlets);
 
   // Stock is always live — never baked into ISR HTML.
   const stock = await loadMenuStockMap(

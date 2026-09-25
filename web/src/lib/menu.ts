@@ -23,4 +23,6 @@ export type MenuItem = {
   sell_size?: "pek" | "bottle" | "single" | "case" | null;
   /** Human label for remaining stock (peks / bottles). */
   stock_label?: string | null;
+  /** Optional register scan PLU / UPC. */
+  sell_barcode?: string | null;
 };

@@ -1,5 +1,6 @@
 import { formatBtn } from "@/lib/pricing";
 import { orderRef } from "@/lib/order-ref";
+import { normalizePartyName } from "@/lib/pos-training";
 
 const TENDER_LABELS: Record<string, string> = {
   cash: "Cash",
@@ -10,6 +11,8 @@ const TENDER_LABELS: Record<string, string> = {
   pay_bt: "Pay.bt",
   deposit: "Deposit",
   room_charge: "Charge to room",
+  nc: "Non-chargeable",
+  comp: "Comp",
 };
 
 function stamp(iso: string, timezone: string): string {
@@ -57,6 +60,8 @@ export type PosPaidReceiptData = {
   lines: PosPaidReceiptLine[];
   tenders: PosPaidReceiptTender[];
   folioId: string | null;
+  /** Settled order that was later voided — watermark on reprint. */
+  voidedAt?: string | null;
 };
 
 export type PosPaidReceiptProperty = {
@@ -79,8 +84,16 @@ export function PosPaidReceipt({
   order: PosPaidReceiptData;
   property: PosPaidReceiptProperty;
 }) {
+  const party = normalizePartyName(order.customerName);
+  const voided = Boolean(order.voidedAt);
+
   return (
-    <article className="doc-print-sheet mx-auto w-full max-w-[420px] rounded-xl border border-neutral-300 bg-white px-5 py-6 text-neutral-900 shadow-sm print:mx-0 print:border-0 print:px-0 print:py-0 print:shadow-none">
+    <article className="doc-print-sheet relative mx-auto w-full max-w-[420px] rounded-xl border border-neutral-300 bg-white px-5 py-6 text-neutral-900 shadow-sm print:mx-0 print:border-0 print:px-0 print:py-0 print:shadow-none">
+      {voided ? (
+        <p className="pointer-events-none absolute inset-x-0 top-1/3 text-center text-4xl font-black tracking-[0.3em] text-red-600/25 uppercase rotate-[-18deg]">
+          VOID
+        </p>
+      ) : null}
       <header className="border-b border-neutral-300 pb-4 text-center">
         <p className="text-[10px] font-semibold tracking-[0.2em] text-neutral-500 uppercase">
           Payment receipt
@@ -101,6 +114,19 @@ export function PosPaidReceipt({
         ) : null}
       </header>
 
+      <div className="mt-4 border-b border-dashed border-neutral-300 pb-3 text-center">
+        <p className="text-[10px] font-semibold tracking-[0.18em] text-neutral-500 uppercase">
+          Party / bill to
+        </p>
+        <p className="mt-1 text-lg font-bold tracking-tight">{party}</p>
+        {order.tableName ? (
+          <p className="mt-0.5 text-sm font-medium text-neutral-700">
+            Table {order.tableName}
+            {order.covers ? ` · ${order.covers} covers` : ""}
+          </p>
+        ) : null}
+      </div>
+
       <div className="mt-4 flex items-start justify-between gap-3 text-sm">
         <div>
           <p className="font-mono text-lg font-semibold">
@@ -111,29 +137,20 @@ export function PosPaidReceipt({
           </p>
           <p className="mt-1 capitalize text-neutral-700">{order.outlet}</p>
         </div>
-        <div className="rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-bold tracking-wide text-white uppercase">
-          Paid
+        <div
+          className={`rounded-md px-2.5 py-1 text-[11px] font-bold tracking-wide text-white uppercase ${
+            voided ? "bg-red-600" : "bg-emerald-600"
+          }`}
+        >
+          {voided ? "Void" : "Paid"}
         </div>
       </div>
 
       <dl className="mt-4 space-y-1 border-b border-dashed border-neutral-300 pb-3 text-sm">
-        <div className="flex justify-between gap-2">
-          <dt className="text-neutral-500">Guest</dt>
-          <dd className="font-medium text-right">{order.customerName}</dd>
-        </div>
         {order.phone ? (
           <div className="flex justify-between gap-2">
             <dt className="text-neutral-500">Phone</dt>
             <dd className="text-right">{order.phone}</dd>
-          </div>
-        ) : null}
-        {order.tableName ? (
-          <div className="flex justify-between gap-2">
-            <dt className="text-neutral-500">Table</dt>
-            <dd className="text-right">
-              {order.tableName}
-              {order.covers ? ` · ${order.covers} covers` : ""}
-            </dd>
           </div>
         ) : null}
       </dl>

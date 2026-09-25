@@ -25,7 +25,7 @@ import { undoCheckIn } from "@/app/actions/erp-checkin";
 import type { CalendarAgent } from "@/components/erp/CalendarReservationDialog";
 import { AgentPicker } from "@/components/erp/AgentPicker";
 import { StaffPicker, type BookableStaff } from "@/components/erp/StaffPicker";
-import { BookingLifecycleActions } from "@/components/erp/BookingLifecycleActions";
+import { BookingLifecycleActions, CancelReservationDialog } from "@/components/erp/BookingLifecycleActions";
 import { StayHubPrintPackMenu } from "@/components/erp/StayHubPrintPackMenu";
 import Link from "next/link";
 import { StayHubRateNightsPanel } from "@/components/erp/stay-hub/StayHubRateNightsPanel";
@@ -551,6 +551,7 @@ export function StayHubDialog({
   const [splitUnitId, setSplitUnitId] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [panel, setPanel] = useState<StayHubStepId>("reserve");
+  const [cancelReservationOpen, setCancelReservationOpen] = useState(false);
   const [folioTool, setFolioTool] = useState<FolioToolTab>("bill");
   const [detailsTool, setDetailsTool] = useState<DetailsToolTab>("guest");
   const [checkInTool, setCheckInTool] = useState<CheckInToolTab>("guest");
@@ -2239,6 +2240,18 @@ export function StayHubDialog({
   const moreActions: StayHubMoreAction[] = [];
   if (
     summary &&
+    !terminal &&
+    ["pending", "held", "confirmed", "checked_in"].includes(summary.status)
+  ) {
+    moreActions.push({
+      key: "cancel-reservation",
+      label: "Cancel reservation…",
+      destructive: true,
+      onSelect: () => setCancelReservationOpen(true),
+    });
+  }
+  if (
+    summary &&
     isInHouse &&
     (panel === "stay_money" ||
       panel === "check_out" ||
@@ -3578,6 +3591,21 @@ export function StayHubDialog({
           partyGuideNumber={draft?.guideNumber || summary.guideNumber}
           property={regProperty ?? undefined}
           design={regDesign}
+        />
+      ) : null}
+
+      {summary &&
+      ["pending", "held", "confirmed", "checked_in"].includes(summary.status) ? (
+        <CancelReservationDialog
+          bookingId={summary.bookingId}
+          open={cancelReservationOpen}
+          onOpenChange={setCancelReservationOpen}
+          onOptimistic={() => patchOptimisticStatus("cancelled")}
+          onRollback={rollbackOptimisticStatus}
+          onSuccess={() => {
+            void refreshSummary();
+            onOpenChange(false);
+          }}
         />
       ) : null}
 

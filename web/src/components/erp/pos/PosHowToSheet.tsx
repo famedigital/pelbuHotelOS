@@ -26,7 +26,7 @@ const HOW_TO = [
       "Cafe table → cafe dishes only; restaurant → restaurant.",
       "Need a mix? “Show all menus” unlocks, then “Lock to …” re-seals.",
       "Edit dishes anytime: Menu admin · outlet + prep station.",
-      "Tables: floor tab → Add ··· Edit · drag.",
+      "Tables: floor tab → Add ··· Edit · grip icon to move (saves on drop).",
     ],
   },
   {

@@ -16,8 +16,19 @@ export const dynamic = "force-dynamic";
 
 const HK_ORDER = ["dirty", "inspect", "occupied", "clean", "ooo"] as const;
 
-export default async function ErpRoomsPage() {
+export default async function ErpRoomsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ focus?: string; hk?: string }>;
+}) {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
+
+  const sp = searchParams ? await searchParams : {};
+  const focusLabels = (sp.focus ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const dirtyOnly = (sp.hk ?? "").toLowerCase() === "dirty";
 
   const admin = createSupabaseAdminClient();
   const propertyId = await resolveActivePropertyId(admin);
@@ -101,7 +112,11 @@ export default async function ErpRoomsPage() {
         </div>
       </section>
 
-      <RoomsBoard units={boardUnits} />
+      <RoomsBoard
+        units={boardUnits}
+        focusLabels={focusLabels}
+        dirtyOnly={dirtyOnly}
+      />
 
       {boardUnits.length === 0 ? (
         <p className="text-sm text-muted-foreground">No room units seeded yet.</p>

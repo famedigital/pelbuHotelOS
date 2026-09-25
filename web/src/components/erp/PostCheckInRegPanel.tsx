@@ -245,24 +245,24 @@ export function PostCheckInRegPanel({
       <div className="grid gap-2 sm:grid-cols-2">
         <Button
           type="button"
-          variant="outline"
+          variant="citrus"
           className="h-10"
           onClick={onGoFolio}
         >
-          Go to Folio
+          Done · Folio
         </Button>
         <Button
           type="button"
-          variant="ghost"
+          variant="outline"
           className="h-10"
           onClick={onCloseStay}
         >
-          Close stay
+          Skip · Close
         </Button>
       </div>
       {!onFile ? (
         <p className="text-center text-[10px] text-muted-foreground">
-          You can still upload later from Guest on this stay.
+          Skip is fine — upload the signed card later from Guest on this stay.
         </p>
       ) : null}
     </div>

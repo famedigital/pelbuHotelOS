@@ -11,6 +11,7 @@ import {
 } from "@/app/actions/desk-book-preview";
 import { AgentPicker, type BookableAgent } from "@/components/erp/AgentPicker";
 import { AgentVoucherEmailButton } from "@/components/erp/AgentVoucherEmailButton";
+import { ConfirmationPackSendButton } from "@/components/erp/ConfirmationPackSendButton";
 import {
   CreditAgentPromotePanel,
   needsCreditPromote,
@@ -45,6 +46,17 @@ import {
 import { useActionToast } from "@/hooks/use-action-toast";
 import { useAgentCreditEligibilityNotify } from "@/hooks/use-agent-credit-eligibility-notify";
 import { creditAgentIneligibilityMessage } from "@/lib/agents/status";
+import {
+  FO_PAYMENT_MODE_OPTIONS,
+} from "@/lib/folio/fo-settlement";
+import {
+  buildRatePickupOptions,
+  coerceRatePickup,
+  PERSONAL_SUB_OPTIONS,
+  resolveRatePickup,
+  type PersonalSubTier,
+  type RatePickupKind,
+} from "@/lib/folio/desk-book-rate-pickup";
 import type {
   PropertyDocumentDesign,
   PropertyRegistrationDesign,
@@ -127,27 +139,16 @@ const MAX_NIGHTS = 30;
 
 type GuestOrigin = "local" | "regional" | "international" | "official";
 type StepId = "stay" | "guest" | "source" | "room" | "ready";
-type WalkinRateTier = "public" | "friends" | "family" | "mutual_friends";
 
-const PAYMENT_LABELS: Record<string, string> = {
-  cash: "Pay at checkout",
-  prepaid: "Prepaid",
-  partial: "Partial / deposit",
-  on_credit: "On credit",
-};
+const PAYMENT_LABELS: Record<string, string> = Object.fromEntries(
+  FO_PAYMENT_MODE_OPTIONS.map((o) => [o.value, o.label]),
+);
 
 const ORIGIN_OPTIONS: { id: GuestOrigin; label: string }[] = [
   { id: "local", label: "Local" },
   { id: "regional", label: "Regional" },
   { id: "international", label: "Intl" },
   { id: "official", label: "Official" },
-];
-
-const WALKIN_TIERS: { id: WalkinRateTier; label: string }[] = [
-  { id: "public", label: "Public" },
-  { id: "friends", label: "Friends" },
-  { id: "family", label: "Family" },
-  { id: "mutual_friends", label: "Mutual" },
 ];
 
 function todayIso(): string {
@@ -395,8 +396,9 @@ export function DeskBookForm({
   const [docId, setDocId] = useState("");
   const [sdfRef, setSdfRef] = useState("");
   const [guideNumber, setGuideNumber] = useState("");
-  const [walkinRateTier, setWalkinRateTier] =
-    useState<WalkinRateTier>("public");
+  const [ratePickup, setRatePickup] = useState<RatePickupKind>("public");
+  const [personalSubTier, setPersonalSubTier] =
+    useState<PersonalSubTier>("friends");
   const [preferredUnitId, setPreferredUnitId] = useState(
     () => defaults?.roomUnitId ?? "",
   );
@@ -538,11 +540,31 @@ export function DeskBookForm({
   const selectedAgent =
     pickerAgents.find((a) => a.id === agentId) ?? null;
 
+  const ratePickupResolved = useMemo(
+    () =>
+      resolveRatePickup({
+        pickup: ratePickup,
+        personalSub: personalSubTier,
+        agent: selectedAgent,
+      }),
+    [ratePickup, personalSubTier, selectedAgent],
+  );
+
+  const ratePickupOptions = useMemo(
+    () => buildRatePickupOptions(selectedAgent),
+    [selectedAgent],
+  );
+
   const bookedBy = useMemo(() => {
     if (!agentId) return "reservation";
     if (isMouAgentTier(selectedAgent?.rate_tier)) return "mou_agent";
     return "agent";
   }, [agentId, selectedAgent?.rate_tier]);
+
+  useEffect(() => {
+    const next = coerceRatePickup(ratePickup, selectedAgent);
+    if (next !== ratePickup) setRatePickup(next);
+  }, [selectedAgent, ratePickup]);
 
   const origin = guestOrigin;
 
@@ -747,7 +769,8 @@ export function DeskBookForm({
     if (roomLines.length === 0 || totalGuestRooms < 1 || !checkIn || nights < 1)
       return;
     const quoteGen = ++quoteGenRef.current;
-    const rateKindAtRequest = guestRateKind;
+    const rateKindAtRequest = ratePickupResolved.guestRateKind;
+    const pickupTierAtRequest = ratePickupResolved.rateTier;
     startQuote(async () => {
       const r = await previewDeskStayQuote({
         checkIn,
@@ -769,7 +792,7 @@ export function DeskBookForm({
         mealPlanCode,
         source: bookedBy,
         agentId: agentId || null,
-        rateTier: agentId ? null : walkinRateTier,
+        rateTier: pickupTierAtRequest,
       });
       if (quoteGen !== quoteGenRef.current) return;
       if (!r.ok) {
@@ -868,9 +891,9 @@ export function DeskBookForm({
     bookedBy,
     billAgent,
     agentId,
-    walkinRateTier,
     rateDirty,
-    guestRateKind,
+    ratePickupResolved.guestRateKind,
+    ratePickupResolved.rateTier,
   ]);
 
   useEffect(() => {
@@ -1071,10 +1094,28 @@ export function DeskBookForm({
     setPinOpen(true);
   };
 
-  const applyGuestRateKind = (kind: "rack" | "comp") => {
+  const applyRatePickup = (next: RatePickupKind) => {
+    const resolved = resolveRatePickup({
+      pickup: next,
+      personalSub: personalSubTier,
+      agent: selectedAgent,
+    });
     quoteGenRef.current += 1;
-    setGuestRateKind(kind);
-    if (kind === "comp") {
+    setRatePickup(next);
+    setGuestRateKind(resolved.guestRateKind);
+    if (resolved.clearAgreed) {
+      setRateDirty(false);
+      setRateEditReason("");
+      setRatePin("");
+      setRoomLines((prev) =>
+        prev.map((l) => ({
+          ...l,
+          agreedNightlyBtn: null,
+          ratePendingApproval: false,
+        })),
+      );
+    }
+    if (resolved.guestRateKind === "comp") {
       setRateDirty(false);
       setDisplayRate("0");
       setRateEditReason("comp");
@@ -1086,17 +1127,11 @@ export function DeskBookForm({
           ratePendingApproval: false,
         })),
       );
-      return;
     }
-    setRateDirty(false);
-    setRateEditReason("");
-    setRoomLines((prev) =>
-      prev.map((l) => ({
-        ...l,
-        agreedNightlyBtn: null,
-        ratePendingApproval: false,
-      })),
-    );
+    if (resolved.openCustomDialog) {
+      // Defer so state settles before dialog reads lines.
+      queueMicrotask(() => openRateDialog());
+    }
   };
 
   const applyRateDialog = () => {
@@ -1147,6 +1182,7 @@ export function DeskBookForm({
     setDisplayRate(String(Math.round(n)));
     setRateDirty(true);
     setGuestRateKind(Math.round(n) === 0 && differs ? "comp" : "rack");
+    setRatePickup(Math.round(n) === 0 && differs ? "nc" : "custom");
     setPinOpen(false);
     setRateEditLineId(null);
   };
@@ -1222,8 +1258,13 @@ export function DeskBookForm({
       stayTotalBtn: stayTotal,
     };
 
+    const needsRooming = Boolean(state.needsRooming);
+    const roomCount = state.guestRoomCount ?? packLines.reduce((n, l) => n + l.qty, 0);
     const openStay = () => {
-      (onOpenStay ?? onCreated)?.(bookingId, savedIntent);
+      (onOpenStay ?? onCreated)?.(
+        bookingId,
+        needsRooming ? "check_in" : savedIntent,
+      );
     };
 
     return (
@@ -1231,7 +1272,7 @@ export function DeskBookForm({
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
           <header className="print:hidden">
             <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-              Confirmed
+              {needsRooming ? "Party confirmed" : "Confirmed"}
             </p>
             <h2 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">
               {guestName || "Guest"}
@@ -1253,10 +1294,30 @@ export function DeskBookForm({
               Conf{" "}
               {state.confirmationCode ??
                 bookingId.slice(0, 8).toUpperCase()}
+              {state.groupId ? (
+                <>
+                  {" "}
+                  · Party {state.groupId.slice(0, 8).toUpperCase()}
+                </>
+              ) : null}
             </p>
+            {needsRooming ? (
+              <p className="mt-2 rounded-md border border-citrus/30 bg-citrus/10 px-2.5 py-1.5 text-xs text-foreground">
+                {roomCount} rooms — assign units on the rooming list before
+                sending the confirmation pack to the agent.
+              </p>
+            ) : null}
           </header>
 
           <div className="mt-6 grid gap-4 print:hidden sm:grid-cols-2 lg:grid-cols-3">
+            <ConfirmActionCard
+              title="Send confirmation pack"
+              blurb="Email voucher (no rates) + proforma (with rates) to the agent or guest."
+              actions={
+                <ConfirmationPackSendButton bookingId={bookingId} />
+              }
+            />
+
             <ConfirmActionCard
               title="Booking confirmation"
               blurb="Proforma stay note — not a tax invoice. Print or save as PDF."
@@ -1275,8 +1336,8 @@ export function DeskBookForm({
 
             {hasAgent ? (
               <ConfirmActionCard
-                title="Agent voucher"
-                blurb="For the agent — print desk copy or email the voucher text."
+                title="Agent voucher only"
+                blurb="Desk print or voucher-only email (no rates)."
                 actions={
                   <div className="flex w-full flex-col gap-2">
                     <Button
@@ -1343,7 +1404,7 @@ export function DeskBookForm({
             className="h-12 w-full text-base font-semibold"
             onClick={openStay}
           >
-            Open stay
+            {needsRooming ? "Assign rooms" : "Open stay"}
           </Button>
           <div className="grid grid-cols-2 gap-2">
             <Button
@@ -1447,8 +1508,12 @@ export function DeskBookForm({
         <input type="hidden" name="children" value={String(children)} />
         <input type="hidden" name="extra_beds" value={String(extraBeds)} />
         <input type="hidden" name="guide_number" value={guideNumber} />
-        {!agentId ? (
-          <input type="hidden" name="rate_tier" value={walkinRateTier} />
+        {ratePickupResolved.rateTier ? (
+          <input
+            type="hidden"
+            name="rate_tier"
+            value={ratePickupResolved.rateTier}
+          />
         ) : null}
         <input type="hidden" name="rate_tax_mode" value={rateTaxMode} />
         <input type="hidden" name="passport_or_cid" value={docId} />
@@ -1576,13 +1641,21 @@ export function DeskBookForm({
             <p className="mt-0.5 truncate text-[11px] capitalize text-muted-foreground">
               {selectedAgent
                 ? selectedAgent.company_name
-                : `${guestOrigin}${!agentId ? ` · ${walkinRateTier.replace("_", " ")}` : ""}`}
+                : guestOrigin}
+              {" · "}
+              {ratePickupResolved.summaryLabel}
             </p>
           </div>
 
           <button
             type="button"
-            onClick={() => openRateDialog()}
+            onClick={() => {
+              if (ratePickup !== "custom" && ratePickup !== "nc") {
+                applyRatePickup("custom");
+              } else {
+                openRateDialog();
+              }
+            }}
             className={cn(
               "mt-auto w-full rounded-md border bg-card px-2.5 py-2 text-left transition-colors",
               "hover:border-foreground/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40",
@@ -1628,27 +1701,6 @@ export function DeskBookForm({
               </p>
             ) : null}
           </button>
-
-          <div className="flex flex-wrap items-center gap-1.5">
-            <SegmentedToggle
-              ariaLabel="Rate tax"
-              value={rateTaxMode}
-              onChange={setRateTaxMode}
-              options={[
-                { id: "exclusive", label: "Exclusive" },
-                { id: "inclusive", label: "Inclusive" },
-              ]}
-            />
-            <SegmentedToggle
-              ariaLabel="Rack or complementary"
-              value={guestRateKind}
-              onChange={applyGuestRateKind}
-              options={[
-                { id: "rack", label: "Rack" },
-                { id: "comp", label: "Comp" },
-              ]}
-            />
-          </div>
 
           {availStrip ? (
             <p className="text-[10px] leading-snug text-muted-foreground">
@@ -1815,12 +1867,13 @@ export function DeskBookForm({
               </div>
               </section>
 
-              <div className="grid gap-4 md:grid-cols-12 md:gap-4">
-              <section className="space-y-2 md:col-span-5">
+              <div className="space-y-4">
+              <section className="space-y-2">
                 <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-                  Guest
+                  Guest & rate
                 </p>
-                <div className="space-y-1">
+                <div className="grid grid-cols-2 gap-x-2 gap-y-2 sm:grid-cols-4 lg:grid-cols-6">
+                <div className="col-span-2 space-y-1 sm:col-span-2">
                   <Label
                     htmlFor="db_name"
                     className="text-xs font-normal text-muted-foreground"
@@ -1834,11 +1887,11 @@ export function DeskBookForm({
                     onChange={(e) => setGuestName(e.target.value)}
                     autoComplete="off"
                     autoFocus={Boolean(defaults?.checkIn)}
-                    className="h-9 text-sm"
+                    className="h-8 text-sm"
                     placeholder="Lead guest"
                   />
                 </div>
-                <div className="flex items-end gap-2">
+                <div className="col-span-2 flex items-end gap-2 sm:col-span-2">
                   <div className="min-w-0 flex-1 space-y-1">
                     <Label
                       htmlFor="db_phone"
@@ -1853,10 +1906,10 @@ export function DeskBookForm({
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       disabled={phoneLater}
-                      className="h-9 text-sm"
+                      className="h-8 text-sm"
                     />
                   </div>
-                  <label className="flex h-9 shrink-0 items-center gap-1 pb-px text-[11px] text-muted-foreground">
+                  <label className="flex h-8 shrink-0 items-center gap-1 pb-px text-[11px] text-muted-foreground">
                     <input
                       type="checkbox"
                       checked={phoneLater}
@@ -1867,9 +1920,7 @@ export function DeskBookForm({
                   </label>
                 </div>
 
-              {/* Origin / tier / agent */}
-              <div className="grid grid-cols-2 gap-x-2 gap-y-2">
-                <div className="space-y-0.5 lg:col-span-2">
+                <div className="space-y-0.5">
                   <Label className="text-[10px] font-normal text-muted-foreground">
                     Origin
                   </Label>
@@ -1877,7 +1928,7 @@ export function DeskBookForm({
                     value={guestOrigin}
                     onValueChange={(v) => setGuestOrigin(v as GuestOrigin)}
                   >
-                    <SelectTrigger data-fo-tab className="h-9 text-sm">
+                    <SelectTrigger data-fo-tab className="h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1890,30 +1941,72 @@ export function DeskBookForm({
                   </Select>
                 </div>
 
-                {!billAgent ? null : (
-                  <div className="space-y-0.5 lg:col-span-2">
+                <div className="space-y-0.5">
+                  <Label className="text-[10px] font-normal text-muted-foreground">
+                    Rate pickup
+                  </Label>
+                  <Select
+                    value={ratePickup}
+                    onValueChange={(v) =>
+                      applyRatePickup(v as RatePickupKind)
+                    }
+                  >
+                    <SelectTrigger data-fo-tab className="h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ratePickupOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {ratePickup === "personal" ? (
+                  <div className="space-y-0.5">
                     <Label className="text-[10px] font-normal text-muted-foreground">
-                      Payment
+                      Personal tier
                     </Label>
                     <Select
-                      value={paymentMode}
-                      onValueChange={setPaymentMode}
+                      value={personalSubTier}
+                      onValueChange={(v) => {
+                        setPersonalSubTier(v as PersonalSubTier);
+                        setRateDirty(false);
+                      }}
                     >
                       <SelectTrigger className="h-8 text-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="cash">Pay at checkout</SelectItem>
-                        <SelectItem value="prepaid">Prepaid (already paid)</SelectItem>
-                        <SelectItem value="partial">Partial / deposit</SelectItem>
-                        <SelectItem value="on_credit">On credit (agent)</SelectItem>
+                        {PERSONAL_SUB_OPTIONS.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
-                )}
+                ) : null}
 
-                <div className="col-span-2 flex items-end pb-0.5">
-                  <label className="flex h-9 items-center gap-1.5 text-xs font-medium">
+                <div className="flex flex-col justify-end gap-1 pb-0.5">
+                  <Label className="text-[10px] font-normal text-muted-foreground">
+                    Tax
+                  </Label>
+                  <SegmentedToggle
+                    ariaLabel="Rate tax"
+                    value={rateTaxMode}
+                    onChange={setRateTaxMode}
+                    options={[
+                      { id: "exclusive", label: "Excl" },
+                      { id: "inclusive", label: "Incl" },
+                    ]}
+                  />
+                </div>
+
+                <div className="col-span-2 flex items-end pb-0.5 sm:col-span-1">
+                  <label className="flex h-8 items-center gap-1.5 text-xs font-medium">
                     <input
                       type="checkbox"
                       checked={billAgent}
@@ -1930,6 +2023,29 @@ export function DeskBookForm({
                     Bill to agent
                   </label>
                 </div>
+
+                {!billAgent ? null : (
+                  <div className="col-span-2 space-y-0.5 sm:col-span-2">
+                    <Label className="text-[10px] font-normal text-muted-foreground">
+                      How they pay
+                    </Label>
+                    <Select
+                      value={paymentMode}
+                      onValueChange={setPaymentMode}
+                    >
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {FO_PAYMENT_MODE_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
 
               {/* Guest documents — own row so passport / SDF are full usable width */}
@@ -2103,23 +2219,12 @@ export function DeskBookForm({
                       : ""}
                   </p>
                 ) : null}
-                {selectedAgent && (!billAgent || paymentMode !== "on_credit") ? (
-                  <p className="text-[10px] text-muted-foreground sm:col-span-2">
-                    Source rate
-                    {selectedAgent.rate_tier
-                      ? `: ${selectedAgent.rate_tier.replace(/_/g, " ")}`
-                      : " · agent sheet"}
-                    {selectedAgent.commission_pct != null
-                      ? ` · commission ${Number(selectedAgent.commission_pct)}%`
-                      : ""}
-                  </p>
-                ) : null}
               </div>
 
               </section>
 
-              {/* Rooms */}
-              <section className="space-y-2 md:col-span-7">
+              {/* Rooms — full width */}
+              <section className="space-y-2">
                 <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
                   Rooms
                 </p>
@@ -2156,6 +2261,8 @@ export function DeskBookForm({
                   const remaining =
                     a?.remaining ?? remainingByType[line.roomTypeId] ?? left;
                   const overbook = Math.max(sold - cap, 0);
+                  const showLinePrice =
+                    ratePickup === "custom" || custom || guestRateKind === "comp";
                   return (
                     <div
                       key={line.roomTypeId}
@@ -2170,6 +2277,7 @@ export function DeskBookForm({
                             </span>
                           ) : null}
                         </span>
+                        {showLinePrice ? (
                         <button
                           type="button"
                           onClick={() => openRateDialog(line.roomTypeId)}
@@ -2185,6 +2293,7 @@ export function DeskBookForm({
                             : "Set rate"}
                           <PencilIcon className="size-3" />
                         </button>
+                        ) : null}
                         <Button
                           type="button"
                           variant="outline"
@@ -2224,6 +2333,9 @@ export function DeskBookForm({
                       <p className="text-[10px] tabular-nums text-muted-foreground">
                         Total {cap} · Sold {sold} · Avail {remaining} · OB{" "}
                         {overbook}
+                        {!showLinePrice && showRate != null
+                          ? ` · ${formatGuestBtn(showRate)}/n`
+                          : ""}
                       </p>
                       {line.ratePendingApproval ? (
                         <p className="text-[10px] text-amber-800 dark:text-amber-100">
@@ -2439,34 +2551,9 @@ export function DeskBookForm({
 
               <details className="rounded-md border border-border/60 bg-muted/10 px-3 py-2">
                 <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
-                  More · release, promo, notes, rate tier
+                  More · release, promo, notes
                 </summary>
                 <div className="mt-3 space-y-3">
-                  {!agentId ? (
-                    <div className="max-w-xs space-y-1">
-                      <Label className="text-xs font-normal text-muted-foreground">
-                        Rate tier
-                      </Label>
-                      <Select
-                        value={walkinRateTier}
-                        onValueChange={(v) => {
-                          setWalkinRateTier(v as WalkinRateTier);
-                          setRateDirty(false);
-                        }}
-                      >
-                        <SelectTrigger className="h-9 text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {WALKIN_TIERS.map((t) => (
-                            <SelectItem key={t.id} value={t.id}>
-                              {t.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  ) : null}
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <input

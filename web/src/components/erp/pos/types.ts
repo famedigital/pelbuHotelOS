@@ -126,6 +126,8 @@ export type PosLayoutProps = {
   ncReasons?: { code: string; label: string }[];
   /** False for HK/laundry — they cannot send tickets to the kitchen TV. */
   canFireKot?: boolean;
+  /** Practice till — stock/GL skipped server-side; show banner. */
+  posTrainingMode?: boolean;
 };
 
 /** Outlet code is property-scoped text (cafe, rooftop, …). */

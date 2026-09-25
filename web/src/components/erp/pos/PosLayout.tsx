@@ -31,10 +31,11 @@ import { PosStockPanel } from "@/components/erp/pos/PosStockPanel";
 import { SettlePanel } from "@/components/erp/pos/SettlePanel";
 import { TicketHeader } from "@/components/erp/pos/TicketHeader";
 import { VoidReasonDialog } from "@/components/erp/pos/VoidReasonDialog";
+import { resolvePosBarcode } from "@/app/actions/pos-barcode";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
@@ -46,8 +47,10 @@ import {
   deskCacheKey,
   setDeskReadCache,
 } from "@/lib/desk/desk-read-cache";
+import { routeKotPrintOnSend } from "@/lib/pos-print-prefs";
 import { cn } from "@/lib/utils";
 import { calculateOrderTotals, formatBtn } from "@/lib/pricing";
+import { toast } from "sonner";
 import type { OpenPosTicket } from "@/lib/pos";
 import {
   canAddItemsToOpenTicket,
@@ -123,11 +126,11 @@ export function PosLayout({
   guestServiceSlot,
   ncReasons = [],
   canFireKot = true,
+  posTrainingMode = false,
 }: PosLayoutProps) {
   const [openTickets, setOpenTickets] = useState(openTicketsProp);
   const [settledTickets, setSettledTickets] = useState(settledTicketsProp);
   const [ticketsSyncing, setTicketsSyncing] = useState(false);
-  const [menuReady, setMenuReady] = useState(items.length > 0);
 
   useEffect(() => {
     setOpenTickets(openTicketsProp);
@@ -135,9 +138,6 @@ export function PosLayout({
   useEffect(() => {
     setSettledTickets(settledTicketsProp);
   }, [settledTicketsProp]);
-  useEffect(() => {
-    setMenuReady(items.length > 0);
-  }, [items.length]);
 
   const patchTicketsFromNetwork = useCallback(async () => {
     setTicketsSyncing(true);
@@ -189,6 +189,7 @@ export function PosLayout({
   );
   const [serviceReason, setServiceReason] = useState<string>("");
   const [promoCode, setPromoCode] = useState("");
+  const [showPromo, setShowPromo] = useState(false);
   const [managerPin, setManagerPin] = useState("");
 
   const [customerName, setCustomerName] = useState("");
@@ -512,6 +513,16 @@ export function PosLayout({
     }
     return items.filter((item) => item.outlet === effectiveMenuOutlet);
   }, [items, effectiveMenuOutlet]);
+
+  // Cafe table + no cafe dishes → unlock so Sell isn't a blank page.
+  useEffect(() => {
+    if (!lockedMenuOutlet) return;
+    if (items.length === 0) return;
+    const lockedCount = items.filter(
+      (item) => item.outlet === lockedMenuOutlet,
+    ).length;
+    if (lockedCount === 0) setMenuUnlocked(true);
+  }, [lockedMenuOutlet, items]);
 
   const lockedMenuLabel =
     lockedMenuOutlet != null
@@ -921,8 +932,34 @@ export function PosLayout({
   const lineCount = cart.reduce((sum, l) => sum + l.qty, 0);
 
   const shellClass = cssFullscreen
-    ? "erp pos-fs-shell space-y-4"
-    : "erp space-y-4";
+    ? "erp pos-fs-shell flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
+    : "erp flex min-h-[calc(100dvh-5.5rem)] flex-col gap-2";
+
+  // Print KOT only after create/send persisted (I3).
+  const kotPrintedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!createState.ok || !createState.orderId) return;
+    if (kotPrintedRef.current === createState.orderId) return;
+    kotPrintedRef.current = createState.orderId;
+    routeKotPrintOnSend(createState.orderId);
+  }, [createState.ok, createState.orderId]);
+
+  async function handleBarcodeScan(code: string) {
+    // Fast path: local sell_barcode
+    const local = items.find(
+      (m) => m.sell_barcode && m.sell_barcode.trim() === code,
+    );
+    if (local) {
+      addItemQuick(local.id);
+      return;
+    }
+    const res = await resolvePosBarcode(code);
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
+    }
+    addItemQuick(res.menuItemId);
+  }
 
   const sharedDialogs = (
     <>
@@ -1076,6 +1113,17 @@ export function PosLayout({
 
   return (
     <div className={shellClass}>
+      {posTrainingMode ? (
+        <Alert className="shrink-0 border-amber-500/40 bg-amber-500/10 print:hidden">
+          <TriangleAlertIcon className="size-4 text-amber-700" />
+          <AlertDescription className="text-amber-950 dark:text-amber-100">
+            <Badge variant="outline" className="mr-2 border-amber-600">
+              Training
+            </Badge>
+            Practice till — stock and walk-in ledger posts are skipped.
+          </AlertDescription>
+        </Alert>
+      ) : null}
       <PosBootstrapCacheWriter
         propertyId={propertyId}
         openTickets={openTickets}
@@ -1086,21 +1134,9 @@ export function PosLayout({
       <Tabs
         value={section}
         onValueChange={(v) => setSection(v as PosSection)}
-        className="gap-4"
+        className="gap-2"
       >
         {registerChrome}
-
-        {!menuReady ? (
-          <div
-            className="grid gap-2 sm:grid-cols-3"
-            aria-busy="true"
-            aria-label="Loading menu"
-          >
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-          </div>
-        ) : null}
 
         {section === "stock" || section === "closing" || section === "service" ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -1117,7 +1153,7 @@ export function PosLayout({
           </div>
         ) : null}
 
-        <div className={cn("space-y-4", !sellMode && "hidden")}>
+        <div className={cn("space-y-2", !sellMode && "hidden")}>
           {!saleKind ? (
             <PosSaleStartGate
               onPick={startSaleKind}
@@ -1290,8 +1326,8 @@ export function PosLayout({
                         </label>
                       </div>
                     ) : null
-                  ) : cart.some((l) => l.isNc) || promoCode ? (
-                    <div className="mb-3 grid gap-2 rounded-lg border bg-card p-3 sm:grid-cols-2">
+                  ) : showPromo || promoCode || cart.some((l) => l.isNc) ? (
+                    <div className="mb-2 grid gap-2 rounded-lg border bg-card p-2 sm:grid-cols-2">
                       <label className="space-y-1 text-xs">
                         <span className="text-muted-foreground">Promo code</span>
                         <input
@@ -1301,7 +1337,7 @@ export function PosLayout({
                             setPromoCode(e.target.value.toUpperCase())
                           }
                           placeholder="TIKTOK50"
-                          className="flex h-9 w-full rounded-md border border-input bg-background px-2 font-mono text-sm uppercase"
+                          className="flex h-8 w-full rounded-md border border-input bg-background px-2 font-mono text-sm uppercase"
                         />
                       </label>
                       <label className="space-y-1 text-xs">
@@ -1316,26 +1352,19 @@ export function PosLayout({
                           value={managerPin}
                           onChange={(e) => setManagerPin(e.target.value)}
                           autoComplete="off"
-                          className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                          className="flex h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
                         />
                       </label>
                     </div>
                   ) : (
-                    <div className="mb-3">
-                      <label className="flex max-w-xs flex-col gap-1 text-xs">
-                        <span className="text-muted-foreground">
-                          Promo code (optional)
-                        </span>
-                        <input
-                          type="text"
-                          value={promoCode}
-                          onChange={(e) =>
-                            setPromoCode(e.target.value.toUpperCase())
-                          }
-                          placeholder="Have a code?"
-                          className="flex h-9 w-full rounded-md border border-input bg-background px-2 font-mono text-sm uppercase"
-                        />
-                      </label>
+                    <div className="mb-1">
+                      <button
+                        type="button"
+                        className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                        onClick={() => setShowPromo(true)}
+                      >
+                        + Promo code
+                      </button>
                     </div>
                   )}
 
@@ -1358,11 +1387,17 @@ export function PosLayout({
                         forceMount
                         className="data-[state=inactive]:hidden"
                       >
-                        <div className="grid gap-3 lg:grid-cols-[9.5rem_minmax(0,1fr)]">
-                          <aside className="hidden lg:flex lg:flex-col lg:gap-3">
-                            <PosSearch value={search} onChange={setSearch} />
+                        <div className="grid gap-3 lg:grid-cols-[9.5rem_minmax(0,1fr)] lg:items-start">
+                          <aside className="sticky top-14 z-10 hidden max-h-[calc(100dvh-4.5rem)] lg:flex lg:flex-col lg:gap-2">
+                            <div className="shrink-0 bg-background/95 pb-1 backdrop-blur-sm">
+                              <PosSearch
+                                value={search}
+                                onChange={setSearch}
+                                onBarcode={handleBarcodeScan}
+                              />
+                            </div>
                             <nav
-                              className="flex flex-col gap-1"
+                              className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain pr-0.5 [-ms-overflow-style:none] [scrollbar-width:thin]"
                               aria-label="Menu categories"
                             >
                               <CategoryButton
@@ -1388,7 +1423,11 @@ export function PosLayout({
 
                           <div className="min-w-0">
                             <div className="mb-3 flex flex-col gap-2 lg:hidden">
-                              <PosSearch value={search} onChange={setSearch} />
+                              <PosSearch
+                              value={search}
+                              onChange={setSearch}
+                              onBarcode={handleBarcodeScan}
+                            />
                               {lockedMenuOutlet ? (
                                 <div className="flex flex-wrap items-center gap-2">
                                   <p className="rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground">

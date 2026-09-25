@@ -59,6 +59,7 @@ function folioBalance(
 const STAY_SELECT = `
   id, contact_name, confirmation_code, status, check_in, check_out,
   token_required_btn, token_received_btn, deposit_due_on, guest_origin, guide_number,
+  reg_card_photo_public_id,
   room_assignments(room_units(label, hk_status, room_types(inventory_kind))),
   folios(status, folio_lines(id, total_btn, status, reverses_line_id))
 `;
@@ -199,6 +200,9 @@ export async function loadFoTodaySnapshot(
           "international" &&
         !(row.guide_number as string | null)?.trim(),
       openLaundryCount: laundryByBooking.get(id) ?? 0,
+      hasRegCard: Boolean(
+        (row.reg_card_photo_public_id as string | null)?.trim(),
+      ),
     };
     const kind = recommendFoStayJob(facts);
     if (!kind) return;

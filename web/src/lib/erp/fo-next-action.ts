@@ -1,5 +1,9 @@
 import type { StayHubStepId } from "@/lib/folio/stay-hub-cycle";
 import { deskBriefingLine } from "@/lib/folio/desk-briefing";
+import {
+  buildArrivalPlaybook,
+  type ArrivalPlaybookStep,
+} from "@/lib/folio/fo-settlement";
 
 /** Ranked FO jobs for the Today worklist (eZee jobs, one CTA each). */
 export type FoNextKind =
@@ -21,6 +25,8 @@ export type FoNextAction = {
   href: string;
   bookingId: string | null;
   roomUnitId: string | null;
+  /** Arrival-day micro-steps when kind is check_in (or related stay work). */
+  playbook?: ArrivalPlaybookStep[];
 };
 
 export type FoStayFacts = {
@@ -40,6 +46,8 @@ export type FoStayFacts = {
   roomUnready?: boolean;
   sdfIncomplete?: boolean;
   openLaundryCount?: number;
+  /** Signed registration card on file. */
+  hasRegCard?: boolean;
 };
 
 export type FoDirtyRoomFacts = {
@@ -144,11 +152,23 @@ export function foActionFromStay(
     guestName: facts.guestName.trim() || "Guest",
     roomLabel: facts.roomLabel,
     why,
-    cta: meta.cta,
+    cta:
+      kind === "check_in" && !facts.hasRoomAssigned
+        ? "Assign → CI"
+        : meta.cta,
     stayHubStep: meta.stayHubStep,
     href: `/erp/today?booking=${encodeURIComponent(facts.bookingId)}&step=${meta.stayHubStep ?? "reserve"}`,
     bookingId: facts.bookingId,
     roomUnitId: null,
+    playbook:
+      kind === "check_in" || kind === "collect" || kind === "checkout"
+        ? buildArrivalPlaybook({
+            status: facts.status,
+            hasRoomAssigned: facts.hasRoomAssigned,
+            hasRegCard: facts.hasRegCard,
+            balanceBtn: facts.balanceBtn,
+          })
+        : undefined,
   };
 }
 

@@ -158,6 +158,10 @@ const RATE_TIERS: ReadonlySet<string> = new Set([
   "mou_agents",
 ]);
 
+export function isRateTier(v: string | null | undefined): v is RateTier {
+  return Boolean(v && RATE_TIERS.has(v));
+}
+
 export function agentRateTier(agentTier: string | null | undefined): RateTier {
   if (agentTier && RATE_TIERS.has(agentTier)) return agentTier as RateTier;
   return "agents";

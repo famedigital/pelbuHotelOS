@@ -205,7 +205,7 @@ export default async function ErpPosPage() {
   }));
 
   return (
-    <div className="erp mx-auto w-full max-w-[1280px] space-y-4 p-4 md:p-6">
+    <div className="erp mx-auto w-full max-w-[1280px] space-y-2 p-3 md:p-4">
       <DeskOfflineQueueStrip defaultKind="pos_park" />
 
       <MealServiceBoard
@@ -268,6 +268,7 @@ export default async function ErpPosPage() {
         }}
         ncReasons={ncReasons}
         canFireKot={isPosFireRole(deskRole)}
+        posTrainingMode={Boolean(property?.pos_training_mode)}
         guestServiceSlot={
           <div className="rounded-xl border bg-card p-4">
             <div className="mb-4 space-y-0.5">

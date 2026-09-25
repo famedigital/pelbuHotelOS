@@ -20,6 +20,10 @@ import {
   classifyBillLine,
   type BillKind,
 } from "@/lib/folio/bill-kinds";
+import {
+  foPaymentModeLabel,
+  foPaymentModeShort,
+} from "@/lib/folio/fo-settlement";
 import { buildLedgerStripSummary } from "@/lib/folio/ledger-summary";
 import {
   buildFolioPageHref,
@@ -353,6 +357,20 @@ export function DeskSettlePanel({
 
   return (
     <div className="space-y-1.5">
+      {showBill ? (
+        <p className="text-[10px] leading-snug text-muted-foreground">
+          In-stay bill — post charges and collect here. Void, comp, and manager
+          tools:{" "}
+          <Link
+            href={stayFolioHref ?? `/erp/folios/${folioId}`}
+            className="font-medium text-foreground underline-offset-2 hover:underline"
+          >
+            full folio
+          </Link>
+          {" · "}
+          Advanced tab.
+        </p>
+      ) : null}
       {/* Dense StayHub: due+settle live on left rail + footer — skip duplicate bar CTA */}
       <DueBar
         dense={denseDue}
@@ -759,10 +777,16 @@ function DueBar({
         {!dense && agentName ? (
           <p className="truncate text-[10px] text-muted-foreground">
             {agentName}
-            {paymentMode ? ` · ${paymentMode.replace(/_/g, " ")}` : ""}
+            {paymentMode
+              ? ` · ${foPaymentModeShort(paymentMode)}`
+              : ""}
             {agentRoom > 0.5
               ? ` · agent rooms ~${formatGuestBtn(agentRoom)}`
               : ""}
+          </p>
+        ) : !dense && paymentMode ? (
+          <p className="truncate text-[10px] text-muted-foreground">
+            {foPaymentModeLabel(paymentMode)}
           </p>
         ) : null}
       </div>

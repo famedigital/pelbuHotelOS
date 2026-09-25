@@ -647,6 +647,24 @@ export async function saveMenuStockProfile(
       );
     if (profileError) throw new Error("Could not save stock settings.");
 
+    const sellBarcode = optionalTrim(formData.get("sell_barcode"));
+    await admin
+      .from("menu_items")
+      .update({
+        sell_barcode: sellBarcode && sellBarcode.length > 0 ? sellBarcode : null,
+      })
+      .eq("id", menuItemId)
+      .eq("property_id", propertyId);
+
+    // When finished_good + inventory linked, mirror barcode onto inventory SKU.
+    if (stockMode === "finished_good" && inventoryItemId && sellBarcode) {
+      await admin
+        .from("inventory_items")
+        .update({ barcode: sellBarcode })
+        .eq("id", inventoryItemId)
+        .eq("property_id", propertyId);
+    }
+
     await admin.from("menu_recipe_items").delete().eq("menu_item_id", menuItemId);
     if (stockMode === "recipe") {
       const { error: recipeError } = await admin

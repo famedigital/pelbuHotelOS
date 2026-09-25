@@ -16,6 +16,7 @@ import type { PosBookingOption } from "@/components/erp/pos/types";
 import { orderRef } from "@/lib/order-ref";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -259,6 +260,7 @@ export function OpenTicketsDrawer({
   canFireKot = true,
   onInvalidate,
 }: Props) {
+  const [partyQuery, setPartyQuery] = useState("");
   const [parkState, parkAction, parkPending] = useActionState(
     parkOrder,
     initialPark,
@@ -353,27 +355,41 @@ export function OpenTicketsDrawer({
     }
     setDetailId(id);
   }
+  const partyNeedle = partyQuery.trim().toLowerCase();
+  function matchesParty(t: OpenPosTicket): boolean {
+    if (!partyNeedle) return true;
+    return (t.customer_name || "walk-in").toLowerCase().includes(partyNeedle);
+  }
+
   const pendingConfirm = tickets.filter(
-    (t) => isOnline(t) && !t.confirmed_at && !t.is_parked,
+    (t) =>
+      matchesParty(t) && isOnline(t) && !t.confirmed_at && !t.is_parked,
   );
   const awaitingPayment = tickets.filter(
     (t) =>
-      isOnline(t) && t.confirmed_at && !t.payment_recorded_at && !t.is_parked,
+      matchesParty(t) &&
+      isOnline(t) &&
+      t.confirmed_at &&
+      !t.payment_recorded_at &&
+      !t.is_parked,
   );
-  const parked = tickets.filter((t) => t.is_parked);
+  const parked = tickets.filter((t) => matchesParty(t) && t.is_parked);
   // Kitchen advanced past ready; still needs desk settle/void before shift close.
   const servedUnpaid = tickets.filter(
     (t) =>
+      matchesParty(t) &&
       !t.is_parked &&
       t.kot_status === "served" &&
       !(isOnline(t) && (!t.confirmed_at || !t.payment_recorded_at)),
   );
   const active = tickets.filter(
     (t) =>
+      matchesParty(t) &&
       !t.is_parked &&
       t.kot_status !== "served" &&
       !(isOnline(t) && (!t.confirmed_at || !t.payment_recorded_at)),
   );
+  const filteredSettled = settledTickets.filter(matchesParty);
   const busy =
     parkPending ||
     unparkPending ||
@@ -406,6 +422,15 @@ export function OpenTicketsDrawer({
             <Link href={`/erp/orders/${t.id}/receipt?print=1`}>
               Print receipt
             </Link>
+          </Button>
+          <Button
+            asChild
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9"
+          >
+            <Link href={`/erp/orders/${t.id}/kot?print=1`}>Reprint KOT</Link>
           </Button>
           <Button
             asChild
@@ -502,6 +527,15 @@ export function OpenTicketsDrawer({
           className="h-9"
         >
           <Link href={`/erp/orders/${t.id}/slip`}>Print slip</Link>
+        </Button>
+        <Button
+          asChild
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9"
+        >
+          <Link href={`/erp/orders/${t.id}/kot?print=1`}>Reprint KOT</Link>
         </Button>
         {canFireKot && t.is_parked ? (
           <form action={unparkAction}>
@@ -628,6 +662,16 @@ export function OpenTicketsDrawer({
               </Button>
             </div>
           ) : null}
+          {!detail ? (
+            <Input
+              type="search"
+              value={partyQuery}
+              onChange={(e) => setPartyQuery(e.target.value)}
+              placeholder="Search party name…"
+              className="mt-2 h-9"
+              aria-label="Search tickets by party name"
+            />
+          ) : null}
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto p-4">
@@ -654,10 +698,12 @@ export function OpenTicketsDrawer({
               actions={ticketActions(detail, detailIsClosed)}
             />
           ) : lane === "closed" ? (
-            settledTickets.length === 0 ? (
+            filteredSettled.length === 0 ? (
               <div className="flex min-h-[200px] flex-col items-center justify-center gap-1 text-center">
                 <p className="text-sm font-medium text-foreground">
-                  No closed tickets today
+                  {partyNeedle
+                    ? "No closed tickets match that party"
+                    : "No closed tickets today"}
                 </p>
                 <p className="max-w-xs text-xs text-muted-foreground">
                   Settled pay-now and charge-to-room tickets appear here. Tax
@@ -668,7 +714,7 @@ export function OpenTicketsDrawer({
             ) : (
               <TicketGroup
                 title="Closed today"
-                tickets={settledTickets}
+                tickets={filteredSettled}
                 tables={tables}
                 busy={busy}
                 onSettle={onSettle}

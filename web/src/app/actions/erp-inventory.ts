@@ -160,7 +160,18 @@ export async function receiveInventoryStock(
     const itemId = trimRequired(formData.get("item_id"), "Item");
     const locationId = trimRequired(formData.get("location_id"), "Location");
     const qty = parsePositiveQty(formData.get("qty"), "Quantity");
-    const unitCost = parseMoney(formData.get("unit_cost_btn"));
+    const unitCostRaw = formData.get("unit_cost_btn");
+    if (
+      unitCostRaw === null ||
+      unitCostRaw === undefined ||
+      String(unitCostRaw).trim() === ""
+    ) {
+      throw new Error("Unit cost (Nu) is required on receive.");
+    }
+    const unitCost = parseMoney(unitCostRaw);
+    if (Number.isNaN(unitCost) || unitCost < 0) {
+      throw new Error("Unit cost must be zero or a positive Nu amount.");
+    }
     const totalAmount = roundBtn(qty * unitCost);
     const photoUrl = optionalTrim(formData.get("photo_url"));
     const reference = optionalTrim(formData.get("reference"));
@@ -594,6 +605,11 @@ export async function receivePurchaseOrder(
 
       const itemId = line.item_id as string;
       const unitCost = Number(line.unit_cost_btn);
+      if (!Number.isFinite(unitCost) || unitCost < 0) {
+        throw new Error(
+          `Unit cost required on PO line ${line.sku_snapshot ?? lineId}.`,
+        );
+      }
       await upsertBalance(admin, propertyId, itemId, locationId, qty);
 
       await admin.from("inventory_movements").insert({

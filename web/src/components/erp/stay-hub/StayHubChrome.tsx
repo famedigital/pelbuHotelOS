@@ -7,6 +7,10 @@ import {
   stayMetaLine,
 } from "@/lib/folio/stay-hub-format";
 import {
+  buildStayStoryLine,
+  foPaymentModeShort,
+} from "@/lib/folio/fo-settlement";
+import {
   type StayHubStep,
   type StayHubStepId,
 } from "@/lib/folio/stay-hub-cycle";
@@ -85,15 +89,6 @@ function hkChipClass(status: string): string {
   return "border-sky-500/40 bg-sky-500/10 text-sky-800 dark:text-sky-200";
 }
 
-function paymentModeShort(mode: string): string {
-  const key = mode.trim().toLowerCase();
-  if (key === "on_credit") return "On credit";
-  if (key === "prepaid") return "Prepaid";
-  if (key === "partial") return "Partial";
-  if (key === "cash") return "Cash";
-  return mode.replace(/_/g, " ");
-}
-
 function HkStatusChip({
   status,
 }: {
@@ -128,6 +123,7 @@ export function StayHubHeader(props: StayHubIdentityProps) {
     confirmationCode,
     bookingId,
     agentName,
+    paymentMode,
     alerts,
     terminal,
     saveStatus,
@@ -171,13 +167,21 @@ export function StayHubHeader(props: StayHubIdentityProps) {
             {(guestName ?? "").trim() || "Walk-in guest"}
           </h2>
           <p className="truncate text-[10px] text-muted-foreground">
+            {buildStayStoryLine({
+              status,
+              roomLabel,
+              hkStatus,
+              dueBtn: dueChipBtn,
+              paymentMode,
+              agentName,
+            })}
+          </p>
+          <p className="truncate text-[9px] text-muted-foreground/80">
             {[
-              roomLabel?.trim(),
               checkIn && checkOut
                 ? `${checkIn.slice(5)}→${checkOut.slice(5)}`
                 : null,
               conf,
-              agentName?.trim(),
             ]
               .filter(Boolean)
               .join(" · ")}
@@ -492,6 +496,17 @@ export function StayHubLeftRail({
           <p className="text-[10px] text-muted-foreground">Loading…</p>
         )}
 
+        <p className="text-[11px] leading-snug text-foreground/90">
+          {buildStayStoryLine({
+            status,
+            roomLabel,
+            hkStatus,
+            dueBtn: dueChipBtn,
+            paymentMode,
+            agentName,
+          })}
+        </p>
+
         {agentName?.trim() ? (
           <div className="rounded-md border bg-background/80 px-2 py-1">
             <div className="flex flex-wrap items-center gap-1">
@@ -508,11 +523,15 @@ export function StayHubLeftRail({
               ) : null}
             </div>
             {paymentMode ? (
-              <p className="truncate text-[10px] text-muted-foreground capitalize">
-                {paymentModeShort(paymentMode)}
+              <p className="truncate text-[10px] text-muted-foreground">
+                {foPaymentModeShort(paymentMode)}
               </p>
             ) : null}
           </div>
+        ) : paymentMode ? (
+          <p className="text-[10px] text-muted-foreground">
+            {foPaymentModeShort(paymentMode)}
+          </p>
         ) : null}
 
         {alerts.filter((a) => a.key !== "dues").length > 0 ? (

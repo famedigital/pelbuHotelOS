@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrivalPlaybookStrip } from "@/components/erp/ArrivalPlaybookStrip";
 import { useStayHubOptional } from "@/components/erp/StayHubProvider";
 import { Button } from "@/components/ui/button";
 import type { FoNextAction, FoNextKind } from "@/lib/erp/fo-next-action";
@@ -43,7 +44,7 @@ export function FoTodayWorklist({ actions }: { actions: FoNextAction[] }) {
             KIND_TONE[row.kind],
           )}
         >
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 space-y-1">
             <p className="truncate text-sm font-semibold text-foreground">
               {row.guestName}
               {row.roomLabel && row.kind !== "housekeeping" ? (
@@ -52,6 +53,9 @@ export function FoTodayWorklist({ actions }: { actions: FoNextAction[] }) {
                 </span>
               ) : null}
             </p>
+            {row.playbook?.length ? (
+              <ArrivalPlaybookStrip steps={row.playbook} />
+            ) : null}
             <p className="text-xs text-muted-foreground">{row.why}</p>
           </div>
           {row.bookingId && row.stayHubStep ? (

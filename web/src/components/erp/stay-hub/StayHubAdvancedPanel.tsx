@@ -9,6 +9,7 @@ import {
 } from "@/app/actions/erp-folio-ops";
 import { AgreedRateForm } from "@/components/erp/AgreedRateForm";
 import { AgentVoucherEmailButton } from "@/components/erp/AgentVoucherEmailButton";
+import { ConfirmationPackSendButton } from "@/components/erp/ConfirmationPackSendButton";
 import {
   GuestRoundFigureForm,
   PostRoomNightForm,
@@ -180,6 +181,18 @@ export function StayHubAdvancedPanel({
               Assign an agent on Details to enable AR.
             </p>
           )}
+        </AdvSection>
+
+        <AdvSection
+          title="Confirmation pack"
+          meta="Email"
+        >
+          <div className="space-y-2">
+            <p className="text-[11px] text-muted-foreground">
+              Voucher (no rates) + proforma (with rates) to agent or guest email.
+            </p>
+            <ConfirmationPackSendButton bookingId={booking.bookingId} />
+          </div>
         </AdvSection>
 
         <AdvSection
