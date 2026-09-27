@@ -3,6 +3,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BRAND_ICONS } from "@/lib/brand";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { DESK_OUTSIDE_SHIFT_MESSAGE } from "@/lib/desk-shift-gate";
+import { deskPasswordGateOpen } from "@/app/actions/staff-auth";
 import { LOGIN_HOTEL_CODE_COOKIE } from "@/lib/hotel-codes";
 import { getStaffSession } from "@/lib/staff-auth";
 import { SITE_NAME } from "@/lib/site";
@@ -41,21 +42,10 @@ export default async function DeskLoginPage() {
   }
 
   const jar = await cookies();
-  const savedCode = jar.get(LOGIN_HOTEL_CODE_COOKIE)?.value?.trim() || null;
-  let savedName: string | null = null;
-  if (savedCode) {
-    try {
-      const admin = createSupabaseAdminClient();
-      const { data } = await admin
-        .from("properties")
-        .select("name")
-        .eq("hotel_code", savedCode)
-        .maybeSingle();
-      savedName = (data?.name as string | undefined) ?? null;
-    } catch {
-      savedName = null;
-    }
-  }
+  const pinStep = await deskPasswordGateOpen();
+  const savedCode = pinStep
+    ? jar.get(LOGIN_HOTEL_CODE_COOKIE)?.value?.trim() || null
+    : null;
 
   return (
     <main className="erp relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-16">
@@ -81,8 +71,8 @@ export default async function DeskLoginPage() {
               Front desk
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Enter your hotel code first. Then sign in with user ID and
-              password. Your role comes from HR after login.
+              Hotel code and password first. Then your department, your name,
+              and your own PIN.
             </p>
           </div>
         </div>
@@ -99,7 +89,7 @@ export default async function DeskLoginPage() {
         <StaffLoginForm
           workspace="desk"
           initialHotelCode={savedCode}
-          initialPropertyName={savedName}
+          initialDeskPinStep={pinStep}
         />
 
         <div className="space-y-2 border-t border-border pt-6 text-center text-sm">

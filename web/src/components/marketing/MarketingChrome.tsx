@@ -27,11 +27,22 @@ export function MarketingHeader() {
             wordmarkClassName={onHome ? "text-white" : "text-foreground"}
           />
         </Link>
-        <div className="flex flex-1 items-center justify-end gap-3 lg:justify-between lg:pl-8">
+        <div className="flex flex-1 items-center justify-end gap-2 lg:justify-between lg:gap-3 lg:pl-8">
+          <Link
+            href="/erp/login"
+            className={cn(
+              "rounded-full px-3 py-1.5 text-sm lg:hidden",
+              onHome
+                ? "bg-white/15 text-white hover:bg-white/25"
+                : "bg-secondary text-secondary-foreground hover:opacity-90",
+            )}
+          >
+            Login
+          </Link>
           <MarketingMegaNav onHome={onHome} />
           <div className="hidden items-center gap-2 lg:flex">
             <Link
-              href="/login"
+              href="/erp/login"
               className={cn(
                 "rounded-full px-3.5 py-1.5 text-sm transition",
                 onHome

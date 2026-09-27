@@ -175,7 +175,8 @@ export async function createFastBooking(
 
     // Guide is required for international tourists (full-package rule).
     // Regional / official / local guests may legitimately have no guide.
-    if (guestOrigin === "international" && !guideNumber) {
+    const guestDetailsLater = formData.get("guest_details_later") === "1";
+    if (guestOrigin === "international" && !guideNumber && !guestDetailsLater) {
       throw new Error(
         "Guide number is required for international tourists. If this guest has no guide, change the origin to regional / official / local.",
       );
@@ -849,10 +850,11 @@ export async function createFastBooking(
     const needsRooming = guestRooms > 1;
     if (needsRooming) {
       try {
+        const groupReference = optionalTrim(formData.get("group_reference"));
         const groupName =
-          [contactName, agentId ? "party" : null, `${guestRooms} rooms`]
-            .filter(Boolean)
-            .join(" · ") || `${guestRooms}-room party`;
+          groupReference ||
+          contactName ||
+          `${guestRooms}-room party`;
         const { data: group, error: gErr } = await admin
           .from("booking_groups")
           .insert({

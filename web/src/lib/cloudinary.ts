@@ -4,7 +4,8 @@ export function getCloudinaryCloudName(): string {
   return (
     process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME?.trim() ||
     process.env.CLOUDINARY_CLOUD_NAME?.trim() ||
-    ""
+    // Public delivery cloud used by hotel logos already stored in this project.
+    "hkkchsfy"
   );
 }
 

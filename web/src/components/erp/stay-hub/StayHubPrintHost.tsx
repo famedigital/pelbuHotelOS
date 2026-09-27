@@ -2,6 +2,10 @@
 
 import type { RoomingListPayload } from "@/app/actions/erp-reservations-party";
 import {
+  FastBookInvoice,
+  type FastBookInvoiceData,
+} from "@/components/erp/FastBookInvoice";
+import {
   FastBookVoucher,
   type FastBookVoucherData,
 } from "@/components/erp/FastBookVoucher";
@@ -21,6 +25,7 @@ import { StayHubErrorBoundary } from "@/components/erp/stay-hub/StayHubErrorBoun
  * and the first client paint match (no `document` during RSC/SSR).
  */
 export function StayHubPrintHost({
+  proforma,
   voucher,
   registration,
   partyRooming = null,
@@ -29,6 +34,7 @@ export function StayHubPrintHost({
   property,
   design,
 }: {
+  proforma: FastBookInvoiceData;
   voucher: FastBookVoucherData;
   registration: GuestRegistrationCardData;
   partyRooming?: RoomingListPayload | null;
@@ -47,6 +53,23 @@ export function StayHubPrintHost({
   return createPortal(
     <StayHubErrorBoundary fallback={null}>
       <div className="desk-print-host" aria-hidden>
+        <FastBookInvoice
+          data={proforma}
+          property={
+            property?.name
+              ? {
+                  name: property.name,
+                  legal_name: property.legal_name,
+                  address: property.address,
+                  phone: property.phone,
+                  email: property.email,
+                  tax_id: property.tax_id,
+                  logo_public_id: property.logo_public_id,
+                }
+              : undefined
+          }
+          title="PROFORMA"
+        />
         <FastBookVoucher
           data={voucher}
           property={

@@ -84,6 +84,7 @@ export const ERP_NAV_KEYWORDS: Record<string, string[]> = {
   "/erp/menu": ["menu", "fnb", "food", "items"],
   "/erp/menu/print": ["print menu", "menu pdf", "a4 menu", "brochure"],
   "/erp/pos/recipe-cost": ["recipe", "cost", "food cost"],
+  "/erp/pos/reports": ["pos reports", "fnb reports", "cashier", "tenders", "item mix"],
   "/erp/kitchen": ["kitchen", "kds", "kot", "cook", "chef"],
   "/erp/kitchen/food-cost": ["food cost", "cogs"],
   "/erp/kitchen/day-pack": ["day pack", "flash", "xz", "z report"],
@@ -220,6 +221,7 @@ export const ERP_MODULES: ErpModule[] = [
     href: "/erp/pos",
     tabs: [
       leaf("Register", "/erp/pos", ShoppingCartIcon, undefined, "daily"),
+      leaf("Reports", "/erp/pos/reports", ReceiptTextIcon, undefined, "daily"),
       leaf("Menu", "/erp/menu", SoupIcon, undefined, "daily"),
       leaf("Print menu", "/erp/menu/print", ScrollTextIcon),
       leaf("Reservations", "/erp/pos/reservations", CalendarClockIcon),

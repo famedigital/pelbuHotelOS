@@ -49,7 +49,14 @@ export function FiscalLetterhead({
   const hotelName = property.name?.trim() || "Hotel";
   const legal = property.legal_name?.trim();
   const logoSrc = property.logo_public_id
-    ? cloudinaryUrl(property.logo_public_id, { width: 160, crop: "fit" })
+    ? cloudinaryUrl(property.logo_public_id, {
+        width: 160,
+        height: 160,
+        crop: "fit",
+        format: "png",
+        quality: "auto:best",
+        dpr: 1,
+      })
     : null;
   const tagline =
     property.tagline?.trim() ||
@@ -63,7 +70,7 @@ export function FiscalLetterhead({
           <img
             src={logoSrc}
             alt=""
-            className="h-11 w-11 shrink-0 object-contain"
+            className="h-[52px] w-[52px] shrink-0 object-contain"
           />
         ) : null}
         <div className="min-w-0">
@@ -171,22 +178,26 @@ export function FiscalStayStrip({
 export function FiscalLinesTable({
   rows,
   showSc = false,
+  dense = false,
 }: {
   rows: FiscalLineRow[];
   showSc?: boolean;
+  /** Tighter rows when the bill has many lines. */
+  dense?: boolean;
 }) {
+  const cell = dense ? "px-1.5 py-0.5" : "px-2 py-1";
   return (
-    <table className="fiscal-invoice-lines mt-2.5 w-full border-collapse text-[12px]">
+    <table className="fiscal-invoice-lines mt-2 w-full border-collapse text-[12px]">
       <thead>
         <tr className="bg-[#1a1410] text-left text-[10px] tracking-[0.08em] text-white uppercase">
-          <th className="px-2 py-1.5 font-medium">#</th>
-          <th className="px-2 py-1.5 font-medium">Description</th>
-          <th className="px-2 py-1.5 text-right font-medium">Qty</th>
-          <th className="px-2 py-1.5 text-right font-medium">Rate</th>
+          <th className={`${cell} font-medium`}>#</th>
+          <th className={`${cell} font-medium`}>Description</th>
+          <th className={`${cell} text-right font-medium`}>Qty</th>
+          <th className={`${cell} text-right font-medium`}>Rate</th>
           {showSc ? (
-            <th className="px-2 py-1.5 text-right font-medium">SC</th>
+            <th className={`${cell} text-right font-medium`}>SC</th>
           ) : null}
-          <th className="px-2 py-1.5 text-right font-medium">Amount</th>
+          <th className={`${cell} text-right font-medium`}>Amount</th>
         </tr>
       </thead>
       <tbody>
@@ -195,33 +206,33 @@ export function FiscalLinesTable({
             key={row.id}
             className={`border-b border-[#ddd6cc] ${row.foc ? "text-[#5c534c]" : ""}`}
           >
-            <td className="px-2 py-1.5 align-top tabular-nums text-[#5c534c]">
+            <td className={`${cell} align-top tabular-nums text-[#5c534c]`}>
               {i + 1}
             </td>
-            <td className="px-2 py-1.5 align-top">
+            <td className={`${cell} align-top leading-tight`}>
               <span className="font-semibold text-[#1a1410]">
                 {row.description}
               </span>
               {row.hint ? (
-                <span className="mt-0.5 block text-[10.5px] font-normal text-[#5c534c]">
+                <span className="mt-0.5 block text-[10px] font-normal text-[#5c534c]">
                   {row.hint}
                 </span>
               ) : null}
             </td>
-            <td className="px-2 py-1.5 text-right align-top tabular-nums">
+            <td className={`${cell} text-right align-top tabular-nums`}>
               {row.qty != null ? row.qty : "—"}
             </td>
-            <td className="px-2 py-1.5 text-right align-top tabular-nums">
+            <td className={`${cell} text-right align-top tabular-nums`}>
               {row.rate != null ? formatGuestBtn(row.rate) : "—"}
             </td>
             {showSc ? (
-              <td className="px-2 py-1.5 text-right align-top tabular-nums">
+              <td className={`${cell} text-right align-top tabular-nums`}>
                 {row.sc != null && row.sc !== 0
                   ? formatGuestBtn(row.sc)
                   : "—"}
               </td>
             ) : null}
-            <td className="px-2 py-1.5 text-right align-top font-medium tabular-nums">
+            <td className={`${cell} text-right align-top font-medium tabular-nums`}>
               {formatGuestBtn(row.amount)}
             </td>
           </tr>
@@ -287,7 +298,7 @@ export function FiscalTotalsBlock({
 
 export function FiscalSignOff({ hotelName }: { hotelName: string }) {
   return (
-    <div className="mt-3.5 grid grid-cols-2 gap-5 pt-1">
+    <div className="fiscal-signoff mt-3 grid grid-cols-2 gap-5 pt-1">
       <div>
         <div className="mb-1 h-7 border-b-[1.5px] border-[#1a1410]" />
         <p className="text-[10px] text-[#5c534c]">Received by</p>

@@ -44,6 +44,7 @@ export default async function ArrivalsPage() {
 
   return (
     <DeskListShell
+      wide
       title="Arrivals"
       eyebrow="Arrivals"
       heading={`Arrivals · ${fmtDate(today)}`}

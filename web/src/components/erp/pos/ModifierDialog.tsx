@@ -15,6 +15,7 @@ import { MinusIcon, PlusIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { MenuItem } from "@/lib/menu";
 import type { ModifierGroup } from "@/lib/pos";
+import type { MenuLineExtras } from "./MenuTile";
 import type { CartLine } from "./types";
 
 type Target =
@@ -31,6 +32,8 @@ type Props = {
   onUpsert: (line: CartLine) => void;
   onRemove: (key: string) => void;
   defaultCourseNo?: number;
+  /** Seat, note, or no-charge chosen from the item menu before modifiers. */
+  lineExtras?: MenuLineExtras | null;
 };
 
 type Selection = Record<
@@ -44,6 +47,7 @@ function buildLineKey(args: {
   courseNo: number;
   seatNo?: number;
   lineNotes?: string;
+  isNc?: boolean;
 }): string {
   const modPart = args.mods.length
     ? args.mods
@@ -57,6 +61,7 @@ function buildLineKey(args: {
     `c${args.courseNo}`,
     args.seatNo ? `s${args.seatNo}` : "s0",
     `n:${(args.lineNotes ?? "").trim().toLowerCase().slice(0, 60)}`,
+    args.isNc ? "nc1" : "nc0",
   ].join("::");
 }
 
@@ -69,6 +74,7 @@ export function ModifierDialog({
   onUpsert,
   onRemove,
   defaultCourseNo = 1,
+  lineExtras = null,
 }: Props) {
   const open = target !== null;
 
@@ -98,8 +104,8 @@ export function ModifierDialog({
     if (target.mode === "add") {
       setQty(1);
       setCourseNo(Math.max(1, defaultCourseNo));
-      setSeatNo("");
-      setLineNotes("");
+      setSeatNo(lineExtras?.seatNo ? String(lineExtras.seatNo) : "");
+      setLineNotes(lineExtras?.lineNotes ?? "");
       const init: Selection = {};
       for (const g of groups) {
         for (const opt of g.options) {
@@ -198,6 +204,10 @@ export function ModifierDialog({
     }
 
     const seat = seatNo.trim() ? Number(seatNo) : undefined;
+    const isNc =
+      target?.mode === "edit"
+        ? Boolean(initialLine?.isNc)
+        : Boolean(lineExtras?.isNc);
     const line: CartLine = {
       key: "",
       menuItemId: item!.id,
@@ -210,6 +220,10 @@ export function ModifierDialog({
       courseNo: Math.max(1, courseNo),
       seatNo: seat,
       lineNotes: lineNotes.trim() ? lineNotes.trim().slice(0, 280) : undefined,
+      isNc: isNc || undefined,
+      ncReasonCode: isNc
+        ? (initialLine?.ncReasonCode ?? "service_recovery")
+        : undefined,
       prepStation: item!.prep_station ?? "kitchen",
     };
     line.key = buildLineKey({
@@ -218,6 +232,7 @@ export function ModifierDialog({
       courseNo: line.courseNo,
       seatNo: line.seatNo,
       lineNotes: line.lineNotes,
+      isNc,
     });
     onUpsert(line);
   }

@@ -17,6 +17,8 @@ export type PersonalSubTier = "friends" | "family" | "mutual_friends";
 export type RatePickupOption = {
   value: RatePickupKind;
   label: string;
+  disabled?: boolean;
+  hint?: string;
 };
 
 export type RatePickupAgent = {
@@ -46,32 +48,36 @@ export function agentHasSpecialTier(
   return agentRateTier(rateTier) !== "agents";
 }
 
+/** Desk pickup list: Local, Agent, Special, NC. Custom is an override from the sheet. */
 export function buildRatePickupOptions(
   agent: RatePickupAgent | null | undefined,
 ): RatePickupOption[] {
-  const opts: RatePickupOption[] = [
-    { value: "public", label: "Public rate" },
-    { value: "personal", label: "Personal guest" },
-  ];
   const name = agent?.company_name?.trim();
-  if (name) {
-    if (agentHasSpecialTier(agent?.rate_tier)) {
-      opts.push({
-        value: "special",
-        label: `Special · ${name}`,
-      });
-    } else {
-      opts.push({
-        value: "agent",
-        label: `Agent · ${name}`,
-      });
-    }
-  }
-  opts.push(
-    { value: "nc", label: "NC (complimentary)" },
-    { value: "custom", label: "Custom" },
-  );
-  return opts;
+  const special = Boolean(name && agentHasSpecialTier(agent?.rate_tier));
+  return [
+    { value: "public", label: "Local" },
+    {
+      value: "agent",
+      label: name && !special ? `Agent · ${name}` : "Agent",
+      disabled: !name || special,
+      hint: !name
+        ? "Choose an agent below"
+        : special
+          ? "This agent uses a special rate"
+          : undefined,
+    },
+    {
+      value: "special",
+      label: name && special ? `Special · ${name}` : "Special",
+      disabled: !special,
+      hint: !name
+        ? "Choose an agent below"
+        : !special
+          ? "This agent has no special rate"
+          : undefined,
+    },
+    { value: "nc", label: "NC" },
+  ];
 }
 
 export type ResolvedRatePickup = {
@@ -101,7 +107,7 @@ export function resolveRatePickup(input: {
         guestRateKind: "rack",
         clearAgreed: true,
         openCustomDialog: false,
-        summaryLabel: "Public",
+        summaryLabel: "Local",
       };
     case "personal":
       return {
@@ -149,7 +155,7 @@ export function resolveRatePickup(input: {
         guestRateKind: "rack",
         clearAgreed: true,
         openCustomDialog: false,
-        summaryLabel: "Public",
+        summaryLabel: "Local",
       };
   }
 }

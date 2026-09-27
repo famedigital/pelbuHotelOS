@@ -9,6 +9,7 @@ import {
   getSortedRowModel,
   useReactTable,
   type ColumnDef,
+  type FilterFn,
   type SortingState,
   type Table as TanstackTable,
 } from "@tanstack/react-table";
@@ -66,6 +67,11 @@ export interface DataTableProps<TData, TValue> {
   getRowHref?: (row: TData) => string | undefined;
   /** When set, clicking a row invokes this callback (ignored if getRowHref also fires). */
   onRowClick?: (row: TData) => void;
+  /**
+   * Search the whole row. When set, only the first column is tested so the
+   * function runs once per row (display columns have no accessor).
+   */
+  globalFilterFn?: FilterFn<TData>;
 }
 
 export function DataTable<TData, TValue>({
@@ -81,6 +87,7 @@ export function DataTable<TData, TValue>({
   mobileCards = true,
   getRowHref,
   onRowClick,
+  globalFilterFn,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = React.useState("");
@@ -97,10 +104,17 @@ export function DataTable<TData, TValue>({
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize } },
+    ...(globalFilterFn
+      ? {
+          globalFilterFn,
+          getColumnCanGlobalFilter: (column: { getIndex: () => number }) =>
+            column.getIndex() === 0,
+        }
+      : {}),
   });
 
   return (
-    <div className={cn("space-y-3", className)}>
+    <div className={cn("min-w-0 space-y-3", className)}>
       {(searchable || toolbar) ? (
         <div className="flex flex-wrap items-center justify-end gap-2">
           {toolbar}
@@ -195,11 +209,11 @@ export function DataTable<TData, TValue>({
 
       <div
         className={cn(
-          "overflow-hidden rounded-lg border bg-card",
+          "min-w-0 overflow-hidden rounded-lg border bg-card",
           mobileCards && "hidden md:block",
         )}
       >
-        <Table>
+        <Table className="w-max min-w-full">
           {caption ? (
             <caption className="sr-only">{caption}</caption>
           ) : null}
@@ -239,7 +253,7 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className={clickable ? "cursor-pointer" : undefined}
+                  className={cn("group/row", clickable && "cursor-pointer")}
                   onClick={
                     clickable
                       ? (e) => {

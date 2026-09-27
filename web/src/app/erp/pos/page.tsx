@@ -36,7 +36,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ErpPosPage() {
   if (!(await isDeskAuthenticated())) {
-    redirect("/erp/login");
+    redirect("/erp/pos/login");
   }
 
   const admin = createSupabaseAdminClient();

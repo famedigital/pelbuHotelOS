@@ -10,13 +10,7 @@ export function WorkPwaRegistrar() {
     if (process.env.NODE_ENV !== "production") {
       void navigator.serviceWorker
         .getRegistrations()
-        .then((regs) =>
-          Promise.all(
-            regs
-              .filter((r) => r.scope.includes("/erp"))
-              .map((r) => r.unregister()),
-          ),
-        )
+        .then((regs) => Promise.all(regs.map((r) => r.unregister())))
         .catch(() => undefined);
       return;
     }

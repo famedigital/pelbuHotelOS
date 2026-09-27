@@ -31,6 +31,7 @@ export default async function DeparturesPage() {
 
   return (
     <DeskListShell
+      wide
       eyebrow="Today"
       heading={`Departures · ${fmtDate(today)}`}
       blurb="Due out today. Open StayHub at Stay / Money (open balance) or Check-out (settled). Check-out marks rooms dirty for housekeeping. Open laundry flags must clear before CO."

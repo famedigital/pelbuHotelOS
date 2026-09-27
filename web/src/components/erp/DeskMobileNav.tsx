@@ -1,6 +1,7 @@
 "use client";
 
 import { deskLogout } from "@/app/actions/desk";
+import { deskShiftChange } from "@/app/actions/staff-auth";
 import { openErpCommandPalette } from "@/components/erp/ErpCommandPalette";
 import { useDeskWorkspace } from "@/components/erp/DeskWorkspaceProvider";
 import { DeskWorkspaceToggle } from "@/components/erp/DeskWorkspaceToggle";
@@ -289,12 +290,20 @@ export function DeskMobileNav({
                   </section>
                 ))
               )}
+              <form action={deskShiftChange}>
+                <button
+                  type="submit"
+                  className="min-h-12 w-full rounded-xl border border-border px-4 text-sm font-medium"
+                >
+                  Login + · next shift
+                </button>
+              </form>
               <form action={deskLogout}>
                 <button
                   type="submit"
                   className="min-h-12 w-full rounded-xl border border-border px-4 text-sm font-medium"
                 >
-                  Sign out
+                  Log out
                 </button>
               </form>
             </div>

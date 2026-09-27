@@ -21,6 +21,19 @@ export const BILL_KIND_TITLES: Record<BillKind, string> = {
   fnb: "F&B BILL",
 };
 
+/** Food-bill paper name. CP/BB is breakfast only. MAP is breakfast and dinner. */
+export function foodBillLabel(mealPlanCode: string | null | undefined): string {
+  const plan = (mealPlanCode ?? "").trim().toUpperCase();
+  if (plan === "CP" || plan === "BB") return "Breakfast";
+  if (plan === "MAP") return "Breakfast & dinner";
+  if (plan === "AP") return "Breakfast, lunch & dinner";
+  return BILL_KIND_LABELS.fnb;
+}
+
+export function foodBillTitle(mealPlanCode: string | null | undefined): string {
+  return foodBillLabel(mealPlanCode).toUpperCase();
+}
+
 export function parseBillKind(
   value: string | null | undefined,
 ): BillKind {
@@ -35,8 +48,9 @@ export function classifyBillLine(line: {
 }): BillLineGroup {
   if (isGuestRateAdjDescription(line.description)) return "hotel_adj";
   const st = (line.source_type ?? "").toLowerCase();
-  if (["room", "meal_plan", "extra_bed"].includes(st)) return "room";
-  if (["order", "pos", "laundry"].includes(st)) return "fnb";
+  if (["room", "extra_bed"].includes(st)) return "room";
+  // Package meals (CP breakfast, MAP breakfast and dinner) are the food bill.
+  if (["meal_plan", "order", "pos", "laundry"].includes(st)) return "fnb";
   if (st === "comp" || st === "adjustment") return "hotel_adj";
   return "other";
 }

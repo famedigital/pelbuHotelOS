@@ -26,17 +26,20 @@ export type MealCovers = {
   guests: MealCoverGuest[];
 };
 
-/** Standard EP / BB / MAP / AP meal inclusion rules. */
+/**
+ * Meals inside the plan. Lunch on CP or MAP is a POS extra, not the package.
+ * CP and BB = breakfast. MAP = breakfast and dinner. AP = all three.
+ */
 export function mealPlanInclusions(planCode: string): MealInclusions {
   const plan = (planCode ?? "EP").toUpperCase();
   if (plan === "EP") {
     return { breakfast: false, lunch: false, dinner: false };
   }
-  if (plan === "BB") {
+  if (plan === "BB" || plan === "CP") {
     return { breakfast: true, lunch: false, dinner: false };
   }
   if (plan === "MAP") {
-    return { breakfast: true, lunch: true, dinner: false };
+    return { breakfast: true, lunch: false, dinner: true };
   }
   if (plan === "AP") {
     return { breakfast: true, lunch: true, dinner: true };
@@ -63,7 +66,7 @@ function roomLabels(
 
 /**
  * In-house meal covers from checked-in bookings + kitchen events for a date.
- * BB → breakfast; MAP → breakfast + lunch; AP → all three meals.
+ * CP/BB → breakfast; MAP → breakfast + dinner; AP → all three meals.
  * Children count toward covers when on a meal plan (priced or free).
  */
 export async function computeMealCovers(

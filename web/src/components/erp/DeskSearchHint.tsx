@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { openErpCommandPalette } from "@/components/erp/ErpCommandPalette";
+import { SearchIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 function deskShortcutLabel(): string {
@@ -22,11 +23,14 @@ export function DeskSearchHint() {
       type="button"
       variant="outline"
       size="sm"
-      className="hidden h-9 gap-1.5 text-muted-foreground md:inline-flex"
+      className="hidden h-8 shrink-0 gap-1.5 px-2 text-muted-foreground md:inline-flex"
+      aria-label={`Search (${shortcut})`}
+      title={`Search (${shortcut})`}
       onClick={() => openErpCommandPalette()}
     >
-      Search
-      <kbd className="pointer-events-none rounded border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground">
+      <SearchIcon className="size-3.5 xl:hidden" />
+      <span className="hidden xl:inline">Search</span>
+      <kbd className="pointer-events-none hidden rounded border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground xl:inline">
         {shortcut}
       </kbd>
     </Button>

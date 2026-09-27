@@ -99,7 +99,7 @@ export function PosFullscreenToggle({
       type="button"
       variant="outline"
       size="sm"
-      className="h-9"
+      className="h-8 shrink-0 gap-1.5 px-2"
       onClick={() => onChange(!active)}
       aria-pressed={active}
       title={active ? "Exit fullscreen (Shift+F)" : "Fullscreen POS (Shift+F)"}
@@ -109,7 +109,7 @@ export function PosFullscreenToggle({
       ) : (
         <MaximizeIcon className="size-4" />
       )}
-      <span className="hidden sm:inline">
+      <span className="hidden xl:inline">
         {active ? "Exit fullscreen" : "Fullscreen"}
       </span>
     </Button>

@@ -1,18 +1,13 @@
-import { DocPrintControls } from "@/components/erp/DocPrintControls";
 import { AutoPrintOnLoad } from "@/components/erp/pos/AutoPrintOnLoad";
-import {
-  PosPaidReceipt,
-  type PosPaidReceiptData,
-} from "@/components/erp/pos/PosPaidReceipt";
-import { Button } from "@/components/ui/button";
+import { PosReceiptStage } from "@/components/erp/pos/PosReceiptStage";
+import type { PosPaidReceiptData } from "@/components/erp/pos/PosPaidReceipt";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { orderRef } from "@/lib/order-ref";
 import { normalizePartyName } from "@/lib/pos-training";
 import type { DocumentPaperSize } from "@/lib/property-settings";
+import { clampPrintDarken } from "@/lib/pos-print-prefs";
 import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 export const metadata = {
@@ -24,7 +19,7 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ print?: string; paper?: string }>;
+  searchParams: Promise<{ print?: string; paper?: string; darken?: string }>;
 };
 
 /**
@@ -71,6 +66,7 @@ export default async function OrderPaidReceiptPage({
   const property = await loadProperty(admin, propertyId);
   if (!property) notFound();
 
+  const darken = clampPrintDarken(sp.darken);
   const paperParam = (sp.paper ?? "").toLowerCase();
   const designPaper = property.doc_receipt.paper_size;
   const paper: DocumentPaperSize =
@@ -143,47 +139,23 @@ export default async function OrderPaidReceiptPage({
   };
 
   return (
-    <div className="erp mx-auto w-full max-w-[520px] space-y-5 p-4 md:p-6 print:max-w-none print:p-0">
+    <>
       {autoPrint ? <AutoPrintOnLoad paper={paper} /> : null}
-
-      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <div>
-          <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-            Guest receipt
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
-            {orderRef(data.orderId)}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Paid · give this copy to the guest
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline" className="h-10">
-            <Link href="/erp/pos">Back to POS</Link>
-          </Button>
-          {data.folioId ? (
-            <Button asChild variant="outline" className="h-10">
-              <Link href={`/erp/folios/${data.folioId}`}>Open folio</Link>
-            </Button>
-          ) : null}
-          <DocPrintControls
-            defaultSize={paper}
-            printLabel="Print receipt"
-          />
-        </div>
-      </div>
-
-      <PosPaidReceipt
+      <PosReceiptStage
         order={data}
+        initialPaper={paper}
+        darken={darken}
         property={{
           name: property.name,
+          legalName: property.legal_name,
           address: property.address,
           phone: property.phone,
+          email: property.email,
           timezone: property.timezone,
           gstNumber: property.tax_id ?? null,
+          logoPublicId: property.logo_public_id,
         }}
       />
-    </div>
+    </>
   );
 }

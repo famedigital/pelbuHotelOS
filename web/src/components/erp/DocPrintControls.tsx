@@ -12,19 +12,22 @@ import { useEffect, useState } from "react";
 export function DocPrintControls({
   defaultSize = "a4",
   printLabel = "Print",
+  onSizeChange,
 }: {
   defaultSize?: DocumentPaperSize;
   printLabel?: string;
+  onSizeChange?: (size: DocumentPaperSize) => void;
 }) {
   const [size, setSize] = useState<DocumentPaperSize>(defaultSize);
 
   useEffect(() => {
     const root = document.documentElement;
     root.dataset.docPaper = size;
+    onSizeChange?.(size);
     return () => {
       delete root.dataset.docPaper;
     };
-  }, [size]);
+  }, [size, onSizeChange]);
 
   return (
     <div className="flex flex-wrap items-center gap-2 print:hidden">

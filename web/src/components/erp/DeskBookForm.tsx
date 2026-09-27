@@ -6,9 +6,12 @@ import {
   type FastBookState,
 } from "@/app/actions/fast-book";
 import {
+  previewDeskRateSheet,
   previewDeskStayQuote,
   type DeskAvailLine,
+  type DeskRateSheetRow,
 } from "@/app/actions/desk-book-preview";
+import { confirmDeskReservation } from "@/app/actions/erp-holds";
 import { AgentPicker, type BookableAgent } from "@/components/erp/AgentPicker";
 import { AgentVoucherEmailButton } from "@/components/erp/AgentVoucherEmailButton";
 import { ConfirmationPackSendButton } from "@/components/erp/ConfirmationPackSendButton";
@@ -35,6 +38,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -396,6 +407,7 @@ export function DeskBookForm({
   const [docId, setDocId] = useState("");
   const [sdfRef, setSdfRef] = useState("");
   const [guideNumber, setGuideNumber] = useState("");
+  const [groupReference, setGroupReference] = useState("");
   const [ratePickup, setRatePickup] = useState<RatePickupKind>("public");
   const [personalSubTier, setPersonalSubTier] =
     useState<PersonalSubTier>("friends");
@@ -487,6 +499,10 @@ export function DeskBookForm({
   const [rateDirty, setRateDirty] = useState(false);
   const [ratePin, setRatePin] = useState("");
   const [pinOpen, setPinOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetRows, setSheetRows] = useState<DeskRateSheetRow[]>([]);
+  const [sheetSeason, setSheetSeason] = useState<string | null>(null);
+  const [sheetLoading, setSheetLoading] = useState(false);
   const [draftRate, setDraftRate] = useState("");
   const [draftPin, setDraftPin] = useState("");
   const [rateEditLineId, setRateEditLineId] = useState<string | null>(null);
@@ -562,16 +578,41 @@ export function DeskBookForm({
   }, [agentId, selectedAgent?.rate_tier]);
 
   useEffect(() => {
+    if (ratePickup === "personal") {
+      setRatePickup("public");
+      return;
+    }
     const next = coerceRatePickup(ratePickup, selectedAgent);
     if (next !== ratePickup) setRatePickup(next);
   }, [selectedAgent, ratePickup]);
 
   const origin = guestOrigin;
+  /** Regional and international are agent files — one room or a group. */
+  const agentStay = origin === "regional" || origin === "international";
+  const stayContactName = agentStay
+    ? [selectedAgent?.company_name?.trim(), groupReference.trim()]
+        .filter(Boolean)
+        .join(" · ") || "Agent"
+    : guestName.trim();
 
   const totalGuestRooms = useMemo(
     () => roomLines.reduce((s, l) => s + Math.max(0, l.qty), 0),
     [roomLines],
   );
+  const lineAdults = useMemo(
+    () => roomLines.reduce((s, l) => s + Math.max(0, l.adults), 0),
+    [roomLines],
+  );
+  const lineChildren = useMemo(
+    () => roomLines.reduce((s, l) => s + Math.max(0, l.children), 0),
+    [roomLines],
+  );
+  const lineExtraBeds = useMemo(
+    () => roomLines.reduce((s, l) => s + Math.max(0, l.extraBeds), 0),
+    [roomLines],
+  );
+  /** Two or more guest rooms on an agent file is the party. One room is not. */
+  const groupStay = agentStay && totalGuestRooms > 1;
   const mixedCategories = roomLines.length > 1;
   const cartTypesUsed = useMemo(
     () => new Set(roomLines.map((l) => l.roomTypeId)),
@@ -1008,16 +1049,19 @@ export function DeskBookForm({
 
   const stepDone: Record<StepId, boolean> = {
     stay: Boolean(checkIn) && nights >= 1,
-    guest:
-      guestName.trim().length > 0 && (phoneLater || phone.trim().length > 0),
+    guest: agentStay
+      ? Boolean(agentId)
+      : guestName.trim().length > 0 && (phoneLater || phone.trim().length > 0),
     source: !billAgent || (Boolean(agentId) && !blockCredit),
     room: totalGuestRooms >= 1 && roomLines.length >= 1,
     ready:
       Boolean(checkIn) &&
       nights >= 1 &&
-      guestName.trim().length > 0 &&
+      (agentStay ? Boolean(agentId) : guestName.trim().length > 0) &&
       totalGuestRooms >= 1 &&
-      (guestOrigin !== "international" || guideNumber.trim().length > 0) &&
+      (agentStay ||
+        guestOrigin !== "international" ||
+        guideNumber.trim().length > 0) &&
       (!billAgent || (Boolean(agentId) && !blockCredit)),
   };
   void stepDone;
@@ -1028,6 +1072,10 @@ export function DeskBookForm({
       return null;
     }
     if (id === "guest") {
+      if (agentStay) {
+        if (!agentId) return "Pick an agent.";
+        return null;
+      }
       if (!guestName.trim()) return "Guest name is required.";
       if (!phoneLater && !phone.trim()) return "Phone or tick Phone later.";
       return null;
@@ -1049,7 +1097,11 @@ export function DeskBookForm({
         });
         return "Enable credit below (or switch to cash) before continuing.";
       }
-      if (guestOrigin === "international" && !guideNumber.trim())
+      if (
+        !agentStay &&
+        guestOrigin === "international" &&
+        !guideNumber.trim()
+      )
         return "Guide number is required for international.";
       return null;
     }
@@ -1129,10 +1181,38 @@ export function DeskBookForm({
       );
     }
     if (resolved.openCustomDialog) {
-      // Defer so state settles before dialog reads lines.
       queueMicrotask(() => openRateDialog());
+      return;
     }
+    setSheetOpen(true);
   };
+
+  useEffect(() => {
+    if (!sheetOpen) return;
+    const tier = ratePickupResolved.rateTier;
+    if (!tier || ratePickup === "nc") {
+      setSheetRows([]);
+      setSheetSeason(null);
+      setSheetLoading(false);
+      return;
+    }
+    let cancel = false;
+    setSheetLoading(true);
+    void previewDeskRateSheet({ checkIn, rateTier: tier }).then((res) => {
+      if (cancel) return;
+      setSheetLoading(false);
+      if (!res.ok) {
+        setSheetRows([]);
+        toast.error(res.error);
+        return;
+      }
+      setSheetSeason(res.seasonKind);
+      setSheetRows(res.rows);
+    });
+    return () => {
+      cancel = true;
+    };
+  }, [sheetOpen, checkIn, ratePickup, ratePickupResolved.rateTier]);
 
   const applyRateDialog = () => {
     const n = Number(draftRate);
@@ -1272,11 +1352,24 @@ export function DeskBookForm({
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
           <header className="print:hidden">
             <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-              {needsRooming ? "Party confirmed" : "Confirmed"}
+              {agentStay
+                ? needsRooming
+                  ? "Group reserved"
+                  : "Room reserved"
+                : needsRooming
+                  ? "Party confirmed"
+                  : "Confirmed"}
             </p>
             <h2 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">
-              {guestName || "Guest"}
+              {agentStay
+                ? selectedAgent?.company_name || stayContactName || "Agent"
+                : guestName || "Guest"}
             </h2>
+            {agentStay && groupReference.trim() ? (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {groupReference.trim()}
+              </p>
+            ) : null}
             <p className="mt-2 text-sm text-muted-foreground">
               {fmtShort(checkIn)} → {fmtShort(checkOut)} · {nights}n ·{" "}
               {roomLineSummary || "Rooms"}
@@ -1311,16 +1404,24 @@ export function DeskBookForm({
 
           <div className="mt-6 grid gap-4 print:hidden sm:grid-cols-2 lg:grid-cols-3">
             <ConfirmActionCard
-              title="Send confirmation pack"
-              blurb="Email voucher (no rates) + proforma (with rates) to the agent or guest."
+              title={agentStay ? "Send proforma" : "Send confirmation pack"}
+              blurb={
+                agentStay
+                  ? "Email the proforma to the agent. Confirm the booking after they agree by email or phone."
+                  : "Email voucher (no rates) + proforma (with rates) to the agent or guest."
+              }
               actions={
                 <ConfirmationPackSendButton bookingId={bookingId} />
               }
             />
 
             <ConfirmActionCard
-              title="Booking confirmation"
-              blurb="Proforma stay note — not a tax invoice. Print or save as PDF."
+              title={agentStay ? "Download proforma" : "Booking confirmation"}
+              blurb={
+                agentStay
+                  ? "Proforma with rates. Not a tax invoice."
+                  : "Proforma stay note — not a tax invoice. Print or save as PDF."
+              }
               actions={
                 <Button
                   type="button"
@@ -1380,7 +1481,7 @@ export function DeskBookForm({
               data={invoiceData}
               property={property}
               design={invoiceDesign}
-              title="Booking confirmation"
+              title="PROFORMA"
             />
             {hasAgent ? (
               <FastBookVoucher
@@ -1398,9 +1499,28 @@ export function DeskBookForm({
         </div>
 
         <footer className="shrink-0 space-y-2 border-t bg-background/95 px-4 py-3 sm:px-6 print:hidden">
+          {agentStay ? (
+            <Button
+              type="button"
+              variant="citrus"
+              className="h-12 w-full text-base font-semibold"
+              onClick={() => {
+                void confirmDeskReservation(bookingId).then((res) => {
+                  if (!res.ok) {
+                    toast.error(res.error);
+                    return;
+                  }
+                  toast.success("Booking confirmed");
+                  openStay();
+                });
+              }}
+            >
+              Agent confirmed — confirm booking
+            </Button>
+          ) : null}
           <Button
             type="button"
-            variant="citrus"
+            variant={agentStay ? "outline" : "citrus"}
             className="h-12 w-full text-base font-semibold"
             onClick={openStay}
           >
@@ -1460,8 +1580,11 @@ export function DeskBookForm({
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
-            const next: DeskBookIntent =
-              checkIn === todayIso() ? "check_in" : "confirm";
+            const next: DeskBookIntent = agentStay
+              ? "reserve"
+              : checkIn === todayIso()
+                ? "check_in"
+                : "confirm";
             setIntent(next);
             // Submit via the citrus button so FormData gets its name="intent" value
             // (React setState is too late for the same-tick submit).
@@ -1484,13 +1607,19 @@ export function DeskBookForm({
         <input type="hidden" name="guest_origin" value={origin} />
         <input type="hidden" name="check_in" value={checkIn} />
         <input type="hidden" name="check_out" value={checkOut} />
-        <input type="hidden" name="contact_name" value={guestName} />
+        <input type="hidden" name="contact_name" value={stayContactName} />
+        <input
+          type="hidden"
+          name="guest_details_later"
+          value={agentStay ? "1" : "0"}
+        />
+        <input type="hidden" name="group_reference" value={groupReference} />
         <input
           type="hidden"
           name="contact_phone"
-          value={phoneLater ? "" : phone}
+          value={agentStay || phoneLater ? "" : phone}
         />
-        {phoneLater ? (
+        {phoneLater || agentStay ? (
           <input type="hidden" name="phone_later" value="1" />
         ) : null}
         <input type="hidden" name="contact_email" value={email} />
@@ -1504,9 +1633,13 @@ export function DeskBookForm({
           name="sold_by_staff_id"
           value={soldByStaffId}
         />
-        <input type="hidden" name="adults" value={String(adults)} />
-        <input type="hidden" name="children" value={String(children)} />
-        <input type="hidden" name="extra_beds" value={String(extraBeds)} />
+        <input
+          type="hidden"
+          name="adults"
+          value={String(Math.max(1, lineAdults || adults))}
+        />
+        <input type="hidden" name="children" value={String(lineChildren)} />
+        <input type="hidden" name="extra_beds" value={String(lineExtraBeds)} />
         <input type="hidden" name="guide_number" value={guideNumber} />
         {ratePickupResolved.rateTier ? (
           <input
@@ -1627,21 +1760,40 @@ export function DeskBookForm({
         >
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold tracking-tight text-foreground">
-              {guestName.trim() || "Walk-in"}
+              {agentStay
+                ? selectedAgent?.company_name?.trim() || "Agent"
+                : guestName.trim() || "Walk-in"}
             </p>
+            {agentStay && groupReference.trim() ? (
+              <p className="truncate text-[11px] text-muted-foreground">
+                {groupReference.trim()}
+                {groupStay ? ` · group · ${totalGuestRooms} rooms` : ""}
+              </p>
+            ) : agentStay && groupStay ? (
+              <p className="truncate text-[11px] text-muted-foreground">
+                Group · {totalGuestRooms} rooms
+              </p>
+            ) : null}
             <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
               {fmtShort(checkIn)} → {fmtShort(checkOut)} · {nights}n
-            </p>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">
-              {roomLineSummary || "Pick a room"}
               {preferredUnitId
                 ? ` · #${preferredUnitLabel || "rack"}`
                 : ""}
             </p>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              {totalGuestRooms} room{totalGuestRooms === 1 ? "" : "s"}
+              {roomLineSummary ? ` · ${roomLineSummary}` : ""}
+            </p>
+            <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
+              {Math.max(1, lineAdults || adults)} adult
+              {lineChildren > 0 ? ` · ${lineChildren} child` : ""}
+              {lineExtraBeds > 0 ? ` · ${lineExtraBeds} extra` : ""}
+            </p>
             <p className="mt-0.5 truncate text-[11px] capitalize text-muted-foreground">
-              {selectedAgent
-                ? selectedAgent.company_name
-                : guestOrigin}
+              {origin}
+              {agentStay && selectedAgent
+                ? ` · ${selectedAgent.company_name}`
+                : ""}
               {" · "}
               {ratePickupResolved.summaryLabel}
             </p>
@@ -1742,7 +1894,7 @@ export function DeskBookForm({
                 <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
                   Stay
                 </p>
-              <div className="grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-x-3 gap-y-2 lg:grid-cols-[minmax(0,9rem)_minmax(0,9rem)_auto_minmax(0,1fr)]">
                 <div className="space-y-1">
                   <Label
                     htmlFor="db_ci"
@@ -1806,24 +1958,7 @@ export function DeskBookForm({
                     </Button>
                   </div>
                 </div>
-                {preferredUnitId ? (
-                  <div className="flex items-end pb-0.5">
-                    <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <span>
-                        #{preferredUnitLabel || preferredUnitId.slice(0, 8)}
-                      </span>
-                      <button
-                        type="button"
-                        className="text-[11px] underline-offset-2 hover:underline"
-                        onClick={() => setPreferredUnitId("")}
-                      >
-                        Clear
-                      </button>
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-              <div className="space-y-1">
+                <div className="col-span-2 space-y-1 lg:col-span-1">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <Label className="text-xs font-normal text-muted-foreground">
                     Assign room
@@ -1864,6 +1999,7 @@ export function DeskBookForm({
                     No free unit in this type for these dates
                   </p>
                 )}
+                </div>
               </div>
               </section>
 
@@ -1873,6 +2009,37 @@ export function DeskBookForm({
                   Guest & rate
                 </p>
                 <div className="grid grid-cols-2 gap-x-2 gap-y-2 sm:grid-cols-4 lg:grid-cols-6">
+                <div className="space-y-0.5">
+                  <Label className="text-[10px] font-normal text-muted-foreground">
+                    Origin
+                  </Label>
+                  <Select
+                    value={guestOrigin}
+                    onValueChange={(v) => {
+                      const next = v as GuestOrigin;
+                      setGuestOrigin(next);
+                      if (next === "local" || next === "official") {
+                        setAgentId("");
+                        setBillAgent(false);
+                        setGroupReference("");
+                      }
+                    }}
+                  >
+                    <SelectTrigger data-fo-tab className="h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ORIGIN_OPTIONS.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {!agentStay ? (
+                  <>
                 <div className="col-span-2 space-y-1 sm:col-span-2">
                   <Label
                     htmlFor="db_name"
@@ -1919,27 +2086,15 @@ export function DeskBookForm({
                     Later
                   </label>
                 </div>
-
-                <div className="space-y-0.5">
-                  <Label className="text-[10px] font-normal text-muted-foreground">
-                    Origin
-                  </Label>
-                  <Select
-                    value={guestOrigin}
-                    onValueChange={(v) => setGuestOrigin(v as GuestOrigin)}
-                  >
-                    <SelectTrigger data-fo-tab className="h-8 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ORIGIN_OPTIONS.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                  </>
+                ) : (
+                  <p className="col-span-2 text-[11px] text-muted-foreground sm:col-span-3">
+                    Guest name, phone, and ID are taken at check-in.
+                    {groupStay
+                      ? ` This is a group · ${totalGuestRooms} rooms.`
+                      : " One room stays a single reservation."}
+                  </p>
+                )}
 
                 <div className="space-y-0.5">
                   <Label className="text-[10px] font-normal text-muted-foreground">
@@ -1956,7 +2111,11 @@ export function DeskBookForm({
                     </SelectTrigger>
                     <SelectContent>
                       {ratePickupOptions.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
+                        <SelectItem
+                          key={opt.value}
+                          value={opt.value}
+                          disabled={opt.disabled}
+                        >
                           {opt.label}
                         </SelectItem>
                       ))}
@@ -2005,6 +2164,21 @@ export function DeskBookForm({
                   />
                 </div>
 
+                <label className="flex h-8 items-center gap-1.5 self-end text-xs font-medium">
+                  <input
+                    type="checkbox"
+                    checked={!taxExemptService}
+                    onChange={(e) => setTaxExemptService(!e.target.checked)}
+                    className="size-3.5 accent-foreground"
+                  />
+                  SC
+                </label>
+                {taxExemptService ? (
+                  <input type="hidden" name="tax_exempt_service" value="1" />
+                ) : null}
+
+                {agentStay ? (
+                <>
                 <div className="col-span-2 flex items-end pb-0.5 sm:col-span-1">
                   <label className="flex h-8 items-center gap-1.5 text-xs font-medium">
                     <input
@@ -2046,10 +2220,12 @@ export function DeskBookForm({
                     </Select>
                   </div>
                 )}
+                </>
+                ) : null}
               </div>
 
-              {/* Guest documents — own row so passport / SDF are full usable width */}
-              {guestOrigin === "local" ? (
+              {/* Guest documents — local and official only. Agent files take IDs at check-in. */}
+              {!agentStay && guestOrigin === "local" ? (
                 <div className="grid grid-cols-1 gap-x-2 sm:max-w-sm">
                   <div className="space-y-0.5 min-w-0">
                     <Label
@@ -2071,7 +2247,7 @@ export function DeskBookForm({
                 </div>
               ) : null}
 
-              {guestOrigin === "regional" || guestOrigin === "official" ? (
+              {!agentStay && guestOrigin === "official" ? (
                 <div className="grid grid-cols-1 gap-x-2 gap-y-1 sm:grid-cols-2">
                   <div className="space-y-0.5 min-w-0">
                     <Label
@@ -2113,7 +2289,7 @@ export function DeskBookForm({
                 </div>
               ) : null}
 
-              {guestOrigin === "international" ? (
+              {!agentStay && guestOrigin === "international" ? (
                 <div className="grid grid-cols-1 gap-x-2 gap-y-1 sm:grid-cols-2 lg:grid-cols-12">
                   <div className="min-w-0 space-y-0.5 lg:col-span-5">
                     <Label
@@ -2166,8 +2342,9 @@ export function DeskBookForm({
                 </div>
               ) : null}
 
+              {agentStay ? (
               <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                <div className="space-y-0.5 sm:col-span-2">
+                <div className="space-y-0.5">
                   <Label className="text-[10px] font-normal text-muted-foreground">
                     Agent
                   </Label>
@@ -2180,6 +2357,22 @@ export function DeskBookForm({
                     }}
                     creditMode={billAgent && paymentMode === "on_credit"}
                     className="h-8 min-h-8"
+                  />
+                </div>
+                <div className="space-y-0.5">
+                  <Label
+                    htmlFor="db_group_ref"
+                    className="text-[10px] font-normal text-muted-foreground"
+                  >
+                    Reference
+                  </Label>
+                  <Input
+                    id="db_group_ref"
+                    value={groupReference}
+                    onChange={(e) => setGroupReference(e.target.value)}
+                    className="h-8 text-sm"
+                    placeholder="Group or file name (optional)"
+                    autoComplete="off"
                   />
                 </div>
                 {billAgent && blockCredit && selectedAgent ? (
@@ -2220,14 +2413,18 @@ export function DeskBookForm({
                   </p>
                 ) : null}
               </div>
+              ) : null}
 
               </section>
 
               {/* Rooms — full width */}
               <section className="space-y-2">
-                <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-                  Rooms
-                </p>
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                    Rooms · {totalGuestRooms}
+                    {groupStay ? " · group" : agentStay ? " · 1 room" : ""}
+                  </p>
+                </div>
               <div className="space-y-2">
                 {roomLines.map((line) => {
                   const rt = guestTypes.find((g) => g.id === line.roomTypeId);
@@ -2499,7 +2696,7 @@ export function DeskBookForm({
                       disabled={!addCategoryId}
                       onClick={() => addCategoryLine(addCategoryId)}
                     >
-                      Add
+                      Add room type
                     </Button>
                   </div>
                 ) : null}
@@ -2565,17 +2762,6 @@ export function DeskBookForm({
                         className="size-3"
                       />
                       Exempt GST
-                    </label>
-                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <input
-                        type="checkbox"
-                        name="tax_exempt_service"
-                        value="1"
-                        checked={taxExemptService}
-                        onChange={(e) => setTaxExemptService(e.target.checked)}
-                        className="size-3"
-                      />
-                      Exempt SC
                     </label>
                     <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <input
@@ -2685,6 +2871,7 @@ export function DeskBookForm({
 
           <div className="shrink-0 border-t bg-background/95 px-3 py-2.5">
             <div className="flex flex-wrap items-center gap-2">
+              {!agentStay ? (
               <Button
                 type="submit"
                 name="intent"
@@ -2696,6 +2883,7 @@ export function DeskBookForm({
               >
                 Hold
               </Button>
+              ) : null}
               <p className="ml-auto text-xs tabular-nums text-muted-foreground">
                 {stayTotal != null &&
                 Number.isFinite(stayTotal) &&
@@ -2707,34 +2895,52 @@ export function DeskBookForm({
               <Button
                 type="submit"
                 name="intent"
-                value={checkIn === todayIso() ? "check_in" : "confirm"}
+                value={
+                  agentStay
+                    ? "reserve"
+                    : checkIn === todayIso()
+                      ? "check_in"
+                      : "confirm"
+                }
                 variant="citrus"
                 disabled={
                   pending ||
                   blockCredit ||
                   totalGuestRooms < 1 ||
-                  !guestName.trim() ||
-                  (checkIn === todayIso() && anyRatePendingSubmit)
+                  (agentStay ? !agentId : !guestName.trim()) ||
+                  (!agentStay && checkIn === todayIso() && anyRatePendingSubmit)
                 }
                 className="h-9 min-w-[9rem] px-4 text-xs font-semibold"
                 onClick={() =>
-                  setIntent(checkIn === todayIso() ? "check_in" : "confirm")
+                  setIntent(
+                    agentStay
+                      ? "reserve"
+                      : checkIn === todayIso()
+                        ? "check_in"
+                        : "confirm",
+                  )
                 }
                 title={
-                  anyRatePendingSubmit
-                    ? "Awaiting GM rate approval"
-                    : checkIn === todayIso()
-                      ? "Saves the stay and opens check-in (docs still required)"
-                      : undefined
+                  agentStay
+                    ? groupStay
+                      ? "Reserves the group and opens the proforma"
+                      : "Reserves the room and opens the proforma"
+                    : anyRatePendingSubmit
+                      ? "Awaiting GM rate approval"
+                      : checkIn === todayIso()
+                        ? "Saves the stay and opens check-in (docs still required)"
+                        : undefined
                 }
               >
                 {pending
                   ? "Saving…"
-                  : anyRatePendingSubmit
-                    ? "Submit · rate approval"
-                    : checkIn === todayIso()
-                      ? "Save & open check-in"
-                      : "Confirm reservation"}
+                  : agentStay
+                    ? "Reserve & proforma"
+                    : anyRatePendingSubmit
+                      ? "Submit · rate approval"
+                      : checkIn === todayIso()
+                        ? "Save & open check-in"
+                        : "Confirm reservation"}
               </Button>
             </div>
             {anyRatePendingSubmit ? (
@@ -2748,6 +2954,81 @@ export function DeskBookForm({
 
       </form>
 
+      <Dialog open={sheetOpen} onOpenChange={setSheetOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {ratePickup === "nc"
+                ? "NC"
+                : `${ratePickupResolved.summaryLabel} rates`}
+            </DialogTitle>
+            <DialogDescription>
+              {ratePickup === "nc"
+                ? "Complimentary. Nightly rate is 0."
+                : sheetSeason
+                  ? `${sheetSeason} season · single and double, before tax.`
+                  : "Rates for this stay’s season."}
+            </DialogDescription>
+          </DialogHeader>
+          {sheetLoading ? (
+            <p className="text-sm text-muted-foreground">Loading rates…</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Category</TableHead>
+                  <TableHead className="text-right">Single</TableHead>
+                  <TableHead className="text-right">Double</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(ratePickup === "nc"
+                  ? guestTypes.map((rt) => ({
+                      roomTypeId: rt.id,
+                      code: rt.code,
+                      name: rt.name,
+                      singleBtn: 0,
+                      doubleBtn: 0,
+                    }))
+                  : sheetRows
+                ).map((row) => (
+                  <TableRow key={row.roomTypeId}>
+                    <TableCell>
+                      {row.name}
+                      {row.code ? (
+                        <span className="ml-1 font-mono text-[10px] text-muted-foreground">
+                          {row.code}
+                        </span>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {row.singleBtn != null ? formatGuestBtn(row.singleBtn) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {row.doubleBtn != null ? formatGuestBtn(row.doubleBtn) : "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+          <DialogFooter className="gap-2 sm:justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setSheetOpen(false);
+                openRateDialog();
+              }}
+            >
+              Custom Nu/night
+            </Button>
+            <Button type="button" variant="citrus" onClick={() => setSheetOpen(false)}>
+              Use sheet
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={pinOpen} onOpenChange={setPinOpen}>
         <DialogContent layer="nested" className="erp sm:max-w-md">
           <DialogHeader>

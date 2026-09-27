@@ -438,6 +438,72 @@ export async function runExpireHoldsAction(): Promise<HoldActionState> {
   }
 }
 
+/**
+ * Desk confirms a held agent reservation after the agent agrees by email or phone.
+ * Does not post a deposit. Money stays on the folio.
+ */
+export async function confirmDeskReservation(
+  bookingId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    await requireDesk();
+    const admin = createSupabaseAdminClient();
+    const propertyId = await resolveActivePropertyId(admin);
+    const id = bookingId.trim();
+    if (!id) return { ok: false, error: "Missing booking." };
+
+    const { data: booking, error } = await admin
+      .from("bookings")
+      .select("id, status, property_id")
+      .eq("id", id)
+      .eq("property_id", propertyId)
+      .maybeSingle();
+    if (error || !booking) return { ok: false, error: "Booking not found." };
+    const status = booking.status as string;
+    if (status === "confirmed") return { ok: true };
+    if (status !== "held" && status !== "pending") {
+      return { ok: false, error: "Only a reservation can be confirmed." };
+    }
+
+    const { data: pendingLines } = await admin
+      .from("booking_rooms")
+      .select("id")
+      .eq("booking_id", id)
+      .eq("rate_request_status", "pending")
+      .limit(1);
+    if (pendingLines && pendingLines.length > 0) {
+      return {
+        ok: false,
+        error: "A custom rate is still waiting for approval.",
+      };
+    }
+
+    const now = new Date().toISOString();
+    const { error: upd } = await admin
+      .from("bookings")
+      .update({ status: "confirmed", confirmed_at: now })
+      .eq("id", id)
+      .eq("property_id", propertyId);
+    if (upd) return { ok: false, error: upd.message };
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "booking.agent_confirm",
+      entityType: "bookings",
+      entityId: id,
+      summary: "Confirmed after agent email or call",
+    });
+    revalidateHolds();
+    revalidatePath("/erp/calendar");
+    return { ok: true };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not confirm the booking.",
+    };
+  }
+}
+
 export async function switchActiveProperty(
   formData: FormData,
 ): Promise<void> {

@@ -1,12 +1,9 @@
 import { StaffLoginForm } from "@/components/erp/StaffAuthForms";
 import { BRAND_ICONS } from "@/lib/brand";
-import { LOGIN_HOTEL_CODE_COOKIE } from "@/lib/hotel-codes";
 import { safeStaffNextPath } from "@/lib/safe-staff-next";
 import { SITE_NAME } from "@/lib/site";
 import { getStaffSession } from "@/lib/staff-auth";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -26,23 +23,6 @@ export default async function StaffLoginPage({
   const session = await getStaffSession();
   if (session) {
     redirect(nextPath ?? (session.canAccessDesk ? "/erp" : "/staff"));
-  }
-
-  const jar = await cookies();
-  const savedCode = jar.get(LOGIN_HOTEL_CODE_COOKIE)?.value?.trim() || null;
-  let savedName: string | null = null;
-  if (savedCode) {
-    try {
-      const admin = createSupabaseAdminClient();
-      const { data } = await admin
-        .from("properties")
-        .select("name")
-        .eq("hotel_code", savedCode)
-        .maybeSingle();
-      savedName = (data?.name as string | undefined) ?? null;
-    } catch {
-      savedName = null;
-    }
   }
 
   return (
@@ -71,11 +51,7 @@ export default async function StaffLoginPage({
             </p>
           </div>
         </div>
-        <StaffLoginForm
-          nextPath={nextPath}
-          initialHotelCode={savedCode}
-          initialPropertyName={savedName}
-        />
+        <StaffLoginForm nextPath={nextPath} />
         <Link
           href="/login"
           className="block text-center text-sm text-muted-foreground underline-offset-4 hover:underline"

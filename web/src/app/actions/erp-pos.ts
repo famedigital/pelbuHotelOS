@@ -515,6 +515,11 @@ export async function createDeskOrder(
     const property = await loadPropertyPricing(admin);
     const property_id = property.propertyId;
     const posShiftId = await openShiftId(admin, property_id);
+    if (!posShiftId && !(await isPosTrainingMode(admin, property_id))) {
+      throw new Error(
+        "Open the POS shift before selling. Sign-in does not open the drawer.",
+      );
+    }
     const serviceChargeApplied = formData.get("service_charge_applied") === "1";
     const serviceChargeRateRaw = optionalTrim(formData.get("service_charge_rate"));
     const serviceChargeRate = serviceChargeRateRaw
@@ -1032,6 +1037,14 @@ export async function appendDeskOrderItems(
     const admin = createSupabaseAdminClient();
     const property = await loadPropertyPricing(admin);
     const property_id = property.propertyId;
+    if (
+      !(await openShiftId(admin, property_id)) &&
+      !(await isPosTrainingMode(admin, property_id))
+    ) {
+      throw new Error(
+        "Open the POS shift before selling. Sign-in does not open the drawer.",
+      );
+    }
 
     const { data: order } = await admin
       .from("orders")

@@ -18,9 +18,16 @@ import {
   BILL_KIND_TITLES,
   type BillKind,
   classifyBillLine,
+  foodBillLabel,
+  foodBillTitle,
   lineBelongsOnBill,
   parseBillKind,
 } from "@/lib/folio/bill-kinds";
+import {
+  presentFnbBillLines,
+  stayServiceDates,
+  type PublishedMenu,
+} from "@/lib/folio/package-meal-lines";
 import { guestVisibleBalanceLines } from "@/lib/folio/balance";
 import {
   formatGuestBtn,
@@ -169,6 +176,7 @@ export default async function FiscalInvoicePrintPage({
   let checkOut: string | null = null;
   let agentName: string | null = null;
   let stayNights: number | null = null;
+  let mealPlanCode: string | null = null;
   let roomProductLines: string[] = [];
   let roomUnitLabels: string[] = [];
 
@@ -177,7 +185,7 @@ export default async function FiscalInvoicePrintPage({
     const { data: booking } = await admin
       .from("bookings")
       .select(
-        `contact_email, contact_name, check_in, check_out, rooms,
+        `contact_email, contact_name, check_in, check_out, rooms, meal_plan_code,
          agents(company_name),
          booking_rooms(qty, inventory_kind, room_types(name, code)),
          room_assignments(room_units(label))`,
@@ -190,6 +198,7 @@ export default async function FiscalInvoicePrintPage({
       guestName = (booking.contact_name as string | null) ?? null;
       checkIn = (booking.check_in as string | null) ?? null;
       checkOut = (booking.check_out as string | null) ?? null;
+      mealPlanCode = (booking.meal_plan_code as string | null) ?? null;
       if (checkIn && checkOut) {
         stayNights = nightsBetween(checkIn, checkOut);
       }
@@ -277,19 +286,52 @@ export default async function FiscalInvoicePrintPage({
   const totalBtn = sumLines(onBill);
   const gstBtn = sumGst(onBill);
 
+  let publishedMenus: PublishedMenu[] = [];
+  if (bill === "fnb" && checkIn && checkOut && mealPlanCode) {
+    const dates = stayServiceDates(checkIn, checkOut);
+    if (dates.length > 0) {
+      const { data: menuRows } = await admin
+        .from("kitchen_meal_services")
+        .select("service_date, meal_period, menu_note, menu_highlights")
+        .eq("property_id", doc.property_id as string)
+        .in("service_date", dates);
+      publishedMenus = (menuRows ?? []).map((row) => ({
+        serviceDate: String(row.service_date),
+        mealPeriod: row.meal_period as PublishedMenu["mealPeriod"],
+        menuNote: (row.menu_note as string | null) ?? null,
+        menuHighlights: (row.menu_highlights as string | null) ?? null,
+      }));
+    }
+  }
+
+  const displayLines =
+    bill === "fnb"
+      ? presentFnbBillLines({
+          lines: onBill,
+          mealPlanCode,
+          checkIn,
+          checkOut,
+          menus: publishedMenus,
+        })
+      : onBill;
+
   const kind = doc.doc_kind as string;
   const kindLabel =
     kind === "receipt"
       ? "Receipt"
       : kind === "credit_note"
         ? "Credit note"
-        : BILL_KIND_LABELS[bill];
+        : bill === "fnb"
+          ? foodBillLabel(mealPlanCode)
+          : BILL_KIND_LABELS[bill];
   const kindTitle =
     kind === "receipt"
       ? "RECEIPT"
       : kind === "credit_note"
         ? "CREDIT NOTE"
-        : BILL_KIND_TITLES[bill];
+        : bill === "fnb"
+          ? foodBillTitle(mealPlanCode)
+          : BILL_KIND_TITLES[bill];
 
   const meta =
     doc.meta && typeof doc.meta === "object"
@@ -310,20 +352,27 @@ export default async function FiscalInvoicePrintPage({
   const issueDate = fmtHotelDate(String(doc.issued_at));
   const folioLabel = (folio?.label as string | null) ?? null;
   const netSubtotal = roundBtn(Math.max(0, totalBtn - gstBtn));
-  const fiscalLines: FiscalLineRow[] = onBill.map((line) => ({
-    id: line.id,
-    description: line.description,
-    hint:
-      classifyBillLine(line) === "fnb"
-        ? "F&B"
-        : classifyBillLine(line) === "room"
-          ? "Room"
-          : null,
-    qty: 1,
-    rate: Number(line.total_btn),
-    amount: Number(line.total_btn),
-    foc: Number(line.total_btn) === 0,
-  }));
+  const fiscalLines: FiscalLineRow[] = displayLines.map((line) => {
+    const isPackageMeal =
+      bill === "fnb" && (line.source_type ?? "").toLowerCase() === "meal_plan";
+    const packageMenu =
+      isPackageMeal && "hint" in line ? (line.hint ?? null) : null;
+    return {
+      id: line.id,
+      description: line.description ?? "Charge",
+      hint: isPackageMeal
+        ? packageMenu
+        : classifyBillLine(line) === "fnb"
+          ? "F&B"
+          : classifyBillLine(line) === "room"
+            ? "Room"
+            : null,
+      qty: 1,
+      rate: Number(line.total_btn),
+      amount: Number(line.total_btn),
+      foc: Number(line.total_btn) === 0,
+    };
+  });
 
   const stayBits = [
     checkIn && checkOut
@@ -406,7 +455,7 @@ export default async function FiscalInvoicePrintPage({
   const billLinks: { kind: BillKind; label: string }[] = [
     { kind: "master", label: "Master bill" },
     { kind: "room", label: "Room bill" },
-    { kind: "fnb", label: "F&B bill" },
+    { kind: "fnb", label: foodBillLabel(mealPlanCode) },
   ];
 
   return (
@@ -474,7 +523,7 @@ export default async function FiscalInvoicePrintPage({
       ) : null}
 
       <article
-        className="fiscal-invoice-sheet doc-print-sheet mx-auto max-w-[210mm] border border-[#d8d0c6] bg-white px-[12mm] py-[10mm] text-[#1a1410] shadow-sm print:border-0 print:px-0 print:py-0 print:shadow-none"
+        className={`fiscal-invoice-sheet doc-print-sheet mx-auto max-w-[210mm] border border-[#d8d0c6] bg-white px-[12mm] py-[8mm] text-[#1a1410] shadow-sm print:border-0 print:px-0 print:py-0 print:shadow-none ${fiscalLines.length >= 8 ? "fiscal-invoice-compact" : ""} ${fiscalLines.length >= 16 ? "fiscal-invoice-tight" : ""}`}
         aria-label={`${kindLabel} ${doc.doc_no as string}`}
       >
         <FiscalLetterhead
@@ -501,7 +550,7 @@ export default async function FiscalInvoicePrintPage({
               : kind === "credit_note"
                 ? "CREDIT NOTE"
                 : bill === "fnb"
-                  ? "BILL"
+                  ? foodBillTitle(mealPlanCode)
                   : "INVOICE"
           }
           meta={[
@@ -569,7 +618,7 @@ export default async function FiscalInvoicePrintPage({
         />
 
         {fiscalLines.length > 0 ? (
-          <FiscalLinesTable rows={fiscalLines} />
+          <FiscalLinesTable rows={fiscalLines} dense={fiscalLines.length >= 8} />
         ) : (
           <p className="mt-6 text-center text-sm text-[#5c534c]">
             No posted charge lines for this bill.

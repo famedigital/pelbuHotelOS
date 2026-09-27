@@ -1,108 +1,202 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import type { MenuItem } from "@/lib/menu";
 import { formatBtn } from "@/lib/pricing";
+import { ChevronDownIcon } from "lucide-react";
+import { useState } from "react";
 
-function monogramColor(seed: string): string {
-  // Deterministic brass/ink palette — never purple/cream.
-  const palette = ["#1c1612", "#3a3027", "#b8892c", "#c19548", "#7a1f1f"];
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  return palette[h % palette.length];
-}
+export type MenuLineExtras = {
+  lineNotes?: string;
+  seatNo?: number;
+  isNc?: boolean;
+};
 
-function firstLetter(name: string): string {
-  const t = name.trim();
-  if (!t) return "•";
-  return t[0]?.toUpperCase() ?? "•";
+const SEATS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
+
+function sellSizeLabel(size: MenuItem["sell_size"]): string | null {
+  if (size === "pek") return "Single pour (pek)";
+  if (size === "bottle") return "Full bottle";
+  if (size === "case") return "Case";
+  if (size === "single") return "Single";
+  return null;
 }
 
 export function MenuTile({
   item,
-  onClick,
+  onAdd,
+  onConfigure,
 }: {
   item: MenuItem;
-  onClick: () => void;
+  onAdd: () => void;
+  onConfigure: (extras: MenuLineExtras) => void;
 }) {
-  const letter = firstLetter(item.name);
-  const bg = monogramColor(item.id || item.name);
   const soldOut = Boolean(item.sold_out);
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [note, setNote] = useState("");
+  const sizeLabel = sellSizeLabel(item.sell_size);
+  const stockText = soldOut
+    ? "Sold out"
+    : item.stock_mode !== "untracked" &&
+        (item.stock_label || item.stock_on_hand != null)
+      ? (item.stock_label ?? `${item.stock_on_hand} left`)
+      : "Stock not tracked";
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={soldOut}
-      className="group flex h-full flex-col overflow-hidden rounded-lg border bg-card text-left transition-all hover:border-accent/50 hover:shadow-sm focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-55"
-      aria-label={
-        soldOut
-          ? `${item.name}, sold out`
-          : item.stock_label
-            ? `Add ${item.name}, ${formatBtn(item.price_btn)}, ${item.stock_label}`
+    <div className="flex min-w-0">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={soldOut}
+        onClick={onAdd}
+        className="h-auto min-h-14 min-w-0 flex-1 flex-col items-stretch justify-center gap-0.5 whitespace-normal rounded-r-none px-2.5 py-1.5 text-left"
+        aria-label={
+          soldOut
+            ? `${item.name}, sold out`
             : `Add ${item.name}, ${formatBtn(item.price_btn)}`
-      }
-      title={
-        !soldOut && item.stock_label
-          ? item.stock_label
-          : !soldOut && item.sell_size
-            ? item.sell_size === "pek"
-              ? "Single pour (shared bottle stock)"
-              : item.sell_size === "bottle"
-                ? "Full bottle (shared pour stock)"
-                : undefined
-            : undefined
-      }
-    >
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-secondary">
-        {item.image_src ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={item.image_src}
-            alt=""
-            loading="lazy"
-            className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
-        ) : (
-          <div
-            className="flex size-full items-center justify-center text-3xl font-semibold text-ivory"
-            style={{ backgroundColor: bg }}
-            aria-hidden
-          >
-            {letter}
-          </div>
-        )}
-        {item.is_popular ? (
-          <span className="absolute left-2 top-2 rounded-full bg-citrus px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-espresso">
-            Popular
-          </span>
-        ) : null}
-        {soldOut ? (
-          <span className="absolute inset-x-2 bottom-2 rounded-md bg-background/95 px-2 py-1 text-center text-[10px] font-bold uppercase tracking-wide text-destructive shadow-sm">
-            Sold out
-          </span>
-        ) : item.stock_mode !== "untracked" &&
-          (item.stock_label || item.stock_on_hand != null) ? (
-          <span className="absolute bottom-2 right-2 rounded-full bg-background/90 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-foreground shadow-sm">
-            {item.stock_label ?? `${item.stock_on_hand} left`}
-          </span>
-        ) : null}
-      </div>
-      <div className="flex flex-1 flex-col gap-1 p-3">
-        <p className="line-clamp-2 text-sm font-medium leading-snug text-foreground">
+        }
+      >
+        <span className="line-clamp-2 text-sm font-medium leading-snug">
           {item.name}
-        </p>
-        <div className="mt-auto flex items-center justify-between gap-2">
-          <span className="text-sm font-semibold tabular-nums text-foreground">
-            {formatBtn(item.price_btn)}
-          </span>
-          {item.gst_applicable ? (
-            <Badge variant="outline" className="text-[10px]">
-              GST
-            </Badge>
+        </span>
+        <span className="text-xs tabular-nums leading-tight text-muted-foreground">
+          {formatBtn(item.price_btn)}
+        </span>
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-auto w-8 shrink-0 self-stretch rounded-l-none border-l-0"
+            aria-label={`Details for ${item.name}`}
+          >
+            <ChevronDownIcon className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuLabel className="truncate">{item.name}</DropdownMenuLabel>
+          {item.image_src ? (
+            <div className="px-2 pb-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={item.image_src}
+                alt=""
+                className="h-16 w-full rounded-md object-cover"
+              />
+            </div>
           ) : null}
-        </div>
-      </div>
-    </button>
+          <DropdownMenuItem disabled>
+            {stockText}
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled>
+            <span className="flex w-full items-center justify-between gap-2">
+              GST
+              <Badge variant="outline">
+                {item.gst_applicable ? "On" : "Off"}
+              </Badge>
+            </span>
+          </DropdownMenuItem>
+          {item.is_popular ? (
+            <DropdownMenuItem disabled>Popular</DropdownMenuItem>
+          ) : null}
+          {sizeLabel ? (
+            <DropdownMenuItem disabled>{sizeLabel}</DropdownMenuItem>
+          ) : null}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            disabled={soldOut}
+            onSelect={() => {
+              setNote("");
+              setNoteOpen(true);
+            }}
+          >
+            Add note
+          </DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger disabled={soldOut}>
+              Seat
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              {SEATS.map((seat) => (
+                <DropdownMenuItem
+                  key={seat}
+                  onSelect={() => onConfigure({ seatNo: seat })}
+                >
+                  Seat {seat}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuItem
+            disabled={soldOut}
+            onSelect={() => onConfigure({ isNc: true })}
+          >
+            No charge
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Dialog open={noteOpen} onOpenChange={setNoteOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Note · {item.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor={`note-${item.id}`}>Line note</Label>
+            <Input
+              id={`note-${item.id}`}
+              value={note}
+              maxLength={280}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="No onion, less spicy"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setNoteOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                const lineNotes = note.trim();
+                if (!lineNotes) return;
+                onConfigure({ lineNotes });
+                setNoteOpen(false);
+              }}
+            >
+              Add with note
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

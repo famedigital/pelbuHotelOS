@@ -100,19 +100,43 @@ export function buildPackageColumns(
   return columns;
 }
 
-/** Package total: room night + meal adult rate × double occupancy. */
+/**
+ * Room share plus meal share. That sum is the CP, BB, MAP, or AP sell price.
+ * `roomShareBtn` is accommodation only. The adult meal rate is the meal share
+ * inside that price. Lunch and other POS stay outside and are not added here.
+ */
 export function packageNightTotalBtn(
-  roomBtn: number | null | undefined,
+  roomShareBtn: number | null | undefined,
   amountPerAdultNight: number | null | undefined,
   occupancyAdults: number = PACKAGE_OCCUPANCY_ADULTS,
 ): number | null {
-  if (roomBtn == null || !Number.isFinite(Number(roomBtn))) return null;
-  const room = Number(roomBtn);
+  if (roomShareBtn == null || !Number.isFinite(Number(roomShareBtn))) return null;
+  const room = Number(roomShareBtn);
   const meal =
     amountPerAdultNight != null && Number(amountPerAdultNight) > 0
       ? Number(amountPerAdultNight) * Math.max(1, occupancyAdults)
       : 0;
   return roundBtn(room + meal);
+}
+
+/**
+ * Take the meal share out of a CP/MAP sell price. The two shares add up to
+ * that price. A meal share larger than the sell price is capped so it cannot
+ * be charged again on top.
+ */
+export function splitPackageSellPrice(
+  sellPriceBtn: number,
+  mealShareBtn: number,
+): { roomShareBtn: number; mealShareBtn: number; totalBtn: number } {
+  const total = roundBtn(Math.max(0, Number(sellPriceBtn) || 0));
+  const meal = roundBtn(
+    Math.min(Math.max(0, Number(mealShareBtn) || 0), total),
+  );
+  return {
+    roomShareBtn: roundBtn(total - meal),
+    mealShareBtn: meal,
+    totalBtn: total,
+  };
 }
 
 export function buildPackageRateCard(args: {
@@ -153,7 +177,7 @@ export function buildPackageRateCard(args: {
           col.amountPerAdultNight,
           col.amountPerChildNight,
         );
-        const total =
+        const sell =
           roomVal == null
             ? null
             : packageNightTotalBtn(
@@ -161,11 +185,13 @@ export function buildPackageRateCard(args: {
                 col.amountPerAdultNight,
                 occupancyAdults,
               );
+        const split =
+          sell == null ? null : splitPackageSellPrice(sell, mealAdultsTotal);
         return {
           columnId: col.id,
-          totalBtn: total,
-          roomBtn: roomVal,
-          mealAdultsBtn: mealAdultsTotal,
+          totalBtn: split?.totalBtn ?? null,
+          roomBtn: split?.roomShareBtn ?? null,
+          mealAdultsBtn: split?.mealShareBtn ?? 0,
           childMealBtn: childOne,
         };
       });

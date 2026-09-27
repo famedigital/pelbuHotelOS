@@ -28,7 +28,42 @@ export type PosPrintPrefs = {
    */
   printerMode: PosPrinterMode;
   settlePrint: PosSettlePrint;
+  /**
+   * Thermal darkness 0–15. Browser print cannot send a printer density
+   * command, so this thickens black type on the KOT and guest receipt.
+   */
+  printDarken: number;
 };
+
+export const PRINT_DARKEN_MIN = 0;
+export const PRINT_DARKEN_MAX = 15;
+export const PRINT_DARKEN_DEFAULT = 8;
+
+export function clampPrintDarken(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return PRINT_DARKEN_DEFAULT;
+  return Math.max(PRINT_DARKEN_MIN, Math.min(PRINT_DARKEN_MAX, Math.round(n)));
+}
+
+/** Heavier black type as the slider rises. Stays readable at 15. */
+export function printDarkenStyle(level: number): {
+  color: string;
+  fontWeight: number;
+  textShadow?: string;
+  WebkitPrintColorAdjust: "exact";
+  printColorAdjust: "exact";
+} {
+  const n = clampPrintDarken(level);
+  const fontWeight = 500 + Math.round((n / PRINT_DARKEN_MAX) * 400);
+  const blur = n === 0 ? 0 : Math.round((n / PRINT_DARKEN_MAX) * 8) / 10;
+  return {
+    color: "#000",
+    fontWeight,
+    textShadow: blur > 0 ? `0 0 ${blur}px #000` : undefined,
+    WebkitPrintColorAdjust: "exact",
+    printColorAdjust: "exact",
+  };
+}
 
 const KEY = "pelbu.pos.printPrefs";
 
@@ -39,6 +74,7 @@ export const DEFAULT_POS_PRINT_PREFS: PosPrintPrefs = {
   kotPaper: "thermal",
   printerMode: "same",
   settlePrint: "receipt",
+  printDarken: PRINT_DARKEN_DEFAULT,
 };
 
 function canUseStorage(): boolean {
@@ -75,6 +111,7 @@ function coerce(raw: Partial<PosPrintPrefs> | null | undefined): PosPrintPrefs {
       raw.settlePrint === "none"
         ? raw.settlePrint
         : d.settlePrint,
+    printDarken: clampPrintDarken(raw.printDarken),
   };
 }
 
@@ -107,6 +144,7 @@ export function receiptPrintUrl(
   const print = opts?.print ?? prefs?.receiptAutoPrint ?? true;
   const q = new URLSearchParams({ paper });
   if (print) q.set("print", "1");
+  q.set("darken", String(prefs?.printDarken ?? PRINT_DARKEN_DEFAULT));
   return `/erp/orders/${orderId}/receipt?${q.toString()}`;
 }
 
@@ -119,6 +157,7 @@ export function kotPrintUrl(
   const print = opts?.print ?? true;
   const q = new URLSearchParams({ paper });
   if (print) q.set("print", "1");
+  q.set("darken", String(prefs?.printDarken ?? PRINT_DARKEN_DEFAULT));
   return `/erp/orders/${orderId}/kot?${q.toString()}`;
 }
 

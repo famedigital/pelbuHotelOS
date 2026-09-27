@@ -10,6 +10,7 @@ import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { orderRef } from "@/lib/order-ref";
 import { normalizePartyName } from "@/lib/pos-training";
 import type { DocumentPaperSize } from "@/lib/property-settings";
+import { clampPrintDarken } from "@/lib/pos-print-prefs";
 import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
@@ -24,7 +25,7 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ print?: string; paper?: string }>;
+  searchParams: Promise<{ print?: string; paper?: string; darken?: string }>;
 };
 
 /**
@@ -63,6 +64,7 @@ export default async function OrderKotPage({ params, searchParams }: Props) {
   const property = await loadProperty(admin, propertyId);
   if (!property) notFound();
 
+  const darken = clampPrintDarken(sp.darken);
   const paperParam = (sp.paper ?? "").toLowerCase();
   const paper: DocumentPaperSize =
     paperParam === "a4" || paperParam === "thermal" ? paperParam : "thermal";
@@ -154,6 +156,7 @@ export default async function OrderKotPage({ params, searchParams }: Props) {
         order={data}
         propertyName={property.name}
         timezone={property.timezone}
+        darken={darken}
       />
     </div>
   );

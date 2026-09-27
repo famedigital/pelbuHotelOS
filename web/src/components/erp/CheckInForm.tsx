@@ -259,8 +259,6 @@ export function CheckInForm({
     origin === "international" ||
     origin === "regional";
   const guestGrid = guestGridClass(origin);
-  /** Lead guest only by default — additional IDs via expandable section. */
-  const leadGuestCount = 1;
   const paxAdults = Math.max(1, booking.adults || 1);
   const paxChildren = Math.max(0, booking.children ?? 0);
   const paxExtraBeds = Math.max(0, booking.extra_beds ?? 0);
@@ -305,7 +303,7 @@ export function CheckInForm({
 
   const [guests, setGuests] = useState<GuestDraft[]>(() => {
     const rows: GuestDraft[] = [];
-    for (let i = 0; i < leadGuestCount; i++) {
+    for (let i = 0; i < paxAdults; i++) {
       const existing = booking.booking_guests[i];
       const guestSlot = slots.find(
         (s) => s.inventoryKind === "sellable_guest" && s.index === Math.min(i, Math.max(0, slots.filter(x => x.inventoryKind === "sellable_guest").length - 1)),
@@ -324,10 +322,6 @@ export function CheckInForm({
     }
     return rows;
   });
-  const [showAllGuestIds, setShowAllGuestIds] = useState(
-    () => booking.booking_guests.length > 1,
-  );
-
   useEffect(() => {
     if (!state.ok || !state.bookingId || notifiedOkRef.current) return;
     notifiedOkRef.current = true;
@@ -613,11 +607,21 @@ export function CheckInForm({
         aria-hidden={!showGuest}
       >
         <legend className={SECTION_LEGEND}>
-          Lead guest · {idLabel(origin)}
+          Guest IDs · {idLabel(origin)}
         </legend>
         <p className="text-[10px] text-muted-foreground">
-          Lead guest for check-in. Extra IDs can wait until in-house.
+          One row per adult. Columns follow origin.
         </p>
+        {embedded ? (
+          <Label className="flex items-center gap-1.5 text-[11px] font-normal">
+            <Checkbox
+              checked={allowDirty}
+              onCheckedChange={(v) => setAllowDirty(v === true)}
+              className="size-3.5"
+            />
+            Allow dirty / inspect rooms
+          </Label>
+        ) : null}
         <div className="min-w-0 overflow-x-auto rounded-md border border-border/70">
           <div
             className={cn(
@@ -892,120 +896,13 @@ export function CheckInForm({
             ))}
           </ul>
         </div>
-        <details
-          open={showAllGuestIds}
-          onToggle={(e) => setShowAllGuestIds(e.currentTarget.open)}
-          className="rounded-md border bg-muted/15"
-        >
-          <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium">
-            Add guest IDs later ({Math.max(0, paxAdults - 1)} more adult
-            {paxAdults - 1 === 1 ? "" : "s"} on booking)
-          </summary>
-          <div className="space-y-2 border-t px-2 py-2">
-            {guests.length > 1 ? (
-              <div className="min-w-0 overflow-x-auto rounded-md border border-border/70">
-                <ul className="divide-y divide-border/70">
-                  {guests.slice(1).map((guest, offset) => {
-                    const index = offset + 1;
-                    return (
-                      <li
-                        key={`guest-extra-${index}`}
-                        className="space-y-1.5 p-2"
-                      >
-                        <p className="text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-                          Guest {index + 1}
-                        </p>
-                        <Input
-                          name="guest_name"
-                          required={false}
-                          value={guest.fullName}
-                          onKeyDown={blockEnterSubmit}
-                          onChange={(e) =>
-                            updateGuest(index, { fullName: e.target.value })
-                          }
-                          placeholder="Full name"
-                          className={cn(CELL_INPUT, "font-sans")}
-                        />
-                        <input
-                          type="hidden"
-                          name="guest_nationality"
-                          value={guest.nationality}
-                        />
-                        <Input
-                          name="guest_passport_or_cid"
-                          value={guest.passportOrCid}
-                          onKeyDown={blockEnterSubmit}
-                          onChange={(e) =>
-                            updateGuest(index, {
-                              passportOrCid: e.target.value,
-                            })
-                          }
-                          placeholder={idLabel(origin)}
-                          className={CELL_INPUT}
-                        />
-                        {showSdfFields ? (
-                          <Input
-                            name="guest_sdf_ref"
-                            value={guest.sdfRef}
-                            onKeyDown={blockEnterSubmit}
-                            onChange={(e) =>
-                              updateGuest(index, { sdfRef: e.target.value })
-                            }
-                            placeholder="SDF ref"
-                            className={CELL_INPUT}
-                          />
-                        ) : (
-                          <input
-                            type="hidden"
-                            name="guest_sdf_ref"
-                            value={guest.sdfRef}
-                          />
-                        )}
-                        <input
-                          type="hidden"
-                          name="guest_sdf_doc_url"
-                          value={guest.sdfDocUrl}
-                        />
-                        <input
-                          type="hidden"
-                          name="guest_id_photo_url"
-                          value={guest.idPhotoUrl}
-                        />
-                        <input
-                          type="hidden"
-                          name="guest_room_unit_id"
-                          value={guest.roomUnitId}
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs text-muted-foreground hover:text-destructive"
-                          onClick={() =>
-                            setGuests((prev) =>
-                              prev.filter((_, i) => i !== index),
-                            )
-                          }
-                        >
-                          Remove
-                        </Button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ) : (
-              <p className="text-[10px] text-muted-foreground">
-                No additional guest rows yet.
-              </p>
-            )}
+        <div className="flex justify-end">
             <Button
               type="button"
               variant="outline"
               size="sm"
               className="h-7 text-xs"
               onClick={() => {
-                setShowAllGuestIds(true);
                 setGuests((prev) => [
                   ...prev,
                   {
@@ -1023,7 +920,6 @@ export function CheckInForm({
               Add another guest ID
             </Button>
           </div>
-        </details>
       </fieldset>
 
       <fieldset
@@ -1073,7 +969,7 @@ export function CheckInForm({
             <input type="hidden" name="guide_number" value={guideNumber} />
           </>
         )}
-        <div className="space-y-0.5">
+        <div className={cn("space-y-0.5", embedded && "hidden")}>
           <Label htmlFor="payment_mode" className={FIELD_LABEL}>
             How they pay the hotel
           </Label>
@@ -1130,7 +1026,7 @@ export function CheckInForm({
         </div>
       </fieldset>
 
-      <div className={cn(!showGuest && "hidden")} aria-hidden={!showGuest}>
+      <div className={cn((!showGuest || embedded) && "hidden")} aria-hidden={!showGuest || embedded}>
       {showDriver ? (
         <fieldset className={SECTION}>
           <legend className={SECTION_LEGEND}>

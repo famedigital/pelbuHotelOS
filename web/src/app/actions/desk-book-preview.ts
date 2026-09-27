@@ -474,3 +474,77 @@ export async function previewDeskStayQuote(input: {
     };
   }
 }
+
+export type DeskRateSheetRow = {
+  roomTypeId: string;
+  code: string;
+  name: string;
+  singleBtn: number | null;
+  doubleBtn: number | null;
+};
+
+export type DeskRateSheet =
+  | { ok: true; seasonKind: string; rateTier: string; rows: DeskRateSheetRow[] }
+  | { ok: false; error: string };
+
+/** Season sheet for the booking rate viewer — single and double Nu per category. */
+export async function previewDeskRateSheet(input: {
+  checkIn: string;
+  rateTier: RateTier;
+}): Promise<DeskRateSheet> {
+  try {
+    if (!(await isDeskAuthenticated())) {
+      return { ok: false, error: "Desk session expired. Sign in again." };
+    }
+    if (!isRateTier(input.rateTier)) {
+      return { ok: false, error: "Unknown rate tier." };
+    }
+    const admin = createSupabaseAdminClient();
+    const propertyId = await resolveActivePropertyId(admin);
+    const seasonKind = await resolveSeasonKind(admin, propertyId, input.checkIn);
+    const { data: types, error: typesError } = await admin
+      .from("room_types")
+      .select("id, code, name, inventory_kind")
+      .eq("property_id", propertyId)
+      .order("name");
+    if (typesError) return { ok: false, error: typesError.message };
+
+    const guestTypes = (types ?? []).filter(
+      (t) => (t.inventory_kind as string | null) !== "guide_comp" &&
+        (t.inventory_kind as string | null) !== "driver_comp",
+    );
+    const ids = guestTypes.map((t) => t.id as string);
+    const { data: rates, error: ratesError } = await admin
+      .from("room_rates")
+      .select("room_type_id, amount_btn, amount_single_btn")
+      .eq("property_id", propertyId)
+      .eq("season_kind", seasonKind)
+      .eq("rate_tier", input.rateTier)
+      .in("room_type_id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
+    if (ratesError) return { ok: false, error: ratesError.message };
+
+    const byType = new Map(
+      (rates ?? []).map((row) => [row.room_type_id as string, row]),
+    );
+    const rows: DeskRateSheetRow[] = guestTypes.map((t) => {
+      const row = byType.get(t.id as string);
+      const single = row?.amount_single_btn;
+      const dbl = row?.amount_btn;
+      return {
+        roomTypeId: t.id as string,
+        code: (t.code as string) ?? "",
+        name: (t.name as string) ?? "Room",
+        singleBtn:
+          single != null && Number.isFinite(Number(single)) ? Number(single) : null,
+        doubleBtn:
+          dbl != null && Number.isFinite(Number(dbl)) ? Number(dbl) : null,
+      };
+    });
+    return { ok: true, seasonKind, rateTier: input.rateTier, rows };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Could not load the rate sheet.",
+    };
+  }
+}

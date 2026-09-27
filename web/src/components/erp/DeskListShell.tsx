@@ -41,6 +41,8 @@ export function DeskListShell({
   metrics,
   headerAside,
   className,
+  /** Drop the 1200px cap so wide data tables use the desk content width. */
+  wide,
 }: {
   /** Kept for backward compat. Ignored — title is now in the shell header. */
   title?: string;
@@ -58,6 +60,7 @@ export function DeskListShell({
   headerAside?: ReactNode;
   children: ReactNode;
   className?: string;
+  wide?: boolean;
 }) {
   const shortLine =
     subtitle?.trim() ||
@@ -70,7 +73,8 @@ export function DeskListShell({
   return (
     <div
       className={cn(
-        "erp mx-auto flex w-full max-w-[1200px] flex-col",
+        "erp mx-auto flex w-full min-w-0 flex-col",
+        wide ? "max-w-none" : "max-w-[1200px]",
         // Clear DeskMobileNav when pages end with sticky action bars
         "pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-0",
         className,
@@ -127,7 +131,7 @@ export function DeskListShell({
         </div>
       ) : null}
 
-      <div className="relative z-0 flex flex-col gap-6 p-4 md:gap-8 md:p-6">
+      <div className="relative z-0 flex min-w-0 flex-col gap-6 p-4 md:gap-8 md:p-6">
         {metrics ? <div className="min-w-0">{metrics}</div> : null}
         {children}
       </div>

@@ -11,6 +11,9 @@ import {
 import { Label } from "@/components/ui/label";
 import {
   DEFAULT_POS_PRINT_PREFS,
+  PRINT_DARKEN_MAX,
+  PRINT_DARKEN_MIN,
+  printDarkenStyle,
   readPosPrintPrefs,
   writePosPrintPrefs,
   type PosPrintPrefs,
@@ -172,6 +175,37 @@ export function PosPrinterSettings({ open, onOpenChange }: Props) {
                 KOT A4
               </Label>
             </div>
+          </fieldset>
+
+          <fieldset className="space-y-2 rounded-md border p-3">
+            <legend className="px-1 text-xs font-semibold tracking-wide uppercase text-muted-foreground">
+              Darken
+            </legend>
+            <Label htmlFor="print-darken" className="font-normal">
+              Thermal type {prefs.printDarken} / {PRINT_DARKEN_MAX}
+            </Label>
+            <input
+              id="print-darken"
+              type="range"
+              min={PRINT_DARKEN_MIN}
+              max={PRINT_DARKEN_MAX}
+              step={1}
+              value={prefs.printDarken}
+              onChange={(e) =>
+                patch({ printDarken: Number(e.target.value) })
+              }
+              className="w-full accent-primary"
+            />
+            <p
+              className="rounded-md border bg-white px-3 py-2 text-sm"
+              style={printDarkenStyle(prefs.printDarken)}
+            >
+              Ema datshi × 1
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Raises black weight on the kitchen ticket and guest receipt.
+              The browser still opens the print dialog.
+            </p>
           </fieldset>
 
           <fieldset className="space-y-2 rounded-md border p-3">

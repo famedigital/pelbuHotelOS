@@ -64,6 +64,8 @@ export type StayHubRailAmount = {
   /** Guest rooms sold (for “1 rm · 4n” legibility). */
   rooms?: number | null;
   mealPlanCode?: string | null;
+  children?: number | null;
+  extraBeds?: number | null;
   pending?: boolean;
   /** Open manager PIN rate dialog / Details Rate. */
   onEdit?: () => void;
@@ -424,11 +426,15 @@ export function StayHubLeftRail({
               </span>
             </div>
           </div>
-          {amount.mealPlanCode ? (
+          {amount.mealPlanCode ||
+          (amount.children ?? 0) > 0 ||
+          (amount.extraBeds ?? 0) > 0 ? (
             <p className="mt-1 truncate text-[10px] text-muted-foreground">
-              {amount.mealPlanCode}
+              {amount.mealPlanCode ? `${amount.mealPlanCode} · ` : ""}
+              {stayRooms} rm
+              {(amount.children ?? 0) > 0 ? ` · ${amount.children} child` : ""}
+              {(amount.extraBeds ?? 0) > 0 ? ` · ${amount.extraBeds} extra` : ""}
               {amount.isCustom ? " · agreed" : " · sheet"}
-              {amount.isCustom ? " · tax as sheet" : ""}
               {editable ? " · edit" : ""}
             </p>
           ) : null}
@@ -841,11 +847,14 @@ export function StayHubFooterBar({
                 Stay {formatGuestBtn(stayTotal)}
               </span>
             ) : null}
-            {amount.mealPlanCode && amount.mealPlanCode !== "EP" ? (
-              <span className="text-[10px] text-muted-foreground">
-                {amount.mealPlanCode}
-              </span>
-            ) : null}
+            <span className="text-[10px] text-muted-foreground">
+              {amount.mealPlanCode && amount.mealPlanCode !== "EP"
+                ? `${amount.mealPlanCode} · `
+                : ""}
+              {Math.max(1, amount.rooms ?? 1)} rm
+              {(amount.children ?? 0) > 0 ? ` · ${amount.children} child` : ""}
+              {(amount.extraBeds ?? 0) > 0 ? ` · ${amount.extraBeds} extra` : ""}
+            </span>
           </div>
         ) : null}
       </div>

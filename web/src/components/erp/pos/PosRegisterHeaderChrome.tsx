@@ -1,5 +1,6 @@
 "use client";
 
+import { deskShiftChange, posRegisterLogout } from "@/app/actions/staff-auth";
 import type { ReactNode } from "react";
 import { PosFullscreenToggle } from "@/components/erp/pos/PosFullscreenToggle";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +25,7 @@ import {
   PrinterIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { PosPrinterSettings } from "./PosPrinterSettings";
 import type { PosSection } from "./types";
@@ -151,6 +152,8 @@ function RegisterActions({
   syncChip,
 }: Props) {
   const [printerOpen, setPrinterOpen] = useState(false);
+  const [posLogoutPending, startPosLogout] = useTransition();
+  const [shiftPending, startShift] = useTransition();
 
   return (
     <>
@@ -159,11 +162,11 @@ function RegisterActions({
         type="button"
         variant="outline"
         size="sm"
-        className="h-8 gap-1.5 px-2.5"
+        className="h-8 shrink-0 gap-1.5 px-2"
         onClick={onOpenTickets}
       >
         <ListOrderedIcon className="size-3.5" />
-        <span className="hidden sm:inline">Tickets</span>
+        <span className="hidden xl:inline">Tickets</span>
         {openTicketsCount > 0 ? (
           <Badge variant="secondary" className="h-5 px-1.5 tabular-nums">
             {openTicketsCount}
@@ -177,10 +180,10 @@ function RegisterActions({
             type="button"
             variant="outline"
             size="sm"
-            className="h-8 gap-1.5 px-2.5"
+            className="h-8 shrink-0 gap-1.5 px-2"
           >
             <MoreHorizontalIcon className="size-3.5" />
-            <span className="hidden sm:inline">More</span>
+            <span className="hidden xl:inline">More</span>
             {shiftOpen ? (
               <span className="size-2 rounded-full bg-emerald-500" />
             ) : null}
@@ -250,7 +253,33 @@ function RegisterActions({
             <DropdownMenuItem asChild>
               <Link href="/erp/pos/recipe-cost">Recipe cost</Link>
             </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/erp/pos/reports">F&B reports</Link>
+            </DropdownMenuItem>
           </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault();
+              startShift(() => {
+                const body = new FormData();
+                body.set("next", "pos");
+                void deskShiftChange(body);
+              });
+            }}
+          >
+            {shiftPending ? "Opening login…" : "Login + · next shift"}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault();
+              startPosLogout(() => {
+                void posRegisterLogout();
+              });
+            }}
+          >
+            {posLogoutPending ? "Signing out…" : "Log out"}
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 

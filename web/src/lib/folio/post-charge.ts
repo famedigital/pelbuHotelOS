@@ -250,9 +250,9 @@ async function tryPostGuestRateRoundAdj(
 
   const st = (args.chargeSourceType ?? "").toLowerCase();
   const stream =
-    ["room", "meal_plan", "extra_bed"].includes(st)
+    ["room", "extra_bed"].includes(st)
       ? ("room" as const)
-      : ["order", "pos", "laundry"].includes(st)
+      : ["meal_plan", "order", "pos", "laundry"].includes(st)
         ? ("fnb" as const)
         : ("master" as const);
   const adjDescription = guestRateAdjDescriptionForStream(stream);

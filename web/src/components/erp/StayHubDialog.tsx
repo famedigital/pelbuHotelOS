@@ -57,6 +57,7 @@ import {
 } from "@/lib/desk/desk-read-cache";
 import { buildLedgerStripSummary } from "@/lib/folio/ledger-summary";
 import { CheckInForm, CheckOutForm } from "@/components/erp/CheckInForm";
+import type { FastBookInvoiceData } from "@/components/erp/FastBookInvoice";
 import {
   type FastBookVoucherData,
 } from "@/components/erp/FastBookVoucher";
@@ -2085,14 +2086,29 @@ export function StayHubDialog({
       if (["pending", "confirmed"].includes(summary.status)) {
         if (arrivalTooFar) {
           return (
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-11 flex-1 sm:flex-none"
-              onClick={() => goPanel("reserve")}
-            >
-              Adjust stay dates
-            </Button>
+            <>
+              <p className="mr-auto max-w-sm text-[11px] leading-snug text-muted-foreground">
+                Arrival {summary.checkIn.slice(0, 10)} is after the business
+                date {summary.openBusinessDate}. Check-in stays locked until
+                the hotel day catches up.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11 flex-1 sm:flex-none"
+                onClick={() => goPanel("reserve")}
+              >
+                Adjust stay dates
+              </Button>
+              <Button
+                type="button"
+                variant="citrus"
+                className="min-h-11 flex-1 sm:flex-none"
+                disabled
+              >
+                Confirm check-in
+              </Button>
+            </>
           );
         }
         if (summary.ratePendingApproval) {
@@ -2131,14 +2147,50 @@ export function StayHubDialog({
           );
         }
         return (
-          <Button
-            type="submit"
-            form="stay-hub-checkin-form"
-            variant="citrus"
-            className="min-h-11 flex-1 sm:flex-none"
-          >
-            Confirm check-in
-          </Button>
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11"
+              onClick={() => printDeskSheet("note")}
+            >
+              Proforma
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11"
+              disabled={!folioId}
+              title={
+                folioId
+                  ? "Open the tax invoice"
+                  : "The tax invoice issues from the folio after check-in"
+              }
+              onClick={() => {
+                if (!folioId) return;
+                stayHubCtx?.closeStayHub();
+                window.location.assign(`/erp/folios/${folioId}`);
+              }}
+            >
+              Invoice
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11"
+              onClick={() => printDeskSheet("reg")}
+            >
+              Registration
+            </Button>
+            <Button
+              type="submit"
+              form="stay-hub-checkin-form"
+              variant="citrus"
+              className="min-h-11 flex-1 sm:flex-none"
+            >
+              Confirm check-in
+            </Button>
+          </>
         );
       }
       if (summary.status === "checked_in") {
@@ -2536,62 +2588,6 @@ export function StayHubDialog({
             hkStatus={summary?.roomHkStatus}
           />
 
-          {party && summary ? (
-            <StayHubPartyCommandBar
-              party={party}
-              tab={partyTab}
-              onTabChange={setPartyTab}
-              activeBookingId={summary.bookingId}
-              onSwitch={switchPartyRoom}
-              onLinked={() => {
-                if (!summary) return;
-                void fetchStayHubPartyContext(summary.bookingId).then((r) => {
-                  if (r.ok) setParty(r.data);
-                });
-                router.refresh();
-              }}
-              onExtendAll={
-                party.groupId
-                  ? () => {
-                      void (async () => {
-                        const res = await extendPartyAll(party.groupId!, 1);
-                        if (res.ok) {
-                          toast.success(res.message ?? "Extended");
-                          void refreshSummary();
-                          router.refresh();
-                        } else {
-                          toast.error(res.error ?? "Could not extend");
-                        }
-                      })();
-                    }
-                  : undefined
-              }
-            />
-          ) : summary?.roomLines && summary.roomLines.length > 0 ? (
-            <StayHubBookingRoomsStrip roomLines={summary.roomLines} />
-          ) : null}
-
-          {summary ? (
-            <div
-              className={cn(
-                // Clear the dialog’s absolute close control (top-4 right-4 + X size)
-                // so it never draws over “Print pack”.
-                "flex shrink-0 flex-wrap items-center justify-end gap-2 border-b border-border",
-                "px-3 py-1.5 pr-12 md:px-4 md:pr-14",
-              )}
-            >
-              <StayHubPrintPackMenu
-                compact
-                bookingId={summary.bookingId}
-                folioId={folioId}
-                agentId={summary.agentId}
-                confirmationCode={summary.confirmationCode}
-                onPrintVoucher={() => printDeskSheet("voucher")}
-                onPrintRegistration={() => printDeskSheet("reg")}
-              />
-            </div>
-          ) : null}
-
           <StayHubMobileSteps {...navProps} />
 
           <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -2635,6 +2631,14 @@ export function StayHubDialog({
                       rooms: roomsCount,
                       mealPlanCode:
                         draft?.mealPlanCode ?? summary.mealPlanCode,
+                      children: Math.max(
+                        0,
+                        Number(draft?.children) || summary.children || 0,
+                      ),
+                      extraBeds: Math.max(
+                        0,
+                        Number(draft?.extraBeds) || summary.extraBeds || 0,
+                      ),
                       pending: sheetRatePending && railNightly == null,
                       editable: rateEditable,
                       onEdit: rateEditable
@@ -2667,6 +2671,75 @@ export function StayHubDialog({
               {...navProps}
             />
 
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              {party && summary ? (
+                <StayHubPartyCommandBar
+                  party={party}
+                  tab={partyTab}
+                  onTabChange={setPartyTab}
+                  activeBookingId={summary.bookingId}
+                  onSwitch={switchPartyRoom}
+                  onLinked={() => {
+                    if (!summary) return;
+                    void fetchStayHubPartyContext(summary.bookingId).then((r) => {
+                      if (r.ok) setParty(r.data);
+                    });
+                    router.refresh();
+                  }}
+                  onExtendAll={
+                    party.groupId
+                      ? () => {
+                          void (async () => {
+                            const res = await extendPartyAll(party.groupId!, 1);
+                            if (res.ok) {
+                              toast.success(res.message ?? "Extended");
+                              void refreshSummary();
+                              router.refresh();
+                            } else {
+                              toast.error(res.error ?? "Could not extend");
+                            }
+                          })();
+                        }
+                      : undefined
+                  }
+                  endSlot={
+                    <StayHubPrintPackMenu
+                      compact
+                      bookingId={summary.bookingId}
+                      folioId={folioId}
+                      agentId={summary.agentId}
+                      confirmationCode={summary.confirmationCode}
+                      onPrintVoucher={() => printDeskSheet("voucher")}
+                      onPrintRegistration={() => printDeskSheet("reg")}
+                    />
+                  }
+                />
+              ) : (
+                <>
+                  {summary?.roomLines && summary.roomLines.length > 0 ? (
+                    <StayHubBookingRoomsStrip roomLines={summary.roomLines} />
+                  ) : null}
+                  {summary ? (
+                    <div
+                      className={cn(
+                        "flex shrink-0 flex-wrap items-center justify-end gap-2 border-b border-border",
+                        "px-3 py-1.5 pr-12 md:px-4 md:pr-14",
+                      )}
+                    >
+                      <StayHubPrintPackMenu
+                        compact
+                        bookingId={summary.bookingId}
+                        folioId={folioId}
+                        agentId={summary.agentId}
+                        confirmationCode={summary.confirmationCode}
+                        onPrintVoucher={() => printDeskSheet("voucher")}
+                        onPrintRegistration={() => printDeskSheet("reg")}
+                      />
+                    </div>
+                  ) : null}
+                </>
+              )}
+              <div className="flex min-h-0 flex-1 overflow-hidden">
             <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2 md:px-4 md:py-3">
               {loadError ? (
                 <p className="text-sm text-destructive">{loadError}</p>
@@ -3569,6 +3642,8 @@ export function StayHubDialog({
                 side="right"
               />
             ) : null}
+              </div>
+            </div>
           </div>
 
           <StayHubFooterBar
@@ -3582,6 +3657,7 @@ export function StayHubDialog({
 
       {open && summary ? (
         <StayHubPrintHost
+          proforma={proformaFromSummary(summary)}
           voucher={voucherFromSummary(summary)}
           registration={
             postRegData ?? regDataFromStaySummary(summary, draft, party)
@@ -4338,6 +4414,63 @@ function StayDatesAndSplit({
       </Button>
     </div>
   );
+}
+
+function proformaFromSummary(s: StayHubSummary): FastBookInvoiceData {
+  const cin = (s.checkIn ?? "").slice(0, 10);
+  const cout = (s.checkOut ?? "").slice(0, 10);
+  const t0 = new Date(`${cin}T12:00:00Z`).getTime();
+  const t1 = new Date(`${cout}T12:00:00Z`).getTime();
+  const nights =
+    Number.isFinite(t0) && Number.isFinite(t1) && t1 > t0
+      ? Math.round((t1 - t0) / 86_400_000)
+      : 1;
+  const rate = s.agreedNightlyRateBtn;
+  const sourceLines =
+    s.roomLines.length > 0
+      ? s.roomLines
+      : [
+          {
+            roomTypeId: s.roomTypeId ?? "room",
+            roomTypeName: s.roomTypeName ?? "Room",
+            roomTypeCode: null,
+            qty: Math.max(1, s.rooms || 1),
+            inventoryKind: "sellable_guest",
+            assignedLabels: s.roomLabel ? [s.roomLabel] : [],
+          },
+        ];
+  const lines = sourceLines.map((line) => {
+    const assigned = (line.assignedLabels ?? []).filter(Boolean).join(", ");
+    const name =
+      [assigned || null, line.roomTypeName].filter(Boolean).join(" · ") ||
+      "Room";
+    const qty = Math.max(1, line.qty || 1);
+    const amount =
+      rate != null && Number.isFinite(rate) ? rate * qty * nights : null;
+    return {
+      name,
+      code: line.roomTypeCode || line.roomTypeId || "room",
+      qty,
+      kind: line.inventoryKind || "sellable_guest",
+      rateBtn: rate,
+      amountBtn: amount,
+    };
+  });
+  const total = lines.reduce((sum, line) => sum + (line.amountBtn ?? 0), 0);
+  return {
+    bookingId: s.bookingId,
+    confirmationCode: s.confirmationCode ?? undefined,
+    checkIn: cin,
+    checkOut: cout,
+    nights,
+    adults: Math.max(1, s.adults || 1),
+    guestName: s.contactName?.trim() || "Guest",
+    agentLabel: s.agentName ?? undefined,
+    sourceLabel: s.source ?? undefined,
+    paymentLabel: s.paymentMode ?? undefined,
+    lines,
+    totalBtn: total > 0 ? total : null,
+  };
 }
 
 function voucherFromSummary(s: StayHubSummary): FastBookVoucherData {

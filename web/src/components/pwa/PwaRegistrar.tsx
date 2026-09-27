@@ -17,9 +17,18 @@ export function PwaRegistrar() {
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
-    if (PRIVATE_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return;
-
-    void navigator.serviceWorker.register("/pelbu-sw.js", { scope: "/" });
+    if (
+      process.env.NODE_ENV !== "production" ||
+      PRIVATE_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+    ) {
+      if (process.env.NODE_ENV !== "production") {
+        void navigator.serviceWorker
+          .getRegistrations()
+          .then((regs) => Promise.all(regs.map((r) => r.unregister())))
+          .catch(() => undefined);
+      }
+      return;
+    }
   }, [pathname]);
 
   return null;

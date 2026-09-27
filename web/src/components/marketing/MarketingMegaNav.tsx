@@ -153,57 +153,52 @@ export function MarketingMegaNav({
       </button>
 
       {mobileOpen ? (
-        <div className="absolute inset-x-0 top-full border-b border-border bg-background px-6 py-4 shadow-md lg:hidden">
-          <div className="mx-auto max-w-6xl space-y-4">
-            {sections.map((section) => (
-              <div key={section.label} className="space-y-2">
-                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  {section.label}
-                </p>
-                <ul className="space-y-1">
-                  {(section.columns ?? []).flatMap((col) =>
-                    col.items.map((item) => (
-                      <li key={`${section.label}-${item.href}-${item.title}`}>
+        <div className="absolute inset-x-0 top-full z-40 flex max-h-[calc(100dvh-3.5rem)] flex-col border-b border-border bg-background shadow-md lg:hidden">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3">
+            <div className="mx-auto max-w-6xl space-y-3">
+              {sections.map((section) => (
+                <div key={section.label}>
+                  <p className="px-2 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                    {section.label}
+                  </p>
+                  <ul className="mt-1">
+                    {(section.columns ?? []).flatMap((col) =>
+                      col.items.map((item) => (
+                        <li key={`${section.label}-${item.href}-${item.title}`}>
+                          <Link
+                            href={item.href}
+                            className="block rounded-md px-2 py-1.5 text-sm text-foreground hover:bg-muted"
+                            onClick={() => setMobileOpen(false)}
+                          >
+                            {item.title}
+                          </Link>
+                        </li>
+                      )),
+                    )}
+                    {section.href && !(section.columns?.length) ? (
+                      <li>
                         <Link
-                          href={item.href}
-                          className="block rounded-md px-2 py-2 text-sm text-foreground hover:bg-muted"
+                          href={section.href}
+                          className="block rounded-md px-2 py-1.5 text-sm text-foreground hover:bg-muted"
                           onClick={() => setMobileOpen(false)}
                         >
-                          {item.title}
+                          {section.label}
                         </Link>
                       </li>
-                    )),
-                  )}
-                  {section.href && !(section.columns?.length) ? (
-                    <li>
-                      <Link
-                        href={section.href}
-                        className="block rounded-md px-2 py-2 text-sm text-foreground hover:bg-muted"
-                        onClick={() => setMobileOpen(false)}
-                      >
-                        {section.label}
-                      </Link>
-                    </li>
-                  ) : null}
-                </ul>
-              </div>
-            ))}
-            <div className="flex gap-2 border-t border-border pt-3">
-              <Link
-                href="/login"
-                className="flex-1 rounded-full bg-secondary px-3 py-2 text-center text-sm"
-                onClick={() => setMobileOpen(false)}
-              >
-                Login
-              </Link>
-              <Link
-                href="/demo"
-                className="flex-1 rounded-full bg-cta px-3 py-2 text-center text-sm font-semibold"
-                onClick={() => setMobileOpen(false)}
-              >
-                Book a demo
-              </Link>
+                    ) : null}
+                  </ul>
+                </div>
+              ))}
             </div>
+          </div>
+          <div className="shrink-0 border-t border-border px-4 py-3">
+            <Link
+              href="/demo"
+              className="block rounded-full bg-cta px-3 py-2.5 text-center text-sm font-semibold"
+              onClick={() => setMobileOpen(false)}
+            >
+              Book a demo
+            </Link>
           </div>
         </div>
       ) : null}

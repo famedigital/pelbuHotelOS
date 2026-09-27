@@ -74,8 +74,14 @@ export async function middleware(request: NextRequest) {
     erpCredentialsPresent(request) ||
     (Boolean(supportProperty) && hasSupabaseAuthCookie(request));
 
-  if (isErp && pathname !== "/erp/login" && !erpOk) {
-    return NextResponse.redirect(new URL("/erp/login", request.url));
+  const isPosLogin =
+    pathname === "/erp/pos/login" || pathname.startsWith("/erp/pos/login/");
+  if (isErp && pathname !== "/erp/login" && !isPosLogin && !erpOk) {
+    const loginPath =
+      pathname === "/erp/pos" || pathname === "/erp/pos/"
+        ? "/erp/pos/login"
+        : "/erp/login";
+    return NextResponse.redirect(new URL(loginPath, request.url));
   }
 
   if ((isAdmin || isPartner) && !hasSupabaseAuthCookie(request)) {

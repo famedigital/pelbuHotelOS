@@ -4,11 +4,22 @@ import {
   buildPackageColumns,
   buildPackageRateCard,
   packageNightTotalBtn,
+  splitPackageSellPrice,
 } from "./rate-packages";
 
 describe("rate-packages", () => {
-  it("package = room + adult meal × 2", () => {
+  it("package = room share + adult meal share", () => {
     assert.equal(packageNightTotalBtn(5000, 800, 2), 6600);
+  });
+
+  it("keeps a MAP sell price split into room and meals", () => {
+    const split = splitPackageSellPrice(5600, 1200);
+    assert.equal(split.totalBtn, 5600);
+    assert.equal(split.mealShareBtn, 1200);
+    assert.equal(split.roomShareBtn, 4400);
+    assert.equal(split.roomShareBtn + split.mealShareBtn, split.totalBtn);
+    assert.equal(splitPackageSellPrice(5600, 9000).mealShareBtn, 5600);
+    assert.equal(splitPackageSellPrice(5600, 9000).roomShareBtn, 0);
   });
 
   it("room only when meal is free/absent", () => {
@@ -62,6 +73,9 @@ describe("rate-packages", () => {
     const bb = peak.find((c) => c.columnId === "meal_BB");
     assert.equal(roomOnly?.totalBtn, 8000);
     assert.equal(bb?.totalBtn, 8000 + 800);
+    assert.equal(bb?.roomBtn, 8000);
+    assert.equal(bb?.mealAdultsBtn, 800);
+    assert.equal((bb?.roomBtn ?? 0) + (bb?.mealAdultsBtn ?? 0), bb?.totalBtn);
     assert.equal(bb?.childMealBtn, 200);
   });
 });

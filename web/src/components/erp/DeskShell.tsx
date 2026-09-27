@@ -1,4 +1,5 @@
 import { deskLogout } from "@/app/actions/desk";
+import { deskShiftChange } from "@/app/actions/staff-auth";
 import { AppSidebar } from "@/components/erp/app-sidebar";
 import { ModuleHeaderTabs } from "@/components/erp/ModuleHeaderTabs";
 import { DeskHelpHint } from "@/components/erp/DeskHelpHint";
@@ -81,8 +82,8 @@ export function DeskShell({
           <ErpCommandPalette allowedModuleKeys={allowedModuleKeys} />
           <SidebarInset className="max-h-svh overflow-hidden">
             <StayHubShell>
-              <header className="z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border/80 bg-background/95 px-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80 print:hidden">
-                <SidebarTrigger className="-ml-1 hidden md:inline-flex" />
+              <header className="z-30 flex h-14 min-w-0 shrink-0 items-center gap-1.5 overflow-x-auto border-b border-border/80 bg-background/95 px-3 shadow-sm backdrop-blur [scrollbar-width:none] supports-[backdrop-filter]:bg-background/80 sm:gap-2 sm:px-4 print:hidden [&::-webkit-scrollbar]:hidden">
+                <SidebarTrigger className="-ml-1 inline-flex h-8 w-auto gap-1 px-2" />
                 <Separator
                   orientation="vertical"
                   className="mr-1 hidden h-4! md:block"
@@ -117,10 +118,10 @@ export function DeskShell({
                 {/* POS register portals Sell | Floor here (see PosRegisterHeaderChrome). */}
                 <div
                   data-slot="erp-header-pos-modes"
-                  className="flex min-w-0 items-center empty:hidden"
+                  className="flex shrink-0 items-center empty:hidden"
                 />
 
-                <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+                <div className="ml-auto flex shrink-0 items-center gap-1.5">
                   {/* POS register portals Tickets / More / help / FS here. */}
                   <div
                     data-slot="erp-header-pos-actions"
@@ -133,14 +134,25 @@ export function DeskShell({
                       activePropertyId={activePropertyId}
                     />
                   ) : null}
-                  <form action={deskLogout}>
+                  <form action={deskShiftChange} className="hidden md:block">
                     <Button
                       type="submit"
                       variant="outline"
                       size="sm"
-                      className="hidden h-9 md:inline-flex"
+                      className="h-9"
+                      title="End this shift so the next person can sign in"
                     >
-                      Sign out
+                      Login +
+                    </Button>
+                  </form>
+                  <form action={deskLogout} className="hidden md:block">
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      size="sm"
+                      className="h-9"
+                    >
+                      Log out
                     </Button>
                   </form>
                 </div>

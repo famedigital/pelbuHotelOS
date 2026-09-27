@@ -6,7 +6,7 @@ import {
   type DashboardView,
 } from "@/lib/erp/dashboard-views";
 import { resolveModule } from "@/lib/erp-nav";
-import { isFoDailyTab } from "@/lib/erp/desk-workspace";
+import { isFoDailyTab, FO_SIDEBAR_MODULE_KEYS } from "@/lib/erp/desk-workspace";
 import { useDeskWorkspace } from "@/components/erp/DeskWorkspaceProvider";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -106,11 +106,13 @@ export function ModuleHeaderTabs({
               allowedModuleKeys.includes(tab.href),
           )
         : match.module.tabs;
-    if (match.module.key === "pos") {
-      return granted.filter(isFoDailyTab);
-    }
-    if (workspace === "front_desk") {
-      return granted.filter(isFoDailyTab);
+    if (
+      match.module.key === "pos" ||
+      (workspace === "front_desk" &&
+        (FO_SIDEBAR_MODULE_KEYS as readonly string[]).includes(match.module.key))
+    ) {
+      const daily = granted.filter(isFoDailyTab);
+      if (daily.length > 0) return daily;
     }
     return granted.filter((tab) => tab.rail !== "hidden");
   })();
@@ -120,7 +122,7 @@ export function ModuleHeaderTabs({
   return (
     <nav
       aria-label={`${match.module.title} sections`}
-      className="ml-1 flex min-w-0 max-w-[min(100%,52rem)] items-center gap-0.5 overflow-x-auto rounded-md border bg-muted/40 p-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="ml-1 flex shrink-0 items-center gap-0.5 overflow-x-auto rounded-md border bg-muted/40 p-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {tabs.map((tab) => {
         const active = tab.href === match.tab.href;

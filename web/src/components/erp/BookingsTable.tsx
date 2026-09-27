@@ -2,7 +2,7 @@
 
 import { AgentNameLink } from "@/components/erp/AgentNameLink";
 import { ArrivalPlaybookStrip } from "@/components/erp/ArrivalPlaybookStrip";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, FilterFn } from "@tanstack/react-table";
 
 import { useStayHubOptional } from "@/components/erp/StayHubProvider";
 import { DataTable } from "@/components/ui/data-table";
@@ -130,6 +130,33 @@ function openRow(
   window.location.href = boardActionHref(row.status, row.id, board);
 }
 
+const bookingBoardFilter: FilterFn<BookingRow> = (row, _columnId, filterValue) => {
+  const q = String(filterValue ?? "").trim().toLowerCase();
+  if (!q) return true;
+  const r = row.original;
+  return [
+    r.contact_name,
+    r.confirmation_code,
+    r.contact_phone,
+    r.source,
+    r.agent_name,
+    r.agent_phone,
+    r.room_labels,
+    r.meal_plan_code,
+    r.guide_name,
+    r.guide_number,
+    r.guide_phone,
+    r.driver_name,
+    r.driver_phone,
+    r.status,
+    r.action_label,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
+    .includes(q);
+};
+
 export function BookingsTable({
   data,
   caption = "Bookings",
@@ -172,7 +199,11 @@ export function BookingsTable({
           </div>
         );
       },
-      meta: { className: "px-3" },
+      meta: {
+        className:
+          "sticky left-0 z-10 bg-card px-3 shadow-[6px_0_8px_-6px_rgba(0,0,0,0.12)] group-hover/row:bg-muted",
+        headerClassName: "sticky left-0 z-20 bg-muted",
+      },
     },
     {
       id: "dates",
@@ -362,7 +393,11 @@ export function BookingsTable({
         </div>
       ),
       enableSorting: false,
-      meta: { className: "px-3" },
+      meta: {
+        className:
+          "sticky right-0 z-10 bg-card px-3 shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.12)] group-hover/row:bg-muted",
+        headerClassName: "sticky right-0 z-20 bg-muted",
+      },
     },
   ];
 
@@ -476,7 +511,7 @@ export function BookingsTable({
           emptyMessage={emptyMessage}
           searchPlaceholder="Guest, phone, agent…"
           className="erp"
-          searchable={false}
+          globalFilterFn={bookingBoardFilter}
           // Prefer modal openStayHub — router.push(?booking=) races the
           // post-close deep-link suppress and leaves the sheet dead.
           onRowClick={

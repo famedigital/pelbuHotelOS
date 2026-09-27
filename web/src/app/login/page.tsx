@@ -43,12 +43,21 @@ export default async function LoginHubPage() {
 
         <div className="grid gap-3">
           <Link
+            href="/erp/pos/login"
+            className="rounded-xl border border-border bg-card px-5 py-4 transition hover:border-primary/40 hover:bg-muted/40"
+          >
+            <p className="font-semibold text-foreground">POS</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              User ID and password open the register. Install it on the till.
+            </p>
+          </Link>
+          <Link
             href="/erp/login"
             className="rounded-xl border border-border bg-card px-5 py-4 transition hover:border-primary/40 hover:bg-muted/40"
           >
             <p className="font-semibold text-foreground">Hotel desk</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Hotel code + User ID + Password (front office / ERP)
+              Hotel code and password, then your name and your own PIN
             </p>
           </Link>
           <Link

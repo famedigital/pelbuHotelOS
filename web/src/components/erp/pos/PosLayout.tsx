@@ -15,6 +15,7 @@ import {
 } from "@/components/erp/pos/DiningTableForm";
 import { KitchenTicketStrip } from "@/components/erp/pos/KitchenTicketStrip";
 import { MenuGrid } from "@/components/erp/pos/MenuGrid";
+import type { MenuLineExtras } from "@/components/erp/pos/MenuTile";
 import { ModifierDialog } from "@/components/erp/pos/ModifierDialog";
 import { OpenTicketsDrawer } from "@/components/erp/pos/OpenTicketsDrawer";
 import { PosBootstrapCacheWriter } from "@/components/erp/pos/PosBootstrapCacheWriter";
@@ -36,7 +37,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
   useKeyboardShortcuts,
@@ -96,6 +98,7 @@ function lineKey(args: {
   courseNo: number;
   seatNo?: number;
   lineNotes?: string;
+  isNc?: boolean;
 }): string {
   return [
     args.menuItemId,
@@ -103,6 +106,7 @@ function lineKey(args: {
     `c${args.courseNo ?? 1}`,
     args.seatNo ? `s${args.seatNo}` : "s0",
     `n:${(args.lineNotes ?? "").trim().toLowerCase().slice(0, 60)}`,
+    args.isNc ? "nc1" : "nc0",
   ].join("::");
 }
 
@@ -221,6 +225,7 @@ export function PosLayout({
     | { mode: "edit"; lineKey: string }
     | null
   >(null);
+  const [lineExtras, setLineExtras] = useState<MenuLineExtras | null>(null);
 
   const [cssFullscreen, setCssFullscreen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -574,21 +579,27 @@ export function PosLayout({
 
   const activeCourseNo = appendOrderId ? appendCourseNo : 1;
 
-  function addItemQuick(menuItemId: string) {
+  function addItemConfigured(menuItemId: string, extras?: MenuLineExtras) {
     const item = items.find((m) => m.id === menuItemId);
-    if (!item) return;
+    if (!item || item.sold_out) return;
     const hasGroups = (groupsByItem.get(item.id) ?? []).length > 0;
     if (hasGroups) {
+      setLineExtras(extras ?? null);
       setModifierTarget({ mode: "add", menuItemId });
       return;
     }
+    const seatNo = extras?.seatNo;
+    const lineNotes = extras?.lineNotes?.trim() || undefined;
+    const isNc = Boolean(extras?.isNc);
     const key = lineKey({
       menuItemId,
       mods: [],
       courseNo: activeCourseNo,
-      seatNo: undefined,
-      lineNotes: undefined,
+      seatNo,
+      lineNotes,
+      isNc,
     });
+    const defaultReason = ncReasons[0]?.code ?? "service_recovery";
     setCart((prev) => {
       const idx = prev.findIndex((l) => l.key === key);
       if (idx >= 0) {
@@ -608,14 +619,19 @@ export function PosLayout({
           modifiers: [],
           modifierSnapshots: [],
           courseNo: activeCourseNo,
-          seatNo: undefined,
-          lineNotes: undefined,
+          seatNo,
+          lineNotes,
+          isNc: isNc || undefined,
+          ncReasonCode: isNc ? defaultReason : undefined,
           prepStation: item.prep_station ?? "kitchen",
         },
       ];
     });
-    // Flash cart bar so staff see the add without auto-opening the full sheet.
     setCartBump((n) => n + 1);
+  }
+
+  function addItemQuick(menuItemId: string) {
+    addItemConfigured(menuItemId);
   }
 
   function upsertLine(line: CartLine) {
@@ -1053,10 +1069,22 @@ export function PosLayout({
     />
   );
 
+  if (!shift && !posTrainingMode) {
+    return (
+      <div className={shellClass} data-pos-register>
+        {registerChrome}
+        <PosClosingPanel
+          shift={null}
+          closeSummary={null}
+        />
+      </div>
+    );
+  }
+
   // Success strip — mirrors the legacy "order on the KOT board" state.
   if (createState.ok && createState.orderId) {
     return (
-      <div className={shellClass}>
+      <div className={shellClass} data-pos-register>
         {registerChrome}
         {openTickets.length > 0 ? (
           <KitchenTicketStrip
@@ -1112,7 +1140,7 @@ export function PosLayout({
   const sellMode = section === "menu" || section === "floor";
 
   return (
-    <div className={shellClass}>
+    <div className={shellClass} data-pos-register>
       {posTrainingMode ? (
         <Alert className="shrink-0 border-amber-500/40 bg-amber-500/10 print:hidden">
           <TriangleAlertIcon className="size-4 text-amber-700" />
@@ -1253,7 +1281,7 @@ export function PosLayout({
               {saleReady ? (
                 <form
                   action={appendOrderId ? appendAction : createAction}
-                  className="block"
+                  className="@container/pos block"
                 >
                   {/* Hidden inputs — contract must match createDeskOrder / appendDeskOrderItems */}
                   {appendOrderId ? (
@@ -1379,55 +1407,111 @@ export function PosLayout({
                     </Alert>
                   ) : null}
 
-                  {/* Cart: compact rail (~17–19.5rem). Menu gets the leftover width. */}
-                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_clamp(17rem,20vw,19.5rem)]">
+                  {/* Ticket beside the menu once the POS pane is a 15" register (~680px), not only at lg. */}
+                  <div className="grid gap-3 @min-[680px]/pos:grid-cols-[minmax(0,1fr)_clamp(15.5rem,32%,19.5rem)]">
                     <div className="min-w-0">
                       <TabsContent
                         value="menu"
                         forceMount
                         className="data-[state=inactive]:hidden"
                       >
-                        <div className="grid gap-3 lg:grid-cols-[9.5rem_minmax(0,1fr)] lg:items-start">
-                          <aside className="sticky top-14 z-10 hidden max-h-[calc(100dvh-4.5rem)] lg:flex lg:flex-col lg:gap-2">
-                            <div className="shrink-0 bg-background/95 pb-1 backdrop-blur-sm">
+                        <div className="grid gap-2 @min-[680px]/pos:grid-cols-[6.25rem_minmax(0,1fr)] @min-[680px]/pos:items-start">
+                          <aside className="sticky top-14 z-10 hidden max-h-[calc(100dvh-4.5rem)] min-h-0 flex-col gap-1.5 @min-[680px]/pos:flex">
+                            <div className="flex shrink-0 flex-col gap-1">
+                              {lockedMenuOutlet ? (
+                                <div className="space-y-1 rounded-md border bg-muted/40 px-2 py-1.5 text-[11px] text-muted-foreground">
+                                  <p>
+                                    <span className="font-medium text-foreground">
+                                      {lockedMenuLabel}
+                                    </span>{" "}
+                                    only
+                                  </p>
+                                  <button
+                                    type="button"
+                                    className="font-medium text-accent underline-offset-4 hover:underline"
+                                    onClick={() => {
+                                      setMenuUnlocked(true);
+                                      setMenuOutlet("all");
+                                    }}
+                                  >
+                                    Show all
+                                  </button>
+                                </div>
+                              ) : naturalTableOutlet && menuUnlocked ? (
+                                <div className="space-y-1 rounded-md border border-amber-500/30 bg-amber-500/5 px-2 py-1.5 text-[11px]">
+                                  <p className="text-amber-800/90">Full menu</p>
+                                  <button
+                                    type="button"
+                                    className="font-medium text-accent underline-offset-4 hover:underline"
+                                    onClick={() => {
+                                      setMenuUnlocked(false);
+                                      setMenuOutlet(naturalTableOutlet);
+                                      setCategory("all");
+                                      pruneCartToOutlet(naturalTableOutlet);
+                                    }}
+                                  >
+                                    Lock floor
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  <OutletChip
+                                    active={menuOutlet === "all"}
+                                    onClick={() => setMenuOutletFilter("all")}
+                                    label="All outlets"
+                                    className="h-8 w-full justify-start px-2 text-xs"
+                                  />
+                                  {posOutlets.map((o) => (
+                                    <OutletChip
+                                      key={o.value}
+                                      active={menuOutlet === o.value}
+                                      onClick={() =>
+                                        setMenuOutletFilter(o.value)
+                                      }
+                                      label={o.label}
+                                      className="h-8 w-full justify-start px-2 text-xs"
+                                    />
+                                  ))}
+                                </>
+                              )}
+                            </div>
+                            <ScrollArea className="min-h-0 flex-1">
+                              <Tabs
+                                value={category}
+                                onValueChange={setCategory}
+                                className="gap-1"
+                              >
+                                <TabsList className="h-auto w-full flex-col items-stretch justify-start bg-transparent p-0">
+                                  <TabsTrigger
+                                    value="all"
+                                    className="h-8 w-full justify-start truncate px-2 text-xs"
+                                  >
+                                    All
+                                  </TabsTrigger>
+                                  {categories.map((cat) => (
+                                    <TabsTrigger
+                                      key={cat}
+                                      value={cat}
+                                      title={cat}
+                                      className="h-8 w-full justify-start truncate px-2 text-xs"
+                                    >
+                                      {cat}
+                                    </TabsTrigger>
+                                  ))}
+                                </TabsList>
+                              </Tabs>
+                            </ScrollArea>
+                          </aside>
+
+                          <div className="min-w-0">
+                            <div className="mb-2">
                               <PosSearch
                                 value={search}
                                 onChange={setSearch}
                                 onBarcode={handleBarcodeScan}
                               />
                             </div>
-                            <nav
-                              className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain pr-0.5 [-ms-overflow-style:none] [scrollbar-width:thin]"
-                              aria-label="Menu categories"
-                            >
-                              <CategoryButton
-                                active={category === "all"}
-                                onClick={() => setCategory("all")}
-                                label="All"
-                                count={menuItems.length}
-                              />
-                              {categories.map((cat) => (
-                                <CategoryButton
-                                  key={cat}
-                                  active={category === cat}
-                                  onClick={() => setCategory(cat)}
-                                  label={cat}
-                                  count={
-                                    menuItems.filter((i) => i.category === cat)
-                                      .length
-                                  }
-                                />
-                              ))}
-                            </nav>
-                          </aside>
-
-                          <div className="min-w-0">
-                            <div className="mb-3 flex flex-col gap-2 lg:hidden">
-                              <PosSearch
-                              value={search}
-                              onChange={setSearch}
-                              onBarcode={handleBarcodeScan}
-                            />
+                            <div className="mb-3 flex flex-col gap-2 @min-[680px]/pos:hidden">
                               {lockedMenuOutlet ? (
                                 <div className="flex flex-wrap items-center gap-2">
                                   <p className="rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground">
@@ -1484,91 +1568,26 @@ export function PosLayout({
                                   ))}
                                 </div>
                               )}
-                              <div className="flex flex-wrap gap-1.5">
-                                <CategoryChip
-                                  active={category === "all"}
-                                  onClick={() => setCategory("all")}
-                                  label="All"
-                                />
-                                {categories.map((cat) => (
-                                  <CategoryChip
-                                    key={cat}
-                                    active={category === cat}
-                                    onClick={() => setCategory(cat)}
-                                    label={cat}
-                                  />
-                                ))}
-                              </div>
+                              <Tabs value={category} onValueChange={setCategory}>
+                                <TabsList className="h-auto w-full flex-wrap justify-start">
+                                  <TabsTrigger value="all">All</TabsTrigger>
+                                  {categories.map((cat) => (
+                                    <TabsTrigger key={cat} value={cat}>
+                                      {cat}
+                                    </TabsTrigger>
+                                  ))}
+                                </TabsList>
+                              </Tabs>
                             </div>
-
-                            {lockedMenuOutlet ? (
-                              <div className="mb-3 hidden flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground lg:flex">
-                                <p className="min-w-0 flex-1">
-                                  Showing{" "}
-                                  <span className="font-medium text-foreground">
-                                    {lockedMenuLabel}
-                                  </span>{" "}
-                                  menu only (this table’s floor).
-                                </p>
-                                <button
-                                  type="button"
-                                  className="shrink-0 font-medium text-accent underline-offset-4 hover:underline"
-                                  onClick={() => {
-                                    setMenuUnlocked(true);
-                                    setMenuOutlet("all");
-                                  }}
-                                >
-                                  Show all menus
-                                </button>
-                              </div>
-                            ) : naturalTableOutlet && menuUnlocked ? (
-                              <div className="mb-3 hidden flex-wrap items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground lg:flex">
-                                <p className="min-w-0 flex-1">
-                                  Full menu unlocked for this table.
-                                </p>
-                                <button
-                                  type="button"
-                                  className="shrink-0 font-medium text-accent underline-offset-4 hover:underline"
-                                  onClick={() => {
-                                    setMenuUnlocked(false);
-                                    setMenuOutlet(naturalTableOutlet);
-                                    setCategory("all");
-                                    pruneCartToOutlet(naturalTableOutlet);
-                                  }}
-                                >
-                                  Lock to{" "}
-                                  {posOutlets.find(
-                                    (o) => o.value === naturalTableOutlet,
-                                  )?.label ?? naturalTableOutlet}
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="mb-3 hidden flex-wrap gap-1.5 lg:flex">
-                                <OutletChip
-                                  active={menuOutlet === "all"}
-                                  onClick={() => setMenuOutletFilter("all")}
-                                  label="All outlets"
-                                />
-                                {posOutlets.map((o) => (
-                                  <OutletChip
-                                    key={o.value}
-                                    active={menuOutlet === o.value}
-                                    onClick={() =>
-                                      setMenuOutletFilter(o.value)
-                                    }
-                                    label={o.label}
-                                  />
-                                ))}
-                              </div>
-                            )}
 
                             <MenuGrid
                               items={menuItems}
                               category={category}
                               search={search}
                               onAdd={addItemQuick}
+                              onConfigure={addItemConfigured}
                               onEditLine={editLine}
-                              className="pb-[calc(5.5rem_+_4rem_+_env(safe-area-inset-bottom,0px))] lg:pb-0"
+                              className="pb-[calc(4.5rem_+_env(safe-area-inset-bottom,0px))] @min-[680px]/pos:pb-0"
                             />
                           </div>
                         </div>
@@ -1604,7 +1623,7 @@ export function PosLayout({
                       </TabsContent>
                     </div>
 
-                    <aside className="hidden lg:sticky lg:top-3 lg:block lg:self-start">
+                    <aside className="hidden min-h-0 @min-[680px]/pos:sticky @min-[680px]/pos:top-3 @min-[680px]/pos:block @min-[680px]/pos:self-start">
                       <CartPanel
                         cart={cart}
                         totals={totals}
@@ -1639,11 +1658,8 @@ export function PosLayout({
                     </aside>
                   </div>
 
-                  {/*
-                    Mobile cart dock — MUST sit above DeskMobileNav (h-16 + safe).
-                    Prior bug: bottom ~0.75rem + z-30 hid the bar under z-40 tabs.
-                  */}
-                  <div className="lg:hidden">
+                  {/* Phone only. Register width shows the side ticket instead. */}
+                  <div className="@min-[680px]/pos:hidden">
                     {(lineCount > 0 || sentLines.length > 0) ? (
                       <button
                         type="button"
@@ -1651,8 +1667,7 @@ export function PosLayout({
                         key={cartBump}
                         className={cn(
                           "fixed inset-x-3 z-[45] flex h-14 items-center justify-between rounded-xl bg-primary px-4 text-primary-foreground shadow-[0_12px_32px_-12px_rgba(8,47,73,0.55)]",
-                          // Above desk tab bar (4rem + safe) + 0.5rem gap
-                          "bottom-[calc(4rem_+_env(safe-area-inset-bottom,0px)+_0.5rem)]",
+                          "bottom-[max(0.75rem,env(safe-area-inset-bottom,0px))]",
                           "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-200",
                         )}
                         aria-label={
@@ -1749,17 +1764,25 @@ export function PosLayout({
 
       <ModifierDialog
         target={modifierTarget}
-        onOpenChange={(open) => !open && setModifierTarget(null)}
+        lineExtras={lineExtras}
+        onOpenChange={(open) => {
+          if (!open) {
+            setModifierTarget(null);
+            setLineExtras(null);
+          }
+        }}
         items={items}
         groupsByItem={groupsByItem}
         cart={cart}
         onUpsert={(line) => {
           upsertLine(line);
           setModifierTarget(null);
+          setLineExtras(null);
         }}
         onRemove={(key) => {
           removeLine(key);
           setModifierTarget(null);
+          setLineExtras(null);
         }}
         defaultCourseNo={activeCourseNo}
       />
@@ -1775,77 +1798,26 @@ export function PosLayout({
   );
 }
 
-function CategoryButton({
-  active,
-  onClick,
-  label,
-  count,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  count: number;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex min-h-11 items-center justify-between gap-2 rounded-md border px-3 text-left text-sm transition-colors ${
-        active
-          ? "border-accent/40 bg-accent/10 text-foreground"
-          : "border-transparent text-muted-foreground hover:bg-secondary"
-      }`}
-    >
-      <span className="truncate">{label}</span>
-      <span className="text-[10px] tabular-nums text-muted-foreground">{count}</span>
-    </button>
-  );
-}
-
-function CategoryChip({
-  active,
-  onClick,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`min-h-9 rounded-full border px-3 text-xs font-medium transition-colors ${
-        active
-          ? "border-accent/40 bg-accent/10 text-foreground"
-          : "border-border bg-card text-muted-foreground"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
 function OutletChip({
   active,
   onClick,
   label,
+  className,
 }: {
   active: boolean;
   onClick: () => void;
   label: string;
+  className?: string;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      size="sm"
+      variant={active ? "default" : "outline"}
       onClick={onClick}
-      className={`min-h-9 rounded-md border px-3 text-xs font-semibold uppercase tracking-wide transition-colors ${
-        active
-          ? "border-foreground/30 bg-foreground text-background"
-          : "border-border bg-card text-muted-foreground hover:text-foreground"
-      }`}
+      className={className}
     >
       {label}
-    </button>
+    </Button>
   );
 }

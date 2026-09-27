@@ -25,8 +25,9 @@ export function roomNightAllInBtn(
 }
 
 /**
- * Package stay total: room all-in × rooms × nights + meal package + extra beds.
- * Matches desk book / StayHub sheet preview structure.
+ * Package stay total: room share × rooms × nights + meal share + extra beds.
+ * Room share plus meal share is the CP or MAP sell price. Lunch and other POS
+ * are not included here.
  */
 export function packageStayTotalBtn(opts: {
   roomNightAllInBtn: number;

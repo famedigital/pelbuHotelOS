@@ -3,6 +3,8 @@ import { describe, it } from "node:test";
 import {
   BILL_KIND_LABELS,
   classifyBillLine,
+  foodBillLabel,
+  foodBillTitle,
   lineBelongsOnBill,
   parseBillKind,
 } from "./bill-kinds";
@@ -27,6 +29,13 @@ describe("bill process kinds", () => {
     );
     assert.equal(
       classifyBillLine({
+        source_type: "meal_plan",
+        description: "Meal plan MAP · Half board",
+      }),
+      "fnb",
+    );
+    assert.equal(
+      classifyBillLine({
         source_type: "adjustment",
         description: "Adj · hotel absorbs · room bill (round to Nu 0 or 5)",
       }),
@@ -46,5 +55,19 @@ describe("bill process kinds", () => {
     assert.equal(lineBelongsOnBill(roomAdj, "room"), true);
     assert.equal(lineBelongsOnBill(pos, "fnb"), true);
     assert.equal(lineBelongsOnBill(room, "master"), true);
+    const meal = {
+      source_type: "meal_plan",
+      description: "Meal plan CP · Breakfast",
+    };
+    assert.equal(lineBelongsOnBill(meal, "room"), false);
+    assert.equal(lineBelongsOnBill(meal, "fnb"), true);
+    assert.equal(lineBelongsOnBill(pos, "fnb"), true);
+  });
+
+  it("names the food bill from the plan", () => {
+    assert.equal(foodBillLabel("CP"), "Breakfast");
+    assert.equal(foodBillLabel("BB"), "Breakfast");
+    assert.equal(foodBillTitle("MAP"), "BREAKFAST & DINNER");
+    assert.equal(foodBillLabel("EP"), "F&B bill");
   });
 });

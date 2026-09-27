@@ -1,4 +1,6 @@
 export const SITE_NAME = "Innora";
+/** Printed on guest documents. */
+export const POWERED_BY_LINE = "Powered by Innorahotel.com";
 /** Full product name for titles and lockups. */
 export const SITE_FULL_NAME = "Innora — hotel software for Bhutan";
 /** Platform blurb — cloud PMS for Bhutan operations. */

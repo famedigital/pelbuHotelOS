@@ -42,36 +42,35 @@ export default async function ErpLayout({
   children: React.ReactNode;
 }) {
   const authed = await isDeskAuthenticated();
+  const headerList = await headers();
+  const pathname =
+    headerList.get("x-invoke-path") ??
+    headerList.get("x-pathname") ??
+    "";
+  const isPosApp =
+    pathname === "/erp/pos" || pathname.startsWith("/erp/pos/");
 
   // When unauthenticated we render children raw. The login page is the only
   // public ERP route; every other ERP page performs its own redirect to
   // /erp/login at the top of the page handler. This keeps the login UI free
   // of the sidebar shell, and avoids a layout redirect-loop. Middleware gates
   // /erp on credential presence as a backstop for a page missing that guard.
+  // POS registers its own app shell, so it must not claim the desk service worker.
   if (!authed) {
     return (
       <>
         {children}
-        <WorkPwaRegistrar />
+        {isPosApp ? null : <WorkPwaRegistrar />}
       </>
     );
   }
-
-  // Authenticated: render the sidebar shell. Detect the login route via the
-  // forwarded pathname so the login page can still render its own (already
-  // self-redirects to /erp) without the shell around it.
-  const headerList = await headers();
-  const pathname =
-    headerList.get("x-invoke-path") ??
-    headerList.get("x-pathname") ??
-    "";
-  if (pathname === "/erp/login" || pathname.startsWith("/erp/login/")) {
-    return (
-      <>
-        {children}
-        <WorkPwaRegistrar />
-      </>
-    );
+  if (
+    pathname === "/erp/login" ||
+    pathname.startsWith("/erp/login/") ||
+    pathname === "/erp/pos/login" ||
+    pathname.startsWith("/erp/pos/login/")
+  ) {
+    return <>{children}</>;
   }
 
   // Kitchen + Pass/Expo TV boards run fullscreen on wall displays.
@@ -102,11 +101,11 @@ export default async function ErpLayout({
     redirect("/erp");
   }
 
-  if (isPrintSurface) {
+  if (isPrintSurface || isPosApp) {
     return (
       <>
         {children}
-        <WorkPwaRegistrar />
+        {isPosApp ? null : <WorkPwaRegistrar />}
       </>
     );
   }

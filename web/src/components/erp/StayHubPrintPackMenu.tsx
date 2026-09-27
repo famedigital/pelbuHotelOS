@@ -1,5 +1,6 @@
 "use client";
 
+import { useStayHub } from "@/components/erp/StayHubContext";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDownIcon } from "lucide-react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 /**
  * Stay print pack (eZee Folio Print tree lite) — wires existing Pelbu docs.
@@ -32,6 +33,13 @@ export function StayHubPrintPackMenu({
   onPrintVoucher?: () => void;
   onPrintRegistration?: () => void;
 }) {
+  const router = useRouter();
+  const stayHub = useStayHub();
+  const openInFront = (href: string) => {
+    stayHub.closeStayHub();
+    router.push(href);
+  };
+
   const folioHref = folioId
     ? `/erp/folios/${folioId}`
     : `/erp/folios?q=${encodeURIComponent(confirmationCode || bookingId)}`;
@@ -69,31 +77,29 @@ export function StayHubPrintPackMenu({
             Print voucher
           </DropdownMenuItem>
         ) : null}
-        <DropdownMenuItem asChild>
-          <Link href={folioHref}>Folio · bill</Link>
+        <DropdownMenuItem onSelect={() => openInFront(folioHref)}>
+          Folio · bill
         </DropdownMenuItem>
         {receiptHref ? (
-          <DropdownMenuItem asChild>
-            <Link href={receiptHref}>Folio · receipt</Link>
+          <DropdownMenuItem onSelect={() => openInFront(receiptHref)}>
+            Folio · receipt
           </DropdownMenuItem>
         ) : null}
-        {folioId ? (
-          <DropdownMenuItem asChild>
-            <Link href={`/erp/folios/${folioId}`}>Tax invoice (INV-)</Link>
-          </DropdownMenuItem>
-        ) : (
-          <DropdownMenuItem asChild>
-            <Link href="/erp/invoices">Invoices (INV-)</Link>
-          </DropdownMenuItem>
-        )}
+        <DropdownMenuItem
+          onSelect={() =>
+            openInFront(folioId ? `/erp/folios/${folioId}` : "/erp/invoices")
+          }
+        >
+          {folioId ? "Tax invoice (INV-)" : "Invoices (INV-)"}
+        </DropdownMenuItem>
         {statementHref ? (
-          <DropdownMenuItem asChild>
-            <Link href={statementHref}>Master / group statement</Link>
+          <DropdownMenuItem onSelect={() => openInFront(statementHref)}>
+            Master / group statement
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href={settlementHref}>Settlement pack</Link>
+        <DropdownMenuItem onSelect={() => openInFront(settlementHref)}>
+          Settlement pack
         </DropdownMenuItem>
         {onPrintRegistration ? (
           <DropdownMenuItem onClick={onPrintRegistration}>
@@ -101,10 +107,12 @@ export function StayHubPrintPackMenu({
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href={`/erp/calendar?q=${encodeURIComponent(bookingId)}`}>
-            Find on room rack
-          </Link>
+        <DropdownMenuItem
+          onSelect={() =>
+            openInFront(`/erp/calendar?q=${encodeURIComponent(bookingId)}`)
+          }
+        >
+          Find on room rack
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

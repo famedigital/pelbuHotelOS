@@ -26,3 +26,28 @@ export function safeStaffNextPath(
   if (path.length > 2000) return null;
   return path;
 }
+
+/**
+ * POS register PWA may only continue to the sell screen.
+ * Rejects every other desk path so this login cannot be used as an open redirect.
+ */
+export function safePosRegisterNextPath(
+  raw: string | null | undefined,
+): string | null {
+  if (!raw) return null;
+  const path = raw.trim();
+  if (
+    !path.startsWith("/") ||
+    path.startsWith("//") ||
+    path.includes("\\") ||
+    path.includes("\0") ||
+    path.includes("?") ||
+    path.includes("#") ||
+    /^\/[a-z]+:/i.test(path)
+  ) {
+    return null;
+  }
+  const base = path.replace(/\/+$/, "") || "/";
+  if (base !== "/erp/pos") return null;
+  return "/erp/pos";
+}

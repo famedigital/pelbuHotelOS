@@ -102,5 +102,8 @@ export async function deskLogout(): Promise<void> {
     // Ignore Auth sign-out failures; PIN cookie is already cleared.
   }
 
-  redirect("/login");
+  const { forgetDeskHotelGate } = await import("@/app/actions/staff-auth");
+  await forgetDeskHotelGate();
+
+  redirect("/erp/login");
 }

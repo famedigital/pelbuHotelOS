@@ -79,6 +79,7 @@ export default async function InHousePage() {
 
   return (
     <DeskListShell
+      wide
       eyebrow="Today"
       heading={`In-house · ${fmtDate(today)}`}
       blurb="Guests currently staying. Open StayHub at Stay / Money for charges, payments, invoice, tasks — then hand off to Check-out when settled. Meal plan and room numbers on every row."

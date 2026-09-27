@@ -162,12 +162,10 @@
 }
 
 /* =========================================================================
-   ERP scope — "Sky & Citrus" (Tailwind sky + amber defaults).
-   Applied on any element carrying the `.erp` class (and inherited by
-   descendants). The public site palette is untouched. Only shadcn semantic
-   tokens are repointed here so every primitive re-themes automatically.
+   ERP scope — Sky & Citrus unless the hotel picked a desk theme.
+   A tweakcn theme sets data-desk-theme on .erp and keeps its own tokens.
    ========================================================================= */
-.erp {
+.erp:not([data-desk-theme]) {
   --background: #f8fafc;            /* slate-50 */
   --foreground: #0c1726;            /* deep ink (slate-950-ish) */
 
@@ -800,6 +798,19 @@ html[data-splash="done"] #pelbu-splash {
   }
 }
 
+/* While a desk sheet is printing, keep it above the stay hub (z-60). */
+html[data-desk-print] [data-slot="dialog-portal"] {
+  visibility: hidden !important;
+}
+html[data-desk-print] #desk-print-mount {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 200 !important;
+  overflow: auto !important;
+  background: #fff !important;
+  padding: 1.5rem !important;
+}
+
 /* Desk booking confirmation: host is screen-hidden; print reveals one sheet */
 .desk-print-host {
   position: absolute;
@@ -827,43 +838,37 @@ html[data-splash="done"] #pelbu-splash {
     clip: auto !important;
     white-space: normal !important;
     pointer-events: auto !important;
+    visibility: visible !important;
+    background: white !important;
   }
-  html[data-desk-print="note"] #print-booking-note,
-  html[data-desk-print="note"] #print-booking-note *,
-  html[data-desk-print="voucher"] #print-agent-voucher,
-  html[data-desk-print="voucher"] #print-agent-voucher *,
-  html[data-desk-print="reg"] #print-reg-card,
-  html[data-desk-print="reg"] #print-reg-card *,
-  html[data-desk-print="reg-party"] #print-reg-party,
-  html[data-desk-print="reg-party"] #print-reg-party *,
-  html[data-desk-print="settlement"] #print-agent-settlement,
-  html[data-desk-print="settlement"] #print-agent-settlement * {
+  html[data-desk-print] #desk-print-mount,
+  html[data-desk-print] #desk-print-mount * {
     visibility: visible !important;
   }
-  html[data-desk-print="note"] #print-booking-note,
-  html[data-desk-print="voucher"] #print-agent-voucher,
-  html[data-desk-print="reg"] #print-reg-card,
-  html[data-desk-print="settlement"] #print-agent-settlement {
-    position: fixed !important;
+  html[data-desk-print] #desk-print-mount {
+    position: absolute !important;
     left: 0 !important;
     top: 0 !important;
     width: 100% !important;
-    max-width: none !important;
     margin: 0 !important;
-    padding: 10mm 12mm !important;
+    padding: 0 !important;
     background: white !important;
-    color: #111 !important;
+    color: #1a1410 !important;
     z-index: 2147483647 !important;
-    box-sizing: border-box !important;
   }
-  html[data-desk-print="reg-party"] #print-reg-party {
+  html[data-desk-print] #desk-print-mount #print-booking-note,
+  html[data-desk-print] #desk-print-mount #print-agent-voucher,
+  html[data-desk-print] #desk-print-mount #print-reg-card,
+  html[data-desk-print] #desk-print-mount #print-agent-settlement,
+  html[data-desk-print] #desk-print-mount #print-reg-party {
     position: static !important;
+    left: auto !important;
+    top: auto !important;
     width: 100% !important;
     max-width: none !important;
     margin: 0 !important;
-    padding: 10mm 12mm !important;
     background: white !important;
-    color: #111 !important;
+    color: #1a1410 !important;
     box-sizing: border-box !important;
   }
 }
@@ -969,5 +974,26 @@ html[data-splash="done"] #pelbu-splash {
     color: #171717 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+  .fiscal-invoice-compact .fiscal-lh {
+    padding-bottom: 0.35rem;
+    gap: 0.5rem;
+  }
+  .fiscal-invoice-compact .fiscal-lh img {
+    height: 2.25rem;
+    width: 2.25rem;
+  }
+  .fiscal-invoice-compact .fiscal-invoice-lines th,
+  .fiscal-invoice-compact .fiscal-invoice-lines td {
+    padding-top: 1px !important;
+    padding-bottom: 1px !important;
+    line-height: 1.15;
+  }
+  .fiscal-invoice-tight .fiscal-invoice-lines {
+    font-size: 11px;
+  }
+  .fiscal-invoice-compact .fiscal-signoff,
+  .fiscal-invoice-tight .fiscal-signoff {
+    margin-top: 0.5rem;
   }
 }

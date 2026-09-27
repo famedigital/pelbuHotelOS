@@ -1,5 +1,9 @@
 import { orderRef } from "@/lib/order-ref";
 import { prepStationLabel, sortPrepStations } from "@/lib/kot";
+import {
+  PRINT_DARKEN_DEFAULT,
+  printDarkenStyle,
+} from "@/lib/pos-print-prefs";
 
 function stamp(iso: string, timezone: string): string {
   const d = new Date(iso);
@@ -43,10 +47,13 @@ export function PosKotSlip({
   order,
   propertyName,
   timezone,
+  darken = PRINT_DARKEN_DEFAULT,
 }: {
   order: PosKotSlipData;
   propertyName: string;
   timezone: string;
+  /** Thermal darkness 0–15. */
+  darken?: number;
 }) {
   const stations = sortPrepStations([
     ...new Set(
@@ -55,7 +62,10 @@ export function PosKotSlip({
   ]);
 
   return (
-    <article className="doc-print-sheet mx-auto w-full max-w-[320px] rounded-xl border border-neutral-800 bg-white px-3 py-4 text-neutral-900 shadow-sm print:mx-0 print:max-w-none print:border-0 print:px-0 print:py-0 print:shadow-none">
+    <article
+      className="pos-slip-darken doc-print-sheet mx-auto w-full max-w-[320px] rounded-xl border border-neutral-800 bg-white px-3 py-4 text-black shadow-sm print:mx-0 print:max-w-none print:border-0 print:px-0 print:py-0 print:shadow-none"
+      style={printDarkenStyle(darken)}
+    >
       <header className="border-b-2 border-neutral-900 pb-2 text-center">
         <p className="text-[10px] font-bold tracking-[0.22em] uppercase">
           Kitchen · KOT

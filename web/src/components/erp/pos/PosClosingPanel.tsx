@@ -18,7 +18,8 @@ import { tenderMethodLabel } from "@/lib/pos-tenders";
 import { formatBtn, roundBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { useActionState, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useActionState, useEffect, useMemo, useState } from "react";
 
 const initial: PosShiftState = { ok: false };
 
@@ -40,12 +41,17 @@ export function PosClosingPanel({
   onSettleTicket,
   onVoidTicket,
 }: Props) {
+  const router = useRouter();
   const [openState, openAction, opening] = useActionState(openPosShift, initial);
   const [closeState, closeAction, closing] = useActionState(
     closePosShift,
     initial,
   );
   useActionToast(openState, { successMessage: "POS shift opened" });
+  useEffect(() => {
+    if (!openState.ok) return;
+    router.refresh();
+  }, [openState.ok, router]);
   useActionToast(closeState, { successMessage: "POS shift closed" });
 
   const [countedCash, setCountedCash] = useState("");
@@ -61,8 +67,8 @@ export function PosClosingPanel({
             Open POS shift
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Count the starting cash before taking guest payments. Shift open/close
-            is not night audit.
+            Sign-in does not open the drawer. Count the cash already in the
+            till, then open the shift. The menu stays locked until this is done.
           </p>
         </header>
 
