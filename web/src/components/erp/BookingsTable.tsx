@@ -201,7 +201,7 @@ export function BookingsTable({
       },
       meta: {
         className:
-          "sticky left-0 z-10 bg-card px-3 shadow-[6px_0_8px_-6px_rgba(0,0,0,0.12)] group-hover/row:bg-muted",
+          "sticky left-0 z-10 whitespace-normal bg-card px-3 shadow-[6px_0_8px_-6px_rgba(0,0,0,0.12)] group-hover/row:bg-muted",
         headerClassName: "sticky left-0 z-20 bg-muted",
       },
     },
@@ -214,7 +214,7 @@ export function BookingsTable({
         </span>
       ),
       enableSorting: false,
-      meta: { className: "px-3" },
+      meta: { className: "whitespace-normal px-3" },
     },
     {
       id: "source_agent",
@@ -239,7 +239,7 @@ export function BookingsTable({
         </div>
       ),
       enableSorting: false,
-      meta: { className: "px-3" },
+      meta: { className: "whitespace-normal px-3" },
     },
     {
       accessorKey: "rooms",
@@ -269,7 +269,7 @@ export function BookingsTable({
           </div>
         );
       },
-      meta: { className: "px-3" },
+      meta: { className: "whitespace-normal px-3" },
     },
     {
       id: "meal",
@@ -280,7 +280,7 @@ export function BookingsTable({
         </span>
       ),
       enableSorting: false,
-      meta: { className: "px-3" },
+      meta: { className: "whitespace-normal px-3" },
     },
     {
       id: "guide_driver",
@@ -316,7 +316,7 @@ export function BookingsTable({
         );
       },
       enableSorting: false,
-      meta: { className: "px-3" },
+      meta: { className: "whitespace-normal px-3" },
     },
     ...(board === "departures" || board === "in_house"
       ? ([
@@ -350,7 +350,7 @@ export function BookingsTable({
               );
             },
             enableSorting: false,
-            meta: { className: "px-3" },
+            meta: { className: "whitespace-normal px-3" },
           },
         ] as ColumnDef<BookingRow>[])
       : []),
@@ -372,7 +372,7 @@ export function BookingsTable({
         );
       },
       enableSorting: false,
-      meta: { className: "px-3" },
+      meta: { className: "whitespace-normal px-3" },
     },
     {
       id: "actions",
@@ -381,7 +381,7 @@ export function BookingsTable({
         <div className="text-right">
           <button
             type="button"
-            className="inline-flex min-h-9 items-center rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted"
+            className="inline-flex min-h-9 w-full items-center justify-center whitespace-nowrap rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted"
             onClick={(e) => {
               e.stopPropagation();
               openRow(stayHub, row.original, board);
@@ -395,8 +395,9 @@ export function BookingsTable({
       enableSorting: false,
       meta: {
         className:
-          "sticky right-0 z-10 bg-card px-3 shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.12)] group-hover/row:bg-muted",
-        headerClassName: "sticky right-0 z-20 bg-muted",
+          "sticky right-0 z-10 w-[9.5rem] min-w-[9.5rem] whitespace-normal bg-card px-3 shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.12)] group-hover/row:bg-muted",
+        headerClassName:
+          "sticky right-0 z-20 w-[9.5rem] min-w-[9.5rem] bg-muted",
       },
     },
   ];
@@ -503,7 +504,7 @@ export function BookingsTable({
         )}
       </div>
 
-      <div className="hidden md:block">
+      <div className="hidden min-w-0 md:block">
         <DataTable
           columns={columns}
           data={data}
