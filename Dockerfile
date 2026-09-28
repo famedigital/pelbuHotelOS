@@ -1,7 +1,9 @@
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
 COPY web/package.json web/package-lock.json* ./
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+# Coolify injects NODE_ENV=production at build time, which makes npm skip
+# devDependencies. Tailwind and TypeScript live there and are required to build.
+RUN if [ -f package-lock.json ]; then npm ci --include=dev; else npm install --include=dev; fi
 
 FROM node:22-bookworm-slim AS builder
 WORKDIR /app
