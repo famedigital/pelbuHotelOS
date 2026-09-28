@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { fireOrderLabel } from "@/lib/kot";
+import { fireOrderLabel, isCounterServiceOutlet } from "@/lib/kot";
 import { ChevronDownIcon, MinusIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CartLine } from "./types";
@@ -46,6 +46,8 @@ type Props = {
   idPrefix: string;
   /** HK/laundry cannot fire tickets onto the kitchen display. */
   canFireKot?: boolean;
+  /** Cafe, pastry, and bar save the ticket. They do not send a kitchen slip. */
+  outlet?: string | null;
   /** When set, Send appends this course onto the open ticket (park hidden). */
   appendCourseNo?: number;
   /** Lines already fired on the open ticket — void from here, add from the menu. */
@@ -83,6 +85,7 @@ export function CartPanel({
   ncReasons = [],
   idPrefix,
   canFireKot = true,
+  outlet,
   appendCourseNo,
   sentLines = [],
   onVoidSentLine,
@@ -97,14 +100,21 @@ export function CartPanel({
   const prevCountRef = useRef(cart.length);
   const appending = appendCourseNo != null && appendCourseNo > 0;
 
+  const counter = isCounterServiceOutlet(outlet);
   const sendLabel = useMemo(
     () =>
       cart.length === 0
-        ? "Add items to send"
-        : appending
-          ? `Send course ${appendCourseNo}`
-          : fireOrderLabel(cart.map((l) => l.prepStation)),
-    [cart, appending, appendCourseNo],
+        ? counter
+          ? "Add items"
+          : "Add items to send"
+        : counter
+          ? appending
+            ? "Add to ticket"
+            : "Save ticket"
+          : appending
+            ? `Send course ${appendCourseNo}`
+            : fireOrderLabel(cart.map((l) => l.prepStation)),
+    [cart, appending, appendCourseNo, counter],
   );
 
   const serviceOverridden =
@@ -442,9 +452,13 @@ export function CartPanel({
                 className="w-full"
               >
                 {pending
-                  ? "Sending…"
+                  ? counter
+                    ? "Saving…"
+                    : "Sending…"
                   : cart.length === 0
-                    ? "Add items to send"
+                    ? counter
+                      ? "Add items"
+                      : "Add items to send"
                     : sendLabel}
               </Button>
               {!appending ? (

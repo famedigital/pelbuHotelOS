@@ -3,6 +3,7 @@
 import { DeskLiveRefresh } from "@/components/erp/DeskLiveRefresh";
 import { Badge } from "@/components/ui/badge";
 import type { OpenPosTicket } from "@/lib/pos";
+import { isCounterServiceOutlet } from "@/lib/kot";
 import { useMemo } from "react";
 
 type Props = {
@@ -24,6 +25,15 @@ export function KitchenTicketStrip({
     let awaitingPayment = 0;
     const byStation = new Map<string, number>();
     for (const t of openTickets) {
+      if (isCounterServiceOutlet(t.outlet)) {
+        if (t.is_parked) parked += 1;
+        if (t.order_source === "public") {
+          online += 1;
+          if (!t.confirmed_at) pendingConfirm += 1;
+          else if (!t.payment_recorded_at) awaitingPayment += 1;
+        }
+        continue;
+      }
       byStatus.set(t.kot_status, (byStatus.get(t.kot_status) ?? 0) + 1);
       if (t.is_parked) parked += 1;
       if (t.order_source === "public") {

@@ -14,8 +14,8 @@ export type DutyBoardRow = {
   department: string | null;
   role: string;
   eventKind: AttendanceKind | null;
-  occurredAt: string | null;
-  source: string | null;
+  arrivedLabel: string | null;
+  leftLabel: string | null;
   shiftLabel: string | null;
 };
 
@@ -61,19 +61,22 @@ const columns: ColumnDef<DutyBoardRow>[] = [
     },
   },
   {
-    accessorKey: "occurredAt",
-    header: () => <SortableHeader label="Last punch" />,
-    cell: ({ row }) =>
-      row.original.occurredAt ? (
-        <div className="text-xs">
-          <p>{new Date(row.original.occurredAt).toLocaleTimeString()}</p>
-          <p className="text-muted-foreground">
-            {row.original.source?.replaceAll("_", " ")}
-          </p>
-        </div>
-      ) : (
-        <span className="text-xs text-muted-foreground">No punch today</span>
-      ),
+    accessorKey: "arrivedLabel",
+    header: () => <SortableHeader label="Arrived" />,
+    cell: ({ row }) => (
+      <span className="text-xs tabular-nums">
+        {row.original.arrivedLabel ?? "—"}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "leftLabel",
+    header: () => <SortableHeader label="Left" />,
+    cell: ({ row }) => (
+      <span className="text-xs tabular-nums">
+        {row.original.leftLabel ?? "—"}
+      </span>
+    ),
   },
   {
     accessorKey: "shiftLabel",

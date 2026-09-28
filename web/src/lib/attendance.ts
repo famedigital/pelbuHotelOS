@@ -29,7 +29,11 @@ export async function insertAttendanceEvent(
   if (Number.isNaN(occurred.getTime())) throw new Error("Invalid attendance time.");
 
   const now = Date.now();
-  if (occurred.getTime() > now + 5 * 60_000) {
+  const futureSlackMs =
+    input.source === "biometric" || input.source === "integration"
+      ? 15 * 60_000
+      : 5 * 60_000;
+  if (occurred.getTime() > now + futureSlackMs) {
     throw new Error("Attendance time cannot be in the future.");
   }
   if (

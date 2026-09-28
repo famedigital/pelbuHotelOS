@@ -1,6 +1,9 @@
+import { isCounterServiceOutlet } from "@/lib/kot";
+
 /**
  * Kitchen vs payment lifecycle for POS tickets.
  * Settlement (paid / folio) does NOT end kitchen work — only kot_status does.
+ * Cafe, pastry, and bar are ready-made and never enter the cook board.
  */
 
 export const KOT_COOK_STATUSES = ["new", "preparing", "ready"] as const;
@@ -17,6 +20,7 @@ export type KitchenVisibilityInput = {
   kot_status: string;
   is_parked?: boolean | null;
   voided_at?: string | null;
+  outlet?: string | null;
 };
 
 /** Still on the cook line / pass board (not served or cancelled). */
@@ -32,6 +36,7 @@ export function isOpenCookStatus(kotStatus: string): boolean {
 export function isKitchenBoardVisible(t: KitchenVisibilityInput): boolean {
   if (t.voided_at) return false;
   if (t.is_parked) return false;
+  if (isCounterServiceOutlet(t.outlet)) return false;
   if (!isOpenCookStatus(t.kot_status)) return false;
 
   if (t.order_source === "public") {

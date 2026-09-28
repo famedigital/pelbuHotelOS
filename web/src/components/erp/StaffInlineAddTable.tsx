@@ -2,11 +2,13 @@
 
 import { upsertStaffMember, type HrActionState } from "@/app/actions/erp-hr";
 import { DepartmentSelect } from "@/components/erp/DepartmentSelect";
+import { PositionSelect } from "@/components/erp/PositionSelect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { mergeDepartmentOptions } from "@/lib/hr/departments";
+import { positionsForDepartment } from "@/lib/hr/positions";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useState } from "react";
 
@@ -71,7 +73,22 @@ export function StaffInlineAddTable({
   }
 
   function setDepartment(key: string, value: string) {
-    update(key, "department", value);
+    setRows((prev) =>
+      prev.map((row) => {
+        if (row.key !== key) return row;
+        const titles = positionsForDepartment(value).map((p) =>
+          p.title.toLowerCase(),
+        );
+        const keep =
+          row.position_title.trim() &&
+          titles.includes(row.position_title.trim().toLowerCase());
+        return {
+          ...row,
+          department: value,
+          position_title: keep ? row.position_title : "",
+        };
+      }),
+    );
     const trimmed = value.trim();
     if (
       trimmed &&
@@ -187,14 +204,13 @@ export function StaffInlineAddTable({
                   />
                 </td>
                 <td className="p-1.5">
-                  <Input
+                  <PositionSelect
+                    id={`${row.key}-position`}
+                    department={row.department}
                     value={row.position_title}
-                    onChange={(e) =>
-                      update(row.key, "position_title", e.target.value)
-                    }
-                    className="h-11"
+                    onChange={(value) => update(row.key, "position_title", value)}
+                    className={selectClass}
                     form={`hire-${row.key}`}
-                    name="position_title"
                   />
                 </td>
                 <td className="p-1.5">
@@ -327,12 +343,11 @@ function HireForm({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={`${row.key}-pos`}>Position</Label>
-          <Input
+          <PositionSelect
             id={`${row.key}-pos`}
-            name="position_title"
+            department={row.department}
             value={row.position_title}
-            onChange={(e) => onChange(row.key, "position_title", e.target.value)}
-            className="h-11"
+            onChange={(value) => onChange(row.key, "position_title", value)}
           />
         </div>
         <div className="space-y-1.5">

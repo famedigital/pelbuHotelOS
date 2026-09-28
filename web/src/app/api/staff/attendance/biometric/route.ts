@@ -25,7 +25,8 @@ function validSecret(provided: string, storedHash: string): boolean {
 }
 
 /**
- * Vendor-neutral biometric clock endpoint.
+ * Vendor-neutral JSON punch endpoint for a custom connector.
+ * Network clocks (ZKTeco / eSSL ADMS) use /iclock/cdata instead.
  *
  * Headers:
  *   X-Pelbu-Device-Id: <attendance_devices.id>

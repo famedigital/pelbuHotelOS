@@ -1,6 +1,8 @@
 "use server";
 
 import { insertAttendanceEvent } from "@/lib/attendance";
+import { normalizeBiometricUserId, normalizeDeviceSn } from "@/lib/zk-adms";
+import { replayUnmatchedPunches } from "@/lib/zk-adms-server";
 import {
   ATTENDANCE_KINDS,
   type AttendanceKind,
@@ -119,7 +121,16 @@ export async function createAttendanceDevice(
     }
     const name = String(formData.get("name") ?? "").trim();
     const deviceType = String(formData.get("device_type") ?? "").trim();
-    const externalRef = String(formData.get("external_ref") ?? "").trim() || null;
+    const rawRef = String(formData.get("external_ref") ?? "").trim();
+    let externalRef: string | null = null;
+    if (rawRef) {
+      externalRef = normalizeDeviceSn(rawRef);
+      if (!externalRef) {
+        throw new Error(
+          "Serial number should be the letters and numbers printed on the clock (at least 4 characters).",
+        );
+      }
+    }
     if (name.length < 2 || name.length > 80) {
       throw new Error("Device name must be 2–80 characters.");
     }
@@ -142,7 +153,12 @@ export async function createAttendanceDevice(
       })
       .select("id")
       .single();
-    if (error || !data) throw new Error("Could not register attendance device.");
+    if (error || !data) {
+      if (error?.code === "23505") {
+        throw new Error("That serial number is already registered.");
+      }
+      throw new Error("Could not register attendance device.");
+    }
 
     await writeAuditEvent(admin, {
       propertyId,
@@ -250,6 +266,102 @@ export async function recordKioskAttendance(
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Could not record kiosk punch.",
+    };
+  }
+}
+
+export type BiometricLinkState = {
+  ok: boolean;
+  error?: string;
+  message?: string;
+};
+
+/** Map a network-clock user ID to a staff member and import any waiting punches. */
+export async function setStaffBiometricId(
+  _previous: BiometricLinkState,
+  formData: FormData,
+): Promise<BiometricLinkState> {
+  try {
+    if (!(await isDeskAuthenticated())) {
+      throw new Error("Desk session expired. Sign in again.");
+    }
+    const staffId = String(formData.get("staff_id") ?? "").trim();
+    const rawPin = String(formData.get("biometric_user_id") ?? "").trim();
+    const biometricUserId = rawPin ? normalizeBiometricUserId(rawPin) : null;
+    if (rawPin && !biometricUserId) {
+      throw new Error(
+        "Clock user ID should be the number stored on the clock (letters and digits only).",
+      );
+    }
+
+    const admin = createSupabaseAdminClient();
+    const propertyId = await resolveActivePropertyId(admin);
+    const { data: staff } = await admin
+      .from("staff_members")
+      .select("id, full_name")
+      .eq("property_id", propertyId)
+      .eq("id", staffId)
+      .in("status", ["active", "on_leave"])
+      .maybeSingle();
+    if (!staff) throw new Error("Choose a staff member.");
+
+    const { error } = await admin
+      .from("staff_members")
+      .update({
+        biometric_user_id: biometricUserId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", staffId)
+      .eq("property_id", propertyId);
+    if (error) {
+      if (error.code === "23505") {
+        throw new Error("That clock user ID is already linked to someone else.");
+      }
+      throw new Error("Could not save the clock user ID.");
+    }
+
+    const name = staff.full_name as string;
+    let imported = 0;
+    if (biometricUserId) {
+      const { data: property } = await admin
+        .from("properties")
+        .select("timezone")
+        .eq("id", propertyId)
+        .maybeSingle();
+      imported = await replayUnmatchedPunches(admin, {
+        propertyId,
+        staffId,
+        biometricUserId,
+        timeZone: (property?.timezone as string | null)?.trim() || "Asia/Thimphu",
+      });
+    }
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "attendance.biometric_link",
+      entityType: "staff_members",
+      entityId: staffId,
+      summary: biometricUserId
+        ? `Linked clock user ${biometricUserId} to ${name}`
+        : `Removed the clock user ID for ${name}`,
+      meta: { biometricUserId, imported },
+    });
+
+    refreshAttendance();
+    if (!biometricUserId) {
+      return { ok: true, message: `Removed the clock user ID for ${name}.` };
+    }
+    return {
+      ok: true,
+      message:
+        imported > 0
+          ? `Linked clock user ${biometricUserId} to ${name}. Imported ${imported} earlier ${imported === 1 ? "punch" : "punches"}.`
+          : `Linked clock user ${biometricUserId} to ${name}.`,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not save the clock user ID.",
     };
   }
 }

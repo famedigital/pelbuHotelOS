@@ -14,6 +14,7 @@ import { DeskLiveRefresh } from "@/components/erp/DeskLiveRefresh";
 import { RecordOrderPaymentForm } from "@/components/erp/RecordOrderPaymentForm";
 import type { PosBookingOption } from "@/components/erp/pos/types";
 import { orderRef } from "@/lib/order-ref";
+import { isCounterServiceOutlet } from "@/lib/kot";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -379,6 +380,7 @@ export function OpenTicketsDrawer({
     (t) =>
       matchesParty(t) &&
       !t.is_parked &&
+      !isCounterServiceOutlet(t.outlet) &&
       t.kot_status === "served" &&
       !(isOnline(t) && (!t.confirmed_at || !t.payment_recorded_at)),
   );
@@ -386,7 +388,7 @@ export function OpenTicketsDrawer({
     (t) =>
       matchesParty(t) &&
       !t.is_parked &&
-      t.kot_status !== "served" &&
+      (isCounterServiceOutlet(t.outlet) || t.kot_status !== "served") &&
       !(isOnline(t) && (!t.confirmed_at || !t.payment_recorded_at)),
   );
   const filteredSettled = settledTickets.filter(matchesParty);
@@ -409,6 +411,7 @@ export function OpenTicketsDrawer({
 
   function ticketActions(t: OpenPosTicket, closedLane = false) {
     const online = isOnline(t);
+    const counter = isCounterServiceOutlet(t.outlet);
     if (closedLane || t.settled_at) {
       return (
         <div className="flex flex-wrap gap-1.5">
@@ -423,15 +426,17 @@ export function OpenTicketsDrawer({
               Print receipt
             </Link>
           </Button>
-          <Button
-            asChild
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9"
-          >
-            <Link href={`/erp/orders/${t.id}/kot?print=1`}>Reprint KOT</Link>
-          </Button>
+          {counter ? null : (
+            <Button
+              asChild
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9"
+            >
+              <Link href={`/erp/orders/${t.id}/kot?print=1`}>Reprint KOT</Link>
+            </Button>
+          )}
           <Button
             asChild
             type="button"
@@ -528,15 +533,17 @@ export function OpenTicketsDrawer({
         >
           <Link href={`/erp/orders/${t.id}/slip`}>Print slip</Link>
         </Button>
-        <Button
-          asChild
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-9"
-        >
-          <Link href={`/erp/orders/${t.id}/kot?print=1`}>Reprint KOT</Link>
-        </Button>
+        {counter ? null : (
+          <Button
+            asChild
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9"
+          >
+            <Link href={`/erp/orders/${t.id}/kot?print=1`}>Reprint KOT</Link>
+          </Button>
+        )}
         {canFireKot && t.is_parked ? (
           <form action={unparkAction}>
             <input type="hidden" name="order_id" value={t.id} />
@@ -564,7 +571,8 @@ export function OpenTicketsDrawer({
             </Button>
           </form>
         ) : null}
-        {t.kot_status === "new" || t.kot_status === "preparing" ? (
+        {counter ||
+        !(t.kot_status === "new" || t.kot_status === "preparing") ? null : (
           <Button
             type="button"
             variant="outline"
@@ -575,8 +583,8 @@ export function OpenTicketsDrawer({
           >
             Mark ready
           </Button>
-        ) : null}
-        {t.kot_status === "ready" ? (
+        )}
+        {counter || t.kot_status !== "ready" ? null : (
           <Button
             type="button"
             variant="outline"
@@ -587,8 +595,9 @@ export function OpenTicketsDrawer({
           >
             Mark served
           </Button>
-        ) : null}
-        {t.kot_status === "ready" || t.kot_status === "served" ? (
+        )}
+        {counter ||
+        !(t.kot_status === "ready" || t.kot_status === "served") ? null : (
           <form action={recallAction}>
             <input type="hidden" name="order_id" value={t.id} />
             <Button
@@ -601,7 +610,7 @@ export function OpenTicketsDrawer({
               Recall
             </Button>
           </form>
-        ) : null}
+        )}
       </div>
     );
   }
@@ -844,7 +853,8 @@ export function OpenTicketsDrawer({
                       </Button>
                     </form>
                     ) : null}
-                    {t.kot_status === "new" || t.kot_status === "preparing" ? (
+                    {isCounterServiceOutlet(t.outlet) ||
+                    !(t.kot_status === "new" || t.kot_status === "preparing") ? null : (
                       <Button
                         type="button"
                         variant="outline"
@@ -855,8 +865,8 @@ export function OpenTicketsDrawer({
                       >
                         Mark ready
                       </Button>
-                    ) : null}
-                    {t.kot_status === "ready" ? (
+                    )}
+                    {isCounterServiceOutlet(t.outlet) || t.kot_status !== "ready" ? null : (
                       <Button
                         type="button"
                         variant="outline"
@@ -867,8 +877,9 @@ export function OpenTicketsDrawer({
                       >
                         Mark served
                       </Button>
-                    ) : null}
-                    {t.kot_status === "ready" || t.kot_status === "served" ? (
+                    )}
+                    {isCounterServiceOutlet(t.outlet) ||
+                    !(t.kot_status === "ready" || t.kot_status === "served") ? null : (
                       <form action={recallAction}>
                         <input type="hidden" name="order_id" value={t.id} />
                         <Button
@@ -881,7 +892,7 @@ export function OpenTicketsDrawer({
                           Recall
                         </Button>
                       </form>
-                    ) : null}
+                    )}
                   </div>
                 )}
               />
@@ -980,18 +991,18 @@ function TicketGroup({
                 <p className="text-sm font-semibold tabular-nums text-foreground">
                   {formatBtn(t.total_btn)}
                 </p>
-                {!closedLane ? (
+                {isCounterServiceOutlet(t.outlet) ? null : closedLane ? (
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    {t.tenders.map((x) => tenderLabel(x.method)).join(" · ") ||
+                      "Settled"}
+                  </p>
+                ) : (
                   <Badge
                     variant={t.kot_status === "ready" ? "gold" : "secondary"}
                     className="mt-1 capitalize"
                   >
                     {t.kot_status}
                   </Badge>
-                ) : (
-                  <p className="mt-1 text-[10px] text-muted-foreground">
-                    {t.tenders.map((x) => tenderLabel(x.method)).join(" · ") ||
-                      "Settled"}
-                  </p>
                 )}
               </div>
             </button>
@@ -1147,12 +1158,14 @@ function TicketDetail({
             <p className="text-base font-semibold tabular-nums text-foreground">
               {formatBtn(ticket.total_btn)}
             </p>
-            <Badge
-              variant={ticket.kot_status === "ready" ? "gold" : "secondary"}
-              className="mt-1 capitalize"
-            >
-              {ticket.kot_status}
-            </Badge>
+            {isCounterServiceOutlet(ticket.outlet) ? null : (
+              <Badge
+                variant={ticket.kot_status === "ready" ? "gold" : "secondary"}
+                className="mt-1 capitalize"
+              >
+                {ticket.kot_status}
+              </Badge>
+            )}
           </div>
         </div>
         <MoneyStrip ticket={ticket} />

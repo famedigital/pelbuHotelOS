@@ -24,6 +24,11 @@ const nextConfig: NextConfig = {
       { source: "/order", destination: "/menu", permanent: true },
     ];
   },
+  async rewrites() {
+    return [
+      { source: "/iclock/:name.aspx", destination: "/iclock/:name" },
+    ];
+  },
 };
 
 export default nextConfig;

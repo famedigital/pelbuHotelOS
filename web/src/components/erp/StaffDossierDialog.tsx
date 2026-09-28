@@ -15,6 +15,8 @@ import {
 import { setStaffPortalPin } from "@/app/actions/staff-auth";
 import { CloudinaryPicker } from "@/components/erp/CloudinaryPicker";
 import { DepartmentSelect } from "@/components/erp/DepartmentSelect";
+import { PositionSelect } from "@/components/erp/PositionSelect";
+import { positionsForDepartment } from "@/lib/hr/positions";
 import { StaffAvatar } from "@/components/erp/StaffAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -663,6 +665,8 @@ function ProfileStep({
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
+  const [department, setDepartment] = useState(member.department ?? "");
+  const [positionTitle, setPositionTitle] = useState(member.positionTitle ?? "");
   const [state, action, pending] = useActionState(upsertStaffMember, initialHr);
   useActionToast(state, { successMessage: "Profile saved" });
   useEffect(() => {
@@ -719,7 +723,11 @@ function ProfileStep({
             variant="outline"
             size="sm"
             className="h-9 gap-1.5"
-            onClick={() => setEditing(true)}
+            onClick={() => {
+              setDepartment(member.department ?? "");
+              setPositionTitle(member.positionTitle ?? "");
+              setEditing(true);
+            }}
           >
             <PencilIcon className="size-3.5" />
             Edit
@@ -767,16 +775,25 @@ function ProfileStep({
                   key={member.id}
                   id="d_department"
                   name="department"
-                  defaultValue={member.department ?? ""}
+                  value={department}
+                  onChange={(next) => {
+                    setDepartment(next);
+                    const stillValid = positionsForDepartment(next).some(
+                      (p) =>
+                        p.title.toLowerCase() ===
+                        positionTitle.trim().toLowerCase(),
+                    );
+                    if (positionTitle.trim() && !stillValid) setPositionTitle("");
+                  }}
                   departments={departments}
                 />
               </Field>
               <Field label="Position" htmlFor="d_position">
-                <Input
+                <PositionSelect
                   id="d_position"
-                  name="position_title"
-                  defaultValue={member.positionTitle ?? ""}
-                  className="h-11"
+                  department={department}
+                  value={positionTitle}
+                  onChange={setPositionTitle}
                 />
               </Field>
             </div>

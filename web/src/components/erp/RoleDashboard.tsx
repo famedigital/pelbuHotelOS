@@ -1115,6 +1115,38 @@ function ManagerBoard({
   );
 }
 
+function DeskDayStat({
+  href,
+  label,
+  value,
+  tone = "quiet",
+  className = "",
+}: {
+  href: string;
+  label: string;
+  value: string;
+  tone?: "quiet" | "citrus" | "destructive";
+  className?: string;
+}) {
+  const valueClass =
+    tone === "citrus"
+      ? "text-citrus"
+      : tone === "destructive"
+        ? "text-destructive"
+        : "text-foreground";
+  return (
+    <Link
+      href={href}
+      className={`group px-4 py-4 outline-none hover:bg-muted/50 focus-visible:ring-[3px] focus-visible:ring-ring/40 sm:px-5 ${className}`}
+    >
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className={`mt-1 text-3xl font-semibold tracking-tight tabular-nums ${valueClass}`}>
+        <DeskMetricTicker value={value} className={valueClass} />
+      </p>
+    </Link>
+  );
+}
+
 function FrontDeskBoard({
   snap,
   view,
@@ -1124,55 +1156,85 @@ function FrontDeskBoard({
   view: DashboardView;
   homeView: DashboardView;
 }) {
+  const meals = snap.mealCovers;
+  const covers = [
+    { label: "Breakfast", value: meals.breakfast },
+    { label: "Lunch", value: meals.lunch },
+    { label: "Dinner", value: meals.dinner },
+    { label: "Events", value: meals.eventCovers },
+  ];
   return (
     <Shell
       title="Front desk"
-      subtitle={`Shift home · ${snap.businessDate}`}
+      subtitle={`Shift home · ${fmtDate(snap.businessDate)}`}
       snap={snap}
       view={view}
       homeView={homeView}
     >
-      <div className="rounded-xl border border-accent/30 bg-accent/5 px-4 py-4">
-        <p className="text-sm font-semibold text-foreground">
-          Daily desk lives on Today
-        </p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Check-in, check-out, in-house, and agent pay follow-up — open the
-          boards instead of hunting Ctrl+K lists.
-        </p>
-        <Button asChild variant="citrus" className="mt-3 min-h-11">
-          <Link href="/erp/today">Open Today</Link>
-        </Button>
-      </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi
-          href="/erp/today"
-          icon={ClipboardListIcon}
-          label="Arrivals today"
-          value={String(snap.arrivalsToday)}
-        />
-        <Kpi
-          href="/erp/today"
-          icon={HotelIcon}
-          label="In-house"
-          value={String(snap.inHouse)}
-          tone="citrus"
-        />
-        <Kpi
-          href="/erp/today"
-          icon={CalendarClockIcon}
-          label="Departures"
-          value={String(snap.departuresToday)}
-        />
-        <Kpi
-          href="/erp/today"
-          icon={WalletIcon}
-          label="Open folio $"
-          value={formatBtn(snap.folioBalanceBtn)}
-          tone={snap.folioBalanceBtn > 0 ? "destructive" : "accent"}
-        />
-      </div>
-      <MealPaxStrip snap={snap} />
+      <section className="overflow-hidden rounded-xl border bg-card" aria-label="Today desk">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-5">
+          <div>
+            <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+              {fmtDate(snap.businessDate)}
+            </p>
+            <h2 className="mt-1 text-lg font-semibold tracking-tight text-foreground">
+              Today
+            </h2>
+          </div>
+          <Button asChild variant="citrus" className="min-h-11">
+            <Link href="/erp/today">Open Today</Link>
+          </Button>
+        </div>
+        <div className="grid grid-cols-2 border-t sm:grid-cols-4">
+          <DeskDayStat
+            href="/erp/today"
+            label="Arrivals"
+            value={String(snap.arrivalsToday)}
+            className="border-r border-b sm:border-b-0"
+          />
+          <DeskDayStat
+            href="/erp/today"
+            label="In-house"
+            value={String(snap.inHouse)}
+            tone={snap.inHouse > 0 ? "citrus" : "quiet"}
+            className="border-b sm:border-r sm:border-b-0"
+          />
+          <DeskDayStat
+            href="/erp/today"
+            label="Departures"
+            value={String(snap.departuresToday)}
+            className="border-r"
+          />
+          <DeskDayStat
+            href="/erp/today"
+            label="Open folio"
+            value={formatBtn(snap.folioBalanceBtn)}
+            tone={snap.folioBalanceBtn > 0 ? "destructive" : "quiet"}
+          />
+        </div>
+        <div className="border-t px-4 py-4 sm:px-5" aria-label="Food covers pax today">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-sm font-semibold text-foreground">Food covers</p>
+            <Link
+              href="/erp/kitchen"
+              className="text-xs font-medium text-accent underline-offset-4 hover:underline"
+            >
+              Kitchen
+            </Link>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+            {covers.map((row) => (
+              <div key={row.label}>
+                <p className="text-xs text-muted-foreground">{row.label}</p>
+                <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">
+                  {row.value}
+                  <span className="ml-1 text-xs font-normal text-muted-foreground">pax</span>
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
       <QuickLinks
         links={[
           { href: "/erp/today", label: "Today boards" },

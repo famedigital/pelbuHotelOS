@@ -838,6 +838,25 @@ export function PosLayout({
         : null,
     [openTickets, appendOrderId],
   );
+  const cartOutlet = useMemo(() => {
+    if (appendTicket?.outlet) return appendTicket.outlet;
+    if (tableId) {
+      const tableOutlet = tables.find((t) => t.id === tableId)?.outlet;
+      if (tableOutlet) return tableOutlet;
+    }
+    const firstId = cart[0]?.menuItemId;
+    if (firstId) {
+      return items.find((item) => item.id === firstId)?.outlet ?? null;
+    }
+    return effectiveMenuOutlet === "all" ? null : effectiveMenuOutlet;
+  }, [
+    appendTicket,
+    tableId,
+    tables,
+    cart,
+    items,
+    effectiveMenuOutlet,
+  ]);
   const sentLines = useMemo(
     () =>
       (appendTicket?.order_items ?? []).map((i) => ({
@@ -1646,6 +1665,7 @@ export function PosLayout({
                         onToggleNc={toggleNc}
                         ncReasons={ncReasons}
                         canFireKot={canFireKot}
+                        outlet={cartOutlet}
                         idPrefix="cart_desktop"
                         appendCourseNo={
                           appendOrderId ? appendCourseNo : undefined
@@ -1722,6 +1742,7 @@ export function PosLayout({
                             onToggleNc={toggleNc}
                             ncReasons={ncReasons}
                             canFireKot={canFireKot}
+                            outlet={cartOutlet}
                             idPrefix="cart_mobile"
                             appendCourseNo={
                               appendOrderId ? appendCourseNo : undefined

@@ -26,6 +26,7 @@ import {
 import { assertNcReason, recordNcEvent } from "@/lib/marketing/nc";
 import { redeemPromoCode } from "@/lib/marketing/promo";
 import { verifyManagerPinForProperty } from "@/lib/manager-pin";
+import { isCounterServiceOutlet } from "@/lib/kot";
 import { orderRef } from "@/lib/order-ref";
 import {
   POS_TENDER_METHODS,
@@ -682,6 +683,7 @@ export async function createDeskOrder(
     }
 
     const nowIso = new Date().toISOString();
+    const counterService = isCounterServiceOutlet(outlet);
     const { data: order, error: orderError } = await admin
       .from("orders")
       .insert({
@@ -692,7 +694,7 @@ export async function createDeskOrder(
         delivery_type: "pickup",
         notes,
         status: parkOnCreate ? "received" : "received",
-        kot_status: parkOnCreate ? "new" : "new",
+        kot_status: counterService ? "served" : "new",
         order_source: settleMode === "room_charge" ? "room_charge" : "desk",
         pos_shift_id: posShiftId,
         booking_id: bookingId,
@@ -799,6 +801,7 @@ export async function createDeskOrder(
           nc_reason_code: line.ncReasonCode,
           nc_value_btn: ncValue,
           nc_approved_by: line.isNc ? approvedBy : null,
+          ...(counterService ? { kot_status: "served" as const } : {}),
         };
       }),
     );
@@ -1234,6 +1237,9 @@ export async function appendDeskOrderItems(
             nc_reason_code: line.ncReasonCode,
             nc_value_btn: ncValue,
             nc_approved_by: line.isNc ? approvedBy : null,
+            ...(isCounterServiceOutlet(order.outlet as string)
+              ? { kot_status: "served" as const }
+              : {}),
           };
         }),
       )
@@ -1276,8 +1282,9 @@ export async function appendDeskOrderItems(
     }
 
     const prevKot = (order.kot_status as string) ?? "new";
-    const nextKot =
-      prevKot === "ready" || prevKot === "served" || prevKot === "cancelled"
+    const nextKot = isCounterServiceOutlet(order.outlet as string)
+      ? "served"
+      : prevKot === "ready" || prevKot === "served" || prevKot === "cancelled"
         ? "new"
         : prevKot === "preparing"
           ? "preparing"
@@ -1371,6 +1378,7 @@ export async function updateOrderKotStatus(formData: FormData): Promise<void> {
   if (!order) throw new Error("Order not found.");
   assertDeskProperty(property_id, order.property_id as string, "Order");
   if (order.voided_at) throw new Error("Cannot update a voided order.");
+  if (isCounterServiceOutlet(order.outlet as string)) return;
 
   const patch: Record<string, unknown> = {
     kot_status: nextStatus,
@@ -2904,12 +2912,15 @@ export async function recallOrder(
 
     const { data: order, error } = await admin
       .from("orders")
-      .select("id, voided_at, settled_at, kot_status")
+      .select("id, voided_at, settled_at, kot_status, outlet")
       .eq("id", orderId)
       .eq("property_id", property_id)
       .single();
     if (error || !order) throw new Error("Order not found.");
     if (order.voided_at) throw new Error("Cannot recall a voided order.");
+    if (isCounterServiceOutlet(order.outlet as string)) {
+      return { ok: true, orderId };
+    }
 
     const { error: patchError } = await admin
       .from("orders")

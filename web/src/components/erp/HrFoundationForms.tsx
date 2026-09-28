@@ -9,6 +9,7 @@ import {
 } from "@/app/actions/erp-hr";
 import { reviewLeaveStage } from "@/app/actions/staff-leave";
 import { DepartmentSelect } from "@/components/erp/DepartmentSelect";
+import { PositionSelect } from "@/components/erp/PositionSelect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,6 +57,8 @@ export function StaffCreateForm({
   departments?: string[];
 }) {
   const [state, action, pending] = useActionState(upsertStaffMember, initialState);
+  const [department, setDepartment] = useState("");
+  const [positionTitle, setPositionTitle] = useState("");
   useActionToast(state, { successMessage: "Staff member added" });
 
   return (
@@ -99,11 +102,22 @@ export function StaffCreateForm({
             name="department"
             departments={departments}
             selectClassName={selectClass}
+            value={department}
+            onChange={(next) => {
+              setDepartment(next);
+              setPositionTitle("");
+            }}
           />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="position_title">Position</Label>
-          <Input id="position_title" name="position_title" placeholder="Duty manager" />
+          <PositionSelect
+            id="position_title"
+            department={department}
+            value={positionTitle}
+            onChange={setPositionTitle}
+            className={selectClass}
+          />
         </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-4">

@@ -7,50 +7,50 @@ export type MarketingMedia = {
 export const MARKETING_MEDIA = {
   heroLobby: {
     src: "/marketing/hero-lobby.jpg",
-    alt: "Bright hotel lobby with Himalayan mountain light — Innora for Bhutan hotels",
+    alt: "Receptionist in a kira behind the desk of a Bhutan hotel lobby",
   },
   staffDesk: {
     src: "/marketing/staff-front-desk.jpg",
-    alt: "Bhutanese front desk staff welcoming guests",
+    alt: "Front-desk receptionist serving from behind the counter",
   },
   roomGuest: {
     src: "/marketing/room-guest.jpg",
-    alt: "Guest room ready for arrival with mountain view",
+    alt: "Made guest room with a view of green hills",
   },
   foodFnb: {
     src: "/marketing/food-fnb.jpg",
-    alt: "Hotel restaurant plated dish",
+    alt: "Ema datshi and red rice on a hotel table",
   },
   housekeeping: {
     src: "/marketing/housekeeping.jpg",
-    alt: "Bhutanese housekeeping preparing a guest room",
+    alt: "Housekeeper in a kira setting towels in a guest room",
   },
   howOnboard: {
     src: "/marketing/how-onboard.jpg",
-    alt: "Bhutanese hotelier checking a guest room during onboarding",
+    alt: "Hotelier in a gho checking a guest room with a clipboard",
   },
   howTrain: {
     src: "/marketing/how-train.jpg",
-    alt: "Bhutanese desk team training at the front desk",
+    alt: "Desk team in gho and kira talking through a shift",
   },
   howLive: {
     src: "/marketing/how-live.jpg",
-    alt: "Bhutanese receptionist welcoming arriving guests",
+    alt: "Receptionist welcoming two arriving guests with luggage",
   },
   segmentLeased: {
     src: "/marketing/segment-leased.jpg",
-    alt: "Multiple boutique hotels on Bhutan hillsides",
+    alt: "A row of mid-rise hotels on a Bhutan town street",
   },
   segmentIndependent: {
     src: "/marketing/segment-independent.jpg",
-    alt: "Independent boutique hotel lodge in a Bhutan valley",
+    alt: "A four-storey independent hotel in a Bhutan valley",
   },
   segmentChain: {
     src: "/marketing/segment-chain.jpg",
-    alt: "Larger resort entrance in the Bhutan mountains",
+    alt: "A larger city hotel with traditional wooden windows",
   },
   kitchenPass: {
     src: "/marketing/kitchen-pass.jpg",
-    alt: "Bhutanese chef plating hotel restaurant cuisine",
+    alt: "Cook in a gho plating at the kitchen pass",
   },
 } as const satisfies Record<string, MarketingMedia>;

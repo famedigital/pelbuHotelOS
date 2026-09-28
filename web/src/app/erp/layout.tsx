@@ -55,7 +55,7 @@ export default async function ErpLayout({
   // /erp/login at the top of the page handler. This keeps the login UI free
   // of the sidebar shell, and avoids a layout redirect-loop. Middleware gates
   // /erp on credential presence as a backstop for a page missing that guard.
-  // POS registers its own app shell, so it must not claim the desk service worker.
+  // POS has its own service worker (pos layout). Do not also register the desk one.
   if (!authed) {
     return (
       <>
@@ -101,11 +101,11 @@ export default async function ErpLayout({
     redirect("/erp");
   }
 
-  if (isPrintSurface || isPosApp) {
+  if (isPrintSurface) {
     return (
       <>
         {children}
-        {isPosApp ? null : <WorkPwaRegistrar />}
+        <WorkPwaRegistrar />
       </>
     );
   }
@@ -146,7 +146,7 @@ export default async function ErpLayout({
       }
     >
       {children}
-      <WorkPwaRegistrar />
+      {isPosApp ? null : <WorkPwaRegistrar />}
     </DeskShell>
   );
 }

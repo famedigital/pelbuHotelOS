@@ -12,6 +12,10 @@ import {
   isDeskGrantKey,
   isDeskModuleKey,
 } from "@/lib/erp/desk-modules";
+import {
+  findStaffPosition,
+  positionDeskAssignment,
+} from "@/lib/hr/positions";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
@@ -292,6 +296,44 @@ export async function upsertStaffMember(
     };
     if (statusRaw) record.status = statusRaw;
 
+    let accessNote = "";
+    const catalogPosition = findStaffPosition(
+      record.department as string | null,
+      record.position_title as string | null,
+    );
+    if (catalogPosition) {
+      const editorRole = await getDeskRole();
+      const canSetAccess = editorRole === "owner" || editorRole === "gm";
+      let targetIsOwner = false;
+      if (id) {
+        const { data: existing } = await admin
+          .from("staff_members")
+          .select("access_level, desk_role")
+          .eq("id", id)
+          .eq("property_id", propertyId)
+          .maybeSingle();
+        targetIsOwner =
+          (existing?.access_level as string | null) === "owner" ||
+          (existing?.desk_role as string | null) === "owner";
+      }
+      if (
+        canSetAccess &&
+        !(targetIsOwner && catalogPosition.accessLevel !== "owner")
+      ) {
+        const assignment = positionDeskAssignment(catalogPosition);
+        record.can_access_desk = assignment.canAccessDesk;
+        record.desk_role = assignment.deskRole;
+        record.access_level = assignment.accessLevel;
+        record.desk_module_keys = assignment.deskModuleKeys;
+        accessNote =
+          assignment.deskModuleKeys != null
+            ? " Desk access set to the full desk."
+            : assignment.canAccessDesk
+              ? " Desk access follows this position."
+              : " Hotel desk left off for this position.";
+      }
+    }
+
     let savedId: string;
     if (id) {
       const { data, error } = await admin
@@ -345,7 +387,7 @@ export async function upsertStaffMember(
     refreshHr(savedId);
     return {
       ok: true,
-      message: id ? "Staff member updated." : "Staff member added.",
+      message: `${id ? "Staff member updated." : "Staff member added."}${accessNote}`,
       staffId: savedId,
     };
   } catch (error) {

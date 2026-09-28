@@ -29,6 +29,15 @@ export const PREP_STATION_ORDER = [
   "cold",
 ] as const;
 
+/** Ready-made counters. No kitchen ticket, no ready/serve. */
+const COUNTER_SERVICE_OUTLETS = new Set(["cafe", "pastry", "bar"]);
+
+export function isCounterServiceOutlet(
+  outlet: string | null | undefined,
+): boolean {
+  return COUNTER_SERVICE_OUTLETS.has((outlet ?? "").trim().toLowerCase());
+}
+
 export const PREP_STATION_LABELS: Record<string, string> = {
   kitchen: "Kitchen",
   bar: "Bar",

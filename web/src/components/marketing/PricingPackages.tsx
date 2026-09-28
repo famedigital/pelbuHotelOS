@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { BlurFade } from "@/components/ui/blur-fade";
-import { NumberTicker } from "@/components/ui/number-ticker";
 import { ShimmerButton } from "@/components/ui/shimmer-button";
 import {
   CATALOG_PACKAGES,
@@ -16,7 +15,9 @@ function BtnTicker({ value, className }: { value: number; className?: string }) 
   return (
     <span className={cn("inline-flex items-baseline gap-1", className)}>
       <span className="text-sm font-sans font-medium text-[var(--muted)]">BTN</span>
-      <NumberTicker value={value} className="font-display tracking-tight text-[var(--sky-ink)]" />
+      <span className="font-display tracking-tight text-[var(--sky-ink)]">
+        {value.toLocaleString("en-BT")}
+      </span>
     </span>
   );
 }

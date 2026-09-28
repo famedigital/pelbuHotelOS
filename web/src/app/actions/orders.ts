@@ -9,6 +9,7 @@ import { isValidThimphuArea } from "@/lib/delivery-areas";
 import { notifyNewOrder } from "@/lib/notify";
 import { loadMenuStockMap } from "@/lib/menu-stock";
 import { isPublicOrderOutlet } from "@/lib/kot-visibility";
+import { isCounterServiceOutlet } from "@/lib/kot";
 import { calculateOrderTotals, withGuestFacingTotal } from "@/lib/pricing";
 import { DEFAULT_PROPERTY_SLUG } from "@/lib/property";
 import { DEFAULT_GST_RATE } from "@/lib/property-settings";
@@ -319,6 +320,7 @@ export async function createOrder(
 
     const nowIso = new Date().toISOString();
     const isRoom = deliveryTypeRaw === "room";
+    const counter = isCounterServiceOutlet(outlet);
 
     // Public room: money settles on folio, kitchen still starts immediately.
     // confirmed_at / payment_recorded_at mark the economic gate for KDS rules.
@@ -338,7 +340,7 @@ export async function createOrder(
         notes,
         status: isRoom ? "preparing" : "received",
         order_source: "public",
-        kot_status: isRoom ? "preparing" : "new",
+        kot_status: counter ? "served" : isRoom ? "preparing" : "new",
         subtotal_btn: subtotalBtn,
         gst_btn: gstBtn,
         total_btn: totalBtn,
@@ -371,6 +373,7 @@ export async function createOrder(
         qty: line.qty,
         unit_price_btn: line.unitPriceBtn,
         gst_applicable: line.gstApplicable,
+        ...(counter ? { kot_status: "served" as const } : {}),
       })),
     );
 

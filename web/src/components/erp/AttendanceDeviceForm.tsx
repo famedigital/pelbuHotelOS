@@ -37,8 +37,17 @@ export function AttendanceDeviceForm() {
         </div>
       </div>
       <div className="space-y-1">
-        <Label htmlFor="external-ref">Vendor device ID (optional)</Label>
-        <Input id="external-ref" name="external_ref" maxLength={100} />
+        <Label htmlFor="external-ref">Clock serial number</Label>
+        <Input
+          id="external-ref"
+          name="external_ref"
+          placeholder="Serial printed on the clock"
+          maxLength={40}
+          autoComplete="off"
+        />
+        <p className="text-xs text-muted-foreground">
+          Required for a network clock. Use the serial number printed on the device.
+        </p>
       </div>
       <Button type="submit" variant="outline">
         Register device
@@ -49,6 +58,10 @@ export function AttendanceDeviceForm() {
       {state.ok && state.deviceId && state.secret ? (
         <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
           <p className="font-medium">{state.message}</p>
+          <p>
+            The serial number is what a network clock uses. This secret is only
+            for a custom system that posts JSON punches.
+          </p>
           <p>
             Device ID: <code className="break-all">{state.deviceId}</code>
           </p>
