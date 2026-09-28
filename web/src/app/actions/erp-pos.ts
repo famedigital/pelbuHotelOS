@@ -7,7 +7,7 @@ import { assertDeskProperty } from "@/lib/desk/property-guard";
 import {
   isDeskAuthenticated,
   requireKotBoardDesk,
-  requireMoneyDesk,
+  requirePosSettleDesk,
   requirePosFireDesk,
 } from "@/lib/desk-auth";
 import { thimphuToday } from "@/lib/erp-lists";
@@ -1549,7 +1549,7 @@ export async function markOrderItemServed(
 }
 
 export async function postOrderToBookingFolio(formData: FormData): Promise<void> {
-  await requireMoneyDesk();
+  await requirePosSettleDesk();
 
   const orderId = trimRequired(formData.get("order_id"), "Order");
   const bookingId = trimRequired(formData.get("booking_id"), "Booking");
@@ -1708,7 +1708,7 @@ export async function postGuestServiceCharge(
   formData: FormData,
 ): Promise<GuestServiceState> {
   try {
-    await requireMoneyDesk();
+    await requirePosSettleDesk();
 
     const bookingId = trimRequired(formData.get("booking_id"), "Booking");
     const kind = trimRequired(formData.get("service_kind"), "Service kind");
@@ -1878,7 +1878,7 @@ export async function postFolioPayment(
   formData: FormData,
 ): Promise<PaymentState> {
   try {
-    await requireMoneyDesk();
+    await requirePosSettleDesk();
 
     const folioId = trimRequired(formData.get("folio_id"), "Folio");
     const method = trimRequired(formData.get("method"), "Payment method");
@@ -2151,7 +2151,7 @@ export async function voidOrder(
   formData: FormData,
 ): Promise<PosActionState> {
   try {
-    await requireMoneyDesk();
+    await requirePosSettleDesk();
     const orderId = trimRequired(formData.get("order_id"), "Order");
     const reasonCode = trimRequired(formData.get("reason_code"), "Reason");
     if (!VOID_REASONS.has(reasonCode)) {
@@ -2265,7 +2265,7 @@ export async function voidOrderItem(
   formData: FormData,
 ): Promise<PosActionState> {
   try {
-    await requireMoneyDesk();
+    await requirePosSettleDesk();
     const orderId = trimRequired(formData.get("order_id"), "Order");
     const itemId = trimRequired(formData.get("order_item_id"), "Order item");
     const reasonCode = trimRequired(formData.get("reason_code"), "Reason");
@@ -2555,7 +2555,7 @@ export async function splitSettle(
   formData: FormData,
 ): Promise<SplitSettleState> {
   try {
-    await requireMoneyDesk();
+    await requirePosSettleDesk();
     const orderId = trimRequired(formData.get("order_id"), "Order");
     const tenders = parseTenders(formData.get("tenders"));
 
@@ -2897,7 +2897,7 @@ export async function recallOrder(
   formData: FormData,
 ): Promise<PosActionState> {
   try {
-    await requireMoneyDesk();
+    await requirePosSettleDesk();
     const orderId = trimRequired(formData.get("order_id"), "Order");
     const admin = createSupabaseAdminClient();
     const property_id = await propertyId(admin);
@@ -3303,7 +3303,7 @@ export async function openPosShift(
   formData: FormData,
 ): Promise<PosShiftState> {
   try {
-    await requireMoneyDesk();
+    await requirePosSettleDesk();
     const openingFloat = Number(formData.get("opening_float_btn") ?? 0);
     if (!Number.isFinite(openingFloat) || openingFloat < 0) {
       throw new Error("Opening float cannot be negative.");
@@ -3348,7 +3348,7 @@ export async function closePosShift(
   formData: FormData,
 ): Promise<PosShiftState> {
   try {
-    await requireMoneyDesk();
+    await requirePosSettleDesk();
     const shiftId = trimRequired(formData.get("shift_id"), "Shift");
     const countedCash = Number(formData.get("counted_cash_btn"));
     if (!Number.isFinite(countedCash) || countedCash < 0) {
@@ -3498,7 +3498,7 @@ export async function recordOnlineOrderPayment(
   formData: FormData,
 ): Promise<ConfirmOrderState> {
   try {
-    await requireMoneyDesk();
+    await requirePosSettleDesk();
     const staff = await getStaffSession();
     const orderId = trimRequired(formData.get("order_id"), "Order");
     const journalNo = trimRequired(

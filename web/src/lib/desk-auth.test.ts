@@ -8,6 +8,7 @@ import {
   mapAccessLevelToDeskRole,
   MONEY_ROLES,
   POS_FIRE_ROLES,
+  POS_SETTLE_ROLES,
   type DeskRole,
 } from "./desk-auth";
 
@@ -60,8 +61,9 @@ describe("requireMoneyDesk role set", () => {
 });
 
 describe("POS fire / kitchen display roles", () => {
-  it("lets waiters send to the kitchen TV but not settle money", () => {
+  it("lets F&B send and settle the register without opening finance", () => {
     assert.equal(isPosFireRole("fnb"), true);
+    assert.equal(POS_SETTLE_ROLES.has("fnb"), true);
     assert.equal(MONEY_ROLES.has("fnb"), false);
   });
 

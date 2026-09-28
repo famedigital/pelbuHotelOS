@@ -59,12 +59,15 @@ import {
   nextCourseNoForTicket,
 } from "@/lib/pos-ticket";
 import {
+  clearPosSaleSession,
   readPosFloorPref,
   readPosLastKind,
   readPosMenuOutletPref,
+  readPosSaleSession,
   writePosFloorPref,
   writePosLastKind,
   writePosMenuOutletPref,
+  writePosSaleSession,
 } from "@/lib/pos-prefs";
 import { TriangleAlertIcon } from "lucide-react";
 import {
@@ -243,6 +246,17 @@ export function PosLayout({
     }
     setLastKindPref(readPosLastKind());
     setMenuOutlet(readPosMenuOutletPref("all"));
+    const saved = readPosSaleSession();
+    if (saved) {
+      setSaleKind(saved.saleKind);
+      setTableId(saved.tableId);
+      setRoomUnitId(saved.roomUnitId);
+      setBookingId(saved.bookingId);
+      setCustomerName(saved.customerName);
+      setSettleMode(saved.settleMode);
+      setAppendOrderId(saved.appendOrderId);
+      setSection(saved.section);
+    }
     setPrefsReady(true);
   }, [defaultOutletCode, posOutlets]);
 
@@ -255,6 +269,34 @@ export function PosLayout({
     if (!prefsReady) return;
     writePosMenuOutletPref(menuOutlet);
   }, [menuOutlet, prefsReady]);
+
+  useEffect(() => {
+    if (!prefsReady) return;
+    if (!saleKind) {
+      clearPosSaleSession();
+      return;
+    }
+    writePosSaleSession({
+      saleKind,
+      tableId,
+      roomUnitId,
+      bookingId,
+      customerName,
+      settleMode,
+      section: section === "floor" ? "floor" : "menu",
+      appendOrderId,
+    });
+  }, [
+    prefsReady,
+    saleKind,
+    tableId,
+    roomUnitId,
+    bookingId,
+    customerName,
+    settleMode,
+    section,
+    appendOrderId,
+  ]);
 
   /** Menu / cart only after context is ready for this sale kind. */
   const saleReady =
@@ -337,6 +379,7 @@ export function PosLayout({
   }
 
   function resetSaleContext() {
+    clearPosSaleSession();
     setSaleKind(null);
     setMenuUnlocked(false);
     setTableId("");
@@ -957,8 +1000,21 @@ export function PosLayout({
     if (!createState.ok || !createState.orderId) return;
     if (kotPrintedRef.current === createState.orderId) return;
     kotPrintedRef.current = createState.orderId;
+    setCart([]);
+    setPromoCode("");
+    const chargedToRoom =
+      createState.settleMode === "room_charge" && Boolean(createState.folioId);
+    if (!chargedToRoom) {
+      setAppendOrderId(createState.orderId);
+      setSection("menu");
+    }
     routeKotPrintOnSend(createState.orderId);
-  }, [createState.ok, createState.orderId]);
+  }, [
+    createState.ok,
+    createState.orderId,
+    createState.settleMode,
+    createState.folioId,
+  ]);
 
   async function handleBarcodeScan(code: string) {
     // Fast path: local sell_barcode
@@ -1055,6 +1111,7 @@ export function PosLayout({
       openTicketsCount={openTickets.length}
       onOpenTickets={() => setTicketsOpen(true)}
       shiftOpen={Boolean(shift)}
+      shiftOpenedBy={shift?.opened_by_name ?? null}
       closingOpenCount={shiftCloseSummary?.openCount ?? 0}
       onOpenHelp={() => setShortcutsOpen(true)}
       cssFullscreen={cssFullscreen}
@@ -1077,62 +1134,6 @@ export function PosLayout({
           shift={null}
           closeSummary={null}
         />
-      </div>
-    );
-  }
-
-  // Success strip — mirrors the legacy "order on the KOT board" state.
-  if (createState.ok && createState.orderId) {
-    return (
-      <div className={shellClass} data-pos-register>
-        {registerChrome}
-        {openTickets.length > 0 ? (
-          <KitchenTicketStrip
-            openTickets={openTickets}
-            onOpenTickets={() => setTicketsOpen(true)}
-            onInvalidate={patchTicketsFromNetwork}
-          />
-        ) : null}
-        <div
-          className="erp rounded-xl border bg-card p-6"
-          role="status"
-          aria-live="polite"
-        >
-          <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-            {createState.settleMode === "room_charge" && createState.folioId
-              ? "Charged to room"
-              : "Ticket saved"}
-          </p>
-          <h2 className="mt-3 text-2xl font-semibold tracking-tight text-foreground">
-            {createState.settleMode === "room_charge" && createState.folioId
-              ? "On the guest folio"
-              : "Order sent to prep"}
-          </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Ref{" "}
-            <span className="font-mono text-foreground">
-              {createState.orderId}
-            </span>
-            {createState.totalBtn != null
-              ? ` · ${formatBtn(createState.totalBtn)}`
-              : ""}
-            {createState.message ? ` · ${createState.message}` : null}
-          </p>
-          <div className="mt-8 flex flex-wrap gap-2">
-            <Button asChild variant="citrus" className="h-11">
-              <a href="/erp/pos">New ticket</a>
-            </Button>
-            {createState.folioId ? (
-              <Button asChild variant="outline" className="h-11">
-                <a href={`/erp/folios/${createState.folioId}`}>Open folio</a>
-              </Button>
-            ) : null}
-            <Button asChild variant="outline" className="h-11">
-              <a href="/erp">Order board</a>
-            </Button>
-          </div>
-        </div>
-        {sharedDialogs}
       </div>
     );
   }

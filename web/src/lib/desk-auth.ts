@@ -238,9 +238,35 @@ export async function requireDeskRole(
   return role;
 }
 
+/**
+ * POS drawer and bill settle. F&B captains take payment on the register.
+ * Folio, finance, and night audit stay on MONEY_ROLES (not F&B).
+ */
+export const POS_SETTLE_ROLES: ReadonlySet<DeskRole> = new Set([
+  ...MONEY_ROLES,
+  "fnb",
+]);
+
 /** Money paths: cashier, front_desk, gm, owner (not hk/kitchen/fnb-only). */
 export async function requireMoneyDesk(): Promise<DeskRole> {
   return requireDeskRole([...MONEY_ROLES]);
+}
+
+/** Open or close the POS drawer, and settle or void a register ticket. */
+export async function requirePosSettleDesk(): Promise<DeskRole> {
+  try {
+    return await requireDeskRole([...POS_SETTLE_ROLES]);
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      err.message === "You do not have permission for this action."
+    ) {
+      throw new Error(
+        "Only F&B, cashier, and front desk can settle a bill or open the POS shift.",
+      );
+    }
+    throw err;
+  }
 }
 
 export function isPosFireRole(role: DeskRole | null | undefined): boolean {

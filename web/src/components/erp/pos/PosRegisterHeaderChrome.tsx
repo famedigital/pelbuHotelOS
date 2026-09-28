@@ -46,6 +46,8 @@ type Props = {
   openTicketsCount: number;
   onOpenTickets: () => void;
   shiftOpen: boolean;
+  /** Who opened the drawer, when a shift is already open. */
+  shiftOpenedBy?: string | null;
   closingOpenCount: number;
   onOpenHelp: () => void;
   cssFullscreen: boolean;
@@ -145,6 +147,7 @@ function RegisterActions({
   openTicketsCount,
   onOpenTickets,
   shiftOpen,
+  shiftOpenedBy,
   closingOpenCount,
   onOpenHelp,
   cssFullscreen,
@@ -158,6 +161,15 @@ function RegisterActions({
   return (
     <>
       {syncChip}
+      {shiftOpen ? (
+        <span
+          className="hidden h-8 shrink-0 items-center gap-1.5 rounded-md border border-emerald-600/30 bg-emerald-500/10 px-2 text-xs font-medium text-emerald-800 sm:inline-flex dark:text-emerald-200"
+          title="A drawer is already open. The open-shift screen shows only when no shift is open."
+        >
+          <span className="size-2 rounded-full bg-emerald-500" />
+          Shift{shiftOpenedBy ? ` · ${shiftOpenedBy}` : " open"}
+        </span>
+      ) : null}
       <Button
         type="button"
         variant="outline"
