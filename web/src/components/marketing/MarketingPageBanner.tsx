@@ -20,7 +20,7 @@ export function MarketingPageBanner({
       <img
         src={media.src}
         alt={media.alt}
-        className="absolute inset-0 h-full w-full object-cover"
+        className="absolute inset-0 h-full w-full object-cover object-[center_22%]"
         fetchPriority="high"
       />
       <div

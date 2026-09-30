@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { MarketingPageBanner } from "@/components/marketing/MarketingPageBanner";
-import { MarketingReveal } from "@/components/marketing/MarketingReveal";
+import { CATALOG_PACKAGES, formatBtn } from "@/lib/pricing-catalog";
 import { MARKETING_MEDIA } from "@/lib/marketing-assets";
 
 export const metadata: Metadata = {
@@ -12,51 +12,40 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
+  const classic = CATALOG_PACKAGES.find((pkg) => pkg.code === "classic");
+  const plus = CATALOG_PACKAGES.find((pkg) => pkg.code === "plus");
+
   return (
     <>
       <MarketingPageBanner
         media={MARKETING_MEDIA.segmentIndependent}
-        title="Independent hotels"
-        description="One building, one desk team — reservations, folio, night audit, and optional POS without spreadsheet chaos."
+        title="One building. One desk."
+        description="Front office, the folio, the housekeeping board, and night audit."
       />
-      <div className="mx-auto max-w-3xl px-6 py-14 md:px-10">
-        <MarketingReveal>
-          <ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground">
-            <li>Front office: arrivals, departures, stay view</li>
-            <li>Folio posting and night audit close</li>
-            <li>Training so the desk can run day one</li>
-          </ul>
-          <div className="mt-10 grid gap-4 sm:grid-cols-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={MARKETING_MEDIA.roomGuest.src}
-              alt={MARKETING_MEDIA.roomGuest.alt}
-              className="aspect-[4/3] w-full rounded-2xl object-cover"
-              loading="lazy"
-            />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={MARKETING_MEDIA.housekeeping.src}
-              alt={MARKETING_MEDIA.housekeeping.alt}
-              className="aspect-[4/3] w-full rounded-2xl object-cover"
-              loading="lazy"
-            />
-          </div>
-          <div className="mt-10 flex flex-wrap gap-3">
-            <Link
-              href="/demo"
-              className="inline-flex h-11 items-center rounded-full bg-cta px-6 text-sm font-semibold"
-            >
-              Book a demo
-            </Link>
-            <Link
-              href="/pricing"
-              className="inline-flex h-11 items-center rounded-full border border-border bg-card px-6 text-sm"
-            >
-              Pricing
-            </Link>
-          </div>
-        </MarketingReveal>
+      <div className="mx-auto max-w-6xl px-6 py-16 md:px-10">
+        <p className="max-w-xl text-lg leading-relaxed">
+          Classic includes the front office, the folio, the housekeeping board,
+          and night audit.
+          {plus ? " Point of sale starts on Plus." : null}
+        </p>
+        {classic ? (
+          <p className="mt-6 max-w-xl text-base text-muted-foreground">
+            Classic, {formatBtn(classic.msrpBtnMo)} a month
+            {classic.roomMax ? `, up to ${classic.roomMax} rooms` : ""}.
+            {plus ? ` Plus, ${formatBtn(plus.msrpBtnMo)} a month, adds POS.` : ""}
+          </p>
+        ) : null}
+        <div className="mt-10 flex flex-wrap gap-6">
+          <Link
+            href="/demo"
+            className="inline-flex h-12 items-center rounded-full bg-cta px-8 text-sm font-semibold"
+          >
+            Book a demo
+          </Link>
+          <Link href="/pricing" className="self-center text-primary">
+            See pricing
+          </Link>
+        </div>
       </div>
     </>
   );

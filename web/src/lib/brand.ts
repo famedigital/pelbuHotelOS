@@ -7,7 +7,7 @@
  * Bump when replacing files under `web/public/icons` so browsers/PWA drop stale caches.
  * Keep in sync with `?v=` on icons in `*.webmanifest` and SW precache lists.
  */
-export const BRAND_ICON_VERSION = "20260916";
+export const BRAND_ICON_VERSION = "20260929";
 
 function iconPath(path: string): string {
   return `${path}?v=${BRAND_ICON_VERSION}`;

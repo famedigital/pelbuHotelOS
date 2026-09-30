@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { MarketingPageBanner } from "@/components/marketing/MarketingPageBanner";
-import { MarketingReveal } from "@/components/marketing/MarketingReveal";
+import { CATALOG_PACKAGES, formatBtn } from "@/lib/pricing-catalog";
 import { MARKETING_MEDIA } from "@/lib/marketing-assets";
 
 export const metadata: Metadata = {
@@ -12,43 +12,37 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
+  const chain = CATALOG_PACKAGES.find((pkg) => pkg.code === "chain");
+
   return (
     <>
       <MarketingPageBanner
         media={MARKETING_MEDIA.segmentChain}
-        title="Chains & brands"
-        description="Shared operating standards across properties with room to grow — each hotel keeps its own rooms, rates, and folios."
+        title="Shared standards. Separate books."
+        description="Each hotel keeps its own rooms, rates, and folios."
       />
-      <div className="mx-auto max-w-3xl px-6 py-14 md:px-10">
-        <MarketingReveal>
-          <div className="overflow-hidden rounded-2xl">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={MARKETING_MEDIA.howTrain.src}
-              alt={MARKETING_MEDIA.howTrain.alt}
-              className="aspect-[16/9] w-full object-cover"
-              loading="lazy"
-            />
-          </div>
-          <p className="mt-8 text-muted-foreground">
-            Chain package starts from a clear floor price — custom quote for
-            larger groups.
+      <div className="mx-auto max-w-6xl px-6 py-16 md:px-10">
+        <p className="max-w-xl text-lg leading-relaxed">
+          A chain runs one way of working, and each property still closes its
+          own night.
+        </p>
+        {chain ? (
+          <p className="mt-6 max-w-xl text-base text-muted-foreground">
+            Floor price {formatBtn(chain.msrpBtnMo)} a month. Larger groups are
+            a custom quote above that.
           </p>
-          <div className="mt-10 flex flex-wrap gap-3">
-            <Link
-              href="/demo"
-              className="inline-flex h-11 items-center rounded-full bg-cta px-6 text-sm font-semibold"
-            >
-              Book a demo
-            </Link>
-            <Link
-              href="/pricing"
-              className="inline-flex h-11 items-center rounded-full border border-border bg-card px-6 text-sm"
-            >
-              See Chain package
-            </Link>
-          </div>
-        </MarketingReveal>
+        ) : null}
+        <div className="mt-10 flex flex-wrap gap-6">
+          <Link
+            href="/demo"
+            className="inline-flex h-12 items-center rounded-full bg-cta px-8 text-sm font-semibold"
+          >
+            Book a demo
+          </Link>
+          <Link href="/pricing" className="self-center text-primary">
+            See pricing
+          </Link>
+        </div>
       </div>
     </>
   );

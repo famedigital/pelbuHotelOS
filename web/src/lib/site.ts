@@ -5,7 +5,7 @@ export const POWERED_BY_LINE = "Powered by Innorahotel.com";
 export const SITE_FULL_NAME = "Innora — hotel software for Bhutan";
 /** Platform blurb — cloud PMS for Bhutan operations. */
 export const SITE_DESCRIPTION =
-  "Hotel software for Bhutan — front desk, folio, POS, and multi-property control. Clear modules, BTN pricing, and local distributor support.";
+  "Hotel software for Bhutan — owner dashboard, general manager dashboard, front desk, folio, and POS. Priced in BTN, on innorahotel.com.";
 
 /** Marketing pages that may be indexed. */
 export const PUBLIC_INDEXABLE_ROUTES = [

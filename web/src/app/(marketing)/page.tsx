@@ -1,8 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { MarketingHero } from "@/components/marketing/MarketingHero";
-import { MarketingReveal } from "@/components/marketing/MarketingReveal";
+import { ProductFrame } from "@/components/marketing/ProductFrame";
 import { MARKETING_MEDIA } from "@/lib/marketing-assets";
+import { CATALOG_PACKAGES } from "@/lib/pricing-catalog";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -11,314 +11,280 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
-const PROOF = [
-  "Front office",
-  "Folio & night audit",
-  "POS / F&B",
-  "Multi-property",
-  "BTN pricing",
-  "DOT / BAFRA-ready",
-];
+const classic = CATALOG_PACKAGES.find((pkg) => pkg.code === "classic");
+const plus = CATALOG_PACKAGES.find((pkg) => pkg.code === "plus");
+const portfolio = CATALOG_PACKAGES.find((pkg) => pkg.code === "portfolio");
+const chain = CATALOG_PACKAGES.find((pkg) => pkg.code === "chain");
 
-const MODULES = [
+const RING = ["Trade", "DOT", "BAFRA", "Agent", "Guide", "Driver", "Supplier"] as const;
+
+const ANSWERS = [
   {
-    title: "Front desk that runs cleanly",
-    body: "Arrivals, room assignment, and guest profiles — hotel-code login so each property stays isolated.",
-    media: MARKETING_MEDIA.staffDesk,
+    problem:
+      "A generic folio cannot keep up. Groups, meal plans, extra beds, and comps change during the stay.",
+    module: "Dynamic folio",
+    answer: "Room, EP or MAP, extras, splits, and comps stay on one bill.",
   },
   {
-    title: "Rooms & folio in one place",
-    body: "Stay view, charges, payments, and night audit close without spreadsheet handoffs.",
-    media: MARKETING_MEDIA.roomGuest,
+    problem: "Guests rarely pay online. Agents run on credit.",
+    module: "Agent credit and the city ledger",
+    answer: "The account is there when there is no online payment.",
   },
   {
-    title: "POS that posts to the room",
-    body: "Restaurant and outlet orders settle to the folio or the counter — F&B built for hotels.",
-    media: MARKETING_MEDIA.foodFnb,
+    problem: "Guides and drivers are part of the arrival, not a normal room sale.",
+    module: "Guide and driver beds",
+    answer: "They are recorded with the group, not lost in a notebook.",
   },
   {
-    title: "Kitchen & outlet service",
-    body: "Plating, pass, and guest dining that connect back to the stay — not a separate island.",
-    media: MARKETING_MEDIA.kitchenPass,
+    problem: "Direct guests are the exception. The book is agents and groups.",
+    module: "Agent and group reservations",
+    answer: "That is the normal way a stay is made.",
   },
   {
-    title: "Ops the team can trust",
-    body: "Housekeeping status, training, and fair-use support in Bhutan business hours.",
-    media: MARKETING_MEDIA.housekeeping,
+    problem:
+      "The kitchen buys vegetables, meat, gas, and groceries from local suppliers, on accounts.",
+    module: "Supplier bills and stores",
+    answer: "Vegetables, meat, gas, and groceries are on the hotel’s accounts.",
+  },
+  {
+    problem: "Trade, DOT, and BAFRA still have to be ready when an inspector comes.",
+    module: "DOT assessment",
+    answer:
+      "The Hotel Classification checklist for Trade, DOT, and BAFRA / BFDA, which is how the desk names the food licence.",
   },
 ] as const;
 
-const HOW = [
+const SCREENS = [
   {
-    step: "01",
-    title: "Onboard",
-    body: "Property setup, rooms, rates, and owner credentials — with your distributor or Fame Digital.",
-    media: MARKETING_MEDIA.howOnboard,
+    id: "desk",
+    title: "Front desk",
+    body: "Who arrives, who leaves, and who is in house.",
+    media: MARKETING_MEDIA.screenToday,
+    url: "app.innorahotel.com/erp/today",
   },
   {
-    step: "02",
-    title: "Train",
-    body: "Desk training so check-in, folio, and night audit are muscle memory before go-live.",
-    media: MARKETING_MEDIA.howTrain,
+    id: "pos",
+    title: "Point of sale",
+    body: "A sale is a table, a room, or the counter. A room charge hits the folio in BTN.",
+    media: MARKETING_MEDIA.screenPos,
+    url: "app.innorahotel.com/erp/pos",
   },
   {
-    step: "03",
-    title: "Go live",
-    body: "Service starts after fees and conditions. Multi-property owners switch hotels without mixing data.",
-    media: MARKETING_MEDIA.howLive,
+    id: "folio",
+    title: "Night audit",
+    body: "Run it last. When it finishes, the business date rolls.",
+    media: MARKETING_MEDIA.screenNight,
+    url: "app.innorahotel.com/erp/night-audit",
   },
 ] as const;
 
-const SEGMENTS: Array<{
-  href: string;
-  label: string;
-  blurb: string;
-  media: (typeof MARKETING_MEDIA)[keyof typeof MARKETING_MEDIA];
-  primary?: boolean;
-}> = [
-  {
-    href: "/for/leased",
-    label: "Leased portfolios",
-    blurb: "One owner, many hotels — the most common Bhutan reality.",
-    media: MARKETING_MEDIA.segmentLeased,
-    primary: true,
-  },
-  {
-    href: "/for/independent",
-    label: "Independent",
-    blurb: "One building, clear desk, night audit without chaos.",
-    media: MARKETING_MEDIA.segmentIndependent,
-  },
-  {
-    href: "/for/chain",
-    label: "Chains",
-    blurb: "Shared standards across properties, room to grow.",
-    media: MARKETING_MEDIA.segmentChain,
-  },
-];
+function btn(amount: number | undefined) {
+  return amount ? `BTN ${amount.toLocaleString("en-BT")}` : "";
+}
 
 export default function MarketingHomePage() {
+  const buyers = [
+    {
+      href: "/for/leased",
+      title: "Leased",
+      price: portfolio ? `${btn(portfolio.msrpBtnMo)} a month per property` : "",
+    },
+    {
+      href: "/for/independent",
+      title: "Independent",
+      price: classic
+        ? `Classic ${btn(classic.msrpBtnMo)} a month${plus ? `. POS from Plus, ${btn(plus.msrpBtnMo)}` : ""}`
+        : "",
+    },
+    {
+      href: "/for/chain",
+      title: "Chain",
+      price: chain ? `From ${btn(chain.msrpBtnMo)} a month` : "",
+    },
+  ];
+
   return (
-    <>
-      <MarketingHero />
-
-      <section className="border-b border-border bg-background px-6 py-6 md:px-10">
-        <div className="mx-auto flex max-w-6xl flex-wrap gap-x-10 gap-y-2">
-          {PROOF.map((item) => (
-            <span
-              key={item}
-              className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase"
+    <div className="bg-background text-foreground">
+      <section id="product" className="mx-auto grid max-w-6xl scroll-mt-28 items-center gap-10 px-6 pb-8 pt-28 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.15fr)] md:px-10 md:pt-32">
+        <div>
+          <h1 className="font-display text-4xl tracking-tight md:text-5xl">
+            Hotel software built for how Bhutan actually sells rooms
+          </h1>
+          <p className="mt-6 text-lg leading-relaxed text-muted-foreground">
+            We spent seventeen years running hotels here. Indian brands, UK
+            brands, and other generic systems assume a simple stay and a guest
+            who pays online. Tourism in Bhutan does not work that way.
+          </p>
+          <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+            A hotel has to work with Trade, DOT, and BAFRA, with travel agents,
+            guides, and drivers, and with suppliers of vegetables, meat, gas,
+            and groceries. Innora was built for that desk, by people from
+            Bhutan, Kerala, and Singapore.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center gap-6">
+            <Link
+              href="/demo"
+              className="inline-flex h-12 items-center rounded-full bg-cta px-8 text-sm font-semibold"
             >
-              {item}
-            </span>
-          ))}
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-6xl px-6 py-24 md:px-10">
-        <MarketingReveal>
-          <p className="text-xs font-semibold tracking-[0.2em] text-primary uppercase">
-            On property
-          </p>
-          <h2 className="mt-3 max-w-2xl font-display text-3xl tracking-tight md:text-4xl">
-            Built around how Bhutan hotels actually run
-          </h2>
-          <p className="mt-4 max-w-2xl text-muted-foreground">
-            Desk, rooms, dining, and housekeeping — photographed on the floor,
-            not as software screenshots.
-          </p>
-        </MarketingReveal>
-
-        <div className="mt-16 space-y-20">
-          {MODULES.map((m, i) => (
-            <MarketingReveal key={m.title} delay={0.05 * (i + 1)}>
-              <div
-                className={`grid items-center gap-10 md:grid-cols-2 md:gap-14 ${
-                  i % 2 === 1 ? "md:[&>*:first-child]:order-2" : ""
-                }`}
-              >
-                <div className="overflow-hidden rounded-2xl">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={m.media.src}
-                    alt={m.media.alt}
-                    className="aspect-[4/3] h-full w-full object-cover"
-                    loading="lazy"
-                  />
-                </div>
-                <div>
-                  <h3 className="font-display text-2xl tracking-tight md:text-3xl">
-                    {m.title}
-                  </h3>
-                  <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-                    {m.body}
-                  </p>
-                </div>
-              </div>
-            </MarketingReveal>
-          ))}
-        </div>
-      </section>
-
-      <section className="relative overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={MARKETING_MEDIA.howLive.src}
-          alt={MARKETING_MEDIA.howLive.alt}
-          className="absolute inset-0 h-full w-full object-cover"
-          loading="lazy"
-        />
-        <div className="absolute inset-0 bg-black/45" />
-        <div className="relative z-10 mx-auto max-w-6xl px-6 py-28 md:px-10 md:py-36">
-          <MarketingReveal>
-            <p className="text-xs font-semibold tracking-[0.2em] text-white/70 uppercase">
-              For Bhutan operators
-            </p>
-            <h2 className="mt-4 max-w-xl font-display text-3xl tracking-tight text-white md:text-4xl">
-              One system for every property you run
-            </h2>
-            <p className="mt-4 max-w-lg text-white/80">
-              Hotel-code multi-tenant, BTN pricing, and local support — without
-              spreadsheet handoffs between desk and night audit.
-            </p>
-          </MarketingReveal>
-        </div>
-      </section>
-
-      <section className="border-y border-border bg-secondary px-6 py-24 md:px-10">
-        <div className="mx-auto max-w-6xl">
-          <MarketingReveal>
-            <p className="text-xs font-semibold tracking-[0.2em] text-primary uppercase">
-              How it works
-            </p>
-            <h2 className="mt-3 font-display text-3xl tracking-tight md:text-4xl">
-              Onboard. Train. Go live.
-            </h2>
-          </MarketingReveal>
-          <div className="mt-14 grid gap-10 md:grid-cols-3">
-            {HOW.map((h, i) => (
-              <MarketingReveal key={h.step} delay={0.06 * (i + 1)}>
-                <div className="overflow-hidden rounded-2xl">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={h.media.src}
-                    alt={h.media.alt}
-                    className="aspect-[16/10] w-full object-cover"
-                    loading="lazy"
-                  />
-                </div>
-                <p className="mt-5 font-mono text-xs tracking-[0.2em] text-primary">
-                  {h.step}
-                </p>
-                <h3 className="mt-3 font-display text-2xl">{h.title}</h3>
-                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                  {h.body}
-                </p>
-              </MarketingReveal>
-            ))}
+              Book a demo
+            </Link>
+            <Link href="/pricing" className="text-primary">
+              See pricing
+            </Link>
           </div>
         </div>
+        <div>
+          <ProductFrame url="app.innorahotel.com">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={MARKETING_MEDIA.screenDesk.src}
+              alt={MARKETING_MEDIA.screenDesk.alt}
+              className="h-auto w-full"
+            />
+          </ProductFrame>
+          <p className="mt-3 text-sm text-muted-foreground">
+            Owner and general manager board. Occupancy, arrivals, and the month.
+          </p>
+        </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-6 py-24 md:px-10">
-        <MarketingReveal>
-          <p className="text-xs font-semibold tracking-[0.2em] text-primary uppercase">
-            Who it is for
-          </p>
-          <h2 className="mt-3 font-display text-3xl tracking-tight md:text-4xl">
-            Independent, leased, or chain
+      <section className="border-y border-border bg-secondary">
+        <div className="mx-auto max-w-6xl px-6 py-12 md:px-10">
+          <h2 className="font-display text-3xl tracking-tight">
+            The hotel sits in the middle of this
           </h2>
-        </MarketingReveal>
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
-          {SEGMENTS.map((s, i) => (
-            <MarketingReveal key={s.href} delay={0.06 * (i + 1)}>
-              <Link
-                href={s.href}
-                className="group block overflow-hidden rounded-2xl border border-border bg-card transition hover:-translate-y-0.5 hover:shadow-md"
+          <ul className="mt-8 grid grid-cols-2 gap-x-8 sm:grid-cols-4 lg:grid-cols-7">
+            {RING.map((name) => (
+              <li key={name} className="border-t-2 border-foreground pt-3 text-sm font-medium">
+                {name}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-6 py-16 md:px-10">
+        <h2 className="font-display text-3xl tracking-tight">The problems</h2>
+        <ol className="mt-10 grid gap-x-12 gap-y-10 md:grid-cols-2">
+          {ANSWERS.map((row, index) => (
+            <li key={row.module} className="border-t border-border pt-4">
+              <span className="font-display text-3xl text-primary">
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <p className="mt-3 max-w-md text-base leading-relaxed">{row.problem}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section id="answers" className="scroll-mt-28 border-y border-border bg-secondary">
+        <div className="mx-auto max-w-6xl px-6 py-16 md:px-10">
+          <h2 className="font-display text-3xl tracking-tight">What answers each one</h2>
+          <ol className="mt-8">
+            {ANSWERS.map((row, index) => (
+              <li
+                key={row.module}
+                className="grid gap-3 border-b border-border py-8 md:grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1.1fr)] md:gap-8"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={s.media.src}
-                  alt={s.media.alt}
-                  className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-[1.03]"
-                  loading="lazy"
-                />
-                <div className="p-6">
-                  <p className="text-xs font-semibold tracking-wider text-primary uppercase">
-                    {s.primary ? "Most common" : "Segment"}
-                  </p>
-                  <h3 className="mt-3 font-display text-xl">{s.label}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">{s.blurb}</p>
+                <span className="font-display text-2xl text-primary">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <div>
+                  <p className="font-display text-2xl tracking-tight">{row.module}</p>
+                  <p className="mt-2 text-base leading-relaxed">{row.answer}</p>
                 </div>
-              </Link>
-            </MarketingReveal>
+                <p className="text-sm leading-relaxed text-muted-foreground md:pt-2">
+                  {row.problem}
+                </p>
+              </li>
+            ))}
+          </ol>
+          <p id="prints" className="mt-8 max-w-2xl scroll-mt-28 text-base leading-relaxed">
+            The same desk prints the day sheet, registration, invoice, receipt,
+            voucher, and kitchen ticket, and holds the rota for front office,
+            housekeeping, food and beverage, maintenance, and management.
+          </p>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-6 py-16 md:px-10">
+        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-5">
+          <h2 className="font-display text-3xl tracking-tight">The product</h2>
+          <p className="max-w-sm text-sm text-muted-foreground">
+            The desk, the charge, and the close of the day.
+          </p>
+        </div>
+        <div className="mt-8 space-y-10">
+          {SCREENS.map((screen, index) => (
+            <div key={screen.id}>
+              {screen.id === "folio" ? (
+                <p className="mb-10 border-y border-border py-4 text-base">
+                  Checkout sits between the room charge and night audit. Late
+                  morning, the stay settles to cash, card, or the agent’s city
+                  ledger.
+                </p>
+              ) : null}
+              <div id={screen.id} className="scroll-mt-28">
+                <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-8 gap-y-1">
+                  <p className="font-display text-2xl tracking-tight">
+                    <span className="mr-3 text-primary">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    {screen.title}
+                  </p>
+                  <p className="max-w-md text-sm text-muted-foreground">{screen.body}</p>
+                </div>
+                <ProductFrame url={screen.url}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={screen.media.src}
+                    alt={screen.media.alt}
+                    className="h-auto w-full"
+                  />
+                </ProductFrame>
+              </div>
+            </div>
           ))}
         </div>
+        <p id="site" className="mt-10 scroll-mt-28 border-t border-border pt-6 text-base">
+          Guests book on the hotel’s own site from the same rooms the desk
+          sells.{" "}
+          <Link href="/demo" className="text-primary">
+            See it on a demo
+          </Link>
+          .
+        </p>
       </section>
 
-      <section className="border-y border-border bg-secondary/80 px-6 py-20 md:px-10">
-        <div className="mx-auto max-w-6xl">
-          <MarketingReveal>
-            <h2 className="font-display text-2xl tracking-tight md:text-3xl">
-              Why Innora
-            </h2>
-            <ul className="mt-8 grid gap-5 text-sm md:grid-cols-2">
-              <li className="border-l-2 border-primary pl-4 text-muted-foreground">
-                <span className="text-foreground">Hotel-code multi-tenant</span>{" "}
-                — each property isolated, owners switch cleanly
-              </li>
-              <li className="border-l-2 border-primary pl-4 text-muted-foreground">
-                <span className="text-foreground">BTN pricing</span> and local
-                distributors — not USD-only SaaS
-              </li>
-              <li className="border-l-2 border-primary pl-4 text-muted-foreground">
-                <span className="text-foreground">Desk + folio + POS</span> in
-                one product, not bolted modules
-              </li>
-              <li className="border-l-2 border-primary pl-4 text-muted-foreground">
-                <span className="text-foreground">DOT / BAFRA-ready</span>{" "}
-                tooling inside the ERP
-              </li>
-            </ul>
-          </MarketingReveal>
-        </div>
-      </section>
-
-      <section className="relative overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={MARKETING_MEDIA.heroLobby.src}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover"
-          loading="lazy"
-          aria-hidden
-        />
-        <div className="absolute inset-0 bg-black/50" />
-        <div className="relative z-10 mx-auto max-w-6xl px-6 py-24 md:px-10">
-          <MarketingReveal>
-            <h2 className="font-display text-3xl tracking-tight text-white md:text-4xl">
-              See Innora on your hotels
-            </h2>
-            <p className="mt-4 max-w-xl text-white/80">
-              Book a walkthrough, or review packages in BTN before you commit.
+      <section className="border-t border-border bg-secondary">
+        <div className="mx-auto max-w-6xl px-6 py-16 md:px-10">
+          <h2 className="font-display text-4xl tracking-tight">
+            {classic ? `Classic, ${btn(classic.msrpBtnMo)} a month` : "Priced in BTN"}
+          </h2>
+          {classic?.roomMax ? (
+            <p className="mt-3 text-muted-foreground">
+              For hotels up to {classic.roomMax} rooms.
             </p>
-            <div className="mt-9 flex flex-wrap gap-3">
-              <Link
-                href="/demo"
-                className="inline-flex h-12 items-center rounded-full bg-cta px-8 text-sm font-semibold transition"
-              >
-                Book a demo
-              </Link>
-              <Link
-                href="/pricing"
-                className="inline-flex h-12 items-center rounded-full border border-white/35 bg-white/10 px-8 text-sm font-medium text-white backdrop-blur transition hover:bg-white/20"
-              >
-                Pricing
-              </Link>
-            </div>
-          </MarketingReveal>
+          ) : null}
+          <div className="mt-10 grid gap-8 md:grid-cols-3">
+            {buyers.map((row) => (
+              <div key={row.href} className="border-t-2 border-foreground pt-4">
+                <p className="font-display text-2xl">{row.title}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{row.price}</p>
+                <Link href={row.href} className="mt-4 inline-block text-primary">
+                  Read more
+                </Link>
+              </div>
+            ))}
+          </div>
+          <Link
+            href="/demo"
+            className="mt-10 inline-flex h-12 items-center rounded-full bg-cta px-8 text-sm font-semibold"
+          >
+            Book a demo
+          </Link>
         </div>
       </section>
-    </>
+    </div>
   );
 }
