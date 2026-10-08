@@ -34,8 +34,9 @@ def parse_statement(
     path: str,
     *,
     bank: BankCode | None = None,
+    password: str | None = None,
 ) -> ParseResult:
-    text = extract_text(path)
+    text = extract_text(path, password)
     code = bank or detect_bank(text)
     if not code:
         raise ValueError(

@@ -100,12 +100,14 @@ export async function POST(request: NextRequest) {
   if (!ok) {
     const attempts = Number(batch.attempt_count ?? 1);
     const max = Number(batch.max_attempts ?? 3);
-    const nextStatus = attempts >= max ? "error" : "queued";
+    const passwordFail = /password/i.test(errorMessage ?? "");
+    const nextStatus = passwordFail || attempts >= max ? "error" : "queued";
     await admin
       .from("finance_import_batches")
       .update({
         status: nextStatus,
         error_message: errorMessage ?? "Worker failed.",
+        source_password: null,
         logs: body.logs ?? batch.logs,
         finished_at: nextStatus === "error" ? new Date().toISOString() : null,
         worker_id: nextStatus === "queued" ? null : batch.worker_id,
@@ -122,6 +124,7 @@ export async function POST(request: NextRequest) {
       .update({
         status: "error",
         error_message: "Parser returned zero rows.",
+        source_password: null,
         logs: body.logs ?? null,
         finished_at: new Date().toISOString(),
       })
@@ -226,6 +229,7 @@ export async function POST(request: NextRequest) {
         raw_output_path: rawPath,
         raw_output: rawOutput,
         error_message: null,
+        source_password: null,
         finished_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -322,6 +326,7 @@ export async function POST(request: NextRequest) {
       raw_output_path: rawPath,
       raw_output: rawOutput,
       error_message: null,
+      source_password: null,
       finished_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })

@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
     parser_label: string | null;
     gemini_model: string | null;
     attempt_count: number;
+    source_password: string | null;
   };
 
   const sourceUrl = await createFinanceSignedPreview(
@@ -142,6 +143,7 @@ export async function POST(request: NextRequest) {
       attempt_count: batch.attempt_count,
       parser_label: batch.parser_label,
       parser_sha256: batch.parser_sha256,
+      pdf_password: batch.source_password,
       // camelCase aliases for TS clients
       propertyId: batch.property_id,
       bankCode: batch.bank_code,

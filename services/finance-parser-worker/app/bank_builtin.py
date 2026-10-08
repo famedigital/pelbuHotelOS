@@ -24,7 +24,11 @@ def parse(input_path: str, context: dict[str, Any]) -> list[dict[str, Any]]:
     else:
         bank = None
 
-    result = parse_statement(input_path, bank=bank)
+    result = parse_statement(
+        input_path,
+        bank=bank,
+        password=context.get("pdf_password") or None,
+    )
     account_no = context.get("account_no") or result.account_label
 
     rows: list[dict[str, Any]] = []

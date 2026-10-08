@@ -1,5 +1,6 @@
 import { requireDeskFinanceApi, geminiIntegrationStatus, jsonError } from "@/lib/finance-import/api-auth";
-import { assertPropertyScopedPath } from "@/lib/finance-import/storage";
+import { pdfNeedsPassword, withoutSourcePassword } from "@/lib/finance-import/pdf-password";
+import { assertPropertyScopedPath, downloadFinanceObject } from "@/lib/finance-import/storage";
 import { writeAuditEvent } from "@/lib/audit";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -21,6 +22,7 @@ export async function GET(request: NextRequest) {
       .eq("property_id", propertyId)
       .maybeSingle();
     if (error || !batch) return jsonError("Batch not found.", 404);
+    const safeBatch = withoutSourcePassword(batch as Record<string, unknown>);
 
     if (batch.kind === "receipt") {
       const { data: rows } = await admin
@@ -28,14 +30,14 @@ export async function GET(request: NextRequest) {
         .select("*")
         .eq("batch_id", id)
         .order("row_no");
-      return NextResponse.json({ batch, rows: rows ?? [] });
+      return NextResponse.json({ batch: safeBatch, rows: rows ?? [] });
     }
     const { data: rows } = await admin
       .from("finance_staged_bank_rows")
       .select("*")
       .eq("batch_id", id)
       .order("row_no");
-    return NextResponse.json({ batch, rows: rows ?? [] });
+    return NextResponse.json({ batch: safeBatch, rows: rows ?? [] });
   }
 
   let q = admin
@@ -70,6 +72,7 @@ export async function POST(request: NextRequest) {
     byteSize?: number;
     parserVersionId?: string | null;
     queue?: boolean;
+    pdfPassword?: string | null;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -96,16 +99,36 @@ export async function POST(request: NextRequest) {
     return jsonError(e instanceof Error ? e.message : "Invalid path.", 403);
   }
 
-  const { data: dup } = await admin
+  const pdfPassword = String(body.pdfPassword ?? "").trim();
+  const isPdf =
+    mimeType === "application/pdf" || fileName.toLowerCase().endsWith(".pdf");
+  if (isPdf) {
+    const bytes = await downloadFinanceObject(admin, storagePath);
+    if (pdfNeedsPassword(bytes) && !pdfPassword) {
+      return NextResponse.json(
+        {
+          needsPassword: true,
+          error: "This PDF is locked. Enter the password.",
+        },
+        { status: 409 },
+      );
+    }
+  }
+
+  const { data: dups } = await admin
     .from("finance_import_batches")
     .select("id, status")
     .eq("property_id", propertyId)
     .eq("kind", kind)
     .eq("source_sha256", sha256)
-    .neq("status", "cancelled")
-    .maybeSingle();
+    .in("status", ["uploaded", "queued", "processing", "review", "committed"])
+    .limit(1);
+  const dup = dups?.[0];
   if (dup?.id) {
-    return jsonError(`This file was already imported (batch ${dup.id}, status ${dup.status}).`, 409);
+    return jsonError(
+      `This file is already on the desk (batch ${dup.id}, status ${dup.status}).`,
+      409,
+    );
   }
 
   let parserScriptId: string | null = null;
@@ -189,6 +212,7 @@ export async function POST(request: NextRequest) {
       parser_version_id: parserVersionId,
       parser_sha256: parserSha,
       parser_label: parserLabel,
+      source_password: pdfPassword || null,
       status: queue ? "queued" : "uploaded",
       gemini_model: geminiModel,
       created_by: "desk",
@@ -210,7 +234,10 @@ export async function POST(request: NextRequest) {
     meta: { kind, sha256, queue },
   });
 
-  return NextResponse.json({ ok: true, batch });
+  return NextResponse.json({
+    ok: true,
+    batch: withoutSourcePassword(batch as Record<string, unknown>),
+  });
 }
 
 async function resolveDefaultParser(

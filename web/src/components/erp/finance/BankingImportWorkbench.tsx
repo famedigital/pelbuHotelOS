@@ -67,6 +67,15 @@ export function BankingImportWorkbench({ payments: _payments, expenses: _expense
   const [error, setError] = useState<string | null>(null);
   const [activeBatch, setActiveBatch] = useState<Batch | null>(null);
   const [rows, setRows] = useState<StagedRow[]>([]);
+  const [needsPassword, setNeedsPassword] = useState(false);
+  const [pdfPassword, setPdfPassword] = useState("");
+  const [pendingFile, setPendingFile] = useState<{
+    path: string;
+    fileName: string;
+    mimeType: string;
+    sha256: string;
+    byteSize: number;
+  } | null>(null);
 
   const loadParsers = useCallback(async () => {
     const res = await fetch("/api/erp/finance/parsers");
@@ -111,10 +120,61 @@ export function BankingImportWorkbench({ payments: _payments, expenses: _expense
     return () => clearInterval(t);
   }, [activeBatch, refreshBatch]);
 
+  async function queueBatch(
+    file: {
+      path: string;
+      fileName: string;
+      mimeType: string;
+      sha256: string;
+      byteSize: number;
+    },
+    password: string,
+  ) {
+    const batchRes = await fetch("/api/erp/finance/batches", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "bank",
+        bankCode,
+        accountLabel: accountLabel || null,
+        storagePath: file.path,
+        fileName: file.fileName,
+        mimeType: file.mimeType,
+        sha256: file.sha256,
+        byteSize: file.byteSize,
+        parserVersionId: parserVersionId || null,
+        pdfPassword: password || null,
+        queue: true,
+      }),
+    });
+    const batchJson = (await batchRes.json()) as {
+      batch?: Batch;
+      error?: string;
+      needsPassword?: boolean;
+    };
+    if (batchJson.needsPassword) {
+      setPendingFile(file);
+      setNeedsPassword(true);
+      setError(null);
+      setMessage("This statement is locked. Enter the PDF password.");
+      return;
+    }
+    if (!batchRes.ok || !batchJson.batch) {
+      throw new Error(batchJson.error ?? "Could not queue batch.");
+    }
+    setNeedsPassword(false);
+    setPdfPassword("");
+    setPendingFile(null);
+    setActiveBatch(batchJson.batch);
+    setMessage(`Queued ${file.fileName} for ${bankCode.toUpperCase()} parsing.`);
+    await refreshBatch(batchJson.batch.id);
+  }
+
   async function startImport(file: File) {
     setBusy(true);
     setError(null);
     setMessage(null);
+    setNeedsPassword(false);
     try {
       const sha = await sha256File(file);
       const signRes = await fetch("/api/erp/finance/upload", {
@@ -142,32 +202,29 @@ export function BankingImportWorkbench({ payments: _payments, expenses: _expense
       });
       if (!put.ok) throw new Error("Storage upload failed.");
 
-      const batchRes = await fetch("/api/erp/finance/batches", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          kind: "bank",
-          bankCode,
-          accountLabel: accountLabel || null,
-          storagePath: signed.path,
+      await queueBatch(
+        {
+          path: signed.path,
           fileName: file.name,
           mimeType: file.type || "application/pdf",
           sha256: sha,
           byteSize: file.size,
-          parserVersionId: parserVersionId || null,
-          queue: true,
-        }),
-      });
-      const batchJson = (await batchRes.json()) as {
-        batch?: Batch;
-        error?: string;
-      };
-      if (!batchRes.ok || !batchJson.batch) {
-        throw new Error(batchJson.error ?? "Could not queue batch.");
-      }
-      setActiveBatch(batchJson.batch);
-      setMessage(`Queued ${file.name} for ${bankCode.toUpperCase()} parsing.`);
-      await refreshBatch(batchJson.batch.id);
+        },
+        "",
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Import failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitPassword() {
+    if (!pendingFile || !pdfPassword.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await queueBatch(pendingFile, pdfPassword.trim());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Import failed.");
     } finally {
@@ -277,6 +334,29 @@ export function BankingImportWorkbench({ payments: _payments, expenses: _expense
             />
           </label>
         </div>
+        {needsPassword ? (
+          <form
+            className="flex flex-wrap items-end gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void submitPassword();
+            }}
+          >
+            <label className="text-sm">
+              PDF password
+              <Input
+                className="mt-1 h-9 w-64"
+                type="password"
+                autoComplete="off"
+                value={pdfPassword}
+                onChange={(e) => setPdfPassword(e.target.value)}
+              />
+            </label>
+            <Button type="submit" size="sm" disabled={busy || !pdfPassword.trim()}>
+              Open statement
+            </Button>
+          </form>
+        ) : null}
         {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
 

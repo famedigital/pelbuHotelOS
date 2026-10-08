@@ -16,6 +16,8 @@ from typing import Any
 import httpx
 
 from app import __version__
+from pelbu_bank_recon.pdf_text import PdfPasswordError
+
 from app.bank_builtin import parse as bank_parse
 from app.contract import validate_parse_output
 from app.gemini_receipt import parse as gemini_receipt_parse
@@ -201,6 +203,7 @@ def run_parser(
         "account_label": batch.get("account_label"),
         "source_filename": batch.get("source_filename"),
         "source_mime": batch.get("source_mime"),
+        "pdf_password": batch.get("pdf_password") or None,
     }
 
     builtin = resolve_builtin_key(batch, parser)
@@ -345,12 +348,24 @@ def process_job(job: dict[str, Any], supabase: Any | None) -> None:
         input_path = download_source(job, supabase, tmp_dir)
         script_source = download_script(job, supabase, tmp_dir)
 
-        rows, parser_logs, errors = run_parser(
-            batch=batch,
-            parser=job.get("parser"),
-            input_path=str(input_path),
-            script_source=script_source,
-        )
+        try:
+            rows, parser_logs, errors = run_parser(
+                batch=batch,
+                parser=job.get("parser"),
+                input_path=str(input_path),
+                script_source=script_source,
+            )
+        except PdfPasswordError as exc:
+            LOG.error("Batch %s needs a PDF password", batch_id)
+            _finish_job(
+                job,
+                supabase,
+                status="error",
+                rows=[],
+                logs=f"worker={_worker_id()} version={__version__}",
+                error_message=str(exc),
+            )
+            return
 
         logs = "\n".join(
             [
