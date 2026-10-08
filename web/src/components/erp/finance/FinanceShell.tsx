@@ -96,7 +96,7 @@ export function FinanceShell({
 
   return (
     <div className="erp mx-auto flex w-full max-w-[1200px] flex-col pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-0">
-      <header className="border-b border-border/80 bg-background md:sticky md:top-14 md:z-20">
+      <header className="border-b border-border/80 bg-background">
         <div className="flex flex-col gap-3 px-4 py-3 md:px-6 md:py-3.5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 flex-1 space-y-1">
@@ -128,36 +128,32 @@ export function FinanceShell({
 
           <nav
             aria-label="Finance sections"
-            className="overflow-x-auto rounded-lg border border-border bg-muted/30"
+            className="flex flex-wrap items-center gap-x-3 gap-y-2"
           >
-            <div className="flex min-w-max items-stretch divide-x divide-border">
-              {(showTax ? [...FINANCE_GROUPS, TAX_GROUP] : FINANCE_GROUPS).map((group) => (
-                <div key={group.label} className="flex flex-col px-2 py-1.5">
-                  <p className="px-2 pb-0.5 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-                    {group.label}
-                  </p>
-                  <div className="flex flex-wrap gap-0.5">
-                    {group.items.map((item) => {
-                      const active = itemActive(pathname, item);
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          className={cn(
-                            "rounded-md px-2.5 py-1 text-sm whitespace-nowrap transition-colors",
-                            active
-                              ? "bg-espresso font-medium text-ivory"
-                              : "text-muted-foreground hover:bg-background hover:text-foreground",
-                          )}
-                        >
-                          {item.label}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
+            {(showTax ? [...FINANCE_GROUPS, TAX_GROUP] : FINANCE_GROUPS).map((group) => (
+              <div key={group.label} className="flex flex-wrap items-center gap-1">
+                <span className="px-1 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                  {group.label}
+                </span>
+                {group.items.map((item) => {
+                  const active = itemActive(pathname, item);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        "rounded-md px-2.5 py-1 text-sm whitespace-nowrap transition-colors",
+                        active
+                          ? "bg-primary font-medium text-primary-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      )}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
           </nav>
         </div>
       </header>
