@@ -418,7 +418,7 @@ export function OpenTicketsDrawer({
           <Button
             asChild
             type="button"
-            variant="citrus"
+            variant="default"
             size="sm"
             className="h-9"
           >
@@ -465,7 +465,7 @@ export function OpenTicketsDrawer({
         {onAddItems && canFireKot && canAddItemsToOpenTicket(t) ? (
           <Button
             type="button"
-            variant="citrus"
+            variant="default"
             size="sm"
             className="h-9"
             disabled={busy}
@@ -503,7 +503,7 @@ export function OpenTicketsDrawer({
             <input type="hidden" name="order_id" value={t.id} />
             <Button
               type="submit"
-              variant="citrus"
+              variant="default"
               size="sm"
               className="h-9"
               disabled={busy}
@@ -760,7 +760,7 @@ export function OpenTicketsDrawer({
                       <input type="hidden" name="order_id" value={t.id} />
                       <Button
                         type="submit"
-                        variant="citrus"
+                        variant="default"
                         size="sm"
                         className="h-9"
                         disabled={busy}
@@ -957,7 +957,7 @@ function TicketGroup({
                     {t.customer_name || "Walk-in"}
                   </p>
                   {t.order_source === "public" ? (
-                    <Badge variant="gold" className="text-[10px]">
+                    <Badge variant="sky" className="text-[11px]">
                       Online
                     </Badge>
                   ) : null}
@@ -1047,7 +1047,7 @@ function TicketGroup({
                 <div className="flex flex-wrap gap-1.5">
                   <Button
                     type="button"
-                    variant="citrus"
+                    variant="default"
                     size="sm"
                     className="h-9"
                     onClick={() => onSettle(t.id)}
@@ -1130,7 +1130,7 @@ function TicketDetail({
                 {ticket.customer_name || "Walk-in"}
               </p>
               {online ? (
-                <Badge variant="gold" className="text-[10px]">
+                <Badge variant="sky" className="text-[11px]">
                   Online
                 </Badge>
               ) : null}
@@ -1236,7 +1236,7 @@ function TicketDetail({
           </select>
           <Button
             type="button"
-            variant="citrus"
+            variant="default"
             className="w-full"
             disabled={!bookingId || postPending}
             onClick={() => onPostToRoom(ticket.id, bookingId)}

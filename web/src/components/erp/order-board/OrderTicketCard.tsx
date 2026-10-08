@@ -72,13 +72,13 @@ export function OrderTicketCard({
               {isOnline ? (
                 <Badge
                   variant="outline"
-                  className="h-5 border-gold/40 bg-gold/10 px-1.5 text-[9px] uppercase text-gold"
+                  className="h-5 border-gold/40 bg-gold/10 px-1.5 text-[11px] uppercase text-gold"
                 >
                   Online
                 </Badge>
               ) : null}
               {needsConfirm ? (
-                <Badge variant="destructive" className="h-5 px-1.5 text-[9px]">
+                <Badge variant="destructive" className="h-5 px-1.5 text-[11px]">
                   Confirm
                 </Badge>
               ) : null}

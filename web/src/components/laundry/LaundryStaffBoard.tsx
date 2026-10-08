@@ -196,7 +196,7 @@ function LaundryTaskCard({
             <StatusForm order={order} />
           )}
           {bags.length ? (
-            <Button asChild variant="citrus" className="min-h-11 w-full">
+            <Button asChild variant="default" className="min-h-11 w-full">
               <Link href={`/staff/laundry/orders/${order.id}/labels`}>
                 <PrinterIcon className="size-4" />
                 Print bag QR
@@ -324,7 +324,7 @@ function ReceiptForm({
       ) : null}
       <Button
         type="submit"
-        variant="citrus"
+        variant="default"
         className="min-h-12 w-full"
         disabled={pending || disabled}
       >

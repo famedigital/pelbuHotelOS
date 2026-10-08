@@ -748,7 +748,7 @@ export function CalendarReservationDialog({
             </Button>
             <Button
               type="submit"
-              variant="citrus"
+              variant="default"
               disabled={
                 pending ||
                 blockCredit ||

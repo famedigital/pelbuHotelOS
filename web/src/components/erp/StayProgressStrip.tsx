@@ -102,7 +102,7 @@ export function StayProgressStrip({
                   <span
                     className={cn(
                       "flex shrink-0 items-center justify-center rounded-full border font-semibold",
-                      dense ? "size-5 text-[9px]" : "size-6 text-[10px]",
+                      dense ? "size-5 text-[11px]" : "size-6 text-[10px]",
                       step.done
                         ? "border-emerald-600 bg-emerald-600 text-white"
                         : viewing || step.current
@@ -202,7 +202,7 @@ export function StayProgressStrip({
                 >
                   <span
                     className={cn(
-                      "flex size-5 items-center justify-center rounded-full border text-[9px] font-semibold sm:size-6 sm:text-[10px]",
+                      "flex size-5 items-center justify-center rounded-full border text-[11px] font-semibold sm:size-6 sm:text-[10px]",
                       step.done
                         ? "border-emerald-600 bg-emerald-600 text-white"
                         : viewing || step.current
@@ -219,7 +219,7 @@ export function StayProgressStrip({
                   </span>
                   <span
                     className={cn(
-                      "max-w-full truncate text-[8px] font-medium leading-tight sm:text-[10px]",
+                      "max-w-full truncate text-[11px] font-medium leading-tight sm:text-[10px]",
                       step.done
                         ? "text-emerald-700 dark:text-emerald-300"
                         : viewing || step.current

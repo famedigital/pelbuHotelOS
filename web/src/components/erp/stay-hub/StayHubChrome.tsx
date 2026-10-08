@@ -102,7 +102,7 @@ function HkStatusChip({
     <Link
       href="/erp/housekeeping"
       className={cn(
-        "inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
+        "inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
         hkChipClass(value),
       )}
       title="Housekeeping"
@@ -161,7 +161,7 @@ export function StayHubHeader(props: StayHubIdentityProps) {
               {backLabel}
             </button>
           ) : (
-            <p className="text-[9px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+            <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
               Edit Transaction
             </p>
           )}
@@ -178,7 +178,7 @@ export function StayHubHeader(props: StayHubIdentityProps) {
               agentName,
             })}
           </p>
-          <p className="truncate text-[9px] text-muted-foreground/80">
+          <p className="truncate text-[11px] text-muted-foreground/80">
             {[
               checkIn && checkOut
                 ? `${checkIn.slice(5)}→${checkOut.slice(5)}`
@@ -230,7 +230,7 @@ export function StayHubHeader(props: StayHubIdentityProps) {
                       ? "maroon"
                       : "secondary"
                 }
-                className="text-[9px]"
+                className="text-[11px]"
               >
                 {a.label}
               </Badge>
@@ -347,7 +347,7 @@ export function StayHubLeftRail({
       {showDue ? (
         <div className="rounded-md border border-maroon/30 bg-maroon/5 px-2 py-1.5">
           <div className="flex items-baseline justify-between gap-2">
-            <p className="text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
+            <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
               Open balance
             </p>
             <p className="text-lg font-semibold tabular-nums tracking-tight text-maroon">
@@ -366,7 +366,7 @@ export function StayHubLeftRail({
       ) : balanceClear ? (
         <div className="rounded-md border bg-background/80 px-2 py-1">
           <div className="flex items-baseline justify-between gap-2">
-            <p className="text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
+            <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
               Balance
             </p>
             <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
@@ -400,7 +400,7 @@ export function StayHubLeftRail({
           )}
         >
           <div className="flex items-center justify-between gap-1">
-            <p className="text-[9px] font-medium tracking-wide text-muted-foreground uppercase">
+            <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
               {amount.pending
                 ? "Price…"
                 : amount.isCustom
@@ -467,7 +467,7 @@ export function StayHubLeftRail({
             <span className="truncate">{backLabel}</span>
           </button>
         ) : (
-          <p className="text-[9px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+          <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
             Edit Transaction
           </p>
         )}
@@ -479,7 +479,7 @@ export function StayHubLeftRail({
           {status ? (
             <Badge
               variant={statusBadgeVariant(status)}
-              className="shrink-0 text-[9px] capitalize"
+              className="shrink-0 text-[11px] capitalize"
             >
               {statusLabel(status)}
             </Badge>
@@ -522,7 +522,7 @@ export function StayHubLeftRail({
               {agentChip ? (
                 <Badge
                   variant={creditOk ? "citrus" : "gold"}
-                  className="shrink-0 text-[9px] capitalize"
+                  className="shrink-0 text-[11px] capitalize"
                 >
                   {agentChip}
                 </Badge>
@@ -554,7 +554,7 @@ export function StayHubLeftRail({
                         ? "maroon"
                         : "secondary"
                   }
-                  className="max-w-full truncate text-[9px]"
+                  className="max-w-full truncate text-[11px]"
                   title={a.label}
                 >
                   {a.label}
@@ -601,7 +601,7 @@ export function StayHubLeftRail({
 
       {/* Steps fill middle; amount stays pinned bottom */}
       <div className="min-h-0 flex-1 overflow-hidden px-1 py-1.5">
-        <p className="mb-0.5 px-2 text-[9px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+        <p className="mb-0.5 px-2 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
           Steps
         </p>
         <StayProgressStrip

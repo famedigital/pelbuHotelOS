@@ -454,7 +454,7 @@ function SuccessSplit({
           </h2>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button asChild variant="citrus" className="h-11">
+          <Button asChild variant="default" className="h-11">
             <a href="/erp/fast-book">Book another</a>
           </Button>
           <Button asChild variant="outline" className="h-11">

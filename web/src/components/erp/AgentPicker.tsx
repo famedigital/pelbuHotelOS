@@ -265,7 +265,7 @@ function CreateDeskAgentSheet({
           <SheetFooter className="mt-0 shrink-0 flex-col gap-2 border-t bg-background px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:flex-row sm:justify-stretch">
             <Button
               type="submit"
-              variant="citrus"
+              variant="default"
               disabled={pending}
               className="h-11 w-full sm:order-2 sm:flex-1"
             >

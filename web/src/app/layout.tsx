@@ -1,26 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Sans, Fraunces, Geist_Mono, Lora } from "next/font/google";
+import { DM_Sans, Geist_Mono } from "next/font/google";
 import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
-import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { BRAND_ICONS } from "@/lib/brand";
 import "./globals.css";
 
 const fontSans = DM_Sans({
   variable: "--font-dm-sans",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const fontDisplay = Fraunces({
-  variable: "--font-fraunces",
-  subsets: ["latin"],
-  display: "swap",
-  axes: ["opsz", "SOFT"],
-});
-
-const fontSerif = Lora({
-  variable: "--font-lora",
   subsets: ["latin"],
   display: "swap",
 });
@@ -102,12 +88,10 @@ export default function RootLayout({
   return (
     <html lang="en" data-theme="ocean-breeze-light" suppressHydrationWarning>
       <body
-        className={`${fontSans.variable} ${fontDisplay.variable} ${fontSerif.variable} ${fontMono.variable} bg-background font-sans text-foreground antialiased`}
+        className={`${fontSans.variable} ${fontMono.variable} bg-background font-sans text-foreground antialiased`}
       >
-        <ThemeProvider>
-          {children}
-          <Toaster position="top-right" richColors closeButton />
-        </ThemeProvider>
+        {children}
+        <Toaster position="top-right" richColors closeButton />
       </body>
     </html>
   );

@@ -140,7 +140,7 @@ export default async function OrderKotPage({ params, searchParams }: Props) {
             </p>
           ) : (
             <p className="mt-1 text-sm text-muted-foreground">
-              Give to kitchen / keep for pass
+              Kitchen slip, then the bar slip when the ticket has drinks
             </p>
           )}
         </div>
@@ -148,16 +148,34 @@ export default async function OrderKotPage({ params, searchParams }: Props) {
           <Button asChild variant="outline" className="h-10">
             <Link href="/erp/pos">Back to POS</Link>
           </Button>
-          <DocPrintControls defaultSize={paper} printLabel="Print KOT" />
+          <DocPrintControls defaultSize={paper} printLabel="Print KOT / BOT" />
         </div>
       </div>
 
-      <PosKotSlip
-        order={data}
-        propertyName={property.name}
-        timezone={property.timezone}
-        darken={darken}
-      />
+      {data.lines.some(
+        (l) => ((l.prepStation ?? "kitchen").trim() || "kitchen") !== "bar",
+      ) ? (
+        <PosKotSlip
+          order={data}
+          propertyName={property.name}
+          timezone={property.timezone}
+          darken={darken}
+          slip="kot"
+        />
+      ) : null}
+      {data.lines.some(
+        (l) => ((l.prepStation ?? "kitchen").trim() || "kitchen") === "bar",
+      ) ? (
+        <div className="print:break-before-page">
+          <PosKotSlip
+            order={data}
+            propertyName={property.name}
+            timezone={property.timezone}
+            darken={darken}
+            slip="bot"
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

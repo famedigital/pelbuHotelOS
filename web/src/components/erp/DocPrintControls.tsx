@@ -63,7 +63,7 @@ export function DocPrintControls({
       </div>
       <Button
         type="button"
-        variant="citrus"
+        variant="default"
         className="h-10"
         onClick={() => window.print()}
       >

@@ -178,7 +178,7 @@ export function ChannelMapForm({ roomTypes }: { roomTypes: RoomTypeOpt[] }) {
         </Label>
         <Input id="external_rate_plan_id" name="external_rate_plan_id" />
       </div>
-      <Button type="submit" variant="citrus" disabled={pending} className="h-10 w-full">
+      <Button type="submit" variant="default" disabled={pending} className="h-10 w-full">
         {pending ? "Saving…" : "Save map"}
       </Button>
       <Flash state={state} />
@@ -292,7 +292,7 @@ export function ChannelQueueActions({ failedCount = 0 }: { failedCount?: number 
         <form action={flushAction}>
           <Button
             type="submit"
-            variant="citrus"
+            variant="default"
             size="sm"
             disabled={flushPending}
             className="h-10 text-xs"

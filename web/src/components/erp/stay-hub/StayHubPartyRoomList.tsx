@@ -191,7 +191,7 @@ export function StayHubPartyRoomList({
           </ul>
         )}
       </div>
-      <p className="shrink-0 border-t border-border/50 px-2 py-1 text-[9px] text-muted-foreground">
+      <p className="shrink-0 border-t border-border/50 px-2 py-1 text-[11px] text-muted-foreground">
         ↑↓ switch rooms · {filtered.length}/{party.members.length}
       </p>
     </aside>

@@ -73,7 +73,7 @@ export function RackStayNotesDialog({
           </Button>
           <Button
             type="button"
-            variant="citrus"
+            variant="default"
             disabled={pending || !bookingId}
             onClick={save}
           >

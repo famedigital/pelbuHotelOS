@@ -757,18 +757,24 @@ export async function confirmCheckIn(
         );
         if (roomResult.posted > 0) {
           chargeNotes.push(`${roomResult.posted} room night(s)`);
-        } else if (roomResult.errors.length > 0) {
-          chargeNotes.push(
-            `room night: ${roomResult.errors.slice(0, 2).join("; ")}`,
-          );
+        } else if (roomResult.errors.length > 0 && roomResult.skipped === 0) {
+          return {
+            ok: false,
+            bookingId,
+            folioId,
+            error: `Guest is checked in, but the day-1 room charge did not post (${roomResult.errors[0]}). Post room charges before collecting.`,
+          };
         } else if (roomResult.skipped > 0) {
           chargeNotes.push("room night already posted");
         }
       } catch (roomErr) {
         console.error("day-1 room night post failed", roomErr);
-        chargeNotes.push(
-          `room night failed: ${roomErr instanceof Error ? roomErr.message : "error"}`,
-        );
+        return {
+          ok: false,
+          bookingId,
+          folioId,
+          error: `Guest is checked in, but the day-1 room charge did not post (${roomErr instanceof Error ? roomErr.message : "error"}). Post room charges before collecting.`,
+        };
       }
     }
 

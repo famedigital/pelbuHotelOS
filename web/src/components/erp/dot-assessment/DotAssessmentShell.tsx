@@ -606,7 +606,7 @@ export function DotAssessmentShell({
   return (
     <div className="relative space-y-4">
       {/* Sticky chrome */}
-      <div className="sticky top-0 z-30 -mx-4 border-b border-border/80 bg-background/90 px-4 py-2.5 shadow-sm backdrop-blur-md md:-mx-6 md:px-6">
+      <div className="sticky top-0 z-30 -mx-4 border-b border-border/80 bg-background px-4 py-2.5 md:-mx-6 md:px-6">
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -990,7 +990,7 @@ export function DotAssessmentShell({
                 if (!items.length) return null;
                 return (
                   <div key={grp.code} className="space-y-2">
-                    <h3 className="sticky top-[7.25rem] z-10 -mx-1 bg-background/90 px-1 py-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase backdrop-blur">
+                    <h3 className="sticky top-[7.25rem] z-10 -mx-1 bg-background px-1 py-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                       {grp.code} · {grp.title}
                     </h3>
                     <div className="space-y-2">
@@ -1080,7 +1080,7 @@ export function DotAssessmentShell({
       )}
 
       {/* Bottom prev / next bar */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 px-3 py-2.5 backdrop-blur-md md:px-6">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background px-3 py-2.5 md:px-6">
         <div className="mx-auto flex max-w-4xl items-center gap-2">
           <Button
             type="button"

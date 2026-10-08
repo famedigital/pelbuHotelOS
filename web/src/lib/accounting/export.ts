@@ -36,7 +36,12 @@ export async function buildWorkbook(opts: {
       ws.views = [{ state: "frozen", ySplit: headerRow.number }];
     }
     for (const row of sheet.rows) {
-      ws.addRow(row.map((cell) => (cell == null ? "" : cell)));
+      const added = ws.addRow(row.map((cell) => (cell == null ? "" : cell)));
+      added.eachCell((cell) => {
+        if (typeof cell.value === "number") cell.numFmt = "#,##0.00";
+      });
+      const label = String(row[0] ?? "");
+      if (label === "Total" || label.startsWith("Total ")) added.font = { bold: true };
     }
     ws.columns.forEach((col) => {
       let max = 10;

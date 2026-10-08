@@ -121,8 +121,30 @@ export function FolioActionsPanel({
   const showPost = bookingCheckedIn && Boolean(bookingId);
   const postOpen = needsDay1 || defaultGroup === "post";
 
+  const postRoom = showPost ? (
+    <RailItem
+      title="Post room charges"
+      subtitle={needsDay1 ? "Do this before collect" : "Missing night only"}
+      defaultOpen={postOpen}
+    >
+      {needsDay1 ? (
+        <PostCheckInChargesForm
+          folioId={folioId}
+          defaultDate={arrivalDate}
+          embedded
+        />
+      ) : null}
+      <PostRoomNightForm
+        folioId={folioId}
+        defaultDate={arrivalDate}
+        embedded
+      />
+    </RailItem>
+  ) : null;
+
   return (
     <div className="space-y-3">
+      {needsDay1 ? postRoom : null}
       {/* —— Primary: always visible —— */}
       <section
         id="folio-collect"
@@ -155,7 +177,12 @@ export function FolioActionsPanel({
           )}
         </div>
 
-        {!hasDue ? (
+        {needsDay1 ? (
+          <p className="text-sm text-foreground">
+            Post the room charge first. Collect stays closed until that line
+            is on the folio.
+          </p>
+        ) : !hasDue ? (
           <p className="text-sm text-foreground">
             Balance due {formatBtn(0)} · Nothing to settle
           </p>
@@ -167,6 +194,7 @@ export function FolioActionsPanel({
           />
         )}
 
+        {needsDay1 ? null : (
         <details className="rounded-lg border border-dashed">
           <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-muted-foreground">
             More payment ways · bank proof, deposit link
@@ -184,6 +212,7 @@ export function FolioActionsPanel({
             />
           </div>
         </details>
+        )}
       </section>
 
       <section
@@ -206,28 +235,7 @@ export function FolioActionsPanel({
         />
       </section>
 
-      {showPost ? (
-        <RailItem
-          title="Post room charges"
-          subtitle={
-            needsDay1 ? "Day-1 needed" : "Missing night only"
-          }
-          defaultOpen={postOpen}
-        >
-          {needsDay1 ? (
-            <PostCheckInChargesForm
-              folioId={folioId}
-              defaultDate={arrivalDate}
-              embedded
-            />
-          ) : null}
-          <PostRoomNightForm
-            folioId={folioId}
-            defaultDate={arrivalDate}
-            embedded
-          />
-        </RailItem>
-      ) : null}
+      {needsDay1 ? null : postRoom}
 
       {/* —— More: collapsed —— */}
       <details

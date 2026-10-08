@@ -29,8 +29,8 @@ export const PREP_STATION_ORDER = [
   "cold",
 ] as const;
 
-/** Ready-made counters. No kitchen ticket, no ready/serve. */
-const COUNTER_SERVICE_OUTLETS = new Set(["cafe", "pastry", "bar"]);
+/** Ready-made counters. No kitchen ticket. Bar fires a BOT. */
+const COUNTER_SERVICE_OUTLETS = new Set(["cafe", "pastry"]);
 
 export function isCounterServiceOutlet(
   outlet: string | null | undefined,

@@ -324,7 +324,7 @@ function StoryImageFields({
                     <XIcon className="size-3.5" aria-hidden />
                   </button>
                   <p
-                    className="truncate px-1 py-0.5 font-mono text-[9px] text-muted-foreground"
+                    className="truncate px-1 py-0.5 font-mono text-[11px] text-muted-foreground"
                     title={id}
                   >
                     {id.split("/").pop()}

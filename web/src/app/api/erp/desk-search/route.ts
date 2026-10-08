@@ -73,14 +73,14 @@ export async function GET(request: Request) {
       )
       .eq("bookings.property_id", propertyId)
       .or(guestOr)
-      .limit(5),
+      .limit(20),
     admin
       .from("room_units")
       .select("id, label, floor_label")
       .eq("property_id", propertyId)
       .ilike("label", pattern)
       .order("label")
-      .limit(5),
+      .limit(20),
     admin
       .from("bookings")
       .select(
@@ -89,7 +89,7 @@ export async function GET(request: Request) {
       .eq("property_id", propertyId)
       .or(bookingOr)
       .order("check_in", { ascending: false })
-      .limit(8),
+      .limit(20),
     admin
       .from("fiscal_documents")
       .select("id, doc_no, folio_id, contact_name")
@@ -97,7 +97,7 @@ export async function GET(request: Request) {
       .eq("doc_kind", "invoice")
       .or(`doc_no.ilike.${safePattern},contact_name.ilike.${safePattern}`)
       .order("created_at", { ascending: false })
-      .limit(5),
+      .limit(20),
     admin
       .from("agents")
       .select("id, company_name, status, contact_phone, market")
@@ -105,7 +105,7 @@ export async function GET(request: Request) {
         `company_name.ilike.${safePattern},contact_phone.ilike.${safePattern},contact_email.ilike.${safePattern},contact_name.ilike.${safePattern}`,
       )
       .order("company_name")
-      .limit(5),
+      .limit(20),
     // Bookings where agent company matches (postgREST filter via nested)
     admin
       .from("bookings")
@@ -115,7 +115,7 @@ export async function GET(request: Request) {
       .eq("property_id", propertyId)
       .ilike("agents.company_name", pattern)
       .order("check_in", { ascending: false })
-      .limit(5),
+      .limit(20),
     admin
       .from("folios")
       .select(
@@ -127,7 +127,7 @@ export async function GET(request: Request) {
           ? `id.eq.${q},label.ilike.${safePattern}`
           : `label.ilike.${safePattern}`,
       )
-      .limit(5),
+      .limit(20),
   ]);
 
   for (const g of guests ?? []) {

@@ -176,7 +176,7 @@ export function ExpenseForm() {
         </Label>
         <Input id="expense_notes" name="notes" />
       </div>
-      <Button type="submit" variant="citrus" disabled={pending} className="h-10 w-full">
+      <Button type="submit" variant="default" disabled={pending} className="h-10 w-full">
         {pending ? "Saving…" : "Save expense"}
       </Button>
       <ActionFlash state={state} />
@@ -375,7 +375,7 @@ export function UnmatchedTxnRow({
         )}
         <Button
           type="submit"
-          variant="citrus"
+          variant="default"
           size="sm"
           disabled={matchPending}
           className="h-10 text-xs"

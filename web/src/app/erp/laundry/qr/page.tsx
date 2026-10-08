@@ -120,7 +120,7 @@ function QrCard({
       <p className="mt-1 text-xs text-neutral-600">
         Verify with your check-in name and room. No guest list is shown.
       </p>
-      <p className="mt-3 break-all font-mono text-[9px] text-neutral-500">
+      <p className="mt-3 break-all font-mono text-[11px] text-neutral-500">
         {url}
       </p>
     </article>

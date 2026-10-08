@@ -618,7 +618,7 @@ export function BuildingWizard({
             <Button type="button" variant="outline" onClick={runPreview}>
               Refresh preview
             </Button>
-            <Button type="submit" disabled={applyPending} variant="citrus">
+            <Button type="submit" disabled={applyPending} variant="default">
               {applyPending
                 ? "Placing…"
                 : "Generate 2D positions (overwrite)"}

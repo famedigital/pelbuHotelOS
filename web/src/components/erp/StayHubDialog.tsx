@@ -790,6 +790,7 @@ export function StayHubDialog({
     (payload: {
       bookingId: string;
       folioId?: string;
+      roomChargeError?: string;
       leadGuest?: {
         fullName?: string;
         passportOrCid?: string;
@@ -890,7 +891,11 @@ export function StayHubDialog({
       );
       setLockHint(null);
       setMessage(null);
-      toast.success("Checked in — print registration, then upload signed card");
+      if (payload.roomChargeError) {
+        setFolioTool("bill");
+      } else {
+        toast.success("Checked in — print registration, then upload signed card");
+      }
 
       startCheckInFollowTransition(async () => {
         const result = await fetchStayHubSummary(id, assignmentId);
@@ -959,8 +964,13 @@ export function StayHubDialog({
           );
         }
         const moneyResult = await fetchStayHubMoney(id);
-        if (moneyResult.ok) setMoney(moneyResult.data);
-        router.refresh();
+        if (moneyResult.ok) {
+          setMoney(moneyResult.data);
+          const hasRoom = moneyResult.data.lines.some(
+            (l) => l.status === "posted" && l.source_type === "room",
+          );
+          if (!hasRoom) setFolioTool("bill");
+        }
       });
     },
     [
@@ -1196,33 +1206,15 @@ export function StayHubDialog({
     const pending = party.members.filter(
       (m) => !summaryCacheRef.current.has(m.bookingId),
     );
-    const run = () => {
-      void Promise.all(
-        pending.slice(0, 3).map(async (m) => {
-          const r = await fetchStayHubSummary(m.bookingId, m.assignmentId);
-          if (cancelled || !r.ok) return;
-          summaryCacheRef.current.set(m.bookingId, r.data);
-        }),
-      );
-    };
-
-    const ric = (
-      window as Window & {
-        requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
-        cancelIdleCallback?: (id: number) => void;
-      }
-    ).requestIdleCallback;
-    if (typeof ric === "function") {
-      const idleId = ric(run, { timeout: 900 });
-      return () => {
-        cancelled = true;
-        window.cancelIdleCallback?.(idleId);
-      };
-    }
-    const t = window.setTimeout(run, 80);
+    void Promise.all(
+      pending.map(async (m) => {
+        const r = await fetchStayHubSummary(m.bookingId, m.assignmentId);
+        if (cancelled || !r.ok) return;
+        summaryCacheRef.current.set(m.bookingId, r.data);
+      }),
+    );
     return () => {
       cancelled = true;
-      window.clearTimeout(t);
     };
   }, [open, party]);
 
@@ -1816,10 +1808,13 @@ export function StayHubDialog({
 
   useEffect(() => {
     const bal = Number(money?.balanceBtn ?? summary?.folioBalance ?? 0);
-    if (bal <= 0.5) {
+    const hasRoom = (money?.lines ?? []).some(
+      (l) => l.status === "posted" && l.source_type === "room",
+    );
+    if (bal <= 0.5 || (summary?.status === "checked_in" && money && !hasRoom)) {
       setFolioTool((t) => (t === "collect" ? "bill" : t));
     }
-  }, [money?.balanceBtn, summary?.folioBalance]);
+  }, [money, summary?.folioBalance, summary?.status]);
 
   const switchPartyRoom = useCallback(
     (nextId: string, nextAssignmentId: string | null) => {
@@ -1936,7 +1931,6 @@ export function StayHubDialog({
 
   const handleClose = () => {
     onOpenChange(false);
-    router.refresh();
   };
 
   const handleUndoCheckIn = () => {
@@ -1978,7 +1972,7 @@ export function StayHubDialog({
 
     if (summary.status === "checked_out") {
       return (
-        <Button asChild variant="citrus" className="min-h-11 flex-1 sm:flex-none">
+        <Button asChild variant="default" className="min-h-11 flex-1 sm:flex-none">
           <Link href="/erp/housekeeping">Send to HK</Link>
         </Button>
       );
@@ -1992,7 +1986,7 @@ export function StayHubDialog({
         return (
           <Button
             asChild
-            variant="citrus"
+            variant="default"
             className="min-h-11 flex-1 sm:flex-none"
           >
             <Link href="/erp/rate-approvals">Open rate approvals</Link>
@@ -2065,7 +2059,7 @@ export function StayHubDialog({
           return (
             <Button
               asChild
-              variant="citrus"
+              variant="default"
               className="min-h-11 flex-1 sm:flex-none"
             >
               <Link href="/erp/rate-approvals">Open rate approvals</Link>
@@ -2115,7 +2109,7 @@ export function StayHubDialog({
           return (
             <Button
               asChild
-              variant="citrus"
+              variant="default"
               className="min-h-11 flex-1 sm:flex-none"
             >
               <Link href="/erp/rate-approvals">Open rate approvals</Link>
@@ -2163,13 +2157,12 @@ export function StayHubDialog({
               disabled={!folioId}
               title={
                 folioId
-                  ? "Open the tax invoice"
+                  ? "Show the folio bill in this stay"
                   : "The tax invoice issues from the folio after check-in"
               }
               onClick={() => {
                 if (!folioId) return;
-                stayHubCtx?.closeStayHub();
-                window.location.assign(`/erp/folios/${folioId}`);
+                openBill();
               }}
             >
               Invoice
@@ -2197,7 +2190,7 @@ export function StayHubDialog({
         return (
           <Button
             type="button"
-            variant="citrus"
+            variant="default"
             className="min-h-11 flex-1 sm:flex-none"
             onClick={() => {
               if (postCheckInOpen || postRegData) {
@@ -2330,7 +2323,7 @@ export function StayHubDialog({
       key: "invoice",
       label: "Invoice (INV-)",
       onSelect: () => {
-        window.open(`/erp/folios/${folioId}`, "_blank", "noopener,noreferrer");
+        openBill();
       },
     });
     const receiptHref = buildFolioPageHref({

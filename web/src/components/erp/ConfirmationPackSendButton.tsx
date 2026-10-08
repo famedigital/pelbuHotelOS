@@ -27,7 +27,7 @@ export function ConfirmationPackSendButton({
       <input type="hidden" name="booking_id" value={bookingId} />
       <Button
         type="submit"
-        variant="citrus"
+        variant="default"
         className="h-11 w-full"
         disabled={pending}
       >

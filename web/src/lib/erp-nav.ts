@@ -85,6 +85,8 @@ export const ERP_NAV_KEYWORDS: Record<string, string[]> = {
   "/erp/menu/print": ["print menu", "menu pdf", "a4 menu", "brochure"],
   "/erp/pos/recipe-cost": ["recipe", "cost", "food cost"],
   "/erp/pos/reports": ["pos reports", "fnb reports", "cashier", "tenders", "item mix"],
+  "/erp/pos/bills": ["pos bills", "receipt", "cash", "qr", "tender"],
+  "/erp/kds/bar": ["bot", "bar", "drinks"],
   "/erp/kitchen": ["kitchen", "kds", "kot", "cook", "chef"],
   "/erp/kitchen/food-cost": ["food cost", "cogs"],
   "/erp/kitchen/day-pack": ["day pack", "flash", "xz", "z report"],
@@ -222,6 +224,7 @@ export const ERP_MODULES: ErpModule[] = [
     tabs: [
       leaf("Register", "/erp/pos", ShoppingCartIcon, undefined, "daily"),
       leaf("Reports", "/erp/pos/reports", ReceiptTextIcon, undefined, "daily"),
+      leaf("Bills", "/erp/pos/bills", ReceiptTextIcon, undefined, "daily"),
       leaf("Menu", "/erp/menu", SoupIcon, undefined, "daily"),
       leaf("Print menu", "/erp/menu/print", ScrollTextIcon),
       leaf("Reservations", "/erp/pos/reservations", CalendarClockIcon),
@@ -236,6 +239,7 @@ export const ERP_MODULES: ErpModule[] = [
       leaf("Labor / covers", "/erp/kitchen/labor", UsersIcon, undefined, "hidden"),
       leaf("Food cost", "/erp/kitchen/food-cost", ReceiptTextIcon, undefined, "hidden"),
       leaf("Kitchen TV", "/erp/kds", MonitorIcon, undefined, "daily"),
+      leaf("Bar BOT", "/erp/kds/bar", MonitorIcon, undefined, "daily"),
     ],
   },
   {
@@ -248,6 +252,7 @@ export const ERP_MODULES: ErpModule[] = [
       leaf("Invoices", "/erp/invoices", ReceiptTextIcon),
       leaf("City Ledger", "/erp/folios", WalletIcon),
       leaf("Night Audit", "/erp/night-audit", ScrollTextIcon),
+      leaf("Statement", "/erp/finance/statement", ScrollTextIcon),
       leaf("Banking", "/erp/finance/banking", CreditCardIcon),
       leaf("Expenses", "/erp/finance/expenses", ReceiptTextIcon),
       leaf("GST", "/erp/finance/gst", ScrollTextIcon),

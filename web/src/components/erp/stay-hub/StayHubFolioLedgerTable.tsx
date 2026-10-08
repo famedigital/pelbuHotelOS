@@ -89,7 +89,7 @@ export function StayHubFolioLedgerTable({
               label === "Balance" && "sm:col-span-1 border-foreground/15",
             )}
           >
-            <p className="text-[9px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+            <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
               {label}
             </p>
             <p

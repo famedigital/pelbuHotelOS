@@ -165,7 +165,7 @@ export function MenuAdminGrid({
           <MenuOutletManager outlets={outlets} />
           <Button
             type="button"
-            variant="citrus"
+            variant="default"
             size="sm"
             className="h-9"
             disabled={activeOutlets.length === 0}
@@ -207,7 +207,7 @@ export function MenuAdminGrid({
           {items.length === 0 ? (
             <Button
               type="button"
-              variant="citrus"
+              variant="default"
               className="mt-6 h-11"
               disabled={activeOutlets.length === 0}
               onClick={() =>
@@ -266,7 +266,7 @@ export function MenuAdminGrid({
                               {item.name}
                             </p>
                             {item.is_popular ? (
-                              <Badge variant="gold" className="text-[9px]">
+                              <Badge variant="gold" className="text-[11px]">
                                 Popular
                               </Badge>
                             ) : null}
@@ -282,7 +282,7 @@ export function MenuAdminGrid({
                       <span className="inline-flex items-center gap-1.5">
                         {outletMeta?.name ?? item.outlet}
                         {archived ? (
-                          <Badge variant="secondary" className="text-[9px]">
+                          <Badge variant="secondary" className="text-[11px]">
                             Archived
                           </Badge>
                         ) : null}

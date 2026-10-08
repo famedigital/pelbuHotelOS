@@ -7,7 +7,7 @@ import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 
 export function MarketingHeader() {
   return (
-    <header className="fixed inset-x-0 top-0 z-30 border-b border-border/60 bg-background/90 px-6 py-3.5 backdrop-blur-md md:px-10">
+    <header className="fixed inset-x-0 top-0 z-30 border-b border-border/60 bg-background px-6 py-3.5 md:px-10">
       <div className="relative mx-auto flex max-w-6xl items-center justify-between gap-4">
         <Link href="/" className="transition-opacity hover:opacity-90">
           <InnoraLogo size="sm" wordmarkClassName="text-foreground" />

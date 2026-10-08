@@ -212,7 +212,7 @@ export function RotaCoverTemplatesEditor({
           <Label htmlFor="ct_notes">Notes</Label>
           <Input id="ct_notes" name="notes" className="h-11" />
         </div>
-        <Button type="submit" variant="citrus" className="h-11" disabled={savePending}>
+        <Button type="submit" variant="default" className="h-11" disabled={savePending}>
           {savePending ? "Saving…" : "Save template"}
         </Button>
         {saveState.error ? (

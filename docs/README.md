@@ -16,6 +16,7 @@ All Pelbu OS docs live in this folder (`C:\GitHub\pelbusuites\docs`).
 | [VERIFICATION.md](VERIFICATION.md) | Automated route/smoke/layout verification (Playwright) |
 | [VERIFICATION-FAULTS.md](VERIFICATION-FAULTS.md) | Agent UAT fault register + advisor findings |
 | [PLATFORM.md](PLATFORM.md) | Architecture, UX north stars, phases |
+| [UI-SYSTEM-MAP.md](UI-SYSTEM-MAP.md) | UI map — custom CSS, shadcn, themes, buttons, component folders |
 | [MULTI-TENANT-WHITELABEL.md](MULTI-TENANT-WHITELABEL.md) | SaaS white-label, DNS/CNAME, Host → property |
 | [BTCL-ADAPTATION.md](BTCL-ADAPTATION.md) | Multi-hotel chain adaptation (BTCL) |
 | [FINANCE-UAT.md](FINANCE-UAT.md) | Period / GST / bank recon / edge journals |

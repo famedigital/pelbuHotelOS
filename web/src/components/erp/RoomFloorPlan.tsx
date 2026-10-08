@@ -313,7 +313,7 @@ export function RoomFloorPlan({
           Departing
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="inline-flex size-3 items-center justify-center rounded-full bg-indigo-600 text-[8px] font-bold text-white">
+          <span className="inline-flex size-3 items-center justify-center rounded-full bg-indigo-600 text-[11px] font-bold text-white">
             #
           </span>{" "}
           Pax
@@ -351,7 +351,7 @@ export function RoomFloorPlan({
               className="pointer-events-none absolute rounded-sm border border-dashed border-sky-500/30 bg-sky-500/5"
               style={structureBandStyle(structure, "front")}
             >
-              <span className="absolute top-1 left-2 text-[9px] font-medium text-sky-800/80 dark:text-sky-200/80">
+              <span className="absolute top-1 left-2 text-[11px] font-medium text-sky-800/80 dark:text-sky-200/80">
                 Front
               </span>
             </div>
@@ -360,7 +360,7 @@ export function RoomFloorPlan({
               className="pointer-events-none absolute rounded-sm border border-dashed border-amber-600/35 bg-amber-500/10"
               style={structureBandStyle(structure, "corridor")}
             >
-              <span className="absolute top-1 left-2 text-[9px] font-medium text-amber-900/80 dark:text-amber-100/80">
+              <span className="absolute top-1 left-2 text-[11px] font-medium text-amber-900/80 dark:text-amber-100/80">
                 Corridor
               </span>
             </div>
@@ -369,7 +369,7 @@ export function RoomFloorPlan({
               className="pointer-events-none absolute rounded-sm border border-dashed border-violet-500/30 bg-violet-500/5"
               style={structureBandStyle(structure, "back")}
             >
-              <span className="absolute top-1 left-2 text-[9px] font-medium text-violet-900/80 dark:text-violet-100/80">
+              <span className="absolute top-1 left-2 text-[11px] font-medium text-violet-900/80 dark:text-violet-100/80">
                 Back
               </span>
             </div>
@@ -410,7 +410,7 @@ export function RoomFloorPlan({
             }}
             onClick={() => setSelectedSpace(space)}
           >
-            <span className="block text-[9px] leading-tight font-semibold">
+            <span className="block text-[11px] leading-tight font-semibold">
               {space.label}
             </span>
           </button>
@@ -456,28 +456,28 @@ export function RoomFloorPlan({
               <span className="flex items-center gap-1 text-sm leading-none font-semibold tracking-tight">
                 {unit.label}
                 {pax != null ? (
-                  <span className="inline-flex min-w-[1rem] items-center justify-center rounded-full bg-black/30 px-1 text-[9px] tabular-nums">
+                  <span className="inline-flex min-w-[1rem] items-center justify-center rounded-full bg-black/30 px-1 text-[11px] tabular-nums">
                     {pax}
                   </span>
                 ) : null}
               </span>
-              <span className="mt-0.5 max-w-[4.5rem] truncate text-[9px] opacity-90">
+              <span className="mt-0.5 max-w-[4.5rem] truncate text-[11px] opacity-90">
                 {unit.room_type_code || unit.room_type_name}
               </span>
               {unit.occupied_tonight && unit.guest_name ? (
-                <span className="mt-0.5 max-w-[5rem] truncate text-[9px] opacity-90">
+                <span className="mt-0.5 max-w-[5rem] truncate text-[11px] opacity-90">
                   {unit.guest_name}
                 </span>
               ) : stay === "vacant" ? (
-                <span className="mt-0.5 text-[9px] opacity-80">Empty</span>
+                <span className="mt-0.5 text-[11px] opacity-80">Empty</span>
               ) : null}
               {unit.has_open_maintenance ? (
-                <span className="mt-0.5 text-[8px] font-semibold uppercase tracking-wide">
+                <span className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide">
                   Maint
                 </span>
               ) : null}
               {unit.photos_missing != null && unit.photos_missing > 0 ? (
-                <span className="mt-0.5 text-[8px] opacity-85">
+                <span className="mt-0.5 text-[11px] opacity-85">
                   {unit.photos_missing} photo gaps
                 </span>
               ) : null}

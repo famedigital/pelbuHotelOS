@@ -121,7 +121,7 @@ export function DeskListShell({
       {filters ? (
         <div
           className={cn(
-            "z-20 border-b border-border/80 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/85 md:px-6",
+            "z-20 border-b border-border/80 bg-background px-4 py-2 md:px-6",
             "md:sticky md:top-0",
           )}
         >

@@ -11,7 +11,8 @@ export type DeskRole =
   | "owner"
   | "fnb"
   | "kitchen"
-  | "laundry";
+  | "laundry"
+  | "accountant";
 
 /** Settle / void / drawer — not waiters or HK. */
 export const MONEY_ROLES: ReadonlySet<DeskRole> = new Set([
@@ -49,6 +50,7 @@ const ALL_DESK_ROLES: ReadonlySet<string> = new Set([
   "fnb",
   "kitchen",
   "laundry",
+  "accountant",
 ]);
 
 export function deskPinConfigured(): boolean {
@@ -189,6 +191,7 @@ export function mapAccessLevelToDeskRole(
   const a = (accessLevel ?? "").toLowerCase();
   if (a === "owner" || a === "gm") return "owner";
   if (a === "hr_admin" || a === "supervisor") return "gm";
+  if (a === "accountant" || a === "accounts") return "accountant";
   if (a === "cashier") return "cashier";
   if (a === "hk" || a === "housekeeping") return "hk";
   if (a === "kitchen") return "kitchen";
@@ -250,6 +253,23 @@ export const POS_SETTLE_ROLES: ReadonlySet<DeskRole> = new Set([
 /** Money paths: cashier, front_desk, gm, owner (not hk/kitchen/fnb-only). */
 export async function requireMoneyDesk(): Promise<DeskRole> {
   return requireDeskRole([...MONEY_ROLES]);
+}
+
+/** Hotel statement classify: money desk plus the accountant. */
+export async function requireStatementDesk(): Promise<DeskRole> {
+  return requireDeskRole([...MONEY_ROLES, "accountant"]);
+}
+
+/** RRCO pack: owner and accountant only. A shared desk PIN (gm) does not qualify. */
+export const TAX_ROLES: ReadonlySet<DeskRole> = new Set(["owner", "accountant"]);
+
+export async function requireTaxDesk(): Promise<DeskRole> {
+  return requireDeskRole(["owner", "accountant"]);
+}
+
+export async function canSeeTaxPack(): Promise<boolean> {
+  const role = await getDeskRole();
+  return role != null && TAX_ROLES.has(role);
 }
 
 /** Open or close the POS drawer, and settle or void a register ticket. */

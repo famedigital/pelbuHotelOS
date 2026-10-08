@@ -3,7 +3,8 @@ import { isCounterServiceOutlet } from "@/lib/kot";
 /**
  * Kitchen vs payment lifecycle for POS tickets.
  * Settlement (paid / folio) does NOT end kitchen work — only kot_status does.
- * Cafe, pastry, and bar are ready-made and never enter the cook board.
+ * Cafe and pastry are ready-made and never enter the cook board.
+ * Bar orders stay visible so the bar lane can print and bump a BOT.
  */
 
 export const KOT_COOK_STATUSES = ["new", "preparing", "ready"] as const;

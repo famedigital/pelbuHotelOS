@@ -164,7 +164,7 @@ export default async function OrderSlipPage({ params }: Props) {
               </div>
               <form action={confirmPublicOrderAction}>
                 <input type="hidden" name="order_id" value={data.orderId} />
-                <Button type="submit" variant="citrus" className="h-10">
+                <Button type="submit" variant="default" className="h-10">
                   Confirm order
                 </Button>
               </form>

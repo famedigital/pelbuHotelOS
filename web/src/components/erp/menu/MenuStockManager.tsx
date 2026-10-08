@@ -321,7 +321,7 @@ export function MenuStockManager({
           {mode !== "finished_good" ? (
             <input type="hidden" name="qty_per_sale" value="1" />
           ) : null}
-          <Button type="submit" variant="citrus" disabled={configurePending}>
+          <Button type="submit" variant="default" disabled={configurePending}>
             {configurePending ? "Saving…" : "Save stock policy"}
           </Button>
         </form>
@@ -399,7 +399,7 @@ export function MenuStockManager({
           </div>
           <Button
             type="submit"
-            variant="citrus"
+            variant="default"
             disabled={receivePending || purchasedItems.length === 0}
           >
             {receivePending ? "Receiving…" : "Receive stock"}

@@ -560,7 +560,7 @@ export default async function ReservationsPage({
       headerAside={
         <Suspense
           fallback={
-            <Button variant="citrus" className="h-11" disabled>
+            <Button variant="default" className="h-11" disabled>
               New reservation
             </Button>
           }

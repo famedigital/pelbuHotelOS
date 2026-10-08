@@ -59,6 +59,7 @@ export function defaultWorkspaceForRole(
     case "owner":
     case "gm":
     case "cashier":
+    case "accountant":
       return "back_office";
     case "front_desk":
     case "hk":

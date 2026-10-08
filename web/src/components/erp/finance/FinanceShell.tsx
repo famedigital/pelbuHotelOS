@@ -21,6 +21,7 @@ const FINANCE_GROUPS: NavGroup[] = [
     label: "Hotel account",
     items: [
       { href: "/erp/finance", label: "Vault", exact: true },
+      { href: "/erp/finance/statement", label: "Statement" },
       { href: "/erp/finance/banking", label: "Banking" },
       { href: "/erp/finance/bank-proofs", label: "Bank proofs" },
     ],
@@ -61,15 +62,30 @@ function itemActive(pathname: string, item: NavItem): boolean {
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
+const TAX_GROUP: NavGroup = {
+  label: "RRCO",
+  items: [
+    { href: "/erp/finance/rrco", label: "Filing", exact: true },
+    { href: "/erp/finance/rrco/recon", label: "Reconcile" },
+    { href: "/erp/finance/rrco/canonical", label: "Canonical" },
+    { href: "/erp/finance/rrco/pnl", label: "P&L" },
+    { href: "/erp/finance/rrco/balance", label: "Balance sheet" },
+    { href: "/erp/finance/rrco/trial", label: "Trial balance" },
+    { href: "/erp/finance/rrco/assessment", label: "Assessment" },
+  ],
+};
+
 export function FinanceShell({
   title,
   description,
   actions,
+  showTax = false,
   children,
 }: {
   title: string;
   description?: string;
   actions?: React.ReactNode;
+  showTax?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -80,7 +96,7 @@ export function FinanceShell({
 
   return (
     <div className="erp mx-auto flex w-full max-w-[1200px] flex-col pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-0">
-      <header className="border-b border-border/80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85 md:sticky md:top-14 md:z-20">
+      <header className="border-b border-border/80 bg-background md:sticky md:top-14 md:z-20">
         <div className="flex flex-col gap-3 px-4 py-3 md:px-6 md:py-3.5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 flex-1 space-y-1">
@@ -115,7 +131,7 @@ export function FinanceShell({
             className="overflow-x-auto rounded-lg border border-border bg-muted/30"
           >
             <div className="flex min-w-max items-stretch divide-x divide-border">
-              {FINANCE_GROUPS.map((group) => (
+              {(showTax ? [...FINANCE_GROUPS, TAX_GROUP] : FINANCE_GROUPS).map((group) => (
                 <div key={group.label} className="flex flex-col px-2 py-1.5">
                   <p className="px-2 pb-0.5 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
                     {group.label}

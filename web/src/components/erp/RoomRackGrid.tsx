@@ -32,6 +32,13 @@ import { RackStayNotesDialog } from "@/components/erp/RackStayNotesDialog";
 import type { FastBookRoomType } from "@/components/erp/FastBookForm";
 import type { BookableStaff } from "@/components/erp/StaffPicker";
 import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -65,7 +72,6 @@ import {
 import { parseISO } from "date-fns";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { toast } from "sonner";
 import {
@@ -690,13 +696,13 @@ function StayHoverCard({
             {stay.group_name &&
             stay.group_room_count &&
             stay.group_room_count > 1 ? (
-              <span className="shrink-0 rounded bg-background/40 px-1 text-[9px] font-medium tabular-nums">
+              <span className="shrink-0 rounded bg-background/40 px-1 text-[11px] font-medium tabular-nums">
                 {stay.group_room_count}rm
               </span>
             ) : null}
             {stay.is_locked ? (
               <span
-                className="ml-auto shrink-0 text-[8px] opacity-80"
+                className="ml-auto shrink-0 text-[11px] opacity-80"
                 aria-label="Assignment locked"
               >
                 ◆
@@ -704,7 +710,7 @@ function StayHoverCard({
             ) : null}
           </span>
           {/* Row 2 — source + flags (like room attr line) */}
-          <span className="flex min-w-0 items-center gap-1 text-[9px] leading-none opacity-90">
+          <span className="flex min-w-0 items-center gap-1 text-[11px] leading-none opacity-90">
             <span
               className="shrink-0 font-mono font-semibold opacity-80"
               title={sourceLabel(stay)}
@@ -743,7 +749,7 @@ function StayHoverCard({
             ) : null}
             {tone.dues ? (
               <span
-                className="shrink-0 rounded-[2px] bg-violet-950/40 px-0.5 text-[8px] font-bold leading-none"
+                className="shrink-0 rounded-[2px] bg-violet-950/40 px-0.5 text-[11px] font-bold leading-none"
                 title={`Dues ${Number(stay.folio_balance ?? 0).toFixed(0)}`}
               >
                 DUE
@@ -751,7 +757,7 @@ function StayHoverCard({
             ) : null}
             {stay.sdf_incomplete ? (
               <span
-                className="shrink-0 rounded-[2px] bg-destructive/90 px-0.5 text-[8px] font-bold leading-none text-destructive-foreground"
+                className="shrink-0 rounded-[2px] bg-destructive/90 px-0.5 text-[11px] font-bold leading-none text-destructive-foreground"
                 title="SDF / passport incomplete"
               >
                 SDF
@@ -947,8 +953,6 @@ export function RoomRackGrid({
   canInstantApproveRates?: boolean;
 }) {
   const router = useRouter();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
   const isMdUp = useMediaQuery("(min-width: 768px)");
   const isLandscape = useMediaQuery("(orientation: landscape)");
   const isShort = useMediaQuery("(max-height: 640px)");
@@ -990,6 +994,7 @@ export function RoomRackGrid({
   const [partySelectMode, setPartySelectMode] = useState(false);
   const [notesStay, setNotesStay] = useState<RackStay | null>(null);
   const [contextStayId, setContextStayId] = useState<string | null>(null);
+  const cellHitRef = useRef<{ unitIdx: number; dayIdx: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearch = useDeferredValue(searchQuery.trim().toLowerCase());
   const [flashStayId, setFlashStayId] = useState<string | null>(null);
@@ -2059,7 +2064,7 @@ export function RoomRackGrid({
                 <span>Violet edge / DUE = open folio balance</span>
               </li>
               <li className="flex items-center gap-2">
-                <span className="rounded-[2px] bg-destructive px-1 text-[9px] font-bold text-white">
+                <span className="rounded-[2px] bg-destructive px-1 text-[11px] font-bold text-white">
                   SDF
                 </span>
                 <span>Passport / SDF incomplete</span>
@@ -2121,14 +2126,14 @@ export function RoomRackGrid({
                     )}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
+                      <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                         {stat.label}
                       </span>
                       <span className={cn("text-sm font-bold tabular-nums", tone.value)}>
                         {stat.percent}%
                       </span>
                     </div>
-                    <div className="mt-0.5 flex gap-2 text-[9px] tabular-nums text-muted-foreground">
+                    <div className="mt-0.5 flex gap-2 text-[11px] tabular-nums text-muted-foreground">
                       <span>B {stat.booked}</span>
                       <span>E {stat.empty}</span>
                     </div>
@@ -2143,7 +2148,7 @@ export function RoomRackGrid({
               })}
               {todayIndex >= 0 ? (
                 <div className="relative min-w-[100px] overflow-hidden rounded-md border border-violet-300 bg-violet-50/80 px-2 py-1 shadow-xs dark:border-violet-800 dark:bg-violet-950/25">
-                  <p className="text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
+                  <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                     Today rooms
                   </p>
                   <p className="text-[10px] tabular-nums text-violet-700 dark:text-violet-300">
@@ -2477,13 +2482,13 @@ export function RoomRackGrid({
                       )}
                       style={{ width: CELL }}
                     >
-                      <span className="text-[9px] text-muted-foreground">
+                      <span className="text-[11px] text-muted-foreground">
                         {h.dow}
                       </span>
                       <span className="text-sm font-semibold tabular-nums leading-none">
                         {h.day}
                       </span>
-                      <span className="text-[9px] text-muted-foreground">
+                      <span className="text-[11px] text-muted-foreground">
                         {h.mon}
                       </span>
                     </div>
@@ -2505,7 +2510,7 @@ export function RoomRackGrid({
               .map((row, sliceIdx) => {
               const rowIdx = (visibleRowRange.start ?? 0) + sliceIdx;
               if (row.kind === "category") {
-                const tint = categoryTint(row.roomTypeId, isDark);
+                const tint = categoryTint(row.roomTypeId, false);
                 const accent = categoryColor(row.roomTypeId);
                 return (
                   <div
@@ -2525,7 +2530,7 @@ export function RoomRackGrid({
                       }}
                     >
                       <span
-                        className="inline-flex shrink-0 items-center rounded px-1 py-0.5 font-mono text-[9px] font-bold text-white"
+                        className="inline-flex shrink-0 items-center rounded px-1 py-0.5 font-mono text-[11px] font-bold text-white"
                         style={{ backgroundColor: accent }}
                       >
                         {row.code}
@@ -2533,7 +2538,7 @@ export function RoomRackGrid({
                       <span
                         className={cn(
                           "truncate text-[10px] font-semibold",
-                          isDark ? "text-foreground/70" : "text-foreground/80",
+                          "text-foreground/80",
                         )}
                       >
                         {row.name}
@@ -2639,11 +2644,11 @@ export function RoomRackGrid({
                           />
                         ) : null}
                       </span>
-                      <span className="min-w-0 truncate pl-2.5 text-[9px] leading-tight text-muted-foreground md:pl-3">
+                      <span className="min-w-0 truncate pl-2.5 text-[11px] leading-tight text-muted-foreground md:pl-3">
                         {unit.room_type_name}
                       </span>
                       {attrLine ? (
-                        <span className="min-w-0 truncate pl-2.5 text-[8px] leading-tight text-muted-foreground/80 md:pl-3">
+                        <span className="min-w-0 truncate pl-2.5 text-[11px] leading-tight text-muted-foreground/80 md:pl-3">
                           {attrLine}
                         </span>
                       ) : null}
@@ -2697,9 +2702,25 @@ export function RoomRackGrid({
                     </div>
                   </div>
 
+                  <ContextMenu>
+                    <ContextMenuTrigger asChild>
                   <div
                     className="relative flex select-none"
                     style={{ width: days.length * CELL, height: ROW_H }}
+                    onContextMenu={(event) => {
+                      if (
+                        (event.target as HTMLElement).closest("[data-stay-id]")
+                      ) {
+                        return;
+                      }
+                      const cell = (event.target as HTMLElement).closest(
+                        "[data-rack-cell]",
+                      );
+                      if (!(cell instanceof HTMLElement)) return;
+                      const dayIdx = Number(cell.dataset.dayIdx);
+                      if (!Number.isFinite(dayIdx)) return;
+                      cellHitRef.current = { unitIdx, dayIdx };
+                    }}
                   >
                     {days.map((day, dayIdx) => {
                       const selected = cellSelected(unitIdx, dayIdx);
@@ -2807,8 +2828,25 @@ export function RoomRackGrid({
                       const left = dayIndex(start, from) * CELL;
                       const width = Math.max(CELL, dayIndex(from, to) * CELL);
                       return (
-                        <div
+                        <ContextMenu
                           key={stay.id}
+                          onOpenChange={(open) => {
+                            if (open) {
+                              setContextStayId(stay.id);
+                              if (
+                                !selectedBookingIds.includes(stay.booking_id) &&
+                                selectedBookingIds.length === 0
+                              ) {
+                                setSelectedBookingIds([stay.booking_id]);
+                                setLastSelectedBookingId(stay.booking_id);
+                              }
+                            } else if (contextStayId === stay.id) {
+                              setContextStayId(null);
+                            }
+                          }}
+                        >
+                        <ContextMenuTrigger asChild>
+                        <div
                           data-stay-id={stay.id}
                           className={cn(
                             "group/stay absolute top-0 z-10 h-full rounded-sm transition-[opacity,box-shadow] duration-200",
@@ -2822,18 +2860,7 @@ export function RoomRackGrid({
                           )}
                           style={{ left: left + 2, width: width - 4 }}
                           onPointerDown={(e) => e.stopPropagation()}
-                          onContextMenu={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setContextStayId(stay.id);
-                            if (
-                              !selectedBookingIds.includes(stay.booking_id) &&
-                              selectedBookingIds.length === 0
-                            ) {
-                              setSelectedBookingIds([stay.booking_id]);
-                              setLastSelectedBookingId(stay.booking_id);
-                            }
-                          }}
+                          onContextMenu={(e) => e.stopPropagation()}
                           draggable={!stay.is_locked}
                           onDragStart={(event) => {
                             event.dataTransfer.effectAllowed = "move";
@@ -2882,55 +2909,39 @@ export function RoomRackGrid({
                               handleStaySelectClick(stay, e)
                             }
                           />
-                          <DropdownMenu
-                            open={contextStayId === stay.id}
-                            onOpenChange={(open) => {
-                              if (!open && contextStayId === stay.id) {
-                                setContextStayId(null);
-                              }
-                            }}
-                          >
-                            <DropdownMenuTrigger asChild>
-                              <button
-                                type="button"
-                                className="sr-only"
-                                aria-label={`Actions for ${stay.contact_name ?? "stay"}`}
-                              >
-                                Stay actions
-                              </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent
-                              align="start"
+                        </div>
+                        </ContextMenuTrigger>
+                          <ContextMenuContent
                               className="erp w-48"
                               onCloseAutoFocus={(e) => e.preventDefault()}
                             >
-                              <DropdownMenuItem
+                              <ContextMenuItem
                                 onSelect={() => {
                                   setContextStayId(null);
                                   openStay(stay);
                                 }}
                               >
                                 Open stay
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
+                              </ContextMenuItem>
+                              <ContextMenuItem
                                 onSelect={() => {
                                   setContextStayId(null);
                                   setNotesStay(stay);
                                 }}
                               >
                                 Edit notes
-                              </DropdownMenuItem>
+                              </ContextMenuItem>
                               {selectedBookingIds.length >= 2 ? (
-                                <DropdownMenuItem
+                                <ContextMenuItem
                                   onSelect={() => {
                                     setContextStayId(null);
                                     linkContextSelection(stay.booking_id);
                                   }}
                                 >
                                   Link as group ({selectedBookingIds.length})
-                                </DropdownMenuItem>
+                                </ContextMenuItem>
                               ) : (
-                                <DropdownMenuItem
+                                <ContextMenuItem
                                   onSelect={() => {
                                     setContextStayId(null);
                                     togglePartyBooking(stay.booking_id);
@@ -2941,14 +2952,14 @@ export function RoomRackGrid({
                                   }}
                                 >
                                   Select for party
-                                </DropdownMenuItem>
+                                </ContextMenuItem>
                               )}
-                              <DropdownMenuSeparator />
+                              <ContextMenuSeparator />
                               {stay.status !== "checked_in" &&
                               stay.status !== "checked_out" &&
                               stay.status !== "cancelled" &&
                               stay.status !== "no_show" ? (
-                                <DropdownMenuItem
+                                <ContextMenuItem
                                   onSelect={() => {
                                     setContextStayId(null);
                                     stayHub?.openStayHub({
@@ -2962,11 +2973,11 @@ export function RoomRackGrid({
                                   }}
                                 >
                                   Check-in
-                                </DropdownMenuItem>
+                                </ContextMenuItem>
                               ) : null}
                               {stay.status === "checked_in" ? (
                                 <>
-                                  <DropdownMenuItem
+                                  <ContextMenuItem
                                     onSelect={() => {
                                       setContextStayId(null);
                                       stayHub?.openStayHub({
@@ -2980,8 +2991,8 @@ export function RoomRackGrid({
                                     }}
                                   >
                                     Folio / settle
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
+                                  </ContextMenuItem>
+                                  <ContextMenuItem
                                     onSelect={() => {
                                       setContextStayId(null);
                                       stayHub?.openStayHub({
@@ -2995,13 +3006,13 @@ export function RoomRackGrid({
                                     }}
                                   >
                                     Check-out
-                                  </DropdownMenuItem>
+                                  </ContextMenuItem>
                                 </>
                               ) : null}
                               {stay.status === "confirmed" ||
                               stay.status === "held" ||
                               stay.status === "pending" ? (
-                                <DropdownMenuItem
+                                <ContextMenuItem
                                   onSelect={() => {
                                     setContextStayId(null);
                                     stayHub?.openStayHub({
@@ -3015,21 +3026,27 @@ export function RoomRackGrid({
                                   }}
                                 >
                                   Amend / details
-                                </DropdownMenuItem>
+                                </ContextMenuItem>
                               ) : null}
-                              <DropdownMenuItem asChild>
-                                <Link href={`/erp/bookings/${stay.booking_id}`}>
-                                  Booking page
-                                </Link>
-                              </DropdownMenuItem>
+                              <ContextMenuItem
+                                onSelect={() => {
+                                  setContextStayId(null);
+                                  router.push(`/erp/bookings/${stay.booking_id}`);
+                                }}
+                              >
+                                Booking page
+                              </ContextMenuItem>
                               {stay.folio_id ? (
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/erp/folios/${stay.folio_id}`}>
-                                    Full folio
-                                  </Link>
-                                </DropdownMenuItem>
+                                <ContextMenuItem
+                                  onSelect={() => {
+                                    setContextStayId(null);
+                                    router.push(`/erp/folios/${stay.folio_id}`);
+                                  }}
+                                >
+                                  Full folio
+                                </ContextMenuItem>
                               ) : null}
-                              <DropdownMenuItem
+                              <ContextMenuItem
                                 onSelect={() => {
                                   void navigator.clipboard?.writeText(
                                     stay.contact_name ?? stay.booking_id,
@@ -3037,13 +3054,33 @@ export function RoomRackGrid({
                                 }}
                               >
                                 Copy guest name
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
+                              </ContextMenuItem>
+                            </ContextMenuContent>
+                        </ContextMenu>
                       );
                     })}
                   </div>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent className="erp w-44">
+                      <ContextMenuItem
+                        onSelect={() => {
+                          const hit = cellHitRef.current;
+                          if (!hit || hit.unitIdx !== unitIdx) return;
+                          openFromSelection({
+                            unitStart: hit.unitIdx,
+                            unitEnd: hit.unitIdx,
+                            dayStart: hit.dayIdx,
+                            dayEnd: hit.dayIdx,
+                          });
+                        }}
+                      >
+                        Walk in
+                      </ContextMenuItem>
+                      <ContextMenuItem onSelect={() => setBlockUnit(unit)}>
+                        Block room
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
                 </div>
               );
             })}

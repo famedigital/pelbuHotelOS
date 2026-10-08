@@ -230,7 +230,7 @@ function PublicWalkInIntake({ catalog }: { catalog: LaundryCatalogItem[] }) {
                   : ""}
               </p>
               {state.payUrl ? (
-                <Button asChild variant="citrus" className="min-h-11 w-full">
+                <Button asChild variant="default" className="min-h-11 w-full">
                   <Link href={state.payUrl}>
                     <CreditCardIcon className="size-4" />
                     Pay by bank transfer
@@ -243,7 +243,7 @@ function PublicWalkInIntake({ catalog }: { catalog: LaundryCatalogItem[] }) {
 
         <Button
           type="submit"
-          variant="citrus"
+          variant="default"
           className="min-h-12 w-full"
           disabled={pending || lines.length === 0 || catalog.length === 0}
         >
@@ -306,7 +306,7 @@ function GuestValidation({ roomPrefill }: { roomPrefill?: string }) {
         </div>
         <Button
           type="submit"
-          variant="citrus"
+          variant="default"
           className="min-h-12 w-full"
           disabled={pending}
         >
@@ -475,7 +475,7 @@ function GuestIntake({
           ) : null}
           <Button
             type="submit"
-            variant="citrus"
+            variant="default"
             className="min-h-12 w-full"
             disabled={pending || lines.length === 0}
           >

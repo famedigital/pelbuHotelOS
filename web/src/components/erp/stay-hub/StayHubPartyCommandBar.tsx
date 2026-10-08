@@ -137,7 +137,7 @@ export function StayHubPartyCommandBar({
           <Button
             type="button"
             size="sm"
-            variant="citrus"
+            variant="default"
             className="h-7 text-[11px]"
             disabled={pending}
             onClick={() => {

@@ -542,7 +542,7 @@ export function MenuItemForm({
               </Button>
               <Button
                 type="submit"
-                variant="citrus"
+                variant="default"
                 disabled={savePending || deletePending}
               >
                 {savePending ? "Saving…" : editing ? "Save changes" : "Add item"}

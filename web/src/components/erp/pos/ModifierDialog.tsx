@@ -439,7 +439,7 @@ export function ModifierDialog({
           >
             Cancel
           </Button>
-          <Button type="button" variant="citrus" onClick={handleConfirm}>
+          <Button type="button" variant="default" onClick={handleConfirm}>
             {target.mode === "edit" ? "Update line" : "Add to ticket"}
           </Button>
         </DialogFooter>

@@ -479,7 +479,7 @@ export function ExpenseWorkbench({ initialRows, vendors = [] }: Props) {
 
       <div className="overflow-auto rounded-md border border-border bg-card">
         <table className="min-w-[1400px] w-full border-collapse text-sm">
-          <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
+          <thead className="sticky top-0 z-10 bg-muted">
             <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
               <th className="w-8 p-2" />
               <th className="sticky left-0 z-20 bg-muted/95 p-2">Receipt</th>

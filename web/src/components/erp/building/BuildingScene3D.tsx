@@ -699,7 +699,7 @@ function MassBox({
             {badge ? (
               <span
                 className={cn(
-                  "rounded px-1 py-0.5 text-[9px] font-bold text-white shadow",
+                  "rounded px-1 py-0.5 text-[11px] font-bold text-white shadow",
                   badgeTone === "danger" ? "bg-rose-700" : "bg-indigo-700",
                 )}
               >

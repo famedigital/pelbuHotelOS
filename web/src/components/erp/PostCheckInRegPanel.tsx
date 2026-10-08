@@ -9,6 +9,7 @@ import {
   type GuestRegistrationPropertyBits,
 } from "@/components/erp/GuestRegistrationCard";
 import { Button } from "@/components/ui/button";
+import { FileDropzone } from "@/components/ui/file-dropzone";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { uploadToCloudinary } from "@/lib/cloudinary-direct-upload";
@@ -18,7 +19,6 @@ import { cn } from "@/lib/utils";
 import {
   CameraIcon,
   CheckCircle2Icon,
-  FileUpIcon,
   Loader2Icon,
   PrinterIcon,
 } from "lucide-react";
@@ -47,7 +47,6 @@ export function PostCheckInRegPanel({
   onCloseStay: () => void;
 }) {
   const cameraRef = useRef<HTMLInputElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -96,7 +95,6 @@ export function PostCheckInRegPanel({
     } finally {
       setBusy(false);
       if (cameraRef.current) cameraRef.current.value = "";
-      if (fileRef.current) fileRef.current.value = "";
     }
   }
 
@@ -146,7 +144,7 @@ export function PostCheckInRegPanel({
         </div>
         <Button
           type="button"
-          variant="citrus"
+          variant="default"
           className="h-11 w-full gap-2"
           onClick={() => {
             setPrinted(true);
@@ -189,44 +187,32 @@ export function PostCheckInRegPanel({
           </p>
         ) : null}
 
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-11 gap-1.5"
-            disabled={busy || savePending}
-            onClick={() => cameraRef.current?.click()}
-          >
-            {busy ? (
-              <Loader2Icon className="size-4 animate-spin" />
-            ) : (
-              <CameraIcon className="size-4" />
-            )}
-            Camera
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="h-11 gap-1.5"
-            disabled={busy || savePending}
-            onClick={() => fileRef.current?.click()}
-          >
-            <FileUpIcon className="size-4" />
-            File / scan
-          </Button>
-        </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 gap-1.5"
+          disabled={busy || savePending}
+          onClick={() => cameraRef.current?.click()}
+        >
+          {busy ? (
+            <Loader2Icon className="size-4 animate-spin" />
+          ) : (
+            <CameraIcon className="size-4" />
+          )}
+          Camera
+        </Button>
+        <FileDropzone
+          accept="image/*,application/pdf"
+          busy={busy || savePending}
+          progress={progress}
+          label="Drop the signed card, or click to choose a photo or PDF"
+          onFile={(file) => void uploadFile(file)}
+        />
         <input
           ref={cameraRef}
           type="file"
           accept="image/*"
           capture="environment"
-          className="sr-only"
-          onChange={(e) => void uploadFile(e.target.files?.[0])}
-        />
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*,application/pdf"
           className="sr-only"
           onChange={(e) => void uploadFile(e.target.files?.[0])}
         />
@@ -245,7 +231,7 @@ export function PostCheckInRegPanel({
       <div className="grid gap-2 sm:grid-cols-2">
         <Button
           type="button"
-          variant="citrus"
+          variant="default"
           className="h-10"
           onClick={onGoFolio}
         >
@@ -289,7 +275,6 @@ export function SignedRegCardUploadStrip({
   className?: string;
 }) {
   const cameraRef = useRef<HTMLInputElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [localId, setLocalId] = useState(regCardPhotoPublicId ?? null);
   const [saveState, saveAction, savePending] = useActionState(
@@ -326,7 +311,6 @@ export function SignedRegCardUploadStrip({
     } finally {
       setBusy(false);
       if (cameraRef.current) cameraRef.current.value = "";
-      if (fileRef.current) fileRef.current.value = "";
     }
   }
 
@@ -387,31 +371,21 @@ export function SignedRegCardUploadStrip({
             <CameraIcon className="size-3.5" />
             {onFile ? "Replace" : "Camera"}
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 gap-1 text-xs"
-            disabled={busy || savePending}
-            onClick={() => fileRef.current?.click()}
-          >
-            <FileUpIcon className="size-3.5" />
-            File
-          </Button>
         </div>
+      </div>
+      <div className="mt-2">
+        <FileDropzone
+          accept="image/*,application/pdf"
+          busy={busy || savePending}
+          label={onFile ? "Drop a new scan to replace" : "Drop signed card, or click to choose"}
+          onFile={(file) => void uploadFile(file)}
+        />
       </div>
       <input
         ref={cameraRef}
         type="file"
         accept="image/*"
         capture="environment"
-        className="sr-only"
-        onChange={(e) => void uploadFile(e.target.files?.[0])}
-      />
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*,application/pdf"
         className="sr-only"
         onChange={(e) => void uploadFile(e.target.files?.[0])}
       />

@@ -15,7 +15,6 @@ import {
 } from "@/app/actions/staff-auth";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { ShimmerButton } from "@/components/ui/shimmer-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -173,16 +172,13 @@ export function StaffLoginForm({
               <AlertDescription>{hotelGate.error}</AlertDescription>
             </Alert>
           ) : null}
-          <ShimmerButton
+          <Button
             type="submit"
             disabled={hotelGatePending}
-            background="var(--citrus-500)"
-            shimmerColor="#082f49"
-            borderRadius="0.5rem"
-            className="h-11 w-full text-sm font-semibold text-[var(--sky-ink)] border-transparent disabled:opacity-60"
+            className="h-11 w-full"
           >
             {hotelGatePending ? "Checking…" : "Continue"}
-          </ShimmerButton>
+          </Button>
         </form>
       );
     }
@@ -280,16 +276,13 @@ export function StaffLoginForm({
             <AlertDescription>{pinState.error}</AlertDescription>
           </Alert>
         ) : null}
-        <ShimmerButton
+        <Button
           type="submit"
           disabled={pinPending || staffLoading || !staffId}
-          background="var(--citrus-500)"
-          shimmerColor="#082f49"
-          borderRadius="0.5rem"
-          className="h-11 w-full text-sm font-semibold text-[var(--sky-ink)] border-transparent disabled:opacity-60"
+          className="h-11 w-full"
         >
           {pinPending ? "Opening…" : "Open desk"}
-        </ShimmerButton>
+        </Button>
       </form>
     );
   }
@@ -321,16 +314,9 @@ export function StaffLoginForm({
             <AlertDescription>{resolveState.error}</AlertDescription>
           </Alert>
         ) : null}
-        <ShimmerButton
-          type="submit"
-          disabled={resolvePending}
-          background="var(--citrus-500)"
-          shimmerColor="#082f49"
-          borderRadius="0.5rem"
-          className="h-11 w-full text-sm font-semibold text-[var(--sky-ink)] border-transparent disabled:opacity-60"
-        >
+        <Button type="submit" disabled={resolvePending} className="h-11 w-full">
           {resolvePending ? "Checking…" : "Continue"}
-        </ShimmerButton>
+        </Button>
       </form>
     );
   }
@@ -393,16 +379,9 @@ export function StaffLoginForm({
           <AlertDescription>{loginState.error}</AlertDescription>
         </Alert>
       ) : null}
-      <ShimmerButton
-        type="submit"
-        disabled={loginPending}
-        background="var(--citrus-500)"
-        shimmerColor="#082f49"
-        borderRadius="0.5rem"
-        className="h-11 w-full text-sm font-semibold text-[var(--sky-ink)] border-transparent disabled:opacity-60"
-      >
+      <Button type="submit" disabled={loginPending} className="h-11 w-full">
         {loginPending ? "Signing in…" : "Sign in"}
-      </ShimmerButton>
+      </Button>
     </form>
   );
 }

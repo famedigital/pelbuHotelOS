@@ -125,7 +125,7 @@ export function OpeningBalanceForm({
           {postState.error ? (
             <p className="mb-2 text-sm text-destructive">{postState.error}</p>
           ) : null}
-          <Button type="submit" variant="citrus" disabled={postPending}>
+          <Button type="submit" variant="default" disabled={postPending}>
             {postPending ? "Posting…" : "Approve & post opening journal"}
           </Button>
         </form>

@@ -6,6 +6,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   buildBalanceSheet,
+  buildGstReport,
   buildProfitAndLoss,
   buildTrialBalance,
 } from "@/lib/accounting/reports";
@@ -41,11 +42,57 @@ export default async function FinanceReportsPage({
   const admin = createSupabaseAdminClient();
   const propertyId = await resolveActivePropertyId(admin);
 
-  const [pnl, trial, balance] = await Promise.all([
-    buildProfitAndLoss(admin, propertyId, from, to),
-    buildTrialBalance(admin, propertyId, from, to),
-    buildBalanceSheet(admin, propertyId, to),
-  ]);
+  const wantGst = report === "gst" || report === "month_pack";
+  const wantIncome = report === "income" || report === "month_pack";
+  const wantExpenses = report === "expenses" || report === "month_pack";
+  const wantJournals = report === "journals" || report === "month_pack";
+
+  const [pnl, trial, balance, gst, incomeRes, expenseRes, journalRes] =
+    await Promise.all([
+      buildProfitAndLoss(admin, propertyId, from, to),
+      buildTrialBalance(admin, propertyId, from, to),
+      buildBalanceSheet(admin, propertyId, to),
+      wantGst
+        ? buildGstReport(admin, propertyId, from, to)
+        : Promise.resolve(null),
+      wantIncome
+        ? admin
+            .from("folio_lines")
+            .select(
+              "created_at, source_type, description, amount_btn, gst_btn, total_btn, status, folios!inner(property_id)",
+            )
+            .eq("folios.property_id", propertyId)
+            .eq("status", "posted")
+            .gte("created_at", `${from}T00:00:00+06:00`)
+            .lte("created_at", `${to}T23:59:59.999+06:00`)
+            .order("created_at")
+            .limit(2000)
+        : Promise.resolve({ data: null }),
+      wantExpenses
+        ? admin
+            .from("expenses")
+            .select(
+              "expense_date, category, description, amount_btn, gst_btn, payment_method, vendor",
+            )
+            .eq("property_id", propertyId)
+            .gte("expense_date", from)
+            .lte("expense_date", to)
+            .order("expense_date")
+            .limit(2000)
+        : Promise.resolve({ data: null }),
+      wantJournals
+        ? admin
+            .from("accounting_journals")
+            .select(
+              "journal_no, journal_date, journal_kind, status, memo, accounting_journal_lines(debit_btn, credit_btn, description, accounting_accounts(code, name))",
+            )
+            .eq("property_id", propertyId)
+            .gte("journal_date", from)
+            .lte("journal_date", to)
+            .order("journal_date")
+            .limit(500)
+        : Promise.resolve({ data: null }),
+    ]);
 
   const reports = [
     { id: "pnl", label: "Profit & loss" },
@@ -198,6 +245,118 @@ export default async function FinanceReportsPage({
                 ))}
               </tbody>
             </table>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {gst ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">GST</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <p>Output {formatBtn(gst.output)}</p>
+            <p>Input {formatBtn(gst.input)}</p>
+            <p className="font-medium">Net payable {formatBtn(gst.netPayable)}</p>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {incomeRes.data ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Income register</CardTitle>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <p className="mb-2 text-xs text-muted-foreground">
+              Posted folio lines in this range
+              {incomeRes.data.length === 2000
+                ? " · first 2,000 lines — narrow the dates or export Excel for the rest"
+                : ""}
+              .
+            </p>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs text-muted-foreground">
+                  <th className="py-2 pr-3">Date</th>
+                  <th className="py-2 pr-3">Source</th>
+                  <th className="py-2 pr-3">Description</th>
+                  <th className="py-2 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {incomeRes.data.map((line, i) => (
+                  <tr key={i} className="border-b last:border-0">
+                    <td className="py-2 pr-3">
+                      {String(line.created_at).slice(0, 10)}
+                    </td>
+                    <td className="py-2 pr-3">{String(line.source_type ?? "")}</td>
+                    <td className="py-2 pr-3">{String(line.description ?? "")}</td>
+                    <td className="py-2 text-right tabular-nums">
+                      {formatBtn(Number(line.total_btn ?? 0))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {expenseRes.data ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Expense register</CardTitle>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs text-muted-foreground">
+                  <th className="py-2 pr-3">Date</th>
+                  <th className="py-2 pr-3">Category</th>
+                  <th className="py-2 pr-3">Description</th>
+                  <th className="py-2 text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {expenseRes.data.map((row, i) => (
+                  <tr key={i} className="border-b last:border-0">
+                    <td className="py-2 pr-3">{String(row.expense_date)}</td>
+                    <td className="py-2 pr-3">{String(row.category ?? "")}</td>
+                    <td className="py-2 pr-3">{String(row.description ?? "")}</td>
+                    <td className="py-2 text-right tabular-nums">
+                      {formatBtn(Number(row.amount_btn ?? 0))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {journalRes.data ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Journal register</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {journalRes.data.length === 500 ? (
+              <p className="text-xs text-muted-foreground">
+                First 500 journals in this range. Narrow the dates or export Excel for the rest.
+              </p>
+            ) : null}
+            {journalRes.data.map((journal) => (
+              <div key={String(journal.journal_no)} className="border-b pb-2 text-sm last:border-0">
+                <p className="font-medium">
+                  {String(journal.journal_no)} · {String(journal.journal_date)} ·{" "}
+                  {String(journal.journal_kind)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {String(journal.memo ?? journal.status ?? "")}
+                </p>
+              </div>
+            ))}
           </CardContent>
         </Card>
       ) : null}

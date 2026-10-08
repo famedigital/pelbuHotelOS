@@ -1,28 +1,14 @@
-"use client";
-
 import type { ReactNode } from "react";
-import { BlurFade } from "@/components/ui/blur-fade";
 
-/** Subtle ERP entrance — once, small offset, short blur. */
+/** Desk entrance wrapper. Renders immediately — no motion on the desk path. */
 export function DeskBlurFade({
   children,
-  delay = 0,
   className,
 }: {
   children: ReactNode;
+  /** Kept so existing call sites stay valid. Ignored. */
   delay?: number;
   className?: string;
 }) {
-  return (
-    <BlurFade
-      delay={delay}
-      duration={0.35}
-      offset={4}
-      blur="4px"
-      direction="up"
-      className={className}
-    >
-      {children}
-    </BlurFade>
-  );
+  return <div className={className}>{children}</div>;
 }

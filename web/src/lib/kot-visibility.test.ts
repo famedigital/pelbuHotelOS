@@ -26,10 +26,11 @@ describe("isKitchenBoardVisible", () => {
     );
   });
 
-  it("hides ready-made cafe, pastry, and bar", () => {
-    for (const outlet of ["cafe", "pastry", "bar"]) {
+  it("hides ready-made cafe and pastry, and shows the bar", () => {
+    for (const outlet of ["cafe", "pastry"]) {
       assert.equal(isKitchenBoardVisible({ ...base, outlet }), false);
     }
+    assert.equal(isKitchenBoardVisible({ ...base, outlet: "bar" }), true);
     assert.equal(
       isKitchenBoardVisible({ ...base, outlet: "restaurant" }),
       true,

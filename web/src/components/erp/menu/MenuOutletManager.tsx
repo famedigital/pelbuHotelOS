@@ -145,7 +145,7 @@ export function MenuOutletManager({
             </div>
             <Button
               type="submit"
-              variant="citrus"
+              variant="default"
               size="sm"
               className="h-9"
               disabled={pending}

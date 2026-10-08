@@ -32,7 +32,7 @@ export function MenuPrintToolbar({
         </Button>
         <Button
           type="button"
-          variant="citrus"
+          variant="default"
           size="sm"
           onClick={() => window.print()}
         >

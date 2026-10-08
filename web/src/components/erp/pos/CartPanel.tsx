@@ -46,7 +46,7 @@ type Props = {
   idPrefix: string;
   /** HK/laundry cannot fire tickets onto the kitchen display. */
   canFireKot?: boolean;
-  /** Cafe, pastry, and bar save the ticket. They do not send a kitchen slip. */
+  /** Cafe and pastry save the ticket. They do not send a kitchen slip. Bar sends a BOT. */
   outlet?: string | null;
   /** When set, Send appends this course onto the open ticket (park hidden). */
   appendCourseNo?: number;
@@ -446,7 +446,7 @@ export function CartPanel({
                 type="submit"
                 name="is_parked"
                 value="0"
-                variant="citrus"
+                variant="default"
                 size="lg"
                 disabled={pending || cart.length === 0}
                 className="w-full"

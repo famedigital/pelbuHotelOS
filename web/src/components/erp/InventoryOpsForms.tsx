@@ -216,7 +216,7 @@ export function InventoryReceiveForm({
         </Label>
         <Input id="recv_ref" name="reference" placeholder="Invoice #, vendor…" />
       </div>
-      <Button type="submit" variant="citrus" disabled={pending} className="h-10 w-full">
+      <Button type="submit" variant="default" disabled={pending} className="h-10 w-full">
         {pending ? "Posting…" : "Post receive"}
       </Button>
       <ActionFlash state={state} />

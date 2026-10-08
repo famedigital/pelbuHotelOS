@@ -1,4 +1,8 @@
 import { BookingLifecycleActions } from "@/components/erp/BookingLifecycleActions";
+import {
+  HorizonOccupancyChart,
+  MonthRoomsChart,
+} from "@/components/erp/ForecastCharts";
 import { DeskBlurFade } from "@/components/erp/DeskBlurFade";
 import { DeskMetricTicker } from "@/components/erp/DeskMetricTicker";
 import { DeskLiveRefresh } from "@/components/erp/DeskLiveRefresh";
@@ -145,18 +149,6 @@ function GuestForecastPanel({
     const d = new Date(`${iso}T12:00:00Z`);
     return wd[d.getUTCDay()] ?? "";
   }
-  const inventory = Math.max(1, f.totalRooms);
-  const maxRoom = Math.max(
-    inventory,
-    ...f.weekly.map((d) => d.rooms),
-    ...f.monthly.map((d) => d.rooms),
-  );
-  const maxHorizonOcc = Math.max(
-    1,
-    ...f.horizon.map((m) => m.occupancyPct),
-    100,
-  );
-
   function StatTile({
     label,
     value,
@@ -383,34 +375,11 @@ function GuestForecastPanel({
               / {f.monthTotals.avgRooms} rms · {f.monthTotals.occupancyPct}%
             </p>
           </div>
-          <div
-            className="flex h-24 items-end gap-px"
-            role="img"
-            aria-label={`Daily in-house rooms for ${monthLabel}`}
-          >
-            {f.monthly.map((day) => {
-              const h = Math.max(4, Math.round((day.rooms / maxRoom) * 100));
-              const isToday = day.date === f.businessDate;
-              const over =
-                f.totalRooms > 0 && day.rooms > f.totalRooms;
-              return (
-                <div
-                  key={day.date}
-                  title={`${day.date}: ${day.guests} guests, ${day.rooms}/${f.totalRooms || "?"} rooms, ${day.arrivals} arr / ${day.departures} dep`}
-                  className={`min-w-0 flex-1 rounded-t-sm ${
-                    isToday
-                      ? "bg-accent"
-                      : over
-                        ? "bg-destructive/70"
-                        : day.rooms > 0
-                          ? "bg-accent/45"
-                          : "bg-muted"
-                  }`}
-                  style={{ height: `${h}%` }}
-                />
-              );
-            })}
-          </div>
+          <MonthRoomsChart
+            days={f.monthly}
+            businessDate={f.businessDate}
+            totalRooms={f.totalRooms}
+          />
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
             <StatTile label="Arrivals" value={f.monthTotals.arrivals} />
             <StatTile label="Departures" value={f.monthTotals.departures} />
@@ -459,54 +428,13 @@ function GuestForecastPanel({
           </p>
         </div>
 
-        <div
-          className="mb-3 flex h-16 items-end gap-1.5"
-          role="img"
-          aria-label={`Monthly occupancy ${monthLabel} through ${horizonEndLabel}`}
-        >
-          {f.horizon.map((m) => {
-            const h = Math.max(
-              6,
-              Math.round((m.occupancyPct / maxHorizonOcc) * 100),
-            );
-            const isSelected = m.monthYm === monthYm;
-            return (
-              <Link
-                key={m.monthYm}
-                href={erpDashboardHref({
-                  view,
-                  homeView,
-                  forecastMonthYm:
-                    m.monthYm !== currentYm ? m.monthYm : undefined,
-                })}
-                title={`${formatForecastMonthLabel(m.monthYm)}: ${m.occupancyPct}% occ, peak ${m.peakRooms} rooms / ${m.peakGuests} guests`}
-                className="group flex min-w-0 flex-1 flex-col items-center gap-1 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
-              >
-                <div
-                  className={`w-full max-w-[3rem] rounded-t-sm transition-colors ${
-                    isSelected
-                      ? "bg-accent"
-                      : m.occupancyPct >= 90
-                        ? "bg-destructive/60 group-hover:bg-destructive/80"
-                        : m.occupancyPct > 0
-                          ? "bg-accent/40 group-hover:bg-accent/60"
-                          : "bg-muted group-hover:bg-muted-foreground/20"
-                  }`}
-                  style={{ height: `${h}%` }}
-                />
-                <span
-                  className={`text-[10px] tabular-nums ${
-                    isSelected
-                      ? "font-semibold text-foreground"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  {formatForecastMonthLabel(m.monthYm).split(" ")[0]}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
+        <HorizonOccupancyChart
+          months={f.horizon}
+          selectedYm={monthYm}
+          currentYm={currentYm}
+          view={view}
+          homeView={homeView}
+        />
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] border-collapse text-left text-xs">
@@ -1181,7 +1109,7 @@ function FrontDeskBoard({
               Today
             </h2>
           </div>
-          <Button asChild variant="citrus" className="min-h-11">
+          <Button asChild variant="default" className="min-h-11">
             <Link href="/erp/today">Open Today</Link>
           </Button>
         </div>

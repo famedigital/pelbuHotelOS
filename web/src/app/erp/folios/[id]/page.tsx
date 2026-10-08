@@ -4,6 +4,7 @@ import {
   VoidLineButton,
 } from "@/components/erp/FolioOpsForms";
 import { FolioActionsPanel } from "@/components/erp/FolioActionsPanel";
+import { FolioSplit } from "@/components/erp/FolioSplit";
 import { FolioRoomPosItemsPanel } from "@/components/erp/FolioRoomPosItemsPanel";
 import { ErpDetailBack } from "@/components/erp/ErpDetailBack";
 import { FolioStaleRefreshBanner } from "@/components/erp/FolioStaleRefreshBanner";
@@ -361,10 +362,15 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
     (booking?.check_in as string | undefined) ??
     new Date().toISOString().slice(0, 10);
   const mealAmt = Number(booking?.meal_plan_amount_btn ?? 0);
+  const hasRoomLine = lines.some(
+    (l) => l.status === "posted" && l.source_type === "room",
+  );
   const needsDay1 =
     isOpen &&
     bookingStatus === "checked_in" &&
-    (chargeLines.length === 0 ||
+    !agentOpenItem &&
+    (!hasRoomLine ||
+      chargeLines.length === 0 ||
       (mealAmt > 0 &&
         !lines.some(
           (l) => l.source_type === "meal_plan" && l.status === "posted",
@@ -478,7 +484,7 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
       {stayReturnHref ? (
         <a
           href={stayReturnHref}
-          className="sticky top-0 z-30 -mx-4 mb-3 flex min-h-11 items-center gap-2 border-b border-accent/25 bg-accent/10 px-4 py-2.5 text-sm font-medium text-foreground backdrop-blur supports-[backdrop-filter]:bg-accent/15 md:-mx-6 md:px-6"
+          className="sticky top-0 z-30 -mx-4 mb-3 flex min-h-11 items-center gap-2 border-b border-accent/25 bg-accent/10 px-4 py-2.5 text-sm font-medium text-foreground md:-mx-6 md:px-6"
         >
           <span aria-hidden>←</span>
           <span className="min-w-0 truncate">
@@ -503,7 +509,7 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
       {/* Sticky identity + next action */}
       <div
         className={cn(
-          "sticky z-20 -mx-4 mb-5 border-b bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/85 md:-mx-6 md:px-6",
+          "sticky z-20 -mx-4 mb-5 border-b bg-background px-4 py-3 md:-mx-6 md:px-6",
           stayReturnHref ? "top-12" : "top-0",
         )}
       >
@@ -740,7 +746,7 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
       </section>
 
       {/* 2 + 3: Actions first on mobile; Activity left / Actions right on desktop */}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+      <FolioSplit>
         {/* 3. Actions — intent groups, sticky on desktop */}
         <aside
           id="folio-actions"
@@ -1137,7 +1143,7 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
             </div>
           </details>
         </section>
-      </div>
+      </FolioSplit>
     </div>
   );
 }

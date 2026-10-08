@@ -371,7 +371,7 @@ export function MarkLinkPaidForm({ linkId }: { linkId: string }) {
       </div>
       <Button
         type="submit"
-        variant="citrus"
+        variant="default"
         size="sm"
         disabled={pending}
         className="h-10 text-xs"

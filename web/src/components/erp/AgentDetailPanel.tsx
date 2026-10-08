@@ -100,7 +100,7 @@ function QuickApproveReject({ agent, compact }: { agent: DeskAgentRow; compact?:
         <input type="hidden" name="rate_tier" value={agent.rate_tier} />
         <Button
           type="submit"
-          variant="citrus"
+          variant="default"
           size={compact ? "sm" : "default"}
           disabled={appPending || agent.status === "approved"}
           className="h-9"
@@ -219,7 +219,7 @@ function CreditPaymentForm({ agent, compact }: { agent: DeskAgentRow; compact?: 
         </label>
         <Button
           type="submit"
-          variant="citrus"
+          variant="default"
           size={compact ? "sm" : "default"}
           disabled={pending}
           className="h-9"

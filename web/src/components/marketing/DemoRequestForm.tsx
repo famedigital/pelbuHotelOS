@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { submitSalesLead } from "@/app/actions/sales-leads";
-import { BlurFade } from "@/components/ui/blur-fade";
 
 export function DemoRequestForm() {
   const [pending, start] = useTransition();
@@ -12,17 +11,14 @@ export function DemoRequestForm() {
 
   if (done) {
     return (
-      <BlurFade delay={0.05} inView>
-        <p className="mt-8 rounded-2xl border border-primary/30 bg-secondary p-4 text-sm">
+      <p className="mt-8 rounded-2xl border border-primary/30 bg-secondary p-4 text-sm">
           Thank you — we received your request and will follow up.
         </p>
-      </BlurFade>
     );
   }
 
   return (
-    <BlurFade delay={0.1} inView>
-      <form
+    <form
         className="mt-8 space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
@@ -112,6 +108,5 @@ export function DemoRequestForm() {
           acceptance.
         </p>
       </form>
-    </BlurFade>
   );
 }

@@ -403,7 +403,7 @@ export function PosFloorPlan({
         </div>
         <Button
           type="button"
-          variant="citrus"
+          variant="default"
           size="sm"
           className="h-10"
           onClick={onAddTable}
@@ -425,7 +425,7 @@ export function PosFloorPlan({
           </p>
           <Button
             type="button"
-            variant="citrus"
+            variant="default"
             className="mt-6 h-11"
             onClick={onAddTable}
           >
@@ -620,7 +620,7 @@ function TableChip({
                 ? "gold"
                 : "secondary"
           }
-          className="text-[9px]"
+          className="text-[11px]"
         >
           {TABLE_STATUS_LABELS[table.status]}
         </Badge>

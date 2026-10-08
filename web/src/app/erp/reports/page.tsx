@@ -47,6 +47,9 @@ export default async function ErpReportsPage({ searchParams }: Props) {
   const from =
     sp.from && /^\d{4}-\d{2}-\d{2}$/.test(sp.from) ? sp.from : since;
   const to = sp.to && /^\d{4}-\d{2}-\d{2}$/.test(sp.to) ? sp.to : today;
+  const startIso = `${from}T00:00:00+06:00`;
+  const endIso = `${to}T23:59:59.999+06:00`;
+  const cap = 2000;
 
   const [
     flash,
@@ -70,23 +73,36 @@ export default async function ErpReportsPage({ searchParams }: Props) {
       .from("bookings")
       .select("id, status, check_in, check_out, agent_id, contact_name")
       .eq("property_id", propertyId)
-      .gte("check_in", since)
-      .limit(500),
+      .gte("check_in", from)
+      .lte("check_in", to)
+      .limit(cap),
     admin
       .from("booking_rooms")
-      .select("booking_id, qty, inventory_kind, room_type_id")
-      .limit(1000),
+      .select(
+        "booking_id, qty, inventory_kind, room_type_id, bookings!inner(property_id, status, check_in, check_out)",
+      )
+      .eq("bookings.property_id", propertyId)
+      .in("bookings.status", ["confirmed", "checked_in"])
+      .lte("bookings.check_in", today)
+      .gt("bookings.check_out", today)
+      .limit(cap),
     admin
       .from("orders")
       .select("id, outlet, total_btn, gst_btn, status, created_at")
       .eq("property_id", propertyId)
-      .gte("created_at", since)
-      .limit(500),
+      .gte("created_at", startIso)
+      .lte("created_at", endIso)
+      .limit(cap),
     admin
-      .from("folios")
-      .select("id, folio_lines(source_type, total_btn, gst_btn, status, created_at)")
-      .eq("property_id", propertyId)
-      .limit(300),
+      .from("folio_lines")
+      .select(
+        "source_type, total_btn, gst_btn, status, created_at, folios!inner(property_id)",
+      )
+      .eq("folios.property_id", propertyId)
+      .eq("status", "posted")
+      .gte("created_at", startIso)
+      .lte("created_at", endIso)
+      .limit(cap),
     admin
       .from("agents")
       .select("id, company_name, market, credit_limit, credit_used, status")
@@ -95,20 +111,24 @@ export default async function ErpReportsPage({ searchParams }: Props) {
       .from("payments")
       .select("id, amount_btn, method, created_at")
       .eq("property_id", propertyId)
-      .gte("created_at", since)
-      .limit(300),
+      .gte("created_at", startIso)
+      .lte("created_at", endIso)
+      .limit(cap),
     admin
       .from("expenses")
       .select("id, amount_btn, category, expense_date")
       .eq("property_id", propertyId)
-      .gte("expense_date", since)
-      .limit(300),
+      .gte("expense_date", from)
+      .lte("expense_date", to)
+      .limit(cap),
     admin
       .from("audit_events")
       .select("id, action, summary, actor, created_at")
       .eq("property_id", propertyId)
+      .gte("created_at", startIso)
+      .lte("created_at", endIso)
       .order("created_at", { ascending: false })
-      .limit(40),
+      .limit(cap),
     admin
       .from("room_units")
       .select("id, hk_status")
@@ -125,18 +145,13 @@ export default async function ErpReportsPage({ searchParams }: Props) {
     )
     .reduce((s, r) => s + Number(r.unit_count ?? 0), 0);
 
-  const inHouse = (bookingsRes.data ?? []).filter((b) =>
-    ["confirmed", "checked_in"].includes(b.status as string),
-  );
-  const todayInHouse = inHouse.filter(
-    (b) => String(b.check_in) <= today && String(b.check_out) > today,
+  const inHouseBookingIds = new Set(
+    (bookingRoomsRes.data ?? []).map((line) => line.booking_id as string),
   );
 
-  const bookingIds = new Set(todayInHouse.map((b) => b.id as string));
   let sellableOcc = 0;
   let compOcc = 0;
   for (const line of bookingRoomsRes.data ?? []) {
-    if (!bookingIds.has(line.booking_id as string)) continue;
     const qty = Number(line.qty ?? 0);
     if ((line.inventory_kind as string) === "sellable_guest") sellableOcc += qty;
     else if (
@@ -165,21 +180,22 @@ export default async function ErpReportsPage({ searchParams }: Props) {
     fnbByOutlet.set(outlet, (fnbByOutlet.get(outlet) ?? 0) + total);
   }
 
-  const folioLines = (folioLinesRes.data ?? []).flatMap((f) => {
-    const lines =
-      (f.folio_lines as
-        | {
-            source_type: string;
-            total_btn: number;
-            gst_btn: number;
-            status: string;
-            created_at: string;
-          }[]
-        | null) ?? [];
-    return lines.filter(
-      (l) => l.status === "posted" && String(l.created_at) >= since,
-    );
-  });
+  const folioLines = (folioLinesRes.data ?? []) as {
+    source_type: string;
+    total_btn: number;
+    gst_btn: number;
+    status: string;
+    created_at: string;
+  }[];
+  const rangeTruncated = [
+    bookingsRes.data?.length,
+    bookingRoomsRes.data?.length,
+    ordersRes.data?.length,
+    folioLines.length,
+    paymentsRes.data?.length,
+    expensesRes.data?.length,
+    auditRes.data?.length,
+  ].some((n) => n === cap);
   const roomFolio = folioLines
     .filter((l) => l.source_type === "room")
     .reduce((s, l) => s + Number(l.total_btn), 0);
@@ -387,34 +403,37 @@ export default async function ErpReportsPage({ searchParams }: Props) {
         <p className="text-xs text-muted-foreground">
           Window {from} → {to} · {flash.days} day{flash.days === 1 ? "" : "s"} ·
           sellable inventory {flash.sellableCapacity}
+          {rangeTruncated
+            ? ` · A list hit ${cap} rows. Narrow the dates before you treat the totals as complete.`
+            : ""}
         </p>
       </section>
 
       <p className="text-xs text-muted-foreground print:hidden">
         Export CSV:{" "}
         <a
-          href={`/api/erp/export?kind=payments&since=${since}`}
+          href={`/api/erp/export?kind=payments&since=${from}&until=${to}`}
           className="font-medium text-accent underline-offset-4 hover:underline"
         >
           payments
         </a>
         {" · "}
         <a
-          href={`/api/erp/export?kind=expenses&since=${since}`}
+          href={`/api/erp/export?kind=expenses&since=${from}&until=${to}`}
           className="font-medium text-accent underline-offset-4 hover:underline"
         >
           expenses
         </a>
         {" · "}
         <a
-          href={`/api/erp/export?kind=folio_lines&since=${since}`}
+          href={`/api/erp/export?kind=folio_lines&since=${from}&until=${to}`}
           className="font-medium text-accent underline-offset-4 hover:underline"
         >
           folio lines
         </a>
         {" · "}
         <a
-          href={`/api/erp/export?kind=gst_filing&since=${since}`}
+          href={`/api/erp/export?kind=gst_filing&since=${from}&until=${to}`}
           className="font-medium text-accent underline-offset-4 hover:underline"
         >
           GST filing
@@ -442,7 +461,7 @@ export default async function ErpReportsPage({ searchParams }: Props) {
             label="Comp beds used"
             value={`${compOcc} / ${compCapacity}`}
           />
-          <Stat label="In-house bookings" value={String(todayInHouse.length)} />
+          <Stat label="In-house bookings" value={String(inHouseBookingIds.size)} />
         </div>
         <p className="text-xs text-muted-foreground">
           HK:{" "}
@@ -565,7 +584,7 @@ export default async function ErpReportsPage({ searchParams }: Props) {
       <Card className="print:hidden">
         <CardHeader className="pb-3">
           <CardTitle className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-            Audit trail
+            History in this range
           </CardTitle>
         </CardHeader>
         <CardContent>

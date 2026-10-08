@@ -519,7 +519,7 @@ export function CloudinaryPicker({
               <div className="flex w-full max-w-sm flex-col gap-2 sm:flex-row sm:justify-center">
                 <Button
                   type="button"
-                  variant="citrus"
+                  variant="default"
                   className="h-11 flex-1"
                   disabled={uploading}
                   onClick={() => cameraInputRef.current?.click()}
@@ -620,7 +620,7 @@ export function CloudinaryPicker({
             </Button>
             <Button
               type="button"
-              variant="citrus"
+              variant="default"
               onClick={() => confirmSelection()}
               disabled={!selected || uploading}
             >

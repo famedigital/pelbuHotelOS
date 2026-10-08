@@ -1,13 +1,12 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "../styles/themes/index.css";
 
 @custom-variant dark (&:is(.dark *));
 
 /* =========================================================================
-   Innora — public tokens come from tweakcn Ocean Breeze via [data-theme].
-   Legacy brand anchors stay defined for ERP utilities. Desk `.erp` below
-   overrides every semantic token.
+   Innora — public tokens are the Ocean Breeze values on :root.
+   The tweakcn theme pack is not imported (it was unused weight on every route).
+   Desk `.erp` below overrides every semantic token.
    ========================================================================= */
 
 :root {
@@ -110,8 +109,8 @@
   --radius: 0.5rem;
 
   --font-sans: var(--font-dm-sans), "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
-  --font-serif: var(--font-lora), Lora, Georgia, serif;
+  --font-display: var(--font-fraunces, Georgia), Georgia, "Times New Roman", serif;
+  --font-serif: var(--font-lora, Georgia), Georgia, serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
@@ -175,8 +174,8 @@
   --popover: #ffffff;
   --popover-foreground: #0c1726;
 
-  --primary: #0c1726;               /* deep ink */
-  --primary-foreground: #f8fafc;
+  --primary: #0369a1;               /* sky-700 — default actions */
+  --primary-foreground: #ffffff;
 
   --secondary: #e2e8f0;             /* slate-200 */
   --secondary-foreground: #0c1726;
@@ -197,8 +196,8 @@
   --chart-1: #0ea5e9;               /* sky-500 */
   --chart-2: #f59e0b;               /* amber-500 */
   --chart-3: #10b981;               /* emerald-500 */
-  --chart-4: #6366f1;               /* indigo-500 */
-  --chart-5: #ec4899;               /* pink-500 */
+  --chart-4: #059669;               /* mint-600 */
+  --chart-5: #d97706;               /* citrus-600 */
 
   --sidebar: #0c1726;
   --sidebar-foreground: #f8fafc;
@@ -392,7 +391,7 @@
   --radius-xl: calc(var(--radius) + 6px);
 
   --font-sans: var(--font-dm-sans), "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-display: var(--font-fraunces, Georgia), Georgia, serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 
   --animate-accordion-down: accordion-down 0.2s ease-out;
@@ -479,10 +478,12 @@
 }
 
 /* =========================================================================
-   Marketing hybrid (Mews surfaces + Ocean Breeze teal + magenta CTA)
+   Marketing hybrid (Mews surfaces + Ocean Breeze teal)
    Scoped under .marketing so ERP `.erp` is unaffected.
    ========================================================================= */
 .marketing {
+  --font-display: var(--font-fraunces, Georgia), Georgia, "Times New Roman", serif;
+  --font-serif: var(--font-lora, Georgia), Georgia, serif;
   --background: oklch(0.995 0.002 250);
   --foreground: oklch(0.28 0.03 260);
   --card: oklch(1 0 0);
@@ -492,10 +493,10 @@
   /* Ocean Breeze teal for accents / links */
   --primary: oklch(0.62 0.14 170);
   --primary-foreground: oklch(1 0 0);
-  /* Mews-inspired magenta for primary CTAs only */
-  --cta: oklch(0.62 0.22 350);
-  --cta-foreground: oklch(1 0 0);
-  --cta-soft: oklch(0.72 0.18 350);
+  /* Primary actions use the same teal as links. */
+  --cta: var(--primary);
+  --cta-foreground: var(--primary-foreground);
+  --cta-soft: oklch(0.55 0.12 170);
   background: var(--background);
   color: var(--foreground);
 }
@@ -658,11 +659,11 @@ body.pos-fs .erp [data-slot="sidebar-inset"] {
   justify-content: center;
   min-width: 1.5rem;
   padding: 0.05rem 0.4rem;
-  border: 1px solid hsl(var(--border));
+  border: 1px solid var(--border);
   border-bottom-width: 2px;
   border-radius: 0.35rem;
-  background: hsl(var(--muted));
-  color: hsl(var(--foreground));
+  background: var(--muted-shadcn);
+  color: var(--foreground);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.72rem;
   line-height: 1.4;

@@ -93,7 +93,7 @@ function RowForm({
         {canEdit && !staff.isOwner ? (
           <Button
             type="submit"
-            variant="citrus"
+            variant="default"
             className="min-h-10"
             disabled={pending}
           >

@@ -296,7 +296,7 @@ function InHouseIntakeForm({
 
         <Button
           type="submit"
-          variant="citrus"
+          variant="default"
           className="min-h-11 w-full sm:w-auto"
           disabled={
             pending ||
@@ -417,7 +417,7 @@ function WalkInIntakeForm({
 
         <Button
           type="submit"
-          variant="citrus"
+          variant="default"
           className="min-h-11 w-full sm:w-auto"
           disabled={pending || lines.length === 0 || catalog.length === 0}
         >
@@ -534,7 +534,7 @@ function IntakeResult({
           <AlertDescription className="flex flex-wrap items-center gap-2">
             <span>{state.message}</span>
             {showPayLink && state.payUrl ? (
-              <Button asChild size="sm" variant="citrus">
+              <Button asChild size="sm" variant="default">
                 <Link href={state.payUrl} target="_blank" rel="noopener">
                   <CreditCardIcon className="size-3.5" />
                   Open pay link
@@ -817,7 +817,7 @@ function CatalogForm({ item }: { item?: LaundryCatalogItem }) {
           <AlertDescription>{state.message}</AlertDescription>
         </Alert>
       ) : null}
-      <Button type="submit" variant="citrus" className="mt-5" disabled={pending}>
+      <Button type="submit" variant="default" className="mt-5" disabled={pending}>
         {pending ? "Saving…" : "Save service"}
       </Button>
     </form>

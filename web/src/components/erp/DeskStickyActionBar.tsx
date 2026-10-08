@@ -33,7 +33,7 @@ export function DeskStickyActionBar({
     <div
       className={cn(
         // Mobile: clear fixed bottom tab strip (z-40 · ~4rem + safe area)
-        "sticky z-10 flex flex-wrap items-center justify-end gap-2 rounded-xl border bg-card/95 p-3 shadow-lg backdrop-blur",
+        "sticky z-10 flex flex-wrap items-center justify-end gap-2 rounded-xl border bg-card p-3",
         "bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] md:bottom-4",
         className,
       )}

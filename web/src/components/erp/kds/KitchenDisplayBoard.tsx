@@ -34,10 +34,13 @@ export function KitchenDisplayBoard({
   initialTickets,
   propertyName,
   role = "kitchen",
+  lane = "kitchen",
 }: {
   initialTickets: OpenPosTicket[];
   propertyName: string;
   role?: KdsRole;
+  /** Bar lane bumps drink tickets. Kitchen lane keeps the cook stations. */
+  lane?: "kitchen" | "bar";
 }) {
   const isPass = role === "pass";
   const {
@@ -127,16 +130,23 @@ export function KitchenDisplayBoard({
       preparing: [],
       ready: [],
     };
-    /** Cook line: kitchen / grill / cold / pastry. Bar items stay off /erp/kds. */
+    /** Cook line: kitchen / grill / cold / pastry. Bar has its own lane. */
     const COOK_STATIONS = new Set(["kitchen", "grill", "cold", "pastry"]);
 
     for (const raw of tickets) {
       if (!isKitchenBoardVisible(raw)) continue;
 
       let t = raw;
-      // Kitchen TV only shows dishes prepared on the cook line. Pass sees full
-      // tickets so expo can plate + serve everything ordered.
-      if (!isPass) {
+      if (lane === "bar") {
+        const barLines = raw.order_items.filter(
+          (item) => (item.prep_station || "kitchen") === "bar",
+        );
+        if (barLines.length === 0 && raw.outlet !== "bar") continue;
+        t = {
+          ...raw,
+          order_items: barLines.length > 0 ? barLines : raw.order_items,
+        };
+      } else if (!isPass) {
         const cookLines = raw.order_items.filter((item) =>
           COOK_STATIONS.has(item.prep_station || "kitchen"),
         );
@@ -155,7 +165,7 @@ export function KitchenDisplayBoard({
       );
     }
     return map;
-  }, [tickets, isPass]);
+  }, [tickets, isPass, lane]);
 
   const counts = useMemo(
     () => ({
@@ -225,10 +235,26 @@ export function KitchenDisplayBoard({
           <p className="text-base font-semibold tracking-tight md:text-lg">
             {propertyName}
             <span className="ml-2 text-[11px] font-medium tracking-[0.2em] text-accent uppercase">
-              {isPass ? "Pass / Expo" : "Kitchen"}
+              {isPass ? "Pass / Expo" : lane === "bar" ? "Bar · BOT" : "Kitchen"}
             </span>
           </p>
           <StatusPill offline={offline} updatedSecondsAgo={updatedSecondsAgo} />
+          {!isPass && lane === "kitchen" ? (
+            <Link
+              href="/erp/kds/bar"
+              className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              Open bar BOT
+            </Link>
+          ) : null}
+          {!isPass && lane === "bar" ? (
+            <Link
+              href="/erp/kds"
+              className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              Open Kitchen TV
+            </Link>
+          ) : null}
           {!isPass ? (
             <Link
               href="/erp/kds/pass"

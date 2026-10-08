@@ -91,6 +91,18 @@ export function defaultModulesForDeskRole(
     case "owner":
     case "gm":
       return allDeskModuleKeys();
+    case "accountant":
+      return [
+        "dashboard",
+        "/erp/finance",
+        "/erp/finance/statement",
+        "/erp/finance/banking",
+        "/erp/finance/expenses",
+        "/erp/finance/rrco",
+        "/erp/folios",
+        "/erp/payments",
+        "/erp/hr/payroll",
+      ];
     case "cashier":
       return [
         "dashboard",
@@ -163,6 +175,8 @@ export function deskHomeHrefForRole(
       return "/erp/housekeeping";
     case "laundry":
       return "/erp/laundry";
+    case "accountant":
+      return "/erp/finance/statement";
     case "owner":
     case "gm":
       return "/erp/finance";

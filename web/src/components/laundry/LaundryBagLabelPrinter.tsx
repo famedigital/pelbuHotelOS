@@ -106,7 +106,7 @@ export function LaundryBagLabelPrinter({
         ) : null}
         <Button
           type="button"
-          variant="citrus"
+          variant="default"
           disabled={
             pending || !bags.length || (mode === "desk" && !staffId)
           }

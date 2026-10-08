@@ -229,7 +229,7 @@ export function ErpMediaPhoneUpload({
           type="button"
           size="lg"
           className="h-14 rounded-2xl text-base"
-          variant="citrus"
+          variant="default"
           disabled={uploading || busy}
           onClick={() => cameraPhotoRef.current?.click()}
         >

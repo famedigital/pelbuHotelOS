@@ -333,7 +333,7 @@ function DrawerBody({
 
       <Button
         type="submit"
-        variant="citrus"
+        variant="default"
         disabled={pending || !hasQty || blockCredit}
         className="h-11 w-full"
       >

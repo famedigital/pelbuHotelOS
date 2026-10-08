@@ -54,7 +54,7 @@ export function NewReservationLauncher({
     <>
       <Button
         type="button"
-        variant="citrus"
+        variant="default"
         className="h-11 min-h-11 gap-1.5"
         onClick={() => handleOpenChange(true)}
       >

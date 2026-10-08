@@ -50,6 +50,7 @@ export type PosReportPack = {
   byTender: PosTenderRow[];
   byHour: PosHourRow[];
   byItem: PosItemRow[];
+  truncated: boolean;
 };
 
 export function parsePosReportView(raw: string | undefined): PosReportView {
@@ -119,20 +120,41 @@ export async function buildPosReports(
   const start = `${from}T00:00:00+06:00`;
   const end = `${to}T23:59:59.999+06:00`;
 
-  const { data } = await client
-    .from("orders")
-    .select(
-      `id, outlet, total_btn, voided_at, settled_at, created_at, server_staff_id,
-       staff_members!server_staff_id(full_name),
-       order_tenders(method, amount_btn),
-       order_items(name_snapshot, qty, unit_price_btn, voided_at)`,
-    )
-    .eq("property_id", propertyId)
-    .gte("created_at", start)
-    .lte("created_at", end)
-    .limit(2000);
-
-  const orders = data ?? [];
+  const pageSize = 1000;
+  const orders: {
+    outlet: string | null;
+    total_btn: number | null;
+    voided_at: string | null;
+    settled_at: string | null;
+    created_at: string;
+    staff_members: Staff | null;
+    order_tenders: Tender[] | null;
+    order_items: Item[] | null;
+  }[] = [];
+  let truncated = false;
+  for (let offset = 0; offset < 20000; offset += pageSize) {
+    const { data } = await client
+      .from("orders")
+      .select(
+        `id, outlet, total_btn, voided_at, settled_at, created_at, server_staff_id,
+         staff_members!server_staff_id(full_name),
+         order_tenders(method, amount_btn),
+         order_items(name_snapshot, qty, unit_price_btn, voided_at)`,
+      )
+      .eq("property_id", propertyId)
+      .gte("created_at", start)
+      .lte("created_at", end)
+      .order("created_at", { ascending: true })
+      .range(offset, offset + pageSize);
+    const batch = (data ?? []) as typeof orders;
+    const page = batch.length > pageSize ? batch.slice(0, pageSize) : batch;
+    orders.push(...page);
+    if (batch.length <= pageSize) break;
+    if (offset + pageSize >= 20000) {
+      truncated = true;
+      break;
+    }
+  }
   const voided = orders.filter((o) => o.voided_at);
   const settled = orders.filter((o) => !o.voided_at && o.settled_at);
   const salesBtn = roundBtn(
@@ -215,6 +237,7 @@ export async function buildPosReports(
       }))
       .sort((a, b) => b.amountBtn - a.amountBtn),
     byHour: [...hourMap.values()].sort((a, b) => a.hour.localeCompare(b.hour)),
+    truncated,
     byItem: [...itemMap.values()]
       .sort((a, b) => b.salesBtn - a.salesBtn)
       .slice(0, 80),

@@ -48,17 +48,24 @@ export function PosKotSlip({
   propertyName,
   timezone,
   darken = PRINT_DARKEN_DEFAULT,
+  slip = "kot",
 }: {
   order: PosKotSlipData;
   propertyName: string;
   timezone: string;
   /** Thermal darkness 0–15. */
   darken?: number;
+  /** Kitchen paper excludes bar lines. Bar paper is the BOT. */
+  slip?: "kot" | "bot";
 }) {
+  const lines = order.lines.filter((l) => {
+    const station = (l.prepStation ?? "kitchen").trim().toLowerCase() || "kitchen";
+    return slip === "bot" ? station === "bar" : station !== "bar";
+  });
+  if (lines.length === 0) return null;
+
   const stations = sortPrepStations([
-    ...new Set(
-      order.lines.map((l) => (l.prepStation ?? "kitchen").trim() || "kitchen"),
-    ),
+    ...new Set(lines.map((l) => (l.prepStation ?? "kitchen").trim() || "kitchen")),
   ]);
 
   return (
@@ -68,7 +75,7 @@ export function PosKotSlip({
     >
       <header className="border-b-2 border-neutral-900 pb-2 text-center">
         <p className="text-[10px] font-bold tracking-[0.22em] uppercase">
-          Kitchen · KOT
+          {slip === "bot" ? "Bar · BOT" : "Kitchen · KOT"}
         </p>
         <h1 className="mt-0.5 text-lg font-bold tracking-tight">
           {propertyName}

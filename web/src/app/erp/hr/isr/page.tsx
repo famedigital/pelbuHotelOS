@@ -88,7 +88,7 @@ export default async function ErpHrIsrPage() {
             ISR.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button asChild variant="citrus" className="min-h-11">
+            <Button asChild variant="default" className="min-h-11">
               <Link href="/erp/compliance/isr">
                 Print Pelbu Suites ISR (MoLHR cover)
               </Link>

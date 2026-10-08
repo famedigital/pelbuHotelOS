@@ -268,7 +268,7 @@ export function LaundryBagPrepareForm({
 
         <Button
           type="submit"
-          variant="citrus"
+          variant="default"
           className="min-h-11 w-full"
           disabled={
             pending ||

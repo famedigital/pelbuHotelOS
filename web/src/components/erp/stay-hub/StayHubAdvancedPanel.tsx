@@ -342,7 +342,7 @@ function StayHubBillSplitTools({
           <Button
             type="submit"
             size="sm"
-            variant="citrus"
+            variant="default"
             className="h-8 text-xs"
             disabled={extrasPending}
           >

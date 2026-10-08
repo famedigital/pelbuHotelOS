@@ -88,7 +88,7 @@ const POSITIONS: readonly StaffPosition[] = [
   // Accounts
   pos("Accounts", "Finance manager", "gm", "supervisor", "full"),
   pos("Accounts", "Supervisor", "gm", "supervisor", "full"),
-  pos("Accounts", "Accountant", "cashier", "employee", "defaults"),
+  pos("Accounts", "Accountant", "accountant", "employee", "defaults"),
   pos("Accounts", "Accounts assistant", "cashier", "employee", "defaults"),
 
   // Management

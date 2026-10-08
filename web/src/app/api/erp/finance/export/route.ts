@@ -6,7 +6,10 @@ import {
 } from "@/lib/accounting/reports";
 import { buildWorkbook, toCsv } from "@/lib/accounting/export";
 import { writeAuditEvent } from "@/lib/audit";
-import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { canSeeTaxPack, isDeskAuthenticated } from "@/lib/desk-auth";
+import { loadHotelStatement } from "@/lib/finance/hotel-statement";
+import { loadRrcoView } from "@/lib/finance/rrco-pack";
+import { hotelStatementSheets, rrcoSheets } from "@/lib/finance/statement-sheets";
 import { resolveActivePropertyId, loadProperty } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { NextResponse, type NextRequest } from "next/server";
@@ -254,6 +257,20 @@ export async function GET(request: NextRequest) {
       ],
       rows,
     });
+  }
+
+  if (report === "hotel_statement") {
+    const statement = await loadHotelStatement(admin, propertyId, from, to);
+    sheets.push(...hotelStatementSheets(statement));
+  }
+
+  if (report === "rrco_pack") {
+    if (!(await canSeeTaxPack())) {
+      return NextResponse.json({ error: "Only the accountant or owner can export the RRCO pack." }, { status: 403 });
+    }
+    const year = Number(from.slice(0, 4));
+    const view = await loadRrcoView(admin, propertyId, year);
+    sheets.push(...rrcoSheets(view));
   }
 
   if (["bank_recon"].includes(report)) {

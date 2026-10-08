@@ -4,7 +4,10 @@ import { Input } from "@/components/ui/input";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { fmtDateTime, matchesQuery } from "@/lib/erp-lists";
 import { requireDeskPropertyId } from "@/lib/desk-property";
-import { netFolioBalance } from "@/lib/folio/balance";
+import {
+  guestVisibleBalanceLines,
+  netFolioBalance,
+} from "@/lib/folio/balance";
 import { formatBtn } from "@/lib/pricing";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
@@ -32,31 +35,39 @@ function StatusPill({ value }: { value: string }) {
   );
 }
 
+const PAGE_SIZE = 200;
+
 export default async function InvoicesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; page?: string }>;
 }) {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
-  const { q, status } = await searchParams;
+  const { q, status, page: pageRaw } = await searchParams;
   const query = (q ?? "").trim();
+  const page = Math.max(1, Number(pageRaw) || 1);
   const admin = createSupabaseAdminClient();
   const propertyId = await requireDeskPropertyId();
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE;
 
   let req = admin
     .from("fiscal_documents")
     .select(
-      "id, doc_no, issued_at, folio_id, folios(id, label, status, folio_type, booking_id, agent_id, agents(company_name), folio_lines(id, total_btn, gst_btn, status, reverses_line_id))",
+      "id, doc_no, issued_at, folio_id, folios(id, label, status, folio_type, booking_id, agent_id, agents(company_name), folio_lines(id, total_btn, gst_btn, status, source_type, reverses_line_id))",
     )
     .eq("property_id", propertyId)
     .eq("doc_kind", "invoice")
     .eq("status", "issued")
     .order("issued_at", { ascending: false })
-    .limit(200);
+    .range(from, to);
 
   const { data: docs } = await req;
+  const fetched = docs ?? [];
+  const hasNext = fetched.length > PAGE_SIZE;
+  const pageDocs = hasNext ? fetched.slice(0, PAGE_SIZE) : fetched;
 
-  const rows = (docs ?? [])
+  const rows = pageDocs
     .map((doc) => {
       const rawFolio = doc.folios;
       const folio = (Array.isArray(rawFolio) ? rawFolio[0] : rawFolio) as {
@@ -75,13 +86,23 @@ export default async function InvoicesPage({
           total_btn: number;
           gst_btn: number;
           status: string;
+          source_type?: string;
           reverses_line_id?: string | null;
         }[] | null;
       } | null;
       const lines = folio?.folio_lines ?? [];
-      const posted = lines.filter((l) => l.status === "posted");
-      const total = posted.reduce((s, l) => s + Number(l.total_btn), 0);
-      const gst = posted.reduce((s, l) => s + Number(l.gst_btn ?? 0), 0);
+      const visible = guestVisibleBalanceLines(
+        lines.map((l, i) => ({
+          ...l,
+          id: l.id ?? String(i),
+        })),
+      );
+      const charges = visible.filter((l) => {
+        const source = (l.source_type ?? "").toLowerCase();
+        return source !== "payment" && source !== "deposit";
+      });
+      const total = charges.reduce((s, l) => s + Number(l.total_btn), 0);
+      const gst = charges.reduce((s, l) => s + Number(l.gst_btn ?? 0), 0);
       const folioStatus = folio?.status ?? "";
       const agentRaw = folio?.agents;
       const agentName = Array.isArray(agentRaw)
@@ -113,18 +134,31 @@ export default async function InvoicesPage({
       };
     })
     .filter((r) => {
-      if (status && r.status !== status) return false;
+      if (status === "open" || status === "unpaid") {
+        if (!r.unpaid) return false;
+      } else if (status && r.status !== status) {
+        return false;
+      }
       return matchesQuery(
         [r.docNo, r.label, r.folioId, r.booking_id, r.status, r.folio_type, r.agentName],
         query,
       );
     });
 
+  const pageQuery = (nextPage: number) => {
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    if (status) params.set("status", status);
+    if (nextPage > 1) params.set("page", String(nextPage));
+    const s = params.toString();
+    return s ? `/erp/invoices?${s}` : "/erp/invoices";
+  };
+
   return (
     <DeskListShell
       eyebrow="Money"
       heading="Tax invoices"
-      blurb="Fiscal invoice numbers (INV-YYYY-####) from guest folios and travel-agent F&B open items. Cash walk-in tickets without a folio do not appear here."
+      blurb="Issued tax invoices (INV-YYYY-####). Total and GST are the charges on the invoice, not the balance after payments. Cash and QR tickets without a folio are on POS bills."
       filters={
         <form
           className="flex flex-wrap items-end gap-2"
@@ -151,11 +185,13 @@ export default async function InvoicesPage({
             <select
               id="status"
               name="status"
-              defaultValue={status ?? ""}
+              defaultValue={
+                status === "open" || status === "unpaid" ? "unpaid" : (status ?? "")
+              }
               className="h-10 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
             >
               <option value="">All folio statuses</option>
-              <option value="open">Open / unpaid</option>
+              <option value="unpaid">Open / unpaid</option>
               <option value="closed">Closed folio</option>
             </select>
           </div>
@@ -165,7 +201,14 @@ export default async function InvoicesPage({
         </form>
       }
     >
-      <p className="text-xs text-muted-foreground">{rows.length} issued</p>
+      <p className="text-xs text-muted-foreground">
+        {rows.length} on this page
+        {page > 1 ? ` · page ${page}` : ""}.{" "}
+        <a href="/erp/pos/bills" className="text-accent underline-offset-4 hover:underline">
+          POS bills
+        </a>{" "}
+        lists every settled ticket, including cash and QR.
+      </p>
       <div className="space-y-3 md:hidden">
         {rows.length === 0 ? (
           <p className="rounded-xl border bg-card px-4 py-6 text-sm text-muted-foreground">
@@ -303,6 +346,22 @@ export default async function InvoicesPage({
           </tbody>
         </table>
       </div>
+      {page > 1 || hasNext ? (
+        <div className="flex items-center justify-between gap-3 text-sm">
+          {page > 1 ? (
+            <a href={pageQuery(page - 1)} className="font-medium text-accent underline-offset-4 hover:underline">
+              Newer invoices
+            </a>
+          ) : (
+            <span />
+          )}
+          {hasNext ? (
+            <a href={pageQuery(page + 1)} className="font-medium text-accent underline-offset-4 hover:underline">
+              Older invoices
+            </a>
+          ) : null}
+        </div>
+      ) : null}
     </DeskListShell>
   );
 }

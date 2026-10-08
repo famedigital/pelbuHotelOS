@@ -264,6 +264,7 @@ const AUDIENCE_FOR_DESK_ROLE: Record<DeskRole, TrainingAudience[]> = {
   fnb: ["kitchen", "front_desk"],
   kitchen: ["kitchen"],
   laundry: ["hk", "front_desk"],
+  accountant: ["finance", "owner"],
 };
 
 export function manualsForDeskRole(role: DeskRole | null): TrainingManual[] {

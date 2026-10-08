@@ -66,7 +66,7 @@ export function RackPartySelectionBar({
         <Button
           type="button"
           size="sm"
-          variant="citrus"
+          variant="default"
           className="h-8 px-2.5 text-xs"
           disabled={pending}
           onClick={link}

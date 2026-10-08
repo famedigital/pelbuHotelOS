@@ -220,6 +220,7 @@ export function CheckInForm({
   onCheckedIn?: (payload: {
     bookingId: string;
     folioId?: string;
+    roomChargeError?: string;
     leadGuest?: {
       fullName?: string;
       passportOrCid?: string;
@@ -323,19 +324,31 @@ export function CheckInForm({
     return rows;
   });
   useEffect(() => {
-    if (!state.ok || !state.bookingId || notifiedOkRef.current) return;
+    const partial =
+      !state.ok && Boolean(state.bookingId) && Boolean(state.folioId);
+    if ((!state.ok && !partial) || !state.bookingId || notifiedOkRef.current) {
+      return;
+    }
     notifiedOkRef.current = true;
     const lead = guests[0];
     onCheckedInRef.current?.({
       bookingId: state.bookingId,
       folioId: state.folioId,
+      roomChargeError: partial ? state.error : undefined,
       leadGuest: {
         fullName: lead?.fullName || booking.contact_name || undefined,
         passportOrCid: lead?.passportOrCid || undefined,
         sdfRef: lead?.sdfRef || undefined,
       },
     });
-  }, [state.ok, state.bookingId, state.folioId, guests, booking.contact_name]);
+  }, [
+    state.ok,
+    state.error,
+    state.bookingId,
+    state.folioId,
+    guests,
+    booking.contact_name,
+  ]);
 
   /** Which guest row the shared Cloudinary picker is currently editing. */
   const [docPickerIndex, setDocPickerIndex] = useState<number | null>(null);

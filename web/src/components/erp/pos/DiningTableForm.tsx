@@ -259,7 +259,7 @@ export function DiningTableForm({
               </Button>
               <Button
                 type="submit"
-                variant="citrus"
+                variant="default"
                 disabled={savePending || deletePending || !canSave}
               >
                 {savePending ? "Saving…" : editing ? "Save table" : "Add table"}

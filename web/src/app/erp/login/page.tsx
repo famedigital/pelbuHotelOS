@@ -8,8 +8,6 @@ import { LOGIN_HOTEL_CODE_COOKIE } from "@/lib/hotel-codes";
 import { getStaffSession } from "@/lib/staff-auth";
 import { SITE_NAME } from "@/lib/site";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { DeskBlurFade } from "@/components/erp/DeskBlurFade";
-import { DotPattern } from "@/components/ui/dot-pattern";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -48,12 +46,8 @@ export default async function DeskLoginPage() {
     : null;
 
   return (
-    <main className="erp relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-16">
-      <DotPattern
-        glow={false}
-        className="text-muted-foreground/25 [mask-image:radial-gradient(ellipse_at_center,white,transparent_70%)]"
-      />
-      <DeskBlurFade className="relative z-10 w-full max-w-md space-y-6">
+    <main className="erp flex min-h-screen items-center justify-center bg-background px-6 py-16">
+      <div className="w-full max-w-md space-y-6">
         <div className="space-y-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -118,7 +112,7 @@ export default async function DeskLoginPage() {
             ? ` · ${process.env.VERCEL_DEPLOYMENT_ID.replace(/^dpl_/, "").slice(0, 8)}`
             : ""}
         </p>
-      </DeskBlurFade>
+      </div>
     </main>
   );
 }

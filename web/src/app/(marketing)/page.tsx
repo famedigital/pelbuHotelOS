@@ -139,6 +139,8 @@ export default function MarketingHomePage() {
             <img
               src={MARKETING_MEDIA.screenDesk.src}
               alt={MARKETING_MEDIA.screenDesk.alt}
+              width={1440}
+              height={900}
               className="h-auto w-full"
             />
           </ProductFrame>
@@ -239,6 +241,9 @@ export default function MarketingHomePage() {
                   <img
                     src={screen.media.src}
                     alt={screen.media.alt}
+                    width={screen.media.width}
+                    height={screen.media.height}
+                    loading="lazy"
                     className="h-auto w-full"
                   />
                 </ProductFrame>

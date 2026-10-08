@@ -148,7 +148,7 @@ export function StaffCreateForm({
           <Input id="hr_email" name="email" type="email" autoComplete="email" />
         </div>
       </div>
-      <Button type="submit" variant="citrus" disabled={pending}>
+      <Button type="submit" variant="default" disabled={pending}>
         {pending ? "Adding…" : "Add staff member"}
       </Button>
       <ActionResult state={state} />
@@ -370,7 +370,7 @@ export function AnnouncementCreateForm({
           Publish now
         </label>
       </div>
-      <Button type="submit" variant="citrus" disabled={pending}>
+      <Button type="submit" variant="default" disabled={pending}>
         {pending ? "Saving notice…" : "Save notice"}
       </Button>
       <ActionResult state={state} />

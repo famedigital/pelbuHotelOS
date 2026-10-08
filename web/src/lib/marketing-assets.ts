@@ -2,6 +2,8 @@
 export type MarketingMedia = {
   src: string;
   alt: string;
+  width?: number;
+  height?: number;
 };
 
 export const MARKETING_MEDIA = {
@@ -84,22 +86,32 @@ export const MARKETING_MEDIA = {
   screenDesk: {
     src: "/marketing/screens/desk.png",
     alt: "Innora manager duty board",
+    width: 1440,
+    height: 900,
   },
   screenToday: {
     src: "/marketing/screens/today.png",
     alt: "Innora front desk today screen",
+    width: 1440,
+    height: 468,
   },
   screenArrivals: {
     src: "/marketing/screens/arrivals.png",
     alt: "Innora arrivals list",
+    width: 1440,
+    height: 900,
   },
   screenPos: {
     src: "/marketing/screens/pos.png",
     alt: "Innora point of sale, table room or counter",
+    width: 1440,
+    height: 520,
   },
   screenNight: {
     src: "/marketing/screens/night-audit.png",
     alt: "Innora night audit close day",
+    width: 1440,
+    height: 900,
   },
   storyAgent: {
     src: "/marketing/story/agent-desk.png",

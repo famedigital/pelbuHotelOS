@@ -306,7 +306,7 @@ export function GuideEvidencePanel({
       <div className="grid gap-2 sm:grid-cols-2 print:hidden">
         <Button
           type="button"
-          variant="citrus"
+          variant="default"
           className="min-h-11"
           disabled={busy || photoPending}
           onClick={() => cameraRef.current?.click()}

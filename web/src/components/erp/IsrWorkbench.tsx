@@ -272,7 +272,7 @@ function CreateIsrCard() {
           ) : null}
           <Button
             type="submit"
-            variant="citrus"
+            variant="default"
             className="h-11 w-full"
             disabled={pending}
           >
@@ -491,7 +491,7 @@ function SubmitForm({ row }: { row: IsrRow }) {
           {state.error ? (
             <p className="text-sm text-destructive">{state.error}</p>
           ) : null}
-          <Button type="submit" variant="citrus" className="h-11" disabled={pending}>
+          <Button type="submit" variant="default" className="h-11" disabled={pending}>
             {pending ? "Saving…" : "Mark submitted"}
           </Button>
         </form>
@@ -548,7 +548,7 @@ function ApproveForm({ row }: { row: IsrRow }) {
           {state.error ? (
             <p className="text-sm text-destructive">{state.error}</p>
           ) : null}
-          <Button type="submit" variant="citrus" className="h-11" disabled={pending}>
+          <Button type="submit" variant="default" className="h-11" disabled={pending}>
             {pending ? "Saving…" : "Record approval"}
           </Button>
         </form>
@@ -662,7 +662,7 @@ function PdfForm({ row }: { row: IsrRow }) {
           ) : null}
           <Button
             type="submit"
-            variant="citrus"
+            variant="default"
             className="h-11"
             disabled={pending || !publicId}
           >

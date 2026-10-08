@@ -32,7 +32,7 @@ export function RateApproveForm({
       />
       <Button
         type="submit"
-        variant="citrus"
+        variant="default"
         className="h-8 px-3 text-xs"
         disabled={pending}
       >

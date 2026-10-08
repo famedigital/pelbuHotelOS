@@ -82,7 +82,7 @@ export function DeskShell({
           <ErpCommandPalette allowedModuleKeys={allowedModuleKeys} />
           <SidebarInset className="max-h-svh overflow-hidden">
             <StayHubShell>
-              <header className="z-30 flex h-14 min-w-0 shrink-0 items-center gap-1.5 overflow-x-auto border-b border-border/80 bg-background/95 px-3 shadow-sm backdrop-blur [scrollbar-width:none] supports-[backdrop-filter]:bg-background/80 sm:gap-2 sm:px-4 print:hidden [&::-webkit-scrollbar]:hidden">
+              <header className="z-30 flex h-14 min-w-0 shrink-0 items-center gap-1.5 overflow-x-auto border-b border-border bg-background px-3 [scrollbar-width:none] sm:gap-2 sm:px-4 print:hidden [&::-webkit-scrollbar]:hidden">
                 <SidebarTrigger className="-ml-1 inline-flex h-8 w-auto gap-1 px-2" />
                 <Separator
                   orientation="vertical"
@@ -192,7 +192,7 @@ export function DeskPageTitle({
     description && description.length > 96 ? description : undefined;
 
   return (
-    <div className="erp border-b border-border/80 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/85 md:sticky md:top-0 md:z-20 md:-mx-6 md:px-6 -mx-4">
+    <div className="erp border-b border-border bg-background px-4 md:sticky md:top-0 md:z-20 md:-mx-6 md:px-6 -mx-4">
       <div className="flex flex-col gap-3 py-3 sm:flex-row sm:items-start sm:justify-between md:py-3.5">
         <div className="min-w-0 flex-1 space-y-1">
           {eyebrow ? (

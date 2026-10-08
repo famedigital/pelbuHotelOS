@@ -264,7 +264,7 @@ export function BarPackPanel({
             </Alert>
           ) : null}
           <div className="sm:col-span-2">
-            <Button type="submit" variant="citrus" disabled={spiritPending}>
+            <Button type="submit" variant="default" disabled={spiritPending}>
               {spiritPending ? "Creating…" : "Create pek + bottle"}
             </Button>
           </div>

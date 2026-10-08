@@ -101,7 +101,7 @@ export function StaffMemberForm() {
           <Input id="email" name="email" type="email" />
         </div>
       </div>
-      <Button type="submit" variant="citrus" disabled={pending} className="h-10 w-full">
+      <Button type="submit" variant="default" disabled={pending} className="h-10 w-full">
         {pending ? "Saving…" : "Save staff"}
       </Button>
       <ActionFlash state={state} />
@@ -283,7 +283,7 @@ export function StaffLeaveForm({ staff }: { staff: StaffOption[] }) {
       </div>
       <Button
         type="submit"
-        variant="citrus"
+        variant="default"
         disabled={pending || staff.length === 0}
         className="h-10 w-full"
       >
@@ -392,7 +392,7 @@ export function InventoryItemForm() {
           />
         </div>
       </div>
-      <Button type="submit" variant="citrus" disabled={pending} className="h-10 w-full">
+      <Button type="submit" variant="default" disabled={pending} className="h-10 w-full">
         {pending ? "Saving…" : "Save item"}
       </Button>
       <ActionFlash state={state} />

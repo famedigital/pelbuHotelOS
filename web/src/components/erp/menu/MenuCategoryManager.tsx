@@ -130,7 +130,7 @@ export function MenuCategoryManager({
               <AlertDescription>{saveState.error}</AlertDescription>
             </Alert>
           ) : null}
-          <Button type="submit" variant="citrus" disabled={savePending} className="w-full">
+          <Button type="submit" variant="default" disabled={savePending} className="w-full">
             {savePending ? "Saving…" : "Add category"}
           </Button>
         </form>

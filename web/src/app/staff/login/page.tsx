@@ -26,7 +26,7 @@ export default async function StaffLoginPage({
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-6 py-16">
+    <main className="erp flex min-h-screen items-center justify-center bg-background px-6 py-16">
       <div className="w-full max-w-md space-y-6">
         <div className="space-y-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}

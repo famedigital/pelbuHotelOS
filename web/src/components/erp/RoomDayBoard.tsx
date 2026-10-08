@@ -385,7 +385,7 @@ export function RoomDayBoard({
 
           return (
             <section key={group.name} className="mb-3">
-              <h2 className="sticky top-0 z-[1] bg-background/95 py-1 text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase backdrop-blur">
+              <h2 className="sticky top-0 z-[1] bg-background py-1 text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
                 {group.name}
               </h2>
               <ul className="space-y-1">
@@ -444,7 +444,7 @@ export function RoomDayBoard({
 
       <Button
         type="button"
-        variant="citrus"
+        variant="default"
         size="icon"
         className="fixed right-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 size-12 rounded-full shadow-lg md:hidden"
         aria-label="Book stay"

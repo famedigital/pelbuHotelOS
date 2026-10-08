@@ -259,7 +259,7 @@ function MemberRow({
               <Button
                 type="button"
                 size="sm"
-                variant="citrus"
+                variant="default"
                 className="h-8 text-xs"
                 onClick={() =>
                   stayHub.openStayHub({
@@ -462,7 +462,7 @@ export function ReservationsPartyBoard({
   return (
     <div className="space-y-3">
       {selectedCount >= 1 ? (
-        <div className="sticky top-2 z-20 flex flex-wrap items-center gap-2 rounded-xl border border-accent/40 bg-card/95 px-3 py-2.5 shadow-sm backdrop-blur">
+        <div className="sticky top-2 z-20 flex flex-wrap items-center gap-2 rounded-xl border border-accent/40 bg-card px-3 py-2.5">
           <p className="text-sm text-foreground">
             <span className="font-semibold tabular-nums">{selectedCount}</span>{" "}
             selected
@@ -472,7 +472,7 @@ export function ReservationsPartyBoard({
               <Button
                 type="button"
                 size="sm"
-                variant="citrus"
+                variant="default"
                 disabled={pending}
                 onClick={bulkOpenCheckIn}
               >
@@ -564,7 +564,7 @@ export function ReservationsPartyBoard({
                     <Button
                       type="button"
                       size="sm"
-                      variant="citrus"
+                      variant="default"
                       className="h-8"
                       disabled={pending}
                       onClick={(e) => {
@@ -592,7 +592,7 @@ export function ReservationsPartyBoard({
                           <Button
                             type="button"
                             size="sm"
-                            variant="citrus"
+                            variant="default"
                             className="h-8 text-xs"
                             onClick={() => {
                               const ready = party.members.filter(

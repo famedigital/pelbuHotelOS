@@ -69,7 +69,7 @@ function SlotCard({
           <Badge variant="secondary">
             {slot.kind === "feature" ? "Promo tile" : "Row thumb"}
           </Badge>
-          {isCustom ? <Badge variant="citrus">Custom</Badge> : null}
+          {isCustom ? <Badge variant="default">Custom</Badge> : null}
         </div>
       </div>
       <div className="flex flex-1 flex-col gap-2 p-3">

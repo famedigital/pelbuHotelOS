@@ -165,7 +165,7 @@ export function AgreedRateForm({
         ) : null}
         <Button
           type="submit"
-          variant="citrus"
+          variant="default"
           disabled={pending}
           className={cn(btnH, "sm:col-span-2")}
         >

@@ -906,7 +906,7 @@ function ProfileStep({
               <Result state={state} />
               <Button
                 type="submit"
-                variant="citrus"
+                variant="default"
                 className="h-11 min-w-[8rem]"
                 disabled={pending}
               >
@@ -1232,6 +1232,7 @@ function AccessStep({
                 <option value="kitchen">Kitchen</option>
                 <option value="hk">Housekeeping</option>
                 <option value="laundry">Laundry</option>
+                <option value="accountant">Accountant</option>
               </select>
             </Field>
 
@@ -1284,7 +1285,7 @@ function AccessStep({
               <Result state={accessState} />
               <Button
                 type="submit"
-                variant="citrus"
+                variant="default"
                 className="h-11 min-w-[8rem]"
                 disabled={accessPending}
               >
@@ -1952,7 +1953,7 @@ function CompensationStep({
                 <Result state={profileState} />
                 <Button
                   type="submit"
-                  variant="citrus"
+                  variant="default"
                   className="h-11 min-w-[8rem]"
                   disabled={profilePending}
                 >
@@ -2425,7 +2426,7 @@ function DocumentsStep({
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="submit"
-                variant="citrus"
+                variant="default"
                 className="h-11"
                 disabled={pending || !publicId}
               >
@@ -2710,7 +2711,7 @@ function RecordsStep({
                 <Result state={state} />
                 <Button
                   type="submit"
-                  variant="citrus"
+                  variant="default"
                   className="h-11"
                   disabled={pending}
                 >

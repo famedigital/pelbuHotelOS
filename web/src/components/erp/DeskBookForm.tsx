@@ -1502,7 +1502,7 @@ export function DeskBookForm({
           {agentStay ? (
             <Button
               type="button"
-              variant="citrus"
+              variant="default"
               className="h-12 w-full text-base font-semibold"
               onClick={() => {
                 void confirmDeskReservation(bookingId).then((res) => {
@@ -2902,7 +2902,7 @@ export function DeskBookForm({
                       ? "check_in"
                       : "confirm"
                 }
-                variant="citrus"
+                variant="default"
                 disabled={
                   pending ||
                   blockCredit ||
@@ -3023,7 +3023,7 @@ export function DeskBookForm({
             >
               Custom Nu/night
             </Button>
-            <Button type="button" variant="citrus" onClick={() => setSheetOpen(false)}>
+            <Button type="button" variant="default" onClick={() => setSheetOpen(false)}>
               Use sheet
             </Button>
           </DialogFooter>
@@ -3107,7 +3107,7 @@ export function DeskBookForm({
             </Button>
             <Button
               type="button"
-              variant="citrus"
+              variant="default"
               disabled={!Number.isFinite(Number(draftRate))}
               onClick={applyRateDialog}
             >

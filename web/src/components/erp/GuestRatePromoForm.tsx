@@ -208,7 +208,7 @@ export function GuestRatePromoForm({
 
         <Button
           type="submit"
-          variant="citrus"
+          variant="default"
           disabled={pending}
           className={`${btnH} sm:col-span-2`}
         >

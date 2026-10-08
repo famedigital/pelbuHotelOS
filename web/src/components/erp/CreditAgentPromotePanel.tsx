@@ -185,7 +185,7 @@ export function CreditAgentPromotePanel({
         <div className="flex flex-wrap gap-1.5">
           <Button
             type="button"
-            variant="citrus"
+            variant="default"
             disabled={pending}
             className="h-9 min-h-9 flex-1 px-3 text-xs"
             onClick={runPromote}
@@ -277,7 +277,7 @@ export function CreditAgentPromotePanel({
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <Button
           type="button"
-          variant="citrus"
+          variant="default"
           disabled={pending}
           className="h-10 w-full sm:flex-1"
           onClick={runPromote}

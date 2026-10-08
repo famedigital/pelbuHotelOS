@@ -97,7 +97,7 @@ export default async function MenuPrintIndexPage({
               <CardContent className="mt-auto flex flex-col gap-2">
                 <p className="text-[11px] text-muted-foreground">{t.source}</p>
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="citrus" asChild>
+                  <Button size="sm" variant="default" asChild>
                     <Link href={href}>Open</Link>
                   </Button>
                   <Button size="sm" variant="outline" asChild>

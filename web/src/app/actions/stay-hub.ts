@@ -1836,7 +1836,8 @@ export async function fetchStayHubOpen(
     >["data"] | null;
   }>
 > {
-  const [summaryRes, partyRes, catalogRes] = await Promise.all([
+  const wantCheckIn = opts?.checkIn !== false;
+  const [summaryRes, partyRes, catalogRes, checkInRes] = await Promise.all([
     fetchStayHubSummary(bookingId, preferredAssignmentId),
     fetchStayHubPartyContext(bookingId),
     opts?.catalog
@@ -1844,27 +1845,27 @@ export async function fetchStayHubOpen(
       : Promise.resolve(
           null as Awaited<ReturnType<typeof fetchStayHubCatalog>> | null,
         ),
+    wantCheckIn
+      ? fetchStayHubCheckIn(bookingId)
+      : Promise.resolve(null),
   ]);
   if (!summaryRes.ok) return summaryRes;
 
   const status = summaryRes.data.status;
   const needCheckIn =
-    opts?.checkIn === true ||
-    (opts?.checkIn !== false &&
-      (status === "pending" ||
-        status === "confirmed" ||
-        status === "held"));
-
-  const checkInRes = needCheckIn
-    ? await fetchStayHubCheckIn(bookingId)
-    : null;
+    wantCheckIn &&
+    (opts?.checkIn === true ||
+      status === "pending" ||
+      status === "confirmed" ||
+      status === "held");
 
   return {
     ok: true,
     data: {
       summary: summaryRes.data,
       party: partyRes.ok ? partyRes.data : null,
-      checkIn: checkInRes && checkInRes.ok ? checkInRes.data : null,
+      checkIn:
+        needCheckIn && checkInRes && checkInRes.ok ? checkInRes.data : null,
       catalog: catalogRes && catalogRes.ok ? catalogRes.data : null,
     },
   };

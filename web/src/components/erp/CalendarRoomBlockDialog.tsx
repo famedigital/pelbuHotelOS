@@ -148,7 +148,7 @@ export function CalendarRoomBlockDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" variant="citrus" disabled={pending}>
+            <Button type="submit" variant="default" disabled={pending}>
               {pending ? "Blocking…" : "Create block"}
             </Button>
           </div>

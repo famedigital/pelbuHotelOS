@@ -353,6 +353,9 @@ export default async function ErpFinanceOverviewPage() {
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
               <Button asChild size="sm">
+                <Link href="/erp/finance/statement">Hotel statement</Link>
+              </Button>
+              <Button asChild size="sm" variant="outline">
                 <Link href="/erp/finance/banking">Match bank statement</Link>
               </Button>
               <Button asChild size="sm" variant="outline">

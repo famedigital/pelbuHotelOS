@@ -56,6 +56,9 @@ export default async function PosReportsPage({ searchParams }: Props) {
         <h1 className="mt-1 text-xl font-semibold tracking-tight">F&B reports</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Settled tickets for this property. Voids are counted separately.
+          {pack.truncated
+            ? " This range is larger than 20,000 tickets — narrow the dates."
+            : ""}
         </p>
       </div>
 

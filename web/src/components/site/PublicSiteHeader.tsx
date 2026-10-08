@@ -18,7 +18,7 @@ export async function PublicSiteHeader({
   const brand = propertyName?.trim() || SITE_NAME;
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border/70 bg-background/95 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-border/70 bg-background">
       <div className="relative mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6">
         <Link href="/" className="min-w-0 shrink-0">
           <p className="truncate text-sm font-semibold tracking-tight text-foreground">

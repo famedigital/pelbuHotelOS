@@ -92,24 +92,24 @@ export function KitchenTicketStrip({
         </span>
         <div className="flex flex-wrap items-center gap-1.5">
           {counts.pendingConfirm > 0 ? (
-            <Badge variant="gold">Pending confirm · {counts.pendingConfirm}</Badge>
+            <Badge variant="citrus">Pending confirm · {counts.pendingConfirm}</Badge>
           ) : null}
           {counts.awaitingPayment > 0 ? (
-            <Badge variant="gold">
+            <Badge variant="citrus">
               Awaiting payment · {counts.awaitingPayment}
             </Badge>
           ) : null}
           {counts.new > 0 ? (
-            <Badge variant="secondary">New · {counts.new}</Badge>
+            <Badge variant="sky">New · {counts.new}</Badge>
           ) : null}
           {counts.preparing > 0 ? (
-            <Badge variant="secondary">Preparing · {counts.preparing}</Badge>
+            <Badge variant="sky">Preparing · {counts.preparing}</Badge>
           ) : null}
           {counts.ready > 0 ? (
-            <Badge variant="gold">Ready · {counts.ready}</Badge>
+            <Badge variant="mint">Ready · {counts.ready}</Badge>
           ) : null}
           {counts.served > 0 ? (
-            <Badge variant="gold">Served · settle {counts.served}</Badge>
+            <Badge variant="citrus">Served · settle {counts.served}</Badge>
           ) : null}
           {counts.parked > 0 ? (
             <Badge variant="outline">Parked · {counts.parked}</Badge>
@@ -122,7 +122,7 @@ export function KitchenTicketStrip({
               ))
             : null}
           {counts.online > 0 ? (
-            <Badge variant="gold">Online · {counts.online}</Badge>
+            <Badge variant="sky">Online · {counts.online}</Badge>
           ) : null}
           {openTickets.length === 0 ? (
             <span className="text-xs text-muted-foreground">

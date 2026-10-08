@@ -7,7 +7,7 @@ export function PrintButton({ label = "Print" }: { label?: string }) {
     <Button
       type="button"
       onClick={() => window.print()}
-      variant="citrus"
+      variant="default"
       className="h-10 print:hidden"
     >
       {label}

@@ -244,7 +244,7 @@ export function StaffInlineAddTable({
                   <form id={`hire-${row.key}`} action={action}>
                     <Button
                       type="submit"
-                      variant="citrus"
+                      variant="default"
                       size="sm"
                       className="h-11"
                       disabled={pending}
@@ -378,7 +378,7 @@ function HireForm({
           />
         </div>
       </div>
-      <Button type="submit" variant="citrus" className="h-11 w-full" disabled={pending}>
+      <Button type="submit" variant="default" className="h-11 w-full" disabled={pending}>
         {pending ? "Saving…" : "Save hire"}
       </Button>
     </form>

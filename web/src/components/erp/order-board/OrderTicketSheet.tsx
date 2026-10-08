@@ -125,7 +125,7 @@ export function OrderTicketSheet({
               {!ticket.confirmedAt ? (
                 <form action={confirmPublicOrderAction}>
                   <input type="hidden" name="order_id" value={ticket.id} />
-                  <Button type="submit" variant="citrus" className="w-full">
+                  <Button type="submit" variant="default" className="w-full">
                     Confirm order
                   </Button>
                 </form>
@@ -177,7 +177,7 @@ export function OrderTicketSheet({
                   Posts full ticket to guest folio and marks ticket settled.
                   Guest pays at checkout. Tax invoice issues from the folio.
                 </p>
-                <Button type="submit" variant="citrus">
+                <Button type="submit" variant="default">
                   Charge to room
                 </Button>
               </form>

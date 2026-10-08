@@ -117,7 +117,7 @@ export function AgentRatePdfGate({
             </p>
           </div>
 
-          <Button type="submit" disabled={pending} variant="citrus">
+          <Button type="submit" disabled={pending} variant="default">
             {pending ? "Preparing…" : "Download rate card"}
           </Button>
         </form>

@@ -78,6 +78,7 @@ const DESK_ROLES = new Set([
   "fnb",
   "kitchen",
   "laundry",
+  "accountant",
 ]);
 
 const DOC_TYPES = new Set(["pass_photo", "cv", "cid", "other_id", "other"]);

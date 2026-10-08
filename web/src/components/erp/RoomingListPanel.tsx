@@ -358,7 +358,7 @@ function LineRow({
             </Button>
           ) : removeBlockedReason ? (
             <span
-              className="max-w-[5rem] text-[9px] leading-tight text-muted-foreground"
+              className="max-w-[5rem] text-[11px] leading-tight text-muted-foreground"
               title={removeBlockedReason}
             >
               â€”
@@ -518,7 +518,7 @@ export function RoomingListPanel({
 
       <div className="mt-2 max-h-[min(55vh,32rem)] overflow-auto rounded-md border border-border/70">
         <table className="w-full min-w-[44rem] border-collapse text-left text-xs">
-          <thead className="sticky top-0 z-[1] bg-muted/95 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase backdrop-blur">
+          <thead className="sticky top-0 z-[1] bg-muted text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
             <tr>
               <th className="px-1.5 py-1.5">Room</th>
               <th className="px-1.5 py-1.5">Status</th>
