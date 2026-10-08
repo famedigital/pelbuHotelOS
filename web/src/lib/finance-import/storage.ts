@@ -36,7 +36,10 @@ export async function createFinanceSignedUpload(
     console.error("finance signed upload failed", error);
     throw new Error("Could not create signed upload URL.");
   }
-  return { signedUrl: data.signedUrl, token: data.token, path: data.path };
+  // The desk is HTTPS. Storage on this droplet is HTTP, so the browser
+  // blocks a direct PUT ("Failed to fetch"). The file goes to our own route.
+  const signedUrl = `/api/erp/finance/storage-put?path=${encodeURIComponent(data.path)}`;
+  return { signedUrl, token: data.token, path: data.path };
 }
 
 export async function createFinanceSignedPreview(
