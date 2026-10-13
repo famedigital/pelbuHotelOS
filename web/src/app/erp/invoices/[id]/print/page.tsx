@@ -589,7 +589,7 @@ export default async function FiscalInvoicePrintPage({
               property?.slug === "pelbu-suites-olakha"
                 ? "www.pelbusuites.bt"
                 : null,
-            tax_id: effectiveGstRate(property, 0) > 0 ? property.tax_id : null,
+            tax_id: effectiveGstRate(property, 0) > 0 ? property?.tax_id : null,
             logo_public_id: property?.logo_public_id,
             tagline: legalName && legalName !== hotelName ? legalName : null,
           }}
