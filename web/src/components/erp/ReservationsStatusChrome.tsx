@@ -1,8 +1,18 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { ReservationStatusBucket } from "@/lib/erp/reservation-status-buckets";
+import { cn } from "@/lib/utils";
+import { MoreHorizontal } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 function bucketHref(
   base: Record<string, string | undefined>,
@@ -14,20 +24,26 @@ function bucketHref(
   }
   if (bucket !== "all") p.set("bucket", bucket);
   else p.delete("bucket");
-  // clear single status when using buckets
   p.delete("status");
+  p.delete("worklist");
   const s = p.toString();
   return s ? `/erp/reservations?${s}` : "/erp/reservations";
 }
 
 export function ReservationsStatusChrome({
   bucket,
+  worklist,
   counts,
   queryBase,
   exportHref,
   printHref,
+  summary,
+  exceptions,
+  showCalendar,
+  aside,
 }: {
   bucket: ReservationStatusBucket;
+  worklist: string;
   counts: {
     active: number;
     cancelled: number;
@@ -39,43 +55,22 @@ export function ReservationsStatusChrome({
   queryBase: Record<string, string | undefined>;
   exportHref: string;
   printHref: string;
+  summary: string;
+  exceptions: { label: string; href: string }[];
+  showCalendar: boolean;
+  aside?: ReactNode;
 }) {
+  const depositOn = worklist === "deposit_due";
   const chips: {
     id: ReservationStatusBucket;
     label: string;
     count: number;
-    tone: string;
   }[] = [
-    {
-      id: "active",
-      label: "Active",
-      count: counts.active,
-      tone: "border-emerald-600/50 data-[on=true]:bg-emerald-600/15 data-[on=true]:text-emerald-900 dark:data-[on=true]:text-emerald-100",
-    },
-    {
-      id: "cancelled",
-      label: "Cancelled",
-      count: counts.cancelled,
-      tone: "border-sky-600/50 data-[on=true]:bg-sky-600/15 data-[on=true]:text-sky-900 dark:data-[on=true]:text-sky-100",
-    },
-    {
-      id: "no_show",
-      label: "No-show",
-      count: counts.no_show,
-      tone: "border-orange-500/50 data-[on=true]:bg-orange-500/15 data-[on=true]:text-orange-950 dark:data-[on=true]:text-orange-100",
-    },
-    {
-      id: "checked_out",
-      label: "Departed",
-      count: counts.checked_out,
-      tone: "border-border data-[on=true]:bg-muted",
-    },
-    {
-      id: "all",
-      label: "All",
-      count: counts.all,
-      tone: "border-border data-[on=true]:bg-accent/10 data-[on=true]:text-accent",
-    },
+    { id: "active", label: "Active", count: counts.active },
+    { id: "cancelled", label: "Cancelled", count: counts.cancelled },
+    { id: "no_show", label: "No-show", count: counts.no_show },
+    { id: "checked_out", label: "Departed", count: counts.checked_out },
+    { id: "all", label: "All", count: counts.all },
   ];
 
   const depositHref = (() => {
@@ -90,58 +85,97 @@ export function ReservationsStatusChrome({
   })();
 
   return (
-    <div className="mb-4 space-y-2.5 print:hidden">
-      <div className="flex flex-col gap-2 rounded-lg border border-border/80 bg-card px-2.5 py-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-          {chips.map((c) => (
-            <Link
-              key={c.id}
-              href={bucketHref(queryBase, c.id)}
-              data-on={bucket === c.id ? "true" : "false"}
-              className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors hover:bg-muted/60 ${c.tone}`}
-            >
-              {c.label}
-              <span className="tabular-nums text-muted-foreground">
-                {c.count}
-              </span>
-            </Link>
-          ))}
+    <div className="space-y-2 print:hidden">
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <nav
+            aria-label="Reservation status"
+            className="bg-muted inline-flex h-8 items-center gap-0.5 rounded-lg p-0.5"
+          >
+            {chips.map((c) => {
+              const on = !depositOn && bucket === c.id;
+              return (
+                <Link
+                  key={c.id}
+                  href={bucketHref(queryBase, c.id)}
+                  data-state={on ? "active" : "inactive"}
+                  className="inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+                >
+                  {c.label}
+                  <span className="tabular-nums opacity-80">{c.count}</span>
+                </Link>
+              );
+            })}
+          </nav>
           <Link
             href={depositHref}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-destructive/40 px-2.5 text-xs font-medium text-destructive hover:bg-destructive/5"
+            data-state={depositOn ? "active" : "inactive"}
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-destructive/50 px-2.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 data-[state=active]:bg-destructive data-[state=active]:text-white"
           >
             Deposit due
             <span className="tabular-nums">{counts.deposit_due}</span>
           </Link>
         </div>
-        <div className="flex shrink-0 flex-wrap gap-1.5">
-          <Button asChild size="sm" variant="outline" className="h-8 text-xs">
-            <Link href={exportHref}>Export CSV</Link>
-          </Button>
-          <Button asChild size="sm" variant="outline" className="h-8 text-xs">
-            <Link href={printHref} target="_blank">
-              Print list
-            </Link>
-          </Button>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-xs text-muted-foreground">{summary}</p>
+          {aside}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 bg-background"
+              >
+                <MoreHorizontal className="size-4" />
+                Actions
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem asChild className="focus:text-foreground">
+                <Link href={exportHref}>Export CSV</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="focus:text-foreground">
+                <Link href={printHref} target="_blank">
+                  Print list
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild className="focus:text-foreground">
+                <Link href="/erp/group">Groups desk</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="focus:text-foreground">
+                <Link href="/erp/arrivals">Today&apos;s arrivals</Link>
+              </DropdownMenuItem>
+              {showCalendar ? (
+                <DropdownMenuItem asChild className="focus:text-foreground">
+                  <Link href="/erp/calendar">Assign on calendar</Link>
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-3 px-0.5 text-[10px] text-muted-foreground">
-        <span className="inline-flex items-center gap-1">
-          <span className="inline-block size-2 rounded-full bg-emerald-600" />{" "}
-          Active
-        </span>
-        <span className="inline-flex items-center gap-1">
-          <span className="inline-block size-2 rounded-full bg-sky-600" />{" "}
-          Cancelled
-        </span>
-        <span className="inline-flex items-center gap-1">
-          <span className="inline-block size-2 rounded-full bg-orange-500" />{" "}
-          No-show
-        </span>
-        <span className="text-muted-foreground/80">
-          Row stripe matches legend
-        </span>
-      </div>
+
+      {exceptions.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+          {exceptions.map((item) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              className={cn(
+                "font-medium underline-offset-4 hover:underline",
+                item.label.startsWith("Suggested")
+                  ? "text-citrus-600"
+                  : "text-destructive",
+              )}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

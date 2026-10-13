@@ -104,9 +104,9 @@ export function StayProgressStrip({
                       "flex shrink-0 items-center justify-center rounded-full border font-semibold",
                       dense ? "size-5 text-[11px]" : "size-6 text-[10px]",
                       step.done
-                        ? "border-emerald-600 bg-emerald-600 text-white"
+                        ? "border-sky-600 bg-sky-600 text-white"
                         : viewing || step.current
-                          ? "border-accent bg-background text-accent"
+                          ? "border-amber-600 bg-amber-500 text-sky-950"
                           : "border-border/80 bg-muted text-muted-foreground",
                     )}
                     aria-hidden
@@ -125,9 +125,9 @@ export function StayProgressStrip({
                       "min-w-0 flex-1 truncate font-medium leading-tight",
                       dense ? "text-[11px]" : "text-xs",
                       step.done
-                        ? "text-emerald-700 dark:text-emerald-300"
+                        ? "text-sky-800 dark:text-sky-200"
                         : viewing || step.current
-                          ? "text-accent"
+                          ? "text-amber-800 dark:text-amber-200"
                           : "text-muted-foreground",
                     )}
                   >
@@ -204,9 +204,9 @@ export function StayProgressStrip({
                     className={cn(
                       "flex size-5 items-center justify-center rounded-full border text-[11px] font-semibold sm:size-6 sm:text-[10px]",
                       step.done
-                        ? "border-emerald-600 bg-emerald-600 text-white"
+                        ? "border-sky-600 bg-sky-600 text-white"
                         : viewing || step.current
-                          ? "border-accent bg-background text-accent"
+                          ? "border-amber-600 bg-amber-500 text-sky-950"
                           : "border-border/80 bg-muted text-muted-foreground",
                     )}
                     aria-hidden
@@ -221,9 +221,9 @@ export function StayProgressStrip({
                     className={cn(
                       "max-w-full truncate text-[11px] font-medium leading-tight sm:text-[10px]",
                       step.done
-                        ? "text-emerald-700 dark:text-emerald-300"
+                        ? "text-sky-800 dark:text-sky-200"
                         : viewing || step.current
-                          ? "text-accent"
+                          ? "text-amber-800 dark:text-amber-200"
                           : "text-muted-foreground",
                     )}
                   >

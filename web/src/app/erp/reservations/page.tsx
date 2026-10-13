@@ -1,6 +1,5 @@
 import type { BookingRow } from "@/components/erp/BookingsTable";
 import { DeskListShell } from "@/components/erp/DeskListShell";
-import { DeskMetricRow } from "@/components/erp/DeskMetricRow";
 import { NewReservationLauncher } from "@/components/erp/NewReservationLauncher";
 import { ReservationsListCacheBridge } from "@/components/erp/ReservationsListCacheBridge";
 import { ReservationsFilterForm } from "@/components/erp/ReservationsFilterForm";
@@ -35,7 +34,6 @@ import { fmtDate, matchesQuery } from "@/lib/erp-lists";
 import { loadProperty } from "@/lib/property-context";
 import { getStaffSession } from "@/lib/staff-auth";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
@@ -379,7 +377,6 @@ export default async function ReservationsPage({
 
   const needsOnly = afterSearch.filter((r) => r.room_fit === "none").length;
   const partialOnly = afterSearch.filter((r) => r.room_fit === "partial").length;
-  const fullOnly = afterSearch.filter((r) => r.room_fit === "full").length;
 
   const filtered = afterSearch
     .filter((r) => matchesRoomFilter(r.room_fit ?? "n_a", roomFilter))
@@ -407,7 +404,6 @@ export default async function ReservationsPage({
   }
 
   const parties = buildReservationParties(filtered, memberships);
-  const partyCount = parties.filter((p) => p.kind === "group").length;
   const suggestedCount = parties.filter((p) => p.kind === "suggested").length;
 
   const staffSession = await getStaffSession();
@@ -529,12 +525,14 @@ export default async function ReservationsPage({
 
   return (
     <DeskListShell
+      wide
+      dense
       eyebrow="Front office"
       heading="Reservations"
       subtitle={
         worklist === "deposit_due"
           ? "Deposit due — token required not yet fully received."
-          : "Multi-room parties roll up. Filter by arrival window, status, and room fit."
+          : "Parties roll up by arrival, status, and room fit."
       }
       help={
         worklist === "deposit_due" ? (
@@ -568,62 +566,6 @@ export default async function ReservationsPage({
           <NewReservationLauncher form={fastBookForm} />
         </Suspense>
       }
-      metrics={
-        <DeskMetricRow
-          metrics={[
-            {
-              label: "Needs room",
-              value: String(needsOnly),
-              href: buildReservationsQs({
-                ...filterBase,
-                room: "needs_room",
-              }),
-              tone: needsOnly > 0 ? "destructive" : "default",
-              hint: "No units yet",
-            },
-            {
-              label: "Partial",
-              value: String(partialOnly),
-              href: buildReservationsQs({
-                ...filterBase,
-                room: "partial",
-              }),
-              tone: partialOnly > 0 ? "destructive" : "default",
-              hint: "Some rooms assigned",
-            },
-            {
-              label: "Rooms OK",
-              value: String(fullOnly),
-              href: buildReservationsQs({
-                ...filterBase,
-                room: "assigned",
-              }),
-              tone: "accent",
-              hint: "Fully assigned",
-            },
-            {
-              label: "Parties",
-              value: String(partyCount),
-              href: "/erp/group",
-              tone: "accent",
-              hint: "Formal groups",
-            },
-            {
-              label: "Suggested",
-              value: String(suggestedCount),
-              href: buildReservationsQs({ ...filterBase, room: "all" }),
-              tone: suggestedCount > 0 ? "destructive" : "default",
-              hint: "Same agent + dates",
-            },
-            {
-              label: "In view",
-              value: String(parties.length),
-              href: buildReservationsQs({ ...filterBase, room: "all" }),
-              hint: `${filtered.length} booking${filtered.length === 1 ? "" : "s"}`,
-            },
-          ]}
-        />
-      }
       filters={
         <ReservationsFilterForm
           key={[
@@ -652,6 +594,7 @@ export default async function ReservationsPage({
     >
       <ReservationsStatusChrome
         bucket={bucket}
+        worklist={worklist}
         counts={bucketCounts}
         queryBase={{
           q: query || undefined,
@@ -660,66 +603,51 @@ export default async function ReservationsPage({
           check_in_from: checkInFrom || undefined,
           check_in_to: checkInTo || undefined,
           sort: sort !== "check_in_desc" ? sort : undefined,
-          worklist: worklist || undefined,
         }}
         exportHref={exportHref}
         printHref={printHref}
-      />
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-3">
-        <div className="min-w-0 space-y-0.5">
-          <p className="text-sm font-medium text-foreground">
-            {parties.length} part{parties.length === 1 ? "y" : "ies"}
-            <span className="font-normal text-muted-foreground">
-              {" "}
-              · {filtered.length} reservation
-              {filtered.length === 1 ? "" : "s"}
-            </span>
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {arrivalWindowLabel ? (
-              <span>
-                Arrivals <span className="text-foreground">{arrivalWindowLabel}</span>
-              </span>
-            ) : (
-              <span>All arrival dates</span>
-            )}
-            {roomFilter !== "all"
-              ? ` · ${roomFilter.replace(/_/g, " ")}`
-              : ""}
-            {suggestedCount > 0
-              ? ` · ${suggestedCount} suggested multi-room`
-              : ""}
-            {worklist === "deposit_due" ? " · deposit due only" : ""}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 text-xs">
+        summary={`${parties.length} ${parties.length === 1 ? "party" : "parties"} · ${filtered.length} reservation${filtered.length === 1 ? "" : "s"}${arrivalWindowLabel ? ` · ${arrivalWindowLabel}` : ""}`}
+        exceptions={[
+          ...(needsOnly > 0
+            ? [
+                {
+                  label: `Needs room ${needsOnly}`,
+                  href: buildReservationsQs({
+                    ...filterBase,
+                    room: "needs_room",
+                  }),
+                },
+              ]
+            : []),
+          ...(partialOnly > 0
+            ? [
+                {
+                  label: `Partial ${partialOnly}`,
+                  href: buildReservationsQs({
+                    ...filterBase,
+                    room: "partial",
+                  }),
+                },
+              ]
+            : []),
+          ...(suggestedCount > 0
+            ? [
+                {
+                  label: `Suggested ${suggestedCount}`,
+                  href: buildReservationsQs({ ...filterBase, room: "all" }),
+                },
+              ]
+            : []),
+        ]}
+        showCalendar={needsRoomFilter || needsOnly > 0}
+        aside={
           <ReservationsListCacheBridge
             propertyId={propertyId}
             bucket={bucket}
             rowCount={parties.length}
           />
-          {needsRoomFilter || needsOnly > 0 ? (
-            <Link
-              href="/erp/calendar"
-              className="font-medium text-accent underline-offset-4 hover:underline"
-            >
-              Assign on calendar
-            </Link>
-          ) : null}
-          <Link
-            href="/erp/group"
-            className="font-medium text-accent underline-offset-4 hover:underline"
-          >
-            Groups desk
-          </Link>
-          <Link
-            href="/erp/arrivals"
-            className="font-medium text-accent underline-offset-4 hover:underline"
-          >
-            Today&apos;s arrivals
-          </Link>
-        </div>
-      </div>
+        }
+      />
       <Suspense
         fallback={
           <p className="rounded-xl border border-border bg-card px-4 py-6 text-sm text-muted-foreground">

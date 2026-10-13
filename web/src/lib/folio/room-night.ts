@@ -77,6 +77,7 @@ type OccupiedRoom = {
   adults: number;
   /** Manager-approved special nightly rate (BTN, rate-sheet tax basis). */
   agreedNightlyRateBtn: number | null;
+  rateTaxMode: "inclusive" | "exclusive" | null;
 };
 
 /**
@@ -116,6 +117,7 @@ export async function postRoomNightsForDate(
        bookings!inner(
          id, status, check_in, check_out, contact_name, source, agent_id,
          adults, promo_discount_pct, promo_code_id, agreed_nightly_rate_btn,
+         rate_tax_mode,
          agents(rate_tier)
        )`,
     )
@@ -140,6 +142,7 @@ export async function postRoomNightsForDate(
           agent_id: string | null;
           adults?: number | null;
           agreed_nightly_rate_btn?: number | null;
+          rate_tax_mode?: string | null;
           agents?:
             | { rate_tier?: string | null }
             | { rate_tier?: string | null }[]
@@ -155,6 +158,7 @@ export async function postRoomNightsForDate(
           agent_id: string | null;
           adults?: number | null;
           agreed_nightly_rate_btn?: number | null;
+          rate_tax_mode?: string | null;
           agents?:
             | { rate_tier?: string | null }
             | { rate_tier?: string | null }[]
@@ -222,6 +226,11 @@ export async function postRoomNightsForDate(
       agreedNightlyRateBtn:
         booking.agreed_nightly_rate_btn != null
           ? Number(booking.agreed_nightly_rate_btn)
+          : null,
+      rateTaxMode:
+        booking.rate_tax_mode === "inclusive" ||
+        booking.rate_tax_mode === "exclusive"
+          ? booking.rate_tax_mode
           : null,
     });
   }
@@ -318,7 +327,15 @@ export async function postRoomNightsForDate(
       partnerNote = " · agreed rate";
     }
 
-    const tax = calculateRoomNightTax(listedAmountBtn, taxSettings);
+    const tax = calculateRoomNightTax(listedAmountBtn, {
+      ...taxSettings,
+      inclusiveOfGstSc:
+        room.rateTaxMode === "inclusive"
+          ? true
+          : room.rateTaxMode === "exclusive"
+            ? false
+            : taxSettings.inclusiveOfGstSc,
+    });
     const amountBtn = tax.amountBtn;
     const serviceChargeRate = tax.serviceChargeRate;
     const serviceChargeBtn = tax.serviceChargeBtn;

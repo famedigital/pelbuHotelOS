@@ -5,8 +5,14 @@ import type { BookingRow } from "@/components/erp/BookingsTable";
 import { AgentNameLink } from "@/components/erp/AgentNameLink";
 import { BookingDetailPanelLoader } from "@/components/erp/BookingDetailPanelLoader";
 import { RoomingListPanel } from "@/components/erp/RoomingListPanel";
+import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import {
   Accordion,
   AccordionContent,
@@ -34,106 +40,123 @@ import { toast } from "sonner";
 import { BookingLifecycleActions } from "@/components/erp/BookingLifecycleActions";
 import { fmtDate as formatStayDate } from "@/lib/erp-lists";
 
+/** Shared with the header so rooms can wrap without colliding. */
+const PARTY_COLS =
+  "grid-cols-1 gap-y-1 sm:grid-cols-[minmax(0,14rem)_minmax(9.5rem,13rem)_minmax(0,12rem)_minmax(12rem,1.8fr)_max-content] sm:items-center sm:gap-x-4";
+
 function fmtDate(iso: string | null): string {
   return formatStayDate(iso);
 }
 
+function statusVariant(
+  value: string,
+): "sky" | "citrus" | "secondary" | "destructive" {
+  if (value === "confirmed") return "sky";
+  if (value === "checked_in" || value === "open") return "citrus";
+  if (value === "held" || value === "pending") return "destructive";
+  return "secondary";
+}
+
 function StatusPill({ value }: { value: string }) {
   if (!value) return null;
-  const tone =
-    value === "checked_in" || value === "open"
-      ? "border-citrus/40 bg-citrus-tint/60 text-citrus"
-      : value === "confirmed"
-        ? "border-accent/30 bg-accent/10 text-accent"
-        : value === "held" || value === "pending"
-          ? "border-destructive/30 bg-destructive/5 text-destructive"
-          : value === "checked_out" ||
-              value === "cancelled" ||
-              value === "no_show"
-            ? "border-border bg-muted text-muted-foreground"
-            : "border-border bg-muted text-muted-foreground";
   return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase whitespace-nowrap ${tone}`}
-    >
+    <Badge variant={statusVariant(value)} className="capitalize">
       {value.replace(/_/g, " ")}
-    </span>
+    </Badge>
   );
 }
 
+function badgeVariant(
+  tone: ArrivalBadge["tone"],
+): "destructive" | "citrus" | "mint" | "secondary" | "sky" {
+  if (tone === "danger") return "destructive";
+  if (tone === "warn") return "citrus";
+  if (tone === "ok") return "mint";
+  if (tone === "info") return "sky";
+  return "secondary";
+}
+
 function BadgePill({ badge }: { badge: ArrivalBadge }) {
-  const tone =
-    badge.tone === "danger"
-      ? "border-destructive/40 bg-destructive/10 text-destructive"
-      : badge.tone === "warn"
-        ? "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200"
-        : badge.tone === "ok"
-          ? "border-citrus/40 bg-citrus-tint/50 text-citrus"
-          : "border-border bg-muted text-muted-foreground";
   return (
-    <span
-      className={`inline-flex max-w-[9rem] truncate items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${tone}`}
-      title={badge.label}
-    >
+    <Badge variant={badgeVariant(badge.tone)} title={badge.label}>
       {badge.label}
+    </Badge>
+  );
+}
+
+function RoomList({ labels }: { labels: string[] }) {
+  const text = labels.join(", ");
+  const body = (
+    <span className="font-medium tabular-nums leading-snug text-sky-800 line-clamp-2 lg:line-clamp-none">
+      {text}
     </span>
+  );
+  if (labels.length <= 4) return body;
+  return (
+    <HoverCard>
+      <HoverCardTrigger asChild>
+        <span className="block min-w-0 cursor-help">{body}</span>
+      </HoverCardTrigger>
+      <HoverCardContent
+        align="start"
+        className="w-80"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <p className="mb-1 text-xs font-medium text-muted-foreground">
+          {labels.length} rooms
+        </p>
+        <p className="font-medium tabular-nums leading-snug text-sky-800">
+          {text}
+        </p>
+      </HoverCardContent>
+    </HoverCard>
   );
 }
 
 function PartyRoomCell({ party }: { party: ReservationParty }) {
   const fit = partyRoomFit(party);
-  const labels = party.roomLabels.join(", ");
   if (fit === "none") {
     return <span className="font-medium text-destructive">No rooms</span>;
   }
   if (fit === "partial") {
     return (
-      <span className="text-amber-800 dark:text-amber-200">
+      <span className="block min-w-0 text-citrus-600">
         <span className="font-medium">
           Partial ({party.assignedCount}/{party.roomsSold})
         </span>
-        {labels ? (
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-            {labels}
+        {party.roomLabels.length > 0 ? (
+          <span className="mt-0.5 block">
+            <RoomList labels={party.roomLabels} />
           </span>
         ) : null}
       </span>
     );
   }
-  if (labels) {
-    return (
-      <span className="font-medium tabular-nums text-foreground">{labels}</span>
-    );
+  if (party.roomLabels.length > 0) {
+    return <RoomList labels={party.roomLabels} />;
   }
   return <span className="text-muted-foreground">—</span>;
 }
 
 function KindChip({ kind }: { kind: ReservationParty["kind"] }) {
   if (kind === "single") return null;
-  const label = kind === "group" ? "Party" : "Suggested";
-  const tone =
-    kind === "group"
-      ? "border-accent/40 bg-accent/10 text-accent"
-      : "border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-100";
   return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${tone}`}
-    >
-      {label}
-    </span>
+    <Badge variant={kind === "group" ? "sky" : "citrus"}>
+      {kind === "group" ? "Party" : "Suggested"}
+    </Badge>
   );
 }
 
 function PartySummary({ party }: { party: ReservationParty }) {
   const multi = party.members.length > 1;
   return (
-    <div className="flex w-full min-w-0 flex-col gap-2 pr-2 text-left sm:flex-row sm:items-center sm:gap-4">
-      <div className="min-w-0 flex-1 sm:max-w-[14rem]">
+    <div className={`grid min-w-0 flex-1 text-left ${PARTY_COLS}`}>
+      <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-1.5">
           <KindChip kind={party.kind} />
-          <p className="font-medium text-foreground">{party.label}</p>
+          <p className="min-w-0 font-medium text-foreground">{party.label}</p>
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="truncate text-xs text-muted-foreground">
           {multi
             ? `${party.members.length} reservations · ${party.roomsSold} rooms`
             : `${bookingConfirmationLabel({
@@ -142,15 +165,21 @@ function PartySummary({ party }: { party: ReservationParty }) {
               })} · ${party.members[0]?.contact_phone ?? "—"}`}
         </p>
       </div>
-      <div className="hidden shrink-0 text-sm sm:block sm:w-[10rem]">
+      <div className="min-w-0 text-sm tabular-nums text-foreground">
+        <span className="mb-0.5 block text-[10px] font-semibold tracking-wide text-sky-800 uppercase sm:hidden">
+          Dates
+        </span>
         {fmtDate(party.checkIn)} → {fmtDate(party.checkOut)}
       </div>
-      <div className="hidden shrink-0 text-sm text-muted-foreground md:block md:w-[8rem]">
+      <div className="min-w-0 truncate text-sm">
+        <span className="mb-0.5 block text-[10px] font-semibold tracking-wide text-sky-800 uppercase sm:hidden">
+          Agent
+        </span>
         {party.agentName ? (
           <AgentNameLink
             agentId={party.agentId}
             name={party.agentName}
-            className="text-sm"
+            className="text-sm text-sky-800"
           />
         ) : (
           <span className="text-foreground">
@@ -158,10 +187,13 @@ function PartySummary({ party }: { party: ReservationParty }) {
           </span>
         )}
       </div>
-      <div className="hidden shrink-0 text-sm lg:block lg:w-[7.5rem]">
+      <div className="min-w-0 text-sm">
+        <span className="mb-0.5 block text-[10px] font-semibold tracking-wide text-sky-800 uppercase sm:hidden">
+          Rooms
+        </span>
         <PartyRoomCell party={party} />
       </div>
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1 sm:justify-end">
+      <div className="flex flex-wrap items-center gap-1 sm:justify-end">
         <StatusPill value={party.primaryStatus ?? ""} />
         {multi ? (
           <BadgePill
@@ -517,17 +549,17 @@ export function ReservationsPartyBoard({
         collapsible
         value={openId ?? ""}
         onValueChange={(v) => setOpenId(v || undefined)}
-        className="rounded-xl border border-border bg-card"
+        className="overflow-hidden rounded-xl border border-sky-200 bg-card"
       >
         <div
-          className="hidden border-b bg-muted/30 px-4 py-2 text-xs font-medium tracking-wide text-muted-foreground uppercase sm:grid sm:grid-cols-[1fr_10rem_8rem_7.5rem_auto] sm:gap-4 md:grid-cols-[14rem_10rem_8rem_7.5rem_1fr]"
+          className={`hidden border-b border-sky-200 bg-sky-50 px-4 py-2 pr-12 text-xs font-semibold text-sky-900 sm:grid ${PARTY_COLS}`}
           aria-hidden
         >
           <span>Party / guest</span>
-          <span className="hidden sm:inline">Dates</span>
-          <span className="hidden md:inline">Agent</span>
-          <span className="hidden lg:inline">Rooms</span>
-          <span className="hidden sm:inline">Status</span>
+          <span>Dates</span>
+          <span>Agent</span>
+          <span>Rooms</span>
+          <span className="text-right">Status</span>
         </div>
 
         {parties.map((party) => {
@@ -546,9 +578,9 @@ export function ReservationsPartyBoard({
             <AccordionItem
               key={party.id}
               value={party.id}
-              className={`border-b border-border/70 px-3 last:border-b-0 sm:px-4 ${statusStripeClass(party.primaryStatus)}`}
+              className={`border-b border-border/70 px-3 last:border-b-0 hover:bg-sky-50/70 data-[state=open]:bg-sky-50/50 sm:px-4 ${statusStripeClass(party.primaryStatus)}`}
             >
-              <AccordionTrigger className="py-3 hover:no-underline sm:py-3.5">
+              <AccordionTrigger className="items-center py-2.5 hover:bg-transparent hover:no-underline [&>svg]:text-sky-700">
                 <PartySummary party={party} />
               </AccordionTrigger>
               <AccordionContent className="border-t border-border/50 bg-muted/10 px-1 pb-4 pt-3 sm:px-2">

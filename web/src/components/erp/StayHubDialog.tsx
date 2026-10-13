@@ -14,6 +14,7 @@ import {
   fetchStayHubPartyContext,
   fetchStayHubSummary,
   previewStayHubSheetRate,
+  setStayHubRateChoice,
   type StayHubCatalogMealPlan,
   type StayHubCheckInPayload,
   type StayHubMoneyPayload,
@@ -272,6 +273,7 @@ function summaryFromSeed(stay: StayHubSeedStay): StayHubSummary {
     roomNcReasons: [],
     agreedNightlyRateBtn: null,
     agreedRateReason: null,
+    quotedTotalBtn: null,
     ratePendingApproval: false,
     mealPlanCode: null,
     guideSignStatus: null,
@@ -344,6 +346,7 @@ function overlayPartyMember(
     openTasks: [],
     agreedNightlyRateBtn: null,
     agreedRateReason: null,
+    quotedTotalBtn: null,
     sdfIncomplete: true,
     isLocked: false,
     checkedInAt: null,
@@ -3002,6 +3005,7 @@ export function StayHubDialog({
                               sheetRatePending={sheetRatePending}
                               summary={summary}
                               onUpdate={updateDraft}
+                              onApplied={refreshSummary}
                             />
                             <div className="mt-3 border-t pt-3">
                               <p className="mb-2 text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
@@ -4079,6 +4083,7 @@ function StayHubSheetRatePanel({
   sheetRatePending,
   summary,
   onUpdate,
+  onApplied,
 }: {
   draft: Draft | null;
   mealPlans: StayHubCatalogMealPlan[];
@@ -4086,7 +4091,13 @@ function StayHubSheetRatePanel({
   sheetRatePending: boolean;
   summary: StayHubSummary;
   onUpdate: <K extends keyof Draft>(key: K, value: Draft[K]) => void;
+  onApplied: () => void;
 }) {
+  const [saving, setSaving] = useState<"mode" | "voucher" | "tariff" | null>(
+    null,
+  );
+  const [rateMessage, setRateMessage] = useState<string | null>(null);
+
   if (!draft) return null;
   const mealOptions =
     mealPlans.length > 0
@@ -4102,7 +4113,82 @@ function StayHubSheetRatePanel({
         ];
   const ok = sheetRate?.ok === true ? sheetRate : null;
   const err = sheetRate && !sheetRate.ok ? sheetRate.error : null;
-  const usingAgreed = summary.agreedNightlyRateBtn != null;
+  const nights = Math.max(
+    1,
+    ok?.nights ?? nightsBetween(summary.checkIn, summary.checkOut),
+  );
+  const voucherNightly =
+    summary.quotedTotalBtn != null && summary.quotedTotalBtn > 0
+      ? summary.quotedTotalBtn / nights
+      : summary.agreedRateReason === "Voucher" &&
+          summary.agreedNightlyRateBtn != null
+        ? summary.agreedNightlyRateBtn
+        : null;
+  const tariffNightly = ok?.systemNightlyTotalBtn ?? null;
+  const tariffSelected = summary.agreedRateReason === "Tariff";
+  const scInside = summary.rateTaxMode === "inclusive";
+  const scPct = Math.round((summary.roomTax?.serviceChargeRate ?? 0.1) * 100);
+  const gstOff = (summary.roomTax?.gstRate ?? 0) <= 0;
+
+  async function saveMode(mode: "inclusive" | "exclusive") {
+    setSaving("mode");
+    setRateMessage(null);
+    const result = await setStayHubRateChoice({
+      bookingId: summary.bookingId,
+      rateTaxMode: mode,
+    });
+    setSaving(null);
+    if (!result.ok) {
+      setRateMessage(result.error);
+      return;
+    }
+    onApplied();
+  }
+
+  async function keepVoucher() {
+    if (voucherNightly == null) return;
+    setSaving("voucher");
+    setRateMessage(null);
+    const result = await setStayHubRateChoice({
+      bookingId: summary.bookingId,
+      source: "voucher",
+      nightlyBtn: voucherNightly,
+      rateTaxMode: summary.rateTaxMode,
+    });
+    setSaving(null);
+    if (!result.ok) {
+      setRateMessage(result.error);
+      return;
+    }
+    onApplied();
+  }
+
+  async function useTariff() {
+    if (tariffNightly == null) return;
+    if (
+      voucherNightly != null &&
+      !tariffSelected &&
+      !window.confirm(
+        `Replace the voucher rate (${formatGuestBtn(voucherNightly)} a night) with the tariff (${formatGuestBtn(tariffNightly)} a night)? Nights already on the folio stay as they are.`,
+      )
+    ) {
+      return;
+    }
+    setSaving("tariff");
+    setRateMessage(null);
+    const result = await setStayHubRateChoice({
+      bookingId: summary.bookingId,
+      source: "tariff",
+      nightlyBtn: tariffNightly,
+      rateTaxMode: summary.rateTaxMode,
+    });
+    setSaving(null);
+    if (!result.ok) {
+      setRateMessage(result.error);
+      return;
+    }
+    onApplied();
+  }
 
   return (
     <div className="space-y-3">
@@ -4125,9 +4211,7 @@ function StayHubSheetRatePanel({
           <p>
             Pax: {draft.adults} adult
             {Number(draft.adults) === 1 ? "" : "s"}
-            {Number(draft.children) > 0
-              ? ` · ${draft.children} child`
-              : ""}
+            {Number(draft.children) > 0 ? ` · ${draft.children} child` : ""}
             {Number(draft.extraBeds) > 0
               ? ` · ${draft.extraBeds} extra bed`
               : ""}
@@ -4136,94 +4220,120 @@ function StayHubSheetRatePanel({
             {summary.roomLabel ?? "Room"}
             {summary.roomTypeName ? ` · ${summary.roomTypeName}` : ""}
           </p>
-          <p className="mt-1 text-[10px]">
-            Edit pax under Details → Guest (autosave).
-          </p>
         </div>
       </div>
 
-      <div className="rounded-lg border bg-card p-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-            {sheetRatePending ? "Loading sheet…" : "System sheet rate"}
-          </p>
-          {ok ? (
-            <p className="text-[11px] text-muted-foreground">
-              {ok.seasonKind} · {ok.rateTier} · {ok.nights}n
-            </p>
-          ) : null}
-        </div>
-        {err ? (
-          <p className="mt-2 text-sm text-destructive">{err}</p>
-        ) : null}
-        {ok ? (
-          <div className="mt-2 space-y-1.5 text-sm">
-            <div className="flex justify-between gap-2">
-              <span className="text-muted-foreground">Room nightly</span>
-              <span className="tabular-nums font-medium">
-                {ok.roomNightlyBtn != null
-                  ? formatGuestBtn(ok.roomNightlyBtn)
-                  : "— no sheet"}
-              </span>
-            </div>
-            <div className="flex justify-between gap-2">
-              <span className="text-muted-foreground">
-                Meal ({ok.mealPlanCode}) / night
-              </span>
-              <span className="tabular-nums">
-                {formatGuestBtn(ok.mealPerNightBtn)}
-              </span>
-            </div>
-            {ok.extraBedPerNightBtn > 0.009 ? (
-              <div className="flex justify-between gap-2">
-                <span className="text-muted-foreground">Extra bed / night</span>
-                <span className="tabular-nums">
-                  {formatGuestBtn(ok.extraBedPerNightBtn)}
-                </span>
-              </div>
-            ) : null}
-            <div className="mt-2 flex justify-between gap-2 border-t pt-2">
-              <span className="font-medium">Package nightly total</span>
-              <span className="text-lg font-semibold tabular-nums">
-                {ok.systemNightlyTotalBtn != null
-                  ? formatGuestBtn(ok.systemNightlyTotalBtn)
-                  : "—"}
-              </span>
-            </div>
-            <div className="flex justify-between gap-2 text-xs text-muted-foreground">
-              <span>Stay total (rooms + meal + extra)</span>
-              <span className="tabular-nums">
-                {ok.systemStayTotalBtn != null
-                  ? formatGuestBtn(ok.systemStayTotalBtn)
-                  : "—"}
-              </span>
-            </div>
-            {!ok.hasRoomType ? (
-              <p className="text-[11px] text-amber-800 dark:text-amber-200">
-                No room type on stay yet — assign room for full sheet lookup.
-              </p>
-            ) : null}
-            {usingAgreed ? (
-              <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-[11px]">
-                Custom agreed rate active:{" "}
-                {formatGuestBtn(summary.agreedNightlyRateBtn!)}/night
-                {summary.agreedRateReason
-                  ? ` · ${summary.agreedRateReason}`
-                  : ""}
-                . Clear below to return to sheet.
-              </p>
-            ) : (
-              <p className="text-[11px] text-muted-foreground">
-                Auto sheet — no input. Custom rate only if negotiated.
-              </p>
-            )}
-          </div>
-        ) : !sheetRatePending ? (
-          <p className="mt-2 text-xs text-muted-foreground">
-            Sheet preview unavailable.
-          </p>
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Service charge">
+        <button
+          type="button"
+          disabled={saving != null}
+          onClick={() => saveMode("inclusive")}
+          className={cn(
+            "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+            scInside
+              ? "border-sky-600 bg-sky-500/15 text-sky-900 dark:text-sky-100"
+              : "border-border text-muted-foreground",
+          )}
+        >
+          SC inside the price
+        </button>
+        <button
+          type="button"
+          disabled={saving != null}
+          onClick={() => saveMode("exclusive")}
+          className={cn(
+            "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+            !scInside
+              ? "border-amber-600 bg-amber-500/15 text-amber-950 dark:text-amber-100"
+              : "border-border text-muted-foreground",
+          )}
+        >
+          SC {scPct}% added on top
+        </button>
+        {gstOff ? (
+          <span className="self-center text-[11px] text-muted-foreground">
+            GST off
+          </span>
         ) : null}
       </div>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div
+          className={cn(
+            "rounded-lg border p-3",
+            !tariffSelected && voucherNightly != null
+              ? "border-sky-600/50 bg-sky-500/10"
+              : "bg-card",
+          )}
+        >
+          <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+            Voucher
+          </p>
+          <p className="mt-1 text-lg font-semibold tabular-nums">
+            {voucherNightly != null ? formatGuestBtn(voucherNightly) : "—"}
+            <span className="ml-1 text-xs font-normal text-muted-foreground">
+              / night
+            </span>
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            {summary.quotedTotalBtn != null
+              ? `${formatGuestBtn(summary.quotedTotalBtn)} stay · from the rack`
+              : "No figure on this stay"}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-2 h-8 min-h-8 text-xs"
+            disabled={voucherNightly == null || saving != null}
+            onClick={keepVoucher}
+          >
+            {saving === "voucher" ? "Saving…" : "Keep voucher"}
+          </Button>
+        </div>
+        <div
+          className={cn(
+            "rounded-lg border p-3",
+            tariffSelected
+              ? "border-amber-600/50 bg-amber-500/10"
+              : "bg-card",
+          )}
+        >
+          <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+            {sheetRatePending ? "Loading tariff…" : "Tariff"}
+          </p>
+          <p className="mt-1 text-lg font-semibold tabular-nums">
+            {tariffNightly != null ? formatGuestBtn(tariffNightly) : "—"}
+            <span className="ml-1 text-xs font-normal text-muted-foreground">
+              / night
+            </span>
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            {ok
+              ? `${ok.seasonKind} · ${ok.rateTier} · room + ${ok.mealPlanCode}`
+              : err ?? "Room and meal add-on"}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-2 h-8 min-h-8 text-xs"
+            disabled={tariffNightly == null || saving != null}
+            onClick={useTariff}
+          >
+            {saving === "tariff" ? "Saving…" : "Use tariff"}
+          </Button>
+        </div>
+      </div>
+      {rateMessage ? (
+        <p className="text-xs text-destructive">{rateMessage}</p>
+      ) : (
+        <p className="text-[11px] text-muted-foreground">
+          {tariffSelected
+            ? "Tariff is the nightly on this stay. Posted folio lines are unchanged."
+            : voucherNightly != null
+              ? "Voucher stays selected. Keep it so nights not yet posted use this figure. Meal is not added again on top."
+              : "No voucher on this stay. Use tariff to set the nightly."}
+        </p>
+      )}
     </div>
   );
 }

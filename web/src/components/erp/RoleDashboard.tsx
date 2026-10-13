@@ -1,4 +1,5 @@
 import { BookingLifecycleActions } from "@/components/erp/BookingLifecycleActions";
+import { TomorrowArrivals } from "@/components/erp/TomorrowArrivals";
 import {
   HorizonOccupancyChart,
   MonthRoomsChart,
@@ -1163,6 +1164,7 @@ function FrontDeskBoard({
           </div>
         </div>
       </section>
+      <TomorrowArrivals rows={snap.tomorrowArrivals} />
       <QuickLinks
         links={[
           { href: "/erp/today", label: "Today boards" },

@@ -3,6 +3,7 @@ import {
   TransferLineForm,
   VoidLineButton,
 } from "@/components/erp/FolioOpsForms";
+import { FolioActivityTable } from "@/components/erp/FolioActivityTable";
 import { FolioActionsPanel } from "@/components/erp/FolioActionsPanel";
 import { FolioSplit } from "@/components/erp/FolioSplit";
 import { FolioRoomPosItemsPanel } from "@/components/erp/FolioRoomPosItemsPanel";
@@ -69,37 +70,6 @@ type FolioLine = {
 
 function isPaymentSource(sourceType: string) {
   return sourceType === "payment" || sourceType === "deposit";
-}
-
-function billToLabel(
-  billTo: string | null | undefined,
-  isPayment: boolean,
-  openItem: boolean,
-) {
-  if (isPayment) return null;
-  if (billTo === "agent") {
-    return openItem ? "Agent AR · invoice later" : "Room package → agent";
-  }
-  return "Food & extras → guest";
-}
-
-function sourceLabel(sourceType: string) {
-  const map: Record<string, string> = {
-    room: "Room",
-    meal_plan: "Meal plan",
-    extra_bed: "Extra bed",
-    payment: "Payment",
-    deposit: "Deposit",
-    comp: "Comp",
-    pos: "F&B / POS",
-    order: "F&B / banquet",
-    laundry: "Laundry",
-    damage: "Damage",
-    cancel_fee: "Cancel fee",
-    no_show_fee: "No-show fee",
-    adjustment: "Adjustment",
-  };
-  return map[sourceType] ?? sourceType.replace(/_/g, " ");
 }
 
 /** Guest-facing activity rows: pair void + reversal as one Cancelled story. */
@@ -208,6 +178,7 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
     { data: damageItems },
     { data: minibarItems },
     { data: childFolios },
+    { data: propertyTax },
   ] = await Promise.all([
     admin
       .from("payment_links")
@@ -271,6 +242,11 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
           .order("created_at", { ascending: true })
           .limit(40)
       : Promise.resolve({ data: [] as { id: string; label: string; status: string }[] }),
+    admin
+      .from("properties")
+      .select("gst_rate")
+      .eq("id", activePropertyId)
+      .maybeSingle(),
   ]);
 
   const roomPosOrders = bookingId
@@ -842,199 +818,17 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <ul className="divide-y">
-                {activityRows.length === 0 ? (
-                  <li className="space-y-3 px-4 py-8 text-sm text-muted-foreground sm:px-5">
-                    <p className="font-medium text-foreground">No lines yet</p>
-                    <p>
-                      Check-in opens the folio. Day-1 room rent and priced meal
-                      plans should post at check-in (or use{" "}
-                      <strong className="font-medium text-foreground">
-                        Post room charges
-                      </strong>{" "}
-                      in Actions). Later nights post at{" "}
-                      <a
-                        href="/erp/night-audit"
-                        className="text-accent underline-offset-4 hover:underline"
-                      >
-                        night audit
-                      </a>
-                      . POS, laundry, and desk charges appear here when posted.
-                    </p>
-                    {bookingStatus === "checked_in" ? (
-                      <p className="rounded-md border border-amber-500/30 bg-amber-50/60 px-3 py-2 text-xs text-foreground dark:bg-amber-950/30">
-                        Guest is checked in with an empty folio — open{" "}
-                        <strong>Post room charges</strong> under Actions so the
-                        balance reflects the stay before you collect payment.
-                      </p>
-                    ) : null}
-                  </li>
-                ) : (
-                  activityRows.map((row) => {
-                    if (row.kind === "cancelled") {
-                      const { original, reversal } = row;
-                      return (
-                        <li
-                          key={`cancelled-${original.id}`}
-                          className="px-4 py-3 text-sm sm:px-5"
-                        >
-                          <div className="flex flex-wrap items-baseline justify-between gap-2">
-                            <p className="min-w-0 flex-1 text-muted-foreground">
-                              <span className="mr-2 inline-flex rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-foreground uppercase">
-                                Cancelled
-                              </span>
-                              {original.description}
-                            </p>
-                            <p className="shrink-0 tabular-nums text-muted-foreground">
-                              Nu 0
-                            </p>
-                          </div>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {sourceLabel(original.source_type)}
-                            {original.void_reason
-                              ? ` · ${original.void_reason}`
-                              : ""}
-                            {original.business_date
-                              ? ` · ${original.business_date}`
-                              : ""}
-                          </p>
-                          <details className="mt-2 rounded-md border border-dashed">
-                            <summary className="cursor-pointer px-2 py-1.5 text-[11px] font-medium text-muted-foreground">
-                              Show accounting lines
-                            </summary>
-                            <ul className="divide-y border-t text-xs">
-                              <li className="flex justify-between gap-2 px-2 py-2 text-muted-foreground">
-                                <span className="line-through">
-                                  Voided · {original.description}
-                                </span>
-                                <span className="tabular-nums line-through">
-                                  {formatBtn(Number(original.total_btn))}
-                                </span>
-                              </li>
-                              <li className="flex justify-between gap-2 px-2 py-2 text-muted-foreground">
-                                <span>
-                                  Reversal · {reversal.description}
-                                </span>
-                                <span className="tabular-nums">
-                                  {formatBtn(Number(reversal.total_btn))}
-                                </span>
-                              </li>
-                            </ul>
-                          </details>
-                        </li>
-                      );
-                    }
-
-                    const line = row.line;
-                    const amount = Number(line.total_btn);
-                    const isPayment = isPaymentSource(line.source_type);
-                    const voided = line.status === "voided";
-                    const payor = billToLabel(
-                      line.bill_to,
-                      isPayment,
-                      agentOpenItem,
-                    );
-                    return (
-                      <li key={line.id} className="px-4 py-3 text-sm sm:px-5">
-                        <div className="flex flex-wrap items-baseline justify-between gap-2">
-                          <p
-                            className={cn(
-                              "min-w-0 flex-1",
-                              voided
-                                ? "text-muted-foreground line-through"
-                                : "text-foreground",
-                            )}
-                          >
-                            {line.description}
-                            {line.is_comp ? (
-                              <span className="ml-2 text-[10px] font-semibold tracking-wide text-accent uppercase">
-                                comp
-                              </span>
-                            ) : null}
-                          </p>
-                          <p
-                            className={cn(
-                              "tabular-nums",
-                              isPayment
-                                ? "text-foreground/70"
-                                : "text-foreground",
-                              voided && "opacity-50 line-through",
-                            )}
-                          >
-                            {formatBtn(amount)}
-                          </p>
-                        </div>
-                        <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
-                          <span>{sourceLabel(line.source_type)}</span>
-                          {payor ? (
-                            <>
-                              <span aria-hidden>·</span>
-                              <span
-                                className={cn(
-                                  line.bill_to === "agent"
-                                    ? "text-foreground/80"
-                                    : "text-muted-foreground",
-                                )}
-                              >
-                                {payor}
-                              </span>
-                            </>
-                          ) : null}
-                          {voided ? (
-                            <>
-                              <span aria-hidden>·</span>
-                              <span className="uppercase">voided</span>
-                            </>
-                          ) : null}
-                          {line.business_date ? (
-                            <>
-                              <span aria-hidden>·</span>
-                              <span>{line.business_date}</span>
-                            </>
-                          ) : null}
-                          {line.service_charge_applied &&
-                          Number(line.service_charge_btn ?? 0) > 0 ? (
-                            <>
-                              <span aria-hidden>·</span>
-                              <span>
-                                SC {formatBtn(Number(line.service_charge_btn ?? 0))}
-                              </span>
-                            </>
-                          ) : null}
-                          {Number(line.gst_btn) > 0 ? (
-                            <>
-                              <span aria-hidden>·</span>
-                              <span>GST {formatBtn(Number(line.gst_btn))}</span>
-                            </>
-                          ) : null}
-                          {line.void_reason ? (
-                            <>
-                              <span aria-hidden>·</span>
-                              <span>{line.void_reason}</span>
-                            </>
-                          ) : null}
-                        </p>
-                        {isOpen &&
-                        !voided &&
-                        !isPayment &&
-                        line.source_type !== "comp" &&
-                        !line.reverses_line_id ? (
-                          <div className="mt-1 space-y-1">
-                            <VoidLineButton
-                              lineId={line.id}
-                              description={line.description}
-                            />
-                            <TransferLineForm
-                              lineId={line.id}
-                              siblingFolios={transferTargets}
-                            />
-                          </div>
-                        ) : null}
-                      </li>
-                    );
-                  })
+              <FolioActivityTable
+                lines={activityRows.flatMap((row) =>
+                  row.kind === "cancelled"
+                    ? [{ ...row.original, status: "voided" as const }]
+                    : [row.line],
                 )}
-              </ul>
+                isOpen={isOpen}
+                transferTargets={transferTargets}
+                gstRate={Number(propertyTax?.gst_rate ?? 0)}
+                balance={balance}
+              />
               {accountingLines.length > 0 ? (
                 <details className="border-t">
                   <summary className="cursor-pointer px-4 py-2.5 text-xs font-medium text-muted-foreground hover:bg-muted/40 sm:px-5">

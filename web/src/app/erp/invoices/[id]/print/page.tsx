@@ -468,72 +468,111 @@ export default async function FiscalInvoicePrintPage({
     { kind: "fnb", label: foodBillLabel(mealPlanCode) },
   ];
 
+  const showBillSwitch = kind === "invoice" || kind === "receipt";
+
   return (
-    <div className="erp mx-auto max-w-[820px] space-y-4 p-4 md:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
-        <div>
-          <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-            {kindLabel} print
+    <div className="erp flex min-h-screen flex-col bg-muted/40 lg:grid lg:grid-cols-[20rem_minmax(0,1fr)] print:block print:min-h-0 print:bg-white">
+      <div className="contents print:hidden lg:sticky lg:top-0 lg:z-10 lg:flex lg:h-screen lg:flex-col lg:overflow-y-auto lg:border-r lg:border-border lg:bg-background">
+        <div className="order-1 border-b border-border bg-background/95 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 backdrop-blur-sm max-lg:sticky max-lg:top-0 max-lg:z-20 lg:order-none lg:border-b-0 lg:bg-background lg:px-5 lg:pt-5 lg:pb-0 lg:backdrop-blur-none">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+                {kindLabel} print
+              </p>
+              <h1 className="mt-1 truncate font-mono text-xl font-semibold text-foreground">
+                {doc.doc_no as string}
+              </h1>
+            </div>
+            <nav className="flex shrink-0 flex-col items-end gap-1 text-sm lg:hidden">
+              {folioId ? (
+                <a
+                  href={`/erp/folios/${folioId}`}
+                  className="text-foreground underline-offset-4 hover:underline"
+                >
+                  Folio
+                </a>
+              ) : null}
+              <a
+                href="/erp/invoices"
+                className="text-foreground underline-offset-4 hover:underline"
+              >
+                Invoices
+              </a>
+            </nav>
+          </div>
+          <p className="mt-1 hidden text-xs text-muted-foreground lg:block">
+            Guest totals whole Nu ending 0 or 5
           </p>
-          <h1 className="mt-1 font-mono text-xl font-semibold text-foreground">
-            {doc.doc_no as string}
-          </h1>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Process: Master bill → Room bill → F&amp;B bill · guest totals whole
-            Nu ending 0 or 5
-          </p>
+
+          {showBillSwitch ? (
+            <nav className="mt-3 lg:mt-6" aria-label="Bill">
+              <p className="hidden text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase lg:block">
+                Bill
+              </p>
+              <div className="flex gap-1.5 overflow-x-auto lg:mt-2 lg:flex-col lg:overflow-visible">
+                {billLinks.map((b) => (
+                  <a
+                    key={b.kind}
+                    href={`${basePrintHref}?bill=${b.kind}`}
+                    aria-current={bill === b.kind ? "page" : undefined}
+                    className={
+                      bill === b.kind
+                        ? "flex min-h-11 min-w-0 flex-1 items-center justify-center rounded-md bg-foreground px-2.5 text-center text-sm leading-tight font-medium text-background touch-manipulation lg:h-9 lg:min-h-0 lg:w-full lg:flex-none lg:justify-start lg:px-3"
+                        : "flex min-h-11 min-w-0 flex-1 items-center justify-center rounded-md border px-2.5 text-center text-sm leading-tight touch-manipulation hover:bg-muted lg:h-9 lg:min-h-0 lg:w-full lg:flex-none lg:justify-start lg:px-3"
+                    }
+                  >
+                    {b.label}
+                  </a>
+                ))}
+              </div>
+            </nav>
+          ) : null}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+
+        <div className="order-5 max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-30 max-lg:border-t max-lg:border-border max-lg:bg-background max-lg:px-3 max-lg:pt-2 max-lg:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-lg:shadow-[0_-8px_24px_rgba(26,20,16,0.08)] lg:order-none lg:px-5 lg:pt-6">
+          <p className="mb-2 hidden text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase lg:block">
+            Paper
+          </p>
+          <DocPrintControls stacked defaultSize="a4" printLabel="Print / PDF" />
+        </div>
+
+        {folioId && showBillSwitch ? (
+          <div className="order-3 px-3 pt-4 lg:order-none lg:px-5 lg:pt-6">
+            <FiscalDocEmailForm
+              folioId={folioId}
+              fiscalDocId={doc.id as string}
+              docKind={kind === "receipt" ? "receipt" : "invoice"}
+              defaultEmail={guestEmail}
+              defaultName={guestName}
+            />
+          </div>
+        ) : null}
+
+        <nav className="order-4 mt-6 hidden flex-col gap-2 border-t border-border px-5 pt-4 pb-5 text-sm lg:order-none lg:flex">
           {folioId ? (
             <a
               href={`/erp/folios/${folioId}`}
-              className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
+              className="text-foreground underline-offset-4 hover:underline"
             >
               Back to folio
             </a>
           ) : null}
           <a
             href="/erp/invoices"
-            className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
+            className="text-foreground underline-offset-4 hover:underline"
           >
             All invoices
           </a>
-          <DocPrintControls defaultSize="a4" printLabel="Print / PDF" />
-        </div>
+        </nav>
+        <div
+          className="order-6 h-28 shrink-0 lg:hidden"
+          aria-hidden="true"
+        />
       </div>
 
-      {kind === "invoice" || kind === "receipt" ? (
-        <div className="print:hidden flex flex-wrap gap-2">
-          {billLinks.map((b) => (
-            <a
-              key={b.kind}
-              href={`${basePrintHref}?bill=${b.kind}`}
-              className={
-                bill === b.kind
-                  ? "inline-flex h-9 items-center rounded-md bg-foreground px-3 text-sm font-medium text-background"
-                  : "inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
-              }
-            >
-              {b.label}
-            </a>
-          ))}
-        </div>
-      ) : null}
-
-      {folioId && (kind === "invoice" || kind === "receipt") ? (
-        <div className="print:hidden">
-          <FiscalDocEmailForm
-            folioId={folioId}
-            fiscalDocId={doc.id as string}
-            docKind={kind === "receipt" ? "receipt" : "invoice"}
-            defaultEmail={guestEmail}
-            defaultName={guestName}
-          />
-        </div>
-      ) : null}
-
+      <main className="order-2 min-w-0 overflow-x-auto px-2 py-3 lg:order-none lg:overflow-visible lg:px-8 lg:py-8 print:overflow-visible print:p-0">
       <article
-        className={`fiscal-invoice-sheet doc-print-sheet mx-auto max-w-[210mm] border border-[#d8d0c6] bg-white px-[12mm] py-[8mm] text-[#1a1410] shadow-sm print:border-0 print:px-0 print:py-0 print:shadow-none ${fiscalLines.length >= 8 ? "fiscal-invoice-compact" : ""} ${fiscalLines.length >= 16 ? "fiscal-invoice-tight" : ""}`}
+        className={`fiscal-invoice-sheet fiscal-invoice-preview doc-print-sheet mx-auto w-full max-w-[210mm] border border-[#d8d0c6] bg-white px-[12mm] py-[8mm] text-[#1a1410] shadow-[0_12px_40px_rgba(26,20,16,0.08)] print:border-0 print:px-0 print:py-0 print:shadow-none ${fiscalLines.length >= 8 ? "fiscal-invoice-compact" : ""} ${fiscalLines.length >= 16 ? "fiscal-invoice-tight" : ""}`}
         aria-label={`${kindLabel} ${doc.doc_no as string}`}
       >
         <FiscalLetterhead
@@ -673,6 +712,7 @@ export default async function FiscalInvoicePrintPage({
         <FiscalSignOff hotelName={hotelName} />
         <FiscalDocFooter property={{ name: hotelName, address: property?.address }} />
       </article>
+      </main>
     </div>
   );
 }

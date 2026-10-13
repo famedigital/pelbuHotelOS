@@ -921,6 +921,27 @@ html[data-desk-print] #desk-print-mount {
   margin: 3mm;
 }
 
+/* Phone preview only. Print keeps the A4 letterhead (screen media, not print). */
+@media screen and (max-width: 1023px) {
+  .fiscal-invoice-preview {
+    padding: 0.85rem 0.75rem;
+  }
+  .fiscal-invoice-preview .fiscal-lh {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  .fiscal-invoice-preview .fiscal-lh > .shrink-0 {
+    text-align: left;
+  }
+  .fiscal-invoice-preview .fiscal-lh > .shrink-0 table {
+    margin-left: 0;
+  }
+  .fiscal-invoice-preview .fiscal-lh > .shrink-0 td:first-child {
+    text-align: left;
+  }
+}
+
 @media print {
   html[data-doc-paper="a4"] .doc-print-sheet {
     max-width: 720px !important;

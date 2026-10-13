@@ -165,9 +165,20 @@ export function StayHubHeader(props: StayHubIdentityProps) {
               Edit Transaction
             </p>
           )}
-          <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+          <h2 className="truncate text-base font-semibold tracking-tight text-foreground">
             {(guestName ?? "").trim() || "Walk-in guest"}
           </h2>
+          <p className="mt-0.5">
+            {roomLabel ? (
+              <Badge variant="sky" className="text-[10px]">
+                {roomLabel}
+              </Badge>
+            ) : (
+              <Badge variant="maroon" className="text-[10px]">
+                No room
+              </Badge>
+            )}
+          </p>
           <p className="truncate text-[10px] text-muted-foreground">
             {buildStayStoryLine({
               status,
@@ -191,7 +202,7 @@ export function StayHubHeader(props: StayHubIdentityProps) {
         </div>
         <div className="flex shrink-0 flex-col items-end gap-0.5">
           {showDueChip ? (
-            <Badge variant="maroon" className="tabular-nums text-[10px]">
+            <Badge variant="citrus" className="tabular-nums text-[10px]">
               Due {formatGuestBtn(dueChipBtn)}
             </Badge>
           ) : null}
@@ -345,12 +356,12 @@ export function StayHubLeftRail({
     <div className="space-y-1.5">
       {/* In-house money first — primary FO signal */}
       {showDue ? (
-        <div className="rounded-md border border-maroon/30 bg-maroon/5 px-2 py-1.5">
+        <div className="rounded-md border border-amber-600/40 bg-amber-500/10 px-2 py-1.5">
           <div className="flex items-baseline justify-between gap-2">
             <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
               Open balance
             </p>
-            <p className="text-lg font-semibold tabular-nums tracking-tight text-maroon">
+            <p className="text-lg font-semibold tabular-nums tracking-tight text-amber-800 dark:text-amber-200">
               {formatGuestBtn(dueChipBtn)}
             </p>
           </div>
@@ -473,9 +484,18 @@ export function StayHubLeftRail({
         )}
 
         <div className="flex flex-wrap items-center gap-1.5">
-          <h2 className="min-w-0 flex-1 text-sm font-semibold leading-snug tracking-tight text-foreground">
+          <h2 className="min-w-0 flex-1 text-base font-semibold leading-snug tracking-tight text-foreground">
             {(guestName ?? "").trim() || "Walk-in guest"}
           </h2>
+          {roomLabel ? (
+            <Badge variant="sky" className="shrink-0 text-[11px]">
+              {roomLabel}
+            </Badge>
+          ) : (
+            <Badge variant="maroon" className="shrink-0 text-[11px]">
+              No room
+            </Badge>
+          )}
           {status ? (
             <Badge
               variant={statusBadgeVariant(status)}

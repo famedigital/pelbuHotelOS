@@ -3,6 +3,13 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   firstDayOfMonth,
   lastDayOfMonth,
   syncToWithFrom,
@@ -10,7 +17,7 @@ import {
 import { thimphuDateOffset, thimphuToday } from "@/lib/erp-lists";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, type RefObject } from "react";
 
 const STATUSES = [
   "held",
@@ -22,8 +29,54 @@ const STATUSES = [
   "no_show",
 ] as const;
 
-const selectClass =
-  "h-10 w-full min-w-[9.5rem] rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
+const ALL = "__all";
+
+function FilterSelect({
+  name,
+  label,
+  value,
+  options,
+  widthClass,
+  inputRef,
+  onCommit,
+}: {
+  name: string;
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  widthClass: string;
+  inputRef: RefObject<HTMLInputElement | null>;
+  onCommit: () => void;
+}) {
+  return (
+    <div className={widthClass}>
+      <label htmlFor={name} className="sr-only">
+        {label}
+      </label>
+      <input ref={inputRef} type="hidden" name={name} defaultValue={value} />
+      <Select
+        defaultValue={value || ALL}
+        onValueChange={(next) => {
+          if (inputRef.current) {
+            inputRef.current.value = next === ALL ? "" : next;
+          }
+          onCommit();
+        }}
+      >
+        <SelectTrigger id={name} size="sm" className="bg-background">
+          <SelectValue placeholder={label} />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((opt) => (
+            <SelectItem key={opt.value || ALL} value={opt.value || ALL}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
 
 export function ReservationsFilterForm({
   q,
@@ -52,6 +105,9 @@ export function ReservationsFilterForm({
   const formRef = useRef<HTMLFormElement>(null);
   const fromRef = useRef<HTMLInputElement>(null);
   const toRef = useRef<HTMLInputElement>(null);
+  const statusRef = useRef<HTMLInputElement>(null);
+  const roomRef = useRef<HTMLInputElement>(null);
+  const sortRef = useRef<HTMLInputElement>(null);
 
   const submit = useCallback(() => {
     formRef.current?.requestSubmit();
@@ -61,7 +117,6 @@ export function ReservationsFilterForm({
     (from: string, to: string) => {
       if (fromRef.current) fromRef.current.value = from;
       if (toRef.current) toRef.current.value = to;
-      // brief tick so controlled-looking DOM values flush before submit
       queueMicrotask(submit);
     },
     [submit],
@@ -85,7 +140,6 @@ export function ReservationsFilterForm({
     const from = fromRef.current?.value ?? "";
     const to = toRef.current?.value ?? "";
     if (from && to && to < from && fromRef.current) {
-      // keep window valid: bump From down if To moved earlier
       fromRef.current.value = to;
     }
     submit();
@@ -105,10 +159,13 @@ export function ReservationsFilterForm({
     ] as const;
   })();
 
+  const dateClass =
+    "border-input h-8 w-[9.25rem] rounded-md border bg-background px-2.5 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
+
   return (
     <form
       ref={formRef}
-      className="w-full space-y-3"
+      className="flex w-full flex-wrap items-center gap-2"
       action="/erp/reservations"
       method="get"
     >
@@ -119,197 +176,140 @@ export function ReservationsFilterForm({
         <input type="hidden" name="worklist" value={worklist} />
       ) : null}
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <label
-            htmlFor="q"
-            className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase"
-          >
-            Search
-          </label>
-          <Input
-            id="q"
-            type="search"
-            name="q"
-            defaultValue={q}
-            placeholder="Conf # · guest · phone · agent · room"
-            className="h-10 bg-background"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-          <div className="space-y-1.5">
-            <label
-              htmlFor="status"
-              className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase"
-            >
-              Status
-            </label>
-            <select
-              id="status"
-              name="status"
-              defaultValue={status}
-              className={selectClass}
-              onChange={submit}
-            >
-              <option value="">All statuses</option>
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {s.replace(/_/g, " ")}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <label
-              htmlFor="room"
-              className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase"
-            >
-              Rooms
-            </label>
-            <select
-              id="room"
-              name="room"
-              defaultValue={roomFilter === "all" ? "" : roomFilter}
-              className={selectClass}
-              onChange={submit}
-            >
-              <option value="">All room fits</option>
-              <option value="needs_room">Needs room</option>
-              <option value="partial">Partial only</option>
-              <option value="assigned">Fully assigned</option>
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <label
-              htmlFor="sort"
-              className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase"
-            >
-              Sort
-            </label>
-            <select
-              id="sort"
-              name="sort"
-              defaultValue={sort}
-              className={selectClass}
-              onChange={submit}
-            >
-              <option value="check_in_desc">Arrival · latest</option>
-              <option value="check_in_asc">Arrival · soonest</option>
-              <option value="needs_room_first">Needs room first</option>
-              <option value="created_desc">Recently created</option>
-              <option value="name_asc">Guest A–Z</option>
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <label
-              htmlFor="source"
-              className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase"
-            >
-              Source
-            </label>
-            <Input
-              id="source"
-              name="source"
-              defaultValue={source}
-              placeholder="e.g. agent"
-              className="h-10 bg-background"
-            />
-          </div>
-        </div>
+      <div className="min-w-[12rem] flex-1">
+        <label htmlFor="q" className="sr-only">
+          Search
+        </label>
+        <Input
+          id="q"
+          type="search"
+          name="q"
+          defaultValue={q}
+          placeholder="Search conf #, guest, phone, agent, room"
+          className="h-8 bg-background"
+        />
       </div>
 
-      <div className="flex flex-col gap-2 rounded-lg border border-border/80 bg-muted/25 px-3 py-2.5 sm:flex-row sm:flex-wrap sm:items-end sm:gap-3">
-        <div className="min-w-0 sm:mr-1">
-          <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-            Arrival window
-          </p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
-            Check-in from / to. Changing From snaps To to the same month.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-end gap-2">
-          <div className="space-y-1">
-            <label
-              htmlFor="check_in_from"
-              className="text-[10px] font-medium text-muted-foreground"
-            >
-              From
-            </label>
-            <input
-              ref={fromRef}
-              id="check_in_from"
-              type="date"
-              name="check_in_from"
-              defaultValue={checkInFrom}
-              className="border-input flex h-10 w-[10.75rem] rounded-md border bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-              onChange={onFromChange}
-            />
-          </div>
-          <span
-            className="mb-2.5 hidden text-muted-foreground sm:inline"
-            aria-hidden
-          >
-            –
-          </span>
-          <div className="space-y-1">
-            <label
-              htmlFor="check_in_to"
-              className="text-[10px] font-medium text-muted-foreground"
-            >
-              To
-            </label>
-            <input
-              ref={toRef}
-              id="check_in_to"
-              type="date"
-              name="check_in_to"
-              defaultValue={checkInTo}
-              className="border-input flex h-10 w-[10.75rem] rounded-md border bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-              onChange={onToChange}
-            />
-          </div>
-        </div>
+      <FilterSelect
+        name="status"
+        label="Status"
+        value={status}
+        widthClass="w-[9.25rem]"
+        inputRef={statusRef}
+        onCommit={() => queueMicrotask(submit)}
+        options={[
+          { value: "", label: "All statuses" },
+          ...STATUSES.map((s) => ({
+            value: s,
+            label: s.replace(/_/g, " "),
+          })),
+        ]}
+      />
+      <FilterSelect
+        name="room"
+        label="Rooms"
+        value={roomFilter === "all" ? "" : roomFilter}
+        widthClass="w-[9.25rem]"
+        inputRef={roomRef}
+        onCommit={() => queueMicrotask(submit)}
+        options={[
+          { value: "", label: "All room fits" },
+          { value: "needs_room", label: "Needs room" },
+          { value: "partial", label: "Partial only" },
+          { value: "assigned", label: "Fully assigned" },
+        ]}
+      />
+      <FilterSelect
+        name="sort"
+        label="Sort"
+        value={sort}
+        widthClass="w-[10.5rem]"
+        inputRef={sortRef}
+        onCommit={() => queueMicrotask(submit)}
+        options={[
+          { value: "check_in_desc", label: "Arrival · latest" },
+          { value: "check_in_asc", label: "Arrival · soonest" },
+          { value: "needs_room_first", label: "Needs room first" },
+          { value: "created_desc", label: "Recently created" },
+          { value: "name_asc", label: "Guest A–Z" },
+        ]}
+      />
 
-        <div className="flex flex-wrap items-center gap-1.5 sm:ml-auto">
-          {presets.map((p) => {
-            const on =
-              checkInFrom === p.from && checkInTo === p.to
-                ? "true"
-                : "false";
-            return (
-              <button
-                key={p.id}
-                type="button"
-                data-on={on}
-                onClick={() => setRangeAndSubmit(p.from, p.to)}
-                className="h-8 rounded-md border border-border bg-background px-2.5 text-[11px] font-medium text-foreground transition-colors hover:border-accent/40 hover:bg-accent/5 data-[on=true]:border-accent/50 data-[on=true]:bg-accent/10 data-[on=true]:text-accent"
-              >
-                {p.label}
-              </button>
-            );
-          })}
-          <Button type="submit" variant="outline" className="h-8 px-3 text-xs">
-            Apply
-          </Button>
-          {hasActiveFilters ? (
+      <div className="w-[7.5rem]">
+        <label htmlFor="source" className="sr-only">
+          Source
+        </label>
+        <Input
+          id="source"
+          name="source"
+          defaultValue={source}
+          placeholder="Source"
+          className="h-8 bg-background"
+        />
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        <label htmlFor="check_in_from" className="sr-only">
+          Arrival from
+        </label>
+        <input
+          ref={fromRef}
+          id="check_in_from"
+          type="date"
+          name="check_in_from"
+          defaultValue={checkInFrom}
+          className={dateClass}
+          onChange={onFromChange}
+        />
+        <span className="text-muted-foreground" aria-hidden>
+          –
+        </span>
+        <label htmlFor="check_in_to" className="sr-only">
+          Arrival to
+        </label>
+        <input
+          ref={toRef}
+          id="check_in_to"
+          type="date"
+          name="check_in_to"
+          defaultValue={checkInTo}
+          className={dateClass}
+          onChange={onToChange}
+        />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        {presets.map((p) => {
+          const on = checkInFrom === p.from && checkInTo === p.to;
+          return (
             <Button
+              key={p.id}
               type="button"
-              variant="ghost"
-              className="h-8 px-3 text-xs"
-              onClick={() => router.push("/erp/reservations")}
+              size="sm"
+              variant={on ? "secondary" : "outline"}
+              className="h-8 bg-background"
+              onClick={() => setRangeAndSubmit(p.from, p.to)}
             >
-              Clear
+              {p.label}
             </Button>
-          ) : null}
-        </div>
+          );
+        })}
+        <Button type="submit" size="sm" variant="outline" className="h-8">
+          Apply
+        </Button>
+        {hasActiveFilters ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-8"
+            onClick={() => router.push("/erp/reservations")}
+          >
+            Clear
+          </Button>
+        ) : null}
       </div>
 
-      {hasActiveFilters && !checkInFrom && !checkInTo ? (
-        <p className="sr-only">Filters active</p>
-      ) : null}
-
-      {/* Clear link for progressive enhancement without JS router */}
       {hasActiveFilters ? (
         <noscript>
           <Link href="/erp/reservations" className="text-xs text-accent">

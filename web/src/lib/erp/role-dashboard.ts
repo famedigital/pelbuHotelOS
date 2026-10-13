@@ -12,6 +12,7 @@ import {
   type DashboardView,
 } from "@/lib/erp/dashboard-views";
 import { loadDayOpsBoard } from "@/lib/erp/day-ops-board";
+import { loadTomorrowArrivals } from "@/lib/erp/tomorrow-arrivals";
 import { thimphuToday } from "@/lib/erp-lists";
 import { computeMealCovers, type MealCovers } from "@/lib/kitchen/covers";
 import type { DeskRole } from "@/lib/desk-auth";
@@ -106,6 +107,7 @@ export type RoleDashboardSnapshot = {
   /** Agent call-downs due today or earlier (FO work). */
   agentCallTasksDue: number;
   agentCallPending: number;
+  tomorrowArrivals: import("@/lib/erp/tomorrow-arrivals").TomorrowArrival[];
   /** Day-ops meal / laundry pressure for dept boards. */
   arrivingMealPax: number;
   inHouseMealPax: number;
@@ -338,6 +340,8 @@ export async function loadRoleDashboardSnapshot(
   const bankAccounts = property?.bank_accounts as unknown[] | null;
   const naDate = nightAudit?.business_date as string | undefined;
 
+  const tomorrowArrivals = await loadTomorrowArrivals(admin, propertyId, today);
+
   return {
     businessDate: today,
     propertyName: (property?.name as string | null) ?? null,
@@ -373,6 +377,7 @@ export async function loadRoleDashboardSnapshot(
     guestForecast,
     agentCallTasksDue: agentCall.tasksDue,
     agentCallPending: agentCall.pendingCalls,
+    tomorrowArrivals,
     arrivingMealPax: dayOps.arrivingMealPax,
     inHouseMealPax: dayOps.inHouseMealPax,
     departuresWithLaundry: dayOps.departuresWithLaundry,

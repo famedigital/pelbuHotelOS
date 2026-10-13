@@ -144,6 +144,8 @@ export type StayHubSummary = {
   /** Manager-approved nightly rate (null = use rate sheet). */
   agreedNightlyRateBtn: number | null;
   agreedRateReason: string | null;
+  /** Drive / voucher stay total, when the rack comment had a figure. */
+  quotedTotalBtn: number | null;
   /** True when any booking_rooms line awaits GM rate approval. */
   ratePendingApproval: boolean;
   mealPlanCode: string | null;
@@ -245,7 +247,7 @@ export async function fetchStayHubSummary(
       id, confirmation_code, contact_name, contact_phone, contact_email, status, check_in, check_out,
       adults, children, extra_beds, rooms, guide_number, guest_origin, source, notes, agent_id, payment_mode,
       booked_by_role, sold_by_staff_id, sales_claim_status, meal_plan_code,
-      agreed_nightly_rate_btn, agreed_rate_reason,
+      agreed_nightly_rate_btn, agreed_rate_reason, quoted_total_btn,
       rate_tax_mode, tax_exempt_gst, tax_exempt_service, tax_exempt_bst,
       release_days_before_arrival, release_percent, deposit_due_on,
       house_use, dnr, dnr_reason, pickup_needed, dropoff_needed, pickup_at, dropoff_at,
@@ -569,6 +571,8 @@ export async function fetchStayHubSummary(
           ? Number(data.agreed_nightly_rate_btn)
           : null,
       agreedRateReason: (data.agreed_rate_reason as string | null) ?? null,
+      quotedTotalBtn:
+        data.quoted_total_btn != null ? Number(data.quoted_total_btn) : null,
       ratePendingApproval,
       mealPlanCode: (data.meal_plan_code as string | null) ?? null,
       guideSignStatus: (data.guide_sign_status as string | null) ?? null,
@@ -580,7 +584,11 @@ export async function fetchStayHubSummary(
         (data.reg_card_photo_public_id as string | null) ?? null,
       regCardSignedAt: (data.reg_card_signed_at as string | null) ?? null,
       rateTaxMode:
-        data.rate_tax_mode === "inclusive" ? "inclusive" : "exclusive",
+        data.rate_tax_mode === "inclusive" || data.rate_tax_mode === "exclusive"
+          ? data.rate_tax_mode
+          : roomTax.inclusiveOfGstSc
+            ? "inclusive"
+            : "exclusive",
       taxExemptGst: Boolean(data.tax_exempt_gst),
       taxExemptService: Boolean(data.tax_exempt_service),
       taxExemptBst: Boolean(data.tax_exempt_bst),
@@ -1869,4 +1877,66 @@ export async function fetchStayHubOpen(
       catalog: catalogRes && catalogRes.ok ? catalogRes.data : null,
     },
   };
+}
+
+/**
+ * Save service-charge treatment, or copy the voucher / tariff nightly onto the
+ * stay. Does not void lines already on the folio.
+ */
+export async function setStayHubRateChoice(input: {
+  bookingId: string;
+  rateTaxMode?: "inclusive" | "exclusive";
+  source?: "voucher" | "tariff";
+  nightlyBtn?: number | null;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    if (!(await isDeskAuthenticated())) {
+      return { ok: false, error: "Not signed in" };
+    }
+    const admin = createSupabaseAdminClient();
+    const propertyId = await requireDeskPropertyId();
+    const bookingId = (input.bookingId ?? "").trim();
+    if (!bookingId) return { ok: false, error: "Booking required." };
+
+    const patch: Record<string, unknown> = {};
+    if (
+      input.rateTaxMode === "inclusive" ||
+      input.rateTaxMode === "exclusive"
+    ) {
+      patch.rate_tax_mode = input.rateTaxMode;
+    }
+    if (input.source === "voucher" || input.source === "tariff") {
+      const nightly = Number(input.nightlyBtn);
+      if (!Number.isFinite(nightly) || nightly < 0 || nightly > 500_000) {
+        return { ok: false, error: "That nightly rate is not usable." };
+      }
+      patch.agreed_nightly_rate_btn = Math.round(nightly * 100) / 100;
+      patch.agreed_rate_reason =
+        input.source === "tariff" ? "Tariff" : "Voucher";
+      patch.agreed_rate_set_at = new Date().toISOString();
+      patch.agreed_rate_set_by = "desk";
+      patch.meal_plan_amount_btn = 0;
+    }
+    if (Object.keys(patch).length === 0) {
+      return { ok: false, error: "Nothing to save." };
+    }
+
+    const { error } = await admin
+      .from("bookings")
+      .update(patch)
+      .eq("id", bookingId)
+      .eq("property_id", propertyId);
+    if (error) return { ok: false, error: error.message };
+
+    const { revalidatePath } = await import("next/cache");
+    revalidatePath("/erp");
+    revalidatePath("/erp/reservations");
+    revalidatePath("/erp/in-house");
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Could not save the rate.",
+    };
+  }
 }

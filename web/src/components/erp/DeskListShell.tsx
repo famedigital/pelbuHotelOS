@@ -43,6 +43,8 @@ export function DeskListShell({
   className,
   /** Drop the 1200px cap so wide data tables use the desk content width. */
   wide,
+  /** Tighter workspace padding. Other desks keep the default rhythm. */
+  dense,
 }: {
   /** Kept for backward compat. Ignored — title is now in the shell header. */
   title?: string;
@@ -61,6 +63,7 @@ export function DeskListShell({
   children: ReactNode;
   className?: string;
   wide?: boolean;
+  dense?: boolean;
 }) {
   const shortLine =
     subtitle?.trim() ||
@@ -131,7 +134,12 @@ export function DeskListShell({
         </div>
       ) : null}
 
-      <div className="relative z-0 flex min-w-0 flex-col gap-6 p-4 md:gap-8 md:p-6">
+      <div
+        className={cn(
+          "relative z-0 flex min-w-0 flex-col",
+          dense ? "gap-3 p-3 md:p-4" : "gap-6 p-4 md:gap-8 md:p-6",
+        )}
+      >
         {metrics ? <div className="min-w-0">{metrics}</div> : null}
         {children}
       </div>
