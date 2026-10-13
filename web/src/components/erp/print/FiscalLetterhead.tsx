@@ -8,7 +8,9 @@ export type FiscalPropertyChrome = {
   legal_name?: string | null;
   address?: string | null;
   phone?: string | null;
+  whatsapp?: string | null;
   email?: string | null;
+  website?: string | null;
   tax_id?: string | null;
   logo_public_id?: string | null;
   /** Optional tagline under name (e.g. Hotel · Olakha). */
@@ -87,7 +89,15 @@ export function FiscalLetterhead({
             <span className="block">
               {[
                 property.phone ? `T ${property.phone}` : null,
+                property.whatsapp &&
+                !`${property.phone ?? ""}`.includes(property.whatsapp)
+                  ? `WhatsApp ${property.whatsapp}`
+                  : null,
                 property.email,
+                property.website &&
+                !`${property.address ?? ""}`.includes(property.website)
+                  ? property.website
+                  : null,
                 property.tax_id ? `TPN ${property.tax_id}` : null,
               ]
                 .filter(Boolean)

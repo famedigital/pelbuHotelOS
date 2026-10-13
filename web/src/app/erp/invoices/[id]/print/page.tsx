@@ -56,6 +56,7 @@ type FolioLine = {
   description: string;
   total_btn: number;
   gst_btn: number;
+  service_charge_btn?: number;
   status: string;
   source_type: string;
   reverses_line_id?: string | null;
@@ -125,6 +126,12 @@ function sumGst(rows: FolioLine[]): number {
   return roundBtn(rows.reduce((s, l) => s + Number(l.gst_btn ?? 0), 0));
 }
 
+function sumServiceCharge(rows: FolioLine[]): number {
+  return roundBtn(
+    rows.reduce((s, l) => s + Number(l.service_charge_btn ?? 0), 0),
+  );
+}
+
 /** Printable fiscal invoice — Master / Room / F&B bills; totals whole Nu 0 or 5. */
 export default async function FiscalInvoicePrintPage({
   params,
@@ -164,7 +171,7 @@ export default async function FiscalInvoicePrintPage({
     ? await admin
         .from("folios")
         .select(
-          "label, booking_id, agent_id, folio_type, agents(company_name, contact_email, contact_name), folio_lines(id, description, total_btn, gst_btn, status, source_type, reverses_line_id)",
+          "label, booking_id, agent_id, folio_type, agents(company_name, contact_email, contact_name), folio_lines(id, description, total_btn, gst_btn, service_charge_btn, status, source_type, reverses_line_id)",
         )
         .eq("id", folioId)
         .maybeSingle()
@@ -285,6 +292,7 @@ export default async function FiscalInvoicePrintPage({
   const otherSub = sumLines(otherLines);
   const totalBtn = sumLines(onBill);
   const gstBtn = sumGst(onBill);
+  const serviceChargeBtn = sumServiceCharge(onBill);
 
   let publishedMenus: PublishedMenu[] = [];
   if (bill === "fnb" && checkIn && checkOut && mealPlanCode) {
@@ -351,7 +359,9 @@ export default async function FiscalInvoicePrintPage({
     : null;
   const issueDate = fmtHotelDate(String(doc.issued_at));
   const folioLabel = (folio?.label as string | null) ?? null;
-  const netSubtotal = roundBtn(Math.max(0, totalBtn - gstBtn));
+  const netSubtotal = roundBtn(
+    Math.max(0, totalBtn - gstBtn - serviceChargeBtn),
+  );
   const fiscalLines: FiscalLineRow[] = displayLines.map((line) => {
     const isPackageMeal =
       bill === "fnb" && (line.source_type ?? "").toLowerCase() === "meal_plan";
@@ -532,8 +542,14 @@ export default async function FiscalInvoicePrintPage({
             legal_name: legalName,
             address: property?.address,
             phone: property?.phone,
+            whatsapp: property?.whatsapp,
             email: property?.email,
-            tax_id: property?.tax_id,
+            website:
+              property?.slug === "pelbu-olakha" ||
+              property?.slug === "pelbu-suites-olakha"
+                ? "www.pelbusuites.bt"
+                : null,
+            tax_id: property?.gst_rate ? property.tax_id : null,
             logo_public_id: property?.logo_public_id,
             tagline: legalName && legalName !== hotelName ? legalName : null,
           }}
@@ -627,7 +643,7 @@ export default async function FiscalInvoicePrintPage({
 
         <FiscalTotalsBlock
           subtotal={netSubtotal}
-          serviceCharge={0}
+          serviceCharge={serviceChargeBtn}
           gst={gstBtn}
           total={totalBtn}
           serviceChargeRatePct={
