@@ -13,6 +13,7 @@ import { StayMoneyCycleLegend } from "@/components/erp/StayMoneyCycleLegend";
 import { StayMoneyProcessStrip } from "@/components/erp/StayMoneyProcessStrip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
+import { effectiveGstRate } from "@/lib/property-settings";
 import { getDeskRole, isDeskAuthenticated } from "@/lib/desk-auth";
 import {
   buildStayHubReopenHref,
@@ -244,7 +245,7 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
       : Promise.resolve({ data: [] as { id: string; label: string; status: string }[] }),
     admin
       .from("properties")
-      .select("gst_rate")
+      .select("gst_enabled, gst_rate")
       .eq("id", activePropertyId)
       .maybeSingle(),
   ]);
@@ -826,7 +827,7 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
                 )}
                 isOpen={isOpen}
                 transferTargets={transferTargets}
-                gstRate={Number(propertyTax?.gst_rate ?? 0)}
+                gstRate={effectiveGstRate(propertyTax, 0)}
                 balance={balance}
               />
               {accountingLines.length > 0 ? (

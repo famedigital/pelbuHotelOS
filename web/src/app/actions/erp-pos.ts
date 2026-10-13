@@ -36,7 +36,7 @@ import {
   type PosTenderMethod,
   type PosVoidReasonCode,
 } from "@/lib/pos";
-import { DEFAULT_GST_RATE, percentToRate } from "@/lib/property-settings";
+import { effectiveGstRate, percentToRate } from "@/lib/property-settings";
 import {
   calculateOrderTotals,
   roundBtn,
@@ -114,12 +114,14 @@ async function loadPropertyPricing(admin: Admin): Promise<{
   const activePropertyId = await propertyId(admin);
   const { data } = await admin
     .from("properties")
-    .select("gst_rate, service_charge_rate, service_charge_default_on")
+    .select(
+      "gst_enabled, gst_rate, service_charge_rate, service_charge_default_on",
+    )
     .eq("id", activePropertyId)
     .maybeSingle();
   return {
     propertyId: activePropertyId,
-    gstRate: Number(data?.gst_rate ?? DEFAULT_GST_RATE),
+    gstRate: effectiveGstRate(data),
     serviceChargeRate: Number(data?.service_charge_rate ?? 0),
     serviceChargeDefaultOn: Boolean(data?.service_charge_default_on),
   };

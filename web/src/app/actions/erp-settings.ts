@@ -553,6 +553,7 @@ export async function updatePropertyTaxSettings(
     const activePropertyId = await resolveActivePropertyId(admin);
     const propertyId = trimRequired(formData.get("property_id"), "Property");
     assertDeskProperty(activePropertyId, propertyId, "Property");
+    const gstEnabled = formData.get("gst_enabled") === "1";
     const gstRate = requirePercent(formData.get("gst_rate"), "GST rate");
     const serviceChargeRate = requirePercent(
       formData.get("service_charge_rate"),
@@ -569,6 +570,7 @@ export async function updatePropertyTaxSettings(
     const { error } = await admin
       .from("properties")
       .update({
+        gst_enabled: gstEnabled,
         gst_rate: gstRate,
         service_charge_rate: serviceChargeRate,
         service_charge_default_on: serviceChargeDefaultOn,
@@ -583,8 +585,9 @@ export async function updatePropertyTaxSettings(
       action: "property.settings.tax",
       entityType: "properties",
       entityId: propertyId,
-      summary: "Updated GST, service charge, day-1 post, and night-audit close time",
+      summary: "Updated GST switch, service charge, day-1 post, and night-audit close time",
       meta: {
+        gst_enabled: gstEnabled,
         gst_rate: gstRate,
         service_charge_rate: serviceChargeRate,
         service_charge_default_on: serviceChargeDefaultOn,

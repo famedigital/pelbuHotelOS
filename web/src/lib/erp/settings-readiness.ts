@@ -190,6 +190,7 @@ export type BuildSettingsReadinessInput = {
   address: string | null;
   phone: string | null;
   tax_id: string | null;
+  gst_enabled?: boolean;
   gst_rate: number;
   sellableRooms: number;
   check_in_time: string | null;
@@ -289,9 +290,10 @@ export function buildSettingsReadiness(
   );
 
   const gstPct = rateToPercent(input.gst_rate);
+  const gstLabel = input.gst_enabled === false ? "GST off" : `GST ${gstPct}%`;
   const healthLine = `Hotel configured · ${input.sellableRooms} sellable room${
     input.sellableRooms === 1 ? "" : "s"
-  } · GST ${gstPct}%`;
+  } · ${gstLabel}`;
 
   return {
     isMature,

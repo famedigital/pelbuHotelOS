@@ -20,6 +20,7 @@ import {
 } from "@/lib/laundry-session";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { calculateOrderTotals, roundBtn } from "@/lib/pricing";
+import { effectiveGstRate } from "@/lib/property-settings";
 import { absoluteUrl } from "@/lib/site";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
@@ -164,7 +165,7 @@ async function createDeskWalkInOrder(
   const { data: property } = await admin
     .from("properties")
     .select(
-      "id, gst_rate, service_charge_rate, service_charge_default_on, bank_accounts",
+      "id, gst_enabled, gst_rate, service_charge_rate, service_charge_default_on, bank_accounts",
     )
     .eq("id", propertyId)
     .maybeSingle();
@@ -203,7 +204,7 @@ async function createDeskWalkInOrder(
     };
   });
   const totals = calculateOrderTotals(pricingLines, {
-    gstRate: Number(property.gst_rate ?? 0.07),
+    gstRate: effectiveGstRate(property),
     serviceChargeRate: Number(property.service_charge_rate ?? 0),
     applyServiceCharge: Boolean(property.service_charge_default_on),
   });

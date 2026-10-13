@@ -9,6 +9,7 @@ import {
   type MealPeriod,
 } from "@/lib/kitchen/meal-service";
 import { roundBtn } from "@/lib/pricing";
+import { effectiveGstRate } from "@/lib/property-settings";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
@@ -311,11 +312,13 @@ export async function chargeKitchenEventToFolio(
 
     const { data: property } = await admin
       .from("properties")
-      .select("gst_rate, service_charge_rate, service_charge_default_on")
+      .select(
+        "gst_enabled, gst_rate, service_charge_rate, service_charge_default_on",
+      )
       .eq("id", propertyId)
       .maybeSingle();
 
-    const gstRate = Number(property?.gst_rate ?? 0.07);
+    const gstRate = effectiveGstRate(property);
     const serviceChargeApplied = Boolean(property?.service_charge_default_on);
     const serviceChargeRate = serviceChargeApplied
       ? Number(property?.service_charge_rate ?? 0)

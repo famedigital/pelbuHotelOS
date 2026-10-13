@@ -149,12 +149,18 @@ export function GuestServiceForm({
         />
       </div>
 
-      <div className="flex h-11 items-center gap-2.5">
-        <Checkbox id="gst_applicable" name="gst_applicable" value="1" defaultChecked />
-        <Label htmlFor="gst_applicable" className="text-sm text-foreground">
-          GST applicable ({Math.round(gstRate * 10000) / 100}%)
-        </Label>
-      </div>
+      {gstRate > 0 ? (
+        <div className="flex h-11 items-center gap-2.5">
+          <Checkbox id="gst_applicable" name="gst_applicable" value="1" defaultChecked />
+          <Label htmlFor="gst_applicable" className="text-sm text-foreground">
+            GST applicable ({Math.round(gstRate * 10000) / 100}%)
+          </Label>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          GST is off for this hotel. Service charge is unchanged.
+        </p>
+      )}
 
       <div className="flex h-11 items-center gap-2.5">
         <Checkbox

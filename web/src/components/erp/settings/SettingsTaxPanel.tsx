@@ -13,14 +13,31 @@ export function SettingsTaxPanel({ property }: { property: PropertyRow }) {
     <SettingsSection
       eyebrow="Tax and billing"
       title="GST and service charge defaults"
-      description="Staff can still switch service charge off per bill for friends, house use, and one-off exceptions."
+      description="GST is one switch for this hotel: rooms, menu, and services. Service charge is separate and can still be turned off per bill."
       blastRadius="every new folio, POS service bill, and end-of-day room-night post"
     >
       <PropertyWizardForm action={updatePropertyTaxSettings}>
         <input type="hidden" name="property_id" value={property.id} />
+        <div className="flex min-h-11 items-center gap-3 rounded-lg border px-4 py-3">
+          <Checkbox
+            id="gst_enabled"
+            name="gst_enabled"
+            value="1"
+            defaultChecked={property.gst_enabled !== false}
+          />
+          <div className="space-y-0.5">
+            <Label htmlFor="gst_enabled" className="text-sm text-foreground">
+              Charge GST
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Off until this hotel is GST-registered. Rooms, menu, and services
+              then post no GST. The rate below is kept for when you turn it on.
+            </p>
+          </div>
+        </div>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="gst_rate">GST rate (%)</Label>
+            <Label htmlFor="gst_rate">GST rate (%) when GST is on</Label>
             <Input
               id="gst_rate"
               name="gst_rate"

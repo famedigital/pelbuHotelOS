@@ -353,6 +353,7 @@ export default async function ErpSettingsPage({
     address: property.address,
     phone: property.phone,
     tax_id: property.tax_id,
+    gst_enabled: property.gst_enabled,
     gst_rate: property.gst_rate,
     sellableRooms: roomInventoryTotals.sellable,
     check_in_time: policy.check_in_time,

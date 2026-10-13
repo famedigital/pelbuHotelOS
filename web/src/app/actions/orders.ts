@@ -12,7 +12,7 @@ import { isPublicOrderOutlet } from "@/lib/kot-visibility";
 import { isCounterServiceOutlet } from "@/lib/kot";
 import { calculateOrderTotals, withGuestFacingTotal } from "@/lib/pricing";
 import { DEFAULT_PROPERTY_SLUG } from "@/lib/property";
-import { DEFAULT_GST_RATE } from "@/lib/property-settings";
+import { effectiveGstRate } from "@/lib/property-settings";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
@@ -147,7 +147,7 @@ export async function createOrder(
 
     const { data: property, error: propertyError } = await admin
       .from("properties")
-      .select("id, gst_rate")
+      .select("id, gst_enabled, gst_rate")
       .eq("slug", DEFAULT_PROPERTY_SLUG)
       .single();
 
@@ -155,10 +155,7 @@ export async function createOrder(
       throw new Error("Hotel property is not configured. Please call the cafe.");
     }
     const propertyId = property.id as string;
-    const gstRate = Math.max(
-      0,
-      Number(property.gst_rate ?? DEFAULT_GST_RATE),
-    );
+    const gstRate = effectiveGstRate(property);
 
     let customerName = "";
     let phone = "";

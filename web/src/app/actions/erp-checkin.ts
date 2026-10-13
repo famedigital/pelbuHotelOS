@@ -1000,13 +1000,13 @@ export async function confirmCheckOut(
         throw new Error("Open a folio before posting an early checkout fee.");
       }
       const { postFolioCharge } = await import("@/lib/folio/post-charge");
-      const { DEFAULT_GST_RATE } = await import("@/lib/property-settings");
+      const { effectiveGstRate } = await import("@/lib/property-settings");
       const { data: prop } = await admin
         .from("properties")
-        .select("gst_rate")
+        .select("gst_enabled, gst_rate")
         .eq("id", property_id)
         .maybeSingle();
-      const gstRate = Number(prop?.gst_rate ?? DEFAULT_GST_RATE);
+      const gstRate = effectiveGstRate(prop);
       const amountBtn = roundBtn(earlyFee);
       const gstBtn = gstRate > 0 ? roundBtn(amountBtn * gstRate) : 0;
       await postFolioCharge(admin, property_id, {
@@ -1028,13 +1028,13 @@ export async function confirmCheckOut(
         throw new Error("Open a folio before posting a late checkout fee.");
       }
       const { postFolioCharge } = await import("@/lib/folio/post-charge");
-      const { DEFAULT_GST_RATE } = await import("@/lib/property-settings");
+      const { effectiveGstRate } = await import("@/lib/property-settings");
       const { data: prop } = await admin
         .from("properties")
-        .select("gst_rate")
+        .select("gst_enabled, gst_rate")
         .eq("id", property_id)
         .maybeSingle();
-      const gstRate = Number(prop?.gst_rate ?? DEFAULT_GST_RATE);
+      const gstRate = effectiveGstRate(prop);
       const amountBtn = roundBtn(lateFee);
       const gstBtn = gstRate > 0 ? roundBtn(amountBtn * gstRate) : 0;
       await postFolioCharge(admin, property_id, {

@@ -1,5 +1,23 @@
 export const DEFAULT_GST_RATE = 0.07;
 
+/**
+ * Rate actually posted on rooms, menu, and services.
+ * The hotel switch wins: off means 0 even when a rate is saved.
+ * Service charge is not affected.
+ */
+export function effectiveGstRate(
+  source:
+    | { gst_enabled?: boolean | null; gst_rate?: number | null }
+    | null
+    | undefined,
+  fallback = DEFAULT_GST_RATE,
+): number {
+  if (source?.gst_enabled === false) return 0;
+  const rate = Number(source?.gst_rate);
+  if (!Number.isFinite(rate)) return fallback;
+  return Math.max(0, Math.min(rate, 1));
+}
+
 export type DocumentDesignPreset = "classic" | "compact" | "branded";
 export type DocumentPaperSize = "a4" | "thermal";
 export type DocumentKind =
@@ -51,6 +69,8 @@ export type PropertySettings = {
   whatsapp: string | null;
   email: string | null;
   tax_id: string | null;
+  /** Hotel-wide. Off posts no GST on rooms, menu, or services. */
+  gst_enabled: boolean;
   gst_rate: number;
   service_charge_rate: number;
   service_charge_default_on: boolean;
@@ -319,6 +339,7 @@ export function mapPropertySettings(row: Record<string, unknown>): PropertySetti
     whatsapp: asText(row.whatsapp),
     email: asText(row.email),
     tax_id: asText(row.tax_id),
+    gst_enabled: row.gst_enabled !== false,
     gst_rate: clampRate(row.gst_rate, DEFAULT_GST_RATE),
     service_charge_rate: clampRate(row.service_charge_rate, 0),
     service_charge_default_on: Boolean(row.service_charge_default_on),

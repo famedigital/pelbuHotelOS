@@ -103,6 +103,8 @@ export type PosLayoutProps = {
   /** Active property — scopes IndexedDB read cache. */
   propertyId: string;
   items: MenuItem[];
+  /** Managed categories for the instant-create menu modal. */
+  menuCategories?: { id: string; name: string }[];
   /** Active property outlets for filters and table forms. */
   outlets: { code: string; name: string }[];
   modifierGroups: ModifierGroup[];

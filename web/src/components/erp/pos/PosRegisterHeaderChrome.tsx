@@ -22,6 +22,7 @@ import {
   ListOrderedIcon,
   LockKeyholeIcon,
   MoreHorizontalIcon,
+  PlusIcon,
   PrinterIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -50,6 +51,8 @@ type Props = {
   shiftOpenedBy?: string | null;
   closingOpenCount: number;
   onOpenHelp: () => void;
+  /** Opens the full menu-item form so staff can add a dish without leaving POS. */
+  onAddMenu: () => void;
   cssFullscreen: boolean;
   onCssFullscreenChange: (v: boolean) => void;
   /** False while the Table / Room / Counter gate is showing. */
@@ -150,6 +153,7 @@ function RegisterActions({
   shiftOpenedBy,
   closingOpenCount,
   onOpenHelp,
+  onAddMenu,
   cssFullscreen,
   onCssFullscreenChange,
   syncChip,
@@ -161,6 +165,15 @@ function RegisterActions({
   return (
     <>
       {syncChip}
+      <Button
+        type="button"
+        size="sm"
+        className="h-8 shrink-0 gap-1.5 px-2.5"
+        onClick={onAddMenu}
+      >
+        <PlusIcon className="size-3.5" />
+        Menu
+      </Button>
       {shiftOpen ? (
         <span
           className="hidden h-8 shrink-0 items-center gap-1.5 rounded-md border border-emerald-600/30 bg-emerald-500/10 px-2 text-xs font-medium text-emerald-800 sm:inline-flex dark:text-emerald-200"

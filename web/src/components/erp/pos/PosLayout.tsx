@@ -14,6 +14,7 @@ import {
   type TableFormTarget,
 } from "@/components/erp/pos/DiningTableForm";
 import { KitchenTicketStrip } from "@/components/erp/pos/KitchenTicketStrip";
+import { MenuItemForm, type MenuItemFormTarget } from "@/components/erp/menu/MenuItemForm";
 import { MenuGrid } from "@/components/erp/pos/MenuGrid";
 import type { MenuLineExtras } from "@/components/erp/pos/MenuTile";
 import { ModifierDialog } from "@/components/erp/pos/ModifierDialog";
@@ -69,7 +70,8 @@ import {
   writePosMenuOutletPref,
   writePosSaleSession,
 } from "@/lib/pos-prefs";
-import { TriangleAlertIcon } from "lucide-react";
+import type { PropertyOutlet } from "@/lib/outlets";
+import { PlusIcon, TriangleAlertIcon } from "lucide-react";
 import {
   startTransition,
   useActionState,
@@ -115,7 +117,8 @@ function lineKey(args: {
 
 export function PosLayout({
   propertyId,
-  items,
+  items: serverMenuItems,
+  menuCategories = [],
   outlets,
   modifierGroups,
   tables,
@@ -135,10 +138,19 @@ export function PosLayout({
   canFireKot = true,
   posTrainingMode = false,
 }: PosLayoutProps) {
+  const [catalog, setCatalog] = useState(serverMenuItems);
+  const [categoryOptions, setCategoryOptions] = useState(menuCategories);
+  const [menuFormTarget, setMenuFormTarget] = useState<MenuItemFormTarget>(null);
   const [openTickets, setOpenTickets] = useState(openTicketsProp);
   const [settledTickets, setSettledTickets] = useState(settledTicketsProp);
   const [ticketsSyncing, setTicketsSyncing] = useState(false);
 
+  useEffect(() => {
+    setCatalog(serverMenuItems);
+  }, [serverMenuItems]);
+  useEffect(() => {
+    setCategoryOptions(menuCategories);
+  }, [menuCategories]);
   useEffect(() => {
     setOpenTickets(openTicketsProp);
   }, [openTicketsProp]);
@@ -557,20 +569,42 @@ export function PosLayout({
 
   const menuItems = useMemo(() => {
     if (effectiveMenuOutlet === "all" || !effectiveMenuOutlet) {
-      return items;
+      return catalog;
     }
-    return items.filter((item) => item.outlet === effectiveMenuOutlet);
-  }, [items, effectiveMenuOutlet]);
+    return catalog.filter((item) => item.outlet === effectiveMenuOutlet);
+  }, [catalog, effectiveMenuOutlet]);
+
+  const formOutlets = useMemo<PropertyOutlet[]>(
+    () =>
+      outlets.map((outlet, index) => ({
+        id: outlet.code,
+        property_id: propertyId,
+        code: outlet.code,
+        name: outlet.name,
+        is_active: true,
+        sort_order: index,
+      })),
+    [outlets, propertyId],
+  );
+
+  function openMenuCreate() {
+    const outlet =
+      lockedMenuOutlet ||
+      (menuOutlet !== "all" ? menuOutlet : "") ||
+      outlets[0]?.code ||
+      "cafe";
+    setMenuFormTarget({ mode: "create", defaultOutlet: outlet });
+  }
 
   // Cafe table + no cafe dishes → unlock so Sell isn't a blank page.
   useEffect(() => {
     if (!lockedMenuOutlet) return;
-    if (items.length === 0) return;
-    const lockedCount = items.filter(
+    if (catalog.length === 0) return;
+    const lockedCount = catalog.filter(
       (item) => item.outlet === lockedMenuOutlet,
     ).length;
     if (lockedCount === 0) setMenuUnlocked(true);
-  }, [lockedMenuOutlet, items]);
+  }, [lockedMenuOutlet, catalog]);
 
   const lockedMenuLabel =
     lockedMenuOutlet != null
@@ -614,7 +648,7 @@ export function PosLayout({
     if (!outlet || outlet === "all") return;
     setCart((prev) =>
       prev.filter((line) => {
-        const item = items.find((m) => m.id === line.menuItemId);
+        const item = catalog.find((m) => m.id === line.menuItemId);
         return !item || item.outlet === outlet;
       }),
     );
@@ -623,7 +657,7 @@ export function PosLayout({
   const activeCourseNo = appendOrderId ? appendCourseNo : 1;
 
   function addItemConfigured(menuItemId: string, extras?: MenuLineExtras) {
-    const item = items.find((m) => m.id === menuItemId);
+    const item = catalog.find((m) => m.id === menuItemId);
     if (!item || item.sold_out) return;
     const hasGroups = (groupsByItem.get(item.id) ?? []).length > 0;
     if (hasGroups) {
@@ -846,7 +880,7 @@ export function PosLayout({
     }
     const firstId = cart[0]?.menuItemId;
     if (firstId) {
-      return items.find((item) => item.id === firstId)?.outlet ?? null;
+      return catalog.find((item) => item.id === firstId)?.outlet ?? null;
     }
     return effectiveMenuOutlet === "all" ? null : effectiveMenuOutlet;
   }, [
@@ -854,7 +888,7 @@ export function PosLayout({
     tableId,
     tables,
     cart,
-    items,
+    catalog,
     effectiveMenuOutlet,
   ]);
   const sentLines = useMemo(
@@ -1037,7 +1071,7 @@ export function PosLayout({
 
   async function handleBarcodeScan(code: string) {
     // Fast path: local sell_barcode
-    const local = items.find(
+    const local = catalog.find(
       (m) => m.sell_barcode && m.sell_barcode.trim() === code,
     );
     if (local) {
@@ -1122,6 +1156,35 @@ export function PosLayout({
     </>
   );
 
+  const menuCreateDialog = (
+    <MenuItemForm
+      key={
+        menuFormTarget?.mode === "create"
+          ? `create-${menuFormTarget.defaultOutlet}`
+          : "menu-form-closed"
+      }
+      target={menuFormTarget}
+      outlets={formOutlets}
+      categories={categoryOptions}
+      onOpenChange={(open) => {
+        if (!open) setMenuFormTarget(null);
+      }}
+      onSaved={(item) => {
+        setCatalog((prev) => {
+          const rest = prev.filter((row) => row.id !== item.id);
+          return [...rest, item];
+        });
+        setCategoryOptions((prev) =>
+          prev.some(
+            (row) => row.name.toLowerCase() === item.category.toLowerCase(),
+          )
+            ? prev
+            : [...prev, { id: item.category, name: item.category }],
+        );
+      }}
+    />
+  );
+
   const registerChrome = (
     <PosRegisterHeaderChrome
       section={section}
@@ -1133,6 +1196,7 @@ export function PosLayout({
       shiftOpenedBy={shift?.opened_by_name ?? null}
       closingOpenCount={shiftCloseSummary?.openCount ?? 0}
       onOpenHelp={() => setShortcutsOpen(true)}
+      onAddMenu={openMenuCreate}
       cssFullscreen={cssFullscreen}
       onCssFullscreenChange={setCssFullscreen}
       saleActive={Boolean(saleKind)}
@@ -1153,6 +1217,7 @@ export function PosLayout({
           shift={null}
           closeSummary={null}
         />
+        {menuCreateDialog}
       </div>
     );
   }
@@ -1176,7 +1241,7 @@ export function PosLayout({
         propertyId={propertyId}
         openTickets={openTickets}
         settledTickets={settledTickets}
-        menuItemCount={items.length}
+        menuItemCount={catalog.length}
         tableCount={tables.length}
       />
       <Tabs
@@ -1524,12 +1589,23 @@ export function PosLayout({
                           </aside>
 
                           <div className="min-w-0">
-                            <div className="mb-2">
-                              <PosSearch
-                                value={search}
-                                onChange={setSearch}
-                                onBarcode={handleBarcodeScan}
-                              />
+                            <div className="mb-2 flex items-center gap-2">
+                              <div className="min-w-0 flex-1">
+                                <PosSearch
+                                  value={search}
+                                  onChange={setSearch}
+                                  onBarcode={handleBarcodeScan}
+                                />
+                              </div>
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="h-9 shrink-0 gap-1.5"
+                                onClick={openMenuCreate}
+                              >
+                                <PlusIcon className="size-3.5" />
+                                Menu
+                              </Button>
                             </div>
                             <div className="mb-3 flex flex-col gap-2 @min-[680px]/pos:hidden">
                               {lockedMenuOutlet ? (
@@ -1769,7 +1845,7 @@ export function PosLayout({
         </div>
 
         <TabsContent value="stock">
-          <PosStockPanel items={items} />
+          <PosStockPanel items={catalog} />
         </TabsContent>
         <TabsContent value="closing">
           <PosClosingPanel
@@ -1793,7 +1869,7 @@ export function PosLayout({
             setLineExtras(null);
           }
         }}
-        items={items}
+        items={catalog}
         groupsByItem={groupsByItem}
         cart={cart}
         onUpsert={(line) => {
@@ -1815,6 +1891,7 @@ export function PosLayout({
         bindings={shortcuts}
       />
 
+      {menuCreateDialog}
       {sharedDialogs}
     </div>
   );

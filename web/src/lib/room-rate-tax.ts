@@ -1,5 +1,5 @@
 import "server-only";
-import { DEFAULT_GST_RATE } from "@/lib/property-settings";
+import { effectiveGstRate } from "@/lib/property-settings";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
@@ -22,7 +22,9 @@ export async function loadRoomRateTaxSettings(
   const [{ data: prop }, { data: policy }] = await Promise.all([
     admin
       .from("properties")
-      .select("gst_rate, service_charge_rate, service_charge_default_on")
+      .select(
+        "gst_enabled, gst_rate, service_charge_rate, service_charge_default_on",
+      )
       .eq("id", propertyId)
       .maybeSingle(),
     admin
@@ -33,7 +35,7 @@ export async function loadRoomRateTaxSettings(
   ]);
 
   return {
-    gstRate: Number(prop?.gst_rate ?? DEFAULT_GST_RATE),
+    gstRate: effectiveGstRate(prop),
     serviceChargeRate: Number(prop?.service_charge_rate ?? 0),
     applyServiceCharge: Boolean(prop?.service_charge_default_on),
     inclusiveOfGstSc: Boolean(policy?.rates_inclusive_of_gst_sc),

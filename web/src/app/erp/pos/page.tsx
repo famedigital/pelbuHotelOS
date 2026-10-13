@@ -6,6 +6,7 @@ import { CREDIT_AGENT_STATUSES } from "@/lib/agents/status";
 import { getDeskRole, isDeskAuthenticated, isPosFireRole } from "@/lib/desk-auth";
 import { thimphuToday } from "@/lib/erp-lists";
 import { loadMealServicesForDate } from "@/lib/kitchen/meal-service";
+import { loadMenuCategories } from "@/lib/menu-admin";
 import { loadMenuByOutlets } from "@/lib/menu-loader";
 import {
   loadActiveOutletCodes,
@@ -24,6 +25,7 @@ import {
   voidManagerThresholdBtn,
 } from "@/lib/pos";
 import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
+import { effectiveGstRate } from "@/lib/property-settings";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 
@@ -61,6 +63,7 @@ export default async function ErpPosPage() {
     deskRole,
     { data: ncReasonRows },
     { data: creditAgentRows },
+    menuCategories,
   ] = await Promise.all([
       loadMenuByOutlets(
         activeOutletCodes.length > 0
@@ -115,6 +118,7 @@ export default async function ErpPosPage() {
         .in("status", [...CREDIT_AGENT_STATUSES])
         .order("company_name")
         .limit(200),
+      loadMenuCategories(admin),
     ]);
 
   const [shiftCloseSummary, modifierGroups] = await Promise.all([
@@ -248,6 +252,7 @@ export default async function ErpPosPage() {
       <PosLayout
         propertyId={propertyId}
         items={items}
+        menuCategories={menuCategories}
         outlets={outlets.map((o) => ({ code: o.code, name: o.name }))}
         modifierGroups={modifierGroups}
         tables={tables}
@@ -258,7 +263,7 @@ export default async function ErpPosPage() {
         creditAgents={creditAgents}
         shift={shift}
         shiftCloseSummary={shiftCloseSummary}
-        gstRate={property?.gst_rate ?? 0.07}
+        gstRate={effectiveGstRate(property)}
         serviceChargeRate={property?.service_charge_rate ?? 0}
         serviceChargeDefaultOn={property?.service_charge_default_on ?? false}
         runtimeConfig={{
@@ -282,7 +287,7 @@ export default async function ErpPosPage() {
             </div>
             <GuestServiceForm
               bookings={bookingOptions}
-              gstRate={property?.gst_rate ?? 0.07}
+              gstRate={effectiveGstRate(property)}
               serviceChargeRate={property?.service_charge_rate ?? 0}
               serviceChargeDefaultOn={
                 property?.service_charge_default_on ?? false
