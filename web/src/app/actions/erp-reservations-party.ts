@@ -66,6 +66,38 @@ function revalidatePartySurfaces() {
   revalidatePath("/erp/calendar");
   revalidatePath("/erp/today");
   revalidatePath("/erp/arrivals");
+  revalidatePath("/erp/in-house");
+  revalidatePath("/erp/departures");
+  revalidatePath("/erp/folios");
+}
+
+async function retargetPostedRoomLines(
+  admin: ReturnType<typeof createSupabaseAdminClient>,
+  bookingId: string,
+  fromUnitId: string,
+  fromLabel: string,
+  toUnitId: string,
+  toLabel: string,
+) {
+  if (fromUnitId === toUnitId) return;
+  const { data: lines, error } = await admin
+    .from("folio_lines")
+    .select("id, description")
+    .eq("booking_id", bookingId)
+    .eq("room_unit_id", fromUnitId)
+    .eq("source_type", "room")
+    .eq("status", "posted");
+  if (error) throw new Error(error.message);
+  const fromToken = `Room ${fromLabel}`;
+  const toToken = `Room ${toLabel}`;
+  for (const line of lines ?? []) {
+    const description = String(line.description ?? "").split(fromToken).join(toToken);
+    const { error: updateError } = await admin
+      .from("folio_lines")
+      .update({ room_unit_id: toUnitId, description })
+      .eq("id", line.id as string);
+    if (updateError) throw new Error(updateError.message);
+  }
 }
 
 /** Patch booking notes only (rack right-click Edit notes). */
@@ -788,10 +820,38 @@ export async function assignBookingRoomUnit(input: {
       };
     }
 
+    const readDoor = (
+      row: {
+        id: string;
+        room_unit_id?: string | null;
+        room_units?:
+          | { label?: string; room_type_id?: string }
+          | { label?: string; room_type_id?: string }[]
+          | null;
+      } | null,
+    ) => {
+      if (!row?.room_unit_id) return null;
+      const raw = row.room_units;
+      const door = Array.isArray(raw) ? raw[0] : raw;
+      return {
+        assignmentId: row.id,
+        unitId: row.room_unit_id,
+        label: door?.label?.trim() || "room",
+        typeId: door?.room_type_id ?? null,
+      };
+    };
+
+    let previous: {
+      assignmentId: string;
+      unitId: string;
+      label: string;
+      typeId: string | null;
+    } | null = null;
+
     if (input.assignmentId) {
       const { data: existing } = await admin
         .from("room_assignments")
-        .select("id, is_locked")
+        .select("id, is_locked, room_unit_id, room_units(label, room_type_id)")
         .eq("id", input.assignmentId)
         .eq("booking_id", bookingId)
         .maybeSingle();
@@ -804,27 +864,63 @@ export async function assignBookingRoomUnit(input: {
           error: "Assignment is locked. Unlock on the calendar first.",
         };
       }
+      previous = readDoor(existing);
+      if (
+        previous?.typeId &&
+        previous.typeId !== (unit.room_type_id as string)
+      ) {
+        return {
+          ok: false,
+          error: "Choose a room in the same category.",
+        };
+      }
       const { error } = await admin
         .from("room_assignments")
         .update({ room_unit_id: roomUnitId })
         .eq("id", input.assignmentId);
       if (error) throw new Error(error.message);
     } else {
+      const { data: soldLines } = await admin
+        .from("booking_rooms")
+        .select("room_type_id, inventory_kind")
+        .eq("booking_id", bookingId);
+      const soldTypes = (soldLines ?? [])
+        .filter((line) => (line.inventory_kind as string) === "sellable_guest")
+        .map((line) => line.room_type_id as string);
+      if (
+        soldTypes.length > 0 &&
+        !soldTypes.includes(unit.room_type_id as string)
+      ) {
+        return {
+          ok: false,
+          error: "Choose a room in the same category.",
+        };
+      }
+
       const { data: current } = await admin
         .from("room_assignments")
         .select("id")
         .eq("booking_id", bookingId);
       const sold = Math.max(1, Number(booking.rooms ?? 1));
       if ((current?.length ?? 0) >= sold) {
-        // Replace first unlocked when over capacity of rooms sold
         const { data: unlocked } = await admin
           .from("room_assignments")
-          .select("id")
+          .select("id, is_locked, room_unit_id, room_units(label, room_type_id)")
           .eq("booking_id", bookingId)
           .eq("is_locked", false)
           .limit(1)
           .maybeSingle();
         if (unlocked?.id) {
+          previous = readDoor(unlocked);
+          if (
+            previous?.typeId &&
+            previous.typeId !== (unit.room_type_id as string)
+          ) {
+            return {
+              ok: false,
+              error: "Choose a room in the same category.",
+            };
+          }
           const { error } = await admin
             .from("room_assignments")
             .update({ room_unit_id: roomUnitId })
@@ -848,13 +944,30 @@ export async function assignBookingRoomUnit(input: {
       }
     }
 
+    if (previous && previous.unitId !== roomUnitId) {
+      await retargetPostedRoomLines(
+        admin,
+        bookingId,
+        previous.unitId,
+        previous.label,
+        roomUnitId,
+        unit.label as string,
+      );
+    }
+
     await writeAuditEvent(admin, {
       propertyId,
       action: "reservations.room.assign",
       entityType: "bookings",
       entityId: bookingId,
-      summary: `Assigned room ${unit.label}`,
-      meta: { room_unit_id: roomUnitId, assignment_id: input.assignmentId ?? null },
+      summary: previous
+        ? `Room ${previous.label} → ${unit.label as string}`
+        : `Assigned room ${unit.label}`,
+      meta: {
+        room_unit_id: roomUnitId,
+        from_unit_id: previous?.unitId ?? null,
+        assignment_id: input.assignmentId ?? previous?.assignmentId ?? null,
+      },
     });
 
     revalidatePartySurfaces();

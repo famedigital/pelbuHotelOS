@@ -1,11 +1,15 @@
 "use client";
 
 import { AgentNameLink } from "@/components/erp/AgentNameLink";
+import { ArrivalRegistrationButton } from "@/components/erp/ArrivalRegistrationButton";
 import { useStayHubOptional } from "@/components/erp/StayHubProvider";
+import { openMasterBillPrint } from "@/app/actions/erp-folio-ops";
 import type { DayOpsRow } from "@/lib/erp/day-ops-board";
 import { recommendStayHubStep } from "@/lib/folio/stay-hub-cycle";
 import { formatBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
+import { useTransition } from "react";
+import { toast } from "sonner";
 
 export type DailyStayBoardKind = "arrivals" | "departures" | "in_house";
 
@@ -62,6 +66,31 @@ function PayPill({
     >
       {agent ? "Agent AR" : "Unpaid"}
     </span>
+  );
+}
+
+function PrintBillButton({ folioId }: { folioId: string | null }) {
+  const [pending, startTransition] = useTransition();
+  return (
+    <button
+      type="button"
+      disabled={pending || !folioId}
+      title={folioId ? "Print the master bill" : "No folio yet"}
+      className="inline-flex min-h-9 items-center rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-muted disabled:opacity-60"
+      onClick={() => {
+        if (!folioId) return;
+        startTransition(async () => {
+          const result = await openMasterBillPrint(folioId);
+          if (!result.ok) {
+            toast.error(result.error);
+            return;
+          }
+          window.open(result.href, "_blank", "noopener,noreferrer");
+        });
+      }}
+    >
+      {pending ? "Printing…" : "Print"}
+    </button>
   );
 }
 
@@ -198,17 +227,25 @@ export function DailyStayTable({
                 </>
               )}
               <td className="px-3 py-2.5 text-right">
-                <button
-                  type="button"
-                  className="inline-flex min-h-9 items-center rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-muted"
-                  onClick={() => openStay(stayHub, row, board)}
-                >
-                  {board === "arrivals"
-                    ? "Check-in"
-                    : board === "departures"
-                      ? "Checkout"
-                      : "Folio"}
-                </button>
+                <div className="flex justify-end gap-1.5">
+                  {board === "arrivals" ? (
+                    <ArrivalRegistrationButton bookingId={row.id} />
+                  ) : null}
+                  {board === "departures" || board === "in_house" ? (
+                    <PrintBillButton folioId={row.folio_id} />
+                  ) : null}
+                  <button
+                    type="button"
+                    className="inline-flex min-h-9 items-center rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-muted"
+                    onClick={() => openStay(stayHub, row, board)}
+                  >
+                    {board === "arrivals"
+                      ? "Check-in"
+                      : board === "departures"
+                        ? "Checkout"
+                        : "Folio"}
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

@@ -787,6 +787,53 @@ export async function issueFolioInvoice(
   }
 }
 
+/** Open the master bill. Issues the tax invoice first when the folio has none. */
+export async function openMasterBillPrint(
+  folioId: string,
+): Promise<{ ok: true; href: string } | { ok: false; error: string }> {
+  try {
+    await requireMoney();
+    const id = folioId.trim();
+    if (!id) return { ok: false, error: "Folio is required." };
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const { data: existing } = await admin
+      .from("fiscal_documents")
+      .select("id")
+      .eq("property_id", pid)
+      .eq("folio_id", id)
+      .eq("doc_kind", "invoice")
+      .eq("status", "issued")
+      .maybeSingle();
+    if (existing?.id) {
+      return {
+        ok: true,
+        href: `/erp/invoices/${existing.id as string}/print?bill=master`,
+      };
+    }
+    const doc = await issueFiscalDocument(admin, pid, {
+      docKind: "invoice",
+      folioId: id,
+      issuedBy: "desk",
+    });
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "fiscal.invoice.issue",
+      entityType: "fiscal_documents",
+      entityId: doc.id,
+      summary: `Issued tax invoice ${doc.docNo}`,
+      meta: { folioId: id, docNo: doc.docNo },
+    });
+    revalidateFolio(id);
+    return { ok: true, href: `/erp/invoices/${doc.id}/print?bill=master` };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not open the bill.",
+    };
+  }
+}
+
 export async function issueFolioReceipt(
   _prev: ErpFolioOpsState,
   formData: FormData,

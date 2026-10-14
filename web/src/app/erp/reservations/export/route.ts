@@ -1,4 +1,9 @@
 import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { thimphuToday } from "@/lib/erp-lists";
+import {
+  applyReservationView,
+  parseReservationView,
+} from "@/lib/erp/reservation-views";
 import {
   parseReservationStatusBucket,
   statusesForBucket,
@@ -24,6 +29,8 @@ export async function GET(req: Request) {
   const checkInFrom = url.searchParams.get("check_in_from") ?? "";
   const checkInTo = url.searchParams.get("check_in_to") ?? "";
   const worklist = (url.searchParams.get("worklist") ?? "").trim();
+  const view = parseReservationView(url.searchParams.get("view"));
+  const today = thimphuToday();
 
   const admin = createSupabaseAdminClient();
   const propertyId = await requireDeskPropertyId();
@@ -40,24 +47,28 @@ export async function GET(req: Request) {
     .order("check_in", { ascending: true })
     .limit(2000);
 
-  if (status) {
-    q = q.eq("status", status);
+  if (view === "all") {
+    if (status) {
+      q = q.eq("status", status);
+    } else {
+      const statuses = statusesForBucket(bucket);
+      if (statuses) q = q.in("status", statuses);
+    }
+    if (source) q = q.eq("source", source);
+    const fromOk = checkInFrom && ISO.test(checkInFrom) ? checkInFrom : "";
+    const toOk = checkInTo && ISO.test(checkInTo) ? checkInTo : "";
+    let from = fromOk;
+    let to = toOk;
+    if (from && to && from > to) {
+      const swap = from;
+      from = to;
+      to = swap;
+    }
+    if (from) q = q.gte("check_in", from);
+    if (to) q = q.lte("check_in", to);
   } else {
-    const statuses = statusesForBucket(bucket);
-    if (statuses) q = q.in("status", statuses);
+    q = applyReservationView(q, view, today);
   }
-  if (source) q = q.eq("source", source);
-  const fromOk = checkInFrom && ISO.test(checkInFrom) ? checkInFrom : "";
-  const toOk = checkInTo && ISO.test(checkInTo) ? checkInTo : "";
-  let from = fromOk;
-  let to = toOk;
-  if (from && to && from > to) {
-    const swap = from;
-    from = to;
-    to = swap;
-  }
-  if (from) q = q.gte("check_in", from);
-  if (to) q = q.lte("check_in", to);
 
   const { data: rows, error } = await q;
   if (error) {

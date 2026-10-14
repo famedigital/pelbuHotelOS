@@ -1,6 +1,11 @@
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { thimphuToday } from "@/lib/erp-lists";
 import { normalizeArrivalRange } from "@/lib/erp/reservation-date-range";
+import {
+  applyReservationView,
+  parseReservationView,
+} from "@/lib/erp/reservation-views";
 import {
   parseReservationStatusBucket,
   statusesForBucket,
@@ -27,6 +32,7 @@ export default async function ReservationsPrintPage({
     check_in_from?: string;
     check_in_to?: string;
     worklist?: string;
+    view?: string;
   }>;
 }) {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
@@ -39,6 +45,8 @@ export default async function ReservationsPrintPage({
     sp.check_in_to,
   );
   const worklist = (sp.worklist ?? "").trim();
+  const view = parseReservationView(sp.view);
+  const today = thimphuToday();
 
   const admin = createSupabaseAdminClient();
   const propertyId = await requireDeskPropertyId();
@@ -55,14 +63,18 @@ export default async function ReservationsPrintPage({
     .order("check_in", { ascending: true })
     .limit(500);
 
-  if (status) q = q.eq("status", status);
-  else {
-    const statuses = statusesForBucket(bucket);
-    if (statuses) q = q.in("status", statuses);
+  if (view === "all") {
+    if (status) q = q.eq("status", status);
+    else {
+      const statuses = statusesForBucket(bucket);
+      if (statuses) q = q.in("status", statuses);
+    }
+    if (source) q = q.eq("source", source);
+    if (checkInFrom) q = q.gte("check_in", checkInFrom);
+    if (checkInTo) q = q.lte("check_in", checkInTo);
+  } else {
+    q = applyReservationView(q, view, today);
   }
-  if (source) q = q.eq("source", source);
-  if (checkInFrom) q = q.gte("check_in", checkInFrom);
-  if (checkInTo) q = q.lte("check_in", checkInTo);
 
   const { data: rows } = await q;
   let list = rows ?? [];

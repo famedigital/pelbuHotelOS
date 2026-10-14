@@ -2,9 +2,11 @@ import type { BookingRow } from "@/components/erp/BookingsTable";
 import { DeskListShell } from "@/components/erp/DeskListShell";
 import { NewReservationLauncher } from "@/components/erp/NewReservationLauncher";
 import { ReservationsListCacheBridge } from "@/components/erp/ReservationsListCacheBridge";
-import { ReservationsFilterForm } from "@/components/erp/ReservationsFilterForm";
-import { ReservationsPartyBoard } from "@/components/erp/ReservationsPartyBoard";
-import { ReservationsStatusChrome } from "@/components/erp/ReservationsStatusChrome";
+import {
+  ReservationsDeskTable,
+  type ReservationDeskRow,
+  type ReservationDoor,
+} from "@/components/erp/ReservationsDeskTable";
 import { Button } from "@/components/ui/button";
 import { BOOKABLE_AGENT_STATUSES } from "@/lib/agents/status";
 import { isDeskAuthenticated, getDeskRole } from "@/lib/desk-auth";
@@ -25,12 +27,12 @@ import {
   parseReservationStatusBucket,
   statusesForBucket,
 } from "@/lib/erp/reservation-status-buckets";
-import {
-  buildReservationParties,
-  type BookingGroupMembership,
-} from "@/lib/erp/reservation-party";
 import { requireDeskPropertyId } from "@/lib/desk-property";
-import { fmtDate, matchesQuery } from "@/lib/erp-lists";
+import { matchesQuery, thimphuToday } from "@/lib/erp-lists";
+import {
+  applyReservationView,
+  parseReservationView,
+} from "@/lib/erp/reservation-views";
 import { loadProperty } from "@/lib/property-context";
 import { getStaffSession } from "@/lib/staff-auth";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -42,38 +44,6 @@ export const metadata = {
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";
-
-function buildReservationsQs(opts: {
-  q?: string;
-  status?: string;
-  source?: string;
-  room?: string;
-  check_in_from?: string;
-  check_in_to?: string;
-  sort?: string;
-  bucket?: string;
-  worklist?: string;
-  patch?: Record<string, string | undefined>;
-}): string {
-  const p = new URLSearchParams();
-  const base = {
-    q: opts.q,
-    status: opts.status,
-    source: opts.source,
-    room: opts.room && opts.room !== "all" ? opts.room : undefined,
-    check_in_from: opts.check_in_from,
-    check_in_to: opts.check_in_to,
-    sort: opts.sort && opts.sort !== "check_in_desc" ? opts.sort : undefined,
-    bucket: opts.bucket && opts.bucket !== "all" ? opts.bucket : undefined,
-    worklist: opts.worklist || undefined,
-    ...opts.patch,
-  };
-  for (const [k, v] of Object.entries(base)) {
-    if (v?.trim()) p.set(k, v.trim());
-  }
-  const s = p.toString();
-  return s ? `/erp/reservations?${s}` : "/erp/reservations";
-}
 
 export default async function ReservationsPage({
   searchParams,
@@ -92,6 +62,7 @@ export default async function ReservationsPage({
     sort?: string;
     bucket?: string;
     worklist?: string;
+    view?: string;
   }>;
 }) {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
@@ -109,6 +80,8 @@ export default async function ReservationsPage({
   const sort = parseReservationSort(sp.sort);
   const bucket = parseReservationStatusBucket(sp.bucket);
   const worklist = (sp.worklist ?? "").trim();
+  const view = parseReservationView(sp.view);
+  const today = thimphuToday();
 
   const admin = createSupabaseAdminClient();
   const propertyId = await requireDeskPropertyId();
@@ -116,14 +89,12 @@ export default async function ReservationsPage({
 
   const [
     { data: rows },
-    { data: countRows },
     { data: roomTypes },
     { data: agents },
     preferredUnit,
     { data: mealPlans },
     { data: propertyDefaults },
     { data: staffRows },
-    { data: groupMemberRows },
     { data: cleanUnits },
   ] = await Promise.all([
     (() => {
@@ -131,31 +102,35 @@ export default async function ReservationsPage({
         .from("bookings")
         .select(
           `id, confirmation_code, contact_name, contact_phone, check_in, check_out, status, source,
-           guest_origin, agent_id, adults, rooms, hold_expires_at, created_at,
+           guest_origin, agent_id, adults, rooms, hold_expires_at, created_at, folios(id),
            token_required_btn, token_received_btn, deposit_due_on,
            agents(company_name),
-           room_assignments( room_units(label) )`,
+           booking_rooms(room_type_id, inventory_kind),
+           room_assignments(id, room_unit_id, room_units(label, room_type_id))`,
         )
-        .eq("property_id", propertyId)
-        .order("check_in", { ascending: sort === "check_in_asc" })
-        .limit(listLimit);
-      if (status) {
-        req = req.eq("status", status);
+        .eq("property_id", propertyId);
+      if (view === "all") {
+        req = req
+          .order("check_in", { ascending: sort === "check_in_asc" })
+          .limit(listLimit);
+        if (status) {
+          req = req.eq("status", status);
+        } else {
+          const statuses = statusesForBucket(bucket);
+          if (statuses) req = req.in("status", statuses);
+        }
+        if (source) req = req.eq("source", source);
+        if (checkInFrom) req = req.gte("check_in", checkInFrom);
+        if (checkInTo) req = req.lte("check_in", checkInTo);
       } else {
-        const statuses = statusesForBucket(bucket);
-        if (statuses) req = req.in("status", statuses);
+        req = applyReservationView(
+          req.order("contact_name", { ascending: true }).limit(400),
+          view,
+          today,
+        );
       }
-      if (source) req = req.eq("source", source);
-      // Inclusive arrival window on date column (YYYY-MM-DD)
-      if (checkInFrom) req = req.gte("check_in", checkInFrom);
-      if (checkInTo) req = req.lte("check_in", checkInTo);
       return req;
     })(),
-    admin
-      .from("bookings")
-      .select("status, token_required_btn, token_received_btn")
-      .eq("property_id", propertyId)
-      .limit(2000),
     property
       ? admin
           .from("room_types")
@@ -202,12 +177,6 @@ export default async function ReservationsPage({
           .order("full_name")
           .limit(300)
       : Promise.resolve({ data: [] }),
-    admin
-      .from("booking_group_members")
-      .select(
-        "booking_id, group_id, booking_groups(id, name, status, property_id)",
-      )
-      .limit(2000),
     property
       ? admin
           .from("room_units")
@@ -218,29 +187,6 @@ export default async function ReservationsPage({
           .limit(300)
       : Promise.resolve({ data: [] }),
   ]);
-
-  const bucketCounts = {
-    active: 0,
-    cancelled: 0,
-    no_show: 0,
-    checked_out: 0,
-    all: 0,
-    deposit_due: 0,
-  };
-  for (const r of countRows ?? []) {
-    const st = (r.status as string) ?? "";
-    bucketCounts.all += 1;
-    if (["held", "pending", "confirmed", "checked_in"].includes(st)) {
-      bucketCounts.active += 1;
-    } else if (st === "cancelled") bucketCounts.cancelled += 1;
-    else if (st === "no_show") bucketCounts.no_show += 1;
-    else if (st === "checked_out") bucketCounts.checked_out += 1;
-    if (["held", "pending", "confirmed"].includes(st)) {
-      const req = Number(r.token_required_btn ?? 0);
-      const got = Number(r.token_received_btn ?? 0);
-      if (req > 0 && got + 0.009 < req) bucketCounts.deposit_due += 1;
-    }
-  }
 
   const qtyByCode: Record<string, number> = {};
   const unit = preferredUnit.data;
@@ -347,64 +293,118 @@ export default async function ReservationsPage({
     };
   });
 
-  let afterSearch = enriched.filter((r) =>
-    matchesQuery(
-      [
-        r.contact_name,
-        r.contact_phone,
-        r.id,
-        r.confirmation_code,
-        r.source,
-        r.agent_name,
-        r.room_labels,
-      ],
-      query,
-    ),
-  );
-
-  // Defense-in-depth: re-apply arrival window in app space (timestamptz-safe).
-  if (hasDateFilter) {
-    afterSearch = afterSearch.filter((r) =>
-      checkInWithinRange(r.check_in, checkInFrom, checkInTo),
+  let afterSearch = enriched;
+  if (view === "all") {
+    afterSearch = enriched.filter((r) =>
+      matchesQuery(
+        [
+          r.contact_name,
+          r.contact_phone,
+          r.id,
+          r.confirmation_code,
+          r.source,
+          r.agent_name,
+          r.room_labels,
+        ],
+        query,
+      ),
     );
+    if (hasDateFilter) {
+      afterSearch = afterSearch.filter((r) =>
+        checkInWithinRange(r.check_in, checkInFrom, checkInTo),
+      );
+    }
+    if (worklist === "deposit_due") {
+      afterSearch = afterSearch.filter((r) =>
+        (r.badges ?? []).some((b) => b.key === "deposit"),
+      );
+    }
   }
-
-  if (worklist === "deposit_due") {
-    afterSearch = afterSearch.filter((r) =>
-      (r.badges ?? []).some((b) => b.key === "deposit"),
-    );
-  }
-
-  const needsOnly = afterSearch.filter((r) => r.room_fit === "none").length;
-  const partialOnly = afterSearch.filter((r) => r.room_fit === "partial").length;
 
   const filtered = afterSearch
     .filter((r) => matchesRoomFilter(r.room_fit ?? "n_a", roomFilter))
     .sort((a, b) => compareReservations(a, b, sort));
 
-  const memberships: BookingGroupMembership[] = [];
-  for (const row of groupMemberRows ?? []) {
-    const gRaw = row.booking_groups as
-      | { id?: string; name?: string; status?: string; property_id?: string }
-      | {
-          id?: string;
-          name?: string;
-          status?: string;
-          property_id?: string;
-        }[]
-      | null;
-    const g = Array.isArray(gRaw) ? gRaw[0] : gRaw;
-    if (!g?.id || g.property_id !== propertyId) continue;
-    memberships.push({
-      bookingId: row.booking_id as string,
-      groupId: g.id,
-      groupName: (g.name as string) || "Group",
-      groupStatus: (g.status as string | null) ?? null,
-    });
-  }
-
-  const parties = buildReservationParties(filtered, memberships);
-  const suggestedCount = parties.filter((p) => p.kind === "suggested").length;
+  const visibleOrder = new Map(filtered.map((row, index) => [row.id, index]));
+  const deskRows: ReservationDeskRow[] = (rows ?? [])
+    .filter((row) => visibleOrder.has(row.id as string))
+    .map((row) => {
+      const agent = row.agents as
+        | { company_name?: string }
+        | { company_name?: string }[]
+        | null;
+      const agentName = Array.isArray(agent)
+        ? (agent[0]?.company_name ?? null)
+        : (agent?.company_name ?? null);
+      const assignments =
+        (row.room_assignments as
+          | Array<{
+              id?: string;
+              room_unit_id?: string;
+              room_units?:
+                | { label?: string; room_type_id?: string }
+                | { label?: string; room_type_id?: string }[]
+                | null;
+            }>
+          | null) ?? [];
+      const doorsOnStay = assignments
+        .map((assignment) => {
+          const unit = Array.isArray(assignment.room_units)
+            ? assignment.room_units[0]
+            : assignment.room_units;
+          return {
+            assignmentId: assignment.id ?? null,
+            roomUnitId: assignment.room_unit_id ?? null,
+            label: unit?.label?.trim() || "",
+            roomTypeId: unit?.room_type_id ?? null,
+          };
+        })
+        .filter((door) => door.label);
+      doorsOnStay.sort((a, b) =>
+        a.label.localeCompare(b.label, undefined, { numeric: true }),
+      );
+      const sold = (
+        (row.booking_rooms as
+          | Array<{ room_type_id?: string; inventory_kind?: string }>
+          | null) ?? []
+      ).find((line) => (line.inventory_kind ?? "sellable_guest") === "sellable_guest");
+      const first = doorsOnStay[0];
+      const folios = row.folios as
+        | { id?: string }
+        | { id?: string }[]
+        | null;
+      const folio = Array.isArray(folios) ? folios[0] : folios;
+      return {
+        id: row.id as string,
+        confirmationCode: (row.confirmation_code as string | null) ?? null,
+        guest: (row.contact_name as string | null) ?? null,
+        phone: (row.contact_phone as string | null) ?? null,
+        agentId: (row.agent_id as string | null) ?? null,
+        agentName,
+        checkIn: (row.check_in as string | null) ?? null,
+        checkOut: (row.check_out as string | null) ?? null,
+        status: (row.status as string | null) ?? null,
+        rooms: Number(row.rooms ?? doorsOnStay.length ?? 1),
+        roomLabels: doorsOnStay.map((door) => door.label).join(", ") || null,
+        assignmentId: doorsOnStay.length === 1 ? first?.assignmentId ?? null : null,
+        roomUnitId: doorsOnStay.length === 1 ? first?.roomUnitId ?? null : null,
+        roomTypeId:
+          (doorsOnStay.length === 1 ? first?.roomTypeId : null) ??
+          (sold?.room_type_id as string | undefined) ??
+          null,
+        assignmentCount: doorsOnStay.length,
+        folioId: (folio?.id as string | undefined) ?? null,
+      };
+    })
+    .sort(
+      (a, b) =>
+        (visibleOrder.get(a.id) ?? 0) - (visibleOrder.get(b.id) ?? 0),
+    );
+  const doors: ReservationDoor[] = (cleanUnits ?? []).map((unit) => ({
+    id: unit.id as string,
+    label: (unit.label as string) || "—",
+    roomTypeId: unit.room_type_id as string,
+  }));
 
   const staffSession = await getStaffSession();
   const fastBookForm = {
@@ -490,6 +490,7 @@ export default async function ReservationsPage({
     sort: sort !== "check_in_desc" ? sort : undefined,
     bucket: bucket !== "all" ? bucket : undefined,
     worklist: worklist || undefined,
+    view: view !== "in_house" ? view : undefined,
   };
 
   const exportParams = new URLSearchParams();
@@ -499,30 +500,6 @@ export default async function ReservationsPage({
   const exportHref = `/erp/reservations/export?${exportParams.toString()}`;
   const printHref = `/erp/reservations/print?${exportParams.toString()}`;
 
-  const needsRoomFilter = roomFilter === "needs_room";
-  const hasActiveFilters = Boolean(
-    needsRoomFilter ||
-      query ||
-      status ||
-      checkInFrom ||
-      checkInTo ||
-      worklist ||
-      bucket !== "all" ||
-      (source && source.trim()) ||
-      roomFilter !== "all",
-  );
-
-  const arrivalWindowLabel =
-    checkInFrom && checkInTo
-      ? checkInFrom === checkInTo
-        ? fmtDate(checkInFrom)
-        : `${fmtDate(checkInFrom)} – ${fmtDate(checkInTo)}`
-      : checkInFrom
-        ? `From ${fmtDate(checkInFrom)}`
-        : checkInTo
-          ? `Until ${fmtDate(checkInTo)}`
-          : null;
-
   return (
     <DeskListShell
       wide
@@ -530,140 +507,89 @@ export default async function ReservationsPage({
       eyebrow="Front office"
       heading="Reservations"
       subtitle={
-        worklist === "deposit_due"
-          ? "Deposit due — token required not yet fully received."
-          : "Parties roll up by arrival, status, and room fit."
-      }
-      help={
-        worklist === "deposit_due" ? (
-          <p>
-            Worklist of held / pending / confirmed stays where token received
-            is short of token required. Status chips and party board still
-            apply within this set.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            <p>
-              Arrival From / To filters check-in date only (not in-house span).
-              Selecting From updates To to the last day of that month when To
-              is empty, earlier, or in another month.
-            </p>
-            <p>
-              Status strip uses eZee-style Active / Cancelled / No-show /
-              Departed buckets. Export and print respect the current filters.
-            </p>
-          </div>
-        )
+        view === "in_house"
+          ? "Staying today. Change the door on the row."
+          : view === "departures"
+            ? "Due out today."
+            : view === "arrivals"
+              ? "Due in today. Assign a room on the row."
+              : view === "upcoming"
+                ? "Confirmed stays after today."
+                : "Every reservation. Search filters this list as you type."
       }
       headerAside={
-        <Suspense
-          fallback={
-            <Button variant="default" className="h-11" disabled>
-              New reservation
-            </Button>
-          }
-        >
-          <NewReservationLauncher form={fastBookForm} />
-        </Suspense>
-      }
-      filters={
-        <ReservationsFilterForm
-          key={[
-            query,
-            status ?? "",
-            source ?? "",
-            roomFilter,
-            checkInFrom,
-            checkInTo,
-            sort,
-            bucket,
-            worklist,
-          ].join("|")}
-          q={query}
-          status={status ?? ""}
-          source={source ?? ""}
-          roomFilter={roomFilter}
-          checkInFrom={checkInFrom}
-          checkInTo={checkInTo}
-          sort={sort}
-          bucket={bucket}
-          worklist={worklist}
-          hasActiveFilters={hasActiveFilters}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <a
+            href={exportHref}
+            className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
+          >
+            Export
+          </a>
+          <a
+            href={printHref}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
+          >
+            Print
+          </a>
+          <Suspense
+            fallback={
+              <Button variant="default" className="h-11" disabled>
+                New reservation
+              </Button>
+            }
+          >
+            <NewReservationLauncher form={fastBookForm} />
+          </Suspense>
+        </div>
       }
     >
-      <ReservationsStatusChrome
-        bucket={bucket}
-        worklist={worklist}
-        counts={bucketCounts}
-        queryBase={{
-          q: query || undefined,
-          source: source || undefined,
-          room: roomFilter !== "all" ? roomFilter : undefined,
-          check_in_from: checkInFrom || undefined,
-          check_in_to: checkInTo || undefined,
-          sort: sort !== "check_in_desc" ? sort : undefined,
-        }}
-        exportHref={exportHref}
-        printHref={printHref}
-        summary={`${parties.length} ${parties.length === 1 ? "party" : "parties"} · ${filtered.length} reservation${filtered.length === 1 ? "" : "s"}${arrivalWindowLabel ? ` · ${arrivalWindowLabel}` : ""}`}
-        exceptions={[
-          ...(needsOnly > 0
-            ? [
-                {
-                  label: `Needs room ${needsOnly}`,
-                  href: buildReservationsQs({
-                    ...filterBase,
-                    room: "needs_room",
-                  }),
-                },
-              ]
-            : []),
-          ...(partialOnly > 0
-            ? [
-                {
-                  label: `Partial ${partialOnly}`,
-                  href: buildReservationsQs({
-                    ...filterBase,
-                    room: "partial",
-                  }),
-                },
-              ]
-            : []),
-          ...(suggestedCount > 0
-            ? [
-                {
-                  label: `Suggested ${suggestedCount}`,
-                  href: buildReservationsQs({ ...filterBase, room: "all" }),
-                },
-              ]
-            : []),
-        ]}
-        showCalendar={needsRoomFilter || needsOnly > 0}
-        aside={
-          <ReservationsListCacheBridge
-            propertyId={propertyId}
-            bucket={bucket}
-            rowCount={parties.length}
-          />
+      <ReservationsListCacheBridge
+        propertyId={propertyId}
+        bucket={view}
+        rowCount={deskRows.length}
+      />
+      <ReservationsDeskTable
+        rows={deskRows}
+        doors={doors}
+        view={view}
+        allowRoomEdit={view === "in_house" || view === "arrivals"}
+        toolbar={
+          view === "all" ? (
+            <form action="/erp/reservations" className="flex flex-wrap items-center gap-2">
+              <input type="hidden" name="view" value="all" />
+              <input
+                type="date"
+                name="check_in_from"
+                defaultValue={checkInFrom}
+                aria-label="Arrival from"
+                className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+              />
+              <input
+                type="date"
+                name="check_in_to"
+                defaultValue={checkInTo}
+                aria-label="Arrival to"
+                className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+              />
+              <input
+                name="source"
+                defaultValue={source ?? ""}
+                placeholder="Source"
+                aria-label="Source"
+                className="h-8 w-28 rounded-md border border-input bg-background px-2 text-sm"
+              />
+              <button
+                type="submit"
+                className="h-8 rounded-md border px-3 text-sm hover:bg-muted"
+              >
+                Apply
+              </button>
+            </form>
+          ) : null
         }
       />
-      <Suspense
-        fallback={
-          <p className="rounded-xl border border-border bg-card px-4 py-6 text-sm text-muted-foreground">
-            Loading reservations…
-          </p>
-        }
-      >
-        <ReservationsPartyBoard
-          parties={parties}
-          emptyMessage={
-            hasDateFilter
-              ? `No reservations with check-in ${arrivalWindowLabel ?? "in this window"}.`
-              : "No reservations match these filters."
-          }
-        />
-      </Suspense>
     </DeskListShell>
   );
 }
