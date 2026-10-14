@@ -36,9 +36,7 @@ export function applyReservationView(
       .gt("check_out", today);
   }
   if (view === "departures") {
-    return query
-      .eq("check_out", today)
-      .not("status", "in", '("cancelled","no_show")');
+    return query.eq("check_out", today).eq("status", "checked_in");
   }
   if (view === "arrivals") {
     return query

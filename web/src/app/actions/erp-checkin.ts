@@ -1116,6 +1116,7 @@ export async function confirmCheckOut(
       console.error("desk_release_check_out_rooms failed", releaseError);
       throw new Error("Could not release rooms for housekeeping.");
     }
+    await markAssignedRoomsDirty(admin, property_id, bookingId);
 
     const { error: patchError } = await admin
       .from("bookings")
@@ -1144,6 +1145,8 @@ export async function confirmCheckOut(
     });
 
     revalidateCheckIn(folio?.id as string | undefined);
+    revalidatePath("/erp/housekeeping");
+    revalidatePath("/erp/rooms");
     return { ok: true, bookingId };
   } catch (err) {
     return {
@@ -1151,6 +1154,82 @@ export async function confirmCheckOut(
       error: err instanceof Error ? err.message : "Something went wrong.",
     };
   }
+}
+
+/** Mark the stay's rooms dirty and open them on the housekeeping board. */
+export async function sendStayToHousekeeping(
+  bookingId: string,
+): Promise<{ ok: true; rooms: number } | { ok: false; error: string }> {
+  try {
+    await requireMoneyDesk();
+    const admin = createSupabaseAdminClient();
+    const property_id = await propertyId(admin);
+    const { data: booking, error } = await admin
+      .from("bookings")
+      .select("id, status, property_id, contact_name")
+      .eq("id", bookingId)
+      .maybeSingle();
+    if (error || !booking) throw new Error("Booking not found.");
+    assertDeskProperty(property_id, booking.property_id as string, "Booking");
+    if ((booking.status as string) !== "checked_out") {
+      throw new Error("Check the guest out before sending the room to housekeeping.");
+    }
+    const rooms = await markAssignedRoomsDirty(admin, property_id, bookingId);
+    if (rooms === 0) {
+      throw new Error("No room is assigned to send to housekeeping.");
+    }
+    await writeAuditEvent(admin, {
+      propertyId: property_id,
+      action: "booking.send_to_hk",
+      entityType: "bookings",
+      entityId: bookingId,
+      summary: `Sent ${(booking.contact_name as string) ?? "guest"} to housekeeping`,
+      meta: { rooms },
+    });
+    revalidateCheckIn();
+    revalidatePath("/erp/housekeeping");
+    revalidatePath("/erp/rooms");
+    revalidatePath("/erp/today");
+    return { ok: true, rooms };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Could not send to housekeeping.",
+    };
+  }
+}
+
+async function markAssignedRoomsDirty(
+  admin: Admin,
+  propertyId: string,
+  bookingId: string,
+): Promise<number> {
+  const { data: assignments, error } = await admin
+    .from("room_assignments")
+    .select("room_unit_id")
+    .eq("property_id", propertyId)
+    .eq("booking_id", bookingId);
+  if (error) throw new Error(error.message);
+  const unitIds = [
+    ...new Set(
+      (assignments ?? [])
+        .map((row) => row.room_unit_id as string | null)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  if (unitIds.length === 0) return 0;
+  const { data: updated, error: updateError } = await admin
+    .from("room_units")
+    .update({
+      hk_status: "dirty",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("property_id", propertyId)
+    .in("id", unitIds)
+    .neq("hk_status", "ooo")
+    .select("id");
+  if (updateError) throw new Error(updateError.message);
+  return updated?.length ?? 0;
 }
 
 export type RegCardState = {

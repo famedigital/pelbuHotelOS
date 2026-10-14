@@ -360,7 +360,7 @@ export async function loadDayOpsBoard(
           .select(DAY_OPS_BOARD_SELECT)
           .eq("property_id", propertyId)
           .eq("check_out", businessDate)
-          .not("status", "in", '("cancelled","no_show")')
+          .eq("status", "checked_in")
           .order("contact_name")
           .limit(150)
       : Promise.resolve(emptyRes),

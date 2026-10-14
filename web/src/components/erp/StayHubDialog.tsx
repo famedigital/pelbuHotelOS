@@ -22,7 +22,7 @@ import {
   type StayHubPartyMember,
   type StayHubSummary,
 } from "@/app/actions/stay-hub";
-import { undoCheckIn } from "@/app/actions/erp-checkin";
+import { undoCheckIn, sendStayToHousekeeping } from "@/app/actions/erp-checkin";
 import type { CalendarAgent } from "@/components/erp/CalendarReservationDialog";
 import { AgentPicker } from "@/components/erp/AgentPicker";
 import { StaffPicker, type BookableStaff } from "@/components/erp/StaffPicker";
@@ -541,6 +541,7 @@ export function StayHubDialog({
   const stayHubCtx = useStayHubOptional();
   const [datesPending, startDatesTransition] = useTransition();
   const [undoPending, startUndoTransition] = useTransition();
+  const [hkPending, startHkTransition] = useTransition();
   const [lockPending, startLockTransition] = useTransition();
   const [splitPending, startSplitTransition] = useTransition();
   const [checkInFollowPending, startCheckInFollowTransition] = useTransition();
@@ -1975,8 +1976,24 @@ export function StayHubDialog({
 
     if (summary.status === "checked_out") {
       return (
-        <Button asChild variant="default" className="min-h-11 flex-1 sm:flex-none">
-          <Link href="/erp/housekeeping">Send to HK</Link>
+        <Button
+          type="button"
+          variant="default"
+          className="min-h-11 flex-1 sm:flex-none"
+          disabled={hkPending}
+          onClick={() => {
+            startHkTransition(async () => {
+              const result = await sendStayToHousekeeping(summary.bookingId);
+              if (!result.ok) {
+                toast.error(result.error);
+                return;
+              }
+              toast.success("Room sent to housekeeping");
+              router.push("/erp/housekeeping");
+            });
+          }}
+        >
+          {hkPending ? "Sending…" : "Send to HK"}
         </Button>
       );
     }
