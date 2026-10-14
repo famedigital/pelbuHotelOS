@@ -88,6 +88,12 @@ export function StaffLoginForm({
     }
   }, [pinState]);
 
+  // Full document load so DeskShell (sidebar + header) is in the first HTML.
+  useEffect(() => {
+    if (!pinState.ok || !pinState.home) return;
+    window.location.assign(pinState.home);
+  }, [pinState.ok, pinState.home]);
+
   useEffect(() => {
     if (!pinStep || workspace !== "desk") return;
     let cancelled = false;
@@ -278,10 +284,17 @@ export function StaffLoginForm({
         ) : null}
         <Button
           type="submit"
-          disabled={pinPending || staffLoading || !staffId}
+          disabled={
+            pinPending ||
+            staffLoading ||
+            !staffId ||
+            Boolean(pinState.ok && pinState.home)
+          }
           className="h-11 w-full"
         >
-          {pinPending ? "Opening…" : "Open desk"}
+          {pinPending || (pinState.ok && pinState.home)
+            ? "Opening…"
+            : "Open desk"}
         </Button>
       </form>
     );

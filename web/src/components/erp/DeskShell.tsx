@@ -10,6 +10,7 @@ import { ErpCommandPalette } from "@/components/erp/ErpCommandPalette";
 import { NavigationProgress } from "@/components/erp/NavigationProgress";
 import { DeskSearchHint } from "@/components/erp/DeskSearchHint";
 import { PropertySwitcher } from "@/components/erp/PropertySwitcher";
+import { DeskMainSkeleton } from "@/components/erp/DeskMainSkeleton";
 import { StayHubShell } from "@/components/erp/StayHubShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import type { DeskRole } from "@/lib/desk-auth";
-import type { PropertyRow } from "@/lib/property-types";
+import type { PropertySwitcherOption } from "@/lib/property-types";
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 
@@ -45,7 +46,7 @@ export function DeskShell({
   children,
 }: {
   title?: string;
-  properties?: PropertyRow[];
+  properties?: PropertySwitcherOption[];
   activePropertyId?: string;
   logoSrc?: string | null;
   /**
@@ -158,7 +159,7 @@ export function DeskShell({
                 </div>
               </header>
               <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0 print:overflow-visible print:pb-0">
-                {children}
+                <Suspense fallback={<DeskMainSkeleton />}>{children}</Suspense>
               </div>
               <div className="shrink-0 print:hidden">
                 <DeskMobileNav allowedModuleKeys={allowedModuleKeys} />

@@ -37,6 +37,8 @@ export type DeskGateState = {
   step?: "pin";
   hotelCode?: string;
   propertyName?: string;
+  /** Full-document navigate after PIN — avoids shell-less soft nav flash. */
+  home?: string;
 };
 
 export type DeskStaffChoice = {
@@ -517,7 +519,9 @@ export async function signDeskDepartmentPin(
       maxAge: DESK_WORKSPACE_COOKIE_MAX_AGE,
     });
 
-    redirect(returnNext ?? deskHome);
+    // Client does location.assign — soft redirect() from /erp/login paints
+    // the board without DeskShell until the layout RSC catches up.
+    return { ok: true, step: "pin", home: returnNext ?? deskHome };
   } catch (error) {
     if (
       error &&

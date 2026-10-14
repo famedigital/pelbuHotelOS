@@ -15,6 +15,12 @@ import { redirect } from "next/navigation";
 export type DeskLoginState = {
   ok: boolean;
   error?: string;
+  /**
+   * Full-document home after PIN — client assigns via location.assign.
+   * Soft redirect() from the shell-less login layout paints /erp without
+   * the sidebar until the layout RSC arrives; do not switch back to redirect().
+   */
+  home?: string;
 };
 
 export async function deskLogin(
@@ -86,7 +92,7 @@ export async function deskLogin(
     ? resolveDeskHomeHref({ deskRole, pinOnlySession: true })
     : resolveWorkspaceLandingHref(workspace, null);
 
-  redirect(home);
+  return { ok: true, home };
 }
 
 export async function deskLogout(): Promise<void> {

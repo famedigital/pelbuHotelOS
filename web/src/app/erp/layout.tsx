@@ -12,7 +12,7 @@ import {
   deskRoleToDashboardView,
 } from "@/lib/erp/dashboard-views";
 import {
-  listProperties,
+  listPropertySwitcherOptions,
   loadProperty,
   resolveActivePropertyId,
 } from "@/lib/property-context";
@@ -114,7 +114,7 @@ export default async function ErpLayout({
   const propertyId = await resolveActivePropertyId(admin);
   const [activeProperty, properties] = await Promise.all([
     loadProperty(admin, propertyId),
-    listProperties(admin),
+    listPropertySwitcherOptions(admin),
   ]);
 
   const title = activeProperty?.name ?? "Pelbu desk";

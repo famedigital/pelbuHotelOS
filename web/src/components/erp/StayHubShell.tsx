@@ -3,7 +3,10 @@
 import { StayHubProvider } from "@/components/erp/StayHubProvider";
 import { Suspense, type ReactNode } from "react";
 
-/** Client island: StayHub context + dialog for all ERP pages under DeskShell. */
+/**
+ * StayHub needs useSearchParams (deep links). Keep that behind Suspense so
+ * the desk header + page chrome still SSR; only the provider tree waits.
+ */
 export function StayHubShell({ children }: { children: ReactNode }) {
   return (
     <Suspense

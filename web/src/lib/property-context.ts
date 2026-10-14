@@ -126,6 +126,21 @@ export async function listProperties(admin: Admin): Promise<PropertyRow[]> {
   return (data ?? []).map(mapProperty);
 }
 
+/** Header switcher only — skip full property row mapping on every ERP request. */
+export async function listPropertySwitcherOptions(
+  admin: Admin,
+): Promise<import("@/lib/property-types").PropertySwitcherOption[]> {
+  const { data } = await admin
+    .from("properties")
+    .select("id, name, setup_completed_at")
+    .order("name");
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    name: row.name as string,
+    setup_completed_at: (row.setup_completed_at as string | null) ?? null,
+  }));
+}
+
 function mapProperty(row: Record<string, unknown>): PropertyRow {
   const streams = (row.income_streams ?? DEFAULT_INCOME_STREAMS) as IncomeStreams;
   const banks = (row.bank_accounts ?? []) as BankAccount[];
