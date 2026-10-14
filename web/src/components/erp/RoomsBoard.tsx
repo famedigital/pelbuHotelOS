@@ -184,7 +184,7 @@ export function RoomsBoard({
                       {u.is_comp ? " · comp" : ""}
                     </span>
                     {u.service_requested_at ? (
-                      <span className="mt-1 block text-[11px] font-medium text-violet-700 dark:text-violet-300">
+                      <span className="mt-1 block text-[11px] font-medium text-citrus-600">
                         Service requested
                       </span>
                     ) : null}

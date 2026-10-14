@@ -14,8 +14,9 @@ const badgeVariants = cva(
         destructive:
           "border-transparent bg-destructive text-destructive-foreground",
         outline: "text-foreground border-border",
-        gold: "border-transparent bg-gold/15 text-gold",
-        maroon: "border-transparent bg-maroon/10 text-maroon",
+        /** @deprecated Clear Desk — maps to citrus / sky */
+        gold: "border-transparent bg-citrus-tint text-citrus-600",
+        maroon: "border-transparent bg-destructive/10 text-destructive",
         citrus: "border-transparent bg-citrus-tint text-citrus-600",
         mint: "border-transparent bg-mint-100 text-mint-600",
         sky: "border-transparent bg-sky-100 text-sky-700",

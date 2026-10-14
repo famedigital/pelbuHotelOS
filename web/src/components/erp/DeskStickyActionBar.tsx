@@ -20,7 +20,7 @@ export function DeskStickyActionBar({
     return (
       <div
         className={cn(
-          "flex flex-wrap items-center justify-end gap-2 rounded-xl border bg-card p-3",
+          "flex flex-wrap items-center justify-end gap-2 rounded-lg border bg-card p-2.5",
           className,
         )}
       >
@@ -32,9 +32,9 @@ export function DeskStickyActionBar({
   return (
     <div
       className={cn(
-        // Mobile: clear fixed bottom tab strip (z-40 · ~4rem + safe area)
-        "sticky z-10 flex flex-wrap items-center justify-end gap-2 rounded-xl border bg-card p-3",
-        "bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] md:bottom-4",
+        // Mobile: clear fixed bottom tab strip (z-40 · h-14 + safe area)
+        "sticky z-10 flex flex-wrap items-center justify-end gap-2 rounded-lg border bg-card p-2.5",
+        "bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] md:bottom-3",
         className,
       )}
     >

@@ -456,12 +456,21 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
       })
     : null;
 
+  const primaryHref =
+    needsDay1 || currentStep?.id === "charges" || currentStep?.id === "invoice"
+      ? "#folio-collect"
+      : bookingStatus === "checked_in" &&
+          bookingId &&
+          Math.abs(balance) <= 0.5
+        ? `/erp/check-out?id=${bookingId}`
+        : "#folio-collect";
+
   return (
-    <div className="erp mx-auto w-full max-w-[1100px] p-4 md:p-6">
+    <div className="erp mx-auto w-full max-w-[1100px] p-3 pb-24 md:p-4 md:pb-4">
       {stayReturnHref ? (
         <a
           href={stayReturnHref}
-          className="sticky top-0 z-30 -mx-4 mb-3 flex min-h-11 items-center gap-2 border-b border-accent/25 bg-accent/10 px-4 py-2.5 text-sm font-medium text-foreground md:-mx-6 md:px-6"
+          className="sticky top-0 z-30 -mx-3 mb-2 flex min-h-10 items-center gap-2 border-b border-primary/20 bg-primary/5 px-3 py-2 text-sm font-medium text-foreground md:-mx-4 md:px-4"
         >
           <span aria-hidden>←</span>
           <span className="min-w-0 truncate">
@@ -471,66 +480,57 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
           </span>
         </a>
       ) : null}
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
         <ErpDetailBack href="/erp/folios" label="City ledger" />
         {defaultStayHubHref ? (
           <a
             href={defaultStayHubHref}
-            className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
+            className="inline-flex h-8 items-center rounded-md border px-2.5 text-sm hover:bg-muted"
           >
             Stay hub
           </a>
         ) : null}
       </div>
       <FolioStaleRefreshBanner folioId={id} initialVersion={folioVersion} />
-      {/* Sticky identity + next action */}
+
+      {/* Clear Desk money hero — balance first, one next action */}
       <div
         className={cn(
-          "sticky z-20 -mx-4 mb-5 border-b bg-background px-4 py-3 md:-mx-6 md:px-6",
-          stayReturnHref ? "top-12" : "top-0",
+          "sticky z-20 -mx-3 mb-3 border-b bg-background px-3 py-2.5 md:-mx-4 md:px-4",
+          stayReturnHref ? "top-10" : "top-0",
         )}
       >
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
-              {isMaster ? "Master folio" : "Guest folio"} · money &amp; print
+            <p className="text-xs font-medium text-muted-foreground">
+              {isMaster ? "Master folio" : "Guest folio"}
             </p>
-            <h1 className="mt-1 truncate text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+            <h1 className="truncate text-lg font-semibold tracking-tight text-foreground md:text-xl">
               {guestTitle}
             </h1>
-            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
               <span
                 className={cn(
-                  "rounded px-1.5 py-0.5 font-medium tracking-wide uppercase",
+                  "rounded-md px-1.5 py-0.5 font-medium",
                   isOpen
-                    ? "bg-accent/10 text-accent"
+                    ? "bg-sky-100 text-sky-800"
                     : "bg-muted text-muted-foreground",
                 )}
               >
                 {folioStatus}
               </span>
               {booking ? (
-                <span className="tracking-wide uppercase">
-                  {bookingStatus.replace(/_/g, " ")}
-                </span>
+                <span>{bookingStatus.replace(/_/g, " ")}</span>
               ) : null}
               {booking ? (
-                <span>
+                <span className="tabular-nums">
                   {booking.check_in as string} → {booking.check_out as string}
                 </span>
-              ) : null}
-              {defaultStayHubHref ? (
-                <a
-                  href={defaultStayHubHref}
-                  className="font-medium text-foreground underline-offset-4 hover:underline"
-                >
-                  Stay hub
-                </a>
               ) : null}
               {folio.master_folio_id ? (
                 <a
                   href={`/erp/folios/${folio.master_folio_id as string}`}
-                  className="font-mono text-accent underline-offset-4 hover:underline"
+                  className="font-mono text-primary underline-offset-4 hover:underline"
                 >
                   master {(folio.master_folio_id as string).slice(0, 8)}
                 </a>
@@ -538,208 +538,156 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
             </p>
           </div>
 
-          <div className="flex min-w-[10rem] flex-col items-end gap-2 sm:min-w-[12rem]">
-            <div className="text-right">
-              <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-                Balance due
-              </p>
-              <p
-                className={cn(
-                  "text-2xl font-semibold tabular-nums",
-                  balance > 0.5 ? "text-destructive" : "text-foreground",
-                )}
-              >
-                {formatBtn(balance)}
-              </p>
-              {Math.abs(balance) <= 0.5 ? (
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Nothing to collect
-                </p>
-              ) : null}
-            </div>
+          <div className="flex min-w-[9rem] flex-col items-end gap-1.5">
+            <p className="text-xs font-medium text-muted-foreground">Due</p>
+            <p
+              className={cn(
+                "text-2xl font-semibold tabular-nums leading-none md:text-3xl",
+                balance > 0.5 ? "text-citrus-600" : "text-mint-600",
+              )}
+            >
+              {formatBtn(balance)}
+            </p>
             {isOpen ? (
               <a
-                href={
-                  needsDay1 || currentStep?.id === "charges"
-                    ? "#folio-actions"
-                    : currentStep?.id === "invoice"
-                      ? "#folio-actions"
-                      : bookingStatus === "checked_in" &&
-                          bookingId &&
-                          Math.abs(balance) <= 0.5
-                        ? `/erp/check-out?id=${bookingId}`
-                        : "#folio-actions"
-                }
-                className="inline-flex h-10 items-center justify-center rounded-md bg-accent px-4 text-sm font-medium text-accent-foreground hover:bg-accent/90"
+                href={primaryHref}
+                className={cn(
+                  "inline-flex h-9 items-center justify-center rounded-lg px-4 text-sm font-medium",
+                  balance > 0.5
+                    ? "bg-citrus text-sky-ink hover:bg-citrus-soft"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90",
+                )}
               >
                 {primaryNextLabel}
               </a>
             ) : null}
           </div>
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">{statusBlurb}</p>
-      </div>
-
-      {/* Stay money progress — Charges / Invoice / Paid language */}
-      <div className="mb-5 space-y-2 rounded-xl border bg-card px-4 py-3">
-        <StayMoneyProcessStrip steps={processSteps} />
-        <p className="text-[11px] text-muted-foreground">
-          Progress:{" "}
-          <span className="font-medium text-foreground">Charges</span>
-          {" · "}
-          <span className="font-medium text-foreground">Invoice</span>
-          {" · "}
-          <span className="font-medium text-foreground">Paid</span>
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <StayMoneyProcessStrip steps={processSteps} />
           {invoiceDoc ? (
-            <>
-              {" · "}
-              Invoice{" "}
+            <span className="text-xs text-muted-foreground">
+              INV{" "}
               <span className="font-mono text-foreground">
                 {invoiceDoc.doc_no as string}
               </span>
-            </>
+              {invoiceDoc ? (
+                <>
+                  {" · "}
+                  <a
+                    href={`/erp/invoices/${invoiceDoc.id as string}/print?bill=master`}
+                    className="text-primary underline-offset-4 hover:underline"
+                  >
+                    Print
+                  </a>
+                </>
+              ) : null}
+            </span>
           ) : null}
-        </p>
+        </div>
+        {statusBlurb ? (
+          <p className="mt-1.5 text-xs text-muted-foreground line-clamp-2">
+            {statusBlurb}
+          </p>
+        ) : null}
       </div>
 
-      {/* 1. Balances — who owes what */}
-      <section aria-labelledby="folio-balances-heading" className="mb-6">
-        <h2
-          id="folio-balances-heading"
-          className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase"
-        >
+      {/* Dense money strip — charges / paid / due */}
+      <section
+        aria-labelledby="folio-balances-heading"
+        className="mb-3 grid gap-2 sm:grid-cols-3"
+      >
+        <h2 id="folio-balances-heading" className="sr-only">
           Balances
         </h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Desk process: <span className="font-medium text-foreground">Master bill</span>
-          {" · "}
-          <span className="font-medium text-foreground">Room bill</span>
-          {" · "}
-          <span className="font-medium text-foreground">F&amp;B bill</span>
-          . Figures: whole Nu ending 0 or 5.
-          {invoiceDoc ? (
-            <>
-              {" "}
-              Print:{" "}
-              <a
-                href={`/erp/invoices/${invoiceDoc.id as string}/print?bill=master`}
-                className="text-accent underline-offset-4 hover:underline"
-              >
-                Master
-              </a>
-              {" · "}
-              <a
-                href={`/erp/invoices/${invoiceDoc.id as string}/print?bill=room`}
-                className="text-accent underline-offset-4 hover:underline"
-              >
-                Room
-              </a>
-              {" · "}
-              <a
-                href={`/erp/invoices/${invoiceDoc.id as string}/print?bill=fnb`}
-                className="text-accent underline-offset-4 hover:underline"
-              >
-                F&amp;B
-              </a>
-            </>
-          ) : null}
-        </p>
-        <div
-          className={cn(
-            "mt-3 grid gap-3",
-            hasAgentSplit ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3",
-          )}
-        >
-          {hasAgentSplit ? (
-            <div className="rounded-xl border bg-card p-4">
-              <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-                Room package → agent
-              </p>
-              <p className="mt-2 text-lg font-semibold tabular-nums text-foreground">
+        {hasAgentSplit ? (
+          <div className="rounded-lg border bg-card px-3 py-2 sm:col-span-3 sm:grid sm:grid-cols-4 sm:gap-2 sm:border-0 sm:bg-transparent sm:p-0">
+            <div className="rounded-lg border bg-card px-3 py-2">
+              <p className="text-xs text-muted-foreground">Agent package</p>
+              <p className="text-base font-semibold tabular-nums">
                 {formatBtn(agentCharges)}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {agentCompany
-                  ? agentCompany
-                  : booking?.agent_id
-                    ? "Agent on booking"
-                    : "Agent share on lines"}
-                {(booking?.payment_mode as string | undefined)
-                  ? ` · ${String((booking?.payment_mode as string)).replace(/_/g, " ")}`
-                  : ""}
+            </div>
+            <div className="rounded-lg border bg-card px-3 py-2">
+              <p className="text-xs text-muted-foreground">Guest extras</p>
+              <p className="text-base font-semibold tabular-nums">
+                {formatBtn(guestCharges)}
               </p>
             </div>
-          ) : null}
-          <div className="rounded-xl border bg-card p-4">
-            <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-              {hasAgentSplit
-                ? "Food & extras → guest"
-                : "Charges on folio"}
-            </p>
-            <p className="mt-2 text-lg font-semibold tabular-nums text-foreground">
-              {formatBtn(hasAgentSplit ? guestCharges : chargesTotal)}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Posted sellable lines (not payments)
-            </p>
-          </div>
-          <div className="rounded-xl border bg-card p-4">
-            <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-              Paid
-            </p>
-            <p className="mt-2 text-lg font-semibold tabular-nums text-foreground">
-              {formatBtn(paymentsTotal)}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Payments &amp; deposits recorded
-            </p>
-          </div>
-          <div
-            className={cn(
-              "rounded-xl border p-4",
-              balance > 0.5
-                ? "border-destructive/30 bg-destructive/5"
-                : "border-accent/20 bg-accent/5",
-            )}
-          >
-            <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-              Open balance
-            </p>
-            <p
+            <div className="rounded-lg border bg-card px-3 py-2">
+              <p className="text-xs text-muted-foreground">Paid</p>
+              <p className="text-base font-semibold tabular-nums">
+                {formatBtn(paymentsTotal)}
+              </p>
+            </div>
+            <div
               className={cn(
-                "mt-2 text-lg font-semibold tabular-nums",
-                balance > 0.5 ? "text-destructive" : "text-foreground",
+                "rounded-lg border px-3 py-2",
+                balance > 0.5 ? "border-citrus/40 bg-citrus-tint" : "bg-card",
               )}
             >
-              {formatBtn(balance)}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {Math.abs(balance) <= 0.5
-                ? "Balance due Nu 0 · Nothing to collect"
-                : "Charges − paid (net)"}
-            </p>
+              <p className="text-xs text-muted-foreground">Open</p>
+              <p className="text-base font-semibold tabular-nums">
+                {formatBtn(balance)}
+              </p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="rounded-lg border bg-card px-3 py-2">
+              <p className="text-xs text-muted-foreground">Charges</p>
+              <p className="text-base font-semibold tabular-nums">
+                {formatBtn(chargesTotal)}
+              </p>
+            </div>
+            <div className="rounded-lg border bg-card px-3 py-2">
+              <p className="text-xs text-muted-foreground">Paid</p>
+              <p className="text-base font-semibold tabular-nums">
+                {formatBtn(paymentsTotal)}
+              </p>
+            </div>
+            <div
+              className={cn(
+                "rounded-lg border px-3 py-2",
+                balance > 0.5 ? "border-citrus/40 bg-citrus-tint" : "bg-card",
+              )}
+            >
+              <p className="text-xs text-muted-foreground">Open</p>
+              <p className="text-base font-semibold tabular-nums">
+                {formatBtn(balance)}
+              </p>
+            </div>
+          </>
+        )}
       </section>
+
+      {/* Mobile sticky Collect */}
+      {isOpen && balance > 0.5 ? (
+        <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 border-t bg-background p-2 md:hidden">
+          <a
+            href="#folio-collect"
+            className="flex h-11 w-full items-center justify-center rounded-lg bg-citrus text-sm font-semibold text-sky-ink"
+          >
+            Collect {formatBtn(balance)}
+          </a>
+        </div>
+      ) : null}
 
       {/* 2 + 3: Actions first on mobile; Activity left / Actions right on desktop */}
       <FolioSplit>
         {/* 3. Actions — intent groups, sticky on desktop */}
         <aside
           id="folio-actions"
-          className="order-1 min-w-0 space-y-3 lg:order-2 lg:sticky lg:top-[7.5rem] lg:self-start"
+          className="order-1 min-w-0 space-y-2 lg:order-2 lg:sticky lg:top-24 lg:self-start"
           aria-labelledby="folio-actions-heading"
         >
           <div>
             <h2
               id="folio-actions-heading"
-              className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase"
+              className="text-xs font-medium text-muted-foreground"
             >
-              Actions
+              Collect &amp; actions
             </h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Collect · invoice · more when needed
-            </p>
           </div>
           <FolioActionsPanel
             folioId={folio.id as string}
@@ -778,15 +726,10 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
             <div>
               <h2
                 id="folio-pos-heading"
-                className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase"
+                className="text-xs font-medium text-muted-foreground"
               >
-                Room F&amp;B · POS items
+                Room F&amp;B
               </h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Detail of café/restaurant charges to this room — serve status
-                and who marked served. Correct lines before invoice if guest
-                disputes.
-              </p>
               <div className="mt-3">
                 <FolioRoomPosItemsPanel orders={roomPosOrders} />
               </div>
@@ -796,27 +739,22 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
           <div>
             <h2
               id="folio-activity-heading"
-              className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase"
+              className="text-xs font-medium text-muted-foreground"
             >
-              Activity
+              Ledger
+              <span className="ml-1.5 font-normal">
+                ({activityRows.length}
+                {accountingLines.length > 0
+                  ? ` · ${accountingLines.length} accounting`
+                  : ""}
+                )
+              </span>
             </h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Charges and payments — void on the line if needed.
-            </p>
           </div>
 
-          <Card className="gap-0 p-0">
-            <CardHeader className="border-b px-4 py-3 sm:px-5">
-              <CardTitle className="text-sm font-medium text-foreground">
-                Folio lines
-                <span className="ml-2 font-normal text-muted-foreground">
-                  ({activityRows.length}
-                  {accountingLines.length > 0
-                    ? ` · ${accountingLines.length} accounting`
-                    : ""}
-                  )
-                </span>
-              </CardTitle>
+          <Card className="gap-0 rounded-lg p-0 shadow-none">
+            <CardHeader className="sr-only">
+              <CardTitle>Folio lines</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <FolioActivityTable

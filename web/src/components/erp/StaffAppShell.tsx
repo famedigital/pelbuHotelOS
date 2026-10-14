@@ -12,12 +12,12 @@ export function StaffAppShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="erp min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-20 border-b bg-background">
-        <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-3">
+        <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-3 py-2.5 sm:px-4">
           <div>
-            <p className="text-xs font-semibold tracking-[0.18em] text-accent uppercase">
-              Pelbu Staff
+            <p className="text-xs font-medium text-muted-foreground">
+              Staff
             </p>
             <p className="text-sm font-medium">{session.fullName}</p>
           </div>

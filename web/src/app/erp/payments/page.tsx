@@ -61,16 +61,17 @@ export default async function PaymentsPage({
 
   return (
     <DeskListShell
-      eyebrow="Receipts"
-      heading="Payments & receipts"
-      blurb="All desk and deposit payments. Open the linked folio to reprint the receipt context."
+      eyebrow="Money"
+      heading="Payments"
+      blurb="Desk & deposit receipts — open folio to reprint."
+      dense
       filters={
         <form
-          className="flex flex-wrap items-end gap-2"
+          className="flex flex-wrap items-center gap-1.5"
           action="/erp/payments"
           method="get"
         >
-          <div className="min-w-[220px] flex-1 space-y-1.5">
+          <div className="min-w-[200px] flex-1">
             <label htmlFor="q" className="sr-only">
               Search
             </label>
@@ -79,11 +80,11 @@ export default async function PaymentsPage({
               type="search"
               name="q"
               defaultValue={q ?? ""}
-              placeholder="Reference, method, folio, booking…"
-              className="h-10"
+              placeholder="Reference, method, folio…"
+              className="h-9"
             />
           </div>
-          <div className="w-36 space-y-1.5">
+          <div className="w-28">
             <label htmlFor="method" className="sr-only">
               Method
             </label>
@@ -92,10 +93,10 @@ export default async function PaymentsPage({
               name="method"
               defaultValue={method ?? ""}
               placeholder="Method"
-              className="h-10"
+              className="h-9"
             />
           </div>
-          <Button type="submit" variant="outline" className="h-10">
+          <Button type="submit" variant="outline" size="sm">
             Search
           </Button>
         </form>

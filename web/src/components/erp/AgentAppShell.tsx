@@ -47,9 +47,9 @@ export function AgentAppShell({
   const selecting = pathname.startsWith("/agents/app/select-property");
 
   return (
-    <div className="min-h-dvh bg-background text-foreground">
+    <div className="erp min-h-dvh bg-background text-foreground">
       <header className="sticky top-0 z-20 border-b bg-background">
-        <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-3 px-4 py-3">
+        <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-3 px-3 py-2.5 sm:px-4">
           <div className="flex min-w-0 items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img

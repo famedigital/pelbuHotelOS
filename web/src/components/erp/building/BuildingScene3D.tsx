@@ -263,7 +263,7 @@ export function BuildingScene3D({
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span
-                className="size-2.5 rounded-sm ring-2 ring-indigo-600"
+                className="size-2.5 rounded-sm ring-2 ring-sky-600"
                 style={{ backgroundColor: "#10b981" }}
               />{" "}
               In-house edge
@@ -276,7 +276,7 @@ export function BuildingScene3D({
               Departing edge
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="inline-flex size-2.5 items-center justify-center rounded-full bg-indigo-600 text-[7px] font-bold text-white">
+              <span className="inline-flex size-2.5 items-center justify-center rounded-full bg-sky-600 text-[7px] font-bold text-white">
                 #
               </span>{" "}
               Pax
@@ -700,7 +700,7 @@ function MassBox({
               <span
                 className={cn(
                   "rounded px-1 py-0.5 text-[11px] font-bold text-white shadow",
-                  badgeTone === "danger" ? "bg-rose-700" : "bg-indigo-700",
+                  badgeTone === "danger" ? "bg-rose-700" : "bg-sky-700",
                 )}
               >
                 {badge}

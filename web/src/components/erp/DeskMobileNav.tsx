@@ -152,10 +152,10 @@ export function DeskMobileNav({
     <nav
       aria-label="Desk navigation"
       data-slot="desk-mobile-nav"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-background pb-[env(safe-area-inset-bottom)] md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm md:hidden"
     >
       <div
-        className="grid h-16"
+        className="grid h-14"
         style={{
           gridTemplateColumns: `repeat(${Math.max(primary.length + 1, 2)}, minmax(0, 1fr))`,
         }}
@@ -169,7 +169,7 @@ export function DeskMobileNav({
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "relative flex min-h-11 flex-col items-center justify-center gap-1 text-[11px] font-medium text-muted-foreground",
+                "relative flex min-h-11 flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-muted-foreground",
                 active && "text-primary",
               )}
             >
@@ -178,7 +178,7 @@ export function DeskMobileNav({
               {active ? (
                 <span
                   aria-hidden
-                  className="absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-primary"
+                  className="absolute inset-x-6 bottom-0 h-0.5 rounded-full bg-primary"
                 />
               ) : null}
             </Link>
@@ -203,21 +203,21 @@ export function DeskMobileNav({
           </SheetTrigger>
           <SheetContent
             side="bottom"
-            className="max-h-[88dvh] rounded-t-3xl pb-[env(safe-area-inset-bottom)]"
+            className="max-h-[88dvh] rounded-t-2xl pb-[env(safe-area-inset-bottom)]"
           >
             <SheetHeader className="text-left">
-              <SheetTitle>Pelbu desk</SheetTitle>
+              <SheetTitle>Desk</SheetTitle>
               <SheetDescription>
                 {workspace === "back_office"
-                  ? "Back office tools on your desk account."
-                  : "Front desk tools on your desk account."}
+                  ? "Back office tools"
+                  : "Front desk tools"}
               </SheetDescription>
             </SheetHeader>
-            <div className="px-4 pb-3 sm:hidden">
+            <div className="px-3 pb-2 sm:hidden">
               <DeskWorkspaceToggle className="w-full justify-stretch [&>button]:flex-1" />
             </div>
-            <div className="overflow-y-auto px-4 pb-5">
-              <div className="mb-4 space-y-2">
+            <div className="overflow-y-auto px-3 pb-4">
+              <div className="mb-3 space-y-2">
                 <label className="sr-only" htmlFor="desk-more-search">
                   Search desk tools
                 </label>
@@ -236,13 +236,13 @@ export function DeskMobileNav({
                     placeholder="Search tools…"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    className="h-11 rounded-xl pl-9 text-base"
+                    className="h-11 rounded-lg pl-9 text-base"
                   />
                 </div>
                 <SheetClose asChild>
                   <button
                     type="button"
-                    className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-border bg-card px-3 text-sm font-medium"
+                    className="flex min-h-11 w-full items-center gap-3 rounded-lg border border-border bg-card px-3 text-sm font-medium"
                     onClick={() => openErpCommandPalette()}
                   >
                     <SearchIcon className="size-4 shrink-0" />
@@ -252,16 +252,16 @@ export function DeskMobileNav({
               </div>
 
               {filteredSections.length === 0 ? (
-                <p className="mb-5 py-6 text-center text-sm text-muted-foreground">
+                <p className="mb-4 py-6 text-center text-sm text-muted-foreground">
                   No tools match “{query.trim()}”.
                 </p>
               ) : (
                 filteredSections.map((section) => (
-                  <section key={section.label} className="mb-5">
-                    <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  <section key={section.label} className="mb-4">
+                    <h2 className="mb-1.5 text-xs font-medium text-muted-foreground">
                       {section.label}
                     </h2>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
                       {section.items.map((item) => {
                         const Icon = item.icon;
                         const active = isActive(pathname, item.href);
@@ -276,8 +276,8 @@ export function DeskMobileNav({
                                 })
                               }
                               className={cn(
-                                "flex min-h-12 items-center gap-3 rounded-xl border border-border bg-card px-3 text-sm",
-                                active && "border-primary/40 bg-primary/5",
+                                "flex min-h-12 items-center gap-2.5 rounded-lg border border-border bg-card px-2.5 text-sm",
+                                active && "border-primary/50 bg-primary/5 text-primary",
                               )}
                             >
                               <Icon className="size-4 shrink-0" />
@@ -290,22 +290,24 @@ export function DeskMobileNav({
                   </section>
                 ))
               )}
-              <form action={deskShiftChange}>
-                <button
-                  type="submit"
-                  className="min-h-12 w-full rounded-xl border border-border px-4 text-sm font-medium"
-                >
-                  Login + · next shift
-                </button>
-              </form>
-              <form action={deskLogout}>
-                <button
-                  type="submit"
-                  className="min-h-12 w-full rounded-xl border border-border px-4 text-sm font-medium"
-                >
-                  Log out
-                </button>
-              </form>
+              <div className="mt-2 grid gap-1.5">
+                <form action={deskShiftChange}>
+                  <button
+                    type="submit"
+                    className="min-h-11 w-full rounded-lg border border-border px-4 text-sm font-medium"
+                  >
+                    Login + · next shift
+                  </button>
+                </form>
+                <form action={deskLogout}>
+                  <button
+                    type="submit"
+                    className="min-h-11 w-full rounded-lg border border-border px-4 text-sm font-medium"
+                  >
+                    Log out
+                  </button>
+                </form>
+              </div>
             </div>
           </SheetContent>
         </Sheet>

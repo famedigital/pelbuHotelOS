@@ -1,6 +1,5 @@
 "use client";
 
-import { StayHubDialog } from "@/components/erp/StayHubDialog";
 import {
   StayHubContext,
   useStayHub,
@@ -13,6 +12,7 @@ import {
   parseStayHubStep,
   type StayHubStepId,
 } from "@/lib/folio/stay-hub-cycle";
+import dynamic from "next/dynamic";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   useCallback,
@@ -22,6 +22,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
+
+const StayHubDialog = dynamic(
+  () =>
+    import("@/components/erp/StayHubDialog").then((m) => m.StayHubDialog),
+  { ssr: false },
+);
 
 export {
   useStayHub,

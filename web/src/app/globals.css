@@ -161,65 +161,95 @@
 }
 
 /* =========================================================================
-   ERP scope — Sky & Citrus unless the hotel picked a desk theme.
-   A tweakcn theme sets data-desk-theme on .erp and keeps its own tokens.
+   Clear Desk — crisp white canvas, ink rail, vivid sky actions, citrus money.
+   Scoped under .erp. data-desk-theme reserved for future per-hotel skins.
    ========================================================================= */
 .erp:not([data-desk-theme]) {
-  --background: #f8fafc;            /* slate-50 */
-  --foreground: #0c1726;            /* deep ink (slate-950-ish) */
+  --background: #ffffff;
+  --foreground: #0b1220;
 
   --card: #ffffff;
-  --card-foreground: #0c1726;
+  --card-foreground: #0b1220;
 
   --popover: #ffffff;
-  --popover-foreground: #0c1726;
+  --popover-foreground: #0b1220;
 
-  --primary: #0369a1;               /* sky-700 — default actions */
+  --primary: #0284c7;               /* vivid sky — default actions */
   --primary-foreground: #ffffff;
 
-  --secondary: #e2e8f0;             /* slate-200 */
-  --secondary-foreground: #0c1726;
+  --secondary: #e8eef4;
+  --secondary-foreground: #0b1220;
 
-  --muted-shadcn: #f1f5f9;          /* slate-100 */
-  --muted-foreground: #475569;      /* slate-600 */
+  --muted-shadcn: #f4f8fb;          /* soft well only */
+  --muted-foreground: #5b6b7c;
 
-  --accent: #0ea5e9;                /* sky-500 */
+  --accent: #0284c7;
   --accent-foreground: #ffffff;
 
-  --destructive: #dc2626;           /* red-600, replaces maroon */
+  --destructive: #dc2626;
   --destructive-foreground: #ffffff;
 
-  --border: #e2e8f0;                /* slate-200 */
-  --input: #e2e8f0;
-  --ring: #0ea5e9;                  /* sky-500 */
+  --border: #e2e9f0;
+  --input: #e2e9f0;
+  --ring: #0284c7;
 
-  --chart-1: #0ea5e9;               /* sky-500 */
-  --chart-2: #f59e0b;               /* amber-500 */
-  --chart-3: #10b981;               /* emerald-500 */
-  --chart-4: #059669;               /* mint-600 */
-  --chart-5: #d97706;               /* citrus-600 */
+  --chart-1: #0284c7;
+  --chart-2: #f59e0b;
+  --chart-3: #10b981;
+  --chart-4: #059669;
+  --chart-5: #d97706;
 
-  --sidebar: #0c1726;
-  --sidebar-foreground: #f8fafc;
-  --sidebar-primary: #0ea5e9;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1e293b;        /* slate-800 */
-  --sidebar-accent-foreground: #f8fafc;
-  --sidebar-border: #1e293b;
-  --sidebar-ring: #0ea5e9;
+  --sidebar: #0b1220;
+  --sidebar-foreground: #f4f8fb;
+  --sidebar-primary: #38bdf8;
+  --sidebar-primary-foreground: #0b1220;
+  --sidebar-accent: #1a2436;
+  --sidebar-accent-foreground: #f4f8fb;
+  --sidebar-border: #1a2436;
+  --sidebar-ring: #38bdf8;
 
-  /* Citrus (amber) — ERP-only success / money callout color */
-  --citrus: #f59e0b;                /* amber-500 */
-  --citrus-soft: #fbbf24;           /* amber-400 */
-  --citrus-tint: #fef3c7;           /* amber-100 */
+  --citrus: #f59e0b;
+  --citrus-soft: #fbbf24;
+  --citrus-tint: #fef3c7;
 
-  /* Shadcn default radius — rounded edges everywhere in ERP.
-     Public site keeps the tight 4px --radius from :root. */
-  --radius: 0.625rem;               /* shadcn default style */
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
+  /* Density */
+  --desk-pad: 0.5rem;
+  --desk-pad-md: 0.75rem;
+  --desk-row: 2.25rem;
+  --desk-header: 2.75rem;
+
+  --radius: 0.5rem;
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
   --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* Desk page padding utility — prefer over ad-hoc p-4/p-6 on FO screens */
+.erp .desk-page {
+  padding: var(--desk-pad);
+}
+@media (min-width: 768px) {
+  .erp .desk-page {
+    padding: var(--desk-pad-md);
+  }
+}
+
+/* Tablet split panes — list | detail work surfaces */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .erp .desk-tablet-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 0.75rem;
+    align-items: start;
+  }
+}
+
+/* Mobile full-screen task sheet feel inside StayHub / POS */
+@media (max-width: 767px) {
+  .erp .desk-mobile-task {
+    min-height: calc(100dvh - 7.5rem);
+  }
 }
 
 /* ERP mobile ergonomics: every legacy data table remains usable while modules
@@ -280,9 +310,38 @@
   }
 }
 
+/* Clear Desk live status — calendar / boards (respect reduced motion) */
+.erp .desk-live-pulse {
+  animation: desk-live-pulse 1.8s ease-in-out infinite;
+}
+.erp .desk-live-flash {
+  animation: desk-live-flash 0.9s ease-out 1;
+}
+
+@keyframes desk-live-pulse {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--ring) 55%, transparent);
+  }
+}
+
+@keyframes desk-live-flash {
+  0% {
+    background-color: color-mix(in oklab, var(--mint-500) 28%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .erp .desk-premium-empty,
   .erp .desk-premium-enter,
+  .erp .desk-live-pulse,
+  .erp .desk-live-flash,
   .erp .motion-safe\:duration-200 {
     animation: none !important;
     transition: none !important;

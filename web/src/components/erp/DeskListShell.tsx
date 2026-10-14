@@ -84,16 +84,16 @@ export function DeskListShell({
       )}
     >
       <DeskBlurFade>
-      <div className="border-b border-border/80 bg-background px-4 py-3 md:px-6 md:py-3.5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 flex-1 space-y-1">
+      <div className="border-b border-border bg-background px-3 py-2 md:px-4 md:py-2.5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 flex-1 space-y-0.5">
             {eyebrow ? (
-              <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
+              <p className="text-xs font-medium text-muted-foreground">
                 {eyebrow}
               </p>
             ) : null}
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-              <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">
+              <h1 className="text-lg font-semibold tracking-tight text-foreground md:text-xl">
                 {heading}
               </h1>
               {helpBody ? (
@@ -124,11 +124,11 @@ export function DeskListShell({
       {filters ? (
         <div
           className={cn(
-            "z-20 border-b border-border/80 bg-background px-4 py-2 md:px-6",
+            "z-20 border-b border-border bg-background px-3 py-1.5 md:px-4",
             "md:sticky md:top-0",
           )}
         >
-          <div className="relative z-0 flex min-w-0 flex-wrap items-center gap-2">
+          <div className="relative z-0 flex min-w-0 flex-wrap items-center gap-1.5">
             {filters}
           </div>
         </div>
@@ -137,7 +137,7 @@ export function DeskListShell({
       <div
         className={cn(
           "relative z-0 flex min-w-0 flex-col",
-          dense ? "gap-3 p-3 md:p-4" : "gap-6 p-4 md:gap-8 md:p-6",
+          dense ? "gap-2 p-2 md:gap-3 md:p-3" : "gap-3 p-3 md:gap-4 md:p-4",
         )}
       >
         {metrics ? <div className="min-w-0">{metrics}</div> : null}

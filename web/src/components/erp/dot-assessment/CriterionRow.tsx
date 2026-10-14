@@ -59,7 +59,7 @@ const kindStyles: Record<CriterionKind, string> = {
   Q: "bg-sky-500/15 text-sky-800 dark:text-sky-200",
   P: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200",
   X: "bg-muted text-muted-foreground",
-  custom: "bg-violet-500/15 text-violet-800 dark:text-violet-200",
+  custom: "bg-sky-500/15 text-sky-800",
 };
 
 function answerState(response?: DotResponse): "yes" | "no" | "scored" | "open" | "na" {

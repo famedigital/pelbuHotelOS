@@ -336,7 +336,7 @@ function stayOpsTone(stay: RackStay, today: string): StayOpsTone {
   }
   if (overdueDeparture) {
     return {
-      bar: "bg-rose-700 text-white ring-1 ring-rose-300/70",
+      bar: "desk-live-pulse bg-rose-700 text-white ring-1 ring-rose-300/70",
       accent: "bg-rose-950",
       dues,
       lifeLabel: "Overdue out",
@@ -344,7 +344,7 @@ function stayOpsTone(stay: RackStay, today: string): StayOpsTone {
   }
   if (arrivingToday) {
     return {
-      bar: "bg-sky-500 text-white",
+      bar: "desk-live-flash bg-sky-500 text-white",
       accent: "bg-sky-700",
       dues,
       lifeLabel: "Arriving",
@@ -352,8 +352,8 @@ function stayOpsTone(stay: RackStay, today: string): StayOpsTone {
   }
   if (departingToday) {
     return {
-      bar: "bg-amber-500 text-foreground",
-      accent: "bg-amber-700",
+      bar: "desk-live-pulse bg-citrus text-sky-ink",
+      accent: "bg-citrus-600",
       dues,
       lifeLabel: "Departing",
     };
@@ -404,7 +404,7 @@ const STAY_VIEW_LEGEND = [
   { swatch: "bg-emerald-600", label: "Occupied" },
   { swatch: "bg-sky-700", label: "Reserved" },
   { swatch: "bg-slate-500", label: "O/O" },
-  { swatch: "bg-amber-500", label: "Due Out" },
+  { swatch: "bg-citrus", label: "Due Out" },
   { swatch: "bg-rose-500", label: "Dirty" },
 ] as const;
 
@@ -422,7 +422,7 @@ function fmtStayRange(checkIn: string, checkOut: string): string {
 function blockBarClass(kind: RoomBlock["block_kind"]): string {
   if (kind === "ooo") return "border-slate-700 bg-slate-700 text-white";
   if (kind === "oos") return "border-rose-700 bg-rose-600 text-white";
-  return "border-violet-600 bg-violet-500 text-white";
+  return "border-citrus-600 bg-citrus text-sky-ink";
 }
 
 function sourceAbbreviation(stay: RackStay): string {
@@ -640,7 +640,7 @@ function StayHoverCard({
           className={cn(
             "relative flex h-[calc(100%-4px)] w-full flex-col justify-center gap-0.5 overflow-hidden rounded-sm py-0.5 pl-2 pr-1.5 text-left",
             tone.bar,
-            tone.dues && "ring-2 ring-inset ring-violet-300/90",
+            tone.dues && "desk-live-pulse ring-2 ring-inset ring-citrus/80",
             selected && "ring-2 ring-accent ring-offset-1 ring-offset-background",
           )}
           title={
@@ -670,7 +670,7 @@ function StayHoverCard({
           {tone.dues ? (
             <span
               aria-hidden
-              className="absolute inset-y-0 right-0 w-1 bg-violet-400"
+              className="absolute inset-y-0 right-0 w-1 bg-citrus"
             />
           ) : null}
           {/* Row 1 — guest name (like room number line) */}
@@ -749,7 +749,7 @@ function StayHoverCard({
             ) : null}
             {tone.dues ? (
               <span
-                className="shrink-0 rounded-[2px] bg-violet-950/40 px-0.5 text-[11px] font-bold leading-none"
+                className="shrink-0 rounded-[2px] bg-citrus-tint px-0.5 text-[11px] font-bold leading-none text-citrus-600"
                 title={`Dues ${Number(stay.folio_balance ?? 0).toFixed(0)}`}
               >
                 DUE
@@ -803,7 +803,7 @@ function StayHoverCard({
               {` · ${tone.lifeLabel}`}
             </p>
             {tone.dues ? (
-              <p className="mt-1 text-[11px] font-medium text-violet-700 dark:text-violet-300">
+              <p className="mt-1 text-[11px] font-medium text-citrus-600">
                 Open balance / dues
               </p>
             ) : null}
@@ -2047,7 +2047,7 @@ export function RoomRackGrid({
                 { swatch: "bg-emerald-600", label: "Occupied" },
                 { swatch: "bg-sky-700", label: "Reserved" },
                 { swatch: "bg-slate-500", label: "O/O" },
-                { swatch: "bg-amber-500", label: "Due Out" },
+                { swatch: "bg-citrus", label: "Due Out" },
                 { swatch: "bg-rose-500", label: "Dirty" },
                 { swatch: "bg-sky-500", label: "Arriving today" },
                 { swatch: "bg-rose-700", label: "Overdue checkout" },
@@ -2060,7 +2060,7 @@ export function RoomRackGrid({
                 </li>
               ))}
               <li className="flex items-center gap-2 border-t pt-1.5">
-                <span className="size-3 shrink-0 rounded-sm bg-sky-600 ring-2 ring-inset ring-violet-400" />
+                <span className="size-3 shrink-0 rounded-sm bg-sky-600 ring-2 ring-inset ring-citrus" />
                 <span>Violet edge / DUE = open folio balance</span>
               </li>
               <li className="flex items-center gap-2">
@@ -2147,11 +2147,11 @@ export function RoomRackGrid({
                 );
               })}
               {todayIndex >= 0 ? (
-                <div className="relative min-w-[100px] overflow-hidden rounded-md border border-violet-300 bg-violet-50/80 px-2 py-1 shadow-xs dark:border-violet-800 dark:bg-violet-950/25">
+                <div className="relative min-w-[100px] overflow-hidden rounded-md border border-citrus/40 bg-citrus-tint px-2 py-1">
                   <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                     Today rooms
                   </p>
-                  <p className="text-[10px] tabular-nums text-violet-700 dark:text-violet-300">
+                  <p className="text-[10px] tabular-nums text-citrus-600">
                     <strong>{todayBooked}</strong> booked ·{" "}
                     <strong>{Math.max(0, units.length - todayBooked)}</strong> empty
                   </p>
@@ -2575,7 +2575,7 @@ export function RoomRackGrid({
                           return (
                             <div
                               key={a.id}
-                              className="pointer-events-none absolute inset-y-0 border border-dashed border-violet-500/50 bg-violet-500/15"
+                              className="pointer-events-none absolute inset-y-0 border border-dashed border-sky-500/40 bg-sky-500/10"
                               style={{ left: left + 1, width: width - 2 }}
                               title={`Allotment · ${a.agent_name} · ${a.rooms_per_week}/wk`}
                             />
@@ -2639,7 +2639,7 @@ export function RoomRackGrid({
                         </span>
                         {unit.service_requested_at ? (
                           <span
-                            className="size-1.5 shrink-0 rounded-full bg-violet-500 ring-1 ring-violet-300"
+                            className="size-1.5 shrink-0 rounded-full bg-citrus ring-1 ring-citrus-soft"
                             title="Service requested"
                           />
                         ) : null}

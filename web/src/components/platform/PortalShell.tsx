@@ -41,6 +41,7 @@ export function PortalShell({
   const pathname = usePathname();
 
   return (
+    <div className="erp min-h-svh">
     <SidebarProvider defaultOpen defaultState="expanded" defaultAutoCollapse={false}>
       <Sidebar collapsible="icon" className="border-r">
         <SidebarHeader className="gap-1 px-3 py-4">
@@ -80,8 +81,9 @@ export function PortalShell({
           <Separator orientation="vertical" className="mr-2 h-4" />
           <span className={cn("text-sm text-muted-foreground")}>{brand}</span>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">{children}</div>
+        <div className="flex flex-1 flex-col gap-3 p-3 md:gap-4 md:p-4">{children}</div>
       </SidebarInset>
     </SidebarProvider>
+    </div>
   );
 }

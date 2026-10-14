@@ -223,10 +223,10 @@ export function SettlePanel({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="rounded-md bg-muted/40 px-4 py-3">
+        <div className="rounded-lg border border-citrus/30 bg-citrus-tint/40 px-3 py-2.5">
           <div className="flex items-baseline justify-between">
-            <span className="text-sm text-muted-foreground">Order total</span>
-            <span className="text-xl font-semibold tabular-nums text-foreground">
+            <span className="text-xs font-medium text-muted-foreground">Total</span>
+            <span className="text-2xl font-semibold tabular-nums text-foreground">
               {total.toLocaleString("en-BT", { maximumFractionDigits: 2 })} Nu
             </span>
           </div>

@@ -88,63 +88,97 @@ export function SettingsShell({
     ? "Hotel defaults — change carefully during service."
     : "Finish setup for guests and money.";
 
+  const flatItems = groups.flatMap((g) =>
+    g.items.map((item) => ({ ...item, group: g.label })),
+  );
+
   return (
-    <div className="erp space-y-6 p-4 md:p-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="space-y-1.5">
-          <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-            Hotel
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+    <div className="erp space-y-3 p-3 md:space-y-4 md:p-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="space-y-0.5">
+          <p className="text-xs font-medium text-muted-foreground">Hotel</p>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">
             Settings
           </h1>
-          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-[15px]">
+          <p className="max-w-2xl text-sm text-muted-foreground">
             {description ?? defaultDescription}
           </p>
         </div>
         {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
       </div>
 
+      {/* Mobile: horizontal chip jump */}
       <nav
         aria-label="Settings sections"
-        className="overflow-x-auto rounded-xl border bg-card"
+        className="flex gap-1 overflow-x-auto pb-1 md:hidden"
       >
-        <div className="flex min-w-max items-stretch divide-x">
-          {groups.map((group) => (
-            <div key={group.label} className="flex flex-col px-2 py-2">
-              <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                {group.label}
-              </p>
-              <div className="flex flex-wrap gap-0.5">
-                {group.items.map((item) => {
-                  const active = activeTab === item.tab;
-                  const danger = item.tab === "danger";
-                  return (
-                    <Link
-                      key={item.tab}
-                      href={tabHref(item.tab)}
-                      className={cn(
-                        "rounded-md px-2.5 py-1.5 text-sm whitespace-nowrap transition-colors",
-                        active
-                          ? danger
-                            ? "bg-destructive font-medium text-destructive-foreground"
-                            : "bg-accent font-medium text-accent-foreground"
-                          : danger
-                            ? "text-destructive hover:bg-destructive/10"
-                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                      )}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
+        {flatItems.map((item) => {
+          const active = activeTab === item.tab;
+          const danger = item.tab === "danger";
+          return (
+            <Link
+              key={item.tab}
+              href={tabHref(item.tab)}
+              className={cn(
+                "shrink-0 rounded-md px-2.5 py-1.5 text-sm whitespace-nowrap",
+                active
+                  ? danger
+                    ? "bg-destructive font-medium text-destructive-foreground"
+                    : "bg-primary font-medium text-primary-foreground"
+                  : danger
+                    ? "border border-destructive/30 text-destructive"
+                    : "border bg-card text-muted-foreground",
+              )}
+            >
+              {item.label}
+            </Link>
+          );
+        })}
       </nav>
 
-      {children}
+      <div className="md:grid md:grid-cols-[11rem_minmax(0,1fr)] md:gap-4 lg:grid-cols-[13rem_minmax(0,1fr)]">
+        {/* Desktop: sticky side toc */}
+        <nav
+          aria-label="Settings sections"
+          className="hidden md:block"
+        >
+          <div className="sticky top-14 space-y-3 rounded-lg border bg-card p-2">
+            {groups.map((group) => (
+              <div key={group.label}>
+                <p className="px-2 pb-1 text-[11px] font-medium text-muted-foreground">
+                  {group.label}
+                </p>
+                <div className="flex flex-col gap-0.5">
+                  {group.items.map((item) => {
+                    const active = activeTab === item.tab;
+                    const danger = item.tab === "danger";
+                    return (
+                      <Link
+                        key={item.tab}
+                        href={tabHref(item.tab)}
+                        className={cn(
+                          "rounded-md px-2.5 py-1.5 text-sm transition-colors",
+                          active
+                            ? danger
+                              ? "bg-destructive font-medium text-destructive-foreground"
+                              : "bg-primary font-medium text-primary-foreground"
+                            : danger
+                              ? "text-destructive hover:bg-destructive/10"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                        )}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </nav>
+
+        <div className="min-w-0">{children}</div>
+      </div>
     </div>
   );
 }

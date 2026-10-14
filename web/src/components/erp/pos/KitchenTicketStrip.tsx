@@ -83,33 +83,31 @@ export function KitchenTicketStrip({
     <button
       type="button"
       onClick={onOpenTickets}
-      className="erp flex w-full items-center justify-between gap-3 rounded-lg border bg-card px-4 py-2.5 text-left transition-colors hover:bg-secondary/40"
+      className="erp flex w-full items-center justify-between gap-2 rounded-lg border bg-card px-3 py-2 text-left transition-colors hover:bg-muted/50"
       aria-label="Open tickets"
     >
-      <div className="flex items-center gap-3">
-        <span className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="shrink-0 text-xs font-medium text-muted-foreground">
           Kitchen
         </span>
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1">
           {counts.pendingConfirm > 0 ? (
-            <Badge variant="citrus">Pending confirm · {counts.pendingConfirm}</Badge>
+            <Badge variant="citrus">Confirm · {counts.pendingConfirm}</Badge>
           ) : null}
           {counts.awaitingPayment > 0 ? (
-            <Badge variant="citrus">
-              Awaiting payment · {counts.awaitingPayment}
-            </Badge>
+            <Badge variant="citrus">Pay · {counts.awaitingPayment}</Badge>
           ) : null}
           {counts.new > 0 ? (
             <Badge variant="sky">New · {counts.new}</Badge>
           ) : null}
           {counts.preparing > 0 ? (
-            <Badge variant="sky">Preparing · {counts.preparing}</Badge>
+            <Badge variant="sky">Prep · {counts.preparing}</Badge>
           ) : null}
           {counts.ready > 0 ? (
             <Badge variant="mint">Ready · {counts.ready}</Badge>
           ) : null}
           {counts.served > 0 ? (
-            <Badge variant="citrus">Served · settle {counts.served}</Badge>
+            <Badge variant="citrus">Settle · {counts.served}</Badge>
           ) : null}
           {counts.parked > 0 ? (
             <Badge variant="outline">Parked · {counts.parked}</Badge>

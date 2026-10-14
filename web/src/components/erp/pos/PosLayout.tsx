@@ -1501,7 +1501,7 @@ export function PosLayout({
                         className="data-[state=inactive]:hidden"
                       >
                         <div className="grid gap-2 @min-[680px]/pos:grid-cols-[6.25rem_minmax(0,1fr)] @min-[680px]/pos:items-start">
-                          <aside className="sticky top-14 z-10 hidden max-h-[calc(100dvh-4.5rem)] min-h-0 flex-col gap-1.5 @min-[680px]/pos:flex">
+                          <aside className="sticky top-11 z-10 hidden max-h-[calc(100dvh-4rem)] min-h-0 flex-col gap-1.5 @min-[680px]/pos:flex">
                             <div className="flex shrink-0 flex-col gap-1">
                               {lockedMenuOutlet ? (
                                 <div className="space-y-1 rounded-md border bg-muted/40 px-2 py-1.5 text-[11px] text-muted-foreground">
@@ -1763,8 +1763,8 @@ export function PosLayout({
                         onClick={() => setCartSheetOpen(true)}
                         key={cartBump}
                         className={cn(
-                          "fixed inset-x-3 z-[45] flex h-14 items-center justify-between rounded-xl bg-primary px-4 text-primary-foreground shadow-[0_12px_32px_-12px_rgba(8,47,73,0.55)]",
-                          "bottom-[max(0.75rem,env(safe-area-inset-bottom,0px))]",
+                          "fixed inset-x-3 z-[45] flex h-12 items-center justify-between rounded-lg bg-primary px-3 text-primary-foreground",
+                          "bottom-[calc(3.75rem+env(safe-area-inset-bottom,0px))]",
                           "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-200",
                         )}
                         aria-label={
@@ -1791,12 +1791,12 @@ export function PosLayout({
                       <SheetContent
                         side="bottom"
                         portal={false}
-                        className="erp z-[60] max-h-[min(90dvh,calc(100dvh_-_4.5rem))] rounded-t-2xl p-0 sm:max-w-full"
+                        className="erp z-[60] max-h-[min(90dvh,calc(100dvh_-_4rem))] rounded-t-xl p-0 sm:max-w-full"
                       >
                         <SheetHeader className="sr-only">
                           <SheetTitle>Ticket</SheetTitle>
                         </SheetHeader>
-                        <div className="max-h-[min(85dvh,calc(100dvh_-_5rem))] overflow-y-auto overscroll-contain p-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))]">
+                        <div className="max-h-[min(85dvh,calc(100dvh_-_4.5rem))] overflow-y-auto overscroll-contain p-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
                           <CartPanel
                             cart={cart}
                             totals={totals}

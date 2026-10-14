@@ -63,16 +63,16 @@ function StatusPill({ value }: { value: string | null }) {
   if (!value) return null;
   const tone =
     value === "checked_in"
-      ? "border-citrus/40 bg-citrus-tint/60 text-citrus"
+      ? "border-mint-500/30 bg-mint-100 text-mint-600"
       : value === "confirmed"
-        ? "border-sky-300 bg-sky-50 text-sky-800"
+        ? "border-sky-300 bg-sky-100 text-sky-700"
         : value === "held" || value === "pending"
-          ? "border-destructive/30 bg-destructive/5 text-destructive"
+          ? "border-citrus/40 bg-citrus-tint text-citrus-600"
           : "border-border bg-muted text-muted-foreground";
   return (
     <span
       className={cn(
-        "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide whitespace-nowrap",
+        "inline-flex rounded-md border px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap",
         tone,
       )}
     >
@@ -240,15 +240,15 @@ export function ReservationsDeskTable({
   ];
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-1">
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-0.5">
         {VIEWS.map((item) => (
           <Link
             key={item.id}
             href={viewHref(item.id)}
             data-state={view === item.id ? "active" : "inactive"}
             className={cn(
-              "inline-flex h-8 items-center rounded-md px-3 text-sm font-medium",
+              "inline-flex h-8 items-center rounded-md px-2.5 text-sm font-medium",
               view === item.id
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",

@@ -21,25 +21,25 @@ export function SettingsSection({
   actions?: React.ReactNode;
 }) {
   return (
-    <section className={cn("rounded-xl border bg-card p-5 md:p-6", className)}>
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1.5">
+    <section className={cn("rounded-lg border bg-card p-3 md:p-4", className)}>
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+        <div className="space-y-1">
           {eyebrow ? (
-            <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+            <p className="text-xs font-medium text-muted-foreground">
               {eyebrow}
             </p>
           ) : null}
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-xl font-semibold tracking-tight text-foreground">
+            <h2 className="text-lg font-semibold tracking-tight text-foreground">
               {title}
             </h2>
             {status === "ready" ? (
-              <span className="rounded-md border border-emerald-500/30 bg-emerald-500/[0.06] px-2 py-0.5 text-[11px] font-medium text-emerald-800 dark:text-emerald-300">
+              <span className="rounded-md border border-mint-500/30 bg-mint-100 px-2 py-0.5 text-[11px] font-medium text-mint-600">
                 Ready
               </span>
             ) : null}
             {status === "attention" ? (
-              <span className="rounded-md border border-amber-500/35 bg-amber-500/[0.06] px-2 py-0.5 text-[11px] font-medium text-amber-900 dark:text-amber-200">
+              <span className="rounded-md border border-citrus/40 bg-citrus-tint px-2 py-0.5 text-[11px] font-medium text-citrus-600">
                 Needs attention
               </span>
             ) : null}

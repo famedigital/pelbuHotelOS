@@ -43,14 +43,14 @@ type Props = {
 };
 
 const SPACE_FILL: Record<string, string> = {
-  lobby: "bg-teal-700/80 text-white",
-  restaurant: "bg-orange-800/75 text-white",
+  lobby: "bg-sky-800/80 text-white",
+  restaurant: "bg-citrus-600/90 text-white",
   cafe: "bg-amber-700/75 text-white",
-  bar: "bg-violet-800/75 text-white",
-  reception: "bg-sky-800/75 text-white",
-  spa: "bg-cyan-800/70 text-white",
+  bar: "bg-sky-900/80 text-white",
+  reception: "bg-sky-700/80 text-white",
+  spa: "bg-mint-600/80 text-white",
   gym: "bg-slate-700/75 text-white",
-  meeting: "bg-indigo-800/70 text-white",
+  meeting: "bg-sky-600/85 text-white",
   stair: "bg-zinc-600/80 text-white",
   lift: "bg-zinc-500/80 text-white",
   service: "bg-stone-600/75 text-white",
@@ -305,7 +305,7 @@ export function RoomFloorPlan({
           Arriving
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="size-2.5 rounded-sm ring-2 ring-indigo-600 bg-emerald-500" />{" "}
+          <span className="size-2.5 rounded-sm ring-2 ring-sky-600 bg-mint-500" />{" "}
           In-house
         </span>
         <span className="inline-flex items-center gap-1.5">
@@ -313,7 +313,7 @@ export function RoomFloorPlan({
           Departing
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="inline-flex size-3 items-center justify-center rounded-full bg-indigo-600 text-[11px] font-bold text-white">
+          <span className="inline-flex size-3 items-center justify-center rounded-full bg-sky-600 text-[11px] font-bold text-white">
             #
           </span>{" "}
           Pax
@@ -366,10 +366,10 @@ export function RoomFloorPlan({
             </div>
             <div
               aria-hidden
-              className="pointer-events-none absolute rounded-sm border border-dashed border-violet-500/30 bg-violet-500/5"
+              className="pointer-events-none absolute rounded-sm border border-dashed border-sky-500/30 bg-sky-500/5"
               style={structureBandStyle(structure, "back")}
             >
-              <span className="absolute top-1 left-2 text-[11px] font-medium text-violet-900/80 dark:text-violet-100/80">
+              <span className="absolute top-1 left-2 text-[11px] font-medium text-sky-900/80">
                 Back
               </span>
             </div>

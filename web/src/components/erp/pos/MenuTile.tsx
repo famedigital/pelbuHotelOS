@@ -71,7 +71,7 @@ export function MenuTile({
         size="sm"
         disabled={soldOut}
         onClick={onAdd}
-        className="h-auto min-h-14 min-w-0 flex-1 flex-col items-stretch justify-center gap-0.5 whitespace-normal rounded-r-none px-2.5 py-1.5 text-left"
+        className="h-auto min-h-12 min-w-0 flex-1 flex-col items-stretch justify-center gap-0.5 whitespace-normal rounded-r-none px-2 py-1 text-left md:min-h-11"
         aria-label={
           soldOut
             ? `${item.name}, sold out`

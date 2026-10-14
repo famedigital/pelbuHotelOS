@@ -74,22 +74,23 @@ export default async function CityLedgerPage() {
     <DeskListShell
       eyebrow="Money"
       heading="City Ledger"
-      blurb="Master folios for groups plus travel-agent F&B open items (lunch invoiced, payment later). AR aging 30/60/90 below."
+      blurb="Master / agent AR folios. Aging below — tap a row to collect."
+      dense
     >
-      <section className="rounded-lg border bg-card p-4">
-        <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
-          AR aging (open city-ledger balances · as of {today})
+      <section className="rounded-lg border bg-card px-3 py-2.5">
+        <p className="text-xs font-medium text-muted-foreground">
+          AR aging · {today}
         </p>
-        <div className="mt-3 grid gap-3 sm:grid-cols-4">
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {[
             ["0–30", aging.current],
             ["31–60", aging.d30],
             ["61–90", aging.d60],
             ["90+", aging.d90],
           ].map(([label, val]) => (
-            <div key={String(label)}>
-              <p className="text-xs text-muted-foreground">{label} days</p>
-              <p className="mt-1 text-lg font-semibold tabular-nums">
+            <div key={String(label)} className="min-w-0">
+              <p className="text-[11px] text-muted-foreground">{label}d</p>
+              <p className="text-base font-semibold tabular-nums">
                 {formatBtn(Number(val))}
               </p>
             </div>
@@ -99,16 +100,15 @@ export default async function CityLedgerPage() {
 
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No city-ledger folios yet. Charge a travel-agent lunch on POS
-          (invoice later), or open a guest folio and choose{" "}
-          <strong className="font-medium text-foreground">Make master folio</strong>.
+          No city-ledger folios yet. Charge agent lunch on POS (invoice later),
+          or promote a guest folio to master.
         </p>
       ) : (
         <ul className="divide-y rounded-lg border bg-card">
           {rows.map((r) => (
             <li
               key={r.id}
-              className="flex flex-wrap items-baseline justify-between gap-3 px-4 py-3 text-sm"
+              className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm hover:bg-muted/40"
             >
               <div className="min-w-0">
                 <Link
@@ -139,8 +139,8 @@ export default async function CityLedgerPage() {
                 </p>
               </div>
               <p
-                className={`tabular-nums font-medium ${
-                  Math.abs(r.balance) > 0.01 ? "text-destructive" : "text-foreground"
+                className={`text-base font-semibold tabular-nums ${
+                  Math.abs(r.balance) > 0.01 ? "text-citrus-600" : "text-mint-600"
                 }`}
               >
                 {formatBtn(r.balance)}

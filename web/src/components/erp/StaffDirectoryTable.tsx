@@ -1,19 +1,27 @@
 "use client";
 
-import {
-  StaffDossierDialog,
-  type ManagerOption,
-  type StaffConductRow,
-  type StaffDocumentRow,
-  type StaffDossierMember,
-  type StaffPayComponentRow,
-  type StaffPrivateProfile,
+import type {
+  ManagerOption,
+  StaffConductRow,
+  StaffDocumentRow,
+  StaffDossierMember,
+  StaffPayComponentRow,
+  StaffPrivateProfile,
 } from "@/components/erp/StaffDossierDialog";
 import { StaffAvatar } from "@/components/erp/StaffAvatar";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, SortableHeader } from "@/components/ui/data-table";
 import type { ColumnDef } from "@tanstack/react-table";
+import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
+
+const StaffDossierDialog = dynamic(
+  () =>
+    import("@/components/erp/StaffDossierDialog").then(
+      (m) => m.StaffDossierDialog,
+    ),
+  { ssr: false },
+);
 
 export type StaffDirectoryRow = StaffDossierMember & {
   photoPublicId: string | null;

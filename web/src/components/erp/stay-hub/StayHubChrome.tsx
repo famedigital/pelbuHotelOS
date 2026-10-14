@@ -74,10 +74,10 @@ export type StayHubRailAmount = {
 
 function statusBadgeVariant(
   status: string,
-): "secondary" | "sky" | "citrus" | "gold" | "maroon" {
-  if (status === "checked_in") return "citrus";
+): "secondary" | "sky" | "citrus" | "mint" | "maroon" {
+  if (status === "checked_in") return "mint";
   if (status === "confirmed") return "sky";
-  if (status === "held" || status === "pending") return "gold";
+  if (status === "held" || status === "pending") return "citrus";
   if (status === "cancelled" || status === "no_show") return "maroon";
   return "secondary";
 }
@@ -147,7 +147,7 @@ export function StayHubHeader(props: StayHubIdentityProps) {
     (bookingId ? bookingId.slice(0, 8) : "");
 
   return (
-    <div className="shrink-0 border-b bg-card px-3 py-2 pr-11 md:hidden">
+    <div className="shrink-0 border-b bg-background px-2.5 py-1.5 pr-10 md:hidden">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           {backLabel && onBack ? (
@@ -155,17 +155,17 @@ export function StayHubHeader(props: StayHubIdentityProps) {
               type="button"
               onClick={onBack}
               aria-label={backLabel}
-              className="-ml-1 inline-flex min-h-9 items-center gap-0.5 rounded-md px-1 text-xs font-medium text-muted-foreground"
+              className="-ml-1 inline-flex min-h-8 items-center gap-0.5 rounded-md px-1 text-xs font-medium text-muted-foreground"
             >
               <ChevronLeftIcon className="size-3.5" aria-hidden />
               {backLabel}
             </button>
           ) : (
-            <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-              Edit Transaction
+            <p className="text-xs font-medium text-muted-foreground">
+              Stay
             </p>
           )}
-          <h2 className="truncate text-base font-semibold tracking-tight text-foreground">
+          <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
             {(guestName ?? "").trim() || "Walk-in guest"}
           </h2>
           <p className="mt-0.5">
@@ -832,7 +832,7 @@ export function StayHubFooterBar({
   const editable = Boolean(amount?.editable !== false && amount?.onEdit);
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t bg-background px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:px-4">
+    <div className="flex shrink-0 flex-wrap items-center justify-between gap-1.5 border-t bg-background px-2.5 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] md:px-3">
       <div className="min-w-0 flex-1 space-y-0.5">
         {identityLine ? (
           <p className="truncate text-[11px] text-muted-foreground">

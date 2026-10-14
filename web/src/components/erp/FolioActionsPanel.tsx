@@ -110,7 +110,7 @@ export function FolioActionsPanel({
 }: Props) {
   if (!folioOpen) {
     return (
-      <div className="rounded-xl border bg-card px-4 py-5 text-sm text-muted-foreground">
+      <div className="rounded-lg border bg-card px-3 py-4 text-sm text-muted-foreground">
         Folio closed — review activity or print a receipt.
       </div>
     );
@@ -143,14 +143,14 @@ export function FolioActionsPanel({
   ) : null;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {needsDay1 ? postRoom : null}
       {/* —— Primary: always visible —— */}
       <section
         id="folio-collect"
         className={cn(
-          "space-y-3 rounded-xl border bg-card p-3 sm:p-4",
-          hasDue && "border-citrus/50 bg-citrus-tint/20 shadow-sm",
+          "space-y-2.5 rounded-lg border bg-card p-3",
+          hasDue && "border-citrus/50 bg-citrus-tint/30",
         )}
         aria-labelledby="folio-collect-heading"
       >
@@ -160,19 +160,19 @@ export function FolioActionsPanel({
               id="folio-collect-heading"
               className="text-sm font-semibold text-foreground"
             >
-              Settle guest or agent AR
+              Collect
             </h3>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
-              Collect cash/card · or charge agent AR book (agent owes)
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Cash, card, or agent AR
             </p>
           </div>
           {hasDue ? (
-            <span className="rounded-md bg-maroon/10 px-2 py-1 text-xs font-semibold tabular-nums text-maroon">
+            <span className="rounded-md bg-citrus-tint px-2 py-1 text-xs font-semibold tabular-nums text-citrus-600">
               Due {formatBtn(balanceDue)}
             </span>
           ) : (
             <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
-              Nothing due
+              Settled
             </span>
           )}
         </div>
@@ -217,7 +217,7 @@ export function FolioActionsPanel({
 
       <section
         id="folio-invoice"
-        className="rounded-xl border bg-card p-3 sm:p-4"
+        className="rounded-lg border bg-card p-3"
         aria-labelledby="folio-invoice-heading"
       >
         <h3
@@ -239,7 +239,7 @@ export function FolioActionsPanel({
 
       {/* —— More: collapsed —— */}
       <details
-        className="rounded-xl border bg-card open:shadow-sm"
+        className="rounded-lg border bg-card"
         open={defaultGroup === "adjust" ? true : undefined}
       >
         <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
@@ -297,8 +297,8 @@ export function FolioActionsPanel({
 
       {/* —— Manager: collapsed —— */}
       {showManagerActions ? (
-        <details className="rounded-xl border bg-card">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
+        <details className="rounded-lg border bg-card">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2.5 text-sm font-medium [&::-webkit-details-marker]:hidden">
             <span className="flex flex-col items-start gap-0.5 text-left">
               <span>Manager</span>
               <span className="text-[11px] font-normal text-muted-foreground">

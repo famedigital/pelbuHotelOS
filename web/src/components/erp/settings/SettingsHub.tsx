@@ -35,25 +35,25 @@ export function SettingsHub({
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       {/* Search */}
-      <div className="max-w-xl space-y-2">
+      <div className="max-w-xl space-y-1.5">
         <label htmlFor="settings-search" className="sr-only">
           Search settings
         </label>
         <Input
           id="settings-search"
           type="search"
-          placeholder="Search settings — logo, Wi‑Fi, GST, rooms…"
+          placeholder="Search — logo, Wi‑Fi, GST, rooms…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="h-11"
+          className="h-10"
           autoComplete="off"
         />
         {showSearch ? (
-          <ul className="rounded-xl border bg-card divide-y">
+          <ul className="rounded-lg border bg-card divide-y">
             {results.length === 0 ? (
-              <li className="px-4 py-3 text-sm text-muted-foreground">
+              <li className="px-3 py-2.5 text-sm text-muted-foreground">
                 No matching settings. Try “wifi”, “logo”, or “gst”.
               </li>
             ) : (
@@ -61,7 +61,7 @@ export function SettingsHub({
                 <li key={entry.tab + entry.label}>
                   <Link
                     href={tabHref(entry.tab, propertyId)}
-                    className="flex flex-col gap-0.5 px-4 py-3 transition-colors hover:bg-muted/40"
+                    className="flex flex-col gap-0.5 px-3 py-2.5 transition-colors hover:bg-muted/40"
                   >
                     <span className="text-sm font-medium text-foreground">
                       {entry.label}

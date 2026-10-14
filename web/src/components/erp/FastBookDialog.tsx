@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  DeskBookForm,
-  type DeskBookFormProps,
-} from "@/components/erp/DeskBookForm";
+import type { DeskBookFormProps } from "@/components/erp/DeskBookForm";
 import { useStayHubOptional } from "@/components/erp/StayHubProvider";
 import {
   Dialog,
@@ -15,8 +12,14 @@ import {
 import type { DeskBookIntent } from "@/app/actions/fast-book";
 import { invalidateDeskCachesAfterBooking } from "@/lib/desk/desk-read-cache";
 import { cn } from "@/lib/utils";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+
+const DeskBookForm = dynamic(
+  () => import("@/components/erp/DeskBookForm").then((m) => m.DeskBookForm),
+  { ssr: false },
+);
 
 export type FastBookDialogProps = {
   open: boolean;

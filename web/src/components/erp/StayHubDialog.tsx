@@ -2018,7 +2018,7 @@ export function StayHubDialog({
           return (
             <Button
               type="button"
-              variant="citrus"
+              variant="default"
               className="min-h-11 flex-1 sm:flex-none"
               onClick={() => goPanel("confirm")}
             >
@@ -2030,7 +2030,7 @@ export function StayHubDialog({
           <Button
             type="submit"
             form="stay-hub-confirm-token-form"
-            variant="citrus"
+            variant="default"
             className="min-h-11 flex-1 sm:flex-none"
           >
             Confirm reservation
@@ -2061,7 +2061,7 @@ export function StayHubDialog({
           return (
             <Button
               type="button"
-              variant="citrus"
+              variant="default"
               className="min-h-11 flex-1 sm:flex-none"
               onClick={() => goPanel("check_in")}
             >
@@ -2089,7 +2089,7 @@ export function StayHubDialog({
         return (
           <Button
             type="button"
-            variant="citrus"
+            variant="default"
             className="min-h-11 flex-1 sm:flex-none"
             onClick={() => goPanel("confirm")}
           >
@@ -2140,7 +2140,7 @@ export function StayHubDialog({
           return (
             <Button
               type="button"
-              variant="citrus"
+              variant="default"
               className="min-h-11 flex-1 sm:flex-none"
               disabled
             >
@@ -2152,7 +2152,7 @@ export function StayHubDialog({
           return (
             <Button
               type="button"
-              variant="citrus"
+              variant="default"
               className="min-h-11 flex-1 sm:flex-none"
               onClick={retryCheckInLoad}
             >
@@ -2233,7 +2233,7 @@ export function StayHubDialog({
         return (
           <Button
             type="button"
-            variant="citrus"
+            variant="default"
             className="min-h-11 flex-1 sm:flex-none"
             onClick={openBill}
           >
@@ -2257,7 +2257,7 @@ export function StayHubDialog({
       return (
         <Button
           type="button"
-          variant="citrus"
+          variant="default"
           className="min-h-11 flex-1 sm:flex-none"
           onClick={() => goPanel("check_out")}
         >

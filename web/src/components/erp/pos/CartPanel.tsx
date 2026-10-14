@@ -140,7 +140,7 @@ export function CartPanel({
   }, [cart.length]);
 
   return (
-    <div className="erp flex max-h-[calc(85dvh-2rem)] w-full flex-col overflow-hidden rounded-xl border bg-card lg:max-h-[calc(100dvh-1.5rem)]">
+    <div className="erp flex max-h-[calc(85dvh-2rem)] w-full flex-col overflow-hidden rounded-lg border bg-card lg:max-h-[calc(100dvh-1.5rem)]">
       <div className="flex shrink-0 items-center justify-between gap-2 border-b px-2.5 py-2">
         <div className="flex min-w-0 items-center gap-1.5">
           <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
