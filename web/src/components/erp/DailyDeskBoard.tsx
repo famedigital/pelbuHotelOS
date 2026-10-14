@@ -4,6 +4,7 @@ import { fetchDailyDeskSnapshot } from "@/app/actions/desk-read-loaders";
 import { AgentFollowupPanel } from "@/components/erp/AgentFollowupPanel";
 import { DailyStayTable } from "@/components/erp/DailyStayTable";
 import { TomorrowArrivals } from "@/components/erp/TomorrowArrivals";
+import { MissingGuideScans } from "@/components/erp/MissingGuideScans";
 import { FoTodayWorklist } from "@/components/erp/FoTodayWorklist";
 import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
 import { Button } from "@/components/ui/button";
@@ -146,6 +147,7 @@ export function DailyDeskBoard({ initial }: { initial: DailyDeskSnapshot }) {
       </div>
 
       <TomorrowArrivals rows={snap.tomorrowArrivals} />
+      <MissingGuideScans rows={snap.missingGuideScans} />
 
       <Tabs value={tab} onValueChange={setTab} className="gap-3">
         <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-4 lg:w-fit lg:grid-cols-5">

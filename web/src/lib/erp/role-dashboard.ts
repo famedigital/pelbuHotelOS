@@ -13,6 +13,7 @@ import {
 } from "@/lib/erp/dashboard-views";
 import { loadDayOpsBoard } from "@/lib/erp/day-ops-board";
 import { loadTomorrowArrivals } from "@/lib/erp/tomorrow-arrivals";
+import { loadMissingGuideScans } from "@/lib/erp/missing-guide-scans";
 import { thimphuToday } from "@/lib/erp-lists";
 import { computeMealCovers, type MealCovers } from "@/lib/kitchen/covers";
 import type { DeskRole } from "@/lib/desk-auth";
@@ -108,6 +109,7 @@ export type RoleDashboardSnapshot = {
   agentCallTasksDue: number;
   agentCallPending: number;
   tomorrowArrivals: import("@/lib/erp/tomorrow-arrivals").TomorrowArrival[];
+  missingGuideScans: import("@/lib/erp/missing-guide-scans").MissingGuideScan[];
   /** Day-ops meal / laundry pressure for dept boards. */
   arrivingMealPax: number;
   inHouseMealPax: number;
@@ -340,7 +342,10 @@ export async function loadRoleDashboardSnapshot(
   const bankAccounts = property?.bank_accounts as unknown[] | null;
   const naDate = nightAudit?.business_date as string | undefined;
 
-  const tomorrowArrivals = await loadTomorrowArrivals(admin, propertyId, today);
+  const [tomorrowArrivals, missingGuideScans] = await Promise.all([
+    loadTomorrowArrivals(admin, propertyId, today),
+    loadMissingGuideScans(admin, propertyId),
+  ]);
 
   return {
     businessDate: today,
@@ -378,6 +383,7 @@ export async function loadRoleDashboardSnapshot(
     agentCallTasksDue: agentCall.tasksDue,
     agentCallPending: agentCall.pendingCalls,
     tomorrowArrivals,
+    missingGuideScans,
     arrivingMealPax: dayOps.arrivingMealPax,
     inHouseMealPax: dayOps.inHouseMealPax,
     departuresWithLaundry: dayOps.departuresWithLaundry,

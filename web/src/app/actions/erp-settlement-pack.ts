@@ -159,6 +159,67 @@ export async function waiveGuideSign(
   }
 }
 
+/** Staff confirm the paper is signed. The scan can be uploaded later. */
+export async function confirmGuideSigned(
+  _prev: GuideSignState,
+  formData: FormData,
+): Promise<GuideSignState> {
+  try {
+    await requireMoneyDesk();
+    const bookingId = trimRequired(formData.get("booking_id"), "Booking");
+    const admin = createSupabaseAdminClient();
+    const { propertyId, booking } = await loadBookingForEvidence(admin, bookingId);
+    if (!bookingNeedsGuideCheckoutEvidence({ agentId: booking.agent_id as string | null })) {
+      throw new Error("Guide evidence is not required for this stay.");
+    }
+    const current = String(booking.guide_sign_status ?? "").toLowerCase();
+    if (current === "photo" || current === "waived") {
+      return {
+        ok: true,
+        message:
+          current === "photo"
+            ? "Scan is already on file."
+            : "Guide sign is already waived.",
+        guideSignStatus: current,
+        guideSignPhotoPublicId:
+          (booking.guide_sign_photo_public_id as string | null) ?? null,
+      };
+    }
+
+    const now = new Date().toISOString();
+    const { error } = await admin
+      .from("bookings")
+      .update({
+        guide_sign_status: "signed",
+        guide_signed_at: now,
+        guide_sign_waive_reason: null,
+      })
+      .eq("id", bookingId);
+    if (error) throw new Error(error.message);
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "booking.guide_sign_confirmed",
+      entityType: "bookings",
+      entityId: bookingId,
+      summary: `Guide signed settlement confirmed · ${(booking.contact_name as string) ?? "guest"}`,
+    });
+    revalidateStay(bookingId);
+    revalidatePath("/erp");
+    revalidatePath("/erp/today");
+    return {
+      ok: true,
+      message: "Marked signed. Upload the scan when you have a moment.",
+      guideSignStatus: "signed",
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Could not confirm the signature.",
+    };
+  }
+}
+
 async function snapshotTotals(
   admin: ReturnType<typeof createSupabaseAdminClient>,
   bookingId: string,

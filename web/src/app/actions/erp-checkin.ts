@@ -15,6 +15,7 @@ import {
   normalizeGuestOrigin,
   validateCheckInDocs,
 } from "@/lib/checkin-rules";
+import { guideEvidenceAllowsLeave, guideEvidenceBlockMessage } from "@/lib/agents/guide-checkout";
 import { isDeskAuthenticated, requireMoneyDesk } from "@/lib/desk-auth";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { calculateRoomNightTax, roundBtn } from "@/lib/pricing";
@@ -972,18 +973,15 @@ export async function confirmCheckOut(
       throw new Error("Only checked-in bookings can be checked out.");
     }
 
-    // Agent stays: guide-signed paper (or waive) before guests leave.
-    // Email/seal is FO work after leave — not a gate here.
-    if (booking.agent_id) {
-      const signStatus = String(
-        (booking as { guide_sign_status?: string | null }).guide_sign_status ??
-          "",
-      ).toLowerCase();
-      if (signStatus !== "photo" && signStatus !== "waived") {
-        throw new Error(
-          "Agent stay: attach guide-signed settlement paper (phone camera, scanner, or file) or waive with reason before check-out.",
-        );
-      }
+    // Agent stays: staff tick that the guide signed. The scan can follow later.
+    if (
+      !guideEvidenceAllowsLeave({
+        agentId: booking.agent_id as string | null,
+        guideSignStatus: (booking as { guide_sign_status?: string | null })
+          .guide_sign_status,
+      })
+    ) {
+      throw new Error(guideEvidenceBlockMessage());
     }
 
     const { data: folio } = await admin

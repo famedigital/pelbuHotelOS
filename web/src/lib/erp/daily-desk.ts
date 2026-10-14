@@ -11,6 +11,10 @@ import {
 } from "@/lib/erp/day-ops-board";
 import { loadFoTodaySnapshot, type FoTodaySnapshot } from "@/lib/erp/fo-today";
 import { loadTomorrowArrivals, type TomorrowArrival } from "@/lib/erp/tomorrow-arrivals";
+import {
+  loadMissingGuideScans,
+  type MissingGuideScan,
+} from "@/lib/erp/missing-guide-scans";
 import { thimphuToday } from "@/lib/erp-lists";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -59,6 +63,7 @@ export type DailyDeskSnapshot = FoTodaySnapshot & {
   agentPaidCount: number;
   tools: DailyDeskTools;
   tomorrowArrivals: TomorrowArrival[];
+  missingGuideScans: MissingGuideScan[];
 };
 
 function isAgentBillMode(mode: string | null | undefined): boolean {
@@ -242,11 +247,12 @@ export async function loadDailyDeskSnapshot(
   propertyId: string,
 ): Promise<DailyDeskSnapshot> {
   const wallToday = thimphuToday();
-  const [fo, dayOps, tools, tomorrowArrivals] = await Promise.all([
+  const [fo, dayOps, tools, tomorrowArrivals, missingGuideScans] = await Promise.all([
     loadFoTodaySnapshot(admin, propertyId),
     loadDayOpsBoard(admin, propertyId, wallToday),
     loadDailyTools(admin, propertyId, wallToday),
     loadTomorrowArrivals(admin, propertyId, wallToday),
+    loadMissingGuideScans(admin, propertyId),
   ]);
 
   const departureIds = new Set(dayOps.departures.map((r) => r.id));
@@ -301,5 +307,6 @@ export async function loadDailyDeskSnapshot(
     agentPaidCount,
     tools,
     tomorrowArrivals,
+    missingGuideScans,
   };
 }

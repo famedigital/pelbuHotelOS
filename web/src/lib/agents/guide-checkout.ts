@@ -1,9 +1,9 @@
 /**
- * Agent settlement evidence — guide signed paper (photo/file) before leave.
+ * Agent settlement evidence — staff confirm the guide signed, then upload the scan later.
  * Email seal is FO work after guests leave (not a leave gate).
  */
 
-export type GuideSignStatus = "photo" | "waived" | null;
+export type GuideSignStatus = "photo" | "signed" | "waived" | null;
 
 export function bookingNeedsGuideCheckoutEvidence(input: {
   agentId?: string | null;
@@ -17,12 +17,21 @@ export function guideEvidenceAllowsLeave(input: {
 }): boolean {
   if (!bookingNeedsGuideCheckoutEvidence(input)) return true;
   const s = (input.guideSignStatus ?? "").toLowerCase();
-  return s === "photo" || s === "waived";
+  return s === "photo" || s === "signed" || s === "waived";
+}
+
+/** Checkbox ticked, scan file still missing. */
+export function guideScanStillMissing(input: {
+  guideSignStatus?: string | null;
+  guideSignPhotoPublicId?: string | null;
+}): boolean {
+  if ((input.guideSignStatus ?? "").toLowerCase() !== "signed") return false;
+  return !(input.guideSignPhotoPublicId ?? "").trim();
 }
 
 export function guideEvidenceBlockMessage(): string {
   return (
-    "Agent stay: attach guide-signed settlement paper (camera, scanner file, or PC upload) " +
-    "or waive with reason before guests can leave."
+    "Tick “Guide signed the settlement” before guests leave. " +
+    "Upload the scan later, or waive if the guide already left."
   );
 }

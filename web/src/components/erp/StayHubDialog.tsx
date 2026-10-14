@@ -3530,8 +3530,8 @@ export function StayHubDialog({
                           </Callout>
                         ) : (
                           <p className="text-xs text-muted-foreground">
-                            Balance clear — after guide paper (if agent),
-                            confirm leave.
+                            Balance clear — tick that the guide signed, then
+                            confirm leave. The scan can wait.
                           </p>
                         )}
 
@@ -3595,11 +3595,11 @@ export function StayHubDialog({
                           ) : (
                             <Callout
                               tone="amber"
-                              title="Guide paper required before leave"
+                              title="Tick that the guide signed"
                             >
-                              Attach signed pack with phone camera, scanner, or
-                              PC file (or waive with reason). Email agent after
-                              guests leave.
+                              Staff ask for the signed settlement. Tick the box
+                              to check out. Upload the scan later — the desk
+                              home keeps a reminder until it is on file.
                             </Callout>
                           )
                         ) : summary.status === "checked_out" ? (

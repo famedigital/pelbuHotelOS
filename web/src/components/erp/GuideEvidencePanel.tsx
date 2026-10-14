@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  confirmGuideSigned,
   emailBookingSettlementPack,
   saveGuideSignPhoto,
   sealBookingSettlementPack,
@@ -15,6 +16,7 @@ import {
   printAgentSettlementSheet,
 } from "@/components/erp/AgentSettlementPrintSheet";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -106,6 +108,10 @@ export function GuideEvidencePanel({
     saveGuideSignPhoto,
     initialGuide,
   );
+  const [signState, signAction, signPending] = useActionState(
+    confirmGuideSigned,
+    initialGuide,
+  );
   const [waiveState, waiveAction, waivePending] = useActionState(
     waiveGuideSign,
     initialGuide,
@@ -122,6 +128,9 @@ export function GuideEvidencePanel({
   useActionToast(photoState, {
     successMessage: photoState.message ?? "Evidence saved",
   });
+  useActionToast(signState, {
+    successMessage: signState.message ?? "Marked signed",
+  });
   useActionToast(waiveState, {
     successMessage: waiveState.message ?? "Waived",
   });
@@ -133,11 +142,11 @@ export function GuideEvidencePanel({
   });
 
   useEffect(() => {
-    if (photoState.ok || waiveState.ok || sealState.ok || emailState.ok) {
+    if (photoState.ok || signState.ok || waiveState.ok || sealState.ok || emailState.ok) {
       onChanged?.();
       router.refresh();
     }
-  }, [photoState.ok, waiveState.ok, sealState.ok, emailState.ok, onChanged, router]);
+  }, [photoState.ok, signState.ok, waiveState.ok, sealState.ok, emailState.ok, onChanged, router]);
 
   useEffect(() => {
     setEmailTo(agentEmail ?? "");
@@ -181,6 +190,8 @@ export function GuideEvidencePanel({
 
   const photoOnFile =
     guideSignStatus === "photo" && Boolean(guideSignPhotoPublicId);
+  const signedPending =
+    guideSignStatus === "signed" && !guideSignPhotoPublicId;
   const waived = guideSignStatus === "waived";
   /** Desk strip — tall enough to read handwriting without opening. */
   const previewUrl = guideSignPhotoPublicId
@@ -219,7 +230,8 @@ export function GuideEvidencePanel({
             {agentName ?? "Agent"} · guide {guideNumber?.trim() || "—"}
           </p>
           <p className="text-xs text-muted-foreground">
-            Print branded A4 (logo + amounts) → guide ink → attach scan → leave.
+            Print the pack, ask the guide to sign, tick the box, then check out.
+            Upload the scan when you have a moment.
           </p>
         </div>
         <span
@@ -230,7 +242,13 @@ export function GuideEvidencePanel({
               : "bg-amber-500/15 text-amber-900 dark:text-amber-200",
           )}
         >
-          {canLeave ? "Leave allowed" : "Need guide paper"}
+          {photoOnFile
+            ? "Scan on file"
+            : signedPending
+              ? "Signed — scan later"
+              : canLeave
+                ? "Leave allowed"
+                : "Tick when signed"}
         </span>
       </div>
 
@@ -303,6 +321,38 @@ export function GuideEvidencePanel({
         onChange={(e) => void uploadFile(e.target.files?.[0])}
       />
 
+      {!waived ? (
+        <label className="flex items-start gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-3 print:hidden">
+          <Checkbox
+            checked={photoOnFile || signedPending || signPending}
+            disabled={photoOnFile || signedPending || signPending || busy}
+            onCheckedChange={(value) => {
+              if (value !== true) return;
+              const fd = new FormData();
+              fd.set("booking_id", bookingId);
+              void signAction(fd);
+            }}
+            aria-label="Guide signed the settlement"
+            className="mt-0.5"
+          />
+          <span className="space-y-0.5">
+            <span className="block text-sm font-medium text-foreground">
+              Guide signed the settlement
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              {photoOnFile
+                ? "Scan is uploaded."
+                : signedPending
+                  ? "Checked. Guests can leave. The scan is still not uploaded."
+                  : "Staff asked for the signed paper. Upload the scan later."}
+            </span>
+          </span>
+        </label>
+      ) : null}
+      {signState.error ? (
+        <p className="text-xs text-destructive print:hidden">{signState.error}</p>
+      ) : null}
+
       <div className="grid gap-2 sm:grid-cols-2 print:hidden">
         <Button
           type="button"
@@ -326,9 +376,15 @@ export function GuideEvidencePanel({
           onClick={() => fileRef.current?.click()}
         >
           <FileUpIcon className="size-4" />
-          Scanner / file
+          Upload scan later
         </Button>
       </div>
+      {!photoOnFile ? (
+        <p className="text-[11px] text-muted-foreground print:hidden">
+          Camera or file is optional at checkout. The desk home lists any scan
+          still missing.
+        </p>
+      ) : null}
 
       {busy ? (
         <p className="text-xs text-muted-foreground print:hidden">
