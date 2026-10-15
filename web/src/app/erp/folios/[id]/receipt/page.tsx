@@ -6,9 +6,11 @@ import {
 } from "@/components/erp/FolioReceipt";
 import { DocPrintControls } from "@/components/erp/DocPrintControls";
 import { FiscalDocEmailForm } from "@/components/erp/FiscalDocEmailForm";
+import { FolioReceiptWaShare } from "@/components/erp/ReceiptShareActions";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { guestVisibleBalanceLines } from "@/lib/folio/balance";
+import { buildFolioReceiptMessage } from "@/lib/pos-receipt-message";
 import type { DocumentPaperSize } from "@/lib/property-settings";
 import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -87,15 +89,17 @@ export default async function FolioReceiptPage({ params, searchParams }: Props) 
 
   let guestEmail: string | null = null;
   let guestName: string | null = null;
+  let guestPhone: string | null = null;
   const bookingId = folio.booking_id as string | null;
   if (bookingId) {
     const { data: booking } = await admin
       .from("bookings")
-      .select("contact_email, contact_name")
+      .select("contact_email, contact_name, contact_phone")
       .eq("id", bookingId)
       .maybeSingle();
     guestEmail = (booking?.contact_email as string | null) ?? null;
     guestName = (booking?.contact_name as string | null) ?? null;
+    guestPhone = (booking?.contact_phone as string | null) ?? null;
   }
 
   const rawLines = guestVisibleBalanceLines(
@@ -136,6 +140,26 @@ export default async function FolioReceiptPage({ params, searchParams }: Props) 
     docNo: (receiptDoc?.doc_no as string | undefined) ?? null,
     lines,
   };
+
+  const chargesSum = lines
+    .filter((l) => !l.isPayment)
+    .reduce((s, l) => s + Number(l.amount), 0);
+  const paymentsSum = lines
+    .filter((l) => l.isPayment)
+    .reduce((s, l) => s + Math.abs(Number(l.amount)), 0);
+  const waMessage = buildFolioReceiptMessage({
+    propertyName: property.name,
+    folioLabel: data.label,
+    docNo: data.docNo,
+    guestName,
+    lines: lines.map((l) => ({
+      description: l.description,
+      totalBtn: l.amount,
+      isPayment: l.isPayment,
+    })),
+    chargesSum,
+    paymentsSum,
+  });
 
   return (
     <div className="erp mx-auto w-full max-w-[820px] space-y-6 p-4 md:p-6">
@@ -180,6 +204,10 @@ export default async function FolioReceiptPage({ params, searchParams }: Props) 
           defaultEmail={guestEmail}
           defaultName={guestName}
           label="Email receipt"
+        />
+        <FolioReceiptWaShare
+          messageText={waMessage}
+          defaultPhone={guestPhone}
         />
       </div>
 

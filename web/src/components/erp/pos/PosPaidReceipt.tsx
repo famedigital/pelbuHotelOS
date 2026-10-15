@@ -65,7 +65,8 @@ export type PosPaidReceiptData = {
   tableName: string | null;
   covers: number | null;
   createdAt: string;
-  settledAt: string;
+  /** Null when sharing an open (unpaid) ticket from the desk. */
+  settledAt: string | null;
   subtotalBtn: number;
   serviceChargeBtn: number;
   gstBtn: number;
@@ -146,7 +147,13 @@ export function PosPaidReceipt({
           kind={voided ? "Void receipt" : "Payment receipt"}
           title={voided ? "VOID" : "RECEIPT"}
           meta={[
-            { label: "Date", value: stamp(order.settledAt, property.timezone) },
+            {
+              label: "Date",
+              value: stamp(
+                order.settledAt ?? order.createdAt,
+                property.timezone,
+              ),
+            },
             { label: "Receipt no.", value: orderRef(order.orderId) },
             { label: "Currency", value: "BTN (Ngultrum)" },
           ]}
@@ -268,7 +275,7 @@ export function PosPaidReceipt({
             {orderRef(order.orderId)}
           </p>
           <p className="text-[11px] font-bold">
-            {stamp(order.settledAt, property.timezone)}
+            {stamp(order.settledAt ?? order.createdAt, property.timezone)}
           </p>
           <p className="text-[11px] font-bold capitalize">{order.outlet}</p>
           {order.phone ? (

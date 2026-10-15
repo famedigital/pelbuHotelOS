@@ -23,8 +23,9 @@ type Props = {
 };
 
 /**
- * Guest paid receipt after POS settle. Optional `?print=1` opens the browser
- * print dialog for a thermal / A4 copy for the customer.
+ * Guest receipt for a POS ticket. Settled tickets are the paid copy;
+ * unsettled non-voided tickets can still be printed or shared (WhatsApp / email).
+ * Optional `?print=1` opens the browser print dialog.
  */
 export default async function OrderPaidReceiptPage({
   params,
@@ -58,8 +59,7 @@ export default async function OrderPaidReceiptPage({
     notFound();
   }
 
-  if (!order.settled_at) {
-    // Not paid yet — send cashier to open slip / tickets flow.
+  if (order.voided_at) {
     redirect(`/erp/pos`);
   }
 
@@ -126,7 +126,7 @@ export default async function OrderPaidReceiptPage({
     tableName,
     covers: order.covers == null ? null : Number(order.covers),
     createdAt: order.created_at as string,
-    settledAt: order.settled_at as string,
+    settledAt: (order.settled_at as string | null) ?? null,
     subtotalBtn: Number(order.subtotal_btn ?? 0),
     serviceChargeBtn: Number(order.service_charge_btn ?? 0),
     gstBtn: Number(order.gst_btn ?? 0),

@@ -444,7 +444,7 @@ export function OpenTicketsDrawer({
             size="sm"
             className="h-9"
           >
-            <Link href={`/erp/orders/${t.id}/receipt`}>View</Link>
+            <Link href={`/erp/orders/${t.id}/receipt`}>Share receipt</Link>
           </Button>
           {t.folio_id ? (
             <Button
@@ -532,6 +532,15 @@ export function OpenTicketsDrawer({
           className="h-9"
         >
           <Link href={`/erp/orders/${t.id}/slip`}>Print slip</Link>
+        </Button>
+        <Button
+          asChild
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9"
+        >
+          <Link href={`/erp/orders/${t.id}/receipt`}>Share receipt</Link>
         </Button>
         {counter ? null : (
           <Button
