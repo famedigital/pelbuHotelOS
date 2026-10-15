@@ -22,7 +22,9 @@
     "pelbu-olakha:sheet": "node scripts/pelbu-olakha-rack-to-sheet.mjs",
     "pelbu-olakha:provision": "node --env-file=.env.local scripts/pelbu-olakha-provision.mjs",
     "pelbu-olakha:import": "node --env-file=.env.local scripts/pelbu-olakha-import-stays.mjs --apply",
-    "pelbu-olakha:import:dry": "node --env-file=.env.local scripts/pelbu-olakha-import-stays.mjs"
+    "pelbu-olakha:import:dry": "node --env-file=.env.local scripts/pelbu-olakha-import-stays.mjs",
+    "pelbu-olakha:payments": "node --env-file=.env.local scripts/pelbu-olakha-import-payments.mjs --apply",
+    "pelbu-olakha:payments:dry": "node --env-file=.env.local scripts/pelbu-olakha-import-payments.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.20",

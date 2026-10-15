@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pelbu Suites — Monthly Department Leader SOP</title>
+  <style>
+    :root {
+      --ink: #1a1410;
+      --muted: #5c534c;
+      --line: #2a221c;
+      --soft: #e8e2da;
+      --box: #f7f4ef;
+      --gold: #b8893a;
+      --maroon: #6e2c2c;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      color: var(--ink);
+      font: 12px/1.4 "Segoe UI", system-ui, sans-serif;
+      background: #ece7df;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .no-print {
+      max-width: 210mm;
+      margin: 12px auto 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 0 8px;
+    }
+    .no-print p { margin: 0; color: var(--muted); font-size: 12.5px; max-width: 460px; }
+    .no-print button {
+      border: 0;
+      background: var(--ink);
+      color: #fff;
+      padding: 10px 18px;
+      font: 700 13px/1 "Segoe UI", system-ui, sans-serif;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .sheet {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 12px auto 20px;
+      padding: 12mm 13mm 14mm;
+      background: #fff;
+      box-shadow: 0 2px 18px rgba(0,0,0,.08);
+      display: flex;
+      flex-direction: column;
+    }
+    header.brandbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      border-bottom: 2.5px solid var(--ink);
+      padding-bottom: 10px;
+    }
+    .brand { display: flex; gap: 12px; align-items: flex-start; min-width: 0; }
+    .brand img { width: 58px; height: 58px; object-fit: contain; flex-shrink: 0; }
+    .hotel-name {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: .06em;
+      font-weight: 750;
+      line-height: 1.05;
+    }
+    .legal {
+      margin: 3px 0 4px;
+      font-size: 10.5px;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--maroon);
+      font-weight: 700;
+    }
+    address {
+      font-style: normal;
+      font-size: 11px;
+      line-height: 1.4;
+      color: #3a322c;
+    }
+    .doc-meta { text-align: right; flex-shrink: 0; }
+    .doc-meta .kind {
+      margin: 0;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--maroon);
+    }
+    .doc-meta h2 { margin: 2px 0 6px; font-size: 18px; letter-spacing: .01em; font-weight: 750; }
+    .doc-meta p { margin: 0; font-size: 11.5px; color: #3a322c; }
+    h3 {
+      margin: 14px 0 6px;
+      font-size: 11px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--maroon);
+    }
+    p { margin: 0 0 6px; }
+    .lead { font-size: 12.5px; }
+    table { width: 100%; border-collapse: collapse; margin: 4px 0 8px; }
+    th, td { text-align: left; vertical-align: top; padding: 4px 6px; border-bottom: 1px solid var(--soft); }
+    th {
+      font-size: 9.5px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+      background: var(--box);
+      border-bottom: 1px solid #d8d0c6;
+    }
+    td.num, th.num { text-align: left; white-space: nowrap; }
+    .call {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .card {
+      border: 1px solid #d8d0c6;
+      background: var(--box);
+      padding: 8px 10px;
+    }
+    .card strong { display: block; margin-bottom: 2px; }
+    .card.wide { grid-column: 1 / -1; border-left: 3px solid var(--gold); }
+    ol, ul { margin: 4px 0 8px; padding-left: 18px; }
+    li { margin: 0 0 3px; }
+    .foot {
+      margin-top: auto;
+      padding-top: 8px;
+      border-top: 1px solid var(--soft);
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: .04em;
+    }
+    .signgrid { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    .signgrid th, .signgrid td { border: 1px solid #d8d0c6; padding: 5px 6px; }
+    .signgrid th { background: var(--box); }
+    .line { display: inline-block; min-width: 42mm; border-bottom: 1px solid var(--ink); height: 14px; }
+    .tall { height: 28px; }
+    .note { font-size: 11px; color: #3a322c; }
+    @page { size: A4 portrait; margin: 10mm; }
+    @media print {
+      html, body { background: #fff; }
+      .no-print { display: none !important; }
+      .sheet {
+        margin: 0;
+        padding: 0;
+        width: auto;
+        min-height: 0;
+        box-shadow: none;
+        page-break-after: always;
+      }
+      .sheet:last-child { page-break-after: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    <p>Print on A4. The last page is the daily 10:00 briefing sheet — print extra copies and file one signed original each day.</p>
+    <button type="button" onclick="window.print()">Print A4</button>
+  </div>
+
+  <article class="sheet">
+    <header class="brandbar">
+      <div class="brand">
+        <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_200,h_200,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1" alt="Pelbu Suites" />
+        <div>
+          <p class="hotel-name">PELBU SUITES</p>
+          <p class="legal">Hotel · Olakha, Thimphu</p>
+          <address>
+            Next to Shop No. 7 / Asha Bakery<br />
+            Olakha, Thimphu, Bhutan<br />
+            T +975 1619 3410 · pelbusuites@gmail.com
+          </address>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <p class="kind">Staff SOP</p>
+        <h2>Department<br />Leader</h2>
+        <p>Starts 1 October 2026<br />Reports to Management</p>
+      </div>
+    </header>
+
+    <p class="lead" style="margin-top:12px">One person in each department is Leader of the Month. They still do their own job. Management holds them responsible for people on time, stores used properly, and guests leaving happy. Choki does not rotate. Reservations stays with Management.</p>
+
+    <div class="call">
+      <div class="card">
+        <strong>Pay — only if they perform</strong>
+        Nu. 4,000 extra for the month they lead. It is not automatic. If they do not perform, that extra is not paid. Basic salary stays the same.
+      </div>
+      <div class="card">
+        <strong>They report to</strong>
+        Rajiv (Owner) · Tshering (Ops) · Dawa (GM, online) · Choki (Reservations)
+      </div>
+      <div class="card wide">
+        <strong>Two shoppers only. Nobody else buys.</strong>
+        Kitchen and F&amp;B share one shopper: one list, one market run, one person with the cash. Housekeeping has its own shopper, the HK leader of that month. Front Office does not shop — desk items go on a short list to Tshering.
+      </div>
+    </div>
+
+    <h3>Who leads</h3>
+    <table>
+      <thead>
+        <tr><th>Department</th><th>Rotation order</th><th>How often</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Front Office</td><td>Anjana → Rigzang → Mohan → Meg Raj</td><td>Every 4th month</td></tr>
+        <tr><td>Food &amp; Beverage</td><td>Chunu → Susma → Krishna → Bunu</td><td>Every 4th month</td></tr>
+        <tr><td>Kitchen</td><td>Khem → Kelden → Gidan</td><td>Every 3rd month</td></tr>
+        <tr><td>Housekeeping</td><td>Dorji → Lobzang → Sherab → Renu → Deepa</td><td>Every 5th month</td></tr>
+      </tbody>
+    </table>
+    <p class="note">Leaders do not boss other departments. A problem that crosses departments goes to the 10:00 briefing, then to Tshering if it is not fixed the same day. If a leader is out more than 7 days, the next name takes the rest of the month and the Nu. 4,000 is split by days led.</p>
+
+    <h3>October 2026</h3>
+    <table>
+      <thead>
+        <tr><th>Role</th><th>Name</th><th>Backup</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Front Office leader</td><td>Anjana</td><td>Rigzang</td></tr>
+        <tr><td>F&amp;B leader</td><td>Chunu</td><td>Susma</td></tr>
+        <tr><td>Kitchen leader</td><td>Khem</td><td>Kelden</td></tr>
+        <tr><td>Housekeeping leader</td><td>Dorji</td><td>Lobzang</td></tr>
+        <tr><td>Shopper — Kitchen &amp; F&amp;B</td><td>Khem</td><td>Kelden. Chunu signs F&amp;B lines and does not go to market.</td></tr>
+        <tr><td>Shopper — Housekeeping</td><td>Dorji</td><td>Lobzang</td></tr>
+      </tbody>
+    </table>
+
+    <div class="foot"><span>Pelbu Suites · Olakha</span><span>Monthly Department Leader · 1</span></div>
+  </article>
+
+  <article class="sheet">
+    <header class="brandbar">
+      <div class="brand">
+        <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_200,h_200,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1" alt="Pelbu Suites" />
+        <div>
+          <p class="hotel-name">PELBU SUITES</p>
+          <p class="legal">Leader roster · Oct 2026 – Sep 2027</p>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <p class="kind">Staff SOP</p>
+        <h2>Who leads<br />Who shops</h2>
+      </div>
+    </header>
+
+    <p class="note" style="margin-top:10px">Kitchen &amp; F&amp;B shopper alternates. Oct, Dec, Feb, Apr, Jun, Aug: the Kitchen leader buys for both. Other months: the F&amp;B leader buys for both. HK shopper is always the HK leader.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Month</th>
+          <th>Front Office</th>
+          <th>F&amp;B</th>
+          <th>Kitchen</th>
+          <th>HK</th>
+          <th>Shopper K &amp; F&amp;B</th>
+          <th>Shopper HK</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Oct 2026</td><td>Anjana</td><td>Chunu</td><td>Khem</td><td>Dorji</td><td>Khem</td><td>Dorji</td></tr>
+        <tr><td>Nov 2026</td><td>Rigzang</td><td>Susma</td><td>Kelden</td><td>Lobzang</td><td>Susma</td><td>Lobzang</td></tr>
+        <tr><td>Dec 2026</td><td>Mohan</td><td>Krishna</td><td>Gidan</td><td>Sherab</td><td>Gidan</td><td>Sherab</td></tr>
+        <tr><td>Jan 2027</td><td>Meg Raj</td><td>Bunu</td><td>Khem</td><td>Renu</td><td>Bunu</td><td>Renu</td></tr>
+        <tr><td>Feb 2027</td><td>Anjana</td><td>Chunu</td><td>Kelden</td><td>Deepa</td><td>Kelden</td><td>Deepa</td></tr>
+        <tr><td>Mar 2027</td><td>Rigzang</td><td>Susma</td><td>Gidan</td><td>Dorji</td><td>Susma</td><td>Dorji</td></tr>
+        <tr><td>Apr 2027</td><td>Mohan</td><td>Krishna</td><td>Khem</td><td>Lobzang</td><td>Khem</td><td>Lobzang</td></tr>
+        <tr><td>May 2027</td><td>Meg Raj</td><td>Bunu</td><td>Kelden</td><td>Sherab</td><td>Bunu</td><td>Sherab</td></tr>
+        <tr><td>Jun 2027</td><td>Anjana</td><td>Chunu</td><td>Gidan</td><td>Renu</td><td>Gidan</td><td>Renu</td></tr>
+        <tr><td>Jul 2027</td><td>Rigzang</td><td>Susma</td><td>Khem</td><td>Deepa</td><td>Susma</td><td>Deepa</td></tr>
+        <tr><td>Aug 2027</td><td>Mohan</td><td>Krishna</td><td>Kelden</td><td>Dorji</td><td>Kelden</td><td>Dorji</td></tr>
+        <tr><td>Sep 2027</td><td>Meg Raj</td><td>Bunu</td><td>Gidan</td><td>Lobzang</td><td>Bunu</td><td>Lobzang</td></tr>
+      </tbody>
+    </table>
+    <p class="note">October 2027 continues the same order. Housekeeping has five people, so Dorji and Lobzang lead three times this year and Sherab, Renu, and Deepa lead twice. Do not skip anyone to catch up.</p>
+
+    <h3>Shopping rules</h3>
+    <ul>
+      <li>Count what is already there before writing a list. Name the item, the quantity, and why it is needed this week.</li>
+      <li>Kitchen and F&amp;B use one list. The leader who is not shopping signs their own lines, then stays at the hotel.</li>
+      <li>Tshering approves the list and gives cash only to the named shopper. Rajiv approves anything unusual, or any single item above Nu. 5,000.</li>
+      <li>If the shopper is off, only their backup goes. Another department does not take the cash.</li>
+      <li>Goods, bills, and change come back the same day. Each leader checks their own goods. Nothing goes home.</li>
+    </ul>
+
+    <h3>What a leader does not do</h3>
+    <ul>
+      <li>Hire, fire, cut salary, or change days off.</li>
+      <li>Go to market unless they are that month’s named shopper.</li>
+      <li>Discount a bill, void a charge, or give a room free.</li>
+      <li>Promise a refund. That is Tshering or Rajiv.</li>
+    </ul>
+
+    <div class="foot"><span>Pelbu Suites · Olakha</span><span>Monthly Department Leader · 2</span></div>
+  </article>
+
+  <article class="sheet">
+    <header class="brandbar">
+      <div class="brand">
+        <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_200,h_200,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1" alt="Pelbu Suites" />
+        <div>
+          <p class="hotel-name">PELBU SUITES</p>
+          <p class="legal">Daily proof · every operating day</p>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <p class="kind">Staff SOP</p>
+        <h2>10:00 briefing<br />signed</h2>
+      </div>
+    </header>
+
+    <p class="lead" style="margin-top:12px">All four leaders meet Tshering at <strong>10:00 sharp</strong>. The time does not move. Choki brings arrivals. Rajiv and Dawa join when they can. Dawa may join online. Fifteen minutes. The signed sheet is the proof. If it is not signed, the briefing did not happen.</p>
+
+    <h3>Same order every day</h3>
+    <ol>
+      <li>Tshering opens a fresh sheet and writes the date.</li>
+      <li>Choki reads arrivals, departures, groups, early check-ins, and any promise already made to a guest.</li>
+      <li>Each leader, in order — Front Office, F&amp;B, Kitchen, Housekeeping — gives four lines only: who is in or absent; any guest issue still open; what is not ready today; what will run out before the next buy.</li>
+      <li>Tshering writes the instruction for the day. It is not debated in the meeting.</li>
+      <li>Each leader signs. Tshering signs last and writes the time the meeting closed.</li>
+    </ol>
+
+    <h3>The sheet</h3>
+    <ul>
+      <li>Tshering keeps it. It does not go home. One sheet per day, filed by month.</li>
+      <li>A leader who is out: the backup signs “for [name].” Tshering writes why.</li>
+      <li>A leader who misses 10:00 but is in the building reads the sheet and signs before their shift ends the same day. Tshering writes the time. The miss is noted.</li>
+      <li>No signature by the end of that day cannot be added the next morning.</li>
+      <li>Three unsigned days in the month fails the briefing check for the Nu. 4,000.</li>
+      <li>Rajiv can ask to see the month’s signed sheets before the extra pay is released.</li>
+    </ul>
+
+    <h3>Guest standard</h3>
+    <table>
+      <thead><tr><th>Department</th><th>The guest should feel</th></tr></thead>
+      <tbody>
+        <tr><td>Front Office</td><td>Expected, checked in without a wait, room matches the booking, checkout clear and polite.</td></tr>
+        <tr><td>Food &amp; Beverage</td><td>Greeted, order correct, service on time, bill right.</td></tr>
+        <tr><td>Kitchen</td><td>Food matches the order, hot, on time, and safe. An item that is finished is taken off before the guest orders it.</td></tr>
+        <tr><td>Housekeeping</td><td>Room ready before arrival, clean, quiet, complete.</td></tr>
+      </tbody>
+    </table>
+    <p class="note">A complaint is owned by that department’s leader until it is fixed or Tshering has taken it. Do not ask for a review while the guest is still unhappy. Choki posts anything under 5 stars to Management the same day. The leader answers with what happened and what changes tomorrow.</p>
+
+    <h3>Month score for the Nu. 4,000</h3>
+    <p class="note">The extra is paid only when all of these are true: signed the 10:00 sheet (fewer than three misses); attendance sent and honest; only the two shoppers bought, with bills back the same day; guest complaints handled the same shift; handover done; reviews in their department answered the same day. Miss one and the Nu. 4,000 is not paid. No half payment. Tshering tells them before payday. The signed sheets are the proof.</p>
+
+    <div class="foot"><span>Pelbu Suites · Olakha</span><span>Monthly Department Leader · 3</span></div>
+  </article>
+
+  <article class="sheet">
+    <header class="brandbar">
+      <div class="brand">
+        <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_200,h_200,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1" alt="Pelbu Suites" />
+        <div>
+          <p class="hotel-name">PELBU SUITES</p>
+          <p class="legal">File one signed original each day</p>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <p class="kind">Daily record</p>
+        <h2>10:00<br />briefing</h2>
+        <p>Date <span class="line"></span></p>
+      </div>
+    </header>
+
+    <h3>Arrivals — Choki</h3>
+    <table class="signgrid">
+      <tr><td class="tall" colspan="2">Arrivals, departures, groups, promises</td></tr>
+      <tr><td>Choki signature</td><td style="width:55%">Time</td></tr>
+    </table>
+
+    <h3>Leaders — four lines each, then sign</h3>
+    <table class="signgrid">
+      <thead>
+        <tr><th style="width:22%">Department</th><th>Team / guest / not ready / stock</th><th style="width:28%">Signature and time</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Front Office<br /><span class="note">Name</span></td><td class="tall"></td><td></td></tr>
+        <tr><td>F&amp;B<br /><span class="note">Name</span></td><td class="tall"></td><td></td></tr>
+        <tr><td>Kitchen<br /><span class="note">Name</span></td><td class="tall"></td><td></td></tr>
+        <tr><td>Housekeeping<br /><span class="note">Name</span></td><td class="tall"></td><td></td></tr>
+      </tbody>
+    </table>
+
+    <h3>Tshering — instruction for today</h3>
+    <table class="signgrid">
+      <tr><td class="tall" colspan="2"></td></tr>
+      <tr><td>Tshering signature</td><td>Closed at</td></tr>
+    </table>
+
+    <h3>Shoppers named today</h3>
+    <table class="signgrid">
+      <tr><td>Kitchen &amp; F&amp;B shopper (one person)</td><td style="width:40%"></td></tr>
+      <tr><td>Housekeeping shopper</td><td></td></tr>
+      <tr><td>Cash released by Tshering? &nbsp; Yes / No</td><td>Amount Nu.</td></tr>
+    </table>
+    <p class="note" style="margin-top:8px">A signature after the day has ended is not valid. Three misses in the month fail the leader’s briefing check. This sheet stays with Tshering.</p>
+
+    <div class="foot"><span>Pelbu Suites · Olakha · Daily briefing</span><span>File with the month</span></div>
+  </article>
+</body>
+</html>
