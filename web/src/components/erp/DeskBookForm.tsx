@@ -578,10 +578,6 @@ export function DeskBookForm({
   }, [agentId, selectedAgent?.rate_tier]);
 
   useEffect(() => {
-    if (ratePickup === "personal") {
-      setRatePickup("public");
-      return;
-    }
     const next = coerceRatePickup(ratePickup, selectedAgent);
     if (next !== ratePickup) setRatePickup(next);
   }, [selectedAgent, ratePickup]);
@@ -611,7 +607,7 @@ export function DeskBookForm({
     () => roomLines.reduce((s, l) => s + Math.max(0, l.extraBeds), 0),
     [roomLines],
   );
-  /** Two or more guest rooms on an agent file is the party. One room is not. */
+  /** Two or more guest rooms on an agent file is a group. One room is a single stay. */
   const groupStay = agentStay && totalGuestRooms > 1;
   const mixedCategories = roomLines.length > 1;
   const cartTypesUsed = useMemo(
@@ -1767,13 +1763,23 @@ export function DeskBookForm({
             {agentStay && groupReference.trim() ? (
               <p className="truncate text-[11px] text-muted-foreground">
                 {groupReference.trim()}
-                {groupStay ? ` · group · ${totalGuestRooms} rooms` : ""}
+                {groupStay
+                  ? ` · Group · ${totalGuestRooms} rooms`
+                  : " · One guest"}
               </p>
             ) : agentStay && groupStay ? (
               <p className="truncate text-[11px] text-muted-foreground">
                 Group · {totalGuestRooms} rooms
               </p>
-            ) : null}
+            ) : agentStay ? (
+              <p className="truncate text-[11px] text-muted-foreground">
+                One guest
+              </p>
+            ) : (
+              <p className="truncate text-[11px] text-muted-foreground">
+                One guest
+              </p>
+            )}
             <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
               {fmtShort(checkIn)} → {fmtShort(checkOut)} · {nights}n
               {preferredUnitId
@@ -1846,6 +1852,11 @@ export function DeskBookForm({
                     : "Pick a room"}
               {mealPlanCode ? ` · ${mealPlanCode}` : ""}
               {occupancy === "single" ? " · SGL" : " · DBL"}
+            </p>
+            <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
+              {ratePickupResolved.summaryLabel}
+              {rateDiffers ? " · agreed overrides sheet" : " · sheet quote"}
+              {quotePending ? " · updating…" : ""}
             </p>
             {quoteHint ? (
               <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
@@ -2091,8 +2102,8 @@ export function DeskBookForm({
                   <p className="col-span-2 text-[11px] text-muted-foreground sm:col-span-3">
                     Guest name, phone, and ID are taken at check-in.
                     {groupStay
-                      ? ` This is a group · ${totalGuestRooms} rooms.`
-                      : " One room stays a single reservation."}
+                      ? ` Group · ${totalGuestRooms} rooms — rooming at check-in.`
+                      : " One guest · single reservation."}
                   </p>
                 )}
 
@@ -2422,7 +2433,11 @@ export function DeskBookForm({
                 <div className="flex items-baseline justify-between gap-2">
                   <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
                     Rooms · {totalGuestRooms}
-                    {groupStay ? " · group" : agentStay ? " · 1 room" : ""}
+                    {groupStay
+                      ? " · Group"
+                      : agentStay
+                        ? " · One guest"
+                        : " · One guest"}
                   </p>
                 </div>
               <div className="space-y-2">

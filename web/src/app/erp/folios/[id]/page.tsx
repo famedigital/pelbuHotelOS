@@ -487,7 +487,7 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
             href={defaultStayHubHref}
             className="inline-flex h-8 items-center rounded-md border px-2.5 text-sm hover:bg-muted"
           >
-            Stay hub
+            Open stay
           </a>
         ) : null}
       </div>

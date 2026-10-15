@@ -613,6 +613,8 @@ export async function createFastBooking(
           agreedNightly != null ? "desk override" : null,
         agreed_rate_set_at:
           agreedNightly != null ? new Date().toISOString() : null,
+        /** FO sheet pick — room-night posts prefer this over agent/source inference. */
+        sheet_rate_tier: isRateTier(tier) ? tier : null,
         quoted_total_btn:
           quotedRoomsBtn > 0
             ? roundBtn(

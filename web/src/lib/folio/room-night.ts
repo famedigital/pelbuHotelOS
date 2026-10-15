@@ -8,6 +8,7 @@ import { calculateRoomNightTax, roundBtn } from "@/lib/pricing";
 import { loadRoomRateTaxSettings } from "@/lib/room-rate-tax";
 import {
   agentRateTier,
+  isRateTier,
   lookupRoomRateBtn,
   resolveSeasonKind,
   type RateTier,
@@ -70,6 +71,8 @@ type OccupiedRoom = {
   checkIn: string;
   source: string;
   agentRateTier: string | null;
+  /** FO sheet pick at book / StayHub — preferred over agent/source. */
+  sheetRateTier: string | null;
   chargeable: boolean;
   ncReasonCode: string | null;
   promoDiscountPct: number;
@@ -117,7 +120,7 @@ export async function postRoomNightsForDate(
        bookings!inner(
          id, status, check_in, check_out, contact_name, source, agent_id,
          adults, promo_discount_pct, promo_code_id, agreed_nightly_rate_btn,
-         rate_tax_mode,
+         sheet_rate_tier, rate_tax_mode,
          agents(rate_tier)
        )`,
     )
@@ -142,6 +145,7 @@ export async function postRoomNightsForDate(
           agent_id: string | null;
           adults?: number | null;
           agreed_nightly_rate_btn?: number | null;
+          sheet_rate_tier?: string | null;
           rate_tax_mode?: string | null;
           agents?:
             | { rate_tier?: string | null }
@@ -158,6 +162,7 @@ export async function postRoomNightsForDate(
           agent_id: string | null;
           adults?: number | null;
           agreed_nightly_rate_btn?: number | null;
+          sheet_rate_tier?: string | null;
           rate_tax_mode?: string | null;
           agents?:
             | { rate_tier?: string | null }
@@ -212,6 +217,7 @@ export async function postRoomNightsForDate(
       checkIn: booking.check_in,
       source: booking.source ?? "direct",
       agentRateTier: (agent?.rate_tier as string | null) ?? null,
+      sheetRateTier: (booking.sheet_rate_tier as string | null) ?? null,
       chargeable: row.chargeable !== false,
       ncReasonCode: (row.nc_reason_code as string | null) ?? null,
       promoDiscountPct: Number(
@@ -282,9 +288,12 @@ export async function postRoomNightsForDate(
       continue;
     }
 
-    const tier = room.agentRateTier
-      ? agentRateTier(room.agentRateTier)
-      : rateTierFromSource(room.source);
+    const tier: RateTier =
+      room.sheetRateTier && isRateTier(room.sheetRateTier)
+        ? room.sheetRateTier
+        : room.agentRateTier
+          ? agentRateTier(room.agentRateTier)
+          : rateTierFromSource(room.source);
 
     let rate =
       room.agreedNightlyRateBtn != null && room.agreedNightlyRateBtn >= 0

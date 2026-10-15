@@ -10,7 +10,7 @@ import { toast } from "sonner";
 export type PartyHubTab = "rooms" | "money" | "docs";
 
 /**
- * Slim party command bar — name, bulk actions, Rooms|Money|Docs.
+ * Slim group command bar — name, bulk actions, Rooms|Group bill|Docs.
  * Room switching lives in StayHubPartyRoomList (left master).
  */
 export function StayHubPartyCommandBar({
@@ -57,8 +57,8 @@ export function StayHubPartyCommandBar({
   };
 
   const tabs: Array<{ id: PartyHubTab; label: string }> = [
-    { id: "rooms", label: "Rooming" },
-    { id: "money", label: "Money" },
+    { id: "rooms", label: "Rooms" },
+    { id: "money", label: "Group bill" },
     { id: "docs", label: "Docs" },
   ];
 
@@ -66,9 +66,9 @@ export function StayHubPartyCommandBar({
     <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-muted/15 px-3 py-1.5 pr-12 md:flex-nowrap md:px-4 md:pr-14">
       <p className="truncate text-sm font-semibold tracking-tight">
         {party.groupId
-          ? party.groupName?.trim() || "Party"
+          ? party.groupName?.trim() || "Group"
           : party.suggested
-            ? "Suggested party"
+            ? "Same file — link rooms"
             : "Rooms"}
       </p>
       <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
@@ -174,7 +174,7 @@ export function StayHubPartyCommandBar({
             title="Link as group to add or remove rooms and edit the rooming table."
             onClick={linkGroup}
           >
-            {pending ? "Linking…" : "Link as group"}
+            {pending ? "Linking…" : "Link rooms"}
           </Button>
         ) : null}
         {endSlot}

@@ -13,13 +13,14 @@ test("agentHasSpecialTier treats mou as special", () => {
   assert.equal(agentHasSpecialTier(null), false);
 });
 
-test("buildRatePickupOptions: no agent → local, agent and special disabled, nc", () => {
+test("buildRatePickupOptions: no agent → public, personal, agent/special disabled, nc", () => {
   const opts = buildRatePickupOptions(null);
   assert.deepEqual(
     opts.map((o) => o.value),
-    ["public", "agent", "special", "nc"],
+    ["public", "personal", "agent", "special", "nc"],
   );
-  assert.equal(opts.find((o) => o.value === "public")?.label, "Local");
+  assert.equal(opts.find((o) => o.value === "public")?.label, "Public");
+  assert.equal(opts.find((o) => o.value === "personal")?.label, "Personal");
   assert.equal(opts.find((o) => o.value === "agent")?.disabled, true);
   assert.equal(opts.find((o) => o.value === "special")?.disabled, true);
 });
@@ -34,7 +35,7 @@ test("buildRatePickupOptions: generic agent → Agent enabled", () => {
   assert.match(opts.find((o) => o.value === "agent")?.label ?? "", /Jaigaon/);
 });
 
-test("buildRatePickupOptions: mou agent → Special enabled", () => {
+test("buildRatePickupOptions: mou agent → MOU enabled", () => {
   const opts = buildRatePickupOptions({
     company_name: "MOU Partner",
     rate_tier: "mou_agents",
@@ -52,6 +53,17 @@ test("resolveRatePickup personal uses sub-tier", () => {
   });
   assert.equal(r.rateTier, "family");
   assert.equal(r.guestRateKind, "rack");
+  assert.match(r.summaryLabel, /Personal/);
+});
+
+test("resolveRatePickup public summary is Public", () => {
+  const r = resolveRatePickup({
+    pickup: "public",
+    personalSub: "friends",
+    agent: null,
+  });
+  assert.equal(r.rateTier, "public");
+  assert.equal(r.summaryLabel, "Public");
 });
 
 test("resolveRatePickup nc is comp", () => {
@@ -73,4 +85,5 @@ test("coerceRatePickup drops agent when cleared", () => {
     }),
     "special",
   );
+  assert.equal(coerceRatePickup("personal", null), "personal");
 });

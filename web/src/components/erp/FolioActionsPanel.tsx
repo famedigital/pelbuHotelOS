@@ -366,7 +366,7 @@ export function FolioActionsPanel({
             })}
             className="inline-flex h-10 w-full items-center justify-center rounded-md border border-transparent text-sm font-medium text-foreground underline-offset-4 hover:underline"
           >
-            Open Stay hub money
+            Open folio
           </a>
         ) : null}
         <a

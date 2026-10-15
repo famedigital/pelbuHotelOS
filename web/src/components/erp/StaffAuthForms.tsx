@@ -95,6 +95,11 @@ export function StaffLoginForm({
   }, [pinState.ok, pinState.home]);
 
   useEffect(() => {
+    if (!loginState.ok || !loginState.home) return;
+    window.location.assign(loginState.home);
+  }, [loginState.ok, loginState.home]);
+
+  useEffect(() => {
     if (!pinStep || workspace !== "desk") return;
     let cancelled = false;
     setStaffLoading(true);
@@ -392,8 +397,14 @@ export function StaffLoginForm({
           <AlertDescription>{loginState.error}</AlertDescription>
         </Alert>
       ) : null}
-      <Button type="submit" disabled={loginPending} className="h-11 w-full">
-        {loginPending ? "Signing in…" : "Sign in"}
+      <Button
+        type="submit"
+        disabled={loginPending || Boolean(loginState.ok && loginState.home)}
+        className="h-11 w-full"
+      >
+        {loginPending || (loginState.ok && loginState.home)
+          ? "Opening…"
+          : "Sign in"}
       </Button>
     </form>
   );

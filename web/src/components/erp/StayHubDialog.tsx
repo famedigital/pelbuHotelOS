@@ -15,6 +15,7 @@ import {
   fetchStayHubSummary,
   previewStayHubSheetRate,
   setStayHubRateChoice,
+  setStayHubSheetRateTier,
   type StayHubCatalogMealPlan,
   type StayHubCheckInPayload,
   type StayHubMoneyPayload,
@@ -131,6 +132,16 @@ import {
   packageStayTotalBtn,
   roomNightAllInBtn,
 } from "@/lib/folio/stay-rate-quote";
+import {
+  PERSONAL_SUB_OPTIONS,
+  agentHasSpecialTier,
+  buildRatePickupOptions,
+  coerceRatePickup,
+  resolveRatePickup,
+  sheetTierFoLabel,
+  type PersonalSubTier,
+  type RatePickupKind,
+} from "@/lib/folio/desk-book-rate-pickup";
 import { formatGuestBtn } from "@/lib/pricing";
 import { printDeskSheet } from "@/lib/desk-print";
 import { thimphuToday } from "@/lib/erp-lists";
@@ -273,6 +284,7 @@ function summaryFromSeed(stay: StayHubSeedStay): StayHubSummary {
     roomNcReasons: [],
     agreedNightlyRateBtn: null,
     agreedRateReason: null,
+    sheetRateTier: null,
     quotedTotalBtn: null,
     ratePendingApproval: false,
     mealPlanCode: null,
@@ -601,6 +613,10 @@ export function StayHubDialog({
   const [sheetRate, setSheetRate] = useState<Awaited<
     ReturnType<typeof previewStayHubSheetRate>
   > | null>(null);
+  const [hubRatePickup, setHubRatePickup] =
+    useState<RatePickupKind>("public");
+  const [hubPersonalSub, setHubPersonalSub] =
+    useState<PersonalSubTier>("friends");
   const [railRateOpen, setRailRateOpen] = useState(false);
   const [postCheckInOpen, setPostCheckInOpen] = useState(false);
   const [postRegData, setPostRegData] =
@@ -723,9 +739,69 @@ export function StayHubDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- catalog once per open; props seed skip
   }, [open]);
 
+  const hubRateAgent = useMemo(() => {
+    if (!summary?.agentId) return null;
+    const fromList = localAgents.find((a) => a.id === summary.agentId);
+    return {
+      company_name: summary.agentName?.trim() || fromList?.company_name || "Agent",
+      rate_tier: fromList?.rate_tier ?? null,
+    };
+  }, [summary?.agentId, summary?.agentName, localAgents]);
+
+  const hubRateResolved = useMemo(
+    () =>
+      resolveRatePickup({
+        pickup: hubRatePickup,
+        personalSub: hubPersonalSub,
+        agent: hubRateAgent,
+      }),
+    [hubRatePickup, hubPersonalSub, hubRateAgent],
+  );
+
+  // Seed FO pickup from persisted sheet tier (or agent) when the stay opens.
+  useEffect(() => {
+    if (!open || !summary?.bookingId) return;
+    const persisted = summary.sheetRateTier;
+    if (persisted === "friends" || persisted === "family" || persisted === "mutual_friends") {
+      setHubRatePickup("personal");
+      setHubPersonalSub(persisted);
+      return;
+    }
+    if (persisted === "public") {
+      setHubRatePickup("public");
+      setHubPersonalSub("friends");
+      return;
+    }
+    if (persisted === "mou_agents" || (summary.agentId && agentHasSpecialTier(persisted))) {
+      setHubRatePickup("special");
+      setHubPersonalSub("friends");
+      return;
+    }
+    if (persisted === "agents" || summary.agentId) {
+      const fromList = localAgents.find((a) => a.id === summary.agentId);
+      const tier = fromList?.rate_tier ?? persisted;
+      setHubRatePickup(agentHasSpecialTier(tier) ? "special" : "agent");
+      setHubPersonalSub("friends");
+      return;
+    }
+    setHubRatePickup("public");
+    setHubPersonalSub("friends");
+    // Seed per booking open only — don't reset after FO changes pickup.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, summary?.bookingId]);
+
+  useEffect(() => {
+    const next = coerceRatePickup(hubRatePickup, hubRateAgent);
+    if (next !== hubRatePickup) setHubRatePickup(next);
+  }, [hubRateAgent, hubRatePickup]);
+
   // Live sheet rate for left-rail amount + Details → Rate.
   useEffect(() => {
     if (!open || !bookingId || !draft) return;
+    if (hubRatePickup === "nc") {
+      setSheetRate(null);
+      return;
+    }
     const timer = window.setTimeout(() => {
       startSheetRate(async () => {
         const r = await previewStayHubSheetRate({
@@ -734,6 +810,7 @@ export function StayHubDialog({
           adults: Number(draft.adults) || 1,
           children: Number(draft.children) || 0,
           extraBeds: Number(draft.extraBeds) || 0,
+          rateTier: hubRateResolved.rateTier,
         });
         setSheetRate(r);
       });
@@ -749,6 +826,8 @@ export function StayHubDialog({
     draft?.source,
     draft?.agentId,
     summary?.agreedNightlyRateBtn,
+    hubRatePickup,
+    hubRateResolved.rateTier,
   ]);
 
   const applySummary = useCallback(
@@ -2065,7 +2144,7 @@ export function StayHubDialog({
               className="min-h-11 flex-1 sm:flex-none"
               onClick={() => goPanel("check_in")}
             >
-              Continue to check-in
+              Go to check-in
             </Button>
           );
         }
@@ -2250,7 +2329,7 @@ export function StayHubDialog({
             onClick={openCollect}
             disabled={!folioId}
           >
-            {summary.agentId ? "Settle / agent AR" : "Collect payment"}
+            {summary.agentId ? "Agent bill" : "Collect payment"}
           </Button>
         );
       }
@@ -2275,7 +2354,7 @@ export function StayHubDialog({
             className="min-h-11 flex-1 sm:flex-none"
             onClick={openCollect}
           >
-            {summary.agentId ? "Settle due first" : "Collect payment first"}
+            {summary.agentId ? "Clear agent bill first" : "Collect payment first"}
           </Button>
         );
       }
@@ -2569,7 +2648,7 @@ export function StayHubDialog({
           )}
         >
           <DialogTitle className="sr-only">
-            Edit Transaction · {titleName}
+            Guest stay · {titleName}
           </DialogTitle>
 
           {/* Mobile compact identity — desktop lives in left rail */}
@@ -2653,6 +2732,11 @@ export function StayHubDialog({
                         Number(draft?.extraBeds) || summary.extraBeds || 0,
                       ),
                       pending: sheetRatePending && railNightly == null,
+                      rateLabel: summary.agreedNightlyRateBtn != null
+                        ? summary.agreedRateReason === "Tariff"
+                          ? hubRateResolved.summaryLabel
+                          : summary.agreedRateReason?.trim() || "Agreed"
+                        : hubRateResolved.summaryLabel,
                       editable: rateEditable,
                       onEdit: rateEditable
                         ? () => setRailRateOpen(true)
@@ -2866,7 +2950,7 @@ export function StayHubDialog({
                               </>
                             ) : (
                               <>
-                                Confirm token via lifecycle actions, then
+                                Take deposit via lifecycle actions, then
                                 continue to check-in.
                               </>
                             )}
@@ -3021,6 +3105,13 @@ export function StayHubDialog({
                               sheetRate={sheetRate}
                               sheetRatePending={sheetRatePending}
                               summary={summary}
+                              ratePickup={hubRatePickup}
+                              personalSub={hubPersonalSub}
+                              rateAgent={hubRateAgent}
+                              summaryLabel={hubRateResolved.summaryLabel}
+                              sheetRateTier={hubRateResolved.rateTier}
+                              onRatePickupChange={setHubRatePickup}
+                              onPersonalSubChange={setHubPersonalSub}
                               onUpdate={updateDraft}
                               onApplied={refreshSummary}
                             />
@@ -3306,7 +3397,7 @@ export function StayHubDialog({
                                 title={`Arrival ${summary.checkIn.slice(0, 10)} — hotel day is ${summary.openBusinessDate}`}
                               >
                                 Check-in opens on the arrival business day.
-                                Assign rooms and collect token now, or move
+                                Assign rooms and take deposit now, or move
                                 check-in earlier under Details if the guest is
                                 arriving early.
                               </Callout>
@@ -3429,7 +3520,7 @@ export function StayHubDialog({
                         ) : summary.status === "checked_in" &&
                           checkInTool !== "more" ? (
                           <p className="text-xs text-muted-foreground">
-                            Already checked in. Continue on Folio or Checkout.
+                            Already checked in. Continue on Folio or Check-out.
                             Undo is under ··· when the folio is still simple.
                           </p>
                         ) : checkInTool !== "more" &&
@@ -4099,6 +4190,13 @@ function StayHubSheetRatePanel({
   sheetRate,
   sheetRatePending,
   summary,
+  ratePickup,
+  personalSub,
+  rateAgent,
+  summaryLabel,
+  sheetRateTier,
+  onRatePickupChange,
+  onPersonalSubChange,
   onUpdate,
   onApplied,
 }: {
@@ -4107,6 +4205,13 @@ function StayHubSheetRatePanel({
   sheetRate: Awaited<ReturnType<typeof previewStayHubSheetRate>> | null;
   sheetRatePending: boolean;
   summary: StayHubSummary;
+  ratePickup: RatePickupKind;
+  personalSub: PersonalSubTier;
+  rateAgent: { company_name: string; rate_tier?: string | null } | null;
+  summaryLabel: string;
+  sheetRateTier: string | null;
+  onRatePickupChange: (v: RatePickupKind) => void;
+  onPersonalSubChange: (v: PersonalSubTier) => void;
   onUpdate: <K extends keyof Draft>(key: K, value: Draft[K]) => void;
   onApplied: () => void;
 }) {
@@ -4114,6 +4219,22 @@ function StayHubSheetRatePanel({
     null,
   );
   const [rateMessage, setRateMessage] = useState<string | null>(null);
+  const pickupOptions = buildRatePickupOptions(rateAgent);
+
+  function persistSheetTier(
+    nextPickup: RatePickupKind,
+    nextPersonal: PersonalSubTier,
+  ) {
+    const resolved = resolveRatePickup({
+      pickup: nextPickup,
+      personalSub: nextPersonal,
+      agent: rateAgent,
+    });
+    void setStayHubSheetRateTier({
+      bookingId: summary.bookingId,
+      sheetRateTier: nextPickup === "nc" ? null : resolved.rateTier,
+    });
+  }
 
   if (!draft) return null;
   const mealOptions =
@@ -4198,6 +4319,7 @@ function StayHubSheetRatePanel({
       source: "tariff",
       nightlyBtn: tariffNightly,
       rateTaxMode: summary.rateTaxMode,
+      sheetRateTier: ratePickup === "nc" ? null : sheetRateTier,
     });
     setSaving(null);
     if (!result.ok) {
@@ -4209,6 +4331,59 @@ function StayHubSheetRatePanel({
 
   return (
     <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Rate pickup" id="hub_rate_pickup">
+          <select
+            id="hub_rate_pickup"
+            value={ratePickup === "custom" ? "public" : ratePickup}
+            onChange={(e) => {
+              const next = e.target.value as RatePickupKind;
+              onRatePickupChange(next);
+              persistSheetTier(next, personalSub);
+            }}
+            className={selectClass}
+          >
+            {pickupOptions.map((opt) => (
+              <option
+                key={opt.value}
+                value={opt.value}
+                disabled={opt.disabled}
+              >
+                {opt.label}
+                {opt.hint ? ` — ${opt.hint}` : ""}
+              </option>
+            ))}
+          </select>
+        </Field>
+        {ratePickup === "personal" ? (
+          <Field label="Personal tier" id="hub_personal_tier">
+            <select
+              id="hub_personal_tier"
+              value={personalSub}
+              onChange={(e) => {
+                const next = e.target.value as PersonalSubTier;
+                onPersonalSubChange(next);
+                persistSheetTier(ratePickup, next);
+              }}
+              className={selectClass}
+            >
+              {PERSONAL_SUB_OPTIONS.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : (
+          <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+            <p className="font-medium text-foreground">{summaryLabel}</p>
+            <p className="mt-1">
+              Live sheet quote updates when you change pickup or meal.
+            </p>
+          </div>
+        )}
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Meal package" id="hub_rate_meal">
           <select
@@ -4326,7 +4501,7 @@ function StayHubSheetRatePanel({
           </p>
           <p className="text-[11px] text-muted-foreground">
             {ok
-              ? `${ok.seasonKind} · ${ok.rateTier} · room + ${ok.mealPlanCode}`
+              ? `${ok.seasonKind} · ${sheetTierFoLabel(ok.rateTier)} · room + ${ok.mealPlanCode}`
               : err ?? "Room and meal add-on"}
           </p>
           <Button

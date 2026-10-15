@@ -27,6 +27,14 @@ export function PosFullscreenToggle({
   active: boolean;
   onChange: (active: boolean) => void;
 }) {
+  // Always drop the body class on unmount (route leave) so DeskShell is not stuck
+  // with a hidden sidebar until refresh.
+  useEffect(() => {
+    return () => {
+      document.body.classList.remove("pos-fs");
+    };
+  }, []);
+
   // Apply native fullscreen + body class together.
   useEffect(() => {
     if (active) {
@@ -54,15 +62,18 @@ export function PosFullscreenToggle({
         }
       };
     }
+    // Inactive: ensure class is gone (e.g. ESC → onChange(false) without unmount).
+    document.body.classList.remove("pos-fs");
     return;
   }, [active]);
 
   // Keep `active` in sync if the user exits fullscreen via ESC or the browser
-  // menu instead of the toggle button.
+  // menu instead of the toggle button. Also clear body class immediately.
   useEffect(() => {
     function onFsChange() {
-      if (!document.fullscreenElement && active) {
-        onChange(false);
+      if (!document.fullscreenElement) {
+        document.body.classList.remove("pos-fs");
+        if (active) onChange(false);
       }
     }
     document.addEventListener("fullscreenchange", onFsChange);

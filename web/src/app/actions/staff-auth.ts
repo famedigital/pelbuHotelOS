@@ -29,6 +29,11 @@ import { redirect } from "next/navigation";
 export type StaffLoginState = {
   ok: boolean;
   error?: string;
+  /**
+   * Full-document navigate after login — soft redirect() from a shell-less
+   * login layout can paint /erp without DeskShell until layout RSC catches up.
+   */
+  home?: string;
 };
 
 export type DeskGateState = {
@@ -717,7 +722,11 @@ export async function staffLogin(
       }
     }
 
-    redirect(returnNext ?? (mayOpenDesk ? deskHome : "/staff"));
+    // Client location.assign — avoid soft redirect() painting /erp without shell.
+    return {
+      ok: true,
+      home: returnNext ?? (mayOpenDesk ? deskHome : "/staff"),
+    };
   } catch (error) {
     if (
       error &&

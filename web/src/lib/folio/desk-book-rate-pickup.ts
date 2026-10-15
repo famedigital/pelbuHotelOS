@@ -41,6 +41,26 @@ export const PERSONAL_SUB_OPTIONS: {
   { id: "mutual_friends", label: "Mutual" },
 ];
 
+/** FO-facing label for a sheet tier code (tariff card / rail). */
+export function sheetTierFoLabel(tier: string | null | undefined): string {
+  switch (tier) {
+    case "public":
+      return "Public";
+    case "friends":
+      return "Personal · Friends";
+    case "family":
+      return "Personal · Family";
+    case "mutual_friends":
+      return "Personal · Mutual";
+    case "agents":
+      return "Agent";
+    case "mou_agents":
+      return "MOU / contract";
+    default:
+      return tier?.replace(/_/g, " ") || "Public";
+  }
+}
+
 /** Whether agent profile uses a non-generic sheet tier (MOU / special). */
 export function agentHasSpecialTier(
   rateTier: string | null | undefined,
@@ -48,14 +68,15 @@ export function agentHasSpecialTier(
   return agentRateTier(rateTier) !== "agents";
 }
 
-/** Desk pickup list: Local, Agent, Special, NC. Custom is an override from the sheet. */
+/** Desk pickup list: Public, Personal, Agent, Special/MOU, NC. Custom is an override from the sheet. */
 export function buildRatePickupOptions(
   agent: RatePickupAgent | null | undefined,
 ): RatePickupOption[] {
   const name = agent?.company_name?.trim();
   const special = Boolean(name && agentHasSpecialTier(agent?.rate_tier));
   return [
-    { value: "public", label: "Local" },
+    { value: "public", label: "Public" },
+    { value: "personal", label: "Personal" },
     {
       value: "agent",
       label: name && !special ? `Agent · ${name}` : "Agent",
@@ -68,12 +89,12 @@ export function buildRatePickupOptions(
     },
     {
       value: "special",
-      label: name && special ? `Special · ${name}` : "Special",
+      label: name && special ? `MOU · ${name}` : "MOU / contract",
       disabled: !special,
       hint: !name
         ? "Choose an agent below"
         : !special
-          ? "This agent has no special rate"
+          ? "This agent has no contract rate"
           : undefined,
     },
     { value: "nc", label: "NC" },
@@ -107,7 +128,7 @@ export function resolveRatePickup(input: {
         guestRateKind: "rack",
         clearAgreed: true,
         openCustomDialog: false,
-        summaryLabel: "Local",
+        summaryLabel: "Public",
       };
     case "personal":
       return {
@@ -131,7 +152,7 @@ export function resolveRatePickup(input: {
         guestRateKind: "rack",
         clearAgreed: true,
         openCustomDialog: false,
-        summaryLabel: `Special · ${agentName}`,
+        summaryLabel: `MOU · ${agentName}`,
       };
     case "nc":
       return {
@@ -155,7 +176,7 @@ export function resolveRatePickup(input: {
         guestRateKind: "rack",
         clearAgreed: true,
         openCustomDialog: false,
-        summaryLabel: "Local",
+        summaryLabel: "Public",
       };
   }
 }

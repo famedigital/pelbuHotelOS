@@ -52,8 +52,8 @@ const LABELS: Record<StayHubStepId, { label: string; short: string }> = {
   confirm: { label: "Confirm", short: "Cfm" },
   arrival: { label: "Ready", short: "Rdy" },
   check_in: { label: "Check-in", short: "CI" },
-  stay_money: { label: "Settle", short: "Pay" },
-  check_out: { label: "Checkout", short: "Out" },
+  stay_money: { label: "Folio", short: "Folio" },
+  check_out: { label: "Check-out", short: "Out" },
 };
 
 const ORDER: StayHubStepId[] = [
@@ -204,7 +204,7 @@ export function buildStayHubSteps(input: StayHubCycleInput): StayHubStep[] {
       else if (id === "check_in" && !hasRoom)
         lockReason = "Assign a room first";
       else if (id === "check_out" && !settled)
-        lockReason = "Settle open balance first";
+        lockReason = "Clear open balance on Folio first";
       else lockReason = "Complete earlier steps first";
     }
     return {
@@ -404,7 +404,7 @@ export function stayHubBackTargetLabel(
   if (target === "check_in") return "Check-in";
   if (target === "confirm") return "Confirm";
   if (target === "arrival") return "Ready";
-  if (target === "check_out") return "Checkout";
+  if (target === "check_out") return "Check-out";
   return "previous step";
 }
 
@@ -444,8 +444,8 @@ export function canNavigateStayHubStep(input: {
 /**
  * Desk FO hierarchy — vertical left rail (or mobile strip).
  * Pre-stay: Details · Check-in.
- * In-house: Details · Check-in · Folio · Checkout.
- * Maps reserve/confirm→Details, check_in→Check-in, stay_money→Folio, check_out→Checkout.
+ * In-house: Details · Check-in · Folio · Check-out.
+ * Maps reserve/confirm→Details, check_in→Check-in, stay_money→Folio, check_out→Check-out.
  * Engine still has 6 underlying steps; this maps FO labels only.
  */
 export function deskFocusedSteps(
@@ -483,7 +483,7 @@ export function deskFocusedSteps(
       if (st.id === "stay_money") {
         out.push({ ...st, label: "Folio", shortLabel: "Folio" });
       } else if (st.id === "check_out") {
-        out.push({ ...st, label: "Checkout", shortLabel: "Out" });
+        out.push({ ...st, label: "Check-out", shortLabel: "Out" });
       }
     }
     return out;

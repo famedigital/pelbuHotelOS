@@ -11,6 +11,7 @@ import { NavigationProgress } from "@/components/erp/NavigationProgress";
 import { DeskSearchHint } from "@/components/erp/DeskSearchHint";
 import { PropertySwitcher } from "@/components/erp/PropertySwitcher";
 import { DeskMainSkeleton } from "@/components/erp/DeskMainSkeleton";
+import { DeskChromeGuard } from "@/components/erp/DeskChromeGuard";
 import { StayHubShell } from "@/components/erp/StayHubShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,7 @@ export function DeskShell({
 
   return (
     <div className="erp">
+      <DeskChromeGuard />
       <NavigationProgress />
       <DeskWorkspaceProvider
         deskRole={deskRole}

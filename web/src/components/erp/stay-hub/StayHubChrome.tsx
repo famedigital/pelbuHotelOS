@@ -67,6 +67,8 @@ export type StayHubRailAmount = {
   children?: number | null;
   extraBeds?: number | null;
   pending?: boolean;
+  /** FO rate pickup / sheet label (Public, Personal · Friends, …). */
+  rateLabel?: string | null;
   /** Open manager PIN rate dialog / Details Rate. */
   onEdit?: () => void;
   editable?: boolean;
@@ -437,18 +439,15 @@ export function StayHubLeftRail({
               </span>
             </div>
           </div>
-          {amount.mealPlanCode ||
-          (amount.children ?? 0) > 0 ||
-          (amount.extraBeds ?? 0) > 0 ? (
-            <p className="mt-1 truncate text-[10px] text-muted-foreground">
-              {amount.mealPlanCode ? `${amount.mealPlanCode} · ` : ""}
-              {stayRooms} rm
-              {(amount.children ?? 0) > 0 ? ` · ${amount.children} child` : ""}
-              {(amount.extraBeds ?? 0) > 0 ? ` · ${amount.extraBeds} extra` : ""}
-              {amount.isCustom ? " · agreed" : " · sheet"}
-              {editable ? " · edit" : ""}
-            </p>
-          ) : null}
+          <p className="mt-1 truncate text-[10px] text-muted-foreground">
+            {amount.rateLabel ? `${amount.rateLabel} · ` : ""}
+            {amount.mealPlanCode ? `${amount.mealPlanCode} · ` : ""}
+            {stayRooms} rm
+            {(amount.children ?? 0) > 0 ? ` · ${amount.children} child` : ""}
+            {(amount.extraBeds ?? 0) > 0 ? ` · ${amount.extraBeds} extra` : ""}
+            {amount.isCustom ? " · agreed" : " · sheet"}
+            {editable ? " · edit" : ""}
+          </p>
         </button>
       ) : null}
 
@@ -479,7 +478,7 @@ export function StayHubLeftRail({
           </button>
         ) : (
           <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-            Edit Transaction
+            Guest stay
           </p>
         )}
 

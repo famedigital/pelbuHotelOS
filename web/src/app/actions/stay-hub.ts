@@ -144,6 +144,8 @@ export type StayHubSummary = {
   /** Manager-approved nightly rate (null = use rate sheet). */
   agreedNightlyRateBtn: number | null;
   agreedRateReason: string | null;
+  /** FO sheet tier for live quotes / room-night posts when agreed is null. */
+  sheetRateTier: string | null;
   /** Drive / voucher stay total, when the rack comment had a figure. */
   quotedTotalBtn: number | null;
   /** True when any booking_rooms line awaits GM rate approval. */
@@ -247,7 +249,7 @@ export async function fetchStayHubSummary(
       id, confirmation_code, contact_name, contact_phone, contact_email, status, check_in, check_out,
       adults, children, extra_beds, rooms, guide_number, guest_origin, source, notes, agent_id, payment_mode,
       booked_by_role, sold_by_staff_id, sales_claim_status, meal_plan_code,
-      agreed_nightly_rate_btn, agreed_rate_reason, quoted_total_btn,
+      agreed_nightly_rate_btn, agreed_rate_reason, quoted_total_btn, sheet_rate_tier,
       rate_tax_mode, tax_exempt_gst, tax_exempt_service, tax_exempt_bst,
       release_days_before_arrival, release_percent, deposit_due_on,
       house_use, dnr, dnr_reason, pickup_needed, dropoff_needed, pickup_at, dropoff_at,
@@ -571,6 +573,7 @@ export async function fetchStayHubSummary(
           ? Number(data.agreed_nightly_rate_btn)
           : null,
       agreedRateReason: (data.agreed_rate_reason as string | null) ?? null,
+      sheetRateTier: (data.sheet_rate_tier as string | null) ?? null,
       quotedTotalBtn:
         data.quoted_total_btn != null ? Number(data.quoted_total_btn) : null,
       ratePendingApproval,
@@ -1312,6 +1315,8 @@ export async function previewStayHubSheetRate(input: {
   adults?: number;
   children?: number;
   extraBeds?: number;
+  /** FO rate pickup override; when set, skips agent/source inference. */
+  rateTier?: string | null;
 }): Promise<
   | {
       ok: true;
@@ -1344,7 +1349,7 @@ export async function previewStayHubSheetRate(input: {
       .from("bookings")
       .select(
         `id, check_in, check_out, adults, children, extra_beds, meal_plan_code,
-         agent_id, booked_by_role, source, agreed_nightly_rate_btn,
+         agent_id, booked_by_role, source, agreed_nightly_rate_btn, sheet_rate_tier,
          agents(rate_tier, status),
          room_assignments(room_unit_id, room_units(room_type_id)),
          booking_rooms(qty, inventory_kind, room_type_id)`,
@@ -1380,14 +1385,25 @@ export async function previewStayHubSheetRate(input: {
       | null;
     const agent = Array.isArray(agentRaw) ? agentRaw[0] : agentRaw;
     let tier: import("@/lib/rates").RateTier = "public";
-    const source =
-      (booking.booked_by_role as string) ||
-      (booking.source as string) ||
-      "reservation";
-    if (source === "mou_agent") tier = agentRateTier("mou_agents");
-    else if (source === "agent") tier = agentRateTier("agents");
-    if (agent?.rate_tier) {
-      tier = agentRateTier(agent.rate_tier);
+    const { isRateTier } = await import("@/lib/rates");
+    // Live FO picker → persisted sheet pick → agent/source inference.
+    if (input.rateTier && isRateTier(input.rateTier)) {
+      tier = input.rateTier;
+    } else if (
+      booking.sheet_rate_tier &&
+      isRateTier(booking.sheet_rate_tier as string)
+    ) {
+      tier = booking.sheet_rate_tier as import("@/lib/rates").RateTier;
+    } else {
+      const source =
+        (booking.booked_by_role as string) ||
+        (booking.source as string) ||
+        "reservation";
+      if (source === "mou_agent") tier = agentRateTier("mou_agents");
+      else if (source === "agent") tier = agentRateTier("agents");
+      if (agent?.rate_tier) {
+        tier = agentRateTier(agent.rate_tier);
+      }
     }
 
     const season = await resolveSeasonKind(admin, propertyId, checkIn);
@@ -1888,6 +1904,8 @@ export async function setStayHubRateChoice(input: {
   rateTaxMode?: "inclusive" | "exclusive";
   source?: "voucher" | "tariff";
   nightlyBtn?: number | null;
+  /** Persist FO sheet tier with tariff apply (friends/public/agent/…). */
+  sheetRateTier?: string | null;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     if (!(await isDeskAuthenticated())) {
@@ -1898,6 +1916,7 @@ export async function setStayHubRateChoice(input: {
     const bookingId = (input.bookingId ?? "").trim();
     if (!bookingId) return { ok: false, error: "Booking required." };
 
+    const { isRateTier } = await import("@/lib/rates");
     const patch: Record<string, unknown> = {};
     if (
       input.rateTaxMode === "inclusive" ||
@@ -1916,6 +1935,15 @@ export async function setStayHubRateChoice(input: {
       patch.agreed_rate_set_at = new Date().toISOString();
       patch.agreed_rate_set_by = "desk";
       patch.meal_plan_amount_btn = 0;
+    }
+    if (input.sheetRateTier !== undefined) {
+      if (input.sheetRateTier == null || input.sheetRateTier === "") {
+        patch.sheet_rate_tier = null;
+      } else if (isRateTier(input.sheetRateTier)) {
+        patch.sheet_rate_tier = input.sheetRateTier;
+      } else {
+        return { ok: false, error: "Unknown rate sheet tier." };
+      }
     }
     if (Object.keys(patch).length === 0) {
       return { ok: false, error: "Nothing to save." };
@@ -1939,4 +1967,15 @@ export async function setStayHubRateChoice(input: {
       error: err instanceof Error ? err.message : "Could not save the rate.",
     };
   }
+}
+
+/** Persist FO rate-sheet tier without changing agreed nightly. */
+export async function setStayHubSheetRateTier(input: {
+  bookingId: string;
+  sheetRateTier: string | null;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  return setStayHubRateChoice({
+    bookingId: input.bookingId,
+    sheetRateTier: input.sheetRateTier,
+  });
 }

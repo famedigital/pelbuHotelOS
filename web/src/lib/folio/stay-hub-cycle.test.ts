@@ -150,7 +150,7 @@ test("deskFocusedSteps: in-house FO hierarchy Details · Check-in · Folio · Ch
   );
   assert.deepEqual(
     desk.map((s) => s.label),
-    ["Details", "Check-in", "Folio", "Checkout"],
+    ["Details", "Check-in", "Folio", "Check-out"],
   );
 });
 

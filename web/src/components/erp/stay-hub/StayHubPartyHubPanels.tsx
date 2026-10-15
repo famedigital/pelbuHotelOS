@@ -66,7 +66,7 @@ export function StayHubPartyMoneyPanel({
 
   return (
     <StayHubWorkFrame
-      title="Party money"
+      title="Group bill"
       description="Balances for every room in this group. Tap a row to select it, or open that room’s folio."
       dense
     >
