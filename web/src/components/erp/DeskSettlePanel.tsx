@@ -859,14 +859,27 @@ function CompactInvoiceSlot({
       disabled={pending}
       className="min-h-8 h-8 px-2.5 text-xs"
       onClick={() => {
+        const printTab = window.open("about:blank", "_blank");
         startTransition(async () => {
           const result = await openMasterBillPrint(folioId);
           if (!result.ok) {
+            printTab?.close();
             toast.error(result.error);
             return;
           }
-          toast.success("Tax invoice issued");
-          window.open(result.href, "_blank", "noopener,noreferrer");
+          if (printTab) {
+            printTab.location.href = result.href;
+            toast.success("Tax invoice issued");
+          } else {
+            toast.success("Tax invoice issued", {
+              action: {
+                label: "Open bill",
+                onClick: () => {
+                  window.open(result.href, "_blank", "noopener,noreferrer");
+                },
+              },
+            });
+          }
           onIssued();
         });
       }}

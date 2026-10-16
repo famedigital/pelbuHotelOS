@@ -2019,19 +2019,40 @@ export function StayHubDialog({
       toast.error("Open the folio after check-in first.");
       return;
     }
+    // Open blank tab while still in the click gesture — async await loses
+    // popup permission and looks like “nothing happened”.
+    const printTab =
+      typeof window !== "undefined"
+        ? window.open("about:blank", "_blank")
+        : null;
     startInvoiceTransition(async () => {
       const result = await openMasterBillPrint(folioId);
       if (!result.ok) {
+        printTab?.close();
         toast.error(result.error);
         return;
       }
-      toast.success("Tax invoice ready");
-      window.open(result.href, "_blank", "noopener,noreferrer");
+      if (printTab) {
+        printTab.location.href = result.href;
+      } else {
+        toast.success("Tax invoice ready", {
+          action: {
+            label: "Open bill",
+            onClick: () => {
+              window.open(result.href, "_blank", "noopener,noreferrer");
+            },
+          },
+        });
+      }
+      if (printTab) toast.success("Tax invoice ready");
       void fetchStayHubMoney(
         summary?.bookingId ?? seedStay?.booking_id ?? "",
       ).then((r) => {
         if (r.ok) setMoney(r.data);
       });
+      setPanel("stay_money");
+      setFolioTool("bill");
+      onPanelChange?.("stay_money");
     });
   };
 
