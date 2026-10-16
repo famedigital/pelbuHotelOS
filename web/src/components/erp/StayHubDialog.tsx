@@ -24,6 +24,7 @@ import {
   type StayHubSummary,
 } from "@/app/actions/stay-hub";
 import { undoCheckIn, sendStayToHousekeeping } from "@/app/actions/erp-checkin";
+import { openMasterBillPrint } from "@/app/actions/erp-folio-ops";
 import type { CalendarAgent } from "@/components/erp/CalendarReservationDialog";
 import { AgentPicker } from "@/components/erp/AgentPicker";
 import { StaffPicker, type BookableStaff } from "@/components/erp/StaffPicker";
@@ -558,6 +559,7 @@ export function StayHubDialog({
   const [splitPending, startSplitTransition] = useTransition();
   const [checkInFollowPending, startCheckInFollowTransition] = useTransition();
   const [sheetRatePending, startSheetRate] = useTransition();
+  const [invoicePending, startInvoiceTransition] = useTransition();
 
   const [summary, setSummary] = useState<StayHubSummary | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -2011,6 +2013,27 @@ export function StayHubDialog({
     setFolioTool("advanced");
     onPanelChange?.("stay_money");
   };
+  /** Issue INV- if needed and open master bill print (More → Invoice). */
+  const openOrIssueInvoice = () => {
+    if (!folioId) {
+      toast.error("Open the folio after check-in first.");
+      return;
+    }
+    startInvoiceTransition(async () => {
+      const result = await openMasterBillPrint(folioId);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Tax invoice ready");
+      window.open(result.href, "_blank", "noopener,noreferrer");
+      void fetchStayHubMoney(
+        summary?.bookingId ?? seedStay?.booking_id ?? "",
+      ).then((r) => {
+        if (r.ok) setMoney(r.data);
+      });
+    });
+  };
 
   const handleClose = () => {
     onOpenChange(false);
@@ -2420,10 +2443,11 @@ export function StayHubDialog({
   if (folioId) {
     moreActions.push({
       key: "invoice",
-      label: "Invoice (INV-)",
-      onSelect: () => {
-        openBill();
-      },
+      label: money?.hasInvoice
+        ? `Invoice (${money.invoiceNo ?? "INV-"})`
+        : "Issue tax invoice (INV-)",
+      disabled: invoicePending,
+      onSelect: openOrIssueInvoice,
     });
     const receiptHref = buildFolioPageHref({
       folioId,

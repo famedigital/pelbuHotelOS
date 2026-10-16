@@ -961,7 +961,12 @@ export async function fetchStayHubMoney(
           }> | null;
         }>
       | null) ?? [];
-  const openFolio = folios.find((f) => f.status === "open") ?? folios[0] ?? null;
+  // Prefer oldest open folio (matches check-in ensureOpenFolio).
+  const openFolios = folios.filter((f) => f.status === "open");
+  const openFolio =
+    openFolios.sort((a, b) => String(a.id).localeCompare(String(b.id)))[0] ??
+    folios[0] ??
+    null;
   const rawLines = (openFolio?.folio_lines ?? []) as Array<{
     id?: string;
     total_btn?: number;
@@ -1022,8 +1027,10 @@ export async function fetchStayHubMoney(
 
   const inv =
     (openFolio?.fiscal_documents ?? []).find(
-      (d) => d.doc_kind === "tax_invoice" || d.doc_kind === "invoice",
-    ) ?? (openFolio?.fiscal_documents ?? [])[0];
+      (d) =>
+        (d.doc_kind === "invoice" || d.doc_kind === "tax_invoice") &&
+        (d.status ?? "issued") === "issued",
+    ) ?? null;
 
   let roomPosOrders: Awaited<ReturnType<typeof loadRoomChargePosOrders>> = [];
   try {

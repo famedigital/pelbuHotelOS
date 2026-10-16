@@ -390,6 +390,7 @@ export function IssueInvoiceButton({
   invoiceDocId,
   embedded = false,
   secondary = false,
+  onIssued,
 }: {
   folioId: string;
   invoiceNo?: string | null;
@@ -397,9 +398,14 @@ export function IssueInvoiceButton({
   embedded?: boolean;
   /** Secondary CTA styling when always visible on the rail */
   secondary?: boolean;
+  /** Refresh StayHub money / parent after a successful issue. */
+  onIssued?: () => void;
 }) {
   const [state, action, pending] = useActionState(issueFolioInvoice, initial);
-  useActionToast(state, { successMessage: "Tax invoice issued" });
+  useActionToast(state, {
+    successMessage: "Tax invoice issued",
+    onSuccess: onIssued,
+  });
 
   if (invoiceNo) {
     return (

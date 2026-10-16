@@ -1,6 +1,9 @@
 "use client";
 
-import { putFnBOnAgentTab } from "@/app/actions/erp-folio-ops";
+import {
+  openMasterBillPrint,
+  putFnBOnAgentTab,
+} from "@/app/actions/erp-folio-ops";
 import type { StayHubMoneyPayload } from "@/app/actions/stay-hub";
 import type { BookableAgent } from "@/components/erp/AgentPicker";
 import { CheckOutForm } from "@/components/erp/CheckInForm";
@@ -8,6 +11,7 @@ import {
   IssueInvoiceButton,
   PostCheckInChargesForm,
 } from "@/components/erp/FolioOpsForms";
+import { toast } from "sonner";
 import {
   FolioPaymentForm,
   type FolioSettleMethod,
@@ -38,6 +42,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useTransition,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -359,8 +364,7 @@ export function DeskSettlePanel({
     <div className="space-y-1.5">
       {showBill ? (
         <p className="text-[10px] leading-snug text-muted-foreground">
-          In-stay bill — post charges and collect here. Void, comp, and manager
-          tools:{" "}
+          In-stay bill — issue tax invoice below, then collect. Void / comp:{" "}
           <Link
             href={stayFolioHref ?? `/erp/folios/${folioId}`}
             className="font-medium text-foreground underline-offset-2 hover:underline"
@@ -368,7 +372,7 @@ export function DeskSettlePanel({
             full folio
           </Link>
           {" · "}
-          Advanced tab.
+          Advanced.
         </p>
       ) : null}
       {/* Dense StayHub: due+settle live on left rail + footer — skip duplicate bar CTA */}
@@ -390,23 +394,29 @@ export function DeskSettlePanel({
             : undefined
         }
         invoiceSlot={
-          money?.invoiceDocId && showBill ? (
-            <Button
-              asChild
-              variant="outline"
-              className="min-h-8 h-8 px-2.5 text-xs"
-            >
-              <Link
-                href={`/erp/invoices/${money.invoiceDocId}/print?bill=master`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Invoice
-              </Link>
-            </Button>
+          showBill && folioId ? (
+            <CompactInvoiceSlot
+              folioId={folioId}
+              invoiceDocId={money?.invoiceDocId}
+              invoiceNo={money?.invoiceNo}
+              onIssued={onMoneyChanged}
+            />
           ) : null
         }
       />
+
+      {showBill && folioId && !money?.invoiceDocId ? (
+        <div className="rounded-md border border-border/80 bg-muted/10 px-2 py-1.5">
+          <IssueInvoiceButton
+            folioId={folioId}
+            invoiceNo={money?.invoiceNo}
+            invoiceDocId={money?.invoiceDocId}
+            embedded
+            secondary
+            onIssued={onMoneyChanged}
+          />
+        </div>
+      ) : null}
 
       {showBill && (hasPos || posTotal > 0.5) && tab === "room" ? (
         <button
@@ -807,6 +817,62 @@ function DueBar({
         {invoiceSlot}
       </div>
     </div>
+  );
+}
+
+/** Due-bar CTA: issue INV- (opens master bill) or open existing print. */
+function CompactInvoiceSlot({
+  folioId,
+  invoiceDocId,
+  invoiceNo,
+  onIssued,
+}: {
+  folioId: string;
+  invoiceDocId?: string | null;
+  invoiceNo?: string | null;
+  onIssued: () => void;
+}) {
+  const [pending, startTransition] = useTransition();
+
+  if (invoiceDocId) {
+    return (
+      <Button
+        asChild
+        variant="outline"
+        className="min-h-8 h-8 px-2.5 text-xs"
+      >
+        <Link
+          href={`/erp/invoices/${invoiceDocId}/print?bill=master`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {invoiceNo ? `Invoice ${invoiceNo}` : "Invoice"}
+        </Link>
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      disabled={pending}
+      className="min-h-8 h-8 px-2.5 text-xs"
+      onClick={() => {
+        startTransition(async () => {
+          const result = await openMasterBillPrint(folioId);
+          if (!result.ok) {
+            toast.error(result.error);
+            return;
+          }
+          toast.success("Tax invoice issued");
+          window.open(result.href, "_blank", "noopener,noreferrer");
+          onIssued();
+        });
+      }}
+    >
+      {pending ? "Issuing…" : "Issue invoice"}
+    </Button>
   );
 }
 

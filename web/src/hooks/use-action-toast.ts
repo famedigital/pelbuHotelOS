@@ -27,7 +27,12 @@ export function useActionToast(
   {
     successMessage,
     silentSuccess = false,
-  }: { successMessage?: string; silentSuccess?: boolean } = {},
+    onSuccess,
+  }: {
+    successMessage?: string;
+    silentSuccess?: boolean;
+    onSuccess?: () => void;
+  } = {},
 ) {
   const lastSignature = useRef<string>("");
 
@@ -44,8 +49,16 @@ export function useActionToast(
       if (!silentSuccess) {
         toast.success(successMessage ?? state.message ?? "Saved");
       }
+      onSuccess?.();
     } else if (state.error) {
       toast.error(state.error);
     }
-  }, [state.ok, state.error, state.message, successMessage, silentSuccess]);
+  }, [
+    state.ok,
+    state.error,
+    state.message,
+    successMessage,
+    silentSuccess,
+    onSuccess,
+  ]);
 }
