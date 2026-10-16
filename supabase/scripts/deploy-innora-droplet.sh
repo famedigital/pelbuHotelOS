@@ -87,11 +87,11 @@ fi
 
 echo "== stop RAM-waste Next duplicates (optional) =="
 docker stop pelbu-desk-live 2>/dev/null || true
-docker ps --format '{{.Names}}' | grep -E '^zkggxjoxur9j8hxcghclplhw-' \
-  | while read -r name; do
-      echo "Stopping Coolify duplicate $name"
-      docker stop -t 10 "$name" 2>/dev/null || true
-    done
+while read -r name; do
+  [ -n "$name" ] || continue
+  echo "Stopping Coolify duplicate $name"
+  docker stop -t 10 "$name" 2>/dev/null || true
+done < <(docker ps --format '{{.Names}}' | grep -E '^zkggxjoxur9j8hxcghclplhw-' || true)
 
 echo "== wait for health =="
 sleep 8
