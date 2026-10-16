@@ -24,6 +24,8 @@ import { redirect } from "next/navigation";
 export type AgentLoginState = {
   ok: boolean;
   error?: string;
+  /** Full-document navigation target — client uses location.assign (same as desk). */
+  home?: string;
 };
 
 function isRedirect(error: unknown): boolean {
@@ -44,6 +46,7 @@ async function setAgentPropertyCookie(propertyId: string | null) {
   jar.set(AGENT_PROPERTY_COOKIE, propertyId, {
     httpOnly: true,
     sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: 60 * 60 * 24 * 90,
   });
@@ -94,13 +97,15 @@ export async function agentLogin(
       .update({ last_login_at: new Date().toISOString() })
       .eq("id", agent.id);
 
+    // Client location.assign — soft redirect() from /agents/login drops auth
+    // cookies / paints the app shell without a session (login loop).
     if (links.length === 1) {
       await setAgentPropertyCookie(links[0]!.propertyId);
-      redirect("/agents/app");
+      return { ok: true, home: "/agents/app" };
     }
 
     await setAgentPropertyCookie(null);
-    redirect("/agents/app/select-property");
+    return { ok: true, home: "/agents/app/select-property" };
   } catch (error) {
     if (isRedirect(error)) throw error;
     return {

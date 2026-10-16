@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { TriangleAlertIcon } from "lucide-react";
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 
 const loginInitial: AgentLoginState = { ok: false };
 const pinInitial = {
@@ -25,6 +25,11 @@ const selectClass =
 
 export function AgentLoginForm() {
   const [state, action, pending] = useActionState(agentLogin, loginInitial);
+
+  useEffect(() => {
+    if (!state.ok || !state.home) return;
+    window.location.assign(state.home);
+  }, [state.ok, state.home]);
 
   return (
     <form action={action} className="space-y-4" noValidate>
@@ -60,8 +65,12 @@ export function AgentLoginForm() {
           <AlertDescription>{state.error}</AlertDescription>
         </Alert>
       ) : null}
-      <Button type="submit" disabled={pending} className="h-11 w-full">
-        {pending ? "Signing in…" : "Sign in"}
+      <Button
+        type="submit"
+        disabled={pending || Boolean(state.ok && state.home)}
+        className="h-11 w-full"
+      >
+        {pending || (state.ok && state.home) ? "Opening…" : "Sign in"}
       </Button>
     </form>
   );

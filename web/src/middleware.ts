@@ -147,6 +147,11 @@ export async function middleware(request: NextRequest) {
     if (url && anon) {
       try {
         const supabase = createServerClient(url, anon, {
+          cookieOptions: {
+            path: "/",
+            sameSite: "lax",
+            secure: process.env.NODE_ENV === "production",
+          },
           cookies: {
             getAll() {
               return request.cookies.getAll();
