@@ -37,11 +37,8 @@ export function AgentPaymentProofUpload({ bookingId }: { bookingId: string }) {
           signEndpoint: "/api/agents/cloudinary/sign-upload",
           allowPdf: true,
         });
-        const url =
-          (result as { secureUrl?: string }).secureUrl ||
-          cloudinaryUrl(result.publicId, {
-            resourceType: result.resourceType,
-          });
+        const url = result.secureUrl || cloudinaryUrl(result.publicId);
+        if (!url) throw new Error("Upload succeeded but no URL returned.");
         setDocUrl(url);
         setDocName(file.name.slice(0, 140));
       } catch (e) {

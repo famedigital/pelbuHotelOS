@@ -39,13 +39,12 @@ function hubHref(
   bookingId: string,
   status: string,
   checkIn: string,
-  checkOut: string,
+  _checkOut: string,
   today: string,
 ): string {
   const step = recommendStayHubStep({
     status,
     checkInDate: checkIn,
-    checkOutDate: checkOut,
     openBusinessDate: today,
     board: "auto",
   });
