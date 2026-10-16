@@ -668,7 +668,7 @@ body.pos-fs .erp [data-sidebar="rail"],
 body.pos-fs .erp [data-slot="sidebar"],
 body.pos-fs .erp [data-slot="sidebar-trigger"],
 body.pos-fs .erp [data-slot="sidebar-rail"],
-body.pos-fs .erp [data-slot="sidebar-inset"] > header,
+body.pos-fs .erp [data-slot="sidebar-inset"] header,
 body.pos-fs .erp [data-slot="desk-mobile-nav"],
 body.pos-fs .erp [data-slot="desk-nav-trigger"] {
   display: none !important;
@@ -684,12 +684,12 @@ body.pos-fs .erp [data-slot="sidebar-wrapper"] {
 /* Stay View phone: hide the desk header so the day list / rack gets the screen.
    Landscape / short screens also hide the bottom nav — the rack overlay covers it. */
 @media (max-width: 767px) {
-  .erp:has([data-stay-view]) [data-slot="sidebar-inset"] > header {
+  .erp:has([data-stay-view]) [data-slot="sidebar-inset"] header {
     display: none !important;
   }
 }
 @media (max-height: 640px) and (orientation: landscape) {
-  .erp:has([data-stay-view]) [data-slot="sidebar-inset"] > header,
+  .erp:has([data-stay-view]) [data-slot="sidebar-inset"] header,
   .erp:has([data-stay-view]) [data-slot="desk-mobile-nav"] {
     display: none !important;
   }

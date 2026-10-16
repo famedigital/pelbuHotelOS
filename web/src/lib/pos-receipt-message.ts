@@ -103,6 +103,32 @@ export function receiptWaShareHref(
   return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }
 
+/** Short WhatsApp body pointing at the guest receipt URL (OG preview). */
+export function buildPosReceiptWaLinkMessage(input: {
+  propertyName: string;
+  orderId: string;
+  customerName?: string | null;
+  totalBtn: number;
+  unpaid?: boolean;
+  shareUrl: string;
+}): string {
+  const hotel = input.propertyName.trim() || "Hotel";
+  const ref = orderRef(input.orderId);
+  const name = (input.customerName ?? "").trim();
+  const greeting = name ? `Hi ${name},` : "Hi,";
+  const kind = input.unpaid ? "order" : "receipt";
+  return [
+    greeting,
+    "",
+    `Here is your ${kind} from ${hotel} (${ref}) — ${formatBtn(input.totalBtn)}.`,
+    "",
+    "Open the link to view, print, or save as PDF:",
+    input.shareUrl,
+    "",
+    `Thank you · ${hotel}`,
+  ].join("\n");
+}
+
 export function buildPosReceiptMessage(input: PosReceiptMessageInput): string {
   const hotel = input.propertyName.trim() || "Hotel";
   const ref = orderRef(input.orderId);

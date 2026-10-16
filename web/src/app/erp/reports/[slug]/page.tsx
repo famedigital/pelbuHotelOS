@@ -12,6 +12,8 @@ import { formatBtn } from "@/lib/pricing";
 import {
   isReportSlug,
   loadAgentArReport,
+  loadAgentCommerceDetail,
+  loadAgentCommerceReport,
   loadCancellationsReport,
   loadDepositDueReport,
   loadFoOccupancyReport,
@@ -84,9 +86,9 @@ export default async function ReportRunnerPage({ params, searchParams }: Props) 
       admin
         .from("agents")
         .select("id, company_name")
-        .in("status", ["approved", "demo"])
+        .in("status", ["approved", "demo", "directory"])
         .order("company_name")
-        .limit(120),
+        .limit(200),
       admin
         .from("staff_members")
         .select("id, full_name")
@@ -151,7 +153,9 @@ export default async function ReportRunnerPage({ params, searchParams }: Props) 
               className="h-9 w-[10.5rem]"
             />
           </div>
-          {slug === "agent-production" || slug === "agent-ar" ? (
+          {slug === "agent-production" ||
+          slug === "agent-ar" ||
+          slug === "agent-commerce" ? (
             <label className="text-xs text-muted-foreground">
               Agent
               <select
@@ -225,6 +229,15 @@ export default async function ReportRunnerPage({ params, searchParams }: Props) 
       ) : null}
       {slug === "agent-ar" ? (
         <AgentArTable
+          propertyId={propertyId}
+          from={from}
+          to={to}
+          today={today}
+          agentId={agentId}
+        />
+      ) : null}
+      {slug === "agent-commerce" ? (
+        <AgentCommerceTable
           propertyId={propertyId}
           from={from}
           to={to}
@@ -363,6 +376,214 @@ async function AgentProductionTable({
         ))
       )}
     </DeskTable>
+  );
+}
+
+async function AgentCommerceTable({
+  propertyId,
+  from,
+  to,
+  today,
+  agentId,
+}: {
+  propertyId: string;
+  from: string;
+  to: string;
+  today: string;
+  agentId?: string;
+}) {
+  const admin = createSupabaseAdminClient();
+  let rows = await loadAgentCommerceReport(admin, {
+    propertyId,
+    from,
+    to,
+    today,
+  });
+  if (agentId) rows = rows.filter((r) => r.agent_id === agentId);
+
+  const detail = agentId
+    ? await loadAgentCommerceDetail(admin, {
+        propertyId,
+        agentId,
+        from,
+        to,
+        today,
+      })
+    : null;
+
+  return (
+    <div className="space-y-6">
+      {detail ? (
+        <div className="space-y-4 rounded-lg border bg-card p-4">
+          <div>
+            <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
+              {detail.company_name}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {detail.summary.stays} stays · {detail.summary.room_nights} RN ·
+              ~{detail.summary.stays_per_month}/mo · quoted{" "}
+              {formatBtn(detail.summary.quoted_btn)} · paid{" "}
+              {formatBtn(detail.summary.paid_btn)} · due{" "}
+              {formatBtn(detail.summary.outstanding_btn)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {detail.summary.habit}
+            </p>
+          </div>
+
+          <DeskTable
+            caption="Frequency by month"
+            headers={["Month", "Stays", "Rooms", "Room-nights"]}
+          >
+            {detail.by_month.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-3 py-4 text-muted-foreground">
+                  No stays in range.
+                </td>
+              </tr>
+            ) : (
+              detail.by_month.map((m) => (
+                <tr key={m.month} className="border-t">
+                  <td className="px-3 py-2.5 font-medium">{m.month}</td>
+                  <td className="px-3 py-2.5 tabular-nums">{m.stays}</td>
+                  <td className="px-3 py-2.5 tabular-nums">{m.rooms}</td>
+                  <td className="px-3 py-2.5 tabular-nums">{m.room_nights}</td>
+                </tr>
+              ))
+            )}
+          </DeskTable>
+
+          <DeskTable
+            caption="Payments (dates)"
+            headers={["Paid on", "Amount", "Method", "Stay in", "Guest"]}
+          >
+            {detail.payments.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-3 py-4 text-muted-foreground">
+                  No ERP payments recorded for this agent’s bookings yet.
+                </td>
+              </tr>
+            ) : (
+              detail.payments.map((p, i) => (
+                <tr key={`${p.paid_at}-${i}`} className="border-t">
+                  <td className="px-3 py-2.5 tabular-nums">{p.paid_at}</td>
+                  <td className="px-3 py-2.5 tabular-nums">
+                    {formatBtn(p.amount_btn)}
+                  </td>
+                  <td className="px-3 py-2.5">{p.method}</td>
+                  <td className="px-3 py-2.5 tabular-nums">
+                    {p.booking_check_in ?? "—"}
+                  </td>
+                  <td className="px-3 py-2.5">{p.guest ?? "—"}</td>
+                </tr>
+              ))
+            )}
+          </DeskTable>
+
+          <DeskTable
+            caption="Stays in range"
+            headers={[
+              "Check-in",
+              "Check-out",
+              "R",
+              "RN",
+              "Guest",
+              "Status",
+              "Quoted",
+            ]}
+          >
+            {detail.stays.map((s) => (
+              <tr key={s.id} className="border-t">
+                <td className="px-3 py-2.5 tabular-nums">{s.check_in}</td>
+                <td className="px-3 py-2.5 tabular-nums">{s.check_out}</td>
+                <td className="px-3 py-2.5 tabular-nums">{s.rooms}</td>
+                <td className="px-3 py-2.5 tabular-nums">{s.room_nights}</td>
+                <td className="px-3 py-2.5">{s.guest ?? "—"}</td>
+                <td className="px-3 py-2.5 text-muted-foreground">
+                  {s.status}
+                </td>
+                <td className="px-3 py-2.5 tabular-nums">
+                  {formatBtn(s.quoted_btn)}
+                </td>
+              </tr>
+            ))}
+          </DeskTable>
+
+          <div className="flex flex-wrap gap-2 print:hidden">
+            <Button asChild size="sm" variant="outline" className="h-9">
+              <Link
+                href={`/erp/agents/${detail.agent_id}?tab=money&from=${from}&to=${to}`}
+              >
+                Open dossier money →
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="ghost" className="h-9">
+              <Link
+                href={`/erp/reports/agent-commerce?from=${from}&to=${to}`}
+              >
+                All agents
+              </Link>
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      <DeskTable
+        caption="Agent commerce"
+        headers={[
+          "Agent",
+          "Stays",
+          "RN",
+          "Quoted",
+          "Paid",
+          "Due",
+          "Stays/mo",
+          "Pay lag",
+          "Habit",
+          "",
+        ]}
+      >
+        {rows.length === 0 ? (
+          <tr>
+            <td colSpan={10} className="px-3 py-6 text-muted-foreground">
+              No agent commerce activity in this range.
+            </td>
+          </tr>
+        ) : (
+          rows.map((r) => (
+            <tr key={r.agent_id} className="border-t">
+              <td className="px-3 py-2.5 font-medium">{r.company_name}</td>
+              <td className="px-3 py-2.5 tabular-nums">{r.stays}</td>
+              <td className="px-3 py-2.5 tabular-nums">{r.room_nights}</td>
+              <td className="px-3 py-2.5 tabular-nums">
+                {formatBtn(r.quoted_btn)}
+              </td>
+              <td className="px-3 py-2.5 tabular-nums">
+                {formatBtn(r.paid_btn)}
+              </td>
+              <td className="px-3 py-2.5 tabular-nums">
+                {formatBtn(r.outstanding_btn)}
+              </td>
+              <td className="px-3 py-2.5 tabular-nums">{r.stays_per_month}</td>
+              <td className="px-3 py-2.5 tabular-nums text-muted-foreground">
+                {r.avg_days_to_pay == null ? "—" : `${r.avg_days_to_pay}d`}
+              </td>
+              <td className="max-w-[12rem] px-3 py-2.5 text-xs text-muted-foreground">
+                {r.habit}
+              </td>
+              <td className="px-3 py-2.5 text-right">
+                <Link
+                  href={`/erp/reports/agent-commerce?from=${from}&to=${to}&agent_id=${r.agent_id}`}
+                  className="text-accent underline-offset-4 hover:underline"
+                >
+                  Detail →
+                </Link>
+              </td>
+            </tr>
+          ))
+        )}
+      </DeskTable>
+    </div>
   );
 }
 

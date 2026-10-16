@@ -9,9 +9,11 @@ import {
 } from "@/components/erp/pos/PosPaidReceipt";
 import { Button } from "@/components/ui/button";
 import { orderRef } from "@/lib/order-ref";
-import { buildPosReceiptMessage } from "@/lib/pos-receipt-message";
+import {
+  buildPosReceiptMessage,
+  buildPosReceiptWaLinkMessage,
+} from "@/lib/pos-receipt-message";
 import type { DocumentPaperSize } from "@/lib/property-settings";
-import Link from "next/link";
 import { useMemo, useState } from "react";
 
 export function PosReceiptStage({
@@ -19,34 +21,45 @@ export function PosReceiptStage({
   property,
   initialPaper,
   darken,
+  shareUrl,
 }: {
   order: PosPaidReceiptData;
   property: PosPaidReceiptProperty;
   initialPaper: DocumentPaperSize;
   darken: number;
+  /** Signed public guest URL for WhatsApp / copy link. */
+  shareUrl?: string | null;
 }) {
   const [paper, setPaper] = useState<DocumentPaperSize>(initialPaper);
   const unpaid = !order.settledAt;
 
-  const shareText = useMemo(
-    () =>
-      buildPosReceiptMessage({
+  const shareText = useMemo(() => {
+    if (shareUrl) {
+      return buildPosReceiptWaLinkMessage({
         propertyName: property.name,
         orderId: order.orderId,
         customerName: order.customerName,
-        outlet: order.outlet,
-        createdAt: order.createdAt,
-        settledAt: order.settledAt,
-        subtotalBtn: order.subtotalBtn,
-        serviceChargeBtn: order.serviceChargeBtn,
-        gstBtn: order.gstBtn,
         totalBtn: order.totalBtn,
-        lines: order.lines,
-        tenders: order.tenders,
         unpaid,
-      }),
-    [order, property.name, unpaid],
-  );
+        shareUrl,
+      });
+    }
+    return buildPosReceiptMessage({
+      propertyName: property.name,
+      orderId: order.orderId,
+      customerName: order.customerName,
+      outlet: order.outlet,
+      createdAt: order.createdAt,
+      settledAt: order.settledAt,
+      subtotalBtn: order.subtotalBtn,
+      serviceChargeBtn: order.serviceChargeBtn,
+      gstBtn: order.gstBtn,
+      totalBtn: order.totalBtn,
+      lines: order.lines,
+      tenders: order.tenders,
+      unpaid,
+    });
+  }, [order, property.name, unpaid, shareUrl]);
 
   return (
     <div
@@ -72,16 +85,16 @@ export function PosReceiptStage({
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline" className="h-10">
-            <Link href="/erp/pos">Back to POS</Link>
+            <a href="/erp/pos">Back to POS</a>
           </Button>
           {unpaid ? (
             <Button asChild variant="default" className="h-10">
-              <Link href="/erp/pos">Settle on POS</Link>
+              <a href="/erp/pos">Settle on POS</a>
             </Button>
           ) : null}
           {order.folioId ? (
             <Button asChild variant="outline" className="h-10">
-              <Link href={`/erp/folios/${order.folioId}`}>Open folio</Link>
+              <a href={`/erp/folios/${order.folioId}`}>Open folio</a>
             </Button>
           ) : null}
           <DocPrintControls
@@ -89,25 +102,41 @@ export function PosReceiptStage({
             printLabel="Print receipt"
             onSizeChange={setPaper}
           />
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10"
+            onClick={() => window.print()}
+          >
+            Save PDF
+          </Button>
         </div>
       </div>
 
-      <div className="grid gap-4 print:hidden md:grid-cols-2">
+      <div className="grid gap-4 print:hidden md:grid-cols-2 md:items-stretch">
         <ReceiptShareActions
           messageText={shareText}
           defaultPhone={order.phone}
           defaultName={order.customerName}
           orderId={order.orderId}
           title="WhatsApp & email"
+          shareUrl={shareUrl}
         />
-        <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
+        <div className="flex h-full flex-col rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
           <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
             Tips
           </p>
-          <ul className="mt-2 list-disc space-y-1 pl-4">
-            <li>WhatsApp opens on this phone or till with the receipt text.</li>
+          <ul className="mt-2 list-disc space-y-1.5 pl-4">
+            <li>
+              WhatsApp sends a preview link — guest opens it to view, print, or
+              save PDF.
+            </li>
+            <li>
+              On this page use <span className="font-medium text-foreground">Save PDF</span>{" "}
+              (print dialog → Save as PDF).
+            </li>
             <li>Email needs RESEND configured on the server.</li>
-            <li>Print still uses the preview below.</li>
+            <li>Print / Save PDF uses the preview below.</li>
           </ul>
         </div>
       </div>

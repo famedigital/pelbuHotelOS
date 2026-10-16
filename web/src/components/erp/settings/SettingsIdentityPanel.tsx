@@ -9,6 +9,7 @@ import {
 import { PropertyWizardForm } from "@/components/erp/PropertyWizardForms";
 import { LogoUploadForm } from "@/components/erp/LogoUploadForm";
 import { LogoNavLayoutForm } from "@/components/erp/settings/LogoNavLayoutForm";
+import { SettingsAiAssistPanel } from "@/components/erp/settings/SettingsAiAssistPanel";
 import { SettingsDeskSecurityPanel } from "@/components/erp/settings/SettingsDeskSecurityPanel";
 import { SettingsSection } from "@/components/erp/settings/SettingsSection";
 import { Button } from "@/components/ui/button";
@@ -23,11 +24,17 @@ export function SettingsIdentityPanel({
   tenant,
   deskRestrictToScheduledShifts = false,
   canEditDeskSecurity = false,
+  aiAssist,
 }: {
   property: PropertyRow;
   tenant: TenantRow | null;
   deskRestrictToScheduledShifts?: boolean;
   canEditDeskSecurity?: boolean;
+  aiAssist?: {
+    enabled: boolean;
+    model: string;
+    maskedKey: string | null;
+  };
 }) {
   return (
     <div className="space-y-6">
@@ -36,6 +43,16 @@ export function SettingsIdentityPanel({
         deskRestrictToScheduledShifts={deskRestrictToScheduledShifts}
         canEdit={canEditDeskSecurity}
       />
+
+      {aiAssist ? (
+        <SettingsAiAssistPanel
+          propertyId={property.id}
+          enabled={aiAssist.enabled}
+          model={aiAssist.model}
+          maskedKey={aiAssist.maskedKey}
+          canEdit={canEditDeskSecurity}
+        />
+      ) : null}
 
       <SettingsSection
         eyebrow="Logo"

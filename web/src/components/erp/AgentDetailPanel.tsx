@@ -271,24 +271,29 @@ export function AgentDetailPanel({
   agent,
   documents,
   compact = false,
+  hideCockpitLink = false,
 }: {
   agent: DeskAgentRow;
   documents: AgentDocumentRow[];
   compact?: boolean;
+  /** When already on dossier overview. */
+  hideCockpitLink?: boolean;
 }) {
   const available = Math.max(0, agent.credit_limit - agent.credit_used);
 
   return (
     <div className={`space-y-4 ${compact ? "text-sm" : ""}`}>
       <div className="flex flex-wrap items-center gap-2">
-        <Button asChild size={compact ? "sm" : "default"}>
-          <Link href={`/erp/agents/${agent.id}`}>Open dossier</Link>
-        </Button>
+        {hideCockpitLink ? null : (
+          <Button asChild size={compact ? "sm" : "default"}>
+            <Link href={`/erp/agents/${agent.id}`}>Open cockpit</Link>
+          </Button>
+        )}
         <Button asChild variant="outline" size={compact ? "sm" : "default"}>
           <Link href={`/erp/agents/${agent.id}?tab=money`}>Credit & statement</Link>
         </Button>
         <Button asChild variant="outline" size={compact ? "sm" : "default"}>
-          <Link href="/erp/rate-plans">Rate plans</Link>
+          <Link href="/erp/rates">Rates sheet</Link>
         </Button>
         <span className="text-xs text-muted-foreground">
           Available {formatBtn(available)} of {formatBtn(agent.credit_limit)}

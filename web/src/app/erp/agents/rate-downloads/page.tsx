@@ -9,7 +9,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { DEFAULT_PROPERTY_SLUG } from "@/lib/property";
+import {
+  loadProperty,
+  resolveActivePropertyId,
+} from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -51,21 +54,23 @@ export default async function ErpAgentRateDownloadsPage() {
   }
 
   const admin = createSupabaseAdminClient();
-  const { data: property } = await admin
-    .from("properties")
-    .select("id, name")
-    .eq("slug", DEFAULT_PROPERTY_SLUG)
-    .maybeSingle();
+  let property: Awaited<ReturnType<typeof loadProperty>> = null;
+  try {
+    const propertyId = await resolveActivePropertyId(admin);
+    property = await loadProperty(admin, propertyId);
+  } catch {
+    property = null;
+  }
 
   if (!property?.id) {
     return (
       <DeskListShell
         heading="Rate card downloads"
-        subtitle="Property not found."
+        subtitle="No property selected."
       >
         <DeskEmptyState
           title="No property"
-          description="Configure the flagship property first."
+          description="Select a property from the switcher, or finish hotel setup."
         />
       </DeskListShell>
     );

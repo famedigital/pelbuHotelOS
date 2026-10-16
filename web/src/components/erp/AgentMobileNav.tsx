@@ -11,22 +11,24 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import {
+  BedDoubleIcon,
   CalendarDaysIcon,
   EllipsisIcon,
   PlusCircleIcon,
   UserRoundIcon,
+  WalletIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const ITEMS = [
+  { href: "/agents/app/stays", label: "Stays", icon: BedDoubleIcon },
   { href: "/agents/app/book", label: "Book", icon: PlusCircleIcon },
-  { href: "/agents/app/calendar", label: "Calendar", icon: CalendarDaysIcon },
-  { href: "/agents/app", label: "Account", icon: UserRoundIcon, exact: true },
+  { href: "/agents/app/calendar", label: "Avail", icon: CalendarDaysIcon },
+  { href: "/agents/app/money", label: "Money", icon: WalletIcon },
 ] as const;
 
-function isActive(pathname: string, href: string, exact?: boolean): boolean {
-  if (exact) return pathname === href;
+function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -36,15 +38,11 @@ export function AgentMobileNav() {
   return (
     <nav
       aria-label="Agent navigation"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-background pb-[env(safe-area-inset-bottom)] md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
     >
-      <div className="mx-auto grid h-16 max-w-md grid-cols-4">
+      <div className="mx-auto grid h-16 max-w-lg grid-cols-5">
         {ITEMS.map((tab) => {
-          const active = isActive(
-            pathname,
-            tab.href,
-            "exact" in tab ? Boolean(tab.exact) : false,
-          );
+          const active = isActive(pathname, tab.href);
           const Icon = tab.icon;
           return (
             <Link
@@ -53,7 +51,7 @@ export function AgentMobileNav() {
               aria-current={active ? "page" : undefined}
               className={cn(
                 "relative flex min-h-11 flex-col items-center justify-center gap-1 text-[11px] font-medium text-muted-foreground",
-                active && "text-primary",
+                active && "text-sky-800",
               )}
             >
               <Icon className="size-5" strokeWidth={active ? 2.4 : 1.8} />
@@ -61,7 +59,7 @@ export function AgentMobileNav() {
               {active ? (
                 <span
                   aria-hidden
-                  className="absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-primary"
+                  className="absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-sky-600"
                 />
               ) : null}
             </Link>
@@ -91,7 +89,16 @@ export function AgentMobileNav() {
                   className="flex min-h-12 items-center gap-3 rounded-xl border border-border px-4 text-sm"
                 >
                   <UserRoundIcon className="size-4" />
-                  Account
+                  Home & rates
+                </Link>
+              </SheetClose>
+              <SheetClose asChild>
+                <Link
+                  href="/agents/app/money/statement"
+                  className="flex min-h-12 items-center gap-3 rounded-xl border border-border px-4 text-sm"
+                >
+                  <WalletIcon className="size-4" />
+                  Statement
                 </Link>
               </SheetClose>
               <form action={agentLogout}>

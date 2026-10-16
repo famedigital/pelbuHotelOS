@@ -25,10 +25,10 @@ export function FoTodayWorklist({ actions }: { actions: FoNextAction[] }) {
           No desk jobs for this hotel day
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Walk-in from Stay View — click an empty room on today.
+          Walk-in from Rack — click an empty room on today.
         </p>
         <Button asChild variant="default" className="mt-4 min-h-11">
-          <Link href="/erp/calendar">Open Stay View</Link>
+          <Link href="/erp/calendar">Open Rack</Link>
         </Button>
       </div>
     );

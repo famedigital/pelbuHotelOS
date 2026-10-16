@@ -42,6 +42,14 @@ export type AgentDossierAgent = {
   credit_limit: number;
   credit_used: number;
   open_room_cap: number;
+  /** Extra fields for dossier desk writes panel. */
+  dzongkhag: string | null;
+  license_url: string | null;
+  notes: string | null;
+  wants_mou: boolean;
+  approved_at: string | null;
+  created_at: string;
+  portal_token: string | null;
 };
 
 export type AgentDossierPack = {
@@ -75,6 +83,8 @@ export type AgentDossierBooking = {
   folio_id: string | null;
   folio_label: string | null;
   nights: number;
+  /** Guest ledger due on open folio (same formula as Hub). */
+  balance_btn: number;
 };
 
 export type AgentDossierGuest = {
@@ -269,7 +279,7 @@ export async function loadAgentDossier(
   const { data: agentRow } = await admin
     .from("agents")
     .select(
-      "id, company_name, market, contact_name, contact_phone, contact_email, status, rate_tier, credit_limit, credit_used, open_room_cap",
+      "id, company_name, market, dzongkhag, contact_name, contact_phone, contact_email, status, rate_tier, credit_limit, credit_used, open_room_cap, license_url, notes, wants_mou, approved_at, created_at, portal_token",
     )
     .eq("id", agentId)
     .maybeSingle();
@@ -287,6 +297,13 @@ export async function loadAgentDossier(
     credit_limit: Number(agentRow.credit_limit ?? 0),
     credit_used: Number(agentRow.credit_used ?? 0),
     open_room_cap: Number(agentRow.open_room_cap ?? 15),
+    dzongkhag: (agentRow.dzongkhag as string | null) ?? null,
+    license_url: (agentRow.license_url as string | null) ?? null,
+    notes: (agentRow.notes as string | null) ?? null,
+    wants_mou: Boolean(agentRow.wants_mou),
+    approved_at: (agentRow.approved_at as string | null) ?? null,
+    created_at: (agentRow.created_at as string) ?? today,
+    portal_token: (agentRow.portal_token as string | null) ?? null,
   };
 
   const { data: bookingRows } = await admin
@@ -301,9 +318,13 @@ export async function loadAgentDossier(
 
   const bookings: AgentDossierBooking[] = (bookingRows ?? []).map((b) => {
     const folios = (b.folios as FolioJoin[] | null) ?? [];
-    const folio = folios[0] ?? null;
+    const folio =
+      folios.find((f) => f.status === "open") ?? folios[0] ?? null;
     const checkIn = b.check_in as string;
     const checkOut = b.check_out as string;
+    const balance_btn = folio
+      ? netFolioBalance(folio.folio_lines ?? [])
+      : 0;
     return {
       id: b.id as string,
       contact_name: (b.contact_name as string | null) ?? null,
@@ -317,6 +338,7 @@ export async function loadAgentDossier(
       folio_id: folio?.id ?? null,
       folio_label: folio?.label ?? null,
       nights: daysBetweenIso(checkIn, checkOut),
+      balance_btn,
     };
   });
 

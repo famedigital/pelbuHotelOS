@@ -31,6 +31,31 @@ export default async function ErpTrainingPage() {
         description="Short role manuals with checklist progress. Complete before owner runs the settings danger-zone wipe."
       />
       <section
+        id="stayview-hub"
+        className="scroll-mt-20 rounded-lg border bg-card px-4 py-3 text-sm"
+      >
+        <h2 className="text-base font-semibold tracking-tight">
+          How StayView + Hub works
+        </h2>
+        <p className="mt-1.5 text-muted-foreground">
+          Daily desk = two surfaces. StayView shows the hotel today; tap a stay
+          to open Hub for check-in, rate, bill, invoice, collect, and checkout.
+          POS and Night close stay in the primary nav. Gemini Assist drafts
+          only — every money write needs Confirm (and manager PIN when period
+          rules already require it).
+        </p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          <a
+            href="/erp/stayview"
+            className="font-medium text-foreground underline-offset-2 hover:underline"
+          >
+            Open StayView
+          </a>
+          {" · "}
+          Settings → Identity → Gemini Assist for the property API key.
+        </p>
+      </section>
+      <section
         id="stay-money"
         className="scroll-mt-20 rounded-lg border bg-card px-4 py-3 text-sm"
       >
@@ -38,7 +63,7 @@ export default async function ErpTrainingPage() {
           How stay money works
         </h2>
         <p className="mt-1.5 text-muted-foreground">
-          Guest due is one number everywhere — StayHub Folio, Open bills, Unpaid
+          Guest due is one number everywhere — Hub Folio, Open bills, Unpaid
           bills, and invoice print (when charges exist). Nightly base is the
           agreed sheet rate; posted room lines include tax/SC as configured.
           Void wrong lines first (manager PIN if the night is period-locked),
@@ -49,10 +74,10 @@ export default async function ErpTrainingPage() {
         <p className="mt-2 text-xs text-muted-foreground">
           Architecture:{" "}
           <a
-            href="/erp/unpaid-bills"
+            href="/erp/stayview"
             className="font-medium text-foreground underline-offset-2 hover:underline"
           >
-            Unpaid bills
+            StayView
           </a>
           {" · "}
           empty invoice print links here when all lines were voided.

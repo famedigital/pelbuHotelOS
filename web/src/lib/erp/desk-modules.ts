@@ -139,6 +139,7 @@ export function defaultModulesForDeskRole(
     case "front_desk":
       return [
         "dashboard",
+        "/erp/stayview",
         "/erp/today",
         "/erp/arrivals",
         "/erp/in-house",
@@ -165,7 +166,7 @@ export function deskHomeHrefForRole(
 ): string {
   switch (role) {
     case "front_desk":
-      return "/erp/today";
+      return "/erp/stayview";
     case "kitchen":
       return "/erp/kitchen";
     case "cashier":
@@ -181,20 +182,20 @@ export function deskHomeHrefForRole(
     case "gm":
       return "/erp/finance";
     default:
-      return "/erp/today";
+      return "/erp/stayview";
   }
 }
 
 /**
  * Post-login desk home — prefers role home; shared PIN with no staff role →
- * Front desk Today (not bare `/erp`).
+ * StayView (not bare `/erp`).
  */
 export function resolveDeskHomeHref(opts: {
   deskRole: DeskRole | null | undefined;
   pinOnlySession?: boolean;
 }): string {
   if (opts.pinOnlySession && !opts.deskRole) {
-    return "/erp/today";
+    return "/erp/stayview";
   }
   return deskHomeHrefForRole(opts.deskRole);
 }
@@ -295,8 +296,10 @@ function tabHrefGranted(href: string, grants: readonly string[]): boolean {
   if (href === "/erp" && grants.includes("dashboard")) return true;
   // Today is the FO home; legacy arrivals grants still open it.
   if (
-    href === "/erp/today" &&
-    (grants.includes("/erp/arrivals") || grants.includes("front-desk"))
+    (href === "/erp/today" || href === "/erp/stayview") &&
+    (grants.includes("/erp/arrivals") ||
+      grants.includes("/erp/stayview") ||
+      grants.includes("front-desk"))
   ) {
     return true;
   }

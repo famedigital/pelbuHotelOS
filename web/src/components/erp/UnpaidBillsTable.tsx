@@ -134,9 +134,19 @@ export function UnpaidBillsTable({
           </td>
           <td className="px-3 py-2.5 print:hidden">
             <div className="flex flex-wrap gap-1">
-              {row.folioId ? (
+              {row.bookingId ? (
                 <Button asChild size="sm" variant="default" className="h-8">
-                  <Link href={`/erp/folios/${row.folioId}`}>Collect</Link>
+                  <Link
+                    href={`/erp/stayview?booking=${encodeURIComponent(row.bookingId)}&step=stay_money`}
+                  >
+                    Collect
+                  </Link>
+                </Button>
+              ) : row.folioId ? (
+                <Button asChild size="sm" variant="default" className="h-8">
+                  <Link href={`/erp/folios/${row.folioId}?advanced=1`}>
+                    Collect
+                  </Link>
                 </Button>
               ) : row.agentId ? (
                 <Button asChild size="sm" variant="default" className="h-8">

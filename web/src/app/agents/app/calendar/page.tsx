@@ -1,4 +1,13 @@
-import { requireAgentSession } from "@/lib/agent-auth";
+import { HoldCountdown } from "@/components/erp/HoldCountdown";
+import {
+  AgentGhostLink,
+  AgentPageHero,
+  AgentPrimaryLink,
+  AgentSection,
+  AgentStatusPill,
+  bookingStatusTone,
+} from "@/components/erp/agent-portal/AgentPortalChrome";
+import { requireAgentPropertySession } from "@/lib/agent-auth";
 import {
   addDaysIso,
   loadAgentBookings,
@@ -6,30 +15,16 @@ import {
   type DayOccupancy,
 } from "@/lib/agent-occupancy";
 import { formatBtn } from "@/lib/pricing";
-import { pelbuPropertyId } from "@/lib/rates";
+import { thimphuToday } from "@/lib/erp-lists";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 const WINDOW_NIGHTS = 30;
 
-function thimphuTodayIso(): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Thimphu",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-  return parts;
-}
-
 type Availability = "open" | "limited" | "full";
 
-/**
- * Collapse occupancy into a coarse band. Agents must not be able to read the
- * hotel's booking volume, so exact sold/remaining counts never reach the page —
- * only whether they can still ask for rooms that night.
- */
 function availabilityFor(day: DayOccupancy): Availability {
   if (day.capacity === 0 || day.remaining === 0) return "full";
   if (day.remaining <= Math.max(1, Math.round(day.capacity * 0.2))) {
@@ -45,23 +40,30 @@ const AVAILABILITY_LABEL: Record<Availability, string> = {
 };
 
 const AVAILABILITY_TONE: Record<Availability, string> = {
-  open: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  limited: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  full: "bg-destructive/10 text-destructive",
+  open: "bg-emerald-500/15 text-emerald-800 ring-1 ring-emerald-500/20",
+  limited: "bg-amber-500/15 text-amber-900 ring-1 ring-amber-500/25",
+  full: "bg-destructive/10 text-destructive ring-1 ring-destructive/20",
 };
 
 export default async function AgentCalendarPage() {
-  const session = await requireAgentSession();
+  const session = await requireAgentPropertySession();
   const admin = createSupabaseAdminClient();
-  const propertyId = await pelbuPropertyId(admin);
-
-  const start = thimphuTodayIso();
+  const propertyId = session.activePropertyId;
+  const today = thimphuToday();
+  const start = today;
   const end = addDaysIso(start, WINDOW_NIGHTS);
 
-  const [occupancy, bookings] = await Promise.all([
-    loadOccupancyWindow(admin, propertyId, start, end),
-    loadAgentBookings(admin, session.agentId, 60),
-  ]);
+  let occupancy: DayOccupancy[] = [];
+  let bookings: Awaited<ReturnType<typeof loadAgentBookings>> = [];
+
+  try {
+    [occupancy, bookings] = await Promise.all([
+      loadOccupancyWindow(admin, propertyId, start, end),
+      loadAgentBookings(admin, session.agentId, 60, propertyId),
+    ]);
+  } catch (e) {
+    console.error("agent calendar load failed", e);
+  }
 
   const ownDates = new Set<string>();
   for (const booking of bookings) {
@@ -72,23 +74,30 @@ export default async function AgentCalendarPage() {
     }
   }
 
+  const held = bookings.filter((b) => b.status === "held" && b.holdExpiresAt);
+
   return (
-    <div className="space-y-8">
-      <section className="space-y-3">
-        <div>
-          <h1 className="text-lg font-semibold">Availability</h1>
-          <p className="text-sm text-muted-foreground">
-            Whether we can take rooms over the next {WINDOW_NIGHTS} nights. Room
-            numbers, other guests, and other partners stay private.
-          </p>
-        </div>
+    <div className="space-y-7">
+      <AgentPageHero
+        eyebrow="Availability"
+        title="Free-sell calendar"
+        blurb={`Next ${WINDOW_NIGHTS} nights — bands only (Open / Limited / Full). Exact counts stay private.`}
+        actions={
+          <>
+            <AgentPrimaryLink href="/agents/app/book">Hold rooms</AgentPrimaryLink>
+            <AgentGhostLink href="/agents/app/stays">Stays table</AgentGhostLink>
+          </>
+        }
+      />
+
+      <AgentSection title="Hotel bands" description="Your nights ringed in sky">
         <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-          <Legend className="bg-emerald-500/20" label="Open" />
-          <Legend className="bg-amber-500/20" label="Limited" />
-          <Legend className="bg-destructive/20" label="Full" />
-          <Legend className="border border-primary" label="Your stay" />
+          <Legend className="bg-emerald-500/30" label="Open" />
+          <Legend className="bg-amber-500/30" label="Limited" />
+          <Legend className="bg-destructive/30" label="Full" />
+          <Legend className="ring-2 ring-sky-600" label="Your stay" />
         </div>
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-7">
+        <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-7">
           {occupancy.map((day) => {
             const availability = availabilityFor(day);
             const mine = ownDates.has(day.date);
@@ -96,8 +105,8 @@ export default async function AgentCalendarPage() {
             return (
               <div
                 key={day.date}
-                className={`rounded-lg px-2 py-2 text-center ${AVAILABILITY_TONE[availability]} ${
-                  mine ? "ring-2 ring-primary ring-offset-1" : ""
+                className={`rounded-xl px-2 py-2.5 text-center ${AVAILABILITY_TONE[availability]} ${
+                  mine ? "ring-2 ring-sky-600 ring-offset-2 ring-offset-background" : ""
                 }`}
               >
                 <p className="text-[10px] uppercase opacity-70">
@@ -107,49 +116,89 @@ export default async function AgentCalendarPage() {
                   })}
                 </p>
                 <p className="text-sm font-semibold">{date.getUTCDate()}</p>
-                <p className="text-[11px]">
+                <p className="text-[11px] font-medium">
                   {AVAILABILITY_LABEL[availability]}
                 </p>
               </div>
             );
           })}
         </div>
-        <p className="text-xs text-muted-foreground">
-          Ask for exact rooms on the Book tab — we confirm what is free for your
-          dates there.
-        </p>
-      </section>
+      </AgentSection>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold">Your bookings</h2>
+      {held.length > 0 ? (
+        <AgentSection title="Open holds" description="Timer until desk confirms">
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {held.map((b) => (
+              <li
+                key={b.id}
+                className="rounded-2xl border border-amber-400/40 bg-amber-50/70 px-4 py-3"
+              >
+                <Link
+                  href={`/agents/app/stays/${b.id}`}
+                  className="text-sm font-semibold text-sky-900 underline-offset-4 hover:underline"
+                >
+                  {b.checkIn} → {b.checkOut}
+                </Link>
+                {b.holdExpiresAt ? (
+                  <div className="mt-2">
+                    <HoldCountdown expiresAt={b.holdExpiresAt} />
+                  </div>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </AgentSection>
+      ) : null}
+
+      <AgentSection
+        title="Your bookings"
+        description="Open the stays table for invoices & proofs"
+        action={
+          <Link
+            href="/agents/app/stays"
+            className="text-sm font-medium text-sky-700 underline-offset-4 hover:underline"
+          >
+            Full table
+          </Link>
+        }
+      >
         {bookings.length === 0 ? (
-          <p className="rounded-xl border border-border px-4 py-5 text-sm text-muted-foreground">
+          <p className="rounded-2xl border border-dashed px-4 py-6 text-sm text-muted-foreground">
             No bookings yet.
           </p>
         ) : (
           <ul className="space-y-2">
-            {bookings.map((b) => (
+            {bookings.slice(0, 12).map((b) => (
               <li
                 key={b.id}
-                className="flex items-center justify-between rounded-xl border border-border px-4 py-3 text-sm"
+                className="flex items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card px-4 py-3"
               >
                 <div>
-                  <p className="font-medium">
+                  <Link
+                    href={`/agents/app/stays/${b.id}`}
+                    className="text-sm font-semibold underline-offset-4 hover:underline"
+                  >
                     {b.checkIn} → {b.checkOut}
-                  </p>
-                  <p className="text-muted-foreground">
-                    {b.rooms} room{b.rooms === 1 ? "" : "s"} · {b.status}
-                    {b.guideNumber ? ` · guide ${b.guideNumber}` : ""}
-                  </p>
+                  </Link>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <AgentStatusPill tone={bookingStatusTone(b.status)}>
+                      {b.status.replace(/_/g, " ")}
+                    </AgentStatusPill>
+                    <span className="text-xs text-muted-foreground">
+                      {b.rooms} room{b.rooms === 1 ? "" : "s"}
+                    </span>
+                  </div>
                 </div>
-                <span className="tabular-nums text-muted-foreground">
-                  {b.quotedTotalBtn == null ? "—" : formatBtn(b.quotedTotalBtn)}
+                <span className="text-sm font-semibold tabular-nums">
+                  {b.quotedTotalBtn == null
+                    ? "—"
+                    : formatBtn(b.quotedTotalBtn)}
                 </span>
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </AgentSection>
     </div>
   );
 }

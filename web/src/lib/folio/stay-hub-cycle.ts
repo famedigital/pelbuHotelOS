@@ -304,8 +304,9 @@ export function stayHubBoardPath(
     case "in_house":
       return "/erp/in-house";
     case "today":
+    case "stayview":
     default:
-      return "/erp/today";
+      return "/erp/stayview";
   }
 }
 

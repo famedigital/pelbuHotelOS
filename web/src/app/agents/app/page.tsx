@@ -1,8 +1,20 @@
+import { AgentLivingBoard } from "@/components/erp/agent-portal/AgentLivingBoard";
+import {
+  AgentSection,
+  AgentStatusPill,
+} from "@/components/erp/agent-portal/AgentPortalChrome";
 import { requireAgentPropertySession } from "@/lib/agent-auth";
-import { loadAgentBookings } from "@/lib/agent-occupancy";
+import { loadAgentLivingDashboard } from "@/lib/agent-portal-dashboard";
 import { formatBtn } from "@/lib/pricing";
 import { agentRateTier } from "@/lib/rates";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -13,148 +25,119 @@ type RateRow = {
   room_types?: { name: string } | { name: string }[] | null;
 };
 
-export default async function AgentAccountPage() {
+export default async function AgentHomePage() {
   const session = await requireAgentPropertySession();
   const admin = createSupabaseAdminClient();
   const propertyId = session.activePropertyId;
-
   const tier = agentRateTier(session.rateTier);
-  const available = Math.max(0, session.creditLimit - session.creditUsed);
-  const activeLink = session.links.find((l) => l.propertyId === propertyId);
 
-  const [{ data: rateRows }, bookings] = await Promise.all([
-    admin
-      .from("room_rates")
-      .select("season_kind, amount_btn, room_types(name)")
-      .eq("property_id", propertyId)
-      .eq("rate_tier", tier)
-      .order("season_kind"),
-    loadAgentBookings(admin, session.agentId, 6, propertyId),
-  ]);
+  let dash: Awaited<ReturnType<typeof loadAgentLivingDashboard>> | null = null;
+  let rates: RateRow[] = [];
 
-  const rates = (rateRows ?? []) as unknown as RateRow[];
+  try {
+    const [living, rateRes] = await Promise.all([
+      loadAgentLivingDashboard(admin, {
+        agentId: session.agentId,
+        propertyId,
+        sessionAgentId: session.agentId,
+      }),
+      admin
+        .from("room_rates")
+        .select("season_kind, amount_btn, room_types(name)")
+        .eq("property_id", propertyId)
+        .eq("rate_tier", tier)
+        .order("season_kind"),
+    ]);
+    dash = living;
+    rates = (rateRes.data ?? []) as unknown as RateRow[];
+  } catch (e) {
+    console.error("agent home load failed", e);
+  }
+
+  if (!dash) {
+    return (
+      <Card className="shadow-none">
+        <CardHeader>
+          <CardTitle>Could not load dashboard</CardTitle>
+          <CardDescription>Try again or open Stays.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Link href="/agents/app/stays" className="text-sky-800 underline">
+            Stays table
+          </Link>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-8">
-      {activeLink ? (
-        <p className="text-sm text-muted-foreground">
-          Booking at <span className="font-medium text-foreground">{activeLink.propertyName}</span>
-        </p>
-      ) : null}
+      <AgentLivingBoard dash={dash} companyName={session.companyName} />
 
-      <section className="grid gap-3 sm:grid-cols-3">
-        <SummaryCard label="Credit limit" value={formatBtn(session.creditLimit)} />
-        <SummaryCard label="Available" value={formatBtn(available)} highlight />
-        <SummaryCard label="Used" value={formatBtn(session.creditUsed)} />
-      </section>
-
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">
-            Your {tier.replace(/_/g, " ")} rates
-          </h2>
-        </div>
-        <div className="overflow-x-auto rounded-xl border border-border">
-          <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-4 py-2.5 font-medium">Room</th>
-                <th className="px-4 py-2.5 font-medium">Season</th>
-                <th className="px-4 py-2.5 text-right font-medium">Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rates.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="px-4 py-5 text-muted-foreground">
-                    Rates not published yet. Ask the desk.
-                  </td>
-                </tr>
-              ) : (
-                rates.map((r, i) => {
-                  const rt = r.room_types;
-                  const room = Array.isArray(rt) ? rt[0] : rt;
-                  return (
-                    <tr
-                      key={`${r.season_kind}-${i}`}
-                      className="border-b border-border/60 last:border-0"
-                    >
-                      <td className="px-4 py-2.5">{room?.name ?? "—"}</td>
-                      <td className="px-4 py-2.5 capitalize text-muted-foreground">
-                        {r.season_kind}
-                      </td>
-                      <td className="px-4 py-2.5 text-right tabular-nums">
-                        {formatBtn(Number(r.amount_btn))}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Recent bookings</h2>
+      <AgentSection
+        title={`Your ${tier.replace(/_/g, " ")} rates`}
+        description="Published partner sheet"
+        action={
           <Link
-            href="/agents/app/calendar"
-            className="text-sm text-primary underline-offset-4 hover:underline"
+            href="/agents/app/book"
+            className="text-sm font-medium text-sky-700 underline-offset-4 hover:underline"
           >
-            View all
+            Book on rate
           </Link>
-        </div>
-        {bookings.length === 0 ? (
-          <p className="rounded-xl border border-border px-4 py-5 text-sm text-muted-foreground">
-            No bookings yet. Tap Book to hold rooms on your rate.
+        }
+      >
+        {rates.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
+            Rates not published yet. Ask the desk.
           </p>
         ) : (
-          <ul className="space-y-2">
-            {bookings.map((b) => (
-              <li
-                key={b.id}
-                className="flex items-center justify-between rounded-xl border border-border px-4 py-3 text-sm"
-              >
-                <div>
-                  <p className="font-medium">
-                    {b.checkIn} → {b.checkOut}
-                  </p>
-                  <p className="text-muted-foreground">
-                    {b.rooms} room{b.rooms === 1 ? "" : "s"} · {b.status}
-                  </p>
-                </div>
-                <span className="tabular-nums text-muted-foreground">
-                  {b.quotedTotalBtn == null ? "—" : formatBtn(b.quotedTotalBtn)}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <Card className="overflow-hidden shadow-none">
+            <CardContent className="p-0">
+              <table className="min-w-full text-left text-sm">
+                <thead className="border-b bg-muted/40 text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                  <tr>
+                    <th className="px-4 py-3">Room</th>
+                    <th className="px-4 py-3">Season</th>
+                    <th className="px-4 py-3 text-right">Rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rates.map((r, i) => {
+                    const rt = r.room_types;
+                    const room = Array.isArray(rt) ? rt[0] : rt;
+                    return (
+                      <tr
+                        key={`${r.season_kind}-${i}`}
+                        className="border-b border-border/50 last:border-0"
+                      >
+                        <td className="px-4 py-3 font-medium">
+                          {room?.name ?? "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <AgentStatusPill
+                            tone={
+                              r.season_kind === "peak"
+                                ? "warn"
+                                : r.season_kind === "lean"
+                                  ? "ok"
+                                  : "muted"
+                            }
+                          >
+                            {r.season_kind}
+                          </AgentStatusPill>
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold tabular-nums">
+                          {formatBtn(Number(r.amount_btn))}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
         )}
-      </section>
-    </div>
-  );
-}
-
-function SummaryCard({
-  label,
-  value,
-  highlight,
-}: {
-  label: string;
-  value: string;
-  highlight?: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-xl border px-4 py-4 ${
-        highlight ? "border-primary/40 bg-primary/5" : "border-border"
-      }`}
-    >
-      <p className="text-xs uppercase tracking-wide text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-1 text-xl font-semibold tabular-nums">{value}</p>
+      </AgentSection>
     </div>
   );
 }

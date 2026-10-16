@@ -7,8 +7,14 @@ import {
   type CheckOutState,
 } from "@/app/actions/erp-checkin";
 import { AgentNameLink } from "@/components/erp/AgentNameLink";
+import { AiAssistPanel } from "@/components/erp/AiAssistPanel";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  parseAssistDraft,
+  parseCheckInDraft,
+} from "@/lib/ai/assist-draft-schemas";
+import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
@@ -207,6 +213,7 @@ export function CheckInForm({
   embedded = false,
   /** StayHub tabs: hide non-active sections without unmounting (preserves values). */
   pane = "all",
+  propertyId = null,
   onCheckedIn,
 }: {
   booking: CheckInBooking;
@@ -217,6 +224,8 @@ export function CheckInForm({
   /** When true (StayHub modal), success UI advances hub — no Next arrival dead-end. */
   embedded?: boolean;
   pane?: CheckInFormPane;
+  /** Enables BYOK check-in Assist (draft → Confirm fills fields). */
+  propertyId?: string | null;
   onCheckedIn?: (payload: {
     bookingId: string;
     folioId?: string;
@@ -479,6 +488,36 @@ export function CheckInForm({
         value={roomCapOverride ? "on" : "off"}
       />
       <input type="hidden" name="agent_room_cap_note" value={roomCapNote} />
+      {propertyId && showGuest ? (
+        <AiAssistPanel
+          propertyId={propertyId}
+          bookingId={booking.id}
+          mode="check_in"
+          compact
+          title="Check-in draft"
+          onApplyDraft={(raw) => {
+            const parsed = parseAssistDraft(parseCheckInDraft, raw);
+            if (!parsed.ok) {
+              toast.error(parsed.error);
+              return;
+            }
+            const d = parsed.data;
+            if (d.guideNumber) setGuideNumber(d.guideNumber);
+            if (d.nationality) {
+              setGuests((prev) => {
+                if (prev.length === 0) return prev;
+                const copy = [...prev];
+                copy[0] = { ...copy[0], nationality: d.nationality ?? "" };
+                return copy;
+              });
+            }
+            toast.success(
+              "Check-in fields filled — Confirm check-in still required",
+              { description: d.summary ?? undefined },
+            );
+          }}
+        />
+      ) : null}
       {state.error ? (
         <Alert variant="destructive" className={cn(!showSummary && "hidden")}>
           <TriangleAlertIcon />

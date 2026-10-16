@@ -30,6 +30,7 @@ import {
 } from "@/components/erp/pos/PosSaleStartGate";
 import { PosSearch } from "@/components/erp/pos/PosSearch";
 import { PosStockPanel } from "@/components/erp/pos/PosStockPanel";
+import { PosAssistStrip } from "@/components/erp/pos/PosAssistStrip";
 import { SettlePanel } from "@/components/erp/pos/SettlePanel";
 import { TicketHeader } from "@/components/erp/pos/TicketHeader";
 import { VoidReasonDialog } from "@/components/erp/pos/VoidReasonDialog";
@@ -1126,6 +1127,7 @@ export function PosLayout({
             : openTickets
         }
         tenderMethods={runtimeConfig.tenderMethods}
+        propertyId={propertyId}
       />
       <VoidReasonDialog
         key={voidSession}
@@ -1312,6 +1314,49 @@ export function PosLayout({
                 onChangeSaleKind={resetSaleContext}
                 onSwitchSaleKind={softSwitchSaleKind}
               />
+
+              <div className="mb-2">
+                <PosAssistStrip
+                  propertyId={propertyId}
+                  menuHints={catalog
+                    .filter((m) => !m.sold_out)
+                    .slice(0, 40)
+                    .map((m) => m.name)}
+                  onApplyLines={(lines) => {
+                    let matched = 0;
+                    const unmatched: string[] = [];
+                    for (const line of lines) {
+                      const needle = line.name.trim().toLowerCase();
+                      const item = catalog.find(
+                        (m) =>
+                          !m.sold_out &&
+                          (m.name.toLowerCase() === needle ||
+                            m.name.toLowerCase().includes(needle) ||
+                            needle.includes(m.name.toLowerCase())),
+                      );
+                      if (!item) {
+                        unmatched.push(`${line.qty}× ${line.name}`);
+                        continue;
+                      }
+                      for (let i = 0; i < line.qty; i++) {
+                        addItemQuick(item.id);
+                      }
+                      matched += 1;
+                    }
+                    if (matched > 0) {
+                      toast.success(
+                        `Added ${matched} menu match${matched === 1 ? "" : "es"} to ticket`,
+                      );
+                    }
+                    if (unmatched.length > 0) {
+                      toast.message("Review unmatched lines", {
+                        description: unmatched.join(", "),
+                        duration: 10_000,
+                      });
+                    }
+                  }}
+                />
+              </div>
 
               {appendOrderId ? (
                 <Alert>

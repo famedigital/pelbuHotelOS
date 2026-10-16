@@ -1,6 +1,7 @@
 "use client";
 
 import { splitSettle, type SplitSettleState } from "@/app/actions/erp-pos";
+import { AiAssistPanel } from "@/components/erp/AiAssistPanel";
 import {
   Dialog,
   DialogContent,
@@ -87,6 +88,7 @@ type Props = {
   creditAgents: PosCreditAgentOption[];
   liveTickets: OpenPosTicket[];
   tenderMethods: readonly PosTenderMethod[];
+  propertyId?: string;
 };
 
 export function SettlePanel({
@@ -96,6 +98,7 @@ export function SettlePanel({
   creditAgents,
   liveTickets,
   tenderMethods,
+  propertyId,
 }: Props) {
   const open = orderId !== null;
   const [state, action, pending] = useActionState(splitSettle, initial);
@@ -524,7 +527,7 @@ export function SettlePanel({
           {hasRoomCharge ? (
             <p className="text-[11px] text-muted-foreground">
               Charge-to-room posts to the guest folio on settle. Tax invoices
-              (INV-…) are issued later from that folio, not from this dialog.
+              (INV-…) are issued later from Hub Bill, not from this dialog.
             </p>
           ) : null}
 
@@ -533,6 +536,16 @@ export function SettlePanel({
               Issues INV-… to the travel agent now. Money stays open until
               they pay — collect later on that folio.
             </p>
+          ) : null}
+
+          {propertyId ? (
+            <AiAssistPanel
+              propertyId={propertyId}
+              mode="pos_ticket"
+              compact
+              title="Assist · order notes"
+              placeholder="Optional: draft share text for guest / WA…"
+            />
           ) : null}
 
           <DialogFooter className="gap-2">

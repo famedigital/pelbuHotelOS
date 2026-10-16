@@ -284,6 +284,11 @@ export default async function ErpReportsPage({ searchParams }: Props) {
               blurb: "Outstanding, aging, payment mix",
             },
             {
+              href: `/erp/reports/agent-commerce?from=${from}&to=${to}`,
+              title: "Agent commerce",
+              blurb: "RN · paid · dues · stay frequency · pay dates",
+            },
+            {
               href: `/erp/reports/deposit-due?from=${from}&to=${to}`,
               title: "Deposit due",
               blurb: "Token shortfall · release deposit date",

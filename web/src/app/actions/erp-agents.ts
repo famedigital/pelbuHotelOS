@@ -965,3 +965,198 @@ export async function rejectAgent(
     };
   }
 }
+
+/**
+ * Merge a duplicate agent into a keeper: reassign FK rows, combine credit,
+ * prefer keeper portal login, then soft-disable the duplicate.
+ */
+export async function mergeDuplicateAgents(
+  _prev: ErpAgentState,
+  formData: FormData,
+): Promise<ErpAgentState> {
+  try {
+    await requireMoneyDesk();
+    const admin = createSupabaseAdminClient();
+    const keepId = trimRequired(formData.get("keep_agent_id"), "Keep agent");
+    const mergeId = trimRequired(formData.get("merge_agent_id"), "Merge agent");
+    if (keepId === mergeId) {
+      throw new Error("Pick two different agent records.");
+    }
+
+    const { data: rows, error: loadErr } = await admin
+      .from("agents")
+      .select(
+        "id, company_name, credit_limit, credit_used, auth_user_id, can_login, login_code, status, contact_name, contact_phone, contact_email, market, rate_tier",
+      )
+      .in("id", [keepId, mergeId]);
+    if (loadErr || !rows || rows.length !== 2) {
+      throw new Error("Could not load both agent records.");
+    }
+    const keep = rows.find((r) => r.id === keepId)!;
+    const merge = rows.find((r) => r.id === mergeId)!;
+
+    const nullableFk = [
+      "bookings",
+      "booking_groups",
+      "payment_links",
+      "folios",
+      "orders",
+      "booking_settlement_packs",
+    ] as const;
+    for (const table of nullableFk) {
+      const { error } = await admin
+        .from(table)
+        .update({ agent_id: keepId })
+        .eq("agent_id", mergeId);
+      if (error) {
+        console.error(`mergeDuplicateAgents ${table}`, error);
+        throw new Error(`Could not reassign ${table}.`);
+      }
+    }
+
+    // Unique (agent_id, property_id) — drop duplicate links, move the rest.
+    const { data: mergeLinks } = await admin
+      .from("agent_property_links")
+      .select("id, property_id")
+      .eq("agent_id", mergeId);
+    const { data: keepLinks } = await admin
+      .from("agent_property_links")
+      .select("property_id")
+      .eq("agent_id", keepId);
+    const keepProps = new Set(
+      (keepLinks ?? []).map((l) => l.property_id as string),
+    );
+    for (const link of mergeLinks ?? []) {
+      if (keepProps.has(link.property_id as string)) {
+        const { error } = await admin
+          .from("agent_property_links")
+          .delete()
+          .eq("id", link.id);
+        if (error) throw new Error("Could not drop overlapping hotel link.");
+      } else {
+        const { error } = await admin
+          .from("agent_property_links")
+          .update({ agent_id: keepId })
+          .eq("id", link.id);
+        if (error) throw new Error("Could not move hotel link.");
+      }
+    }
+
+    for (const table of [
+      "agent_credit_ledger",
+      "agent_allotments",
+      "agent_documents",
+    ] as const) {
+      const { error } = await admin
+        .from(table)
+        .update({ agent_id: keepId })
+        .eq("agent_id", mergeId);
+      if (error) {
+        console.error(`mergeDuplicateAgents ${table}`, error);
+        throw new Error(`Could not reassign ${table}.`);
+      }
+    }
+
+    // Call-task items: unique (task_id, agent_id) — delete overlaps, move rest.
+    const { data: mergeItems } = await admin
+      .from("agent_call_task_items")
+      .select("id, task_id")
+      .eq("agent_id", mergeId);
+    const { data: keepItems } = await admin
+      .from("agent_call_task_items")
+      .select("task_id")
+      .eq("agent_id", keepId);
+    const keepTasks = new Set(
+      (keepItems ?? []).map((i) => i.task_id as string),
+    );
+    for (const item of mergeItems ?? []) {
+      if (keepTasks.has(item.task_id as string)) {
+        await admin.from("agent_call_task_items").delete().eq("id", item.id);
+      } else {
+        await admin
+          .from("agent_call_task_items")
+          .update({ agent_id: keepId })
+          .eq("id", item.id);
+      }
+    }
+
+    await admin
+      .from("marketing_contacts")
+      .update({ agent_id: keepId })
+      .eq("agent_id", mergeId);
+
+    const creditLimit = Math.max(
+      Number(keep.credit_limit ?? 0),
+      Number(merge.credit_limit ?? 0),
+    );
+    const creditUsed =
+      Number(keep.credit_used ?? 0) + Number(merge.credit_used ?? 0);
+    const keepPatch: Record<string, unknown> = {
+      credit_limit: creditLimit,
+      credit_used: creditUsed,
+    };
+    if (!keep.contact_name && merge.contact_name) {
+      keepPatch.contact_name = merge.contact_name;
+    }
+    if (!keep.contact_phone && merge.contact_phone) {
+      keepPatch.contact_phone = merge.contact_phone;
+    }
+    if (!keep.contact_email && merge.contact_email) {
+      keepPatch.contact_email = merge.contact_email;
+    }
+    if (!keep.auth_user_id && merge.auth_user_id) {
+      keepPatch.auth_user_id = merge.auth_user_id;
+      keepPatch.can_login = merge.can_login;
+      keepPatch.login_code = merge.login_code;
+    }
+
+    const { error: keepErr } = await admin
+      .from("agents")
+      .update(keepPatch)
+      .eq("id", keepId);
+    if (keepErr) throw new Error("Could not update keeper agent.");
+
+    const { error: mergeErr } = await admin
+      .from("agents")
+      .update({
+        status: "rejected",
+        can_login: false,
+        auth_user_id: null,
+        login_code: null,
+        credit_used: 0,
+        credit_limit: 0,
+        notes: `Merged into ${keep.company_name} (${keepId}) on ${new Date().toISOString().slice(0, 10)}.`,
+        rejected_at: new Date().toISOString(),
+      })
+      .eq("id", mergeId);
+    if (mergeErr) throw new Error("Could not retire duplicate agent.");
+
+    const propId = await propertyId(admin);
+    await writeAuditEvent(admin, {
+      propertyId: propId,
+      action: "agent.merge_duplicate",
+      entityType: "agents",
+      entityId: keepId,
+      summary: `Merged “${merge.company_name}” into “${keep.company_name}”`,
+      meta: {
+        merge_agent_id: mergeId,
+        merge_company: merge.company_name,
+        keep_company: keep.company_name,
+      },
+    });
+
+    revalidateAgents();
+    revalidatePath(`/erp/agents/${keepId}`);
+    revalidatePath(`/erp/agents/${mergeId}`);
+    return {
+      ok: true,
+      message: `Merged “${merge.company_name}” into “${keep.company_name}”.`,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error:
+        err instanceof Error ? err.message : "Could not merge agent records.",
+    };
+  }
+}

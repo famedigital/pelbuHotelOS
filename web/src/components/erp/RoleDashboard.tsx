@@ -914,6 +914,7 @@ function OwnerBoard({
           <QuickLinks
             links={[
               { href: "/erp/reports/performance", label: "Performance" },
+              { href: "/erp/reports/agent-commerce", label: "Agent commerce" },
               { href: "/erp/finance", label: "Finance" },
               { href: "/erp/agents/call-tasks", label: "Agent call tasks" },
               { href: "/erp/settings", label: "Settings" },
@@ -1112,31 +1113,31 @@ function FrontDeskBoard({
             </h2>
           </div>
           <Button asChild variant="default" className="min-h-11">
-            <Link href="/erp/today">Open Today</Link>
+            <Link href="/erp/stayview">Open StayView</Link>
           </Button>
         </div>
         <div className="grid grid-cols-2 border-t sm:grid-cols-4">
           <DeskDayStat
-            href="/erp/today"
+            href="/erp/stayview"
             label="Arrivals"
             value={String(snap.arrivalsToday)}
             className="border-r border-b sm:border-b-0"
           />
           <DeskDayStat
-            href="/erp/today"
+            href="/erp/stayview"
             label="In-house"
             value={String(snap.inHouse)}
             tone={snap.inHouse > 0 ? "citrus" : "quiet"}
             className="border-b sm:border-r sm:border-b-0"
           />
           <DeskDayStat
-            href="/erp/today"
+            href="/erp/stayview"
             label="Departures"
             value={String(snap.departuresToday)}
             className="border-r"
           />
           <DeskDayStat
-            href="/erp/today"
+            href="/erp/stayview"
             label="Open folio"
             value={formatBtn(snap.folioBalanceBtn)}
             tone={snap.folioBalanceBtn > 0 ? "destructive" : "quiet"}
@@ -1169,7 +1170,7 @@ function FrontDeskBoard({
       <MissingGuideScans rows={snap.missingGuideScans} />
       <QuickLinks
         links={[
-          { href: "/erp/today", label: "Today boards" },
+          { href: "/erp/stayview", label: "StayView" },
           { href: "/erp/calendar", label: "Stay View" },
           { href: "/erp/hr/rota", label: "Rota" },
           { href: "/erp/inventory/moves", label: "Store issues" },

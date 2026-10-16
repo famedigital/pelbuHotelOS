@@ -34,6 +34,13 @@ export default async function ErpDashboardPage({ searchParams }: Props) {
   const activeProperty = await loadProperty(admin, propertyId);
   const sessionRole = await getDeskRole();
   const params = await searchParams;
+  // Front desk daily home is StayView — keep /erp as role dashboards for managers.
+  if (
+    !params.view &&
+    (sessionRole === "front_desk" || sessionRole == null)
+  ) {
+    redirect("/erp/stayview");
+  }
   const requested = parseDashboardView(params.view);
   const homeView = sessionRole
     ? deskRoleToDashboardView(sessionRole)

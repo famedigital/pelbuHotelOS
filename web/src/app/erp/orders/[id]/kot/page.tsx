@@ -13,7 +13,6 @@ import type { DocumentPaperSize } from "@/lib/property-settings";
 import { clampPrintDarken } from "@/lib/pos-print-prefs";
 import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 export const metadata = {
@@ -145,8 +144,9 @@ export default async function OrderKotPage({ params, searchParams }: Props) {
           )}
         </div>
         <div className="flex flex-wrap gap-2">
+          {/* Hard nav: soft Link can paint /erp/pos without DeskShell. */}
           <Button asChild variant="outline" className="h-10">
-            <Link href="/erp/pos">Back to POS</Link>
+            <a href="/erp/pos">Back to POS</a>
           </Button>
           <DocPrintControls defaultSize={paper} printLabel="Print KOT / BOT" />
         </div>

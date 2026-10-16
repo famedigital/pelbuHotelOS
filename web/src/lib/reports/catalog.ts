@@ -19,6 +19,12 @@ export const REPORT_CATALOG = [
       "Outstanding balances, aging, unsecured exposure, payment mix per agent.",
   },
   {
+    slug: "agent-commerce",
+    title: "Agent commerce",
+    blurb:
+      "Room-nights, quoted vs paid, dues, stay frequency, and payment habit — one row per agent (dossier lite).",
+  },
+  {
     slug: "deposit-due",
     title: "Deposit due",
     blurb:
@@ -315,6 +321,211 @@ export async function loadAgentArReport(
   }
 
   return rows.sort((a, b) => b.outstanding - a.outstanding);
+}
+
+export type AgentCommerceRow = {
+  agent_id: string;
+  company_name: string;
+  stays: number;
+  room_nights: number;
+  quoted_btn: number;
+  paid_btn: number;
+  outstanding_btn: number;
+  credit_used: number;
+  avg_days_to_pay: number | null;
+  stays_per_month: number;
+  habit: string;
+};
+
+/** Months spanned by [from, to] inclusive (min 1). */
+function monthsSpanned(from: string, to: string): number {
+  const [fy, fm] = from.split("-").map(Number);
+  const [ty, tm] = to.split("-").map(Number);
+  const n = (ty - fy) * 12 + (tm - fm) + 1;
+  return Math.max(1, n);
+}
+
+/**
+ * Soultrips-style agent commerce: production + collections + dues + frequency.
+ * Reuses loadAgentDossier so Money tab and this report stay aligned.
+ */
+export async function loadAgentCommerceReport(
+  admin: SupabaseClient,
+  opts: { propertyId: string; from: string; to: string; today: string },
+): Promise<AgentCommerceRow[]> {
+  const { data: agents } = await admin
+    .from("agents")
+    .select("id, company_name, credit_limit, credit_used, status")
+    .in("status", ["approved", "demo", "directory"])
+    .order("company_name")
+    .limit(200);
+
+  const span = monthsSpanned(opts.from, opts.to);
+  const rows: AgentCommerceRow[] = [];
+
+  for (const a of agents ?? []) {
+    const dossier = await loadAgentDossier(admin, {
+      propertyId: opts.propertyId,
+      agentId: a.id as string,
+      from: opts.from,
+      to: opts.to,
+      today: opts.today,
+    });
+    if (!dossier) continue;
+    const stays = dossier.summary.bookingCount;
+    const outstanding = dossier.money.outstanding;
+    const paid = dossier.money.paid;
+    const quoted = dossier.summary.quotedTotal;
+    const creditUsed = Number(a.credit_used ?? 0);
+    if (
+      stays === 0 &&
+      Math.abs(outstanding) < 0.01 &&
+      Math.abs(paid) < 0.01 &&
+      Math.abs(quoted) < 0.01 &&
+      creditUsed === 0
+    ) {
+      continue;
+    }
+    rows.push({
+      agent_id: a.id as string,
+      company_name: (a.company_name as string) ?? "Agent",
+      stays,
+      room_nights: Math.round(dossier.summary.roomNights * 10) / 10,
+      quoted_btn: quoted,
+      paid_btn: paid,
+      outstanding_btn: outstanding,
+      credit_used: creditUsed,
+      avg_days_to_pay: dossier.money.habit.avgDaysToPay,
+      stays_per_month: Math.round((stays / span) * 10) / 10,
+      habit: dossier.money.habit.blurb,
+    });
+  }
+
+  return rows.sort((a, b) => b.room_nights - a.room_nights);
+}
+
+export type AgentCommerceMonthRow = {
+  month: string;
+  stays: number;
+  room_nights: number;
+  rooms: number;
+};
+
+export type AgentCommerceDetail = {
+  agent_id: string;
+  company_name: string;
+  summary: AgentCommerceRow;
+  by_month: AgentCommerceMonthRow[];
+  payments: {
+    paid_at: string;
+    amount_btn: number;
+    method: string;
+    booking_check_in: string | null;
+    guest: string | null;
+  }[];
+  stays: {
+    id: string;
+    check_in: string;
+    check_out: string;
+    rooms: number;
+    room_nights: number;
+    guest: string | null;
+    status: string;
+    quoted_btn: number;
+  }[];
+};
+
+/** Single-agent drill-down for the commerce report (frequency + payment dates). */
+export async function loadAgentCommerceDetail(
+  admin: SupabaseClient,
+  opts: {
+    propertyId: string;
+    agentId: string;
+    from: string;
+    to: string;
+    today: string;
+  },
+): Promise<AgentCommerceDetail | null> {
+  const dossier = await loadAgentDossier(admin, {
+    propertyId: opts.propertyId,
+    agentId: opts.agentId,
+    from: opts.from,
+    to: opts.to,
+    today: opts.today,
+  });
+  if (!dossier) return null;
+
+  const span = monthsSpanned(opts.from, opts.to);
+  const summary: AgentCommerceRow = {
+    agent_id: dossier.agent.id,
+    company_name: dossier.agent.company_name,
+    stays: dossier.summary.bookingCount,
+    room_nights: Math.round(dossier.summary.roomNights * 10) / 10,
+    quoted_btn: dossier.summary.quotedTotal,
+    paid_btn: dossier.money.paid,
+    outstanding_btn: dossier.money.outstanding,
+    credit_used: Number(dossier.agent.credit_used ?? 0),
+    avg_days_to_pay: dossier.money.habit.avgDaysToPay,
+    stays_per_month: Math.round((dossier.summary.bookingCount / span) * 10) / 10,
+    habit: dossier.money.habit.blurb,
+  };
+
+  const monthMap = new Map<string, AgentCommerceMonthRow>();
+  for (const b of dossier.bookingsInRange) {
+    const month = b.check_in.slice(0, 7);
+    const nights = daysBetweenIso(b.check_in, b.check_out);
+    const rooms = Math.max(1, Number(b.rooms || 1));
+    const cur = monthMap.get(month) ?? {
+      month,
+      stays: 0,
+      room_nights: 0,
+      rooms: 0,
+    };
+    cur.stays += 1;
+    cur.room_nights += nights * rooms;
+    cur.rooms += rooms;
+    monthMap.set(month, cur);
+  }
+
+  const bookingById = new Map(
+    dossier.bookings.map((b) => [b.id, b] as const),
+  );
+
+  return {
+    agent_id: dossier.agent.id,
+    company_name: dossier.agent.company_name,
+    summary,
+    by_month: [...monthMap.values()]
+      .map((m) => ({
+        ...m,
+        room_nights: Math.round(m.room_nights * 10) / 10,
+      }))
+      .sort((a, b) => a.month.localeCompare(b.month)),
+    payments: dossier.money.payments.map((p) => {
+      const b = p.booking_id ? bookingById.get(p.booking_id) : null;
+      return {
+        paid_at: p.created_at.slice(0, 10),
+        amount_btn: p.amount_btn,
+        method: p.method,
+        booking_check_in: b?.check_in ?? null,
+        guest: b?.contact_name ?? null,
+      };
+    }),
+    stays: dossier.bookingsInRange.map((b) => {
+      const nights = daysBetweenIso(b.check_in, b.check_out);
+      const rooms = Math.max(1, Number(b.rooms || 1));
+      return {
+        id: b.id,
+        check_in: b.check_in,
+        check_out: b.check_out,
+        rooms,
+        room_nights: Math.round(nights * rooms * 10) / 10,
+        guest: b.contact_name,
+        status: b.status,
+        quoted_btn: Number(b.quoted_total_btn ?? 0),
+      };
+    }),
+  };
 }
 
 export type StaffSalesClaimRow = {

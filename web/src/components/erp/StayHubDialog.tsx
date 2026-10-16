@@ -64,6 +64,13 @@ import type { FastBookInvoiceData } from "@/components/erp/FastBookInvoice";
 import {
   type FastBookVoucherData,
 } from "@/components/erp/FastBookVoucher";
+import { AiAssistPanel } from "@/components/erp/AiAssistPanel";
+import {
+  parseAssistDraft,
+  parseCheckoutChecklistDraft,
+  parseExplainDueDraft,
+  parseInvoiceNotesDraft,
+} from "@/lib/ai/assist-draft-schemas";
 import { DeskSettlePanel } from "@/components/erp/DeskSettlePanel";
 import { GuideEvidencePanel } from "@/components/erp/GuideEvidencePanel";
 import {
@@ -3560,6 +3567,7 @@ export function StayHubDialog({
                                   slots={checkInPayload.slots}
                                   units={checkInPayload.units}
                                   embedded
+                                  propertyId={summary.propertyId}
                                   pane={
                                     checkInTool === "room" ? "room" : "guest"
                                   }
@@ -3633,6 +3641,57 @@ export function StayHubDialog({
                           advancedExtra={advancedExtra}
                           onMoneyChanged={onMoneyChanged}
                           onOptimisticVoidLine={onOptimisticVoidLine}
+                        />
+                        <AiAssistPanel
+                          propertyId={summary.propertyId}
+                          bookingId={summary.bookingId}
+                          mode="explain_due"
+                          compact
+                          title="Why is Due this?"
+                          onApplyDraft={(raw) => {
+                            const parsed = parseAssistDraft(
+                              parseExplainDueDraft,
+                              raw,
+                            );
+                            if (!parsed.ok) {
+                              toast.error(parsed.error);
+                              return;
+                            }
+                            toast.message("Due playbook ready", {
+                              description:
+                                parsed.data.suggestedSteps?.join(" → ") ||
+                                parsed.data.plainExplanation ||
+                                "Review Due steps above",
+                              duration: 14_000,
+                            });
+                          }}
+                        />
+                        <AiAssistPanel
+                          propertyId={summary.propertyId}
+                          bookingId={summary.bookingId}
+                          mode="invoice_notes"
+                          compact
+                          title="Invoice notes draft"
+                          onApplyDraft={(raw) => {
+                            const parsed = parseAssistDraft(
+                              parseInvoiceNotesDraft,
+                              raw,
+                            );
+                            if (!parsed.ok) {
+                              toast.error(parsed.error);
+                              return;
+                            }
+                            const text =
+                              parsed.data.notes ||
+                              parsed.data.shareText ||
+                              "";
+                            if (text && typeof navigator !== "undefined") {
+                              void navigator.clipboard?.writeText(text);
+                            }
+                            toast.success("Invoice notes copied", {
+                              description: text.slice(0, 120) || undefined,
+                            });
+                          }}
                         />
                       </div>
                     ) : null}
@@ -3709,6 +3768,36 @@ export function StayHubDialog({
                             confirm leave. The scan can wait.
                           </p>
                         )}
+
+                        <AiAssistPanel
+                          propertyId={summary.propertyId}
+                          bookingId={summary.bookingId}
+                          mode="checkout_checklist"
+                          compact
+                          title="Checkout check"
+                          onApplyDraft={(raw) => {
+                            const parsed = parseAssistDraft(
+                              parseCheckoutChecklistDraft,
+                              raw,
+                            );
+                            if (!parsed.ok) {
+                              toast.error(parsed.error);
+                              return;
+                            }
+                            toast.message(
+                              parsed.data.ready
+                                ? "Checkout looks ready"
+                                : "Checkout blockers",
+                              {
+                                description:
+                                  parsed.data.plainSummary ||
+                                  parsed.data.blockers?.join(" · ") ||
+                                  "Review checklist above",
+                                duration: 12_000,
+                              },
+                            );
+                          }}
+                        />
 
                         {money?.hasInvoice ? (
                           <p className="text-[11px] text-muted-foreground">

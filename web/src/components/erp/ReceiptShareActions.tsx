@@ -17,7 +17,7 @@ import { useActionState, useMemo, useState } from "react";
 const emailInitial: PosReceiptEmailState = { ok: false };
 
 /**
- * Desk share rail for POS (or folio) receipt text: Copy, WhatsApp, Email.
+ * Desk share rail for POS (or folio) receipt: WhatsApp link, copy, email.
  * Hidden when printing.
  */
 export function ReceiptShareActions({
@@ -27,6 +27,8 @@ export function ReceiptShareActions({
   defaultName,
   orderId,
   title = "Share receipt",
+  shareUrl,
+  blurb,
 }: {
   messageText: string;
   defaultPhone?: string | null;
@@ -35,10 +37,13 @@ export function ReceiptShareActions({
   /** When set, shows Resend email form for POS tickets. */
   orderId?: string | null;
   title?: string;
+  /** Guest-facing receipt URL — copied separately and preferred for WhatsApp. */
+  shareUrl?: string | null;
+  blurb?: string;
 }) {
   const prefPhone = usableGuestPhone(defaultPhone) ?? "";
   const [phone, setPhone] = useState(prefPhone);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"link" | "text" | null>(null);
   const [emailState, emailAction, emailPending] = useActionState(
     emailPosOrderReceipt,
     emailInitial,
@@ -52,24 +57,28 @@ export function ReceiptShareActions({
     [phone, messageText],
   );
 
-  async function copyText() {
+  async function copy(kind: "link" | "text") {
+    const value =
+      kind === "link" ? (shareUrl?.trim() || messageText) : messageText;
     try {
-      await navigator.clipboard.writeText(messageText);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(value);
+      setCopied(kind);
+      window.setTimeout(() => setCopied(null), 2000);
     } catch {
       /* ignore */
     }
   }
 
   return (
-    <div className="erp space-y-3 rounded-lg border bg-card p-4 print:hidden">
+    <div className="erp flex h-full flex-col space-y-3 rounded-lg border bg-card p-4 print:hidden">
       <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
         {title}
       </p>
       <p className="text-xs text-muted-foreground">
-        Opens WhatsApp on this device with the receipt text. Email sends a text
-        copy via Resend.
+        {blurb ??
+          (shareUrl
+            ? "WhatsApp sends a link the guest can open to view, print, or save as PDF. Email still sends a text copy via Resend."
+            : "Opens WhatsApp on this device with the receipt text. Email sends a text copy via Resend.")}
       </p>
 
       <div className="space-y-1.5">
@@ -89,14 +98,25 @@ export function ReceiptShareActions({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          className="h-10"
-          onClick={() => void copyText()}
-        >
-          {copied ? "Copied" : "Copy text"}
-        </Button>
+        {shareUrl ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10"
+            onClick={() => void copy("link")}
+          >
+            {copied === "link" ? "Link copied" : "Copy link"}
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10"
+            onClick={() => void copy("text")}
+          >
+            {copied === "text" ? "Copied" : "Copy text"}
+          </Button>
+        )}
         <Button asChild variant="default" className="h-10">
           <a href={waHref} target="_blank" rel="noopener noreferrer">
             WhatsApp
@@ -104,8 +124,14 @@ export function ReceiptShareActions({
         </Button>
       </div>
 
+      {shareUrl ? (
+        <p className="truncate rounded-md bg-muted/50 px-2 py-1.5 font-mono text-[11px] text-muted-foreground">
+          {shareUrl}
+        </p>
+      ) : null}
+
       {orderId ? (
-        <form action={emailAction} className="space-y-3 border-t pt-3">
+        <form action={emailAction} className="mt-auto space-y-3 border-t pt-3">
           <input type="hidden" name="order_id" value={orderId} />
           {defaultName ? (
             <input type="hidden" name="recipient_name" value={defaultName} />

@@ -72,10 +72,11 @@ export function defaultWorkspaceForRole(
 }
 
 export function workspaceLandingHref(workspace: DeskWorkspace): string {
-  return workspace === "back_office" ? "/erp/finance" : "/erp/today";
+  return workspace === "back_office" ? "/erp/finance" : "/erp/stayview";
 }
 
 const FRONT_DESK_LANDING_CANDIDATES = [
+  "/erp/stayview",
   "/erp/today",
   "/erp/arrivals",
   "/erp/calendar",
@@ -158,6 +159,7 @@ export function canUseFrontDeskWorkspace(
       g === "calendar" ||
       g === "rooms" ||
       g.startsWith("/erp/today") ||
+      g.startsWith("/erp/stayview") ||
       g.startsWith("/erp/arrivals") ||
       g.startsWith("/erp/in-house") ||
       g.startsWith("/erp/departures") ||
@@ -208,19 +210,21 @@ export function filterModulesForWorkspace(
   return filterErpNavByGrants(scoped, grants ?? null);
 }
 
-/** FO icon rail — Today, Stay View, Housekeeping, POS (daily tabs only). */
+/** FO icon rail — StayView, Rack, POS, Night close, Housekeeping (daily tabs). */
 export const FO_SIDEBAR_MODULE_KEYS = [
   "front-desk",
   "calendar",
-  "rooms",
   "pos",
+  "money",
+  "rooms",
 ] as const;
 
 const FO_SIDEBAR_TITLES: Record<string, string> = {
-  "front-desk": "Today",
-  calendar: "Stay View",
-  rooms: "Housekeeping",
+  "front-desk": "StayView",
+  calendar: "Rack",
   pos: "POS",
+  money: "Night close",
+  rooms: "Housekeeping",
 };
 
 export function isFoDailyTab(tab: ErpNavLeaf): boolean {

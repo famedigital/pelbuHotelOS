@@ -29,6 +29,8 @@ export const DESK_CACHE_TTL = {
   stayhubSummary: { softMs: 60_000, hardMs: 4 * 60 * 60_000 },
   stayhubMoney: { softMs: 30_000, hardMs: 60 * 60_000 },
   stayhubCatalog: { softMs: 30 * 60_000, hardMs: 7 * 24 * 60 * 60_000 },
+  /** StayView FO assistant — warm hydrate, short soft window for live feel. */
+  dailyDesk: { softMs: 20_000, hardMs: 2 * 60 * 60_000 },
 } as const satisfies Record<string, DeskCacheTtl>;
 
 export function isDeskReadCacheEnabled(): boolean {

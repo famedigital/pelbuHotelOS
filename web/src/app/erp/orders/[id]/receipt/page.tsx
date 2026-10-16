@@ -1,12 +1,16 @@
 import { AutoPrintOnLoad } from "@/components/erp/pos/AutoPrintOnLoad";
 import { PosReceiptStage } from "@/components/erp/pos/PosReceiptStage";
-import type { PosPaidReceiptData } from "@/components/erp/pos/PosPaidReceipt";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { normalizePartyName } from "@/lib/pos-training";
 import type { DocumentPaperSize } from "@/lib/property-settings";
 import { clampPrintDarken } from "@/lib/pos-print-prefs";
+import { loadPosOrderReceiptData } from "@/lib/pos-receipt-load";
+import {
+  createPosReceiptShareToken,
+  posReceiptSharePath,
+} from "@/lib/pos-receipt-share-token";
 import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
+import { absoluteUrl } from "@/lib/site";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { notFound, redirect } from "next/navigation";
 
@@ -40,27 +44,13 @@ export default async function OrderPaidReceiptPage({
   const admin = createSupabaseAdminClient();
   const propertyId = await resolveActivePropertyId(admin);
 
-  const { data: order } = await admin
-    .from("orders")
-    .select(
-      `id, property_id, outlet, customer_name, phone, notes, subtotal_btn, service_charge_btn, gst_btn, total_btn,
-       created_at, settled_at, voided_at, folio_id, table_id, covers,
-       order_items(name_snapshot, qty, unit_price_btn, line_notes, voided_at),
-       order_tenders(method, amount_btn, reference),
-       dining_tables(name)`,
-    )
-    .eq("id", id)
-    .maybeSingle();
+  const pack = await loadPosOrderReceiptData(admin, id);
+  if (!pack) notFound();
 
-  if (!order) notFound();
   try {
-    assertDeskProperty(propertyId, order.property_id as string, "Order");
+    assertDeskProperty(propertyId, pack.propertyId, "Order");
   } catch {
     notFound();
-  }
-
-  if (order.voided_at) {
-    redirect(`/erp/pos`);
   }
 
   const property = await loadProperty(admin, propertyId);
@@ -76,75 +66,22 @@ export default async function OrderPaidReceiptPage({
         ? "a4"
         : "thermal";
 
-  const tableJoin = order.dining_tables as
-    | { name?: string }
-    | { name?: string }[]
-    | null;
-  const tableName = Array.isArray(tableJoin)
-    ? (tableJoin[0]?.name ?? null)
-    : (tableJoin?.name ?? null);
-
-  const lines = (
-    (order.order_items as
-      | {
-          name_snapshot: string;
-          qty: number;
-          unit_price_btn: number;
-          line_notes: string | null;
-          voided_at: string | null;
-        }[]
-      | null) ?? []
-  )
-    .filter((line) => !line.voided_at)
-    .map((line) => {
-      const qty = Number(line.qty);
-      const unit = Number(line.unit_price_btn);
-      return {
-        name: line.name_snapshot,
-        qty,
-        unitPriceBtn: unit,
-        lineTotalBtn: Math.round(qty * unit * 100) / 100,
-        notes: line.line_notes ?? null,
-      };
-    });
-
-  const tenders = (
-    (order.order_tenders as
-      | { method: string; amount_btn: number; reference: string | null }[]
-      | null) ?? []
-  ).map((t) => ({
-    method: t.method,
-    amountBtn: Number(t.amount_btn),
-    reference: t.reference ?? null,
-  }));
-
-  const data: PosPaidReceiptData = {
-    orderId: order.id as string,
-    outlet: (order.outlet as string) ?? "outlet",
-    customerName: normalizePartyName(order.customer_name as string | null),
-    phone: (order.phone as string | null) ?? null,
-    tableName,
-    covers: order.covers == null ? null : Number(order.covers),
-    createdAt: order.created_at as string,
-    settledAt: (order.settled_at as string | null) ?? null,
-    subtotalBtn: Number(order.subtotal_btn ?? 0),
-    serviceChargeBtn: Number(order.service_charge_btn ?? 0),
-    gstBtn: Number(order.gst_btn ?? 0),
-    totalBtn: Number(order.total_btn ?? 0),
-    notes: (order.notes as string | null) ?? null,
-    lines,
-    tenders,
-    folioId: (order.folio_id as string | null) ?? null,
-    voidedAt: (order.voided_at as string | null) ?? null,
-  };
+  let shareUrl: string | null = null;
+  try {
+    const token = createPosReceiptShareToken(pack.order.orderId, propertyId);
+    shareUrl = absoluteUrl(posReceiptSharePath(token));
+  } catch {
+    shareUrl = null;
+  }
 
   return (
     <>
       {autoPrint ? <AutoPrintOnLoad paper={paper} /> : null}
       <PosReceiptStage
-        order={data}
+        order={pack.order}
         initialPaper={paper}
         darken={darken}
+        shareUrl={shareUrl}
         property={{
           name: property.name,
           legalName: property.legal_name,

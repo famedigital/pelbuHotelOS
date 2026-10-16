@@ -91,7 +91,7 @@ export function DailyDeskBoard({ initial }: { initial: DailyDeskSnapshot }) {
             href="/erp/calendar"
             className="text-sm text-accent underline-offset-4 hover:underline"
           >
-            Stay View
+            Rack
           </Link>
         </div>
       </div>

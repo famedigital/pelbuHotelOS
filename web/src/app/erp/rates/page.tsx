@@ -1,3 +1,4 @@
+import { AgentRateAssist } from "@/components/erp/AgentRateAssist";
 import { RatePackagesWorkspace } from "@/components/erp/RatePackagesWorkspace";
 import { SeasonsDateEditor } from "@/components/erp/SeasonsDateEditor";
 import { DeskListShell } from "@/components/erp/DeskListShell";
@@ -82,6 +83,8 @@ export default async function RoomRatesPage() {
       <section className="rounded-xl border bg-card p-5">
         <SeasonsDateEditor seasons={seasonRows} />
       </section>
+
+      <AgentRateAssist propertyId={propertyId} />
 
       <RatePackagesWorkspace
         rows={rows}

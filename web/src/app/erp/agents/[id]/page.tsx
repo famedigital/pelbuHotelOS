@@ -3,13 +3,23 @@ import {
   DeskTable,
   StatusPill,
 } from "@/components/erp/DeskListShell";
+import { AgentCockpitBoard } from "@/components/erp/AgentCockpitBoard";
+import { AgentDossierOpsPanel } from "@/components/erp/AgentDossierOpsPanel";
 import { AgentDossierTabNav } from "@/components/erp/AgentDossierTabNav";
+import { AgentRateAssist } from "@/components/erp/AgentRateAssist";
+import { MergeAgentDuplicatesForm } from "@/components/erp/MergeAgentDuplicatesForm";
 import { PrintButton } from "@/components/erp/PrintButton";
 import { VoidAgentCreditPaymentForm } from "@/components/erp/VoidAgentCreditPaymentForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { AgentDocumentRow } from "@/app/actions/erp-agents";
+import type { DeskAgentRow } from "@/components/erp/AgentDeskCard";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
+import {
+  agentHubBookingHref,
+  buildAgentCockpit,
+} from "@/lib/erp/agent-cockpit";
 import { agentDossierMonthPresets } from "@/lib/erp/agent-links";
 import { fmtDate, thimphuToday } from "@/lib/erp-lists";
 import { requireDeskPropertyId } from "@/lib/desk-property";
@@ -53,16 +63,48 @@ export default async function AgentDossierPage({ params, searchParams }: Props) 
   const tab = parseAgentDossierTab(sp.tab);
   const statusFilter = sp.status?.trim() || "";
 
-  const dossier = await loadAgentDossier(admin, {
-    propertyId,
-    agentId: id,
-    from,
-    to,
-    today,
-  });
+  const [dossier, docsResult] = await Promise.all([
+    loadAgentDossier(admin, {
+      propertyId,
+      agentId: id,
+      from,
+      to,
+      today,
+    }),
+    admin
+      .from("agent_documents")
+      .select(
+        "id, agent_id, kind, doc_url, doc_name, notes, uploaded_by, created_at",
+      )
+      .eq("agent_id", id)
+      .order("created_at", { ascending: false })
+      .limit(40),
+  ]);
   if (!dossier) notFound();
 
   const { agent, money, summary } = dossier;
+  const cockpit = buildAgentCockpit(dossier);
+  const deskAgent: DeskAgentRow = {
+    id: agent.id,
+    company_name: agent.company_name,
+    market: agent.market,
+    dzongkhag: agent.dzongkhag,
+    contact_name: agent.contact_name,
+    contact_phone: agent.contact_phone,
+    contact_email: agent.contact_email,
+    license_url: agent.license_url,
+    notes: agent.notes,
+    status: agent.status,
+    rate_tier: agent.rate_tier,
+    credit_limit: agent.credit_limit,
+    credit_used: agent.credit_used,
+    open_room_cap: agent.open_room_cap,
+    wants_mou: agent.wants_mou,
+    approved_at: agent.approved_at,
+    created_at: agent.created_at,
+    portal_token: agent.portal_token,
+  };
+  const documents = (docsResult.data ?? []) as AgentDocumentRow[];
   const filteredBookings = statusFilter
     ? dossier.bookingsInRange.filter((b) => b.status === statusFilter)
     : dossier.bookingsInRange;
@@ -141,6 +183,18 @@ export default async function AgentDossierPage({ params, searchParams }: Props) 
 
       {tab === "overview" ? (
         <div className="space-y-6">
+          <AgentCockpitBoard
+            propertyId={propertyId}
+            agentId={id}
+            companyName={agent.company_name}
+            briefing={cockpit.briefing}
+            doJobs={cockpit.doJobs}
+            reports={cockpit.reports}
+            checks={cockpit.checks}
+          />
+
+          <AgentDossierOpsPanel agent={deskAgent} documents={documents} />
+
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
               ["Status", agent.status.replace(/_/g, " ")],
@@ -182,6 +236,11 @@ export default async function AgentDossierPage({ params, searchParams }: Props) 
             ) : null}
           </section>
 
+          <MergeAgentDuplicatesForm
+            keepAgentId={id}
+            keepCompanyName={agent.company_name}
+          />
+
           <section className="rounded-lg border bg-card p-4 print:hidden">
             <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
               Reports
@@ -202,6 +261,13 @@ export default async function AgentDossierPage({ params, searchParams }: Props) 
                   href={`/erp/reports/agent-ar?from=${from}&to=${to}&agent_id=${id}`}
                 >
                   AR &amp; payment habit
+                </Link>
+              </Button>
+              <Button asChild size="sm" variant="outline" className="h-9">
+                <Link
+                  href={`/erp/reports/agent-commerce?from=${from}&to=${to}&agent_id=${id}`}
+                >
+                  Commerce (RN · dues · frequency)
                 </Link>
               </Button>
               <Button asChild size="sm" variant="ghost" className="h-9">
@@ -272,19 +338,25 @@ export default async function AgentDossierPage({ params, searchParams }: Props) 
                   </td>
                   <td className="px-3 py-2.5 text-right text-sm">
                     <Link
-                      href={`/erp/bookings/${b.id}`}
-                      className="text-accent underline-offset-4 hover:underline"
+                      href={agentHubBookingHref(
+                        b.id,
+                        b.status,
+                        b.check_in,
+                        b.check_out,
+                        today,
+                      )}
+                      className="font-medium text-accent underline-offset-4 hover:underline"
                     >
-                      Open
+                      Hub
                     </Link>
                     {b.folio_id ? (
                       <>
                         {" · "}
                         <Link
-                          href={`/erp/folios/${b.folio_id}`}
-                          className="text-accent underline-offset-4 hover:underline"
+                          href={`/erp/folios/${b.folio_id}?advanced=1`}
+                          className="text-muted-foreground underline-offset-4 hover:underline"
                         >
-                          Folio
+                          Ledger
                         </Link>
                       </>
                     ) : null}
@@ -410,12 +482,20 @@ export default async function AgentDossierPage({ params, searchParams }: Props) 
                         ? ` · emailed ${p.emailTo ?? ""}`
                         : " · not emailed"}
                     </span>
-                    <Link
-                      href={`/erp/bookings/${p.bookingId}/settlement-pack`}
-                      className="text-accent underline-offset-4 hover:underline"
-                    >
-                      Open pack
-                    </Link>
+                    <span className="flex flex-wrap gap-2">
+                      <Link
+                        href={`/erp/stayview?booking=${encodeURIComponent(p.bookingId)}&step=check_out`}
+                        className="text-accent underline-offset-4 hover:underline"
+                      >
+                        Hub
+                      </Link>
+                      <Link
+                        href={`/erp/bookings/${p.bookingId}/settlement-pack`}
+                        className="text-muted-foreground underline-offset-4 hover:underline"
+                      >
+                        Pack
+                      </Link>
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -483,7 +563,7 @@ export default async function AgentDossierPage({ params, searchParams }: Props) 
                   </td>
                   <td className="px-3 py-2.5 print:hidden">
                     <Link
-                      href={`/erp/folios/${item.folioId}`}
+                      href={`/erp/folios/${item.folioId}?advanced=1`}
                       className="text-sm font-medium text-accent underline-offset-4 hover:underline"
                     >
                       Collect
@@ -566,6 +646,7 @@ export default async function AgentDossierPage({ params, searchParams }: Props) 
 
       {tab === "rates" ? (
         <div className="space-y-8">
+          <AgentRateAssist propertyId={propertyId} />
           <DeskTable
             caption={`Rates · tier ${agent.rate_tier}`}
             headers={["Season", "Room", "Amount"]}

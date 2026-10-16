@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { formatBtn } from "@/lib/pricing";
-import { DEFAULT_PROPERTY_SLUG } from "@/lib/property";
+import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -110,13 +110,12 @@ export default async function ErpAgentsPage({
   const searchQuery = (sp.q ?? "").trim().toLowerCase();
 
   const admin = createSupabaseAdminClient();
-  const { data: property } = await admin
-    .from("properties")
-    .select("id")
-    .eq("slug", DEFAULT_PROPERTY_SLUG)
-    .single();
-
-  const propertyId = property?.id as string | undefined;
+  let propertyId: string | undefined;
+  try {
+    propertyId = await resolveActivePropertyId(admin);
+  } catch {
+    propertyId = undefined;
+  }
 
   // Scoped loads so directory bulk does not crowd out trade partners.
   let agentsQ = admin

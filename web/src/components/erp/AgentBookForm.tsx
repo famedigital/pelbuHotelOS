@@ -6,6 +6,7 @@ import {
   type AgentBookingState,
   type AgentRoomOption,
 } from "@/app/actions/agent-book";
+import { HoldCountdown } from "@/components/erp/HoldCountdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -100,23 +101,40 @@ export function AgentBookForm() {
   if (state.ok) {
     return (
       <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-6">
-        <h2 className="text-lg font-semibold">Rooms held</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Your booking is held until{" "}
-          {state.holdExpiresAt
-            ? new Date(state.holdExpiresAt).toLocaleString("en-BT", {
+        <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
+          Hold timer
+        </p>
+        <h2 className="mt-1 text-lg font-semibold">Rooms held</h2>
+        {state.holdExpiresAt ? (
+          <div className="mt-4 rounded-xl border border-border bg-background/80 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Time left to confirm</p>
+            <HoldCountdown expiresAt={state.holdExpiresAt} />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Expires{" "}
+              {new Date(state.holdExpiresAt).toLocaleString("en-BT", {
                 timeZone: "Asia/Thimphu",
-              })
-            : "shortly"}
-          . The desk confirms against your credit. Reference{" "}
+              })}
+            </p>
+          </div>
+        ) : null}
+        <p className="mt-3 text-sm text-muted-foreground">
+          The desk confirms against your credit before the timer ends. Reference{" "}
           <span className="font-mono">{state.bookingId?.slice(0, 8)}</span>.
         </p>
-        <a
-          href="/agents/app/calendar"
-          className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground"
-        >
-          View my bookings
-        </a>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <a
+            href="/agents/app/calendar"
+            className="inline-flex min-h-11 items-center rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground"
+          >
+            View my bookings
+          </a>
+          <a
+            href="/agents/app/money"
+            className="inline-flex min-h-11 items-center rounded-xl border border-border px-5 text-sm font-medium"
+          >
+            Money &amp; dues
+          </a>
+        </div>
       </div>
     );
   }

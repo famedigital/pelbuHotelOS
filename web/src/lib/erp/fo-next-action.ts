@@ -157,7 +157,7 @@ export function foActionFromStay(
         ? "Assign → CI"
         : meta.cta,
     stayHubStep: meta.stayHubStep,
-    href: `/erp/today?booking=${encodeURIComponent(facts.bookingId)}&step=${meta.stayHubStep ?? "reserve"}`,
+    href: `/erp/stayview?booking=${encodeURIComponent(facts.bookingId)}&step=${meta.stayHubStep ?? "reserve"}`,
     bookingId: facts.bookingId,
     roomUnitId: null,
     playbook:

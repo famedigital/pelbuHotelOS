@@ -21,6 +21,7 @@ export type AgentBookingSummary = {
   guideNumber: string | null;
   quotedTotalBtn: number | null;
   createdAt: string;
+  holdExpiresAt: string | null;
 };
 
 function addDaysIso(iso: string, days: number): string {
@@ -125,7 +126,7 @@ export async function loadAgentBookings(
   let q = admin
     .from("bookings")
     .select(
-      "id, check_in, check_out, status, guide_number, quoted_total_btn, created_at, booking_rooms(qty)",
+      "id, check_in, check_out, status, guide_number, quoted_total_btn, created_at, hold_expires_at, booking_rooms(qty)",
     )
     .eq("agent_id", agentId)
     .order("check_in", { ascending: false })
@@ -148,6 +149,7 @@ export async function loadAgentBookings(
     quotedTotalBtn:
       row.quoted_total_btn == null ? null : Number(row.quoted_total_btn),
     createdAt: row.created_at as string,
+    holdExpiresAt: (row.hold_expires_at as string | null) ?? null,
   }));
 }
 

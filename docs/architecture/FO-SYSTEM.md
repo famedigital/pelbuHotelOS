@@ -77,19 +77,48 @@ sequenceDiagram
 | Invoice after void-all | Print banner Nu 0 | Repost nights → reopen/reprint INV |
 | Cash / pay-at-leave + agent on booking | Party: Guest | Collect payment (no Agent bill CTA) |
 
-## Primary FO routes
+## StayView + Hub (desk IA)
+
+Daily FO work lives on **two surfaces**. If a job needs a third page, attach it to Hub (sheet/drawer) or demote it to Advanced.
+
+| Surface | Job | Route |
+|---------|-----|-------|
+| **StayView** | Living FO assistant — **Do / Report / Check** (ranked jobs, live refresh) | `/erp/stayview` (desk home; `/erp/today` redirects here) |
+| **Hub** | One stay’s whole job — book → check-in → bill → invoice → collect → checkout | StayHub dialog (`?booking=&step=`) |
+| POS | Food ticket + settle | `/erp/pos` |
+| Night close | Night audit blockers | `/erp/night-audit` |
+| Settings | Property + BYOK Gemini | `/erp/settings` |
+
+**Primary nav (desk):** StayView · Hub (context) · POS · Night close · Settings.  
+**Demote:** Open bills, City Ledger aliases, orphan invoice lists, rate islands → Advanced under Hub/Settings until unused.
+
+**Language:** Guest words — Due, Collect, Bill, Invoice, Check in, Check out. Hide City Ledger / AR jargon from the daily path.
+
+```mermaid
+flowchart LR
+  StayView["StayView today rack"] -->|"tap stay"| Hub["Hub one stay"]
+  Hub -->|"done / next"| StayView
+  Gemini["BYOK Gemini draft"] -->|"preview only"| Hub
+  Hub -->|"human Confirm"| Ledger["guestLedgerBalance journal"]
+```
+
+### Allowed primary FO routes
 
 | Job | Route |
 |-----|-------|
-| Worklist | `/erp/today` |
-| Rack | `/erp/calendar` → StayHub |
-| Stay money (canonical) | StayHub → Folio |
-| Full ledger | `/erp/folios/[id]` |
-| Collect list | `/erp/unpaid-bills` |
-| Open bills (master/walk-in) | `/erp/folios` |
-| Tax print | `/erp/invoices/[id]/print` |
+| StayView (desk home) | `/erp/stayview` |
+| Rack mode | `/erp/calendar` → Hub |
+| Stay money (canonical) | Hub → Folio panel |
+| Collect list | StayView unpaid + Hub Collect |
+| Tax print | Hub Bill/Invoice → `/erp/invoices/[id]/print` |
 | Night audit | `/erp/night-audit` |
-| Training | `/erp/training#stay-money` |
+| Training | `/erp/training#stayview-hub` |
+| Advanced ledger | `/erp/folios/[id]` (deep-link money jobs → Hub `?step=stay_money`) |
+| Advanced open bills | `/erp/folios` |
+| Agent cockpit | `/erp/agents/[id]` Overview — Do / Report / Check; bookings open Hub |
+| Agent Assist | Dossier BYOK: paste-to-stay + explain partner due (Confirm only) |
+
+New FO features **must** attach to StayView or Hub (agent stays deep-link Hub from dossier). Agent money Collect → Hub `?booking=&step=` or Money tab / advanced folio — never silent AI writes.
 
 ## Balance call-site inventory (cutover)
 
@@ -124,10 +153,36 @@ New FO UI **must not** invent `sum(total_btn)` for guest due.
 [ Secondary: Open full folio ]
 ```
 
+## BYOK Gemini — consent matrix
+
+Property setting: `property_ai_settings` (encrypted `gemini_api_key_enc`, model, enabled).  
+Platform env Gemini (finance receipt parsers) stays **separate** from desk BYOK.
+
+| Job | Gemini does | Human confirms |
+|-----|-------------|----------------|
+| Paste agent WhatsApp / email | Extract guest, dates, room, meal, rate, guide | Create / update stay |
+| Check-in | Fill nationality, pax, room suggestion, guide | Confirm check-in |
+| Rate / agent sheet | Propose Agents-tier cells | Save sheet |
+| Folio | “Why is due X?”, suggest void + repost nights | Void / post |
+| Invoice FO | Draft notes, explain empty INV after void | Issue / print |
+| Checkout | Checklist: due clear? guide? HK? | Confirm checkout |
+| POS | Parse spoken/pasted order, suggest ticket lines | Add / settle |
+| POS invoice/receipt | Draft share text / WA | Send |
+| Night close | Summarize missing nights / blockers | Run audit |
+
+**Hard blocks (no silent path):**
+
+- No auto void / pay / post / delete / status change
+- No auto “fix” folio balances
+- No model write to `folio_lines` / `payments` / `fiscal_documents` without Confirm that calls existing server actions
+- Audit every Confirm: `ai.draft_accepted` with prompt hash + actor
+
+Implementation: [`web/src/lib/ai/gemini-byok.ts`](../../web/src/lib/ai/gemini-byok.ts), [`web/src/app/actions/erp-ai-assist.ts`](../../web/src/app/actions/erp-ai-assist.ts), UI `AiAssistPanel` (draft → Apply/Discard).
+
 ## AI rule (3 years)
 
-Assist and explain (“why is due X?”). Human confirms every money write.
+Assist and explain (“why is due X?”). Human confirms every money write. Gemini may **read, suggest, draft, explain** — never post, void, pay, erase, convert, or issue INV/RCP without visible **Confirm** (and manager PIN when money/period rules already require it).
 
 ## Out of scope
 
-POS KDS rewrite, HR, laundry, channel, CMS, new GST/RRCO pack, multi-invoice without credit-note product.
+POS KDS rewrite, HR, laundry, channel, CMS, new GST/RRCO pack, multi-invoice without credit-note product, silent AI money writes, eZee screen-count parity.

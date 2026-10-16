@@ -113,30 +113,30 @@ export function AppSidebar({
 
   return (
     <Sidebar collapsible="icon" className="erp print:hidden">
-      <SidebarHeader className="border-b border-sidebar-border/60">
+      <SidebarHeader className="h-11 justify-center border-b border-sidebar-border/60 px-2 py-0">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              size="lg"
+              size="default"
               asChild
               isActive={pathname === "/erp"}
               tooltip={brandName}
-              className="gap-2.5"
+              className="h-9 gap-2"
             >
               <Link href="/erp">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={logoSrc || BRAND_ICONS.mark}
                   alt={brandName}
-                  className="size-8 rounded-md object-contain ring-1 ring-sidebar-border/80"
-                  width={32}
-                  height={32}
+                  className="size-6 rounded-md object-contain ring-1 ring-sidebar-border/80"
+                  width={24}
+                  height={24}
                 />
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold tracking-tight">
                     {brandName}
                   </span>
-                  <span className="truncate text-[11px] text-muted-foreground">
+                  <span className="truncate text-[10px] text-muted-foreground">
                     {workspace === "back_office"
                       ? "Back office"
                       : "Front desk"}

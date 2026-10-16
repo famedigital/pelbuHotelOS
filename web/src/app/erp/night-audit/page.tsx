@@ -1,4 +1,5 @@
 import { NightAuditDesk } from "@/components/erp/NightAuditDesk";
+import { NightCloseAssist } from "@/components/erp/NightCloseAssist";
 import {
   Card,
   CardContent,
@@ -107,6 +108,7 @@ export default async function ErpNightAuditPage() {
 
   return (
     <div className="erp mx-auto w-full max-w-[1200px] space-y-10 p-4 md:p-6">
+      <NightCloseAssist propertyId={propertyId} />
       <NightAuditDesk defaultDate={today} history={history} />
 
       <Card>

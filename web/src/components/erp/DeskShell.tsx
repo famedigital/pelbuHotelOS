@@ -12,6 +12,7 @@ import { DeskSearchHint } from "@/components/erp/DeskSearchHint";
 import { PropertySwitcher } from "@/components/erp/PropertySwitcher";
 import { DeskMainSkeleton } from "@/components/erp/DeskMainSkeleton";
 import { DeskChromeGuard } from "@/components/erp/DeskChromeGuard";
+import { DeskSurfaceMetrics } from "@/components/erp/DeskSurfaceMetrics";
 import { StayHubShell } from "@/components/erp/StayHubShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -85,6 +86,9 @@ export function DeskShell({
           <ErpCommandPalette allowedModuleKeys={allowedModuleKeys} />
           <SidebarInset className="max-h-svh overflow-hidden">
             <StayHubShell>
+              <Suspense fallback={null}>
+                <DeskSurfaceMetrics />
+              </Suspense>
               <header className="z-30 flex h-11 min-w-0 shrink-0 items-center gap-1 overflow-x-auto border-b border-border bg-background px-2 [scrollbar-width:none] sm:gap-1.5 sm:px-3 print:hidden [&::-webkit-scrollbar]:hidden">
                 <SidebarTrigger className="-ml-1 inline-flex h-8 w-auto gap-1 px-2" />
                 <Separator

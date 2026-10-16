@@ -39,13 +39,13 @@ import { usePathname } from "next/navigation";
 
 const PRIMARY_FRONT_DESK = [
   {
-    title: "Today",
-    href: "/erp/today",
+    title: "StayView",
+    href: "/erp/stayview",
     icon: ClipboardListIcon,
     moduleKey: "front-desk",
   },
   {
-    title: "Stay View",
+    title: "Rack",
     href: "/erp/calendar",
     icon: CalendarDaysIcon,
     moduleKey: "calendar",

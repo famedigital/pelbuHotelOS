@@ -131,7 +131,7 @@ export async function computeRoleReadiness(
     {
       label: `${arrivalsList.length} arrival(s) today`,
       ok: arrivalsList.length === 0 || unassigned === 0,
-      href: "/erp/today",
+      href: "/erp/stayview",
     },
     {
       label: "All arrivals have rooms",
@@ -210,7 +210,7 @@ export async function computeRoleReadiness(
         unassigned > 0
           ? `${unassigned} arrival(s) need room assignment.`
           : `${arrivalsList.length} arrival(s) today.`,
-      href: "/erp/today",
+      href: "/erp/stayview",
       items: foItems,
     },
     {

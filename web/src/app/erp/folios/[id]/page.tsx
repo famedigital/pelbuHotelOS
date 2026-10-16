@@ -170,6 +170,23 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
 
   const bookingId = (folio.booking_id as string | null) ?? null;
 
+  // Guest stay money jobs open in Hub; keep Advanced ledger with ?advanced=1.
+  if (
+    bookingId &&
+    sp.advanced !== "1" &&
+    sp.stay !== "1" &&
+    (folio.folio_type as string) !== "master" &&
+    (folio.folio_type as string) !== "walk_in"
+  ) {
+    redirect(
+      buildStayHubReopenHref({
+        bookingId,
+        panel: "stay_money",
+        board: "stayview",
+      }),
+    );
+  }
+
   const [
     { data: links },
     { data: invoiceDoc },

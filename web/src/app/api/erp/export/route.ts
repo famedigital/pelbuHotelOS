@@ -4,6 +4,7 @@ import { requireDeskPropertyId } from "@/lib/desk-property";
 import { loadAgentProductionReport } from "@/lib/reports/agent-dossier";
 import {
   loadAgentArReport,
+  loadAgentCommerceReport,
   loadCancellationsReport,
   loadDepositDueReport,
   loadFoOccupancyReport,
@@ -60,6 +61,7 @@ export async function GET(request: Request) {
     kind === "agent-production" ||
     kind === "agent-commission" ||
     kind === "agent-ar" ||
+    kind === "agent-commerce" ||
     kind === "deposit-due" ||
     kind === "cancellations" ||
     kind === "meal-count" ||
@@ -270,6 +272,46 @@ export async function GET(request: Request) {
           csvEscape(r.aging_total),
           csvEscape(r.credit_used),
           csvEscape(r.credit_limit),
+          csvEscape(r.habit),
+        ]),
+      );
+    }
+
+    if (kind === "agent-commerce") {
+      let rows = await loadAgentCommerceReport(admin, {
+        propertyId,
+        from: since,
+        to: until,
+        today,
+      });
+      if (agentId) rows = rows.filter((r) => r.agent_id === agentId);
+      return csvResponse(
+        kind,
+        since,
+        [
+          "agent_id",
+          "company_name",
+          "stays",
+          "room_nights",
+          "quoted_btn",
+          "paid_btn",
+          "outstanding_btn",
+          "credit_used",
+          "stays_per_month",
+          "avg_days_to_pay",
+          "habit",
+        ],
+        rows.map((r) => [
+          csvEscape(r.agent_id),
+          csvEscape(r.company_name),
+          csvEscape(r.stays),
+          csvEscape(r.room_nights),
+          csvEscape(r.quoted_btn),
+          csvEscape(r.paid_btn),
+          csvEscape(r.outstanding_btn),
+          csvEscape(r.credit_used),
+          csvEscape(r.stays_per_month),
+          csvEscape(r.avg_days_to_pay ?? ""),
           csvEscape(r.habit),
         ]),
       );

@@ -30,7 +30,7 @@ export function FoTodayLiveBoard({
           href="/erp/calendar"
           className="text-sm text-accent underline-offset-4 hover:underline"
         >
-          Stay View
+          Rack
         </Link>
       </div>
 

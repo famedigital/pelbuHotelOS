@@ -1,3 +1,4 @@
+import { getPropertyAiAssistStatus } from "@/app/actions/erp-ai-assist";
 import { saveRoomTypeSettings } from "@/app/actions/erp-settings";
 import { FinanceImportsSettings } from "@/components/erp/finance/FinanceImportsSettings";
 import { PropertyWizardForm } from "@/components/erp/PropertyWizardForms";
@@ -139,6 +140,13 @@ export default async function ErpSettingsPage({
   ]);
 
   if (!property) notFound();
+
+  const aiAssist = await getPropertyAiAssistStatus(propertyId).catch(() => ({
+    configured: false,
+    enabled: false,
+    model: "gemini-2.0-flash",
+    maskedKey: null as string | null,
+  }));
 
   const roomTypes = ((roomTypesResult.data ?? []) as RoomTypeOption[]).map(
     (type) => ({
@@ -408,6 +416,11 @@ export default async function ErpSettingsPage({
             )?.desk_restrict_to_scheduled_shifts,
           )}
           canEditDeskSecurity={deskRole === "owner" || deskRole === "gm"}
+          aiAssist={{
+            enabled: aiAssist.enabled,
+            model: aiAssist.model,
+            maskedKey: aiAssist.maskedKey,
+          }}
         />
       ) : null}
 

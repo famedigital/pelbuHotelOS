@@ -123,6 +123,19 @@ export async function requireAgentPropertySession(): Promise<
   return session as AgentSession & { activePropertyId: string };
 }
 
+/**
+ * Guard for portal loaders: every query must be scoped to the signed-in agent.
+ * Throws when a caller passes another agent's id (defense in depth vs service-role).
+ */
+export function assertPortalAgentScope(
+  session: Pick<AgentSession, "agentId">,
+  agentId: string,
+): void {
+  if (session.agentId !== agentId) {
+    throw new Error("Partner portal may only load your own records.");
+  }
+}
+
 export async function provisionAgentAuthUser(
   admin: Admin,
   agent: {

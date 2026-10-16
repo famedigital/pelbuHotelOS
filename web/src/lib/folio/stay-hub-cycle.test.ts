@@ -222,13 +222,13 @@ test("buildStayHubReopenHref and buildFolioPageHref stay return context", () => 
     }),
     "/erp/in-house?booking=abc-123&step=check_out",
   );
-  assert.equal(stayHubBoardPath("auto"), "/erp/today");
+  assert.equal(stayHubBoardPath("auto"), "/erp/stayview");
   assert.equal(
     buildStayHubReopenHref({
       bookingId: "abc-123",
       panel: "check_in",
     }),
-    "/erp/today?booking=abc-123&step=check_in",
+    "/erp/stayview?booking=abc-123&step=check_in",
   );
   assert.equal(
     buildFolioPageHref({
