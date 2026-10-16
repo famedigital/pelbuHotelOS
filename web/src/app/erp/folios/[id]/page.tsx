@@ -47,6 +47,7 @@ type Props = {
   searchParams: Promise<{
     stay?: string;
     booking?: string;
+    advanced?: string;
     panel?: string;
     board?: string;
   }>;
