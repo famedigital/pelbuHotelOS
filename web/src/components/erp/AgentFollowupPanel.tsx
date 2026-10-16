@@ -163,7 +163,13 @@ export function AgentFollowupPanel({
       )}
 
       <p className="text-xs text-muted-foreground">
-        Full agent AR aging:{" "}
+        <Link
+          href="/erp/unpaid-bills"
+          className="text-accent underline-offset-4 hover:underline"
+        >
+          See all unpaid bills
+        </Link>
+        {" · "}
         <Link
           href="/erp/reports"
           className="text-accent underline-offset-4 hover:underline"
@@ -182,7 +188,7 @@ export function AgentFollowupPanel({
           href="/erp/folios"
           className="text-accent underline-offset-4 hover:underline"
         >
-          City ledger
+          Open bills
         </Link>
       </p>
     </div>

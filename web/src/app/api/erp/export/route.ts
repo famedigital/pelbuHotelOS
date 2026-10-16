@@ -66,6 +66,7 @@ export async function GET(request: Request) {
     kind === "fo-occupancy" ||
     kind === "room-moves" ||
     kind === "guest-ar-aging" ||
+    kind === "unpaid-bills" ||
     kind === "staff-attendance" ||
     kind === "staff-sales" ||
     kind === "inventory-movements" ||
@@ -459,6 +460,51 @@ export async function GET(request: Request) {
           csvEscape(r.aging_d60),
           csvEscape(r.aging_d90),
           csvEscape(r.agent_name ?? ""),
+        ]),
+      );
+    }
+
+    if (kind === "unpaid-bills") {
+      const { loadUnpaidBills } = await import("@/lib/erp/unpaid-bills");
+      const filterRaw = url.searchParams.get("filter") ?? "all";
+      const filter =
+        filterRaw === "agents" || filterRaw === "guests" ? filterRaw : "all";
+      const pack = await loadUnpaidBills(admin, { propertyId, filter });
+      const list = [...pack.rows, ...pack.orphanAgents];
+      return csvResponse(
+        kind,
+        until,
+        [
+          "amount_due",
+          "collect_from",
+          "collect_party",
+          "guest",
+          "check_in",
+          "check_out",
+          "room",
+          "phone",
+          "email",
+          "status",
+          "folio_id",
+          "booking_id",
+          "agent_id",
+          "kind",
+        ],
+        list.map((r) => [
+          csvEscape(r.amountDue),
+          csvEscape(r.collectFrom),
+          csvEscape(r.collectParty),
+          csvEscape(r.guestName),
+          csvEscape(r.checkIn ?? ""),
+          csvEscape(r.checkOut ?? ""),
+          csvEscape(r.rooms),
+          csvEscape(r.phone ?? ""),
+          csvEscape(r.email ?? ""),
+          csvEscape(r.statusLabel),
+          csvEscape(r.folioId ?? ""),
+          csvEscape(r.bookingId ?? ""),
+          csvEscape(r.agentId ?? ""),
+          csvEscape(r.kind),
         ]),
       );
     }

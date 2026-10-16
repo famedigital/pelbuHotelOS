@@ -194,6 +194,13 @@ export const ERP_MODULES: ErpModule[] = [
       leaf("Arrival List", "/erp/arrivals", ClipboardListIcon, ["arrivals"]),
       leaf("Guest Ledger", "/erp/in-house", BedDoubleIcon, ["in-house", "inhouse"]),
       leaf("Departure List", "/erp/departures", ScrollTextIcon, ["departures"]),
+      leaf(
+        "Unpaid bills",
+        "/erp/unpaid-bills",
+        WalletIcon,
+        ["pending bills", "collect", "who owes", "agent pay", "unpaid"],
+        "daily",
+      ),
       leaf("Reservation List", "/erp/reservations", ReceiptTextIcon, ["bookings"]),
       leaf("Sales claims", "/erp/sales-claims", ReceiptTextIcon, undefined, "hidden"),
       leaf("Rate approvals", "/erp/rate-approvals", TagsIcon, undefined, "hidden"),
@@ -250,7 +257,7 @@ export const ERP_MODULES: ErpModule[] = [
     tabs: [
       leaf("Payments", "/erp/payments", CreditCardIcon),
       leaf("Invoices", "/erp/invoices", ReceiptTextIcon),
-      leaf("City Ledger", "/erp/folios", WalletIcon),
+      leaf("Open bills", "/erp/folios", WalletIcon, ["city ledger", "master folio"]),
       leaf("Night Audit", "/erp/night-audit", ScrollTextIcon),
       leaf("Statement", "/erp/finance/statement", ScrollTextIcon),
       leaf("Banking", "/erp/finance/banking", CreditCardIcon),

@@ -10,7 +10,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "City Ledger",
+  title: "Open bills",
   robots: { index: false, follow: false },
 };
 
@@ -73,8 +73,8 @@ export default async function CityLedgerPage() {
   return (
     <DeskListShell
       eyebrow="Money"
-      heading="City Ledger"
-      blurb="Master / agent AR folios. Aging below — tap a row to collect."
+      heading="Open bills"
+      blurb="Master and walk-in open bills. Aging below — tap a row to collect. Stay-level chase list: Unpaid bills."
       dense
     >
       <section className="rounded-lg border bg-card px-3 py-2.5">
