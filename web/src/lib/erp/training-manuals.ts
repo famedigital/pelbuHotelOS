@@ -100,6 +100,12 @@ export const TRAINING_MANUALS: TrainingManual[] = [
         href: "/erp/folios",
       },
       {
+        id: "stay-money",
+        title: "How stay money works",
+        body: "One due everywhere (StayHub = Open bills = Unpaid bills). Nightly base ≠ posted room (tax). Void wrong lines (period PIN if locked), preview + post missing nights, issue INV only when needed, collect until Clear, then check out. Cash / pay-at-leave → Collect payment, not Agent bill.",
+        href: "/erp/training#stay-money",
+      },
+      {
         id: "checkout",
         title: "Check out & dirty room",
         body: "Settle folio, release room to housekeeping.",

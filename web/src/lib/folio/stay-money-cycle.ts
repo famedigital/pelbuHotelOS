@@ -1,7 +1,8 @@
 /**
  * Front-desk stay money cycle steps (shared by folio, calendar modal, booking panel).
  *
- * Cycle: Book / rates → Check-in (folio) → Post charges → Invoice → Pay → Checkout
+ * Cycle: Booked → Checked-in → Charges open → Invoice optional → Settled → Checkout
+ * Never mark Paid while |balance| > 0.5.
  */
 
 export type StayMoneyStepId =
@@ -33,36 +34,36 @@ export type StayMoneyCycleInput = {
 const LABELS: Record<StayMoneyStepId, string> = {
   booked: "Booked",
   checked_in: "Checked in",
-  charges: "Charges posted",
+  charges: "Charges open",
   invoice: "Invoice",
-  paid: "Paid",
+  paid: "Settled",
   checkout: "Checkout",
 };
 
 /**
- * Process strip: Booked → Checked in → Charges posted → Invoice → Paid → Checkout
+ * Honest process strip — derived from data only (no aspirational checkmarks).
  */
 export function buildStayMoneySteps(input: StayMoneyCycleInput): StayMoneyStep[] {
   const status = (input.status ?? "").toLowerCase();
   const checkedOut = status === "checked_out";
-  const checkedIn =
-    status === "checked_in" || checkedOut;
+  const checkedIn = status === "checked_in" || checkedOut;
   const booked = !["cancelled", "no_show", "expired"].includes(status);
   const hasFolio = Boolean(input.hasFolio) || checkedIn;
   const hasCharges = Boolean(input.hasCharges);
   const hasInvoice = Boolean(input.hasInvoice);
   const balance = Number(input.balanceBtn ?? 0);
-  const settled =
-    hasCharges && Math.abs(balance) <= 0.5
-      ? true
-      : checkedOut && Math.abs(balance) <= 0.5;
+  const balanceClear = Math.abs(balance) <= 0.5;
+  /** Settled only when charges exist (or checked out) and due ≈ 0. */
+  const settled = balanceClear && (hasCharges || checkedOut);
 
   const doneMap: Record<StayMoneyStepId, boolean> = {
     booked,
     checked_in: checkedIn && hasFolio,
     charges: hasCharges,
-    invoice: hasInvoice || (hasCharges && settled),
-    paid: settled || checkedOut,
+    // Invoice is optional — never mark done just because balance cleared.
+    invoice: hasInvoice,
+    // Never mark Settled/Paid while due remains.
+    paid: settled && balanceClear,
     checkout: checkedOut,
   };
 
@@ -105,8 +106,8 @@ export const STAY_MONEY_CYCLE_LEGEND = [
   },
   {
     step: 4,
-    title: "Invoice / pay",
-    body: "Issue tax invoice. Print Master bill + Room bill + F&B bill. Guest totals are whole Nu ending in 0 or 5 (hotel absorbs remainder). Collect payment or deposit link.",
+    title: "Invoice / collect",
+    body: "Issue tax invoice when GST needs it. Collect until guest due is Clear. Invoice is optional — Settled means due ≈ 0, not that INV exists.",
   },
   {
     step: 5,

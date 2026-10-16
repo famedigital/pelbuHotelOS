@@ -157,7 +157,7 @@ async function loadRecentAgentCheckouts(
   drivers(full_name, phone),
   booking_drivers(full_name, phone),
   room_assignments(room_units(label, hk_status, room_types(inventory_kind))),
-  folios(id, status, folio_lines(total_btn, status))
+  folios(id, status, folio_lines(id, total_btn, status, reverses_line_id))
 `,
     )
     .eq("property_id", propertyId)

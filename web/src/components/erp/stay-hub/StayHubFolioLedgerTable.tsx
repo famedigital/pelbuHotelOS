@@ -35,8 +35,8 @@ function typeLabel(sourceType: string): string {
 }
 
 /**
- * eZee Manage Folio muscle memory: summary strip + dense ledger grid.
- * Stays inside StayHub Folio → Bill.
+ * StayHub Folio ledger — one due + context line, then dense grid.
+ * Void behind disclosure; balance is always guest-visible (caller).
  */
 export function StayHubFolioLedgerTable({
   lines,
@@ -45,6 +45,9 @@ export function StayHubFolioLedgerTable({
   empty,
   onVoided,
   onOptimisticVoid,
+  dueBtn,
+  nightlyBaseBtn = null,
+  collectParty = "guest",
 }: {
   lines: StayHubMoneyLine[];
   summary: StayHubLedgerSummary;
@@ -52,6 +55,10 @@ export function StayHubFolioLedgerTable({
   empty: string;
   onVoided: () => void;
   onOptimisticVoid?: (lineId: string) => void;
+  /** Canonical guest ledger due (netFolioBalance). */
+  dueBtn?: number;
+  nightlyBaseBtn?: number | null;
+  collectParty?: "guest" | "agent";
 }) {
   const [filter, setFilter] = useState<LedgerFilterKind>("all");
   const [showVoided, setShowVoided] = useState(false);
@@ -69,43 +76,45 @@ export function StayHubFolioLedgerTable({
     (l) => (l.status ?? "").toLowerCase() === "voided",
   ).length;
 
+  const due = dueBtn ?? summary.balanceBtn;
+  const clear = Math.abs(due) <= 0.5;
+
   return (
     <div className="space-y-1.5">
-      {/* Manage Folio strip */}
-      <div className="grid grid-cols-2 gap-1 sm:grid-cols-5">
-        {(
-          [
-            ["Rate", summary.rateBtn],
-            ["Ext", summary.extBtn],
-            ["Disc", summary.discountBtn],
-            ["Paid", summary.paymentBtn],
-            ["Balance", summary.balanceBtn],
-          ] as const
-        ).map(([label, amt]) => (
-          <div
-            key={label}
-            className={cn(
-              "rounded-md border border-border/70 bg-muted/20 px-2 py-1.5",
-              label === "Balance" && "sm:col-span-1 border-foreground/15",
-            )}
-          >
-            <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-              {label}
-            </p>
-            <p
-              className={cn(
-                "text-sm font-semibold tabular-nums tracking-tight",
-                label === "Paid" &&
-                  "text-emerald-800 dark:text-emerald-300",
-                label === "Balance" &&
-                  Math.abs(amt) > 0.5 &&
-                  "text-maroon",
-              )}
-            >
-              {formatGuestBtn(amt)}
-            </p>
-          </div>
-        ))}
+      {/* One-due wireframe (not eZee RATE/DISC strip) */}
+      <div className="rounded-md border border-border/80 bg-card px-2.5 py-2">
+        <p
+          className={cn(
+            "text-lg font-semibold tabular-nums tracking-tight",
+            !clear && "text-maroon",
+          )}
+        >
+          {clear ? "Clear" : `Due ${formatGuestBtn(due)}`}
+        </p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">
+          {nightlyBaseBtn != null
+            ? `Nightly base ${formatGuestBtn(nightlyBaseBtn)}`
+            : "Nightly base — rate sheet"}
+          <span aria-hidden> · </span>
+          Room charge (incl. tax) {formatGuestBtn(summary.rateBtn)}
+          {summary.extBtn > 0.5 ? (
+            <>
+              <span aria-hidden> · </span>
+              Extra {formatGuestBtn(summary.extBtn)}
+            </>
+          ) : null}
+          {summary.paymentBtn > 0.5 ? (
+            <>
+              <span aria-hidden> · </span>
+              Paid {formatGuestBtn(summary.paymentBtn)}
+            </>
+          ) : null}
+          <span aria-hidden> · </span>
+          Party:{" "}
+          {collectParty === "agent"
+            ? "Agent on account"
+            : "Guest pay at leave"}
+        </p>
       </div>
 
       {siblingFolios.length > 0 ? (

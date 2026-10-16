@@ -17,6 +17,7 @@ import { postOpenFolioGuestRateRoundAdj } from "@/lib/folio/rate-adj";
 import {
   postRoomNightsForBooking,
   postRoomNightsForDate,
+  previewRoomNightsForBooking,
 } from "@/lib/folio/room-night";
 import {
   voidFolioLineWithReversal,
@@ -123,9 +124,33 @@ export async function voidFolioLine(
     });
 
     revalidateFolio(result.folioId);
-    return { ok: true, message: "Line voided · balance updated." };
+    return {
+      ok: true,
+      message:
+        "Line voided. Guest due updated. Next: void any other wrong lines, then reopen the tax invoice (or post missing nights if the folio is empty).",
+    };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+    const raw = e instanceof Error ? e.message : "Failed.";
+    const lower = raw.toLowerCase();
+    if (
+      lower.includes("period") ||
+      lower.includes("locked") ||
+      lower.includes("closed")
+    ) {
+      return {
+        ok: false,
+        error:
+          "This charge sits in a locked accounting period. Expand Period override below, enter manager PIN and a short reason (e.g. Rate correction), then Void again.",
+      };
+    }
+    if (lower.includes("take over") || lower.includes("another machine")) {
+      return {
+        ok: false,
+        error:
+          "Someone else has this stay open. Use Take over this stay (manager note), then try Void again.",
+      };
+    }
+    return { ok: false, error: raw };
   }
 }
 
@@ -1682,6 +1707,62 @@ export async function postFolioCheckInCharges(
       return { ok: false, error: room.errors.slice(0, 2).join(" · ") };
     }
     return { ok: true, message: notes.join(" · ") };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+/**
+ * Preview room-night amounts for a folio booking + business date (no writes).
+ */
+export async function previewFolioRoomNight(formData: FormData): Promise<{
+  ok: boolean;
+  error?: string;
+  lines?: Array<{
+    roomLabel: string;
+    businessDate: string;
+    totalBtn: number;
+    alreadyPosted: boolean;
+    note?: string;
+  }>;
+  willPost?: number;
+  alreadyPosted?: number;
+}> {
+  try {
+    await requireMoney();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const folioId = trimRequired(formData.get("folio_id"), "Folio");
+    const property = await loadProperty(admin, pid);
+    const businessDate =
+      optionalTrim(formData.get("business_date")) ??
+      todayInTimezone(property?.timezone);
+
+    const { data: folio } = await admin
+      .from("folios")
+      .select("id, booking_id, property_id")
+      .eq("id", folioId)
+      .single();
+    if (!folio) throw new Error("Folio not found.");
+    assertDeskProperty(pid, folio.property_id as string, "Folio");
+    const bookingId = folio.booking_id as string | null;
+    if (!bookingId) throw new Error("This folio is not linked to a booking.");
+
+    const result = await previewRoomNightsForBooking(
+      admin,
+      pid,
+      bookingId,
+      businessDate,
+    );
+    return {
+      ok: true,
+      lines: result.lines,
+      willPost: result.willPost,
+      alreadyPosted: result.alreadyPosted,
+      error: result.errors.length
+        ? result.errors.slice(0, 3).join(" · ")
+        : undefined,
+    };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
   }

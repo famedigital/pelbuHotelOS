@@ -5,8 +5,8 @@ import {
 } from "./helpers";
 
 /**
- * Money-cycle smoke: login → book-ish surface → folio/check-in language →
- * POS/laundry nav. Full DB book→CI→pay→NA→CO needs PLAYWRIGHT_MONEY_CYCLE=1;
+ * FO money-cycle smoke + training empty-state links.
+ * Full DB book→CI→void→balance→INV needs PLAYWRIGHT_MONEY_CYCLE=1;
  * missing secrets → skip (not fail).
  */
 
@@ -60,11 +60,51 @@ test.describe("Pelbu money path smoke", () => {
     });
   });
 
-  test("folio city ledger opens", async ({ page }) => {
+  test("open bills + unpaid bills share money language", async ({ page }) => {
     await deskLogin(page);
     await page.goto("/erp/folios");
-    await expect(page.locator("body")).toContainText(/folio|balance|guest|ledger/i, {
+    await expect(page.locator("body")).toContainText(/open bill|folio|balance|guest/i, {
       timeout: 30_000,
     });
+    await page.goto("/erp/unpaid-bills");
+    await expect(page.locator("body")).toContainText(/unpaid|due|collect|guest|agent/i, {
+      timeout: 30_000,
+    });
+  });
+
+  test("training stay-money section linked from FO empty states", async ({
+    page,
+  }) => {
+    await deskLogin(page);
+    await page.goto("/erp/training#stay-money");
+    await expect(page.locator("#stay-money")).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator("#stay-money")).toContainText(/one due|nightly base|void/i);
+  });
+});
+
+test.describe("FO money journey (opt-in)", () => {
+  test.skip(
+    !hasDeskCredentials() || process.env.PLAYWRIGHT_MONEY_CYCLE !== "1",
+    "Set PLAYWRIGHT_MONEY_CYCLE=1 plus desk credentials for full void→balance→invoice path",
+  );
+
+  test("override → void language → open bills due consistency", async ({
+    page,
+  }) => {
+    await deskLogin(page);
+    await page.goto("/erp/in-house");
+    await expect(page.locator("body")).toContainText(/in.?house|guest|room/i, {
+      timeout: 30_000,
+    });
+    // Open first StayHub if present — assert Folio due / period override copy exists in DOM patterns.
+    const stayBtn = page.getByRole("button", { name: /open|folio|stay/i }).first();
+    if (await stayBtn.isVisible().catch(() => false)) {
+      await stayBtn.click();
+      await expect(page.locator("body")).toContainText(/due|folio|collect|clear/i, {
+        timeout: 15_000,
+      });
+    }
+    await page.goto("/erp/folios");
+    await expect(page.locator("body")).toContainText(/open bill|balance/i);
   });
 });

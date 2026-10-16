@@ -74,9 +74,19 @@ export default async function CityLedgerPage() {
     <DeskListShell
       eyebrow="Money"
       heading="Open bills"
-      blurb="Master and walk-in open bills. Aging below — tap a row to collect. Stay-level chase list: Unpaid bills."
+      blurb="Master and walk-in open bills — same due math as StayHub (guest ledger). Stay chase: Unpaid bills."
       dense
     >
+      <p className="text-[11px] text-muted-foreground">
+        Due on each row is guest ledger balance (voids excluded). Training:{" "}
+        <Link
+          href="/erp/training#stay-money"
+          className="font-medium text-foreground underline-offset-2 hover:underline"
+        >
+          How stay money works
+        </Link>
+        .
+      </p>
       <section className="rounded-lg border bg-card px-3 py-2.5">
         <p className="text-xs font-medium text-muted-foreground">
           AR aging · {today}

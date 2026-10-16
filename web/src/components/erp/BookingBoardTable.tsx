@@ -3,6 +3,7 @@ import {
   boardActionLabel,
   computeArrivalBadges,
 } from "@/lib/arrival-board";
+import { netFolioBalance } from "@/lib/folio/balance";
 
 /**
  * Server-rendered adapter that maps raw booking query rows into the typed
@@ -109,14 +110,24 @@ export function BookingBoardTable({
         | Array<{
             id?: string;
             status?: string;
-            folio_lines?: Array<{ total_btn?: number; status?: string }> | null;
+            folio_lines?: Array<{
+              id?: string;
+              total_btn?: number;
+              status?: string;
+              reverses_line_id?: string | null;
+            }> | null;
           }>
         | null) ?? [];
     const openFolio = folios.find((f) => f.status === "open") ?? folios[0];
     const folioBalance = openFolio
-      ? (openFolio.folio_lines ?? [])
-          .filter((l) => l.status === "posted")
-          .reduce((sum, l) => sum + Number(l.total_btn ?? 0), 0)
+      ? netFolioBalance(
+          (openFolio.folio_lines ?? []).map((l, i) => ({
+            id: l.id ?? `tmp-${i}`,
+            status: l.status ?? "posted",
+            total_btn: Number(l.total_btn ?? 0),
+            reverses_line_id: l.reverses_line_id ?? null,
+          })),
+        )
       : null;
 
     const adults = Number(r.adults ?? 0);

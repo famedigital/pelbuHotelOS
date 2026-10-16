@@ -2373,7 +2373,9 @@ export function StayHubDialog({
             onClick={openCollect}
             disabled={!folioId}
           >
-            {summary.agentId ? "Agent bill" : "Collect payment"}
+            {(money?.collectParty ?? "guest") === "agent"
+              ? "Agent bill"
+              : "Collect payment"}
           </Button>
         );
       }
@@ -2398,7 +2400,9 @@ export function StayHubDialog({
             className="min-h-11 flex-1 sm:flex-none"
             onClick={openCollect}
           >
-            {summary.agentId ? "Clear agent bill first" : "Collect payment first"}
+            {(money?.collectParty ?? "guest") === "agent"
+              ? "Clear agent bill first"
+              : "Collect payment first"}
           </Button>
         );
       }
@@ -2617,6 +2621,7 @@ export function StayHubDialog({
         lines,
         ledgerSummary,
         balanceBtn: ledgerSummary.balanceBtn,
+        guestVisibleBalanceBtn: ledgerSummary.balanceBtn,
       };
     });
   };
@@ -2648,7 +2653,10 @@ export function StayHubDialog({
       <StayHubAdvancedPanel
         folioId={folioId}
         masterCandidates={money?.masterCandidates ?? []}
-        onRefresh={refreshSummary}
+        onRefresh={() => {
+          void refreshSummary();
+          onMoneyChanged();
+        }}
         onOpenVoucher={() => printDeskSheet("voucher")}
         booking={{
           bookingId: summary.bookingId,
@@ -2715,7 +2723,12 @@ export function StayHubDialog({
             onForceLock={
               railLockHint
                 ? () => {
-                    void forceTakeover("Manager forced stay lease from StayHub");
+                    void forceTakeover(
+                      "Manager forced stay lease from StayHub",
+                    ).then((r) => {
+                      if (r.ok) toast.success(r.message ?? "Stay taken over");
+                      else toast.error(r.error ?? "Take-over failed");
+                    });
                   }
                 : undefined
             }
@@ -2750,7 +2763,10 @@ export function StayHubDialog({
                   ? () => {
                       void forceTakeover(
                         "Manager forced stay lease from StayHub",
-                      );
+                      ).then((r) => {
+                        if (r.ok) toast.success(r.message ?? "Stay taken over");
+                        else toast.error(r.error ?? "Take-over failed");
+                      });
                     }
                   : undefined,
                 backLabel,
@@ -3203,7 +3219,10 @@ export function StayHubDialog({
                                   draft?.mealPlanCode ?? summary.mealPlanCode
                                 }
                                 roomLabel={summary.roomLabel}
-                                onSuccess={refreshSummary}
+                                onSuccess={() => {
+                                  void refreshSummary();
+                                  onMoneyChanged();
+                                }}
                               />
                             </div>
                           </WorkSection>
@@ -3411,7 +3430,10 @@ export function StayHubDialog({
                                   currentReason={summary.agreedRateReason}
                                   mealPlanCode={summary.mealPlanCode}
                                   roomLabel={summary.roomLabel}
-                                  onSuccess={refreshSummary}
+                                  onSuccess={() => {
+                                    void refreshSummary();
+                                    onMoneyChanged();
+                                  }}
                                   compact
                                 />
                               </WorkSection>
@@ -3869,6 +3891,7 @@ export function StayHubDialog({
               onSuccess={() => {
                 setRailRateOpen(false);
                 void refreshSummary();
+                onMoneyChanged();
               }}
             />
           </DialogContent>

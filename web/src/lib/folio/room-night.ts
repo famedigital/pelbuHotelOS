@@ -23,6 +23,22 @@ export type RoomNightPostResult = {
   errors: string[];
 };
 
+export type RoomNightPreviewLine = {
+  roomLabel: string;
+  businessDate: string;
+  /** Tax-inclusive total that would post. */
+  totalBtn: number;
+  alreadyPosted: boolean;
+  note?: string;
+};
+
+export type RoomNightPreviewResult = {
+  lines: RoomNightPreviewLine[];
+  willPost: number;
+  alreadyPosted: number;
+  errors: string[];
+};
+
 function rateTierFromSource(source: string): RateTier {
   if (source === "mou_agent") return "mou_agents";
   if (source === "agent") return "agents";
@@ -98,17 +114,37 @@ export async function postRoomNightsForBooking(
   });
 }
 
+/** Read-only preview of amounts that would post for a booking night. */
+export async function previewRoomNightsForBooking(
+  admin: Admin,
+  propertyId: string,
+  bookingId: string,
+  businessDate: string,
+): Promise<RoomNightPreviewResult> {
+  const result = await postRoomNightsForDate(admin, propertyId, businessDate, {
+    bookingId,
+    dryRun: true,
+  });
+  return {
+    lines: result.preview ?? [],
+    willPost: result.posted,
+    alreadyPosted: result.skipped,
+    errors: result.errors,
+  };
+}
+
 /**
  * Post one room-night folio line per occupied sellable room for businessDate.
  * Idempotent via DB unique (folio_id, business_date, room_unit_id).
  * Rates always resolve from live `room_rates` (same sheet as `/erp/rates`).
+ * Pass `dryRun: true` to compute totals without writing (preview).
  */
 export async function postRoomNightsForDate(
   admin: Admin,
   propertyId: string,
   businessDate: string,
-  opts?: { bookingId?: string },
-): Promise<RoomNightPostResult> {
+  opts?: { bookingId?: string; dryRun?: boolean },
+): Promise<RoomNightPostResult & { preview?: RoomNightPreviewLine[] }> {
   const taxSettings = await loadRoomRateTaxSettings(admin, propertyId);
   const seasonKind = await resolveSeasonKind(admin, propertyId, businessDate);
 
@@ -280,11 +316,22 @@ export async function postRoomNightsForDate(
   let posted = 0;
   let skipped = 0;
   const errors: string[] = [];
+  const preview: RoomNightPreviewLine[] = [];
+  const dryRun = Boolean(opts?.dryRun);
 
   for (const room of rooms) {
     // NC / house-use: skip folio charge, still counts as occupied elsewhere
     if (!room.chargeable) {
       skipped += 1;
+      if (dryRun) {
+        preview.push({
+          roomLabel: room.roomLabel,
+          businessDate,
+          totalBtn: 0,
+          alreadyPosted: false,
+          note: "Non-chargeable / house use",
+        });
+      }
       continue;
     }
 
@@ -353,27 +400,71 @@ export async function postRoomNightsForDate(
     const totalBtn = tax.totalBtn;
 
     const folioLabel = `${room.contactName} · Room ${room.roomLabel}`;
-    let folioId: string;
-    try {
-      folioId = await ensureOpenFolio(admin, propertyId, room.bookingId, folioLabel);
-    } catch (e) {
-      errors.push(
-        `Room ${room.roomLabel}: ${e instanceof Error ? e.message : "folio error"}.`,
-      );
+    let folioId: string | null = null;
+    if (!dryRun) {
+      try {
+        folioId = await ensureOpenFolio(
+          admin,
+          propertyId,
+          room.bookingId,
+          folioLabel,
+        );
+      } catch (e) {
+        errors.push(
+          `Room ${room.roomLabel}: ${e instanceof Error ? e.message : "folio error"}.`,
+        );
+        continue;
+      }
+    } else {
+      const { data: existingFolio } = await admin
+        .from("folios")
+        .select("id")
+        .eq("booking_id", room.bookingId)
+        .eq("property_id", propertyId)
+        .eq("status", "open")
+        .order("created_at")
+        .limit(1)
+        .maybeSingle();
+      folioId = (existingFolio?.id as string | undefined) ?? null;
+    }
+
+    let alreadyPosted = false;
+    if (folioId) {
+      const { data: existingLine } = await admin
+        .from("folio_lines")
+        .select("id")
+        .eq("folio_id", folioId)
+        .eq("business_date", businessDate)
+        .eq("room_unit_id", room.roomUnitId)
+        .eq("source_type", "room")
+        .eq("status", "posted")
+        .maybeSingle();
+      alreadyPosted = Boolean(existingLine);
+    }
+
+    if (alreadyPosted) {
+      skipped += 1;
+      if (dryRun) {
+        preview.push({
+          roomLabel: room.roomLabel,
+          businessDate,
+          totalBtn,
+          alreadyPosted: true,
+          note: "Already on folio",
+        });
+      }
       continue;
     }
 
-    const { data: existingLine } = await admin
-      .from("folio_lines")
-      .select("id")
-      .eq("folio_id", folioId)
-      .eq("business_date", businessDate)
-      .eq("room_unit_id", room.roomUnitId)
-      .eq("source_type", "room")
-      .eq("status", "posted")
-      .maybeSingle();
-    if (existingLine) {
-      skipped += 1;
+    if (dryRun) {
+      preview.push({
+        roomLabel: room.roomLabel,
+        businessDate,
+        totalBtn,
+        alreadyPosted: false,
+        note: usedAgreed ? "Agreed rate" : undefined,
+      });
+      posted += 1;
       continue;
     }
 
@@ -381,7 +472,7 @@ export async function postRoomNightsForDate(
 
     try {
       await postFolioCharge(admin, propertyId, {
-        folio_id: folioId,
+        folio_id: folioId as string,
         booking_id: room.bookingId,
         source_type: "room",
         source_id: room.assignmentId,
@@ -412,5 +503,7 @@ export async function postRoomNightsForDate(
     posted += 1;
   }
 
-  return { posted, skipped, errors };
+  return dryRun
+    ? { posted, skipped, errors, preview }
+    : { posted, skipped, errors };
 }

@@ -41,6 +41,7 @@ export type StayHubMoneyLine = {
   /** YYYY-MM-DD for grid (business_date or created day). */
   date: string | null;
   created_at: string | null;
+  reverses_line_id?: string | null;
 };
 
 export type StayHubLedgerSummary = {
@@ -78,6 +79,10 @@ export type StayHubMoneyPayload = {
   /** Guest-visible balance (excludes agent-billed room package). */
   guestVisibleBalanceBtn: number;
   agentChargesBtn: number;
+  /** Who the desk should chase for remaining due. */
+  collectParty: "guest" | "agent";
+  /** Nightly base from booking (not tax-inclusive posted room). */
+  agreedNightlyRateBtn: number | null;
   /** Open master folios for StayHub attach. */
   masterCandidates: Array<{ id: string; label: string }>;
   /** Sibling open folios on the same booking (transfer / multi-folio). */
@@ -266,7 +271,7 @@ export async function fetchStayHubSummary(
       room_assignments(id, room_unit_id, is_locked, from_date, to_date,
         chargeable, nc_reason_code,
         room_units(id, label, room_type_id, hk_status, room_types(id, name))),
-      folios(id, status, folio_lines(total_btn, status, source_type))
+      folios(id, status, folio_lines(id, total_btn, status, source_type, reverses_line_id))
     `,
       )
       .eq("id", bookingId)
@@ -369,17 +374,24 @@ export async function fetchStayHubSummary(
           id: string;
           status: string;
           folio_lines?: Array<{
+            id?: string;
             total_btn?: number;
             status?: string;
             source_type?: string;
+            reverses_line_id?: string | null;
           }> | null;
         }>
       | null) ?? [];
   const openFolio = folios.find((f) => f.status === "open") ?? folios[0] ?? null;
-  const lines = (openFolio?.folio_lines ?? []).filter(
-    (l) => l.status === "posted",
+  const { guestLedgerBalance } = await import("@/lib/folio/guest-ledger");
+  const balance = guestLedgerBalance(
+    (openFolio?.folio_lines ?? []).map((l, i) => ({
+      id: l.id ?? `tmp-${i}`,
+      status: l.status ?? "posted",
+      total_btn: Number(l.total_btn ?? 0),
+      reverses_line_id: l.reverses_line_id ?? null,
+    })),
   );
-  const balance = lines.reduce((s, l) => s + Number(l.total_btn ?? 0), 0);
 
   const [{ data: policy }, { data: propertyRow }, roomTax] = await Promise.all([
     admin
@@ -899,11 +911,11 @@ export async function fetchStayHubMoney(
     .from("bookings")
     .select(
       `
-      id, agent_id, payment_mode,
+      id, agent_id, payment_mode, agreed_nightly_rate_btn,
       agents(company_name, status, market),
       room_assignments(room_units(label)),
       folios(id, status,
-        folio_lines(id, total_btn, gst_btn, status, source_type, description, bill_to, business_date, created_at),
+        folio_lines(id, total_btn, gst_btn, status, source_type, description, bill_to, business_date, created_at, reverses_line_id),
         fiscal_documents(id, doc_no, doc_kind, status)
       )
     `,
@@ -977,12 +989,25 @@ export async function fetchStayHubMoney(
     bill_to?: string | null;
     business_date?: string | null;
     created_at?: string | null;
+    reverses_line_id?: string | null;
   }>;
-  /** Include voided for ledger “Show voided”; balance uses posted only. */
+  /** Include voided for ledger “Show voided”; due uses guestLedgerBalance. */
   const allLines = rawLines.filter((l) => l.id);
   const postedLines = allLines.filter((l) => (l.status ?? "posted") === "posted");
-  const balance = postedLines.reduce((s, l) => s + Number(l.total_btn ?? 0), 0);
-  const guestVisibleBalanceBtn = postedLines.reduce((s, l) => {
+  const { guestLedgerBalance, guestVisibleBalanceLines } = await import(
+    "@/lib/folio/guest-ledger"
+  );
+  const balanceLines = allLines.map((l) => ({
+    id: l.id as string,
+    status: l.status ?? "posted",
+    total_btn: Number(l.total_btn ?? 0),
+    reverses_line_id: l.reverses_line_id ?? null,
+    source_type: l.source_type,
+    bill_to: l.bill_to,
+  }));
+  const balance = guestLedgerBalance(balanceLines);
+  const guestVisible = guestVisibleBalanceLines(balanceLines);
+  const guestVisibleBalanceBtn = guestVisible.reduce((s, l) => {
     const st = (l.source_type ?? "").toLowerCase();
     if (st === "payment" || st === "deposit") {
       return s + Number(l.total_btn ?? 0);
@@ -990,7 +1015,7 @@ export async function fetchStayHubMoney(
     if ((l.bill_to ?? "guest") === "agent") return s;
     return s + Number(l.total_btn ?? 0);
   }, 0);
-  const agentChargesBtn = postedLines.reduce((s, l) => {
+  const agentChargesBtn = guestVisible.reduce((s, l) => {
     if ((l.bill_to ?? "guest") !== "agent") return s;
     const st = (l.source_type ?? "").toLowerCase();
     if (st === "payment" || st === "deposit") return s;
@@ -1021,9 +1046,15 @@ export async function fetchStayHubMoney(
       bill_to: l.bill_to ?? null,
       date: biz || (created ? created.slice(0, 10) : null),
       created_at: created,
+      reverses_line_id: l.reverses_line_id ?? null,
     };
   });
   const ledgerSummary = buildLedgerStripSummary(mappedLines);
+  const { deriveCollectParty } = await import("@/lib/folio/guest-ledger");
+  const collectParty = deriveCollectParty({
+    paymentMode: (data.payment_mode as string | null) ?? null,
+    agentId: (data.agent_id as string | null) ?? null,
+  });
 
   const inv =
     (openFolio?.fiscal_documents ?? []).find(
@@ -1100,6 +1131,11 @@ export async function fetchStayHubMoney(
       ledgerSummary,
       guestVisibleBalanceBtn,
       agentChargesBtn,
+      collectParty,
+      agreedNightlyRateBtn:
+        data.agreed_nightly_rate_btn != null
+          ? Number(data.agreed_nightly_rate_btn)
+          : null,
       masterCandidates,
       siblingFolios,
     },

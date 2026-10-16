@@ -2,6 +2,7 @@ import "server-only";
 
 import { deriveAgentPayStatus } from "@/lib/erp/daily-desk";
 import { netFolioBalance } from "@/lib/folio/balance";
+import { deriveCollectParty } from "@/lib/folio/guest-ledger";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
@@ -47,16 +48,6 @@ export type UnpaidBillsResult = {
     guestCount: number;
   };
 };
-
-function isAgentBillMode(mode: string | null | undefined): boolean {
-  const m = (mode ?? "").toLowerCase();
-  return (
-    m.includes("agent") ||
-    m === "credit" ||
-    m === "on_account" ||
-    m === "bill_to_agent"
-  );
-}
 
 function one<T>(raw: T | T[] | null | undefined): T | null {
   if (raw == null) return null;
@@ -230,12 +221,20 @@ export async function loadUnpaidBills(
     const agent = folioAgent ?? bookingAgent;
 
     const paymentMode = booking?.payment_mode ?? null;
-    const onAgent =
-      Boolean(agent?.id || f.agent_id || booking?.agent_id) &&
-      (isAgentBillMode(paymentMode) ||
-        (f.folio_type as string) === "master" ||
-        (f.folio_type as string) === "walk_in" ||
-        Boolean(f.agent_id));
+    const agentIdForParty =
+      (agent?.id as string | undefined) ??
+      (f.agent_id as string | null) ??
+      (booking?.agent_id as string | null) ??
+      null;
+    const folioType = (f.folio_type as string) ?? "guest";
+    const collectParty: UnpaidBillParty =
+      folioType === "master" || folioType === "walk_in" || Boolean(f.agent_id)
+        ? "agent"
+        : deriveCollectParty({
+            paymentMode,
+            agentId: agentIdForParty,
+          });
+    const onAgent = collectParty === "agent";
 
     const guestName =
       booking?.contact_name?.trim() ||
@@ -246,8 +245,6 @@ export async function loadUnpaidBills(
       agent?.company_name?.trim() ||
       agent?.contact_name?.trim() ||
       null;
-
-    const collectParty: UnpaidBillParty = onAgent ? "agent" : "guest";
     const collectFrom =
       collectParty === "agent"
         ? agentName || guestName

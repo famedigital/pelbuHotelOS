@@ -11,6 +11,7 @@ import {
   postFolioCheckInCharges,
   postFolioRoomNight,
   postGuestRoundFigureAdj,
+  previewFolioRoomNight,
   promoteFolioToMaster,
   submitBankPaymentProof,
   transferFolioLine,
@@ -25,8 +26,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { cloudinaryOriginalUrl } from "@/lib/cloudinary";
+import { formatGuestBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
-import { useActionState, useState } from "react";
+import { useActionState, useState, useTransition } from "react";
 
 const initial: ErpFolioOpsState = { ok: false };
 
@@ -68,7 +70,14 @@ export function VoidLineButton({
   collapsed?: boolean;
 }) {
   const [state, action, pending] = useActionState(voidFolioLine, initial);
-  useActionToast(state, { successMessage: "Folio line voided" });
+  const periodLocked =
+    Boolean(state.error) &&
+    /locked accounting period|period override/i.test(state.error ?? "");
+  useActionToast(state, {
+    successMessage:
+      state.message ??
+      "Line voided. Guest due updated — reopen the tax invoice if one exists.",
+  });
 
   const form = (
     <form action={action} className={cn("erp space-y-1.5", !collapsed && "mt-2")}>
@@ -114,7 +123,10 @@ export function VoidLineButton({
           {pending ? "Voiding…" : "Void"}
         </Button>
       </div>
-      <PeriodOverrideFields idPrefix={`void-${lineId.slice(0, 8)}`} />
+      <PeriodOverrideFields
+        idPrefix={`void-${lineId.slice(0, 8)}`}
+        defaultOpen={periodLocked}
+      />
       <Flash state={state} />
     </form>
   );
@@ -524,7 +536,7 @@ export function PostCheckInChargesForm({
   );
 }
 
-/** Manual room-night post for a chosen business date. */
+/** Manual room-night post for a chosen business date (preview amounts first). */
 export function PostRoomNightForm({
   folioId,
   defaultDate,
@@ -535,7 +547,43 @@ export function PostRoomNightForm({
   embedded?: boolean;
 }) {
   const [state, action, pending] = useActionState(postFolioRoomNight, initial);
+  const [previewPending, startPreview] = useTransition();
+  const [preview, setPreview] = useState<{
+    lines: Array<{
+      roomLabel: string;
+      businessDate: string;
+      totalBtn: number;
+      alreadyPosted: boolean;
+      note?: string;
+    }>;
+    willPost: number;
+    alreadyPosted: number;
+    error?: string;
+  } | null>(null);
   useActionToast(state, { successMessage: "Room night posted" });
+
+  function runPreview(form: HTMLFormElement) {
+    const fd = new FormData(form);
+    startPreview(async () => {
+      const res = await previewFolioRoomNight(fd);
+      if (!res.ok) {
+        setPreview({
+          lines: [],
+          willPost: 0,
+          alreadyPosted: 0,
+          error: res.error ?? "Preview failed",
+        });
+        return;
+      }
+      setPreview({
+        lines: res.lines ?? [],
+        willPost: res.willPost ?? 0,
+        alreadyPosted: res.alreadyPosted ?? 0,
+        error: res.error,
+      });
+    });
+  }
+
   return (
     <form
       action={action}
@@ -544,15 +592,19 @@ export function PostRoomNightForm({
           ? "erp space-y-3"
           : "erp space-y-3 rounded-lg border bg-card p-4"
       }
+      onChange={() => setPreview(null)}
     >
       <input type="hidden" name="folio_id" value={folioId} />
       {!embedded ? (
         <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-          Post room night
+          Post missing nights
         </p>
       ) : (
-        <p className="text-sm font-medium">Post room night</p>
+        <p className="text-sm font-medium">Post missing nights</p>
       )}
+      <p className="text-[11px] text-muted-foreground">
+        Same poster as night audit. Preview amounts before posting.
+      </p>
       <div>
         <Label htmlFor="rn_business_date" className="text-xs">
           Business date
@@ -566,9 +618,59 @@ export function PostRoomNightForm({
           className="mt-1.5"
         />
       </div>
-      <Button type="submit" variant="outline" disabled={pending} className="h-10 w-full">
-        {pending ? "Posting…" : "Post room night"}
-      </Button>
+      {preview ? (
+        <div className="rounded-md border bg-muted/20 px-2.5 py-2 text-xs">
+          {preview.error ? (
+            <p className="text-destructive">{preview.error}</p>
+          ) : null}
+          {preview.lines.length === 0 && !preview.error ? (
+            <p className="text-muted-foreground">Nothing to post for that date.</p>
+          ) : (
+            <ul className="space-y-1">
+              {preview.lines.map((l) => (
+                <li
+                  key={`${l.roomLabel}-${l.businessDate}-${l.alreadyPosted}`}
+                  className="flex justify-between gap-2 tabular-nums"
+                >
+                  <span>
+                    Room {l.roomLabel}
+                    {l.alreadyPosted ? " · already posted" : ""}
+                    {l.note ? ` · ${l.note}` : ""}
+                  </span>
+                  <span className="font-medium">
+                    {formatGuestBtn(l.totalBtn)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-1.5 text-[11px] text-muted-foreground">
+            Will post {preview.willPost} · already on folio {preview.alreadyPosted}
+          </p>
+        </div>
+      ) : null}
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={previewPending || pending}
+          className="h-10 flex-1"
+          onClick={(e) => {
+            const form = (e.currentTarget as HTMLButtonElement).form;
+            if (form) runPreview(form);
+          }}
+        >
+          {previewPending ? "Previewing…" : "Preview amounts"}
+        </Button>
+        <Button
+          type="submit"
+          variant="default"
+          disabled={pending || previewPending}
+          className="h-10 flex-1"
+        >
+          {pending ? "Posting…" : "Post room night"}
+        </Button>
+      </div>
       <Flash state={state} />
     </form>
   );

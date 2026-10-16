@@ -3,8 +3,9 @@
  * One business-date snapshot: arrivals, departures, in-house.
  */
 
-import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { netFolioBalance } from "@/lib/folio/balance";
 import { LAUNDRY_STATUSES, type LaundryStatus } from "@/lib/laundry";
+import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
 
@@ -27,7 +28,7 @@ export const DAY_OPS_BOARD_SELECT = `
   room_assignments(
     room_units(label, hk_status, room_types(inventory_kind))
   ),
-  folios(id, status, folio_lines(total_btn, status))
+  folios(id, status, folio_lines(id, total_btn, status, reverses_line_id))
 `;
 
 export type DayOpsSlice = "arrivals" | "departures" | "in_house";
@@ -134,16 +135,26 @@ function folioMeta(
     | Array<{
         id?: string;
         status?: string;
-        folio_lines?: Array<{ total_btn?: number; status?: string }> | null;
+        folio_lines?: Array<{
+          id?: string;
+          total_btn?: number;
+          status?: string;
+          reverses_line_id?: string | null;
+        }> | null;
       }>
     | null
     | undefined,
 ): { folio_id: string | null; folio_balance_btn: number | null } {
   const open = (folios ?? []).find((f) => f.status === "open") ?? folios?.[0];
   if (!open) return { folio_id: null, folio_balance_btn: null };
-  const balance = (open.folio_lines ?? [])
-    .filter((l) => l.status === "posted")
-    .reduce((sum, l) => sum + Number(l.total_btn ?? 0), 0);
+  const balance = netFolioBalance(
+    (open.folio_lines ?? []).map((l, i) => ({
+      id: l.id ?? `tmp-${i}`,
+      status: l.status ?? "posted",
+      total_btn: Number(l.total_btn ?? 0),
+      reverses_line_id: l.reverses_line_id ?? null,
+    })),
+  );
   return {
     folio_id: (open.id as string | undefined) ?? null,
     folio_balance_btn: balance,

@@ -676,9 +676,23 @@ export default async function FiscalInvoicePrintPage({
         {fiscalLines.length > 0 ? (
           <FiscalLinesTable rows={fiscalLines} dense={fiscalLines.length >= 8} />
         ) : (
-          <p className="mt-6 text-center text-sm text-[#5c534c]">
-            No posted charge lines for this bill.
-          </p>
+          <div className="mt-6 rounded-md border border-amber-700/30 bg-amber-50 px-4 py-3 text-center text-sm text-[#3a322c]">
+            <p className="font-semibold">No guest-visible charges on this invoice</p>
+            <p className="mt-1 text-[13px] text-[#5c534c]">
+              Usually after voiding every line. Guest due is Nu 0 until you
+              re-post room nights (StayHub → Folio → Post charges / Post room
+              night), then reopen or reprint this INV. Do not invent a second
+              invoice number without a credit note.
+            </p>
+            <p className="mt-2 text-[12px]">
+              <a
+                href="/erp/training#stay-money"
+                className="font-medium underline underline-offset-2"
+              >
+                How stay money works
+              </a>
+            </p>
+          </div>
         )}
 
         <FiscalTotalsBlock

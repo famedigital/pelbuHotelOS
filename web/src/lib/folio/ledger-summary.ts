@@ -1,15 +1,18 @@
 /**
- * Folio ledger strip totals (eZee Manage Folio muscle memory):
- * Rate · Ext · Discount · Payment · Balance.
+ * Folio ledger strip totals for StayHub / Open bills.
+ * Balance always uses guest-visible lines (void originals + their reversals excluded).
  */
 
+import { guestVisibleBalanceLines } from "@/lib/folio/balance";
 import { classifyBillLine } from "@/lib/folio/bill-kinds";
 
 export type LedgerLineLike = {
+  id?: string;
   source_type: string;
   description?: string | null;
   total_btn: number;
   status?: string | null;
+  reverses_line_id?: string | null;
 };
 
 export type LedgerStripSummary = {
@@ -18,6 +21,7 @@ export type LedgerStripSummary = {
   discountBtn: number;
   /** Payments + deposits taken as positive Nu collected. */
   paymentBtn: number;
+  /** Guest-visible due (netFolioBalance). */
   balanceBtn: number;
 };
 
@@ -38,7 +42,7 @@ export function isRoomRateLine(sourceType: string): boolean {
   return ["room", "meal_plan", "extra_bed"].includes(st);
 }
 
-/** Build Manage Folio strip from posted lines (voided ignored). */
+/** Build Manage Folio strip from lines; due ignores void + reversal pairs. */
 export function buildLedgerStripSummary(
   lines: LedgerLineLike[],
 ): LedgerStripSummary {
@@ -46,15 +50,25 @@ export function buildLedgerStripSummary(
   let extBtn = 0;
   let discountBtn = 0;
   let paymentBtn = 0;
-  let balanceBtn = 0;
 
-  for (const l of lines) {
-    if ((l.status ?? "posted") !== "posted") continue;
+  const forBalance = lines.map((l, i) => ({
+    id: l.id ?? `tmp-${i}`,
+    status: l.status ?? "posted",
+    total_btn: Number(l.total_btn ?? 0),
+    reverses_line_id: l.reverses_line_id ?? null,
+    source_type: l.source_type,
+    description: l.description,
+  }));
+  const visible = guestVisibleBalanceLines(forBalance);
+  const balanceBtn = visible.reduce(
+    (sum, line) => sum + Number(line.total_btn),
+    0,
+  );
+
+  for (const l of visible) {
     const amt = Number(l.total_btn ?? 0);
-    balanceBtn += amt;
     const st = (l.source_type ?? "").toLowerCase();
     if (isPaymentLine(st)) {
-      // Payments are typically negative on folio; show positive collected
       paymentBtn += Math.abs(amt);
       continue;
     }

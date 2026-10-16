@@ -46,4 +46,28 @@ describe("stay-money-cycle", () => {
       "folio",
     );
   });
+
+  it("never marks Settled while due remains (even if checked out)", () => {
+    const steps = buildStayMoneySteps({
+      status: "checked_out",
+      hasFolio: true,
+      hasCharges: true,
+      hasInvoice: true,
+      balanceBtn: 2490,
+    });
+    assert.equal(steps.find((s) => s.id === "paid")?.done, false);
+    assert.equal(steps.find((s) => s.id === "checkout")?.done, true);
+  });
+
+  it("does not mark Invoice done just because balance cleared", () => {
+    const steps = buildStayMoneySteps({
+      status: "checked_in",
+      hasFolio: true,
+      hasCharges: true,
+      hasInvoice: false,
+      balanceBtn: 0,
+    });
+    assert.equal(steps.find((s) => s.id === "invoice")?.done, false);
+    assert.equal(steps.find((s) => s.id === "paid")?.done, true);
+  });
 });

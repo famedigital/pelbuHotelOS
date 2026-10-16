@@ -1054,29 +1054,46 @@ export async function confirmCheckOut(
     if (folio) {
       const { data: refreshed } = await admin
         .from("folios")
-        .select("id, folio_lines(total_btn, status, bill_to, source_type)")
+        .select(
+          "id, folio_lines(id, total_btn, status, bill_to, source_type, reverses_line_id)",
+        )
         .eq("id", folio.id)
         .maybeSingle();
       const lines =
         ((refreshed ?? folio).folio_lines as
           | {
+              id?: string;
               total_btn: number;
               status: string;
               bill_to?: string | null;
               source_type?: string | null;
+              reverses_line_id?: string | null;
             }[]
           | null) ?? [];
-      const posted = lines.filter((l) => l.status === "posted");
-      balance = posted.reduce((sum, l) => sum + Number(l.total_btn), 0);
+      const { guestLedgerBalance, guestVisibleBalanceLines } = await import(
+        "@/lib/folio/guest-ledger"
+      );
+      const balanceLines = lines.map((l, i) => ({
+        id: l.id ?? `tmp-${i}`,
+        status: l.status ?? "posted",
+        total_btn: Number(l.total_btn ?? 0),
+        reverses_line_id: l.reverses_line_id ?? null,
+        source_type: l.source_type,
+        bill_to: l.bill_to,
+      }));
+      balance = guestLedgerBalance(balanceLines);
       // Guest-visible: non-agent bill_to charges + all payments (guest settle)
-      guestVisibleBalance = posted.reduce((sum, l) => {
-        const st = (l.source_type ?? "").toLowerCase();
-        if (st === "payment" || st === "deposit") {
+      guestVisibleBalance = guestVisibleBalanceLines(balanceLines).reduce(
+        (sum, l) => {
+          const st = (l.source_type ?? "").toLowerCase();
+          if (st === "payment" || st === "deposit") {
+            return sum + Number(l.total_btn);
+          }
+          if ((l.bill_to ?? "guest") === "agent") return sum;
           return sum + Number(l.total_btn);
-        }
-        if ((l.bill_to ?? "guest") === "agent") return sum;
-        return sum + Number(l.total_btn);
-      }, 0);
+        },
+        0,
+      );
 
       const paymentMode = String(booking.payment_mode ?? "").toLowerCase();
       const agentResidualOk =

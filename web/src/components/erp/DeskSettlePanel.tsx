@@ -28,6 +28,7 @@ import {
   foPaymentModeLabel,
   foPaymentModeShort,
 } from "@/lib/folio/fo-settlement";
+import { deriveCollectParty } from "@/lib/folio/guest-ledger";
 import { buildLedgerStripSummary } from "@/lib/folio/ledger-summary";
 import {
   buildFolioPageHref,
@@ -175,6 +176,13 @@ export function DeskSettlePanel({
   const agentName = money?.agentName ?? null;
   const agentId = money?.agentId ?? null;
   const paymentMode = (money?.paymentMode ?? "").toLowerCase();
+  const collectParty =
+    money?.collectParty ??
+    deriveCollectParty({
+      paymentMode: money?.paymentMode,
+      agentId,
+    });
+  const partyIsAgent = collectParty === "agent";
   const bookableAgent: BookableAgent | null =
     agentId && agentName
       ? {
@@ -364,12 +372,13 @@ export function DeskSettlePanel({
     <div className="space-y-1.5">
       {showBill ? (
         <p className="text-[10px] leading-snug text-muted-foreground">
-          In-stay bill — issue tax invoice below, then collect. Void / comp:{" "}
+          One due above. Issue tax invoice when GST needs it, then collect.
+          Void wrong lines first.{" "}
           <Link
             href={stayFolioHref ?? `/erp/folios/${folioId}`}
             className="font-medium text-foreground underline-offset-2 hover:underline"
           >
-            full folio
+            Open full folio
           </Link>
           {" · "}
           Advanced.
@@ -436,7 +445,9 @@ export function DeskSettlePanel({
           className="space-y-1.5"
         >
           <p className="text-[11px] font-medium text-muted-foreground">
-            {agentName ? "Settle · cash or agent AR" : "Collect payment"}
+            {partyIsAgent
+              ? "Settle · agent on account"
+              : "Collect payment · guest pay at leave"}
           </p>
           <p className="text-[11px] leading-snug text-muted-foreground">
             Confirmation <span className="font-medium text-foreground">PS-…</span>{" "}
@@ -451,9 +462,9 @@ export function DeskSettlePanel({
             defaultMethod={payPreset?.method ?? "cash"}
             emphasized
             compact
-            agentName={agentName}
-            agent={settleAgent}
-            agentCreditEligible={agentCreditEligible}
+            agentName={partyIsAgent ? agentName : null}
+            agent={partyIsAgent ? settleAgent : null}
+            agentCreditEligible={partyIsAgent && agentCreditEligible}
             onAgentPromoted={(next) => {
               setLocalAgentStatus(next.status);
               onMoneyChanged();
@@ -556,7 +567,8 @@ export function DeskSettlePanel({
 
           {(tab === "pos" || tab === "all") &&
           (hasPos || posTotal > 0.5) &&
-          agentId ? (
+          agentId &&
+          partyIsAgent ? (
             <PosPayorStrip
               folioId={folioId}
               hasPos={hasPos}
@@ -593,6 +605,9 @@ export function DeskSettlePanel({
             empty={ledgerEmpty}
             onVoided={onMoneyChanged}
             onOptimisticVoid={onOptimisticVoidLine}
+            dueBtn={dues}
+            nightlyBaseBtn={money?.agreedNightlyRateBtn ?? null}
+            collectParty={collectParty}
           />
 
           {tab === "pos" || tab === "all" ? (
@@ -811,7 +826,7 @@ function DueBar({
             )}
             onClick={onCollect}
           >
-            {agentName || dense ? "Settle" : "Collect"}
+            {dense ? "Collect" : "Collect"}
           </Button>
         ) : null}
         {invoiceSlot}

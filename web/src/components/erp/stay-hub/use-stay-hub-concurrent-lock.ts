@@ -84,7 +84,12 @@ export type StayHubConcurrentLock = {
   /** Another tab or desk holds this booking. */
   peerHint: string | null;
   holding: boolean;
-  forceTakeover: (note?: string) => Promise<void>;
+  forceTakeover: (note?: string) => Promise<{
+    ok: boolean;
+    peerLabel?: string | null;
+    error?: string;
+    message?: string;
+  }>;
 };
 
 /**
@@ -245,8 +250,16 @@ export function useStayHubConcurrentLock(
     };
   }, [open, bookingId]);
 
-  async function forceTakeover(note?: string) {
-    if (!bookingId) return;
+  async function forceTakeover(note?: string): Promise<{
+    ok: boolean;
+    peerLabel?: string | null;
+    error?: string;
+    message?: string;
+  }> {
+    if (!bookingId) {
+      return { ok: false, error: "No booking open." };
+    }
+    const priorPeer = peerHint;
     const clientId = clientIdRef.current || clientIdOnce();
     const res = await claimStayLease(bookingId, clientId, {
       force: true,
@@ -255,7 +268,22 @@ export function useStayHubConcurrentLock(
     if (res.ok && res.holding) {
       setPeerHint(null);
       setHolding(true);
+      return {
+        ok: true,
+        peerLabel: priorPeer,
+        message: priorPeer
+          ? `Took over from ${priorPeer}. You can void and post money now.`
+          : "Stay is yours. You can void and post money now.",
+      };
     }
+    return {
+      ok: false,
+      peerLabel: res.peerLabel ?? priorPeer,
+      error:
+        res.error ??
+        res.message ??
+        "Could not take over this stay. Try again or ask the other desk to close StayHub.",
+    };
   }
 
   return { peerHint, holding, forceTakeover };

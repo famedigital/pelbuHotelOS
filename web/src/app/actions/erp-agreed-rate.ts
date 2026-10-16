@@ -98,6 +98,8 @@ export async function setAgreedNightlyRate(
     if (upErr) return { ok: false, error: upErr.message };
 
     let adjusted = 0;
+    let mealsVoided = 0;
+    const setEp = !clear && formData.get("set_ep") === "1";
     if (adjustPosted && booking.status === "checked_in") {
       const { data: folios } = await admin
         .from("folios")
@@ -109,29 +111,32 @@ export async function setAgreedNightlyRate(
       for (const f of folios ?? []) {
         const { data: lines } = await admin
           .from("folio_lines")
-          .select("id, business_date, description, total_btn")
+          .select("id, business_date, description, total_btn, source_type")
           .eq("folio_id", f.id)
-          .eq("source_type", "room")
+          .in("source_type", setEp ? ["room", "meal_plan"] : ["room"])
           .eq("status", "posted");
 
         for (const line of lines ?? []) {
+          const sourceType = (line.source_type as string) ?? "room";
           try {
             await voidFolioLineWithReversal(admin, propertyId, {
               lineId: line.id as string,
-              reason: clear
-                ? "Clear agreed rate — re-post from rate sheet"
-                : `Agreed rate Nu ${agreed} — re-post room night`,
+              reason:
+                sourceType === "meal_plan"
+                  ? clear
+                    ? "Clear agreed rate — meal plan re-eval"
+                    : "Agreed rate EP — void meal plan charge"
+                  : clear
+                    ? "Clear agreed rate — re-post from rate sheet"
+                    : `Agreed rate Nu ${agreed} — re-post room night`,
               voidedBy: approvedBy,
             });
+            if (sourceType === "meal_plan") {
+              mealsVoided += 1;
+              continue;
+            }
             const biz = (line.business_date as string | null) ?? null;
-            if (biz && !clear) {
-              await postRoomNightsForBooking(
-                admin,
-                propertyId,
-                bookingId,
-                biz,
-              );
-            } else if (biz && clear) {
+            if (biz) {
               await postRoomNightsForBooking(
                 admin,
                 propertyId,
@@ -163,6 +168,8 @@ export async function setAgreedNightlyRate(
         reason: reason ?? null,
         approved_by: approvedBy,
         room_lines_adjusted: adjusted,
+        meal_lines_voided: mealsVoided,
+        set_ep: setEp,
       },
     });
 
@@ -172,13 +179,20 @@ export async function setAgreedNightlyRate(
     revalidatePath("/erp/folios");
     revalidatePath(`/erp/bookings/${bookingId}`);
 
+    const mealNote =
+      mealsVoided > 0
+        ? ` Voided ${mealsVoided} meal line(s) (EP).`
+        : setEp
+          ? " Meal plan set to EP."
+          : "";
+
     if (clear) {
       return {
         ok: true,
         message:
           adjusted > 0
-            ? `Agreed rate cleared. Re-posted ${adjusted} room-night line(s) from rate sheet.`
-            : "Agreed rate cleared. Future night posts use the rate sheet.",
+            ? `Agreed rate cleared. Re-posted ${adjusted} room-night line(s) from rate sheet.${mealNote}`
+            : `Agreed rate cleared. Future night posts use the rate sheet.${mealNote}`,
       };
     }
 
@@ -186,8 +200,8 @@ export async function setAgreedNightlyRate(
       ok: true,
       message:
         adjusted > 0
-          ? `Agreed Nu ${agreed}/night · EP/special. Re-posted ${adjusted} room-night line(s).`
-          : `Agreed Nu ${agreed}/night set. Future night posts use this rate.`,
+          ? `Agreed Nu ${agreed}/night · EP/special. Re-posted ${adjusted} room-night line(s).${mealNote}`
+          : `Agreed Nu ${agreed}/night set. Future night posts use this rate.${mealNote}`,
     };
   } catch (e) {
     return {
