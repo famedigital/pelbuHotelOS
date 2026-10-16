@@ -7,6 +7,20 @@ echo "======== PRE-DEPLOY (keep build cache) ========"
 free -h | sed -n '1,3p'
 df -h / | tail -1
 
+echo "======== kill stuck next builds (OOM prevention) ========"
+# Concurrent Coolify + manual next build OOMs an 8GB droplet (load 100+).
+if pgrep -af 'next build|jest-worker/processChild' >/dev/null 2>&1; then
+  echo "Stopping leftover next build workers..."
+  pkill -9 -f 'node /app/node_modules/.bin/next build' 2>/dev/null || true
+  pkill -9 -f 'jest-worker/processChild' 2>/dev/null || true
+  sleep 1
+fi
+
+echo "======== stop orphan Next apps (no Traefik) ========"
+# pelbu-desk-live has no Traefik labels — pure RAM waste alongside Coolify + innora.
+docker stop pelbu-desk-live 2>/dev/null || true
+# Do NOT stop Coolify zkgg* here — Traefik often prefers it for sslip/apex.
+
 echo "======== tmp / probe leftovers ========"
 rm -f /tmp/probe-*.sh /tmp/probe-*.mjs /tmp/run-probe-*.sh \
   /tmp/ih.html /tmp/pub-ih.html /tmp/out.html \
