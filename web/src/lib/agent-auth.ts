@@ -63,7 +63,17 @@ async function readAgentPropertyCookie(): Promise<string | null> {
 async function readPortalCookie(): Promise<string | null> {
   try {
     const jar = await cookies();
-    return jar.get(AGENT_PORTAL_COOKIE)?.value?.trim() || null;
+    // Host-only + Domain=.innorahotel.com duplicates can coexist after redeploys.
+    // Prefer a value that actually verifies — empty/stale host-only must not win.
+    const matches = jar
+      .getAll()
+      .filter((c) => c.name === AGENT_PORTAL_COOKIE)
+      .map((c) => c.value?.trim() || "")
+      .filter(Boolean);
+    for (const value of matches) {
+      if (parseAgentPortalToken(value)) return value;
+    }
+    return matches[0] ?? null;
   } catch {
     return null;
   }

@@ -80,18 +80,37 @@ function pickActiveLink(links: AgentPropertyLink[]): AgentPropertyLink | null {
 
 function clearStaleAuthCookies(response: NextResponse, request: NextRequest) {
   const host = requestHost(request);
+  const domain = agentPortalCookieDomain(host);
+  const secure = process.env.NODE_ENV === "production";
   for (const spec of portalCookieClearSpecs(host)) {
     response.cookies.set(spec.name, spec.value, spec.options);
   }
 
-  for (const { name } of request.cookies.getAll()) {
-    if (!name.startsWith("sb-")) continue;
+  const names = new Set(
+    request.cookies
+      .getAll()
+      .map((c) => c.name)
+      .filter((name) => name.startsWith("sb-") || name === AGENT_PROPERTY_COOKIE),
+  );
+  // Always clear property cookie both ways (may be absent from request).
+  names.add(AGENT_PROPERTY_COOKIE);
+
+  for (const name of names) {
     response.cookies.set(name, "", {
       path: "/",
       maxAge: 0,
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
+      secure,
     });
+    if (domain) {
+      response.cookies.set(name, "", {
+        path: "/",
+        maxAge: 0,
+        sameSite: "lax",
+        secure,
+        domain,
+      });
+    }
   }
 }
 
