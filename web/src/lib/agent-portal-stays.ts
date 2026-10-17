@@ -96,7 +96,8 @@ export async function loadAgentStayRows(
       .eq("property_id", opts.propertyId)
       .order("check_in", { ascending: false })
       .limit(opts.limit ?? 120);
-    bookings = retry.data;
+    // Retry omits payments; runtime treats missing as []. Cast past PostgREST select variance.
+    bookings = retry.data as typeof bookings;
     error = retry.error;
   }
 
