@@ -11,8 +11,14 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function AgentLoginPage() {
+export default async function AgentLoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   if (await getAgentSession()) redirect("/agents/app");
+  const sp = await searchParams;
+  const error = sp.error?.trim() || undefined;
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background px-6 py-16">
@@ -39,7 +45,7 @@ export default async function AgentLoginPage() {
             </p>
           </div>
         </div>
-        <AgentLoginForm />
+        <AgentLoginForm error={error} />
         <div className="space-y-2 text-center text-sm text-muted-foreground">
           <Link
             href="/agents"

@@ -132,11 +132,12 @@ export async function middleware(request: NextRequest) {
     request: { headers: requestHeaders },
   });
 
+  // Do NOT refresh Supabase sessions on /agents/* here. A failed/slow refresh
+  // clears sb-* cookies via setAll and causes partner login loops. Agent pages
+  // validate the session in RSC (getAgentSession) instead.
   const needsAuthRefresh =
     hasSupabaseAuthCookie(request) &&
     (pathname.startsWith("/staff") ||
-      pathname.startsWith("/agents/app") ||
-      pathname.startsWith("/agents/login") ||
       pathname.startsWith("/admin") ||
       pathname.startsWith("/partner") ||
       (isErp && !hasValidDeskPinCookie(request)));
@@ -190,6 +191,8 @@ export const config = {
     "/erp",
     "/erp/:path*",
     "/staff/:path*",
+    // Still stamp x-pathname for agent shells; auth refresh skipped above.
+    "/agents/app",
     "/agents/app/:path*",
     "/agents/login",
     "/admin",

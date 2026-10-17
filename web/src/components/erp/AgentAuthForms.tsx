@@ -1,19 +1,15 @@
 "use client";
 
-import {
-  agentLogin,
-  setAgentPortalPin,
-  type AgentLoginState,
-} from "@/app/actions/agent-auth";
+import { setAgentPortalPin } from "@/app/actions/agent-auth";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { TriangleAlertIcon } from "lucide-react";
-import { useActionState, useEffect } from "react";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 
-const loginInitial: AgentLoginState = { ok: false };
 const pinInitial = {
   ok: false as boolean,
   error: undefined as string | undefined,
@@ -23,16 +19,24 @@ const pinInitial = {
 const selectClass =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
 
-export function AgentLoginForm() {
-  const [state, action, pending] = useActionState(agentLogin, loginInitial);
-
-  useEffect(() => {
-    if (!state.ok || !state.home) return;
-    window.location.assign(state.home);
-  }, [state.ok, state.home]);
-
+function SignInButton() {
+  const { pending } = useFormStatus();
   return (
-    <form action={action} className="space-y-4" noValidate>
+    <Button type="submit" disabled={pending} className="h-11 w-full">
+      {pending ? "Signing in…" : "Sign in"}
+    </Button>
+  );
+}
+
+/** Posts to Route Handler so Supabase Set-Cookie survives the redirect. */
+export function AgentLoginForm({ error }: { error?: string }) {
+  return (
+    <form
+      action="/api/agents/login"
+      method="post"
+      className="space-y-4"
+      noValidate
+    >
       <div className="space-y-1.5">
         <Label htmlFor="login_code">Agent code</Label>
         <Input
@@ -59,19 +63,13 @@ export function AgentLoginForm() {
           className="h-11"
         />
       </div>
-      {state.error ? (
+      {error ? (
         <Alert variant="destructive">
           <TriangleAlertIcon />
-          <AlertDescription>{state.error}</AlertDescription>
+          <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
-      <Button
-        type="submit"
-        disabled={pending || Boolean(state.ok && state.home)}
-        className="h-11 w-full"
-      >
-        {pending || (state.ok && state.home) ? "Opening…" : "Sign in"}
-      </Button>
+      <SignInButton />
     </form>
   );
 }
@@ -88,7 +86,12 @@ export function AgentPinProvisionForm({
     <form action={action} className="space-y-3">
       <div className="space-y-1.5">
         <Label htmlFor="pin_agent_id">Agent</Label>
-        <select id="pin_agent_id" name="agent_id" className={selectClass} required>
+        <select
+          id="pin_agent_id"
+          name="agent_id"
+          className={selectClass}
+          required
+        >
           <option value="">Select agent…</option>
           {agents.map((agent) => (
             <option key={agent.id} value={agent.id}>
