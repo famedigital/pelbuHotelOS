@@ -4,6 +4,13 @@ import {
   validateAgentPin,
 } from "@/lib/agent-auth";
 import {
+  AGENT_PORTAL_COOKIE,
+  agentPortalCookieDomain,
+  agentPortalCookieOptions,
+  createAgentPortalToken,
+  portalCookieClearSpecs,
+} from "@/lib/agent-portal-session";
+import {
   AGENT_PROPERTY_COOKIE,
   loadMouAgentLinks,
   type AgentPropertyLink,
@@ -15,14 +22,17 @@ import { NextResponse, type NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-/** Public site origin — request.url is localhost:3000 behind Traefik. */
+function requestHost(request: NextRequest): string {
+  return (
+    request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ||
+    request.headers.get("host")?.split(",")[0]?.trim() ||
+    ""
+  );
+}
+
+/** Public origin for error redirects only — success uses relative Location. */
 function publicOrigin(request: NextRequest): string {
-  const forwardedHost = request.headers
-    .get("x-forwarded-host")
-    ?.split(",")[0]
-    ?.trim();
-  const hostHdr = request.headers.get("host")?.split(",")[0]?.trim() || "";
-  const host = forwardedHost || hostHdr;
+  const host = requestHost(request);
   let proto =
     request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "";
 
@@ -33,7 +43,6 @@ function publicOrigin(request: NextRequest): string {
           ? "http"
           : "https";
     }
-    // Apex is always HTTPS in production.
     if (/innorahotel\.com$/i.test(host)) proto = "https";
     return `${proto}://${host}`;
   }
@@ -69,9 +78,26 @@ function pickActiveLink(links: AgentPropertyLink[]): AgentPropertyLink | null {
   );
 }
 
+function clearStaleAuthCookies(response: NextResponse, request: NextRequest) {
+  const host = requestHost(request);
+  for (const spec of portalCookieClearSpecs(host)) {
+    response.cookies.set(spec.name, spec.value, spec.options);
+  }
+
+  for (const { name } of request.cookies.getAll()) {
+    if (!name.startsWith("sb-")) continue;
+    response.cookies.set(name, "", {
+      path: "/",
+      maxAge: 0,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+  }
+}
+
 /**
- * Cookie-safe partner login. Server Actions can drop Supabase Set-Cookie on
- * the action response; a Route Handler redirect keeps session cookies attached.
+ * Cookie-safe partner login. Relative Location keeps Set-Cookie same-origin;
+ * signed innora_agent_portal is the session browsers actually keep.
  */
 export async function POST(request: NextRequest) {
   let form: FormData;
@@ -125,10 +151,16 @@ export async function POST(request: NextRequest) {
 
   const active = pickActiveLink(links);
   const homePath = active ? "/agents/app" : "/agents/app/select-property";
-  const redirectTo = new URL(homePath, publicOrigin(request));
-  const response = NextResponse.redirect(redirectTo, 303);
+  // Relative Location — browsers must not treat Set-Cookie as cross-origin.
+  const response = new NextResponse(null, {
+    status: 303,
+    headers: { Location: homePath },
+  });
+
+  clearStaleAuthCookies(response, request);
 
   const cookieSecure = process.env.NODE_ENV === "production";
+  const host = requestHost(request);
   const supabase = createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookieOptions: {
       path: "/",
@@ -155,23 +187,35 @@ export async function POST(request: NextRequest) {
     return loginErrorRedirect(request, "Incorrect agent code or PIN.");
   }
 
-  // Ensure auth storage flush finished before we return Set-Cookie + redirect.
   await supabase.auth.getSession();
+
+  const portalToken = createAgentPortalToken(
+    agent.id as string,
+    agent.auth_user_id as string,
+  );
+  response.cookies.set(
+    AGENT_PORTAL_COOKIE,
+    portalToken,
+    agentPortalCookieOptions(host),
+  );
+
+  const propertyDomain = agentPortalCookieDomain(host);
+  const propertyOpts = {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: cookieSecure,
+    path: "/",
+    ...(propertyDomain ? { domain: propertyDomain } : {}),
+  };
 
   if (active) {
     response.cookies.set(AGENT_PROPERTY_COOKIE, active.propertyId, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: cookieSecure,
-      path: "/",
+      ...propertyOpts,
       maxAge: 60 * 60 * 24 * 90,
     });
   } else {
     response.cookies.set(AGENT_PROPERTY_COOKIE, "", {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: cookieSecure,
-      path: "/",
+      ...propertyOpts,
       maxAge: 0,
     });
   }

@@ -1,5 +1,9 @@
 import { cookies } from "next/headers";
 import {
+  AGENT_PORTAL_COOKIE,
+  parseAgentPortalToken,
+} from "@/lib/agent-portal-session";
+import {
   AGENT_PROPERTY_COOKIE,
   loadMouAgentLinks,
   resolveActiveLinkFromCookie,
@@ -56,33 +60,33 @@ async function readAgentPropertyCookie(): Promise<string | null> {
   }
 }
 
-/**
- * Portal session: Auth + can_login + ≥1 MoU-signed property link.
- * Rates and inventory are only for hotels with a signed MoU.
- */
-export async function getAgentSession(): Promise<AgentSession | null> {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const admin = createSupabaseAdminClient();
-  const { data } = await admin
-    .from("agents")
-    .select(
-      "id, company_name, market, status, login_code, can_login, auth_user_id",
-    )
-    .eq("auth_user_id", user.id)
-    .maybeSingle();
-
-  if (!data || !data.can_login) {
+async function readPortalCookie(): Promise<string | null> {
+  try {
+    const jar = await cookies();
+    return jar.get(AGENT_PORTAL_COOKIE)?.value?.trim() || null;
+  } catch {
     return null;
   }
+}
+
+async function sessionFromAgentRow(
+  admin: Admin,
+  data: {
+    id: string;
+    company_name: string;
+    market: string;
+    status: string;
+    login_code: string | null;
+    can_login: boolean;
+    auth_user_id: string | null;
+  },
+  authUserId: string,
+): Promise<AgentSession | null> {
+  if (!data.can_login) return null;
 
   let links: AgentPropertyLink[];
   try {
-    links = await loadMouAgentLinks(admin, data.id as string);
+    links = await loadMouAgentLinks(admin, data.id);
   } catch {
     return null;
   }
@@ -92,18 +96,81 @@ export async function getAgentSession(): Promise<AgentSession | null> {
   const active = resolveActiveLinkFromCookie(links, cookieId);
 
   return {
-    agentId: data.id as string,
-    authUserId: user.id,
-    companyName: data.company_name as string,
-    market: data.market as string,
-    status: data.status as string,
-    loginCode: (data.login_code as string | null) ?? "",
+    agentId: data.id,
+    authUserId,
+    companyName: data.company_name,
+    market: data.market,
+    status: data.status,
+    loginCode: data.login_code ?? "",
     links,
     activePropertyId: active?.propertyId ?? null,
     rateTier: active?.rateTier ?? "agents",
     creditLimit: active?.creditLimit ?? 0,
     creditUsed: active?.creditUsed ?? 0,
   };
+}
+
+/**
+ * Portal session: signed partner cookie (preferred) or Supabase Auth,
+ * plus can_login + ≥1 MoU-signed property link.
+ */
+export async function getAgentSession(): Promise<AgentSession | null> {
+  const admin = createSupabaseAdminClient();
+  const agentSelect =
+    "id, company_name, market, status, login_code, can_login, auth_user_id";
+
+  const portal = parseAgentPortalToken(await readPortalCookie());
+  if (portal) {
+    const { data } = await admin
+      .from("agents")
+      .select(agentSelect)
+      .eq("id", portal.agentId)
+      .eq("auth_user_id", portal.authUserId)
+      .maybeSingle();
+    if (data) {
+      return sessionFromAgentRow(
+        admin,
+        data as {
+          id: string;
+          company_name: string;
+          market: string;
+          status: string;
+          login_code: string | null;
+          can_login: boolean;
+          auth_user_id: string | null;
+        },
+        portal.authUserId,
+      );
+    }
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data } = await admin
+    .from("agents")
+    .select(agentSelect)
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+
+  if (!data) return null;
+
+  return sessionFromAgentRow(
+    admin,
+    data as {
+      id: string;
+      company_name: string;
+      market: string;
+      status: string;
+      login_code: string | null;
+      can_login: boolean;
+      auth_user_id: string | null;
+    },
+    user.id,
+  );
 }
 
 export async function requireAgentSession(): Promise<AgentSession> {

@@ -9,6 +9,7 @@ import {
   validateAgentPin,
 } from "@/lib/agent-auth";
 import { isCreditAgentStatus } from "@/lib/agents/status";
+import { portalCookieClearSpecs } from "@/lib/agent-portal-session";
 import {
   AGENT_PROPERTY_COOKIE,
   getAgentPropertyLink,
@@ -118,6 +119,10 @@ export async function agentLogin(
 export async function agentLogout(): Promise<void> {
   const supabase = await createSupabaseServerClient();
   await setAgentPropertyCookie(null);
+  const jar = await cookies();
+  for (const spec of portalCookieClearSpecs("innorahotel.com")) {
+    jar.set(spec.name, spec.value, spec.options);
+  }
   await supabase.auth.signOut();
   redirect("/agents/login");
 }
