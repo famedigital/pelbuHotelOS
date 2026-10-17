@@ -15,8 +15,43 @@ import { NextResponse, type NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 
+/** Public site origin — request.url is localhost:3000 behind Traefik. */
+function publicOrigin(request: NextRequest): string {
+  const forwardedHost = request.headers
+    .get("x-forwarded-host")
+    ?.split(",")[0]
+    ?.trim();
+  const hostHdr = request.headers.get("host")?.split(",")[0]?.trim() || "";
+  const host = forwardedHost || hostHdr;
+  let proto =
+    request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "";
+
+  if (host && !/^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host)) {
+    if (!proto) {
+      proto =
+        /\.sslip\.io$/i.test(host) || /^\d+\.\d+\.\d+\.\d+/.test(host)
+          ? "http"
+          : "https";
+    }
+    // Apex is always HTTPS in production.
+    if (/innorahotel\.com$/i.test(host)) proto = "https";
+    return `${proto}://${host}`;
+  }
+
+  const site = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "";
+  if (
+    site &&
+    !site.includes("localhost") &&
+    !site.includes("127.0.0.1")
+  ) {
+    return site.startsWith("http") ? site : `https://${site}`;
+  }
+
+  return "https://innorahotel.com";
+}
+
 function loginErrorRedirect(request: NextRequest, message: string) {
-  const url = new URL("/agents/login", request.url);
+  const url = new URL("/agents/login", publicOrigin(request));
   url.searchParams.set("error", message.slice(0, 240));
   return NextResponse.redirect(url, 303);
 }
@@ -90,7 +125,7 @@ export async function POST(request: NextRequest) {
 
   const active = pickActiveLink(links);
   const homePath = active ? "/agents/app" : "/agents/app/select-property";
-  const redirectTo = new URL(homePath, request.url);
+  const redirectTo = new URL(homePath, publicOrigin(request));
   const response = NextResponse.redirect(redirectTo, 303);
 
   const cookieSecure = process.env.NODE_ENV === "production";
