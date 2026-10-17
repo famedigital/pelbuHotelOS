@@ -4,6 +4,11 @@ import {
   flagshipSlug,
   isFlagshipHost,
 } from "@/lib/free-tier";
+import {
+  erpCredentialsPresent,
+  shouldApplyMiddlewareAuthCookies,
+} from "@/lib/middleware-session-gate";
+import { hasSupabaseAuthSessionCookie } from "@/lib/supabase-auth-cookies";
 import { NextResponse, type NextRequest } from "next/server";
 
 /** Mirrors DESK_COOKIE_NAME in lib/desk-auth (that module imports next/headers). */
@@ -11,12 +16,6 @@ const DESK_COOKIE = "hotelos_desk_session";
 
 /** Keep well under Vercel middleware 25s invokation budget. */
 const MIDDLEWARE_NET_MS = 2_000;
-
-function hasSupabaseAuthCookie(request: NextRequest): boolean {
-  return request.cookies
-    .getAll()
-    .some((c) => c.name.startsWith("sb-") && c.name.includes("-auth-token"));
-}
 
 function hasValidDeskPinCookie(request: NextRequest): boolean {
   const pin = process.env.DESK_PIN?.trim();
@@ -30,11 +29,16 @@ function hasValidDeskPinCookie(request: NextRequest): boolean {
   return request.cookies.get(DESK_COOKIE)?.value === `ok:${pin}`;
 }
 
-function erpCredentialsPresent(request: NextRequest): boolean {
-  if (!process.env.DESK_PIN?.trim()) {
-    return process.env.NODE_ENV !== "production";
-  }
-  return hasValidDeskPinCookie(request) || hasSupabaseAuthCookie(request);
+function erpOkForRequest(request: NextRequest): boolean {
+  const supportProperty = request.cookies.get("hotelos_support_property")?.value;
+  const hasSession = hasSupabaseAuthSessionCookie(request.cookies.getAll());
+  if (supportProperty && hasSession) return true;
+  return erpCredentialsPresent({
+    deskPinConfigured: Boolean(process.env.DESK_PIN?.trim()),
+    isProduction: process.env.NODE_ENV === "production",
+    hasValidDeskPinCookie: hasValidDeskPinCookie(request),
+    hasSupabaseSessionCookie: hasSession,
+  });
 }
 
 async function withDeadline<T>(
@@ -69,10 +73,8 @@ export async function middleware(request: NextRequest) {
   const isPartner =
     pathname.startsWith("/partner") && !pathname.startsWith("/partner/login");
 
-  const supportProperty = request.cookies.get("hotelos_support_property")?.value;
-  const erpOk =
-    erpCredentialsPresent(request) ||
-    (Boolean(supportProperty) && hasSupabaseAuthCookie(request));
+  const hasSessionCookie = hasSupabaseAuthSessionCookie(request.cookies.getAll());
+  const erpOk = erpOkForRequest(request);
 
   const isPosLogin =
     pathname === "/erp/pos/login" || pathname.startsWith("/erp/pos/login/");
@@ -84,13 +86,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(loginPath, request.url));
   }
 
-  if ((isAdmin || isPartner) && !hasSupabaseAuthCookie(request)) {
+  if ((isAdmin || isPartner) && !hasSessionCookie) {
     const login = isAdmin ? "/admin/login" : "/partner/login";
     return NextResponse.redirect(new URL(login, request.url));
   }
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-pathname", pathname);
+  const supportProperty = request.cookies.get("hotelos_support_property")?.value;
   if (supportProperty) {
     requestHeaders.set("x-property-id", supportProperty);
     requestHeaders.set("x-tenant-via", "support");
@@ -128,15 +131,16 @@ export async function middleware(request: NextRequest) {
     // never block
   }
 
-  let response = NextResponse.next({
+  const pristine = NextResponse.next({
     request: { headers: requestHeaders },
   });
+  let response = pristine;
 
   // Do NOT refresh Supabase sessions on /agents/* here. A failed/slow refresh
   // clears sb-* cookies via setAll and causes partner login loops. Agent pages
   // validate the session in RSC (getAgentSession) instead.
   const needsAuthRefresh =
-    hasSupabaseAuthCookie(request) &&
+    hasSessionCookie &&
     (pathname.startsWith("/staff") ||
       pathname.startsWith("/admin") ||
       pathname.startsWith("/partner") ||
@@ -146,6 +150,7 @@ export async function middleware(request: NextRequest) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
     const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
     if (url && anon) {
+      let acceptSetAll = true;
       try {
         const supabase = createServerClient(url, anon, {
           cookieOptions: {
@@ -158,6 +163,7 @@ export async function middleware(request: NextRequest) {
               return request.cookies.getAll();
             },
             setAll(cookiesToSet) {
+              if (!acceptSetAll) return;
               cookiesToSet.forEach(({ name, value }) => {
                 request.cookies.set(name, value);
               });
@@ -174,11 +180,16 @@ export async function middleware(request: NextRequest) {
           supabase.auth.getUser(),
           MIDDLEWARE_NET_MS,
         );
-        if (!refreshed.ok) {
+        if (!shouldApplyMiddlewareAuthCookies(refreshed.ok)) {
+          // Deadline/outage: ignore in-flight setAll (may clear sb-* cookies).
+          acceptSetAll = false;
           console.warn("[middleware] auth refresh skipped (deadline/outage)");
+          return pristine;
         }
       } catch (err) {
+        acceptSetAll = false;
         console.warn("[middleware] auth refresh failed open", err);
+        return pristine;
       }
     }
   }
