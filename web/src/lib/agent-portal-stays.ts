@@ -60,23 +60,45 @@ export async function loadAgentStayRows(
 ): Promise<AgentStayRow[]> {
   assertPortalAgentScope({ agentId: opts.sessionAgentId }, opts.agentId);
 
-  const { data: bookings, error } = await admin
-    .from("bookings")
-    .select(
-      `id, confirmation_code, contact_name, check_in, check_out, status, rooms,
+  const staySelectWithPayments = `id, confirmation_code, contact_name, check_in, check_out, status, rooms,
        guide_number, quoted_total_btn, hold_expires_at, created_at,
        booking_rooms(qty, room_types(name)),
        folios(
          id,
          folio_lines(id, status, total_btn, reverses_line_id),
-         payments(amount_btn, status),
+         payments(amount_btn, confirmation_status),
          fiscal_documents(id, doc_no, doc_kind, status)
-       )`,
-    )
+       )`;
+  const staySelectNoPayments = `id, confirmation_code, contact_name, check_in, check_out, status, rooms,
+       guide_number, quoted_total_btn, hold_expires_at, created_at,
+       booking_rooms(qty, room_types(name)),
+       folios(
+         id,
+         folio_lines(id, status, total_btn, reverses_line_id),
+         fiscal_documents(id, doc_no, doc_kind, status)
+       )`;
+
+  let { data: bookings, error } = await admin
+    .from("bookings")
+    .select(staySelectWithPayments)
     .eq("agent_id", opts.agentId)
     .eq("property_id", opts.propertyId)
     .order("check_in", { ascending: false })
     .limit(opts.limit ?? 120);
+
+  // Degrade: if payments embed fails, still load stays (paid = 0).
+  if (error && /payments/i.test(error.message ?? "")) {
+    console.warn("loadAgentStayRows payments embed failed; retrying without", error.message);
+    const retry = await admin
+      .from("bookings")
+      .select(staySelectNoPayments)
+      .eq("agent_id", opts.agentId)
+      .eq("property_id", opts.propertyId)
+      .order("check_in", { ascending: false })
+      .limit(opts.limit ?? 120);
+    bookings = retry.data;
+    error = retry.error;
+  }
 
   if (error) {
     console.error("loadAgentStayRows", error);
@@ -120,9 +142,9 @@ export async function loadAgentStayRows(
     const dueBtn = folio ? guestLedgerBalance(lines) : 0;
     const paidBtn = ((folio?.payments ?? []) as Array<{
       amount_btn: number;
-      status?: string;
+      confirmation_status?: string;
     }>)
-      .filter((p) => (p.status ?? "posted") !== "voided")
+      .filter((p) => (p.confirmation_status ?? "confirmed") === "confirmed")
       .reduce((s, p) => s + Number(p.amount_btn ?? 0), 0);
 
     const fiscal = (folio?.fiscal_documents ?? []) as Array<{
