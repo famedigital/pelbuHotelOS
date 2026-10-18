@@ -13,6 +13,7 @@ import { PropertySwitcher } from "@/components/erp/PropertySwitcher";
 import { DeskMainSkeleton } from "@/components/erp/DeskMainSkeleton";
 import { DeskChromeGuard } from "@/components/erp/DeskChromeGuard";
 import { DeskSurfaceMetrics } from "@/components/erp/DeskSurfaceMetrics";
+import { FoAskShortcut } from "@/components/erp/FoAskShortcut";
 import { StayHubShell } from "@/components/erp/StayHubShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -84,6 +85,7 @@ export function DeskShell({
             productPack={productPack}
           />
           <ErpCommandPalette allowedModuleKeys={allowedModuleKeys} />
+          <FoAskShortcut />
           <SidebarInset className="max-h-svh overflow-hidden">
             <StayHubShell>
               <Suspense fallback={null}>

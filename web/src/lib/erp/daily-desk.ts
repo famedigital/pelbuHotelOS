@@ -16,9 +16,22 @@ import {
   type MissingGuideScan,
 } from "@/lib/erp/missing-guide-scans";
 import { thimphuToday } from "@/lib/erp-lists";
+import { computeMealCovers } from "@/lib/kitchen/covers";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
+
+/** Instant FO / kitchen glance — pax, meal covers, HK clean counts. */
+export type DayOpsPulse = {
+  inHousePax: number;
+  breakfast: number;
+  lunch: number;
+  dinner: number;
+  roomsClean: number;
+  roomsDirty: number;
+  roomsOccupied: number;
+  roomsTotal: number;
+};
 
 export type AgentPayStatus = "paid" | "unpaid" | "agent_ar_open";
 
@@ -64,6 +77,7 @@ export type DailyDeskSnapshot = FoTodaySnapshot & {
   tools: DailyDeskTools;
   tomorrowArrivals: TomorrowArrival[];
   missingGuideScans: MissingGuideScan[];
+  dayOpsPulse: DayOpsPulse;
 };
 
 function isAgentBillMode(mode: string | null | undefined): boolean {
@@ -247,12 +261,22 @@ export async function loadDailyDeskSnapshot(
   propertyId: string,
 ): Promise<DailyDeskSnapshot> {
   const wallToday = thimphuToday();
-  const [fo, dayOps, tools, tomorrowArrivals, missingGuideScans] = await Promise.all([
+  const [
+    fo,
+    dayOps,
+    tools,
+    tomorrowArrivals,
+    missingGuideScans,
+    mealCovers,
+    hkUnits,
+  ] = await Promise.all([
     loadFoTodaySnapshot(admin, propertyId),
     loadDayOpsBoard(admin, propertyId, wallToday),
     loadDailyTools(admin, propertyId, wallToday),
     loadTomorrowArrivals(admin, propertyId, wallToday),
     loadMissingGuideScans(admin, propertyId),
+    computeMealCovers(admin, propertyId, wallToday),
+    admin.from("room_units").select("hk_status").eq("property_id", propertyId),
   ]);
 
   const departureIds = new Set(dayOps.departures.map((r) => r.id));
@@ -299,6 +323,33 @@ export async function loadDailyDeskSnapshot(
     (r) => r.payStatus === "paid",
   ).length;
 
+  const inHousePax = dayOps.inHouse.reduce(
+    (sum, row) => sum + Math.max(0, Number(row.pax ?? row.adults ?? 0)),
+    0,
+  );
+
+  let roomsClean = 0;
+  let roomsDirty = 0;
+  let roomsOccupied = 0;
+  const hkRows = hkUnits.data ?? [];
+  for (const u of hkRows) {
+    const hk = String(u.hk_status ?? "");
+    if (hk === "clean") roomsClean += 1;
+    else if (hk === "dirty" || hk === "inspect") roomsDirty += 1;
+    else if (hk === "occupied") roomsOccupied += 1;
+  }
+
+  const dayOpsPulse: DayOpsPulse = {
+    inHousePax,
+    breakfast: mealCovers.breakfast,
+    lunch: mealCovers.lunch,
+    dinner: mealCovers.dinner,
+    roomsClean,
+    roomsDirty,
+    roomsOccupied,
+    roomsTotal: hkRows.length,
+  };
+
   return {
     ...fo,
     dayOps,
@@ -308,5 +359,6 @@ export async function loadDailyDeskSnapshot(
     tools,
     tomorrowArrivals,
     missingGuideScans,
+    dayOpsPulse,
   };
 }

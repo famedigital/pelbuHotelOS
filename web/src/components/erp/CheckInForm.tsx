@@ -285,6 +285,8 @@ export function CheckInForm({
   const [roomCapOverride, setRoomCapOverride] = useState(false);
   const [roomCapNote, setRoomCapNote] = useState("");
   const [allowDirty, setAllowDirty] = useState(false);
+  /** Instant CI — name/rooms now, CID/passport/SDF on PostCheckInReg later. */
+  const [docsDeferred, setDocsDeferred] = useState(true);
   /** GM/owner soft opt-in when check-in date is before today (or night-audit gate). */
   const [businessDateOverride, setBusinessDateOverride] = useState(false);
 
@@ -661,9 +663,36 @@ export function CheckInForm({
         <legend className={SECTION_LEGEND}>
           Guest IDs · {idLabel(origin)}
         </legend>
-        <p className="text-[10px] text-muted-foreground">
-          One row per adult. Columns follow origin.
-        </p>
+        <Label className="flex items-start gap-2 rounded-md border border-accent/30 bg-accent/5 px-2.5 py-2 text-[11px] font-normal leading-snug">
+          <Checkbox
+            checked={docsDeferred}
+            onCheckedChange={(v) => setDocsDeferred(v === true)}
+            className="mt-0.5 size-3.5"
+          />
+          <span>
+            <span className="font-medium text-foreground">
+              Check in now — update IDs later
+            </span>
+            <span className="mt-0.5 block text-muted-foreground">
+              Guest name + rooms enough. CID / passport / SDF / guide after
+              arrival (WhatsApp-speed FO).
+            </span>
+          </span>
+        </Label>
+        <input
+          type="hidden"
+          name="docs_deferred"
+          value={docsDeferred ? "on" : "off"}
+        />
+        {!docsDeferred ? (
+          <p className="text-[10px] text-muted-foreground">
+            One row per adult. Columns follow origin.
+          </p>
+        ) : (
+          <p className="text-[10px] text-muted-foreground">
+            At least one guest name. ID fields optional until you turn this off.
+          </p>
+        )}
         {embedded ? (
           <Label className="flex items-center gap-1.5 text-[11px] font-normal">
             <Checkbox

@@ -25,13 +25,14 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import {
-  CalendarDaysIcon,
   ClipboardListIcon,
   EllipsisIcon,
+  MessageSquareIcon,
   SearchIcon,
   ShoppingCartIcon,
   SparklesIcon,
   WalletIcon,
+  ZapIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -39,28 +40,22 @@ import { usePathname } from "next/navigation";
 
 const PRIMARY_FRONT_DESK = [
   {
-    title: "StayView",
+    title: "Board",
     href: "/erp/stayview",
     icon: ClipboardListIcon,
     moduleKey: "front-desk",
   },
   {
-    title: "Rack",
-    href: "/erp/calendar",
-    icon: CalendarDaysIcon,
-    moduleKey: "calendar",
+    title: "Ask",
+    href: "/erp/ask",
+    icon: MessageSquareIcon,
+    moduleKey: "front-desk",
   },
   {
-    title: "HK",
-    href: "/erp/housekeeping",
-    icon: SparklesIcon,
-    moduleKey: "rooms",
-  },
-  {
-    title: "POS",
-    href: "/erp/pos",
-    icon: ShoppingCartIcon,
-    moduleKey: "pos",
+    title: "Reserve",
+    href: "/erp/reserve",
+    icon: ZapIcon,
+    moduleKey: "front-desk",
   },
 ] as const;
 

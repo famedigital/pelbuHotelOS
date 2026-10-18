@@ -140,7 +140,36 @@ export async function createFastBooking(
 
     const checkIn = trimRequired(formData.get("check_in"), "Check-in");
     const checkOut = trimRequired(formData.get("check_out"), "Check-out");
-    assertStayDates(checkIn, checkOut);
+    const backdateAck =
+      formData.get("backdate_ack") === "on" ||
+      formData.get("backdate_ack") === "true";
+    const backdatePin = optionalTrim(formData.get("manager_pin")) ?? "";
+    let allowPastCheckIn = false;
+    if (backdateAck) {
+      const role = await getDeskRole();
+      if (isManagerDeskRole(role)) {
+        allowPastCheckIn = true;
+      } else if (backdatePin) {
+        const adminEarly = createSupabaseAdminClient();
+        const propertyEarly = await resolveActivePropertyId(adminEarly);
+        const pinRes = await verifyManagerPinForProperty(
+          adminEarly,
+          propertyEarly,
+          backdatePin,
+        );
+        if (!pinRes.ok) {
+          throw new Error(
+            pinRes.error || "Manager PIN required to backdate a reservation.",
+          );
+        }
+        allowPastCheckIn = true;
+      } else {
+        throw new Error(
+          "Backdated check-in needs a GM session or manager PIN.",
+        );
+      }
+    }
+    assertStayDates(checkIn, checkOut, { allowPastCheckIn });
 
     const adults = parsePositiveInt(formData.get("adults"), "Adults", 24);
     const children = parseNonNegInt(
@@ -752,23 +781,35 @@ export async function createFastBooking(
 
     const warnings: string[] = [];
 
-    try {
-      const { assignRoomsForBooking } = await import("@/lib/room-assignments");
-      const preferredUnitId = optionalTrim(formData.get("room_unit_id"));
-      await assignRoomsForBooking(admin, {
-        propertyId: property.id as string,
-        bookingId: booking.id as string,
-        checkIn,
-        checkOut,
-        lines,
-        preferredUnitId,
-      });
-    } catch (assignErr) {
-      console.error("createFastBooking assign failed", assignErr);
+    // Manual assign by default — FO/HK pick units previous night or same day.
+    // Auto-pack only when FO picks a unit or explicitly requests assign_rooms.
+    const preferredUnitId = optionalTrim(formData.get("room_unit_id"));
+    const assignNow =
+      Boolean(preferredUnitId) ||
+      formData.get("assign_rooms") === "on" ||
+      formData.get("assign_rooms") === "true";
+    if (assignNow) {
+      try {
+        const { assignRoomsForBooking } = await import("@/lib/room-assignments");
+        await assignRoomsForBooking(admin, {
+          propertyId: property.id as string,
+          bookingId: booking.id as string,
+          checkIn,
+          checkOut,
+          lines,
+          preferredUnitId,
+        });
+      } catch (assignErr) {
+        console.error("createFastBooking assign failed", assignErr);
+        warnings.push(
+          assignErr instanceof Error
+            ? `Saved without room assign: ${assignErr.message}`
+            : "Saved without room assign — assign on Stay View before check-in.",
+        );
+      }
+    } else {
       warnings.push(
-        assignErr instanceof Error
-          ? `Saved without room assign: ${assignErr.message}`
-          : "Saved without room assign — assign on Stay View before check-in.",
+        "Rooms left unassigned — pick units on the rack or Arrivals after HK prep.",
       );
     }
 

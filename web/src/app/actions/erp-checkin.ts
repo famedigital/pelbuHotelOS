@@ -12,6 +12,7 @@ import {
 } from "@/lib/checkin-undo";
 import { nationalityRequired } from "@/lib/countries";
 import {
+  guideRequired,
   normalizeGuestOrigin,
   validateCheckInDocs,
 } from "@/lib/checkin-rules";
@@ -360,14 +361,49 @@ export async function confirmCheckIn(
 
     const docsDeferred =
       formData.get("party_docs_deferred") === "on" ||
-      formData.get("party_docs_deferred") === "true";
+      formData.get("party_docs_deferred") === "true" ||
+      formData.get("docs_deferred") === "on" ||
+      formData.get("docs_deferred") === "true";
+
+    // Instant check-in: name (or booking contact) only — CID/passport/SDF later.
+    let guestsForCi = guests;
+    if (docsDeferred) {
+      const contactFallback =
+        String((booking as { contact_name?: string | null }).contact_name ?? "").trim() ||
+        "Guest";
+      if (guestsForCi.length === 0) {
+        guestsForCi = [
+          {
+            fullName: contactFallback,
+            nationality: "",
+            passportOrCid: "DEFERRED",
+            sdfRef: "",
+            sdfDocUrl: "",
+            idPhotoUrl: "",
+            roomUnitId: null,
+          },
+        ];
+      } else {
+        guestsForCi = guestsForCi.map((g) => ({
+          ...g,
+          fullName: g.fullName.trim() || contactFallback,
+          passportOrCid: g.passportOrCid.trim() || "DEFERRED",
+          nationality: g.nationality.trim() || (docsDeferred ? "Deferred" : ""),
+        }));
+      }
+    }
+
+    const effectiveGuideNumber =
+      docsDeferred && guideRequired(guestOrigin) && !guideNumber?.trim()
+        ? "DEFERRED"
+        : guideNumber;
 
     const docsError = docsDeferred
       ? null
       : validateCheckInDocs({
           origin: guestOrigin,
-          guideNumber,
-          guests: guests.map((g) => ({
+          guideNumber: effectiveGuideNumber,
+          guests: guestsForCi.map((g) => ({
             fullName: g.fullName,
             passportOrCid: g.passportOrCid,
             sdfRef: g.sdfRef,
@@ -378,7 +414,7 @@ export async function confirmCheckIn(
     if (docsError) throw new Error(docsError);
 
     if (!docsDeferred && nationalityRequired(guestOrigin)) {
-      for (const [i, g] of guests.entries()) {
+      for (const [i, g] of guestsForCi.entries()) {
         if (!g.nationality.trim()) {
           throw new Error(`Guest ${i + 1}: nationality is required for ${guestOrigin} guests.`);
         }
@@ -513,12 +549,16 @@ export async function confirmCheckIn(
     let resolvedGuideId: string | null = guideIdRaw || null;
     let resolvedDriverId: string | null = driverIdRaw || null;
 
-    if (!resolvedGuideId && guideNumber) {
+    if (
+      !resolvedGuideId &&
+      effectiveGuideNumber &&
+      effectiveGuideNumber !== "DEFERRED"
+    ) {
       const { data: newGuide, error: gErr } = await admin
         .from("guides")
         .insert({
           property_id,
-          guide_number: guideNumber,
+          guide_number: effectiveGuideNumber,
           visit_count: 1,
           last_seen_at: todayIso,
         })
@@ -529,7 +569,7 @@ export async function confirmCheckIn(
           .from("guides")
           .select("id")
           .eq("property_id", property_id)
-          .eq("guide_number", guideNumber)
+          .eq("guide_number", effectiveGuideNumber)
           .maybeSingle();
         resolvedGuideId = (existing?.id as string | null) ?? null;
       } else {
@@ -593,17 +633,19 @@ export async function confirmCheckIn(
         .eq("id", resolvedDriverId);
     }
 
-    const primaryGuest = guests[0];
+    const primaryGuest = guestsForCi[0];
     const { error: bookingPatchError } = await admin
       .from("bookings")
       .update({
-        guide_number: guideNumber,
+        guide_number:
+          effectiveGuideNumber === "DEFERRED" ? null : effectiveGuideNumber,
         guide_id: resolvedGuideId,
         driver_id: resolvedDriverId,
         payment_mode: paymentMode,
         status: "checked_in",
         checked_in_at: new Date().toISOString(),
         contact_name: primaryGuest.fullName.trim(),
+        docs_deferred: docsDeferred,
       })
       .eq("id", bookingId);
     if (bookingPatchError) {
@@ -613,7 +655,7 @@ export async function confirmCheckIn(
     await admin.from("booking_guests").delete().eq("booking_id", bookingId);
     await admin.from("room_assignment_occupants").delete().eq("booking_id", bookingId);
 
-    const guestRows = guests.map((g, i) => {
+    const guestRows = guestsForCi.map((g, i) => {
       const unitId = g.roomUnitId;
       const assignmentId =
         (unitId ? assignmentByUnit.get(unitId) : null) ??
@@ -653,15 +695,20 @@ export async function confirmCheckIn(
         display_name: g.full_name,
       });
     }
-    if (guideAssignmentId && (guideNumber || primaryGuest.fullName)) {
+    if (
+      guideAssignmentId &&
+      ((effectiveGuideNumber && effectiveGuideNumber !== "DEFERRED") ||
+        primaryGuest.fullName)
+    ) {
       occupantRows.push({
         property_id,
         assignment_id: guideAssignmentId,
         booking_id: bookingId,
         occupant_kind: "guide",
-        display_name: guideNumber
-          ? `Guide #${guideNumber}`
-          : "Guide",
+        display_name:
+          effectiveGuideNumber && effectiveGuideNumber !== "DEFERRED"
+            ? `Guide #${effectiveGuideNumber}`
+            : "Guide",
       });
     }
     if (driverAssignmentId && driverName) {
@@ -787,7 +834,8 @@ export async function confirmCheckIn(
       summary: `Checked in ${primaryGuest.fullName.trim()} · ref ${bookingId.slice(0, 8).toUpperCase()} · ${roomUnitIds.length} room(s)`,
       meta: {
         paymentMode,
-        guestCount: guests.length,
+        guestCount: guestsForCi.length,
+        docsDeferred,
         roomUnitIds,
         folioId,
         charges: chargeNotes,

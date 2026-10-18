@@ -160,6 +160,8 @@ export function canUseFrontDeskWorkspace(
       g === "rooms" ||
       g.startsWith("/erp/today") ||
       g.startsWith("/erp/stayview") ||
+      g.startsWith("/erp/ask") ||
+      g.startsWith("/erp/reserve") ||
       g.startsWith("/erp/arrivals") ||
       g.startsWith("/erp/in-house") ||
       g.startsWith("/erp/departures") ||
@@ -210,7 +212,10 @@ export function filterModulesForWorkspace(
   return filterErpNavByGrants(scoped, grants ?? null);
 }
 
-/** FO icon rail — StayView, Rack, POS, Night close, Housekeeping (daily tabs). */
+/**
+ * Modules whose header tabs collapse to `rail: daily` on Front desk.
+ * Sidebar primary is Board / Ask / Reserve only (`FO_WOW_PRIMARY`).
+ */
 export const FO_SIDEBAR_MODULE_KEYS = [
   "front-desk",
   "calendar",
@@ -219,13 +224,12 @@ export const FO_SIDEBAR_MODULE_KEYS = [
   "rooms",
 ] as const;
 
-const FO_SIDEBAR_TITLES: Record<string, string> = {
-  "front-desk": "StayView",
-  calendar: "Rack",
-  pos: "POS",
-  money: "Night close",
-  rooms: "Housekeeping",
-};
+/** FO WOW primary rail — Board · Ask · Reserve (More is the sheet). */
+export const FO_WOW_PRIMARY = [
+  { href: "/erp/stayview", title: "Board" },
+  { href: "/erp/ask", title: "Ask" },
+  { href: "/erp/reserve", title: "Reserve" },
+] as const;
 
 export function isFoDailyTab(tab: ErpNavLeaf): boolean {
   return (tab.rail ?? "more") === "daily";
@@ -239,30 +243,39 @@ export function isFoHiddenTab(tab: ErpNavLeaf): boolean {
   return tab.rail === "hidden";
 }
 
-/** Sidebar modules for Front desk workspace — four destinations, daily tabs. */
+/** Sidebar modules for Front desk — Board / Ask / Reserve only. */
 export function foSidebarModules(modules: readonly ErpModule[]): ErpModule[] {
-  const byKey = new Map(modules.map((m) => [m.key, m]));
-  const out: ErpModule[] = [];
-  for (const key of FO_SIDEBAR_MODULE_KEYS) {
-    const module = byKey.get(key);
-    if (!module) continue;
-    const daily = module.tabs.filter(isFoDailyTab);
-    if (daily.length === 0) continue;
-    out.push({
-      ...module,
-      title: FO_SIDEBAR_TITLES[key] ?? module.title,
-      href: daily[0]?.href ?? module.href,
-      tabs: daily,
-    });
-  }
-  return out;
+  const frontDesk = modules.find((m) => m.key === "front-desk");
+  if (!frontDesk) return [];
+  return FO_WOW_PRIMARY.flatMap((item, i) => {
+    const tab = frontDesk.tabs.find((t) => t.href === item.href);
+    if (!tab) return [];
+    return [
+      {
+        key: `fo-wow-${i}`,
+        title: item.title,
+        icon: tab.icon,
+        href: item.href,
+        tabs: [{ ...tab, title: item.title }],
+      },
+    ];
+  });
 }
 
-/** More sheet: lists + city ledger / night audit — not daily rail, not hidden. */
+const FO_WOW_HREF_SET = new Set(
+  FO_WOW_PRIMARY.map((p) => p.href) as readonly string[],
+);
+
+/**
+ * More sheet: everything except Board / Ask / Reserve and hidden tabs.
+ * Rack / HK / POS stay here after the WOW primary rail took over the FO icons.
+ */
 export function foMoreModules(modules: readonly ErpModule[]): ErpModule[] {
   return modules
     .map((m) => {
-      const tabs = m.tabs.filter(isFoMoreTab);
+      const tabs = m.tabs.filter(
+        (t) => !isFoHiddenTab(t) && !FO_WOW_HREF_SET.has(t.href),
+      );
       if (tabs.length === 0) return null;
       return { ...m, href: tabs[0]?.href ?? m.href, tabs };
     })

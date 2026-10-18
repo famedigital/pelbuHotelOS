@@ -53,13 +53,19 @@ export function assertOptionalEmail(email: string | null): void {
   }
 }
 
-export function assertStayDates(checkIn: string, checkOut: string): void {
+export function assertStayDates(
+  checkIn: string,
+  checkOut: string,
+  opts?: { allowPastCheckIn?: boolean },
+): void {
   const inDate = parseIsoDate(checkIn, "Check-in");
   const outDate = parseIsoDate(checkOut, "Check-out");
   const today = startOfTodayThimphu();
 
-  if (inDate < today) {
-    throw new Error("Check-in cannot be in the past.");
+  if (inDate < today && !opts?.allowPastCheckIn) {
+    throw new Error(
+      "Check-in cannot be in the past. Use manager override (backdate) on DeskBook.",
+    );
   }
   if (outDate <= inDate) {
     throw new Error("Check-out must be after check-in.");

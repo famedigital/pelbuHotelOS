@@ -140,6 +140,8 @@ export function defaultModulesForDeskRole(
       return [
         "dashboard",
         "/erp/stayview",
+        "/erp/ask",
+        "/erp/reserve",
         "/erp/today",
         "/erp/arrivals",
         "/erp/in-house",

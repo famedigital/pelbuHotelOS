@@ -98,6 +98,19 @@ function staffMatchesDepartment(
   const role = (row.desk_role ?? "").toLowerCase();
   const dept = (row.department ?? "").toLowerCase();
   const label = (row.role_label ?? "").toLowerCase();
+  if (department === "admin") {
+    return (
+      role === "owner" ||
+      role === "gm" ||
+      role === "accountant" ||
+      dept.includes("admin") ||
+      dept.includes("owner") ||
+      dept.includes("gm") ||
+      label.includes("owner") ||
+      label.includes("manager") ||
+      label.includes("gm")
+    );
+  }
   if (department === "front_desk") {
     return role === "front_desk" || dept.includes("front") || label === "front_desk";
   }

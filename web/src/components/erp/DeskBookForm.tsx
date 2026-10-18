@@ -74,6 +74,7 @@ import type {
 } from "@/lib/property-settings";
 import { formatGuestBtn } from "@/lib/pricing";
 import { printDeskSheet } from "@/lib/desk-print";
+import { thimphuToday } from "@/lib/erp-lists";
 import { cn } from "@/lib/utils";
 import {
   PencilIcon,
@@ -1602,6 +1603,9 @@ export function DeskBookForm({
         <input type="hidden" name="source" value={bookedBy} />
         <input type="hidden" name="guest_origin" value={origin} />
         <input type="hidden" name="check_in" value={checkIn} />
+        {checkIn < thimphuToday() ? (
+          <input type="hidden" name="backdate_ack" value="on" />
+        ) : null}
         <input type="hidden" name="check_out" value={checkOut} />
         <input type="hidden" name="contact_name" value={stayContactName} />
         <input
@@ -1972,7 +1976,7 @@ export function DeskBookForm({
                 <div className="col-span-2 space-y-1 lg:col-span-1">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <Label className="text-xs font-normal text-muted-foreground">
-                    Assign room
+                    Assign room (optional — leave blank until HK prep)
                   </Label>
                   <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
                     <input

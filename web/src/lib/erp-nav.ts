@@ -22,6 +22,8 @@ import {
   WalletIcon,
   WrenchIcon,
   TagsIcon,
+  MessageSquareIcon,
+  ZapIcon,
   type LucideIcon,
 } from "lucide-react";
 
@@ -51,8 +53,12 @@ export type ErpModule = {
 
 /** Extra search aliases keyed by tab href (merged into palette / mobile search). */
 export const ERP_NAV_KEYWORDS: Record<string, string[]> = {
+  "/erp/ask": ["ask", "availability", "free rooms", "phone ask", "/"],
+  "/erp/reserve": ["reserve", "20s", "hold", "fast book", "walk-in"],
   "/erp/stayview": [
     "stayview",
+    "board",
+    "fo board",
     "stay view",
     "today",
     "worklist",
@@ -206,15 +212,29 @@ export const ERP_MODULES: ErpModule[] = [
   },
   {
     key: "front-desk",
-    title: "StayView",
+    title: "Front desk",
     icon: UsersIcon,
     href: "/erp/stayview",
     tabs: [
       leaf(
-        "StayView",
+        "Board",
         "/erp/stayview",
         ClipboardListIcon,
-        ["worklist", "fo", "daily desk", "today", "stayview"],
+        ["worklist", "fo", "daily desk", "today", "stayview", "board"],
+        "daily",
+      ),
+      leaf(
+        "Ask",
+        "/erp/ask",
+        MessageSquareIcon,
+        ["ask", "availability", "free", "held", "phone"],
+        "daily",
+      ),
+      leaf(
+        "Reserve",
+        "/erp/reserve",
+        ZapIcon,
+        ["reserve", "20s", "hold", "walk-in", "fast book"],
         "daily",
       ),
       leaf("Arrival List", "/erp/arrivals", ClipboardListIcon, ["arrivals"], "more"),
@@ -383,7 +403,9 @@ export const NAV_SECTIONS = ERP_MODULES.map((m) => ({
 
 /** Frequent desk jumps for Ctrl+K — subset of module tabs, no duplicate nav source. */
 export const ERP_QUICK_ACTIONS: ErpNavLeaf[] = [
-  leaf("StayView", "/erp/stayview", ClipboardListIcon, ["fo", "worklist", "today"]),
+  leaf("Board", "/erp/stayview", ClipboardListIcon, ["fo", "worklist", "today", "stayview"]),
+  leaf("Ask", "/erp/ask", MessageSquareIcon, ["ask", "availability", "/"]),
+  leaf("Reserve", "/erp/reserve", ZapIcon, ["reserve", "20s", "hold", "walk-in"]),
   leaf("Check-in", "/erp/arrivals", UsersIcon, ["ci", "arrival", "walk-in"]),
   leaf("Check-out", "/erp/departures", WalletIcon, ["co", "departure"]),
   leaf("Rack", "/erp/calendar", CalendarClockIcon, ["rack", "stay view"]),

@@ -189,6 +189,35 @@ export function FoAssistantBoard({
         </div>
       </div>
 
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+        {(
+          [
+            ["Pax in-house", snap.dayOpsPulse?.inHousePax ?? 0],
+            ["Breakfast", snap.dayOpsPulse?.breakfast ?? 0],
+            ["Lunch", snap.dayOpsPulse?.lunch ?? 0],
+            ["Dinner", snap.dayOpsPulse?.dinner ?? 0],
+            ["Clean", snap.dayOpsPulse?.roomsClean ?? 0],
+            ["Dirty", snap.dayOpsPulse?.roomsDirty ?? 0],
+            [
+              "Rooms",
+              `${snap.dayOpsPulse?.roomsOccupied ?? 0}/${snap.dayOpsPulse?.roomsTotal ?? 0}`,
+            ],
+          ] as const
+        ).map(([label, value]) => (
+          <div
+            key={label}
+            className="rounded-md border border-border/70 bg-muted/20 px-2.5 py-2"
+          >
+            <p className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+              {label}
+            </p>
+            <p className="text-lg font-semibold tabular-nums text-foreground">
+              {value}
+            </p>
+          </div>
+        ))}
+      </div>
+
       <Card className="border-border/80 shadow-none">
         <CardHeader className="pb-2 pt-4">
           <CardTitle className="text-base font-medium">Shift briefing</CardTitle>

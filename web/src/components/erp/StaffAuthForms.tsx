@@ -217,12 +217,43 @@ export function StaffLoginForm({
             Change hotel
           </button>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="department">Department</Label>
+        <div className="space-y-2">
+          <Label>Department</Label>
+          <input type="hidden" name="department" value={department} />
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {DESK_LOGIN_DEPARTMENTS.map((dept) => {
+              const selected = department === dept.id;
+              return (
+                <button
+                  key={dept.id}
+                  type="button"
+                  onClick={() => setDepartment(dept.id)}
+                  className={
+                    selected
+                      ? "flex h-12 flex-col items-center justify-center rounded-md border-2 border-foreground bg-foreground px-2 text-background"
+                      : "flex h-12 flex-col items-center justify-center rounded-md border border-input bg-background px-2 text-foreground hover:bg-muted/50"
+                  }
+                >
+                  <span className="text-sm font-semibold leading-none">
+                    {dept.short}
+                  </span>
+                  <span
+                    className={
+                      selected
+                        ? "mt-1 text-[10px] text-background/80"
+                        : "mt-1 text-[10px] text-muted-foreground"
+                    }
+                  >
+                    {dept.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
           <select
-            id="department"
-            name="department"
-            className={selectClass}
+            id="department_mobile"
+            aria-label="Department"
+            className={`${selectClass} sm:hidden`}
             required
             value={department}
             onChange={(event) =>
@@ -231,10 +262,13 @@ export function StaffLoginForm({
           >
             {DESK_LOGIN_DEPARTMENTS.map((dept) => (
               <option key={dept.id} value={dept.id}>
-                {dept.label}
+                {dept.short} — {dept.label}
               </option>
             ))}
           </select>
+          <p className="text-xs text-muted-foreground sm:hidden">
+            Tap a button above, or use the list if easier on this phone.
+          </p>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="staff_id">Your name</Label>

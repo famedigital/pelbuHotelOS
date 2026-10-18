@@ -52,7 +52,7 @@ export async function deskLogin(page: Page): Promise<void> {
   if (pin) {
     await page.context().addCookies([
       {
-        name: "pelbu_desk_session",
+        name: "hotelos_desk_session",
         value: `ok:${pin}`,
         url: base,
         httpOnly: true,
