@@ -7,7 +7,7 @@ import {
 } from "@/components/erp/ForecastCharts";
 import { DeskBlurFade } from "@/components/erp/DeskBlurFade";
 import { DeskMetricTicker } from "@/components/erp/DeskMetricTicker";
-import { DeskLiveRefresh } from "@/components/erp/DeskLiveRefresh";
+import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -838,7 +838,7 @@ function Shell({
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>
         </div>
-        <DeskLiveRefresh />
+        <FrontDeskLiveRefresh />
       </header>
       <GuestForecastPanel snap={snap} view={view} homeView={homeView} />
       {children}

@@ -14,6 +14,7 @@ import { DeskMainSkeleton } from "@/components/erp/DeskMainSkeleton";
 import { DeskChromeGuard } from "@/components/erp/DeskChromeGuard";
 import { DeskSurfaceMetrics } from "@/components/erp/DeskSurfaceMetrics";
 import { FoAskShortcut } from "@/components/erp/FoAskShortcut";
+import { SoftNavRecovery } from "@/components/erp/SoftNavRecovery";
 import { StayHubShell } from "@/components/erp/StayHubShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -72,6 +73,7 @@ export function DeskShell({
   return (
     <div className="erp">
       <DeskChromeGuard />
+      <SoftNavRecovery />
       <NavigationProgress />
       <DeskWorkspaceProvider
         deskRole={deskRole}

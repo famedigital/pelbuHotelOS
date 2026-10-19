@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { useLayoutEffect, useEffect, type ReactNode } from "react";
 
 function isPosFullscreenRoute(pathname: string | null): boolean {
   if (!pathname) return false;
@@ -15,6 +15,7 @@ function isPosFullscreenRoute(pathname: string | null): boolean {
 
 function clearPosFullscreenChrome() {
   if (typeof document === "undefined") return;
+  if (!document.body.classList.contains("pos-fs")) return;
   document.body.classList.remove("pos-fs");
   if (document.fullscreenElement) {
     const doc = document as Document & {
@@ -26,30 +27,33 @@ function clearPosFullscreenChrome() {
 }
 
 /**
- * Clears sticky POS fullscreen chrome (`body.pos-fs`) when leaving POS/KDS.
- * Soft navigations can leave the class on `body`, which hides the sidebar
- * and desk header until a hard refresh.
+ * Clears sticky POS fullscreen chrome (`body.pos-fs`) off POS/KDS routes.
+ * Soft navigations + stacked router.refresh can leave the class on `body`,
+ * which hides the sidebar / desk header until a hard refresh.
  */
 export function DeskChromeGuard({ children }: { children?: ReactNode }) {
   const pathname = usePathname();
+  const onPos = isPosFullscreenRoute(pathname);
 
+  // Before paint — avoid one-frame missing sidebar after soft nav.
+  useLayoutEffect(() => {
+    if (!onPos) clearPosFullscreenChrome();
+  }, [onPos, pathname]);
+
+  // Heal if something re-adds the class while we are not on POS/KDS.
   useEffect(() => {
-    if (isPosFullscreenRoute(pathname)) return;
+    if (onPos) return;
     clearPosFullscreenChrome();
-  }, [pathname]);
-
-  // Also clear on bfcache restore / tab focus (SPA soft-nav edge cases).
-  useEffect(() => {
-    const onShow = () => {
-      if (!isPosFullscreenRoute(pathname)) clearPosFullscreenChrome();
-    };
+    const tick = window.setInterval(clearPosFullscreenChrome, 1500);
+    const onShow = () => clearPosFullscreenChrome();
     window.addEventListener("pageshow", onShow);
     document.addEventListener("visibilitychange", onShow);
     return () => {
+      window.clearInterval(tick);
       window.removeEventListener("pageshow", onShow);
       document.removeEventListener("visibilitychange", onShow);
     };
-  }, [pathname]);
+  }, [onPos]);
 
   return children ?? null;
 }
