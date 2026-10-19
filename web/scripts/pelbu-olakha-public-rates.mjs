@@ -130,7 +130,7 @@ await db.insert(
     check_in_time: "14:00",
     check_out_time: "12:00",
     guest_summary:
-      "Public rack 2026 for Pelbu Suites Olakha. Package rates are all-in (10% service charge and 5% GST). Free cancellation is 7 days, or 14 days when any night is peak.",
+      "Public rack 2026 for Pelbu Suites Olakha. Package rates are all-in (10% service charge). GST is not charged at present — hotel newly registered. Free cancellation is 7 days, or 14 days when any night is peak.",
   },
   "property_id",
 );
