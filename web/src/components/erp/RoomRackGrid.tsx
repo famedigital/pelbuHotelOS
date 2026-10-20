@@ -1314,6 +1314,45 @@ export function RoomRackGrid({
   const todayIndex = days.indexOf(today);
   const todayBooked = todayIndex >= 0 ? (bookedPerDay[todayIndex] ?? 0) : 0;
 
+  /** Category strip for today: free / occupied / unassigned demand by type. */
+  const categoryToday = useMemo(() => {
+    const map = new Map<
+      string,
+      { code: string; name: string; total: number; occ: number; demand: number }
+    >();
+    for (const u of units) {
+      const cur = map.get(u.room_type_id) ?? {
+        code: u.room_type_code || u.room_type_name || "—",
+        name: u.room_type_name || u.room_type_code || "Room",
+        total: 0,
+        occ: 0,
+        demand: 0,
+      };
+      cur.total += 1;
+      map.set(u.room_type_id, cur);
+    }
+    if (todayIndex >= 0) {
+      for (const stay of stays) {
+        if (stay.check_in <= today && stay.check_out > today) {
+          const cur = map.get(stay.room_type_id);
+          if (cur) cur.occ += 1;
+        }
+      }
+    }
+    for (const item of unassigned) {
+      const cur = map.get(item.room_type_id) ?? {
+        code: item.room_type_code || "—",
+        name: item.room_type_name || "Room",
+        total: 0,
+        occ: 0,
+        demand: 0,
+      };
+      cur.demand += item.missing_rooms;
+      map.set(item.room_type_id, cur);
+    }
+    return [...map.values()].sort((a, b) => a.code.localeCompare(b.code));
+  }, [units, stays, unassigned, today, todayIndex]);
+
   const movingStay =
     stays.find((stay) => stay.id === movingStayId) ?? null;
 
@@ -2363,77 +2402,82 @@ export function RoomRackGrid({
               ))}
             </div>
           ) : null}
-          {unassigned.length > 0 && selectedBookingIds.length === 0 ? (
-            <div className="flex min-w-0 items-center gap-2">
-              <p className="shrink-0 text-xs text-muted-foreground">
-                <span className="font-medium text-foreground tabular-nums">
-                  {unassigned.reduce((n, item) => n + item.missing_rooms, 0)}
-                </span>{" "}
-                unassigned
-              </p>
-              <div className="flex min-w-0 max-w-[28rem] items-center gap-1 overflow-x-auto">
-                {unassignedClusters.map((cluster) => {
-                  const selected = cluster.items.some(
-                    (item) => selectedPool?.id === item.id,
-                  );
-                  return (
-                    <button
-                      key={cluster.key}
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() => {
-                        if (cluster.items.length === 1) {
-                          const item = cluster.head;
-                          setAssignGuide({ kind: "single", item });
-                          setSelectedPool(item);
-                        } else {
-                          setAssignGuide({
-                            kind: "bulk",
-                            items: cluster.items,
-                          });
-                          setSelectedPool(cluster.head);
-                        }
-                        setAssignMessage(null);
-                      }}
-                      className={cn(
-                        "shrink-0 rounded-md px-2 py-1 text-left text-xs capitalize",
-                        selected
-                          ? "bg-accent/10 text-foreground"
-                          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                      )}
-                    >
-                      {cluster.head.contact_name}
-                      <span className="ml-1 font-normal normal-case text-muted-foreground">
-                        · {cluster.rooms} rm ·{" "}
-                        {fmtStayRange(
-                          cluster.head.check_in,
-                          cluster.head.check_out,
+          <div className="flex min-w-0 items-center gap-2 border-l border-border/60 pl-2">
+            <p className="shrink-0 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground tabular-nums">
+                {unassigned.reduce((n, item) => n + item.missing_rooms, 0)}
+              </span>{" "}
+              unassigned
+              {unassigned.length === 0 ? (
+                <span className="ml-1 text-muted-foreground/80">· clear</span>
+              ) : null}
+            </p>
+            {unassigned.length > 0 ? (
+              <>
+                <div className="flex min-w-0 max-w-[28rem] items-center gap-1 overflow-x-auto">
+                  {unassignedClusters.map((cluster) => {
+                    const selected = cluster.items.some(
+                      (item) => selectedPool?.id === item.id,
+                    );
+                    return (
+                      <button
+                        key={cluster.key}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => {
+                          if (cluster.items.length === 1) {
+                            const item = cluster.head;
+                            setAssignGuide({ kind: "single", item });
+                            setSelectedPool(item);
+                          } else {
+                            setAssignGuide({
+                              kind: "bulk",
+                              items: cluster.items,
+                            });
+                            setSelectedPool(cluster.head);
+                          }
+                          setAssignMessage(null);
+                        }}
+                        className={cn(
+                          "shrink-0 rounded-md px-2 py-1 text-left text-xs capitalize",
+                          selected
+                            ? "bg-accent/10 text-foreground"
+                            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                         )}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                disabled={
-                  assigning ||
-                  (assignGuide != null && assignGuide.kind === "bulk")
-                }
-                className="h-8 shrink-0 gap-1 px-2 text-xs"
-                title="Fill free rooms for every unassigned stay."
-                onClick={() => {
-                  setAssignGuide({ kind: "bulk", items: unassigned });
-                  setAssignMessage(null);
-                }}
-              >
-                <WandSparklesIcon className="size-3.5" aria-hidden />
-                Assign
-              </Button>
-            </div>
-          ) : null}
+                      >
+                        {cluster.head.contact_name}
+                        <span className="ml-1 font-normal normal-case text-muted-foreground">
+                          · {cluster.rooms} rm ·{" "}
+                          {fmtStayRange(
+                            cluster.head.check_in,
+                            cluster.head.check_out,
+                          )}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={
+                    assigning ||
+                    (assignGuide != null && assignGuide.kind === "bulk")
+                  }
+                  className="h-8 shrink-0 gap-1 px-2 text-xs"
+                  title="Fill free rooms for every unassigned stay."
+                  onClick={() => {
+                    setAssignGuide({ kind: "bulk", items: unassigned });
+                    setAssignMessage(null);
+                  }}
+                >
+                  <WandSparklesIcon className="size-3.5" aria-hidden />
+                  Assign
+                </Button>
+              </>
+            ) : null}
+          </div>
           <RackPartySelectionBar
             selectedBookingIds={selectedBookingIds}
             onClear={clearPartySelection}
@@ -2442,6 +2486,32 @@ export function RoomRackGrid({
           />
         </div>
       </div>
+
+      {categoryToday.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5 border-b bg-muted/20 px-2 py-1.5">
+          <span className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+            Today by type
+          </span>
+          {categoryToday.map((t) => {
+            const free = Math.max(0, t.total - t.occ);
+            return (
+              <span
+                key={t.code}
+                className="rounded border bg-background px-2 py-0.5 text-[11px] tabular-nums"
+                title={`${t.name}: ${free} free · ${t.occ} occupied · ${t.demand} unassigned demand`}
+              >
+                <span className="font-semibold">{t.code}</span>{" "}
+                <span className="text-muted-foreground">
+                  {free}f / {t.occ}o
+                  {t.demand > 0 ? (
+                    <span className="text-destructive"> · {t.demand}u</span>
+                  ) : null}
+                </span>
+              </span>
+            );
+          })}
+        </div>
+      ) : null}
 
       {units.length === 0 ? (
         <p className="p-6 text-sm text-muted-foreground">

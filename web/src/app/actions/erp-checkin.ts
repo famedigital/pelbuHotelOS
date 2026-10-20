@@ -53,6 +53,8 @@ async function propertyId(admin: Admin) {
 function revalidateCheckIn(folioId?: string) {
   revalidatePath("/erp");
   revalidatePath("/erp/today");
+  revalidatePath("/erp/stayview");
+  revalidatePath("/erp/bills");
   revalidatePath("/erp/check-in");
   revalidatePath("/erp/arrivals");
   revalidatePath("/erp/in-house");
@@ -422,7 +424,9 @@ export async function confirmCheckIn(
     }
 
     if (roomUnitIds.length === 0) {
-      throw new Error("Assign physical rooms before confirming check-in.");
+      throw new Error(
+        "Assign physical rooms on the rack before confirming check-in. Confirmed stays with no assignment stay invisible on room rows until assigned.",
+      );
     }
     if (new Set(roomUnitIds).size !== roomUnitIds.length) {
       throw new Error("Each physical room can only be assigned once.");

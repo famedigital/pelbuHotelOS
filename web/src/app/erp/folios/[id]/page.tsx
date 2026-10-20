@@ -7,6 +7,7 @@ import { FolioActivityTable } from "@/components/erp/FolioActivityTable";
 import { FolioActionsPanel } from "@/components/erp/FolioActionsPanel";
 import { FolioSplit } from "@/components/erp/FolioSplit";
 import { FolioRoomPosItemsPanel } from "@/components/erp/FolioRoomPosItemsPanel";
+import { ErpBreadcrumb } from "@/components/erp/ErpBreadcrumb";
 import { ErpDetailBack } from "@/components/erp/ErpDetailBack";
 import { FolioStaleRefreshBanner } from "@/components/erp/FolioStaleRefreshBanner";
 import { StayMoneyCycleLegend } from "@/components/erp/StayMoneyCycleLegend";
@@ -199,6 +200,7 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
     { data: minibarItems },
     { data: childFolios },
     { data: propertyTax },
+    { data: mealPlanRows },
   ] = await Promise.all([
     admin
       .from("payment_links")
@@ -267,6 +269,12 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
       .select("gst_enabled, gst_rate")
       .eq("id", activePropertyId)
       .maybeSingle(),
+    admin
+      .from("meal_plans")
+      .select("code, name")
+      .eq("property_id", activePropertyId)
+      .eq("is_active", true)
+      .order("sort_order"),
   ]);
 
   const roomPosOrders = bookingId
@@ -499,16 +507,30 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
           </span>
         </a>
       ) : null}
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <ErpDetailBack href="/erp/folios" label="City ledger" />
-        {defaultStayHubHref ? (
-          <a
-            href={defaultStayHubHref}
-            className="inline-flex h-8 items-center rounded-md border px-2.5 text-sm hover:bg-muted"
-          >
-            Open stay
-          </a>
-        ) : null}
+      <div className="mb-2 space-y-2">
+        <ErpBreadcrumb
+          items={[
+            { label: "Desk", href: "/erp/stayview" },
+            { label: "Bills", href: "/erp/bills" },
+            { label: "Invoices", href: "/erp/bills?tab=invoices" },
+            {
+              label:
+                (invoiceDoc?.doc_no as string | undefined) ??
+                ((folio.label as string) || "Folio"),
+            },
+          ]}
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <ErpDetailBack href="/erp/bills?tab=invoices" label="Invoices" />
+          {defaultStayHubHref ? (
+            <a
+              href={defaultStayHubHref}
+              className="inline-flex h-8 items-center rounded-md border px-2.5 text-sm hover:bg-muted"
+            >
+              Open stay
+            </a>
+          ) : null}
+        </div>
       </div>
       <FolioStaleRefreshBanner folioId={id} initialVersion={folioVersion} />
 
@@ -718,6 +740,13 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
             balanceDue={balance}
             invoiceNo={(invoiceDoc?.doc_no as string | undefined) ?? null}
             invoiceDocId={(invoiceDoc?.id as string | undefined) ?? null}
+            mealPlanCode={
+              (booking?.meal_plan_code as string | undefined) ?? null
+            }
+            mealPlans={(mealPlanRows ?? []).map((m) => ({
+              code: m.code as string,
+              name: m.name as string,
+            }))}
             isMaster={isMaster}
             hasMaster={Boolean(folio.master_folio_id)}
             masterCandidates={masterCandidates}

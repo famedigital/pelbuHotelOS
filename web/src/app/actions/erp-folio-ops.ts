@@ -813,6 +813,190 @@ export async function issueFolioInvoice(
   }
 }
 
+/**
+ * Manager-PIN meal plan change: update booking snapshot, void posted meal_plan
+ * lines, repost from new amount, optionally supersede+reissue active INV.
+ */
+export async function changeStayMealPlanWithPin(
+  _prev: ErpFolioOpsState,
+  formData: FormData,
+): Promise<ErpFolioOpsState> {
+  try {
+    await requireMoney();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const folioId = trimRequired(formData.get("folio_id"), "Folio");
+    const mealPlanCode = trimRequired(formData.get("meal_plan_code"), "Meal plan");
+    const reason = trimRequired(formData.get("reason"), "Reason");
+    const managerPin = trimRequired(formData.get("manager_pin"), "Manager PIN");
+    const reissue =
+      formData.get("reissue_invoice") === "1" ||
+      formData.get("reissue_invoice") === "on";
+
+    const { verifyManagerPinForProperty } = await import("@/lib/manager-pin");
+    const pin = await verifyManagerPinForProperty(admin, pid, managerPin);
+    if (!pin.ok) throw new Error(pin.error);
+
+    const { data: folio } = await admin
+      .from("folios")
+      .select("id, property_id, booking_id, status")
+      .eq("id", folioId)
+      .eq("property_id", pid)
+      .maybeSingle();
+    if (!folio) throw new Error("Folio not found.");
+    assertDeskProperty(pid, folio.property_id as string, "Folio");
+    const bookingId = folio.booking_id as string | null;
+    if (!bookingId) throw new Error("Folio has no stay booking.");
+
+    const { data: booking } = await admin
+      .from("bookings")
+      .select(
+        "id, property_id, check_in, check_out, adults, children, extra_beds, meal_plan_code, meal_plan_amount_btn, contact_name",
+      )
+      .eq("id", bookingId)
+      .eq("property_id", pid)
+      .maybeSingle();
+    if (!booking) throw new Error("Booking not found.");
+
+    const fromCode = ((booking.meal_plan_code as string) ?? "EP").trim() || "EP";
+    const toCode = mealPlanCode.trim().toUpperCase();
+    if (fromCode === toCode) {
+      throw new Error(`Meal plan is already ${toCode}.`);
+    }
+
+    const { nightsBetween } = await import("@/lib/stay-dates");
+    const { resolveStayAddonsForBook, resolveMealPlanForBook } = await import(
+      "@/lib/meal-plans"
+    );
+    const nights = Math.max(
+      1,
+      nightsBetween(
+        (booking.check_in as string).slice(0, 10),
+        (booking.check_out as string).slice(0, 10),
+      ),
+    );
+    const addons = await resolveStayAddonsForBook(admin, pid, {
+      mealPlanCode: toCode,
+      adults: Number(booking.adults ?? 2),
+      children: Number(booking.children ?? 0),
+      extraBeds: Number(booking.extra_beds ?? 0),
+      nights,
+    });
+    const mealResolved = await resolveMealPlanForBook(admin, pid, toCode);
+
+    const { actor } = await resolveDeskActor();
+    const approvedBy =
+      pin.source === "staff"
+        ? `${pin.fullName} (PIN)`
+        : `${actor} (manager PIN)`;
+
+    const { error: upErr } = await admin
+      .from("bookings")
+      .update({
+        meal_plan_code: addons.mealPlanCode,
+        meal_plan_amount_btn: addons.mealPlanAmountBtn,
+      })
+      .eq("id", bookingId)
+      .eq("property_id", pid);
+    if (upErr) throw new Error(upErr.message);
+
+    let mealsVoided = 0;
+    const { data: mealLines } = await admin
+      .from("folio_lines")
+      .select("id")
+      .eq("folio_id", folioId)
+      .eq("booking_id", bookingId)
+      .eq("source_type", "meal_plan")
+      .eq("status", "posted");
+
+    for (const line of mealLines ?? []) {
+      await voidFolioLineWithReversal(admin, pid, {
+        lineId: line.id as string,
+        reason: `Meal plan ${fromCode} → ${addons.mealPlanCode} · ${reason}`,
+        voidedBy: approvedBy,
+        period_guard: periodGuardFromForm(formData, pid),
+      });
+      mealsVoided += 1;
+    }
+
+    let mealPosted = false;
+    if (addons.mealPlanAmountBtn > 0) {
+      const biz =
+        (booking.check_in as string)?.slice(0, 10) ??
+        new Date().toISOString().slice(0, 10);
+      const meal = await postMealPlanFolioLine(admin, pid, {
+        folioId,
+        bookingId,
+        mealPlanCode: addons.mealPlanCode,
+        mealPlanName: mealResolved.name,
+        mealPlanAmountBtn: addons.mealPlanAmountBtn,
+        businessDate: biz,
+      });
+      mealPosted = meal.posted;
+    }
+
+    let reinvoiceMsg = "";
+    if (reissue) {
+      const { data: activeInv } = await admin
+        .from("fiscal_documents")
+        .select("id, doc_no")
+        .eq("property_id", pid)
+        .eq("folio_id", folioId)
+        .eq("doc_kind", "invoice")
+        .eq("status", "issued")
+        .maybeSingle();
+      if (activeInv) {
+        const { supersedeFolioInvoice } = await import(
+          "@/lib/fiscal/issue-document"
+        );
+        const old = await supersedeFolioInvoice(admin, pid, folioId, {
+          reason: `Meal plan ${fromCode} → ${addons.mealPlanCode} · ${reason}`,
+          actor: approvedBy,
+        });
+        const doc = await issueFiscalDocument(admin, pid, {
+          docKind: "invoice",
+          folioId,
+          issuedBy: approvedBy,
+          periodGuard: periodGuardFromForm(formData, pid),
+        });
+        reinvoiceMsg = ` Superseded ${old.docNo} · new ${doc.docNo}.`;
+        revalidatePath(`/erp/invoices/${doc.id}/print`);
+      }
+    }
+
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "folio.meal_plan.change",
+      entityType: "folios",
+      entityId: folioId,
+      summary: `Meal plan ${fromCode} → ${addons.mealPlanCode} · ${booking.contact_name ?? bookingId}`,
+      meta: {
+        bookingId,
+        from: fromCode,
+        to: addons.mealPlanCode,
+        from_amount: booking.meal_plan_amount_btn,
+        to_amount: addons.mealPlanAmountBtn,
+        meals_voided: mealsVoided,
+        meal_posted: mealPosted,
+        reissue,
+        approved_by: approvedBy,
+        reason,
+      },
+    });
+
+    revalidateFolio(folioId);
+    revalidatePath("/erp/stayview");
+    revalidatePath("/erp/in-house");
+    revalidatePath(`/erp/folios/${folioId}`);
+    return {
+      ok: true,
+      message: `Meal plan ${fromCode} → ${addons.mealPlanCode} (Nu ${roundBtn(addons.mealPlanAmountBtn)}).${reinvoiceMsg}`,
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
 /** Supersede active INV so a corrected folio can get a new tax invoice number. */
 export async function supersedeAndReissueFolioInvoice(
   _prev: ErpFolioOpsState,

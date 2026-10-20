@@ -51,7 +51,7 @@ export default async function BillsHubPage({
       ) : tab === "stay" ? (
         <BillsStaySearch />
       ) : tab === "invoices" ? (
-        <BillsInvoicesPanel />
+        <BillsInvoicesPanel fromRaw={sp.from} toRaw={sp.to} />
       ) : tab === "payments" ? (
         <BillsPaymentsPanel fromRaw={sp.from} toRaw={sp.to} />
       ) : (

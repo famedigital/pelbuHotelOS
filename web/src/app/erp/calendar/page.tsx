@@ -94,7 +94,7 @@ export default async function CalendarPage({ searchParams }: Props) {
     admin
       .from("bookings")
       .select(
-        `id, contact_name, contact_phone, status, check_in, check_out,
+        `id, contact_name, contact_phone, status, check_in, check_out, rooms,
          agents(company_name),
          booking_rooms(
            room_type_id, qty, inventory_kind,
@@ -440,8 +440,35 @@ export default async function CalendarPage({ searchParams }: Props) {
     assignedByBookingType.set(key, (assignedByBookingType.get(key) ?? 0) + 1);
   }
 
+  const defaultSellableType = (() => {
+    for (const u of unitRows ?? []) {
+      const rt = u.room_types as
+        | { code?: string; name?: string }
+        | { code?: string; name?: string }[]
+        | null;
+      const type = Array.isArray(rt) ? rt[0] : rt;
+      if (u.room_type_id && type) {
+        return {
+          id: u.room_type_id as string,
+          code: type.code ?? "",
+          name: type.name ?? "Room",
+        };
+      }
+    }
+    return null;
+  })();
+
   const unassigned: UnassignedBooking[] = [];
   for (const row of bookingRows ?? []) {
+    const status = row.status as string;
+    if (
+      status !== "confirmed" &&
+      status !== "checked_in" &&
+      status !== "pending" &&
+      status !== "held"
+    ) {
+      continue;
+    }
     const rawAgent = row.agents as
       | { company_name?: string }
       | { company_name?: string }[]
@@ -472,6 +499,17 @@ export default async function CalendarPage({ searchParams }: Props) {
         code: roomType?.code ?? demand?.code ?? "",
         name: roomType?.name ?? demand?.name ?? "Room",
       });
+    }
+    // Legacy bookings with rooms count but no booking_rooms lines.
+    if (demandByType.size === 0 && defaultSellableType) {
+      const qty = Math.max(0, Number(row.rooms) || 0);
+      if (qty > 0) {
+        demandByType.set(defaultSellableType.id, {
+          qty,
+          code: defaultSellableType.code,
+          name: defaultSellableType.name,
+        });
+      }
     }
     for (const [roomTypeId, demand] of demandByType) {
       const key = `${row.id as string}:${roomTypeId}`;

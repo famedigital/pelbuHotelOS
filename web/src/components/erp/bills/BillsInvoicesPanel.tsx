@@ -1,42 +1,48 @@
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { EmptyState } from "@/components/ui/empty-state";
+import { InvoicesDesk, type InvoiceDeskRow } from "@/components/erp/bills/InvoicesDesk";
 import { requireDeskPropertyId } from "@/lib/desk-property";
 import {
   guestVisibleBalanceLines,
   netFolioBalance,
 } from "@/lib/folio/balance";
-import { formatBtn } from "@/lib/pricing";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import Link from "next/link";
 
-export async function BillsInvoicesPanel() {
+export async function BillsInvoicesPanel({
+  fromRaw,
+  toRaw,
+}: {
+  fromRaw?: string;
+  toRaw?: string;
+} = {}) {
   const admin = createSupabaseAdminClient();
   const propertyId = await requireDeskPropertyId();
+
   const { data: docs } = await admin
     .from("fiscal_documents")
     .select(
-      "id, doc_no, issued_at, folio_id, folios(id, label, status, folio_lines(id, total_btn, gst_btn, status, source_type, reverses_line_id))",
+      `id, doc_no, status, issued_at, folio_id,
+       folios(
+         id, label, status, booking_id,
+         folio_lines(id, total_btn, gst_btn, status, source_type, reverses_line_id),
+         bookings(
+           contact_name, meal_plan_code, guide_number,
+           agents(company_name),
+           room_assignments(rooms(code))
+         )
+       )`,
     )
     .eq("property_id", propertyId)
     .eq("doc_kind", "invoice")
-    .eq("status", "issued")
+    .in("status", ["issued", "superseded"])
     .order("issued_at", { ascending: false })
-    .limit(60);
+    .limit(200);
 
-  const rows = (docs ?? []).map((doc) => {
+  const rows: InvoiceDeskRow[] = (docs ?? []).map((doc) => {
     const rawFolio = doc.folios;
     const folio = (Array.isArray(rawFolio) ? rawFolio[0] : rawFolio) as {
       id: string;
       label: string;
       status: string;
+      booking_id: string | null;
       folio_lines: {
         id?: string;
         total_btn: number;
@@ -45,7 +51,41 @@ export async function BillsInvoicesPanel() {
         source_type?: string;
         reverses_line_id?: string | null;
       }[] | null;
+      bookings:
+        | {
+            contact_name?: string | null;
+            meal_plan_code?: string | null;
+            guide_number?: string | null;
+            agents?: { company_name?: string } | { company_name?: string }[] | null;
+            room_assignments?:
+              | { rooms?: { code?: string } | { code?: string }[] | null }[]
+              | null;
+          }
+        | {
+            contact_name?: string | null;
+            meal_plan_code?: string | null;
+            guide_number?: string | null;
+            agents?: { company_name?: string } | { company_name?: string }[] | null;
+            room_assignments?:
+              | { rooms?: { code?: string } | { code?: string }[] | null }[]
+              | null;
+          }[]
+        | null;
     } | null;
+
+    const bookingRaw = folio?.bookings;
+    const booking = Array.isArray(bookingRaw) ? bookingRaw[0] : bookingRaw;
+    const agentRaw = booking?.agents;
+    const agent = Array.isArray(agentRaw) ? agentRaw[0] : agentRaw;
+    const rooms = (booking?.room_assignments ?? [])
+      .map((a) => {
+        const r = a.rooms;
+        const room = Array.isArray(r) ? r[0] : r;
+        return room?.code;
+      })
+      .filter(Boolean)
+      .join(", ");
+
     const lines = folio?.folio_lines ?? [];
     const visible = guestVisibleBalanceLines(
       lines.map((l, i) => ({
@@ -66,76 +106,28 @@ export async function BillsInvoicesPanel() {
         reverses_line_id: l.reverses_line_id ?? null,
       })),
     );
+    const issuedAt = doc.issued_at as string | null;
     return {
       id: doc.id as string,
       docNo: (doc.doc_no as string) ?? "—",
-      issuedAt: doc.issued_at as string | null,
+      status: (doc.status as string) ?? "issued",
+      issuedAt,
+      issueDate: issuedAt ? issuedAt.slice(0, 10) : "",
       folioId: (doc.folio_id as string) ?? folio?.id ?? null,
       label: folio?.label ?? "—",
+      bookingId: folio?.booking_id ?? null,
+      agentName: agent?.company_name ?? null,
+      guestName: booking?.contact_name ?? null,
+      guideNumber: booking?.guide_number ?? null,
+      mealPlan: booking?.meal_plan_code ?? null,
+      roomsLabel: rooms || null,
       total,
+      balance,
       unpaid: folio?.status === "open" && Math.abs(balance) > 0.009,
     };
   });
 
-  if (rows.length === 0) {
-    return (
-      <EmptyState
-        title="No tax invoices yet"
-        description="Issue an INV-… from a folio bill when the guest or agent needs a tax invoice."
-        action={
-          <Button asChild size="sm">
-            <Link href="/erp/bills?tab=stay">Find a stay</Link>
-          </Button>
-        }
-      />
-    );
-  }
-
   return (
-    <div className="overflow-x-auto rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Invoice</TableHead>
-            <TableHead>Bill</TableHead>
-            <TableHead className="text-right">Total</TableHead>
-            <TableHead>Issued</TableHead>
-            <TableHead className="text-right">Open</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((inv) => (
-            <TableRow key={inv.id} className="h-11">
-              <TableCell className="font-medium">{inv.docNo}</TableCell>
-              <TableCell className="max-w-[12rem] truncate text-sm text-muted-foreground">
-                {inv.label}
-                {inv.unpaid ? (
-                  <span className="ml-1 text-destructive">· due</span>
-                ) : null}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {formatBtn(inv.total)}
-              </TableCell>
-              <TableCell className="text-sm text-muted-foreground">
-                {inv.issuedAt
-                  ? new Date(inv.issuedAt).toLocaleDateString()
-                  : "—"}
-              </TableCell>
-              <TableCell className="text-right">
-                <Button asChild variant="ghost" size="sm" className="h-8">
-                  <Link href={`/erp/invoices/${inv.id}`}>View</Link>
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <p className="mt-2 px-1 text-xs text-muted-foreground">
-        Full list with search:{" "}
-        <Link href="/erp/invoices" className="text-accent underline-offset-4 hover:underline">
-          Invoices
-        </Link>
-      </p>
-    </div>
+    <InvoicesDesk rows={rows} fromDefault={fromRaw} toDefault={toRaw} />
   );
 }

@@ -12,6 +12,17 @@ import {
 import { loadFoTodaySnapshot, type FoTodaySnapshot } from "@/lib/erp/fo-today";
 import { loadTomorrowArrivals, type TomorrowArrival } from "@/lib/erp/tomorrow-arrivals";
 import {
+  loadTomorrowDepartures,
+  type TomorrowDeparture,
+} from "@/lib/erp/tomorrow-departures";
+import {
+  loadEmptyRoomBreakdown,
+  loadIssuedInvoiceByFolio,
+  mealPlanBuckets,
+  type EmptyRoomBreakdown,
+  type MealPlanBucket,
+} from "@/lib/erp/fo-ops-blocks";
+import {
   loadMissingGuideScans,
   type MissingGuideScan,
 } from "@/lib/erp/missing-guide-scans";
@@ -76,8 +87,14 @@ export type DailyDeskSnapshot = FoTodaySnapshot & {
   agentPaidCount: number;
   tools: DailyDeskTools;
   tomorrowArrivals: TomorrowArrival[];
+  tomorrowDepartures: TomorrowDeparture[];
   missingGuideScans: MissingGuideScan[];
   dayOpsPulse: DayOpsPulse;
+  arrivalMealBuckets: MealPlanBucket[];
+  inHouseMealBuckets: MealPlanBucket[];
+  emptyRooms: EmptyRoomBreakdown;
+  /** folioId → issued INV for today's departures */
+  departureInvoices: Record<string, { id: string; docNo: string }>;
 };
 
 function isAgentBillMode(mode: string | null | undefined): boolean {
@@ -266,17 +283,21 @@ export async function loadDailyDeskSnapshot(
     dayOps,
     tools,
     tomorrowArrivals,
+    tomorrowDepartures,
     missingGuideScans,
     mealCovers,
     hkUnits,
+    emptyRooms,
   ] = await Promise.all([
     loadFoTodaySnapshot(admin, propertyId),
     loadDayOpsBoard(admin, propertyId, wallToday),
     loadDailyTools(admin, propertyId, wallToday),
     loadTomorrowArrivals(admin, propertyId, wallToday),
+    loadTomorrowDepartures(admin, propertyId, wallToday),
     loadMissingGuideScans(admin, propertyId),
     computeMealCovers(admin, propertyId, wallToday),
     admin.from("room_units").select("hk_status").eq("property_id", propertyId),
+    loadEmptyRoomBreakdown(admin, propertyId, wallToday),
   ]);
 
   const departureIds = new Set(dayOps.departures.map((r) => r.id));
@@ -350,6 +371,15 @@ export async function loadDailyDeskSnapshot(
     roomsTotal: hkRows.length,
   };
 
+  const folioIds = dayOps.departures
+    .map((r) => r.folio_id)
+    .filter((id): id is string => Boolean(id));
+  const invMap = await loadIssuedInvoiceByFolio(admin, propertyId, folioIds);
+  const departureInvoices: Record<string, { id: string; docNo: string }> = {};
+  for (const [fid, inv] of invMap) {
+    departureInvoices[fid] = inv;
+  }
+
   return {
     ...fo,
     dayOps,
@@ -358,7 +388,12 @@ export async function loadDailyDeskSnapshot(
     agentPaidCount,
     tools,
     tomorrowArrivals,
+    tomorrowDepartures,
     missingGuideScans,
     dayOpsPulse,
+    arrivalMealBuckets: mealPlanBuckets(dayOps.arrivals),
+    inHouseMealBuckets: mealPlanBuckets(dayOps.inHouse),
+    emptyRooms,
+    departureInvoices,
   };
 }

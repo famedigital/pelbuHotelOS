@@ -6,6 +6,7 @@ import {
   issueFolioCreditNote,
   issueFolioInvoice,
   issueFolioReceipt,
+  changeStayMealPlanWithPin,
   supersedeAndReissueFolioInvoice,
   markDepositLinkPaid,
   postCompCredit,
@@ -616,6 +617,125 @@ export function IssueInvoiceButton({
         className="h-10 w-full"
       >
         {pending ? "Issuing…" : "Issue tax invoice"}
+      </Button>
+      <Flash state={state} />
+    </form>
+  );
+}
+
+/** Manager-PIN meal plan change + optional INV reissue (MAP → CP/EP etc.). */
+export function ChangeMealPlanForm({
+  folioId,
+  currentCode,
+  mealPlans,
+  hasIssuedInvoice,
+  embedded = false,
+}: {
+  folioId: string;
+  currentCode: string;
+  mealPlans: { code: string; name: string }[];
+  hasIssuedInvoice: boolean;
+  embedded?: boolean;
+}) {
+  const [state, action, pending] = useActionState(
+    changeStayMealPlanWithPin,
+    initial,
+  );
+  useActionToast(state, {
+    successMessage: state.message ?? "Meal plan updated",
+  });
+  const options =
+    mealPlans.length > 0
+      ? mealPlans
+      : [
+          { code: "EP", name: "Room only" },
+          { code: "BB", name: "Breakfast" },
+          { code: "CP", name: "Continental / breakfast" },
+          { code: "MAP", name: "Breakfast & dinner" },
+          { code: "AP", name: "All meals" },
+        ];
+
+  return (
+    <form
+      action={action}
+      className={
+        embedded
+          ? "erp space-y-2"
+          : "erp space-y-3 rounded-lg border bg-card p-4"
+      }
+    >
+      <input type="hidden" name="folio_id" value={folioId} />
+      <div>
+        <p className="text-sm font-semibold text-foreground">Change meal plan</p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">
+          Now {currentCode || "—"} · manager PIN required · voids meal line and
+          reposts
+        </p>
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor={`meal-${folioId.slice(0, 8)}`} className="text-[11px]">
+          New plan
+        </Label>
+        <select
+          id={`meal-${folioId.slice(0, 8)}`}
+          name="meal_plan_code"
+          defaultValue={currentCode || "EP"}
+          className={selectClass()}
+          required
+        >
+          {options.map((p) => (
+            <option key={p.code} value={p.code}>
+              {p.code} · {p.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor={`meal-reason-${folioId.slice(0, 8)}`} className="text-[11px]">
+          Reason
+        </Label>
+        <Input
+          id={`meal-reason-${folioId.slice(0, 8)}`}
+          name="reason"
+          placeholder="e.g. Agent asked to drop dinner"
+          className="h-9 text-xs"
+          required
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor={`meal-pin-${folioId.slice(0, 8)}`} className="text-[11px]">
+          Manager PIN
+        </Label>
+        <Input
+          id={`meal-pin-${folioId.slice(0, 8)}`}
+          name="manager_pin"
+          type="password"
+          autoComplete="off"
+          className="h-9"
+          required
+        />
+      </div>
+      {hasIssuedInvoice ? (
+        <label className="flex items-center gap-2 text-xs text-foreground">
+          <input
+            type="checkbox"
+            name="reissue_invoice"
+            value="1"
+            defaultChecked
+            className="size-3.5 rounded border"
+          />
+          Supersede &amp; reissue tax invoice
+        </label>
+      ) : null}
+      <PeriodOverrideFields idPrefix={`meal-${folioId.slice(0, 8)}`} />
+      <Button
+        type="submit"
+        variant="outline"
+        size="sm"
+        disabled={pending}
+        className="h-9 w-full text-xs"
+      >
+        {pending ? "Updating…" : "Apply meal plan"}
       </Button>
       <Flash state={state} />
     </form>

@@ -1,4 +1,5 @@
 import { AgentRateAssist } from "@/components/erp/AgentRateAssist";
+import { ErpBreadcrumb } from "@/components/erp/ErpBreadcrumb";
 import { RatePackagesWorkspace } from "@/components/erp/RatePackagesWorkspace";
 import { SeasonsDateEditor } from "@/components/erp/SeasonsDateEditor";
 import { DeskListShell } from "@/components/erp/DeskListShell";
@@ -54,32 +55,61 @@ export default async function RoomRatesPage() {
     <DeskListShell
       eyebrow="Hotel"
       heading="Room rates & meal packages"
-      blurb="Public package card (room only + BB / MAP at double) plus season matrix with single and double occupancy room Nu. Website /rates uses the double package math unless a single path is added later."
+      blurb="Component sheet: room night + breakfast + dinner + mattress + extra person meal. StayHub, Reserve, folio, and INV share the same quote engine."
       filters={
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href="/erp/rate-plans"
-            className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
-          >
-            Named rate plans →
-          </Link>
-          <Link
-            href="/erp/agents"
-            className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
-          >
-            Agent partners →
-          </Link>
-          <a
-            href="/rates"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
-          >
-            Public rate card →
-          </a>
+        <div className="flex w-full min-w-0 flex-col gap-2">
+          <ErpBreadcrumb
+            items={[
+              { label: "Desk", href: "/erp/stayview" },
+              { label: "Rates" },
+            ]}
+          />
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/erp/rate-plans"
+              className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
+            >
+              Named rate plans →
+            </Link>
+            <Link
+              href="/erp/agents"
+              className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
+            >
+              Agent partners →
+            </Link>
+            <a
+              href="/rates"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
+            >
+              Public rate card →
+            </a>
+          </div>
         </div>
       }
     >
+      <section className="rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+        <p className="font-medium text-foreground">Component breakdown</p>
+        <p className="mt-1">
+          CP/BB → breakfast only · MAP → breakfast + dinner · AP → BF/L/D ·
+          Extra mattress from property policy · Child meal = extra person meal.
+          Edit meal Nu under meal plans below; room Nu in the season matrix.
+        </p>
+        <ul className="mt-2 flex flex-wrap gap-2">
+          {mealPlans.map((m) => (
+            <li
+              key={m.code}
+              className="rounded border bg-background px-2 py-1 tabular-nums"
+            >
+              <span className="font-semibold text-foreground">{m.code}</span>{" "}
+              {m.amount_btn_per_adult_night != null
+                ? `Nu ${m.amount_btn_per_adult_night}/adult/night`
+                : "label only"}
+            </li>
+          ))}
+        </ul>
+      </section>
       <section className="rounded-xl border bg-card p-5">
         <SeasonsDateEditor seasons={seasonRows} />
       </section>

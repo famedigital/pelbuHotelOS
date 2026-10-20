@@ -1376,6 +1376,15 @@ export async function previewStayHubSheetRate(input: {
       agreedNightlyBtn: number | null;
       mealPlanCode: string;
       hasRoomType: boolean;
+      /** Component breakdown (room / BF / dinner / mattress / extra pax). */
+      components: {
+        id: string;
+        label: string;
+        amountBtn: number;
+      }[];
+      breakfastStayBtn: number;
+      dinnerStayBtn: number;
+      mattressStayBtn: number;
     }
   | { ok: false; error: string }
 > {
@@ -1514,7 +1523,9 @@ export async function previewStayHubSheetRate(input: {
       }
     }
 
-    const { resolveStayAddonsForBook } = await import("@/lib/meal-plans");
+    const { resolveStayAddonsForBook, resolveMealPlanForBook } = await import(
+      "@/lib/meal-plans"
+    );
     const addons = await resolveStayAddonsForBook(admin, propertyId, {
       mealPlanCode,
       adults,
@@ -1522,6 +1533,11 @@ export async function previewStayHubSheetRate(input: {
       extraBeds,
       nights,
     });
+    const mealResolved = await resolveMealPlanForBook(
+      admin,
+      propertyId,
+      mealPlanCode,
+    );
 
     const mealStayBtn = roundBtn(addons.mealPlanAmountBtn);
     const extraBedStayBtn = roundBtn(addons.extraBedAmountBtn);
@@ -1529,6 +1545,27 @@ export async function previewStayHubSheetRate(input: {
       nights > 0 ? roundBtn(mealStayBtn / nights) : mealStayBtn;
     const extraBedPerNightBtn =
       nights > 0 ? roundBtn(extraBedStayBtn / nights) : extraBedStayBtn;
+
+    // Agent CP tiers often bundle breakfast into room_rates — avoid double meal.
+    const mealBundledInRoom =
+      (tier === "agents" || tier === "mou_agents") &&
+      (addons.mealPlanCode === "CP" || addons.mealPlanCode === "BB") &&
+      mealStayBtn <= 0.009;
+
+    const { quoteStayComponents } = await import("@/lib/rates/stay-components");
+    const componentsQuote = quoteStayComponents({
+      roomNightlyBtn: (roomNightlyBtn ?? 0) * qtyRooms,
+      mealPerAdultNightBtn: mealResolved.amountPerAdultNight ?? 0,
+      mealPerChildNightBtn: mealResolved.amountPerChildNight ?? 0,
+      mealPlanCode: addons.mealPlanCode,
+      adults,
+      children,
+      nights,
+      extraBeds,
+      extraBedPerNightBtn:
+        extraBeds > 0 ? extraBedStayBtn / Math.max(1, extraBeds * nights) : 0,
+      mealBundledInRoom,
+    });
 
     let systemStayTotalBtn: number | null = null;
     let systemNightlyTotalBtn: number | null = null;
@@ -1561,6 +1598,10 @@ export async function previewStayHubSheetRate(input: {
           : null,
       mealPlanCode: addons.mealPlanCode,
       hasRoomType: Boolean(roomTypeId),
+      components: componentsQuote.components,
+      breakfastStayBtn: componentsQuote.breakfastStayBtn,
+      dinnerStayBtn: componentsQuote.dinnerStayBtn,
+      mattressStayBtn: componentsQuote.mattressStayBtn,
     };
   } catch (err) {
     return {

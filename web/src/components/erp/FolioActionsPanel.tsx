@@ -3,6 +3,7 @@
 import {
   AttachToMasterForm,
   BankProofPaymentForm,
+  ChangeMealPlanForm,
   CompCreditForm,
   DepositLinkForm,
   GuestRoundFigureForm,
@@ -40,6 +41,9 @@ type Props = {
   balanceDue: number;
   invoiceNo: string | null;
   invoiceDocId: string | null;
+  /** Current booking meal plan code (for change form). */
+  mealPlanCode?: string | null;
+  mealPlans?: { code: string; name: string }[];
   isMaster: boolean;
   hasMaster: boolean;
   masterCandidates: FolioMasterOption[];
@@ -100,6 +104,8 @@ export function FolioActionsPanel({
   balanceDue,
   invoiceNo,
   invoiceDocId,
+  mealPlanCode = null,
+  mealPlans = [],
   isMaster,
   hasMaster,
   masterCandidates,
@@ -233,6 +239,17 @@ export function FolioActionsPanel({
           embedded
           secondary
         />
+        {bookingId && folioOpen ? (
+          <div className="mt-3 border-t pt-3">
+            <ChangeMealPlanForm
+              folioId={folioId}
+              currentCode={mealPlanCode ?? "EP"}
+              mealPlans={mealPlans}
+              hasIssuedInvoice={Boolean(invoiceNo)}
+              embedded
+            />
+          </div>
+        ) : null}
       </section>
 
       {needsDay1 ? null : postRoom}

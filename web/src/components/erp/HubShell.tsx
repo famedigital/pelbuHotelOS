@@ -29,6 +29,7 @@ export function HubShell({
   filters,
   headerAside,
   stickyCta,
+  breadcrumb,
   wide = true,
   className,
 }: {
@@ -42,6 +43,7 @@ export function HubShell({
   filters?: ReactNode;
   headerAside?: ReactNode;
   stickyCta?: ReactNode;
+  breadcrumb?: ReactNode;
   wide?: boolean;
   className?: string;
 }) {
@@ -71,6 +73,9 @@ export function HubShell({
         headerAside={headerAside}
         filters={
           <div className="flex w-full min-w-0 flex-col gap-2">
+            {breadcrumb ? (
+              <div className="min-w-0">{breadcrumb}</div>
+            ) : null}
             <nav
               aria-label={`${heading} sections`}
               className="flex max-w-full items-center gap-0.5 overflow-x-auto rounded-md border border-border bg-muted/40 p-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
