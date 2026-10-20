@@ -1,15 +1,10 @@
-import { deskLogout } from "@/app/actions/desk";
-import { deskShiftChange } from "@/app/actions/staff-auth";
-import { AppSidebar } from "@/components/erp/app-sidebar";
-import { ModuleHeaderTabs } from "@/components/erp/ModuleHeaderTabs";
 import { DeskHelpHint } from "@/components/erp/DeskHelpHint";
 import { DeskMobileNav } from "@/components/erp/DeskMobileNav";
+import { DeskSheetTabs } from "@/components/erp/DeskSheetTabs";
+import { DeskTopChrome } from "@/components/erp/DeskTopChrome";
 import { DeskWorkspaceProvider } from "@/components/erp/DeskWorkspaceProvider";
-import { DeskWorkspaceToggle } from "@/components/erp/DeskWorkspaceToggle";
 import { ErpCommandPalette } from "@/components/erp/ErpCommandPalette";
 import { NavigationProgress } from "@/components/erp/NavigationProgress";
-import { DeskSearchHint } from "@/components/erp/DeskSearchHint";
-import { PropertySwitcher } from "@/components/erp/PropertySwitcher";
 import { DeskMainSkeleton } from "@/components/erp/DeskMainSkeleton";
 import { DeskChromeGuard } from "@/components/erp/DeskChromeGuard";
 import { DeskSurfaceMetrics } from "@/components/erp/DeskSurfaceMetrics";
@@ -17,24 +12,14 @@ import { FoAskShortcut } from "@/components/erp/FoAskShortcut";
 import { SoftNavRecovery } from "@/components/erp/SoftNavRecovery";
 import { StayHubShell } from "@/components/erp/StayHubShell";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
 import type { DeskRole } from "@/lib/desk-auth";
 import type { PropertySwitcherOption } from "@/lib/property-types";
-import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 
 /**
- * ERP shell: icon sidebar + pinned header row (does not scroll away).
- * Module sub-destinations sit **in that header** (compact segment control), not
- * a second menu row under it — keeps desk workspace tall. POS register portals
- * Sell | Floor + ticket actions into the same row.
- * Page body scrolls inside the inset under the header so sticky filters (`top-14`) work.
+ * ERP shell — Sheets-style chrome: top menubar + toolbar, bottom sheet tabs (md+).
+ * Phone: compact top Menu + thumb bottom nav. No left sidebar.
+ * Page body scrolls in the middle; StayHub mounts once for the desk.
  */
 export function DeskShell({
   title,
@@ -44,34 +29,25 @@ export function DeskShell({
   businessDate,
   allowedModuleKeys,
   deskRole,
-  canPreviewDashboards,
-  homeDashboardView,
-  productPack = "hotel",
+  canPreviewDashboards: _canPreviewDashboards,
+  homeDashboardView: _homeDashboardView,
+  productPack: _productPack = "hotel",
   children,
 }: {
   title?: string;
   properties?: PropertySwitcherOption[];
   activePropertyId?: string;
   logoSrc?: string | null;
-  /**
-   * Open hotel business date (eZee “working date”). Distinct from wall-clock;
-   * advances after night audit.
-   */
   businessDate?: string | null;
-  /** ERP_MODULES keys the session may open. */
   allowedModuleKeys?: readonly string[];
-  /** Drives Front desk vs Back office default when no cookie yet. */
   deskRole?: DeskRole | null;
-  /** Owner/GM: department boards as first-row tabs on `/erp`. */
   canPreviewDashboards?: boolean;
   homeDashboardView?: import("@/lib/erp/role-dashboard").DashboardView;
   productPack?: "hotel" | "restaurant";
   children: ReactNode;
 }) {
-  const bizLabel = businessDate?.slice(0, 10) ?? null;
-
   return (
-    <div className="erp">
+    <div className="erp flex h-svh max-h-svh flex-col overflow-hidden">
       <DeskChromeGuard />
       <SoftNavRecovery />
       <NavigationProgress />
@@ -79,112 +55,34 @@ export function DeskShell({
         deskRole={deskRole}
         allowedModuleKeys={allowedModuleKeys}
       >
-        <SidebarProvider defaultOpen={false} defaultState="collapsed">
-          <AppSidebar
+        <ErpCommandPalette allowedModuleKeys={allowedModuleKeys} />
+        <FoAskShortcut />
+        <StayHubShell>
+          <Suspense fallback={null}>
+            <DeskSurfaceMetrics />
+          </Suspense>
+          <DeskTopChrome
             brandName={title}
             logoSrc={logoSrc}
+            businessDate={businessDate}
+            properties={properties}
+            activePropertyId={activePropertyId}
             allowedModuleKeys={allowedModuleKeys}
-            productPack={productPack}
           />
-          <ErpCommandPalette allowedModuleKeys={allowedModuleKeys} />
-          <FoAskShortcut />
-          <SidebarInset className="max-h-svh overflow-hidden">
-            <StayHubShell>
-              <Suspense fallback={null}>
-                <DeskSurfaceMetrics />
-              </Suspense>
-              <header className="z-30 flex h-11 min-w-0 shrink-0 items-center gap-1 overflow-x-auto border-b border-border bg-background px-2 [scrollbar-width:none] sm:gap-1.5 sm:px-3 print:hidden [&::-webkit-scrollbar]:hidden">
-                <SidebarTrigger className="-ml-1 inline-flex h-8 w-auto gap-1 px-2" />
-                <Separator
-                  orientation="vertical"
-                  className="mr-1 hidden h-4! md:block"
-                />
-                {title ? (
-                  <h1 className="hidden max-w-[8rem] truncate text-sm font-medium text-muted-foreground lg:max-w-[12rem] xl:block">
-                    {title}
-                  </h1>
-                ) : null}
-                <DeskWorkspaceToggle className="hidden sm:inline-flex" />
-                {bizLabel ? (
-                  <Link
-                    href="/erp/night-audit"
-                    title="Business date (open hotel day). Click for night audit."
-                    className="hidden shrink-0 sm:inline-flex"
-                  >
-                    <Badge
-                      variant="secondary"
-                      className="font-mono text-[10px] tracking-tight tabular-nums"
-                    >
-                      Biz {bizLabel.slice(5)}
-                    </Badge>
-                  </Link>
-                ) : null}
-                <Suspense fallback={null}>
-                  <ModuleHeaderTabs
-                    canPreviewDashboards={canPreviewDashboards}
-                    homeDashboardView={homeDashboardView}
-                    allowedModuleKeys={allowedModuleKeys}
-                  />
-                </Suspense>
-                {/* POS register portals Sell | Floor here (see PosRegisterHeaderChrome). */}
-                <div
-                  data-slot="erp-header-pos-modes"
-                  className="flex shrink-0 items-center empty:hidden"
-                />
-
-                <div className="ml-auto flex shrink-0 items-center gap-1.5">
-                  {/* POS register portals Tickets / More / help / FS here. */}
-                  <div
-                    data-slot="erp-header-pos-actions"
-                    className="flex shrink-0 items-center gap-1.5 empty:hidden"
-                  />
-                  <DeskSearchHint />
-                  {properties && properties.length > 0 && activePropertyId ? (
-                    <PropertySwitcher
-                      properties={properties}
-                      activePropertyId={activePropertyId}
-                    />
-                  ) : null}
-                  <form action={deskShiftChange} className="hidden md:block">
-                    <Button
-                      type="submit"
-                      variant="outline"
-                      size="sm"
-                      className="h-9"
-                      title="End this shift so the next person can sign in"
-                    >
-                      Login +
-                    </Button>
-                  </form>
-                  <form action={deskLogout} className="hidden md:block">
-                    <Button
-                      type="submit"
-                      variant="outline"
-                      size="sm"
-                      className="h-9"
-                    >
-                      Log out
-                    </Button>
-                  </form>
-                </div>
-              </header>
-              <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0 print:overflow-visible print:pb-0">
-                <Suspense fallback={<DeskMainSkeleton />}>{children}</Suspense>
-              </div>
-              <div className="shrink-0 print:hidden">
-                <DeskMobileNav allowedModuleKeys={allowedModuleKeys} />
-              </div>
-            </StayHubShell>
-          </SidebarInset>
-        </SidebarProvider>
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0 print:overflow-visible print:pb-0">
+            <Suspense fallback={<DeskMainSkeleton />}>{children}</Suspense>
+          </div>
+          <DeskSheetTabs allowedModuleKeys={allowedModuleKeys} />
+          <div className="shrink-0 print:hidden md:hidden">
+            <DeskMobileNav allowedModuleKeys={allowedModuleKeys} />
+          </div>
+        </StayHubShell>
       </DeskWorkspaceProvider>
     </div>
   );
 }
 
-
-/** Compact top-of-page title strip — same grammar as DeskListShell (non-list pages).
- *  Horizontal inset cancels parent page padding so title lines up with body content. */
+/** Compact top-of-page title strip — same grammar as DeskListShell (non-list pages). */
 export function DeskPageTitle({
   eyebrow,
   title,
@@ -196,7 +94,6 @@ export function DeskPageTitle({
   description?: string;
   actions?: ReactNode;
 }) {
-  // Re-export pattern via lazy import would cycle; keep layout in sync with DeskListShell.
   const short =
     description && description.length <= 96 ? description : undefined;
   const long =
@@ -237,7 +134,6 @@ export function DeskPageTitle({
   );
 }
 
-/** Small badge to drop into the page title row. */
 export function DeskTitleBadge({ children }: { children: ReactNode }) {
   return <Badge variant="secondary">{children}</Badge>;
 }

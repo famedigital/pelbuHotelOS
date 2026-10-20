@@ -25,14 +25,13 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import {
+  CalendarClockIcon,
   ClipboardListIcon,
   EllipsisIcon,
-  MessageSquareIcon,
   SearchIcon,
   ShoppingCartIcon,
   SparklesIcon,
   WalletIcon,
-  ZapIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -46,15 +45,15 @@ const PRIMARY_FRONT_DESK = [
     moduleKey: "front-desk",
   },
   {
-    title: "Ask",
-    href: "/erp/ask",
-    icon: MessageSquareIcon,
-    moduleKey: "front-desk",
+    title: "Rack",
+    href: "/erp/calendar",
+    icon: CalendarClockIcon,
+    moduleKey: "calendar",
   },
   {
-    title: "Reserve",
-    href: "/erp/reserve",
-    icon: ZapIcon,
+    title: "Bills",
+    href: "/erp/bills",
+    icon: WalletIcon,
     moduleKey: "front-desk",
   },
 ] as const;

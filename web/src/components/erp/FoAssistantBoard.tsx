@@ -141,6 +141,14 @@ export function FoAssistantBoard({
         <div className="flex flex-wrap items-center gap-2">
           <FrontDeskLiveRefresh onInvalidate={onInvalidate} />
           <Button asChild variant="outline" size="sm" className="h-9">
+            <Link
+              href={`/erp/calendar/day-sheet?date=${snap.businessDate}`}
+              title="Print day sheet"
+            >
+              Day sheet
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="h-9">
             <Link href="/erp/calendar">Rack</Link>
           </Button>
           <Button asChild variant="outline" size="sm" className="h-9">
@@ -175,17 +183,17 @@ export function FoAssistantBoard({
 
       {assistOpen ? <StayViewAssistLazy propertyId={propertyId} /> : null}
 
-      <FoOpsDashboard snap={safeSnap} />
+      <FoOpsDashboard snap={safeSnap} onInvalidate={onInvalidate} />
 
       {doActions.length > 0 ? (
-        <details className="rounded-md border">
-          <summary className="cursor-pointer px-3 py-2 text-sm font-medium">
+        <section className="rounded-md border">
+          <header className="border-b px-3 py-2 text-sm font-medium">
             Ranked Do list ({doActions.length})
-          </summary>
-          <div className="border-t px-2 py-2">
+          </header>
+          <div className="px-2 py-2">
             <FoTodayWorklist actions={doActions} />
           </div>
-        </details>
+        </section>
       ) : null}
     </div>
   );
