@@ -3,15 +3,17 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-/** Public health probe — no secrets; optional DB ping when configured. */
+/** Public health probe — no secrets; optional DB ping when configured (Coolify/DR). */
 export async function GET() {
   const payload: {
     ok: boolean;
     ts: string;
+    service: string;
     db?: "ok" | "error" | "skipped";
   } = {
     ok: true,
     ts: new Date().toISOString(),
+    service: "innora-desk",
   };
 
   if (

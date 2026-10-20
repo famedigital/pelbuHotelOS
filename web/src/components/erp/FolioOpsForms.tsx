@@ -6,6 +6,7 @@ import {
   issueFolioCreditNote,
   issueFolioInvoice,
   issueFolioReceipt,
+  supersedeAndReissueFolioInvoice,
   markDepositLinkPaid,
   postCompCredit,
   postFolioCheckInCharges,
@@ -14,6 +15,7 @@ import {
   previewFolioRoomNight,
   promoteFolioToMaster,
   submitBankPaymentProof,
+  reverseFolioPayment,
   transferFolioLine,
   voidFolioLine,
   type ErpFolioOpsState,
@@ -194,31 +196,116 @@ export function TransferLineForm({
   siblingFolios: { id: string; label: string }[];
 }) {
   const [state, action, pending] = useActionState(transferFolioLine, initial);
+  const periodLocked =
+    Boolean(state.error) &&
+    /locked accounting period|period override|soft-closed|is closed/i.test(
+      state.error ?? "",
+    );
   useActionToast(state, { successMessage: "Line transferred" });
   if (siblingFolios.length === 0) return null;
   return (
-    <form action={action} className="erp mt-2 flex flex-wrap items-center gap-2">
-      <input type="hidden" name="line_id" value={lineId} />
-      <select
-        name="target_folio_id"
-        required
-        className={`${selectClass()} max-w-[220px]`}
-        defaultValue=""
-      >
-        <option value="" disabled>
-          Transfer to folio…
-        </option>
-        {siblingFolios.map((f) => (
-          <option key={f.id} value={f.id}>
-            {f.label}
+    <form action={action} className="erp mt-2 flex flex-col gap-1.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <input type="hidden" name="line_id" value={lineId} />
+        <select
+          name="target_folio_id"
+          required
+          className={`${selectClass()} max-w-[220px]`}
+          defaultValue=""
+        >
+          <option value="" disabled>
+            Transfer to folio…
           </option>
-        ))}
-      </select>
-      <Button type="submit" variant="outline" size="sm" disabled={pending} className="text-xs">
-        {pending ? "Moving…" : "Transfer"}
+          {siblingFolios.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.label}
+            </option>
+          ))}
+        </select>
+        <Button
+          type="submit"
+          variant="outline"
+          size="sm"
+          disabled={pending}
+          className="text-xs"
+        >
+          {pending ? "Moving…" : "Transfer"}
+        </Button>
+      </div>
+      <PeriodOverrideFields
+        idPrefix={`xfer-${lineId.slice(0, 8)}`}
+        defaultOpen={periodLocked}
+      />
+      <Flash state={state} />
+    </form>
+  );
+}
+
+/** Reverse guest cash/bank/card/QR payment (not agent_credit). */
+export function ReversePaymentForm({
+  paymentId,
+  amountLabel,
+  collapsed = true,
+}: {
+  paymentId: string;
+  amountLabel?: string;
+  collapsed?: boolean;
+}) {
+  const [state, action, pending] = useActionState(reverseFolioPayment, initial);
+  const periodLocked =
+    Boolean(state.error) &&
+    /locked accounting period|period override|soft-closed|is closed/i.test(
+      state.error ?? "",
+    );
+  useActionToast(state, {
+    successMessage: state.message ?? "Payment reversed",
+  });
+
+  const form = (
+    <form action={action} className="erp space-y-1.5">
+      <input type="hidden" name="payment_id" value={paymentId} />
+      <Label htmlFor={`rev-reason-${paymentId.slice(0, 8)}`} className="sr-only">
+        Reason
+      </Label>
+      <Input
+        id={`rev-reason-${paymentId.slice(0, 8)}`}
+        name="reason"
+        required
+        placeholder={
+          amountLabel
+            ? `Reason to reverse ${amountLabel}`
+            : "Reason (wrong tender, duplicate…)"
+        }
+        className="h-8 text-xs"
+      />
+      <PeriodOverrideFields
+        idPrefix={`rev-${paymentId.slice(0, 8)}`}
+        defaultOpen={periodLocked}
+      />
+      <Button
+        type="submit"
+        variant="destructive"
+        size="sm"
+        disabled={pending}
+        className="h-8 text-xs"
+      >
+        {pending ? "Reversing…" : "Reverse payment"}
       </Button>
       <Flash state={state} />
     </form>
+  );
+
+  if (!collapsed) return form;
+
+  return (
+    <details className="group text-right">
+      <summary className="cursor-pointer list-none text-[10px] font-medium text-muted-foreground underline-offset-2 hover:text-destructive hover:underline [&::-webkit-details-marker]:hidden">
+        Reverse
+      </summary>
+      <div className="mt-1.5 rounded-md border bg-muted/20 px-2 py-1.5 text-left">
+        {form}
+      </div>
+    </details>
   );
 }
 
@@ -419,19 +506,28 @@ export function IssueInvoiceButton({
     onSuccess: onIssued,
   });
 
+  const [reissueState, reissueAction, reissuePending] = useActionState(
+    supersedeAndReissueFolioInvoice,
+    initial,
+  );
+  useActionToast(reissueState, {
+    successMessage: reissueState.message ?? "Tax invoice reissued",
+    onSuccess: onIssued,
+  });
+
   if (invoiceNo) {
     return (
       <div
         className={
           embedded
-            ? "erp text-sm"
-            : "erp rounded-lg border bg-card p-4 text-sm"
+            ? "erp space-y-2 text-sm"
+            : "erp space-y-2 rounded-lg border bg-card p-4 text-sm"
         }
       >
         <p className="text-sm font-semibold text-foreground">Tax invoice</p>
-        <p className="mt-1 font-mono font-medium text-foreground">{invoiceNo}</p>
+        <p className="font-mono font-medium text-foreground">{invoiceNo}</p>
         {invoiceDocId ? (
-          <div className="mt-2 flex flex-wrap gap-3 text-xs">
+          <div className="flex flex-wrap gap-3 text-xs">
             <a
               href={`/erp/invoices/${invoiceDocId}/print?bill=master`}
               className="font-medium text-accent underline-offset-4 hover:underline"
@@ -458,6 +554,31 @@ export function IssueInvoiceButton({
             </a>
           </div>
         ) : null}
+        <details className="pt-1">
+          <summary className="cursor-pointer text-[11px] font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
+            Folio changed? Supersede &amp; reissue INV
+          </summary>
+          <form action={reissueAction} className="mt-2 space-y-2">
+            <input type="hidden" name="folio_id" value={folioId} />
+            <Input
+              name="reason"
+              placeholder="Reason (voided charges, rate fix…)"
+              className="h-8 text-xs"
+              defaultValue="Folio corrected — reissue tax invoice"
+            />
+            <PeriodOverrideFields idPrefix={`reinv-${folioId.slice(0, 8)}`} />
+            <Button
+              type="submit"
+              variant="outline"
+              size="sm"
+              disabled={reissuePending}
+              className="h-8 w-full text-xs"
+            >
+              {reissuePending ? "Reissuing…" : "Supersede & reissue"}
+            </Button>
+            <Flash state={reissueState} />
+          </form>
+        </details>
       </div>
     );
   }

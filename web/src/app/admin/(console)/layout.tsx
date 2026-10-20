@@ -20,18 +20,51 @@ export default async function AdminConsoleLayout({
   }
 
   const NAV = [
-    { href: "/admin", label: "Dashboard" },
-    { href: "/admin/distributors", label: "Distributors" },
-    { href: "/admin/hotels", label: "Hotels" },
+    {
+      href: "/admin",
+      label: "Dashboard",
+      description: "Platform overview",
+    },
+    {
+      href: "/admin/distributors",
+      label: "Distributors",
+      description: "Partner companies that sell Innora",
+    },
+    {
+      href: "/admin/hotels",
+      label: "Hotels",
+      description: "Tenant hotels on the platform",
+    },
     {
       href: "/admin/vault/agents",
       label: pending > 0 ? `Vault (${pending})` : "Vault",
+      description: "Verify agents and guides",
     },
-    { href: "/admin/packages", label: "Packages" },
-    { href: "/admin/royalty", label: "Royalty" },
-    { href: "/admin/leads", label: "Leads" },
-    { href: "/admin/tickets", label: "Tickets" },
-    { href: "/admin/audit", label: "Audit" },
+    {
+      href: "/admin/packages",
+      label: "Packages",
+      description: "Commercial packages",
+    },
+    {
+      href: "/admin/royalty",
+      label: "Royalty",
+      description: "Royalty and billing",
+    },
+    {
+      href: "/admin/leads",
+      label: "Leads",
+      description: "Sales pipeline leads",
+    },
+    {
+      href: "/admin/tickets",
+      label: "Tickets",
+      description: "Support tickets",
+    },
+    {
+      href: "/admin/audit",
+      label: "Audit",
+      description: "Platform audit log",
+    },
   ];
 
   return (

@@ -9,7 +9,7 @@ import { KitchenCoversSection } from "@/components/erp/KitchenCoversSection";
 import { KitchenStaffSection } from "@/components/erp/KitchenStaffSection";
 import { DayOpsGuestPanel } from "@/components/erp/DayOpsGuestPanel";
 import { MealServiceBoard } from "@/components/erp/MealServiceBoard";
-import { DeskListShell } from "@/components/erp/DeskListShell";
+import { PosHub } from "@/components/erp/pos/PosHub";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -188,10 +188,7 @@ export default async function KitchenBoardPage() {
   }));
 
   return (
-    <DeskListShell
-      eyebrow="F&B operations"
-      heading="Kitchen board"
-      blurb="Meal covers, publish BF/lunch/dinner service to FO & F&B, staff on shift, gas, stock, and food cost."
+    <PosHub
       filters={
         <div className="flex flex-wrap items-center gap-2">
           <Link
@@ -420,6 +417,6 @@ export default async function KitchenBoardPage() {
           ) : null}
         </div>
       </div>
-    </DeskListShell>
+    </PosHub>
   );
 }

@@ -36,9 +36,9 @@ export default async function AgentInvoicesListPage() {
   return (
     <div className="space-y-6">
       <AgentPageHero
-        eyebrow="Fiscal"
+        eyebrow="Fiscal INV-…"
         title="Invoices & receipts"
-        blurb="Tax documents issued on your stays — view and print."
+        blurb="Tax invoices INV-… from the hotel (not PS stay confirmations). View and print."
         actions={
           <>
             <AgentPrimaryLink href="/agents/app/payments">

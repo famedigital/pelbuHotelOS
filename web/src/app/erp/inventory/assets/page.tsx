@@ -3,7 +3,7 @@ import {
   RegisterAssetForm,
   type AssetRow,
 } from "@/components/erp/inventory/AssetRegister";
-import { DeskListShell } from "@/components/erp/DeskListShell";
+
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/desk-property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -41,13 +41,9 @@ export default async function InventoryAssetsPage() {
   }));
 
   return (
-    <DeskListShell
-      eyebrow="Inventory"
-      heading="Asset register"
-      blurb="Lite fixed-asset list from accounting. Depreciation runs stay in Finance → Accounting."
-    >
+    <>
       <RegisterAssetForm />
       <AssetTable assets={rows} />
-    </DeskListShell>
+    </>
   );
 }

@@ -99,16 +99,14 @@ export function defaultModulesForDeskRole(
         "/erp/finance/banking",
         "/erp/finance/expenses",
         "/erp/finance/rrco",
-        "/erp/folios",
-        "/erp/payments",
+        "/erp/bills",
         "/erp/hr/payroll",
       ];
     case "cashier":
       return [
         "dashboard",
         "/erp/pos",
-        "/erp/payments",
-        "/erp/folios",
+        "/erp/bills",
       ];
     case "fnb":
       return [
@@ -153,8 +151,8 @@ export function defaultModulesForDeskRole(
         "/erp/housekeeping",
         "/erp/laundry",
         "/erp/pos",
-        "/erp/folios",
-        "/erp/payments",
+        "/erp/bills",
+        "/erp/stays",
         "/erp/night-audit",
       ];
     default:

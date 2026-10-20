@@ -303,6 +303,8 @@ export function useKotNotifier({
       });
       es.onerror = () => {
         setStatus("offline");
+        // Force one version pull so boards are not stale while SSE reconnects.
+        void fetchVersion({ forceChanged: true });
         es?.close();
         es = null;
         if (!stopped && document.visibilityState === "visible") {

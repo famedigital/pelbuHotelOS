@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { loadLaundryBagsByOrders } from "@/app/actions/laundry-bags";
 import { LaundryDesk, type LaundryBookingOption } from "@/components/laundry/LaundryDesk";
 import { DayOpsGuestPanel } from "@/components/erp/DayOpsGuestPanel";
-import { DeskPageTitle } from "@/components/erp/DeskShell";
+import { RoomsHub } from "@/components/erp/rooms/RoomsHub";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { loadDayOpsBoard } from "@/lib/erp/day-ops-board";
 import type {
@@ -144,12 +144,7 @@ export default async function ErpLaundryPage() {
     }));
 
   return (
-    <div className="erp mx-auto w-full max-w-[1280px] space-y-6 p-4 md:p-6">
-      <DeskPageTitle
-        eyebrow="Guest service"
-        title="Laundry"
-        description="Reception intake, bag labels, garment photos, live processing, folio charges, and delivery tracking."
-      />
+    <RoomsHub>
       <DayOpsGuestPanel
         title={`Due out today with open laundry · ${dayOps.departuresWithLaundry}`}
         blurb="Clear these before FO checkout. Click a row for folio link and contacts."
@@ -166,6 +161,6 @@ export default async function ErpLaundryPage() {
         bookingsError={bookingsError?.message ?? null}
         staff={laundryStaff}
       />
-    </div>
+    </RoomsHub>
   );
 }

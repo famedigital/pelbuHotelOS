@@ -1,7 +1,7 @@
 import { BookingBoardTable } from "@/components/erp/BookingBoardTable";
-import { DeskListShell } from "@/components/erp/DeskListShell";
 import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
 import { StayMoneyCycleLegend } from "@/components/erp/StayMoneyCycleLegend";
+import { StaysHub } from "@/components/erp/stays/StaysHub";
 import { Card, CardContent } from "@/components/ui/card";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import {
@@ -43,31 +43,25 @@ export default async function ArrivalsPage() {
   };
 
   return (
-    <DeskListShell
-      wide
-      title="Arrivals"
-      eyebrow="Arrivals"
-      heading={`Arrivals · ${fmtDate(today)}`}
-      blurb="Today’s pending and confirmed arrivals only. Open a row into StayHub at Check-in (after room + docs). Check-in opens the folio and posts day-1 room rent; then StayHub advances to Stay / Money."
+    <StaysHub
       filters={
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          <div className="flex items-center gap-3">
-            <FrontDeskLiveRefresh />
-            <Link
-              href={`/erp/calendar/day-sheet?date=${today}`}
-              className="text-sm text-accent underline-offset-4 hover:underline"
-            >
-              Day sheet
-            </Link>
-          </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs text-muted-foreground">{fmtDate(today)}</span>
+          <FrontDeskLiveRefresh />
+          <Link
+            href={`/erp/calendar/day-sheet?date=${today}`}
+            className="text-sm text-accent underline-offset-4 hover:underline"
+          >
+            Day sheet
+          </Link>
         </div>
       }
     >
-      <div className="mb-4">
+      <div className="mb-3">
         <StayMoneyCycleLegend compact />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
         <ArrivalStat label="Arrival bookings" value={summary.bookings} />
         <ArrivalStat label="Expected guests" value={summary.guests} />
         <ArrivalStat label="Rooms booked" value={summary.rooms} />
@@ -83,29 +77,15 @@ export default async function ArrivalsPage() {
       </div>
 
       <div className="space-y-2">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">
-            Arrival worklist
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            Review readiness here; open StayHub for docs, room assignment, and
-            check-in. Meal plan, agent phone, guide and driver show on each row.
-          </p>
-        </div>
         <BookingBoardTable rows={boardRows} board="arrivals" />
         {boardRows.length === 0 ? (
           <p className="rounded-lg border border-dashed bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
-            No arrivals today. Your job: scan departures for late CO, confirm
-            tomorrow&apos;s holds on Reservations, and keep HK ahead of the next
-            wave.
+            No arrivals today. Scan departures for late CO, confirm
+            tomorrow&apos;s holds on Reservations, and keep HK ahead.
           </p>
         ) : null}
       </div>
-      <p className="text-xs text-muted-foreground">
-        Your job today: assign clean rooms → lead guest ID → check-in → collect
-        on Folio. Ref prints on save and check-in toasts.
-      </p>
-    </DeskListShell>
+    </StaysHub>
   );
 }
 

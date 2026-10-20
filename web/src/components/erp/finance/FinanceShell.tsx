@@ -16,43 +16,29 @@ type NavGroup = {
   items: NavItem[];
 };
 
+/** Primary hub tabs — matches FINANCE_TABS in hubs.ts */
+const FINANCE_HUB: NavItem[] = [
+  { href: "/erp/finance", label: "Finance", exact: true },
+  { href: "/erp/night-audit", label: "Night close" },
+  { href: "/erp/finance/banking", label: "Banking" },
+  { href: "/erp/finance/expenses", label: "Expenses" },
+  { href: "/erp/finance/gst", label: "GST" },
+  { href: "/erp/finance/rrco", label: "RRCO" },
+  { href: "/erp/finance/statement", label: "Statement" },
+  { href: "/erp/finance/vendors", label: "Vendors" },
+];
+
 const FINANCE_GROUPS: NavGroup[] = [
   {
-    label: "Hotel account",
-    items: [
-      { href: "/erp/finance", label: "Vault", exact: true },
-      { href: "/erp/finance/statement", label: "Statement" },
-      { href: "/erp/finance/banking", label: "Banking" },
-      { href: "/erp/finance/bank-proofs", label: "Bank proofs" },
-    ],
-  },
-  {
-    label: "Money in",
+    label: "More books",
     items: [
       { href: "/erp/finance/income", label: "Income" },
-      { href: "/erp/folios", label: "City ledger" },
-      { href: "/erp/payments", label: "Payments" },
-      { href: "/erp/invoices", label: "Invoices" },
-    ],
-  },
-  {
-    label: "Money out",
-    items: [
-      { href: "/erp/finance/expenses", label: "Expenses" },
-      { href: "/erp/finance/vendors", label: "Vendors" },
-      { href: "/erp/hr/payroll", label: "Payroll" },
-    ],
-  },
-  {
-    label: "Tax",
-    items: [{ href: "/erp/finance/gst", label: "GST" }],
-  },
-  {
-    label: "Books",
-    items: [
+      { href: "/erp/bills", label: "FO Bills" },
+      { href: "/erp/finance/bank-proofs", label: "Bank proofs" },
       { href: "/erp/finance/accounting", label: "Journals" },
       { href: "/erp/finance/reports", label: "Reports" },
       { href: "/erp/finance/setup", label: "Close month" },
+      { href: "/erp/hr/payroll", label: "Payroll" },
     ],
   },
 ];
@@ -127,33 +113,62 @@ export function FinanceShell({
           </div>
 
           <nav
-            aria-label="Finance sections"
+            aria-label="Finance hub"
+            className="flex max-w-full items-center gap-0.5 overflow-x-auto rounded-md border border-border bg-muted/40 p-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {FINANCE_HUB.map((item) => {
+              const active = itemActive(pathname, item);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "inline-flex h-8 shrink-0 items-center rounded-[5px] px-2.5 text-xs font-medium whitespace-nowrap transition-colors",
+                    active
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-background/80 hover:text-foreground",
+                  )}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          <nav
+            aria-label="Finance more"
             className="flex flex-wrap items-center gap-x-3 gap-y-2"
           >
-            {(showTax ? [...FINANCE_GROUPS, TAX_GROUP] : FINANCE_GROUPS).map((group) => (
-              <div key={group.label} className="flex flex-wrap items-center gap-1">
-                <span className="px-1 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-                  {group.label}
-                </span>
-                {group.items.map((item) => {
-                  const active = itemActive(pathname, item);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={cn(
-                        "rounded-md px-2.5 py-1 text-sm whitespace-nowrap transition-colors",
-                        active
-                          ? "bg-primary font-medium text-primary-foreground"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                      )}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </div>
-            ))}
+            {(showTax ? [...FINANCE_GROUPS, TAX_GROUP] : FINANCE_GROUPS).map(
+              (group) => (
+                <div
+                  key={group.label}
+                  className="flex flex-wrap items-center gap-1"
+                >
+                  <span className="px-1 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                    {group.label}
+                  </span>
+                  {group.items.map((item) => {
+                    const active = itemActive(pathname, item);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={cn(
+                          "rounded-md px-2 py-0.5 text-xs whitespace-nowrap transition-colors",
+                          active
+                            ? "bg-primary font-medium text-primary-foreground"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                        )}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              ),
+            )}
           </nav>
         </div>
       </header>

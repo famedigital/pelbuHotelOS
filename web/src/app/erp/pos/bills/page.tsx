@@ -1,4 +1,4 @@
-import { DeskListShell } from "@/components/erp/DeskListShell";
+import { PosHub } from "@/components/erp/pos/PosHub";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
@@ -64,10 +64,7 @@ export default async function PosBillsPage({
   };
 
   return (
-    <DeskListShell
-      eyebrow="POS"
-      heading="POS bills"
-      blurb="Every settled ticket in this range: cash, card, QR, room charge, and agent credit. This is the guest bill. A tax invoice is issued later from the folio when the sale is charged to a room or an agent."
+    <PosHub
       filters={
         <form className="flex flex-wrap items-end gap-2" action="/erp/pos/bills" method="get">
           <div className="space-y-1.5">
@@ -175,6 +172,6 @@ export default async function PosBillsPage({
           ) : null}
         </div>
       ) : null}
-    </DeskListShell>
+    </PosHub>
   );
 }

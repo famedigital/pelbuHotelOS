@@ -153,3 +153,51 @@ export async function issueFiscalDocument(
     issuedAt: doc.issued_at as string,
   };
 }
+
+/**
+ * Mark the active issued invoice on a folio as superseded so a new INV can issue
+ * after folio corrections (voids / transfers). Gapless history retained.
+ */
+export async function supersedeFolioInvoice(
+  admin: Admin,
+  propertyId: string,
+  folioId: string,
+  opts?: { reason?: string; actor?: string },
+): Promise<{ id: string; docNo: string }> {
+  const { data: existing } = await admin
+    .from("fiscal_documents")
+    .select("id, doc_no, property_id")
+    .eq("property_id", propertyId)
+    .eq("folio_id", folioId)
+    .eq("doc_kind", "invoice")
+    .eq("status", "issued")
+    .maybeSingle();
+  if (!existing) {
+    throw new Error("No issued tax invoice to supersede on this folio.");
+  }
+  assertDeskProperty(propertyId, existing.property_id as string, "Invoice");
+
+  const { error } = await admin
+    .from("fiscal_documents")
+    .update({
+      status: "superseded",
+      meta: {
+        superseded_at: new Date().toISOString(),
+        superseded_by: opts?.actor ?? "desk",
+        reason: opts?.reason ?? "Folio corrected — reissue INV",
+      },
+    })
+    .eq("id", existing.id as string)
+    .eq("status", "issued");
+  if (error) {
+    throw new Error(
+      error.message ??
+        "Could not supersede invoice (check status constraint allows 'superseded').",
+    );
+  }
+
+  return {
+    id: existing.id as string,
+    docNo: existing.doc_no as string,
+  };
+}

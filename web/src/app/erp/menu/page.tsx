@@ -1,5 +1,5 @@
-import { DeskPageTitle } from "@/components/erp/DeskShell";
 import { BarPackPanel } from "@/components/erp/menu/BarPackPanel";
+import { PosHub } from "@/components/erp/pos/PosHub";
 import { MenuAdminGrid } from "@/components/erp/menu/MenuAdminGrid";
 import { MenuCategoryManager } from "@/components/erp/menu/MenuCategoryManager";
 import { MenuStockManager } from "@/components/erp/menu/MenuStockManager";
@@ -86,20 +86,16 @@ export default async function ErpMenuPage() {
   const defaultPourMl = Number(property?.bar_standard_pour_ml ?? 30);
 
   return (
-    <div className="erp mx-auto w-full max-w-[1200px] space-y-6 p-4 md:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <DeskPageTitle
-          eyebrow="F&B"
-          title="Menu"
-          description="Dishes and drinks across your outlets. Spirit packs share stock between pek and bottle; changes go live to POS immediately."
-        />
+    <PosHub
+      headerAside={
         <Button variant="outline" size="sm" className="shrink-0 gap-1.5" asChild>
           <Link href="/erp/menu/print">
             <PrinterIcon className="size-3.5" />
             Print menu
           </Link>
         </Button>
-      </div>
+      }
+    >
       <Tabs defaultValue="catalog">
         <TabsList className="flex h-auto flex-wrap gap-1">
           <TabsTrigger value="catalog">Catalog</TabsTrigger>
@@ -143,6 +139,6 @@ export default async function ErpMenuPage() {
           <MenuCategoryManager categories={categories} />
         </TabsContent>
       </Tabs>
-    </div>
+    </PosHub>
   );
 }

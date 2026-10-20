@@ -26,7 +26,8 @@ const CHECKLIST = [
   "Close all open POS shifts (settle or void every ticket).",
   "Review in-house folios — post payments or comps before roll if needed.",
   "Confirm HK has updated room statuses (dirty/clean) on departures.",
-  "Run once per business date — automatic cron also runs at midnight Thimphu.",
+  "Run once per business date — re-runs are blocked (unique per property + date).",
+  "Automatic cron also runs at midnight Thimphu if desk does not close first.",
 ];
 
 const OUTCOMES = [

@@ -71,6 +71,7 @@ function revalidateFolio(folioId?: string) {
   revalidatePath("/erp/night-audit");
   revalidatePath("/erp/finance");
   revalidatePath("/erp/invoices");
+  revalidatePath("/erp/bills");
   if (folioId) revalidatePath(`/erp/folios/${folioId}`);
 }
 
@@ -812,6 +813,65 @@ export async function issueFolioInvoice(
   }
 }
 
+/** Supersede active INV so a corrected folio can get a new tax invoice number. */
+export async function supersedeAndReissueFolioInvoice(
+  _prev: ErpFolioOpsState,
+  formData: FormData,
+): Promise<ErpFolioOpsState> {
+  try {
+    await requireMoney();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const folioId = trimRequired(formData.get("folio_id"), "Folio");
+    const reason =
+      optionalTrim(formData.get("reason")) ??
+      "Folio corrected — reissue tax invoice";
+    const { actor } = await resolveDeskActor();
+
+    const { supersedeFolioInvoice } = await import(
+      "@/lib/fiscal/issue-document"
+    );
+    const old = await supersedeFolioInvoice(admin, pid, folioId, {
+      reason,
+      actor,
+    });
+
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "fiscal.invoice.supersede",
+      entityType: "fiscal_documents",
+      entityId: old.id,
+      summary: `Superseded ${old.docNo} · ${reason}`,
+      meta: { folioId, oldDocNo: old.docNo, reason },
+    });
+
+    const doc = await issueFiscalDocument(admin, pid, {
+      docKind: "invoice",
+      folioId,
+      issuedBy: actor,
+      periodGuard: periodGuardFromForm(formData, pid),
+    });
+
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "fiscal.invoice.issue",
+      entityType: "fiscal_documents",
+      entityId: doc.id,
+      summary: `Reissued tax invoice ${doc.docNo} (was ${old.docNo})`,
+      meta: { folioId, docNo: doc.docNo, superseded: old.docNo },
+    });
+
+    revalidateFolio(folioId);
+    revalidatePath(`/erp/invoices/${doc.id}/print`);
+    return {
+      ok: true,
+      message: `Superseded ${old.docNo} · new tax invoice ${doc.docNo}.`,
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
 /** Open the master bill. Issues the tax invoice first when the folio has none. */
 export async function openMasterBillPrint(
   folioId: string,
@@ -1051,7 +1111,7 @@ export async function transferFolioLine(
     const { data: line } = await admin
       .from("folio_lines")
       .select(
-        "id, folio_id, status, description, booking_id, folios!inner(property_id, status)",
+        "id, folio_id, status, description, booking_id, business_date, created_at, folios!inner(property_id, status)",
       )
       .eq("id", lineId)
       .single();
@@ -1064,6 +1124,21 @@ export async function transferFolioLine(
     if ((line.status as string) !== "posted") {
       throw new Error("Only posted lines can be transferred.");
     }
+
+    const chargeDate =
+      (line.business_date as string | null) ??
+      (typeof line.created_at === "string"
+        ? line.created_at.slice(0, 10)
+        : null);
+    const { assertOpenPeriodForDate } = await import(
+      "@/lib/accounting/period-guard"
+    );
+    await assertOpenPeriodForDate(
+      admin,
+      pid,
+      chargeDate,
+      periodGuardFromForm(formData, pid),
+    );
 
     const { data: target } = await admin
       .from("folios")
@@ -1095,12 +1170,109 @@ export async function transferFolioLine(
       entityType: "folio_lines",
       entityId: lineId,
       summary: `Transferred line to folio ${targetFolioId}`,
-      meta: { from: line.folio_id, to: targetFolioId },
+      meta: { from: line.folio_id, to: targetFolioId, chargeDate },
     });
 
     revalidateFolio(line.folio_id as string);
     revalidateFolio(targetFolioId);
     return { ok: true, message: "Line transferred." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+/**
+ * Reverse a guest cash/bank/card/QR payment on an open folio (not agent_credit —
+ * use voidAgentCreditPayment). Period-guarded; removes payment + payment folio line + GL.
+ */
+export async function reverseFolioPayment(
+  _prev: ErpFolioOpsState,
+  formData: FormData,
+): Promise<ErpFolioOpsState> {
+  try {
+    await requireMoney();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const paymentId = trimRequired(formData.get("payment_id"), "Payment");
+    const reason = trimRequired(formData.get("reason"), "Reason");
+
+    const { data: payment, error: payErr } = await admin
+      .from("payments")
+      .select(
+        "id, property_id, folio_id, method, amount_btn, kind, created_at",
+      )
+      .eq("id", paymentId)
+      .eq("property_id", pid)
+      .maybeSingle();
+    if (payErr || !payment) throw new Error("Payment not found.");
+    assertDeskProperty(pid, payment.property_id as string, "Payment");
+
+    const method = (payment.method as string) ?? "";
+    if (method === "agent_credit") {
+      throw new Error(
+        "Use agent AR void for agent_credit payments — not guest reverse.",
+      );
+    }
+
+    const folioId = payment.folio_id as string | null;
+    if (!folioId) throw new Error("Payment has no folio.");
+
+    const { data: folio } = await admin
+      .from("folios")
+      .select("id, status, property_id")
+      .eq("id", folioId)
+      .maybeSingle();
+    if (!folio) throw new Error("Folio not found.");
+    assertDeskProperty(pid, folio.property_id as string, "Folio");
+    if ((folio.status as string) !== "open") {
+      throw new Error("Reopen the folio before reversing a payment.");
+    }
+
+    const payDate =
+      typeof payment.created_at === "string"
+        ? payment.created_at.slice(0, 10)
+        : null;
+    const { assertOpenPeriodForDate } = await import(
+      "@/lib/accounting/period-guard"
+    );
+    await assertOpenPeriodForDate(
+      admin,
+      pid,
+      payDate,
+      periodGuardFromForm(formData, pid),
+    );
+
+    const amountBtn = roundBtn(Number(payment.amount_btn ?? 0));
+    const lineSource =
+      (payment.kind as string) === "deposit" ? "deposit" : "payment";
+
+    const { rollbackFolioPaymentRecord } = await import(
+      "@/lib/folio/post-payment"
+    );
+    await rollbackFolioPaymentRecord(admin, pid, paymentId, lineSource);
+
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "payment.reverse",
+      entityType: "payments",
+      entityId: paymentId,
+      summary: `Reversed ${method} Nu ${amountBtn} · ${reason}`,
+      meta: {
+        paymentId,
+        folioId,
+        method,
+        amountBtn,
+        reason,
+        kind: payment.kind,
+      },
+    });
+
+    revalidateFolio(folioId);
+    revalidatePath("/erp/bills");
+    return {
+      ok: true,
+      message: `Payment Nu ${amountBtn} reversed · guest due updated.`,
+    };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
   }

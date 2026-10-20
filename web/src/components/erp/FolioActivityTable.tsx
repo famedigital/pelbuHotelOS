@@ -1,6 +1,10 @@
 "use client";
 
-import { TransferLineForm, VoidLineButton } from "@/components/erp/FolioOpsForms";
+import {
+  ReversePaymentForm,
+  TransferLineForm,
+  VoidLineButton,
+} from "@/components/erp/FolioOpsForms";
 import { formatBtn, roundBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -12,6 +16,7 @@ export type FolioActivityLine = {
   gst_btn: number;
   service_charge_btn?: number;
   source_type: string;
+  source_id?: string | null;
   status: string;
   business_date?: string | null;
   bill_to?: string | null;
@@ -152,6 +157,17 @@ export function FolioActivityTable({
                           <TransferLineForm
                             lineId={line.id}
                             siblingFolios={transferTargets}
+                          />
+                        </div>
+                      ) : null}
+                      {isOpen &&
+                      !voided &&
+                      payment &&
+                      line.source_id ? (
+                        <div className="mt-1 font-normal no-underline">
+                          <ReversePaymentForm
+                            paymentId={line.source_id}
+                            amountLabel={formatBtn(total)}
                           />
                         </div>
                       ) : null}

@@ -1,7 +1,7 @@
 import type { BookingRow } from "@/components/erp/BookingsTable";
-import { DeskListShell } from "@/components/erp/DeskListShell";
 import { NewReservationLauncher } from "@/components/erp/NewReservationLauncher";
 import { ReservationsListCacheBridge } from "@/components/erp/ReservationsListCacheBridge";
+import { StaysHub } from "@/components/erp/stays/StaysHub";
 import {
   ReservationsDeskTable,
   type ReservationDeskRow,
@@ -501,22 +501,7 @@ export default async function ReservationsPage({
   const printHref = `/erp/reservations/print?${exportParams.toString()}`;
 
   return (
-    <DeskListShell
-      wide
-      dense
-      eyebrow="Front office"
-      heading="Reservations"
-      subtitle={
-        view === "in_house"
-          ? "Staying today. Change the door on the row."
-          : view === "departures"
-            ? "Due out today."
-            : view === "arrivals"
-              ? "Due in today. Assign a room on the row."
-              : view === "upcoming"
-                ? "Confirmed stays after today."
-                : "Every reservation. Search filters this list as you type."
-      }
+    <StaysHub
       headerAside={
         <div className="flex flex-wrap items-center gap-2">
           <a
@@ -590,6 +575,6 @@ export default async function ReservationsPage({
           ) : null
         }
       />
-    </DeskListShell>
+    </StaysHub>
   );
 }

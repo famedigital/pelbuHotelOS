@@ -59,8 +59,8 @@ export function MonthRoomsChart({
   return (
     <ChartContainer
       config={roomsConfig}
-      className="aspect-auto h-24 w-full"
-      initialDimension={{ width: 480, height: 96 }}
+      className="aspect-auto h-20 w-full"
+      initialDimension={{ width: 480, height: 80 }}
       aria-label="Daily in-house rooms"
     >
       <BarChart data={data} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
@@ -128,8 +128,8 @@ export function HorizonOccupancyChart({
   return (
     <ChartContainer
       config={occupancyConfig}
-      className="aspect-auto h-28 w-full"
-      initialDimension={{ width: 480, height: 112 }}
+      className="aspect-auto h-20 w-full"
+      initialDimension={{ width: 480, height: 80 }}
       aria-label="Six-month occupancy"
     >
       <BarChart data={data} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>

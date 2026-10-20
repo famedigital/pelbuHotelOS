@@ -1,6 +1,6 @@
 import { BookingBoardTable } from "@/components/erp/BookingBoardTable";
-import { DeskListShell } from "@/components/erp/DeskListShell";
 import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
+import { StaysHub } from "@/components/erp/stays/StaysHub";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import {
   dayOpsRowToBoardRaw,
@@ -30,32 +30,27 @@ export default async function DeparturesPage() {
   const boardRows = dayOps.departures.map(dayOpsRowToBoardRaw);
 
   return (
-    <DeskListShell
-      wide
-      eyebrow="Today"
-      heading={`Departures · ${fmtDate(today)}`}
-      blurb="Due out today. Open StayHub at Stay / Money (open balance) or Check-out (settled). Check-out marks rooms dirty for housekeeping. Open laundry flags must clear before CO."
+    <StaysHub
       filters={
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          <div className="flex items-center gap-3">
-            <FrontDeskLiveRefresh />
-            <Link
-              href={`/erp/calendar/day-sheet?date=${today}`}
-              className="text-sm text-accent underline-offset-4 hover:underline"
-            >
-              Day sheet
-            </Link>
-          </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs text-muted-foreground">{fmtDate(today)}</span>
+          <FrontDeskLiveRefresh />
+          <Link
+            href={`/erp/calendar/day-sheet?date=${today}`}
+            className="text-sm text-accent underline-offset-4 hover:underline"
+          >
+            Day sheet
+          </Link>
         </div>
       }
     >
-      <p className="text-xs text-muted-foreground">
+      <p className="mb-2 text-xs text-muted-foreground">
         {dayOps.departures.length} shown
         {dayOps.departuresWithLaundry > 0
           ? ` · ${dayOps.departuresWithLaundry} with open laundry`
           : ""}
       </p>
       <BookingBoardTable rows={boardRows} board="departures" />
-    </DeskListShell>
+    </StaysHub>
   );
 }

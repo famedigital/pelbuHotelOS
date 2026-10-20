@@ -30,8 +30,7 @@ export const FRONT_DESK_MODULE_KEYS = [
  * without opening full AP / GST / vault.
  */
 export const FRONT_DESK_MONEY_TAB_HREFS = [
-  "/erp/payments",
-  "/erp/folios",
+  "/erp/bills",
   "/erp/night-audit",
 ] as const;
 
@@ -89,8 +88,7 @@ const FRONT_DESK_LANDING_CANDIDATES = [
 const BACK_OFFICE_LANDING_CANDIDATES = [
   "/erp/finance",
   "/erp/agents",
-  "/erp/payments",
-  "/erp/invoices",
+  "/erp/bills",
   "/erp/inventory",
   "/erp/hr",
   "/erp/pos",

@@ -2,7 +2,7 @@ import {
   LostFoundCreateForm,
   LostFoundStatusForm,
 } from "@/components/erp/HkLostFoundForms";
-import { DeskListShell } from "@/components/erp/DeskListShell";
+import { RoomsHub } from "@/components/erp/rooms/RoomsHub";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { fmtDate } from "@/lib/erp-lists";
 import { requireDeskPropertyId } from "@/lib/desk-property";
@@ -46,11 +46,7 @@ export default async function LostFoundPage() {
   ]);
 
   return (
-    <DeskListShell
-      eyebrow="Housekeeping"
-      heading="Lost & found"
-      blurb="Log items found in rooms or public areas. Link to HK staff who discovered them."
-    >
+    <RoomsHub>
       <LostFoundCreateForm
         units={(units ?? []).map((u) => ({
           id: u.id as string,
@@ -125,6 +121,6 @@ export default async function LostFoundPage() {
           </tbody>
         </table>
       </div>
-    </DeskListShell>
+    </RoomsHub>
   );
 }

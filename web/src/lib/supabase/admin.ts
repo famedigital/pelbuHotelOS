@@ -1,9 +1,11 @@
+import "server-only";
+
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseUrl, requireEnv } from "./env";
 
 /**
- * Service-role client for trusted server actions only.
- * Never import this into Client Components.
+ * Service-role client for trusted server actions / RSC only (SEC-01).
+ * Never import into Client Components — use staff-scoped browser client instead.
  */
 export function createSupabaseAdminClient() {
   return createClient(

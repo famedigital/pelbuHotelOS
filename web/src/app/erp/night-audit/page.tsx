@@ -1,5 +1,6 @@
 import { NightAuditDesk } from "@/components/erp/NightAuditDesk";
 import { NightCloseAssist } from "@/components/erp/NightCloseAssist";
+import { FinanceHub } from "@/components/erp/finance/FinanceHub";
 import {
   Card,
   CardContent,
@@ -107,7 +108,7 @@ export default async function ErpNightAuditPage() {
   });
 
   return (
-    <div className="erp mx-auto w-full max-w-[1200px] space-y-10 p-4 md:p-6">
+    <FinanceHub>
       <NightCloseAssist propertyId={propertyId} />
       <NightAuditDesk defaultDate={today} history={history} />
 
@@ -162,6 +163,6 @@ export default async function ErpNightAuditPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </FinanceHub>
   );
 }

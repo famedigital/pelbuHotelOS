@@ -356,7 +356,7 @@ export function FoAssistantBoard({
               <ReportRow
                 label="Unpaid / agent follow-up"
                 value={snap.agentUnpaidCount}
-                href="/erp/unpaid-bills"
+                href="/erp/bills?tab=owes"
                 warn={snap.agentUnpaidCount > 0}
               />
               <ReportRow
@@ -371,7 +371,7 @@ export function FoAssistantBoard({
                 href="/erp/stayview"
               />
               <Button asChild variant="outline" size="sm" className="mt-1 h-9 w-full">
-                <Link href="/erp/unpaid-bills">Open unpaid list</Link>
+                <Link href="/erp/bills?tab=owes">Open unpaid list</Link>
               </Button>
             </CardContent>
           </Card>

@@ -1,6 +1,6 @@
 import { InventoryLocationsPanel } from "@/components/erp/inventory/InventoryLocationsPanel";
 import type { InvLocationOption } from "@/components/erp/InventoryOpsForms";
-import { DeskListShell } from "@/components/erp/DeskListShell";
+
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/desk-property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -35,12 +35,8 @@ export default async function InventoryLocationsPage() {
   }));
 
   return (
-    <DeskListShell
-      eyebrow="Inventory"
-      heading="Locations"
-      blurb="Store, pantry, kitchen, F&B bar, room amenities cart — staff can add departments as needed."
-    >
+    <>
       <InventoryLocationsPanel locations={locationRows} />
-    </DeskListShell>
+    </>
   );
 }

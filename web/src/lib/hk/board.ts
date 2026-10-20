@@ -230,10 +230,33 @@ export function buildHousekeepingBoardRows(input: {
     });
   }
 
+  const categoryRank = (category: string): number => {
+    switch (category) {
+      case "checkout":
+        return 0;
+      case "check_in":
+        return 1;
+      case "dirty":
+        return 2;
+      case "service":
+        return 3;
+      case "stayover":
+        return 4;
+      default:
+        return 5;
+    }
+  };
+  const rowRank = (row: HkBoardRow): number => {
+    if (!row.categories.length) return 5;
+    return Math.min(...row.categories.map((c) => categoryRank(c)));
+  };
+
   boardRows.sort((a, b) => {
     const aOpen = a.status !== "done" ? 0 : 1;
     const bOpen = b.status !== "done" ? 0 : 1;
     if (aOpen !== bOpen) return aOpen - bOpen;
+    const cat = rowRank(a) - rowRank(b);
+    if (cat !== 0) return cat;
     return a.roomLabel.localeCompare(b.roomLabel, undefined, {
       numeric: true,
     });

@@ -84,7 +84,21 @@ export async function GET(request: Request): Promise<Response> {
             });
           },
         )
-        .subscribe();
+        .subscribe((status) => {
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+            try {
+              controller.enqueue(
+                encodeSse("reconnect", {
+                  reason: status,
+                  propertyId,
+                }),
+              );
+            } catch {
+              /* stream may already be closed */
+            }
+            void close();
+          }
+        });
 
       request.signal.addEventListener("abort", () => void close(), {
         once: true,

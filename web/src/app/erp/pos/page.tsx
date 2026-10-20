@@ -1,6 +1,7 @@
 import { GuestServiceForm } from "@/components/erp/GuestServiceForm";
 import { DeskOfflineQueueStrip } from "@/components/erp/DeskOfflineQueueStrip";
 import { MealServiceBoard } from "@/components/erp/MealServiceBoard";
+import { PosHub } from "@/components/erp/pos/PosHub";
 import { PosLayout } from "@/components/erp/pos/PosLayout";
 import { CREDIT_AGENT_STATUSES } from "@/lib/agents/status";
 import { getDeskRole, isDeskAuthenticated, isPosFireRole } from "@/lib/desk-auth";
@@ -210,6 +211,7 @@ export default async function ErpPosPage() {
 
   return (
     <div className="erp mx-auto w-full max-w-[1280px] space-y-2 p-3 md:p-4">
+      <PosHub>
       <DeskOfflineQueueStrip defaultKind="pos_park" />
 
       <MealServiceBoard
@@ -296,6 +298,7 @@ export default async function ErpPosPage() {
           </div>
         }
       />
+      </PosHub>
     </div>
   );
 }

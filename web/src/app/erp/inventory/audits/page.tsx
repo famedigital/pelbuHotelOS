@@ -4,7 +4,7 @@ import {
   type OpenAudit,
 } from "@/components/erp/inventory/AuditSessionForm";
 import type { InvLocationOption } from "@/components/erp/InventoryOpsForms";
-import { DeskListShell } from "@/components/erp/DeskListShell";
+
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { fmtDate } from "@/lib/erp-lists";
 import { requireDeskPropertyId } from "@/lib/desk-property";
@@ -90,11 +90,11 @@ export default async function InventoryAuditsPage() {
   }
 
   return (
-    <DeskListShell
-      eyebrow="Inventory"
-      heading="Assessment"
-      blurb="Weekly stocktake / audit — start a count by location, enter variances with photos, post to adjust balances. History below."
-    >
+    <>
+      <p className="mb-2 text-xs text-muted-foreground">
+        Stock count sessions post variance into the moves ledger — keep dates and
+        location notes for audit trail.
+      </p>
       {!openSession ? (
         <StartAuditForm locations={locationRows} />
       ) : (
@@ -147,6 +147,6 @@ export default async function InventoryAuditsPage() {
           </tbody>
         </table>
       </div>
-    </DeskListShell>
+    </>
   );
 }

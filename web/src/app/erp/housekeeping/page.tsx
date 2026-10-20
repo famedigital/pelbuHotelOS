@@ -1,6 +1,6 @@
 import { HousekeepingBoard } from "@/components/erp/HousekeepingBoard";
 import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
-import { DeskListShell } from "@/components/erp/DeskListShell";
+import { RoomsHub } from "@/components/erp/rooms/RoomsHub";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { loadDayOpsBoard } from "@/lib/erp/day-ops-board";
 import { fmtDate, thimphuToday } from "@/lib/erp-lists";
@@ -187,12 +187,10 @@ export default async function HousekeepingPage() {
   });
 
   return (
-    <DeskListShell
-      eyebrow="Housekeeping"
-      heading={`Assignments · ${fmtDate(today)}`}
-      blurb="Due out · Stayovers · Dirty · Clean ready. Guest, meal plan, and open laundry show under each room. Open work is the turn list — assign and checklist from each row."
-      headerAside={<FrontDeskLiveRefresh />}
-    >
+    <RoomsHub headerAside={<FrontDeskLiveRefresh />}>
+      <p className="mb-2 text-xs text-muted-foreground">
+        Assignments · {fmtDate(today)}
+      </p>
       <HousekeepingBoard
         rows={enrichedRows}
         today={today}
@@ -205,6 +203,6 @@ export default async function HousekeepingPage() {
           full_name: member.full_name as string,
         }))}
       />
-    </DeskListShell>
+    </RoomsHub>
   );
 }

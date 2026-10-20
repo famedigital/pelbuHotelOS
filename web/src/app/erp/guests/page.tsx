@@ -1,5 +1,6 @@
-import { DeskListShell, DeskSearchForm } from "@/components/erp/DeskListShell";
+import { DeskSearchForm } from "@/components/erp/DeskListShell";
 import { GuestsTable, type GuestStay } from "@/components/erp/GuestsTable";
+import { StaysHub } from "@/components/erp/stays/StaysHub";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -178,13 +179,10 @@ export default async function GuestsPage({
       : Math.max(1, Math.ceil((bookingCount ?? filtered.length) / PAGE_SIZE));
 
   return (
-    <DeskListShell
-      eyebrow="Directory"
-      heading="Guest list"
-      blurb="Booking guests and contacts. Filter by origin, status, arrival window, DNR, or incomplete docs. Export immigration sheets for in-house and arrivals."
+    <StaysHub
       filters={
-        <div className="flex w-full flex-col gap-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="flex w-full flex-col gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
             <DeskSearchForm
               action="/erp/guests"
               q={sp.q}
@@ -308,6 +306,6 @@ export default async function GuestsPage({
           ) : null}
         </div>
       ) : null}
-    </DeskListShell>
+    </StaysHub>
   );
 }

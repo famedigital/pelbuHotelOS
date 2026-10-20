@@ -2,11 +2,8 @@ import {
   MaintenanceCreateForm,
   MaintenanceStatusForm,
 } from "@/components/erp/P9OpsForms";
-import {
-  DeskListShell,
-  DeskTable,
-  StatusPill,
-} from "@/components/erp/DeskListShell";
+import { DeskTable, StatusPill } from "@/components/erp/DeskListShell";
+import { RoomsHub } from "@/components/erp/rooms/RoomsHub";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { fmtDateTime } from "@/lib/erp-lists";
 import { requireDeskPropertyId } from "@/lib/desk-property";
@@ -50,12 +47,7 @@ export default async function MaintenancePage() {
   ]);
 
   return (
-    <DeskListShell
-      title="Maintenance"
-      eyebrow="Work orders"
-      heading="Maintenance"
-      blurb="Track AC, plumbing, and other room issues until done."
-    >
+    <RoomsHub>
       <MaintenanceCreateForm
         units={(units ?? []).map((u) => ({
           id: u.id as string,
@@ -119,6 +111,6 @@ export default async function MaintenancePage() {
           })
         )}
       </DeskTable>
-    </DeskListShell>
+    </RoomsHub>
   );
 }

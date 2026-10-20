@@ -1,10 +1,10 @@
 import { BookingBoardTable } from "@/components/erp/BookingBoardTable";
-import { DeskListShell } from "@/components/erp/DeskListShell";
 import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
 import {
   InhouseTasksPanel,
   type InhouseTaskRow,
 } from "@/components/erp/InhouseTasksPanel";
+import { StaysHub } from "@/components/erp/stays/StaysHub";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import {
   dayOpsRowToBoardRaw,
@@ -78,30 +78,25 @@ export default async function InHousePage() {
   });
 
   return (
-    <DeskListShell
-      wide
-      eyebrow="Today"
-      heading={`In-house · ${fmtDate(today)}`}
-      blurb="Guests currently staying. Open StayHub at Stay / Money for charges, payments, invoice, tasks — then hand off to Check-out when settled. Meal plan and room numbers on every row."
+    <StaysHub
       filters={
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          <div className="flex items-center gap-3">
-            <FrontDeskLiveRefresh />
-            <Link
-              href={`/erp/calendar/day-sheet?date=${today}`}
-              className="text-sm text-accent underline-offset-4 hover:underline"
-            >
-              Day sheet
-            </Link>
-          </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs text-muted-foreground">{fmtDate(today)}</span>
+          <FrontDeskLiveRefresh />
+          <Link
+            href={`/erp/calendar/day-sheet?date=${today}`}
+            className="text-sm text-accent underline-offset-4 hover:underline"
+          >
+            Day sheet
+          </Link>
         </div>
       }
     >
       <InhouseTasksPanel tasks={tasks} bookingOptions={bookingOptions} />
-      <p className="text-xs text-muted-foreground">
+      <p className="mb-2 text-xs text-muted-foreground">
         {dayOps.inHouse.length} shown · {dayOps.inHouseMealPax} meal pax
       </p>
       <BookingBoardTable rows={boardRows} board="in_house" />
-    </DeskListShell>
+    </StaysHub>
   );
 }

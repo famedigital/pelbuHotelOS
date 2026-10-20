@@ -1,6 +1,7 @@
 /**
  * Fail closed when a loaded row's property_id does not match the active desk property.
- * Primary fence while desk still uses the service-role admin client for writes.
+ * Primary tenant-isolation fence while desk still uses the service-role admin client
+ * for writes (SEC-01 residual: prefer staff-scoped client over time).
  */
 export function assertDeskProperty(
   expectedPropertyId: string,

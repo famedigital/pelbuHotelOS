@@ -134,7 +134,7 @@ async function ensureOpenFolio(
 ): Promise<string> {
   const { data: existingFolio } = await admin
     .from("folios")
-    .select("id")
+    .select("id, master_folio_id, status")
     .eq("booking_id", bookingId)
     .eq("status", "open")
     .order("created_at")
@@ -142,6 +142,18 @@ async function ensureOpenFolio(
     .maybeSingle();
 
   if (existingFolio?.id) {
+    const masterId = existingFolio.master_folio_id as string | null;
+    if (masterId) {
+      const { data: master } = await admin
+        .from("folios")
+        .select("id, status")
+        .eq("id", masterId)
+        .eq("property_id", property_id)
+        .maybeSingle();
+      if (master && (master.status as string) === "open") {
+        return master.id as string;
+      }
+    }
     return existingFolio.id as string;
   }
 
@@ -681,6 +693,18 @@ export async function createDeskOrder(
 
     let folioId: string | null = null;
     if (settleMode === "room_charge" && bookingId && totalBtn > 0) {
+      const { data: stay } = await admin
+        .from("bookings")
+        .select("id, status")
+        .eq("id", bookingId)
+        .eq("property_id", property_id)
+        .maybeSingle();
+      if (!stay) throw new Error("Booking not found for room charge.");
+      if ((stay.status as string) !== "checked_in") {
+        throw new Error(
+          "Room charge only for in-house guests (checked in). Check in first or settle cash.",
+        );
+      }
       folioId = await ensureOpenFolio(admin, property_id, bookingId);
     }
 

@@ -55,7 +55,9 @@ async function insertBatches(
     });
     if (error) {
       console.error(`ari_queue ${kind} batch insert failed`, error);
-      continue;
+      throw new Error(
+        `ARI queue insert failed (${kind}): ${error.message ?? "unknown"}`,
+      );
     }
     inserted += 1;
   }

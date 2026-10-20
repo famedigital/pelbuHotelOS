@@ -1,3 +1,4 @@
+import { PosHub } from "@/components/erp/pos/PosHub";
 import { PosReportsTabs } from "@/components/erp/pos/PosReportsTabs";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
@@ -48,20 +49,7 @@ export default async function PosReportsPage({ searchParams }: Props) {
   const pack = await buildPosReports(from, to);
 
   return (
-    <div className="erp mx-auto max-w-5xl space-y-4 p-4 md:p-6">
-      <div>
-        <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-          POS
-        </p>
-        <h1 className="mt-1 text-xl font-semibold tracking-tight">F&B reports</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Settled tickets for this property. Voids are counted separately.
-          {pack.truncated
-            ? " This range is larger than 20,000 tickets — narrow the dates."
-            : ""}
-        </p>
-      </div>
-
+    <PosHub>
       <Card>
         <CardContent className="pt-6">
           <form className="flex flex-wrap items-end gap-3" method="get">
@@ -261,7 +249,7 @@ export default async function PosReportsPage({ searchParams }: Props) {
           </Button>
         </CardContent>
       </Card>
-    </div>
+    </PosHub>
   );
 }
 

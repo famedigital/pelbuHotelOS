@@ -1,6 +1,5 @@
 import { InventoryDesk } from "@/components/erp/InventoryDesk";
 import type { InvItemRow, InvLocationOption } from "@/components/erp/InventoryOpsForms";
-import { DeskListShell } from "@/components/erp/DeskListShell";
 import type { InventoryCategoryRow } from "@/lib/inventory-catalog";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/desk-property";
@@ -100,11 +99,7 @@ export default async function ErpInventoryPage() {
   );
 
   return (
-    <DeskListShell
-      eyebrow="Inventory"
-      heading="Items"
-      blurb="One SKU per row · qty on hand · receive, damage, transfer from row actions. Add catalog lines in the sheet — not a long form."
-    >
+    <>
       {locationRows.length === 0 ? (
         <p className="text-sm text-destructive">
           No inventory locations — open{" "}
@@ -122,6 +117,6 @@ export default async function ErpInventoryPage() {
           stockValue={stockValue}
         />
       )}
-    </DeskListShell>
+    </>
   );
 }

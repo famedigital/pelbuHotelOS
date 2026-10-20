@@ -259,18 +259,9 @@ export default async function ErpHrPage() {
   const draftShifts = (shifts ?? []).filter((row) => row.status === "draft").length;
 
   return (
-    <div className="erp mx-auto w-full max-w-[1200px] space-y-8 p-4 md:p-6">
+    <div className="space-y-6">
       <header>
-        <p className="text-xs font-semibold tracking-[0.2em] text-accent uppercase">
-          People operations
-        </p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Hotel workforce</h1>
-        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          Personnel dossiers, company notices, shift planning, leave, and
-          recruitment (provision → hire or terminate) — property-scoped for the
-          desk.
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline" className="min-h-10">
             <Link href="/erp/hr/positions">Positions & TOR →</Link>
           </Button>

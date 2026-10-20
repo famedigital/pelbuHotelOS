@@ -1,6 +1,6 @@
 import type { MovementRow } from "@/components/erp/InventoryDesk";
 import { InventoryMovesTable } from "@/components/erp/inventory/InventoryMovesTable";
-import { DeskListShell } from "@/components/erp/DeskListShell";
+
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/desk-property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -54,12 +54,12 @@ export default async function InventoryMovesPage({
   });
 
   return (
-    <DeskListShell
-      eyebrow="Inventory"
-      heading="Moves"
-      blurb="Receive, damage, transfer, issue, and audit adjustments — full movement ledger."
-    >
+    <>
+      <p className="mb-2 text-xs text-muted-foreground">
+        Stock ledger · last {movementRows.length} movements · receive, transfer,
+        damage, and adjust all leave an audit trail here.
+      </p>
       <InventoryMovesTable movements={movementRows} initialSku={sku} />
-    </DeskListShell>
+    </>
   );
 }

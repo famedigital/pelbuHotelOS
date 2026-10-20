@@ -69,6 +69,12 @@ export default async function FinanceGstPage({
         <>
           <ExportButtons report="gst" from={from} to={to} />
           <Link
+            href="/erp/finance/rrco"
+            className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
+          >
+            RRCO packs
+          </Link>
+          <Link
             href="/erp/gst"
             className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
           >

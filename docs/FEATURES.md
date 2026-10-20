@@ -299,7 +299,7 @@ Print prefs: localStorage `pelbu.pos.printPrefs` (More → Printers). Routes: `/
 | **Loyalty earn-at-checkout** | Portal lite + ledger **shipped**; auto-earn wiring at checkout still soft |
 | **Bhutan live e-invoice** | Stub **shipped** — live API only when DRC mandates ([GST-EINVOICE.md](GST-EINVOICE.md)) |
 | **Tenants Stripe / domain automation** | Foundation + billing/seats/cert UI **shipped**; Stripe self-serve + Vercel domains API still open |
-| **SEC-01 staff-scoped client** | Wave 2 money gates **shipped**; full admin-client rewrite still residual — [ERP-AUDIT.md](ERP-AUDIT.md) |
+| **SEC-01 staff-scoped client** | Wave 2 money gates **shipped**; `admin.ts` is `server-only` + `assertDeskProperty` fences; full staff-scoped rewrite still residual — [ERP-AUDIT.md](ERP-AUDIT.md) |
 | **Purchase cost trends (Phase C)** | **Partial** — receive + PO receive now require `unit_cost_btn` on movements; MoM analytics UI still open |
 | **Restaurant POS production** | **In progress** — invariants (training/stock fail-closed/print-after-persist), KOT+receipt prefs, party name, barcode/UPC schema, location-aware POS stock. LAN ESC/POS / house accounts / e2e ACCEPTANCE still open |
 | **Partner perks** | Discount % auto-applied on public book quote (guide_number → guide) + calendar on-credit + POS; spa auto-apply still open |

@@ -3,11 +3,31 @@ import { getDistributorSession } from "@/lib/platform-auth";
 import { PortalShell } from "@/components/platform/PortalShell";
 
 const NAV = [
-  { href: "/partner", label: "Dashboard" },
-  { href: "/partner/hotels", label: "My hotels" },
-  { href: "/partner/hotels/new", label: "Onboard" },
-  { href: "/partner/leads", label: "My leads" },
-  { href: "/partner/tickets", label: "Tickets" },
+  {
+    href: "/partner",
+    label: "Dashboard",
+    description: "Your partner home",
+  },
+  {
+    href: "/partner/hotels",
+    label: "My hotels",
+    description: "Hotels you manage or sell",
+  },
+  {
+    href: "/partner/hotels/new",
+    label: "Onboard",
+    description: "Add a new hotel",
+  },
+  {
+    href: "/partner/leads",
+    label: "My leads",
+    description: "Leads you are working",
+  },
+  {
+    href: "/partner/tickets",
+    label: "Tickets",
+    description: "Support tickets",
+  },
 ];
 
 export default async function PartnerConsoleLayout({

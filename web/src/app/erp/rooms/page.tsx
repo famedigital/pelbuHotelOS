@@ -1,10 +1,10 @@
 import { RoomsBoard, type RoomBoardUnit } from "@/components/erp/RoomsBoard";
 import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
+import { RoomsHub } from "@/components/erp/rooms/RoomsHub";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
@@ -71,46 +71,20 @@ export default async function ErpRoomsPage({
   });
 
   return (
-    <div className="erp mx-auto w-full max-w-[1200px] space-y-10 p-4 md:p-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1.5">
-          <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-            Rooms
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Housekeeping board
-          </h1>
-          <p className="max-w-prose text-sm text-muted-foreground">
-            Toggle table or cards · multi-select bulk Request service. Checkout
-            marks rooms dirty automatically.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/erp/rooms/layout"
-            className="rounded-md border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+    <RoomsHub headerAside={<FrontDeskLiveRefresh />}>
+      <div className="mb-3 flex flex-wrap gap-2 text-xs text-foreground">
+        {HK_ORDER.map((s) => (
+          <span
+            key={s}
+            className="inline-flex items-center gap-2 rounded-md border bg-card px-3 py-1.5"
           >
-            Floor map
-          </Link>
-          <FrontDeskLiveRefresh />
-        </div>
-      </header>
-
-      <section>
-        <div className="flex flex-wrap gap-3 text-xs text-foreground">
-          {HK_ORDER.map((s) => (
-            <span
-              key={s}
-              className="inline-flex items-center gap-2 rounded-md border bg-card px-3 py-2"
-            >
-              <span className="font-medium tracking-wide text-accent uppercase">
-                {s}
-              </span>
-              <span className="tabular-nums">{counts[s] ?? 0}</span>
+            <span className="font-medium tracking-wide text-accent uppercase">
+              {s}
             </span>
-          ))}
-        </div>
-      </section>
+            <span className="tabular-nums">{counts[s] ?? 0}</span>
+          </span>
+        ))}
+      </div>
 
       <RoomsBoard
         units={boardUnits}
@@ -121,6 +95,6 @@ export default async function ErpRoomsPage({
       {boardUnits.length === 0 ? (
         <p className="text-sm text-muted-foreground">No room units seeded yet.</p>
       ) : null}
-    </div>
+    </RoomsHub>
   );
 }

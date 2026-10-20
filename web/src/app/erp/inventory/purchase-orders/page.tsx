@@ -4,7 +4,7 @@ import {
   type PoRow,
 } from "@/components/erp/inventory/PurchaseOrderForms";
 import type { InvItemRow, InvLocationOption } from "@/components/erp/InventoryOpsForms";
-import { DeskListShell } from "@/components/erp/DeskListShell";
+
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/desk-property";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -91,11 +91,7 @@ export default async function InventoryPurchaseOrdersPage() {
   }));
 
   return (
-    <DeskListShell
-      eyebrow="Inventory"
-      heading="Purchase orders"
-      blurb="Draft → approve → receive against stock at your chosen location."
-    >
+    <>
       <CreatePurchaseOrderForm items={itemRows} locations={locationRows} />
 
       <div className="space-y-4">
@@ -107,6 +103,6 @@ export default async function InventoryPurchaseOrdersPage() {
           poRows.map((po) => <PurchaseOrderDetail key={po.id} po={po} />)
         )}
       </div>
-    </DeskListShell>
+    </>
   );
 }

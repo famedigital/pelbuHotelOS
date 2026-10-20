@@ -68,7 +68,7 @@ const PRIMARY_BACK_OFFICE = [
   },
   {
     title: "Pay",
-    href: "/erp/payments",
+    href: "/erp/bills",
     icon: WalletIcon,
     moduleKey: "money",
   },

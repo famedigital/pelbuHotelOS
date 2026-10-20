@@ -46,9 +46,9 @@ export default async function AgentMoneyPage({ searchParams }: Props) {
   return (
     <div className="space-y-8">
       <AgentPageHero
-        eyebrow="Collections"
+        eyebrow="Your credit with the hotel"
         title="Money & dues"
-        blurb={`Paid, outstanding, and frequency · ${cockpit.from} → ${cockpit.to}`}
+        blurb={`Agent AR to the hotel (not FO guest bills or hotel Finance Statement) · ${cockpit.from} → ${cockpit.to}`}
         actions={
           <>
             <AgentPrimaryLink

@@ -12,12 +12,12 @@ import {
   type StayState,
 } from "@/components/erp/room-map-shared";
 import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
+import { RoomsHub } from "@/components/erp/rooms/RoomsHub";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/desk-property";
 import { thimphuToday } from "@/lib/erp-lists";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
@@ -253,32 +253,7 @@ export default async function RoomFloorMapPage() {
     });
 
   return (
-    <div className="erp mx-auto w-full max-w-[1200px] space-y-6 p-4 md:p-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1.5">
-          <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-            Rooms
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Floor map
-          </h1>
-          <p className="max-w-prose text-sm text-muted-foreground">
-            Building setup → 2D plan → 3D massing. Fill colour = housekeeping;
-            edge = stay (arriving / in-house / departing). Click for dossier,
-            pax, and room photos.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/erp/rooms"
-            className="rounded-md border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
-          >
-            HK board
-          </Link>
-          <FrontDeskLiveRefresh />
-        </div>
-      </header>
-
+    <RoomsHub headerAside={<FrontDeskLiveRefresh />}>
       {mapUnits.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No room units on this property yet. Add rooms under Settings, then run
@@ -287,6 +262,6 @@ export default async function RoomFloorMapPage() {
       ) : (
         <RoomMapShell units={mapUnits} layout={layout} spaces={spaces} />
       )}
-    </div>
+    </RoomsHub>
   );
 }

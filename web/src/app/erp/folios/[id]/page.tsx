@@ -61,6 +61,7 @@ type FolioLine = {
   service_charge_btn?: number;
   service_charge_applied?: boolean;
   source_type: string;
+  source_id?: string | null;
   status: string;
   is_comp?: boolean;
   void_reason?: string | null;
@@ -152,7 +153,7 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
   const { data: folio } = await admin
     .from("folios")
     .select(
-      "id, label, status, booking_id, agent_id, master_folio_id, folio_type, property_id, created_at, agents(company_name), folio_lines(id, description, total_btn, gst_btn, service_charge_btn, service_charge_applied, source_type, status, is_comp, void_reason, reverses_line_id, created_at, business_date, bill_to)",
+      "id, label, status, booking_id, agent_id, master_folio_id, folio_type, property_id, created_at, agents(company_name), folio_lines(id, description, total_btn, gst_btn, service_charge_btn, service_charge_applied, source_type, source_id, status, is_comp, void_reason, reverses_line_id, created_at, business_date, bill_to)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -548,9 +549,9 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
               {folio.master_folio_id ? (
                 <a
                   href={`/erp/folios/${folio.master_folio_id as string}`}
-                  className="font-mono text-primary underline-offset-4 hover:underline"
+                  className="font-medium text-primary underline-offset-4 hover:underline"
                 >
-                  master {(folio.master_folio_id as string).slice(0, 8)}
+                  Party master bill →
                 </a>
               ) : null}
             </p>
@@ -560,7 +561,7 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
             <p className="text-xs font-medium text-muted-foreground">Due</p>
             <p
               className={cn(
-                "text-2xl font-semibold tabular-nums leading-none md:text-3xl",
+                "text-xl font-semibold tabular-nums leading-none md:text-2xl",
                 balance > 0.5 ? "text-citrus-600" : "text-mint-600",
               )}
             >

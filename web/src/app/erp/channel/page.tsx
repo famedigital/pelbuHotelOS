@@ -105,8 +105,12 @@ export default async function ErpChannelPage() {
     <DeskListShell
       eyebrow="Channels"
       heading="Channel"
-      subtitle={`Channex · ${property.name}`}
-      blurb="Event-driven ARI outbox (availability, public rates, min-stay / stop-sell) + booking revision inbox for the active desk property. Certification needs staging credentials, room/rate maps, then flush/ack against Channex."
+      subtitle={
+        failedAri > 0
+          ? `Channex · ${property.name} · ${failedAri} failed ARI job(s) — fix maps/API then flush`
+          : `Channex · ${property.name}`
+      }
+      blurb="Event-driven ARI outbox (availability, public rates, min-stay / stop-sell) + booking revision inbox. Failed ARI jobs show in metrics — map rooms, set API key, then flush."
       metrics={
         <DeskMetricRow
           metrics={[

@@ -1,4 +1,4 @@
-import { FnbSectionHeader } from "@/components/erp/fnb/FnbSectionHeader";
+import { PosHub } from "@/components/erp/pos/PosHub";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buildRestaurantDayPack } from "@/lib/fnb/restaurant-day-pack";
@@ -16,12 +16,7 @@ export default async function RestaurantDayPackPage({
   const pack = await buildRestaurantDayPack(params.date);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-4 print:p-2">
-      <FnbSectionHeader
-        title="Restaurant day pack"
-        description={`Business day ${pack.businessDate} · operational flash (not full P&L). Ledger books stay under Finance reports.`}
-      />
-
+    <PosHub>
       <div className="flex flex-wrap gap-2 print:hidden">
         <Link
           href={`/erp/kitchen/day-pack?date=${pack.businessDate}`}
@@ -120,7 +115,7 @@ export default async function RestaurantDayPackPage({
           </div>
         </CardContent>
       </Card>
-    </div>
+    </PosHub>
   );
 }
 
