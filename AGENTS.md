@@ -86,3 +86,11 @@ A `.cursor/rules` file **cannot** auto-select the model. Pick in the Agent dropd
 - Default in this repo: **Composer** (included Cursor Models pool)
 - Implementer second chat: **`GLM-5.2`** — see `.cursor/rules/prefer-glm.mdc`
 - When using GLM, Base URL override is on; turn it **off** before switching back to Composer / Grok
+
+## Cursor Cloud specific instructions
+
+- The app is the Next.js project in `web/`. Install with `npm ci --include=dev` from that directory. `npm run dev` already binds `0.0.0.0:3000`. Open it at `http://localhost:3000`. Client components do not hydrate on `http://127.0.0.1:3000` because the dev HMR websocket upgrade fails for that origin.
+- `npm run typecheck` and `npm run build` need `NODE_OPTIONS=--max-old-space-size=3072`. The default Node heap runs out of memory during `tsc`.
+- `/`, `/pricing`, `/conditions`, `/demo`, and `GET /api/health` start without Supabase. Health returns `db: skipped`. Copy `web/.env.example` to `web/.env.local` and set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` before desk writes, `/book`, or `npm run build`. Do not commit `.env.local`.
+- With `DESK_PIN` unset and `NODE_ENV` not `production`, `hasDeskPinSession()` treats the desk as already open, so `/erp/login` redirects to `/erp`, and `/erp` then throws until Supabase is configured. Set `DESK_PIN` in `web/.env.local` to render the login form.
+- `npm test` does not need Supabase. Two test files import `vitest`, which is not a dependency, and `anyShiftCoversLocalNow` compares a fixed August date with today's calendar date.
