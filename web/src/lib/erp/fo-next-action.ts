@@ -48,6 +48,8 @@ export type FoStayFacts = {
   openLaundryCount?: number;
   /** Signed registration card on file. */
   hasRegCard?: boolean;
+  /** Calendar day the desk is working. Defaults to businessDate. */
+  asOfDate?: string;
 };
 
 export type FoDirtyRoomFacts = {
@@ -84,10 +86,11 @@ function depositIncomplete(facts: FoStayFacts): boolean {
   return Boolean(dueOn && biz && dueOn <= biz && required > received + 0.5);
 }
 
-/** Highest-priority stay job for Today, or null if the stay is not today’s work. */
+/** Highest-priority stay job, or null when the stay needs nothing on this date. */
 export function recommendFoStayJob(facts: FoStayFacts): FoNextKind | null {
   const status = (facts.status ?? "").toLowerCase();
   const biz = day(facts.businessDate);
+  const asOf = day(facts.asOfDate) || biz;
   const checkIn = day(facts.checkIn);
   const checkOut = day(facts.checkOut);
 
@@ -96,7 +99,9 @@ export function recommendFoStayJob(facts: FoStayFacts): FoNextKind | null {
   }
 
   if (
-    checkIn === biz &&
+    checkIn &&
+    checkIn <= asOf &&
+    (checkOut > asOf || checkIn === asOf) &&
     (status === "pending" || status === "confirmed" || status === "held")
   ) {
     return "check_in";
@@ -121,15 +126,20 @@ export function foActionFromStay(
   kind: FoNextKind,
 ): FoNextAction {
   const meta = KIND_META[kind];
+  const asOf = day(facts.asOfDate) || day(facts.businessDate);
+  const lateArrival =
+    kind === "check_in" && day(facts.checkIn) && day(facts.checkIn) < asOf;
   const why =
     kind === "check_in"
-      ? deskBriefingLine({
-          status: facts.status,
-          hasRoomAssigned: facts.hasRoomAssigned,
-          roomUnready: facts.roomUnready,
-          sdfIncomplete: facts.sdfIncomplete,
-          depositIncomplete: depositIncomplete(facts),
-        })
+      ? lateArrival
+        ? `Arrival ${day(facts.checkIn)} still not checked in`
+        : deskBriefingLine({
+            status: facts.status,
+            hasRoomAssigned: facts.hasRoomAssigned,
+            roomUnready: facts.roomUnready,
+            sdfIncomplete: facts.sdfIncomplete,
+            depositIncomplete: depositIncomplete(facts),
+          })
       : kind === "collect"
         ? deskBriefingLine({
             status: facts.status,

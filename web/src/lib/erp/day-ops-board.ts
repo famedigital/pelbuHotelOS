@@ -4,6 +4,10 @@
  */
 
 import { netFolioBalance } from "@/lib/folio/balance";
+import {
+  DUE_CHECK_IN_STATUSES,
+  dueStayOpenOr,
+} from "@/lib/erp/due-check-in";
 import { LAUNDRY_STATUSES, type LaundryStatus } from "@/lib/laundry";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -74,7 +78,10 @@ export type DayOpsRow = {
 
 export type DayOpsBoard = {
   businessDate: string;
+  /** Exact arrival date, unless `arrivalScope` is `through_date`. */
   arrivals: DayOpsRow[];
+  /** Reservations still due to check in through the business date. */
+  dueArrivals: DayOpsRow[];
   departures: DayOpsRow[];
   inHouse: DayOpsRow[];
   /** Arriving guests on a meal plan (heads). */
@@ -327,23 +334,60 @@ function mealPax(rows: DayOpsRow[]): number {
   }, 0);
 }
 
+function loadArrivalRows(
+  admin: Admin,
+  propertyId: string,
+  businessDate: string,
+  scope: "on_date" | "through_date",
+) {
+  const base = admin
+    .from("bookings")
+    .select(DAY_OPS_BOARD_SELECT)
+    .eq("property_id", propertyId);
+  if (scope === "through_date") {
+    return base
+      .lte("check_in", businessDate)
+      .or(dueStayOpenOr(businessDate))
+      .in("status", [...DUE_CHECK_IN_STATUSES])
+      .order("check_in", { ascending: true })
+      .order("contact_name")
+      .limit(250);
+  }
+  return base
+    .eq("check_in", businessDate)
+    .in("status", ["pending", "confirmed"])
+    .order("contact_name")
+    .limit(150);
+}
+
 /**
  * Load arrivals / departures / in-house for a business date with meal,
  * agent/guide/driver contacts, folio balance, and open laundry.
  *
  * Pass `slices` to fetch only the boards a page needs (FO list pages).
+ * `arrivalScope: "through_date"` or `includeDueArrivals` lists every stay
+ * still waiting to check in through that date.
  */
 export async function loadDayOpsBoard(
   admin: Admin,
   propertyId: string,
   businessDate: string,
-  opts?: { slices?: DayOpsSlice[] },
+  opts?: {
+    slices?: DayOpsSlice[];
+    /** Replace the arrivals slice with every stay still due through the date. */
+    arrivalScope?: "on_date" | "through_date";
+    /** Also load due-through-date arrivals without changing the exact-date slice. */
+    includeDueArrivals?: boolean;
+  },
 ): Promise<DayOpsBoard> {
   const want = new Set<DayOpsSlice>(
     opts?.slices?.length
       ? opts.slices
       : ["arrivals", "departures", "in_house"],
   );
+  const arrivalScope = opts?.arrivalScope ?? "on_date";
+  const wantDueList =
+    Boolean(opts?.includeDueArrivals) && arrivalScope !== "through_date";
 
   const emptyRes = {
     data: null as Record<string, unknown>[] | null,
@@ -354,16 +398,10 @@ export async function loadDayOpsBoard(
     { data: arrivalRows, error: arrivalErr },
     { data: departureRows, error: departureErr },
     { data: inHouseRows, error: inHouseErr },
+    { data: dueRows, error: dueErr },
   ] = await Promise.all([
     want.has("arrivals")
-      ? admin
-          .from("bookings")
-          .select(DAY_OPS_BOARD_SELECT)
-          .eq("property_id", propertyId)
-          .eq("check_in", businessDate)
-          .in("status", ["pending", "confirmed"])
-          .order("contact_name")
-          .limit(150)
+      ? loadArrivalRows(admin, propertyId, businessDate, arrivalScope)
       : Promise.resolve(emptyRes),
     want.has("departures")
       ? admin
@@ -386,13 +424,17 @@ export async function loadDayOpsBoard(
           .order("check_out")
           .limit(200)
       : Promise.resolve(emptyRes),
+    wantDueList
+      ? loadArrivalRows(admin, propertyId, businessDate, "through_date")
+      : Promise.resolve(emptyRes),
   ]);
 
-  if (arrivalErr || departureErr || inHouseErr) {
+  if (arrivalErr || departureErr || inHouseErr || dueErr) {
     console.error("loadDayOpsBoard query failed", {
       arrivalErr,
       departureErr,
       inHouseErr,
+      dueErr,
     });
   }
 
@@ -402,6 +444,7 @@ export async function loadDayOpsBoard(
         ...(arrivalRows ?? []),
         ...(departureRows ?? []),
         ...(inHouseRows ?? []),
+        ...(dueRows ?? []),
       ].map((r) => r.id as string),
     ),
   ];
@@ -414,6 +457,12 @@ export async function loadDayOpsBoard(
   const arrivals = ((arrivalRows as Record<string, unknown>[]) ?? []).map((r) =>
     mapDayOpsRawRow(r, laundryByBooking),
   );
+  const dueArrivals =
+    arrivalScope === "through_date"
+      ? arrivals
+      : ((dueRows as Record<string, unknown>[]) ?? []).map((r) =>
+          mapDayOpsRawRow(r, laundryByBooking),
+        );
   const departures = ((departureRows as Record<string, unknown>[]) ?? []).map(
     (r) => mapDayOpsRawRow(r, laundryByBooking),
   );
@@ -424,6 +473,7 @@ export async function loadDayOpsBoard(
   return {
     businessDate,
     arrivals,
+    dueArrivals,
     departures,
     inHouse,
     arrivingMealPax: mealPax(arrivals),

@@ -31,7 +31,7 @@ export function foAssistantBriefingInput(
     wallToday: snap.wallToday,
     nightAuditStale: snap.nightAuditStale,
     doCount: snap.actions.length,
-    arrivals: snap.dayOps.arrivals.length,
+    arrivals: (snap.dueArrivals ?? snap.dayOps.arrivals).length,
     departures: snap.dayOps.departures.length,
     inHouse: snap.dayOps.inHouse.length,
     agentUnpaid: snap.agentUnpaidCount,

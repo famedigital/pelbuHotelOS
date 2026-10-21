@@ -6,8 +6,10 @@ import {
   FoStayActionButton,
   useFoOpsOpenStay,
 } from "@/components/erp/FoOpsRowActions";
+import { CheckInDueButton } from "@/components/erp/CheckInDueButton";
 import type { DailyDeskSnapshot } from "@/lib/erp/daily-desk";
 import type { DayOpsRow } from "@/lib/erp/day-ops-board";
+import { fmtDate } from "@/lib/erp-lists";
 import { formatBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -141,6 +143,7 @@ export function FoOpsDashboard({
   onInvalidate?: () => void | Promise<void>;
 }) {
   const { dayOps, emptyRooms, departureInvoices } = snap;
+  const dueArrivals = snap.dueArrivals ?? dayOps.dueArrivals ?? dayOps.arrivals;
   const openStay = useFoOpsOpenStay();
   const refresh = () => {
     void onInvalidate?.();
@@ -189,19 +192,22 @@ export function FoOpsDashboard({
       </Block>
 
       <Block
-        title="Today arrival"
-        subtitle={`${dayOps.arrivals.length} · ${dayOps.arrivingMealPax} meal pax`}
+        title="Check-in through today"
+        subtitle={`${dueArrivals.length} due · ${dayOps.arrivingMealPax} meal pax today`}
         href="/erp/arrivals"
       >
-        <div className="mb-2">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <MealBuckets buckets={snap.arrivalMealBuckets} />
+          <CheckInDueButton count={dueArrivals.length} onDone={onInvalidate} />
         </div>
-        {dayOps.arrivals.length === 0 ? (
-          <p className="px-1 text-xs text-muted-foreground">No arrivals today.</p>
+        {dueArrivals.length === 0 ? (
+          <p className="px-1 text-xs text-muted-foreground">
+            No reservations left to check in through today.
+          </p>
         ) : (
           <>
             <MiniTable headers={["Rooms", "Guest", "Guide", "Meal", "Actions"]}>
-              {dayOps.arrivals.map((r) => (
+              {dueArrivals.map((r) => (
                 <ArrivalTableRow
                   key={r.id}
                   r={r}
@@ -210,7 +216,7 @@ export function FoOpsDashboard({
               ))}
             </MiniTable>
             <MobileCardList>
-              {dayOps.arrivals.map((r) => (
+              {dueArrivals.map((r) => (
                 <ArrivalCard key={r.id} r={r} openStay={openStay} />
               ))}
             </MobileCardList>
@@ -702,6 +708,11 @@ function ArrivalTableRow({
           name={r.contact_name ?? "Guest"}
           onOpen={() => openStay(r, "arrivals", "check_in")}
         />
+        {r.check_in ? (
+          <p className="text-[11px] tabular-nums text-muted-foreground">
+            {fmtDate(r.check_in)}
+          </p>
+        ) : null}
       </td>
       <td className="px-1.5 py-1.5 text-muted-foreground">
         {r.guide_number ?? "—"}
@@ -743,6 +754,7 @@ function ArrivalCard({
       <div className="mb-2 min-w-0">
         <p className="text-[11px] text-muted-foreground">
           {r.room_labels ?? `${r.rooms} rm`} · {r.meal_plan_code}
+          {r.check_in ? ` · ${fmtDate(r.check_in)}` : ""}
         </p>
         <GuestLink
           name={r.contact_name ?? "Guest"}

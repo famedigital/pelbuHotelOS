@@ -63,7 +63,8 @@ export function FoAssistantBoard({
         if (
           payload.tomorrowDepartures &&
           payload.emptyRooms &&
-          payload.departureInvoices
+          payload.departureInvoices &&
+          payload.dueArrivals
         ) {
           setSnap(payload);
         }
@@ -117,6 +118,7 @@ export function FoAssistantBoard({
       byType: [],
     },
     departureInvoices: snap.departureInvoices ?? {},
+    dueArrivals: snap.dueArrivals ?? snap.dayOps?.dueArrivals ?? [],
   };
 
   return (

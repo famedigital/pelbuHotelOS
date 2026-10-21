@@ -146,7 +146,7 @@ export function ReservationsStatusChrome({
                 <Link href="/erp/group">Groups desk</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="focus:text-foreground">
-                <Link href="/erp/arrivals">Today&apos;s arrivals</Link>
+                <Link href="/erp/arrivals">Check-in due</Link>
               </DropdownMenuItem>
               {showCalendar ? (
                 <DropdownMenuItem asChild className="focus:text-foreground">

@@ -82,6 +82,8 @@ export type DailyDeskTools = {
 
 export type DailyDeskSnapshot = FoTodaySnapshot & {
   dayOps: DayOpsBoard;
+  /** Still waiting to check in, arrival on or before today. */
+  dueArrivals: DayOpsRow[];
   agentFollowup: AgentPayFollowupRow[];
   agentUnpaidCount: number;
   agentPaidCount: number;
@@ -290,7 +292,9 @@ export async function loadDailyDeskSnapshot(
     emptyRooms,
   ] = await Promise.all([
     loadFoTodaySnapshot(admin, propertyId),
-    loadDayOpsBoard(admin, propertyId, wallToday),
+    loadDayOpsBoard(admin, propertyId, wallToday, {
+      includeDueArrivals: true,
+    }),
     loadDailyTools(admin, propertyId, wallToday),
     loadTomorrowArrivals(admin, propertyId, wallToday),
     loadTomorrowDepartures(admin, propertyId, wallToday),
@@ -383,6 +387,7 @@ export async function loadDailyDeskSnapshot(
   return {
     ...fo,
     dayOps,
+    dueArrivals: dayOps.dueArrivals,
     agentFollowup,
     agentUnpaidCount,
     agentPaidCount,
