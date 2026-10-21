@@ -1,4 +1,5 @@
 import { BookingBoardTable } from "@/components/erp/BookingBoardTable";
+import { CheckInDueButton } from "@/components/erp/CheckInDueButton";
 import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
 import { StayMoneyCycleLegend } from "@/components/erp/StayMoneyCycleLegend";
 import { StaysHub } from "@/components/erp/stays/StaysHub";
@@ -28,6 +29,7 @@ export default async function ArrivalsPage() {
 
   const dayOps = await loadDayOpsBoard(admin, propertyId, today, {
     slices: ["arrivals"],
+    arrivalScope: "through_date",
   });
   const boardRows = dayOps.arrivals.map(dayOpsRowToBoardRaw);
   const summary = {
@@ -46,7 +48,10 @@ export default async function ArrivalsPage() {
     <StaysHub
       filters={
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs text-muted-foreground">{fmtDate(today)}</span>
+          <span className="text-xs text-muted-foreground">
+            Due through {fmtDate(today)}
+          </span>
+          <CheckInDueButton count={dayOps.arrivals.length} />
           <FrontDeskLiveRefresh />
           <Link
             href={`/erp/calendar/day-sheet?date=${today}`}
@@ -62,7 +67,7 @@ export default async function ArrivalsPage() {
       </div>
 
       <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
-        <ArrivalStat label="Arrival bookings" value={summary.bookings} />
+        <ArrivalStat label="Due to check in" value={summary.bookings} />
         <ArrivalStat label="Expected guests" value={summary.guests} />
         <ArrivalStat label="Rooms booked" value={summary.rooms} />
         <ArrivalStat
@@ -80,8 +85,8 @@ export default async function ArrivalsPage() {
         <BookingBoardTable rows={boardRows} board="arrivals" />
         {boardRows.length === 0 ? (
           <p className="rounded-lg border border-dashed bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
-            No arrivals today. Scan departures for late CO, confirm
-            tomorrow&apos;s holds on Reservations, and keep HK ahead.
+            No reservations left to check in through today. Tomorrow&apos;s
+            arrivals stay on Reservations until their date.
           </p>
         ) : null}
       </div>

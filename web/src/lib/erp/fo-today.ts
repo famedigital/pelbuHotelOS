@@ -1,3 +1,4 @@
+import { DUE_CHECK_IN_STATUSES, dueStayOpenOr } from "@/lib/erp/due-check-in";
 import { netFolioBalance } from "@/lib/folio/balance";
 import {
   foActionFromDirtyRoom,
@@ -102,10 +103,11 @@ export async function loadFoTodaySnapshot(
         .from("bookings")
         .select(STAY_SELECT)
         .eq("property_id", propertyId)
-        .eq("check_in", wallToday)
-        .in("status", ["pending", "confirmed", "held"])
-        .order("contact_name")
-        .limit(80),
+        .lte("check_in", wallToday)
+        .or(dueStayOpenOr(wallToday))
+        .in("status", [...DUE_CHECK_IN_STATUSES])
+        .order("check_in", { ascending: true })
+        .limit(200),
       admin
         .from("bookings")
         .select(STAY_SELECT)
@@ -203,6 +205,7 @@ export async function loadFoTodaySnapshot(
       hasRegCard: Boolean(
         (row.reg_card_photo_public_id as string | null)?.trim(),
       ),
+      asOfDate: wallToday,
     };
     const kind = recommendFoStayJob(facts);
     if (!kind) return;

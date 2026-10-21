@@ -1,6 +1,7 @@
 "use client";
 
 import { fetchDailyDeskSnapshot } from "@/app/actions/desk-read-loaders";
+import { CheckInDueButton } from "@/components/erp/CheckInDueButton";
 import { AgentFollowupPanel } from "@/components/erp/AgentFollowupPanel";
 import { DailyStayTable } from "@/components/erp/DailyStayTable";
 import { TomorrowArrivals } from "@/components/erp/TomorrowArrivals";
@@ -74,7 +75,7 @@ export function DailyDeskBoard({ initial }: { initial: DailyDeskSnapshot }) {
     setSnap(result.data);
   }, []);
 
-  const arrivals = snap.dayOps.arrivals;
+  const arrivals = snap.dueArrivals ?? snap.dayOps.dueArrivals ?? snap.dayOps.arrivals;
   const departures = snap.dayOps.departures;
   const inHouse = snap.dayOps.inHouse;
   const actionCount = snap.actions.length;
@@ -185,13 +186,16 @@ export function DailyDeskBoard({ initial }: { initial: DailyDeskSnapshot }) {
         </TabsList>
 
         <TabsContent value="arrivals" className="space-y-2">
-          <p className="text-xs text-muted-foreground">
-            Agent, guide #, rooms, room assignment, meal plan.
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              Due through today — agent, guide #, rooms, room assignment, meal.
+            </p>
+            <CheckInDueButton count={arrivals.length} onDone={onInvalidate} />
+          </div>
           <DailyStayTable
             rows={arrivals}
             board="arrivals"
-            emptyMessage="No check-ins today."
+            emptyMessage="No reservations left to check in through today."
           />
         </TabsContent>
 

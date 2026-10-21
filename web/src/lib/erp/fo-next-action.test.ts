@@ -31,6 +31,41 @@ test("arrival today not CI → check_in", () => {
   assert.equal(recommendFoStayJob(stay({ status: "pending" })), "check_in");
 });
 
+test("arrival before today with nights still ahead → check_in", () => {
+  assert.equal(
+    recommendFoStayJob(
+      stay({
+        status: "confirmed",
+        checkIn: "2026-08-16",
+        checkOut: "2026-08-20",
+      }),
+    ),
+    "check_in",
+  );
+  const late = foActionFromStay(
+    stay({
+      status: "confirmed",
+      checkIn: "2026-08-16",
+      checkOut: "2026-08-20",
+    }),
+    "check_in",
+  );
+  assert.match(late.why, /2026-08-16/);
+});
+
+test("arrival whose stay already ended today is not a check-in", () => {
+  assert.equal(
+    recommendFoStayJob(
+      stay({
+        status: "confirmed",
+        checkIn: "2026-08-14",
+        checkOut: biz,
+      }),
+    ),
+    null,
+  );
+});
+
 test("in-house departing with due → collect", () => {
   assert.equal(
     recommendFoStayJob(

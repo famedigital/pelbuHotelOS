@@ -1,5 +1,7 @@
 /** Work tabs on the reservations desk. Default is today's in-house list. */
 
+import { DUE_CHECK_IN_STATUSES, dueStayOpenOr } from "@/lib/erp/due-check-in";
+
 export type ReservationView =
   | "in_house"
   | "departures"
@@ -20,7 +22,7 @@ export function parseReservationView(
   return "in_house";
 }
 
-/** Day and upcoming slices. `all` leaves status and dates to the caller. */
+/** Day, due-through-today, and upcoming slices. `all` leaves status and dates to the caller. */
 export function applyReservationView(
   // Supabase's filter builder instantiates too deeply through a generic constraint.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -40,8 +42,9 @@ export function applyReservationView(
   }
   if (view === "arrivals") {
     return query
-      .eq("check_in", today)
-      .in("status", ["pending", "confirmed"]);
+      .lte("check_in", today)
+      .or(dueStayOpenOr(today))
+      .in("status", [...DUE_CHECK_IN_STATUSES]);
   }
   if (view === "upcoming") {
     return query

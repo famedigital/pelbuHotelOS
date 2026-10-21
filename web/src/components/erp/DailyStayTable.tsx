@@ -5,6 +5,7 @@ import { ArrivalRegistrationButton } from "@/components/erp/ArrivalRegistrationB
 import { useStayHubOptional } from "@/components/erp/StayHubProvider";
 import { openMasterBillPrint } from "@/app/actions/erp-folio-ops";
 import type { DayOpsRow } from "@/lib/erp/day-ops-board";
+import { fmtDate } from "@/lib/erp-lists";
 import { recommendStayHubStep } from "@/lib/folio/stay-hub-cycle";
 import { formatBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
@@ -154,6 +155,9 @@ export function DailyStayTable({
                 </p>
                 <p className="text-xs text-muted-foreground tabular-nums">
                   {row.pax} pax
+                  {board === "arrivals" && row.check_in
+                    ? ` · in ${fmtDate(row.check_in)}`
+                    : ""}
                   {board === "in_house" && row.check_out
                     ? ` · out ${row.check_out}`
                     : ""}
