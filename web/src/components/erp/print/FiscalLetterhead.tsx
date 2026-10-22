@@ -29,7 +29,7 @@ export type FiscalLineRow = {
   foc?: boolean;
 };
 
-export type FiscalMetaRow = { label: string; value: string };
+export type FiscalMetaRow = { label: string; value: ReactNode };
 
 /**
  * Pelbu-invoice-* letterhead: logo + name left, kind + title + meta right.
@@ -168,7 +168,7 @@ export function FiscalParties({
 export function FiscalStayStrip({
   items,
 }: {
-  items: { label: string; value: string }[];
+  items: { label: string; value: ReactNode }[];
 }) {
   if (items.length === 0) return null;
   return (

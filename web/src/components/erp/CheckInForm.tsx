@@ -7,6 +7,7 @@ import {
   type CheckOutState,
 } from "@/app/actions/erp-checkin";
 import { AgentNameLink } from "@/components/erp/AgentNameLink";
+import { useDeskWorkspace } from "@/components/erp/DeskWorkspaceProvider";
 import { AiAssistPanel } from "@/components/erp/AiAssistPanel";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -287,8 +288,7 @@ export function CheckInForm({
   const [allowDirty, setAllowDirty] = useState(false);
   /** Instant CI — name/rooms now, CID/passport/SDF on PostCheckInReg later. */
   const [docsDeferred, setDocsDeferred] = useState(true);
-  /** GM/owner soft opt-in when check-in date is before today (or night-audit gate). */
-  const [businessDateOverride, setBusinessDateOverride] = useState(false);
+  const { skipPastCheckInPin } = useDeskWorkspace();
 
   const checkInDate = booking.check_in.slice(0, 10);
   const isPastCheckInDate = checkInDate < thimphuToday();
@@ -1221,7 +1221,17 @@ export function CheckInForm({
       </div>
 
       <div className={cn(!showManager && "hidden")} aria-hidden={!showManager}>
-      {isPastCheckInDate ? (
+      {skipPastCheckInPin ? (
+        <>
+          {isPastCheckInDate ? (
+            <p className="rounded-md border bg-muted/40 px-2.5 py-2 text-xs text-muted-foreground">
+              Check-in date {checkInDate} is before today. You can check this
+              guest in.
+            </p>
+          ) : null}
+          <input type="hidden" name="business_date_override" value="on" />
+        </>
+      ) : isPastCheckInDate ? (
         <div
           className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2"
           role="status"
@@ -1230,27 +1240,11 @@ export function CheckInForm({
             Check-in date {checkInDate} is before today ({thimphuToday()})
           </p>
           <p className="text-[10px] text-muted-foreground">
-            Floor staff: manager PIN. GM/owner: tick override (or fix dates on
-            Details).
+            Ask a manager, or enter the manager PIN.
           </p>
-          <Label className="flex items-start gap-1.5 text-[11px] font-normal">
-            <Checkbox
-              checked={businessDateOverride}
-              onCheckedChange={(v) => setBusinessDateOverride(v === true)}
-              className="mt-0.5 size-3.5"
-            />
-            <span>
-              Allow past check-in / business date override (GM/owner)
-            </span>
-          </Label>
-          <input
-            type="hidden"
-            name="business_date_override"
-            value={businessDateOverride ? "on" : "off"}
-          />
           <div className="space-y-0.5">
             <Label htmlFor="ci_manager_pin" className={FIELD_LABEL}>
-              Manager PIN (floor staff)
+              Manager PIN
             </Label>
             <Input
               id="ci_manager_pin"
@@ -1258,44 +1252,39 @@ export function CheckInForm({
               type="password"
               autoComplete="off"
               className="h-8 max-w-xs"
-              placeholder="Staff or desk manager PIN"
+              placeholder="Manager PIN"
             />
           </div>
+          <input
+            type="hidden"
+            name="business_date_override"
+            value="off"
+          />
         </div>
       ) : (
         <details className="rounded-md border bg-muted/15">
           <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium">
-            Manager override (night audit / business date)
+            Manager PIN if the hotel date is not closed
           </summary>
           <div className="space-y-2 border-t px-2 py-2">
-            <Label className="flex items-start gap-1.5 text-[11px] font-normal">
-              <Checkbox
-                checked={businessDateOverride}
-                onCheckedChange={(v) => setBusinessDateOverride(v === true)}
-                className="mt-0.5 size-3.5"
-              />
-              <span>
-                Allow business date override (GM/owner — e.g. night audit open)
-              </span>
-            </Label>
-            <input
-              type="hidden"
-              name="business_date_override"
-              value={businessDateOverride ? "on" : "off"}
-            />
             <div className="space-y-0.5">
-              <Label htmlFor="ci_manager_pin" className={FIELD_LABEL}>
+              <Label htmlFor="ci_manager_pin_gate" className={FIELD_LABEL}>
                 Manager PIN
               </Label>
               <Input
-                id="ci_manager_pin"
+                id="ci_manager_pin_gate"
                 name="manager_pin"
                 type="password"
                 autoComplete="off"
                 className="h-8 max-w-xs"
-                placeholder="Floor staff when prior day not closed"
+                placeholder="Manager PIN"
               />
             </div>
+            <input
+              type="hidden"
+              name="business_date_override"
+              value="off"
+            />
           </div>
         </details>
       )}

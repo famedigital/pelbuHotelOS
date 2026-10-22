@@ -207,8 +207,11 @@ export async function confirmCheckIn(
     const { assertBusinessDateOpenForCheckIn } = await import(
       "@/lib/business-date"
     );
-    const { getDeskRole } = await import("@/lib/desk-auth");
+    const { accessLevelSkipsPastCheckInPin, getDeskRole } = await import(
+      "@/lib/desk-auth"
+    );
     const { isManagerDeskRole } = await import("@/lib/manager-pin-core");
+    const { getStaffSession } = await import("@/lib/staff-auth");
     const { verifyManagerPinForProperty } = await import("@/lib/manager-pin");
     const businessGate = await assertBusinessDateOpenForCheckIn(
       admin,
@@ -218,12 +221,11 @@ export async function confirmCheckIn(
     if (!businessGate.ok) {
       // Floor staff need manager PIN. GM/owner session may opt-in without PIN.
       const sessionRole = await getDeskRole();
+      const staff = await getStaffSession().catch(() => null);
       const sessionIsGmOwner =
-        sessionRole != null && isManagerDeskRole(sessionRole);
+        (sessionRole != null && isManagerDeskRole(sessionRole)) ||
+        accessLevelSkipsPastCheckInPin(staff?.accessLevel);
       const overridePin = optionalTrim(formData.get("manager_pin"));
-      const sessionOverride =
-        formData.get("business_date_override") === "on" ||
-        formData.get("past_check_in_ack") === "on";
 
       let overrideSource: "session_gm" | "manager_pin" | null = null;
       let pinSource: string | null = null;
@@ -242,15 +244,11 @@ export async function confirmCheckIn(
           pinResult.source === "staff"
             ? `staff:${pinResult.staffId}:${pinResult.fullName}`
             : pinResult.source;
-      } else if (sessionIsGmOwner && sessionOverride) {
-        overrideSource = "session_gm";
       } else if (sessionIsGmOwner) {
-        throw new Error(
-          `${businessGate.message} Tick “Allow past check-in / business date override” (GM/owner), enter a manager PIN, or adjust stay dates on Details.`,
-        );
+        overrideSource = "session_gm";
       } else {
         throw new Error(
-          `${businessGate.message} Enter a manager PIN below, ask a GM/owner to override, or adjust stay dates on Details.`,
+          `${businessGate.message} Enter a manager PIN below, or sign in as manager or admin.`,
         );
       }
 

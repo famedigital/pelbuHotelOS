@@ -95,7 +95,11 @@ export type DailyDeskSnapshot = FoTodaySnapshot & {
   emptyRooms: EmptyRoomBreakdown;
   /** folioId → issued INV for today's departures */
   departureInvoices: Record<string, { id: string; docNo: string }>;
+  /** Named guests on today's in-house stays, grouped by nationality. */
+  nationalityCounts: NationalityCount[];
 };
+
+export type NationalityCount = { label: string; guests: number };
 
 function isAgentBillMode(mode: string | null | undefined): boolean {
   const m = (mode ?? "").toLowerCase();
@@ -371,6 +375,11 @@ export async function loadDailyDeskSnapshot(
     roomsTotal: hkRows.length,
   };
 
+  const nationalityCounts = await loadInHouseNationalities(
+    admin,
+    dayOps.inHouse.map((row) => row.id),
+  );
+
   const folioIds = dayOps.departures
     .map((r) => r.folio_id)
     .filter((id): id is string => Boolean(id));
@@ -395,5 +404,34 @@ export async function loadDailyDeskSnapshot(
     inHouseMealBuckets: mealPlanBuckets(dayOps.inHouse),
     emptyRooms,
     departureInvoices,
+    nationalityCounts,
   };
+}
+
+async function loadInHouseNationalities(
+  admin: Admin,
+  bookingIds: string[],
+): Promise<NationalityCount[]> {
+  if (bookingIds.length === 0) return [];
+  try {
+    const { data, error } = await admin
+      .from("booking_guests")
+      .select("nationality")
+      .in("booking_id", bookingIds);
+    if (error || !data?.length) return [];
+    const map = new Map<string, number>();
+    for (const row of data) {
+      const raw = String(row.nationality ?? "").trim();
+      const label = raw || "Not recorded";
+      map.set(label, (map.get(label) ?? 0) + 1);
+    }
+    return [...map.entries()]
+      .map(([label, guests]) => ({ label, guests }))
+      .sort(
+        (a, b) => b.guests - a.guests || a.label.localeCompare(b.label),
+      );
+  } catch (e) {
+    console.error("loadInHouseNationalities failed", e);
+    return [];
+  }
 }

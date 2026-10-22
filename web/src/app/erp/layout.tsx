@@ -2,10 +2,13 @@ import { DeskShell } from "@/components/erp/DeskShell";
 import { WorkPwaRegistrar } from "@/components/pwa/WorkPwaRegistrar";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import {
+  accessLevelSkipsPastCheckInPin,
   getDeskModuleKeys,
   getDeskRole,
   isDeskAuthenticated,
 } from "@/lib/desk-auth";
+import { isManagerDeskRole } from "@/lib/manager-pin-core";
+import { getStaffSession } from "@/lib/staff-auth";
 import { pathnameAllowedForModules } from "@/lib/erp/desk-modules";
 import {
   canPreviewDashboards,
@@ -87,7 +90,13 @@ export default async function ErpLayout({
     /\/slip\/?$/.test(pathname);
 
   const allowedModuleKeys = await getDeskModuleKeys();
-  const deskRole = await getDeskRole();
+  const [deskRole, staff] = await Promise.all([
+    getDeskRole(),
+    getStaffSession().catch(() => null),
+  ]);
+  const skipPastCheckInPin =
+    isManagerDeskRole(deskRole) ||
+    accessLevelSkipsPastCheckInPin(staff?.accessLevel);
   const canPreview = canPreviewDashboards(deskRole);
   const homeDashboardView = deskRole
     ? deskRoleToDashboardView(deskRole)
@@ -137,6 +146,7 @@ export default async function ErpLayout({
       }
       allowedModuleKeys={allowedModuleKeys}
       deskRole={deskRole}
+      skipPastCheckInPin={skipPastCheckInPin}
       canPreviewDashboards={canPreview}
       homeDashboardView={homeDashboardView}
       productPack={

@@ -29,6 +29,7 @@ export function DeskShell({
   businessDate,
   allowedModuleKeys,
   deskRole,
+  skipPastCheckInPin = false,
   canPreviewDashboards: _canPreviewDashboards,
   homeDashboardView: _homeDashboardView,
   productPack: _productPack = "hotel",
@@ -41,6 +42,7 @@ export function DeskShell({
   businessDate?: string | null;
   allowedModuleKeys?: readonly string[];
   deskRole?: DeskRole | null;
+  skipPastCheckInPin?: boolean;
   canPreviewDashboards?: boolean;
   homeDashboardView?: import("@/lib/erp/role-dashboard").DashboardView;
   productPack?: "hotel" | "restaurant";
@@ -54,6 +56,7 @@ export function DeskShell({
       <DeskWorkspaceProvider
         deskRole={deskRole}
         allowedModuleKeys={allowedModuleKeys}
+        skipPastCheckInPin={skipPastCheckInPin}
       >
         <ErpCommandPalette allowedModuleKeys={allowedModuleKeys} />
         <FoAskShortcut />

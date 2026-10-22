@@ -10,6 +10,7 @@ import {
   FiscalTotalsBlock,
   type FiscalLineRow,
 } from "@/components/erp/print/FiscalLetterhead";
+import { PrintEditableValue } from "@/components/erp/print/PrintEditableValue";
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
@@ -612,9 +613,18 @@ export default async function FiscalInvoicePrintPage({
           meta={[
             { label: "Date", value: issueDate },
             { label: "Inv no.", value: String(doc.doc_no) },
-            ...(roomUnitLabels.length
-              ? [{ label: "Room", value: roomUnitLabels.join(", ") }]
-              : []),
+            {
+              label: "Room",
+              value: (
+                <PrintEditableValue
+                  syncKey={`inv-room-${doc.id as string}`}
+                  initial={
+                    roomUnitLabels.join(", ") || roomProductLines.join("; ")
+                  }
+                  hint
+                />
+              ),
+            },
             ...(stayNights != null
               ? [
                   {
@@ -657,16 +667,17 @@ export default async function FiscalInvoicePrintPage({
                   },
                 ]
               : []),
-            ...(roomUnitLabels.length || roomProductLines.length
-              ? [
-                  {
-                    label: "Rooms",
-                    value:
-                      roomUnitLabels.join(", ") ||
-                      roomProductLines.join("; "),
-                  },
-                ]
-              : []),
+            {
+              label: "Rooms",
+              value: (
+                <PrintEditableValue
+                  syncKey={`inv-room-${doc.id as string}`}
+                  initial={
+                    roomUnitLabels.join(", ") || roomProductLines.join("; ")
+                  }
+                />
+              ),
+            },
             ...(agentName
               ? [{ label: "Agent", value: agentName }]
               : []),

@@ -20,6 +20,7 @@ type DeskWorkspaceContextValue = {
   canFrontDesk: boolean;
   canBackOffice: boolean;
   allowedModuleKeys?: readonly string[];
+  skipPastCheckInPin: boolean;
 };
 
 const DeskWorkspaceContext =
@@ -53,10 +54,12 @@ function persistWorkspace(next: DeskWorkspace) {
 export function DeskWorkspaceProvider({
   deskRole,
   allowedModuleKeys,
+  skipPastCheckInPin = false,
   children,
 }: {
   deskRole?: DeskRole | null;
   allowedModuleKeys?: readonly string[];
+  skipPastCheckInPin?: boolean;
   children: React.ReactNode;
 }) {
   const canFrontDesk = canUseFrontDeskWorkspace(allowedModuleKeys);
@@ -103,6 +106,7 @@ export function DeskWorkspaceProvider({
       canFrontDesk,
       canBackOffice,
       allowedModuleKeys,
+      skipPastCheckInPin,
     }),
     [
       hydrated,
@@ -113,6 +117,7 @@ export function DeskWorkspaceProvider({
       canFrontDesk,
       canBackOffice,
       allowedModuleKeys,
+      skipPastCheckInPin,
     ],
   );
 
@@ -133,6 +138,7 @@ export function useDeskWorkspace(): DeskWorkspaceContextValue {
       canFrontDesk: true,
       canBackOffice: true,
       allowedModuleKeys: undefined,
+      skipPastCheckInPin: false,
     };
   }
   return ctx;

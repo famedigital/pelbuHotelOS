@@ -133,12 +133,17 @@ function ActionRow({ children }: { children: React.ReactNode }) {
 }
 
 /** Seven FO ops blocks — StayView primary board (actionable). */
+export type FoDeskList = "checkout" | "inhouse" | "arrival" | "empty";
+
 export function FoOpsDashboard({
   snap,
   onInvalidate,
+  only,
 }: {
   snap: DailyDeskSnapshot;
   onInvalidate?: () => void | Promise<void>;
+  /** One list. Omit to show the full board. */
+  only?: FoDeskList;
 }) {
   const { dayOps, emptyRooms, departureInvoices } = snap;
   const openStay = useFoOpsOpenStay();
@@ -147,14 +152,18 @@ export function FoOpsDashboard({
   };
 
   const biz = snap.businessDate;
+  const show = (id: FoDeskList) => !only || only === id;
+  const inHouseRows =
+    only === "inhouse" ? dayOps.inHouse : dayOps.inHouse.slice(0, 12);
 
   return (
-    <div className="grid gap-3 lg:grid-cols-2">
+    <div className={cn("grid gap-3", !only && "lg:grid-cols-2")}>
+      {show("checkout") ? (
       <Block
         title="Today checkout"
         subtitle={`${dayOps.departures.length} due`}
         href="/erp/departures"
-        className="lg:col-span-2"
+        className={only ? undefined : "lg:col-span-2"}
       >
         {dayOps.departures.length === 0 ? (
           <p className="px-1 text-xs text-muted-foreground">No checkouts today.</p>
@@ -187,15 +196,19 @@ export function FoOpsDashboard({
           </>
         )}
       </Block>
+      ) : null}
 
+      {show("arrival") ? (
       <Block
         title="Today arrival"
         subtitle={`${dayOps.arrivals.length} · ${dayOps.arrivingMealPax} meal pax`}
         href="/erp/arrivals"
       >
+        {!only ? (
         <div className="mb-2">
           <MealBuckets buckets={snap.arrivalMealBuckets} />
         </div>
+        ) : null}
         {dayOps.arrivals.length === 0 ? (
           <p className="px-1 text-xs text-muted-foreground">No arrivals today.</p>
         ) : (
@@ -217,32 +230,38 @@ export function FoOpsDashboard({
           </>
         )}
       </Block>
+      ) : null}
 
+      {show("inhouse") ? (
       <Block
         title="Today in-house"
         subtitle={`${dayOps.inHouse.length} stays · ${dayOps.inHouseMealPax} meal pax`}
         href="/erp/in-house"
       >
+        {!only ? (
+        <>
         <MealBuckets buckets={snap.inHouseMealBuckets} />
         <p className="mt-2 mb-2 px-1 text-[11px] text-muted-foreground">
           BF {snap.dayOpsPulse.breakfast} · L {snap.dayOpsPulse.lunch} · D{" "}
           {snap.dayOpsPulse.dinner} covers
         </p>
+        </>
+        ) : null}
         {dayOps.inHouse.length === 0 ? (
           <p className="px-1 text-xs text-muted-foreground">No one in-house.</p>
         ) : (
           <>
             <MiniTable headers={["Room", "Guest", "Meal", "Balance", "Actions"]}>
-              {dayOps.inHouse.slice(0, 12).map((r) => (
+              {inHouseRows.map((r) => (
                 <InHouseTableRow key={r.id} r={r} openStay={openStay} />
               ))}
             </MiniTable>
             <MobileCardList>
-              {dayOps.inHouse.slice(0, 12).map((r) => (
+              {inHouseRows.map((r) => (
                 <InHouseCard key={r.id} r={r} openStay={openStay} />
               ))}
             </MobileCardList>
-            {dayOps.inHouse.length > 12 ? (
+            {!only && dayOps.inHouse.length > 12 ? (
               <p className="mt-2 px-1 text-[11px]">
                 <Link
                   href="/erp/in-house"
@@ -255,7 +274,10 @@ export function FoOpsDashboard({
           </>
         )}
       </Block>
+      ) : null}
 
+      {!only ? (
+      <>
       <Block
         title="Follow-up"
         subtitle={`${snap.agentUnpaidCount} unpaid / AR`}
@@ -495,12 +517,15 @@ export function FoOpsDashboard({
           </ul>
         )}
       </Block>
+      </>
+      ) : null}
 
+      {show("empty") ? (
       <Block
         title="Empty rooms"
         subtitle={`${emptyRooms.vacant} vacant / ${emptyRooms.sellableTotal} sellable`}
         href="/erp/calendar"
-        className="lg:col-span-2"
+        className={only ? undefined : "lg:col-span-2"}
       >
         <div className="mb-2 flex flex-wrap gap-2 text-[11px]">
           <Link
@@ -554,6 +579,7 @@ export function FoOpsDashboard({
           ))}
         </MiniTable>
       </Block>
+      ) : null}
     </div>
   );
 }
@@ -711,8 +737,7 @@ function ArrivalTableRow({
         <ActionRow>
           {unassigned ? (
             <FoStayActionButton
-              label="Assign"
-              variant="default"
+              label="Assign room"
               onClick={() => openStay(r, "arrivals", "check_in")}
             />
           ) : (
@@ -722,6 +747,7 @@ function ArrivalTableRow({
           )}
           <FoStayActionButton
             label="Check in"
+            variant="default"
             onClick={() => openStay(r, "arrivals", "check_in")}
           />
         </ActionRow>
@@ -755,14 +781,14 @@ function ArrivalCard({
       <ActionRow>
         {unassigned ? (
           <FoStayActionButton
-            label="Assign"
-            variant="default"
+            label="Assign room"
             className="min-h-11"
             onClick={() => openStay(r, "arrivals", "check_in")}
           />
         ) : null}
         <FoStayActionButton
           label="Check in"
+          variant="default"
           className="min-h-11"
           onClick={() => openStay(r, "arrivals", "check_in")}
         />

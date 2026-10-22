@@ -190,7 +190,13 @@ export function mapAccessLevelToDeskRole(
 ): DeskRole {
   const a = (accessLevel ?? "").toLowerCase();
   if (a === "owner" || a === "gm") return "owner";
-  if (a === "hr_admin" || a === "supervisor") return "gm";
+  if (
+    a === "hr_admin" ||
+    a === "supervisor" ||
+    a === "admin" ||
+    a === "manager"
+  )
+    return "gm";
   if (a === "accountant" || a === "accounts") return "accountant";
   if (a === "cashier") return "cashier";
   if (a === "hk" || a === "housekeeping") return "hk";
@@ -198,6 +204,21 @@ export function mapAccessLevelToDeskRole(
   if (a === "fnb" || a === "f&b") return "fnb";
   if (a === "laundry") return "laundry";
   return "front_desk";
+}
+
+/** Manager, admin, GM, and owner logins check in past dates without a PIN. */
+export function accessLevelSkipsPastCheckInPin(
+  accessLevel: string | null | undefined,
+): boolean {
+  const a = (accessLevel ?? "").trim().toLowerCase();
+  return (
+    a === "owner" ||
+    a === "gm" ||
+    a === "admin" ||
+    a === "manager" ||
+    a === "hr_admin" ||
+    a === "supervisor"
+  );
 }
 
 /** HK / laundry — must not be POS servers or fire tickets to the kitchen TV. */

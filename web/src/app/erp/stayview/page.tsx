@@ -30,7 +30,7 @@ export default async function StayViewPage() {
   return (
     <DeskListShell
       heading={`StayView · ${fmtDate(snap.wallToday)}`}
-      subtitle="Checkout · arrivals · in-house · follow-up · tomorrow · empty rooms"
+      subtitle="Checkout, in house, arrivals, and empty rooms"
       wide
     >
       <FoAssistantBoard

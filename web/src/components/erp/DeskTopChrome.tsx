@@ -3,20 +3,10 @@
 import { deskLogout } from "@/app/actions/desk";
 import { deskShiftChange } from "@/app/actions/staff-auth";
 import { DeskSearchHint } from "@/components/erp/DeskSearchHint";
-import { useDeskWorkspace } from "@/components/erp/DeskWorkspaceProvider";
-import { DeskWorkspaceToggle } from "@/components/erp/DeskWorkspaceToggle";
 import { openErpCommandPalette } from "@/components/erp/ErpCommandPalette";
 import { PropertySwitcher } from "@/components/erp/PropertySwitcher";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetClose,
@@ -28,12 +18,13 @@ import {
 import { BRAND_ICONS } from "@/lib/brand";
 import {
   DESK_MENU_GROUPS,
-  FO_TOOLBAR_LINKS,
   pathMatchesHref,
   resolveMenuItems,
 } from "@/lib/erp/desk-menu";
-import { tabVisibleFromGrants } from "@/lib/erp/desk-modules";
-import { filterModulesForWorkspace } from "@/lib/erp/desk-workspace";
+import {
+  filterErpNavByGrants,
+  tabVisibleFromGrants,
+} from "@/lib/erp/desk-modules";
 import { ERP_MODULES } from "@/lib/erp-nav";
 import { filterModulesForProductPack } from "@/lib/product-pack";
 import { pushErpRecent } from "@/lib/erp-recents";
@@ -41,42 +32,130 @@ import type { PropertySwitcherOption } from "@/lib/property-types";
 import { SITE_NAME } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import {
+  BedDouble,
+  DoorOpen,
+  LayoutDashboard,
+  LogIn,
+  LogOut,
   MenuIcon,
+  PlaneLanding,
   PrinterIcon,
   SearchIcon,
+  type LucideIcon,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useMemo, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
 
+const MENU_TITLE: Record<string, string> = {
+  stay: "Front office",
+  book: "Booking",
+  money: "Money",
+  rooms: "Rooms",
+  fnb: "Restaurant",
+  tools: "Tools",
+  hotel: "Hotel",
+};
+
+const RIBBON_LABEL: Record<string, string> = {
+  "/erp/stayview": "Dashboard",
+  "/erp/arrivals": "Arrivals",
+  "/erp/in-house": "In house",
+  "/erp/departures": "Checkout",
+  "/erp/reservations": "Reservations",
+  "/erp/guests": "Guests",
+  "/erp/stays": "All stays",
+  "/erp": "Home",
+  "/erp/reserve": "New booking",
+  "/erp/ask": "Free rooms",
+  "/erp/calendar": "Room rack",
+  "/erp/calendar/day-sheet": "Day sheet",
+  "/erp/bills": "Bills",
+  "/erp/folios": "Folios",
+  "/erp/invoices": "Invoices",
+  "/erp/payments": "Payments",
+  "/erp/night-audit": "Night close",
+  "/erp/housekeeping": "Housekeeping",
+  "/erp/pos": "Restaurant bill",
+  "/erp/kitchen": "Kitchen",
+};
+
+const STAY_LIST_HREFS = new Set([
+  "/erp/stayview",
+  "/erp/arrivals",
+  "/erp/in-house",
+  "/erp/departures",
+]);
+
+const STAY_RIBBON: {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  tab: string | null;
+  emphasis?: boolean;
+}[] = [
+  { href: "/erp/stayview", label: "Dashboard", icon: LayoutDashboard, tab: null },
+  {
+    href: "/erp/stayview?tab=checkout",
+    label: "Checkout",
+    icon: LogOut,
+    tab: "checkout",
+  },
+  {
+    href: "/erp/stayview?tab=inhouse",
+    label: "In house",
+    icon: BedDouble,
+    tab: "inhouse",
+  },
+  {
+    href: "/erp/stayview?tab=arrival",
+    label: "Arrival",
+    icon: PlaneLanding,
+    tab: "arrival",
+  },
+  {
+    href: "/erp/stayview?tab=empty",
+    label: "Empty rooms",
+    icon: DoorOpen,
+    tab: "empty",
+  },
+  {
+    href: "/erp/stayview?tab=arrival",
+    label: "Check in",
+    icon: LogIn,
+    tab: "check-in",
+    emphasis: true,
+  },
+];
+
+function ribbonLabel(href: string, title: string) {
+  return RIBBON_LABEL[href] ?? title;
+}
+
+/** Grant-filtered href set — no FO/BO workspace split. */
 function useAllowedHrefs(allowedModuleKeys?: readonly string[]) {
-  const { workspace } = useDeskWorkspace();
   return useMemo(() => {
     const grants =
       !allowedModuleKeys || allowedModuleKeys.length === 0
         ? null
         : allowedModuleKeys;
-    let modules = filterModulesForWorkspace(ERP_MODULES, workspace, grants);
+    let modules = filterErpNavByGrants(ERP_MODULES, grants);
     modules = filterModulesForProductPack(modules, "hotel");
-    if (!grants) {
-      const set = new Set<string>();
-      for (const m of modules) for (const t of m.tabs) set.add(t.href);
-      return set;
-    }
     const set = new Set<string>();
     for (const m of modules) {
       for (const t of m.tabs) {
-        if (tabVisibleFromGrants(m.key, t.href, grants)) set.add(t.href);
+        if (!grants || tabVisibleFromGrants(m.key, t.href, grants)) {
+          set.add(t.href);
+        }
       }
     }
     return set;
-  }, [allowedModuleKeys, workspace]);
+  }, [allowedModuleKeys]);
 }
 
 /**
- * Google Sheets–style top chrome: menubar + icon toolbar (md+).
- * Phone: compact logo · date · Menu · search.
+ * Word-style desk chrome: menu titles, then a ribbon of icon + label.
  */
 export function DeskTopChrome({
   brandName = SITE_NAME,
@@ -97,6 +176,7 @@ export function DeskTopChrome({
   const allowedHrefs = useAllowedHrefs(allowedModuleKeys);
   const bizLabel = businessDate?.slice(0, 10) ?? null;
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pickedMenu, setPickedMenu] = useState<string | null>(null);
 
   const groups = useMemo(() => {
     return DESK_MENU_GROUPS.map((g) => ({
@@ -105,15 +185,31 @@ export function DeskTopChrome({
     })).filter((g) => g.items.length > 0);
   }, [allowedHrefs]);
 
-  const toolbarLinks = FO_TOOLBAR_LINKS.filter((l) => allowedHrefs.has(l.href));
+  const pathGroupId =
+    groups.find((group) =>
+      group.items.some((item) => pathMatchesHref(pathname, item.href)),
+    )?.id ??
+    groups[0]?.id ??
+    null;
+  const activeMenuId = pickedMenu ?? pathGroupId;
+  const activeGroup =
+    groups.find((group) => group.id === activeMenuId) ?? groups[0];
+
+  useEffect(() => {
+    setPickedMenu(null);
+  }, [pathname]);
+
+  const daySheetHref = bizLabel
+    ? `/erp/calendar/day-sheet?date=${bizLabel}`
+    : "/erp/calendar/day-sheet";
+  const showDaySheet = allowedHrefs.has("/erp/calendar/day-sheet");
 
   return (
     <div
       data-slot="desk-top-chrome"
       className="z-30 shrink-0 border-b border-border bg-background print:hidden"
     >
-      {/* Menubar row */}
-      <div className="flex h-9 min-w-0 items-center gap-1 px-2 sm:px-3">
+      <div className="flex h-10 min-w-0 items-center gap-1 px-2 sm:px-3">
         <Link
           href="/erp/stayview"
           className="mr-1 flex shrink-0 items-center gap-1.5"
@@ -123,8 +219,8 @@ export function DeskTopChrome({
             <Image
               src={logoSrc}
               alt=""
-              width={22}
-              height={22}
+              width={20}
+              height={20}
               className="size-5 rounded object-contain"
               unoptimized
             />
@@ -136,7 +232,7 @@ export function DeskTopChrome({
               className="size-5 rounded object-contain"
             />
           )}
-          <span className="hidden max-w-[9rem] truncate text-sm font-semibold tracking-tight sm:inline">
+          <span className="hidden max-w-[8rem] truncate text-sm font-semibold tracking-tight lg:inline">
             {brandName}
           </span>
         </Link>
@@ -149,69 +245,36 @@ export function DeskTopChrome({
           >
             <Badge
               variant="secondary"
-              className="font-mono text-[10px] tracking-tight tabular-nums"
+              className="h-5 font-mono text-[10px] tracking-tight tabular-nums"
             >
               {bizLabel.slice(5)}
             </Badge>
           </Link>
         ) : null}
 
-        {/* Desktop menubar */}
         <nav
           aria-label="Desk menus"
-          className="ml-1 hidden min-w-0 flex-1 items-center gap-0.5 overflow-x-auto md:flex [scrollbar-width:none]"
+          className="ml-1 hidden min-w-0 flex-1 items-center gap-0.5 md:flex"
         >
-          {groups.map((group) => {
-            const active = group.items.some((i) =>
-              pathMatchesHref(pathname, i.href),
-            );
-            return (
-              <DropdownMenu key={group.id}>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(
-                      "h-7 shrink-0 rounded px-2 text-[13px] font-medium text-foreground/80 outline-none hover:bg-muted",
-                      active && "bg-muted text-foreground",
-                    )}
-                  >
-                    {group.label}
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="min-w-[12rem]">
-                  <DropdownMenuLabel className="text-xs text-muted-foreground">
-                    {group.label}
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {group.items.map((item) => {
-                    const Icon = item.icon;
-                    const isOn = pathMatchesHref(pathname, item.href);
-                    return (
-                      <DropdownMenuItem key={item.href} asChild>
-                        <Link
-                          href={item.href}
-                          onClick={() =>
-                            pushErpRecent({
-                              href: item.href,
-                              title: item.title,
-                            })
-                          }
-                          className={cn(isOn && "bg-accent/10 font-medium")}
-                        >
-                          <Icon className="size-3.5 opacity-70" />
-                          {item.title}
-                        </Link>
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            );
-          })}
+          {groups.map((group) => (
+            <button
+              key={group.id}
+              type="button"
+              onClick={() => setPickedMenu(group.id)}
+              className={cn(
+                "h-8 shrink-0 rounded-md px-2.5 text-[13px]",
+                activeMenuId === group.id
+                  ? "bg-muted font-semibold text-foreground"
+                  : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+              )}
+            >
+              {MENU_TITLE[group.id] ?? group.label}
+            </button>
+          ))}
         </nav>
 
         {/* Phone Menu */}
-        <div className="ml-auto flex items-center gap-1 md:ml-0 md:hidden">
+        <div className="ml-auto flex items-center gap-1 md:hidden">
           <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger asChild>
               <Button
@@ -231,15 +294,53 @@ export function DeskTopChrome({
               <SheetHeader className="border-b px-4 py-3 text-left">
                 <SheetTitle>Desk</SheetTitle>
               </SheetHeader>
-              <div className="space-y-4 px-3 py-3">
-                <DeskWorkspaceToggle className="w-full justify-stretch [&>button]:flex-1" />
+              <div className="space-y-3 px-3 py-3">
                 {groups.map((group) => (
                   <section key={group.id}>
                     <h2 className="mb-1 px-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-                      {group.label}
+                      {MENU_TITLE[group.id] ?? group.label}
                     </h2>
                     <ul className="space-y-0.5">
-                      {group.items.map((item) => {
+                      {group.id === "stay"
+                        ? STAY_RIBBON.filter((item) => !item.emphasis).map(
+                            (item) => {
+                              const Icon = item.icon;
+                              return (
+                                <li key={item.label}>
+                                  <SheetClose asChild>
+                                    <Link
+                                      href={item.href}
+                                      className="flex min-h-10 items-center gap-2 rounded-md px-2 text-sm hover:bg-muted"
+                                    >
+                                      <Icon className="size-4 shrink-0 opacity-70" />
+                                      {item.label}
+                                    </Link>
+                                  </SheetClose>
+                                </li>
+                              );
+                            },
+                          )
+                        : null}
+                      {group.id === "stay" ? (
+                        <li>
+                          <SheetClose asChild>
+                            <Link
+                              href="/erp/stayview?tab=arrival"
+                              className="flex min-h-10 items-center gap-2 rounded-md px-2 text-sm font-medium hover:bg-muted"
+                            >
+                              <LogIn className="size-4 shrink-0" />
+                              Check in
+                            </Link>
+                          </SheetClose>
+                        </li>
+                      ) : null}
+                      {group.items
+                        .filter(
+                          (item) =>
+                            group.id !== "stay" ||
+                            !STAY_LIST_HREFS.has(item.href),
+                        )
+                        .map((item) => {
                         const Icon = item.icon;
                         return (
                           <li key={item.href}>
@@ -253,7 +354,7 @@ export function DeskTopChrome({
                                 )}
                               >
                                 <Icon className="size-4 shrink-0 opacity-70" />
-                                {item.title}
+                                {ribbonLabel(item.href, item.title)}
                               </Link>
                             </SheetClose>
                           </li>
@@ -277,8 +378,20 @@ export function DeskTopChrome({
           </Button>
         </div>
 
-        <div className="ml-auto hidden items-center gap-1.5 md:flex">
-          <DeskWorkspaceToggle />
+        <div className="ml-auto hidden items-center gap-1 md:flex">
+          {showDaySheet ? (
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 px-2 text-xs text-muted-foreground"
+            >
+              <Link href={daySheetHref} title="Day sheet">
+                <PrinterIcon className="size-3.5" />
+                Day sheet
+              </Link>
+            </Button>
+          ) : null}
           <DeskSearchHint />
           {properties && properties.length > 0 && activePropertyId ? (
             <PropertySwitcher
@@ -310,55 +423,110 @@ export function DeskTopChrome({
         </div>
       </div>
 
-      {/* Icon toolbar — md+ */}
-      <div className="hidden h-9 items-center gap-1 border-t border-border/70 px-2 sm:px-3 md:flex">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 gap-1 px-2 text-xs text-muted-foreground"
-          onClick={() => openErpCommandPalette()}
-        >
-          <SearchIcon className="size-3.5" />
-          Search
-        </Button>
-        {bizLabel ? (
-          <Button asChild variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs">
-            <Link
-              href={`/erp/calendar/day-sheet?date=${bizLabel}`}
-              title="Print day sheet"
-            >
-              <PrinterIcon className="size-3.5" />
-              Day sheet
-            </Link>
-          </Button>
-        ) : null}
-        {toolbarLinks.map((l) => (
-          <Button
-            key={l.href}
-            asChild
-            variant="ghost"
-            size="sm"
-            className={cn(
-              "h-7 px-2 text-xs",
-              pathMatchesHref(pathname, l.href) && "bg-muted font-medium",
-            )}
-          >
-            <Link href={l.href}>{l.title}</Link>
-          </Button>
-        ))}
-        {/* POS register portals Sell | Floor */}
+      {activeGroup ? (
+        <Suspense fallback={<div className="hidden h-16 border-t md:block" />}>
+          <DeskRibbon group={activeGroup} pathname={pathname} />
+        </Suspense>
+      ) : null}
+
+      {/* POS register portals — zero height when empty */}
+      <div className="flex empty:hidden">
         <div
           data-slot="erp-header-pos-modes"
           className="flex shrink-0 items-center empty:hidden"
         />
-        <div className="ml-auto flex items-center gap-1.5">
-          <div
-            data-slot="erp-header-pos-actions"
-            className="flex shrink-0 items-center gap-1.5 empty:hidden"
-          />
-        </div>
+        <div
+          data-slot="erp-header-pos-actions"
+          className="ml-auto flex shrink-0 items-center gap-1.5 empty:hidden"
+        />
       </div>
     </div>
+  );
+}
+
+function DeskRibbon({
+  group,
+  pathname,
+}: {
+  group: {
+    id: string;
+    items: { href: string; title: string; icon: LucideIcon }[];
+  };
+  pathname: string;
+}) {
+  const tab = useSearchParams().get("tab");
+  const stay = group.id === "stay";
+  const rest = stay
+    ? group.items.filter((item) => !STAY_LIST_HREFS.has(item.href))
+    : group.items;
+
+  return (
+    <div className="hidden min-h-16 items-stretch gap-1 overflow-x-auto border-t bg-muted/30 px-2 py-1 md:flex">
+      {stay
+        ? STAY_RIBBON.map((item) => {
+            const on =
+              !item.emphasis &&
+              pathname === "/erp/stayview" &&
+              (tab ?? "home") === (item.tab ?? "home");
+            return (
+              <RibbonButton
+                key={item.label}
+                href={item.href}
+                label={item.label}
+                icon={item.icon}
+                active={on}
+                emphasis={item.emphasis}
+              />
+            );
+          })
+        : null}
+      {stay && rest.length > 0 ? (
+        <span className="mx-1 w-px self-stretch bg-border" aria-hidden />
+      ) : null}
+      {rest.map((item) => (
+        <RibbonButton
+          key={item.href}
+          href={item.href}
+          label={ribbonLabel(item.href, item.title)}
+          icon={item.icon}
+          active={pathMatchesHref(pathname, item.href)}
+          onClick={() =>
+            pushErpRecent({ href: item.href, title: item.title })
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
+function RibbonButton({
+  href,
+  label,
+  icon: Icon,
+  active,
+  emphasis,
+  onClick,
+}: {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  active?: boolean;
+  emphasis?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex min-w-16 max-w-24 flex-col items-center justify-center gap-1 rounded-md px-1.5 py-1 text-center text-[11px] leading-tight hover:bg-background",
+        active && "bg-background font-medium shadow-sm",
+        emphasis && "border border-primary/40 bg-primary/10 font-medium",
+      )}
+    >
+      <Icon className="size-5 shrink-0" />
+      <span>{label}</span>
+    </Link>
   );
 }
