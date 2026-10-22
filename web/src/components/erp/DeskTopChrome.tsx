@@ -522,7 +522,8 @@ function RibbonButton({
       className={cn(
         "flex min-w-16 max-w-24 flex-col items-center justify-center gap-1 rounded-md px-1.5 py-1 text-center text-[11px] leading-tight hover:bg-background",
         active && "bg-background font-medium shadow-sm",
-        emphasis && "border border-primary/40 bg-primary/10 font-medium",
+        emphasis &&
+          "bg-sky-600 font-medium text-white shadow-sm hover:bg-sky-500",
       )}
     >
       <Icon className="size-5 shrink-0" />

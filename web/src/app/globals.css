@@ -225,6 +225,81 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* Front-office command skin — StayView, arrivals, in-house, checkout, rack.
+   Nested .erp shells must not reset these tokens. Stay Hub dialogs portal
+   outside this tree and keep the light desk. */
+.fo-command,
+.fo-command .erp {
+  --background: #020617;
+  --foreground: #f1f5f9;
+  --card: #0f172a;
+  --card-foreground: #f8fafc;
+  --popover: #0f172a;
+  --popover-foreground: #f8fafc;
+  --primary: #0284c7;
+  --primary-foreground: #ffffff;
+  --secondary: #1e293b;
+  --secondary-foreground: #f1f5f9;
+  --muted-shadcn: #0f172a;
+  --muted-foreground: #94a3b8;
+  --accent: #38bdf8;
+  --accent-foreground: #082f49;
+  --border: rgba(148, 163, 184, 0.24);
+  --input: #1e293b;
+  --ring: #38bdf8;
+  --citrus: #f59e0b;
+  --citrus-soft: #fbbf24;
+  --citrus-tint: rgba(245, 158, 11, 0.16);
+  color: var(--foreground);
+  background: #020617;
+}
+
+.fo-command .fo-glass {
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  backdrop-filter: blur(12px);
+}
+
+.fo-command .fo-glass-card {
+  background: rgba(30, 41, 59, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0.75rem;
+}
+
+.fo-command .fo-glass-card:hover {
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.fo-command .fo-board-table {
+  overflow-x: auto;
+}
+
+.fo-command .fo-mini-table {
+  display: block !important;
+}
+
+.fo-command .fo-mini-cards {
+  display: none !important;
+}
+
+@media print {
+  .fo-command,
+  .fo-command .erp {
+    --background: #ffffff;
+    --foreground: #0b1220;
+    --card: #ffffff;
+    --card-foreground: #0b1220;
+    --muted-shadcn: #f4f8fb;
+    --muted-foreground: #5b6b7c;
+    --border: #e2e9f0;
+    --accent: #0284c7;
+    --accent-foreground: #ffffff;
+    color: #0b1220;
+    background: #ffffff;
+  }
+}
+
 /* Desk page padding utility — prefer over ad-hoc p-4/p-6 on FO screens */
 .erp .desk-page {
   padding: var(--desk-pad);

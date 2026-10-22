@@ -96,7 +96,9 @@ export default async function InHousePage() {
       <p className="mb-2 text-xs text-muted-foreground">
         {dayOps.inHouse.length} shown · {dayOps.inHouseMealPax} meal pax
       </p>
-      <BookingBoardTable rows={boardRows} board="in_house" />
+      <div className="fo-glass p-3">
+        <BookingBoardTable rows={boardRows} board="in_house" />
+      </div>
     </StaysHub>
   );
 }

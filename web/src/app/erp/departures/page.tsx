@@ -50,7 +50,9 @@ export default async function DeparturesPage() {
           ? ` · ${dayOps.departuresWithLaundry} with open laundry`
           : ""}
       </p>
-      <BookingBoardTable rows={boardRows} board="departures" />
+      <div className="fo-glass p-3">
+        <BookingBoardTable rows={boardRows} board="departures" />
+      </div>
     </StaysHub>
   );
 }

@@ -1,3 +1,4 @@
+import { FoCommandScope } from "@/components/erp/FoCommandDesk";
 import { DeskHelpHint } from "@/components/erp/DeskHelpHint";
 import { DeskMobileNav } from "@/components/erp/DeskMobileNav";
 import { DeskSheetTabs } from "@/components/erp/DeskSheetTabs";
@@ -73,7 +74,9 @@ export function DeskShell({
             allowedModuleKeys={allowedModuleKeys}
           />
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0 print:overflow-visible print:pb-0">
-            <Suspense fallback={<DeskMainSkeleton />}>{children}</Suspense>
+            <Suspense fallback={<DeskMainSkeleton />}>
+              <FoCommandScope>{children}</FoCommandScope>
+            </Suspense>
           </div>
           <DeskSheetTabs allowedModuleKeys={allowedModuleKeys} />
           <div className="shrink-0 print:hidden md:hidden">

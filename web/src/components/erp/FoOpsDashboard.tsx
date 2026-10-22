@@ -28,7 +28,7 @@ function Block({
   return (
     <section
       className={cn(
-        "min-w-0 rounded-md border border-border bg-card",
+        "fo-glass min-w-0 rounded-md border border-border bg-card",
         className,
       )}
     >
@@ -87,7 +87,7 @@ function MiniTable({
   className?: string;
 }) {
   return (
-    <div className={cn("hidden overflow-x-auto md:block", className)}>
+    <div className={cn("fo-mini-table hidden overflow-x-auto md:block", className)}>
       <table className="w-full min-w-[28rem] text-left text-xs">
         <thead>
           <tr className="border-b text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -105,7 +105,7 @@ function MiniTable({
 }
 
 function MobileCardList({ children }: { children: React.ReactNode }) {
-  return <ul className="space-y-2 md:hidden">{children}</ul>;
+  return <ul className="fo-mini-cards space-y-2 md:hidden">{children}</ul>;
 }
 
 function GuestLink({

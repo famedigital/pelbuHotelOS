@@ -1,8 +1,8 @@
 import { BookingBoardTable } from "@/components/erp/BookingBoardTable";
+import { FoMetricCard } from "@/components/erp/FoCommandDesk";
 import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
 import { StayMoneyCycleLegend } from "@/components/erp/StayMoneyCycleLegend";
 import { StaysHub } from "@/components/erp/stays/StaysHub";
-import { Card, CardContent } from "@/components/ui/card";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import {
   dayOpsRowToBoardRaw,
@@ -61,54 +61,42 @@ export default async function ArrivalsPage() {
         <StayMoneyCycleLegend compact />
       </div>
 
-      <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
-        <ArrivalStat label="Arrival bookings" value={summary.bookings} />
-        <ArrivalStat label="Expected guests" value={summary.guests} />
-        <ArrivalStat label="Rooms booked" value={summary.rooms} />
-        <ArrivalStat
+      <div className="mb-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <FoMetricCard
+          label="Arrival bookings"
+          value={String(summary.bookings)}
+        />
+        <FoMetricCard
+          label="Expected guests"
+          value={String(summary.guests)}
+        />
+        <FoMetricCard label="Rooms booked" value={String(summary.rooms)} />
+        <FoMetricCard
           label="Ready to check in"
-          value={summary.ready}
+          value={String(summary.ready)}
           hint={
             summary.bookings > summary.ready
-              ? `${summary.bookings - summary.ready} need room or HK action`
+              ? `${summary.bookings - summary.ready} need room or HK`
               : "All arrivals ready"
           }
+          percent={
+            summary.bookings
+              ? Math.round((summary.ready / summary.bookings) * 100)
+              : 0
+          }
+          barClassName="bg-emerald-500"
         />
       </div>
 
-      <div className="space-y-2">
+      <div className="fo-glass space-y-2 p-3">
         <BookingBoardTable rows={boardRows} board="arrivals" />
         {boardRows.length === 0 ? (
-          <p className="rounded-lg border border-dashed bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
-            No arrivals today. Scan departures for late CO, confirm
-            tomorrow&apos;s holds on Reservations, and keep HK ahead.
+          <p className="rounded-lg border border-dashed border-white/15 px-4 py-6 text-sm text-slate-400">
+            No arrivals today. Scan departures for late checkout, confirm
+            tomorrow&apos;s holds on Reservations, and keep housekeeping ahead.
           </p>
         ) : null}
       </div>
     </StaysHub>
-  );
-}
-
-function ArrivalStat({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: number;
-  hint?: string;
-}) {
-  return (
-    <Card className="gap-0 py-0">
-      <CardContent className="p-4">
-        <p className="text-xs font-medium text-muted-foreground">{label}</p>
-        <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
-          {value}
-        </p>
-        {hint ? (
-          <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>
-        ) : null}
-      </CardContent>
-    </Card>
   );
 }

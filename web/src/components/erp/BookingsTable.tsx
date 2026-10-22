@@ -404,7 +404,7 @@ export function BookingsTable({
 
   return (
     <>
-      <div className="space-y-3 md:hidden">
+      <div className="fo-board-cards space-y-3 md:hidden">
         {data.length === 0 ? (
           <p className="rounded-xl border border-border bg-card px-4 py-6 text-sm text-muted-foreground">
             {emptyMessage}
@@ -504,7 +504,7 @@ export function BookingsTable({
         )}
       </div>
 
-      <div className="hidden min-w-0 md:block">
+      <div className="fo-board-table hidden min-w-0 md:block">
         <DataTable
           columns={columns}
           data={data}
