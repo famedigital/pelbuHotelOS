@@ -4,7 +4,6 @@ const FO_EXACT = new Set([
   "/erp/arrivals",
   "/erp/in-house",
   "/erp/departures",
-  "/erp/calendar",
 ]);
 
 export function isFoCommandPath(pathname: string): boolean {

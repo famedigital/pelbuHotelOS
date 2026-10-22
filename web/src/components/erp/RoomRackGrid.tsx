@@ -27,6 +27,7 @@ import {
   type CalendarSelectedUnit,
 } from "@/components/erp/CalendarReservationDialog";
 import { FastBookDialog } from "@/components/erp/FastBookDialog";
+import { RackHistoryPanel } from "@/components/erp/RackHistoryPanel";
 import { RackPartySelectionBar } from "@/components/erp/RackPartySelectionBar";
 import { RackStayNotesDialog } from "@/components/erp/RackStayNotesDialog";
 import type { FastBookRoomType } from "@/components/erp/FastBookForm";
@@ -618,6 +619,14 @@ function StayHoverCard({
   // Controlled for the whole lifetime — flipping between `false` and
   // `undefined` while dragging makes Radix warn about switching modes.
   const [open, setOpen] = useState(false);
+  const arm = useRef<{ x: number; y: number } | null>(null);
+  const lastOpen = useRef(0);
+  function openDetail() {
+    const now = Date.now();
+    if (now - lastOpen.current < 400) return;
+    lastOpen.current = now;
+    onOpenDetail();
+  }
   return (
     <HoverCard
       openDelay={300}
@@ -644,6 +653,18 @@ function StayHoverCard({
               .filter(Boolean)
               .join(" · ") || undefined
           }
+          data-stay-open
+          onPointerDown={(e) => {
+            arm.current = { x: e.clientX, y: e.clientY };
+          }}
+          onPointerUp={(e) => {
+            const start = arm.current;
+            arm.current = null;
+            if (!start) return;
+            if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > 8) return;
+            if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+            openDetail();
+          }}
           onClick={(e) => {
             if (onSelectClick && (e.metaKey || e.ctrlKey || e.shiftKey)) {
               e.preventDefault();
@@ -651,7 +672,7 @@ function StayHoverCard({
               onSelectClick(e);
               return;
             }
-            onOpenDetail();
+            openDetail();
           }}
         >
           <span
@@ -1035,6 +1056,7 @@ export function RoomRackGrid({
   const [selectedPool, setSelectedPool] = useState<UnassignedBooking | null>(
     null,
   );
+  const [poolOpen, setPoolOpen] = useState(false);
   const [assignGuide, setAssignGuide] = useState<AssignGuideMode | null>(null);
   const [noteCard, setNoteCard] = useState<UnassignedBooking | null>(null);
   const [assignMessage, setAssignMessage] = useState<string | null>(null);
@@ -1366,45 +1388,6 @@ export function RoomRackGrid({
 
   const todayIndex = days.indexOf(today);
   const todayBooked = todayIndex >= 0 ? (bookedPerDay[todayIndex] ?? 0) : 0;
-
-  /** Category strip for today: free / occupied / unassigned demand by type. */
-  const categoryToday = useMemo(() => {
-    const map = new Map<
-      string,
-      { code: string; name: string; total: number; occ: number; demand: number }
-    >();
-    for (const u of units) {
-      const cur = map.get(u.room_type_id) ?? {
-        code: u.room_type_code || u.room_type_name || "—",
-        name: u.room_type_name || u.room_type_code || "Room",
-        total: 0,
-        occ: 0,
-        demand: 0,
-      };
-      cur.total += 1;
-      map.set(u.room_type_id, cur);
-    }
-    if (todayIndex >= 0) {
-      for (const stay of stays) {
-        if (stay.check_in <= today && stay.check_out > today) {
-          const cur = map.get(stay.room_type_id);
-          if (cur) cur.occ += 1;
-        }
-      }
-    }
-    for (const item of unassigned) {
-      const cur = map.get(item.room_type_id) ?? {
-        code: item.room_type_code || "—",
-        name: item.room_type_name || "Room",
-        total: 0,
-        occ: 0,
-        demand: 0,
-      };
-      cur.demand += item.missing_rooms;
-      map.set(item.room_type_id, cur);
-    }
-    return [...map.values()].sort((a, b) => a.code.localeCompare(b.code));
-  }, [units, stays, unassigned, today, todayIndex]);
 
   const movingStay =
     stays.find((stay) => stay.id === movingStayId) ?? null;
@@ -2075,6 +2058,7 @@ export function RoomRackGrid({
             </Link>
           ))}
         </div>
+        <RackHistoryPanel />
         <Popover open={startPickerOpen} onOpenChange={setStartPickerOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -2381,7 +2365,7 @@ export function RoomRackGrid({
 
       <div
         className={cn(
-          "flex shrink-0 items-center gap-2 border-b border-border/50 px-4 py-2",
+          "flex shrink-0 items-center gap-2 border-b border-border/50 px-3 py-1",
           compactRack && "hidden",
         )}
       >
@@ -2456,49 +2440,49 @@ export function RoomRackGrid({
             </div>
           ) : null}
           <div className="flex min-w-0 items-center gap-2 border-l border-border/60 pl-2">
-            <p className="shrink-0 text-xs text-muted-foreground">
+            <button
+              type="button"
+              aria-expanded={poolOpen}
+              onClick={() => setPoolOpen((open) => !open)}
+              className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
+            >
               <span className="font-medium text-foreground tabular-nums">
                 {unassigned.reduce((n, item) => n + item.missing_rooms, 0)}
               </span>{" "}
               unassigned
-              {unassigned.length === 0 ? (
-                <span className="ml-1 text-muted-foreground/80">· clear</span>
-              ) : null}
-            </p>
-            {unassigned.length > 0 ? (
-              <>
-                <div className="flex min-w-0 max-w-[28rem] items-center gap-1 overflow-x-auto">
-                  {unassignedClusters.map((cluster) => {
-                    const selected = cluster.items.some(
-                      (item) => selectedPool?.id === item.id,
-                    );
-                    return (
-                      <button
-                        key={cluster.key}
-                        type="button"
-                        aria-pressed={selected}
-                        title={`${cluster.head.agent_name ?? "Direct"} · ${cluster.head.contact_name} · ${cluster.rooms} ${cluster.head.room_type_name} · ${cluster.head.check_in} → ${cluster.head.check_out}${cluster.head.contact_phone ? ` · ${cluster.head.contact_phone}` : ""}`}
-                        onClick={() => {
-                          setSelectedPool(cluster.head);
-                          setNoteCard(cluster.head);
-                          setAssignMessage(null);
-                        }}
-                        className={cn(
-                          "shrink-0 rounded-md px-2 py-1 text-left text-xs capitalize",
-                          selected
-                            ? "bg-accent/10 text-foreground"
-                            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                        )}
-                      >
-                        {cluster.head.agent_name ?? cluster.head.contact_name}
-                        <span className="ml-1 font-normal normal-case text-muted-foreground">
-                          · {cluster.rooms} rm
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
+            </button>
+            {poolOpen && unassigned.length > 0 ? (
+              <div className="flex min-w-0 max-w-[28rem] items-center gap-1 overflow-x-auto">
+                {unassignedClusters.map((cluster) => {
+                  const selected = cluster.items.some(
+                    (item) => selectedPool?.id === item.id,
+                  );
+                  return (
+                    <button
+                      key={cluster.key}
+                      type="button"
+                      aria-pressed={selected}
+                      title={`${cluster.head.agent_name ?? "Direct"} · ${cluster.head.contact_name} · ${cluster.rooms} ${cluster.head.room_type_name} · ${cluster.head.check_in} → ${cluster.head.check_out}${cluster.head.contact_phone ? ` · ${cluster.head.contact_phone}` : ""}`}
+                      onClick={() => {
+                        setSelectedPool(cluster.head);
+                        setNoteCard(cluster.head);
+                        setAssignMessage(null);
+                      }}
+                      className={cn(
+                        "shrink-0 rounded-md px-2 py-1 text-left text-xs capitalize",
+                        selected
+                          ? "bg-accent/10 text-foreground"
+                          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                      )}
+                    >
+                      {cluster.head.agent_name ?? cluster.head.contact_name}
+                      <span className="ml-1 font-normal normal-case text-muted-foreground">
+                        · {cluster.rooms} rm
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             ) : null}
           </div>
           <RackPartySelectionBar
@@ -2554,32 +2538,6 @@ export function RoomRackGrid({
           >
             Close
           </Button>
-        </div>
-      ) : null}
-
-      {categoryToday.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-1.5 border-b bg-muted/20 px-2 py-1.5">
-          <span className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-            Today by type
-          </span>
-          {categoryToday.map((t) => {
-            const free = Math.max(0, t.total - t.occ);
-            return (
-              <span
-                key={t.code}
-                className="rounded border bg-background px-2 py-0.5 text-[11px] tabular-nums"
-                title={`${t.name}: ${free} free · ${t.occ} occupied · ${t.demand} unassigned demand`}
-              >
-                <span className="font-semibold">{t.code}</span>{" "}
-                <span className="text-muted-foreground">
-                  {free}f / {t.occ}o
-                  {t.demand > 0 ? (
-                    <span className="text-destructive"> · {t.demand}u</span>
-                  ) : null}
-                </span>
-              </span>
-            );
-          })}
         </div>
       ) : null}
 
@@ -3001,10 +2959,10 @@ export function RoomRackGrid({
                           style={{ left: left + 2, width: width - 4 }}
                           onPointerDown={(e) => e.stopPropagation()}
                           onContextMenu={(e) => e.stopPropagation()}
-                          draggable={!stay.is_locked}
-                          onDragStart={(event) => {
-                            event.dataTransfer.effectAllowed = "move";
-                            event.dataTransfer.setData("text/plain", stay.id);
+                            draggable={!stay.is_locked}
+                            onDragStart={(event) => {
+                              event.dataTransfer.effectAllowed = "move";
+                              event.dataTransfer.setData("text/plain", stay.id);
                             setMovingStayId(stay.id);
                             setOperationMessage(
                               `Move ${stay.contact_name ?? "guest"} to another ${stay.room_type_name} room.`,

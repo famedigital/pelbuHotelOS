@@ -6,6 +6,11 @@ import {
   type RackHistoryRow,
 } from "@/app/actions/rack-history";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useState, useTransition } from "react";
 
 function whenLabel(iso: string): string {
@@ -37,22 +42,25 @@ export function RackHistoryPanel() {
   }
 
   return (
-    <div className="px-1">
-      <Button
-        type="button"
-        size="sm"
-        variant="ghost"
-        className="h-8 px-2 text-xs"
-        onClick={() => {
-          const next = !open;
-          setOpen(next);
-          if (next) load();
-        }}
-      >
-        History
-      </Button>
-      {open ? (
-        <div className="mt-1 max-h-56 overflow-auto rounded-md border bg-card">
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) load();
+      }}
+    >
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="h-8 px-2 text-xs"
+        >
+          History
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="erp w-80 p-0">
+        <div className="max-h-56 overflow-auto">
           {pending && rows.length === 0 ? (
             <p className="px-3 py-2 text-xs text-muted-foreground">Loading…</p>
           ) : null}
@@ -103,7 +111,7 @@ export function RackHistoryPanel() {
             </ul>
           )}
         </div>
-      ) : null}
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 }
