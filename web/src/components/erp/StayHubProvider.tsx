@@ -245,6 +245,16 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
     };
   }, [open, pathname]);
 
+  useEffect(() => {
+    const onOpen = (event: Event) => {
+      const detail = (event as CustomEvent<OpenStayHubOptions>).detail;
+      if (!detail?.bookingId) return;
+      openStayHub(detail);
+    };
+    window.addEventListener("innora:open-stay", onOpen);
+    return () => window.removeEventListener("innora:open-stay", onOpen);
+  }, [openStayHub]);
+
   const value = useMemo(
     () => ({
       open,

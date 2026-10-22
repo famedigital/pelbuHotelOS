@@ -334,8 +334,7 @@
 }
 
 .stay-hub-dock {
-  width: 100%;
-  animation: stay-hub-dock-in 180ms ease-out;
+  width: min(28rem, 100vw);
 }
 
 @media (min-width: 768px) {

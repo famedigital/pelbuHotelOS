@@ -157,6 +157,7 @@ import { nightsBetween } from "@/lib/stay-dates";
 import { cn } from "@/lib/utils";
 import { LockIcon, UnlockIcon, XIcon } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import {
   useCallback,
   useEffect,
@@ -2777,7 +2778,7 @@ export function StayHubDialog({
     };
   }, [open, showPartyRooms, closePanel]);
 
-  return (
+  const dock = (
     <>
       {open ? (
         <>
@@ -2785,7 +2786,7 @@ export function StayHubDialog({
             <button
               type="button"
               aria-label="Close stay"
-              className="fixed inset-0 z-[60] hidden bg-black/40 md:block"
+              className="fixed inset-0 z-[79] hidden bg-black/40 md:block"
               onClick={closePanel}
             />
           )}
@@ -2794,7 +2795,7 @@ export function StayHubDialog({
             aria-modal={boardDock ? false : true}
             aria-label={`Guest stay · ${titleName}`}
             className={cn(
-              "stay-hub-card stay-hub-dock erp fixed inset-y-0 right-0 z-[61] flex h-svh flex-col gap-0 overflow-hidden border-l bg-background p-0 shadow-xl",
+              "stay-hub-card stay-hub-dock erp fixed inset-y-0 right-0 z-[80] flex h-svh flex-col gap-0 overflow-hidden border-l bg-background p-0 shadow-xl",
               "pt-[env(safe-area-inset-top)]",
             )}
           >
@@ -4012,6 +4013,8 @@ export function StayHubDialog({
       {/* Nested print dialog removed — PostCheckInRegPanel runs in work pane */}
     </>
   );
+  if (typeof document === "undefined") return null;
+  return createPortal(dock, document.body);
 }
 
 /* ─── Workspace subcomponents ─────────────────────────────────────────── */

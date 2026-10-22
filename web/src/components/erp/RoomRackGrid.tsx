@@ -610,7 +610,6 @@ function StayHoverCard({
   onOpenDetail: () => void;
   onSelectClick?: (e: ReactMouseEvent) => void;
 }) {
-  const stayHub = useStayHubOptional();
   const nights = nightsBetween(stay.check_in, stay.check_out);
   const overdueDeparture =
     stay.status === "checked_in" && stay.check_out <= today;
@@ -626,6 +625,25 @@ function StayHoverCard({
     if (now - lastOpen.current < 400) return;
     lastOpen.current = now;
     onOpenDetail();
+  }
+  function openDock(step: "check_in" | "reserve" | "stay_money") {
+    return (event: React.PointerEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(false);
+      const id = String(stay.booking_id ?? "").trim();
+      if (!id) return;
+      window.dispatchEvent(
+        new CustomEvent("innora:open-stay", {
+          detail: {
+            bookingId: id,
+            assignmentId: stay.id,
+            seedStay: stay,
+            step,
+          },
+        }),
+      );
+    };
   }
   return (
     <HoverCard
@@ -888,14 +906,7 @@ function StayHoverCard({
             <button
               type="button"
               className="inline-flex h-8 items-center rounded-md bg-primary px-2.5 text-xs text-primary-foreground"
-              onClick={() =>
-                stayHub?.openStayHub({
-                  bookingId: stay.booking_id,
-                  assignmentId: stay.id,
-                  seedStay: stay,
-                  step: "check_in",
-                })
-              }
+              onPointerDown={openDock("check_in")}
             >
               Check-in
             </button>
@@ -903,14 +914,7 @@ function StayHoverCard({
           <button
             type="button"
             className="inline-flex h-8 items-center rounded-md border px-2.5 text-xs"
-            onClick={() =>
-              stayHub?.openStayHub({
-                bookingId: stay.booking_id,
-                assignmentId: stay.id,
-                seedStay: stay,
-                step: "reserve",
-              })
-            }
+            onPointerDown={openDock("reserve")}
           >
             Stay
           </button>
@@ -918,14 +922,7 @@ function StayHoverCard({
             <button
               type="button"
               className="inline-flex h-8 items-center rounded-md border px-2.5 text-xs"
-              onClick={() =>
-                stayHub?.openStayHub({
-                  bookingId: stay.booking_id,
-                  assignmentId: stay.id,
-                  seedStay: stay,
-                  step: "stay_money",
-                })
-              }
+              onPointerDown={openDock("stay_money")}
             >
               Folio
             </button>
@@ -943,14 +940,7 @@ function StayHoverCard({
             <button
               type="button"
               className="inline-flex h-8 items-center rounded-md border px-2.5 text-xs"
-              onClick={() =>
-                stayHub?.openStayHub({
-                  bookingId: stay.booking_id,
-                  assignmentId: stay.id,
-                  seedStay: stay,
-                  step: "check_in",
-                })
-              }
+              onPointerDown={openDock("check_in")}
             >
               Guest docs
             </button>
@@ -1144,26 +1134,27 @@ export function RoomRackGrid({
   const openStay = useCallback(
     (stay: RackStay) => {
       setSelectedStayId(stay.id);
-      if (stayHub) {
-        stayHub.openStayHub({
-          bookingId: stay.booking_id,
-          assignmentId: stay.id,
-          seedStay: stay,
-          agents,
-          staff,
-          units,
-          onToggleLock: (seed) => {
-            // seed may be StayHubSeedStay shape
-            const match =
-              stays.find((s) => s.id === seed.id) ??
-              stays.find((s) => s.booking_id === seed.booking_id);
-            if (match) toggleStayLockRef.current?.(match);
-          },
-        });
-        return;
-      }
+      const id = String(stay.booking_id ?? "").trim();
+      if (!id) return;
+      const opts = {
+        bookingId: id,
+        assignmentId: stay.id,
+        seedStay: stay,
+        agents,
+        staff,
+        units,
+        onToggleLock: (seed: RackStay) => {
+          const match =
+            stays.find((s) => s.id === seed.id) ??
+            stays.find((s) => s.booking_id === seed.booking_id);
+          if (match) toggleStayLockRef.current?.(match);
+        },
+      };
+      window.dispatchEvent(
+        new CustomEvent("innora:open-stay", { detail: opts }),
+      );
     },
-    [stayHub, agents, staff, units, stays],
+    [agents, staff, units, stays],
   );
 
   const bookingOrderIds = useMemo(() => {
