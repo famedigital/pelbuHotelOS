@@ -1159,7 +1159,9 @@ export async function supersedeAndReissueFolioInvoice(
 /** Open the master bill. Issues the tax invoice first when the folio has none. */
 export async function openMasterBillPrint(
   folioId: string,
-): Promise<{ ok: true; href: string } | { ok: false; error: string }> {
+): Promise<
+  { ok: true; href: string; docNo: string | null } | { ok: false; error: string }
+> {
   try {
     await requireMoney();
     const id = folioId.trim();
