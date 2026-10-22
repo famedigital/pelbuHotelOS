@@ -7,6 +7,7 @@ import {
   type PosPaidReceiptData,
   type PosPaidReceiptProperty,
 } from "@/components/erp/pos/PosPaidReceipt";
+import { OpenStayFolioLink } from "@/components/erp/OpenStayFolioLink";
 import { Button } from "@/components/ui/button";
 import { orderRef } from "@/lib/order-ref";
 import {
@@ -92,10 +93,14 @@ export function PosReceiptStage({
               <a href="/erp/pos">Settle on POS</a>
             </Button>
           ) : null}
-          {order.folioId ? (
-            <Button asChild variant="outline" className="h-10">
-              <a href={`/erp/folios/${order.folioId}`}>Open folio</a>
-            </Button>
+          {order.folioId || order.bookingId ? (
+            <OpenStayFolioLink
+              bookingId={order.bookingId}
+              folioId={order.folioId}
+              className="inline-flex h-10 items-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-muted"
+            >
+              Open stay
+            </OpenStayFolioLink>
           ) : null}
           <DocPrintControls
             defaultSize={initialPaper}

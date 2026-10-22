@@ -17,6 +17,12 @@ export type BankAccount = {
   bank?: string;
   account?: string;
   hint?: string;
+  /** City printed into the bank QR (EMV tag 60). */
+  city?: string;
+  /** Static EMV payload. Prints are stamped with the bill amount. */
+  qr_payload?: string;
+  /** Fallback image when no EMV payload is saved. */
+  qr_url?: string;
 };
 
 /** Fields the property switcher needs in the desk header. */

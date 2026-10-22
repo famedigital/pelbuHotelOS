@@ -49,7 +49,7 @@ export function DeskMetricRow({
             </p>
             <p
               className={cn(
-                "mt-0.5 text-lg font-semibold tracking-tight tabular-nums",
+                "mt-0.5 text-base font-semibold tracking-tight tabular-nums",
                 valueClass,
               )}
             >
@@ -62,7 +62,7 @@ export function DeskMetricRow({
         );
 
         const shell = cn(
-          "rounded-lg border border-border bg-card px-3 py-2.5",
+          "rounded-md border border-border/80 bg-card/60 px-2.5 py-1.5",
           m.href &&
             "transition-colors hover:border-accent/40 hover:bg-accent/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         );

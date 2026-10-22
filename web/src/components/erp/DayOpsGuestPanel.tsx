@@ -1,5 +1,6 @@
 "use client";
 
+import { OpenStayFolioLink } from "@/components/erp/OpenStayFolioLink";
 import type { DayOpsRow } from "@/lib/erp/day-ops-board";
 import { useState } from "react";
 
@@ -15,8 +16,8 @@ export type DayOpsGuestListProps = {
 };
 
 /**
- * Department day list with a slim detail drawer (not StayHub).
- * FO boards keep StayHub; F&B / Kitchen / HK / Laundry use this.
+ * Department day list. The stay card is where the folio is worked.
+ * F&B, kitchen, housekeeping, and laundry open that same stay.
  */
 export function DayOpsGuestPanel({
   title,
@@ -223,13 +224,14 @@ function DayOpsDetailDrawer({
               }
             />
           ) : null}
-          {row.folio_id ? (
-            <a
-              href={`/erp/folios/${row.folio_id}`}
+          {row.folio_id || row.id ? (
+            <OpenStayFolioLink
+              bookingId={row.id}
+              folioId={row.folio_id}
               className="inline-flex text-sm font-medium text-accent underline-offset-4 hover:underline"
             >
-              Open folio →
-            </a>
+              Open stay →
+            </OpenStayFolioLink>
           ) : null}
         </div>
       </aside>

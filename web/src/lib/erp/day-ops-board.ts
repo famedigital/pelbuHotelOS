@@ -26,7 +26,7 @@ export const DAY_OPS_BOARD_SELECT = `
   drivers(full_name, phone),
   booking_drivers(full_name, phone),
   room_assignments(
-    room_units(label, hk_status, room_types(inventory_kind))
+    room_units(label, sort_order, hk_status, room_types(inventory_kind))
   ),
   folios(id, status, folio_lines(id, total_btn, status, reverses_line_id))
 `;
@@ -97,6 +97,7 @@ function roomMeta(
     | Array<{
         room_units?: MaybeList<{
           label?: string;
+          sort_order?: number;
           hk_status?: string;
           room_types?: MaybeList<{ inventory_kind?: string }>;
         }>;
@@ -105,16 +106,19 @@ function roomMeta(
     | undefined,
 ): {
   labels: string[];
+  serials: string[];
   dirty_or_ooo: boolean;
   has_unready_guest_room: boolean;
 } {
   const labels: string[] = [];
+  const serials: string[] = [];
   let dirty_or_ooo = false;
   let has_unready_guest_room = false;
   for (const a of assigns ?? []) {
     const unit = firstOf(a.room_units ?? null);
     if (!unit) continue;
     if (unit.label) labels.push(unit.label);
+    if (unit.sort_order != null) serials.push(String(unit.sort_order));
     const hk = unit.hk_status ?? "";
     if (hk === "dirty" || hk === "ooo" || hk === "inspect") {
       dirty_or_ooo = true;
@@ -127,7 +131,7 @@ function roomMeta(
       has_unready_guest_room = true;
     }
   }
-  return { labels, dirty_or_ooo, has_unready_guest_room };
+  return { labels, serials, dirty_or_ooo, has_unready_guest_room };
 }
 
 function folioMeta(
@@ -222,6 +226,14 @@ export function mapDayOpsRawRow(
   const guideNumber =
     ((r.guide_number as string | null) ?? guide?.guide_number ?? null)?.trim() ||
     null;
+  const doorOpen = ["checked_in", "checked_out"].includes(
+    String(r.status ?? ""),
+  );
+  const shownRooms = doorOpen
+    ? rooms.labels
+    : rooms.serials.length
+      ? rooms.serials
+      : rooms.labels;
 
   return {
     id: r.id as string,
@@ -253,7 +265,7 @@ export function mapDayOpsRawRow(
       null,
     driver_phone:
       driverMaster?.phone?.trim() || bookingDriver?.phone?.trim() || null,
-    room_labels: rooms.labels.length ? rooms.labels.join(", ") : null,
+    room_labels: shownRooms.length ? shownRooms.join(", ") : null,
     assigned_count: assigns.length,
     dirty_or_ooo: rooms.dirty_or_ooo,
     has_unready_guest_room: rooms.has_unready_guest_room,

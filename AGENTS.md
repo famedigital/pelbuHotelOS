@@ -1,6 +1,6 @@
 # Hotel OS — Agent ownership
 
-White-label multi-tenant hotel ERP (**schema-only**; no public website). Multi-agent build (**Cursor architect** + **z.ai/GLM implementer** + optional Claude polish). Respect ownership to avoid collisions and wasted tokens.
+White-label multi-tenant hotel ERP with a public booking site plus `/erp`, `/staff`, and `/agents`. Production is the Coolify app on the droplet with self-hosted Supabase, not Vercel. Multi-agent build (**Cursor architect** + **z.ai/GLM implementer** + optional Claude polish). Respect ownership to avoid collisions and wasted tokens.
 
 ## Product shape
 
@@ -28,8 +28,8 @@ White-label multi-tenant hotel ERP (**schema-only**; no public website). Multi-a
 
 ## Cursor owns
 
-- `supabase/` migrations, RLS
-- `packages/db`, `packages/rates`
+- `supabase/` migrations, RLS (apply to droplet Postgres, not cloud Supabase)
+- Rates in `web/src/lib/rates.ts` (`packages/db` and `packages/rates` are not in this repo)
 - `scripts/bank-recon/`
 - Auth middleware, Realtime / desk live refresh
 - Check-in/out, folio, GST, agent credit, POS/KOT logic
@@ -37,7 +37,7 @@ White-label multi-tenant hotel ERP (**schema-only**; no public website). Multi-a
 - Channex ARI queue / payments wiring
 - Writing z.ai briefs and reviewing z.ai PRs/diffs
 
-Feature status for agents: [`docs/FEATURES.md`](docs/FEATURES.md). Full module / route / API / middleware map: [`docs/PROJECT-AUDIT.md`](docs/PROJECT-AUDIT.md).
+Feature history (do not treat as the live desk): [`docs/FEATURES.md`](docs/FEATURES.md). Module map: [`docs/PROJECT-AUDIT.md`](docs/PROJECT-AUDIT.md).
 
 ## z.ai owns (when briefed)
 

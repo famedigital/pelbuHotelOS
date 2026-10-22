@@ -12,6 +12,28 @@ import { formatBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
+const DEPARTURE_MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+function formatDepartureDate(iso: string | undefined): string {
+  const day = iso?.slice(8, 10);
+  const month = Number(iso?.slice(5, 7));
+  if (!day || !month) return "tomorrow";
+  return `${Number(day)} ${DEPARTURE_MONTHS[month - 1] ?? ""}`.trim();
+}
+
 function Block({
   title,
   subtitle,
@@ -133,7 +155,7 @@ function ActionRow({ children }: { children: React.ReactNode }) {
 }
 
 /** Seven FO ops blocks — StayView primary board (actionable). */
-export type FoDeskList = "checkout" | "inhouse" | "arrival" | "empty";
+export type FoDeskList = "checkout" | "tomorrow" | "inhouse" | "arrival" | "empty";
 
 export function FoOpsDashboard({
   snap,
@@ -158,6 +180,59 @@ export function FoOpsDashboard({
 
   return (
     <div className={cn("grid gap-3", !only && "lg:grid-cols-2")}>
+      {show("tomorrow") ? (
+      <Block
+        title={`Checkout ${formatDepartureDate(snap.tomorrowDepartureDate)}`}
+        subtitle={`${(snap.tomorrowDepartureRows ?? []).length} due · print for the guide`}
+        className={only ? undefined : "lg:col-span-2"}
+      >
+        <p className="px-1 pb-2 text-xs text-muted-foreground">
+          Guests leaving the next morning. Create the invoice and print it for
+          the guide to sign. Check-out stays on today&apos;s list.
+        </p>
+        {(snap.tomorrowDepartureRows ?? []).length === 0 ? (
+          <p className="px-1 text-xs text-muted-foreground">No checkouts tomorrow.</p>
+        ) : (
+          <>
+            <MiniTable
+              headers={["Room", "Guest", "Agent", "Guide", "Invoice", "Actions"]}
+            >
+              {(snap.tomorrowDepartureRows ?? []).map((r) => (
+                <DepartureTableRow
+                  key={r.id}
+                  r={r}
+                  inv={
+                    r.folio_id
+                      ? snap.tomorrowDepartureInvoices[r.folio_id]
+                      : undefined
+                  }
+                  openStay={openStay}
+                  onRefresh={refresh}
+                  showCheckout={false}
+                />
+              ))}
+            </MiniTable>
+            <MobileCardList>
+              {(snap.tomorrowDepartureRows ?? []).map((r) => (
+                <DepartureCard
+                  key={r.id}
+                  r={r}
+                  inv={
+                    r.folio_id
+                      ? snap.tomorrowDepartureInvoices[r.folio_id]
+                      : undefined
+                  }
+                  openStay={openStay}
+                  onRefresh={refresh}
+                  showCheckout={false}
+                />
+              ))}
+            </MobileCardList>
+          </>
+        )}
+      </Block>
+      ) : null}
+
       {show("checkout") ? (
       <Block
         title="Today checkout"
@@ -473,7 +548,7 @@ export function FoOpsDashboard({
       <Block
         title="Tomorrow checkout"
         subtitle={`${snap.tomorrowDepartures.length}`}
-        href="/erp/departures"
+        href="/erp/stayview?tab=tomorrow"
       >
         {snap.tomorrowDepartures.length === 0 ? (
           <p className="px-1 text-xs text-muted-foreground">None.</p>
@@ -589,11 +664,13 @@ function DepartureTableRow({
   inv,
   openStay,
   onRefresh,
+  showCheckout = true,
 }: {
   r: DayOpsRow;
   inv?: { id: string; docNo: string };
   openStay: ReturnType<typeof useFoOpsOpenStay>;
   onRefresh: () => void;
+  showCheckout?: boolean;
 }) {
   const invHref = inv
     ? `/erp/invoices/${inv.id}/print?bill=master`
@@ -638,11 +715,13 @@ function DepartureTableRow({
               onClick={() => openStay(r, "departures", "stay_money")}
             />
           ) : null}
-          <FoStayActionButton
-            label="Check out"
-            variant="default"
-            onClick={() => openStay(r, "departures", "check_out")}
-          />
+          {showCheckout ? (
+            <FoStayActionButton
+              label="Check out"
+              variant="default"
+              onClick={() => openStay(r, "departures", "check_out")}
+            />
+          ) : null}
         </ActionRow>
       </td>
     </tr>
@@ -654,11 +733,13 @@ function DepartureCard({
   inv,
   openStay,
   onRefresh,
+  showCheckout = true,
 }: {
   r: DayOpsRow;
   inv?: { id: string; docNo: string };
   openStay: ReturnType<typeof useFoOpsOpenStay>;
   onRefresh: () => void;
+  showCheckout?: boolean;
 }) {
   const invHref = inv
     ? `/erp/invoices/${inv.id}/print?bill=master`
@@ -701,12 +782,14 @@ function DepartureCard({
             onClick={() => openStay(r, "departures", "stay_money")}
           />
         ) : null}
-        <FoStayActionButton
-          label="Check out"
-          variant="default"
-          className="min-h-11"
-          onClick={() => openStay(r, "departures", "check_out")}
-        />
+        {showCheckout ? (
+          <FoStayActionButton
+            label="Check out"
+            variant="default"
+            className="min-h-11"
+            onClick={() => openStay(r, "departures", "check_out")}
+          />
+        ) : null}
       </ActionRow>
     </li>
   );

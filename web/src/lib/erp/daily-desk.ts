@@ -27,6 +27,7 @@ import {
   type MissingGuideScan,
 } from "@/lib/erp/missing-guide-scans";
 import { thimphuToday } from "@/lib/erp-lists";
+import { addDaysIso } from "@/lib/stay-dates";
 import { computeMealCovers } from "@/lib/kitchen/covers";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -95,6 +96,10 @@ export type DailyDeskSnapshot = FoTodaySnapshot & {
   emptyRooms: EmptyRoomBreakdown;
   /** folioId → issued INV for today's departures */
   departureInvoices: Record<string, { id: string; docNo: string }>;
+  /** Wall date + 1. Departures that morning, even when the business date is already ahead. */
+  tomorrowDepartureDate: string;
+  tomorrowDepartureRows: DayOpsRow[];
+  tomorrowDepartureInvoices: Record<string, { id: string; docNo: string }>;
   /** Named guests on today's in-house stays, grouped by nationality. */
   nationalityCounts: NationalityCount[];
 };
@@ -282,6 +287,7 @@ export async function loadDailyDeskSnapshot(
   propertyId: string,
 ): Promise<DailyDeskSnapshot> {
   const wallToday = thimphuToday();
+  const tomorrowDepartureDate = addDaysIso(wallToday, 1);
   const [
     fo,
     dayOps,
@@ -292,6 +298,7 @@ export async function loadDailyDeskSnapshot(
     mealCovers,
     hkUnits,
     emptyRooms,
+    tomorrowBoard,
   ] = await Promise.all([
     loadFoTodaySnapshot(admin, propertyId),
     loadDayOpsBoard(admin, propertyId, wallToday),
@@ -302,6 +309,9 @@ export async function loadDailyDeskSnapshot(
     computeMealCovers(admin, propertyId, wallToday),
     admin.from("room_units").select("hk_status").eq("property_id", propertyId),
     loadEmptyRoomBreakdown(admin, propertyId, wallToday),
+    loadDayOpsBoard(admin, propertyId, tomorrowDepartureDate, {
+      slices: ["departures"],
+    }),
   ]);
 
   const departureIds = new Set(dayOps.departures.map((r) => r.id));
@@ -383,10 +393,21 @@ export async function loadDailyDeskSnapshot(
   const folioIds = dayOps.departures
     .map((r) => r.folio_id)
     .filter((id): id is string => Boolean(id));
-  const invMap = await loadIssuedInvoiceByFolio(admin, propertyId, folioIds);
+  const tomorrowFolioIds = tomorrowBoard.departures
+    .map((r) => r.folio_id)
+    .filter((id): id is string => Boolean(id));
+  const [invMap, tomorrowInvMap] = await Promise.all([
+    loadIssuedInvoiceByFolio(admin, propertyId, folioIds),
+    loadIssuedInvoiceByFolio(admin, propertyId, tomorrowFolioIds),
+  ]);
   const departureInvoices: Record<string, { id: string; docNo: string }> = {};
   for (const [fid, inv] of invMap) {
     departureInvoices[fid] = inv;
+  }
+  const tomorrowDepartureInvoices: Record<string, { id: string; docNo: string }> =
+    {};
+  for (const [fid, inv] of tomorrowInvMap) {
+    tomorrowDepartureInvoices[fid] = inv;
   }
 
   return {
@@ -404,6 +425,9 @@ export async function loadDailyDeskSnapshot(
     inHouseMealBuckets: mealPlanBuckets(dayOps.inHouse),
     emptyRooms,
     departureInvoices,
+    tomorrowDepartureDate,
+    tomorrowDepartureRows: tomorrowBoard.departures,
+    tomorrowDepartureInvoices,
     nationalityCounts,
   };
 }

@@ -29,7 +29,6 @@ import type { CalendarAgent } from "@/components/erp/CalendarReservationDialog";
 import { AgentPicker } from "@/components/erp/AgentPicker";
 import { StaffPicker, type BookableStaff } from "@/components/erp/StaffPicker";
 import { BookingLifecycleActions, CancelReservationDialog } from "@/components/erp/BookingLifecycleActions";
-import { StayHubPrintPackMenu } from "@/components/erp/StayHubPrintPackMenu";
 import Link from "next/link";
 import { StayHubRateNightsPanel } from "@/components/erp/stay-hub/StayHubRateNightsPanel";
 import {
@@ -40,6 +39,7 @@ import {
 import { StayHubTasksPanel } from "@/components/erp/stay-hub/StayHubTasksPanel";
 import { useStayHubOptional } from "@/components/erp/StayHubContext";
 import { StayHubPrintHost } from "@/components/erp/stay-hub/StayHubPrintHost";
+import { StayHubCashierStrip } from "@/components/erp/stay-hub/StayHubCashierStrip";
 import {
   defaultCheckInToolTab,
   defaultFolioToolTab,
@@ -93,7 +93,6 @@ import type { PropertyRegistrationDesign } from "@/lib/property-settings";
 import {
   StayHubFooterBar,
   StayHubHeader,
-  StayHubLeftRail,
   StayHubMobileSteps,
   StayHubToolTabs,
   StayHubWorkFrame,
@@ -127,6 +126,7 @@ import {
   buildStayHubSteps,
   canNavigateStayHubStep,
   deskFocusedSteps,
+  isStayBoardPath,
   isStayHubArrivalTooFar,
   previousStayHubPanel,
   recommendStayHubStep,
@@ -155,8 +155,8 @@ import { printDeskSheet } from "@/lib/desk-print";
 import { thimphuToday } from "@/lib/erp-lists";
 import { nightsBetween } from "@/lib/stay-dates";
 import { cn } from "@/lib/utils";
-import { LockIcon, UnlockIcon } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { LockIcon, UnlockIcon, XIcon } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -558,6 +558,21 @@ export function StayHubDialog({
   onPanelChange?: (step: StayHubStepId) => void;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const boardDock = isStayBoardPath(pathname);
+  const stayChangedRef = useRef(false);
+  const markStayChanged = useCallback(() => {
+    stayChangedRef.current = true;
+  }, []);
+  const refreshBoardIfStayChanged = useCallback(() => {
+    if (!stayChangedRef.current) return;
+    stayChangedRef.current = false;
+    router.refresh();
+  }, [router]);
+  const closePanel = useCallback(() => {
+    refreshBoardIfStayChanged();
+    onOpenChange(false);
+  }, [onOpenChange, refreshBoardIfStayChanged]);
   const stayHubCtx = useStayHubOptional();
   const [datesPending, startDatesTransition] = useTransition();
   const [undoPending, startUndoTransition] = useTransition();
@@ -877,6 +892,36 @@ export function StayHubDialog({
     },
     [board, onPreferredStepConsumed],
   );
+
+  useEffect(() => {
+    if (!open || !bookingId) return;
+    const onDesk = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{
+          bookingId?: string | null;
+          folioId?: string | null;
+        }>
+      ).detail;
+      const bookingHit = Boolean(
+        detail?.bookingId && detail.bookingId === bookingId,
+      );
+      const folioHit = Boolean(
+        detail?.folioId &&
+          summaryRef.current?.folioId &&
+          detail.folioId === summaryRef.current.folioId,
+      );
+      if (!bookingHit && !folioHit) return;
+      markStayChanged();
+      void fetchStayHubSummary(bookingId, assignmentId).then((result) => {
+        if (result.ok) applySummary(result.data, false);
+      });
+      void fetchStayHubMoney(bookingId).then((result) => {
+        if (result.ok) setMoney(result.data);
+      });
+    };
+    window.addEventListener("hotelos-desk", onDesk);
+    return () => window.removeEventListener("hotelos-desk", onDesk);
+  }, [open, bookingId, assignmentId, applySummary, markStayChanged]);
 
   const handleCheckedIn = useCallback(
     (payload: {
@@ -1633,7 +1678,7 @@ export function StayHubDialog({
 
   const refreshStayAfterDateChange = useCallback(() => {
     if (!summary?.bookingId) {
-      router.refresh();
+      markStayChanged();
       return;
     }
     void fetchStayHubSummary(summary.bookingId, summary.assignmentId).then(
@@ -1650,7 +1695,7 @@ export function StayHubDialog({
         if (r.ok) setCheckInPayload(r.data);
       });
     }
-    router.refresh();
+    markStayChanged();
   }, [
     summary?.bookingId,
     summary?.assignmentId,
@@ -1878,7 +1923,7 @@ export function StayHubDialog({
               : prev,
           );
           window.setTimeout(() => setSaveStatus("idle"), 1800);
-          void router.refresh();
+          void markStayChanged();
         } else {
           setSaveStatus("error");
           toast.error(result.error ?? "Could not update dates");
@@ -2064,7 +2109,7 @@ export function StayHubDialog({
   };
 
   const handleClose = () => {
-    onOpenChange(false);
+    closePanel();
   };
 
   const handleUndoCheckIn = () => {
@@ -2084,7 +2129,7 @@ export function StayHubDialog({
         setCheckInTool("room");
         setMoney(null);
         moneyBookingIdRef.current = null;
-        router.refresh();
+        markStayChanged();
       } else {
         toast.error(result.error ?? "Could not undo check-in");
       }
@@ -2098,7 +2143,7 @@ export function StayHubDialog({
         if (result.ok) applySummary(result.data, false);
       },
     );
-    router.refresh();
+    markStayChanged();
   };
 
   const primaryCta = (() => {
@@ -2472,6 +2517,29 @@ export function StayHubDialog({
       onSelect: openAdvanced,
     });
   }
+  if (summary) {
+    moreActions.push({
+      key: "print-voucher",
+      label: "Print voucher",
+      onSelect: () => printDeskSheet("voucher"),
+    });
+    moreActions.push({
+      key: "print-registration",
+      label: "Print registration",
+      onSelect: () => printDeskSheet("reg"),
+    });
+    moreActions.push({
+      key: "settlement-pack",
+      label: "Settlement pack",
+      onSelect: () => {
+        window.open(
+          `/erp/bookings/${summary.bookingId}/settlement-pack`,
+          "_blank",
+          "noopener,noreferrer",
+        );
+      },
+    });
+  }
   if (folioId) {
     moreActions.push({
       key: "invoice",
@@ -2611,9 +2679,16 @@ export function StayHubDialog({
         moneyBookingIdRef.current = summary.bookingId;
         moneyForceRef.current = false;
         setMoney(r.data);
+        window.dispatchEvent(
+          new CustomEvent("innora:stay-patch", {
+            detail: {
+              bookingId: summary.bookingId,
+              folioBalance: r.data.balanceBtn,
+            },
+          }),
+        );
       }
     });
-    router.refresh();
   };
 
   const onOptimisticVoidLine = (lineId: string) => {
@@ -2686,30 +2761,51 @@ export function StayHubDialog({
       />
     ) : null;
 
+  useEffect(() => {
+    if (!open || typeof document === "undefined") return;
+    const width = showPartyRooms ? "40rem" : "28rem";
+    document.documentElement.style.setProperty("--stay-dock-width", width);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (document.querySelector("[data-slot='dialog-content']")) return;
+      closePanel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.documentElement.style.removeProperty("--stay-dock-width");
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, showPartyRooms, closePanel]);
+
   return (
     <>
-      <Dialog
-        open={open}
-        onOpenChange={(next) => {
-          if (!next) router.refresh();
-          onOpenChange(next);
-        }}
-      >
-        <DialogContent
-          showCloseButton
-          className={cn(
-            "erp flex flex-col gap-0 overflow-hidden p-0",
-            "isolate bg-background shadow-2xl",
-            "top-auto bottom-0 left-0 right-0 z-[60] h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 rounded-none border-0",
-            "data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
-            "md:top-[50%] md:bottom-auto md:left-[50%] md:right-auto md:h-auto md:max-h-[min(92vh,880px)] md:w-full md:max-w-5xl md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-lg md:border",
-            showPartyRooms ? "lg:max-w-[min(96vw,88rem)]" : "lg:max-w-6xl",
-            "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
+      {open ? (
+        <>
+          {boardDock ? null : (
+            <button
+              type="button"
+              aria-label="Close stay"
+              className="fixed inset-0 z-[60] hidden bg-black/40 md:block"
+              onClick={closePanel}
+            />
           )}
-        >
-          <DialogTitle className="sr-only">
-            Guest stay · {titleName}
-          </DialogTitle>
+          <aside
+            role="dialog"
+            aria-modal={boardDock ? false : true}
+            aria-label={`Guest stay · ${titleName}`}
+            className={cn(
+              "stay-hub-card stay-hub-dock erp fixed inset-y-0 right-0 z-[61] flex h-svh flex-col gap-0 overflow-hidden border-l bg-background p-0 shadow-xl",
+              "pt-[env(safe-area-inset-top)]",
+            )}
+          >
+            <button
+              type="button"
+              onClick={closePanel}
+              aria-label="Back to desk"
+              className="absolute top-2 right-2 z-10 inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <XIcon className="size-4" aria-hidden />
+            </button>
 
           {/* Mobile compact identity — desktop lives in left rail */}
           <StayHubHeader
@@ -2745,97 +2841,7 @@ export function StayHubDialog({
             hkStatus={summary?.roomHkStatus}
           />
 
-          <StayHubMobileSteps {...navProps} />
-
           <div className="flex min-h-0 flex-1 overflow-hidden">
-            <StayHubLeftRail
-              identity={{
-                guestName: titleName,
-                status: summary?.status,
-                roomLabel: summary?.roomLabel,
-                roomTypeName: summary?.roomTypeName,
-                checkIn: summary?.checkIn,
-                checkOut: summary?.checkOut,
-                bookingId: summary?.bookingId,
-                confirmationCode: summary?.confirmationCode,
-                agentName: summary?.agentName,
-                agentStatus:
-                  summary?.agentStatus ?? money?.agentStatus ?? null,
-                paymentMode: summary?.paymentMode ?? money?.paymentMode,
-                alerts: headerAlerts,
-                terminal,
-                saveStatus,
-                lockHint: railLockHint,
-                onForceLock: railLockHint
-                  ? () => {
-                      void forceTakeover(
-                        "Manager forced stay lease from StayHub",
-                      ).then((r) => {
-                        if (r.ok) toast.success(r.message ?? "Stay taken over");
-                        else toast.error(r.error ?? "Take-over failed");
-                      });
-                    }
-                  : undefined,
-                backLabel,
-                onBack: backTarget ? handleBack : undefined,
-                dueChipBtn: balanceOpen ? dues : null,
-                hkStatus: summary?.roomHkStatus,
-              }}
-              amount={
-                summary
-                  ? {
-                      nightlyBtn: railNightly,
-                      isCustom: summary.agreedNightlyRateBtn != null,
-                      stayTotalBtn: railStayTotal,
-                      nights: nightsCount > 0 ? nightsCount : null,
-                      rooms: roomsCount,
-                      mealPlanCode:
-                        draft?.mealPlanCode ?? summary.mealPlanCode,
-                      children: Math.max(
-                        0,
-                        Number(draft?.children) || summary.children || 0,
-                      ),
-                      extraBeds: Math.max(
-                        0,
-                        Number(draft?.extraBeds) || summary.extraBeds || 0,
-                      ),
-                      pending: sheetRatePending && railNightly == null,
-                      rateLabel: summary.agreedNightlyRateBtn != null
-                        ? summary.agreedRateReason === "Tariff"
-                          ? hubRateResolved.summaryLabel
-                          : summary.agreedRateReason?.trim() || "Agreed"
-                        : hubRateResolved.summaryLabel,
-                      editable: rateEditable,
-                      onEdit: rateEditable
-                        ? () => setRailRateOpen(true)
-                        : undefined,
-                    }
-                  : null
-              }
-              railActions={
-                balanceOpen &&
-                panel === "stay_money" &&
-                folioTool !== "collect" ? (
-                  <button
-                    type="button"
-                    onClick={() => openCollect()}
-                    className="inline-flex w-full items-center justify-center rounded-md bg-citrus px-2 text-[11px] font-semibold text-citrus-foreground"
-                  >
-                    Settle
-                  </button>
-                ) : balanceOpen && panel === "check_out" ? (
-                  <button
-                    type="button"
-                    onClick={() => openCollect()}
-                    className="inline-flex w-full items-center justify-center rounded-md border border-input bg-background px-2 text-[11px] font-semibold"
-                  >
-                    Collect on Folio
-                  </button>
-                ) : null
-              }
-              {...navProps}
-            />
-
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               {party && summary ? (
                 <StayHubPartyCommandBar
@@ -2849,7 +2855,7 @@ export function StayHubDialog({
                     void fetchStayHubPartyContext(summary.bookingId).then((r) => {
                       if (r.ok) setParty(r.data);
                     });
-                    router.refresh();
+                    markStayChanged();
                   }}
                   onExtendAll={
                     party.groupId
@@ -2859,7 +2865,7 @@ export function StayHubDialog({
                             if (res.ok) {
                               toast.success(res.message ?? "Extended");
                               void refreshSummary();
-                              router.refresh();
+                              markStayChanged();
                             } else {
                               toast.error(res.error ?? "Could not extend");
                             }
@@ -2867,43 +2873,10 @@ export function StayHubDialog({
                         }
                       : undefined
                   }
-                  endSlot={
-                    <StayHubPrintPackMenu
-                      compact
-                      bookingId={summary.bookingId}
-                      folioId={folioId}
-                      agentId={summary.agentId}
-                      confirmationCode={summary.confirmationCode}
-                      onPrintVoucher={() => printDeskSheet("voucher")}
-                      onPrintRegistration={() => printDeskSheet("reg")}
-                    />
-                  }
                 />
-              ) : (
-                <>
-                  {summary?.roomLines && summary.roomLines.length > 0 ? (
-                    <StayHubBookingRoomsStrip roomLines={summary.roomLines} />
-                  ) : null}
-                  {summary ? (
-                    <div
-                      className={cn(
-                        "flex shrink-0 flex-wrap items-center justify-end gap-2 border-b border-border",
-                        "px-3 py-1.5 pr-12 md:px-4 md:pr-14",
-                      )}
-                    >
-                      <StayHubPrintPackMenu
-                        compact
-                        bookingId={summary.bookingId}
-                        folioId={folioId}
-                        agentId={summary.agentId}
-                        confirmationCode={summary.confirmationCode}
-                        onPrintVoucher={() => printDeskSheet("voucher")}
-                        onPrintRegistration={() => printDeskSheet("reg")}
-                      />
-                    </div>
-                  ) : null}
-                </>
-              )}
+              ) : summary?.roomLines && summary.roomLines.length > 0 ? (
+                <StayHubBookingRoomsStrip roomLines={summary.roomLines} />
+              ) : null}
               <div className="flex min-h-0 flex-1 overflow-hidden">
             <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2 md:px-4 md:py-3">
               {loadError ? (
@@ -3337,8 +3310,8 @@ export function StayHubDialog({
                         onCloseStay={() => {
                           setPostCheckInOpen(false);
                           setPostRegData(null);
-                          onOpenChange(false);
-                          router.refresh();
+                          markStayChanged();
+                          closePanel();
                         }}
                       />
                     ) : isCheckInPanel ? (
@@ -3618,6 +3591,14 @@ export function StayHubDialog({
                             page.
                           </Callout>
                         ) : null}
+                        <StayHubCashierStrip
+                          status={summary.status}
+                          hasDoor={Boolean(
+                            summary.hasRoomAssigned && summary.roomLabel,
+                          )}
+                          money={money}
+                          onPrinted={onMoneyChanged}
+                        />
                         <DeskSettlePanel
                           key={`settle-${summary.bookingId}`}
                           bookingId={summary.bookingId}
@@ -3699,6 +3680,14 @@ export function StayHubDialog({
                     {/* Checkout — evidence → leave (agent) · pay-first FO */}
                     {panel === "check_out" ? (
                       <div className="space-y-2">
+                        <StayHubCashierStrip
+                          status={summary.status}
+                          hasDoor={Boolean(
+                            summary.hasRoomAssigned && summary.roomLabel,
+                          )}
+                          money={money}
+                          onPrinted={onMoneyChanged}
+                        />
                         {/* Mobile only — md+ due sits on left rail */}
                         <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-card px-2 py-1.5 md:hidden">
                           <div className="flex items-baseline gap-2">
@@ -3907,14 +3896,47 @@ export function StayHubDialog({
             </div>
           </div>
 
+          <StayHubMobileSteps {...navProps} />
           <StayHubFooterBar
             panelLabel={panelLabel}
             onClose={handleClose}
             primaryCta={primaryCta}
             moreActions={moreActions}
+            amount={
+              summary
+                ? {
+                    nightlyBtn: railNightly,
+                    isCustom: summary.agreedNightlyRateBtn != null,
+                    stayTotalBtn: railStayTotal,
+                    nights: nightsCount > 0 ? nightsCount : null,
+                    rooms: roomsCount,
+                    mealPlanCode: draft?.mealPlanCode ?? summary.mealPlanCode,
+                    children: Math.max(
+                      0,
+                      Number(draft?.children) || summary.children || 0,
+                    ),
+                    extraBeds: Math.max(
+                      0,
+                      Number(draft?.extraBeds) || summary.extraBeds || 0,
+                    ),
+                    pending: sheetRatePending && railNightly == null,
+                    rateLabel:
+                      summary.agreedNightlyRateBtn != null
+                        ? summary.agreedRateReason === "Tariff"
+                          ? hubRateResolved.summaryLabel
+                          : summary.agreedRateReason?.trim() || "Agreed"
+                        : hubRateResolved.summaryLabel,
+                    editable: rateEditable,
+                    onEdit: rateEditable
+                      ? () => setRailRateOpen(true)
+                      : undefined,
+                  }
+                : null
+            }
           />
-        </DialogContent>
-      </Dialog>
+            </aside>
+        </>
+      ) : null}
 
       {open && summary ? (
         <StayHubPrintHost
@@ -3940,8 +3962,8 @@ export function StayHubDialog({
           onOptimistic={() => patchOptimisticStatus("cancelled")}
           onRollback={rollbackOptimisticStatus}
           onSuccess={() => {
-            void refreshSummary();
-            onOpenChange(false);
+            markStayChanged();
+            closePanel();
           }}
         />
       ) : null}

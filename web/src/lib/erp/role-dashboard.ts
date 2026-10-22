@@ -1,10 +1,6 @@
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { countOpenCallItemsDueToday } from "@/lib/erp/agent-call-tasks";
 import {
-  loadGuestForecast,
-  type GuestForecast,
-} from "@/lib/erp/guest-forecast";
-import {
   canPreviewDashboards,
   DASHBOARD_VIEWS,
   deskRoleToDashboardView,
@@ -103,8 +99,6 @@ export type RoleDashboardSnapshot = {
   tpnOnFile: boolean;
   bankOnFile: boolean;
   gstFiledThisMonth: boolean;
-  /** Weekly + calendar-month guest/room forecast for all department boards. */
-  guestForecast: GuestForecast;
   /** Agent call-downs due today or earlier (FO work). */
   agentCallTasksDue: number;
   agentCallPending: number;
@@ -119,14 +113,14 @@ export type RoleDashboardSnapshot = {
 export async function loadRoleDashboardSnapshot(
   admin: Admin,
   propertyId: string,
-  options?: { forecastMonthYm?: string | null },
+  opts?: { scope?: "desk" | "full" },
 ): Promise<RoleDashboardSnapshot> {
   const today = thimphuToday();
   const monthStart = `${today.slice(0, 7)}-01`;
+  const backOffice = opts?.scope !== "desk";
 
   const [
     mealCovers,
-    guestForecast,
     dayOps,
     { data: property },
     { data: bookings },
@@ -143,9 +137,6 @@ export async function loadRoleDashboardSnapshot(
     agentCall,
   ] = await Promise.all([
     computeMealCovers(admin, propertyId, today),
-    loadGuestForecast(admin, propertyId, {
-      monthYm: options?.forecastMonthYm,
-    }),
     loadDayOpsBoard(admin, propertyId, today),
     admin
       .from("properties")
@@ -191,30 +182,38 @@ export async function loadRoleDashboardSnapshot(
       .neq("status", "cancelled")
       .order("service_time", { ascending: true })
       .limit(20),
-    admin
-      .from("gst_return_packs")
-      .select("id, status")
-      .eq("property_id", propertyId)
-      .eq("period_month", monthStart)
-      .maybeSingle(),
-    admin
-      .from("payments")
-      .select("id")
-      .eq("property_id", propertyId)
-      .eq("confirmation_status", "pending_bank")
-      .limit(20),
-    admin
-      .from("inventory_items")
-      .select("id, qty_on_hand, reorder_level")
-      .eq("property_id", propertyId)
-      .eq("is_active", true)
-      .limit(300),
-    admin
-      .from("inventory_items")
-      .select("sku, qty_on_hand")
-      .eq("property_id", propertyId)
-      .eq("sku", "LPG-FULL")
-      .maybeSingle(),
+    backOffice
+      ? admin
+          .from("gst_return_packs")
+          .select("id, status")
+          .eq("property_id", propertyId)
+          .eq("period_month", monthStart)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    backOffice
+      ? admin
+          .from("payments")
+          .select("id")
+          .eq("property_id", propertyId)
+          .eq("confirmation_status", "pending_bank")
+          .limit(20)
+      : Promise.resolve({ data: [] }),
+    backOffice
+      ? admin
+          .from("inventory_items")
+          .select("id, qty_on_hand, reorder_level")
+          .eq("property_id", propertyId)
+          .eq("is_active", true)
+          .limit(300)
+      : Promise.resolve({ data: [] }),
+    backOffice
+      ? admin
+          .from("inventory_items")
+          .select("sku, qty_on_hand")
+          .eq("property_id", propertyId)
+          .eq("sku", "LPG-FULL")
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
     admin
       .from("night_audits")
       .select("business_date")
@@ -379,7 +378,6 @@ export async function loadRoleDashboardSnapshot(
     tpnOnFile: Boolean((property?.tax_id as string | null)?.trim()),
     bankOnFile: Array.isArray(bankAccounts) && bankAccounts.length > 0,
     gstFiledThisMonth: gstPack?.status === "filed",
-    guestForecast,
     agentCallTasksDue: agentCall.tasksDue,
     agentCallPending: agentCall.pendingCalls,
     tomorrowArrivals,

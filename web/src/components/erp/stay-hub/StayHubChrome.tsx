@@ -115,7 +115,8 @@ function HkStatusChip({
 }
 
 /**
- * Mobile-only compact top bar (md+ identity lives in the left rail).
+ * Compact stay identity. The dock is one column, so this bar is the header
+ * on every width.
  */
 export function StayHubHeader(props: StayHubIdentityProps) {
   const {
@@ -149,7 +150,7 @@ export function StayHubHeader(props: StayHubIdentityProps) {
     (bookingId ? bookingId.slice(0, 8) : "");
 
   return (
-    <div className="shrink-0 border-b bg-background px-2.5 py-1.5 pr-10 md:hidden">
+    <div className="shrink-0 border-b bg-background px-2.5 py-1.5 pr-10">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           {backLabel && onBack ? (
@@ -678,7 +679,7 @@ export function StayHubSideRail({
   );
 }
 
-/** Mobile / narrow: compact horizontal steps under header. */
+/** Thin six-step strip above the footer button. */
 export function StayHubMobileSteps({
   steps,
   panel,
@@ -694,7 +695,7 @@ export function StayHubMobileSteps({
 }) {
   if (steps.length === 0) return null;
   return (
-    <div className="shrink-0 border-b px-2 py-1 md:hidden">
+    <div className="shrink-0 border-t px-2 py-1">
       <StayProgressStrip
         orientation="horizontal"
         steps={steps}
@@ -707,7 +708,7 @@ export function StayHubMobileSteps({
   );
 }
 
-/** Tool tabs for the active hierarchy step only. */
+/** Other sections of this step. The body stays on the current job. */
 export function StayHubToolTabs({
   tabs,
   activeId,
@@ -718,29 +719,30 @@ export function StayHubToolTabs({
   onChange: (id: string) => void;
 }) {
   if (tabs.length <= 1) return null;
+  const active = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
+  const rest = tabs.filter((tab) => tab.id !== active?.id);
   return (
-    <div
-      className="flex min-w-0 flex-1 gap-0.5 rounded-md border bg-muted/40 p-0.5"
-      role="tablist"
-      aria-label="Step tools"
-    >
-      {tabs.map((t) => (
-        <button
-          key={t.id}
-          type="button"
-          role="tab"
-          aria-selected={activeId === t.id}
-          onClick={() => onChange(t.id)}
-          className={cn(
-            "min-h-9 flex-1 rounded px-2 text-xs font-medium transition-colors",
-            activeId === t.id
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {t.label}
-        </button>
-      ))}
+    <div className="flex min-w-0 items-center gap-2">
+      <span className="text-xs font-medium text-foreground">{active?.label}</span>
+      {rest.length > 0 ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex h-8 items-center rounded-md px-2 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              More
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="z-[80]">
+            {rest.map((tab) => (
+              <DropdownMenuItem key={tab.id} onSelect={() => onChange(tab.id)}>
+                {tab.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
     </div>
   );
 }
@@ -862,7 +864,10 @@ export function StayHubFooterBar({
               ) : null}
             </button>
             {stayTotal != null ? (
-              <span className="text-xs tabular-nums text-muted-foreground">
+              <span
+                key={stayTotal}
+                className="stay-hub-flash text-xs tabular-nums text-muted-foreground"
+              >
                 Stay {formatGuestBtn(stayTotal)}
               </span>
             ) : null}

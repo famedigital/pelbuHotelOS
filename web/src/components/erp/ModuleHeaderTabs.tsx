@@ -34,7 +34,6 @@ function DashboardBoardTabs({
   const searchParams = useSearchParams();
   const requested = parseDashboardView(searchParams.get("view"));
   const active: DashboardView = requested ?? homeDashboardView;
-  const forecastMonth = searchParams.get("forecastMonth");
 
   return (
     <nav
@@ -46,9 +45,6 @@ function DashboardBoardTabs({
         const params = new URLSearchParams();
         if (v.id !== homeDashboardView) {
           params.set("view", v.id);
-        }
-        if (forecastMonth && /^\d{4}-\d{2}$/.test(forecastMonth)) {
-          params.set("forecastMonth", forecastMonth);
         }
         const q = params.toString();
         const href = q ? `/erp?${q}` : "/erp";

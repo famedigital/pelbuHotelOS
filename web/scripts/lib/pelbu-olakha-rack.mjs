@@ -186,6 +186,107 @@ function parseMoney(raw) {
   return Math.round(n * 100) / 100;
 }
 
+/** Count SGL / DBL / Twin / Triple from free-text room lines. */
+export function parseRoomMix(raw) {
+  const mix = { sgl: 0, dbl: 0, twin: 0, tpl: 0 };
+  const add = (kind, n) => {
+    if (Number.isFinite(n) && n > 0 && n < 100) mix[kind] += n;
+  };
+  const text = String(raw || "");
+  for (const m of text.matchAll(
+    /(\d+)\s*[xX×]?\s*(singles?|sgls?|sgl)\b/gi,
+  ))
+    add("sgl", Number(m[1]));
+  for (const m of text.matchAll(
+    /(\d+)\s*[xX×]?\s*(doubles?|dbls?|dbl)\b/gi,
+  ))
+    add("dbl", Number(m[1]));
+  for (const m of text.matchAll(/(\d+)\s*[xX×]?\s*(twins?|twn)\b/gi))
+    add("twin", Number(m[1]));
+  for (const m of text.matchAll(
+    /(\d+)\s*[xX×]?\s*(triples?|tpl|triple)\b/gi,
+  ))
+    add("tpl", Number(m[1]));
+  // "7 DBL 1 SGL" / "1 DBL"
+  for (const m of text.matchAll(
+    /\b(\d+)\s+(SGL|DBL|TWN|TWIN|SINGLE|DOUBLE|TRIPLE)\b/gi,
+  )) {
+    const n = Number(m[1]);
+    const t = m[2].toUpperCase();
+    if (t.startsWith("S") && !t.startsWith("SU")) add("sgl", n);
+    else if (t.startsWith("TW") || t === "TWN") add("twin", n);
+    else if (t.startsWith("TR") || t === "TPL") add("tpl", n);
+    else add("dbl", n);
+  }
+  return mix;
+}
+
+/** Nightly SGL/DBL from comment, with Seven Suite TA defaults when named. */
+export function parseSglDblRates(raw) {
+  const text = String(raw || "");
+  let sgl = null;
+  let dbl = null;
+  const rr = text.match(
+    /Room\s*Rate\s*:\s*([\d,]+)\s*\/?-?\s*Dbl[^\d\n]*([\d,]+)\s*\/?-?\s*Single/i,
+  );
+  if (rr) {
+    dbl = parseMoney(rr[1]);
+    sgl = parseMoney(rr[2]);
+  }
+  const sglM =
+    text.match(/\bSGL\s*[=:\-]\s*([\d,]+)/i) ||
+    text.match(/\bSGL\s*\(\s*([\d,]+)/i) ||
+    text.match(/\bSGL\s+([\d,]{3,5})\b/i);
+  const dblM =
+    text.match(/\bDBL\s*[=:\-]\s*([\d,]+)/i) ||
+    text.match(/\bDBL\s*\(\s*([\d,]+)/i) ||
+    text.match(/\bDBL\s+([\d,]{3,5})\b/i) ||
+    text.match(/\bMAPDBL\s*\(\s*([\d,]+)/i);
+  if (sgl == null && sglM) sgl = parseMoney(sglM[1]);
+  if (dbl == null && dblM) dbl = parseMoney(dblM[1]);
+  const seven = /seven\s*suites?\s*(TA\s*)?rate/i.test(text);
+  // Ecclesia comment: Apply Seven Suite TA Rate(SGL 4320, DBL 6000)
+  if (seven) {
+    if (sgl == null) sgl = 4320;
+    if (dbl == null) dbl = 6000;
+  }
+  return { sgl, dbl, twin: dbl, seven };
+}
+
+/** Stay total from room mix × SGL/DBL rates × nights (when comment has no Nu total). */
+export function estimateMixTotal(raw, nightCount, doorCount) {
+  const rates = parseSglDblRates(raw);
+  if (rates.sgl == null && rates.dbl == null) return null;
+  const mix = parseRoomMix(raw);
+  let rooms =
+    mix.sgl + mix.dbl + mix.twin + mix.tpl;
+  if (rooms <= 0) {
+    // Fall back: treat doors as DBL when only a rate exists
+    rooms = Math.max(doorCount || 0, 1);
+    mix.dbl = rooms;
+  }
+  const n = Math.max(nightCount || 1, 1);
+  const sglR = rates.sgl ?? rates.dbl;
+  const dblR = rates.dbl ?? rates.sgl;
+  const twinR = rates.twin ?? dblR;
+  const perNight =
+    mix.sgl * (sglR || 0) +
+    mix.dbl * (dblR || 0) +
+    mix.twin * (twinR || 0) +
+    mix.tpl * ((dblR || 0) * 1.25);
+  if (!(perNight > 0)) return null;
+  return {
+    total: Math.round(perNight * n * 100) / 100,
+    perNight,
+    mix,
+    rates,
+    nights: n,
+    source: rates.seven
+      ? "seven_suite_ta_rate"
+      : "sgl_dbl_rates_in_comment",
+  };
+}
+
 export function parseComment(text, fallbackYear) {
   const raw = normalizeSpace(text);
   const lines = raw
@@ -265,22 +366,123 @@ export function parseComment(text, fallbackYear) {
   const eta = firstMatch(raw, [/\bETA\s*[:：]\s*([^\n]+)/i]);
 
   let quoted = null;
-  const grandLine = raw.match(/grand\s*total\s*[=:]([^\n]+)/i);
-  if (grandLine) {
-    const nums = [...grandLine[1].matchAll(/([\d,]+(?:\.\d+)?)/g)]
+  let nightlyRate = null;
+  // Explicit stay total: Total= 10287+10287=20574/-  or Grand total: 20574
+  const totalLine = raw.match(/\b(?:grand\s*)?totals?\s*[=:]([^\n]+)/i);
+  if (totalLine) {
+    const nums = [...totalLine[1].matchAll(/([\d,]+(?:\.\d+)?)/g)]
       .map((m) => parseMoney(m[1]))
       .filter((n) => n != null);
     quoted = nums.at(-1) ?? null;
   }
+  // Nu. 5333.33X2=10666.66  or  Nu. 5600 X 2 = 11200
+  // Multiple room lines (Nu. 3429X3=10287 twice) → sum products when no Total= line.
   if (quoted == null) {
-    const trailing = [...raw.matchAll(/=\s*([\d,]+(?:\.\d+)?)\s*\/?\s*$/gm)];
+    const prod = [
+      ...raw.matchAll(
+        /Nu\.?\s*([\d,]+(?:\.\d+)?)\s*[xX×]\s*(\d+)\s*(?:nights?|n)?\s*=\s*([\d,]+(?:\.\d+)?)/gi,
+      ),
+    ];
+    if (prod.length === 1) {
+      quoted = parseMoney(prod[0][3]);
+    } else if (prod.length > 1) {
+      const sums = prod
+        .map((m) => parseMoney(m[3]))
+        .filter((n) => n != null);
+      quoted = sums.length
+        ? Math.round(sums.reduce((a, b) => a + b, 0) * 100) / 100
+        : null;
+    }
+  }
+  // Meal/room equations without Nu: MAPAI(4200 X 3=12600), 2Sgl(2300X2=4600), MAP(5000 X 2=10000/-)
+  if (quoted == null) {
+    const parenEq = [
+      ...raw.matchAll(
+        /\(\s*([\d,]+(?:\.\d+)?)\s*[xX×]\s*(\d+)\s*(?:nights?|n)?\s*=\s*([\d,]+(?:\.\d+)?)\s*(?:\/-)?\s*\)/gi,
+      ),
+    ];
+    if (parenEq.length) {
+      const sums = parenEq
+        .map((m) => parseMoney(m[3]))
+        .filter((n) => n != null);
+      if (sums.length === 1) quoted = sums[0];
+      else if (sums.length > 1) quoted = sums.reduce((a, b) => a + b, 0);
+    }
+  }
+  // Inline equation not in Nu form: 4900 X 5= 24500/-
+  if (quoted == null) {
+    const inlineEq = [
+      ...raw.matchAll(
+        /([\d,]+(?:\.\d+)?)\s*[xX×]\s*(\d+)\s*(?:nights?|n)?\s*=\s*([\d,]+(?:\.\d+)?)\s*(?:\/-)?/gi,
+      ),
+    ];
+    if (inlineEq.length) {
+      quoted = parseMoney(inlineEq[inlineEq.length - 1][3]);
+    }
+  }
+  // Nu. 6000 MAP X 3Nights  /  Nu. 5600 X 2  (no equals — rate × count)
+  if (quoted == null) {
+    const mul = raw.match(
+      /Nu\.?\s*([\d,]+(?:\.\d+)?)\s*(?:MAP|CP|EP|BB)?\s*[xX×]\s*(\d+)\s*(?:nights?|n|rooms?)?/i,
+    );
+    if (mul) {
+      const rate = parseMoney(mul[1]);
+      const qty = Number(mul[2]);
+      if (rate != null && qty > 0 && qty < 500) quoted = Math.round(rate * qty * 100) / 100;
+    }
+  }
+  // Plain stay total: Nu. 67200 / Nu. 5,143 / Nu. 5165(GST already removed)
+  if (quoted == null) {
+    const plain = [
+      ...raw.matchAll(/Nu\.?\s*([\d,]+(?:\.\d+)?)/gi),
+    ]
+      .map((m) => parseMoney(m[1]))
+      .filter((n) => n != null && n >= 500);
+    if (plain.length === 1) quoted = plain[0];
+    else if (plain.length > 1) {
+      // Prefer largest plausible stay total (group comments often list rate then total)
+      const big = plain.filter((n) => n >= 2000);
+      quoted = (big.length ? big : plain).sort((a, b) => b - a)[0] ?? null;
+    }
+  }
+  if (quoted == null) {
+    const trailing = [
+      ...raw.matchAll(/=\s*([\d,]+(?:\.\d+)?)\s*(?:\/-)?\s*$/gm),
+    ];
     if (trailing.length === 1) quoted = parseMoney(trailing[0][1]);
   }
+  // Lum / lump sum package total: Lum sum(37000)
+  if (quoted == null) {
+    const lump = raw.match(/(?:lum|lump)\s*sums?\s*\(\s*([\d,]+(?:\.\d+)?)/i);
+    if (lump) quoted = parseMoney(lump[1]);
+  }
+  // MAPAI(DBL-5000+SGL-3900*2=7800) — allow * as multiply
+  if (quoted == null) {
+    const starEq = [
+      ...raw.matchAll(
+        /([\d,]+(?:\.\d+)?)\s*\*\s*(\d+)\s*=\s*([\d,]+(?:\.\d+)?)/gi,
+      ),
+    ];
+    if (starEq.length) quoted = parseMoney(starEq[starEq.length - 1][3]);
+  }
+  // Nightly only: MAP(3900) / MAPAI(4740) — total needs nights × rate later
+  if (quoted == null) {
+    const nightly = raw.match(
+      /\b(?:MAPAI?|CPAI?|EPAI?|MAP|CP|EP|BB)\s*\(\s*([\d,]+(?:\.\d+)?)\s*\)/i,
+    );
+    if (nightly) nightlyRate = parseMoney(nightly[1]);
+  }
+  // SGL/DBL rate card in comment (Seven Suite TA, Room Rate: …) — estimate later with nights
+  const mixRates = parseSglDblRates(raw);
   const moneyMentions = [
     ...raw.matchAll(/(?:nu\.?|btn)\s*([\d,]+(?:\.\d+)?)|\b([\d,]{4,}(?:\.\d+)?)\b/gi),
   ];
   const rateUnparsed =
     quoted == null &&
+    nightlyRate == null &&
+    !mixRates.seven &&
+    mixRates.sgl == null &&
+    mixRates.dbl == null &&
     (moneyMentions.length > 0 ||
       /\b(mapai|epai|cpai|\d+\s*[x×]\s*\d+)/i.test(raw));
 
@@ -313,6 +515,8 @@ export function parseComment(text, fallbackYear) {
     diet,
     eta,
     quoted,
+    nightlyRate,
+    mixRates,
     rateUnparsed,
     extraBeds,
     commentCheckIn,
@@ -344,13 +548,34 @@ function guestOrigin(nationality, raw) {
   return "international";
 }
 
+/**
+ * Map rack dates → booking status for Pelbu FO lists.
+ * - Departures page needs status=checked_in with check_out=today
+ * - Arrivals page needs status=confirmed/pending with check_in=today
+ * - In-house is checked_in with check_in < today < check_out (plus confirmed spanning)
+ * So: left before today → checked_out; arrival due today → confirmed;
+ * stayover or due-out today → checked_in; future → confirmed.
+ */
 function operationalStatus(checkIn, checkOut, today, hint) {
   if (hint === "cancelled") return "cancelled";
   if (hint === "held") return "held";
   if (!checkIn || !checkOut) return "confirmed";
-  if (checkOut <= today) return "checked_out";
+  if (checkOut < today) return "checked_out";
   if (checkIn > today) return "confirmed";
+  if (checkIn === today) return "confirmed";
   return "checked_in";
+}
+
+/** FO Drive tabs: mutually exclusive active lists as of `today`. */
+export function foListBucket(stay, today) {
+  if (stay.blocking || stay.status === "cancelled") return null;
+  const cin = stay.check_in;
+  const cout = stay.check_out;
+  if (!cin || !cout) return null;
+  if (cout === today) return "departure";
+  if (cin < today && cout > today) return "in_house";
+  if (cin >= today && cout > today) return "reservation";
+  return null;
 }
 
 function rangesOverlapOrAdjacent(aNights, bNights) {
@@ -772,7 +997,13 @@ export function parseRack(filePath, today = "2026-10-13") {
     return true;
   });
 
-  return { stays, nights: uniqueNights, review: reviewRows, segments };
+  return {
+    today,
+    stays,
+    nights: uniqueNights,
+    review: reviewRows,
+    segments,
+  };
 }
 
 function nightsBetween(checkIn, checkOut) {
@@ -902,6 +1133,29 @@ function finishStay({
       warnings.push("comment dates differ from the rack");
     }
   }
+  let quotedTotal = parsed.quoted ?? null;
+  let amountSource = quotedTotal != null ? "comment_total" : "";
+  if (
+    quotedTotal == null &&
+    parsed.nightlyRate != null &&
+    nights.length > 0
+  ) {
+    const rooms = Math.max(doorsFinal.length || parsed.roomNumbers.length || 1, 1);
+    quotedTotal =
+      Math.round(parsed.nightlyRate * nights.length * rooms * 100) / 100;
+    amountSource = "meal_nightly_x_rooms_nights";
+  }
+  if (quotedTotal == null && nights.length > 0) {
+    const est = estimateMixTotal(
+      raw,
+      nights.length,
+      doorsFinal.length || parsed.roomNumbers.length || 0,
+    );
+    if (est) {
+      quotedTotal = est.total;
+      amountSource = est.source;
+    }
+  }
   if (parsed.rateUnparsed) warnings.push("unparsed rate");
   const aliasLabels = [...labels].filter((label) => {
     const door = doorFromLabel(label);
@@ -936,7 +1190,8 @@ function finishStay({
     room_labels: doorsFinal.join(", "),
     guide_name: parsed.guideName,
     guide_phone: parsed.guidePhone,
-    quoted_total_btn: parsed.quoted ?? "",
+    quoted_total_btn: quotedTotal ?? "",
+    amount_source: amountSource,
     payment_note: paymentNote(raw),
     diet: parsed.diet,
     eta: parsed.eta,
@@ -964,7 +1219,61 @@ function paymentNote(raw) {
   return lines.join(" | ").slice(0, 500);
 }
 
-export function workbookRows(parsed) {
+function foSheetHeaders() {
+  return [
+    "list",
+    "rooms",
+    "guest",
+    "agent",
+    "agent_code",
+    "check_in",
+    "check_out",
+    "nights",
+    "meal",
+    "status",
+    "pax",
+    "guide",
+    "phone",
+    "quoted_btn",
+    "payment_note",
+    "warnings",
+    "stay_key",
+  ];
+}
+
+function foSheetRow(stay, list) {
+  const nights =
+    stay.check_in && stay.check_out
+      ? Math.max(
+          0,
+          Math.round(
+            (Date.parse(stay.check_out) - Date.parse(stay.check_in)) / 86400000,
+          ),
+        )
+      : stay.nights?.length ?? 0;
+  return [
+    list,
+    stay.room_labels,
+    stay.guest_name,
+    stay.agent_name || "",
+    stay.agent_code,
+    stay.check_in,
+    stay.check_out,
+    String(nights),
+    stay.meal_plan_code,
+    stay.status,
+    String(stay.adults),
+    stay.guide_name || "",
+    stay.guide_phone || "",
+    stay.quoted_total_btn === "" ? "" : String(stay.quoted_total_btn),
+    stay.payment_note || "",
+    (stay.warnings || []).join("; "),
+    stay.stay_key,
+  ];
+}
+
+export function workbookRows(parsed, today) {
+  const asOf = today || parsed.today || "";
   const agentMap = new Map();
   for (const stay of parsed.stays) {
     const key = stay.agent_code;
@@ -1083,5 +1392,28 @@ export function workbookRows(parsed) {
     ]),
   ];
 
-  return { agents, stays, nightRows, review };
+  const reservation = [foSheetHeaders()];
+  const inHouse = [foSheetHeaders()];
+  const departure = [foSheetHeaders()];
+  const foCounts = { reservation: 0, in_house: 0, departure: 0 };
+  for (const stay of parsed.stays) {
+    const bucket = foListBucket(stay, asOf);
+    if (!bucket) continue;
+    foCounts[bucket] += 1;
+    if (bucket === "reservation") reservation.push(foSheetRow(stay, "Reservation"));
+    else if (bucket === "in_house") inHouse.push(foSheetRow(stay, "In House"));
+    else if (bucket === "departure") departure.push(foSheetRow(stay, "Departure"));
+  }
+
+  return {
+    agents,
+    stays,
+    nightRows,
+    review,
+    reservation,
+    inHouse,
+    departure,
+    foCounts,
+    asOf,
+  };
 }

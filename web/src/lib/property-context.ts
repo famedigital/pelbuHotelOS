@@ -127,18 +127,26 @@ export async function listProperties(admin: Admin): Promise<PropertyRow[]> {
 }
 
 /** Header switcher only — skip full property row mapping on every ERP request. */
+const listPropertySwitcherOptionsCached = cache(
+  async (): Promise<import("@/lib/property-types").PropertySwitcherOption[]> => {
+    const admin = createSupabaseAdminClient();
+    const { data } = await admin
+      .from("properties")
+      .select("id, name, setup_completed_at")
+      .order("name");
+    return (data ?? []).map((row) => ({
+      id: row.id as string,
+      name: row.name as string,
+      setup_completed_at: (row.setup_completed_at as string | null) ?? null,
+    }));
+  },
+);
+
 export async function listPropertySwitcherOptions(
   admin: Admin,
 ): Promise<import("@/lib/property-types").PropertySwitcherOption[]> {
-  const { data } = await admin
-    .from("properties")
-    .select("id, name, setup_completed_at")
-    .order("name");
-  return (data ?? []).map((row) => ({
-    id: row.id as string,
-    name: row.name as string,
-    setup_completed_at: (row.setup_completed_at as string | null) ?? null,
-  }));
+  void admin;
+  return listPropertySwitcherOptionsCached();
 }
 
 function mapProperty(row: Record<string, unknown>): PropertyRow {

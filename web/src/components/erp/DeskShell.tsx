@@ -15,6 +15,7 @@ import { DeskChromeGuard } from "@/components/erp/DeskChromeGuard";
 import { DeskSurfaceMetrics } from "@/components/erp/DeskSurfaceMetrics";
 import { FoAskShortcut } from "@/components/erp/FoAskShortcut";
 import { SoftNavRecovery } from "@/components/erp/SoftNavRecovery";
+import { DeskLiveBridge } from "@/components/erp/DeskLiveBridge";
 import { StayHubShell } from "@/components/erp/StayHubShell";
 import { Badge } from "@/components/ui/badge";
 import type { DeskRole } from "@/lib/desk-auth";
@@ -66,6 +67,7 @@ export function DeskShell({
         <ErpCommandPalette allowedModuleKeys={allowedModuleKeys} />
         <FoAskShortcut />
         <StayHubShell>
+          <DeskLiveBridge />
           <Suspense fallback={null}>
             <DeskSurfaceMetrics />
           </Suspense>
@@ -86,7 +88,10 @@ export function DeskShell({
               >
                 <DeskSideNav />
               </Suspense>
-              <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0 print:overflow-visible print:pb-0">
+              <div
+                data-desk-main
+                className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0 print:overflow-visible print:pb-0"
+              >
                 <Suspense fallback={<DeskMainSkeleton />}>
                   <FoCommandScope>{children}</FoCommandScope>
                 </Suspense>

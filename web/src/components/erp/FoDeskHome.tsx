@@ -14,6 +14,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 const TABS = [
   { id: "home", label: "Dashboard" },
   { id: "checkout", label: "Checkout" },
+  { id: "tomorrow", label: "Tomorrow checkout" },
   { id: "inhouse", label: "In house" },
   { id: "arrival", label: "Arrival" },
   { id: "empty", label: "Empty rooms" },
@@ -24,6 +25,7 @@ type DeskTab = (typeof TABS)[number]["id"];
 function isDeskTab(value: string | null): value is Exclude<DeskTab, "home"> {
   return (
     value === "checkout" ||
+    value === "tomorrow" ||
     value === "inhouse" ||
     value === "arrival" ||
     value === "empty"
@@ -102,6 +104,8 @@ export function FoDeskHome({
             <FoStayCommandTable rows={snap.dayOps.arrivals} board="arrivals" />
           </section>
         </div>
+      ) : tab === "tomorrow" ? (
+        <FoOpsDashboard snap={snap} onInvalidate={onInvalidate} only="tomorrow" />
       ) : tab === "checkout" ? (
         <section className="fo-glass p-4">
           <div className="mb-3 flex items-baseline justify-between gap-2">

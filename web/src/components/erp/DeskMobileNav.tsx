@@ -3,15 +3,16 @@
 import { deskLogout } from "@/app/actions/desk";
 import { deskShiftChange } from "@/app/actions/staff-auth";
 import { openErpCommandPalette } from "@/components/erp/ErpCommandPalette";
-import { useDeskWorkspace } from "@/components/erp/DeskWorkspaceProvider";
-import { DeskWorkspaceToggle } from "@/components/erp/DeskWorkspaceToggle";
 import { ERP_MODULES } from "@/lib/erp-nav";
 import {
   erpNavMatchesQuery,
   erpNavSearchHaystack,
 } from "@/lib/erp-nav-search";
-import { tabVisibleFromGrants } from "@/lib/erp/desk-modules";
-import { filterModulesForWorkspace, foMoreModules } from "@/lib/erp/desk-workspace";
+import {
+  filterErpNavByGrants,
+  tabVisibleFromGrants,
+} from "@/lib/erp/desk-modules";
+import { filterModulesForProductPack } from "@/lib/product-pack";
 import { pushErpRecent } from "@/lib/erp-recents";
 import { Input } from "@/components/ui/input";
 import {
@@ -24,66 +25,34 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { DESK_SHEET_TABS, resolveMenuItems, DESK_MENU_GROUPS } from "@/lib/erp/desk-menu";
 import {
+  BedDoubleIcon,
   CalendarClockIcon,
-  ClipboardListIcon,
   EllipsisIcon,
+  LogInIcon,
+  LogOutIcon,
   SearchIcon,
-  ShoppingCartIcon,
-  SparklesIcon,
-  WalletIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 
-const PRIMARY_FRONT_DESK = [
-  {
-    title: "Board",
-    href: "/erp/stayview",
-    icon: ClipboardListIcon,
-    moduleKey: "front-desk",
-  },
-  {
-    title: "Rack",
-    href: "/erp/calendar",
-    icon: CalendarClockIcon,
-    moduleKey: "calendar",
-  },
-  {
-    title: "Bills",
-    href: "/erp/bills",
-    icon: WalletIcon,
-    moduleKey: "front-desk",
-  },
-] as const;
+const PIN_ICONS = {
+  "/erp/calendar": CalendarClockIcon,
+  "/erp/arrivals": LogInIcon,
+  "/erp/in-house": BedDoubleIcon,
+  "/erp/departures": LogOutIcon,
+  "/erp/reservations": CalendarClockIcon,
+} as const;
 
-const PRIMARY_BACK_OFFICE = [
-  {
-    title: "Finance",
-    href: "/erp/finance",
-    icon: WalletIcon,
-    moduleKey: "money",
-  },
-  {
-    title: "Pay",
-    href: "/erp/bills",
-    icon: WalletIcon,
-    moduleKey: "money",
-  },
-  {
-    title: "Agents",
-    href: "/erp/agents",
-    icon: SparklesIcon,
-    moduleKey: "channels",
-  },
-  {
-    title: "POS",
-    href: "/erp/pos",
-    icon: ShoppingCartIcon,
-    moduleKey: "pos",
-  },
-] as const;
+/** Phone bar — the same front-office pins as the bottom sheet tabs. */
+const PRIMARY_TABS = DESK_SHEET_TABS.map((tab) => ({
+  title: tab.title,
+  href: tab.href,
+  icon: PIN_ICONS[tab.href as keyof typeof PIN_ICONS] ?? CalendarClockIcon,
+  moduleKey: tab.moduleKey,
+}));
 
 function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -97,29 +66,33 @@ export function DeskMobileNav({
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const { workspace } = useDeskWorkspace();
 
   const allow = useMemo(() => {
     if (!allowedModuleKeys || allowedModuleKeys.length === 0) return null;
     return allowedModuleKeys;
   }, [allowedModuleKeys]);
 
-  const primaryItems =
-    workspace === "back_office" ? PRIMARY_BACK_OFFICE : PRIMARY_FRONT_DESK;
-
-  const primary = primaryItems.filter((item) => {
+  const primary = PRIMARY_TABS.filter((item) => {
     if (!allow) return true;
     return tabVisibleFromGrants(item.moduleKey, item.href, allow);
   });
+
   const sections = useMemo(() => {
-    const filtered = filterModulesForWorkspace(ERP_MODULES, workspace, allow);
-    const list =
-      workspace === "front_desk" ? foMoreModules(filtered) : filtered;
-    return list.map((m) => ({
-      label: m.title,
-      items: m.tabs,
-    }));
-  }, [allow, workspace]);
+    let modules = filterErpNavByGrants(ERP_MODULES, allow);
+    modules = filterModulesForProductPack(modules, "hotel");
+    const hrefs = new Set<string>();
+    for (const module of modules) {
+      for (const tab of module.tabs) {
+        if (!allow || tabVisibleFromGrants(module.key, tab.href, allow)) {
+          hrefs.add(tab.href);
+        }
+      }
+    }
+    return DESK_MENU_GROUPS.map((group) => ({
+      label: group.label,
+      items: resolveMenuItems(group, hrefs, modules),
+    })).filter((section) => section.items.length > 0);
+  }, [allow]);
 
   const filteredSections = useMemo(() => {
     const q = query.trim();
@@ -201,15 +174,8 @@ export function DeskMobileNav({
           >
             <SheetHeader className="text-left">
               <SheetTitle>Desk</SheetTitle>
-              <SheetDescription>
-                {workspace === "back_office"
-                  ? "Back office tools"
-                  : "Front desk tools"}
-              </SheetDescription>
+              <SheetDescription>All tools for your role</SheetDescription>
             </SheetHeader>
-            <div className="px-3 pb-2 sm:hidden">
-              <DeskWorkspaceToggle className="w-full justify-stretch [&>button]:flex-1" />
-            </div>
             <div className="overflow-y-auto px-3 pb-4">
               <div className="mb-3 space-y-2">
                 <label className="sr-only" htmlFor="desk-more-search">
@@ -271,7 +237,8 @@ export function DeskMobileNav({
                               }
                               className={cn(
                                 "flex min-h-12 items-center gap-2.5 rounded-lg border border-border bg-card px-2.5 text-sm",
-                                active && "border-primary/50 bg-primary/5 text-primary",
+                                active &&
+                                  "border-primary/50 bg-primary/5 text-primary",
                               )}
                             >
                               <Icon className="size-4 shrink-0" />

@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/sheet";
 import { KOT_FLOW, KOT_LABEL } from "@/lib/kot";
 import { formatBtn } from "@/lib/pricing";
+import { OpenStayFolioLink } from "@/components/erp/OpenStayFolioLink";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -187,12 +188,13 @@ export function OrderTicketSheet({
                 {ticket.folioId ? (
                   <>
                     {" · "}
-                    <Link
-                      href={`/erp/folios/${ticket.folioId}`}
+                    <OpenStayFolioLink
+                      bookingId={ticket.bookingId}
+                      folioId={ticket.folioId}
                       className="text-accent underline-offset-4 hover:underline"
                     >
-                      open folio
-                    </Link>
+                      open stay
+                    </OpenStayFolioLink>
                   </>
                 ) : null}
               </p>

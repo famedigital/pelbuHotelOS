@@ -45,6 +45,8 @@ export default async function DeparturesPage() {
       }
     >
       <p className="mb-2 text-xs text-muted-foreground">
+        Departures. Open a stay for the room bill, food bill, and master bill.
+        {" "}
         {dayOps.departures.length} shown
         {dayOps.departuresWithLaundry > 0
           ? ` · ${dayOps.departuresWithLaundry} with open laundry`

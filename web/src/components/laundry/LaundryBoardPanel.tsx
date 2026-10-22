@@ -4,6 +4,7 @@ import {
   assignLaundryOrder,
 } from "@/app/actions/erp-laundry";
 import { LaundryBagPrepareForm } from "@/components/laundry/LaundryBagPrepareForm";
+import { OpenStayFolioLink } from "@/components/erp/OpenStayFolioLink";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -194,12 +195,22 @@ export function LaundryBoardPanel({
                       />
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/erp/laundry/orders/${order.id}/labels`}>
-                          <PrinterIcon className="size-3.5" />
-                          Labels
-                        </Link>
-                      </Button>
+                      <div className="flex justify-end gap-1.5">
+                        {order.booking_id ? (
+                          <OpenStayFolioLink
+                            bookingId={order.booking_id}
+                            className="inline-flex h-8 items-center rounded-md border border-input bg-background px-2.5 text-xs font-medium hover:bg-muted"
+                          >
+                            Stay
+                          </OpenStayFolioLink>
+                        ) : null}
+                        <Button asChild size="sm" variant="outline">
+                          <Link href={`/erp/laundry/orders/${order.id}/labels`}>
+                            <PrinterIcon className="size-3.5" />
+                            Labels
+                          </Link>
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

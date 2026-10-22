@@ -4,7 +4,6 @@ import { MissingGuideScans } from "@/components/erp/MissingGuideScans";
 import { DeskBlurFade } from "@/components/erp/DeskBlurFade";
 import { DeskMetricTicker } from "@/components/erp/DeskMetricTicker";
 import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
-import { GuestForecastPanel } from "@/components/erp/GuestForecastPanel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,10 +13,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { DeskRole } from "@/lib/desk-auth";
 import {
   DASHBOARD_VIEWS,
-  deskRoleToDashboardView,
   type DashboardView,
 } from "@/lib/erp/dashboard-views";
 import type { RoleDashboardSnapshot } from "@/lib/erp/role-dashboard";
@@ -362,16 +359,10 @@ export function DashboardViewSwitcher({
 function Shell({
   title,
   subtitle,
-  snap,
-  view,
-  homeView,
   children,
 }: {
   title: string;
   subtitle: string;
-  snap: RoleDashboardSnapshot;
-  view: DashboardView;
-  homeView: DashboardView;
   children: ReactNode;
 }) {
   return (
@@ -385,7 +376,6 @@ function Shell({
         </div>
         <FrontDeskLiveRefresh />
       </header>
-      <GuestForecastPanel snap={snap} view={view} homeView={homeView} />
       {children}
     </div>
   );
@@ -393,20 +383,13 @@ function Shell({
 
 function OwnerBoard({
   snap,
-  view,
-  homeView,
 }: {
   snap: RoleDashboardSnapshot;
-  view: DashboardView;
-  homeView: DashboardView;
 }) {
   return (
     <Shell
       title="Owner"
       subtitle={`${snap.propertyName ?? "Property"} · ${snap.businessDate}`}
-      snap={snap}
-      view={view}
-      homeView={homeView}
     >
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
@@ -496,20 +479,13 @@ function OwnerBoard({
 
 function ManagerBoard({
   snap,
-  view,
-  homeView,
 }: {
   snap: RoleDashboardSnapshot;
-  view: DashboardView;
-  homeView: DashboardView;
 }) {
   return (
     <Shell
       title="Manager"
       subtitle={`Duty board · ${snap.businessDate}`}
-      snap={snap}
-      view={view}
-      homeView={homeView}
     >
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
@@ -627,12 +603,8 @@ function DeskDayStat({
 
 function FrontDeskBoard({
   snap,
-  view,
-  homeView,
 }: {
   snap: RoleDashboardSnapshot;
-  view: DashboardView;
-  homeView: DashboardView;
 }) {
   const meals = snap.mealCovers;
   const covers = [
@@ -645,9 +617,6 @@ function FrontDeskBoard({
     <Shell
       title="Front desk"
       subtitle={`Shift home · ${fmtDate(snap.businessDate)}`}
-      snap={snap}
-      view={view}
-      homeView={homeView}
     >
       <section className="overflow-hidden rounded-xl border bg-card" aria-label="Today desk">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-5">
@@ -731,20 +700,13 @@ function FrontDeskBoard({
 
 function FnbBoard({
   snap,
-  view,
-  homeView,
 }: {
   snap: RoleDashboardSnapshot;
-  view: DashboardView;
-  homeView: DashboardView;
 }) {
   return (
     <Shell
       title="F&B"
       subtitle={`Register & service · ${snap.businessDate}`}
-      snap={snap}
-      view={view}
-      homeView={homeView}
     >
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
@@ -815,20 +777,13 @@ function FnbBoard({
 
 function KitchenBoard({
   snap,
-  view,
-  homeView,
 }: {
   snap: RoleDashboardSnapshot;
-  view: DashboardView;
-  homeView: DashboardView;
 }) {
   return (
     <Shell
       title="Kitchen"
       subtitle={`Cook line · pax & tickets · ${snap.businessDate}`}
-      snap={snap}
-      view={view}
-      homeView={homeView}
     >
       <MealPaxStrip snap={snap} emphasize />
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 xl:grid-cols-4">
@@ -893,20 +848,13 @@ function KitchenBoard({
 
 function HkBoard({
   snap,
-  view,
-  homeView,
 }: {
   snap: RoleDashboardSnapshot;
-  view: DashboardView;
-  homeView: DashboardView;
 }) {
   return (
     <Shell
       title="Housekeeping"
       subtitle={`Rooms · ${snap.businessDate}`}
-      snap={snap}
-      view={view}
-      homeView={homeView}
     >
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
         <Kpi
@@ -971,20 +919,13 @@ function HkBoard({
 
 function LaundryBoard({
   snap,
-  view,
-  homeView,
 }: {
   snap: RoleDashboardSnapshot;
-  view: DashboardView;
-  homeView: DashboardView;
 }) {
   return (
     <Shell
       title="Laundry"
       subtitle={`Pipeline · ${snap.businessDate}`}
-      snap={snap}
-      view={view}
-      homeView={homeView}
     >
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
         <Kpi
@@ -1047,20 +988,13 @@ function LaundryBoard({
 
 function CashierBoard({
   snap,
-  view,
-  homeView,
 }: {
   snap: RoleDashboardSnapshot;
-  view: DashboardView;
-  homeView: DashboardView;
 }) {
   return (
     <Shell
       title="Cashier"
       subtitle={`POS settle path · ${snap.businessDate}`}
-      snap={snap}
-      view={view}
-      homeView={homeView}
     >
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
@@ -1110,16 +1044,11 @@ function CashierBoard({
 export function RoleDashboard({
   view,
   snap,
-  sessionRole,
 }: {
   view: DashboardView;
   snap: RoleDashboardSnapshot;
-  sessionRole: DeskRole | null;
 }) {
-  const homeView = sessionRole
-    ? deskRoleToDashboardView(sessionRole)
-    : "front_desk";
-  const boardProps = { snap, view, homeView } as const;
+  const boardProps = { snap } as const;
   const body =
     view === "owner" ? (
       <OwnerBoard {...boardProps} />

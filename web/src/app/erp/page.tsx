@@ -5,7 +5,6 @@ import {
   loadRoleDashboardSnapshot,
   parseDashboardView,
 } from "@/lib/erp/role-dashboard";
-import { parseForecastMonthYm } from "@/lib/erp/guest-forecast";
 import {
   loadProperty,
   resolveActivePropertyId,
@@ -23,7 +22,7 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 type Props = {
-  searchParams: Promise<{ view?: string; forecastMonth?: string }>;
+  searchParams: Promise<{ view?: string }>;
 };
 
 export default async function ErpDashboardPage({ searchParams }: Props) {
@@ -47,10 +46,9 @@ export default async function ErpDashboardPage({ searchParams }: Props) {
     : "front_desk";
   const view =
     requested && canPreviewDashboards(sessionRole) ? requested : homeView;
-  const forecastMonthYm = parseForecastMonthYm(params.forecastMonth);
 
   const snap = await loadRoleDashboardSnapshot(admin, propertyId, {
-    forecastMonthYm,
+    scope: view === "front_desk" ? "desk" : "full",
   });
   const setupIncomplete = activeProperty && !activeProperty.setup_completed_at;
 
@@ -115,7 +113,7 @@ export default async function ErpDashboardPage({ searchParams }: Props) {
           </Alert>
         </div>
       ) : null}
-      <RoleDashboard view={view} snap={snap} sessionRole={sessionRole} />
+      <RoleDashboard view={view} snap={snap} />
     </>
   );
 }

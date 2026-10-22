@@ -109,6 +109,9 @@ export function FoAssistantBoard({
       byType: [],
     },
     departureInvoices: snap.departureInvoices ?? {},
+    tomorrowDepartureDate: snap.tomorrowDepartureDate ?? "",
+    tomorrowDepartureRows: snap.tomorrowDepartureRows ?? [],
+    tomorrowDepartureInvoices: snap.tomorrowDepartureInvoices ?? {},
     nationalityCounts: snap.nationalityCounts ?? [],
   };
 

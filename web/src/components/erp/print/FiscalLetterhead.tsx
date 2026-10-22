@@ -25,6 +25,7 @@ export type FiscalLineRow = {
   rate?: number | null;
   /** Service charge portion when known. */
   sc?: number | null;
+  gst?: number | null;
   amount: number;
   foc?: boolean;
 };
@@ -188,10 +189,12 @@ export function FiscalStayStrip({
 export function FiscalLinesTable({
   rows,
   showSc = false,
+  showGst = false,
   dense = false,
 }: {
   rows: FiscalLineRow[];
   showSc?: boolean;
+  showGst?: boolean;
   /** Tighter rows when the bill has many lines. */
   dense?: boolean;
 }) {
@@ -206,6 +209,9 @@ export function FiscalLinesTable({
           <th className={`${cell} text-right font-medium`}>Rate</th>
           {showSc ? (
             <th className={`${cell} text-right font-medium`}>SC</th>
+          ) : null}
+          {showGst ? (
+            <th className={`${cell} text-right font-medium`}>GST</th>
           ) : null}
           <th className={`${cell} text-right font-medium`}>Amount</th>
         </tr>
@@ -239,6 +245,13 @@ export function FiscalLinesTable({
               <td className={`${cell} text-right align-top tabular-nums`}>
                 {row.sc != null && row.sc !== 0
                   ? formatGuestBtn(row.sc)
+                  : "—"}
+              </td>
+            ) : null}
+            {showGst ? (
+              <td className={`${cell} text-right align-top tabular-nums`}>
+                {row.gst != null && row.gst !== 0
+                  ? formatGuestBtn(row.gst)
                   : "—"}
               </td>
             ) : null}
@@ -288,7 +301,7 @@ export function FiscalTotalsBlock({
           <tr>
             <td className="px-2 py-1 text-[#5c534c]">GST</td>
             <td className="px-2 py-1 text-right tabular-nums">
-              {gst > 0 ? formatGuestBtn(gst) : "Nil"}
+              {gst > 0 ? formatGuestBtn(gst) : "GST not charged"}
             </td>
           </tr>
           <tr className="border-t-2 border-[#1a1410] text-[14px] font-bold">
@@ -306,17 +319,109 @@ export function FiscalTotalsBlock({
   );
 }
 
-export function FiscalSignOff({ hotelName }: { hotelName: string }) {
+export type FiscalFoodTicket = {
+  id: string;
+  when: string;
+  place: string;
+  enteredBy: string;
+  acknowledged: string;
+  payment: string;
+};
+
+/** One row per POS ticket on the food bill: when, where, who, ack, how paid. */
+export function FiscalFoodTickets({ tickets }: { tickets: FiscalFoodTicket[] }) {
+  if (tickets.length === 0) return null;
+  return (
+    <table className="mt-2 w-full border-collapse text-[11px]">
+      <thead>
+        <tr className="bg-[#1a1410] text-left text-[9px] tracking-[0.08em] text-white uppercase">
+          <th className="px-1.5 py-1 font-medium">Time</th>
+          <th className="px-1.5 py-1 font-medium">Place</th>
+          <th className="px-1.5 py-1 font-medium">Entered by</th>
+          <th className="px-1.5 py-1 font-medium">Acknowledged</th>
+          <th className="px-1.5 py-1 font-medium">Payment</th>
+        </tr>
+      </thead>
+      <tbody>
+        {tickets.map((ticket) => (
+          <tr key={ticket.id} className="border-b border-[#ddd6cc]">
+            <td className="px-1.5 py-1 align-top whitespace-nowrap">{ticket.when}</td>
+            <td className="px-1.5 py-1 align-top">{ticket.place}</td>
+            <td className="px-1.5 py-1 align-top">{ticket.enteredBy}</td>
+            <td className="px-1.5 py-1 align-top">{ticket.acknowledged}</td>
+            <td className="px-1.5 py-1 align-top">{ticket.payment}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+export function FiscalSignOff({
+  hotelName,
+  leftLabel = "Received by",
+}: {
+  hotelName: string;
+  leftLabel?: string;
+}) {
   return (
     <div className="fiscal-signoff mt-3 grid grid-cols-2 gap-5 pt-1">
       <div>
         <div className="mb-1 h-7 border-b-[1.5px] border-[#1a1410]" />
-        <p className="text-[10px] text-[#5c534c]">Received by</p>
+        <p className="text-[10px] text-[#5c534c]">{leftLabel}</p>
       </div>
       <div>
         <div className="mb-1 h-7 border-b-[1.5px] border-[#1a1410]" />
         <p className="text-[10px] text-[#5c534c]">For {hotelName}</p>
       </div>
+    </div>
+  );
+}
+
+export function FiscalPayBlock({
+  banks,
+  qrDataUrl,
+}: {
+  banks: {
+    label: string;
+    bank?: string;
+    account?: string;
+    hint?: string;
+    qr_url?: string;
+  }[];
+  qrDataUrl?: string | null;
+}) {
+  if (banks.length === 0 && !qrDataUrl) return null;
+  return (
+    <div className="mt-3 grid grid-cols-[1fr_auto] items-start gap-3 border-t border-[#d8d0c6] pt-2 text-[11px] text-[#1a1410]">
+      <div>
+        <p className="text-[9.5px] font-bold tracking-[0.14em] text-[#5c534c] uppercase">
+          Bank
+        </p>
+        {banks.length === 0 ? (
+          <p className="mt-1 text-[#5c534c]">Ask the desk for the account.</p>
+        ) : (
+          <ul className="mt-1 space-y-1">
+            {banks.map((bank) => (
+              <li key={`${bank.label}-${bank.account ?? ""}`}>
+                <p className="font-semibold">{bank.bank || bank.label}</p>
+                {bank.label && bank.bank ? <p>{bank.label}</p> : null}
+                {bank.account ? (
+                  <p className="font-mono tabular-nums">{bank.account}</p>
+                ) : null}
+                {bank.hint ? <p className="text-[#5c534c]">{bank.hint}</p> : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      {qrDataUrl ? (
+        <div className="text-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={qrDataUrl} alt="Pay QR" width={96} height={96} />
+          <p className="mt-0.5 text-[9px] text-[#5c534c]">Scan to pay</p>
+        </div>
+      ) : null}
     </div>
   );
 }

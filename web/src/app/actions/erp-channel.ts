@@ -1,6 +1,7 @@
 "use server";
 
 import { writeAuditEvent } from "@/lib/audit";
+import { snapshotStayBeforeEdit } from "@/lib/erp/rack-history";
 import {
   enqueueAfterBookingChange,
   enqueueFullAriWindow,
@@ -555,6 +556,10 @@ export async function cancelBooking(
       agentId: booking.agent_id as string | null,
     });
 
+    await snapshotStayBeforeEdit(admin, pid, {
+      bookingId,
+      summary: "Before cancel",
+    });
     const { error: upd } = await admin
       .from("bookings")
       .update({

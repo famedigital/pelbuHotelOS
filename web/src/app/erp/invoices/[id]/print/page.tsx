@@ -3,8 +3,10 @@ import { FiscalDocEmailForm } from "@/components/erp/FiscalDocEmailForm";
 import {
   FiscalDocFooter,
   FiscalLetterhead,
+  FiscalFoodTickets,
   FiscalLinesTable,
   FiscalParties,
+  FiscalPayBlock,
   FiscalSignOff,
   FiscalStayStrip,
   FiscalTotalsBlock,
@@ -12,6 +14,7 @@ import {
 } from "@/components/erp/print/FiscalLetterhead";
 import { PrintEditableValue } from "@/components/erp/print/PrintEditableValue";
 import { cloudinaryUrl } from "@/lib/cloudinary";
+import { PRODUCTION_CANONICAL } from "@/lib/site";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
 import {
@@ -31,15 +34,21 @@ import {
 } from "@/lib/folio/package-meal-lines";
 import { guestVisibleBalanceLines } from "@/lib/folio/balance";
 import {
+  foodAcknowledgedLabel,
+  foodPaymentLabel,
+  foodPlaceLabel,
+} from "@/lib/folio/food-bill-print";
+import {
   formatGuestBtn,
   isGuestRateAdjDescription,
   roundBtn,
 } from "@/lib/pricing";
 import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
-import { effectiveGstRate } from "@/lib/property-settings";
 import { nightsBetween } from "@/lib/rates";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { notFound, redirect } from "next/navigation";
+import { buildDynamicEmv } from "@/lib/bank-qr/emv";
+import QRCode from "qrcode";
 
 export const metadata = {
   title: "Tax invoice",
@@ -59,8 +68,10 @@ type FolioLine = {
   total_btn: number;
   gst_btn: number;
   service_charge_btn?: number;
+  amount_btn?: number;
   status: string;
   source_type: string;
+  source_id?: string | null;
   reverses_line_id?: string | null;
 };
 
@@ -95,6 +106,20 @@ function fmtHotelDate(iso: string): string {
     day: "2-digit",
     month: "short",
     year: "numeric",
+    timeZone: "Asia/Thimphu",
+  });
+}
+
+function fmtHotelWhen(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 16);
+  return d.toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
     timeZone: "Asia/Thimphu",
   });
 }
@@ -173,7 +198,7 @@ export default async function FiscalInvoicePrintPage({
     ? await admin
         .from("folios")
         .select(
-          "label, booking_id, agent_id, folio_type, agents(company_name, contact_email, contact_name), folio_lines(id, description, total_btn, gst_btn, service_charge_btn, status, source_type, reverses_line_id)",
+          "label, booking_id, agent_id, folio_type, agents(company_name, contact_email, contact_name), folio_lines(id, description, total_btn, gst_btn, service_charge_btn, amount_btn, status, source_type, source_id, reverses_line_id)",
         )
         .eq("id", folioId)
         .maybeSingle()
@@ -188,13 +213,14 @@ export default async function FiscalInvoicePrintPage({
   let mealPlanCode: string | null = null;
   let roomProductLines: string[] = [];
   let roomUnitLabels: string[] = [];
+  let guideNumber: string | null = null;
 
   const bookingId = folio?.booking_id as string | null | undefined;
   if (bookingId) {
     const { data: booking } = await admin
       .from("bookings")
       .select(
-        `contact_email, contact_name, check_in, check_out, rooms, meal_plan_code,
+        `contact_email, contact_name, check_in, check_out, rooms, meal_plan_code, guide_number,
          agents(company_name),
          booking_rooms(qty, inventory_kind, room_types(name, code)),
          room_assignments(room_units(label))`,
@@ -208,6 +234,7 @@ export default async function FiscalInvoicePrintPage({
       checkIn = (booking.check_in as string | null) ?? null;
       checkOut = (booking.check_out as string | null) ?? null;
       mealPlanCode = (booking.meal_plan_code as string | null) ?? null;
+      guideNumber = (booking.guide_number as string | null) ?? null;
       if (checkIn && checkOut) {
         stayNights = nightsBetween(checkIn, checkOut);
       }
@@ -244,6 +271,23 @@ export default async function FiscalInvoicePrintPage({
     agentName = agent?.company_name?.trim() || null;
     guestName = agentName;
     guestEmail = agent?.contact_email?.trim() || null;
+  }
+
+  let payQr: string | null = null;
+  if (folioId) {
+    const { data: link } = await admin
+      .from("payment_links")
+      .select("token")
+      .eq("folio_id", folioId)
+      .eq("status", "open")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const token = (link?.token as string | undefined)?.trim();
+    if (token) {
+      const payUrl = `${PRODUCTION_CANONICAL.replace(/\/$/, "")}/pay/${token}`;
+      payQr = await QRCode.toDataURL(payUrl, { margin: 1, width: 192 });
+    }
   }
 
   const lines = guestVisibleBalanceLines(
@@ -295,6 +339,26 @@ export default async function FiscalInvoicePrintPage({
   const totalBtn = sumLines(onBill);
   const gstBtn = sumGst(onBill);
   const serviceChargeBtn = sumServiceCharge(onBill);
+  const bank = (property?.bank_accounts ?? []).find(
+    (row) => row.qr_payload || row.qr_url || row.account,
+  );
+  let bankQr: string | null = null;
+  const staticPayload = bank?.qr_payload?.trim() ?? "";
+  if (staticPayload && totalBtn > 0) {
+    const emv = buildDynamicEmv(
+      staticPayload,
+      totalBtn,
+      String(doc.doc_no ?? ""),
+    );
+    if (emv) {
+      bankQr = await QRCode.toDataURL(emv, {
+        margin: 1,
+        width: 280,
+        errorCorrectionLevel: "M",
+        color: { dark: "#1a1411", light: "#ffffff" },
+      });
+    }
+  }
 
   let publishedMenus: PublishedMenu[] = [];
   if (bill === "fnb" && checkIn && checkOut && mealPlanCode) {
@@ -314,10 +378,120 @@ export default async function FiscalInvoicePrintPage({
     }
   }
 
+  const posLines =
+    bill === "fnb"
+      ? onBill.filter((line) => {
+          const source = (line.source_type ?? "").toLowerCase();
+          return (source === "order" || source === "pos") && Boolean(line.source_id);
+        })
+      : [];
+  const orderIds = [
+    ...new Set(
+      posLines
+        .map((line) => line.source_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+
+  type FoodItem = { name: string; qty: number; rate: number; notes: string | null };
+  type FoodOrder = {
+    id: string;
+    when: string;
+    place: string;
+    enteredBy: string;
+    acknowledged: string;
+    payment: string;
+    items: FoodItem[];
+  };
+  let foodOrders: FoodOrder[] = [];
+  if (orderIds.length > 0) {
+    const { data: orderRows } = await admin
+      .from("orders")
+      .select(
+        `id, created_at, outlet, kot_status, confirmed_at, confirmed_by, server_staff_id, posted_to_folio_at,
+         dining_tables(name, area),
+         order_items(name_snapshot, qty, unit_price_btn, voided_at, line_notes),
+         order_tenders(method)`,
+      )
+      .in("id", orderIds);
+    const staffIds = [
+      ...new Set(
+        (orderRows ?? []).flatMap((row) =>
+          [row.server_staff_id, row.confirmed_by].filter(
+            (id): id is string => typeof id === "string" && id.length > 0,
+          ),
+        ),
+      ),
+    ];
+    const staffName = new Map<string, string>();
+    if (staffIds.length > 0) {
+      const { data: staffRows } = await admin
+        .from("staff_members")
+        .select("id, full_name")
+        .in("id", staffIds);
+      for (const staff of staffRows ?? []) {
+        staffName.set(staff.id as string, (staff.full_name as string) || "Staff");
+      }
+    }
+    foodOrders = (orderRows ?? []).map((row) => {
+      const table = firstOf(
+        row.dining_tables as MaybeList<{ name?: string | null; area?: string | null }>,
+      );
+      const items = (
+        (row.order_items as
+          | {
+              name_snapshot?: string | null;
+              qty?: number | null;
+              unit_price_btn?: number | null;
+              voided_at?: string | null;
+              line_notes?: string | null;
+            }[]
+          | null) ?? []
+      ).filter((item) => !item.voided_at);
+      const methods = (
+        (row.order_tenders as { method?: string | null }[] | null) ?? []
+      )
+        .map((tender) => tender.method ?? "")
+        .filter(Boolean);
+      const posted = Boolean(row.posted_to_folio_at);
+      const confirmedAt = (row.confirmed_at as string | null) ?? null;
+      const confirmedById = (row.confirmed_by as string | null) ?? null;
+      const serverId = (row.server_staff_id as string | null) ?? null;
+      return {
+        id: row.id as string,
+        when: fmtHotelWhen(String(row.created_at)),
+        place: foodPlaceLabel({
+          outlet: row.outlet as string | null,
+          tableName: table?.name ?? null,
+          tableArea: table?.area ?? null,
+        }),
+        enteredBy: (serverId && staffName.get(serverId)) || "Desk",
+        acknowledged: foodAcknowledgedLabel({
+          confirmedAt,
+          confirmedBy: confirmedById ? staffName.get(confirmedById) : null,
+          confirmedWhen: confirmedAt ? fmtHotelWhen(confirmedAt) : null,
+          kotStatus: (row.kot_status as string | null) ?? null,
+          postedToRoom: posted,
+        }),
+        payment: foodPaymentLabel(methods, posted),
+        items: items.map((item) => ({
+          name: item.name_snapshot?.trim() || "Item",
+          qty: Math.max(1, Number(item.qty) || 1),
+          rate: Number(item.unit_price_btn) || 0,
+          notes: item.line_notes?.trim() || null,
+        })),
+      };
+    });
+  }
+  const foodById = new Map(foodOrders.map((order) => [order.id, order]));
+
   const displayLines =
     bill === "fnb"
       ? presentFnbBillLines({
-          lines: onBill,
+          lines: onBill.filter((line) => {
+            const source = (line.source_type ?? "").toLowerCase();
+            return !((source === "order" || source === "pos") && line.source_id);
+          }),
           mealPlanCode,
           checkIn,
           checkOut,
@@ -325,23 +499,28 @@ export default async function FiscalInvoicePrintPage({
         })
       : onBill;
 
+  const foodBill = bill === "fnb" && foodOrders.length > 0;
   const kind = doc.doc_kind as string;
   const kindLabel =
     kind === "receipt"
       ? "Receipt"
       : kind === "credit_note"
         ? "Credit note"
-        : bill === "fnb"
-          ? foodBillLabel(mealPlanCode)
-          : BILL_KIND_LABELS[bill];
+        : foodBill
+          ? "Food bill"
+          : bill === "fnb"
+            ? foodBillLabel(mealPlanCode)
+            : BILL_KIND_LABELS[bill];
   const kindTitle =
     kind === "receipt"
       ? "RECEIPT"
       : kind === "credit_note"
         ? "CREDIT NOTE"
-        : bill === "fnb"
-          ? foodBillTitle(mealPlanCode)
-          : BILL_KIND_TITLES[bill];
+        : foodBill
+          ? "FOOD BILL"
+          : bill === "fnb"
+            ? foodBillTitle(mealPlanCode)
+            : BILL_KIND_TITLES[bill];
 
   const meta =
     doc.meta && typeof doc.meta === "object"
@@ -364,11 +543,16 @@ export default async function FiscalInvoicePrintPage({
   const netSubtotal = roundBtn(
     Math.max(0, totalBtn - gstBtn - serviceChargeBtn),
   );
-  const fiscalLines: FiscalLineRow[] = displayLines.map((line) => {
+  const packageRows: FiscalLineRow[] = displayLines.map((line) => {
     const isPackageMeal =
       bill === "fnb" && (line.source_type ?? "").toLowerCase() === "meal_plan";
     const packageMenu =
       isPackageMeal && "hint" in line ? (line.hint ?? null) : null;
+    const sc = Number(
+      "service_charge_btn" in line ? (line.service_charge_btn ?? 0) : 0,
+    );
+    const gst = Number("gst_btn" in line ? (line.gst_btn ?? 0) : 0);
+    const total = Number(line.total_btn);
     return {
       id: line.id,
       description: line.description ?? "Charge",
@@ -380,11 +564,74 @@ export default async function FiscalInvoicePrintPage({
             ? "Room"
             : null,
       qty: 1,
-      rate: Number(line.total_btn),
-      amount: Number(line.total_btn),
-      foc: Number(line.total_btn) === 0,
+      rate: Math.max(0, total - gst - sc),
+      sc,
+      gst,
+      amount: total,
+      foc: total === 0,
     };
   });
+  const seenOrders = new Set<string>();
+  const itemRows: FiscalLineRow[] = [];
+  for (const line of posLines) {
+    const orderId = line.source_id;
+    if (!orderId || seenOrders.has(orderId)) continue;
+    seenOrders.add(orderId);
+    const order = foodById.get(orderId);
+    const hint = order
+      ? `${order.when} · ${order.place} · ${order.payment}`
+      : "F&B";
+    if (!order || order.items.length === 0) {
+      const sc = Number(line.service_charge_btn ?? 0);
+      const gst = Number(line.gst_btn ?? 0);
+      const total = Number(line.total_btn);
+      itemRows.push({
+        id: line.id,
+        description: line.description ?? "Food",
+        hint,
+        qty: 1,
+        rate: Math.max(0, total - gst - sc),
+        amount: total,
+        foc: total === 0,
+      });
+      continue;
+    }
+    let extended = 0;
+    for (const item of order.items) {
+      const amount = roundBtn(item.qty * item.rate);
+      extended = roundBtn(extended + amount);
+      itemRows.push({
+        id: `${orderId}-${itemRows.length}`,
+        description: item.name,
+        hint: item.notes ? `${hint} · ${item.notes}` : hint,
+        qty: item.qty,
+        rate: item.rate,
+        amount,
+        foc: amount === 0,
+      });
+    }
+    const chargedNet = roundBtn(
+      posLines
+        .filter((row) => row.source_id === orderId)
+        .reduce((sum, row) => {
+          const sc = Number(row.service_charge_btn ?? 0);
+          const gst = Number(row.gst_btn ?? 0);
+          return sum + Math.max(0, Number(row.total_btn) - gst - sc);
+        }, 0),
+    );
+    const gap = roundBtn(chargedNet - extended);
+    if (Math.abs(gap) >= 0.5) {
+      itemRows.push({
+        id: `${orderId}-adj`,
+        description: gap < 0 ? "Discount" : "Adjustment",
+        hint,
+        qty: 1,
+        rate: gap,
+        amount: gap,
+      });
+    }
+  }
+  const fiscalLines: FiscalLineRow[] = [...packageRows, ...itemRows];
 
   const stayBits = [
     checkIn && checkOut
@@ -590,7 +837,7 @@ export default async function FiscalInvoicePrintPage({
               property?.slug === "pelbu-suites-olakha"
                 ? "www.pelbusuites.bt"
                 : null,
-            tax_id: effectiveGstRate(property, 0) > 0 ? property?.tax_id : null,
+            tax_id: property?.tax_id ?? null,
             logo_public_id: property?.logo_public_id,
             tagline: legalName && legalName !== hotelName ? legalName : null,
           }}
@@ -601,15 +848,7 @@ export default async function FiscalInvoicePrintPage({
                 ? "Credit note"
                 : "Tax invoice"
           }
-          title={
-            kind === "receipt"
-              ? "RECEIPT"
-              : kind === "credit_note"
-                ? "CREDIT NOTE"
-                : bill === "fnb"
-                  ? foodBillTitle(mealPlanCode)
-                  : "INVOICE"
-          }
+          title={kindTitle}
           meta={[
             { label: "Date", value: issueDate },
             { label: "Inv no.", value: String(doc.doc_no) },
@@ -681,11 +920,28 @@ export default async function FiscalInvoicePrintPage({
             ...(agentName
               ? [{ label: "Agent", value: agentName }]
               : []),
+            ...(guideNumber
+              ? [{ label: "Guide", value: guideNumber }]
+              : []),
           ]}
         />
 
+        <FiscalFoodTickets tickets={foodOrders} />
+
         {fiscalLines.length > 0 ? (
-          <FiscalLinesTable rows={fiscalLines} dense={fiscalLines.length >= 8} />
+          <>
+            <FiscalLinesTable
+              rows={fiscalLines}
+              dense={fiscalLines.length >= 8}
+              showSc={foodOrders.length === 0 && serviceChargeBtn > 0.005}
+              showGst={foodOrders.length === 0 && gstBtn > 0.005}
+            />
+            {foodOrders.length > 0 ? (
+              <p className="mt-1 text-[10px] text-[#5c534c]">
+                Each line is rate × qty for that item. Service charge and GST are in the total below.
+              </p>
+            ) : null}
+          </>
         ) : (
           <div className="mt-6 rounded-md border border-amber-700/30 bg-amber-50 px-4 py-3 text-center text-sm text-[#3a322c]">
             <p className="font-semibold">No guest-visible charges on this invoice</p>
@@ -735,7 +991,19 @@ export default async function FiscalInvoicePrintPage({
           </div>
         )}
 
-        <FiscalSignOff hotelName={hotelName} />
+        <FiscalPayBlock
+          banks={property?.bank_accounts ?? []}
+          qrDataUrl={bankQr ?? bank?.qr_url ?? payQr}
+        />
+
+        <FiscalSignOff
+          hotelName={hotelName}
+          leftLabel={
+            guideNumber
+              ? `Guide signature · ${guideNumber}`
+              : "Guide signature"
+          }
+        />
         <FiscalDocFooter property={{ name: hotelName, address: property?.address }} />
       </article>
       </main>

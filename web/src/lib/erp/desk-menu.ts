@@ -8,11 +8,9 @@ import { ERP_MODULES } from "@/lib/erp-nav";
 
 export type DeskMenuGroupId =
   | "stay"
-  | "book"
   | "money"
   | "rooms"
   | "fnb"
-  | "tools"
   | "hotel";
 
 export type DeskMenuGroup = {
@@ -22,40 +20,30 @@ export type DeskMenuGroup = {
   hrefs: readonly string[];
 };
 
-/** FO/BO shared menubar — hotel labels, not File/Edit. */
+/** One list for the role. Top bar is the group. The rail is that group's items. */
 export const DESK_MENU_GROUPS: readonly DeskMenuGroup[] = [
   {
     id: "stay",
-    label: "Stay",
+    label: "Front office",
     hrefs: [
-      "/erp/stayview",
+      "/erp/calendar",
       "/erp/arrivals",
       "/erp/in-house",
       "/erp/departures",
       "/erp/reservations",
+      "/erp/stayview",
       "/erp/guests",
       "/erp/stays",
+      "/erp/reserve",
+      "/erp/ask",
+      "/erp/calendar/day-sheet",
       "/erp",
     ],
   },
   {
-    id: "book",
-    label: "Book",
-    hrefs: ["/erp/reserve", "/erp/ask", "/erp/calendar", "/erp/calendar/day-sheet"],
-  },
-  {
     id: "money",
-    label: "Money",
-    hrefs: [
-      "/erp/bills",
-      "/erp/folios",
-      "/erp/invoices",
-      "/erp/payments",
-      "/erp/agents",
-      "/erp/night-audit",
-      "/erp/finance",
-      "/erp/reports",
-    ],
+    label: "Cashier",
+    hrefs: ["/erp/folios", "/erp/invoices", "/erp/bills", "/erp/payments"],
   },
   {
     id: "rooms",
@@ -82,24 +70,22 @@ export const DESK_MENU_GROUPS: readonly DeskMenuGroup[] = [
     ],
   },
   {
-    id: "tools",
-    label: "Tools",
-    hrefs: [
-      "/erp/training",
-      "/erp/agents/confirmed",
-      "/erp/channel",
-      "/erp/marketing",
-      "/erp/rate-plans",
-    ],
-  },
-  {
     id: "hotel",
     label: "Hotel",
     hrefs: [
-      "/erp/settings",
+      "/erp/night-audit",
       "/erp/rates",
+      "/erp/rate-plans",
+      "/erp/settings",
+      "/erp/finance",
+      "/erp/reports",
+      "/erp/agents",
+      "/erp/agents/confirmed",
       "/erp/hr",
       "/erp/inventory",
+      "/erp/channel",
+      "/erp/marketing",
+      "/erp/training",
       "/erp/compliance",
       "/erp/dot-assessment",
       "/erp/properties/new",
@@ -113,39 +99,37 @@ export type DeskSheetTab = {
   moduleKey: string;
 };
 
-/** Pinned bottom sheet tabs — Front desk. */
-export const FO_SHEET_TABS: readonly DeskSheetTab[] = [
-  { title: "Board", href: "/erp/stayview", moduleKey: "front-desk" },
-  { title: "Rack", href: "/erp/calendar", moduleKey: "calendar" },
-  { title: "Arrivals", href: "/erp/arrivals", moduleKey: "front-desk" },
-  { title: "In-house", href: "/erp/in-house", moduleKey: "front-desk" },
-  { title: "Departures", href: "/erp/departures", moduleKey: "front-desk" },
-  { title: "Bills", href: "/erp/bills", moduleKey: "front-desk" },
-  { title: "POS", href: "/erp/pos", moduleKey: "pos" },
+/**
+ * Unified bottom sheet tabs (RBAC-filtered). Priority order for FO + back office.
+ * Duplicates by href are skipped when building the visible list.
+ */
+/** Pinned front-office sheets. Cashier, rooms, F&B, and hotel stay in the menu. */
+export const DESK_SHEET_TABS: readonly DeskSheetTab[] = [
+  { title: "Room rack", href: "/erp/calendar", moduleKey: "calendar" },
+  { title: "Arrival", href: "/erp/arrivals", moduleKey: "front-desk" },
+  { title: "In house", href: "/erp/in-house", moduleKey: "front-desk" },
+  { title: "Departure", href: "/erp/departures", moduleKey: "front-desk" },
+  { title: "Reservations", href: "/erp/reservations", moduleKey: "front-desk" },
 ] as const;
 
-/** Pinned bottom sheet tabs — Back office. */
-export const BO_SHEET_TABS: readonly DeskSheetTab[] = [
-  { title: "Finance", href: "/erp/finance", moduleKey: "money" },
-  { title: "Night close", href: "/erp/night-audit", moduleKey: "money" },
-  { title: "Reports", href: "/erp/reports", moduleKey: "money" },
-  { title: "Bills", href: "/erp/bills", moduleKey: "money" },
-  { title: "Agents", href: "/erp/agents", moduleKey: "channels" },
-  { title: "HR", href: "/erp/hr", moduleKey: "team" },
-  { title: "Stock", href: "/erp/inventory", moduleKey: "inventory" },
-] as const;
+/** @deprecated use DESK_SHEET_TABS */
+export const FO_SHEET_TABS = DESK_SHEET_TABS;
+/** @deprecated use DESK_SHEET_TABS */
+export const BO_SHEET_TABS = DESK_SHEET_TABS;
 
-/** Extra destinations FO can pin via + */
-export const FO_PINNABLE_SHEETS: readonly DeskSheetTab[] = [
+/** Extra destinations staff can pin via + */
+export const DESK_PINNABLE_SHEETS: readonly DeskSheetTab[] = [
   { title: "Reserve", href: "/erp/reserve", moduleKey: "front-desk" },
   { title: "Ask", href: "/erp/ask", moduleKey: "front-desk" },
   { title: "Reservations", href: "/erp/reservations", moduleKey: "front-desk" },
   { title: "Guests", href: "/erp/guests", moduleKey: "front-desk" },
   { title: "Day sheet", href: "/erp/calendar/day-sheet", moduleKey: "calendar" },
   { title: "HK", href: "/erp/housekeeping", moduleKey: "rooms" },
-  { title: "Night close", href: "/erp/night-audit", moduleKey: "money" },
   { title: "Kitchen", href: "/erp/kitchen", moduleKey: "pos" },
 ] as const;
+
+/** @deprecated use DESK_PINNABLE_SHEETS */
+export const FO_PINNABLE_SHEETS = DESK_PINNABLE_SHEETS;
 
 const EXTRA_TABS_KEY = "innora.desk.sheetTabs";
 
@@ -217,11 +201,11 @@ export const FO_TOOLBAR_LINKS: readonly {
   title: string;
   href: string;
 }[] = [
-  { title: "Day sheet", href: "/erp/calendar/day-sheet" },
-  { title: "Rack", href: "/erp/calendar" },
-  { title: "Reserve", href: "/erp/reserve" },
-  { title: "Bills", href: "/erp/bills" },
-  { title: "Night close", href: "/erp/night-audit" },
+  { title: "Room rack", href: "/erp/calendar" },
+  { title: "Arrival", href: "/erp/arrivals" },
+  { title: "In house", href: "/erp/in-house" },
+  { title: "Departure", href: "/erp/departures" },
+  { title: "Reservations", href: "/erp/reservations" },
 ] as const;
 
 export function pathMatchesHref(pathname: string, href: string): boolean {

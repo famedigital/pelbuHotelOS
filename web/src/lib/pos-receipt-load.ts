@@ -17,7 +17,7 @@ export async function loadPosOrderReceiptData(
     .from("orders")
     .select(
       `id, property_id, outlet, customer_name, phone, notes, subtotal_btn, service_charge_btn, gst_btn, total_btn,
-       created_at, settled_at, voided_at, folio_id, table_id, covers,
+       created_at, settled_at, voided_at, folio_id, booking_id, table_id, covers,
        order_items(name_snapshot, qty, unit_price_btn, line_notes, voided_at),
        order_tenders(method, amount_btn, reference),
        dining_tables(name)`,
@@ -88,6 +88,7 @@ export async function loadPosOrderReceiptData(
       lines,
       tenders,
       folioId: (row.folio_id as string | null) ?? null,
+      bookingId: (row.booking_id as string | null) ?? null,
       voidedAt: (row.voided_at as string | null) ?? null,
     },
   };

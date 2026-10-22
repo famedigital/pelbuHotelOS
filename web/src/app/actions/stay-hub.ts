@@ -22,6 +22,19 @@ import { buildLedgerStripSummary } from "@/lib/folio/ledger-summary";
 import { thimphuToday } from "@/lib/erp-lists";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
+function stayDoorLabel(
+  status: string,
+  unit: { label?: string; sort_order?: number } | null | undefined,
+): string | null {
+  if (!unit) return null;
+  const open = status === "checked_in" || status === "checked_out";
+  if (open) return unit.label ?? null;
+  if (unit.sort_order != null && Number(unit.sort_order) > 0) {
+    return String(unit.sort_order);
+  }
+  return unit.label ?? null;
+}
+
 export type StayHubCheckInPayload = {
   booking: CheckInBooking;
   guides: PartnerOption[];
@@ -270,7 +283,7 @@ export async function fetchStayHubSummary(
       booking_rooms(qty, inventory_kind, room_type_id, rate_request_status, room_types(id, name, code)),
       room_assignments(id, room_unit_id, is_locked, from_date, to_date,
         chargeable, nc_reason_code,
-        room_units(id, label, room_type_id, hk_status, room_types(id, name))),
+        room_units(id, label, sort_order, room_type_id, hk_status, room_types(id, name))),
       folios(id, status, folio_lines(id, total_btn, status, source_type, reverses_line_id))
     `,
       )
@@ -329,6 +342,7 @@ export async function fetchStayHubSummary(
             | {
                 id?: string;
                 label?: string;
+                sort_order?: number;
                 room_type_id?: string;
                 hk_status?: string;
                 room_types?:
@@ -339,6 +353,7 @@ export async function fetchStayHubSummary(
             | {
                 id?: string;
                 label?: string;
+                sort_order?: number;
                 room_type_id?: string;
                 hk_status?: string;
                 room_types?:
@@ -569,7 +584,7 @@ export async function fetchStayHubSummary(
       hasRoomAssigned: assigns.length > 0,
       assignmentId: preferred?.id ?? null,
       roomUnitId,
-      roomLabel: unit?.label ?? null,
+      roomLabel: stayDoorLabel(data.status as string, unit),
       roomHkStatus: (unit?.hk_status as string | null) ?? null,
       roomTypeId: unit?.room_type_id ?? rt?.id ?? null,
       roomTypeName: rt?.name ?? null,
@@ -1855,7 +1870,7 @@ export async function fetchStayHubPartyContext(
       .from("bookings")
       .select(
         `id, confirmation_code, contact_name, status,
-         room_assignments(id, room_units(label))`,
+         room_assignments(id, room_units(label, sort_order))`,
       )
       .eq("property_id", propertyId)
       .in("id", partyIds)
@@ -1868,8 +1883,8 @@ export async function fetchStayHubPartyContext(
           | Array<{
               id?: string;
               room_units?:
-                | { label?: string }
-                | { label?: string }[]
+                | { label?: string; sort_order?: number }
+                | { label?: string; sort_order?: number }[]
                 | null;
             }>
           | null) ?? [];
@@ -1881,7 +1896,7 @@ export async function fetchStayHubPartyContext(
         confirmationCode: (b.confirmation_code as string | null) ?? null,
         contactName: (b.contact_name as string | null) ?? null,
         status: (b.status as string) ?? "pending",
-        roomLabel: unit?.label?.trim() || null,
+        roomLabel: stayDoorLabel((b.status as string) ?? "", unit),
         assignmentId: (first?.id as string | null) ?? null,
       };
     });

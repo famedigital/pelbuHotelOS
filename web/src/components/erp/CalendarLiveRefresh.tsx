@@ -3,7 +3,7 @@
 import { LiveRefreshBadge } from "@/components/erp/LiveRefreshBadge";
 import { calendarPollMs } from "@/lib/free-tier";
 
-/** Polls assignment/block fingerprints. Free-tier default ~15s. */
+/** Room rack follows the desk stream. Version poll is the backup. */
 export function CalendarLiveRefresh({
   intervalMs,
 }: {
@@ -13,7 +13,7 @@ export function CalendarLiveRefresh({
     <LiveRefreshBadge
       endpoint="/api/erp/calendar-version"
       intervalMs={intervalMs ?? calendarPollMs()}
-      title="Live poll for room / booking changes"
+      title="Live room and booking changes"
     />
   );
 }

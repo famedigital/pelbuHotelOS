@@ -155,6 +155,106 @@ export async function voidFolioLine(
   }
 }
 
+/** Void the posted line and post the replacement so the paper shows one charge. */
+export async function correctFolioLine(
+  _prev: ErpFolioOpsState,
+  formData: FormData,
+): Promise<ErpFolioOpsState> {
+  try {
+    await requireMoney();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const lineId = trimRequired(formData.get("line_id"), "Line");
+    const description = trimRequired(formData.get("description"), "Description");
+    const qty = Number(formData.get("qty") || 1);
+    const rate = Number(formData.get("rate"));
+    if (!Number.isFinite(qty) || qty <= 0) {
+      throw new Error("Qty must be at least 1.");
+    }
+    if (!Number.isFinite(rate) || rate < 0) {
+      throw new Error("Rate must be zero or more.");
+    }
+    const scOn = formData.get("sc_on") === "on";
+    const gstOn = formData.get("gst_on") === "on";
+    const reason = optionalTrim(formData.get("void_reason")) || "Correction";
+
+    const { data: line, error } = await admin
+      .from("folio_lines")
+      .select(
+        "id, folio_id, booking_id, source_type, description, qty, unit_price_btn, amount_btn, service_charge_btn, service_charge_applied, gst_btn, gst_applicable, total_btn, bill_to, business_date, room_unit_id, status, folios!inner(property_id)",
+      )
+      .eq("id", lineId)
+      .single();
+    if (error || !line) throw new Error("Folio line not found.");
+    const folioPropertyId = (line.folios as { property_id?: string } | null)
+      ?.property_id;
+    assertDeskProperty(pid, folioPropertyId, "Folio line");
+    if (line.status !== "posted") throw new Error("Only a posted line can be corrected.");
+
+    const { actor } = await resolveDeskActor();
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "folio.line_before",
+      entityType: "folio_lines",
+      entityId: lineId,
+      summary: `Before correction · ${line.description}`,
+      meta: { before: line },
+    });
+
+    const voided = await voidFolioLineWithReversal(admin, pid, {
+      lineId,
+      reason,
+      voidedBy: actor,
+      period_guard: periodGuardFromForm(formData, pid),
+    });
+
+    const property = await loadProperty(admin, pid);
+    const scRate = scOn ? Number(property?.service_charge_rate ?? 0) : 0;
+    const gstRate = gstOn ? Number(property?.gst_rate ?? 0) : 0;
+    const amount = roundBtn(qty * rate);
+    const serviceCharge = roundBtn(amount * (scRate > 1 ? scRate / 100 : scRate));
+    const gst = roundBtn((amount + serviceCharge) * (gstRate > 1 ? gstRate / 100 : gstRate));
+    const total = roundBtn(amount + serviceCharge + gst);
+
+    await postFolioCharge(admin, pid, {
+      folio_id: line.folio_id as string,
+      booking_id: (line.booking_id as string | null) ?? null,
+      source_type: (line.source_type as string) || "manual",
+      description,
+      qty,
+      unit_price_btn: rate,
+      amount_btn: amount,
+      service_charge_rate: scOn ? (scRate > 1 ? scRate / 100 : scRate) : 0,
+      service_charge_btn: serviceCharge,
+      service_charge_applied: scOn,
+      service_charge_reason: scOn ? null : "Service charge off",
+      gst_applicable: gstOn,
+      gst_btn: gst,
+      total_btn: total,
+    bill_to:
+      line.bill_to === "agent" || line.bill_to === "guest"
+        ? line.bill_to
+        : undefined,
+      business_date: (line.business_date as string | null) ?? null,
+      room_unit_id: (line.room_unit_id as string | null) ?? null,
+      period_guard: periodGuardFromForm(formData, pid),
+    });
+
+    revalidateFolio(voided.folioId);
+    return {
+      ok: true,
+      message: gstOn
+        ? "Line corrected. Reprint the same invoice."
+        : "Line corrected. GST not charged. Reprint the same invoice.",
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not correct the line.",
+    };
+  }
+}
+
 /**
  * Move guest-pays F&B / POS / laundry lines onto the agent tab (bill_to=agent).
  * Guest due drops; package residual / AR settle later stays on the agent book.
@@ -1078,6 +1178,7 @@ export async function openMasterBillPrint(
       return {
         ok: true,
         href: `/erp/invoices/${existing.id as string}/print?bill=master`,
+        docNo: null,
       };
     }
     const doc = await issueFiscalDocument(admin, pid, {
@@ -1094,11 +1195,16 @@ export async function openMasterBillPrint(
       meta: { folioId: id, docNo: doc.docNo },
     });
     revalidateFolio(id);
-    return { ok: true, href: `/erp/invoices/${doc.id}/print?bill=master` };
+    return {
+      ok: true,
+      href: `/erp/invoices/${doc.id}/print?bill=master`,
+      docNo: doc.docNo,
+    };
   } catch (e) {
+    const { deskErrorText } = await import("@/lib/folio/bill-block");
     return {
       ok: false,
-      error: e instanceof Error ? e.message : "Could not open the bill.",
+      error: deskErrorText(e),
     };
   }
 }

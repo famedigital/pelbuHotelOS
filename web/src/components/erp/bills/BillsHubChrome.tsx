@@ -1,6 +1,5 @@
 "use client";
 
-import { ErpBreadcrumb } from "@/components/erp/ErpBreadcrumb";
 import { HubShell } from "@/components/erp/HubShell";
 import { BILLS_TABS, parseHubTab } from "@/lib/erp/hubs";
 import { useSearchParams } from "next/navigation";
@@ -19,19 +18,10 @@ function BillsHubChromeInner({
   return (
     <HubShell
       heading="Bills"
-      description="Guest and agent money — collect balances, open folios, invoices, payments"
+      description={tab?.description ?? "Collect balances, folios, invoices"}
       tabs={BILLS_TABS}
       activeTab={activeTab}
       stickyCta={stickyCta}
-      breadcrumb={
-        <ErpBreadcrumb
-          items={[
-            { label: "Desk", href: "/erp/stayview" },
-            { label: "Bills", href: "/erp/bills" },
-            { label: tab?.label ?? "Bills" },
-          ]}
-        />
-      }
     >
       {children}
     </HubShell>

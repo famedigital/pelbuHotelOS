@@ -41,6 +41,11 @@ export type FolioChargeInput = {
   bill_to?: FolioBillTo;
   /** Journal date override (YYYY-MM-DD or ISO). */
   journal_date?: string | null;
+  /**
+   * inclusive = quoted rate still includes GST.
+   * net = amount is already GST-removed; do not strip 5% again.
+   */
+  tax_treatment?: "inclusive" | "net" | null;
   period_guard?: PeriodGuardOptions;
   /**
    * Skip auto whole-Nu rate absorb (used for the rate-adj line itself).
@@ -144,6 +149,7 @@ export async function postFolioCharge(
       business_date: input.business_date ?? null,
       room_unit_id: input.room_unit_id ?? null,
       bill_to: billTo,
+      tax_treatment: input.tax_treatment ?? null,
     })
     .select("id, source_type, description, total_btn, gst_btn, created_at")
     .single();

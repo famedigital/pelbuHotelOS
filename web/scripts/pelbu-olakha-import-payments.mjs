@@ -28,7 +28,7 @@ function argValue(prefix) {
 const APPLY = process.argv.includes("--apply");
 const workbookPath =
   argValue("--workbook=") ||
-  "C:/Users/rajiv/Downloads/Travel Agent Payment .xlsx";
+  "C:/Users/rajiv/Downloads/Travel Agent Payment  (2).xlsx";
 
 const CHARGE_TAG = "olakha-pay-charge:";
 const PAY_TAG = "olakha-pay:";
@@ -135,9 +135,36 @@ function guestMentions(guest, text) {
 
 function mapMethod(status) {
   const s = String(status ?? "").trim().toLowerCase();
-  if (s === "cash") return "cash";
   if (!s || s === "not received") return null;
+  if (s.includes("cash")) return "cash";
+  if (/(mbob|epay|mpay|bank|received)/i.test(s)) return "bank";
   return "bank";
+}
+
+/**
+ * Sheet Amount Received is sometimes left blank when Payment Status already
+ * says cash was taken (e.g. "Cash safe box"). Infer full collection then.
+ * Totals on the Olakha sheet are already net payable (Drive ÷ 1.05, no GST).
+ */
+function normalizeCollection(row) {
+  const status = String(row.paymentStatus ?? "").trim().toLowerCase();
+  if (!status || status === "not received") return row;
+  const impliesCashTaken =
+    status.includes("cash") || status.includes("safe box");
+  if (
+    impliesCashTaken &&
+    row.received <= OUTSTANDING_MIN &&
+    row.total > OUTSTANDING_MIN &&
+    row.outstanding >= row.total - OUTSTANDING_MIN
+  ) {
+    return {
+      ...row,
+      received: row.total,
+      outstanding: 0,
+      flags: [...(row.flags || []), "recv_inferred_from_status"],
+    };
+  }
+  return row;
 }
 
 function paymentMode(received, outstanding, total) {
@@ -150,18 +177,23 @@ function paymentMode(received, outstanding, total) {
   return "cash";
 }
 
-function rowKey(row) {
+/** Stable stay identity (excludes received — collection updates must not re-charge). */
+function identityKey(row) {
   const raw = [
     row.agent,
     row.guest,
     row.cin,
     row.cout,
     String(row.total),
-    String(row.received),
     row.month,
     row.segment ?? "",
   ].join("|");
   return createHash("sha1").update(raw).digest("hex").slice(0, 16);
+}
+
+function rowKey(row) {
+  // Prefer identity; keep received out so Cash-safe-box updates reuse the charge tag.
+  return identityKey(row);
 }
 
 function coerceBadDates(row) {
@@ -265,15 +297,29 @@ function sheetRecords(path) {
       }
     } else {
       records.push(
-        coerceBadDates({
-          ...base,
-          cin: cinDates[0] ?? parseDateCell(r[4]),
-          cout: coutDates[0] ?? parseDateCell(r[5]),
-        }),
+        normalizeCollection(
+          coerceBadDates({
+            ...base,
+            cin: cinDates[0] ?? parseDateCell(r[4]),
+            cout: coutDates[0] ?? parseDateCell(r[5]),
+          }),
+        ),
       );
     }
   }
-  return records.filter((row) => row.total > 0 || row.received > 0 || row.outstanding > 0 || row.flags.includes("multi_date_segment"));
+  return records
+    .map((row) =>
+      row.flags?.includes("multi_date_segment")
+        ? normalizeCollection(row)
+        : row,
+    )
+    .filter(
+      (row) =>
+        row.total > 0 ||
+        row.received > 0 ||
+        row.outstanding > 0 ||
+        row.flags.includes("multi_date_segment"),
+    );
 }
 
 function scoreMatch(row, booking, agentName) {
@@ -565,24 +611,42 @@ function arNote(key) {
 
 async function chargeExists(db, folioId, key) {
   if (!folioId) return false;
-  const rows = await db.select(
-    `folio_lines?select=id&folio_id=eq.${folioId}&source_type=eq.adjustment&description=eq.${encodeURIComponent(chargeDescription(key))}&limit=1`,
+  const exact = await db.select(
+    `folio_lines?select=id&folio_id=eq.${folioId}&source_type=eq.adjustment&description=like.${encodeURIComponent(`*${CHARGE_TAG}${key}*`)}&limit=1`,
   );
-  return Boolean(rows[0]);
+  if (exact[0]) return true;
+  // Legacy keys included received in the hash — accept any sheet charge on this folio.
+  const legacy = await db.select(
+    `folio_lines?select=id&folio_id=eq.${folioId}&source_type=eq.adjustment&description=like.${encodeURIComponent(`*${CHARGE_TAG}*`)}&limit=1`,
+  );
+  return Boolean(legacy[0]);
 }
 
-async function paymentExists(db, propertyId, key) {
-  const rows = await db.select(
+async function paymentExists(db, propertyId, key, bookingId, received) {
+  const byKey = await db.select(
     `payments?select=id&property_id=eq.${propertyId}&idempotency_key=eq.${encodeURIComponent(`${PAY_TAG}${key}`)}&limit=1`,
   );
-  return rows[0] ?? null;
+  if (byKey[0]) return byKey[0];
+  if (!bookingId || !(received > OUTSTANDING_MIN)) return null;
+  // Legacy idempotency keys hashed received into the tag — match by booking + amount.
+  const legacy = await db.select(
+    `payments?select=id,amount_btn,idempotency_key&property_id=eq.${propertyId}&booking_id=eq.${bookingId}&idempotency_key=like.${encodeURIComponent(`${PAY_TAG}*`)}&limit=40`,
+  );
+  const hit = legacy.find(
+    (p) => Math.abs(Number(p.amount_btn ?? 0) - received) <= OUTSTANDING_MIN,
+  );
+  return hit ?? null;
 }
 
 async function arExists(db, propertyId, bookingId, key) {
-  const rows = await db.select(
+  const exact = await db.select(
     `agent_credit_ledger?select=id&property_id=eq.${propertyId}&booking_id=eq.${bookingId}&entry_type=eq.charge&note=eq.${encodeURIComponent(arNote(key))}&limit=1`,
   );
-  return Boolean(rows[0]);
+  if (exact[0]) return true;
+  const legacy = await db.select(
+    `agent_credit_ledger?select=id&property_id=eq.${propertyId}&booking_id=eq.${bookingId}&entry_type=eq.charge&note=like.${encodeURIComponent(`*${AR_TAG}*`)}&limit=1`,
+  );
+  return Boolean(legacy[0]);
 }
 
 async function applyRow(db, propertyId, row, match, apply) {
@@ -614,7 +678,13 @@ async function applyRow(db, propertyId, row, match, apply) {
     .filter(Boolean)
     .join(" · ");
 
-  const existingPay = await paymentExists(db, propertyId, key);
+  const existingPay = await paymentExists(
+    db,
+    propertyId,
+    key,
+    booking.id,
+    row.received,
+  );
   const folio = await ensureFolio(db, propertyId, booking, apply);
   const hasCharge =
     folio.id && row.total > 0 ? await chargeExists(db, folio.id, key) : row.total <= 0;
@@ -665,12 +735,13 @@ async function applyRow(db, propertyId, row, match, apply) {
     result.actions.push("folio_created");
   }
 
+  // Sheet totals are Drive package ÷ 1.05 (SC kept, 5% GST removed — not GST-registered).
   if (row.total > 0 && !(await chargeExists(db, folioId, key))) {
     await db.insert("folio_lines", {
       folio_id: folioId,
       booking_id: booking.id,
       source_type: "adjustment",
-      description: chargeDescription(key),
+      description: `${chargeDescription(key)} · less 5% GST (not GST-registered)`,
       qty: 1,
       unit_price_btn: row.total,
       amount_btn: row.total,
@@ -679,9 +750,19 @@ async function applyRow(db, propertyId, row, match, apply) {
       total_btn: row.total,
       status: "posted",
       bill_to: agent ? "agent" : "guest",
-      bill_to_reason: agent ? "olakha payment sheet backfill" : null,
+      bill_to_reason: agent
+        ? "olakha payment sheet · net of GST"
+        : null,
     });
     result.actions.push(`charge:${row.total}`);
+  }
+
+  // Re-open settled/closed folio when posting a collection update.
+  if (row.received > 0 && folioId && !existingPay) {
+    await db.update(`folios?id=eq.${folioId}`, {
+      status: "open",
+      closed_at: null,
+    });
   }
 
   if (row.received > 0 && !existingPay) {
@@ -744,6 +825,55 @@ async function applyRow(db, propertyId, row, match, apply) {
     });
     agent.credit_used = nextUsed;
     result.actions.push(`ar:${row.outstanding}`);
+  }
+
+  // Collection update: clear prior sheet AR when outstanding is now settled.
+  if (
+    row.outstanding <= OUTSTANDING_MIN &&
+    row.received > OUTSTANDING_MIN &&
+    agent &&
+    (await arExists(db, propertyId, booking.id, key))
+  ) {
+    const prior = await db.select(
+      `agent_credit_ledger?select=id,amount_btn,entry_type&property_id=eq.${propertyId}&booking_id=eq.${booking.id}&note=like.${encodeURIComponent(`*${AR_TAG}*`)}&limit=20`,
+    );
+    const openCharge = prior
+      .filter((e) => e.entry_type === "charge")
+      .reduce((s, e) => s + Number(e.amount_btn ?? 0), 0);
+    const alreadyPaid = prior
+      .filter((e) => e.entry_type === "payment")
+      .reduce((s, e) => s + Number(e.amount_btn ?? 0), 0);
+    const clearAmt = round2(Math.max(0, openCharge - alreadyPaid));
+    if (clearAmt > OUTSTANDING_MIN) {
+      const used = round2(Number(agent.credit_used ?? 0));
+      const nextUsed = round2(Math.max(0, used - clearAmt));
+      await db.update(`agents?id=eq.${agent.id}`, { credit_used: nextUsed });
+      const links = await db.select(
+        `agent_property_links?select=agent_id,property_id,credit_used&agent_id=eq.${agent.id}&property_id=eq.${propertyId}&limit=1`,
+      );
+      if (links[0]) {
+        await db.update(
+          `agent_property_links?agent_id=eq.${agent.id}&property_id=eq.${propertyId}`,
+          {
+            credit_used: round2(
+              Math.max(0, Number(links[0].credit_used ?? 0) - clearAmt),
+            ),
+          },
+        );
+      }
+      await db.insert("agent_credit_ledger", {
+        property_id: propertyId,
+        agent_id: agent.id,
+        booking_id: booking.id,
+        payment_id: result.paymentId ?? null,
+        entry_type: "payment",
+        amount_btn: clearAmt,
+        balance_after_btn: nextUsed,
+        note: `Collection from payment sheet · ${AR_TAG}${key}`,
+      });
+      agent.credit_used = nextUsed;
+      result.actions.push(`ar_clear:${clearAmt}`);
+    }
   }
 
   if (row.outstanding <= OUTSTANDING_MIN && row.received > 0 && folioId) {

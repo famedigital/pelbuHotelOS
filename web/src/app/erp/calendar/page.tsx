@@ -1,4 +1,5 @@
 import { FoHkLegend } from "@/components/erp/FoCommandDesk";
+import { RackHistoryPanel } from "@/components/erp/RackHistoryPanel";
 import {
   RoomRackGrid,
   type RackAllotment,
@@ -594,6 +595,7 @@ export default async function CalendarPage({ searchParams }: Props) {
     >
       <div className="shrink-0 space-y-2 p-2">
         <FoHkLegend units={units} />
+        <RackHistoryPanel />
         <DeskOfflineQueueStrip defaultKind="hold_draft" />
       </div>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">

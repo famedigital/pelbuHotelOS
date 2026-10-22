@@ -104,13 +104,18 @@ export const SETTINGS_SEARCH_INDEX: SettingsSearchEntry[] = [
     keywords: [
       "gst",
       "tax",
+      "tpn",
+      "rrco",
+      "bank",
+      "qr",
+      "invoice",
       "service charge",
       "sc",
       "night audit",
       "end of day",
       "close time",
     ],
-    blurb: "GST, service charge, end-of-day close",
+    blurb: "RRCO invoice, TPN, bank QR, GST",
   },
   {
     label: "Meals & defaults",
@@ -340,7 +345,7 @@ export const SETTINGS_DIRECTORY: {
   {
     label: "Tax & service",
     tab: "tax",
-    blurb: "GST, SC, end-of-day close",
+    blurb: "RRCO invoice, TPN, bank QR, GST",
     group: "Money",
   },
   {

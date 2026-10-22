@@ -10,6 +10,7 @@ import {
 import { StayHubErrorBoundary } from "@/components/erp/stay-hub/StayHubErrorBoundary";
 import {
   parseStayHubStep,
+  isStayBoardPath,
   type StayHubStepId,
 } from "@/lib/folio/stay-hub-cycle";
 import dynamic from "next/dynamic";
@@ -230,6 +231,19 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
     setBoard(pathBoard);
     suppressUrlWrite.current = false;
   }, [searchParams, bookingId, pathname]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const root = document.documentElement;
+    if (!open) {
+      delete root.dataset.stayDock;
+      return;
+    }
+    root.dataset.stayDock = isStayBoardPath(pathname) ? "board" : "sheet";
+    return () => {
+      delete root.dataset.stayDock;
+    };
+  }, [open, pathname]);
 
   const value = useMemo(
     () => ({

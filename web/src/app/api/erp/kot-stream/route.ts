@@ -5,14 +5,11 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-/** Must be a literal for Next segment config. Stream rotates ~50s (see lib/sse). */
-export const maxDuration = 60;
 
 /**
  * Desk-auth SSE bridge to Supabase Realtime on `orders`.
  * Browser never gets the service role key; KDS / POS refresh only after a push.
- *
- * Vercel cannot hold SSE forever — connection rotates ~50s (client reconnects).
+ * On the droplet the stream stays open. Vercel still rotates it (see lib/sse).
  */
 export async function GET(request: Request): Promise<Response> {
   if (!(await isDeskAuthenticated())) {

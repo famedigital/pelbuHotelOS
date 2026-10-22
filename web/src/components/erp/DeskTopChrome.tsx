@@ -32,20 +32,14 @@ import type { PropertySwitcherOption } from "@/lib/property-types";
 import { SITE_NAME } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import {
-  BedDouble,
-  DoorOpen,
-  LayoutDashboard,
-  LogIn,
-  LogOut,
   MenuIcon,
-  PlaneLanding,
   PrinterIcon,
   SearchIcon,
   type LucideIcon,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   createContext,
   useContext,
@@ -57,19 +51,17 @@ import {
 
 const MENU_TITLE: Record<string, string> = {
   stay: "Front office",
-  book: "Booking",
-  money: "Money",
+  money: "Cashier",
   rooms: "Rooms",
-  fnb: "Restaurant",
-  tools: "Tools",
+  fnb: "F&B",
   hotel: "Hotel",
 };
 
 const RIBBON_LABEL: Record<string, string> = {
   "/erp/stayview": "Dashboard",
-  "/erp/arrivals": "Arrivals",
+  "/erp/arrivals": "Arrival",
   "/erp/in-house": "In house",
-  "/erp/departures": "Checkout",
+  "/erp/departures": "Departure",
   "/erp/reservations": "Reservations",
   "/erp/guests": "Guests",
   "/erp/stays": "All stays",
@@ -87,54 +79,6 @@ const RIBBON_LABEL: Record<string, string> = {
   "/erp/pos": "Restaurant bill",
   "/erp/kitchen": "Kitchen",
 };
-
-const STAY_LIST_HREFS = new Set([
-  "/erp/stayview",
-  "/erp/arrivals",
-  "/erp/in-house",
-  "/erp/departures",
-]);
-
-const STAY_RIBBON: {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-  tab: string | null;
-  emphasis?: boolean;
-}[] = [
-  { href: "/erp/stayview", label: "Dashboard", icon: LayoutDashboard, tab: null },
-  {
-    href: "/erp/stayview?tab=checkout",
-    label: "Checkout",
-    icon: LogOut,
-    tab: "checkout",
-  },
-  {
-    href: "/erp/stayview?tab=inhouse",
-    label: "In house",
-    icon: BedDouble,
-    tab: "inhouse",
-  },
-  {
-    href: "/erp/stayview?tab=arrival",
-    label: "Arrival",
-    icon: PlaneLanding,
-    tab: "arrival",
-  },
-  {
-    href: "/erp/stayview?tab=empty",
-    label: "Empty rooms",
-    icon: DoorOpen,
-    tab: "empty",
-  },
-  {
-    href: "/erp/stayview?tab=arrival",
-    label: "Check in",
-    icon: LogIn,
-    tab: "check-in",
-    emphasis: true,
-  },
-];
 
 function ribbonLabel(href: string, title: string) {
   return RIBBON_LABEL[href] ?? title;
@@ -354,46 +298,7 @@ export function DeskTopChrome({
                       {MENU_TITLE[group.id] ?? group.label}
                     </h2>
                     <ul className="space-y-0.5">
-                      {group.id === "stay"
-                        ? STAY_RIBBON.filter((item) => !item.emphasis).map(
-                            (item) => {
-                              const Icon = item.icon;
-                              return (
-                                <li key={item.label}>
-                                  <SheetClose asChild>
-                                    <Link
-                                      href={item.href}
-                                      className="flex min-h-10 items-center gap-2 rounded-md px-2 text-sm hover:bg-muted"
-                                    >
-                                      <Icon className="size-4 shrink-0 opacity-70" />
-                                      {item.label}
-                                    </Link>
-                                  </SheetClose>
-                                </li>
-                              );
-                            },
-                          )
-                        : null}
-                      {group.id === "stay" ? (
-                        <li>
-                          <SheetClose asChild>
-                            <Link
-                              href="/erp/stayview?tab=arrival"
-                              className="flex min-h-10 items-center gap-2 rounded-md px-2 text-sm font-medium hover:bg-muted"
-                            >
-                              <LogIn className="size-4 shrink-0" />
-                              Check in
-                            </Link>
-                          </SheetClose>
-                        </li>
-                      ) : null}
-                      {group.items
-                        .filter(
-                          (item) =>
-                            group.id !== "stay" ||
-                            !STAY_LIST_HREFS.has(item.href),
-                        )
-                        .map((item) => {
+                      {group.items.map((item) => {
                         const Icon = item.icon;
                         return (
                           <li key={item.href}>
@@ -494,14 +399,9 @@ export function DeskTopChrome({
 /** Desktop rail for the menu picked in the top bar. Phones keep the Menu sheet. */
 export function DeskSideNav() {
   const pathname = usePathname();
-  const tab = useSearchParams().get("tab");
   const { activeGroup } = useDeskMenu();
   if (!activeGroup) return null;
 
-  const stay = activeGroup.id === "stay";
-  const rest = stay
-    ? activeGroup.items.filter((item) => !STAY_LIST_HREFS.has(item.href))
-    : activeGroup.items;
   const title = MENU_TITLE[activeGroup.id] ?? activeGroup.label;
 
   return (
@@ -513,28 +413,7 @@ export function DeskSideNav() {
       <p className="px-2 pb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
         {title}
       </p>
-      {stay
-        ? STAY_RIBBON.map((item) => {
-            const on =
-              !item.emphasis &&
-              pathname === "/erp/stayview" &&
-              (tab ?? "home") === (item.tab ?? "home");
-            return (
-              <SideLink
-                key={item.label}
-                href={item.href}
-                label={item.label}
-                icon={item.icon}
-                active={on}
-                emphasis={item.emphasis}
-              />
-            );
-          })
-        : null}
-      {stay && rest.length > 0 ? (
-        <span className="my-1 h-px bg-border" aria-hidden />
-      ) : null}
-      {rest.map((item) => (
+      {activeGroup.items.map((item) => (
         <SideLink
           key={item.href}
           href={item.href}
@@ -553,14 +432,12 @@ function SideLink({
   label,
   icon: Icon,
   active,
-  emphasis,
   onClick,
 }: {
   href: string;
   label: string;
   icon: LucideIcon;
   active?: boolean;
-  emphasis?: boolean;
   onClick?: () => void;
 }) {
   return (
@@ -571,8 +448,6 @@ function SideLink({
       className={cn(
         "flex h-8 items-center gap-2 rounded-md px-2 text-[13px] text-muted-foreground hover:bg-muted hover:text-foreground",
         active && "bg-muted font-medium text-foreground",
-        emphasis &&
-          "bg-sky-600 font-medium text-white hover:bg-sky-500 hover:text-white",
       )}
     >
       <Icon className="size-4 shrink-0" />

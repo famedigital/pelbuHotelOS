@@ -25,7 +25,7 @@ Settings → Tax: *Post day-1 room rent at check-in* (default on). Kitchen publi
 
 | Role | Home | First 30 minutes |
 |------|------|------------------|
-| Front desk | `/erp/arrivals` | Scan arrivals → assign clean rooms → lead guest ID → check-in → Folio collect |
+| Front desk | `/erp/today` and Stay View | Open the stay in StayHub → assign a clean room → register → folio. Arrivals is a list, not a second editor. |
 | Cashier / F&B | `/erp/pos` | Open register → room-charge tickets → settle walk-ins; escalate master folio to FO |
 | Kitchen | `/erp/kitchen` | BF/L/D covers board → KDS pass → mark served; food-cost tabs are manager-only |
 | HK / laundry | HK or laundry home | Dirty→clean queue; arrivals board shows readiness |
@@ -36,7 +36,7 @@ Settings → Tax: *Post day-1 room rent at check-in* (default on). Kitchen publi
 
 ## Night audit cron
 
-- Schedule: `0 18 * * *` UTC ≈ midnight Thimphu (`vercel.json`).
+- Schedule: `0 18 * * *` UTC ≈ midnight Thimphu. On the droplet this is a host timer, `supabase/scripts/droplet-desk-cron.sh night-audit`. `vercel.json` does not run there. The same script covers `expire-holds` and `notifications`.
 - Auth: `Authorization: Bearer CRON_SECRET` (required in production).
 - Default policy: cron **completes** even with close-day blockers; blockers are stored on `night_audits.summary.blockers` and returned in the cron JSON.
 - Strict mode: set `NIGHT_AUDIT_CRON_STRICT=1` to fail the cron when dirty rooms / open balances / rate variance / overdue departures exist (desk must clear or force-close manually first).
@@ -75,8 +75,9 @@ Every successful night audit (desk or cron) builds a multi-sheet `.xlsx` hotel s
 
 - Settings → Identity → Public/desk hostnames.
 - Settings → Identity → Org name & seats (tenant plan / seat_limit / billing_status read-only stub).
-- Add the same hostnames in Vercel domains; middleware sets `x-pelbu-property-*`.
+- Production hostnames are routed by Coolify / Traefik on the droplet. Middleware still resolves the property from the host.
 - Public CMS/content resolves Host first, then flagship slug.
+- Server database URL is `SUPABASE_INTERNAL_URL` (Docker network). Browsers use the public HTTPS host only.
 
 ## Channel (Channex)
 
@@ -143,4 +144,4 @@ Engineering waves are shipped. Owner still owns:
 - Agent FO: [FO-AGENT-COMMERCE-CHECKLIST.md](FO-AGENT-COMMERCE-CHECKLIST.md)
 - GST e-invoice stub: [GST-EINVOICE.md](GST-EINVOICE.md) — live when DRC mandates
 - Map: [WHITEBOARD.md](WHITEBOARD.md)
-- Features truth: [FEATURES.md](FEATURES.md)
+- Features history (August 2026, not the droplet desk): [FEATURES.md](FEATURES.md). Current desk rules are this runbook and `.cursor/skills/pelbu-hotel-ops`.

@@ -44,6 +44,7 @@ import type {
 } from "@/lib/room-assignments";
 import { cn } from "@/lib/utils";
 import { Trash2Icon, TriangleAlertIcon } from "lucide-react";
+import { OpenStayFolioLink } from "@/components/erp/OpenStayFolioLink";
 import Link from "next/link";
 import {
   useActionState,
@@ -417,12 +418,13 @@ export function CheckInForm({
           {!embedded && state.folioId ? (
             <>
               {" · "}
-              <Link
-                href={`/erp/folios/${state.folioId}`}
+              <OpenStayFolioLink
+                bookingId={state.bookingId}
+                folioId={state.folioId}
                 className="text-accent underline-offset-4 hover:underline"
               >
-                open folio
-              </Link>
+                open stay
+              </OpenStayFolioLink>
             </>
           ) : null}
         </p>
@@ -448,9 +450,13 @@ export function CheckInForm({
               Print reg card / finish
             </Button>
             {state.folioId ? (
-              <Button asChild variant="outline" className="h-11 min-h-11">
-                <Link href={`/erp/folios/${state.folioId}`}>Open folio</Link>
-              </Button>
+              <OpenStayFolioLink
+                bookingId={state.bookingId}
+                folioId={state.folioId}
+                className="inline-flex h-11 min-h-11 items-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-muted"
+              >
+                Open stay
+              </OpenStayFolioLink>
             ) : null}
           </div>
         ) : (
@@ -684,13 +690,20 @@ export function CheckInForm({
           name="docs_deferred"
           value={docsDeferred ? "on" : "off"}
         />
-        {!docsDeferred ? (
-          <p className="text-[10px] text-muted-foreground">
-            One row per adult. Columns follow origin.
+        {docsDeferred ? (
+          <p className="text-sm text-foreground">
+            <span className="font-medium">
+              {booking.contact_name?.trim() || "Guest"}
+            </span>
+            {" · "}
+            {booking.rooms} {booking.rooms === 1 ? "room" : "rooms"}
+            {booking.agent_name ? ` · ${booking.agent_name}` : ""}
+            {" · "}
+            {booking.check_in} → {booking.check_out}
           </p>
         ) : (
           <p className="text-[10px] text-muted-foreground">
-            At least one guest name. ID fields optional until you turn this off.
+            One row per adult. Columns follow origin.
           </p>
         )}
         {embedded ? (
@@ -703,7 +716,12 @@ export function CheckInForm({
             Allow dirty / inspect rooms
           </Label>
         ) : null}
-        <div className="min-w-0 overflow-x-auto rounded-md border border-border/70">
+        <div
+          className={cn(
+            "min-w-0 overflow-x-auto rounded-md border border-border/70",
+            docsDeferred && "hidden",
+          )}
+        >
           <div
             className={cn(
               "hidden bg-muted/40 px-2 py-1.5 text-[10px] font-medium text-muted-foreground xl:grid xl:items-center xl:gap-1.5",
@@ -771,7 +789,7 @@ export function CheckInForm({
                   <Input
                     id={`guest_name_${index}`}
                     name="guest_name"
-                    required={showGuest}
+                    required={showGuest && !docsDeferred}
                     value={guest.fullName}
                     onKeyDown={blockEnterSubmit}
                     onChange={(e) =>
@@ -824,7 +842,7 @@ export function CheckInForm({
                   <Input
                     id={`guest_id_${index}`}
                     name="guest_passport_or_cid"
-                    required={showGuest}
+                    required={showGuest && !docsDeferred}
                     inputMode={origin === "local" ? "numeric" : undefined}
                     pattern={
                       showGuest && origin === "local" ? "[0-9]{11}" : undefined
@@ -863,7 +881,7 @@ export function CheckInForm({
                     <Input
                       id={`guest_sdf_${index}`}
                       name="guest_sdf_ref"
-                      required={showGuest && showSdfFields}
+                      required={showGuest && showSdfFields && !docsDeferred}
                       value={guest.sdfRef}
                       onKeyDown={blockEnterSubmit}
                       onChange={(e) =>
@@ -977,7 +995,7 @@ export function CheckInForm({
             ))}
           </ul>
         </div>
-        <div className="flex justify-end">
+        <div className={cn("flex justify-end", docsDeferred && "hidden")}>
             <Button
               type="button"
               variant="outline"
@@ -1050,7 +1068,7 @@ export function CheckInForm({
             <input type="hidden" name="guide_number" value={guideNumber} />
           </>
         )}
-        <div className={cn("space-y-0.5", embedded && "hidden")}>
+        <div className={cn("space-y-0.5", (embedded || docsDeferred) && "hidden")}>
           <Label htmlFor="payment_mode" className={FIELD_LABEL}>
             How they pay the hotel
           </Label>
@@ -1107,7 +1125,7 @@ export function CheckInForm({
         </div>
       </fieldset>
 
-      <div className={cn((!showGuest || embedded) && "hidden")} aria-hidden={!showGuest || embedded}>
+      <div className={cn((!showGuest || embedded || docsDeferred) && "hidden")} aria-hidden={!showGuest || embedded || docsDeferred}>
       {showDriver ? (
         <fieldset className={SECTION}>
           <legend className={SECTION_LEGEND}>
@@ -1138,7 +1156,7 @@ export function CheckInForm({
               <Input
                 id="driver_name"
                 name="driver_name"
-                required={showGuest && hasDriverBeds}
+                required={showGuest && hasDriverBeds && !docsDeferred}
                 value={driverFields.name}
                 onChange={(e) => {
                   setDriverFields({ ...driverFields, name: e.target.value });

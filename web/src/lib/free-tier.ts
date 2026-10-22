@@ -10,8 +10,15 @@ import { DEFAULT_PROPERTY_SLUG } from "@/lib/property";
 /**
  * Conservative by default.
  * Set HOTELOS_PAID_TIER=1 (or legacy PELBU_PAID_TIER / NEXT_PUBLIC_*) when paid.
+ * The droplet is the host now: throttle only on Vercel, or when HOTELOS_FREE_TIER=1.
  */
 export function isFreeTierMode(): boolean {
+  if (
+    process.env.HOTELOS_FREE_TIER === "1" ||
+    process.env.HOTELOS_FREE_TIER === "true"
+  ) {
+    return true;
+  }
   const paid =
     process.env.HOTELOS_PAID_TIER === "1" ||
     process.env.HOTELOS_PAID_TIER === "true" ||
@@ -22,7 +29,8 @@ export function isFreeTierMode(): boolean {
     process.env.NEXT_PUBLIC_HOTELOS_PAID_TIER === "true" ||
     process.env.NEXT_PUBLIC_PELBU_PAID_TIER === "1" ||
     process.env.NEXT_PUBLIC_PELBU_PAID_TIER === "true";
-  return !paid;
+  if (paid) return false;
+  return process.env.VERCEL === "1";
 }
 
 function numEnv(name: string, freeDefault: number, paidDefault: number): number {

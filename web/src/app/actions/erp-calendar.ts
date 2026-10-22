@@ -20,6 +20,7 @@ import {
   resolveStayAddonsForBook,
 } from "@/lib/meal-plans";
 import { calculateRoomNightTax, roundBtn } from "@/lib/pricing";
+import { snapshotStayBeforeEdit } from "@/lib/erp/rack-history";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import {
   agentRateTier,
@@ -856,6 +857,10 @@ export async function assignCalendarBookingRoom(
 
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
+    await snapshotStayBeforeEdit(admin, propertyId, {
+      bookingId,
+      summary: "Before door assignment",
+    });
     const { data: booking } = await admin
       .from("bookings")
       .select("contact_name, check_in, check_out")
@@ -1044,6 +1049,10 @@ export async function moveCalendarAssignment(
         .eq("property_id", propertyId)
         .maybeSingle(),
     ]);
+    await snapshotStayBeforeEdit(admin, propertyId, {
+      bookingId: (assignment?.booking_id as string | undefined) ?? null,
+      summary: "Before room move",
+    });
     const { data: moveId, error } = await admin.rpc(
       "move_room_assignment_same_type",
       {
@@ -1368,6 +1377,10 @@ export async function resizeCalendarAssignment(
     assertStayDates(fromDate, toDate);
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
+    await snapshotStayBeforeEdit(admin, propertyId, {
+      assignmentId,
+      summary: "Before date change",
+    });
     const { error } = await admin.rpc("resize_room_assignment_dates", {
       p_property_id: propertyId,
       p_assignment_id: assignmentId,
@@ -1418,6 +1431,10 @@ export async function splitCalendarAssignment(
     }
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
+    await snapshotStayBeforeEdit(admin, propertyId, {
+      assignmentId,
+      summary: "Before split",
+    });
     const { data: newId, error } = await admin.rpc("split_room_assignment", {
       p_property_id: propertyId,
       p_assignment_id: assignmentId,
@@ -1460,6 +1477,10 @@ export async function moveCalendarAssignmentCrossType(
     }
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
+    await snapshotStayBeforeEdit(admin, propertyId, {
+      assignmentId,
+      summary: "Before cross-type move",
+    });
     const preview = await previewCalendarCrossTypeMove(assignmentId, toUnitId);
     if (!preview.ok) throw new Error(preview.error ?? "Rate preview failed.");
     const decision = preview.sameType ? "same_type" : rateDecision;
@@ -1589,6 +1610,10 @@ export async function updateCalendarReservationDetails(
 
     const admin = createSupabaseAdminClient();
     const propertyId = await resolveActivePropertyId(admin);
+    await snapshotStayBeforeEdit(admin, propertyId, {
+      bookingId: input.bookingId,
+      summary: "Before note edit",
+    });
     const { data: existing } = await admin
       .from("bookings")
       .select(

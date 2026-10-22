@@ -67,7 +67,6 @@ import {
   MoreHorizontalIcon,
   PencilIcon,
   PlusIcon,
-  WandSparklesIcon,
 } from "lucide-react";
 import { parseISO } from "date-fns";
 import Link from "next/link";
@@ -488,20 +487,11 @@ function floorAbbrev(floorLabel: string | null): string | null {
   return trimmed.length <= 4 ? trimmed : trimmed.slice(0, 3);
 }
 
-/**
- * Prefer a short door number for the rack. `DELUXE SUITE-01` → `01`,
- * `101` stays `101`. Full inventory label remains in the tooltip.
- */
-function displayRoomNumber(label: string): string {
-  const trimmed = label.trim();
-  if (!trimmed) return "—";
-  const dashed = trimmed.match(/[-–—]\s*([A-Za-z]?\d+)\s*$/);
-  if (dashed?.[1]) return dashed[1];
-  const trailing = trimmed.match(/(\d+)\s*$/);
-  if (trailing?.[1] && trimmed.length > trailing[1].length) {
-    return trailing[1];
-  }
-  return trimmed;
+/** Rack row is the sheet serial. The door number stays on the tooltip until check-in. */
+function displayRackSerial(sortOrder: number): string {
+  const n = Number(sortOrder);
+  if (!Number.isFinite(n) || n <= 0) return "—";
+  return String(Math.trunc(n));
 }
 
 function roomAttrLine(unit: RackUnit): string | null {
@@ -619,6 +609,7 @@ function StayHoverCard({
   onOpenDetail: () => void;
   onSelectClick?: (e: ReactMouseEvent) => void;
 }) {
+  const stayHub = useStayHubOptional();
   const nights = nightsBetween(stay.check_in, stay.check_out);
   const overdueDeparture =
     stay.status === "checked_in" && stay.check_out <= today;
@@ -873,26 +864,50 @@ function StayHoverCard({
         </dl>
         <div className="flex flex-wrap gap-1.5 border-t pt-2">
           {!checkedIn ? (
-            <Link
-              href={`/erp/check-in?id=${stay.booking_id}`}
+            <button
+              type="button"
               className="inline-flex h-8 items-center rounded-md bg-primary px-2.5 text-xs text-primary-foreground"
+              onClick={() =>
+                stayHub?.openStayHub({
+                  bookingId: stay.booking_id,
+                  assignmentId: stay.id,
+                  seedStay: stay,
+                  step: "check_in",
+                })
+              }
             >
               Check-in
-            </Link>
+            </button>
           ) : null}
-          <Link
-            href={`/erp/bookings/${stay.booking_id}`}
+          <button
+            type="button"
             className="inline-flex h-8 items-center rounded-md border px-2.5 text-xs"
+            onClick={() =>
+              stayHub?.openStayHub({
+                bookingId: stay.booking_id,
+                assignmentId: stay.id,
+                seedStay: stay,
+                step: "reserve",
+              })
+            }
           >
-            Booking
-          </Link>
+            Stay
+          </button>
           {stay.folio_id ? (
-            <Link
-              href={`/erp/folios/${stay.folio_id}`}
+            <button
+              type="button"
               className="inline-flex h-8 items-center rounded-md border px-2.5 text-xs"
+              onClick={() =>
+                stayHub?.openStayHub({
+                  bookingId: stay.booking_id,
+                  assignmentId: stay.id,
+                  seedStay: stay,
+                  step: "stay_money",
+                })
+              }
             >
               Folio
-            </Link>
+            </button>
           ) : null}
           {stay.agent_id ? (
             <Link
@@ -904,12 +919,20 @@ function StayHoverCard({
             </Link>
           ) : null}
           {checkedIn ? (
-            <Link
-              href={`/erp/check-in?id=${stay.booking_id}`}
+            <button
+              type="button"
               className="inline-flex h-8 items-center rounded-md border px-2.5 text-xs"
+              onClick={() =>
+                stayHub?.openStayHub({
+                  bookingId: stay.booking_id,
+                  assignmentId: stay.id,
+                  seedStay: stay,
+                  step: "check_in",
+                })
+              }
             >
               Guest docs
-            </Link>
+            </button>
           ) : null}
         </div>
       </HoverCardContent>
@@ -919,7 +942,7 @@ function StayHoverCard({
 
 export function RoomRackGrid({
   units,
-  stays,
+  stays: staysProp,
   start,
   days,
   today,
@@ -952,6 +975,35 @@ export function RoomRackGrid({
   defaultMealPlanCode: string;
   canInstantApproveRates?: boolean;
 }) {
+  const [balanceByBooking, setBalanceByBooking] = useState<
+    Record<string, number>
+  >({});
+  useEffect(() => {
+    const onPatch = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{ bookingId?: string; folioBalance?: number }>
+      ).detail;
+      if (!detail?.bookingId || detail.folioBalance == null) return;
+      const bookingId = detail.bookingId;
+      const folioBalance = detail.folioBalance;
+      setBalanceByBooking((prev) => ({ ...prev, [bookingId]: folioBalance }));
+    };
+    window.addEventListener("innora:stay-patch", onPatch);
+    return () => window.removeEventListener("innora:stay-patch", onPatch);
+  }, []);
+  const stays = useMemo(
+    () =>
+      staysProp.map((stay) => {
+        const balance = balanceByBooking[stay.booking_id];
+        if (balance == null) return stay;
+        return {
+          ...stay,
+          folio_balance: balance,
+          folio_has_charges: true,
+        };
+      }),
+    [staysProp, balanceByBooking],
+  );
   const router = useRouter();
   const isMdUp = useMediaQuery("(min-width: 768px)");
   const isLandscape = useMediaQuery("(orientation: landscape)");
@@ -984,6 +1036,7 @@ export function RoomRackGrid({
     null,
   );
   const [assignGuide, setAssignGuide] = useState<AssignGuideMode | null>(null);
+  const [noteCard, setNoteCard] = useState<UnassignedBooking | null>(null);
   const [assignMessage, setAssignMessage] = useState<string | null>(null);
   const [assigning, startAssigning] = useTransition();
   const [selectedStayId, setSelectedStayId] = useState<string | null>(null);
@@ -2424,18 +2477,10 @@ export function RoomRackGrid({
                         key={cluster.key}
                         type="button"
                         aria-pressed={selected}
+                        title={`${cluster.head.agent_name ?? "Direct"} · ${cluster.head.contact_name} · ${cluster.rooms} ${cluster.head.room_type_name} · ${cluster.head.check_in} → ${cluster.head.check_out}${cluster.head.contact_phone ? ` · ${cluster.head.contact_phone}` : ""}`}
                         onClick={() => {
-                          if (cluster.items.length === 1) {
-                            const item = cluster.head;
-                            setAssignGuide({ kind: "single", item });
-                            setSelectedPool(item);
-                          } else {
-                            setAssignGuide({
-                              kind: "bulk",
-                              items: cluster.items,
-                            });
-                            setSelectedPool(cluster.head);
-                          }
+                          setSelectedPool(cluster.head);
+                          setNoteCard(cluster.head);
                           setAssignMessage(null);
                         }}
                         className={cn(
@@ -2445,36 +2490,14 @@ export function RoomRackGrid({
                             : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                         )}
                       >
-                        {cluster.head.contact_name}
+                        {cluster.head.agent_name ?? cluster.head.contact_name}
                         <span className="ml-1 font-normal normal-case text-muted-foreground">
-                          · {cluster.rooms} rm ·{" "}
-                          {fmtStayRange(
-                            cluster.head.check_in,
-                            cluster.head.check_out,
-                          )}
+                          · {cluster.rooms} rm
                         </span>
                       </button>
                     );
                   })}
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  disabled={
-                    assigning ||
-                    (assignGuide != null && assignGuide.kind === "bulk")
-                  }
-                  className="h-8 shrink-0 gap-1 px-2 text-xs"
-                  title="Fill free rooms for every unassigned stay."
-                  onClick={() => {
-                    setAssignGuide({ kind: "bulk", items: unassigned });
-                    setAssignMessage(null);
-                  }}
-                >
-                  <WandSparklesIcon className="size-3.5" aria-hidden />
-                  Assign
-                </Button>
               </>
             ) : null}
           </div>
@@ -2486,6 +2509,53 @@ export function RoomRackGrid({
           />
         </div>
       </div>
+
+      {noteCard ? (
+        <div className="flex flex-wrap items-end gap-3 border-b bg-card px-3 py-2 text-xs">
+          <div className="min-w-0">
+            <p className="font-medium text-foreground">
+              {noteCard.agent_name ?? "Direct"} · {noteCard.contact_name}
+            </p>
+            <p className="text-muted-foreground">
+              {noteCard.missing_rooms} {noteCard.room_type_name} ·{" "}
+              {noteCard.check_in} → {noteCard.check_out}
+              {noteCard.contact_phone ? ` · ${noteCard.contact_phone}` : ""}
+            </p>
+            <p className="text-muted-foreground">
+              Doors stay blank until check-in. Pick free rooms on the next screen.
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            className="h-8"
+            onClick={() => {
+              if (stayHub) {
+                stayHub.openStayHub({
+                  bookingId: noteCard.booking_id,
+                  step: "check_in",
+                  agents,
+                  staff,
+                  units,
+                });
+                return;
+              }
+              setAssignGuide({ kind: "single", item: noteCard });
+            }}
+          >
+            Check in
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-8"
+            onClick={() => setNoteCard(null)}
+          >
+            Close
+          </Button>
+        </div>
+      ) : null}
 
       {categoryToday.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1.5 border-b bg-muted/20 px-2 py-1.5">
@@ -2694,7 +2764,7 @@ export function RoomRackGrid({
                     <button
                       type="button"
                       className="flex min-w-0 flex-1 flex-col justify-center gap-0 py-0 text-left hover:text-accent"
-                      title={`${roomTooltip(unit)} · HK ${unit.hk_status ?? "unknown"} · click to block`}
+                      title={`${roomTooltip(unit)} · door ${unit.label} · HK ${unit.hk_status ?? "unknown"} · click to block`}
                       onClick={() => setBlockUnit(unit)}
                     >
                       <span className="flex min-w-0 items-center gap-1">
@@ -2705,7 +2775,7 @@ export function RoomRackGrid({
                           )}
                         />
                         <span className="min-w-0 truncate text-[13px] font-bold leading-none tabular-nums text-foreground md:text-[14px]">
-                          {displayRoomNumber(unit.label)}
+                          {displayRackSerial(unit.sort_order)}
                         </span>
                         {unit.service_requested_at ? (
                           <span
@@ -3101,21 +3171,18 @@ export function RoomRackGrid({
                               <ContextMenuItem
                                 onSelect={() => {
                                   setContextStayId(null);
-                                  router.push(`/erp/bookings/${stay.booking_id}`);
+                                  stayHub?.openStayHub({
+                                    bookingId: stay.booking_id,
+                                    assignmentId: stay.id,
+                                    seedStay: stay,
+                                    agents,
+                                    units,
+                                    step: "stay_money",
+                                  });
                                 }}
                               >
-                                Booking page
+                                Folio
                               </ContextMenuItem>
-                              {stay.folio_id ? (
-                                <ContextMenuItem
-                                  onSelect={() => {
-                                    setContextStayId(null);
-                                    router.push(`/erp/folios/${stay.folio_id}`);
-                                  }}
-                                >
-                                  Full folio
-                                </ContextMenuItem>
-                              ) : null}
                               <ContextMenuItem
                                 onSelect={() => {
                                   void navigator.clipboard?.writeText(

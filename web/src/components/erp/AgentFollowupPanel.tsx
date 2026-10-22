@@ -8,6 +8,7 @@ import type {
 } from "@/lib/erp/daily-desk";
 import { formatBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
+import { OpenStayFolioLink } from "@/components/erp/OpenStayFolioLink";
 import Link from "next/link";
 
 function statusLabel(s: AgentPayStatus): string {
@@ -115,13 +116,19 @@ export function AgentFollowupPanel({
                     <StatusPill status={row.payStatus} />
                   </td>
                   <td className="px-3 py-2.5 tabular-nums">
-                    {row.folioId ? (
-                      <Link
-                        href={`/erp/folios/${row.folioId}`}
+                    {row.folioId || row.bookingId ? (
+                      <OpenStayFolioLink
+                        bookingId={row.bookingId}
+                        folioId={row.folioId}
+                        step={
+                          row.bookingStatus === "checked_out"
+                            ? "stay_money"
+                            : "check_out"
+                        }
                         className="text-accent underline-offset-4 hover:underline"
                       >
                         {formatBtn(row.balanceBtn)}
-                      </Link>
+                      </OpenStayFolioLink>
                     ) : (
                       formatBtn(row.balanceBtn)
                     )}

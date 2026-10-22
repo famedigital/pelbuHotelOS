@@ -50,52 +50,57 @@ export async function BillsOwesPanel({
   }`;
 
   return (
-    <div className="flex flex-col gap-3">
-      {!forceAgents ? (
-        <DeskViewSwitcher
-          label="Collect from"
-          items={[
+    <div className="flex flex-col gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        {!forceAgents ? (
+          <DeskViewSwitcher
+            label="Collect from"
+            items={[
+              {
+                href: "/erp/bills?tab=owes",
+                label: "All",
+                count: pack.totals.billCount,
+                active: filter === "all",
+              },
+              {
+                href: "/erp/bills?tab=owes&filter=agents",
+                label: "Travel agents",
+                count: pack.totals.agentCount,
+                active: filter === "agents",
+              },
+              {
+                href: "/erp/bills?tab=owes&filter=guests",
+                label: "Guests",
+                count: pack.totals.guestCount,
+                active: filter === "guests",
+              },
+            ]}
+          />
+        ) : null}
+        <DeskMetricRow
+          className="ml-auto w-auto min-w-0 flex-none grid-cols-2 sm:max-w-xs"
+          metrics={[
             {
-              href: "/erp/bills?tab=owes",
-              label: "All",
-              count: pack.totals.billCount,
-              active: filter === "all",
+              label: "To collect",
+              value: formatBtn(viewDue),
+              tone: viewDue > 0.5 ? "destructive" : "default",
             },
-            {
-              href: "/erp/bills?tab=owes&filter=agents",
-              label: "Travel agents",
-              count: pack.totals.agentCount,
-              active: filter === "agents",
-            },
-            {
-              href: "/erp/bills?tab=owes&filter=guests",
-              label: "Guests",
-              count: pack.totals.guestCount,
-              active: filter === "guests",
-            },
+            { label: "Bills", value: String(viewCount) },
           ]}
         />
-      ) : null}
-      <DeskMetricRow
-        metrics={[
-          {
-            label: "Total to collect",
-            value: formatBtn(viewDue),
-            tone: viewDue > 0.5 ? "destructive" : "default",
-          },
-          { label: "Bills", value: String(viewCount) },
-        ]}
-      />
-      <div className="flex flex-wrap gap-2 print:hidden">
-        <Button asChild variant="outline" size="sm" className="h-9">
-          <Link href={`/erp/unpaid-bills/print${filter === "all" ? "" : `?filter=${filter}`}`}>
-            Print / PDF
-          </Link>
-        </Button>
-        <Button asChild variant="outline" size="sm" className="h-9">
-          <a href={csvHref}>CSV</a>
-        </Button>
-        <span className="sr-only">{base}</span>
+        <div className="flex flex-wrap gap-1.5 print:hidden">
+          <Button asChild variant="outline" size="sm" className="h-8">
+            <Link
+              href={`/erp/unpaid-bills/print${filter === "all" ? "" : `?filter=${filter}`}`}
+            >
+              Print
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="h-8">
+            <a href={csvHref}>CSV</a>
+          </Button>
+          <span className="sr-only">{base}</span>
+        </div>
       </div>
       <UnpaidBillsTable
         rows={rows}

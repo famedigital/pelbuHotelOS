@@ -1,5 +1,6 @@
 "use client";
 
+import { deskErrorText } from "@/lib/folio/bill-block";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
@@ -51,7 +52,7 @@ export function useActionToast(
       }
       onSuccess?.();
     } else if (state.error) {
-      toast.error(state.error);
+      toast.error(deskErrorText(state.error));
     }
   }, [
     state.ok,

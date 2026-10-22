@@ -19,6 +19,7 @@ import {
   reverseFolioPayment,
   transferFolioLine,
   voidFolioLine,
+  correctFolioLine,
   type ErpFolioOpsState,
 } from "@/app/actions/erp-folio-ops";
 import { PeriodOverrideFields } from "@/components/erp/PeriodOverrideFields";
@@ -144,6 +145,76 @@ export function VoidLineButton({
       <div className="mt-1.5 rounded-md border bg-muted/20 px-2 py-1.5 text-left">
         {form}
       </div>
+    </details>
+  );
+}
+
+export function CorrectLineForm({
+  lineId,
+  description,
+  amount,
+}: {
+  lineId: string;
+  description: string;
+  amount: number;
+}) {
+  const [state, action, pending] = useActionState(correctFolioLine, initial);
+  useActionToast(state, {
+    successMessage: state.message ?? "Line corrected. Reprint the same invoice.",
+  });
+  return (
+    <details className="text-left">
+      <summary className="cursor-pointer text-[10px] font-medium text-muted-foreground underline-offset-2 hover:underline [&::-webkit-details-marker]:hidden">
+        Correct
+      </summary>
+      <form action={action} className="mt-1.5 space-y-1.5 rounded-md border bg-muted/20 px-2 py-1.5">
+        <input type="hidden" name="line_id" value={lineId} />
+        <input type="hidden" name="void_reason" value="Correction" />
+        <Input
+          name="description"
+          defaultValue={description}
+          required
+          className="h-8 text-xs"
+          aria-label="Description"
+        />
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Input
+            name="qty"
+            type="number"
+            min={1}
+            step={1}
+            defaultValue={1}
+            required
+            className="h-8 w-16 text-xs"
+            aria-label="Qty"
+          />
+          <Input
+            name="rate"
+            type="number"
+            min={0}
+            step="0.01"
+            defaultValue={amount}
+            required
+            className="h-8 w-24 text-xs"
+            aria-label="Rate"
+          />
+          <label className="flex items-center gap-1 text-[11px]">
+            <input type="checkbox" name="sc_on" value="on" defaultChecked />
+            SC
+          </label>
+          <label className="flex items-center gap-1 text-[11px]">
+            <input type="checkbox" name="gst_on" value="on" />
+            GST
+          </label>
+          <Button type="submit" size="sm" className="h-8 text-xs" disabled={pending}>
+            {pending ? "Saving…" : "Update line"}
+          </Button>
+        </div>
+        <p className="text-[10px] text-muted-foreground">
+          The old line is voided and this one replaces it. Reprint keeps the same invoice number.
+        </p>
+        <Flash state={state} />
+      </form>
     </details>
   );
 }

@@ -16,6 +16,7 @@ import {
   stayMoneyNextAction,
 } from "@/lib/folio/stay-money-cycle";
 import { formatBtn } from "@/lib/pricing";
+import { useStayHubOptional } from "@/components/erp/StayHubProvider";
 import Link from "next/link";
 
 const CHECKIN_STATUSES = ["pending", "confirmed", "checked_in"];
@@ -75,6 +76,13 @@ export function BookingDetailPanel({
     hasCharges: data.folio_has_charges,
     balanceBtn: data.folio_balance_btn,
   });
+  const stayHub = useStayHubOptional();
+  const openStep =
+    next.hrefHint === "check-out"
+      ? "check_out"
+      : next.hrefHint === "check-in"
+        ? "check_in"
+        : "stay_money";
   const nextHref =
     next.hrefHint === "check-in"
       ? boardActionHref(status, data.id, "arrivals")
@@ -91,9 +99,20 @@ export function BookingDetailPanel({
       <StayMoneyProcessStrip steps={moneySteps} />
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button asChild size={compact ? "sm" : "default"}>
-          <Link href={nextHref}>{next.label}</Link>
-        </Button>
+        {stayHub ? (
+          <Button
+            size={compact ? "sm" : "default"}
+            onClick={() =>
+              stayHub.openStayHub({ bookingId: data.id, step: openStep })
+            }
+          >
+            {next.label}
+          </Button>
+        ) : (
+          <Button asChild size={compact ? "sm" : "default"}>
+            <Link href={nextHref}>{next.label}</Link>
+          </Button>
+        )}
         {canCheckIn &&
         next.hrefHint !== "check-in" &&
         next.hrefHint !== "check-out" ? (
@@ -103,7 +122,17 @@ export function BookingDetailPanel({
             </Link>
           </Button>
         ) : null}
-        {data.open_folio_id ? (
+        {data.open_folio_id && stayHub ? (
+          <Button
+            variant="outline"
+            size={compact ? "sm" : "default"}
+            onClick={() =>
+              stayHub.openStayHub({ bookingId: data.id, step: "stay_money" })
+            }
+          >
+            Open stay
+          </Button>
+        ) : data.open_folio_id ? (
           <Button asChild variant="outline" size={compact ? "sm" : "default"}>
             <Link href={`/erp/folios/${data.open_folio_id}`}>Open folio</Link>
           </Button>

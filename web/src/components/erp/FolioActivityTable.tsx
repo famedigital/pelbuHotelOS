@@ -4,6 +4,7 @@ import {
   ReversePaymentForm,
   TransferLineForm,
   VoidLineButton,
+  CorrectLineForm,
 } from "@/components/erp/FolioOpsForms";
 import { formatBtn, roundBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
@@ -154,6 +155,11 @@ export function FolioActivityTable({
                       {isOpen && !voided && !payment ? (
                         <div className="mt-1 space-y-1 font-normal no-underline">
                           <VoidLineButton lineId={line.id} description={line.description} />
+                          <CorrectLineForm
+                            lineId={line.id}
+                            description={line.description}
+                            amount={Number(line.total_btn)}
+                          />
                           <TransferLineForm
                             lineId={line.id}
                             siblingFolios={transferTargets}

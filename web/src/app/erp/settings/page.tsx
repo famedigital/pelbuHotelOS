@@ -29,6 +29,7 @@ import { SettingsHub } from "@/components/erp/settings/SettingsHub";
 import { SettingsIdentityPanel } from "@/components/erp/settings/SettingsIdentityPanel";
 import { SettingsSection } from "@/components/erp/settings/SettingsSection";
 import { SettingsShell } from "@/components/erp/settings/SettingsShell";
+import { SettingsRrcoInvoicePanel } from "@/components/erp/settings/SettingsRrcoInvoicePanel";
 import { SettingsTaxPanel } from "@/components/erp/settings/SettingsTaxPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -462,7 +463,12 @@ export default async function ErpSettingsPage({
         />
       ) : null}
 
-      {activeTab === "tax" ? <SettingsTaxPanel property={property} /> : null}
+      {activeTab === "tax" ? (
+        <div className="space-y-6">
+          <SettingsRrcoInvoicePanel property={property} />
+          <SettingsTaxPanel property={property} />
+        </div>
+      ) : null}
 
       {activeTab === "documents" ? (
         <SettingsDocumentsPanel property={property} />

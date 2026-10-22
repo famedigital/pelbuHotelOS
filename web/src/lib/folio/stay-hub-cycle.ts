@@ -1,5 +1,5 @@
 /**
- * Canonical front-desk StayHub progress: six steps for one modal surface.
+ * Canonical front-desk StayHub progress: six steps for one stay panel.
  *
  * Reserve → Confirm → Arrival → Check-in → Stay/Money → Check-out
  */
@@ -512,5 +512,16 @@ export function deskFocusedSteps(
       }
       return st;
     });
+}
+
+/** Stay View and the room rack keep the board visible beside the dock. */
+export function isStayBoardPath(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+  return (
+    pathname === "/erp/stayview" ||
+    pathname.startsWith("/erp/stayview/") ||
+    pathname === "/erp/calendar" ||
+    pathname.startsWith("/erp/calendar/")
+  );
 }
 

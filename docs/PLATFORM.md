@@ -9,10 +9,10 @@
 
 - **Delivery:** Revenue-first phases (public conversion + bookings first), then POS/KOT, then Finance/HR, then channel/scale.
 - **Scale:** Multi-property ready from day 1 (one ERP, many hotels/sites/templates). Pelbu Olakha is property #1.
-- **Stack:** Next.js (App Router) + TypeScript on **Vercel**; **Supabase** (Auth, Postgres, RLS, Storage, **Realtime**); **Resend** (email); **CallMeBot** (WhatsApp/Telegram alerts); **Cloudinary** (media); PWA (installable, offline shell for staff POS later).
+- **Stack:** Next.js (App Router) + TypeScript on the **droplet** (Coolify). **Self-hosted Supabase** (Auth, Postgres, RLS, Storage, Realtime) on the same host. **Resend** (email); **CallMeBot** (WhatsApp/Telegram alerts); **Cloudinary** (media). `vercel.json` does not run production crons.
 - **UI kit:** **Tailwind + shadcn/ui** (Radix) + **Framer Motion** — not styled-components (Mews marketing uses that; we ditto craft only).
 - **Live UI:** Supabase Realtime everywhere ops matter (KOT boards, POS tickets, room status, spa queue, bookings) — no manual refresh.
-- **Surface palettes:** Desk uses **Sky & Citrus**; public uses **Himalayan Dusk** with a photography-led homepage and restrained task engines. Pelbu-pink and the old brass-heavy public treatment are retired.
+- **Surface palettes:** Desk uses **ivory, espresso, gold, and brass** from `web/src/app/globals.css` (`.erp`, `.fo-command`, `.stay-hub-card`). Public uses **Himalayan Dusk**, photography-led. Sky & Citrus and Pelbu-pink are retired. Do not invent a second cream-and-terracotta theme.
 - **UX north stars:** public `/book` = **Airbnb** funnel; food ordering = compact delivery-app interaction; desk ERP = **Cloudbeds/Mews Timeline**. Mobile navigation uses footer tabs, not a hamburger.
 - **Split work with Claude / z.ai:** Cursor owns architecture, schema, auth, integrations, ERP modules, reconciliation scripts; z.ai implements file-scoped UI briefs; Claude owns visual templates / marketing copy on `claude/*` (see work-split below).
 
@@ -108,21 +108,23 @@ flowchart TB
 | Desk ERP | **Cloudbeds / Mews Timeline** | Rooms × days full-bleed rack (`/erp/calendar`). Click empty → book; click stay → edit modal. **Sidebar** chrome shipped (not hamburger Sheet). |
 | Product backlog | [Mews pricing](https://www.mews.com/en/pricing) catalog | Full Essentials→Enterprise + RMS/POS/services over later phases — not one release. |
 
-### Palette — **Sky & Citrus (FINAL, locked 2026-07-29)**
+### Palette — desk ivory / espresso / gold / brass
 
-**Sky + amber is the final ERP palette.** Pelbu-pink / Bubblegum `#ff83da` is retired. The public surface intentionally uses its separate Himalayan Dusk tokens.
+Sky & Citrus (sky-500 + amber-500) and Pelbu-pink are retired. The public surface keeps Himalayan Dusk.
 
-| Role | Token | Hex |
-|------|-------|-----|
-| Accent / primary action | `--accent`, `--ring` | `#0ea5e9` (sky-500) |
-| Primary surface ink | `--primary` | `#0c1726` |
-| Citrus — success / money callouts | `--citrus` | `#f59e0b` (amber-500) |
-| Citrus soft / tint | `--citrus-soft` / `--citrus-tint` | `#fbbf24` / `#fef3c7` |
-| Charts | `--chart-1` / `--chart-2` | `#0ea5e9` / `#f59e0b` |
+| Role | Token | Value |
+|------|-------|-------|
+| Desk paper | `--background` on `.erp` | ivory |
+| Desk ink | `--foreground` | espresso |
+| Desk action | `--primary` | maroon |
+| Desk metal | `--accent`, `--citrus` | gold / brass |
+| Front office ground | `.fo-command` | espresso |
+| Stay card | `.stay-hub-card` | ivory on the espresso rack |
+| Status | utility classes | dirty, due, unpaid stay loud and separate |
 
-- **Desk (`.erp` scope):** Sky & Citrus — **shipped** (plan `erp_shadcn_reskin_d79ac669`).
-- **Public (`:root`):** Himalayan Dusk conversion system; Manrope body, Fraunces display, compact `EngineShell` on non-home routes.
-- Utilities: `bg-citrus`, `text-citrus`, `bg-citrus-tint`, `border-citrus`.
+- **Desk:** tokens in `web/src/app/globals.css`. Do not restore Sky & Citrus.
+- **Public (`:root`):** Himalayan Dusk; Fraunces display. Do not add a second cream-and-terracotta kit.
+- Utilities: `bg-citrus`, `text-citrus` now follow the gold token.
 
 Refs: `design/erp-mews/refs/`, `design/book-airbnb/`. `design/system-v2/` kept as history.
 

@@ -29,6 +29,7 @@ import { useActionToast } from "@/hooks/use-action-toast";
 import type { DiningTable, OpenPosTicket } from "@/lib/pos";
 import { canAddItemsToOpenTicket } from "@/lib/pos-ticket";
 import { formatBtn } from "@/lib/pricing";
+import { OpenStayFolioLink } from "@/components/erp/OpenStayFolioLink";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -165,14 +166,14 @@ function MoneyStrip({ ticket }: { ticket: OpenPosTicket }) {
         </span>
       </div>
       {methods ? <p className="text-muted-foreground">{methods}</p> : null}
-      {ticket.folio_id ? (
-        <Link
-          href={`/erp/folios/${ticket.folio_id}`}
+      {ticket.folio_id || ticket.booking_id ? (
+        <OpenStayFolioLink
+          bookingId={ticket.booking_id}
+          folioId={ticket.folio_id}
           className="inline-flex text-accent underline-offset-4 hover:underline"
-          onClick={(e) => e.stopPropagation()}
         >
-          Open folio →
-        </Link>
+          Open stay →
+        </OpenStayFolioLink>
       ) : null}
     </div>
   );
@@ -446,16 +447,14 @@ export function OpenTicketsDrawer({
           >
             <Link href={`/erp/orders/${t.id}/receipt`}>Share receipt</Link>
           </Button>
-          {t.folio_id ? (
-            <Button
-              asChild
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9"
+          {t.booking_id || t.folio_id ? (
+            <OpenStayFolioLink
+              bookingId={t.booking_id}
+              folioId={t.folio_id}
+              className="inline-flex h-9 items-center rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-muted"
             >
-              <Link href={`/erp/folios/${t.folio_id}`}>Open folio</Link>
-            </Button>
+              Open stay
+            </OpenStayFolioLink>
           ) : null}
         </div>
       );
@@ -1258,12 +1257,13 @@ function TicketDetail({
       {ticket.folio_id && ticket.posted_to_folio_at ? (
         <p className="text-xs text-muted-foreground">
           On guest folio. Issue tax invoice from the folio when needed.{" "}
-          <Link
-            href={`/erp/folios/${ticket.folio_id}`}
+          <OpenStayFolioLink
+            bookingId={ticket.booking_id}
+            folioId={ticket.folio_id}
             className="text-accent underline-offset-4 hover:underline"
           >
-            Open folio →
-          </Link>
+            Open stay →
+          </OpenStayFolioLink>
         </p>
       ) : null}
 

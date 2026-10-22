@@ -489,6 +489,7 @@ export async function postRoomNightsForDate(
         business_date: businessDate,
         room_unit_id: room.roomUnitId,
         journal_date: businessDate,
+        tax_treatment: gstBtn > 0 ? "inclusive" : "net",
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "post failed";

@@ -46,6 +46,7 @@ export function LiveRefreshBadge({
     let safetyTimer: ReturnType<typeof setInterval> | undefined;
     let refreshInFlight = false;
     let refreshQueued = false;
+    const streamReady = { current: false };
 
     async function applyChange() {
       if (refreshInFlight) {
@@ -116,10 +117,30 @@ export function LiveRefreshBadge({
           setError(true);
         }
       }
-      if (!cancelled) timer = setTimeout(tick, pollMs);
+      if (!cancelled) {
+        timer = setTimeout(tick, streamReady.current ? safetyMs : pollMs);
+      }
     }
 
     void tick();
+
+    const onStreamReady = () => {
+      streamReady.current = true;
+      if (!cancelled) {
+        setLive(true);
+        setError(false);
+      }
+    };
+    const onDesk = () => {
+      if (cancelled || document.visibilityState === "hidden") return;
+      streamReady.current = true;
+      setLive(true);
+      setError(false);
+      void applyChange();
+    };
+    window.addEventListener("hotelos-desk-ready", onStreamReady);
+    window.addEventListener("hotelos-desk", onDesk);
+
     safetyTimer = setInterval(() => {
       if (document.visibilityState === "hidden") return;
       void applyChange();
@@ -127,6 +148,8 @@ export function LiveRefreshBadge({
 
     return () => {
       cancelled = true;
+      window.removeEventListener("hotelos-desk-ready", onStreamReady);
+      window.removeEventListener("hotelos-desk", onDesk);
       if (timer) clearTimeout(timer);
       if (safetyTimer) clearInterval(safetyTimer);
     };

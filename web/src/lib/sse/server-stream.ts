@@ -1,11 +1,15 @@
 /**
- * Vercel serverless SSE lifecycle (Hobby maxDuration 60s).
- * Rotate before kill; heartbeat less often on free to cut data.
+ * SSE lifecycle. Vercel kills a function around 60s, so those hosts rotate.
+ * A droplet Node process keeps the stream open and reconnects only on error.
  */
 
 export const SSE_FUNCTION_MAX_SEC = 60;
 export const SSE_ROTATE_MS = 50_000;
 export const SSE_HEARTBEAT_MS = 25_000;
+
+function sseRotates(): boolean {
+  return process.env.VERCEL === "1";
+}
 
 const encoder = new TextEncoder();
 
@@ -32,24 +36,26 @@ export function attachSseLifecycle(args: {
     }
   }, SSE_HEARTBEAT_MS);
 
-  const rotate = setTimeout(() => {
-    try {
-      controller.enqueue(
-        encodeSse("reconnect", {
-          reason: "function_budget",
-          afterMs: SSE_ROTATE_MS,
-        }),
-      );
-    } catch {
-      // closed
-    }
-    void close();
-  }, SSE_ROTATE_MS);
+  const rotate = sseRotates()
+    ? setTimeout(() => {
+        try {
+          controller.enqueue(
+            encodeSse("reconnect", {
+              reason: "function_budget",
+              afterMs: SSE_ROTATE_MS,
+            }),
+          );
+        } catch {
+          // closed
+        }
+        void close();
+      }, SSE_ROTATE_MS)
+    : null;
 
   return () => {
     if (disposed) return;
     disposed = true;
     clearInterval(heartbeat);
-    clearTimeout(rotate);
+    if (rotate) clearTimeout(rotate);
   };
 }

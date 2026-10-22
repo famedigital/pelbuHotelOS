@@ -1,6 +1,5 @@
 "use client";
 
-import { useDeskWorkspace } from "@/components/erp/DeskWorkspaceProvider";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,16 +10,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   activeSheetHref,
-  BO_SHEET_TABS,
-  FO_PINNABLE_SHEETS,
-  FO_SHEET_TABS,
+  DESK_PINNABLE_SHEETS,
+  DESK_SHEET_TABS,
   loadPinnedSheetHrefs,
   savePinnedSheetHrefs,
   type DeskSheetTab,
 } from "@/lib/erp/desk-menu";
-import { tabVisibleFromGrants } from "@/lib/erp/desk-modules";
-import { foMoreModules, filterModulesForWorkspace } from "@/lib/erp/desk-workspace";
+import {
+  filterErpNavByGrants,
+  tabVisibleFromGrants,
+} from "@/lib/erp/desk-modules";
 import { ERP_MODULES } from "@/lib/erp-nav";
+import { filterModulesForProductPack } from "@/lib/product-pack";
 import { pushErpRecent } from "@/lib/erp-recents";
 import { cn } from "@/lib/utils";
 import { ListIcon, PlusIcon } from "lucide-react";
@@ -30,7 +31,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 /**
  * Google Sheets–style bottom sheet tabs (md+ only).
- * Phone uses DeskMobileNav instead — no double bottom chrome.
+ * RBAC-filtered — no FO/BO workspace split. Phone uses DeskMobileNav.
  */
 export function DeskSheetTabs({
   allowedModuleKeys,
@@ -38,7 +39,6 @@ export function DeskSheetTabs({
   allowedModuleKeys?: readonly string[];
 } = {}) {
   const pathname = usePathname();
-  const { workspace } = useDeskWorkspace();
   const [pinned, setPinned] = useState<string[]>([]);
 
   useEffect(() => {
@@ -50,9 +50,6 @@ export function DeskSheetTabs({
     return allowedModuleKeys;
   }, [allowedModuleKeys]);
 
-  const defaults =
-    workspace === "back_office" ? BO_SHEET_TABS : FO_SHEET_TABS;
-
   const filterTab = useCallback(
     (t: DeskSheetTab) => {
       if (!grants) return true;
@@ -61,8 +58,10 @@ export function DeskSheetTabs({
     [grants],
   );
 
+  const defaults = DESK_SHEET_TABS;
+
   const pinnedTabs: DeskSheetTab[] = useMemo(() => {
-    const pool = [...FO_PINNABLE_SHEETS, ...FO_SHEET_TABS, ...BO_SHEET_TABS];
+    const pool = [...DESK_PINNABLE_SHEETS, ...DESK_SHEET_TABS];
     return pinned
       .map((href) => pool.find((t) => t.href === href))
       .filter((t): t is DeskSheetTab => !!t && filterTab(t))
@@ -77,17 +76,20 @@ export function DeskSheetTabs({
   const active = activeSheetHref(pathname, tabs);
 
   const allSheets = useMemo(() => {
-    const modules = filterModulesForWorkspace(ERP_MODULES, workspace, grants);
-    const list =
-      workspace === "front_desk" ? foMoreModules(modules) : modules;
-    return list.flatMap((m) =>
-      m.tabs.map((t) => ({
-        title: t.title,
-        href: t.href,
-        group: m.title,
-      })),
+    let modules = filterErpNavByGrants(ERP_MODULES, grants);
+    modules = filterModulesForProductPack(modules, "hotel");
+    return modules.flatMap((m) =>
+      m.tabs
+        .filter(
+          (t) => !grants || tabVisibleFromGrants(m.key, t.href, grants),
+        )
+        .map((t) => ({
+          title: t.title,
+          href: t.href,
+          group: m.title,
+        })),
     );
-  }, [workspace, grants]);
+  }, [grants]);
 
   const addPin = (href: string) => {
     setPinned((prev) => {
@@ -100,10 +102,8 @@ export function DeskSheetTabs({
     });
   };
 
-  const pinnable = FO_PINNABLE_SHEETS.filter(
-    (t) =>
-      filterTab(t) &&
-      !tabs.some((x) => x.href === t.href),
+  const pinnable = DESK_PINNABLE_SHEETS.filter(
+    (t) => filterTab(t) && !tabs.some((x) => x.href === t.href),
   );
 
   return (

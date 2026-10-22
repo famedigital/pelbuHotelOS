@@ -1,6 +1,9 @@
+"use client";
+
+import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
-/** Desk entrance wrapper. Renders immediately — no motion on the desk path. */
+/** Short rise when a desk block appears. Honors reduced motion in CSS. */
 export function DeskBlurFade({
   children,
   className,
@@ -10,5 +13,5 @@ export function DeskBlurFade({
   delay?: number;
   className?: string;
 }) {
-  return <div className={className}>{children}</div>;
+  return <div className={cn("desk-rise", className)}>{children}</div>;
 }

@@ -2,6 +2,8 @@
 
 import type { PropertyWizardState } from "@/app/actions/erp-properties";
 import { writeAuditEvent } from "@/lib/audit";
+import { toStaticEmv } from "@/lib/bank-qr/emv";
+import type { BankAccount } from "@/lib/property-types";
 import { isDeskAuthenticated, requireDeskRole } from "@/lib/desk-auth";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
 import {
@@ -604,6 +606,100 @@ export async function updatePropertyTaxSettings(
     return {
       ok: false,
       error: e instanceof Error ? e.message : "Could not save tax settings.",
+    };
+  }
+}
+
+/** Legal name, TPN, GST, bank, and the static bank QR used on RRCO invoices. */
+export async function saveRrcoInvoiceProfile(
+  _prev: PropertyWizardState,
+  formData: FormData,
+): Promise<PropertyWizardState> {
+  try {
+    await requireDeskRole(["gm", "owner"]);
+    const admin = createSupabaseAdminClient();
+    const activePropertyId = await resolveActivePropertyId(admin);
+    const propertyId = trimRequired(formData.get("property_id"), "Property");
+    assertDeskProperty(activePropertyId, propertyId, "Property");
+
+    const name = trimRequired(formData.get("name"), "Hotel name");
+    const legalName = optionalTrim(formData.get("legal_name")) ?? name;
+    const address = optionalTrim(formData.get("address"));
+    const phone = optionalTrim(formData.get("phone"));
+    const email = optionalTrim(formData.get("email"));
+    const taxId = optionalTrim(formData.get("tax_id"));
+    const city = optionalTrim(formData.get("city")) ?? "Thimphu";
+    const gstEnabled = formData.get("gst_enabled") === "1";
+    const gstRate = requirePercent(formData.get("gst_rate"), "GST rate");
+    const serviceChargeRate = requirePercent(
+      formData.get("service_charge_rate"),
+      "Service charge",
+    );
+    const bankName = optionalTrim(formData.get("bank_name")) ?? "BNB";
+    const account = optionalTrim(formData.get("bank_account"));
+    const rawPayload = optionalTrim(formData.get("qr_payload")) ?? "";
+
+    const { data: current, error: readError } = await admin
+      .from("properties")
+      .select("bank_accounts")
+      .eq("id", propertyId)
+      .maybeSingle();
+    if (readError) throw new Error(readError.message);
+    const previous = (
+      (current?.bank_accounts as BankAccount[] | null) ?? []
+    )[0];
+
+    let qrPayload = rawPayload ? toStaticEmv(rawPayload) : "";
+    if (rawPayload && !qrPayload) {
+      throw new Error(
+        "That QR is not a bank payment code. Upload the QR from mBoB.",
+      );
+    }
+    if (!qrPayload) qrPayload = previous?.qr_payload ?? "";
+
+    const accountRow: BankAccount = {
+      label: legalName,
+      bank: bankName,
+      account: account ?? previous?.account,
+      hint: taxId ? `RRCO TPN ${taxId}` : previous?.hint,
+      city,
+      qr_payload: qrPayload || undefined,
+      qr_url: previous?.qr_url,
+    };
+
+    const { error } = await admin
+      .from("properties")
+      .update({
+        name,
+        legal_name: legalName,
+        address,
+        phone,
+        email,
+        tax_id: taxId,
+        gst_enabled: gstEnabled,
+        gst_rate: gstRate,
+        service_charge_rate: serviceChargeRate,
+        bank_accounts: [accountRow],
+      })
+      .eq("id", propertyId);
+    if (error) throw new Error(error.message);
+
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "property.settings.rrco",
+      entityType: "properties",
+      entityId: propertyId,
+      summary: `Updated RRCO invoice details for ${name}`,
+      meta: { tax_id: taxId, bank: bankName, has_qr: Boolean(qrPayload) },
+    });
+
+    revalidatePath("/erp/settings");
+    revalidatePath("/erp/invoices");
+    return { ok: true, propertyId, message: "RRCO invoice details saved." };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not save invoice details.",
     };
   }
 }

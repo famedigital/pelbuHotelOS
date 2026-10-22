@@ -29,6 +29,7 @@ import {
 import { loadRoomChargePosOrders } from "@/lib/folio/room-pos-orders";
 import { formatBtn } from "@/lib/pricing";
 import { netFolioBalance } from "@/lib/folio/balance";
+import { foPaymentModeHint, foPaymentModeLabel } from "@/lib/folio/fo-settlement";
 import { isAgentOpenItemFolio } from "@/lib/folio/agent-open-item";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -385,10 +386,12 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
     : nextAction.label === "Post charges"
       ? "Post room charges"
       : nextAction.label === "Issue invoice"
-        ? "Issue tax invoice"
+        ? "Create invoice"
         : nextAction.label === "Collect payment"
           ? "Collect payment"
-          : nextAction.label === "Check out"
+          : invoiceDoc && Math.abs(balance) <= 0.5
+        ? "Print"
+        : nextAction.label === "Check out"
             ? "Checkout guest"
             : balance > 0.5
               ? "Collect payment"
@@ -484,7 +487,9 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
     : null;
 
   const primaryHref =
-    needsDay1 || currentStep?.id === "charges" || currentStep?.id === "invoice"
+    invoiceDoc && !needsDay1 && Math.abs(balance) <= 0.5
+      ? `/erp/invoices/${invoiceDoc.id as string}/print?bill=master`
+      : needsDay1 || currentStep?.id === "charges" || currentStep?.id === "invoice"
       ? "#folio-collect"
       : bookingStatus === "checked_in" &&
           bookingId &&
@@ -549,6 +554,17 @@ export default async function FolioDetailPage({ params, searchParams }: Props) {
             <h1 className="truncate text-lg font-semibold tracking-tight text-foreground md:text-xl">
               {guestTitle}
             </h1>
+            {booking?.payment_mode ? (
+              <p className="mt-0.5 text-sm text-foreground">
+                {foPaymentModeLabel(booking.payment_mode as string)}
+                {foPaymentModeHint(booking.payment_mode as string) ? (
+                  <span className="text-muted-foreground">
+                    {" — "}
+                    {foPaymentModeHint(booking.payment_mode as string)}
+                  </span>
+                ) : null}
+              </p>
+            ) : null}
             <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
               <span
                 className={cn(

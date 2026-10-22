@@ -75,6 +75,7 @@ export type PosPaidReceiptData = {
   lines: PosPaidReceiptLine[];
   tenders: PosPaidReceiptTender[];
   folioId: string | null;
+  bookingId?: string | null;
   /** Settled order that was later voided — watermark on reprint. */
   voidedAt?: string | null;
 };

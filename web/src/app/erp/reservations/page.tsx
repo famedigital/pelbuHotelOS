@@ -106,7 +106,7 @@ export default async function ReservationsPage({
            token_required_btn, token_received_btn, deposit_due_on,
            agents(company_name),
            booking_rooms(room_type_id, inventory_kind),
-           room_assignments(id, room_unit_id, room_units(label, room_type_id))`,
+           room_assignments(id, room_unit_id, room_units(label, sort_order, room_type_id))`,
         )
         .eq("property_id", propertyId);
       if (view === "all") {
@@ -342,20 +342,29 @@ export default async function ReservationsPage({
               id?: string;
               room_unit_id?: string;
               room_units?:
-                | { label?: string; room_type_id?: string }
-                | { label?: string; room_type_id?: string }[]
+                | { label?: string; sort_order?: number; room_type_id?: string }
+                | { label?: string; sort_order?: number; room_type_id?: string }[]
                 | null;
             }>
           | null) ?? [];
+      const doorOpen = ["checked_in", "checked_out"].includes(
+        String(row.status ?? ""),
+      );
       const doorsOnStay = assignments
         .map((assignment) => {
           const unit = Array.isArray(assignment.room_units)
             ? assignment.room_units[0]
             : assignment.room_units;
+          const serial =
+            unit?.sort_order != null && Number(unit.sort_order) > 0
+              ? String(unit.sort_order)
+              : "";
           return {
             assignmentId: assignment.id ?? null,
             roomUnitId: assignment.room_unit_id ?? null,
-            label: unit?.label?.trim() || "",
+            label: doorOpen
+              ? unit?.label?.trim() || ""
+              : serial || unit?.label?.trim() || "",
             roomTypeId: unit?.room_type_id ?? null,
           };
         })
