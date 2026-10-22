@@ -32,6 +32,7 @@ export function HubShell({
   breadcrumb,
   wide = true,
   className,
+  tabsClassName,
 }: {
   heading: string;
   /** Hub-level subtitle when no tab overrides, or fallback */
@@ -46,6 +47,8 @@ export function HubShell({
   breadcrumb?: ReactNode;
   wide?: boolean;
   className?: string;
+  /** Extra classes on the section tab strip (for example hide it on desktop). */
+  tabsClassName?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -78,7 +81,10 @@ export function HubShell({
             ) : null}
             <nav
               aria-label={`${heading} sections`}
-              className="flex max-w-full items-center gap-0.5 overflow-x-auto rounded-md border border-border bg-muted/40 p-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              className={cn(
+                "flex max-w-full items-center gap-0.5 overflow-x-auto rounded-md border border-border bg-muted/40 p-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+                tabsClassName,
+              )}
             >
               {tabs.map((tab) => {
                 const isActive = tab.id === active?.id;

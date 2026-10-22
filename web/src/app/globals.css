@@ -745,6 +745,7 @@ body.pos-fs .erp [data-slot="sidebar-trigger"],
 body.pos-fs .erp [data-slot="sidebar-rail"],
 body.pos-fs .erp [data-slot="sidebar-inset"] header,
 body.pos-fs .erp [data-slot="desk-top-chrome"],
+body.pos-fs .erp [data-slot="desk-side-nav"],
 body.pos-fs .erp [data-slot="desk-sheet-tabs"],
 body.pos-fs .erp [data-slot="desk-mobile-nav"],
 body.pos-fs .erp [data-slot="desk-nav-trigger"] {

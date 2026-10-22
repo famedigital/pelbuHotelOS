@@ -14,6 +14,7 @@ function HubChromeInner({
   filters,
   headerAside,
   stickyCta,
+  tabsClassName,
 }: {
   heading: string;
   description: string;
@@ -22,6 +23,7 @@ function HubChromeInner({
   filters?: ReactNode;
   headerAside?: ReactNode;
   stickyCta?: ReactNode;
+  tabsClassName?: string;
 }) {
   const pathname = usePathname() ?? "";
   const activeTab = hubTabIdFromPath(pathname, tabs);
@@ -35,6 +37,7 @@ function HubChromeInner({
       filters={filters}
       headerAside={headerAside}
       stickyCta={stickyCta}
+      tabsClassName={tabsClassName}
       breadcrumb={
         <ErpBreadcrumb
           items={[
@@ -59,6 +62,7 @@ export function HubChrome(props: {
   filters?: ReactNode;
   headerAside?: ReactNode;
   stickyCta?: ReactNode;
+  tabsClassName?: string;
 }) {
   return (
     <Suspense

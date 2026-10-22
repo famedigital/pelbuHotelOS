@@ -2,7 +2,11 @@ import { FoCommandScope } from "@/components/erp/FoCommandDesk";
 import { DeskHelpHint } from "@/components/erp/DeskHelpHint";
 import { DeskMobileNav } from "@/components/erp/DeskMobileNav";
 import { DeskSheetTabs } from "@/components/erp/DeskSheetTabs";
-import { DeskTopChrome } from "@/components/erp/DeskTopChrome";
+import {
+  DeskMenuProvider,
+  DeskSideNav,
+  DeskTopChrome,
+} from "@/components/erp/DeskTopChrome";
 import { DeskWorkspaceProvider } from "@/components/erp/DeskWorkspaceProvider";
 import { ErpCommandPalette } from "@/components/erp/ErpCommandPalette";
 import { NavigationProgress } from "@/components/erp/NavigationProgress";
@@ -18,8 +22,8 @@ import type { PropertySwitcherOption } from "@/lib/property-types";
 import { Suspense, type ReactNode } from "react";
 
 /**
- * ERP shell — Sheets-style chrome: top menubar + toolbar, bottom sheet tabs (md+).
- * Phone: compact top Menu + thumb bottom nav. No left sidebar.
+ * ERP shell — top menubar, desktop submenu rail, bottom sheet tabs (md+).
+ * Phone: compact top Menu + thumb bottom nav. No left rail under md.
  * Page body scrolls in the middle; StayHub mounts once for the desk.
  */
 export function DeskShell({
@@ -65,19 +69,30 @@ export function DeskShell({
           <Suspense fallback={null}>
             <DeskSurfaceMetrics />
           </Suspense>
-          <DeskTopChrome
-            brandName={title}
-            logoSrc={logoSrc}
-            businessDate={businessDate}
-            properties={properties}
-            activePropertyId={activePropertyId}
-            allowedModuleKeys={allowedModuleKeys}
-          />
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0 print:overflow-visible print:pb-0">
-            <Suspense fallback={<DeskMainSkeleton />}>
-              <FoCommandScope>{children}</FoCommandScope>
-            </Suspense>
-          </div>
+          <DeskMenuProvider allowedModuleKeys={allowedModuleKeys}>
+            <DeskTopChrome
+              brandName={title}
+              logoSrc={logoSrc}
+              businessDate={businessDate}
+              properties={properties}
+              activePropertyId={activePropertyId}
+              allowedModuleKeys={allowedModuleKeys}
+            />
+            <div className="flex min-h-0 min-w-0 flex-1">
+              <Suspense
+                fallback={
+                  <div className="hidden w-44 shrink-0 border-r border-border md:block" />
+                }
+              >
+                <DeskSideNav />
+              </Suspense>
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0 print:overflow-visible print:pb-0">
+                <Suspense fallback={<DeskMainSkeleton />}>
+                  <FoCommandScope>{children}</FoCommandScope>
+                </Suspense>
+              </div>
+            </div>
+          </DeskMenuProvider>
           <DeskSheetTabs allowedModuleKeys={allowedModuleKeys} />
           <div className="shrink-0 print:hidden md:hidden">
             <DeskMobileNav allowedModuleKeys={allowedModuleKeys} />

@@ -54,7 +54,7 @@ export function FoDeskHome({
     <div className="space-y-4">
       <nav
         aria-label="Front office"
-        className="flex gap-1 overflow-x-auto border-b border-white/10"
+        className="flex gap-1 overflow-x-auto border-b border-white/10 md:hidden"
       >
         {TABS.map((item) => (
           <button

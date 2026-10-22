@@ -46,7 +46,14 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 const MENU_TITLE: Record<string, string> = {
   stay: "Front office",
@@ -154,28 +161,31 @@ function useAllowedHrefs(allowedModuleKeys?: readonly string[]) {
   }, [allowedModuleKeys]);
 }
 
-/**
- * Word-style desk chrome: menu titles, then a ribbon of icon + label.
- */
-export function DeskTopChrome({
-  brandName = SITE_NAME,
-  logoSrc,
-  businessDate,
-  properties,
-  activePropertyId,
+type DeskMenuGroupView = {
+  id: string;
+  label: string;
+  items: { href: string; title: string; icon: LucideIcon }[];
+};
+
+type DeskMenuValue = {
+  groups: DeskMenuGroupView[];
+  activeMenuId: string | null;
+  setPickedMenu: (id: string) => void;
+  activeGroup: DeskMenuGroupView | undefined;
+};
+
+const DeskMenuContext = createContext<DeskMenuValue | null>(null);
+
+/** Shared menubar + sidebar state. Clicking a top menu switches the rail. */
+export function DeskMenuProvider({
   allowedModuleKeys,
+  children,
 }: {
-  brandName?: string;
-  logoSrc?: string | null;
-  businessDate?: string | null;
-  properties?: PropertySwitcherOption[];
-  activePropertyId?: string;
   allowedModuleKeys?: readonly string[];
+  children: ReactNode;
 }) {
   const pathname = usePathname();
   const allowedHrefs = useAllowedHrefs(allowedModuleKeys);
-  const bizLabel = businessDate?.slice(0, 10) ?? null;
-  const [menuOpen, setMenuOpen] = useState(false);
   const [pickedMenu, setPickedMenu] = useState<string | null>(null);
 
   const groups = useMemo(() => {
@@ -198,6 +208,49 @@ export function DeskTopChrome({
   useEffect(() => {
     setPickedMenu(null);
   }, [pathname]);
+
+  const value = useMemo(
+    () => ({ groups, activeMenuId, setPickedMenu, activeGroup }),
+    [groups, activeMenuId, activeGroup],
+  );
+
+  return (
+    <DeskMenuContext.Provider value={value}>{children}</DeskMenuContext.Provider>
+  );
+}
+
+function useDeskMenu() {
+  const value = useContext(DeskMenuContext);
+  if (!value) {
+    throw new Error("Desk menu is only available inside DeskMenuProvider");
+  }
+  return value;
+}
+
+/**
+ * Word-style desk chrome: menu titles across the top.
+ * The active menu's links live in DeskSideNav.
+ */
+export function DeskTopChrome({
+  brandName = SITE_NAME,
+  logoSrc,
+  businessDate,
+  properties,
+  activePropertyId,
+  allowedModuleKeys,
+}: {
+  brandName?: string;
+  logoSrc?: string | null;
+  businessDate?: string | null;
+  properties?: PropertySwitcherOption[];
+  activePropertyId?: string;
+  allowedModuleKeys?: readonly string[];
+}) {
+  const pathname = usePathname();
+  const allowedHrefs = useAllowedHrefs(allowedModuleKeys);
+  const bizLabel = businessDate?.slice(0, 10) ?? null;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { groups, activeMenuId, setPickedMenu } = useDeskMenu();
 
   const daySheetHref = bizLabel
     ? `/erp/calendar/day-sheet?date=${bizLabel}`
@@ -423,12 +476,6 @@ export function DeskTopChrome({
         </div>
       </div>
 
-      {activeGroup ? (
-        <Suspense fallback={<div className="hidden h-16 border-t md:block" />}>
-          <DeskRibbon group={activeGroup} pathname={pathname} />
-        </Suspense>
-      ) : null}
-
       {/* POS register portals — zero height when empty */}
       <div className="flex empty:hidden">
         <div
@@ -444,24 +491,28 @@ export function DeskTopChrome({
   );
 }
 
-function DeskRibbon({
-  group,
-  pathname,
-}: {
-  group: {
-    id: string;
-    items: { href: string; title: string; icon: LucideIcon }[];
-  };
-  pathname: string;
-}) {
+/** Desktop rail for the menu picked in the top bar. Phones keep the Menu sheet. */
+export function DeskSideNav() {
+  const pathname = usePathname();
   const tab = useSearchParams().get("tab");
-  const stay = group.id === "stay";
+  const { activeGroup } = useDeskMenu();
+  if (!activeGroup) return null;
+
+  const stay = activeGroup.id === "stay";
   const rest = stay
-    ? group.items.filter((item) => !STAY_LIST_HREFS.has(item.href))
-    : group.items;
+    ? activeGroup.items.filter((item) => !STAY_LIST_HREFS.has(item.href))
+    : activeGroup.items;
+  const title = MENU_TITLE[activeGroup.id] ?? activeGroup.label;
 
   return (
-    <div className="hidden min-h-16 items-stretch gap-1 overflow-x-auto border-t bg-muted/30 px-2 py-1 md:flex">
+    <nav
+      aria-label={title}
+      data-slot="desk-side-nav"
+      className="hidden w-44 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-border bg-background px-2 py-2 md:flex print:hidden"
+    >
+      <p className="px-2 pb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+        {title}
+      </p>
       {stay
         ? STAY_RIBBON.map((item) => {
             const on =
@@ -469,7 +520,7 @@ function DeskRibbon({
               pathname === "/erp/stayview" &&
               (tab ?? "home") === (item.tab ?? "home");
             return (
-              <RibbonButton
+              <SideLink
                 key={item.label}
                 href={item.href}
                 label={item.label}
@@ -481,25 +532,23 @@ function DeskRibbon({
           })
         : null}
       {stay && rest.length > 0 ? (
-        <span className="mx-1 w-px self-stretch bg-border" aria-hidden />
+        <span className="my-1 h-px bg-border" aria-hidden />
       ) : null}
       {rest.map((item) => (
-        <RibbonButton
+        <SideLink
           key={item.href}
           href={item.href}
           label={ribbonLabel(item.href, item.title)}
           icon={item.icon}
           active={pathMatchesHref(pathname, item.href)}
-          onClick={() =>
-            pushErpRecent({ href: item.href, title: item.title })
-          }
+          onClick={() => pushErpRecent({ href: item.href, title: item.title })}
         />
       ))}
-    </div>
+    </nav>
   );
 }
 
-function RibbonButton({
+function SideLink({
   href,
   label,
   icon: Icon,
@@ -520,14 +569,14 @@ function RibbonButton({
       onClick={onClick}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex min-w-16 max-w-24 flex-col items-center justify-center gap-1 rounded-md px-1.5 py-1 text-center text-[11px] leading-tight hover:bg-background",
-        active && "bg-background font-medium shadow-sm",
+        "flex h-8 items-center gap-2 rounded-md px-2 text-[13px] text-muted-foreground hover:bg-muted hover:text-foreground",
+        active && "bg-muted font-medium text-foreground",
         emphasis &&
-          "bg-sky-600 font-medium text-white shadow-sm hover:bg-sky-500",
+          "bg-sky-600 font-medium text-white hover:bg-sky-500 hover:text-white",
       )}
     >
-      <Icon className="size-5 shrink-0" />
-      <span>{label}</span>
+      <Icon className="size-4 shrink-0" />
+      <span className="truncate">{label}</span>
     </Link>
   );
 }
