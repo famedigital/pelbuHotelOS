@@ -198,7 +198,7 @@ export default async function FiscalInvoicePrintPage({
     ? await admin
         .from("folios")
         .select(
-          "label, booking_id, agent_id, folio_type, agents(company_name, contact_email, contact_name), folio_lines(id, description, total_btn, gst_btn, service_charge_btn, amount_btn, status, source_type, source_id, reverses_line_id)",
+          "label, status, booking_id, agent_id, folio_type, agents(company_name, contact_email, contact_name), folio_lines(id, description, total_btn, gst_btn, service_charge_btn, amount_btn, status, source_type, source_id, reverses_line_id)",
         )
         .eq("id", folioId)
         .maybeSingle()
@@ -214,13 +214,15 @@ export default async function FiscalInvoicePrintPage({
   let roomProductLines: string[] = [];
   let roomUnitLabels: string[] = [];
   let guideNumber: string | null = null;
+  let confirmationCode: string | null = null;
+  let bookingStatus: string | null = null;
 
   const bookingId = folio?.booking_id as string | null | undefined;
   if (bookingId) {
     const { data: booking } = await admin
       .from("bookings")
       .select(
-        `contact_email, contact_name, check_in, check_out, rooms, meal_plan_code, guide_number,
+        `confirmation_code, status, contact_email, contact_name, check_in, check_out, rooms, meal_plan_code, guide_number,
          agents(company_name),
          booking_rooms(qty, inventory_kind, room_types(name, code)),
          room_assignments(room_units(label))`,
@@ -229,6 +231,8 @@ export default async function FiscalInvoicePrintPage({
       .maybeSingle();
 
     if (booking) {
+      confirmationCode = (booking.confirmation_code as string | null) ?? null;
+      bookingStatus = (booking.status as string | null) ?? null;
       guestEmail = (booking.contact_email as string | null) ?? null;
       guestName = (booking.contact_name as string | null) ?? null;
       checkIn = (booking.check_in as string | null) ?? null;
@@ -522,6 +526,14 @@ export default async function FiscalInvoicePrintPage({
             ? foodBillTitle(mealPlanCode)
             : BILL_KIND_TITLES[bill];
 
+  const departed = bookingId ? bookingStatus === "checked_out" : true;
+  // Before checkout, room and food carry the folio number.
+  // After checkout, paid or on credit, the master bill carries the invoice number.
+  const masterInvoice = kind === "invoice" && bill === "master" && departed;
+  const folioNo = confirmationCode?.trim() || "—";
+  const paperNo = masterInvoice ? String(doc.doc_no) : folioNo;
+  const paperNoLabel = masterInvoice ? "Inv no." : "Folio no.";
+
   const meta =
     doc.meta && typeof doc.meta === "object"
       ? (doc.meta as Record<string, unknown>)
@@ -729,7 +741,7 @@ export default async function FiscalInvoicePrintPage({
                 {kindLabel} print
               </p>
               <h1 className="mt-1 truncate font-mono text-xl font-semibold text-foreground">
-                {doc.doc_no as string}
+                {paperNo}
               </h1>
             </div>
             <nav className="flex shrink-0 flex-col items-end gap-1 text-sm lg:hidden">
@@ -846,12 +858,14 @@ export default async function FiscalInvoicePrintPage({
               ? "Receipt"
               : kind === "credit_note"
                 ? "Credit note"
-                : "Tax invoice"
+                : masterInvoice
+                  ? "Tax invoice"
+                  : "Folio"
           }
           title={kindTitle}
           meta={[
             { label: "Date", value: issueDate },
-            { label: "Inv no.", value: String(doc.doc_no) },
+            { label: paperNoLabel, value: paperNo },
             {
               label: "Room",
               value: (
