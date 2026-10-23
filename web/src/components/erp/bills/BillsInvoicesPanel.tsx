@@ -1,10 +1,13 @@
 import { InvoicesDesk, type InvoiceDeskRow } from "@/components/erp/bills/InvoicesDesk";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { requireDeskPropertyId } from "@/lib/desk-property";
 import {
   guestVisibleBalanceLines,
   netFolioBalance,
 } from "@/lib/folio/balance";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import Link from "next/link";
 
 export async function BillsInvoicesPanel({
   fromRaw,
@@ -15,7 +18,6 @@ export async function BillsInvoicesPanel({
 } = {}) {
   const admin = createSupabaseAdminClient();
   const propertyId = await requireDeskPropertyId();
-
   const { data: docs } = await admin
     .from("fiscal_documents")
     .select(
@@ -127,7 +129,19 @@ export async function BillsInvoicesPanel({
     };
   });
 
-  return (
-    <InvoicesDesk rows={rows} fromDefault={fromRaw} toDefault={toRaw} />
-  );
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        title="No tax invoices yet"
+        description="A bill is not an invoice. Open the stay bill and choose Issue invoice when the guest or agent needs an INV."
+        action={
+          <Button asChild size="sm">
+            <Link href="/erp/bills?tab=stay">Open bills</Link>
+          </Button>
+        }
+      />
+    );
+  }
+
+  return <InvoicesDesk rows={rows} fromDefault={fromRaw} toDefault={toRaw} />;
 }

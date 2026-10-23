@@ -12,8 +12,11 @@ import {
   FiscalTotalsBlock,
   type FiscalLineRow,
 } from "@/components/erp/print/FiscalLetterhead";
+import { RoomBillTable } from "@/components/erp/print/RoomBillTable";
 import { PrintEditableValue } from "@/components/erp/print/PrintEditableValue";
 import { cloudinaryUrl } from "@/lib/cloudinary";
+import { folioNoFromConfirmation } from "@/lib/hotel-doc-no";
+import { loadStayNightMeals } from "@/app/actions/erp-night-meals";
 import { PRODUCTION_CANONICAL } from "@/lib/site";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
@@ -44,6 +47,12 @@ import {
   roundBtn,
 } from "@/lib/pricing";
 import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
+import {
+  buildRoomBillRows,
+  roomBillTotal,
+  type RoomBillLineInput,
+  type RoomBillRow,
+} from "@/lib/folio/room-bill";
 import { nightsBetween } from "@/lib/rates";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { notFound, redirect } from "next/navigation";
@@ -80,14 +89,20 @@ type MaybeList<T> = T | T[] | null;
 type BookingRoomRow = {
   qty: number;
   inventory_kind: string | null;
+  room_type_id?: string | null;
+  agreed_nightly_rate_btn?: number | null;
+  occupancy?: string | null;
   room_types:
-    | { name?: string | null; code?: string | null }
-    | { name?: string | null; code?: string | null }[]
+    | { id?: string | null; name?: string | null; code?: string | null }
+    | { id?: string | null; name?: string | null; code?: string | null }[]
     | null;
 };
 
 type RoomAssignmentRow = {
-  room_units: MaybeList<{ label?: string | null }>;
+  room_units: MaybeList<{
+    label?: string | null;
+    room_type_id?: string | null;
+  }>;
 };
 
 function firstOf<T>(value: MaybeList<T>): T | null {
@@ -180,15 +195,36 @@ export default async function FiscalInvoicePrintPage({
     .eq("id", id)
     .maybeSingle();
 
-  if (docError) {
-    console.error("fiscal invoice print load failed", docError);
+  let loaded = doc;
+  if (docError || !loaded) {
+    console.error("fiscal invoice print load failed", id, docError);
+    const retry = await admin
+      .from("fiscal_documents")
+      .select("id, doc_no, doc_kind, property_id, folio_id, issued_at, status")
+      .eq("id", id)
+      .maybeSingle();
+    loaded = retry.data;
+    if (retry.error || !loaded) notFound();
+  }
+  const docRow = loaded;
+
+  const folioIdForBill = (docRow.folio_id as string | null) ?? null;
+  if (folioIdForBill && (bill === "room" || bill === "fnb" || bill === "master")) {
+    redirect(`/erp/folios/${folioIdForBill}/bill?bill=${bill}`);
+  }
+
+  if (!doc) notFound();
+
+  if ((doc.status as string) !== "issued" && (doc.status as string) !== "sent") {
+    if (folioIdForBill) redirect(`/erp/folios/${folioIdForBill}/bill?bill=${bill}`);
     notFound();
   }
-  if (!doc || (doc.status as string) !== "issued") notFound();
 
   try {
     assertDeskProperty(activePropertyId, doc.property_id as string, "Document");
-  } catch {
+  } catch (err) {
+    console.error("fiscal invoice print property", id, activePropertyId, doc.property_id, err);
+    if (folioIdForBill) redirect(`/erp/folios/${folioIdForBill}/bill?bill=${bill}`);
     notFound();
   }
 
@@ -216,16 +252,24 @@ export default async function FiscalInvoicePrintPage({
   let guideNumber: string | null = null;
   let confirmationCode: string | null = null;
   let bookingStatus: string | null = null;
+  let stayGuests: number | null = null;
+  let stayAdults = 0;
+  let stayChildren = 0;
+  let bookingAgreedRate: number | null = null;
+  let guestNationalities: string[] = [];
+  let roomBillSource: RoomBillLineInput[] = [];
+  let nightMeals: Array<{ date: string; mealPlanCode: string }> = [];
 
   const bookingId = folio?.booking_id as string | null | undefined;
   if (bookingId) {
     const { data: booking } = await admin
       .from("bookings")
       .select(
-        `confirmation_code, status, contact_email, contact_name, check_in, check_out, rooms, meal_plan_code, guide_number,
+        `confirmation_code, status, contact_email, contact_name, check_in, check_out, rooms, adults, children, meal_plan_code, guide_number, agreed_nightly_rate_btn,
          agents(company_name),
-         booking_rooms(qty, inventory_kind, room_types(name, code)),
-         room_assignments(room_units(label))`,
+         booking_guests(nationality),
+         booking_rooms(qty, inventory_kind, room_type_id, agreed_nightly_rate_btn, occupancy, room_types(id, name, code)),
+         room_assignments(room_units(label, room_type_id))`,
       )
       .eq("id", bookingId)
       .maybeSingle();
@@ -239,9 +283,24 @@ export default async function FiscalInvoicePrintPage({
       checkOut = (booking.check_out as string | null) ?? null;
       mealPlanCode = (booking.meal_plan_code as string | null) ?? null;
       guideNumber = (booking.guide_number as string | null) ?? null;
+      stayAdults = Number(booking.adults ?? 0);
+      stayChildren = Math.max(0, Number(booking.children ?? 0));
+      stayGuests = stayAdults + stayChildren;
+      bookingAgreedRate =
+        booking.agreed_nightly_rate_btn != null
+          ? Number(booking.agreed_nightly_rate_btn)
+          : null;
+      guestNationalities = (
+        (booking.booking_guests as Array<{ nationality?: string | null }> | null) ??
+        []
+      )
+        .map((guest) => (guest.nationality ?? "").trim())
+        .filter(Boolean);
       if (checkIn && checkOut) {
         stayNights = nightsBetween(checkIn, checkOut);
       }
+      const loadedMeals = await loadStayNightMeals(bookingId);
+      if (loadedMeals.ok) nightMeals = loadedMeals.nights;
 
       const agentRaw = booking.agents as MaybeList<{
         company_name?: string | null;
@@ -255,11 +314,43 @@ export default async function FiscalInvoicePrintPage({
         .map(formatRoomProductLine)
         .filter(Boolean);
 
-      roomUnitLabels = (
-        (booking.room_assignments as RoomAssignmentRow[] | null) ?? []
-      )
+      const assignmentRows =
+        (booking.room_assignments as RoomAssignmentRow[] | null) ?? [];
+      roomUnitLabels = assignmentRows
         .map((row) => firstOf(row.room_units)?.label?.trim())
         .filter((label): label is string => Boolean(label));
+      const labelsByType = new Map<string, string[]>();
+      for (const row of assignmentRows) {
+        const unit = firstOf(row.room_units);
+        const typeId = unit?.room_type_id;
+        const label = unit?.label?.trim();
+        if (!typeId || !label) continue;
+        const list = labelsByType.get(typeId) ?? [];
+        list.push(label);
+        labelsByType.set(typeId, list);
+      }
+      roomBillSource = (
+        (booking.booking_rooms as BookingRoomRow[] | null) ?? []
+      )
+        .filter(
+          (row) =>
+            !row.inventory_kind || row.inventory_kind === "sellable_guest",
+        )
+        .map((row) => {
+          const rt = firstOf(row.room_types);
+          const typeId =
+            row.room_type_id || (rt?.id as string | undefined) || "";
+          return {
+            roomTypeName: rt?.name?.trim() || rt?.code?.trim() || "Room",
+            roomNumbers: typeId ? (labelsByType.get(typeId) ?? []) : [],
+            rooms: Math.max(1, Number(row.qty) || 1),
+            nightlyRateBtn:
+              row.agreed_nightly_rate_btn != null
+                ? Number(row.agreed_nightly_rate_btn)
+                : bookingAgreedRate,
+            occupancy: row.occupancy ?? null,
+          };
+        });
     }
   } else {
     const agentRaw = (
@@ -309,6 +400,43 @@ export default async function FiscalInvoicePrintPage({
   const onBill = lines.filter((l) => lineBelongsOnBill(l, bill));
 
   const roomLines = onBill.filter((l) => classifyBillLine(l) === "room");
+  const roomLineIds = new Set(roomLines.map((line) => line.id));
+  const roomBillRows: RoomBillRow[] =
+    bill === "fnb"
+      ? []
+      : buildRoomBillRows({
+          checkIn: checkIn ?? "",
+          checkOut: checkOut ?? "",
+          mealPlanCode,
+          nightMeals,
+          adults: stayAdults,
+          children: stayChildren,
+          nationalities: guestNationalities,
+          guideNumber,
+          lines: (roomBillSource.length > 0
+            ? roomBillSource
+            : [
+                {
+                  roomTypeName: roomProductLines[0] || "Room",
+                  roomNumbers: roomUnitLabels,
+                  rooms: Math.max(1, roomUnitLabels.length || 1),
+                  nightlyRateBtn: bookingAgreedRate,
+                },
+              ]
+          ).map((line) => {
+            const posted = roomLines.filter((charge) =>
+              line.roomNumbers.some((label) =>
+                (charge.description ?? "").includes(label),
+              ),
+            );
+            const postedAmount =
+              line.roomNumbers.length > 0 && posted.length > 0
+                ? sumLines(posted)
+                : null;
+            return { ...line, postedAmountBtn: postedAmount };
+          }),
+        });
+  const roomBillAmount = roomBillTotal(roomBillRows);
   const fnbLines = onBill.filter((l) => classifyBillLine(l) === "fnb");
   const hotelAdjLines = onBill.filter(
     (l) => classifyBillLine(l) === "hotel_adj",
@@ -348,10 +476,12 @@ export default async function FiscalInvoicePrintPage({
   );
   let bankQr: string | null = null;
   const staticPayload = bank?.qr_payload?.trim() ?? "";
-  if (staticPayload && totalBtn > 0) {
+  const payableBtn =
+    bill === "room" && roomBillAmount > 0 ? roomBillAmount : totalBtn;
+  if (staticPayload && payableBtn > 0) {
     const emv = buildDynamicEmv(
       staticPayload,
-      totalBtn,
+      payableBtn,
       String(doc.doc_no ?? ""),
     );
     if (emv) {
@@ -530,7 +660,12 @@ export default async function FiscalInvoicePrintPage({
   // Before checkout, room and food carry the folio number.
   // After checkout, paid or on credit, the master bill carries the invoice number.
   const masterInvoice = kind === "invoice" && bill === "master" && departed;
-  const folioNo = confirmationCode?.trim() || "—";
+  const folioDocNo =
+    folio && "doc_no" in folio
+      ? String((folio as { doc_no?: string | null }).doc_no ?? "").trim()
+      : "";
+  const folioNo =
+    folioDocNo || folioNoFromConfirmation(confirmationCode) || "—";
   const paperNo = masterInvoice ? String(doc.doc_no) : folioNo;
   const paperNoLabel = masterInvoice ? "Inv no." : "Folio no.";
 
@@ -644,6 +779,11 @@ export default async function FiscalInvoicePrintPage({
     }
   }
   const fiscalLines: FiscalLineRow[] = [...packageRows, ...itemRows];
+  const showStayTable =
+    !masterInvoice && bill !== "fnb" && roomBillRows.length > 0;
+  const chargeLines = showStayTable
+    ? fiscalLines.filter((line) => !roomLineIds.has(line.id))
+    : fiscalLines;
 
   const stayBits = [
     checkIn && checkOut
@@ -940,13 +1080,52 @@ export default async function FiscalInvoicePrintPage({
           ]}
         />
 
-        <FiscalFoodTickets tickets={foodOrders} />
+        <FiscalFoodTickets tickets={masterInvoice ? [] : foodOrders} />
 
-        {fiscalLines.length > 0 ? (
+        {masterInvoice ? (
+          <table className="mt-6 w-full border-collapse text-[14px]">
+            <tbody>
+              <tr className="border-b border-neutral-300">
+                <td className="py-3 pr-3">
+                  {[
+                    roomProductLines[0] ?? "Stay",
+                    roomUnitLabels.length
+                      ? `room ${roomUnitLabels.join(", ")}`
+                      : null,
+                    checkIn && checkOut
+                      ? `${fmtHotelDate(checkIn)} – ${fmtHotelDate(checkOut)}`
+                      : null,
+                    stayNights != null
+                      ? `${stayNights} night${stayNights === 1 ? "" : "s"}`
+                      : null,
+                    stayGuests != null && stayGuests > 0
+                      ? `${stayGuests} guest${stayGuests === 1 ? "" : "s"}`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}
+                </td>
+                <td className="w-[7rem] py-3 text-right font-semibold tabular-nums">
+                  {formatGuestBtn(totalBtn)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        ) : null}
+        {masterInvoice && gstBtn > 0.005 ? (
+          <p className="mt-2 text-right text-[12px] text-neutral-600">
+            GST included {formatGuestBtn(gstBtn)}
+          </p>
+        ) : null}
+
+        {showStayTable ? (
+          <RoomBillTable rows={roomBillRows} tone="paper" />
+        ) : null}
+        {!masterInvoice && chargeLines.length > 0 ? (
           <>
             <FiscalLinesTable
-              rows={fiscalLines}
-              dense={fiscalLines.length >= 8}
+              rows={chargeLines}
+              dense={chargeLines.length >= 8}
               layout={bill === "fnb" ? "items" : "default"}
               showSc={
                 bill !== "fnb" &&
@@ -958,7 +1137,7 @@ export default async function FiscalInvoicePrintPage({
               }
             />
           </>
-        ) : (
+        ) : masterInvoice || showStayTable ? null : (
           <div className="mt-6 rounded-md border border-amber-700/30 bg-amber-50 px-4 py-3 text-center text-sm text-[#3a322c]">
             <p className="font-semibold">No guest-visible charges on this invoice</p>
             <p className="mt-1 text-[13px] text-[#5c534c]">
@@ -978,6 +1157,7 @@ export default async function FiscalInvoicePrintPage({
           </div>
         )}
 
+        {bill === "room" ? null : (
         <FiscalTotalsBlock
           subtotal={netSubtotal}
           serviceCharge={serviceChargeBtn}
@@ -990,6 +1170,7 @@ export default async function FiscalInvoicePrintPage({
               : 10
           }
         />
+        )}
 
         {memo ? (
           <div className="notes mt-2 text-[11px] text-[#3a322c]">

@@ -1,3 +1,4 @@
+import { FullDocumentRedirect } from "@/components/erp/FullDocumentRedirect";
 import { StaffLoginForm } from "@/components/erp/StaffAuthForms";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BRAND_ICONS } from "@/lib/brand";
@@ -10,7 +11,6 @@ import { SITE_NAME } from "@/lib/site";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { cookies } from "next/headers";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 export const metadata = {
   title: "Desk login",
@@ -19,7 +19,7 @@ export const metadata = {
 
 export default async function DeskLoginPage() {
   if (await isDeskAuthenticated()) {
-    redirect("/erp");
+    return <FullDocumentRedirect href="/erp" />;
   }
 
   let outsideShiftBanner: string | null = null;

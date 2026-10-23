@@ -161,71 +161,72 @@
 }
 
 /* =========================================================================
-   Clear Desk — crisp white canvas, ink rail, vivid sky actions, citrus money.
-   Scoped under .erp. data-desk-theme reserved for future per-hotel skins.
+   Desk skins. Dzong is the default on every .erp root.
+   brass | dusk | cedar override the six roles. Status colors stay here.
    ========================================================================= */
-.erp:not([data-desk-theme]) {
-  --ivory: #f5f0eb;
-  --ivory-soft: #faf8f5;
-  --ivory-deep: #ebe2d8;
-  --espresso: #1a1411;
-  --espresso-soft: #2a211c;
-  --espresso-mute: #3d312a;
+.erp {
+  --ivory: #f6f4f1;
+  --ivory-soft: #f6f4f1;
+  --ivory-deep: #e7e2da;
+  --espresso: #1a1816;
+  --espresso-soft: #2a2623;
+  --espresso-mute: #5c564e;
+  --maroon: #8e2f2b;
   --gold: #c5a059;
-  --gold-soft: #b08b46;
-  --brass: #8c6d3b;
+  --gold-soft: #d4b57a;
+  --brass: #c5a059;
 
-  --background: var(--ivory-soft);
-  --foreground: var(--espresso);
+  --background: #f6f4f1;
+  --foreground: #1a1816;
 
   --card: #ffffff;
-  --card-foreground: var(--espresso);
+  --card-foreground: #1a1816;
 
-  --popover: #fffdf8;
-  --popover-foreground: var(--espresso);
+  --popover: #ffffff;
+  --popover-foreground: #1a1816;
 
-  --primary: var(--maroon);
+  --primary: #8e2f2b;
   --primary-foreground: #fffdf8;
 
-  --secondary: var(--ivory-deep);
-  --secondary-foreground: var(--espresso);
+  --secondary: #e7e2da;
+  --secondary-foreground: #1a1816;
 
-  --muted-shadcn: var(--ivory);
-  --muted-foreground: var(--espresso-mute);
+  --muted-shadcn: #efebe6;
+  --muted-foreground: #5c564e;
 
-  --accent: var(--gold);
-  --accent-foreground: var(--espresso);
+  --accent: #c5a059;
+  --accent-foreground: #1a1816;
 
   --destructive: #9a3535;
   --destructive-foreground: #fffdf8;
 
-  --border: rgba(140, 109, 59, 0.35);
-  --input: rgba(140, 109, 59, 0.28);
-  --ring: var(--gold);
+  --border: rgba(26, 24, 22, 0.12);
+  --input: rgba(26, 24, 22, 0.16);
+  --ring: #c5a059;
 
-  --chart-1: var(--maroon);
-  --chart-2: var(--gold);
-  --chart-3: var(--mint-600);
-  --chart-4: var(--brass);
-  --chart-5: var(--citrus-600);
+  --chart-1: #8e2f2b;
+  --chart-2: #c5a059;
+  --chart-3: #2f6f4e;
+  --chart-4: #5c564e;
+  --chart-5: #9a3535;
 
-  --sidebar: var(--espresso);
-  --sidebar-foreground: var(--ivory);
-  --sidebar-primary: var(--gold);
-  --sidebar-primary-foreground: var(--espresso);
-  --sidebar-accent: var(--espresso-soft);
-  --sidebar-accent-foreground: var(--ivory);
-  --sidebar-border: rgba(193, 149, 72, 0.35);
-  --sidebar-ring: var(--gold);
+  --sidebar: #1a1816;
+  --sidebar-foreground: #f6f4f1;
+  --sidebar-primary: #c5a059;
+  --sidebar-primary-foreground: #1a1816;
+  --sidebar-accent: #2a2623;
+  --sidebar-accent-foreground: #f6f4f1;
+  --sidebar-border: rgba(197, 160, 89, 0.35);
+  --sidebar-ring: #c5a059;
 
-  --citrus: var(--gold);
-  --citrus-soft: var(--gold-soft);
-  --citrus-tint: rgba(184, 137, 44, 0.16);
+  --citrus: #c5a059;
+  --citrus-soft: #d4b57a;
+  --citrus-tint: rgba(197, 160, 89, 0.16);
 
   --status-arrival: #2f6f4e;
-  --status-in-house: var(--espresso);
+  --status-in-house: #1a1816;
   --status-due: #9a3535;
-  --status-unpaid: var(--gold);
+  --status-unpaid: #c5a059;
   --status-blocked: #9a3535;
 
   /* Density */
@@ -241,11 +242,144 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* Portaled dialogs sit outside the shell, so the attribute also lives on html. */
+.erp[data-desk-theme="brass"],
+html[data-desk-theme="brass"] .erp {
+  --ivory: #f7f3ec;
+  --ivory-soft: #f7f3ec;
+  --ivory-deep: #efe7d8;
+  --espresso: #1c1612;
+  --espresso-soft: #2a221c;
+  --espresso-mute: #6b5e52;
+  --maroon: #8c6d3b;
+  --gold: #b8892c;
+  --gold-soft: #d4a852;
+  --brass: #8c6d3b;
+  --background: #f7f3ec;
+  --foreground: #1c1612;
+  --card: #fffdf8;
+  --card-foreground: #1c1612;
+  --popover: #fffdf8;
+  --popover-foreground: #1c1612;
+  --primary: #8c6d3b;
+  --primary-foreground: #fffdf8;
+  --secondary: #efe7d8;
+  --secondary-foreground: #1c1612;
+  --muted-shadcn: #f7f3ec;
+  --muted-foreground: #6b5e52;
+  --accent: #b8892c;
+  --accent-foreground: #1c1612;
+  --border: rgba(140, 109, 59, 0.35);
+  --input: rgba(140, 109, 59, 0.28);
+  --ring: #b8892c;
+  --chart-1: #8c6d3b;
+  --chart-2: #b8892c;
+  --sidebar: #1c1612;
+  --sidebar-foreground: #f7f3ec;
+  --sidebar-primary: #b8892c;
+  --sidebar-primary-foreground: #1c1612;
+  --sidebar-accent: #2a221c;
+  --sidebar-accent-foreground: #f7f3ec;
+  --sidebar-border: rgba(184, 137, 44, 0.35);
+  --sidebar-ring: #b8892c;
+  --citrus: #b8892c;
+  --citrus-soft: #d4a852;
+  --citrus-tint: rgba(184, 137, 44, 0.16);
+}
+
+.erp[data-desk-theme="dusk"],
+html[data-desk-theme="dusk"] .erp {
+  --ivory: #f4efe6;
+  --ivory-soft: #1c2330;
+  --ivory-deep: #141820;
+  --espresso: #0e1218;
+  --espresso-soft: #1c2330;
+  --espresso-mute: #a89b8c;
+  --maroon: #c5a059;
+  --gold: #7ba3c9;
+  --gold-soft: #a9c4de;
+  --brass: #c5a059;
+  --background: #141820;
+  --foreground: #f4efe6;
+  --card: #1c2330;
+  --card-foreground: #f4efe6;
+  --popover: #1c2330;
+  --popover-foreground: #f4efe6;
+  --primary: #c5a059;
+  --primary-foreground: #141820;
+  --secondary: #243044;
+  --secondary-foreground: #f4efe6;
+  --muted-shadcn: #1c2330;
+  --muted-foreground: #a89b8c;
+  --accent: #7ba3c9;
+  --accent-foreground: #141820;
+  --border: rgba(197, 160, 89, 0.28);
+  --input: rgba(244, 239, 230, 0.16);
+  --ring: #7ba3c9;
+  --chart-1: #c5a059;
+  --chart-2: #7ba3c9;
+  --sidebar: #0e1218;
+  --sidebar-foreground: #f4efe6;
+  --sidebar-primary: #c5a059;
+  --sidebar-primary-foreground: #141820;
+  --sidebar-accent: #1c2330;
+  --sidebar-accent-foreground: #f4efe6;
+  --sidebar-border: rgba(197, 160, 89, 0.28);
+  --sidebar-ring: #7ba3c9;
+  --citrus: #7ba3c9;
+  --citrus-soft: #a9c4de;
+  --citrus-tint: rgba(123, 163, 201, 0.18);
+}
+
+.erp[data-desk-theme="cedar"],
+html[data-desk-theme="cedar"] .erp {
+  --ivory: #f3f1ea;
+  --ivory-soft: #f3f1ea;
+  --ivory-deep: #e3e6dc;
+  --espresso: #1b241c;
+  --espresso-soft: #243028;
+  --espresso-mute: #5a655c;
+  --maroon: #1f4d3a;
+  --gold: #c47b2b;
+  --gold-soft: #d9a15f;
+  --brass: #1f4d3a;
+  --background: #f3f1ea;
+  --foreground: #1b241c;
+  --card: #fbfaf6;
+  --card-foreground: #1b241c;
+  --popover: #fbfaf6;
+  --popover-foreground: #1b241c;
+  --primary: #1f4d3a;
+  --primary-foreground: #fbfaf6;
+  --secondary: #e3e6dc;
+  --secondary-foreground: #1b241c;
+  --muted-shadcn: #f3f1ea;
+  --muted-foreground: #5a655c;
+  --accent: #c47b2b;
+  --accent-foreground: #1b241c;
+  --border: rgba(31, 77, 58, 0.22);
+  --input: rgba(31, 77, 58, 0.2);
+  --ring: #c47b2b;
+  --chart-1: #1f4d3a;
+  --chart-2: #c47b2b;
+  --sidebar: #14241c;
+  --sidebar-foreground: #f3f1ea;
+  --sidebar-primary: #c47b2b;
+  --sidebar-primary-foreground: #14241c;
+  --sidebar-accent: #243028;
+  --sidebar-accent-foreground: #f3f1ea;
+  --sidebar-border: rgba(196, 123, 43, 0.35);
+  --sidebar-ring: #c47b2b;
+  --citrus: #c47b2b;
+  --citrus-soft: #d9a15f;
+  --citrus-tint: rgba(196, 123, 43, 0.16);
+}
+
 /* Front-office command skin — StayView, arrivals, in-house, checkout, rack.
    Nested .erp shells must not reset these tokens. Stay Hub dialogs portal
    outside this tree and keep the light desk. */
-.fo-command,
-.fo-command .erp {
+html .fo-command,
+html .fo-command .erp {
   --background: var(--espresso);
   --foreground: var(--ivory);
   --card: var(--espresso-soft);
@@ -295,6 +429,28 @@
   background: var(--ivory-soft);
 }
 
+@keyframes desk-dialog-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 8px));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@keyframes desk-dialog-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 8px));
+  }
+}
+
 @keyframes desk-rise {
   from {
     opacity: 0;
@@ -334,16 +490,27 @@
 }
 
 .stay-hub-dock {
-  width: min(28rem, 100vw);
+  width: 100vw;
+  left: 0;
+  right: 0;
 }
 
 @media (min-width: 768px) {
   .stay-hub-dock {
-    width: var(--stay-dock-width, 28rem);
+    left: auto;
+    width: var(--stay-dock-width, 48rem);
   }
 
   html[data-stay-dock="board"] [data-desk-main] {
-    padding-right: var(--stay-dock-width, 28rem);
+    padding-right: var(--stay-dock-width, 48rem);
+  }
+}
+
+@media (max-width: 767px) {
+  .erp input,
+  .erp select,
+  .erp textarea {
+    font-size: 16px;
   }
 }
 
@@ -360,8 +527,12 @@
 @media (prefers-reduced-motion: reduce) {
   .desk-rise,
   .stay-hub-flash,
-  .stay-hub-dock {
+  .stay-hub-dock,
+  .erp[data-slot="dialog-content"],
+  .erp[data-slot="sheet-content"],
+  .desk-nav-progress {
     animation: none;
+    transition: none;
   }
 }
 
@@ -723,25 +894,32 @@
 }
 
 /* =========================================================================
-   Marketing hybrid (Mews surfaces + Ocean Breeze teal)
-   Scoped under .marketing so ERP `.erp` is unaffected.
+   Marketing — Himalayan Dusk. Scoped under .marketing so the desk is unaffected.
    ========================================================================= */
 .marketing {
   --font-display: var(--font-fraunces, Georgia), Georgia, "Times New Roman", serif;
   --font-serif: var(--font-lora, Georgia), Georgia, serif;
-  --background: oklch(0.995 0.002 250);
-  --foreground: oklch(0.28 0.03 260);
-  --card: oklch(1 0 0);
-  --muted-foreground: oklch(0.48 0.02 260);
-  --secondary: oklch(0.96 0.01 250);
-  --border: oklch(0.92 0.01 250);
-  /* Ocean Breeze teal for accents / links */
-  --primary: oklch(0.62 0.14 170);
-  --primary-foreground: oklch(1 0 0);
-  /* Primary actions use the same teal as links. */
+  /* Himalayan Dusk — public site only. /book stays on the root tokens. */
+  --background: #141820;
+  --foreground: #f4efe6;
+  --card: #1c2330;
+  --card-foreground: #f4efe6;
+  --popover: #1c2330;
+  --popover-foreground: #f4efe6;
+  --muted-shadcn: #1c2330;
+  --muted-foreground: #a89b8c;
+  --secondary: #1c2330;
+  --secondary-foreground: #f4efe6;
+  --border: rgba(197, 160, 89, 0.28);
+  --input: rgba(244, 239, 230, 0.16);
+  --ring: #7ba3c9;
+  --primary: #c5a059;
+  --primary-foreground: #141820;
+  --accent: #7ba3c9;
+  --accent-foreground: #141820;
   --cta: var(--primary);
   --cta-foreground: var(--primary-foreground);
-  --cta-soft: oklch(0.55 0.12 170);
+  --cta-soft: #d4b57a;
   background: var(--background);
   color: var(--foreground);
 }
@@ -1139,6 +1317,7 @@ html[data-desk-print] #desk-print-mount {
 
   /* Default document margins (A4 / untagged pages) */
   @page {
+    size: A4 portrait;
     margin: 12mm;
   }
 
@@ -1192,6 +1371,26 @@ html[data-desk-print] #desk-print-mount {
 }
 
 @media print {
+  .folio-print-stage {
+    background: white !important;
+    padding: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .folio-fit-zoom {
+    zoom: 1 !important;
+  }
+  .folio-a4 {
+    width: auto !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: white !important;
+  }
   html[data-doc-paper="a4"] .doc-print-sheet {
     max-width: 720px !important;
     width: 100% !important;
@@ -1245,6 +1444,16 @@ html[data-desk-print] #desk-print-mount {
     color: #171717 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+  html[data-doc-paper="a4"] .doc-print-sheet.folio-a4 {
+    width: auto !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: white !important;
   }
   .fiscal-invoice-compact .fiscal-lh {
     padding-bottom: 0.35rem;

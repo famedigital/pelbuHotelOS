@@ -1,4 +1,5 @@
 import "server-only";
+import { formatHotelDocNo, hotelDocPrefix } from "@/lib/hotel-doc-no";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type Admin = ReturnType<typeof createSupabaseAdminClient>;
@@ -51,5 +52,25 @@ export async function allocateFiscalDocNo(
     docNo: `${prefix}-${year}-${String(seq).padStart(4, "0")}`,
     sequenceNo: seq,
     fiscalYear: Number(year),
+  };
+}
+
+/** Master bill number: PSBN-2026-00041. Receipts and credit notes stay on the year sequence. */
+export async function allocateMasterBillNo(
+  admin: Admin,
+  propertyId: string,
+): Promise<{ docNo: string; sequenceNo: number; fiscalYear: number }> {
+  const { data } = await admin
+    .from("properties")
+    .select("name")
+    .eq("id", propertyId)
+    .maybeSingle();
+  const prefix = hotelDocPrefix((data?.name as string | null) ?? null);
+  const seq = await nextPropertySequence(admin, propertyId, "master_bn");
+  const year = new Date().getFullYear();
+  return {
+    docNo: formatHotelDocNo(prefix, "BN", seq),
+    sequenceNo: seq,
+    fiscalYear: year,
   };
 }

@@ -45,6 +45,9 @@ export async function loadRoomRatesMatrix(
         "id, season_kind, rate_tier, amount_btn, amount_single_btn, room_type_id, room_types(id, code, name, inventory_kind)",
       )
       .eq("property_id", propertyId)
+      .eq("label", "Standard")
+      .is("agent_id", null)
+      .is("guest_label", null)
       .order("season_kind")
       .order("rate_tier")
       .limit(500),

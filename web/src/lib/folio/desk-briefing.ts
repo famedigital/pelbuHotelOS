@@ -52,15 +52,11 @@ export function deskBriefingLine(input: DeskBriefingInput): string {
 }
 
 /** Default Folio tool tab from job context. */
-export function defaultFolioToolTab(input: {
+export function defaultFolioToolTab(_input: {
   step: string;
   balanceBtn?: number | null;
   checkOutToday?: boolean;
 }): "bill" | "collect" | "advanced" {
-  const balance = Math.abs(Number(input.balanceBtn ?? 0));
-  if (input.step === "check_out") return "bill";
-  if (input.checkOutToday && balance > 0.5) return "collect";
-  if (input.step === "stay_money" && balance > 0.5) return "collect";
   return "bill";
 }
 

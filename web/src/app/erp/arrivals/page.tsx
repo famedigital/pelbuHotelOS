@@ -73,6 +73,19 @@ export default async function ArrivalsPage() {
         />
       </div>
 
+      {dayOps.overdueArrivals.length > 0 ? (
+        <div className="fo-glass mb-3 space-y-2 p-3">
+          <h2 className="text-sm font-semibold text-white">Still to check in</h2>
+          <p className="text-xs text-slate-400">
+            These stays are from before today. Open each one and confirm.
+          </p>
+          <BookingBoardTable
+            rows={dayOps.overdueArrivals.map(dayOpsRowToBoardRaw)}
+            board="arrivals"
+          />
+        </div>
+      ) : null}
+
       <div className="fo-glass space-y-2 p-3">
         <BookingBoardTable rows={boardRows} board="arrivals" />
         {boardRows.length === 0 ? (

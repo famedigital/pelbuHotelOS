@@ -11,24 +11,23 @@ export function parseHubTab(
   return fallback ?? tabs[0]?.id ?? "";
 }
 
-/** Phase 1 — FO Bills */
+/** Cashier: bill first, invoice only after it is issued. */
 export const BILLS_TABS: HubTab[] = [
+  {
+    id: "collect",
+    label: "To collect",
+    description: "Agent by agent: the room bill, what is paid, and what Pelbu still has to collect",
+  },
+  {
+    id: "stay",
+    label: "Bills",
+    description:
+      "The stay bill: rooms, charges, paid, and what is still due",
+  },
   {
     id: "owes",
     label: "Who owes",
     description: "Guests or agents who still have a balance to collect",
-  },
-  {
-    id: "stay",
-    label: "This stay",
-    description:
-      "Find a booking and open its running bill (folio) — room, food, payments",
-  },
-  {
-    id: "invoices",
-    label: "Invoices",
-    description:
-      "Tax invoices INV-… from a bill — not the stay confirmation PS-…",
   },
   {
     id: "payments",
@@ -40,10 +39,21 @@ export const BILLS_TABS: HubTab[] = [
     label: "Agents",
     description: "Agent credit — what tour companies owe the hotel",
   },
+  {
+    id: "invoices",
+    label: "Invoices",
+    description: "Issued tax invoices, INV-…",
+  },
 ];
 
 /** Phase 2 — FO Stays (link-mode tabs to existing list routes) */
 export const STAYS_TABS: HubTab[] = [
+  {
+    id: "stays",
+    label: "Stays",
+    description: "Today’s arrivals, in-house guests, and departures",
+    href: "/erp/stays",
+  },
   {
     id: "arrivals",
     label: "Arrivals",

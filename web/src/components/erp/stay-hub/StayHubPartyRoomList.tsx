@@ -108,7 +108,7 @@ export function StayHubPartyRoomList({
       ref={listRef}
       tabIndex={0}
       className={cn(
-        "hidden min-h-0 w-[13.5rem] shrink-0 flex-col bg-muted/10 outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:flex lg:w-56",
+        "hidden min-h-0 w-64 shrink-0 flex-col bg-muted/10 outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:flex",
         side === "right" ? "border-l border-border" : "border-r border-border",
         className,
       )}

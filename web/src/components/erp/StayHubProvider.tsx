@@ -179,8 +179,27 @@ export function StayHubProvider({ children }: { children: ReactNode }) {
     [bookingId, writeUrl],
   );
 
-  // Deep link: ?booking=&step= (and re-open guard after close)
+  // Deep link: ?booking=&step= (and re-open guard after close).
+  // The folio bill uses ?booking= for “Back to stay”. That must not cover the sheet.
   useEffect(() => {
+    const onFolioBill = /^\/erp\/folios\/[^/]+$/.test(pathname);
+    if (onFolioBill) {
+      if (bookingId) {
+        suppressUrlWrite.current = true;
+        suppressOpenFromUrl.current = bookingId;
+        lastOpenedIdRef.current = null;
+        appliedPreferredKeyRef.current = null;
+        setBookingId(null);
+        setAssignmentId(null);
+        setPreferredStep(null);
+        setSeedStay(null);
+        setBoard("auto");
+        onToggleLockRef.current = undefined;
+        suppressUrlWrite.current = false;
+      }
+      return;
+    }
+
     const fromUrl = (searchParams.get("booking") ?? "").trim();
     if (!fromUrl) {
       // URL stripped — deep links / openStayHub can hydrate again.

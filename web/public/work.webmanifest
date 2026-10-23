@@ -1,7 +1,7 @@
 {
-  "name": "Pelbu Work",
-  "short_name": "Pelbu Work",
-  "description": "Front desk and hotel operations for Pelbu Suites.",
+  "name": "Innora",
+  "short_name": "Innora",
+  "description": "Front desk for the hotel.",
   "id": "/erp",
   "start_url": "/erp",
   "scope": "/erp",

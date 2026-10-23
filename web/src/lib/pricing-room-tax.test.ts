@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { calculateRoomNightTax, roundBtn } from "./pricing";
+import { calculateRoomNightTax, guestNightFromTypedRate, roundBtn } from "./pricing";
 
 describe("calculateRoomNightTax exclusive", () => {
   it("adds SC then GST on (net + SC)", () => {
@@ -76,6 +76,30 @@ describe("calculateRoomNightTax inclusive", () => {
     assert.equal(t.serviceChargeBtn, 0);
     assert.equal(t.gstBtn, 0);
     assert.equal(t.totalBtn, 5500);
+  });
+
+  it("reads a typed 5400 as service charge in, GST out, or GST removed", () => {
+    const rates = { serviceChargeRate: 0.1, gstRate: 0.05 };
+    const insideSc = guestNightFromTypedRate(5400, "sc_in", rates);
+    assert.equal(insideSc.totalBtn, 5400);
+    assert.equal(insideSc.gstBtn, 0);
+    assert.equal(insideSc.serviceChargeBtn, 490.91);
+
+    const both = guestNightFromTypedRate(5400, "sc_gst_in", rates);
+    assert.equal(both.totalBtn, 5400);
+    assert.ok(both.gstBtn > 0);
+
+    const stripped = guestNightFromTypedRate(5400, "strip_gst", rates);
+    assert.equal(stripped.totalBtn, 5142.86);
+    assert.equal(stripped.gstBtn, 0);
+
+    const addSc = guestNightFromTypedRate(5400, "add_sc", rates);
+    assert.equal(addSc.totalBtn, 5940);
+    assert.equal(addSc.gstBtn, 0);
+
+    const addBoth = guestNightFromTypedRate(5400, "add_sc_gst", rates);
+    assert.equal(addBoth.gstBtn, 297);
+    assert.equal(addBoth.totalBtn, 6237);
   });
 
   it("components always sum to total after rounding", () => {

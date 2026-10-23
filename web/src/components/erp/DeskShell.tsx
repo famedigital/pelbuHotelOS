@@ -17,6 +17,8 @@ import { FoAskShortcut } from "@/components/erp/FoAskShortcut";
 import { SoftNavRecovery } from "@/components/erp/SoftNavRecovery";
 import { DeskLiveBridge } from "@/components/erp/DeskLiveBridge";
 import { StayHubShell } from "@/components/erp/StayHubShell";
+import { DeskThemeScope } from "@/components/erp/DeskThemeScope";
+import { parseDeskTheme, type DeskTheme } from "@/lib/desk-theme";
 import { Badge } from "@/components/ui/badge";
 import type { DeskRole } from "@/lib/desk-auth";
 import type { PropertySwitcherOption } from "@/lib/property-types";
@@ -39,6 +41,7 @@ export function DeskShell({
   canPreviewDashboards: _canPreviewDashboards,
   homeDashboardView: _homeDashboardView,
   productPack: _productPack = "hotel",
+  deskTheme = "dzong",
   children,
 }: {
   title?: string;
@@ -52,10 +55,17 @@ export function DeskShell({
   canPreviewDashboards?: boolean;
   homeDashboardView?: import("@/lib/erp/role-dashboard").DashboardView;
   productPack?: "hotel" | "restaurant";
+  deskTheme?: DeskTheme;
   children: ReactNode;
 }) {
+  const theme = parseDeskTheme(deskTheme);
   return (
-    <div className="erp flex h-svh max-h-svh flex-col overflow-hidden">
+    <div
+      className="erp flex h-svh max-h-svh flex-col overflow-hidden"
+      data-desk-root=""
+      {...(theme === "dzong" ? {} : { "data-desk-theme": theme })}
+    >
+      <DeskThemeScope theme={theme} />
       <DeskChromeGuard />
       <SoftNavRecovery />
       <NavigationProgress />
@@ -83,7 +93,7 @@ export function DeskShell({
             <div className="flex min-h-0 min-w-0 flex-1">
               <Suspense
                 fallback={
-                  <div className="hidden w-44 shrink-0 border-r border-border md:block" />
+                  <div className="hidden w-60 shrink-0 border-r border-border md:block" />
                 }
               >
                 <DeskSideNav />

@@ -43,6 +43,10 @@ ref/
 *.xlsx
 backups/
 
+# keyword-memory hook state (the index itself is tracked)
+.cursor/memory/.pending.json
+.cursor/memory/.recall-state.json
+
 # scratch / agent temp (never commit)
 .tmp/
 .tmp*

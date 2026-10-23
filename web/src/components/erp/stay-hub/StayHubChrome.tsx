@@ -1,6 +1,10 @@
 "use client";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StayProgressStrip } from "@/components/erp/StayProgressStrip";
 import {
   statusLabel,
@@ -15,6 +19,7 @@ import {
   type StayHubStepId,
 } from "@/lib/folio/stay-hub-cycle";
 import { isCreditAgentStatus } from "@/lib/agents/status";
+import { folioNoFromConfirmation } from "@/lib/hotel-doc-no";
 import { formatGuestBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -127,8 +132,6 @@ export function StayHubHeader(props: StayHubIdentityProps) {
     checkOut,
     confirmationCode,
     bookingId,
-    agentName,
-    paymentMode,
     alerts,
     terminal,
     saveStatus,
@@ -146,133 +149,98 @@ export function StayHubHeader(props: StayHubIdentityProps) {
     Math.abs(dueChipBtn) < 1_000_000;
 
   const conf =
-    confirmationCode?.trim() ||
+    folioNoFromConfirmation(confirmationCode) ||
     (bookingId ? bookingId.slice(0, 8) : "");
 
+  const noticeAlerts = alerts.filter((a) => a.key !== "dues").slice(0, 2);
+
   return (
-    <div className="shrink-0 border-b bg-background px-2.5 py-1.5 pr-10">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          {backLabel && onBack ? (
-            <button
-              type="button"
-              onClick={onBack}
-              aria-label={backLabel}
-              className="-ml-1 inline-flex min-h-8 items-center gap-0.5 rounded-md px-1 text-xs font-medium text-muted-foreground"
-            >
-              <ChevronLeftIcon className="size-3.5" aria-hidden />
-              {backLabel}
-            </button>
-          ) : (
-            <p className="text-xs font-medium text-muted-foreground">
-              Stay
-            </p>
-          )}
-          <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
-            {(guestName ?? "").trim() || "Walk-in guest"}
-          </h2>
-          <p className="mt-0.5">
-            {roomLabel ? (
-              <Badge variant="sky" className="text-[10px]">
-                {roomLabel}
-              </Badge>
-            ) : (
-              <Badge variant="maroon" className="text-[10px]">
-                No room
-              </Badge>
-            )}
-          </p>
-          <p className="truncate text-[10px] text-muted-foreground">
-            {buildStayStoryLine({
-              status,
-              roomLabel,
-              hkStatus,
-              dueBtn: dueChipBtn,
-              paymentMode,
-              agentName,
-            })}
-          </p>
-          <p className="truncate text-[11px] text-muted-foreground/80">
-            {[
-              checkIn && checkOut
-                ? `${checkIn.slice(5)}→${checkOut.slice(5)}`
-                : null,
-              conf,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-0.5">
-          {showDueChip ? (
-            <Badge variant="citrus" className="tabular-nums text-[10px]">
-              Due {formatGuestBtn(dueChipBtn)}
-            </Badge>
-          ) : null}
-          {status ? (
-            <Badge
-              variant={statusBadgeVariant(status)}
-              className="text-[10px] capitalize"
-            >
-              {statusLabel(status)}
-            </Badge>
-          ) : null}
-          <HkStatusChip status={hkStatus} />
-          {saveStatus && saveStatus !== "idle" ? (
-            <span className="text-[10px] text-muted-foreground">
-              {saveStatus === "saving"
-                ? "Saving…"
-                : saveStatus === "saved"
-                  ? "Saved"
-                  : "Save failed"}
-            </span>
-          ) : null}
-        </div>
-      </div>
-      {alerts.filter((a) => a.key !== "dues").length > 0 ? (
-        <div className="mt-1 flex flex-wrap gap-1">
-          {alerts
-            .filter((a) => a.key !== "dues")
-            .slice(0, 3)
-            .map((a) => (
-              <Badge
-                key={a.key}
-                variant={
-                  a.tone === "danger"
-                    ? "destructive"
-                    : a.tone === "warn"
-                      ? "maroon"
-                      : "secondary"
-                }
-                className="text-[11px]"
-              >
-                {a.label}
-              </Badge>
-            ))}
-        </div>
+    <Card className="shrink-0 gap-0 rounded-none border-x-0 border-t-0 px-3 py-2 pr-10 shadow-none">
+      {backLabel && onBack ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onBack}
+          className="-ml-2 mb-1 h-8 px-2"
+        >
+          <ChevronLeftIcon className="size-3.5" aria-hidden />
+          {backLabel}
+        </Button>
       ) : null}
-      {terminal ? (
-        <p className="mt-1 text-center text-[10px] font-medium capitalize text-destructive">
-          {terminal.replace(/_/g, " ")}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <h2 className="min-w-0 truncate text-sm font-semibold tracking-tight">
+          {(guestName ?? "").trim() || "Walk-in guest"}
+        </h2>
+        {roomLabel ? (
+          <Badge variant="sky">{roomLabel}</Badge>
+        ) : (
+          <Badge variant="maroon">No room</Badge>
+        )}
+        {showDueChip ? (
+          <Badge variant="citrus" className="tabular-nums">
+            Due {formatGuestBtn(dueChipBtn)}
+          </Badge>
+        ) : null}
+        {status ? (
+          <Badge variant={statusBadgeVariant(status)} className="capitalize">
+            {statusLabel(status)}
+          </Badge>
+        ) : null}
+        <HkStatusChip status={hkStatus} />
+      </div>
+      <p className="mt-1 truncate text-xs text-muted-foreground">
+        {[
+          checkIn && checkOut ? `${checkIn.slice(5)} → ${checkOut.slice(5)}` : null,
+          conf || null,
+        ]
+          .filter(Boolean)
+          .join(" · ") || "Dates loading"}
+      </p>
+      {saveStatus && saveStatus !== "idle" ? (
+        <p className="mt-1 text-xs text-muted-foreground">
+          {saveStatus === "saving"
+            ? "Saving…"
+            : saveStatus === "saved"
+              ? "Saved"
+              : "Save failed"}
         </p>
       ) : null}
-      {lockHint ? (
-        <div className="mt-1 space-y-0.5">
-          <p className="text-[10px] leading-snug text-amber-800 dark:text-amber-200">
-            {lockHint}
-          </p>
-          {onForceLock ? (
-            <button
-              type="button"
-              onClick={onForceLock}
-              className="text-[10px] font-medium text-amber-900 underline-offset-2 hover:underline dark:text-amber-100"
-            >
-              Take over this stay
-            </button>
-          ) : null}
-        </div>
+      {noticeAlerts.map((alert) => (
+        <Alert
+          key={alert.key}
+          variant={alert.tone === "danger" ? "destructive" : "warning"}
+          className="mt-2 px-3 py-2"
+        >
+          <AlertDescription className="text-xs">{alert.label}</AlertDescription>
+        </Alert>
+      ))}
+      {terminal ? (
+        <Alert variant="destructive" className="mt-2 px-3 py-2">
+          <AlertDescription className="text-xs capitalize">
+            {terminal.replace(/_/g, " ")}
+          </AlertDescription>
+        </Alert>
       ) : null}
-    </div>
+      {lockHint ? (
+        <Alert variant="warning" className="mt-2 px-3 py-2">
+          <AlertDescription className="flex flex-wrap items-center gap-2 text-xs">
+            <span>{lockHint}</span>
+            {onForceLock ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7"
+                onClick={onForceLock}
+              >
+                Take over
+              </Button>
+            ) : null}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+    </Card>
   );
 }
 
@@ -683,7 +651,6 @@ export function StayHubSideRail({
 export function StayHubMobileSteps({
   steps,
   panel,
-  terminal,
   onStepClick,
   canNavigateStep,
 }: {
@@ -694,16 +661,37 @@ export function StayHubMobileSteps({
   canNavigateStep?: (id: StayHubStepId, step: StayHubStep) => boolean;
 }) {
   if (steps.length === 0) return null;
+  const active = steps.some((step) => step.id === panel) ? panel : steps[0].id;
   return (
-    <div className="shrink-0 border-t px-2 py-1">
-      <StayProgressStrip
-        orientation="horizontal"
-        steps={steps}
-        activePanel={panel}
-        terminal={terminal}
-        onStepClick={onStepClick}
-        canNavigateStep={canNavigateStep}
-      />
+    <div className="shrink-0 border-b px-3 py-2">
+      <Tabs
+        value={active}
+        onValueChange={(id) => {
+          const step = steps.find((item) => item.id === id);
+          if (!step || !onStepClick) return;
+          const allowed = canNavigateStep
+            ? canNavigateStep(step.id, step)
+            : !step.locked;
+          onStepClick(step.id, !allowed, step.lockReason);
+        }}
+      >
+        <TabsList
+          className="grid h-auto w-full"
+          style={{
+            gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))`,
+          }}
+        >
+          {steps.map((step) => (
+            <TabsTrigger
+              key={step.id}
+              value={step.id}
+              className="min-h-11 px-1 text-xs sm:text-sm"
+            >
+              {step.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
     </div>
   );
 }

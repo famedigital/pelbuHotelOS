@@ -23,13 +23,10 @@ export function MergeAgentDuplicatesForm({
 
   return (
     <section className="rounded-lg border border-destructive/20 bg-card p-4 print:hidden">
-      <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
-        Merge duplicate
-      </p>
+      <p className="text-sm font-medium">Same company entered twice</p>
       <p className="mt-1 text-xs text-muted-foreground">
-        Move bookings, credit, allotments, and hotel links from another agent
-        record into <span className="font-medium">{keepCompanyName}</span>, then
-        retire the duplicate (e.g. SOULTRIP → Soultrips).
+        Move stays, credit, and allotments from the other record into{" "}
+        <span className="font-medium">{keepCompanyName}</span>, then close the duplicate.
       </p>
       <form action={action} className="mt-3 flex flex-wrap items-end gap-2">
         <input type="hidden" name="keep_agent_id" value={keepAgentId} />

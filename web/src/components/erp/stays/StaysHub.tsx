@@ -20,7 +20,6 @@ export function StaysHub({
       tabs={STAYS_TABS}
       filters={filters}
       headerAside={headerAside}
-      tabsClassName="md:hidden"
     >
       {children}
     </HubChrome>

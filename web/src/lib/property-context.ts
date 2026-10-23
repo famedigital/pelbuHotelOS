@@ -2,6 +2,7 @@ import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { flagshipSlug } from "@/lib/free-tier";
 import { DEFAULT_PROPERTY_SLUG } from "@/lib/property";
+import { parseDeskTheme } from "@/lib/desk-theme";
 import { mapPropertySettings } from "@/lib/property-settings";
 import {
   DEFAULT_INCOME_STREAMS,
@@ -93,18 +94,28 @@ async function propertyIdBySlugUncached(
   return data.id as string;
 }
 
+const PROPERTY_COLUMNS =
+  "id, slug, name, template_id, timezone, setup_step, setup_completed_at, income_streams, bank_accounts, logo_public_id, logo_nav_size_rem, logo_nav_offset_pct, logo_nav_gap_rem, logo_nav_shift_x_rem, legal_name, address, phone, whatsapp, email, tax_id, gst_enabled, gst_rate, service_charge_rate, service_charge_default_on, post_day1_room_at_checkin, doc_invoice, doc_receipt, doc_voucher, doc_settlement, doc_registration, public_host, desk_host, night_audit_close_time, current_business_date, public_host_cert_status, desk_host_cert_status, host_verify_token, product_pack, pos_training_mode";
+
 const loadPropertyCached = cache(
   async (id: string): Promise<PropertyRow | null> => {
     const admin = createSupabaseAdminClient();
-    const { data } = await admin
+    const themed = await admin
       .from("properties")
-      .select(
-        "id, slug, name, template_id, timezone, setup_step, setup_completed_at, income_streams, bank_accounts, logo_public_id, logo_nav_size_rem, logo_nav_offset_pct, logo_nav_gap_rem, logo_nav_shift_x_rem, legal_name, address, phone, whatsapp, email, tax_id, gst_enabled, gst_rate, service_charge_rate, service_charge_default_on, post_day1_room_at_checkin, doc_invoice, doc_receipt, doc_voucher, doc_settlement, doc_registration, public_host, desk_host, night_audit_close_time, current_business_date, public_host_cert_status, desk_host_cert_status, host_verify_token, product_pack, pos_training_mode",
-      )
+      .select(`${PROPERTY_COLUMNS}, desk_theme`)
       .eq("id", id)
       .maybeSingle();
-    if (!data) return null;
-    return mapProperty(data);
+    if (!themed.error) {
+      if (!themed.data) return null;
+      return mapProperty(themed.data);
+    }
+    const plain = await admin
+      .from("properties")
+      .select(PROPERTY_COLUMNS)
+      .eq("id", id)
+      .maybeSingle();
+    if (!plain.data) return null;
+    return mapProperty(plain.data);
   },
 );
 
@@ -117,12 +128,15 @@ export async function loadProperty(
 }
 
 export async function listProperties(admin: Admin): Promise<PropertyRow[]> {
-  const { data } = await admin
+  const themed = await admin
     .from("properties")
-    .select(
-      "id, slug, name, template_id, timezone, setup_step, setup_completed_at, income_streams, bank_accounts, logo_public_id, logo_nav_size_rem, logo_nav_offset_pct, logo_nav_gap_rem, logo_nav_shift_x_rem, legal_name, address, phone, whatsapp, email, tax_id, gst_enabled, gst_rate, service_charge_rate, service_charge_default_on, post_day1_room_at_checkin, doc_invoice, doc_receipt, doc_voucher, doc_settlement, doc_registration, public_host, desk_host, night_audit_close_time, current_business_date, public_host_cert_status, desk_host_cert_status, host_verify_token, product_pack, pos_training_mode",
-    )
+    .select(`${PROPERTY_COLUMNS}, desk_theme`)
     .order("name");
+  const data = themed.error
+    ? (
+        await admin.from("properties").select(PROPERTY_COLUMNS).order("name")
+      ).data
+    : themed.data;
   return (data ?? []).map(mapProperty);
 }
 
@@ -186,6 +200,7 @@ function mapProperty(row: Record<string, unknown>): PropertyRow {
     product_pack:
       row.product_pack === "restaurant" ? "restaurant" : "hotel",
     pos_training_mode: Boolean(row.pos_training_mode),
+    desk_theme: parseDeskTheme(row.desk_theme),
     ...settings,
   };
 }

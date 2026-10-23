@@ -12,6 +12,8 @@ import { LogoNavLayoutForm } from "@/components/erp/settings/LogoNavLayoutForm";
 import { SettingsAiAssistPanel } from "@/components/erp/settings/SettingsAiAssistPanel";
 import { SettingsDeskSecurityPanel } from "@/components/erp/settings/SettingsDeskSecurityPanel";
 import { SettingsSection } from "@/components/erp/settings/SettingsSection";
+import { SettingsThemePanel } from "@/components/erp/settings/SettingsThemePanel";
+import { parseDeskTheme } from "@/lib/desk-theme";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,6 +40,11 @@ export function SettingsIdentityPanel({
 }) {
   return (
     <div className="space-y-6">
+      <SettingsThemePanel
+        propertyId={property.id}
+        theme={parseDeskTheme(property.desk_theme)}
+        canEdit={canEditDeskSecurity}
+      />
       <SettingsDeskSecurityPanel
         propertyId={property.id}
         deskRestrictToScheduledShifts={deskRestrictToScheduledShifts}

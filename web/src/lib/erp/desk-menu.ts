@@ -27,23 +27,16 @@ export const DESK_MENU_GROUPS: readonly DeskMenuGroup[] = [
     label: "Front office",
     hrefs: [
       "/erp/calendar",
-      "/erp/arrivals",
-      "/erp/in-house",
-      "/erp/departures",
-      "/erp/reservations",
-      "/erp/stayview",
-      "/erp/guests",
       "/erp/stays",
       "/erp/reserve",
       "/erp/ask",
       "/erp/calendar/day-sheet",
-      "/erp",
     ],
   },
   {
     id: "money",
     label: "Cashier",
-    hrefs: ["/erp/folios", "/erp/invoices", "/erp/bills", "/erp/payments"],
+    hrefs: ["/erp/bills", "/erp/payments", "/erp/invoices"],
   },
   {
     id: "rooms",
@@ -92,6 +85,22 @@ export const DESK_MENU_GROUPS: readonly DeskMenuGroup[] = [
     ],
   },
 ] as const;
+
+/** Above every section. Home, then the front-office dashboard. */
+export const DESK_RAIL_TOP: readonly { href: string; label: string }[] = [
+  { href: "/erp", label: "Home" },
+  { href: "/erp/stayview", label: "Dashboard" },
+];
+
+/** One Stays item covers these lists. They share the same guest rows. */
+const STAY_LIST_PATHS = new Set([
+  "/erp/stays",
+  "/erp/arrivals",
+  "/erp/in-house",
+  "/erp/departures",
+  "/erp/reservations",
+  "/erp/guests",
+]);
 
 export type DeskSheetTab = {
   title: string;
@@ -177,6 +186,13 @@ export function leafByHref(
   return map;
 }
 
+/** Cashier rail opens the bill, then payments, then issued invoices. */
+const CASHIER_TAB_HREF: Record<string, string> = {
+  "/erp/bills": "/erp/bills?tab=collect",
+  "/erp/payments": "/erp/bills?tab=payments",
+  "/erp/invoices": "/erp/bills?tab=invoices",
+};
+
 export function resolveMenuItems(
   group: DeskMenuGroup,
   allowedHrefs: Set<string> | null,
@@ -191,7 +207,7 @@ export function resolveMenuItems(
     const leaf = byHref.get(href);
     if (!leaf) continue;
     seen.add(href);
-    out.push(leaf);
+    out.push({ ...leaf, href: CASHIER_TAB_HREF[href] ?? leaf.href });
   }
   return out;
 }
@@ -209,9 +225,29 @@ export const FO_TOOLBAR_LINKS: readonly {
 ] as const;
 
 export function pathMatchesHref(pathname: string, href: string): boolean {
-  if (pathname === href) return true;
-  if (href === "/erp") return pathname === "/erp";
-  return pathname.startsWith(`${href}/`);
+  const path = href.split("?")[0] ?? href;
+  if (pathname === path) return true;
+  if (path === "/erp") return pathname === "/erp";
+  if (path === "/erp/stays" && STAY_LIST_PATHS.has(pathname)) return true;
+  return pathname.startsWith(`${path}/`);
+}
+
+/** One cashier rail item is active. Query tabs do not all light up together. */
+export function menuItemActive(
+  pathname: string,
+  search: string,
+  href: string,
+): boolean {
+  const split = href.indexOf("?");
+  if (split === -1) return pathMatchesHref(pathname, href);
+  const path = href.slice(0, split);
+  if (pathname !== path) return false;
+  const want = new URLSearchParams(href.slice(split + 1));
+  const have = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+  for (const [key, value] of want.entries()) {
+    if ((have.get(key) ?? "") !== value) return false;
+  }
+  return true;
 }
 
 export function activeSheetHref(

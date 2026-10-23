@@ -28,14 +28,14 @@ import { redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Pelbu Work",
-  description: "Front desk and hotel operations for Pelbu Suites.",
+  title: "Innora",
+  description: "Front desk for the hotel.",
   robots: { index: false, follow: false },
   manifest: "/work.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Pelbu Work",
+    title: "Innora",
   },
 };
 
@@ -154,6 +154,7 @@ export default async function ErpLayout({
           ? "restaurant"
           : "hotel"
       }
+      deskTheme={activeProperty?.desk_theme ?? "dzong"}
     >
       {children}
       {isPosApp ? null : <WorkPwaRegistrar />}

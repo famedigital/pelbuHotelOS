@@ -1,3 +1,4 @@
+import { DeskMetricRow } from "@/components/erp/DeskMetricRow";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,15 +11,18 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { requireDeskPropertyId } from "@/lib/desk-property";
-import { thimphuToday } from "@/lib/erp-lists";
+import { bucketTender } from "@/lib/erp/cashier-desk-math";
+import { thimphuDayBounds } from "@/lib/erp/cashier-desk";
+import { thimphuDateOffset, thimphuToday } from "@/lib/erp-lists";
+import { foTenderLabel } from "@/lib/folio/fo-settlement";
+import { stayFolioHref } from "@/lib/folio/stay-hub-cycle";
 import { formatBtn } from "@/lib/pricing";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 
-function shiftDays(iso: string, days: number): string {
-  const d = new Date(`${iso}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
+function one<T>(raw: T | T[] | null | undefined): T | null {
+  if (raw == null) return null;
+  return Array.isArray(raw) ? (raw[0] ?? null) : raw;
 }
 
 export async function BillsPaymentsPanel({
@@ -35,23 +39,94 @@ export async function BillsPaymentsPanel({
   const from =
     fromRaw && /^\d{4}-\d{2}-\d{2}$/.test(fromRaw)
       ? fromRaw
-      : shiftDays(to, -30);
+      : thimphuDateOffset(to, -30);
 
-  const fromIso = `${from}T00:00:00.000Z`;
-  const toEnd = new Date(`${to}T12:00:00Z`);
-  toEnd.setUTCDate(toEnd.getUTCDate() + 1);
-  const toIso = toEnd.toISOString();
+  const { fromIso } = thimphuDayBounds(from);
+  const { toIso } = thimphuDayBounds(to);
 
   const { data: payments } = await admin
     .from("payments")
-    .select("id, amount_btn, method, kind, reference, created_at, folio_id")
+    .select(
+      `id, amount_btn, method, kind, reference, created_at, folio_id,
+       folios(
+         label,
+         bookings(
+           id, contact_name, confirmation_code,
+           room_assignments(room_units(label))
+         )
+       )`,
+    )
     .eq("property_id", propertyId)
     .gte("created_at", fromIso)
     .lt("created_at", toIso)
     .order("created_at", { ascending: false })
-    .limit(120);
+    .limit(200);
 
-  const rows = payments ?? [];
+  const rows = (payments ?? []).map((payment) => {
+    const folio = one(
+      payment.folios as
+        | {
+            label?: string | null;
+            bookings?:
+              | {
+                  id?: string;
+                  contact_name?: string | null;
+                  confirmation_code?: string | null;
+                  room_assignments?:
+                    | {
+                        room_units?:
+                          | { label?: string | null }
+                          | { label?: string | null }[]
+                          | null;
+                      }[]
+                    | null;
+                }
+              | {
+                  id?: string;
+                  contact_name?: string | null;
+                  confirmation_code?: string | null;
+                  room_assignments?:
+                    | {
+                        room_units?:
+                          | { label?: string | null }
+                          | { label?: string | null }[]
+                          | null;
+                      }[]
+                    | null;
+                }[]
+              | null;
+          }
+        | null,
+    );
+    const booking = one(folio?.bookings ?? null);
+    const rooms = [
+      ...new Set(
+        (booking?.room_assignments ?? [])
+          .map((row) => one(row.room_units)?.label?.trim() || "")
+          .filter(Boolean),
+      ),
+    ].join(", ");
+    return {
+      id: payment.id as string,
+      createdAt: payment.created_at as string | null,
+      method: (payment.method as string) ?? "",
+      kind: (payment.kind as string | null) ?? null,
+      reference: (payment.reference as string | null) ?? null,
+      amountBtn: Number(payment.amount_btn ?? 0),
+      folioId: (payment.folio_id as string | null) ?? null,
+      bookingId: (booking?.id as string | undefined) ?? null,
+      guestName:
+        booking?.contact_name?.trim() || folio?.label?.trim() || null,
+      confirmationCode: booking?.confirmation_code ?? null,
+      rooms,
+    };
+  });
+
+  const totals = { cash: 0, bank: 0, qr: 0, other: 0 };
+  for (const row of rows) {
+    totals[bucketTender(row.method)] += row.amountBtn;
+  }
+  const windowTotal = totals.cash + totals.bank + totals.qr + totals.other;
 
   return (
     <div className="flex flex-col gap-3">
@@ -90,6 +165,17 @@ export async function BillsPaymentsPanel({
         </Button>
       </form>
 
+      <DeskMetricRow
+        className="sm:grid-cols-5"
+        metrics={[
+          { label: "Cash", value: formatBtn(totals.cash) },
+          { label: "Bank", value: formatBtn(totals.bank) },
+          { label: "QR", value: formatBtn(totals.qr) },
+          { label: "Other", value: formatBtn(totals.other) },
+          { label: "In this window", value: formatBtn(windowTotal) },
+        ]}
+      />
+
       {rows.length === 0 ? (
         <EmptyState
           title="No payments in range"
@@ -105,19 +191,21 @@ export async function BillsPaymentsPanel({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>When</TableHead>
-                <TableHead>Method</TableHead>
-                <TableHead>Kind</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="text-right">Bill</TableHead>
+                <TableHead className="h-8 text-[11px]">When</TableHead>
+                <TableHead className="h-8 text-[11px]">Guest</TableHead>
+                <TableHead className="h-8 text-[11px]">Rooms</TableHead>
+                <TableHead className="h-8 text-[11px]">Method</TableHead>
+                <TableHead className="h-8 text-[11px]">Reference</TableHead>
+                <TableHead className="h-8 text-right text-[11px]">Amount</TableHead>
+                <TableHead className="h-8 text-right text-[11px]"> </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((p) => (
-                <TableRow key={p.id as string} className="h-11">
-                  <TableCell className="text-sm text-muted-foreground">
-                    {p.created_at
-                      ? new Date(p.created_at as string).toLocaleString([], {
+                <TableRow key={p.id} className="h-11">
+                  <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                    {p.createdAt
+                      ? new Date(p.createdAt).toLocaleString([], {
                           month: "short",
                           day: "numeric",
                           hour: "2-digit",
@@ -125,22 +213,41 @@ export async function BillsPaymentsPanel({
                         })
                       : "—"}
                   </TableCell>
-                  <TableCell className="capitalize">
-                    {(p.method as string) ?? "—"}
+                  <TableCell className="max-w-[12rem] text-xs">
+                    <span className="font-medium">{p.guestName ?? "—"}</span>
+                    {p.confirmationCode ? (
+                      <span className="block truncate text-[10px] text-muted-foreground">
+                        {p.confirmationCode}
+                        {p.kind ? ` · ${p.kind}` : ""}
+                      </span>
+                    ) : null}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {(p.kind as string) ?? "—"}
+                  <TableCell className="max-w-[7rem] truncate text-xs text-muted-foreground">
+                    {p.rooms || "—"}
                   </TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">
-                    {formatBtn(Number(p.amount_btn ?? 0))}
+                  <TableCell className="text-xs">
+                    {foTenderLabel(p.method)}
+                  </TableCell>
+                  <TableCell className="max-w-[8rem] truncate text-xs text-muted-foreground">
+                    {p.reference || "—"}
+                  </TableCell>
+                  <TableCell className="text-right text-xs font-medium tabular-nums">
+                    {formatBtn(p.amountBtn)}
                   </TableCell>
                   <TableCell className="text-right">
-                    {p.folio_id ? (
-                      <Button asChild variant="ghost" size="sm" className="h-8">
-                        <Link href={`/erp/folios/${p.folio_id as string}`}>
-                          Open
-                        </Link>
-                      </Button>
+                    {p.folioId ? (
+                      <div className="flex justify-end gap-1">
+                        <Button asChild variant="ghost" size="sm" className="h-8">
+                          <Link href={stayFolioHref(p.bookingId, p.folioId)}>
+                            Open
+                          </Link>
+                        </Button>
+                        <Button asChild variant="outline" size="sm" className="h-8">
+                          <Link href={`/erp/folios/${p.folioId}/receipt`}>
+                            Receipt
+                          </Link>
+                        </Button>
+                      </div>
                     ) : (
                       "—"
                     )}

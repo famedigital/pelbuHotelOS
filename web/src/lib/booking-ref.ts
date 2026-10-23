@@ -1,8 +1,11 @@
 /**
  * Stay confirmation vs tax invoice refs.
- * - Confirmation: bookings.confirmation_code → PS-YYYY-#####
- * - Tax invoice: fiscal_documents.doc_no → INV-YYYY-#### (issued from folio)
+ * - Booking: bookings.confirmation_code → HotelBK# (older stays PS-YYYY-#####)
+ * - Folio: folios.doc_no → HotelFN#
+ * - Master bill: fiscal_documents.doc_no → HotelBN# (older bills INV-YYYY-####)
  */
+
+import { looksLikeHotelDocQuery } from "@/lib/hotel-doc-no";
 
 /** Prefer gapless confirmation code; fall back to short internal id. */
 export function bookingConfirmationLabel(input: {
@@ -16,12 +19,7 @@ export function bookingConfirmationLabel(input: {
   return "—";
 }
 
-/** True when query looks like a stay confirmation (PS-… / numberish). */
+/** True when query looks like a booking, folio, or bill number. */
 export function looksLikeConfirmationQuery(q: string): boolean {
-  const t = q.trim().toUpperCase();
-  if (!t) return false;
-  if (t.startsWith("PS-") || t.startsWith("INV-") || t.startsWith("RCP-")) {
-    return true;
-  }
-  return /^PS[\s-]?\d{4}[\s-]?\d{1,6}$/i.test(t.replace(/\s+/g, ""));
+  return looksLikeHotelDocQuery(q);
 }

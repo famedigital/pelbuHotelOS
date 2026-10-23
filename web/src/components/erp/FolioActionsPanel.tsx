@@ -22,7 +22,7 @@ import {
 import { formatBtn } from "@/lib/pricing";
 import { buildStayHubReopenHref } from "@/lib/folio/stay-hub-cycle";
 import { cn } from "@/lib/utils";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 export type FolioMasterOption = { id: string; label: string };
 export type FolioDamageOption = {
@@ -111,9 +111,12 @@ export function FolioActionsPanel({
   masterCandidates,
   damageItems,
   minibarItems = [],
-  defaultGroup,
   showManagerActions = true,
 }: Props) {
+  const [sheetPanel, setSheetPanel] = useState<"pay" | "charge" | "more" | null>(
+    null,
+  );
+
   if (!folioOpen) {
     return (
       <div className="rounded-lg border bg-card px-3 py-4 text-sm text-muted-foreground">
@@ -125,35 +128,75 @@ export function FolioActionsPanel({
   const suggested = Math.max(balanceDue, 0);
   const hasDue = balanceDue > 0.5;
   const showPost = bookingCheckedIn && Boolean(bookingId);
-  const postOpen = needsDay1 || defaultGroup === "post";
 
-  const postRoom = showPost ? (
-    <RailItem
-      title="Post room charges"
-      subtitle={needsDay1 ? "Do this before collect" : "Missing night only"}
-      defaultOpen={postOpen}
+  function toggleSheet(next: "pay" | "charge" | "more") {
+    setSheetPanel((current) => (current === next ? null : next));
+  }
+
+  const sheetButton = (id: "pay" | "charge" | "more", label: string) => (
+    <button
+      type="button"
+      id={id === "pay" ? "folio-collect" : undefined}
+      aria-expanded={sheetPanel === id}
+      onClick={() => toggleSheet(id)}
+      className={cn(
+        "inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium",
+        sheetPanel === id
+          ? "border-foreground bg-foreground text-background"
+          : "bg-card hover:bg-muted",
+        id === "pay" && hasDue && sheetPanel !== id && "border-citrus/50",
+      )}
     >
-      {needsDay1 ? (
-        <PostCheckInChargesForm
-          folioId={folioId}
-          defaultDate={arrivalDate}
-          embedded
-        />
-      ) : null}
-      <PostRoomNightForm
-        folioId={folioId}
-        defaultDate={arrivalDate}
-        embedded
-      />
-    </RailItem>
-  ) : null;
+      {label}
+    </button>
+  );
 
   return (
     <div className="space-y-2">
-      {needsDay1 ? postRoom : null}
-      {/* —— Primary: always visible —— */}
+      <div className="flex flex-wrap items-center gap-2">
+        {sheetButton("pay", "Take payment")}
+        {showPost ? sheetButton("charge", "Add a charge") : null}
+        {sheetButton("more", "More")}
+        <a
+          href={`/erp/folios/${folioId}/bill?bill=room`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex h-9 items-center rounded-md border bg-card px-3 text-sm font-medium hover:bg-muted"
+        >
+          Print folio
+        </a>
+        <a
+          href={`/erp/folios/${folioId}/receipt`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex h-9 items-center rounded-md px-2 text-sm text-muted-foreground underline-offset-4 hover:underline"
+        >
+          Receipt
+        </a>
+        <a
+          href={`/erp/folios/${folioId}/bill?bill=master`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex h-9 items-center rounded-md px-2 text-sm text-muted-foreground underline-offset-4 hover:underline"
+        >
+          {invoiceDocId ? "Invoice" : "Master bill"}
+        </a>
+        {bookingCheckedIn && bookingId ? (
+          <a
+            href={buildStayHubReopenHref({
+              bookingId,
+              panel: "check_out",
+              board: "in_house",
+            })}
+            className="inline-flex h-9 items-center rounded-md px-2 text-sm text-muted-foreground underline-offset-4 hover:underline"
+          >
+            Checkout
+          </a>
+        ) : null}
+      </div>
+
+      {sheetPanel === "pay" ? (
       <section
-        id="folio-collect"
         className={cn(
           "space-y-2.5 rounded-lg border bg-card p-3",
           hasDue && "border-citrus/50 bg-citrus-tint/30",
@@ -166,7 +209,7 @@ export function FolioActionsPanel({
               id="folio-collect-heading"
               className="text-sm font-semibold text-foreground"
             >
-              Collect
+              Take payment
             </h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
               Cash, card, or agent AR
@@ -220,7 +263,28 @@ export function FolioActionsPanel({
         </details>
         )}
       </section>
+      ) : null}
 
+      {sheetPanel === "charge" && showPost ? (
+        <div className="space-y-3 rounded-lg border bg-card p-3">
+          <h3 className="text-sm font-semibold">Add a charge</h3>
+          {needsDay1 ? (
+            <PostCheckInChargesForm
+              folioId={folioId}
+              defaultDate={arrivalDate}
+              embedded
+            />
+          ) : null}
+          <PostRoomNightForm
+            folioId={folioId}
+            defaultDate={arrivalDate}
+            embedded
+          />
+        </div>
+      ) : null}
+
+      {sheetPanel === "more" ? (
+      <div className="space-y-2">
       <section
         id="folio-invoice"
         className="rounded-lg border bg-card p-3"
@@ -252,30 +316,9 @@ export function FolioActionsPanel({
         ) : null}
       </section>
 
-      {needsDay1 ? null : postRoom}
-
-      {/* —— More: collapsed —— */}
-      <details
-        className="rounded-lg border bg-card"
-        open={defaultGroup === "adjust" ? true : undefined}
-      >
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
-          <span className="flex flex-col items-start gap-0.5 text-left">
-            <span>More</span>
-            <span className="text-[11px] font-normal text-muted-foreground">
-              Minibar, damage, round, group
-            </span>
-          </span>
-          <span className="text-muted-foreground" aria-hidden>
-            ▾
-          </span>
-        </summary>
-        <div className="space-y-2 border-t px-3 py-3">
-          <p className="text-[11px] text-muted-foreground">
-            Void wrong charges on the activity line.
-          </p>
+      <div className="space-y-2 rounded-lg border bg-card p-3">
           {minibarItems.length > 0 ? (
-            <RailItem title="Minibar / amenity" subtitle="Quick charge to folio">
+            <RailItem title="Minibar" subtitle="Add a minibar charge">
               <PostMinibarChargeForm
                 folioId={folioId}
                 items={minibarItems}
@@ -284,7 +327,7 @@ export function FolioActionsPanel({
             </RailItem>
           ) : null}
           {damageItems.length > 0 ? (
-            <RailItem title="Damage / extra charge" subtitle="Guest bill add-on">
+            <RailItem title="Damage" subtitle="Add a damage charge">
               <PostDamageChargeForm
                 folioId={folioId}
                 items={damageItems}
@@ -292,7 +335,7 @@ export function FolioActionsPanel({
               />
             </RailItem>
           ) : null}
-          <RailItem title="Round figure" subtitle="Rate adj to Nu 0 or 5">
+          <RailItem title="Round figure" subtitle="Round the bill to 0 or 5">
             <GuestRoundFigureForm folioId={folioId} embedded />
           </RailItem>
           {!isMaster && !hasMaster ? (
@@ -301,7 +344,7 @@ export function FolioActionsPanel({
             </RailItem>
           ) : null}
           {!isMaster && masterCandidates.length > 0 ? (
-            <RailItem title="Attach to master" subtitle="Link under city ledger">
+            <RailItem title="Attach to master" subtitle="Link under a group bill">
               <AttachToMasterForm
                 folioId={folioId}
                 masterCandidates={masterCandidates}
@@ -309,90 +352,19 @@ export function FolioActionsPanel({
               />
             </RailItem>
           ) : null}
+          {showManagerActions ? (
+            <>
+              <RailItem title="Comp" subtitle="Courtesy credit">
+                <CompCreditForm folioId={folioId} embedded />
+              </RailItem>
+              <RailItem title="Credit note" subtitle="Against this bill">
+                <IssueCreditNoteButton folioId={folioId} embedded />
+              </RailItem>
+            </>
+          ) : null}
         </div>
-      </details>
-
-      {/* —— Manager: collapsed —— */}
-      {showManagerActions ? (
-        <details className="rounded-lg border bg-card">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2.5 text-sm font-medium [&::-webkit-details-marker]:hidden">
-            <span className="flex flex-col items-start gap-0.5 text-left">
-              <span>Manager</span>
-              <span className="text-[11px] font-normal text-muted-foreground">
-                Comp / NC, credit note
-              </span>
-            </span>
-            <span className="text-muted-foreground" aria-hidden>
-              ▾
-            </span>
-          </summary>
-          <div className="space-y-2 border-t px-3 py-3">
-            <RailItem title="Comp / NC" subtitle="Courtesy credit">
-              <CompCreditForm folioId={folioId} embedded />
-            </RailItem>
-            <RailItem title="Credit note" subtitle="Fiscal CN against folio">
-              <IssueCreditNoteButton folioId={folioId} embedded />
-            </RailItem>
-          </div>
-        </details>
+      </div>
       ) : null}
-
-      <nav
-        className="flex flex-col gap-2 rounded-xl border bg-muted/20 p-3"
-        aria-label="Folio shortcuts"
-      >
-        <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-          Print &amp; leave
-        </p>
-        {bookingCheckedIn && bookingId ? (
-          <a
-            href={buildStayHubReopenHref({
-              bookingId,
-              panel: "check_out",
-              board: "in_house",
-            })}
-            className="inline-flex h-11 w-full items-center justify-center rounded-md border border-citrus/40 bg-citrus-tint/40 text-sm font-medium text-foreground hover:bg-citrus-tint/70"
-          >
-            Checkout guest
-          </a>
-        ) : null}
-        <a
-          href={`/erp/folios/${folioId}/receipt`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex h-11 w-full items-center justify-center rounded-md border bg-card text-sm font-medium text-foreground hover:bg-muted"
-        >
-          Receipt · print / email
-        </a>
-        {invoiceDocId ? (
-          <a
-            href={`/erp/invoices/${invoiceDocId}/print`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex h-11 w-full items-center justify-center rounded-md border bg-card text-sm font-medium text-foreground hover:bg-muted"
-          >
-            Invoice · print / email
-          </a>
-        ) : null}
-        {bookingId ? (
-          <a
-            href={buildStayHubReopenHref({
-              bookingId,
-              panel: "stay_money",
-              board: bookingCheckedIn ? "in_house" : "reservations",
-            })}
-            className="inline-flex h-10 w-full items-center justify-center rounded-md border border-transparent text-sm font-medium text-foreground underline-offset-4 hover:underline"
-          >
-            Open folio
-          </a>
-        ) : null}
-        <a
-          href="/erp/folios"
-          className="inline-flex h-9 w-full items-center justify-center rounded-md text-xs font-medium text-muted-foreground hover:bg-muted"
-        >
-          City ledger list
-        </a>
-      </nav>
     </div>
   );
 }

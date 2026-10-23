@@ -112,9 +112,9 @@ export default async function AgentDossierPage({ params, searchParams }: Props) 
   return (
     <DeskListShell
       title="Agent"
-      eyebrow="Channels · Agent"
+      eyebrow="Travel partner"
       heading={agent.company_name}
-      blurb={`${agent.market} · ${agent.contact_name ?? "—"} · ${agent.contact_phone ?? "—"} · ${from} → ${to}`}
+      subtitle="Stays, what they owe, and the rate signed with this company."
       filters={
         <form
           className="flex flex-wrap items-end gap-2"
@@ -184,97 +184,69 @@ export default async function AgentDossierPage({ params, searchParams }: Props) 
       {tab === "overview" ? (
         <div className="space-y-6">
           <AgentCockpitBoard
-            propertyId={propertyId}
             agentId={id}
-            companyName={agent.company_name}
-            briefing={cockpit.briefing}
+            profile={{
+              status: agent.status,
+              market: agent.market,
+              dzongkhag: agent.dzongkhag,
+              contactName: agent.contact_name,
+              contactPhone: agent.contact_phone,
+              contactEmail: agent.contact_email,
+              rateTier: agent.rate_tier,
+              creditUsed: agent.credit_used,
+              creditLimit: agent.credit_limit,
+              from,
+              to,
+              bookingCount: summary.bookingCount,
+              roomNights: summary.roomNights,
+              quotedTotal: summary.quotedTotal,
+              habit: money.habit.blurb,
+            }}
             doJobs={cockpit.doJobs}
             reports={cockpit.reports}
             checks={cockpit.checks}
           />
 
-          <AgentDossierOpsPanel agent={deskAgent} documents={documents} />
-
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              ["Status", agent.status.replace(/_/g, " ")],
-              ["Rate tier", agent.rate_tier],
-              ["Credit used", `${formatBtn(agent.credit_used)} / ${formatBtn(agent.credit_limit)}`],
-              ["Outstanding", formatBtn(money.outstanding)],
-            ].map(([label, val]) => (
-              <div key={label} className="rounded-lg border bg-card px-4 py-4">
-                <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
-                  {label}
-                </p>
-                <p className="mt-2 text-lg capitalize tabular-nums text-foreground">
-                  {val}
-                </p>
-              </div>
-            ))}
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {[
-              ["Bookings in range", String(summary.bookingCount)],
-              ["Room-nights", String(summary.roomNights)],
-              ["Quoted total", formatBtn(summary.quotedTotal)],
-            ].map(([label, val]) => (
-              <div key={label} className="rounded-lg border bg-card px-4 py-4">
-                <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
-                  {label}
-                </p>
-                <p className="mt-2 text-xl tabular-nums">{val}</p>
-              </div>
-            ))}
-          </div>
-          <section className="rounded-lg border bg-card p-4">
-            <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
-              Payment habit
-            </p>
-            <p className="mt-2 text-sm text-foreground">{money.habit.blurb}</p>
-            {agent.contact_email ? (
-              <p className="mt-2 text-xs text-muted-foreground">{agent.contact_email}</p>
-            ) : null}
-          </section>
-
-          <MergeAgentDuplicatesForm
-            keepAgentId={id}
-            keepCompanyName={agent.company_name}
-          />
-
-          <section className="rounded-lg border bg-card p-4 print:hidden">
-            <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
-              Reports
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              eZee-style production + commission and open AR for this agent.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button asChild size="sm" variant="outline" className="h-9">
-                <Link
-                  href={`/erp/reports/agent-production?from=${from}&to=${to}&agent_id=${id}`}
-                >
-                  Production + commission
-                </Link>
-              </Button>
-              <Button asChild size="sm" variant="outline" className="h-9">
-                <Link
-                  href={`/erp/reports/agent-ar?from=${from}&to=${to}&agent_id=${id}`}
-                >
-                  AR &amp; payment habit
-                </Link>
-              </Button>
-              <Button asChild size="sm" variant="outline" className="h-9">
-                <Link
-                  href={`/erp/reports/agent-commerce?from=${from}&to=${to}&agent_id=${id}`}
-                >
-                  Commerce (RN · dues · frequency)
-                </Link>
-              </Button>
-              <Button asChild size="sm" variant="ghost" className="h-9">
-                <Link href={`/erp/reports`}>All reports</Link>
-              </Button>
+          <details id="agent-desk-ops" className="scroll-mt-20 rounded-xl border bg-card">
+            <summary className="cursor-pointer list-none px-5 py-4">
+              <span className="text-sm font-medium">Account settings</span>
+              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                Approval, credit limit, room cap, notes, and documents.
+              </span>
+            </summary>
+            <div className="border-t px-2 py-2 sm:px-4">
+              <AgentDossierOpsPanel agent={deskAgent} documents={documents} />
             </div>
-          </section>
+          </details>
+
+          <details className="rounded-xl border bg-card print:hidden">
+            <summary className="cursor-pointer list-none px-5 py-4 text-sm font-medium">
+              Reports and duplicate records
+            </summary>
+            <div className="space-y-4 border-t px-5 py-4">
+              <div className="flex flex-wrap gap-2">
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/erp/reports/agent-production?from=${from}&to=${to}&agent_id=${id}`}>
+                    Production
+                  </Link>
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/erp/reports/agent-ar?from=${from}&to=${to}&agent_id=${id}`}>
+                    What they owe
+                  </Link>
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/erp/reports/agent-commerce?from=${from}&to=${to}&agent_id=${id}`}>
+                    Room nights and frequency
+                  </Link>
+                </Button>
+              </div>
+              <MergeAgentDuplicatesForm
+                keepAgentId={id}
+                keepCompanyName={agent.company_name}
+              />
+            </div>
+          </details>
         </div>
       ) : null}
 
@@ -430,15 +402,15 @@ export default async function AgentDossierPage({ params, searchParams }: Props) 
           <div className="grid gap-3 sm:grid-cols-4 print:grid-cols-4">
             {[
               [
-                "Open rooms / cap",
+                "Rooms in house",
                 `${money.openRoomsInHouse} / ${agent.open_room_cap}`,
               ],
-              ["Agent owes (credit used)", formatBtn(agent.credit_used)],
-              ["Credit limit (soft Nu)", formatBtn(agent.credit_limit)],
-              ["Outstanding folios", formatBtn(money.outstanding)],
+              ["Credit used", formatBtn(agent.credit_used)],
+              ["Credit limit", formatBtn(agent.credit_limit)],
+              ["Open bills", formatBtn(money.outstanding)],
             ].map(([label, val]) => (
               <div key={label} className="rounded-lg border bg-card px-4 py-4">
-                <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
+                <p className="text-sm font-medium text-foreground">
                   {label}
                 </p>
                 <p className="mt-2 text-xl tabular-nums text-foreground">{val}</p>
@@ -448,11 +420,11 @@ export default async function AgentDossierPage({ params, searchParams }: Props) 
 
           <div className="grid gap-3 sm:grid-cols-2">
             {[
-              ["Folio charges in range", formatBtn(money.folioTotal)],
-              ["Paid (folio payments)", formatBtn(money.paid)],
+              ["Charges this period", formatBtn(money.folioTotal)],
+              ["Paid this period", formatBtn(money.paid)],
             ].map(([label, val]) => (
               <div key={label} className="rounded-lg border bg-card px-4 py-4">
-                <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
+                <p className="text-sm font-medium text-foreground">
                   {label}
                 </p>
                 <p className="mt-2 text-xl tabular-nums text-foreground">{val}</p>
@@ -461,8 +433,8 @@ export default async function AgentDossierPage({ params, searchParams }: Props) 
           </div>
 
           <section className="rounded-lg border bg-card p-4 print:break-inside-avoid">
-            <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
-              Settlement packs (guide evidence)
+            <p className="text-sm font-medium text-foreground">
+              Checkout packs
             </p>
             {money.packs.length === 0 ? (
               <p className="mt-2 text-sm text-muted-foreground">
@@ -503,8 +475,8 @@ export default async function AgentDossierPage({ params, searchParams }: Props) 
           </section>
 
           <section className="rounded-lg border bg-card p-4 print:break-inside-avoid">
-            <p className="text-[11px] font-semibold tracking-[0.18em] text-accent uppercase">
-              AR aging (open folio balances)
+            <p className="text-sm font-medium text-foreground">
+              How old the unpaid bills are
             </p>
             <div className="mt-3 grid gap-3 sm:grid-cols-4">
               {[
@@ -531,7 +503,7 @@ export default async function AgentDossierPage({ params, searchParams }: Props) 
           </div>
 
           <DeskTable
-            caption="F&B open items (lunch invoiced, payment later)"
+            caption="Food bills still open"
             headers={["Invoice", "Opened", "Balance", "Status", ""]}
           >
             {money.openItems.length === 0 ? (

@@ -4,7 +4,11 @@ import {
   type PeriodGuardOptions,
 } from "@/lib/accounting/period-guard";
 import { resolvePeriodForDate } from "@/lib/accounting/journals";
-import { allocateFiscalDocNo } from "@/lib/accounting/sequences";
+import {
+  allocateFiscalDocNo,
+  allocateMasterBillNo,
+} from "@/lib/accounting/sequences";
+import { maybeSettleZeroBalanceFolio } from "@/lib/folio/post-payment";
 import { assertDeskProperty } from "@/lib/desk/property-guard";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -106,12 +110,15 @@ export async function issueFiscalDocument(
     }
   }
 
-  const allocated = await allocateFiscalDocNo(
-    admin,
-    propertyId,
-    input.docKind,
-    issueDate,
-  );
+  const allocated =
+    input.docKind === "invoice"
+      ? await allocateMasterBillNo(admin, propertyId)
+      : await allocateFiscalDocNo(
+          admin,
+          propertyId,
+          input.docKind,
+          issueDate,
+        );
   const period = await resolvePeriodForDate(admin, propertyId, issueDate);
 
   const { data: doc, error: insertError } = await admin
@@ -140,6 +147,30 @@ export async function issueFiscalDocument(
     throw new Error(
       `${insertError?.message ?? "Could not issue fiscal document."}${code}`,
     );
+  }
+
+  if (input.docKind === "invoice") {
+    const bookingId = (folio.booking_id as string | null) ?? null;
+    let departed = !bookingId;
+    if (bookingId) {
+      const { data: booking } = await admin
+        .from("bookings")
+        .select("status")
+        .eq("id", bookingId)
+        .maybeSingle();
+      departed = booking?.status === "checked_out";
+    }
+    if (departed) {
+      await maybeSettleZeroBalanceFolio(admin, input.folioId);
+      await admin
+        .from("folios")
+        .update({
+          status: "closed",
+          closed_at: new Date().toISOString(),
+        })
+        .eq("id", input.folioId)
+        .eq("status", "open");
+    }
   }
 
   return {

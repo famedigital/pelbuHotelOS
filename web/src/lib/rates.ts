@@ -113,6 +113,10 @@ export async function lookupRoomRatesBatch(
     .eq("property_id", args.propertyId)
     .eq("season_kind", args.seasonKind)
     .eq("rate_tier", args.rateTier)
+    .eq("label", "Standard")
+    .is("agent_id", null)
+    .is("guest_label", null)
+    .eq("active", true)
     .in("room_type_id", ids);
 
   for (const row of data ?? []) {

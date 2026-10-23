@@ -224,6 +224,47 @@ export type RoomNightTaxBreakdown = {
  * Exclusive (default): total = net × (1 + sc) × (1 + gst) with roundBtn at each step.
  * Inclusive: listed amount is total; reverse-out net = total / ((1+sc)×(1+gst)), then SC; GST absorbs rounding residual so net + SC + GST = total.
  */
+/** How a typed night figure should be turned into the guest total. */
+export type NightRateBasis =
+  | "sc_in"
+  | "sc_gst_in"
+  | "strip_gst"
+  | "add_sc"
+  | "add_sc_gst";
+
+export function guestNightFromTypedRate(
+  typedAmountBtn: number,
+  basis: NightRateBasis,
+  rates: { serviceChargeRate: number; gstRate: number },
+): RoomNightTaxBreakdown {
+  const sc = Math.max(0, Number(rates.serviceChargeRate) || 0);
+  const gst = Math.max(0, Number(rates.gstRate) || 0);
+  const typed = roundBtn(Math.max(0, Number(typedAmountBtn) || 0));
+  if (basis === "strip_gst") {
+    const withoutGst = gst > 0 ? roundBtn(typed / (1 + gst)) : typed;
+    return calculateRoomNightTax(withoutGst, {
+      gstRate: 0,
+      serviceChargeRate: sc,
+      applyServiceCharge: true,
+      inclusiveOfGstSc: true,
+    });
+  }
+  if (basis === "add_sc" || basis === "add_sc_gst") {
+    return calculateRoomNightTax(typed, {
+      gstRate: basis === "add_sc_gst" ? gst : 0,
+      serviceChargeRate: sc,
+      applyServiceCharge: true,
+      inclusiveOfGstSc: false,
+    });
+  }
+  return calculateRoomNightTax(typed, {
+    gstRate: basis === "sc_gst_in" ? gst : 0,
+    serviceChargeRate: sc,
+    applyServiceCharge: true,
+    inclusiveOfGstSc: true,
+  });
+}
+
 export function calculateRoomNightTax(
   listedAmountBtn: number,
   options: RoomNightTaxOptions,

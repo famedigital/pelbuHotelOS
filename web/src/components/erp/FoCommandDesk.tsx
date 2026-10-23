@@ -84,7 +84,9 @@ export function FoStayMetrics({
   onOpen,
 }: {
   snap: DailyDeskSnapshot;
-  onOpen: (tab: "checkout" | "inhouse" | "arrival" | "empty") => void;
+  onOpen: (
+    tab: "checkout" | "tomorrow" | "inhouse" | "arrival" | "empty",
+  ) => void;
 }) {
   const arrivals = snap.dayOps.arrivals;
   const ready = arrivals.filter(arrivalReady).length;
@@ -97,7 +99,7 @@ export function FoStayMetrics({
   const house = Math.max(snap.dayOps.inHouse.length, departures, 1);
 
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
       <FoMetricCard
         label="Expected arrivals"
         value={String(arrivals.length)}
@@ -132,6 +134,14 @@ export function FoStayMetrics({
         percent={pct(departures, house)}
         barClassName="bg-amber-500"
         onClick={() => onOpen("checkout")}
+      />
+      <FoMetricCard
+        label="Tomorrow checkout"
+        value={String(snap.tomorrowDepartureRows?.length ?? 0)}
+        hint="Print the bills for the guide"
+        percent={pct(snap.tomorrowDepartureRows?.length ?? 0, house)}
+        barClassName="bg-amber-500"
+        onClick={() => onOpen("tomorrow")}
       />
     </div>
   );

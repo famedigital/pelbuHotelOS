@@ -163,6 +163,17 @@ export async function maybeSettleZeroBalanceFolio(
     .eq("id", folioId)
     .maybeSingle();
   if (!folio || (folio.status as string) !== "open") return;
+
+  const { data: masterBill } = await admin
+    .from("fiscal_documents")
+    .select("id")
+    .eq("folio_id", folioId)
+    .eq("doc_kind", "invoice")
+    .eq("status", "issued")
+    .limit(1)
+    .maybeSingle();
+  if (!masterBill?.id) return;
+
   const lines =
     (folio.folio_lines as
       | {

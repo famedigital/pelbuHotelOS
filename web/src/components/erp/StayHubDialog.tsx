@@ -40,6 +40,7 @@ import { StayHubTasksPanel } from "@/components/erp/stay-hub/StayHubTasksPanel";
 import { useStayHubOptional } from "@/components/erp/StayHubContext";
 import { StayHubPrintHost } from "@/components/erp/stay-hub/StayHubPrintHost";
 import { StayHubCashierStrip } from "@/components/erp/stay-hub/StayHubCashierStrip";
+import { StayFolioSheet } from "@/components/erp/stay-hub/StayFolioSheet";
 import {
   defaultCheckInToolTab,
   defaultFolioToolTab,
@@ -68,8 +69,6 @@ import { AiAssistPanel } from "@/components/erp/AiAssistPanel";
 import {
   parseAssistDraft,
   parseCheckoutChecklistDraft,
-  parseExplainDueDraft,
-  parseInvoiceNotesDraft,
 } from "@/lib/ai/assist-draft-schemas";
 import { DeskSettlePanel } from "@/components/erp/DeskSettlePanel";
 import { GuideEvidencePanel } from "@/components/erp/GuideEvidencePanel";
@@ -110,6 +109,7 @@ import { StayHubBookingRoomsStrip } from "@/components/erp/stay-hub/StayHubBooki
 import { useDebouncedAutoSave } from "@/components/erp/stay-hub/use-debounced-auto-save";
 import { useStayHubConcurrentLock } from "@/components/erp/stay-hub/use-stay-hub-concurrent-lock";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -241,6 +241,7 @@ function summaryFromSeed(stay: StayHubSeedStay): StayHubSummary {
     bookingId: stay.booking_id,
     propertyId,
     confirmationCode: null,
+    folioDocNo: null,
     contactName: stay.contact_name,
     contactPhone: stay.contact_phone,
     contactEmail: stay.contact_email,
@@ -280,6 +281,8 @@ function summaryFromSeed(stay: StayHubSeedStay): StayHubSummary {
             qty: Math.max(1, stay.rooms || 1),
             inventoryKind: "sellable_guest",
             assignedLabels: stay.room_label ? [stay.room_label] : [],
+            agreedNightlyRateBtn: null,
+            occupancy: null,
           },
         ]
       : [],
@@ -1976,7 +1979,7 @@ export function StayHubDialog({
 
   useEffect(() => {
     if (!open || typeof document === "undefined") return;
-    const width = showPartyRooms ? "40rem" : "28rem";
+    const width = showPartyRooms ? "min(58rem, 82vw)" : "min(48rem, 72vw)";
     document.documentElement.style.setProperty("--stay-dock-width", width);
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented) return;
@@ -2636,17 +2639,6 @@ export function StayHubDialog({
     { id: "guest", label: "Guest" },
     { id: "more", label: "More" },
   ];
-  const folioTabs = [
-    { id: "bill", label: "Folio" },
-    ...(balanceOpen
-      ? [
-          {
-            id: "collect",
-            label: summary?.agentId ? "Settle" : "Collect",
-          },
-        ]
-      : []),
-  ];
 
   const toolTabsNode = (() => {
     if (isDetailsPanel) {
@@ -2667,17 +2659,7 @@ export function StayHubDialog({
         />
       );
     }
-    if (panel === "stay_money") {
-      const active =
-        !balanceOpen && folioTool === "collect" ? "bill" : folioTool;
-      return (
-        <StayHubToolTabs
-          tabs={folioTabs}
-          activeId={active}
-          onChange={(id) => setFolioTool(id as FolioToolTab)}
-        />
-      );
-    }
+    if (panel === "stay_money") return null;
     return null;
   })();
 
@@ -2842,6 +2824,7 @@ export function StayHubDialog({
             dueChipBtn={balanceOpen ? dues : null}
             hkStatus={summary?.roomHkStatus}
           />
+          <StayHubMobileSteps {...navProps} />
 
           <div className="flex min-h-0 flex-1 overflow-hidden">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -2941,8 +2924,8 @@ export function StayHubDialog({
               ) : (
                 <StayHubWorkFrame
                   key={bookingId}
-                  title={panelLabel}
-                  description={panelDescription(panel)}
+                  title={panel === "stay_money" ? undefined : panelLabel}
+                  description={panel === "stay_money" ? undefined : panelDescription(panel)}
                   dense={
                     isCheckInPanel ||
                     panel === "stay_money" ||
@@ -2951,7 +2934,7 @@ export function StayHubDialog({
                   tools={toolTabsNode}
                 >
                   <div className="min-w-0 space-y-2">
-                    {summary ? (
+                    {summary && panel !== "stay_money" ? (
                       <p className="rounded-md border border-accent/25 bg-accent/5 px-3 py-2 text-xs text-foreground">
                         <span className="font-semibold text-accent">Next · </span>
                         {deskBriefingLine({
@@ -3590,98 +3573,76 @@ export function StayHubDialog({
 
                     {/* Folio — Folio | Collect; Advanced under More */}
                     {panel === "stay_money" ? (
-                      <div className="space-y-2">
-                        {summary.rooms > 1 && folioTool === "advanced" ? (
-                          <Callout tone="muted" title="Multi-room / group">
-                            Check in each room from Reservations party board if
-                            needed. Master attach is on the folio advanced
-                            page.
-                          </Callout>
-                        ) : null}
-                        <StayHubCashierStrip
-                          status={summary.status}
-                          hasDoor={Boolean(
-                            summary.hasRoomAssigned && summary.roomLabel,
-                          )}
-                          money={money}
-                          onPrinted={onMoneyChanged}
-                        />
-                        <DeskSettlePanel
-                          key={`settle-${summary.bookingId}`}
-                          bookingId={summary.bookingId}
-                          status={summary.status}
-                          money={money}
-                          checkIn={summary.checkIn}
-                          earlyCheckoutFeeBtn={summary.earlyCheckoutFeeBtn}
-                          lateCheckoutFeeBtn={summary.lateCheckoutFeeBtn}
-                          hasInvoice={Boolean(money?.hasInvoice)}
-                          mode="settle"
-                          stayPanel="stay_money"
-                          stayBoard={board}
-                          toolTab={
-                            !balanceOpen && folioTool === "collect"
-                              ? "bill"
-                              : folioTool
-                          }
-                          onRequestCollect={openCollect}
-                          collectAnchorRef={collectPayRef}
-                          postChargesAnchorRef={postChargesRef}
-                          advancedExtra={advancedExtra}
-                          onMoneyChanged={onMoneyChanged}
-                          onOptimisticVoidLine={onOptimisticVoidLine}
-                        />
-                        <AiAssistPanel
-                          propertyId={summary.propertyId}
-                          bookingId={summary.bookingId}
-                          mode="explain_due"
-                          compact
-                          title="Why is Due this?"
-                          onApplyDraft={(raw) => {
-                            const parsed = parseAssistDraft(
-                              parseExplainDueDraft,
-                              raw,
-                            );
-                            if (!parsed.ok) {
-                              toast.error(parsed.error);
-                              return;
+                      <Tabs
+                        value={folioTool === "bill" ? "bill" : "collect"}
+                        onValueChange={(id) => setFolioTool(id as FolioToolTab)}
+                      >
+                        <TabsList className="grid h-9 w-full grid-cols-2">
+                          <TabsTrigger value="bill">Bill</TabsTrigger>
+                          <TabsTrigger value="collect">Collect</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="bill" className="space-y-3">
+                          <StayFolioSheet
+                            bookingId={summary.bookingId}
+                            roomLines={summary.roomLines}
+                            checkIn={summary.checkIn}
+                            checkOut={summary.checkOut}
+                            adults={summary.adults}
+                            children={summary.children}
+                            agreedNightlyRateBtn={summary.agreedNightlyRateBtn}
+                            folioDocNo={summary.folioDocNo}
+                            confirmationCode={summary.confirmationCode}
+                            mealPlanCode={summary.mealPlanCode}
+                            mealPlans={mealPlans.map((plan) => ({
+                              code: plan.code,
+                              name: plan.name,
+                            }))}
+                            onSaved={() => {
+                              refreshSummary();
+                              onMoneyChanged();
+                            }}
+                            footer={
+                              <StayHubCashierStrip
+                                status={summary.status}
+                                hasDoor={Boolean(
+                                  summary.hasRoomAssigned && summary.roomLabel,
+                                )}
+                                money={money}
+                                onPrinted={onMoneyChanged}
+                              />
                             }
-                            toast.message("Due playbook ready", {
-                              description:
-                                parsed.data.suggestedSteps?.join(" → ") ||
-                                parsed.data.plainExplanation ||
-                                "Review Due steps above",
-                              duration: 14_000,
-                            });
-                          }}
-                        />
-                        <AiAssistPanel
-                          propertyId={summary.propertyId}
-                          bookingId={summary.bookingId}
-                          mode="invoice_notes"
-                          compact
-                          title="Invoice notes draft"
-                          onApplyDraft={(raw) => {
-                            const parsed = parseAssistDraft(
-                              parseInvoiceNotesDraft,
-                              raw,
-                            );
-                            if (!parsed.ok) {
-                              toast.error(parsed.error);
-                              return;
-                            }
-                            const text =
-                              parsed.data.notes ||
-                              parsed.data.shareText ||
-                              "";
-                            if (text && typeof navigator !== "undefined") {
-                              void navigator.clipboard?.writeText(text);
-                            }
-                            toast.success("Invoice notes copied", {
-                              description: text.slice(0, 120) || undefined,
-                            });
-                          }}
-                        />
-                      </div>
+                          />
+                        </TabsContent>
+                        <TabsContent value="collect" className="space-y-3">
+                          {summary.rooms > 1 ? (
+                            <Callout tone="muted" title="Multi-room / group">
+                              Check in each room from Reservations party board if
+                              needed. Master attach is on the folio advanced
+                              page.
+                            </Callout>
+                          ) : null}
+                          <DeskSettlePanel
+                            key={`settle-${summary.bookingId}`}
+                            bookingId={summary.bookingId}
+                            status={summary.status}
+                            money={money}
+                            checkIn={summary.checkIn}
+                            earlyCheckoutFeeBtn={summary.earlyCheckoutFeeBtn}
+                            lateCheckoutFeeBtn={summary.lateCheckoutFeeBtn}
+                            hasInvoice={Boolean(money?.hasInvoice)}
+                            mode="settle"
+                            stayPanel="stay_money"
+                            stayBoard={board}
+                            toolTab={folioTool === "advanced" ? "advanced" : "collect"}
+                            onRequestCollect={openCollect}
+                            collectAnchorRef={collectPayRef}
+                            postChargesAnchorRef={postChargesRef}
+                            advancedExtra={advancedExtra}
+                            onMoneyChanged={onMoneyChanged}
+                            onOptimisticVoidLine={onOptimisticVoidLine}
+                          />
+                        </TabsContent>
+                      </Tabs>
                     ) : null}
 
                     {/* Checkout — evidence → leave (agent) · pay-first FO */}
@@ -3903,7 +3864,6 @@ export function StayHubDialog({
             </div>
           </div>
 
-          <StayHubMobileSteps {...navProps} />
           <StayHubFooterBar
             panelLabel={panelLabel}
             onClose={handleClose}
@@ -4921,6 +4881,8 @@ function proformaFromSummary(s: StayHubSummary): FastBookInvoiceData {
             qty: Math.max(1, s.rooms || 1),
             inventoryKind: "sellable_guest",
             assignedLabels: s.roomLabel ? [s.roomLabel] : [],
+            agreedNightlyRateBtn: s.agreedNightlyRateBtn,
+            occupancy: null,
           },
         ];
   const lines = sourceLines.map((line) => {

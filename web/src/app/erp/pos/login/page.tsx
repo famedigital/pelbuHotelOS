@@ -1,3 +1,4 @@
+import { FullDocumentRedirect } from "@/components/erp/FullDocumentRedirect";
 import { PosPwaInstall } from "@/components/pwa/PosPwaInstall";
 import { StaffLoginForm } from "@/components/erp/StaffAuthForms";
 import { BRAND_ICONS } from "@/lib/brand";
@@ -7,7 +8,6 @@ import { LOGIN_HOTEL_CODE_COOKIE } from "@/lib/hotel-codes";
 import { SITE_NAME } from "@/lib/site";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "POS login",
@@ -28,7 +28,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PosLoginPage() {
   if (await isDeskAuthenticated()) {
-    redirect("/erp/pos");
+    return <FullDocumentRedirect href="/erp/pos" />;
   }
 
   const jar = await cookies();

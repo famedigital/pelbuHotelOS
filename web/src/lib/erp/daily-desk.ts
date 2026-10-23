@@ -311,16 +311,26 @@ export async function loadDailyDeskSnapshot(
     loadEmptyRoomBreakdown(admin, propertyId, wallToday),
     loadDayOpsBoard(admin, propertyId, tomorrowDepartureDate, {
       slices: ["departures"],
+      catchUp: false,
     }),
   ]);
 
   const departureIds = new Set(dayOps.departures.map((r) => r.id));
-  const recent = await loadRecentAgentCheckouts(
-    admin,
-    propertyId,
-    wallToday,
-    departureIds,
-  );
+  const folioIds = dayOps.departures
+    .map((r) => r.folio_id)
+    .filter((id): id is string => Boolean(id));
+  const tomorrowFolioIds = tomorrowBoard.departures
+    .map((r) => r.folio_id)
+    .filter((id): id is string => Boolean(id));
+  const [recent, nationalityCounts, invMap, tomorrowInvMap] = await Promise.all([
+    loadRecentAgentCheckouts(admin, propertyId, wallToday, departureIds),
+    loadInHouseNationalities(
+      admin,
+      dayOps.inHouse.map((row) => row.id),
+    ),
+    loadIssuedInvoiceByFolio(admin, propertyId, folioIds),
+    loadIssuedInvoiceByFolio(admin, propertyId, tomorrowFolioIds),
+  ]);
 
   /** Follow-up pool: today's departures with an agent, plus recent agent COs. */
   const pool: DayOpsRow[] = [
@@ -385,21 +395,6 @@ export async function loadDailyDeskSnapshot(
     roomsTotal: hkRows.length,
   };
 
-  const nationalityCounts = await loadInHouseNationalities(
-    admin,
-    dayOps.inHouse.map((row) => row.id),
-  );
-
-  const folioIds = dayOps.departures
-    .map((r) => r.folio_id)
-    .filter((id): id is string => Boolean(id));
-  const tomorrowFolioIds = tomorrowBoard.departures
-    .map((r) => r.folio_id)
-    .filter((id): id is string => Boolean(id));
-  const [invMap, tomorrowInvMap] = await Promise.all([
-    loadIssuedInvoiceByFolio(admin, propertyId, folioIds),
-    loadIssuedInvoiceByFolio(admin, propertyId, tomorrowFolioIds),
-  ]);
   const departureInvoices: Record<string, { id: string; docNo: string }> = {};
   for (const [fid, inv] of invMap) {
     departureInvoices[fid] = inv;

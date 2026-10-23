@@ -592,7 +592,29 @@ export default async function CalendarPage({ searchParams }: Props) {
       className="flex min-h-0 flex-col overflow-hidden bg-background max-md:h-[calc(100dvh-4rem-env(safe-area-inset-bottom,0px))] max-md:landscape:h-[100dvh] md:h-[calc(100svh-3.5rem)] animate-[desk-premium-fade-in_0.35s_ease-out]"
     >
       <DeskOfflineQueueStrip defaultKind="hold_draft" />
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <section className="space-y-2 overflow-y-auto p-3 md:hidden">
+        <p className="text-xs font-medium text-muted-foreground">Today</p>
+        {stays
+          .filter(
+            (stay) => stay.check_in <= today && stay.check_out > today,
+          )
+          .map((stay) => (
+            <p key={stay.id} className="rounded-lg border bg-card px-3 py-2 text-sm">
+              <span className="font-medium">{stay.contact_name ?? "Guest"}</span>
+              <span className="text-muted-foreground">
+                {" "}
+                · {stay.status.replace(/_/g, " ")} · {stay.check_in.slice(5)}–
+                {stay.check_out.slice(5)}
+              </span>
+            </p>
+          ))}
+        <p className="flex flex-wrap gap-3 text-sm">
+          <a className="underline" href="/erp/arrivals">Arrivals</a>
+          <a className="underline" href="/erp/in-house">In house</a>
+          <a className="underline" href="/erp/departures">Departures</a>
+        </p>
+      </section>
+      <div className="hidden min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex">
         <RoomRackGrid
           units={units}
           stays={stays}

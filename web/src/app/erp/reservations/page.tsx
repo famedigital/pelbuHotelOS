@@ -28,6 +28,7 @@ import {
   statusesForBucket,
 } from "@/lib/erp/reservation-status-buckets";
 import { requireDeskPropertyId } from "@/lib/desk-property";
+import { availabilityByRoomType } from "@/lib/inventory-availability";
 import { matchesQuery, thimphuToday } from "@/lib/erp-lists";
 import {
   applyReservationView,
@@ -509,6 +510,16 @@ export default async function ReservationsPage({
   const exportHref = `/erp/reservations/export?${exportParams.toString()}`;
   const printHref = `/erp/reservations/print?${exportParams.toString()}`;
 
+  const tomorrowDate = new Date(`${today}T00:00:00Z`);
+  tomorrowDate.setUTCDate(tomorrowDate.getUTCDate() + 1);
+  const tomorrow = tomorrowDate.toISOString().slice(0, 10);
+  const roomCounts = await availabilityByRoomType(
+    admin,
+    propertyId,
+    today,
+    tomorrow,
+  );
+
   return (
     <StaysHub
       headerAside={
@@ -539,6 +550,19 @@ export default async function ReservationsPage({
         </div>
       }
     >
+      {roomCounts.length > 0 ? (
+        <p className="mb-3 flex flex-wrap gap-2 text-sm">
+          {roomCounts.map((row) => (
+            <span
+              key={row.roomTypeId}
+              className="rounded-md border bg-card px-2 py-1 tabular-nums"
+            >
+              {row.code} {row.remaining} free
+              <span className="text-muted-foreground"> / {row.capacity}</span>
+            </span>
+          ))}
+        </p>
+      ) : null}
       <ReservationsListCacheBridge
         propertyId={propertyId}
         bucket={view}

@@ -41,13 +41,14 @@ function NavigationProgressInner() {
       aria-label="Loading page"
     >
       <div
-        className="h-full bg-citrus shadow-[0_0_8px_rgba(245,158,11,0.55)] transition-[width] duration-300 ease-out"
+        className="desk-nav-progress h-full bg-accent transition-[width] duration-[140ms] ease-out"
         style={{ width: `${progress}%` }}
       />
     </div>
   );
 
-  return createPortal(bar, document.body);
+  const host = document.querySelector("[data-desk-root]") ?? document.body;
+  return createPortal(bar, host);
 }
 
 /** Thin top bar on ERP route changes — complements sonner action toasts. */

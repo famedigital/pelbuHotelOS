@@ -7,6 +7,7 @@ import {
   departureBillBlocks,
   billStreams,
 } from "@/lib/folio/bill-block";
+import { Button } from "@/components/ui/button";
 import { formatGuestBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
@@ -26,7 +27,6 @@ export function StayHubCashierStrip({
   onPrinted?: () => void;
 }) {
   const streams = billStreams(money?.lines ?? []);
-  const paid = Math.abs(Number(money?.ledgerSummary.paymentBtn ?? 0));
   const blocks = money
     ? departureBillBlocks({
         folioId: money.folioId,
@@ -76,25 +76,14 @@ export function StayHubCashierStrip({
   }
 
   return (
-    <section
-      className="mb-3 rounded-md border border-border bg-card p-3"
-      aria-label="Cashier"
-    >
-      <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-        Cashier
-      </p>
+    <section aria-label="Print" className="space-y-2">
       {!money ? (
-        <p className="mt-2 text-sm text-muted-foreground">Loading the bill…</p>
+        <p className="text-sm text-muted-foreground">Loading the bill…</p>
       ) : null}
-      <p className="mt-1 text-xs text-muted-foreground">
-        Room, food, and master for this stay. Paid stays 0 until a payment is
-        recorded.
-      </p>
-      <dl className="mt-2 space-y-1 text-sm">
-        <Row label="Room bill" value={formatGuestBtn(streams.room)} />
-        <Row label="Food bill" value={formatGuestBtn(streams.food)} />
-        <Row label="Master due" value={formatGuestBtn(streams.master)} strong />
-        <Row label="Paid" value={formatGuestBtn(paid)} />
+      <dl className="grid grid-cols-3 gap-2 text-sm">
+        <Row label="Room" value={formatGuestBtn(streams.room)} />
+        <Row label="Food" value={formatGuestBtn(streams.food)} />
+        <Row label="Due" value={formatGuestBtn(streams.master)} strong />
       </dl>
       {blocks.map((block) => (
         <p
@@ -138,8 +127,8 @@ function Row({
   strong?: boolean;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-muted-foreground">{label}</dt>
+    <div>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className={cn("tabular-nums", strong && "font-semibold")}>{value}</dd>
     </div>
   );
@@ -155,13 +144,14 @@ function PrintButton({
   onClick: () => void;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="sm"
       onClick={onClick}
       disabled={busy}
-      className="inline-flex h-8 items-center rounded-md border border-border bg-background px-2.5 text-xs font-medium hover:bg-muted disabled:opacity-60"
     >
       {busy ? "Opening…" : label}
-    </button>
+    </Button>
   );
 }

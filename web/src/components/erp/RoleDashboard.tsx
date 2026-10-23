@@ -1,4 +1,3 @@
-import { BookingLifecycleActions } from "@/components/erp/BookingLifecycleActions";
 import { TomorrowArrivals } from "@/components/erp/TomorrowArrivals";
 import { MissingGuideScans } from "@/components/erp/MissingGuideScans";
 import { DeskBlurFade } from "@/components/erp/DeskBlurFade";
@@ -292,26 +291,39 @@ function OpenKotList({ snap }: { snap: RoleDashboardSnapshot }) {
 
 function HoldsList({ snap }: { snap: RoleDashboardSnapshot }) {
   if (snap.holds.length === 0) {
-    return <p className="text-sm text-muted-foreground">No open holds.</p>;
+    return (
+      <p className="text-sm text-muted-foreground">
+        No rooms are waiting on a deposit.
+      </p>
+    );
   }
   return (
-    <ul className="space-y-2">
+    <ul className="divide-y">
       {snap.holds.map((h) => (
-        <li key={h.id} className="rounded-lg border p-2.5 text-sm">
-          <p className="font-medium">
-            {h.contactName}
-            {h.contactPhone ? ` · ${h.contactPhone}` : ""}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {h.checkIn} → {h.checkOut} · token {formatBtn(h.tokenRequiredBtn)}
-          </p>
-          <div className="mt-2">
-            <BookingLifecycleActions
-              bookingId={h.id}
-              status="held"
-              tokenRequired={h.tokenRequiredBtn}
-            />
+        <li
+          key={h.id}
+          className="flex items-start justify-between gap-3 py-3 first:pt-1 last:pb-1"
+        >
+          <div className="min-w-0">
+            <p className="truncate font-medium text-foreground">
+              {h.contactName}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {fmtDate(h.checkIn)} – {fmtDate(h.checkOut)}
+              {h.contactPhone ? ` · ${h.contactPhone}` : ""}
+            </p>
+            <p className="mt-1 text-xs text-foreground">
+              {h.tokenRequiredBtn > 0
+                ? `Deposit due ${formatBtn(h.tokenRequiredBtn)}`
+                : "Deposit amount not set"}
+            </p>
           </div>
+          <Link
+            href={`/erp/bookings/${h.id}`}
+            className="shrink-0 pt-0.5 text-xs font-medium text-accent underline-offset-4 hover:underline"
+          >
+            Open stay
+          </Link>
         </li>
       ))}
     </ul>
@@ -510,7 +522,7 @@ function ManagerBoard({
         <Kpi
           href="/erp/payments"
           icon={ReceiptTextIcon}
-          label="Open folio $"
+          label="Open folios"
           value={formatBtn(snap.folioBalanceBtn)}
         />
       </div>
@@ -539,7 +551,10 @@ function ManagerBoard({
         />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
-        <Section title="Holds awaiting token">
+        <Section
+          title="Waiting for a deposit"
+          description="The room stays blocked until the deposit is recorded on the stay."
+        >
           <HoldsList snap={snap} />
         </Section>
         <Section

@@ -1162,18 +1162,24 @@ export async function confirmCheckOut(
         );
       }
 
-      await admin
-        .from("folios")
-        .update({
-          status:
-            Math.abs(balance) <= 0.009
-              ? "settled"
-              : agentResidualOk
-                ? "closed"
-                : "closed",
-          closed_at: new Date().toISOString(),
-        })
-        .eq("id", folio.id);
+      const { data: masterBill } = await admin
+        .from("fiscal_documents")
+        .select("id")
+        .eq("folio_id", folio.id)
+        .eq("doc_kind", "invoice")
+        .eq("status", "issued")
+        .limit(1)
+        .maybeSingle();
+
+      if (masterBill?.id) {
+        await admin
+          .from("folios")
+          .update({
+            status: Math.abs(balance) <= 0.009 ? "settled" : "closed",
+            closed_at: new Date().toISOString(),
+          })
+          .eq("id", folio.id);
+      }
     }
 
     const { error: releaseError } = await admin.rpc(

@@ -1,4 +1,5 @@
 import { AgentRateAssist } from "@/components/erp/AgentRateAssist";
+import { NamedRateOfferForm } from "@/components/erp/NamedRateOfferForm";
 import { ErpBreadcrumb } from "@/components/erp/ErpBreadcrumb";
 import { RatePackagesWorkspace } from "@/components/erp/RatePackagesWorkspace";
 import { SeasonsDateEditor } from "@/components/erp/SeasonsDateEditor";
@@ -10,6 +11,7 @@ import {
   loadPropertyDefaultMealPlanCode,
 } from "@/lib/meal-plans";
 import { loadRoomRatesMatrix } from "@/lib/room-rates-data";
+import { listNamedRateOffers } from "@/lib/rates/rate-offers";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -26,7 +28,7 @@ export default async function RoomRatesPage() {
   const admin = createSupabaseAdminClient();
   const propertyId = await requireDeskPropertyId();
 
-  const [{ rows, roomTypes, seasons }, mealPlans, defaultMealPlanCode, policyResult] =
+  const [{ rows, roomTypes, seasons }, mealPlans, defaultMealPlanCode, policyResult, agentsResult, namedOffers] =
     await Promise.all([
       loadRoomRatesMatrix(admin, propertyId),
       loadActiveMealPlans(admin, propertyId),
@@ -36,6 +38,12 @@ export default async function RoomRatesPage() {
         .select("rates_inclusive_of_gst_sc")
         .eq("property_id", propertyId)
         .maybeSingle(),
+      admin
+        .from("agents")
+        .select("id, company_name")
+        .order("company_name")
+        .limit(200),
+      listNamedRateOffers(admin, propertyId).catch(() => []),
     ]);
 
   const ratesInclusiveOfGstSc = Boolean(
@@ -115,6 +123,33 @@ export default async function RoomRatesPage() {
       </section>
 
       <AgentRateAssist propertyId={propertyId} />
+
+      <section className="rounded-xl border bg-card p-5">
+        <h2 className="text-sm font-semibold">Named rates</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          One agent or guest can hold several prices. Contract is the usual rate.
+          Fill-up is the lower price when the alternative is an empty room.
+        </p>
+        {namedOffers.length > 0 ? (
+          <ul className="mt-3 space-y-1 text-sm">
+            {namedOffers.slice(0, 12).map((offer) => (
+              <li key={offer.id} className="flex justify-between gap-3">
+                <span>
+                  {offer.agentName || offer.guestLabel || offer.rateTier} · {offer.label} ·{" "}
+                  {offer.roomTypeName} · {offer.seasonKind}
+                </span>
+                <span className="tabular-nums">Nu {offer.amountBtn.toLocaleString()}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <div className="mt-4">
+          <NamedRateOfferForm
+            roomTypes={roomTypes.map((room) => ({ id: room.id, name: room.name }))}
+            agents={(agentsResult.data ?? []) as { id: string; company_name: string }[]}
+          />
+        </div>
+      </section>
 
       <RatePackagesWorkspace
         rows={rows}

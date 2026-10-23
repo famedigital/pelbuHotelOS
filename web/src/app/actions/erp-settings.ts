@@ -15,6 +15,7 @@ import { normalizeCloseTime } from "@/lib/night-audit/close-time";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { syncRoomUnits } from "@/lib/rooms/sync-room-units";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { parseDeskTheme } from "@/lib/desk-theme";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
 import { bustPublicTag } from "@/lib/bust-public-tag";
@@ -49,6 +50,47 @@ async function syncRoomTypeCount(admin: Admin, roomTypeId: string) {
     .update({ unit_count: count ?? 0 })
     .eq("id", roomTypeId);
   if (patchError) throw new Error(patchError.message);
+}
+
+export async function updateDeskTheme(
+  _prev: PropertyWizardState,
+  formData: FormData,
+): Promise<PropertyWizardState> {
+  try {
+    await requireDesk();
+    await requireDeskRole(["gm", "owner"]);
+    const admin = createSupabaseAdminClient();
+    const activePropertyId = await resolveActivePropertyId(admin);
+    const propertyId = trimRequired(formData.get("property_id"), "Property");
+    assertDeskProperty(activePropertyId, propertyId, "Property");
+    const deskTheme = parseDeskTheme(formData.get("desk_theme"));
+    const { error } = await admin
+      .from("properties")
+      .update({ desk_theme: deskTheme })
+      .eq("id", propertyId);
+    if (error) {
+      throw new Error(
+        error.message.includes("desk_theme")
+          ? "Desk theme is not on the database yet. Apply the desk_theme migration, then save again."
+          : error.message,
+      );
+    }
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "property.settings.theme",
+      entityType: "properties",
+      entityId: propertyId,
+      summary: `Desk theme set to ${deskTheme}`,
+    });
+    revalidatePath("/erp");
+    revalidatePath("/erp/settings");
+    return { ok: true, propertyId, message: "Desk theme saved." };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not save the desk theme.",
+    };
+  }
 }
 
 export async function updatePropertyIdentity(

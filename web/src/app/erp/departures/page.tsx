@@ -37,6 +37,18 @@ export default async function DeparturesPage() {
           ? ` · ${dayOps.departuresWithLaundry} with open laundry`
           : ""}
       </p>
+      {dayOps.overdueDepartures.length > 0 ? (
+        <div className="fo-glass mb-3 space-y-2 p-3">
+          <h2 className="text-sm font-semibold">Should have left</h2>
+          <p className="text-xs text-muted-foreground">
+            These stays are from before today. Open each one and confirm.
+          </p>
+          <BookingBoardTable
+            rows={dayOps.overdueDepartures.map(dayOpsRowToBoardRaw)}
+            board="departures"
+          />
+        </div>
+      ) : null}
       <div className="fo-glass p-3">
         <BookingBoardTable rows={boardRows} board="departures" />
       </div>

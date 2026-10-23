@@ -126,16 +126,16 @@ test("recommendStayHubStep arrivals: confirmed ready → check_in", () => {
   );
 });
 
-test("previousStayHubPanel: checkout → folio; folio → check-in in-house", () => {
+test("previousStayHubPanel: checkout → bill; bill → check-in in-house", () => {
   assert.equal(previousStayHubPanel("check_out", "checked_in"), "stay_money");
   assert.equal(previousStayHubPanel("stay_money", "checked_in"), "check_in");
   assert.equal(previousStayHubPanel("check_in", "confirmed"), "reserve");
   assert.equal(previousStayHubPanel("check_in", "held"), "confirm");
   assert.equal(previousStayHubPanel("reserve", "confirmed"), null);
-  assert.equal(stayHubBackTargetLabel("stay_money", "checked_in"), "Folio");
+  assert.equal(stayHubBackTargetLabel("stay_money", "checked_in"), "Bill");
 });
 
-test("deskFocusedSteps: in-house FO hierarchy Details · Check-in · Folio · Checkout", () => {
+test("deskFocusedSteps: in-house FO hierarchy Details · Check-in · Bill · Checkout", () => {
   const full = buildStayHubSteps({
     status: "checked_in",
     hasRoomAssigned: true,
@@ -150,11 +150,11 @@ test("deskFocusedSteps: in-house FO hierarchy Details · Check-in · Folio · Ch
   );
   assert.deepEqual(
     desk.map((s) => s.label),
-    ["Details", "Check-in", "Folio", "Check-out"],
+    ["Details", "Check-in", "Bill", "Check-out"],
   );
 });
 
-test("canNavigateStayHubStep: completed Folio stays clickable from Checkout", () => {
+test("canNavigateStayHubStep: completed Bill stays clickable from Checkout", () => {
   const steps = buildStayHubSteps({
     status: "checked_in",
     hasRoomAssigned: true,

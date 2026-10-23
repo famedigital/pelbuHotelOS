@@ -52,7 +52,7 @@ const LABELS: Record<StayHubStepId, { label: string; short: string }> = {
   confirm: { label: "Confirm", short: "Cfm" },
   arrival: { label: "Ready", short: "Rdy" },
   check_in: { label: "Check-in", short: "CI" },
-  stay_money: { label: "Folio", short: "Folio" },
+  stay_money: { label: "Bill", short: "Bill" },
   check_out: { label: "Check-out", short: "Out" },
 };
 
@@ -321,6 +321,21 @@ export function parseStayHubBoard(
   return "auto";
 }
 
+/** Stay folio when the bill has a booking; otherwise the folio page. */
+export function stayFolioHref(
+  bookingId: string | null | undefined,
+  folioId: string,
+): string {
+  if (bookingId) {
+    return buildStayHubReopenHref({
+      bookingId,
+      panel: "stay_money",
+      board: "stayview",
+    });
+  }
+  return `/erp/folios/${folioId}`;
+}
+
 /**
  * Board URL that re-opens StayHub on a booking + panel
  * (StayHubProvider hydrates `?booking=` / `?step=`).
@@ -400,7 +415,7 @@ export function stayHubBackTargetLabel(
 ): string {
   const s = (status ?? "").toLowerCase();
   const inStay = s === "checked_in" || s === "checked_out";
-  if (target === "stay_money") return inStay ? "Folio" : LABELS.stay_money.label;
+  if (target === "stay_money") return inStay ? "Bill" : LABELS.stay_money.label;
   if (target === "reserve") return "Details";
   if (target === "check_in") return "Check-in";
   if (target === "confirm") return "Confirm";
@@ -445,8 +460,8 @@ export function canNavigateStayHubStep(input: {
 /**
  * Desk FO hierarchy — vertical left rail (or mobile strip).
  * Pre-stay: Details · Check-in.
- * In-house: Details · Check-in · Folio · Check-out.
- * Maps reserve/confirm→Details, check_in→Check-in, stay_money→Folio, check_out→Check-out.
+ * In-house: Details · Check-in · Bill · Check-out.
+ * Maps reserve/confirm→Details, check_in→Check-in, stay_money→Bill, check_out→Check-out.
  * Engine still has 6 underlying steps; this maps FO labels only.
  */
 export function deskFocusedSteps(
@@ -466,7 +481,7 @@ export function deskFocusedSteps(
         ...reserveStep,
         label: "Details",
         shortLabel: "Det",
-        // Never domain-"current" for FO — Folio/Checkout own in-stay focus
+        // Never domain-"current" for FO — Bill/Checkout own in-stay focus
         current: false,
         locked: false,
       });
@@ -482,7 +497,7 @@ export function deskFocusedSteps(
     }
     for (const st of steps) {
       if (st.id === "stay_money") {
-        out.push({ ...st, label: "Folio", shortLabel: "Folio" });
+        out.push({ ...st, label: "Bill", shortLabel: "Bill" });
       } else if (st.id === "check_out") {
         out.push({ ...st, label: "Check-out", shortLabel: "Out" });
       }

@@ -108,6 +108,9 @@ async function upsertOne(
     .eq("room_type_id", cell.room_type_id)
     .eq("season_kind", cell.season_kind)
     .eq("rate_tier", cell.rate_tier)
+    .eq("label", "Standard")
+    .is("agent_id", null)
+    .is("guest_label", null)
     .maybeSingle();
 
   const patch: Record<string, unknown> = {
@@ -134,6 +137,7 @@ async function upsertOne(
     room_type_id: cell.room_type_id,
     season_kind: cell.season_kind,
     rate_tier: cell.rate_tier,
+    label: "Standard",
     amount_btn: cell.amount_btn,
     amount_single_btn:
       cell.amount_single_btn === undefined ? null : cell.amount_single_btn,
@@ -242,6 +246,83 @@ export async function upsertRoomRate(
     return {
       ok: false,
       error: err instanceof Error ? err.message : "Could not save rate.",
+    };
+  }
+}
+
+const OFFER_LABELS = new Set([
+  "Contract",
+  "Fill-up",
+  "Festival",
+  "Standard",
+  "Personal",
+]);
+
+/** Insert one labeled offer in the central book. The folio draws it later. */
+export async function addNamedRateOffer(
+  _prev: ErpRatesState,
+  formData: FormData,
+): Promise<ErpRatesState> {
+  try {
+    await requireMoneyDesk();
+    const admin = createSupabaseAdminClient();
+    const propertyId = await resolveActivePropertyId(admin);
+
+    const roomTypeId = String(formData.get("room_type_id") ?? "").trim();
+    const seasonKind = String(formData.get("season_kind") ?? "")
+      .trim()
+      .toLowerCase();
+    const rateTier = String(formData.get("rate_tier") ?? "").trim().toLowerCase();
+    const labelRaw = String(formData.get("label") ?? "").trim();
+    const label = OFFER_LABELS.has(labelRaw) ? labelRaw : labelRaw.slice(0, 40);
+    const agentId = String(formData.get("agent_id") ?? "").trim() || null;
+    const guestLabel = String(formData.get("guest_label") ?? "").trim() || null;
+    const amount = roundBtn(Number(formData.get("amount_btn")));
+    const singleRaw = String(formData.get("amount_single_btn") ?? "").trim();
+
+    if (!roomTypeId) throw new Error("Room type is required.");
+    if (!SEASONS.has(seasonKind)) throw new Error("Season must be peak, lean, or off.");
+    if (!RATE_TIERS.has(rateTier)) throw new Error("Invalid rate tier.");
+    if (label.length < 2) throw new Error("Give the rate a name, such as Contract or Fill-up.");
+    if (!Number.isFinite(amount) || amount < 0) {
+      throw new Error("Double amount must be a non-negative number.");
+    }
+    let amountSingle: number | null = null;
+    if (singleRaw !== "") {
+      amountSingle = roundBtn(Number(singleRaw));
+      if (!Number.isFinite(amountSingle) || amountSingle < 0) {
+        throw new Error("Single amount must be a non-negative number.");
+      }
+    }
+
+    const { error } = await admin.from("room_rates").insert({
+      property_id: propertyId,
+      room_type_id: roomTypeId,
+      season_kind: seasonKind,
+      rate_tier: rateTier,
+      label,
+      agent_id: agentId,
+      guest_label: guestLabel,
+      amount_btn: amount,
+      amount_single_btn: amountSingle,
+      active: true,
+    });
+    if (error) {
+      if (error.code === "23505") {
+        throw new Error("That rate is already in the book.");
+      }
+      throw new Error(error.message);
+    }
+
+    revalidateRates();
+    return {
+      ok: true,
+      message: `Saved ${label} · Nu ${amount}. The folio can draw it.`,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Could not save the rate.",
     };
   }
 }

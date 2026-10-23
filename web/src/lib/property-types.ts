@@ -2,6 +2,7 @@
  * Property shape shared with Client Components (shell, switcher, receipts).
  * Keep this free of next/headers, cookies, and Supabase admin — only types.
  */
+import type { DeskTheme } from "@/lib/desk-theme";
 import type { PropertySettings } from "@/lib/property-settings";
 
 export type IncomeStreams = {
@@ -50,6 +51,7 @@ export type PropertyRow = {
   post_day1_room_at_checkin?: boolean;
   /** hotel = full PMS; restaurant = F&B pack only */
   product_pack?: "hotel" | "restaurant";
+  desk_theme?: DeskTheme;
   pos_training_mode?: boolean;
   public_host_cert_status?: string;
   desk_host_cert_status?: string;

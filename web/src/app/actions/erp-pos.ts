@@ -1944,8 +1944,12 @@ export async function postFolioPayment(
       throw new Error("Folio not found.");
     }
     assertDeskProperty(property_id, folio.property_id as string, "Folio");
-    if ((folio.status as string) !== "open") {
-      throw new Error("Folio is not open.");
+    const folioStatus = folio.status as string;
+    if (method === "agent_credit" && folioStatus !== "open") {
+      throw new Error("Agent credit can only be added while the folio is open.");
+    }
+    if (!["open", "closed", "settled"].includes(folioStatus)) {
+      throw new Error("This folio cannot take a payment.");
     }
 
     const agentOpenItem = isAgentOpenItemFolio({

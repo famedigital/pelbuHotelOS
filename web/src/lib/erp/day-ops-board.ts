@@ -33,6 +33,37 @@ export const DAY_OPS_BOARD_SELECT = `
 
 export type DayOpsSlice = "arrivals" | "departures" | "in_house";
 
+/**
+ * Stays the today boards hide.
+ * Overdue arrival: still not checked in, arrival was before today, stay still open.
+ * Overdue departure: still checked in, departure date already passed.
+ */
+export function catchUpKind(
+  row: {
+    status: string | null;
+    check_in: string | null;
+    check_out: string | null;
+  },
+  businessDate: string,
+): "overdue_arrival" | "overdue_departure" | null {
+  const status = row.status ?? "";
+  const checkIn = (row.check_in ?? "").slice(0, 10);
+  const checkOut = (row.check_out ?? "").slice(0, 10);
+  const day = businessDate.slice(0, 10);
+  if (!checkIn || !checkOut || !day) return null;
+  if (
+    (status === "pending" || status === "confirmed") &&
+    checkIn < day &&
+    checkOut >= day
+  ) {
+    return "overdue_arrival";
+  }
+  if (status === "checked_in" && checkOut < day) {
+    return "overdue_departure";
+  }
+  return null;
+}
+
 export type DayOpsRow = {
   id: string;
   confirmation_code: string | null;
@@ -76,6 +107,10 @@ export type DayOpsBoard = {
   businessDate: string;
   arrivals: DayOpsRow[];
   departures: DayOpsRow[];
+  /** Pending or confirmed, arrival before today, departure today or later. */
+  overdueArrivals: DayOpsRow[];
+  /** Checked in, departure date already passed. */
+  overdueDepartures: DayOpsRow[];
   inHouse: DayOpsRow[];
   /** Arriving guests on a meal plan (heads). */
   arrivingMealPax: number;
@@ -349,13 +384,14 @@ export async function loadDayOpsBoard(
   admin: Admin,
   propertyId: string,
   businessDate: string,
-  opts?: { slices?: DayOpsSlice[] },
+  opts?: { slices?: DayOpsSlice[]; catchUp?: boolean },
 ): Promise<DayOpsBoard> {
   const want = new Set<DayOpsSlice>(
     opts?.slices?.length
       ? opts.slices
       : ["arrivals", "departures", "in_house"],
   );
+  const catchUp = opts?.catchUp !== false;
 
   const emptyRes = {
     data: null as Record<string, unknown>[] | null,
@@ -366,6 +402,8 @@ export async function loadDayOpsBoard(
     { data: arrivalRows, error: arrivalErr },
     { data: departureRows, error: departureErr },
     { data: inHouseRows, error: inHouseErr },
+    { data: overdueArrivalRows, error: overdueArrivalErr },
+    { data: overdueDepartureRows, error: overdueDepartureErr },
   ] = await Promise.all([
     want.has("arrivals")
       ? admin
@@ -392,19 +430,51 @@ export async function loadDayOpsBoard(
           .from("bookings")
           .select(DAY_OPS_BOARD_SELECT)
           .eq("property_id", propertyId)
+          // Arrivals (check-in today, still confirmed) stay on the arrival board.
           .or(
-            `status.eq.checked_in,and(status.eq.confirmed,check_in.lte.${businessDate},check_out.gte.${businessDate})`,
+            `status.eq.checked_in,and(status.eq.confirmed,check_in.lt.${businessDate},check_out.gte.${businessDate})`,
           )
           .order("check_out")
           .limit(200)
       : Promise.resolve(emptyRes),
+    want.has("arrivals") && catchUp
+      ? admin
+          .from("bookings")
+          .select(DAY_OPS_BOARD_SELECT)
+          .eq("property_id", propertyId)
+          .in("status", ["pending", "confirmed"])
+          .lt("check_in", businessDate)
+          .gte("check_out", businessDate)
+          .order("check_in")
+          .order("contact_name")
+          .limit(150)
+      : Promise.resolve(emptyRes),
+    want.has("departures") && catchUp
+      ? admin
+          .from("bookings")
+          .select(DAY_OPS_BOARD_SELECT)
+          .eq("property_id", propertyId)
+          .eq("status", "checked_in")
+          .lt("check_out", businessDate)
+          .order("check_out")
+          .order("contact_name")
+          .limit(150)
+      : Promise.resolve(emptyRes),
   ]);
 
-  if (arrivalErr || departureErr || inHouseErr) {
+  if (
+    arrivalErr ||
+    departureErr ||
+    inHouseErr ||
+    overdueArrivalErr ||
+    overdueDepartureErr
+  ) {
     console.error("loadDayOpsBoard query failed", {
       arrivalErr,
       departureErr,
       inHouseErr,
+      overdueArrivalErr,
+      overdueDepartureErr,
     });
   }
 
@@ -414,6 +484,8 @@ export async function loadDayOpsBoard(
         ...(arrivalRows ?? []),
         ...(departureRows ?? []),
         ...(inHouseRows ?? []),
+        ...(overdueArrivalRows ?? []),
+        ...(overdueDepartureRows ?? []),
       ].map((r) => r.id as string),
     ),
   ];
@@ -432,15 +504,96 @@ export async function loadDayOpsBoard(
   const inHouse = ((inHouseRows as Record<string, unknown>[]) ?? []).map((r) =>
     mapDayOpsRawRow(r, laundryByBooking),
   );
+  const overdueArrivals = (
+    (overdueArrivalRows as Record<string, unknown>[]) ?? []
+  ).map((r) => mapDayOpsRawRow(r, laundryByBooking));
+  const overdueDepartures = (
+    (overdueDepartureRows as Record<string, unknown>[]) ?? []
+  ).map((r) => mapDayOpsRawRow(r, laundryByBooking));
 
   return {
     businessDate,
     arrivals,
     departures,
+    overdueArrivals,
+    overdueDepartures,
     inHouse,
     arrivingMealPax: mealPax(arrivals),
     inHouseMealPax: mealPax(inHouse),
     departuresWithLaundry: departures.filter((d) => d.open_laundry_count > 0)
       .length,
+  };
+}
+
+function byRoomThenName(a: DayOpsRow, b: DayOpsRow): number {
+  const room = (a.room_labels ?? "\uffff").localeCompare(
+    b.room_labels ?? "\uffff",
+    undefined,
+    { numeric: true },
+  );
+  if (room !== 0) return room;
+  return (a.contact_name ?? "").localeCompare(b.contact_name ?? "");
+}
+
+/**
+ * Stays on the business date, including work already done.
+ * Arrivals that are already checked in, and departures already checked out,
+ * still belong on this register.
+ */
+export async function loadStayRegister(
+  admin: Admin,
+  propertyId: string,
+  businessDate: string,
+): Promise<{ arrived: DayOpsRow[]; staying: DayOpsRow[]; left: DayOpsRow[] }> {
+  const [arrivedRes, stayingRes, leftRes] = await Promise.all([
+    admin
+      .from("bookings")
+      .select(DAY_OPS_BOARD_SELECT)
+      .eq("property_id", propertyId)
+      .eq("check_in", businessDate)
+      .in("status", ["pending", "confirmed", "checked_in", "checked_out"])
+      .limit(200),
+    admin
+      .from("bookings")
+      .select(DAY_OPS_BOARD_SELECT)
+      .eq("property_id", propertyId)
+      .eq("status", "checked_in")
+      .lt("check_in", businessDate)
+      .gt("check_out", businessDate)
+      .limit(200),
+    admin
+      .from("bookings")
+      .select(DAY_OPS_BOARD_SELECT)
+      .eq("property_id", propertyId)
+      .eq("check_out", businessDate)
+      .in("status", ["checked_in", "checked_out"])
+      .limit(200),
+  ]);
+
+  if (arrivedRes.error || stayingRes.error || leftRes.error) {
+    console.error("loadStayRegister query failed", {
+      arrived: arrivedRes.error,
+      staying: stayingRes.error,
+      left: leftRes.error,
+    });
+  }
+
+  const raw = [
+    ...(arrivedRes.data ?? []),
+    ...(stayingRes.data ?? []),
+    ...(leftRes.data ?? []),
+  ] as Record<string, unknown>[];
+  const laundry = await loadOpenLaundryByBooking(
+    admin,
+    propertyId,
+    [...new Set(raw.map((r) => r.id as string))],
+  );
+  const map = (rows: Record<string, unknown>[] | null) =>
+    (rows ?? []).map((r) => mapDayOpsRawRow(r, laundry)).sort(byRoomThenName);
+
+  return {
+    arrived: map(arrivedRes.data as Record<string, unknown>[] | null),
+    staying: map(stayingRes.data as Record<string, unknown>[] | null),
+    left: map(leftRes.data as Record<string, unknown>[] | null),
   };
 }

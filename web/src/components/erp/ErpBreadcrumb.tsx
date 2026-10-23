@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import Link from "next/link";
 import { Fragment } from "react";
+import { cn } from "@/lib/utils";
 
 export type ErpCrumb = {
   label: string;
@@ -26,7 +27,7 @@ export function ErpBreadcrumb({
 }) {
   if (items.length === 0) return null;
   return (
-    <Breadcrumb className={className}>
+    <Breadcrumb className={cn("max-md:hidden", className)}>
       <BreadcrumbList className="text-xs">
         {items.map((item, i) => {
           const last = i === items.length - 1;

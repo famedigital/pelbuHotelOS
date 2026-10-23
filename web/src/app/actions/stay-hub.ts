@@ -105,8 +105,10 @@ export type StayHubMoneyPayload = {
 export type StayHubSummary = {
   bookingId: string;
   propertyId: string;
-  /** Stay confirmation PS-YYYY-##### (searchable). Not a tax invoice. */
+  /** Stay confirmation HotelBK# (older stays PS-…). Not a tax invoice. */
   confirmationCode: string | null;
+  /** Folio number HotelFN#. Null until the folio row exists. */
+  folioDocNo: string | null;
   contactName: string | null;
   contactPhone: string | null;
   contactEmail: string | null;
@@ -149,6 +151,8 @@ export type StayHubSummary = {
     qty: number;
     inventoryKind: string;
     assignedLabels: string[];
+    agreedNightlyRateBtn: number | null;
+    occupancy: string | null;
   }>;
   folioId: string | null;
   folioBalance: number;
@@ -280,7 +284,7 @@ export async function fetchStayHubSummary(
       agents(company_name, contact_email, status, market),
       sold_by_staff:staff_members!sold_by_staff_id(full_name),
       booking_guests(id, full_name, passport_or_cid, nationality, sdf_ref, blacklisted),
-      booking_rooms(qty, inventory_kind, room_type_id, rate_request_status, room_types(id, name, code)),
+      booking_rooms(qty, inventory_kind, room_type_id, rate_request_status, agreed_nightly_rate_btn, occupancy, meal_plan_code, room_types(id, name, code)),
       room_assignments(id, room_unit_id, is_locked, from_date, to_date,
         chargeable, nc_reason_code,
         room_units(id, label, sort_order, room_type_id, hk_status, room_types(id, name))),
@@ -517,6 +521,8 @@ export async function fetchStayHubSummary(
           inventory_kind?: string;
           room_type_id?: string;
           rate_request_status?: string | null;
+          agreed_nightly_rate_btn?: number | null;
+          occupancy?: string | null;
           room_types?:
             | { id?: string; name?: string; code?: string }
             | { id?: string; name?: string; code?: string }[]
@@ -533,6 +539,11 @@ export async function fetchStayHubSummary(
       qty: Number(r.qty ?? 1),
       inventoryKind: (r.inventory_kind as string) || "sellable_guest",
       assignedLabels: typeId ? (labelsByTypeId.get(typeId) ?? []) : [],
+      agreedNightlyRateBtn:
+        r.agreed_nightly_rate_btn != null
+          ? Number(r.agreed_nightly_rate_btn)
+          : null,
+      occupancy: (r.occupancy as string | null) ?? null,
     };
   });
 
@@ -548,6 +559,7 @@ export async function fetchStayHubSummary(
       propertyId,
       confirmationCode:
         (data.confirmation_code as string | null) ?? null,
+      folioDocNo: null,
       contactName: (data.contact_name as string | null) ?? null,
       contactPhone: (data.contact_phone as string | null) ?? null,
       contactEmail: (data.contact_email as string | null) ?? null,

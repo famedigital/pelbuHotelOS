@@ -13,7 +13,7 @@ function BillsHubChromeInner({
   stickyCta?: ReactNode;
 }) {
   const searchParams = useSearchParams();
-  const activeTab = parseHubTab(searchParams.get("tab"), BILLS_TABS, "owes");
+  const activeTab = parseHubTab(searchParams.get("tab"), BILLS_TABS, "stay");
   const tab = BILLS_TABS.find((t) => t.id === activeTab);
   return (
     <HubShell

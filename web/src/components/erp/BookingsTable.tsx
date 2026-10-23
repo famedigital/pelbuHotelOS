@@ -1,6 +1,7 @@
 "use client";
 
 import { AgentNameLink } from "@/components/erp/AgentNameLink";
+import { InHouseCorrectButton } from "@/components/erp/InHouseCorrectButton";
 import { ArrivalPlaybookStrip } from "@/components/erp/ArrivalPlaybookStrip";
 import type { ColumnDef, FilterFn } from "@tanstack/react-table";
 
@@ -378,7 +379,13 @@ export function BookingsTable({
       id: "actions",
       header: () => <span className="sr-only">Actions</span>,
       cell: ({ row }) => (
-        <div className="text-right">
+        <div className="flex flex-col items-stretch gap-1 text-right">
+          {board === "in_house" && row.original.status === "checked_in" ? (
+            <InHouseCorrectButton
+              bookingId={row.original.id}
+              guestName={row.original.contact_name}
+            />
+          ) : null}
           <button
             type="button"
             className="inline-flex min-h-9 w-full items-center justify-center whitespace-nowrap rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted"
@@ -483,6 +490,14 @@ export function BookingsTable({
                     ? `${row.agent_phone || row.guide_name ? " · " : ""}Driver ${row.driver_name}`
                     : null}
                 </p>
+              ) : null}
+              {board === "in_house" && row.status === "checked_in" ? (
+                <div className="mt-3" onClick={(event) => event.stopPropagation()}>
+                  <InHouseCorrectButton
+                    bookingId={row.id}
+                    guestName={row.contact_name}
+                  />
+                </div>
               ) : null}
               {board === "departures" && (row.open_laundry_count ?? 0) > 0 ? (
                 <p className="mt-1 text-xs font-medium text-destructive">

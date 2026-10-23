@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Sans, Geist_Mono } from "next/font/google";
 import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
+import { DeskShellRecovery } from "@/components/erp/DeskShellRecovery";
 import { Toaster } from "@/components/ui/sonner";
 import { BRAND_ICONS } from "@/lib/brand";
 import "./globals.css";
@@ -73,6 +74,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f5f9fc" },
     { media: "(prefers-color-scheme: dark)", color: "#1a2332" },
@@ -91,6 +95,7 @@ export default function RootLayout({
         className={`${fontSans.variable} ${fontMono.variable} bg-background font-sans text-foreground antialiased`}
       >
         {children}
+        <DeskShellRecovery />
         <Toaster position="top-right" richColors closeButton />
       </body>
     </html>

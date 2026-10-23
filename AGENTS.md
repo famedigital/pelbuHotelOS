@@ -73,6 +73,7 @@ Slash commands in `.cursor/commands/`:
 ## Rules / skills
 
 - `.cursor/rules/zai-implementer.mdc` — attach in every z.ai chat
+- Keyword memory: `.cursor/memory/KEYWORDS.md` (hook injects matches; do not load the file whole)
 - `.cursor/skills/pelbu-zai-handoff` — how Cursor should brief and review
 
 ## Subagents

@@ -1,5 +1,7 @@
 import { BillsAgentsPanel } from "@/components/erp/bills/BillsAgentsPanel";
+import { BillsCollectPanel } from "@/components/erp/bills/BillsCollectPanel";
 import { BillsHubChrome } from "@/components/erp/bills/BillsHubChrome";
+import { CashierMoneyStrip } from "@/components/erp/bills/CashierMoneyStrip";
 import { BillsInvoicesPanel } from "@/components/erp/bills/BillsInvoicesPanel";
 import { BillsOwesPanel } from "@/components/erp/bills/BillsOwesPanel";
 import { BillsPaymentsPanel } from "@/components/erp/bills/BillsPaymentsPanel";
@@ -28,23 +30,26 @@ export default async function BillsHubPage({
 }) {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
   const sp = await searchParams;
-  const tab = parseHubTab(sp.tab, BILLS_TABS, "owes");
+  const tab = parseHubTab(sp.tab, BILLS_TABS, "stay");
 
   const stickyCta =
     tab === "owes" || tab === "agents" ? (
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
-          Collect from Who owes · open a stay bill for line detail
+          Collect from Who owes · open a folio for the room bill
         </p>
         <Button asChild size="sm" className="h-9">
-          <Link href="/erp/bills?tab=stay">Find stay bill</Link>
+          <Link href="/erp/bills?tab=stay">Open folios</Link>
         </Button>
       </div>
     ) : undefined;
 
   return (
     <BillsHubChrome stickyCta={stickyCta}>
-      {tab === "owes" ? (
+      <CashierMoneyStrip />
+      {tab === "collect" ? (
+        <BillsCollectPanel />
+      ) : tab === "owes" ? (
         <BillsOwesPanel filterRaw={sp.filter} />
       ) : tab === "agents" ? (
         <BillsAgentsPanel />

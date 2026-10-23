@@ -1,6 +1,6 @@
 "use client";
 
-import { openMasterBillPrint } from "@/app/actions/erp-folio-ops";
+import { CashierFolioActions } from "@/components/erp/bills/CashierFolioActions";
 import { FiscalDocEmailForm } from "@/components/erp/FiscalDocEmailForm";
 import { GuestWaMessageButtons } from "@/components/erp/GuestWaMessageButtons";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import type { UnpaidBillRow } from "@/lib/erp/unpaid-bills";
 import { formatBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 
 function digitsPhone(phone: string | null | undefined): string | null {
   if (!phone?.trim()) return null;
@@ -26,30 +26,7 @@ export function UnpaidBillsTable({
   orphanAgents: UnpaidBillRow[];
   propertyName?: string | null;
 }) {
-  const [pending, startTransition] = useTransition();
   const [emailFor, setEmailFor] = useState<string | null>(null);
-  const [billBusy, setBillBusy] = useState<string | null>(null);
-
-  async function onBill(row: UnpaidBillRow) {
-    if (!row.folioId) return;
-    if (row.invoiceId) {
-      window.open(`/erp/invoices/${row.invoiceId}/print`, "_blank");
-      return;
-    }
-    setBillBusy(row.folioId);
-    try {
-      const result = await openMasterBillPrint(row.folioId);
-      if (result.ok) {
-        window.open(result.href, "_blank");
-      } else {
-        window.alert(result.error);
-      }
-    } catch {
-      window.alert("Could not open bill. Try Collect on the folio.");
-    } finally {
-      setBillBusy(null);
-    }
-  }
 
   function renderRows(list: UnpaidBillRow[], orphan?: boolean) {
     if (list.length === 0) {
@@ -134,39 +111,15 @@ export function UnpaidBillsTable({
           </td>
           <td className="px-3 py-2.5 print:hidden">
             <div className="flex flex-wrap gap-1">
-              {row.bookingId ? (
-                <Button asChild size="sm" variant="default" className="h-8">
-                  <Link
-                    href={`/erp/stayview?booking=${encodeURIComponent(row.bookingId)}&step=stay_money`}
-                  >
-                    Collect
-                  </Link>
-                </Button>
-              ) : row.folioId ? (
-                <Button asChild size="sm" variant="default" className="h-8">
-                  <Link href={`/erp/folios/${row.folioId}?advanced=1`}>
-                    Collect
-                  </Link>
-                </Button>
+              {row.folioId ? (
+                <CashierFolioActions
+                  folioId={row.folioId}
+                  bookingId={row.bookingId}
+                  invoiceId={row.invoiceId}
+                />
               ) : row.agentId ? (
                 <Button asChild size="sm" variant="default" className="h-8">
                   <Link href={`/erp/agents/${row.agentId}`}>Agent</Link>
-                </Button>
-              ) : null}
-              {row.folioId ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-8"
-                  disabled={billBusy === row.folioId || pending}
-                  onClick={() => {
-                    startTransition(() => {
-                      void onBill(row);
-                    });
-                  }}
-                >
-                  Bill
                 </Button>
               ) : null}
               {row.folioId && row.email ? (

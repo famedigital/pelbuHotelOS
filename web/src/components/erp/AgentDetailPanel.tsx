@@ -72,7 +72,15 @@ function StatusForm({ agent, compact }: { agent: DeskAgentRow; compact?: boolean
           <select name="rate_tier" defaultValue={agent.rate_tier} className={fieldClass()}>
             {RATE_TIERS.map((t) => (
               <option key={t} value={t}>
-                {t}
+                {t === "mou_agents"
+                  ? "Signed contract"
+                  : t === "agents"
+                    ? "Agent rate"
+                    : t === "mutual_friends"
+                      ? "Mutual friends"
+                      : t === "public"
+                        ? "Public rate"
+                        : t[0].toUpperCase() + t.slice(1)}
               </option>
             ))}
           </select>
@@ -179,8 +187,7 @@ function OpenRoomCapForm({ agent, compact }: { agent: DeskAgentRow; compact?: bo
           required
         />
         <span className="mt-1 block text-[10px] text-muted-foreground">
-          Concurrent rooms before next check-in blocks (primary control vs Nu
-          limit).
+          How many of their rooms may be in house at once.
         </span>
       </label>
       <Button
@@ -286,7 +293,7 @@ export function AgentDetailPanel({
       <div className="flex flex-wrap items-center gap-2">
         {hideCockpitLink ? null : (
           <Button asChild size={compact ? "sm" : "default"}>
-            <Link href={`/erp/agents/${agent.id}`}>Open cockpit</Link>
+            <Link href={`/erp/agents/${agent.id}`}>Open account</Link>
           </Button>
         )}
         <Button asChild variant="outline" size={compact ? "sm" : "default"}>
@@ -302,9 +309,7 @@ export function AgentDetailPanel({
 
       <div className={`grid gap-4 ${compact ? "lg:grid-cols-2" : "lg:grid-cols-2"}`}>
         <section className="rounded-lg border bg-card p-3 sm:p-4">
-          <h3 className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-            Status & approval
-          </h3>
+          <h3 className="text-sm font-medium">Status and approval</h3>
           <div className="mt-3 space-y-3">
             <StatusForm agent={agent} compact={compact} />
             <QuickApproveReject agent={agent} compact={compact} />
@@ -313,9 +318,7 @@ export function AgentDetailPanel({
         </section>
 
         <section className="rounded-lg border bg-card p-3 sm:p-4">
-          <h3 className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-            Credit & room capacity
-          </h3>
+          <h3 className="text-sm font-medium">Credit and room cap</h3>
           <div className="mt-3 space-y-4">
             <OpenRoomCapForm agent={agent} compact={compact} />
             <CreditLimitForm agent={agent} compact={compact} />
@@ -326,9 +329,7 @@ export function AgentDetailPanel({
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-lg border bg-card p-3 sm:p-4">
-          <h3 className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-            Application
-          </h3>
+          <h3 className="text-sm font-medium">Notes</h3>
           <div className="mt-3 space-y-2 text-sm text-foreground/80">
             {agent.contact_email ? (
               <p className="text-xs text-muted-foreground">{agent.contact_email}</p>
@@ -354,9 +355,7 @@ export function AgentDetailPanel({
         </section>
 
         <section className="rounded-lg border bg-card p-3 sm:p-4">
-          <h3 className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-            Documents ({documents.length})
-          </h3>
+          <h3 className="text-sm font-medium">Documents ({documents.length})</h3>
           <div className="mt-3">
             <AgentDocumentManager agentId={agent.id} documents={documents} />
           </div>

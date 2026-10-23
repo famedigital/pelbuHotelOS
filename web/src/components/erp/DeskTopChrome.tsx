@@ -20,6 +20,9 @@ import {
 import { BRAND_ICONS } from "@/lib/brand";
 import {
   DESK_MENU_GROUPS,
+  menuItemActive,
+  DESK_RAIL_TOP,
+  leafByHref,
   pathMatchesHref,
   resolveMenuItems,
 } from "@/lib/erp/desk-menu";
@@ -41,7 +44,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   createContext,
   useContext,
@@ -60,20 +63,23 @@ const MENU_TITLE: Record<string, string> = {
 };
 
 const RIBBON_LABEL: Record<string, string> = {
+  "/erp": "Home",
   "/erp/stayview": "Dashboard",
   "/erp/arrivals": "Arrival",
   "/erp/in-house": "In house",
   "/erp/departures": "Departure",
   "/erp/reservations": "Reservations",
   "/erp/guests": "Guests",
-  "/erp/stays": "All stays",
-  "/erp": "Home",
+  "/erp/stays": "Stays",
   "/erp/reserve": "New booking",
   "/erp/ask": "Free rooms",
   "/erp/calendar": "Room rack",
   "/erp/calendar/day-sheet": "Day sheet",
   "/erp/bills": "Bills",
-  "/erp/folios": "Folios",
+  "/erp/bills?tab=stay": "Bills",
+  "/erp/bills?tab=payments": "Payments",
+  "/erp/bills?tab=invoices": "Invoices",
+  "/erp/folios": "Bills",
   "/erp/invoices": "Invoices",
   "/erp/payments": "Payments",
   "/erp/night-audit": "Night close",
@@ -86,9 +92,19 @@ function ribbonLabel(href: string, title: string) {
   return RIBBON_LABEL[href] ?? title;
 }
 
+function railTopLinks() {
+  const leaves = leafByHref();
+  return DESK_RAIL_TOP.flatMap((item) => {
+    const leaf = leaves.get(item.href);
+    if (!leaf) return [];
+    return [{ href: item.href, label: item.label, icon: leaf.icon }];
+  });
+}
+
 function deskCrumbs(
   groups: DeskMenuGroupView[],
   pathname: string,
+  search: string,
 ): { label: string; href?: string }[] {
   let best: {
     group: DeskMenuGroupView;
@@ -97,7 +113,10 @@ function deskCrumbs(
   let bestLen = -1;
   for (const group of groups) {
     for (const item of group.items) {
-      if (pathMatchesHref(pathname, item.href) && item.href.length > bestLen) {
+      const matches = item.href.includes("?")
+        ? menuItemActive(pathname, search, item.href)
+        : pathMatchesHref(pathname, item.href);
+      if (matches && item.href.length > bestLen) {
         best = { group, item };
         bestLen = item.href.length;
       }
@@ -172,11 +191,13 @@ export function DeskMenuProvider({
   }, [allowedHrefs]);
 
   const pathGroupId =
-    groups.find((group) =>
-      group.items.some((item) => pathMatchesHref(pathname, item.href)),
-    )?.id ??
-    groups[0]?.id ??
-    null;
+    pathname.startsWith("/erp/folios")
+      ? "money"
+      : (groups.find((group) =>
+          group.items.some((item) => pathMatchesHref(pathname, item.href)),
+        )?.id ??
+        groups[0]?.id ??
+        null);
   const activeMenuId = pickedMenu ?? pathGroupId;
   const activeGroup =
     groups.find((group) => group.id === activeMenuId) ?? groups[0];
@@ -223,13 +244,14 @@ export function DeskTopChrome({
   allowedModuleKeys?: readonly string[];
 }) {
   const pathname = usePathname();
+  const search = useSearchParams().toString();
   const allowedHrefs = useAllowedHrefs(allowedModuleKeys);
   const bizLabel = businessDate?.slice(0, 10) ?? null;
   const [menuOpen, setMenuOpen] = useState(false);
   const { groups, activeMenuId, setPickedMenu } = useDeskMenu();
   const crumbs = useMemo(
-    () => deskCrumbs(groups, pathname),
-    [groups, pathname],
+    () => deskCrumbs(groups, pathname, search),
+    [groups, pathname, search],
   );
 
   const daySheetHref = bizLabel
@@ -339,6 +361,28 @@ export function DeskTopChrome({
                 <SheetTitle>Desk</SheetTitle>
               </SheetHeader>
               <div className="space-y-3 px-3 py-3">
+                <ul className="space-y-0.5">
+                  {railTopLinks().map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <li key={item.href}>
+                        <SheetClose asChild>
+                          <Link
+                            href={item.href}
+                            className={cn(
+                              "flex min-h-10 items-center gap-2 rounded-md px-2 text-sm hover:bg-muted",
+                              menuItemActive(pathname, search, item.href) &&
+                                "bg-muted font-medium",
+                            )}
+                          >
+                            <Icon className="size-4 shrink-0 opacity-70" />
+                            {item.label}
+                          </Link>
+                        </SheetClose>
+                      </li>
+                    );
+                  })}
+                </ul>
                 {groups.map((group) => (
                   <section key={group.id}>
                     <h2 className="mb-1 px-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
@@ -354,7 +398,7 @@ export function DeskTopChrome({
                                 href={item.href}
                                 className={cn(
                                   "flex min-h-10 items-center gap-2 rounded-md px-2 text-sm hover:bg-muted",
-                                  pathMatchesHref(pathname, item.href) &&
+                                  menuItemActive(pathname, search, item.href) &&
                                     "bg-muted font-medium",
                                 )}
                               >
@@ -455,30 +499,46 @@ export function DeskTopChrome({
 /** Desktop rail for the menu picked in the top bar. Phones keep the Menu sheet. */
 export function DeskSideNav() {
   const pathname = usePathname();
+  const search = useSearchParams().toString();
   const { activeGroup } = useDeskMenu();
   if (!activeGroup) return null;
 
   const title = MENU_TITLE[activeGroup.id] ?? activeGroup.label;
+  const topLinks = railTopLinks();
 
   return (
     <nav
       aria-label={title}
       data-slot="desk-side-nav"
-      className="hidden w-44 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-border bg-background px-2 py-2 md:flex print:hidden"
+      className="hidden w-60 shrink-0 flex-col overflow-y-auto border-r border-border bg-background px-3 py-4 md:flex print:hidden"
     >
-      <p className="px-2 pb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+      <div className="flex flex-col gap-1">
+        {topLinks.map((item) => (
+          <SideLink
+            key={item.href}
+            href={item.href}
+            label={item.label}
+            icon={item.icon}
+            active={menuItemActive(pathname, search, item.href)}
+            onClick={() => pushErpRecent({ href: item.href, title: item.label })}
+          />
+        ))}
+      </div>
+      <p className="mt-4 border-b border-border px-2.5 pb-3 text-[10px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
         {title}
       </p>
-      {activeGroup.items.map((item) => (
-        <SideLink
-          key={item.href}
-          href={item.href}
-          label={ribbonLabel(item.href, item.title)}
-          icon={item.icon}
-          active={pathMatchesHref(pathname, item.href)}
-          onClick={() => pushErpRecent({ href: item.href, title: item.title })}
-        />
-      ))}
+      <div className="mt-3 flex flex-col gap-1">
+        {activeGroup.items.map((item) => (
+          <SideLink
+            key={item.href}
+            href={item.href}
+            label={ribbonLabel(item.href, item.title)}
+            icon={item.icon}
+            active={menuItemActive(pathname, search, item.href)}
+            onClick={() => pushErpRecent({ href: item.href, title: item.title })}
+          />
+        ))}
+      </div>
     </nav>
   );
 }
@@ -502,12 +562,19 @@ function SideLink({
       onClick={onClick}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex h-8 items-center gap-2 rounded-md px-2 text-[13px] text-muted-foreground hover:bg-muted hover:text-foreground",
+        "relative flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm text-muted-foreground transition-colors duration-150 hover:bg-muted/80 hover:text-foreground",
         active && "bg-muted font-medium text-foreground",
       )}
     >
+      <span
+        aria-hidden
+        className={cn(
+          "absolute top-1.5 bottom-1.5 left-0 w-0.5 rounded-full bg-transparent",
+          active && "bg-[var(--gold)]",
+        )}
+      />
       <Icon className="size-4 shrink-0" />
-      <span className="truncate">{label}</span>
+      <span className="whitespace-nowrap">{label}</span>
     </Link>
   );
 }

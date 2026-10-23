@@ -1179,7 +1179,7 @@ export async function openMasterBillPrint(
     if (existing?.id) {
       return {
         ok: true,
-        href: `/erp/invoices/${existing.id as string}/print?bill=master`,
+        href: `/erp/folios/${id}/bill?bill=master`,
         docNo: null,
       };
     }
@@ -1199,7 +1199,7 @@ export async function openMasterBillPrint(
     revalidateFolio(id);
     return {
       ok: true,
-      href: `/erp/invoices/${doc.id}/print?bill=master`,
+      href: `/erp/folios/${id}/bill?bill=master`,
       docNo: doc.docNo,
     };
   } catch (e) {

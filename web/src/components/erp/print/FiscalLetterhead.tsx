@@ -424,6 +424,7 @@ export function FiscalSignOff({
 export function FiscalPayBlock({
   banks,
   qrDataUrl,
+  prominent = false,
 }: {
   banks: {
     label: string;
@@ -433,26 +434,40 @@ export function FiscalPayBlock({
     qr_url?: string;
   }[];
   qrDataUrl?: string | null;
+  /** Larger account number and QR, for the bill the guide pays from. */
+  prominent?: boolean;
 }) {
   if (banks.length === 0 && !qrDataUrl) return null;
+  const qr = prominent ? 132 : 96;
   return (
-    <div className="mt-3 grid grid-cols-[1fr_auto] items-start gap-3 border-t border-[#d8d0c6] pt-2 text-[11px] text-[#1a1410]">
+    <div className="mt-4 grid grid-cols-[1fr_auto] items-start gap-4 border-t border-[#1a1410] pt-3 text-[#1a1410]">
       <div>
-        <p className="text-[9.5px] font-bold tracking-[0.14em] text-[#5c534c] uppercase">
-          Bank
-        </p>
+        <p className="text-[11px] font-semibold">Pay to this account</p>
         {banks.length === 0 ? (
-          <p className="mt-1 text-[#5c534c]">Ask the desk for the account.</p>
+          <p className="mt-1 text-[12px] text-[#5c534c]">Ask the desk for the account.</p>
         ) : (
-          <ul className="mt-1 space-y-1">
+          <ul className="mt-2 space-y-2">
             {banks.map((bank) => (
               <li key={`${bank.label}-${bank.account ?? ""}`}>
-                <p className="font-semibold">{bank.bank || bank.label}</p>
-                {bank.label && bank.bank ? <p>{bank.label}</p> : null}
-                {bank.account ? (
-                  <p className="font-mono tabular-nums">{bank.account}</p>
+                <p className="text-[12px] font-semibold">{bank.bank || bank.label}</p>
+                {bank.label && bank.bank ? (
+                  <p className="text-[12px]">{bank.label}</p>
                 ) : null}
-                {bank.hint ? <p className="text-[#5c534c]">{bank.hint}</p> : null}
+                {bank.account ? (
+                  <p className="mt-0.5">
+                    <span className="text-[11px] text-[#5c534c]">Account no. </span>
+                    <span
+                      className={
+                        prominent
+                          ? "font-mono text-[16px] font-semibold tracking-wide tabular-nums"
+                          : "font-mono text-[13px] font-semibold tabular-nums"
+                      }
+                    >
+                      {bank.account}
+                    </span>
+                  </p>
+                ) : null}
+                {bank.hint ? <p className="text-[11px] text-[#5c534c]">{bank.hint}</p> : null}
               </li>
             ))}
           </ul>
@@ -461,8 +476,8 @@ export function FiscalPayBlock({
       {qrDataUrl ? (
         <div className="text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={qrDataUrl} alt="Pay QR" width={96} height={96} />
-          <p className="mt-0.5 text-[9px] text-[#5c534c]">Scan to pay</p>
+          <img src={qrDataUrl} alt="Pay QR" width={qr} height={qr} />
+          <p className="mt-1 text-[11px]">Scan to pay</p>
         </div>
       ) : null}
     </div>

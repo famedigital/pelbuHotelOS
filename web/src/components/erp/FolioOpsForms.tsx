@@ -601,19 +601,19 @@ export function IssueInvoiceButton({
         {invoiceDocId ? (
           <div className="flex flex-wrap gap-3 text-xs">
             <a
-              href={`/erp/invoices/${invoiceDocId}/print?bill=master`}
+              href={`/erp/folios/${folioId}/bill?bill=master`}
               className="font-medium text-accent underline-offset-4 hover:underline"
             >
               Master bill
             </a>
             <a
-              href={`/erp/invoices/${invoiceDocId}/print?bill=room`}
+              href={`/erp/folios/${folioId}/bill?bill=room`}
               className="font-medium text-accent underline-offset-4 hover:underline"
             >
-              Room bill
+              Print folio
             </a>
             <a
-              href={`/erp/invoices/${invoiceDocId}/print?bill=fnb`}
+              href={`/erp/folios/${folioId}/bill?bill=fnb`}
               className="font-medium text-accent underline-offset-4 hover:underline"
             >
               F&amp;B bill
