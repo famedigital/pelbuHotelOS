@@ -39,6 +39,7 @@ export type StayHubAdvancedBooking = {
   roomLabel: string | null;
   agreedNightlyRateBtn: number | null;
   agreedRateReason: string | null;
+  rateTaxMode?: "inclusive" | "exclusive";
   mealPlanCode: string | null;
   contactEmail: string | null;
   contactName: string | null;
@@ -99,6 +100,7 @@ export function StayHubAdvancedPanel({
             bookingId={booking.bookingId}
             currentRateBtn={booking.agreedNightlyRateBtn}
             currentReason={booking.agreedRateReason}
+            rateInclusive={booking.rateTaxMode === "inclusive"}
             mealPlanCode={booking.mealPlanCode}
             roomLabel={booking.roomLabel}
             onSuccess={onRefresh}

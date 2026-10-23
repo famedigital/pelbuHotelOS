@@ -45,6 +45,9 @@ export function DeskListShell({
   wide,
   /** Tighter workspace padding. Other desks keep the default rhythm. */
   dense,
+  /** Location already lives in the desk menu breadcrumb. */
+  hideHeading = false,
+  filtersClassName,
 }: {
   /** Kept for backward compat. Ignored — title is now in the shell header. */
   title?: string;
@@ -64,6 +67,9 @@ export function DeskListShell({
   className?: string;
   wide?: boolean;
   dense?: boolean;
+  hideHeading?: boolean;
+  /** Extra classes on the sticky filter bar (for example hide it on desktop). */
+  filtersClassName?: string;
 }) {
   const shortLine =
     subtitle?.trim() ||
@@ -83,6 +89,7 @@ export function DeskListShell({
         className,
       )}
     >
+      {hideHeading ? null : (
       <DeskBlurFade>
       <div className="border-b border-border bg-background px-3 py-2 md:px-4 md:py-2.5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -120,12 +127,14 @@ export function DeskListShell({
         </div>
       </div>
       </DeskBlurFade>
+      )}
 
       {filters ? (
         <div
           className={cn(
             "z-20 border-b border-border bg-background px-3 py-1.5 md:px-4",
             "md:sticky md:top-0",
+            filtersClassName,
           )}
         >
           <div className="relative z-0 flex min-w-0 flex-wrap items-center gap-1.5">

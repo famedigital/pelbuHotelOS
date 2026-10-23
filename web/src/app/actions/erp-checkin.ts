@@ -651,7 +651,11 @@ export async function confirmCheckIn(
       })
       .eq("id", bookingId);
     if (bookingPatchError) {
-      throw new Error("Could not update booking status.");
+      throw new Error(
+        bookingPatchError.message
+          ? `Could not update booking status. ${bookingPatchError.message}`
+          : "Could not update booking status.",
+      );
     }
 
     await admin.from("booking_guests").delete().eq("booking_id", bookingId);

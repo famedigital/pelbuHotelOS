@@ -79,7 +79,7 @@ const CELL_LABEL = "text-[10px] font-normal text-muted-foreground xl:sr-only";
 const FIELD_LABEL = "text-[10px] font-normal text-muted-foreground";
 const DENSE_INPUT = "h-8 text-sm";
 const SECTION =
-  "min-w-0 space-y-2 rounded-md border border-border/50 bg-muted/10 p-2 sm:p-2.5";
+  "min-w-0 space-y-2.5 rounded-md border border-border/50 bg-muted/10 p-3";
 const SECTION_LEGEND =
   "text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase";
 
@@ -482,7 +482,7 @@ export function CheckInForm({
       className={cn(
         "erp space-y-3",
         embedded
-          ? "space-y-2.5 rounded-none border-0 bg-transparent p-0"
+          ? "space-y-3.5 rounded-none border-0 bg-transparent p-0"
           : "rounded-lg border bg-card p-3 sm:p-4",
       )}
       id={embedded ? "stay-hub-checkin-form" : undefined}
@@ -535,29 +535,34 @@ export function CheckInForm({
 
       <div
         className={cn(
-          "flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground",
+          embedded ? "space-y-1.5" : "flex flex-wrap items-center gap-x-2 gap-y-1",
+          "text-xs text-muted-foreground",
           !showSummary && "hidden",
         )}
         aria-hidden={!showSummary}
       >
-        <span className="font-medium text-foreground">
+        <p className="text-sm font-medium text-foreground">
           {booking.contact_name ?? "Guest"}
-          {booking.contact_phone ? ` · ${booking.contact_phone}` : ""}
-        </span>
-        <span className="inline-flex items-center rounded border border-citrus/40 bg-citrus-tint/50 px-1.5 py-0 text-[10px] font-medium tracking-wide text-citrus uppercase">
-          {nightsBetween(booking.check_in, booking.check_out)}n
-        </span>
-        <span className="inline-flex items-center rounded border border-border bg-muted px-1.5 py-0 text-[10px] font-medium tracking-wide text-foreground uppercase">
-          {ORIGIN_LABELS[origin] ?? "International"}
-        </span>
-        <span>
-          {paxAdults}a
-          {paxChildren > 0 ? ` · ${paxChildren}c` : ""}
-          {paxExtraBeds > 0 ? ` · ${paxExtraBeds}xb` : ""} · {booking.rooms}{" "}
-          rm
-        </span>
+        </p>
+        {booking.contact_phone ? (
+          <p className="text-xs text-muted-foreground">{booking.contact_phone}</p>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="inline-flex items-center rounded border border-citrus/40 bg-citrus-tint/50 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-citrus uppercase">
+            {nightsBetween(booking.check_in, booking.check_out)}n
+          </span>
+          <span className="inline-flex items-center rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-foreground uppercase">
+            {ORIGIN_LABELS[origin] ?? "International"}
+          </span>
+          <span>
+            {paxAdults}a
+            {paxChildren > 0 ? ` · ${paxChildren}c` : ""}
+            {paxExtraBeds > 0 ? ` · ${paxExtraBeds}xb` : ""} · {booking.rooms}{" "}
+            rm
+          </span>
+        </div>
         {booking.agent_name || booking.agent_id ? (
-          <span className="w-full sm:w-auto">
+          <p>
             Agent{" "}
             <AgentNameLink
               agentId={booking.agent_id}
@@ -568,7 +573,7 @@ export function CheckInForm({
             {booking.credit_available_btn != null
               ? ` · credit ${formatBtn(booking.credit_available_btn)}`
               : ""}
-          </span>
+          </p>
         ) : null}
       </div>
 
@@ -1022,8 +1027,11 @@ export function CheckInForm({
       </fieldset>
 
       <fieldset
-        className={cn(SECTION, !showGuest && "hidden")}
-        aria-hidden={!showGuest}
+        className={cn(
+          SECTION,
+          (!showGuest || (embedded && !showGuide)) && "hidden",
+        )}
+        aria-hidden={!showGuest || (embedded && !showGuide)}
       >
         <legend className={SECTION_LEGEND}>
           {showGuide ? "Guide & settlement" : "Settlement"}

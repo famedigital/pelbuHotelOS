@@ -77,12 +77,23 @@ export async function setAgreedNightlyRate(
         ? `staff:${verified.staffId}:${verified.fullName}`
         : "env_manager_pin";
 
+    const taxModeRaw = optionalTrim(formData.get("rate_tax_mode"));
+    const taxMode =
+      taxModeRaw === "inclusive" || taxModeRaw === "exclusive"
+        ? taxModeRaw
+        : null;
+
     const patch: Record<string, unknown> = {
       agreed_nightly_rate_btn: agreed,
       agreed_rate_reason: clear ? null : reason,
       agreed_rate_set_at: new Date().toISOString(),
       agreed_rate_set_by: approvedBy,
     };
+    if (clear) {
+      patch.rate_tax_mode = null;
+    } else if (taxMode) {
+      patch.rate_tax_mode = taxMode;
+    }
 
     // Regulars on EP often imply European Plan meal code.
     if (!clear && formData.get("set_ep") === "1") {
@@ -165,6 +176,7 @@ export async function setAgreedNightlyRate(
       meta: {
         agreed_nightly_rate_btn: agreed,
         previous: booking.agreed_nightly_rate_btn,
+        rate_tax_mode: clear ? null : taxMode,
         reason: reason ?? null,
         approved_by: approvedBy,
         room_lines_adjusted: adjusted,
@@ -200,8 +212,8 @@ export async function setAgreedNightlyRate(
       ok: true,
       message:
         adjusted > 0
-          ? `Agreed Nu ${agreed}/night · EP/special. Re-posted ${adjusted} room-night line(s).${mealNote}`
-          : `Agreed Nu ${agreed}/night set. Future night posts use this rate.${mealNote}`,
+          ? `Agreed Nu ${agreed}/night${taxMode === "inclusive" ? " incl. S.C. & GST" : taxMode === "exclusive" ? " plus S.C. & GST" : ""}. Re-posted ${adjusted} room-night line(s).${mealNote}`
+          : `Agreed Nu ${agreed}/night set${taxMode === "inclusive" ? " incl. S.C. & GST" : taxMode === "exclusive" ? " plus S.C. & GST" : ""}. Future night posts use this rate.${mealNote}`,
     };
   } catch (e) {
     return {

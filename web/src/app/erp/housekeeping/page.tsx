@@ -1,5 +1,4 @@
 import { HousekeepingBoard } from "@/components/erp/HousekeepingBoard";
-import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
 import { RoomsHub } from "@/components/erp/rooms/RoomsHub";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { loadDayOpsBoard } from "@/lib/erp/day-ops-board";
@@ -187,7 +186,7 @@ export default async function HousekeepingPage() {
   });
 
   return (
-    <RoomsHub headerAside={<FrontDeskLiveRefresh />}>
+    <RoomsHub>
       <p className="mb-2 text-xs text-muted-foreground">
         Assignments · {fmtDate(today)}
       </p>

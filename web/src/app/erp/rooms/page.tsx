@@ -1,5 +1,4 @@
 import { RoomsBoard, type RoomBoardUnit } from "@/components/erp/RoomsBoard";
-import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
 import { RoomsHub } from "@/components/erp/rooms/RoomsHub";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { resolveActivePropertyId } from "@/lib/property-context";
@@ -71,7 +70,7 @@ export default async function ErpRoomsPage({
   });
 
   return (
-    <RoomsHub headerAside={<FrontDeskLiveRefresh />}>
+    <RoomsHub>
       <div className="mb-3 flex flex-wrap gap-2 text-xs text-foreground">
         {HK_ORDER.map((s) => (
           <span

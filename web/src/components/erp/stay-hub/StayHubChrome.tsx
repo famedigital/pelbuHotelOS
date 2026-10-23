@@ -811,7 +811,7 @@ export type StayHubMoreAction = {
   destructive?: boolean;
 };
 
-/** Footer: identity/price (left) · Close · ··· · primary CTA (right) */
+/** Footer: price on its own row, then Close · ··· · primary CTA. */
 export function StayHubFooterBar({
   panelLabel,
   primaryCta,
@@ -833,8 +833,8 @@ export function StayHubFooterBar({
   const editable = Boolean(amount?.editable !== false && amount?.onEdit);
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center justify-between gap-1.5 border-t bg-background px-2.5 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] md:px-3">
-      <div className="min-w-0 flex-1 space-y-0.5">
+    <div className="flex shrink-0 flex-col gap-2 border-t bg-background px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:px-4">
+      <div className="min-w-0 space-y-0.5">
         {identityLine ? (
           <p className="truncate text-[11px] text-muted-foreground">
             {identityLine}
@@ -882,11 +882,11 @@ export function StayHubFooterBar({
           </div>
         ) : null}
       </div>
-      <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end">
+      <div className="flex w-full flex-wrap items-center justify-end gap-2">
         <button
           type="button"
           onClick={onClose}
-          className="inline-flex min-h-11 flex-1 items-center justify-center rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:flex-none"
+          className="inline-flex min-h-11 items-center justify-center rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           Close
         </button>

@@ -2,6 +2,8 @@
 
 import { deskLogout } from "@/app/actions/desk";
 import { deskShiftChange } from "@/app/actions/staff-auth";
+import { ErpBreadcrumb } from "@/components/erp/ErpBreadcrumb";
+import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
 import { DeskSearchHint } from "@/components/erp/DeskSearchHint";
 import { openErpCommandPalette } from "@/components/erp/ErpCommandPalette";
 import { PropertySwitcher } from "@/components/erp/PropertySwitcher";
@@ -82,6 +84,36 @@ const RIBBON_LABEL: Record<string, string> = {
 
 function ribbonLabel(href: string, title: string) {
   return RIBBON_LABEL[href] ?? title;
+}
+
+function deskCrumbs(
+  groups: DeskMenuGroupView[],
+  pathname: string,
+): { label: string; href?: string }[] {
+  let best: {
+    group: DeskMenuGroupView;
+    item: DeskMenuGroupView["items"][number];
+  } | null = null;
+  let bestLen = -1;
+  for (const group of groups) {
+    for (const item of group.items) {
+      if (pathMatchesHref(pathname, item.href) && item.href.length > bestLen) {
+        best = { group, item };
+        bestLen = item.href.length;
+      }
+    }
+  }
+  if (!best) return [];
+  const groupLabel = MENU_TITLE[best.group.id] ?? best.group.label;
+  const pageLabel = ribbonLabel(best.item.href, best.item.title);
+  const groupHref = best.group.items[0]?.href;
+  if (!groupHref || groupHref === best.item.href) {
+    return [{ label: pageLabel }];
+  }
+  return [
+    { label: groupLabel, href: groupHref },
+    { label: pageLabel },
+  ];
 }
 
 /** Grant-filtered href set — no FO/BO workspace split. */
@@ -195,6 +227,10 @@ export function DeskTopChrome({
   const bizLabel = businessDate?.slice(0, 10) ?? null;
   const [menuOpen, setMenuOpen] = useState(false);
   const { groups, activeMenuId, setPickedMenu } = useDeskMenu();
+  const crumbs = useMemo(
+    () => deskCrumbs(groups, pathname),
+    [groups, pathname],
+  );
 
   const daySheetHref = bizLabel
     ? `/erp/calendar/day-sheet?date=${bizLabel}`
@@ -248,10 +284,11 @@ export function DeskTopChrome({
             </Badge>
           </Link>
         ) : null}
+        <FrontDeskLiveRefresh />
 
         <nav
           aria-label="Desk menus"
-          className="ml-1 hidden min-w-0 flex-1 items-center gap-0.5 md:flex"
+          className="ml-1 hidden min-w-0 items-center gap-0.5 md:flex"
         >
           {groups.map((group) => (
             <button
@@ -269,6 +306,16 @@ export function DeskTopChrome({
             </button>
           ))}
         </nav>
+
+        {crumbs.length > 0 ? (
+          <div className="hidden min-w-0 items-center md:flex">
+            <span aria-hidden className="mx-2 h-4 w-px shrink-0 bg-border" />
+            <ErpBreadcrumb
+              items={crumbs}
+              className="min-w-0 [&_ol]:flex-nowrap"
+            />
+          </div>
+        ) : null}
 
         {/* Phone Menu */}
         <div className="ml-auto flex items-center gap-1 md:hidden">
@@ -380,6 +427,15 @@ export function DeskTopChrome({
           </form>
         </div>
       </div>
+
+      {crumbs.length > 0 ? (
+        <div className="flex h-8 min-w-0 items-center border-t border-border px-3 md:hidden">
+          <ErpBreadcrumb
+            items={crumbs}
+            className="min-w-0 [&_ol]:flex-nowrap"
+          />
+        </div>
+      ) : null}
 
       {/* POS register portals — zero height when empty */}
       <div className="flex empty:hidden">

@@ -11,7 +11,6 @@ import {
   deriveStayState,
   type StayState,
 } from "@/components/erp/room-map-shared";
-import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
 import { RoomsHub } from "@/components/erp/rooms/RoomsHub";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/desk-property";
@@ -253,7 +252,7 @@ export default async function RoomFloorMapPage() {
     });
 
   return (
-    <RoomsHub headerAside={<FrontDeskLiveRefresh />}>
+    <RoomsHub>
       {mapUnits.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No room units on this property yet. Add rooms under Settings, then run

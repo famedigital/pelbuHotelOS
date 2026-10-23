@@ -22,6 +22,7 @@ function BillsHubChromeInner({
       tabs={BILLS_TABS}
       activeTab={activeTab}
       stickyCta={stickyCta}
+      hideHeading
     >
       {children}
     </HubShell>

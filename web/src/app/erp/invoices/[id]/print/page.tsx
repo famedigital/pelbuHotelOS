@@ -933,14 +933,16 @@ export default async function FiscalInvoicePrintPage({
             <FiscalLinesTable
               rows={fiscalLines}
               dense={fiscalLines.length >= 8}
-              showSc={foodOrders.length === 0 && serviceChargeBtn > 0.005}
-              showGst={foodOrders.length === 0 && gstBtn > 0.005}
+              layout={bill === "fnb" ? "items" : "default"}
+              showSc={
+                bill !== "fnb" &&
+                foodOrders.length === 0 &&
+                serviceChargeBtn > 0.005
+              }
+              showGst={
+                bill !== "fnb" && foodOrders.length === 0 && gstBtn > 0.005
+              }
             />
-            {foodOrders.length > 0 ? (
-              <p className="mt-1 text-[10px] text-[#5c534c]">
-                Each line is rate × qty for that item. Service charge and GST are in the total below.
-              </p>
-            ) : null}
           </>
         ) : (
           <div className="mt-6 rounded-md border border-amber-700/30 bg-amber-50 px-4 py-3 text-center text-sm text-[#3a322c]">
@@ -967,6 +969,7 @@ export default async function FiscalInvoicePrintPage({
           serviceCharge={serviceChargeBtn}
           gst={gstBtn}
           total={totalBtn}
+          summary={bill === "fnb" ? "food" : "full"}
           serviceChargeRatePct={
             Number(property?.service_charge_rate ?? 0) > 0
               ? Number(property?.service_charge_rate) * 100

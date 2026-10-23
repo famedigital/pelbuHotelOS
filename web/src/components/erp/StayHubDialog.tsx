@@ -1967,6 +1967,29 @@ export function StayHubDialog({
     [stayHubCtx, board, bookingId],
   );
 
+  const showPartyRooms = Boolean(
+    party &&
+      (party.members.length > 1 ||
+        party.suggested ||
+        Boolean(party.groupId)),
+  );
+
+  useEffect(() => {
+    if (!open || typeof document === "undefined") return;
+    const width = showPartyRooms ? "40rem" : "28rem";
+    document.documentElement.style.setProperty("--stay-dock-width", width);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (document.querySelector("[data-slot='dialog-content']")) return;
+      closePanel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.documentElement.style.removeProperty("--stay-dock-width");
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, showPartyRooms, closePanel]);
+
   if (!open || !bookingId) return null;
 
   const updateDraft = <K extends keyof Draft>(key: K, value: Draft[K]) => {
@@ -2000,9 +2023,7 @@ export function StayHubDialog({
         serviceChargeRate: summary.roomTax.serviceChargeRate,
         applyServiceCharge: summary.roomTax.applyServiceCharge,
         // Booking FO tax mode wins when set (eZee toggle on book)
-        inclusiveOfGstSc:
-          summary.rateTaxMode === "inclusive" ||
-          summary.roomTax.inclusiveOfGstSc,
+        inclusiveOfGstSc: summary.rateTaxMode === "inclusive",
       }
     : null;
 
@@ -2016,11 +2037,13 @@ export function StayHubDialog({
     );
     railNightly = roomAllIn;
     if (nightsCount > 0) {
+      // Agreed nightly is the guest package for that room (MAP/CP included).
+      // Sheet meal is already inside that figure; only extra beds sit on top.
       railStayTotal = packageStayTotalBtn({
         roomNightAllInBtn: roomAllIn,
         rooms: roomsCount,
         nights: nightsCount,
-        mealStayBtn: sheetOk?.mealStayBtn ?? 0,
+        mealStayBtn: 0,
         extraBedStayBtn: sheetOk?.extraBedStayBtn ?? 0,
       });
     }
@@ -2724,13 +2747,6 @@ export function StayHubDialog({
     setSummary((s) => (s ? { ...s, status: prev } : s));
   };
 
-  const showPartyRooms = Boolean(
-    party &&
-      (party.members.length > 1 ||
-        party.suggested ||
-        Boolean(party.groupId)),
-  );
-
   const advancedExtra =
     summary && folioId ? (
       <StayHubAdvancedPanel
@@ -2750,6 +2766,7 @@ export function StayHubDialog({
           roomLabel: summary.roomLabel,
           agreedNightlyRateBtn: summary.agreedNightlyRateBtn,
           agreedRateReason: summary.agreedRateReason,
+          rateTaxMode: summary.rateTaxMode,
           mealPlanCode: summary.mealPlanCode,
           contactEmail: summary.contactEmail,
           contactName: summary.contactName,
@@ -2761,22 +2778,6 @@ export function StayHubDialog({
         }}
       />
     ) : null;
-
-  useEffect(() => {
-    if (!open || typeof document === "undefined") return;
-    const width = showPartyRooms ? "40rem" : "28rem";
-    document.documentElement.style.setProperty("--stay-dock-width", width);
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented) return;
-      if (document.querySelector("[data-slot='dialog-content']")) return;
-      closePanel();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.documentElement.style.removeProperty("--stay-dock-width");
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open, showPartyRooms, closePanel]);
 
   const dock = (
     <>
@@ -3200,6 +3201,7 @@ export function StayHubDialog({
                                   draft?.mealPlanCode ?? summary.mealPlanCode
                                 }
                                 roomLabel={summary.roomLabel}
+                                rateInclusive={summary.rateTaxMode === "inclusive"}
                                 onSuccess={() => {
                                   void refreshSummary();
                                   onMoneyChanged();
@@ -3411,6 +3413,9 @@ export function StayHubDialog({
                                   currentReason={summary.agreedRateReason}
                                   mealPlanCode={summary.mealPlanCode}
                                   roomLabel={summary.roomLabel}
+                                  rateInclusive={
+                                    summary.rateTaxMode === "inclusive"
+                                  }
                                   onSuccess={() => {
                                     void refreshSummary();
                                     onMoneyChanged();
@@ -3524,6 +3529,7 @@ export function StayHubDialog({
                                     ? "Room allocation"
                                     : "Guest check-in"
                                 }
+                                className="p-3 sm:p-4"
                               >
                                 <CheckInForm
                                   key={`${summary.bookingId}-${checkInPayload.booking.check_in}`}
@@ -3999,6 +4005,7 @@ export function StayHubDialog({
                 draft?.mealPlanCode ?? summary.mealPlanCode
               }
               roomLabel={summary.roomLabel}
+              rateInclusive={summary.rateTaxMode === "inclusive"}
               compact
               onSuccess={() => {
                 setRailRateOpen(false);

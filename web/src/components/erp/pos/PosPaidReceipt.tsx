@@ -178,6 +178,7 @@ export function PosPaidReceipt({
         <FiscalStayStrip items={stay} />
         <FiscalLinesTable
           dense={order.lines.length >= 8}
+          layout="items"
           rows={order.lines.map((line, i) => ({
             id: `${line.name}-${i}`,
             description: line.name,
@@ -192,6 +193,7 @@ export function PosPaidReceipt({
           serviceCharge={order.serviceChargeBtn}
           gst={order.gstBtn}
           total={order.totalBtn}
+          summary="food"
         />
         <div className="mt-3 text-[12px] text-[#3a322c]">
           <p className="text-[10px] font-bold tracking-[0.16em] text-[#5c534c] uppercase">
@@ -291,9 +293,10 @@ export function PosPaidReceipt({
       <table className="mt-1.5 w-full text-xs">
         <thead>
           <tr className="border-b-2 border-black text-left text-[10px] font-black tracking-wide uppercase">
-            <th className="py-0.5 pr-1 font-black">Item</th>
+            <th className="py-0.5 pr-1 font-black">Items</th>
+            <th className="py-0.5 pr-1 text-right font-black">Rate</th>
             <th className="py-0.5 pr-1 text-right font-black">Qty</th>
-            <th className="py-0.5 text-right font-black">Amt</th>
+            <th className="py-0.5 text-right font-black">Total</th>
           </tr>
         </thead>
         <tbody>
@@ -308,6 +311,9 @@ export function PosPaidReceipt({
                 ) : null}
               </td>
               <td className="py-0.5 pr-1 text-right font-black tabular-nums align-top">
+                {formatBtn(line.unitPriceBtn)}
+              </td>
+              <td className="py-0.5 pr-1 text-right font-black tabular-nums align-top">
                 {line.qty}
               </td>
               <td className="py-0.5 text-right font-black tabular-nums align-top">
@@ -320,17 +326,11 @@ export function PosPaidReceipt({
 
       <div className="mt-1.5 space-y-0.5 border-b-2 border-black pb-1.5 text-xs font-bold">
         <div className="flex justify-between">
-          <span>Subtotal</span>
-          <span className="tabular-nums">{formatBtn(order.subtotalBtn)}</span>
+          <span>S.C.</span>
+          <span className="tabular-nums">
+            {formatBtn(order.serviceChargeBtn)}
+          </span>
         </div>
-        {order.serviceChargeBtn > 0 ? (
-          <div className="flex justify-between">
-            <span>Service</span>
-            <span className="tabular-nums">
-              {formatBtn(order.serviceChargeBtn)}
-            </span>
-          </div>
-        ) : null}
         {order.gstBtn > 0 ? (
           <div className="flex justify-between">
             <span>GST</span>

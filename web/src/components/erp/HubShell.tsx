@@ -33,6 +33,8 @@ export function HubShell({
   wide = true,
   className,
   tabsClassName,
+  /** Title and trail live in the desk menu bar. */
+  hideHeading = false,
 }: {
   heading: string;
   /** Hub-level subtitle when no tab overrides, or fallback */
@@ -49,6 +51,7 @@ export function HubShell({
   className?: string;
   /** Extra classes on the section tab strip (for example hide it on desktop). */
   tabsClassName?: string;
+  hideHeading?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -56,6 +59,11 @@ export function HubShell({
   const active = tabs.find((t) => t.id === activeTab) ?? tabs[0];
   const subtitle = active?.description ?? description;
   const linkMode = tabs.some((t) => Boolean(t.href));
+  const asideInFilters = hideHeading && headerAside;
+  const collapseFiltersOnDesktop =
+    Boolean(tabsClassName?.split(/\s+/).includes("md:hidden")) &&
+    !filters &&
+    !asideInFilters;
 
   const setTab = useCallback(
     (id: string) => {
@@ -70,15 +78,18 @@ export function HubShell({
     <div className={cn("relative flex min-h-0 flex-1 flex-col", className)}>
       <DeskListShell
         heading={heading}
-        subtitle={subtitle}
+        subtitle={hideHeading ? undefined : subtitle}
         dense
         wide={wide}
-        headerAside={headerAside}
+        hideHeading={hideHeading}
+        headerAside={hideHeading ? undefined : headerAside}
+        filtersClassName={collapseFiltersOnDesktop ? "md:hidden" : undefined}
         filters={
           <div className="flex w-full min-w-0 flex-col gap-2">
-            {breadcrumb ? (
+            {!hideHeading && breadcrumb ? (
               <div className="min-w-0">{breadcrumb}</div>
             ) : null}
+            <div className="flex min-w-0 items-center gap-2">
             <nav
               aria-label={`${heading} sections`}
               className={cn(
@@ -119,6 +130,12 @@ export function HubShell({
                 );
               })}
             </nav>
+            {asideInFilters ? (
+              <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2">
+                {headerAside}
+              </div>
+            ) : null}
+            </div>
             {filters ? (
               <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                 {filters}

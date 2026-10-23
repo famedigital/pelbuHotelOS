@@ -1,6 +1,6 @@
 import { cloudinaryUrl } from "@/lib/cloudinary";
 import { amountInWordsNu } from "@/lib/print/amount-in-words";
-import { formatGuestBtn } from "@/lib/pricing";
+import { formatGuestBtn, roundBtn } from "@/lib/pricing";
 import type { ReactNode } from "react";
 
 export type FiscalPropertyChrome = {
@@ -186,34 +186,58 @@ export function FiscalStayStrip({
   );
 }
 
+/** Line total is rate × qty. Service charge stays in the footer. */
+export function fiscalLineExtended(row: FiscalLineRow): number {
+  if (
+    row.qty != null &&
+    row.rate != null &&
+    Number.isFinite(row.qty) &&
+    Number.isFinite(row.rate)
+  ) {
+    return roundBtn(row.qty * row.rate);
+  }
+  return row.amount;
+}
+
 export function FiscalLinesTable({
   rows,
   showSc = false,
   showGst = false,
   dense = false,
+  layout = "default",
 }: {
   rows: FiscalLineRow[];
   showSc?: boolean;
   showGst?: boolean;
   /** Tighter rows when the bill has many lines. */
   dense?: boolean;
+  /** Food bill: Items, Rate, Qty, Total. Service charge is not a column. */
+  layout?: "default" | "items";
 }) {
   const cell = dense ? "px-1.5 py-0.5" : "px-2 py-1";
+  const food = layout === "items";
   return (
     <table className="fiscal-invoice-lines mt-2 w-full border-collapse text-[12px]">
       <thead>
         <tr className="bg-[#1a1410] text-left text-[10px] tracking-[0.08em] text-white uppercase">
-          <th className={`${cell} font-medium`}>#</th>
-          <th className={`${cell} font-medium`}>Description</th>
+          {food ? null : <th className={`${cell} font-medium`}>#</th>}
+          <th className={`${cell} font-medium`}>{food ? "Items" : "Description"}</th>
+          {food ? (
+            <th className={`${cell} text-right font-medium`}>Rate</th>
+          ) : null}
           <th className={`${cell} text-right font-medium`}>Qty</th>
-          <th className={`${cell} text-right font-medium`}>Rate</th>
-          {showSc ? (
+          {food ? null : (
+            <th className={`${cell} text-right font-medium`}>Rate</th>
+          )}
+          {showSc && !food ? (
             <th className={`${cell} text-right font-medium`}>SC</th>
           ) : null}
-          {showGst ? (
+          {showGst && !food ? (
             <th className={`${cell} text-right font-medium`}>GST</th>
           ) : null}
-          <th className={`${cell} text-right font-medium`}>Amount</th>
+          <th className={`${cell} text-right font-medium`}>
+            {food ? "Total" : "Amount"}
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -222,9 +246,11 @@ export function FiscalLinesTable({
             key={row.id}
             className={`border-b border-[#ddd6cc] ${row.foc ? "text-[#5c534c]" : ""}`}
           >
-            <td className={`${cell} align-top tabular-nums text-[#5c534c]`}>
-              {i + 1}
-            </td>
+            {food ? null : (
+              <td className={`${cell} align-top tabular-nums text-[#5c534c]`}>
+                {i + 1}
+              </td>
+            )}
             <td className={`${cell} align-top leading-tight`}>
               <span className="font-semibold text-[#1a1410]">
                 {row.description}
@@ -235,20 +261,27 @@ export function FiscalLinesTable({
                 </span>
               ) : null}
             </td>
+            {food ? (
+              <td className={`${cell} text-right align-top tabular-nums`}>
+                {row.rate != null ? formatGuestBtn(row.rate) : "—"}
+              </td>
+            ) : null}
             <td className={`${cell} text-right align-top tabular-nums`}>
               {row.qty != null ? row.qty : "—"}
             </td>
-            <td className={`${cell} text-right align-top tabular-nums`}>
-              {row.rate != null ? formatGuestBtn(row.rate) : "—"}
-            </td>
-            {showSc ? (
+            {food ? null : (
+              <td className={`${cell} text-right align-top tabular-nums`}>
+                {row.rate != null ? formatGuestBtn(row.rate) : "—"}
+              </td>
+            )}
+            {showSc && !food ? (
               <td className={`${cell} text-right align-top tabular-nums`}>
                 {row.sc != null && row.sc !== 0
                   ? formatGuestBtn(row.sc)
                   : "—"}
               </td>
             ) : null}
-            {showGst ? (
+            {showGst && !food ? (
               <td className={`${cell} text-right align-top tabular-nums`}>
                 {row.gst != null && row.gst !== 0
                   ? formatGuestBtn(row.gst)
@@ -256,7 +289,7 @@ export function FiscalLinesTable({
               </td>
             ) : null}
             <td className={`${cell} text-right align-top font-medium tabular-nums`}>
-              {formatGuestBtn(row.amount)}
+              {formatGuestBtn(food ? fiscalLineExtended(row) : row.amount)}
             </td>
           </tr>
         ))}
@@ -271,41 +304,51 @@ export function FiscalTotalsBlock({
   gst,
   total,
   serviceChargeRatePct,
+  summary = "full",
 }: {
   subtotal: number;
   serviceCharge: number;
   gst: number;
   total: number;
   serviceChargeRatePct?: number | null;
+  /** Food bill: S.C. then the payable total. No subtotal row. */
+  summary?: "full" | "food";
 }) {
-  const scLabel =
+  const scPct =
     serviceChargeRatePct != null && serviceChargeRatePct > 0
-      ? `Service charge ${serviceChargeRatePct}%`
-      : "Service charge";
+      ? ` ${serviceChargeRatePct}%`
+      : "";
+  const scLabel = summary === "food" ? `S.C.${scPct}` : `Service charge${scPct}`;
   return (
     <div className="mt-1">
       <table className="ml-auto w-full max-w-[62%] border-collapse text-[12px]">
         <tbody>
-          <tr>
-            <td className="px-2 py-1 text-[#5c534c]">Subtotal</td>
-            <td className="w-[8.5rem] px-2 py-1 text-right tabular-nums">
-              {formatGuestBtn(subtotal)}
-            </td>
-          </tr>
+          {summary === "food" ? null : (
+            <tr>
+              <td className="px-2 py-1 text-[#5c534c]">Subtotal</td>
+              <td className="w-[8.5rem] px-2 py-1 text-right tabular-nums">
+                {formatGuestBtn(subtotal)}
+              </td>
+            </tr>
+          )}
           <tr>
             <td className="px-2 py-1 text-[#5c534c]">{scLabel}</td>
-            <td className="px-2 py-1 text-right tabular-nums">
-              {serviceCharge > 0 ? formatGuestBtn(serviceCharge) : "Nil"}
+            <td className="w-[8.5rem] px-2 py-1 text-right tabular-nums">
+              {serviceCharge !== 0 ? formatGuestBtn(serviceCharge) : "Nil"}
             </td>
           </tr>
-          <tr>
-            <td className="px-2 py-1 text-[#5c534c]">GST</td>
-            <td className="px-2 py-1 text-right tabular-nums">
-              {gst > 0 ? formatGuestBtn(gst) : "GST not charged"}
-            </td>
-          </tr>
+          {summary === "food" && !(gst > 0) ? null : (
+            <tr>
+              <td className="px-2 py-1 text-[#5c534c]">GST</td>
+              <td className="px-2 py-1 text-right tabular-nums">
+                {gst > 0 ? formatGuestBtn(gst) : "GST not charged"}
+              </td>
+            </tr>
+          )}
           <tr className="border-t-2 border-[#1a1410] text-[14px] font-bold">
-            <td className="px-2 pt-1.5 pb-1">Total payable Nu</td>
+            <td className="px-2 pt-1.5 pb-1">
+              {summary === "food" ? "Total" : "Total payable Nu"}
+            </td>
             <td className="px-2 pt-1.5 pb-1 text-right tabular-nums">
               {formatGuestBtn(total)}
             </td>

@@ -50,7 +50,7 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
-  /** Above StayHub / full-screen ERP shells (z-[60]). */
+  /** Above the StayHub dock (z-[80]). Menus and selects stay at z-[100]. */
   layer = "default",
   onInteractOutside,
   onPointerDownOutside,
@@ -70,7 +70,7 @@ function DialogContent({
     );
   };
 
-  const layerZ = layer === "nested" ? "z-[70]" : "z-50";
+  const layerZ = layer === "nested" ? "z-[90]" : "z-50";
 
   return (
     <DialogPortal data-slot="dialog-portal">

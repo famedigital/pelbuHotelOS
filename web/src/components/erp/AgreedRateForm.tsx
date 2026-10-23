@@ -5,12 +5,13 @@ import {
   type AgreedRateState,
 } from "@/app/actions/erp-agreed-rate";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { formatBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 const initial: AgreedRateState = { ok: false };
 
@@ -24,6 +25,7 @@ export function AgreedRateForm({
   currentReason,
   mealPlanCode,
   roomLabel,
+  rateInclusive = false,
   onSuccess,
   compact = false,
 }: {
@@ -32,11 +34,17 @@ export function AgreedRateForm({
   currentReason: string | null;
   mealPlanCode?: string | null;
   roomLabel?: string | null;
+  /** Current stay: the nightly figure already includes service charge and GST. */
+  rateInclusive?: boolean;
   onSuccess?: () => void;
   /** StayHub Advanced — no outer card, denser fields */
   compact?: boolean;
 }) {
   const [state, action, pending] = useActionState(setAgreedNightlyRate, initial);
+  const [inclTax, setInclTax] = useState(rateInclusive);
+  useEffect(() => {
+    setInclTax(rateInclusive);
+  }, [rateInclusive]);
   useActionToast(state);
   const lastOk = useRef(false);
   useEffect(() => {
@@ -108,6 +116,11 @@ export function AgreedRateForm({
         <input type="hidden" name="booking_id" value={bookingId} />
         <input type="hidden" name="set_ep" value="1" />
         <input type="hidden" name="adjust_posted" value="1" />
+        <input
+          type="hidden"
+          name="rate_tax_mode"
+          value={inclTax ? "inclusive" : "exclusive"}
+        />
         <div className="space-y-1">
           <Label htmlFor="agreed_rate_btn" className={labelClass}>
             Nightly rate (Nu)
@@ -138,6 +151,27 @@ export function AgreedRateForm({
             autoComplete="off"
             className={fieldH}
           />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="flex cursor-pointer items-start gap-2 text-xs leading-snug">
+            <Checkbox
+              checked={inclTax}
+              onCheckedChange={(value) => setInclTax(value === true)}
+              disabled={pending}
+              className="mt-0.5"
+              aria-label="Inclusive of service charge and GST"
+            />
+            <span>
+              <span className="font-medium text-foreground">
+                Incl. of S.C. &amp; GST
+              </span>
+              <span className="mt-0.5 block text-muted-foreground">
+                {inclTax
+                  ? "This Nu is what the guest pays."
+                  : "S.C. and GST are added on top."}
+              </span>
+            </span>
+          </label>
         </div>
         <div className="space-y-1 sm:col-span-2">
           <Label htmlFor="agreed_rate_reason" className={labelClass}>

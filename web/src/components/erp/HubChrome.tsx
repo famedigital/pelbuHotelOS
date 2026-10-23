@@ -1,6 +1,5 @@
 "use client";
 
-import { ErpBreadcrumb } from "@/components/erp/ErpBreadcrumb";
 import { HubShell, type HubTab } from "@/components/erp/HubShell";
 import { hubTabIdFromPath } from "@/lib/erp/hubs";
 import { usePathname } from "next/navigation";
@@ -27,7 +26,6 @@ function HubChromeInner({
 }) {
   const pathname = usePathname() ?? "";
   const activeTab = hubTabIdFromPath(pathname, tabs);
-  const tab = tabs.find((t) => t.id === activeTab);
   return (
     <HubShell
       heading={heading}
@@ -38,15 +36,7 @@ function HubChromeInner({
       headerAside={headerAside}
       stickyCta={stickyCta}
       tabsClassName={tabsClassName}
-      breadcrumb={
-        <ErpBreadcrumb
-          items={[
-            { label: "Desk", href: "/erp/stayview" },
-            { label: heading, href: tabs[0]?.href },
-            { label: tab?.label ?? heading },
-          ]}
-        />
-      }
+      hideHeading
     >
       {children}
     </HubShell>
