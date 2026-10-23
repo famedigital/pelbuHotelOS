@@ -203,7 +203,7 @@ export default async function FiscalInvoicePrintPage({
       .select("id, doc_no, doc_kind, property_id, folio_id, issued_at, status")
       .eq("id", id)
       .maybeSingle();
-    loaded = retry.data;
+    loaded = retry.data ? { ...retry.data, meta: null } : null;
     if (retry.error || !loaded) notFound();
   }
   const docRow = loaded;
