@@ -535,6 +535,10 @@ export function isStayBoardPath(pathname: string | null | undefined): boolean {
   return (
     pathname === "/erp/stayview" ||
     pathname.startsWith("/erp/stayview/") ||
+    pathname === "/erp/day" ||
+    pathname.startsWith("/erp/day/") ||
+    pathname === "/erp/reservations" ||
+    pathname.startsWith("/erp/reservations/") ||
     pathname === "/erp/calendar" ||
     pathname.startsWith("/erp/calendar/")
   );

@@ -14,6 +14,7 @@ import { DeskMainSkeleton } from "@/components/erp/DeskMainSkeleton";
 import { DeskChromeGuard } from "@/components/erp/DeskChromeGuard";
 import { DeskSurfaceMetrics } from "@/components/erp/DeskSurfaceMetrics";
 import { FoAskShortcut } from "@/components/erp/FoAskShortcut";
+import { InnoraChatBubble } from "@/components/erp/InnoraChatBubble";
 import { SoftNavRecovery } from "@/components/erp/SoftNavRecovery";
 import { DeskLiveBridge } from "@/components/erp/DeskLiveBridge";
 import { StayHubShell } from "@/components/erp/StayHubShell";
@@ -93,7 +94,7 @@ export function DeskShell({
             <div className="flex min-h-0 min-w-0 flex-1">
               <Suspense
                 fallback={
-                  <div className="hidden w-60 shrink-0 border-r border-border md:block" />
+                  <div className="hidden w-52 shrink-0 border-r border-border md:block" />
                 }
               >
                 <DeskSideNav />
@@ -109,6 +110,9 @@ export function DeskShell({
             </div>
           </DeskMenuProvider>
           <DeskSheetTabs allowedModuleKeys={allowedModuleKeys} />
+          {activePropertyId ? (
+            <InnoraChatBubble key={activePropertyId} propertyId={activePropertyId} />
+          ) : null}
           <div className="shrink-0 print:hidden md:hidden">
             <DeskMobileNav allowedModuleKeys={allowedModuleKeys} />
           </div>

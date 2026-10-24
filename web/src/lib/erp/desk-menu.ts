@@ -25,18 +25,16 @@ export const DESK_MENU_GROUPS: readonly DeskMenuGroup[] = [
   {
     id: "stay",
     label: "Front office",
-    hrefs: [
-      "/erp/calendar",
-      "/erp/stays",
-      "/erp/reserve",
-      "/erp/ask",
-      "/erp/calendar/day-sheet",
-    ],
+    hrefs: ["/erp/day", "/erp/reservations", "/erp/calendar"],
   },
   {
     id: "money",
     label: "Cashier",
-    hrefs: ["/erp/bills", "/erp/payments", "/erp/invoices"],
+    hrefs: [
+      "/erp/finance",
+      "/erp/finance/guest-statement",
+      "/erp/finance/agent-statement",
+    ],
   },
   {
     id: "rooms",
@@ -88,8 +86,7 @@ export const DESK_MENU_GROUPS: readonly DeskMenuGroup[] = [
 
 /** Above every section. Home, then the front-office dashboard. */
 export const DESK_RAIL_TOP: readonly { href: string; label: string }[] = [
-  { href: "/erp", label: "Home" },
-  { href: "/erp/stayview", label: "Dashboard" },
+  { href: "/erp/day", label: "Day" },
 ];
 
 /** One Stays item covers these lists. They share the same guest rows. */
@@ -217,11 +214,9 @@ export const FO_TOOLBAR_LINKS: readonly {
   title: string;
   href: string;
 }[] = [
-  { title: "Room rack", href: "/erp/calendar" },
-  { title: "Arrival", href: "/erp/arrivals" },
-  { title: "In house", href: "/erp/in-house" },
-  { title: "Departure", href: "/erp/departures" },
+  { title: "Day", href: "/erp/day" },
   { title: "Reservations", href: "/erp/reservations" },
+  { title: "Room rack", href: "/erp/calendar" },
 ] as const;
 
 export function pathMatchesHref(pathname: string, href: string): boolean {

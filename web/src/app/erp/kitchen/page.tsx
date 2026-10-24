@@ -192,10 +192,10 @@ export default async function KitchenBoardPage() {
       filters={
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            href="/erp/pos"
+            href="/erp/day/pass/kitchen/print"
             className="inline-flex h-9 items-center rounded-md border px-3 text-xs hover:bg-muted"
           >
-            F&B POS
+            Kitchen pass-out
           </Link>
           <Link
             href="/erp/kitchen/food-cost"

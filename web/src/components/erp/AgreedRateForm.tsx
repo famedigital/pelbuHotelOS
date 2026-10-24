@@ -26,6 +26,7 @@ export function AgreedRateForm({
   mealPlanCode,
   roomLabel,
   rateInclusive = false,
+  gstCharged = false,
   onSuccess,
   compact = false,
 }: {
@@ -34,8 +35,10 @@ export function AgreedRateForm({
   currentReason: string | null;
   mealPlanCode?: string | null;
   roomLabel?: string | null;
-  /** Current stay: the nightly figure already includes service charge and GST. */
+  /** Current stay: the nightly figure already includes service charge. */
   rateInclusive?: boolean;
+  /** Hotel is GST-registered and the rate also includes GST. */
+  gstCharged?: boolean;
   onSuccess?: () => void;
   /** StayHub Advanced — no outer card, denser fields */
   compact?: boolean;
@@ -159,16 +162,22 @@ export function AgreedRateForm({
               onCheckedChange={(value) => setInclTax(value === true)}
               disabled={pending}
               className="mt-0.5"
-              aria-label="Inclusive of service charge and GST"
+              aria-label={
+                gstCharged
+                  ? "Inclusive of service charge and GST"
+                  : "Inclusive of service charge"
+              }
             />
             <span>
               <span className="font-medium text-foreground">
-                Incl. of S.C. &amp; GST
+                {gstCharged ? "Incl. of S.C. & GST" : "Incl. of S.C."}
               </span>
               <span className="mt-0.5 block text-muted-foreground">
                 {inclTax
                   ? "This Nu is what the guest pays."
-                  : "S.C. and GST are added on top."}
+                  : gstCharged
+                    ? "S.C. and GST are added on top."
+                    : "S.C. is added on top."}
               </span>
             </span>
           </label>

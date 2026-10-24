@@ -17,6 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buildHotelAccountSnapshot } from "@/lib/accounting/hotel-account";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
+import { loadClosedDay } from "@/lib/finance/closed-day";
+import { thimphuToday } from "@/lib/erp-lists";
 import { formatBtn } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import { resolveActivePropertyId } from "@/lib/property-context";
@@ -185,10 +187,12 @@ export default async function ErpFinanceOverviewPage() {
   const needsWork = openAttention.filter((item) => !item.ok);
   const allClear = needsWork.length === 0;
 
+  const closed = await loadClosedDay(admin, propertyId, thimphuToday());
+
   return (
     <FinanceShell
-      title="Hotel account"
-      description="Your single view of hotel money — what is in cash and bank, who still owes you, what you still owe, and what needs your attention before month close. You are the accountant; this screen is the daily book."
+      title="Closed day"
+      description="Today's sales, today's takings, and the guest or agent statement for a period. Service charge is 10%. GST is off."
       actions={
         <>
           <Button asChild variant="outline" size="sm">
@@ -200,6 +204,16 @@ export default async function ErpFinanceOverviewPage() {
         </>
       }
     >
+      <section className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        <span>Room {formatBtn(closed.room)}</span>
+        <span>F&B {formatBtn(closed.fnb)}</span>
+        <span>Laundry {formatBtn(closed.laundry)}</span>
+        <span>Cash {formatBtn(closed.cash)}</span>
+        <span>Bank {formatBtn(closed.bank)}</span>
+        <span>Card {formatBtn(closed.card)}</span>
+        <Link href="/erp/finance/guest-statement">Guest statement</Link>
+        <Link href="/erp/finance/agent-statement">Agent statement</Link>
+      </section>
       {/* Purpose: what this page is for */}
       <section
         aria-labelledby="finance-purpose"

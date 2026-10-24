@@ -3,21 +3,28 @@
 import { switchActiveProperty } from "@/app/actions/erp-holds";
 import { deleteDeskReadCacheByProperty } from "@/lib/desk/desk-read-cache";
 import type { PropertySwitcherOption } from "@/lib/property-types";
+import { cn } from "@/lib/utils";
 
 export function PropertySwitcher({
   properties,
   activePropertyId,
+  id = "property_id",
+  className,
+  selectClassName,
 }: {
   properties: PropertySwitcherOption[];
   activePropertyId: string;
+  id?: string;
+  className?: string;
+  selectClassName?: string;
 }) {
   return (
-    <form action={switchActiveProperty} className="ml-0.5">
-      <label className="sr-only" htmlFor="property_id">
+    <form action={switchActiveProperty} className={cn("ml-0.5", className)}>
+      <label className="sr-only" htmlFor={id}>
         Active hotel
       </label>
       <select
-        id="property_id"
+        id={id}
         name="property_id"
         defaultValue={activePropertyId}
         onChange={(e) => {
@@ -28,7 +35,10 @@ export function PropertySwitcher({
           }
           e.currentTarget.form?.requestSubmit();
         }}
-        className="h-8 max-w-[7.5rem] truncate rounded-md border border-input bg-transparent px-2 text-xs font-medium text-foreground outline-none transition-colors hover:bg-muted focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] xl:max-w-[200px]"
+        className={cn(
+          "h-8 max-w-[7.5rem] truncate rounded-md border border-input bg-transparent px-2 text-xs font-medium text-foreground outline-none transition-colors hover:bg-muted focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] xl:max-w-[200px]",
+          selectClassName,
+        )}
       >
         {properties.map((p) => (
           <option key={p.id} value={p.id}>

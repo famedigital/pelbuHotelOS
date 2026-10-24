@@ -2,7 +2,6 @@
 
 import { deskLogout } from "@/app/actions/desk";
 import { deskShiftChange } from "@/app/actions/staff-auth";
-import { ErpBreadcrumb } from "@/components/erp/ErpBreadcrumb";
 import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
 import { DeskSearchHint } from "@/components/erp/DeskSearchHint";
 import { openErpCommandPalette } from "@/components/erp/ErpCommandPalette";
@@ -38,7 +37,6 @@ import { SITE_NAME } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import {
   MenuIcon,
-  PrinterIcon,
   SearchIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -64,6 +62,7 @@ const MENU_TITLE: Record<string, string> = {
 
 const RIBBON_LABEL: Record<string, string> = {
   "/erp": "Home",
+  "/erp/day": "Day",
   "/erp/stayview": "Dashboard",
   "/erp/arrivals": "Arrival",
   "/erp/in-house": "In house",
@@ -99,40 +98,6 @@ function railTopLinks() {
     if (!leaf) return [];
     return [{ href: item.href, label: item.label, icon: leaf.icon }];
   });
-}
-
-function deskCrumbs(
-  groups: DeskMenuGroupView[],
-  pathname: string,
-  search: string,
-): { label: string; href?: string }[] {
-  let best: {
-    group: DeskMenuGroupView;
-    item: DeskMenuGroupView["items"][number];
-  } | null = null;
-  let bestLen = -1;
-  for (const group of groups) {
-    for (const item of group.items) {
-      const matches = item.href.includes("?")
-        ? menuItemActive(pathname, search, item.href)
-        : pathMatchesHref(pathname, item.href);
-      if (matches && item.href.length > bestLen) {
-        best = { group, item };
-        bestLen = item.href.length;
-      }
-    }
-  }
-  if (!best) return [];
-  const groupLabel = MENU_TITLE[best.group.id] ?? best.group.label;
-  const pageLabel = ribbonLabel(best.item.href, best.item.title);
-  const groupHref = best.group.items[0]?.href;
-  if (!groupHref || groupHref === best.item.href) {
-    return [{ label: pageLabel }];
-  }
-  return [
-    { label: groupLabel, href: groupHref },
-    { label: pageLabel },
-  ];
 }
 
 /** Grant-filtered href set — no FO/BO workspace split. */
@@ -245,19 +210,9 @@ export function DeskTopChrome({
 }) {
   const pathname = usePathname();
   const search = useSearchParams().toString();
-  const allowedHrefs = useAllowedHrefs(allowedModuleKeys);
   const bizLabel = businessDate?.slice(0, 10) ?? null;
   const [menuOpen, setMenuOpen] = useState(false);
   const { groups, activeMenuId, setPickedMenu } = useDeskMenu();
-  const crumbs = useMemo(
-    () => deskCrumbs(groups, pathname, search),
-    [groups, pathname, search],
-  );
-
-  const daySheetHref = bizLabel
-    ? `/erp/calendar/day-sheet?date=${bizLabel}`
-    : "/erp/calendar/day-sheet";
-  const showDaySheet = allowedHrefs.has("/erp/calendar/day-sheet");
 
   return (
     <div
@@ -266,7 +221,7 @@ export function DeskTopChrome({
     >
       <div className="flex h-10 min-w-0 items-center gap-1 px-2 sm:px-3">
         <Link
-          href="/erp/stayview"
+          href="/erp/day"
           className="mr-1 flex shrink-0 items-center gap-1.5"
           title={brandName}
         >
@@ -329,16 +284,6 @@ export function DeskTopChrome({
           ))}
         </nav>
 
-        {crumbs.length > 0 ? (
-          <div className="hidden min-w-0 items-center md:flex">
-            <span aria-hidden className="mx-2 h-4 w-px shrink-0 bg-border" />
-            <ErpBreadcrumb
-              items={crumbs}
-              className="min-w-0 [&_ol]:flex-nowrap"
-            />
-          </div>
-        ) : null}
-
         {/* Phone Menu */}
         <div className="ml-auto flex items-center gap-1 md:hidden">
           <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
@@ -361,6 +306,20 @@ export function DeskTopChrome({
                 <SheetTitle>Desk</SheetTitle>
               </SheetHeader>
               <div className="space-y-3 px-3 py-3">
+                {properties && properties.length > 0 && activePropertyId ? (
+                  <div className="space-y-1">
+                    <p className="px-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                      Hotel
+                    </p>
+                    <PropertySwitcher
+                      properties={properties}
+                      activePropertyId={activePropertyId}
+                      id="property_id_menu"
+                      className="ml-0"
+                      selectClassName="h-11 w-full max-w-none text-base"
+                    />
+                  </div>
+                ) : null}
                 <ul className="space-y-0.5">
                   {railTopLinks().map((item) => {
                     const Icon = item.icon;
@@ -428,19 +387,6 @@ export function DeskTopChrome({
         </div>
 
         <div className="ml-auto hidden items-center gap-1 md:flex">
-          {showDaySheet ? (
-            <Button
-              asChild
-              variant="ghost"
-              size="sm"
-              className="h-7 gap-1 px-2 text-xs text-muted-foreground"
-            >
-              <Link href={daySheetHref} title="Day sheet">
-                <PrinterIcon className="size-3.5" />
-                Day sheet
-              </Link>
-            </Button>
-          ) : null}
           <DeskSearchHint />
           {properties && properties.length > 0 && activePropertyId ? (
             <PropertySwitcher
@@ -472,11 +418,17 @@ export function DeskTopChrome({
         </div>
       </div>
 
-      {crumbs.length > 0 ? (
-        <div className="flex h-8 min-w-0 items-center border-t border-border px-3 md:hidden">
-          <ErpBreadcrumb
-            items={crumbs}
-            className="min-w-0 [&_ol]:flex-nowrap"
+      {properties && properties.length > 0 && activePropertyId ? (
+        <div className="flex items-center gap-2 border-t border-border px-2 py-1.5 md:hidden">
+          <span className="shrink-0 text-xs font-medium text-muted-foreground">
+            Hotel
+          </span>
+          <PropertySwitcher
+            properties={properties}
+            activePropertyId={activePropertyId}
+            id="property_id_mobile"
+            className="ml-0 min-w-0 flex-1"
+            selectClassName="h-11 w-full max-w-none text-base"
           />
         </div>
       ) : null}
@@ -510,7 +462,7 @@ export function DeskSideNav() {
     <nav
       aria-label={title}
       data-slot="desk-side-nav"
-      className="hidden w-60 shrink-0 flex-col overflow-y-auto border-r border-border bg-background px-3 py-4 md:flex print:hidden"
+      className="hidden w-52 shrink-0 flex-col overflow-y-auto border-r border-border bg-background px-2 py-2 md:flex print:hidden"
     >
       <div className="flex flex-col gap-1">
         {topLinks.map((item) => (
@@ -524,10 +476,7 @@ export function DeskSideNav() {
           />
         ))}
       </div>
-      <p className="mt-4 border-b border-border px-2.5 pb-3 text-[10px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-        {title}
-      </p>
-      <div className="mt-3 flex flex-col gap-1">
+      <div className="mt-1 flex flex-col gap-0.5">
         {activeGroup.items.map((item) => (
           <SideLink
             key={item.href}
@@ -562,7 +511,7 @@ function SideLink({
       onClick={onClick}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "relative flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm text-muted-foreground transition-colors duration-150 hover:bg-muted/80 hover:text-foreground",
+        "relative flex h-8 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground transition-colors duration-150 hover:bg-muted/80 hover:text-foreground",
         active && "bg-muted font-medium text-foreground",
       )}
     >

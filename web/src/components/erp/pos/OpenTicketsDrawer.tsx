@@ -96,86 +96,61 @@ function balanceAmount(ticket: OpenPosTicket): number {
   );
 }
 
-function PayBadge({ ticket }: { ticket: OpenPosTicket }) {
-  const onRoom =
-    Boolean(ticket.posted_to_folio_at) ||
-    ticket.tenders.some((t) => t.method === "room_charge");
-  if (onRoom) {
-    return (
-      <Badge variant="secondary" className="text-[10px]">
-        On room
-      </Badge>
-    );
-  }
-  if (ticket.settled_at) {
-    return (
-      <Badge variant="secondary" className="text-[10px]">
-        Settled
-      </Badge>
-    );
-  }
-  if (ticket.order_source === "public" && ticket.payment_recorded_at) {
-    return (
-      <Badge variant="secondary" className="text-[10px]">
-        Online paid
-      </Badge>
-    );
-  }
+function isOnRoom(ticket: OpenPosTicket): boolean {
   return (
-    <Badge
-      variant="outline"
-      className="border-citrus/40 text-[10px] text-citrus"
-    >
-      Unpaid
-    </Badge>
+    Boolean(ticket.posted_to_folio_at) ||
+    ticket.tenders.some((t) => t.method === "room_charge")
   );
 }
 
-function MoneyStrip({ ticket }: { ticket: OpenPosTicket }) {
+/** One reading of the bill. A room charge is not cash paid, and it is not a zero balance. */
+function ticketMoneyCaption(ticket: OpenPosTicket): string {
+  const onRoom = isOnRoom(ticket);
   const paid = paidAmount(ticket);
   const balance = balanceAmount(ticket);
-  const methods =
-    ticket.tenders.length > 0
-      ? ticket.tenders
-          .map((t) => `${tenderLabel(t.method)} ${formatBtn(t.amount_btn)}`)
-          .join(" · ")
-      : ticket.order_source === "public" && ticket.payment_recorded_at
-        ? `Journal ${ticket.payment_journal_no ?? "recorded"}`
-        : null;
+  if (onRoom && balance === 0) {
+    if (ticket.tenders.length > 1) {
+      return ticket.tenders
+        .map((t) => `${tenderLabel(t.method)} ${formatBtn(t.amount_btn)}`)
+        .join(" · ");
+    }
+    return `On room ${formatBtn(ticket.total_btn)}`;
+  }
+  if (onRoom && balance > 0) {
+    return `On room ${formatBtn(paid)} · still due ${formatBtn(balance)}`;
+  }
+  if (balance > 0 && paid > 0) {
+    return `Due ${formatBtn(balance)} · paid ${formatBtn(paid)} of ${formatBtn(ticket.total_btn)}`;
+  }
+  if (balance > 0) return `Due ${formatBtn(balance)}`;
+  if (ticket.tenders.length > 0) {
+    return ticket.tenders
+      .map((t) => `${tenderLabel(t.method)} ${formatBtn(t.amount_btn)}`)
+      .join(" · ");
+  }
+  if (paid > 0) return `Paid ${formatBtn(paid)}`;
+  return formatBtn(ticket.total_btn);
+}
 
+function headlineAmount(ticket: OpenPosTicket): number {
+  const balance = balanceAmount(ticket);
+  if (isOnRoom(ticket) && balance === 0) return ticket.total_btn;
+  if (balance > 0) return balance;
+  return ticket.total_btn;
+}
+
+function headlineLabel(ticket: OpenPosTicket): string {
+  const balance = balanceAmount(ticket);
+  if (isOnRoom(ticket) && balance === 0) return "On room";
+  if (balance > 0) return "Due";
+  return "Paid";
+}
+
+function MoneyStrip({ ticket }: { ticket: OpenPosTicket }) {
   return (
-    <div className="mt-2 space-y-1 rounded-md border border-border/70 bg-muted/30 px-2.5 py-2 text-[11px]">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-muted-foreground">
-          Total{" "}
-          <span className="font-semibold tabular-nums text-foreground">
-            {formatBtn(ticket.total_btn)}
-          </span>
-        </span>
-        <span className="text-muted-foreground">
-          Paid{" "}
-          <span className="font-semibold tabular-nums text-foreground">
-            {formatBtn(paid)}
-          </span>
-        </span>
-        <span className="text-muted-foreground">
-          Balance{" "}
-          <span className="font-semibold tabular-nums text-foreground">
-            {formatBtn(balance)}
-          </span>
-        </span>
-      </div>
-      {methods ? <p className="text-muted-foreground">{methods}</p> : null}
-      {ticket.folio_id || ticket.booking_id ? (
-        <OpenStayFolioLink
-          bookingId={ticket.booking_id}
-          folioId={ticket.folio_id}
-          className="inline-flex text-accent underline-offset-4 hover:underline"
-        >
-          Open stay →
-        </OpenStayFolioLink>
-      ) : null}
-    </div>
+    <p className="mt-2 text-sm font-medium text-foreground">
+      {ticketMoneyCaption(ticket)}
+    </p>
   );
 }
 
@@ -198,15 +173,16 @@ function groupByPrepStation(
     qty: number;
     course_no: number;
     prep_station: string;
+    unit_price_btn: number;
   }[],
 ): {
   station: string;
   label: string;
-  lines: { qty: number; name: string; course_no: number }[];
+  lines: { qty: number; name: string; course_no: number; amount: number }[];
 }[] {
   const map = new Map<
     string,
-    { qty: number; name: string; course_no: number }[]
+    { qty: number; name: string; course_no: number; amount: number }[]
   >();
   for (const item of items) {
     const station = item.prep_station || "kitchen";
@@ -215,6 +191,7 @@ function groupByPrepStation(
       qty: item.qty,
       name: item.name_snapshot,
       course_no: item.course_no,
+      amount: Math.round(item.qty * item.unit_price_btn * 100) / 100,
     });
     map.set(station, list);
   }
@@ -304,13 +281,18 @@ export function OpenTicketsDrawer({
     });
   }
 
-  function runPostToRoom(orderId: string, bookingId: string) {
+  function runPostToRoom(
+    orderId: string,
+    bookingId: string,
+    roomPayor: "guest_later" | "agent",
+  ) {
     setPostError(null);
     startPostTransition(async () => {
       try {
         const fd = new FormData();
         fd.set("order_id", orderId);
         fd.set("booking_id", bookingId);
+        fd.set("room_payor", roomPayor);
         await postOrderToBookingFolio(fd);
         startTransition(() => router.refresh());
       } catch (err) {
@@ -453,7 +435,7 @@ export function OpenTicketsDrawer({
               folioId={t.folio_id}
               className="inline-flex h-9 items-center rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-muted"
             >
-              Open stay
+              Guest folio
             </OpenStayFolioLink>
           ) : null}
         </div>
@@ -652,10 +634,10 @@ export function OpenTicketsDrawer({
           </div>
           <SheetDescription>
             {detail
-              ? "This ticket is open on the register — add from the menu, void a line, then settle."
+              ? "This bill. Add items on the register, or settle and void from here."
               : lane === "closed"
-                ? "Settled tickets for today’s business date. Tax invoices issue from the guest folio."
-                : "Tap a ticket to open it on the register. Add or void lines there, then settle."}
+                ? "Settled tickets for today’s business date. Tap Open ticket to see the bill."
+                : "Tap Open ticket. That bill opens on the register."}
           </SheetDescription>
           {!detail ? (
             <div className="flex gap-1 pt-1">
@@ -947,7 +929,7 @@ function TicketGroup({
         {tickets.map((t) => (
           <li
             key={t.id}
-            className={`rounded-lg border p-3 ${
+            className={`overflow-hidden rounded-lg border ${
               highlight
                 ? "border-gold/50 bg-gold/5 ring-1 ring-gold/20"
                 : "border-border bg-card"
@@ -956,106 +938,99 @@ function TicketGroup({
             <button
               type="button"
               onClick={() => onOpen(t.id)}
-              aria-label={`Open ticket ${orderRef(t.id)}`}
-              className="flex w-full items-start justify-between gap-2 rounded-md text-left"
+              aria-label={`Open ticket ${orderRef(t.id)} for ${t.customer_name || "Walk-in"}`}
+              className="flex w-full cursor-pointer flex-col gap-2 p-3 text-left outline-none hover:bg-muted/50 focus-visible:ring-[3px] focus-visible:ring-ring/40"
             >
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <p className="truncate text-sm font-medium text-foreground">
-                    {t.customer_name || "Walk-in"}
+              <div className="flex w-full items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {t.customer_name || "Walk-in"}
+                    </p>
+                    {t.order_source === "public" ? (
+                      <Badge variant="sky" className="text-[11px]">
+                        Online
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {[
+                      ticketTableLabel(t, tables),
+                      t.outlet,
+                      t.covers ? `${t.covers} covers` : null,
+                      timeLabel(t.settled_at ?? t.created_at),
+                      orderRef(t.id),
+                      !closedLane && !isCounterServiceOutlet(t.outlet)
+                        ? `Kitchen ${t.kot_status}`
+                        : null,
+                      t.order_source === "public" && t.delivery_type === "taxi"
+                        ? `Taxi ${t.delivery_area ?? "Thimphu"}`
+                        : t.order_source === "public" &&
+                            t.delivery_type === "room"
+                          ? `Room ${t.delivery_area ?? ""}`
+                          : t.order_source === "public"
+                            ? "Pickup"
+                            : null,
+                      t.order_source !== "public"
+                        ? null
+                        : !t.confirmed_at
+                          ? "Pending confirm"
+                          : !t.payment_recorded_at
+                            ? "Unpaid"
+                            : t.payment_journal_no
+                              ? `Journal ${t.payment_journal_no}`
+                              : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </p>
-                  {t.order_source === "public" ? (
-                    <Badge variant="sky" className="text-[11px]">
-                      Online
-                    </Badge>
-                  ) : null}
-                  <PayBadge ticket={t} />
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  <span className="font-mono">{t.id.slice(0, 8)}</span>
-                  {` · ${t.outlet}`}
-                  {t.covers ? ` · ${t.covers} covers` : ""}
-                  {ticketTableLabel(t, tables)
-                    ? ` · ${ticketTableLabel(t, tables)}`
-                    : ""}
-                  {t.order_source === "public" && t.delivery_type === "taxi"
-                    ? ` · taxi ${t.delivery_area ?? "Thimphu"}`
-                    : t.order_source === "public" && t.delivery_type === "room"
-                      ? ` · room ${t.delivery_area ?? ""}`
-                      : t.order_source === "public"
-                        ? " · pickup"
-                        : ""}
-                  {t.order_source !== "public"
-                    ? ""
-                    : !t.confirmed_at
-                      ? " · pending confirm"
-                      : !t.payment_recorded_at
-                        ? ` · confirmed ${timeLabel(t.confirmed_at)} · unpaid`
-                        : ` · paid ${t.payment_journal_no ?? ""}`.trimEnd()}
-                  {` · ${timeLabel(t.settled_at ?? t.created_at)}`}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-semibold tabular-nums text-foreground">
-                  {formatBtn(t.total_btn)}
-                </p>
-                {isCounterServiceOutlet(t.outlet) ? null : closedLane ? (
-                  <p className="mt-1 text-[10px] text-muted-foreground">
-                    {t.tenders.map((x) => tenderLabel(x.method)).join(" · ") ||
-                      "Settled"}
+                <div className="shrink-0 text-right">
+                  <p className="text-sm font-semibold tabular-nums text-foreground">
+                    {formatBtn(headlineAmount(t))}
                   </p>
-                ) : (
-                  <Badge
-                    variant={t.kot_status === "ready" ? "gold" : "secondary"}
-                    className="mt-1 capitalize"
-                  >
-                    {t.kot_status}
-                  </Badge>
-                )}
+                  <p className="text-[11px] font-medium text-muted-foreground">
+                    {headlineLabel(t)}
+                  </p>
+                </div>
               </div>
+
+              {t.order_items.length > 0 ? (
+                <ul className="space-y-0.5 text-sm text-foreground">
+                  {t.order_items.slice(0, 6).map((i) => (
+                    <li key={i.id} className="flex justify-between gap-3">
+                      <span className="min-w-0 truncate">
+                        {i.qty}× {i.name_snapshot}
+                        {i.course_no > 1 ? ` · course ${i.course_no}` : ""}
+                      </span>
+                      {i.unit_price_btn > 0 ? (
+                        <span className="shrink-0 tabular-nums text-muted-foreground">
+                          {formatBtn(i.qty * i.unit_price_btn)}
+                        </span>
+                      ) : null}
+                    </li>
+                  ))}
+                  {t.order_items.length > 6 ? (
+                    <li className="text-xs text-muted-foreground">
+                      + {t.order_items.length - 6} more on the ticket
+                    </li>
+                  ) : null}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">No items yet</p>
+              )}
+
+              <span className="flex h-10 w-full items-center justify-center rounded-lg bg-primary text-sm font-medium text-primary-foreground">
+                Open ticket
+              </span>
             </button>
 
-            <MoneyStrip ticket={t} />
-
-            {t.order_items.length > 0
-              ? (() => {
-                  const groups = groupByPrepStation(t.order_items);
-                  const mixed = groups.length > 1;
-                  return (
-                    <div className="mt-2 space-y-1.5">
-                      {groups.map((g) => (
-                        <div key={g.station} className="space-y-0.5">
-                          {mixed ? (
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-accent">
-                              {g.label}
-                            </p>
-                          ) : null}
-                          <ul className="space-y-0.5 text-[11px] text-muted-foreground">
-                            {g.lines.slice(0, 4).map((i, idx) => (
-                              <li key={idx}>
-                                {i.qty}× {i.name}
-                                {i.course_no > 1 ? ` · c${i.course_no}` : ""}
-                              </li>
-                            ))}
-                            {g.lines.length > 4 ? (
-                              <li className="italic">
-                                + {g.lines.length - 4} more
-                              </li>
-                            ) : null}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()
-              : null}
-
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t px-3 py-2">
               {!closedLane && !t.settled_at ? (
                 <div className="flex flex-wrap gap-1.5">
                   <Button
                     type="button"
-                    variant="default"
+                    variant="outline"
                     size="sm"
                     className="h-9"
                     onClick={() => onSettle(t.id)}
@@ -1103,7 +1078,11 @@ function TicketDetail({
   closedLane: boolean;
   postPending: boolean;
   onBack: () => void;
-  onPostToRoom: (orderId: string, bookingId: string) => void;
+  onPostToRoom: (
+    orderId: string,
+    bookingId: string,
+    roomPayor: "guest_later" | "agent",
+  ) => void;
   actions: React.ReactNode;
 }) {
   const groups = groupByPrepStation(ticket.order_items);
@@ -1117,6 +1096,9 @@ function TicketDetail({
     !ticket.posted_to_folio_at &&
     bookings.length > 0;
   const [bookingId, setBookingId] = useState(ticket.booking_id ?? "");
+  const [roomPayor, setRoomPayor] = useState<"guest_later" | "agent">(
+    "guest_later",
+  );
 
   return (
     <div className="space-y-4">
@@ -1147,14 +1129,20 @@ function TicketDetail({
                   Parked
                 </Badge>
               ) : null}
-              <PayBadge ticket={ticket} />
             </div>
             <p className="mt-1 text-[11px] text-muted-foreground">
-              <span className="font-mono">{orderRef(ticket.id)}</span>
-              {` · ${ticket.outlet}`}
-              {ticket.covers ? ` · ${ticket.covers} covers` : ""}
-              {table ? ` · ${table}` : ""}
-              {` · ${timeLabel(ticket.settled_at ?? ticket.created_at)}`}
+              {[
+                table,
+                ticket.outlet,
+                ticket.covers ? `${ticket.covers} covers` : null,
+                timeLabel(ticket.settled_at ?? ticket.created_at),
+                orderRef(ticket.id),
+                !isCounterServiceOutlet(ticket.outlet)
+                  ? `Kitchen ${ticket.kot_status}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             </p>
             {ticket.phone ? (
               <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -1164,16 +1152,11 @@ function TicketDetail({
           </div>
           <div className="text-right">
             <p className="text-base font-semibold tabular-nums text-foreground">
-              {formatBtn(ticket.total_btn)}
+              {formatBtn(headlineAmount(ticket))}
             </p>
-            {isCounterServiceOutlet(ticket.outlet) ? null : (
-              <Badge
-                variant={ticket.kot_status === "ready" ? "gold" : "secondary"}
-                className="mt-1 capitalize"
-              >
-                {ticket.kot_status}
-              </Badge>
-            )}
+            <p className="text-[11px] font-medium text-muted-foreground">
+              {headlineLabel(ticket)}
+            </p>
           </div>
         </div>
         <MoneyStrip ticket={ticket} />
@@ -1201,6 +1184,11 @@ function TicketDetail({
                         {i.qty}× {i.name}
                         {i.course_no > 1 ? ` · course ${i.course_no}` : ""}
                       </span>
+                      {i.amount > 0 ? (
+                        <span className="shrink-0 tabular-nums text-muted-foreground">
+                          {formatBtn(i.amount)}
+                        </span>
+                      ) : null}
                     </li>
                   ))}
                 </ul>
@@ -1226,9 +1214,33 @@ function TicketDetail({
             Charge to room
           </p>
           <p className="text-[11px] text-muted-foreground">
-            Posts the full ticket to the in-house guest folio. Guest pays at
-            checkout. Tax invoice issues from the folio, not this ticket.
+            Guest later keeps this food on the room guest. The travel agent is
+            not billed. Agent sends the same ticket to the agent tab.
           </p>
+          <div className="flex h-9 overflow-hidden rounded-md border">
+            <button
+              type="button"
+              onClick={() => setRoomPayor("guest_later")}
+              className={`flex-1 text-[11px] font-medium ${
+                roomPayor === "guest_later"
+                  ? "bg-accent text-accent-foreground"
+                  : "bg-background text-muted-foreground"
+              }`}
+            >
+              Guest later
+            </button>
+            <button
+              type="button"
+              onClick={() => setRoomPayor("agent")}
+              className={`flex-1 border-l text-[11px] font-medium ${
+                roomPayor === "agent"
+                  ? "bg-accent text-accent-foreground"
+                  : "bg-background text-muted-foreground"
+              }`}
+            >
+              Agent
+            </button>
+          </div>
           <select
             className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
             value={bookingId}
@@ -1247,9 +1259,13 @@ function TicketDetail({
             variant="default"
             className="w-full"
             disabled={!bookingId || postPending}
-            onClick={() => onPostToRoom(ticket.id, bookingId)}
+            onClick={() => onPostToRoom(ticket.id, bookingId, roomPayor)}
           >
-            {postPending ? "Posting…" : "Charge to room"}
+            {postPending
+              ? "Posting…"
+              : roomPayor === "agent"
+                ? "Charge to agent"
+                : "Guest pays later"}
           </Button>
         </div>
       ) : null}
@@ -1262,7 +1278,7 @@ function TicketDetail({
             folioId={ticket.folio_id}
             className="text-accent underline-offset-4 hover:underline"
           >
-            Open stay →
+            Guest folio
           </OpenStayFolioLink>
         </p>
       ) : null}

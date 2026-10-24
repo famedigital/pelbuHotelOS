@@ -42,6 +42,8 @@ type Props = {
   onPhoneChange: (v: string) => void;
   settleMode: "cash" | "room_charge";
   onSettleModeChange: (v: "cash" | "room_charge") => void;
+  roomPayor: "guest_later" | "agent";
+  onRoomPayorChange: (v: "guest_later" | "agent") => void;
   bookingId: string;
   roomUnitId: string;
   onRoomUnitIdChange: (v: string) => void;
@@ -79,6 +81,8 @@ export function TicketHeader({
   onPhoneChange,
   settleMode,
   onSettleModeChange,
+  roomPayor,
+  onRoomPayorChange,
   bookingId,
   roomUnitId,
   onRoomUnitIdChange,
@@ -157,7 +161,7 @@ export function TicketHeader({
         return [
           selectedRoom.room.label,
           customerName || selectedRoom.booking.contact_name || "Guest",
-          "Room charge",
+          roomPayor === "agent" ? "Agent tab" : "Guest pays later",
         ]
           .filter(Boolean)
           .join(" · ");
@@ -213,6 +217,36 @@ export function TicketHeader({
         <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
           {primaryLine}
         </p>
+        {needsRoom ? (
+          <div
+            className="flex h-7 shrink-0 overflow-hidden rounded-md border"
+            role="group"
+            aria-label="Who pays this food"
+          >
+            <button
+              type="button"
+              onClick={() => onRoomPayorChange("guest_later")}
+              className={`px-2 text-[11px] font-medium ${
+                roomPayor === "guest_later"
+                  ? "bg-accent text-accent-foreground"
+                  : "bg-background text-muted-foreground hover:bg-muted/50"
+              }`}
+            >
+              Guest later
+            </button>
+            <button
+              type="button"
+              onClick={() => onRoomPayorChange("agent")}
+              className={`border-l px-2 text-[11px] font-medium ${
+                roomPayor === "agent"
+                  ? "bg-accent text-accent-foreground"
+                  : "bg-background text-muted-foreground hover:bg-muted/50"
+              }`}
+            >
+              Agent
+            </button>
+          </div>
+        ) : null}
 
         {saleKind === "table" && selectedTable && onReleaseTable ? (
           <Button

@@ -197,6 +197,9 @@ export function PosLayout({
   const [section, setSection] = useState<PosSection>("menu");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [settleMode, setSettleMode] = useState<"cash" | "room_charge">("cash");
+  const [roomPayor, setRoomPayor] = useState<"guest_later" | "agent">(
+    "guest_later",
+  );
   const [tableId, setTableId] = useState<string>("");
   const [covers, setCovers] = useState<string>("");
   const [courseCount, setCourseCount] = useState<string>("1");
@@ -340,6 +343,7 @@ export function PosLayout({
     }
     if (kind === "room") {
       setSettleMode("room_charge");
+      setRoomPayor("guest_later");
       setTableId("");
       setCovers("");
       if (!customerName.trim()) setCustomerName("In-house guest");
@@ -378,6 +382,7 @@ export function PosLayout({
     }
     if (kind === "room") {
       setSettleMode("room_charge");
+      setRoomPayor("guest_later");
       if (!customerName.trim() || customerName.startsWith("Table ")) {
         setCustomerName("In-house guest");
       }
@@ -1289,6 +1294,8 @@ export function PosLayout({
                 onPhoneChange={setPhone}
                 settleMode={settleMode}
                 onSettleModeChange={setSettleMode}
+                roomPayor={roomPayor}
+                onRoomPayorChange={setRoomPayor}
                 bookingId={bookingId}
                 roomUnitId={roomUnitId}
                 onRoomUnitIdChange={selectRoom}
@@ -1427,6 +1434,7 @@ export function PosLayout({
                     value={JSON.stringify(cartPayload)}
                   />
                   <input type="hidden" name="settle_mode" value={settleMode} />
+                  <input type="hidden" name="room_payor" value={roomPayor} />
                   <input type="hidden" name="booking_id" value={bookingId} />
                   <input type="hidden" name="room_unit_id" value={roomUnitId} />
                   <input

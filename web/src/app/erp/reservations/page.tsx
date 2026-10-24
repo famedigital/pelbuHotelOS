@@ -1,13 +1,12 @@
 import type { BookingRow } from "@/components/erp/BookingsTable";
 import { NewReservationLauncher } from "@/components/erp/NewReservationLauncher";
 import { ReservationsListCacheBridge } from "@/components/erp/ReservationsListCacheBridge";
-import { StaysHub } from "@/components/erp/stays/StaysHub";
+import { OccupancyRange } from "@/components/erp/OccupancyRange";
 import {
   ReservationsDeskTable,
   type ReservationDeskRow,
   type ReservationDoor,
 } from "@/components/erp/ReservationsDeskTable";
-import { Button } from "@/components/ui/button";
 import { BOOKABLE_AGENT_STATUSES } from "@/lib/agents/status";
 import { isDeskAuthenticated, getDeskRole } from "@/lib/desk-auth";
 import { isManagerDeskRole } from "@/lib/manager-pin-core";
@@ -28,7 +27,8 @@ import {
   statusesForBucket,
 } from "@/lib/erp/reservation-status-buckets";
 import { requireDeskPropertyId } from "@/lib/desk-property";
-import { availabilityByRoomType } from "@/lib/inventory-availability";
+import { loadOccupancyNights } from "@/lib/erp/load-occupancy";
+import { addIsoDays } from "@/lib/erp/occupancy-nights";
 import { matchesQuery, thimphuToday } from "@/lib/erp-lists";
 import {
   applyReservationView,
@@ -64,6 +64,8 @@ export default async function ReservationsPage({
     bucket?: string;
     worklist?: string;
     view?: string;
+    occ_from?: string;
+    occ_to?: string;
   }>;
 }) {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
@@ -103,9 +105,10 @@ export default async function ReservationsPage({
         .from("bookings")
         .select(
           `id, confirmation_code, contact_name, contact_phone, check_in, check_out, status, source,
-           guest_origin, agent_id, adults, rooms, hold_expires_at, created_at, folios(id),
+           guest_origin, agent_id, adults, rooms, meal_plan_code, quoted_total_btn, guide_number,
+           hold_expires_at, created_at, folios(id),
            token_required_btn, token_received_btn, deposit_due_on,
-           agents(company_name),
+           agents(company_name), guides(full_name, phone),
            booking_rooms(room_type_id, inventory_kind),
            room_assignments(id, room_unit_id, room_units(label, sort_order, room_type_id))`,
         )
@@ -404,6 +407,18 @@ export default async function ReservationsPage({
           null,
         assignmentCount: doorsOnStay.length,
         folioId: (folio?.id as string | undefined) ?? null,
+        guide: (() => {
+          const guide = row.guides as
+            | { full_name?: string; phone?: string }
+            | { full_name?: string; phone?: string }[]
+            | null;
+          const person = Array.isArray(guide) ? guide[0] : guide;
+          return person?.phone || person?.full_name || (row.guide_number as string | null) || null;
+        })(),
+        meal: (row.meal_plan_code as string | null) ?? null,
+        quotedTotal:
+          row.quoted_total_btn == null ? null : Number(row.quoted_total_btn),
+        hasInvoice: false,
       };
     })
     .sort(
@@ -510,59 +525,74 @@ export default async function ReservationsPage({
   const exportHref = `/erp/reservations/export?${exportParams.toString()}`;
   const printHref = `/erp/reservations/print?${exportParams.toString()}`;
 
-  const tomorrowDate = new Date(`${today}T00:00:00Z`);
-  tomorrowDate.setUTCDate(tomorrowDate.getUTCDate() + 1);
-  const tomorrow = tomorrowDate.toISOString().slice(0, 10);
-  const roomCounts = await availabilityByRoomType(
+  const occFrom =
+    sp.occ_from && /^\d{4}-\d{2}-\d{2}$/.test(sp.occ_from) ? sp.occ_from : today;
+  const occTo =
+    sp.occ_to && /^\d{4}-\d{2}-\d{2}$/.test(sp.occ_to)
+      ? sp.occ_to
+      : addIsoDays(today, 6);
+  const nights = await loadOccupancyNights(
     admin,
     propertyId,
-    today,
-    tomorrow,
+    occFrom,
+    occTo < occFrom ? occFrom : occTo,
   );
+  const folioIds = deskRows.map((row) => row.folioId).filter(Boolean) as string[];
+  if (folioIds.length) {
+    const { data: docs } = await admin
+      .from("fiscal_documents")
+      .select("folio_id, status")
+      .in("folio_id", folioIds)
+      .in("status", ["issued", "sent"]);
+    const issued = new Set((docs ?? []).map((doc) => doc.folio_id as string));
+    for (const row of deskRows) {
+      if (row.folioId && issued.has(row.folioId)) row.hasInvoice = true;
+    }
+  }
+
+  const views = [
+    ["in_house", "In house", "/erp/reservations"],
+    ["departures", "Departures", "/erp/reservations?view=departures"],
+    ["arrivals", "Arrivals", "/erp/reservations?view=arrivals"],
+    ["upcoming", "Upcoming", "/erp/reservations?view=upcoming"],
+    ["all", "All", "/erp/reservations?view=all"],
+  ] as const;
 
   return (
-    <StaysHub
-      headerAside={
-        <div className="flex flex-wrap items-center gap-2">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex flex-wrap items-center gap-2 border-b px-3 py-1.5">
+        <h1 className="text-sm font-semibold">Reservations</h1>
+        {views.map(([id, label, href]) => (
           <a
-            href={exportHref}
-            className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
-          >
-            Export
-          </a>
-          <a
-            href={printHref}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
-          >
-            Print
-          </a>
-          <Suspense
-            fallback={
-              <Button variant="default" className="h-11" disabled>
-                New reservation
-              </Button>
+            key={id}
+            href={href}
+            className={
+              view === id
+                ? "inline-flex h-8 items-center rounded-md bg-primary px-2.5 text-sm text-primary-foreground"
+                : "inline-flex h-8 items-center rounded-md px-2.5 text-sm text-muted-foreground hover:bg-muted"
             }
           >
-            <NewReservationLauncher form={fastBookForm} />
-          </Suspense>
-        </div>
-      }
-    >
-      {roomCounts.length > 0 ? (
-        <p className="mb-3 flex flex-wrap gap-2 text-sm">
-          {roomCounts.map((row) => (
-            <span
-              key={row.roomTypeId}
-              className="rounded-md border bg-card px-2 py-1 tabular-nums"
-            >
-              {row.code} {row.remaining} free
-              <span className="text-muted-foreground"> / {row.capacity}</span>
-            </span>
-          ))}
-        </p>
-      ) : null}
+            {label}
+          </a>
+        ))}
+        <a href={exportHref} className="inline-flex h-8 items-center rounded-md border px-2.5 text-sm">
+          Export
+        </a>
+        <a href={printHref} target="_blank" rel="noreferrer" className="inline-flex h-8 items-center rounded-md border px-2.5 text-sm">
+          Print
+        </a>
+        <Suspense fallback={null}>
+          <NewReservationLauncher form={fastBookForm} />
+        </Suspense>
+      </div>
+      <div className="border-b px-3 py-1">
+        <OccupancyRange
+          from={occFrom}
+          to={occTo < occFrom ? occFrom : occTo}
+          nights={nights}
+          hidden={view === "in_house" ? undefined : { view }}
+        />
+      </div>
       <ReservationsListCacheBridge
         propertyId={propertyId}
         bucket={view}
@@ -573,41 +603,7 @@ export default async function ReservationsPage({
         doors={doors}
         view={view}
         allowRoomEdit={view === "in_house" || view === "arrivals"}
-        toolbar={
-          view === "all" ? (
-            <form action="/erp/reservations" className="flex flex-wrap items-center gap-2">
-              <input type="hidden" name="view" value="all" />
-              <input
-                type="date"
-                name="check_in_from"
-                defaultValue={checkInFrom}
-                aria-label="Arrival from"
-                className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-              />
-              <input
-                type="date"
-                name="check_in_to"
-                defaultValue={checkInTo}
-                aria-label="Arrival to"
-                className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-              />
-              <input
-                name="source"
-                defaultValue={source ?? ""}
-                placeholder="Source"
-                aria-label="Source"
-                className="h-8 w-28 rounded-md border border-input bg-background px-2 text-sm"
-              />
-              <button
-                type="submit"
-                className="h-8 rounded-md border px-3 text-sm hover:bg-muted"
-              >
-                Apply
-              </button>
-            </form>
-          ) : null
-        }
       />
-    </StaysHub>
+    </div>
   );
 }

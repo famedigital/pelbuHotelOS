@@ -503,7 +503,16 @@ export async function createDeskOrder(
       throw new Error("Select a booking for room charge.");
     }
 
-    const notes = optionalTrim(formData.get("notes"));
+    const roomPayorRaw = optionalTrim(formData.get("room_payor"));
+    const guestLater =
+      settleMode === "room_charge" && roomPayorRaw !== "agent";
+    const typedNotes = optionalTrim(formData.get("notes"));
+    const laterNote = "Guest pays later. Not the agent.";
+    const notes = guestLater
+      ? typedNotes?.includes(laterNote)
+        ? typedNotes
+        : [typedNotes, laterNote].filter(Boolean).join(" · ")
+      : typedNotes;
     const cart = parseCart(formData.get("cart"));
     const tableId = optionalTrim(formData.get("table_id"));
     const coversRaw = optionalTrim(formData.get("covers"));
@@ -902,10 +911,9 @@ export async function createDeskOrder(
         })
         .join(", ");
       try {
-        const partner = await resolveBookingPartnerDiscountPct(
-          admin,
-          bookingId,
-        );
+        const partner = guestLater
+          ? { pct: 0, source: null as string | null }
+          : await resolveBookingPartnerDiscountPct(admin, bookingId);
         if (partner.pct > 0 && promoCodeId) {
           // already blocked if not stackable via redeem
         }
@@ -913,10 +921,11 @@ export async function createDeskOrder(
         const discService = applyDiscountPct(serviceChargeBtn, partner.pct);
         const discGst = applyDiscountPct(gstBtn, partner.pct);
         const discTotal = roundBtn(discSubtotal + discService + discGst);
-        const descSuffix =
-          partner.pct > 0
-            ? ` (−${partner.pct}% ${partner.source ?? "partner"})`
-            : "";
+        const descSuffix = guestLater
+          ? " · guest pays later, not the agent"
+          : partner.pct > 0
+            ? ` (−${partner.pct}% ${partner.source ?? "partner"}) · agent tab`
+            : " · agent tab";
         const promoSuffix =
           promoDiscountBtn > 0 ? ` · promo −${promoDiscountBtn}` : "";
         await postFolioCharge(admin, property_id, {
@@ -924,6 +933,7 @@ export async function createDeskOrder(
           booking_id: bookingId,
           source_type: "order",
           source_id: order.id,
+          bill_to: guestLater ? "guest" : "agent",
           description: `Desk ${outlet}: ${description}${descSuffix}${promoSuffix}`,
           qty: 1,
           unit_price_btn: discSubtotal,
@@ -1587,6 +1597,7 @@ export async function postOrderToBookingFolio(formData: FormData): Promise<void>
 
   const orderId = trimRequired(formData.get("order_id"), "Order");
   const bookingId = trimRequired(formData.get("booking_id"), "Booking");
+  const guestLater = optionalTrim(formData.get("room_payor")) !== "agent";
 
   const admin = createSupabaseAdminClient();
   const property = await loadPropertyPricing(admin);
@@ -1647,7 +1658,9 @@ export async function postOrderToBookingFolio(formData: FormData): Promise<void>
       .map((item) => `${item.qty}× ${item.name_snapshot as string}`)
       .join(", ") || `Order ${(order.customer_name as string) ?? "guest"}`;
 
-  const partner = await resolveBookingPartnerDiscountPct(admin, bookingId);
+  const partner = guestLater
+    ? { pct: 0, source: null as string | null }
+    : await resolveBookingPartnerDiscountPct(admin, bookingId);
   const subtotalBtn = Number(order.subtotal_btn);
   const serviceChargeBtn = Number(order.service_charge_btn ?? 0);
   const gstBtn = Number(order.gst_btn);
@@ -1656,10 +1669,11 @@ export async function postOrderToBookingFolio(formData: FormData): Promise<void>
   const discService = applyDiscountPct(serviceChargeBtn, partner.pct);
   const discGst = applyDiscountPct(gstBtn, partner.pct);
   const discTotal = roundBtn(discSubtotal + discService + discGst);
-  const descSuffix =
-    partner.pct > 0
-      ? ` (−${partner.pct}% ${partner.source ?? "partner"})`
-      : "";
+  const descSuffix = guestLater
+    ? " · guest pays later, not the agent"
+    : partner.pct > 0
+      ? ` (−${partner.pct}% ${partner.source ?? "partner"}) · agent tab`
+      : " · agent tab";
   const outlet = (order.outlet as string | null) ?? "F&B";
 
   await postFolioCharge(admin, property_id, {
@@ -1667,6 +1681,7 @@ export async function postOrderToBookingFolio(formData: FormData): Promise<void>
     booking_id: bookingId,
     source_type: "order",
     source_id: orderId,
+    bill_to: guestLater ? "guest" : "agent",
     description: `Desk ${outlet}: ${description}${descSuffix}`,
     qty: 1,
     unit_price_btn: discSubtotal,

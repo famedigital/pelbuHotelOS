@@ -444,6 +444,9 @@ export default async function ErpSettingsPage({
               ? null
               : Number(policyResult.data.staff_sales_commission_pct)
           }
+          gstCharged={
+            property.gst_enabled !== false && Number(property.gst_rate ?? 0) > 0
+          }
           ratesInclusiveOfGstSc={Boolean(
             (
               policyResult.data as

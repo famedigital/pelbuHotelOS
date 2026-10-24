@@ -38,7 +38,7 @@ export default async function ErpDashboardPage({ searchParams }: Props) {
     !params.view &&
     (sessionRole === "front_desk" || sessionRole == null)
   ) {
-    redirect("/erp/stayview");
+    redirect("/erp/day");
   }
   const requested = parseDashboardView(params.view);
   const homeView = sessionRole

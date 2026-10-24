@@ -5,6 +5,7 @@ import {
   saveLaundryCatalogItem,
   type ErpLaundryState,
 } from "@/app/actions/erp-laundry";
+import { GuestLaundrySlip } from "@/components/laundry/GuestLaundrySlip";
 import { LaundryBoardPanel } from "@/components/laundry/LaundryBoardPanel";
 import { LaundryLiveRefresh } from "@/components/laundry/LaundryLiveRefresh";
 import { LaundryPhotoUpload } from "@/components/laundry/LaundryPhotoUpload";
@@ -64,6 +65,7 @@ export function LaundryDesk({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <TabsList>
           <TabsTrigger value="board">Live board</TabsTrigger>
+          <TabsTrigger value="slip">Guest bill</TabsTrigger>
           <TabsTrigger value="intake">New intake</TabsTrigger>
           <TabsTrigger value="pricing">Pricing</TabsTrigger>
         </TabsList>
@@ -74,6 +76,9 @@ export function LaundryDesk({
           </Button>
         </div>
       </div>
+      <TabsContent value="slip">
+        <GuestLaundrySlip bookings={bookings} catalog={catalog} />
+      </TabsContent>
       <TabsContent value="board">
         <LaundryBoardPanel
           orders={orders}

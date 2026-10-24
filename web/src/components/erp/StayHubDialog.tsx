@@ -2749,6 +2749,7 @@ export function StayHubDialog({
           agreedNightlyRateBtn: summary.agreedNightlyRateBtn,
           agreedRateReason: summary.agreedRateReason,
           rateTaxMode: summary.rateTaxMode,
+          gstCharged: (summary.roomTax?.gstRate ?? 0) > 0,
           mealPlanCode: summary.mealPlanCode,
           contactEmail: summary.contactEmail,
           contactName: summary.contactName,
@@ -3185,6 +3186,7 @@ export function StayHubDialog({
                                 }
                                 roomLabel={summary.roomLabel}
                                 rateInclusive={summary.rateTaxMode === "inclusive"}
+                                gstCharged={(summary.roomTax?.gstRate ?? 0) > 0}
                                 onSuccess={() => {
                                   void refreshSummary();
                                   onMoneyChanged();
@@ -3399,6 +3401,7 @@ export function StayHubDialog({
                                   rateInclusive={
                                     summary.rateTaxMode === "inclusive"
                                   }
+                                  gstCharged={(summary.roomTax?.gstRate ?? 0) > 0}
                                   onSuccess={() => {
                                     void refreshSummary();
                                     onMoneyChanged();
@@ -3966,6 +3969,7 @@ export function StayHubDialog({
               }
               roomLabel={summary.roomLabel}
               rateInclusive={summary.rateTaxMode === "inclusive"}
+              gstCharged={(summary.roomTax?.gstRate ?? 0) > 0}
               compact
               onSuccess={() => {
                 setRailRateOpen(false);

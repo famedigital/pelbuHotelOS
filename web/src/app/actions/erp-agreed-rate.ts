@@ -6,6 +6,7 @@ import { requireDeskPropertyId } from "@/lib/desk-property";
 import { postRoomNightsForBooking } from "@/lib/folio/room-night";
 import { voidFolioLineWithReversal } from "@/lib/folio/void-line";
 import { verifyManagerPinForProperty } from "@/lib/manager-pin";
+import { effectiveGstRate } from "@/lib/property-settings";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
@@ -208,12 +209,29 @@ export async function setAgreedNightlyRate(
       };
     }
 
+    const { data: propTax } = await admin
+      .from("properties")
+      .select("gst_enabled, gst_rate")
+      .eq("id", propertyId)
+      .maybeSingle();
+    const gstOn = effectiveGstRate(propTax) > 0;
+    const taxPhrase =
+      taxMode === "inclusive"
+        ? gstOn
+          ? " incl. S.C. & GST"
+          : " incl. S.C."
+        : taxMode === "exclusive"
+          ? gstOn
+            ? " plus S.C. & GST"
+            : " plus S.C."
+          : "";
+
     return {
       ok: true,
       message:
         adjusted > 0
-          ? `Agreed Nu ${agreed}/night${taxMode === "inclusive" ? " incl. S.C. & GST" : taxMode === "exclusive" ? " plus S.C. & GST" : ""}. Re-posted ${adjusted} room-night line(s).${mealNote}`
-          : `Agreed Nu ${agreed}/night set${taxMode === "inclusive" ? " incl. S.C. & GST" : taxMode === "exclusive" ? " plus S.C. & GST" : ""}. Future night posts use this rate.${mealNote}`,
+          ? `Agreed Nu ${agreed}/night${taxPhrase}. Re-posted ${adjusted} room-night line(s).${mealNote}`
+          : `Agreed Nu ${agreed}/night set${taxPhrase}. Future night posts use this rate.${mealNote}`,
     };
   } catch (e) {
     return {

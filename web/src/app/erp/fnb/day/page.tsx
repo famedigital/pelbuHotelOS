@@ -35,10 +35,10 @@ export default async function FnbDayBoardPage() {
         <div className="flex items-center gap-3">
           <FrontDeskLiveRefresh />
           <Link
-            href="/erp/pos"
+            href="/erp/day/pass/fnb/print"
             className="text-sm text-accent underline-offset-4 hover:underline"
           >
-            POS →
+            Pass-out
           </Link>
           <Link
             href="/erp/kitchen"

@@ -233,7 +233,7 @@ export function BookingsTable({
             </span>
           ) : null}
           {row.original.agent_phone ? (
-            <span className="block text-xs tabular-nums">
+            <span className="block text-xs tabular-nums text-foreground">
               {row.original.agent_phone}
             </span>
           ) : null}

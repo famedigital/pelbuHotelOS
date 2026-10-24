@@ -27,6 +27,7 @@ export function SettingsCommercialPanel({
   extraBedActive,
   staffSalesCommissionPct,
   ratesInclusiveOfGstSc,
+  gstCharged = false,
 }: {
   propertyId: string;
   defaultMealPlanCode: string;
@@ -35,6 +36,7 @@ export function SettingsCommercialPanel({
   extraBedActive: boolean;
   staffSalesCommissionPct: number | null;
   ratesInclusiveOfGstSc: boolean;
+  gstCharged?: boolean;
 }) {
   const [state, action, pending] = useActionState(updateCommercialSettings, initial);
   useActionToast(state, { successMessage: "Rates & meals saved" });
@@ -51,8 +53,10 @@ export function SettingsCommercialPanel({
           </h2>
           <p className="max-w-2xl text-sm text-muted-foreground">
             Desk meal plans, extra bed, commission, and whether quote rates
-            include GST + service charge. Room package prices live on the rates
-            sheet — not here.
+            {gstCharged
+              ? " include GST and service charge."
+              : " include service charge. GST is off."}{" "}
+            Room package prices live on the rates sheet — not here.
           </p>
           <p className="max-w-2xl text-xs text-muted-foreground">
             <span className="font-medium text-foreground">
@@ -62,7 +66,10 @@ export function SettingsCommercialPanel({
             <strong className="font-medium text-foreground">
               50% of adult ages 6–12
             </strong>
-            ; 0–6 free), and GST inclusion flag on quotes.
+            ; 0–6 free)
+            {gstCharged
+              ? ", and the GST inclusion flag on quotes."
+              : ". Quotes do not add GST."}
           </p>
         </div>
         <Link
@@ -84,7 +91,9 @@ export function SettingsCommercialPanel({
 
         <div className="mb-6 rounded-lg border p-4">
           <p className="text-sm font-medium text-foreground">
-            Room rates · GST &amp; service charge
+            {gstCharged
+              ? "Room rates · GST & service charge"
+              : "Room rates · service charge"}
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Controls how matrix rates on{" "}
@@ -92,7 +101,9 @@ export function SettingsCommercialPanel({
               Room rates
             </Link>{" "}
             are interpreted for public book quotes and folio room-night posts.
-            Tax % still come from Settings → Tax.
+            {gstCharged
+              ? " Tax % still come from Settings → Tax."
+              : " GST is off for this hotel. Only service charge applies."}
           </p>
           <div className="mt-4 flex min-h-11 items-start gap-3 rounded-lg border px-4 py-3">
             <Checkbox
@@ -107,13 +118,14 @@ export function SettingsCommercialPanel({
                 htmlFor="rates_inclusive_of_gst_sc"
                 className="text-sm font-medium text-foreground"
               >
-                Room rates are inclusive of GST &amp; SC
+                {gstCharged
+                  ? "Room rates are inclusive of GST & SC"
+                  : "Room rates are inclusive of service charge"}
               </Label>
               <p className="text-xs text-muted-foreground">
-                Off (default): sheet Nu is exclusive — desk posts base, then SC
-                (when default on), then GST. On: sheet Nu is the guest all-in
-                price; posting reverse-outs base / SC / GST. Does not change POS
-                menu pricing.
+                {gstCharged
+                  ? "Off: sheet Nu is exclusive — desk posts base, then service charge, then GST. On: sheet Nu is the guest all-in price."
+                  : "Off: sheet Nu is the room amount, then 10% service charge is added. On: sheet Nu is what the guest pays, including service charge. GST is not added."}
               </p>
             </div>
           </div>

@@ -75,6 +75,7 @@ export function RoomRatesSheet({
   roomTypes,
   seasons,
   ratesInclusiveOfGstSc = false,
+  gstCharged = false,
   defaultTier = "public",
   advancedTiersDisclosure = false,
 }: {
@@ -82,6 +83,8 @@ export function RoomRatesSheet({
   roomTypes: RoomTypeLite[];
   seasons: SeasonWindow[];
   ratesInclusiveOfGstSc?: boolean;
+  /** False while the hotel is not GST-registered. Sheet then shows service charge only. */
+  gstCharged?: boolean;
   defaultTier?: string;
   advancedTiersDisclosure?: boolean;
 }) {
@@ -232,7 +235,13 @@ export function RoomRatesSheet({
               : "border-input bg-muted text-muted-foreground",
           )}
         >
-          {ratesInclusiveOfGstSc ? "Inc. GST+SC" : "Excl. GST+SC"}
+          {ratesInclusiveOfGstSc
+            ? gstCharged
+              ? "Inc. GST+SC"
+              : "Incl. S.C."
+            : gstCharged
+              ? "Excl. GST+SC"
+              : "S.C. on top"}
         </span>
         <span className="inline-flex items-center rounded-md border border-input bg-muted/50 px-2.5 py-1 text-[11px] text-muted-foreground">
           Double = 2 adults · Single = 1 adult room only

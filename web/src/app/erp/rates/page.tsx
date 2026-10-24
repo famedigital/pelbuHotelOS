@@ -28,7 +28,7 @@ export default async function RoomRatesPage() {
   const admin = createSupabaseAdminClient();
   const propertyId = await requireDeskPropertyId();
 
-  const [{ rows, roomTypes, seasons }, mealPlans, defaultMealPlanCode, policyResult, agentsResult, namedOffers] =
+  const [{ rows, roomTypes, seasons }, mealPlans, defaultMealPlanCode, policyResult, propertyTax, agentsResult, namedOffers] =
     await Promise.all([
       loadRoomRatesMatrix(admin, propertyId),
       loadActiveMealPlans(admin, propertyId),
@@ -37,6 +37,11 @@ export default async function RoomRatesPage() {
         .from("property_policies")
         .select("rates_inclusive_of_gst_sc")
         .eq("property_id", propertyId)
+        .maybeSingle(),
+      admin
+        .from("properties")
+        .select("gst_enabled, gst_rate")
+        .eq("id", propertyId)
         .maybeSingle(),
       admin
         .from("agents")
@@ -49,6 +54,9 @@ export default async function RoomRatesPage() {
   const ratesInclusiveOfGstSc = Boolean(
     policyResult.data?.rates_inclusive_of_gst_sc,
   );
+  const gstCharged =
+    propertyTax.data?.gst_enabled !== false &&
+    Number(propertyTax.data?.gst_rate ?? 0) > 0;
 
   const seasonRows = seasons
     .filter((s) => Boolean(s.id))
@@ -158,6 +166,7 @@ export default async function RoomRatesPage() {
         mealPlans={mealPlans}
         defaultMealPlanCode={defaultMealPlanCode}
         ratesInclusiveOfGstSc={ratesInclusiveOfGstSc}
+        gstCharged={gstCharged}
       />
 
       <section className="rounded-lg border border-dashed bg-muted/30 px-4 py-4 text-sm text-muted-foreground">
@@ -172,13 +181,25 @@ export default async function RoomRatesPage() {
             <strong className="font-medium text-foreground">Tax basis</strong>{" "}
             —{" "}
             {ratesInclusiveOfGstSc ? (
+              gstCharged ? (
+                <>
+                  sheet = guest all-in (GST and service charge); folio splits
+                  base, service charge, and GST
+                </>
+              ) : (
+                <>
+                  sheet = guest all-in (service charge included, GST not
+                  charged); folio splits base and 10% service charge
+                </>
+              )
+            ) : gstCharged ? (
               <>
-                sheet = guest all-in (Inc. GST+SC); folio reverse-outs base / SC
-                / GST
+                sheet = room amount; folio adds service charge, then GST
               </>
             ) : (
               <>
-                sheet = exclusive net (Excl. GST+SC); folio adds SC then GST
+                sheet = room amount; folio adds service charge. GST is not
+                charged
               </>
             )}
           </li>

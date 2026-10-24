@@ -228,6 +228,13 @@ export const ERP_MODULES: ErpModule[] = [
     href: "/erp/stayview",
     tabs: [
       leaf(
+        "Day",
+        "/erp/day",
+        ClipboardListIcon,
+        ["day", "in house", "arrivals", "departures", "front office"],
+        "daily",
+      ),
+      leaf(
         "Board",
         "/erp/stayview",
         ClipboardListIcon,
@@ -329,6 +336,8 @@ export const ERP_MODULES: ErpModule[] = [
     href: "/erp/finance",
     tabs: [
       leaf("Finance", "/erp/finance", WalletIcon, undefined, "more"),
+      leaf("Guest statement", "/erp/finance/guest-statement", ScrollTextIcon, ["guest ledger"], "daily"),
+      leaf("Agent statement", "/erp/finance/agent-statement", ScrollTextIcon, ["agent ledger"], "daily"),
       leaf(
         "Night close",
         "/erp/night-audit",

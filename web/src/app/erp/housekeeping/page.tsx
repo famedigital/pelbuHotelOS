@@ -188,7 +188,8 @@ export default async function HousekeepingPage() {
   return (
     <RoomsHub>
       <p className="mb-2 text-xs text-muted-foreground">
-        Assignments · {fmtDate(today)}
+        Same rooms as the day desk · {fmtDate(today)} ·{" "}
+        <a href="/erp/day/pass/hk/print">Print housekeeping pass-out</a>
       </p>
       <HousekeepingBoard
         rows={enrichedRows}

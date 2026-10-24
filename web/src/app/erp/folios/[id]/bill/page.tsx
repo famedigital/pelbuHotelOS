@@ -3,6 +3,7 @@ import {
   FiscalLetterhead,
   FiscalLinesTable,
   FiscalPayBlock,
+  FiscalTotalsBlock,
   type FiscalLineRow,
 } from "@/components/erp/print/FiscalLetterhead";
 import { FolioPreviewFit } from "@/components/erp/print/FolioPreviewFit";
@@ -23,7 +24,7 @@ import { stayFolioHref } from "@/lib/folio/stay-hub-cycle";
 import { folioNoFromConfirmation } from "@/lib/hotel-doc-no";
 import { buildDynamicEmv } from "@/lib/bank-qr/emv";
 import { amountInWordsNu } from "@/lib/print/amount-in-words";
-import { formatGuestBtn } from "@/lib/pricing";
+import { formatGuestBtn, roundBtn } from "@/lib/pricing";
 import QRCode from "qrcode";
 import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -52,6 +53,14 @@ function splitGuideLabel(raw: string | null): { name: string; phone: string } {
   return { name: match[1].trim(), phone: match[2] };
 }
 
+function foodLineTitle(description: string | null | undefined): string {
+  return (description ?? "F&B")
+    .replace(/\s*·\s*guest pays later, not the agent\s*/gi, "")
+    .replace(/\s*·\s*agent tab\s*/gi, "")
+    .replace(/^Desk\s+[^:]+:\s*/i, "")
+    .trim() || "F&B";
+}
+
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return "—";
   const day = iso.slice(0, 10);
@@ -76,7 +85,7 @@ export default async function FolioBillPage({ params, searchParams }: Props) {
     .from("folios")
     .select(
       `id, property_id, label, booking_id,
-       folio_lines(id, description, total_btn, gst_btn, status, source_type, reverses_line_id)`,
+       folio_lines(id, description, qty, unit_price_btn, total_btn, gst_btn, service_charge_btn, status, source_type, source_id, reverses_line_id)`,
     )
     .eq("id", id)
     .maybeSingle();
@@ -196,10 +205,14 @@ export default async function FolioBillPage({ params, searchParams }: Props) {
     ((folio.folio_lines as Array<{
       id: string;
       description?: string | null;
+      qty?: number | null;
+      unit_price_btn?: number | null;
       total_btn: number;
       gst_btn?: number | null;
+      service_charge_btn?: number | null;
       status: string;
       source_type?: string | null;
+      source_id?: string | null;
       reverses_line_id?: string | null;
     }> | null) ?? []).map((line) => ({
       ...line,
@@ -247,15 +260,105 @@ export default async function FolioBillPage({ params, searchParams }: Props) {
           lines: roomLines,
         })
       : [];
-  const fnbRows: FiscalLineRow[] =
+  const fnbService =
     bill === "fnb"
-      ? charges.map((line) => ({
-          id: line.id,
-          description: line.description?.trim() || "F&B",
-          amount: Number(line.total_btn),
-          gst: line.gst_btn == null ? null : Number(line.gst_btn),
-        }))
-      : [];
+      ? roundBtn(
+          charges.reduce(
+            (sum, line) => sum + Number(line.service_charge_btn ?? 0),
+            0,
+          ),
+        )
+      : 0;
+  const fnbGst =
+    bill === "fnb"
+      ? roundBtn(
+          charges.reduce((sum, line) => sum + Number(line.gst_btn ?? 0), 0),
+        )
+      : 0;
+  const orderIds = [
+    ...new Set(
+      charges
+        .filter((line) => {
+          const source = (line.source_type ?? "").toLowerCase();
+          return (source === "order" || source === "pos") && line.source_id;
+        })
+        .map((line) => line.source_id as string),
+    ),
+  ];
+  const itemsByOrder = new Map<
+    string,
+    { name: string; qty: number; rate: number }[]
+  >();
+  if (bill === "fnb" && orderIds.length > 0) {
+    const { data: orders } = await admin
+      .from("orders")
+      .select("id, order_items(name_snapshot, qty, unit_price_btn, voided_at)")
+      .in("id", orderIds);
+    for (const order of orders ?? []) {
+      const items = (
+        (order.order_items as
+          | {
+              name_snapshot?: string | null;
+              qty?: number | null;
+              unit_price_btn?: number | null;
+              voided_at?: string | null;
+            }[]
+          | null) ?? []
+      ).filter((item) => !item.voided_at);
+      itemsByOrder.set(
+        order.id as string,
+        items.map((item) => ({
+          name: item.name_snapshot?.trim() || "Item",
+          qty: Math.max(1, Number(item.qty) || 1),
+          rate: Number(item.unit_price_btn) || 0,
+        })),
+      );
+    }
+  }
+  const fnbRows: FiscalLineRow[] = [];
+  if (bill === "fnb") {
+    const seenOrders = new Set<string>();
+    for (const line of charges) {
+      const source = (line.source_type ?? "").toLowerCase();
+      const orderId =
+        (source === "order" || source === "pos") && line.source_id
+          ? line.source_id
+          : null;
+      if (orderId && seenOrders.has(orderId)) continue;
+      if (orderId) seenOrders.add(orderId);
+      const items = orderId ? (itemsByOrder.get(orderId) ?? []) : [];
+      if (items.length > 0) {
+        for (const item of items) {
+          fnbRows.push({
+            id: `${orderId}-${fnbRows.length}`,
+            description: item.name,
+            qty: item.qty,
+            rate: item.rate,
+            amount: roundBtn(item.qty * item.rate),
+          });
+        }
+        continue;
+      }
+      const qty = Math.max(1, Number(line.qty) || 1);
+      const total = Number(line.total_btn);
+      const rate =
+        line.unit_price_btn != null
+          ? Number(line.unit_price_btn)
+          : roundBtn(total / qty);
+      fnbRows.push({
+        id: line.id,
+        description: foodLineTitle(line.description),
+        qty,
+        rate,
+        amount: total,
+        gst: line.gst_btn == null ? null : Number(line.gst_btn),
+        sc:
+          line.service_charge_btn == null
+            ? null
+            : Number(line.service_charge_btn),
+      });
+    }
+  }
 
   const property = await loadProperty(admin, propertyId);
   const hotelName = property?.name?.trim() || "Hotel";
@@ -351,14 +454,25 @@ export default async function FolioBillPage({ params, searchParams }: Props) {
           </table>
         ) : null}
         {bill === "fnb" && fnbRows.length > 0 ? (
-          <FiscalLinesTable rows={fnbRows} layout="items" />
+          <>
+            <FiscalLinesTable rows={fnbRows} layout="items" />
+            <FiscalTotalsBlock
+              subtotal={chargeTotal}
+              serviceCharge={fnbService}
+              gst={fnbGst}
+              total={chargeTotal}
+              summary="food"
+            />
+          </>
         ) : null}
         {bill === "fnb" && fnbRows.length === 0 ? (
           <p className="mt-6 text-sm">No F&B lines on this bill yet.</p>
         ) : null}
-        <p className="mt-3 text-right text-[11px] text-[#3a322c]">
-          {amountInWordsNu(paperTotal)} Service charge is included in the rate.
-        </p>
+        {bill === "fnb" ? null : (
+          <p className="mt-3 text-right text-[11px] text-[#3a322c]">
+            {amountInWordsNu(paperTotal)} Service charge is included in the rate.
+          </p>
+        )}
         <FiscalPayBlock banks={banks} qrDataUrl={bankQr} prominent />
         <section className="mt-8 border-t-2 border-[#1a1410] pt-4">
           <p className="text-[13px] font-semibold">Guide to sign before payment</p>

@@ -48,7 +48,7 @@ export function AgentNameLink({
     <Link
       href={agentDossierHref(agentId, { tab, from, to })}
       className={cn(
-        "min-w-0 truncate font-medium text-accent underline-offset-2 hover:underline",
+        "min-w-0 truncate font-medium text-foreground underline-offset-2 hover:underline",
         className,
       )}
       title={title ?? `Open agent · ${label}`}

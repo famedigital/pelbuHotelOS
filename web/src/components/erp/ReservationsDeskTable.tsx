@@ -9,7 +9,6 @@ import { recommendStayHubStep } from "@/lib/folio/stay-hub-cycle";
 import type { ReservationView } from "@/lib/erp/reservation-views";
 import { cn } from "@/lib/utils";
 import type { ColumnDef, FilterFn } from "@tanstack/react-table";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -31,6 +30,10 @@ export type ReservationDeskRow = {
   roomTypeId: string | null;
   assignmentCount: number;
   folioId: string | null;
+  guide: string | null;
+  meal: string | null;
+  quotedTotal: number | null;
+  hasInvoice: boolean;
 };
 
 export type ReservationDoor = {
@@ -38,19 +41,6 @@ export type ReservationDoor = {
   label: string;
   roomTypeId: string;
 };
-
-const VIEWS: { id: ReservationView; label: string }[] = [
-  { id: "in_house", label: "In house" },
-  { id: "departures", label: "Departures" },
-  { id: "arrivals", label: "Arrivals" },
-  { id: "upcoming", label: "Upcoming" },
-  { id: "all", label: "All" },
-];
-
-function viewHref(view: ReservationView): string {
-  if (view === "in_house") return "/erp/reservations";
-  return `/erp/reservations?view=${view}`;
-}
 
 function boardFor(view: ReservationView) {
   if (view === "in_house") return "in_house" as const;
@@ -85,7 +75,7 @@ const rowFilter: FilterFn<ReservationDeskRow> = (row, _columnId, filterValue) =>
   const q = String(filterValue ?? "").trim().toLowerCase();
   if (!q) return true;
   const r = row.original;
-  return [r.guest, r.phone, r.confirmationCode, r.agentName, r.roomLabels, r.status]
+  return [r.guest, r.phone, r.confirmationCode, r.agentName, r.roomLabels, r.status, r.guide, r.meal]
     .filter(Boolean)
     .join(" ")
     .toLowerCase()
@@ -225,6 +215,33 @@ export function ReservationsDeskTable({
       cell: ({ row }) => <StatusPill value={row.original.status} />,
     },
     {
+      id: "guide",
+      accessorFn: (row) => row.guide ?? "",
+      header: "Guide",
+      cell: ({ row }) => row.original.guide || "—",
+    },
+    {
+      id: "meal",
+      accessorFn: (row) => row.meal ?? "",
+      header: "Meal",
+      cell: ({ row }) => row.original.meal || "—",
+    },
+    {
+      id: "rate",
+      accessorFn: (row) => row.quotedTotal ?? 0,
+      header: "Amount",
+      cell: ({ row }) =>
+        row.original.quotedTotal != null && row.original.quotedTotal > 0
+          ? row.original.quotedTotal.toLocaleString("en-IN")
+          : "—",
+    },
+    {
+      id: "invoice",
+      accessorFn: (row) => (row.hasInvoice ? "yes" : ""),
+      header: "Invoice",
+      cell: ({ row }) => (row.original.hasInvoice ? "Issued" : "—"),
+    },
+    {
       id: "rooms",
       accessorFn: (row) => row.roomLabels ?? "",
       header: "Rooms",
@@ -240,24 +257,7 @@ export function ReservationsDeskTable({
   ];
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap gap-0.5">
-        {VIEWS.map((item) => (
-          <Link
-            key={item.id}
-            href={viewHref(item.id)}
-            data-state={view === item.id ? "active" : "inactive"}
-            className={cn(
-              "inline-flex h-8 items-center rounded-md px-2.5 text-sm font-medium",
-              view === item.id
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
-            )}
-          >
-            {item.label}
-          </Link>
-        ))}
-      </div>
+    <div className="min-h-0">
       <DataTable
         columns={columns}
         data={rows}

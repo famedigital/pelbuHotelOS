@@ -76,6 +76,7 @@ export function RatePackagesWorkspace({
   mealPlans,
   defaultMealPlanCode,
   ratesInclusiveOfGstSc = false,
+  gstCharged = false,
 }: {
   rows: RatesWorkspaceRateRow[];
   roomTypes: RatesWorkspaceRoom[];
@@ -83,6 +84,7 @@ export function RatePackagesWorkspace({
   mealPlans: MealPlanSummaryRow[];
   defaultMealPlanCode: string;
   ratesInclusiveOfGstSc?: boolean;
+  gstCharged?: boolean;
 }) {
   const guestRooms = useMemo(
     () => roomTypes.filter((r) => r.inventory_kind === "sellable_guest"),
@@ -179,8 +181,12 @@ export function RatePackagesWorkspace({
             meal packages. Open Advanced market tiers for agents, MOU, friends,
             and family. Amounts are{" "}
             {ratesInclusiveOfGstSc
-              ? "inclusive of GST and SC (when SC is on by default)"
-              : "exclusive of GST and SC"}
+              ? gstCharged
+                ? "inclusive of GST and service charge"
+                : "inclusive of service charge"
+              : gstCharged
+                ? "exclusive of GST and service charge"
+                : "before service charge"}
             .
           </p>
         </header>
@@ -189,6 +195,7 @@ export function RatePackagesWorkspace({
           roomTypes={roomTypes}
           seasons={seasons}
           ratesInclusiveOfGstSc={ratesInclusiveOfGstSc}
+          gstCharged={gstCharged}
           defaultTier="public"
           advancedTiersDisclosure
         />
