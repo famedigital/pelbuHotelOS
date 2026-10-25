@@ -43,6 +43,8 @@ export function RatesDesk({
   defaultMealPlanCode,
   ratesInclusiveOfGstSc,
   gstCharged,
+  serviceChargeRate,
+  gstRate,
   taxBasis,
   namedOffers,
   agents,
@@ -56,6 +58,8 @@ export function RatesDesk({
   defaultMealPlanCode: string;
   ratesInclusiveOfGstSc: boolean;
   gstCharged: boolean;
+  serviceChargeRate: number;
+  gstRate: number;
   taxBasis: string;
   namedOffers: NamedOfferRow[];
   agents: Array<{ id: string; company_name: string }>;
@@ -247,6 +251,8 @@ export function RatesDesk({
                   seasons={seasons}
                   ratesInclusiveOfGstSc={ratesInclusiveOfGstSc}
                   gstCharged={gstCharged}
+                  serviceChargeRate={serviceChargeRate}
+                  gstRate={gstRate}
                   tier={sheetMarket}
                   hideTierSwitcher
                 />
@@ -343,6 +349,10 @@ export function RatesDesk({
         roomTypes={guestRooms.map((room) => ({ id: room.id, name: room.name }))}
         agents={agents}
         defaultTier={sheetMarket}
+        serviceChargeRate={serviceChargeRate}
+        gstRate={gstRate}
+        gstCharged={gstCharged}
+        ratesInclusiveOfGstSc={ratesInclusiveOfGstSc}
       />
     </div>
   );

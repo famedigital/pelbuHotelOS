@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { calculateRoomNightTax, guestNightFromTypedRate, roundBtn } from "./pricing";
+import {
+  calculateRoomNightTax,
+  guestNightFromTypedRate,
+  nightBasisFromToggles,
+  roundBtn,
+  sheetAmountFromTypedRate,
+} from "./pricing";
 
 describe("calculateRoomNightTax exclusive", () => {
   it("adds SC then GST on (net + SC)", () => {
@@ -100,6 +106,23 @@ describe("calculateRoomNightTax inclusive", () => {
     const addBoth = guestNightFromTypedRate(5400, "add_sc_gst", rates);
     assert.equal(addBoth.gstBtn, 297);
     assert.equal(addBoth.totalBtn, 6237);
+  });
+
+  it("stores an inclusive 5400 as typed when service charge is already inside", () => {
+    const basis = nightBasisFromToggles({
+      includesServiceCharge: true,
+      includesGst: false,
+      gstCharged: false,
+    });
+    assert.equal(basis, "sc_in");
+    assert.equal(
+      sheetAmountFromTypedRate(5400, basis, { serviceChargeRate: 0.1, gstRate: 0 }, true),
+      5400,
+    );
+    assert.equal(
+      sheetAmountFromTypedRate(5400, "add_sc", { serviceChargeRate: 0.1, gstRate: 0 }, true),
+      5940,
+    );
   });
 
   it("components always sum to total after rounding", () => {

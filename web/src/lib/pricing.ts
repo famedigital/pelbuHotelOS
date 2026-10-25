@@ -265,6 +265,32 @@ export function guestNightFromTypedRate(
   });
 }
 
+/** Two desk switches: the typed Nu already contains service charge, GST, or both. */
+export function nightBasisFromToggles(input: {
+  includesServiceCharge: boolean;
+  includesGst: boolean;
+  gstCharged: boolean;
+}): NightRateBasis {
+  if (!input.gstCharged) {
+    return input.includesServiceCharge ? "sc_in" : "add_sc";
+  }
+  if (input.includesServiceCharge && input.includesGst) return "sc_gst_in";
+  if (input.includesServiceCharge) return "sc_in";
+  if (input.includesGst) return "strip_gst";
+  return "add_sc_gst";
+}
+
+/** Figure written on the rate sheet after the switches are applied. */
+export function sheetAmountFromTypedRate(
+  typedAmountBtn: number,
+  basis: NightRateBasis,
+  rates: { serviceChargeRate: number; gstRate: number },
+  storeInclusive: boolean,
+): number {
+  const split = guestNightFromTypedRate(typedAmountBtn, basis, rates);
+  return storeInclusive ? split.totalBtn : split.amountBtn;
+}
+
 export function calculateRoomNightTax(
   listedAmountBtn: number,
   options: RoomNightTaxOptions,
@@ -298,8 +324,8 @@ export function calculateRoomNightTax(
   let amountBtn = divisor > 0 ? roundBtn(totalBtn / divisor) : totalBtn;
   const serviceChargeBtn = roundBtn(amountBtn * scRate);
   let gstBtn = roundBtn(totalBtn - amountBtn - serviceChargeBtn);
-  // Absorb rare negative residual into net so components sum cleanly
-  if (gstBtn < 0) {
+  // Absorb a negative residual, including -0, into net so the parts sum cleanly.
+  if (!(gstBtn > 0)) {
     amountBtn = roundBtn(amountBtn + gstBtn);
     gstBtn = 0;
   }

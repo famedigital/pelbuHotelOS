@@ -16,11 +16,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useActionToast } from "@/hooks/use-action-toast";
+import { nightBasisFromToggles, sheetAmountFromTypedRate } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState } from "react";
 
 import { NAMED_RATE_LABELS, RATE_MARKETS, RATE_SEASONS, marketLabel, seasonLabel } from "./markets";
+import { RateTaxToggles } from "./RateTaxToggles";
 
 const initial: ErpRatesState = { ok: false };
 
@@ -35,12 +37,20 @@ export function NewRateWizard({
   roomTypes,
   agents,
   defaultTier = "public",
+  serviceChargeRate = 0,
+  gstRate = 0,
+  gstCharged = false,
+  ratesInclusiveOfGstSc = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   roomTypes: { id: string; name: string }[];
   agents: { id: string; company_name: string }[];
   defaultTier?: string;
+  serviceChargeRate?: number;
+  gstRate?: number;
+  gstCharged?: boolean;
+  ratesInclusiveOfGstSc?: boolean;
 }) {
   const router = useRouter();
   const wasOpen = useRef(false);
@@ -54,6 +64,10 @@ export function NewRateWizard({
   const [season, setSeason] = useState("lean");
   const [doubleNu, setDoubleNu] = useState("");
   const [singleNu, setSingleNu] = useState("");
+  const [includesServiceCharge, setIncludesServiceCharge] = useState(
+    serviceChargeRate > 0,
+  );
+  const [includesGst, setIncludesGst] = useState(false);
 
   const [marketState, marketAction, marketPending] = useActionState(
     upsertRoomRate,
@@ -92,6 +106,33 @@ export function NewRateWizard({
   const roomReady = Boolean(roomTypeId);
   const priceReady =
     doubleNu.trim() !== "" && Number.isFinite(Number(doubleNu)) && Number(doubleNu) >= 0;
+  const basis = nightBasisFromToggles({
+    includesServiceCharge,
+    includesGst,
+    gstCharged,
+  });
+  const taxRates = { serviceChargeRate, gstRate };
+  const storedDouble = priceReady
+    ? String(
+        sheetAmountFromTypedRate(
+          Number(doubleNu),
+          basis,
+          taxRates,
+          ratesInclusiveOfGstSc,
+        ),
+      )
+    : "";
+  const storedSingle =
+    singleNu.trim() === ""
+      ? ""
+      : String(
+          sheetAmountFromTypedRate(
+            Number(singleNu),
+            basis,
+            taxRates,
+            ratesInclusiveOfGstSc,
+          ),
+        );
 
   function next() {
     if (step === 1 && !whoReady) return;
@@ -143,8 +184,8 @@ export function NewRateWizard({
           <input type="hidden" name="rate_tier" value={tier} />
           <input type="hidden" name="room_type_id" value={roomTypeId} />
           <input type="hidden" name="season_kind" value={season} />
-          <input type="hidden" name="amount_btn" value={doubleNu} />
-          <input type="hidden" name="amount_single_btn" value={singleNu} />
+          <input type="hidden" name="amount_btn" value={storedDouble} />
+          <input type="hidden" name="amount_single_btn" value={storedSingle} />
           {kind === "named" ? (
             <>
               <input type="hidden" name="label" value={label} />
@@ -297,6 +338,17 @@ export function NewRateWizard({
                 <ReviewItem label="Room" value={roomName} />
                 <ReviewItem label="Season" value={seasonLabel(season)} />
               </dl>
+              <RateTaxToggles
+                includesServiceCharge={includesServiceCharge}
+                includesGst={includesGst}
+                gstCharged={gstCharged}
+                serviceChargeRate={serviceChargeRate}
+                gstRate={gstRate}
+                storeInclusive={ratesInclusiveOfGstSc}
+                sampleNu={doubleNu}
+                onIncludesServiceCharge={setIncludesServiceCharge}
+                onIncludesGst={setIncludesGst}
+              />
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="space-y-1.5 text-sm">
                   <span className="text-muted-foreground">Double Nu</span>

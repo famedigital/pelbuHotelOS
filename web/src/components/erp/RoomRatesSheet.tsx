@@ -5,7 +5,12 @@ import {
   type ErpRatesState,
 } from "@/app/actions/erp-rates";
 import { childRateFromAdult } from "@/lib/child-packages";
-import { formatBtn } from "@/lib/pricing";
+import {
+  formatBtn,
+  nightBasisFromToggles,
+  sheetAmountFromTypedRate,
+} from "@/lib/pricing";
+import { RateTaxToggles } from "@/components/erp/rates/RateTaxToggles";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useActionState, useCallback, useMemo, useState } from "react";
@@ -76,6 +81,8 @@ export function RoomRatesSheet({
   seasons,
   ratesInclusiveOfGstSc = false,
   gstCharged = false,
+  serviceChargeRate = 0,
+  gstRate = 0,
   defaultTier = "public",
   advancedTiersDisclosure = false,
   tier,
@@ -88,6 +95,8 @@ export function RoomRatesSheet({
   ratesInclusiveOfGstSc?: boolean;
   /** False while the hotel is not GST-registered. Sheet then shows service charge only. */
   gstCharged?: boolean;
+  serviceChargeRate?: number;
+  gstRate?: number;
   defaultTier?: string;
   advancedTiersDisclosure?: boolean;
   /** When set, the parent owns the market (sidebar or tabs). */
@@ -103,6 +112,15 @@ export function RoomRatesSheet({
     if (tier == null) setTierState(next);
   };
   const [showAdvancedTiers, setShowAdvancedTiers] = useState(false);
+  const [includesServiceCharge, setIncludesServiceCharge] = useState(
+    serviceChargeRate > 0,
+  );
+  const [includesGst, setIncludesGst] = useState(false);
+  const basis = nightBasisFromToggles({
+    includesServiceCharge,
+    includesGst,
+    gstCharged,
+  });
 
   const savedByKey = useMemo(() => {
     const map = new Map<CellKey, SavedAmounts>();
@@ -206,9 +224,20 @@ export function RoomRatesSheet({
       if (!Number.isFinite(dNum) || dNum < 0) continue;
       if (sNum != null && (!Number.isFinite(sNum) || sNum < 0)) continue;
 
-      const doubleChanged = dNum !== (saved.double ?? 0);
-      const singleChanged =
-        (sNum ?? null) !==
+      const taxRates = { serviceChargeRate, gstRate };
+      const storedDouble = doubleDraft.has(key)
+        ? sheetAmountFromTypedRate(dNum, basis, taxRates, ratesInclusiveOfGstSc)
+        : (saved.double ?? 0);
+      const storedSingle = singleDraft.has(key)
+        ? sNum == null
+          ? null
+          : sheetAmountFromTypedRate(sNum, basis, taxRates, ratesInclusiveOfGstSc)
+        : saved.single != null && Number.isFinite(saved.single)
+          ? saved.single
+          : null;
+
+      const doubleChanged = storedDouble !== (saved.double ?? 0);
+      const singleChanged = (storedSingle ?? null) !==
         (saved.single != null && Number.isFinite(saved.single)
           ? saved.single
           : null);
@@ -219,12 +248,21 @@ export function RoomRatesSheet({
         room_type_id: roomTypeId,
         season_kind: season,
         rate_tier: tier,
-        amount_btn: dNum,
-        amount_single_btn: sNum,
+        amount_btn: storedDouble,
+        amount_single_btn: storedSingle,
       });
     }
     return changes;
-  }, [doubleDraft, guestRooms, savedByKey, singleDraft]);
+  }, [
+    basis,
+    doubleDraft,
+    gstRate,
+    guestRooms,
+    ratesInclusiveOfGstSc,
+    savedByKey,
+    serviceChargeRate,
+    singleDraft,
+  ]);
 
   if (guestRooms.length === 0) {
     return (
@@ -237,6 +275,19 @@ export function RoomRatesSheet({
 
   return (
     <div className="space-y-4">
+      <RateTaxToggles
+        includesServiceCharge={includesServiceCharge}
+        includesGst={includesGst}
+        gstCharged={gstCharged}
+        serviceChargeRate={serviceChargeRate}
+        gstRate={gstRate}
+        storeInclusive={ratesInclusiveOfGstSc}
+        sampleNu={
+          [...doubleDraft.values()].find((value) => value.trim() !== "") ?? ""
+        }
+        onIncludesServiceCharge={setIncludesServiceCharge}
+        onIncludesGst={setIncludesGst}
+      />
       <div className="flex flex-wrap items-center gap-2">
         <span
           className={cn(

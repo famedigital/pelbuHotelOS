@@ -226,7 +226,7 @@ async function resolveShiftQuote(
   const { data: stay, error: stayError } = await admin
     .from("bookings")
     .select(
-      "agreed_nightly_rate_btn, agreed_rate_reason, sheet_rate_tier, source, booked_by_role, adults, rate_tax_mode, promo_discount_pct, agents(rate_tier)",
+      "agreed_nightly_rate_btn, agreed_rate_reason, sheet_rate_tier, source, booked_by_role, adults, rooms, rate_tax_mode, promo_discount_pct, agents(rate_tier)",
     )
     .eq("id", booking.id)
     .eq("property_id", propertyId)
@@ -369,6 +369,9 @@ async function resolveShiftQuote(
                 : null,
           }
         : null,
+    pinBooking:
+      bookingAgreed == null &&
+      (Number(stay.rooms ?? 1) <= 1 || singleLine.length === 1),
   };
 }
 
@@ -596,6 +599,18 @@ export async function shiftInHouseRoom(
     if (!Number.isFinite(topUpBalance) || Math.abs(topUpBalance) > 500_000) {
       return { ok: false, error: "Enter a top-up amount the bill can carry." };
     }
+    if (
+      unit.room_type_id !== (destUnit.room_type_id as string) &&
+      quote.bookingAgreed == null &&
+      quote.lineToPin?.agreed == null &&
+      !quote.pinBooking
+    ) {
+      return {
+        ok: false,
+        error:
+          "This booking has more than one room and no agreed rate on this room. Set the nightly first so the other rooms are not repriced.",
+      };
+    }
     const needsPin = upgradeNeedsManagerPin({
       choice,
       suggestedBalanceBtn: quote.chargeable ? quote.balanceChangeBtn : 0,
@@ -783,7 +798,7 @@ export async function shiftInHouseRoom(
         if (sourceError) throw new Error(sourceError.message);
       }
 
-      if (quote.bookingAgreed == null) {
+      if (quote.pinBooking) {
         const { error: pinError } = await admin
           .from("bookings")
           .update({

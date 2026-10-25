@@ -433,11 +433,11 @@ export function StayHubLeftRail({
   return (
     <aside
       className={cn(
-        "hidden min-h-0 w-64 shrink-0 flex-col border-r bg-[#f6f1ea] md:flex",
+        "hidden min-h-0 w-60 shrink-0 flex-col border-r bg-[#f6f1ea] md:flex",
         className,
       )}
     >
-      <div className="shrink-0 space-y-2 border-b border-border/70 px-3 py-3">
+      <div className="shrink-0 space-y-1 border-b border-border/70 px-3 py-2">
         {backLabel && onBack ? (
           <button
             type="button"

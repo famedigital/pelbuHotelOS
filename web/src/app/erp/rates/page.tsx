@@ -43,7 +43,9 @@ export default async function RoomRatesPage() {
       .maybeSingle(),
     admin
       .from("properties")
-      .select("gst_enabled, gst_rate")
+      .select(
+        "gst_enabled, gst_rate, service_charge_rate, service_charge_default_on",
+      )
       .eq("id", propertyId)
       .maybeSingle(),
     admin
@@ -60,6 +62,11 @@ export default async function RoomRatesPage() {
   const gstCharged =
     propertyTax.data?.gst_enabled !== false &&
     Number(propertyTax.data?.gst_rate ?? 0) > 0;
+  const gstRate = gstCharged ? Number(propertyTax.data?.gst_rate ?? 0) : 0;
+  const serviceChargeRate =
+    propertyTax.data?.service_charge_default_on === false
+      ? 0
+      : Number(propertyTax.data?.service_charge_rate ?? 0);
 
   const taxBasis = ratesInclusiveOfGstSc
     ? gstCharged
@@ -103,6 +110,8 @@ export default async function RoomRatesPage() {
         defaultMealPlanCode={defaultMealPlanCode}
         ratesInclusiveOfGstSc={ratesInclusiveOfGstSc}
         gstCharged={gstCharged}
+        serviceChargeRate={serviceChargeRate}
+        gstRate={gstRate}
         taxBasis={taxBasis}
         namedOffers={namedOffers.map((offer) => ({
           id: offer.id,
