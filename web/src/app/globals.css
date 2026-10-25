@@ -500,10 +500,6 @@ html .fo-command .erp {
     left: auto;
     width: var(--stay-dock-width, 48rem);
   }
-
-  html[data-stay-dock="board"] [data-desk-main] {
-    padding-right: var(--stay-dock-width, 48rem);
-  }
 }
 
 @media (max-width: 767px) {
@@ -1370,16 +1366,43 @@ html[data-desk-print] #desk-print-mount {
   }
 }
 
+.folio-print-stage[data-paper="thermal"] .folio-a4 {
+  width: 80mm;
+  min-height: 0;
+}
+
 @media print {
+  .folio-print-stage,
+  .folio-print-stage > div,
+  .folio-print-stage section,
+  .folio-print-frame {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .folio-fit-zoom {
+    display: block !important;
+    zoom: 1 !important;
+    transform: none !important;
+  }
+  .folio-fit-zoom > .folio-a4 {
+    display: block !important;
+    break-after: page;
+    page-break-after: always;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .folio-fit-zoom > .folio-a4:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
   .folio-print-stage {
     background: white !important;
     padding: 0 !important;
     height: auto !important;
     max-height: none !important;
     overflow: visible !important;
-  }
-  .folio-fit-zoom {
-    zoom: 1 !important;
   }
   .folio-a4 {
     width: auto !important;
@@ -1475,5 +1498,30 @@ html[data-desk-print] #desk-print-mount {
   .fiscal-invoice-compact .fiscal-signoff,
   .fiscal-invoice-tight .fiscal-signoff {
     margin-top: 0.5rem;
+  }
+  .desk-print-flow {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    position: static !important;
+    transform: none !important;
+    zoom: unset !important;
+  }
+  .print-hide,
+  .print\:hidden {
+    display: none !important;
+  }
+  html,
+  body,
+  [data-desk-root],
+  .folio-print-stage,
+  .folio-print-stage section {
+    background: #fff !important;
+  }
+  html[data-doc-paper="a4"] .folio-fit-zoom > .folio-a4 + .folio-a4 {
+    break-before: page !important;
+    page-break-before: always !important;
   }
 }

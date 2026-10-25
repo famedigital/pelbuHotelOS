@@ -78,6 +78,9 @@ export function RoomRatesSheet({
   gstCharged = false,
   defaultTier = "public",
   advancedTiersDisclosure = false,
+  tier,
+  onTierChange,
+  hideTierSwitcher = false,
 }: {
   rows: RateMatrixRow[];
   roomTypes: RoomTypeLite[];
@@ -87,9 +90,18 @@ export function RoomRatesSheet({
   gstCharged?: boolean;
   defaultTier?: string;
   advancedTiersDisclosure?: boolean;
+  /** When set, the parent owns the market (sidebar or tabs). */
+  tier?: string;
+  onTierChange?: (tier: string) => void;
+  hideTierSwitcher?: boolean;
 }) {
   const guestRooms = roomTypes.filter((r) => r.inventory_kind === "sellable_guest");
-  const [activeTier, setActiveTier] = useState<string>(defaultTier);
+  const [tierState, setTierState] = useState<string>(defaultTier);
+  const activeTier = tier ?? tierState;
+  const setActiveTier = (next: string) => {
+    onTierChange?.(next);
+    if (tier == null) setTierState(next);
+  };
   const [showAdvancedTiers, setShowAdvancedTiers] = useState(false);
 
   const savedByKey = useMemo(() => {
@@ -174,7 +186,6 @@ export function RoomRatesSheet({
         string,
         string,
       ];
-      if (tier !== activeTier) continue;
       if (!guestRooms.some((r) => r.id === roomTypeId)) continue;
 
       const saved = savedByKey.get(key) ?? { double: 0, single: null };
@@ -213,7 +224,7 @@ export function RoomRatesSheet({
       });
     }
     return changes;
-  }, [activeTier, doubleDraft, guestRooms, savedByKey, singleDraft]);
+  }, [doubleDraft, guestRooms, savedByKey, singleDraft]);
 
   if (guestRooms.length === 0) {
     return (
@@ -254,20 +265,21 @@ export function RoomRatesSheet({
         </Link>
       </div>
 
+      {hideTierSwitcher ? null : (
       <div className="flex flex-wrap items-center gap-2">
-        {PRIMARY_TIERS.map((tier) => (
+        {PRIMARY_TIERS.map((market) => (
           <button
-            key={tier.code}
+            key={market.code}
             type="button"
-            onClick={() => setActiveTier(tier.code)}
+            onClick={() => setActiveTier(market.code)}
             className={cn(
               "rounded-full border px-3 py-1.5 text-xs font-medium tracking-wide transition-colors",
-              activeTier === tier.code
+              activeTier === market.code
                 ? "border-accent bg-accent/10 text-foreground"
                 : "border-input text-muted-foreground hover:bg-muted",
             )}
           >
-            {tier.label}
+            {market.label}
           </button>
         ))}
         {advancedTiersDisclosure ? (
@@ -286,41 +298,42 @@ export function RoomRatesSheet({
               {showAdvancedTiers ? "Hide trade tiers" : "Advanced market tiers"}
             </button>
             {showAdvancedTiers
-              ? ADVANCED_TIERS.map((tier) => (
+              ? ADVANCED_TIERS.map((market) => (
                   <button
-                    key={tier.code}
+                    key={market.code}
                     type="button"
-                    onClick={() => setActiveTier(tier.code)}
+                    onClick={() => setActiveTier(market.code)}
                     className={cn(
                       "rounded-full border px-3 py-1.5 text-xs font-medium tracking-wide transition-colors",
-                      activeTier === tier.code
+                      activeTier === market.code
                         ? "border-accent bg-accent/10 text-foreground"
                         : "border-input text-muted-foreground hover:bg-muted",
                     )}
                   >
-                    {tier.label}
+                    {market.label}
                   </button>
                 ))
               : null}
           </>
         ) : (
-          TIERS.filter((t) => t.code !== "public").map((tier) => (
+          TIERS.filter((t) => t.code !== "public").map((market) => (
             <button
-              key={tier.code}
+              key={market.code}
               type="button"
-              onClick={() => setActiveTier(tier.code)}
+              onClick={() => setActiveTier(market.code)}
               className={cn(
                 "rounded-full border px-3 py-1.5 text-xs font-medium tracking-wide transition-colors",
-                activeTier === tier.code
+                activeTier === market.code
                   ? "border-accent bg-accent/10 text-foreground"
                   : "border-input text-muted-foreground hover:bg-muted",
               )}
             >
-              {tier.label}
+              {market.label}
             </button>
           ))
         )}
       </div>
+      )}
 
       <div className="overflow-x-auto rounded-lg border bg-card">
         <table className="min-w-full text-left text-sm">

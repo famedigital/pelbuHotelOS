@@ -25,14 +25,12 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ paper?: string }>;
 };
 
-export default async function FolioReceiptPage({ params, searchParams }: Props) {
+export default async function FolioReceiptPage({ params }: Props) {
   if (!(await isDeskAuthenticated())) redirect("/erp/login");
 
   const { id } = await params;
-  const sp = await searchParams;
   const admin = createSupabaseAdminClient();
   const propertyId = await resolveActivePropertyId(admin);
 
@@ -54,19 +52,8 @@ export default async function FolioReceiptPage({ params, searchParams }: Props) 
   const property = await loadProperty(admin, propertyId);
   if (!property) notFound();
 
-  const paperParam = (sp.paper ?? "").toLowerCase();
-  const designPaper = property.doc_receipt.paper_size;
-  const paper: DocumentPaperSize =
-    paperParam === "a4" || paperParam === "thermal"
-      ? paperParam
-      : designPaper === "thermal"
-        ? "thermal"
-        : "a4";
-
-  const design =
-    paper === property.doc_receipt.paper_size
-      ? property.doc_receipt
-      : { ...property.doc_receipt, paper_size: paper };
+  const paper: DocumentPaperSize = "a4";
+  const design = { ...property.doc_receipt, paper_size: paper };
 
   const { data: receiptDoc } = await admin
     .from("fiscal_documents")
@@ -172,8 +159,7 @@ export default async function FolioReceiptPage({ params, searchParams }: Props) 
             {data.label}
           </h1>
           <p className="mt-1 text-xs text-muted-foreground">
-            Print A4 for the guest file, or Thermal 80mm for the POS printer.
-            Default paper comes from Settings → Documents → Receipt.
+            Guest file receipt on A4. Thermal 80mm is for the food bill, KOT, and POS.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -183,7 +169,7 @@ export default async function FolioReceiptPage({ params, searchParams }: Props) 
           >
             Back to folio
           </a>
-          <DocPrintControls defaultSize={paper} printLabel="Print receipt" />
+          <DocPrintControls defaultSize="a4" printLabel="Print receipt" />
         </div>
       </div>
 
@@ -209,34 +195,6 @@ export default async function FolioReceiptPage({ params, searchParams }: Props) 
           messageText={waMessage}
           defaultPhone={guestPhone}
         />
-      </div>
-
-      <div className="print:hidden">
-        <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-          Preview size links
-        </p>
-        <div className="mt-2 flex flex-wrap gap-2 text-sm">
-          <a
-            href={`/erp/folios/${id}/receipt?paper=a4`}
-            className={
-              paper === "a4"
-                ? "rounded-md bg-accent px-3 py-1.5 text-accent-foreground"
-                : "rounded-md border px-3 py-1.5 hover:bg-muted"
-            }
-          >
-            Preview A4
-          </a>
-          <a
-            href={`/erp/folios/${id}/receipt?paper=thermal`}
-            className={
-              paper === "thermal"
-                ? "rounded-md bg-accent px-3 py-1.5 text-accent-foreground"
-                : "rounded-md border px-3 py-1.5 hover:bg-muted"
-            }
-          >
-            Preview thermal 80mm
-          </a>
-        </div>
       </div>
 
       <FolioReceipt

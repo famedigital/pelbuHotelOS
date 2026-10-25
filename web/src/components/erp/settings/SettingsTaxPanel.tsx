@@ -30,8 +30,9 @@ export function SettingsTaxPanel({ property }: { property: PropertyRow }) {
               Charge GST
             </Label>
             <p className="text-xs text-muted-foreground">
-              Off until this hotel is GST-registered. Rooms, menu, and services
-              then post no GST. The rate below is kept for when you turn it on.
+              Off until this hotel is GST-registered. Rooms, meals, menu, and
+              services then post no GST. When this is on, the rate below is
+              added on the charge plus service charge, everywhere.
             </p>
           </div>
         </div>

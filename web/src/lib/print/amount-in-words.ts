@@ -69,3 +69,25 @@ export function amountInWordsNu(amount: number): string {
 
   return `Ngultrum ${parts.join(" ")} only.`;
 }
+
+/** RRCO invoice line: "SIX THOUSAND … AND 43 / 100". */
+export function amountInWordsPayable(amount: number): string {
+  const n = Math.round((Math.abs(amount) + Number.EPSILON) * 100) / 100;
+  const whole = Math.floor(n + 1e-8);
+  const chetrum = Math.round((n - whole) * 100);
+  const words = hyphenateTens(
+    amountInWordsNu(whole)
+      .replace(/^Ngultrum /, "")
+      .replace(/ only\.$/, "")
+      .toUpperCase(),
+  );
+  if (chetrum === 0) return words || "ZERO";
+  return `${words || "ZERO"} AND ${chetrum} / 100`;
+}
+
+function hyphenateTens(words: string): string {
+  return words.replace(
+    /\b(TWENTY|THIRTY|FORTY|FIFTY|SIXTY|SEVENTY|EIGHTY|NINETY) ([A-Z]+)\b/g,
+    "$1-$2",
+  );
+}

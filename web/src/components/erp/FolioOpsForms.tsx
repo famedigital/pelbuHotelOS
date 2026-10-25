@@ -202,16 +202,13 @@ export function CorrectLineForm({
             <input type="checkbox" name="sc_on" value="on" defaultChecked />
             SC
           </label>
-          <label className="flex items-center gap-1 text-[11px]">
-            <input type="checkbox" name="gst_on" value="on" />
-            GST
-          </label>
           <Button type="submit" size="sm" className="h-8 text-xs" disabled={pending}>
             {pending ? "Saving…" : "Update line"}
           </Button>
         </div>
         <p className="text-[10px] text-muted-foreground">
           The old line is voided and this one replaces it. Reprint keeps the same invoice number.
+          GST follows the hotel switch in Settings. Service charge can still be ticked per line.
         </p>
         <Flash state={state} />
       </form>

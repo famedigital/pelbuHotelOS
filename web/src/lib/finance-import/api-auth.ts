@@ -1,5 +1,6 @@
 import "server-only";
 
+import { liveGeminiModel } from "@/lib/ai/gemini-models";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -19,7 +20,7 @@ export function geminiIntegrationStatus(): {
   return {
     configured: Boolean(process.env.GEMINI_API_KEY?.trim()),
     provider: "gemini",
-    model: process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash",
+    model: liveGeminiModel(process.env.GEMINI_MODEL),
   };
 }
 

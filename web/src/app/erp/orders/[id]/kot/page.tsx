@@ -148,7 +148,7 @@ export default async function OrderKotPage({ params, searchParams }: Props) {
           <Button asChild variant="outline" className="h-10">
             <a href="/erp/pos">Back to POS</a>
           </Button>
-          <DocPrintControls defaultSize={paper} printLabel="Print KOT / BOT" />
+          <DocPrintControls defaultSize={paper} allowThermal printLabel="Print KOT / BOT" />
         </div>
       </div>
 

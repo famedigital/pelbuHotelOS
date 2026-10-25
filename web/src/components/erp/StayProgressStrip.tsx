@@ -51,7 +51,7 @@ export function StayProgressStrip({
           </p>
         ) : null}
         <ol className="flex flex-col gap-0">
-          {steps.map((step, index) => {
+          {steps.map((step) => {
             const viewing = step.id === activePanel;
             const interactive = Boolean(onStepClick);
             const stepOrderIdx = STAY_HUB_STEP_ORDER.indexOf(step.id);
@@ -79,17 +79,14 @@ export function StayProgressStrip({
                     )
                   }
                   className={cn(
-                    "flex w-full items-center gap-2 rounded-md px-2 text-left transition-colors",
-                    dense
-                      ? "min-h-8 py-1"
-                      : "min-h-11 py-1.5",
-                    viewing &&
-                      "bg-background shadow-sm ring-1 ring-accent/40",
-                    step.current && !viewing && "bg-background/50",
+                    "flex h-10 w-full items-center gap-2 border-l-2 px-3 text-left text-[13px] font-medium transition-colors",
+                    viewing
+                      ? "border-l-[3px] border-l-brass bg-background font-semibold text-foreground shadow-sm"
+                      : "border-l-transparent text-muted-foreground",
                     interactive &&
                       !looksLocked &&
                       "cursor-pointer hover:bg-background/80",
-                    looksLocked && "cursor-not-allowed opacity-55",
+                    looksLocked && "cursor-not-allowed opacity-45",
                     !interactive && "cursor-default",
                   )}
                   aria-current={viewing ? "step" : undefined}
@@ -99,40 +96,12 @@ export function StayProgressStrip({
                       : step.label
                   }
                 >
-                  <span
-                    className={cn(
-                      "flex shrink-0 items-center justify-center rounded-full border font-semibold",
-                      dense ? "size-5 text-[11px]" : "size-6 text-[10px]",
-                      step.done
-                        ? "border-sky-600 bg-sky-600 text-white"
-                        : viewing || step.current
-                          ? "border-amber-600 bg-amber-500 text-sky-950"
-                          : "border-border/80 bg-muted text-muted-foreground",
-                    )}
-                    aria-hidden
-                  >
-                    {step.done ? (
-                      <CheckIcon
-                        className={dense ? "size-2.5" : "size-3"}
-                        strokeWidth={2.5}
-                      />
-                    ) : (
-                      index + 1
-                    )}
-                  </span>
-                  <span
-                    className={cn(
-                      "min-w-0 flex-1 truncate font-medium leading-tight",
-                      dense ? "text-[11px]" : "text-xs",
-                      step.done
-                        ? "text-sky-800 dark:text-sky-200"
-                        : viewing || step.current
-                          ? "text-amber-800 dark:text-amber-200"
-                          : "text-muted-foreground",
-                    )}
-                  >
-                    {step.label}
-                  </span>
+                  {step.done ? (
+                    <CheckIcon className="size-3.5 shrink-0 text-brass" strokeWidth={2.5} aria-hidden />
+                  ) : (
+                    <span className="size-3.5 shrink-0" aria-hidden />
+                  )}
+                  <span className="min-w-0 flex-1 truncate">{step.label}</span>
                 </button>
               </li>
             );

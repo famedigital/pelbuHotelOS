@@ -1,3 +1,4 @@
+import { KitchenPass } from "@/components/erp/day-desk/KitchenPass";
 import { PassPrintBar } from "@/components/erp/day-desk/PassPrintBar";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { loadDayOpsBoard } from "@/lib/erp/day-ops-board";
@@ -74,8 +75,29 @@ export default async function DepartmentPassPrint({
   }
 
   const whatsapp = `https://wa.me/?text=${encodeURIComponent(
-    `${title} pass-out ${fmtDate(today)}. ${lines.length} lines. Print this page and attach the PDF.`,
+    `${title} ${fmtDate(today)}. ${lines.length} stays. Print this page.`,
   )}`;
+
+  if (dept === "kitchen" || dept === "fnb") {
+    const stays = [...board.inHouse, ...board.arrivals].map((row) => ({
+      rooms: (row.room_labels ?? "")
+        .split(/[,\s]+/)
+        .map((part) => part.trim())
+        .filter((part) => /^\d{2,4}$/.test(part) || /^[A-Z]+-\d+$/i.test(part)),
+      people: row.pax,
+      name: row.contact_name?.trim() || "Guest",
+      plan: row.meal_plan_code,
+    }));
+    return (
+      <KitchenPass
+        hotel="Pelbu Suites Olakha"
+        dateLabel={fmtDate(today)}
+        title={title}
+        rows={stays}
+        whatsapp={whatsapp}
+      />
+    );
+  }
 
   return (
     <main className="mx-auto max-w-[190mm] bg-white p-6 text-black">

@@ -40,7 +40,7 @@ type Thread = {
 };
 
 const GREETING =
-  "Ask for the desk job. I open the page or the stay card and show the result.";
+  "Ask for the desk job. Add an extra mattress, laundry, or a minibar item to an in-house bill, or open a page.";
 
 function freshThread(): Thread {
   return {
@@ -129,12 +129,20 @@ export function InnoraChatBubble({ propertyId }: { propertyId: string }) {
   async function send(text: string) {
     const trimmed = text.trim();
     if (!trimmed || busy) return;
+    const affirm = /^(yes|confirm|do it|do that|go ahead|ok|okay|yes do that)$/.test(
+      trimmed.toLowerCase().replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim(),
+    );
+    const pending = [...messages].reverse().find((row) => row.role === "innora" && row.action);
     const next = [
       ...messages,
       { id: crypto.randomUUID(), role: "user" as const, text: trimmed },
     ];
     patchActive(() => next);
     setDraft("");
+    if (affirm && pending?.action) {
+      await run(pending.action, pending.id);
+      return;
+    }
     setBusy(true);
     const result = await askInnoraDesk({
       messages: next.map((row) => ({ role: row.role, text: row.text })),
@@ -176,12 +184,34 @@ export function InnoraChatBubble({ propertyId }: { propertyId: string }) {
     const result = await runInnoraDeskAction({
       kind: action.kind,
       bookingId: action.bookingId,
+      addon: action.addon,
+      qty: action.qty,
+      speed: action.speed,
+      catalogItemId: action.catalogItemId,
+      serviceItemId: action.serviceItemId,
+      roomUnitId: action.roomUnitId,
+      roomLabel: action.roomLabel,
+      amountBtn: action.amountBtn,
+      method: action.method,
+      guestName: action.guestName,
+      checkIn: action.checkIn,
+      checkOut: action.checkOut,
     });
     setRunning(false);
     patchActive((rows) => [
       ...rows.map((row) => (row.id === messageId ? { ...row, action: null } : row)),
       { id: crypto.randomUUID(), role: "innora", text: result.message },
     ]);
+    if (result.ok && action.kind === "post_bill_addon" && action.bookingId) {
+      window.dispatchEvent(
+        new CustomEvent("hotelos-desk", { detail: { bookingId: action.bookingId } }),
+      );
+      window.dispatchEvent(
+        new CustomEvent("innora:open-stay", {
+          detail: { bookingId: action.bookingId, step: "stay_money" },
+        }),
+      );
+    }
     if (result.ok) router.refresh();
     if (result.href) router.push(result.href);
   }

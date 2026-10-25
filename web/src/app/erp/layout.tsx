@@ -19,6 +19,7 @@ import {
   loadProperty,
   resolveActivePropertyId,
 } from "@/lib/property-context";
+import { deskRoleWord } from "@/lib/erp/desk-actor";
 import { thimphuToday } from "@/lib/erp-lists";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
@@ -155,6 +156,19 @@ export default async function ErpLayout({
           : "hotel"
       }
       deskTheme={activeProperty?.desk_theme ?? "dzong"}
+      actor={
+        staff
+          ? {
+              name: staff.fullName?.trim() || staff.employeeCode || "Staff",
+              role: staff.roleLabel?.trim() || deskRoleWord(deskRole),
+              code: staff.employeeCode || null,
+            }
+          : {
+              name: "Shared desk",
+              role: deskRoleWord(deskRole),
+              code: null,
+            }
+      }
     >
       {children}
       {isPosApp ? null : <WorkPwaRegistrar />}

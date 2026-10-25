@@ -12,11 +12,20 @@ describe("parseInnoraIntent", () => {
       type: "find_bills",
       query: "soul trips",
     });
+    assert.deepEqual(parseInnoraIntent("open yak holiday master bill"), {
+      type: "open_master",
+      query: "yak holiday",
+    });
   });
 
   it("reads checkout and folio edits as desk jobs", () => {
     assert.equal(parseInnoraIntent("check out room 305")?.type, "checkout");
     assert.equal(parseInnoraIntent("open the folio for Karma")?.type, "open_folio");
+    assert.equal(parseInnoraIntent("checkout all the reservation till date")?.type, "close_through_today");
+    assert.equal(
+      parseInnoraIntent("update today's inhouse and arrival")?.type,
+      "close_through_today",
+    );
     assert.equal(parseInnoraIntent("go to arrivals")?.type, "open_page");
   });
 
@@ -42,10 +51,46 @@ describe("parseInnoraIntent", () => {
       step: "stay_money",
       cancel: false,
     });
-    assert.equal(parseInnoraIntent("check in room 305")?.type, "open_stay");
+    assert.equal(parseInnoraIntent("check in room 305")?.type, "check_in_guest");
+    assert.deepEqual(parseInnoraIntent("add 2 extra mattresses for room 207"), {
+      type: "post_bill_addon",
+      addon: "mattress",
+      qty: 2,
+      item: "",
+      speed: "same_day",
+      query: "room 207",
+    });
+    assert.deepEqual(parseInnoraIntent("add laundry 2 shirts for room 207 express"), {
+      type: "post_bill_addon",
+      addon: "laundry",
+      qty: 2,
+      item: "shirts",
+      speed: "express",
+      query: "room 207",
+    });
+    assert.deepEqual(parseInnoraIntent("add minibar water for karma"), {
+      type: "post_bill_addon",
+      addon: "service",
+      qty: 1,
+      item: "water",
+      speed: "same_day",
+      query: "karma",
+    });
     const cancel = parseInnoraIntent("cancel karma");
-    assert.equal(cancel?.type, "open_stay");
-    assert.equal(cancel && cancel.type === "open_stay" ? cancel.cancel : false, true);
+    assert.equal(cancel?.type, "cancel_stay");
+    assert.deepEqual(parseInnoraIntent("book tashi from 2026-11-01 to 2026-11-03 room 305"), {
+      type: "reserve_stay",
+      name: "tashi",
+      checkIn: "2026-11-01",
+      checkOut: "2026-11-03",
+      room: "305",
+    });
+    assert.equal(parseInnoraIntent("run night audit")?.type, "night_audit");
+    assert.equal(parseInnoraIntent("issue invoice for room 207")?.type, "issue_invoice");
+    const paid = parseInnoraIntent("collect 5000 cash from room 305");
+    assert.equal(paid?.type, "take_payment");
+    assert.equal(paid && paid.type === "take_payment" ? paid.amount : 0, 5000);
+    assert.equal(parseInnoraIntent("move karma to room 306")?.type, "move_room");
   });
 });
 

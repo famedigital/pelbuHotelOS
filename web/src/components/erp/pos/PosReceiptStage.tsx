@@ -104,6 +104,7 @@ export function PosReceiptStage({
           ) : null}
           <DocPrintControls
             defaultSize={initialPaper}
+            allowThermal
             printLabel="Print receipt"
             onSizeChange={setPaper}
           />

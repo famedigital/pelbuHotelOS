@@ -10,8 +10,10 @@ import {
   useReactTable,
   type ColumnDef,
   type FilterFn,
+  type RowSelectionState,
   type SortingState,
   type Table as TanstackTable,
+  type Updater,
 } from "@tanstack/react-table";
 import { ChevronDownIcon, ChevronUpIcon, ChevronsUpDownIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -44,6 +46,30 @@ declare module "@tanstack/react-table" {
   }
 }
 
+export type DataTableDensity = "compact" | "comfortable" | "spacious";
+
+const DENSITY_KEY = "innora.table.density";
+const STRIPE_KEY = "innora.table.striped";
+
+const DENSITY_CELL: Record<DataTableDensity, string> = {
+  compact: "px-2 py-1 text-xs",
+  comfortable: "px-3 py-2",
+  spacious: "px-4 py-3.5",
+};
+
+const DENSITY_HEAD: Record<DataTableDensity, string> = {
+  compact: "h-8 px-2 text-[10px]",
+  comfortable: "h-10 px-3 text-xs",
+  spacious: "h-12 px-4 text-xs",
+};
+
+function readDensity(): DataTableDensity {
+  if (typeof window === "undefined") return "comfortable";
+  const raw = window.localStorage.getItem(DENSITY_KEY);
+  if (raw === "compact" || raw === "comfortable" || raw === "spacious") return raw;
+  return "comfortable";
+}
+
 export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
@@ -72,6 +98,16 @@ export interface DataTableProps<TData, TValue> {
    * function runs once per row (display columns have no accessor).
    */
   globalFilterFn?: FilterFn<TData>;
+  /** Row height. Shared across tables via the desk preference. */
+  density?: DataTableDensity;
+  onDensityChange?: (density: DataTableDensity) => void;
+  /** Checkbox column. Selected rows are reported through onSelectedRowsChange. */
+  enableRowSelection?: boolean;
+  /** Stable id so a checked row stays checked when the list reorders. */
+  getRowId?: (originalRow: TData, index: number) => string;
+  onSelectedRowsChange?: (rows: TData[]) => void;
+  /** Change this to clear the current checks, for example after a bulk save. */
+  selectionResetKey?: string | number;
 }
 
 export function DataTable<TData, TValue>({
@@ -88,16 +124,55 @@ export function DataTable<TData, TValue>({
   getRowHref,
   onRowClick,
   globalFilterFn,
+  density: densityProp,
+  onDensityChange,
+  enableRowSelection = false,
+  getRowId,
+  onSelectedRowsChange,
+  selectionResetKey,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
   const [globalFilter, setGlobalFilter] = React.useState("");
+  const onSelectedRowsChangeRef = React.useRef(onSelectedRowsChange);
+  onSelectedRowsChangeRef.current = onSelectedRowsChange;
+  const [densityState, setDensityState] = React.useState<DataTableDensity>("comfortable");
+  const [striped, setStriped] = React.useState(false);
   const router = useRouter();
+  const density = densityProp ?? densityState;
+
+  React.useEffect(() => {
+    if (densityProp) return;
+    setDensityState(readDensity());
+    setStriped(window.localStorage.getItem(STRIPE_KEY) === "1");
+  }, [densityProp]);
+
+  function chooseDensity(next: DataTableDensity) {
+    window.localStorage.setItem(DENSITY_KEY, next);
+    onDensityChange?.(next);
+    if (!densityProp) setDensityState(next);
+  }
+
+  function chooseStriped(next: boolean) {
+    window.localStorage.setItem(STRIPE_KEY, next ? "1" : "0");
+    setStriped(next);
+  }
+
+  const resolvedColumns = React.useMemo(
+    () => (enableRowSelection ? [selectionColumn<TData>(), ...columns] : columns),
+    [columns, enableRowSelection],
+  );
 
   const table = useReactTable({
     data,
-    columns,
-    state: { sorting, globalFilter },
+    columns: resolvedColumns,
+    state: { sorting, globalFilter, rowSelection },
+    enableRowSelection,
+    getRowId,
     onSortingChange: setSorting,
+    onRowSelectionChange: (updater: Updater<RowSelectionState>) => {
+      setRowSelection(updater);
+    },
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -113,11 +188,33 @@ export function DataTable<TData, TValue>({
       : {}),
   });
 
+  const selectedRows = table.getSelectedRowModel().rows.map((row) => row.original);
+  const selectedSignature = table
+    .getSelectedRowModel()
+    .rows.map((row) => row.id)
+    .join("\n");
+
+  React.useEffect(() => {
+    setRowSelection({});
+  }, [selectionResetKey]);
+
+  React.useEffect(() => {
+    if (!enableRowSelection) return;
+    onSelectedRowsChangeRef.current?.(selectedRows);
+    // The signature is the change signal. selectedRows is the snapshot from that render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enableRowSelection, selectedSignature]);
+
   return (
     <div className={cn("min-w-0 space-y-3", className)}>
-      {(searchable || toolbar) ? (
-        <div className="flex flex-wrap items-center justify-end gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2">
           {toolbar}
+          <DensityControl
+            density={density}
+            striped={striped}
+            onDensity={chooseDensity}
+            onStriped={chooseStriped}
+          />
           {searchable ? (
             <Input
               value={globalFilter}
@@ -128,7 +225,6 @@ export function DataTable<TData, TValue>({
             />
           ) : null}
         </div>
-      ) : null}
 
       {mobileCards ? (
         <div className="space-y-3 md:hidden">
@@ -224,11 +320,18 @@ export function DataTable<TData, TValue>({
                   <TableHead
                     key={header.id}
                     className={cn(
-                      "h-10 bg-muted/40 px-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase [&[data-sortable=true]]:cursor-pointer [&[data-sortable=true]]:select-none",
+                      "bg-[var(--ivory-deep)] font-semibold tracking-wide text-[var(--espresso-mute)] uppercase [&[data-sortable=true]]:cursor-pointer [&[data-sortable=true]]:select-none",
+                      DENSITY_HEAD[density],
                       header.column.columnDef.meta?.headerClassName,
                     )}
                     data-sortable={header.column.getCanSort()}
-                    onClick={header.column.getToggleSortingHandler()}
+                    onClick={(event) => {
+                      const target = event.target as HTMLElement;
+                      if (target.closest("input, button, a, select, textarea, label")) {
+                        return;
+                      }
+                      header.column.getToggleSortingHandler()?.(event);
+                    }}
                   >
                     {header.isPlaceholder ? null : (
                       <span className="inline-flex items-center gap-1">
@@ -236,7 +339,9 @@ export function DataTable<TData, TValue>({
                           header.column.columnDef.header,
                           header.getContext(),
                         )}
-                        <SortIcon dir={header.column.getIsSorted()} />
+                        {header.column.getCanSort() ? (
+                          <SortIcon dir={header.column.getIsSorted()} />
+                        ) : null}
                       </span>
                     )}
                   </TableHead>
@@ -253,7 +358,11 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className={cn("group/row", clickable && "cursor-pointer")}
+                  className={cn(
+                    "group/row",
+                    clickable && "cursor-pointer",
+                    striped && "even:bg-[var(--ivory-deep)]/60",
+                  )}
                   onClick={
                     clickable
                       ? (e) => {
@@ -271,7 +380,7 @@ export function DataTable<TData, TValue>({
                     <TableCell
                       key={cell.id}
                       className={cn(
-                        "px-3 py-2.5",
+                        DENSITY_CELL[density],
                         cell.column.columnDef.meta?.className,
                       )}
                     >
@@ -299,6 +408,59 @@ export function DataTable<TData, TValue>({
       </div>
 
       <DataTablePagination table={table} />
+    </div>
+  );
+}
+
+function DensityControl({
+  density,
+  striped,
+  onDensity,
+  onStriped,
+}: {
+  density: DataTableDensity;
+  striped: boolean;
+  onDensity: (density: DataTableDensity) => void;
+  onStriped: (striped: boolean) => void;
+}) {
+  const options: Array<{ id: DataTableDensity; label: string }> = [
+    { id: "compact", label: "Compact" },
+    { id: "comfortable", label: "Comfortable" },
+    { id: "spacious", label: "Spacious" },
+  ];
+  return (
+    <div className="flex items-center gap-1">
+      <div className="flex overflow-hidden rounded-md border border-[var(--brass-hairline)] bg-white" role="group" aria-label="Row size">
+        {options.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            aria-pressed={density === option.id}
+            className={cn(
+              "h-8 px-2 text-xs",
+              density === option.id
+                ? "bg-[var(--espresso)] font-medium text-[var(--ivory)]"
+                : "text-[var(--espresso-mute)] hover:bg-[var(--ivory-deep)]",
+            )}
+            onClick={() => onDensity(option.id)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        aria-pressed={striped}
+        className={cn(
+          "h-8 rounded-md border px-2 text-xs",
+          striped
+            ? "border-[var(--espresso)] bg-[var(--ivory-deep)] font-medium text-[var(--espresso)]"
+            : "border-[var(--brass-hairline)] bg-white text-[var(--espresso-mute)] hover:bg-[var(--ivory-deep)]",
+        )}
+        onClick={() => onStriped(!striped)}
+      >
+        Striped
+      </button>
     </div>
   );
 }
@@ -361,6 +523,58 @@ function DataTablePagination<TData>({
         </Button>
       </div>
     </div>
+  );
+}
+
+function selectionColumn<TData>(): ColumnDef<TData, unknown> {
+  return {
+    id: "select",
+    enableSorting: false,
+    header: ({ table }) => (
+      <RowCheckBox
+        checked={table.getIsAllRowsSelected()}
+        indeterminate={
+          table.getIsSomeRowsSelected() && !table.getIsAllRowsSelected()
+        }
+        onChange={table.getToggleAllRowsSelectedHandler()}
+        label="Select all rows"
+      />
+    ),
+    cell: ({ row }) => (
+      <RowCheckBox
+        checked={row.getIsSelected()}
+        onChange={row.getToggleSelectedHandler()}
+        label="Select row"
+      />
+    ),
+    meta: { className: "w-10", headerClassName: "w-10" },
+  };
+}
+
+function RowCheckBox({
+  checked,
+  indeterminate = false,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  label: string;
+}) {
+  const ref = React.useRef<HTMLInputElement>(null);
+  React.useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      className="size-4 shrink-0 accent-accent"
+      checked={checked}
+      onChange={onChange}
+      aria-label={label}
+    />
   );
 }
 

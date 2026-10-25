@@ -866,11 +866,11 @@ export async function fetchStayHubCheckIn(
   const [{ data: guideRows }, { data: driverRows }, roomOpts] =
     await Promise.all([
       admin
-        .from("guides")
-        .select("id, guide_number, full_name, phone, visit_count")
-        .eq("property_id", propertyId)
-        .order("visit_count", { ascending: false })
-        .limit(50),
+        .from("national_guides")
+        .select("id, license_no, full_name, phone, status")
+        .in("status", ["pending_verification", "verified"])
+        .order("full_name")
+        .limit(800),
       admin
         .from("drivers")
         .select("id, full_name, phone, vehicle_no, license_no, visit_count")
@@ -891,14 +891,16 @@ export async function fetchStayHubCheckIn(
       }),
     ]);
 
-  const guides: PartnerOption[] = (guideRows ?? []).map((g) => ({
-    id: g.id as string,
-    label: g.full_name
-      ? `${g.full_name} (#${g.guide_number})`
-      : `#${g.guide_number}`,
-    sublabel: (g.phone as string | null) ?? undefined,
-    fill: { guide_number: (g.guide_number as string) || "" },
-  }));
+  const guides: PartnerOption[] = (guideRows ?? []).map((g) => {
+    const license = String(g.license_no ?? "").trim();
+    const name = String(g.full_name ?? "").trim();
+    return {
+      id: g.id as string,
+      label: name || license,
+      sublabel: license || undefined,
+      fill: { guide_number: license },
+    };
+  });
 
   const drivers: PartnerOption[] = (driverRows ?? []).map((d) => ({
     id: d.id as string,
@@ -1230,7 +1232,6 @@ export async function fetchStayHubCatalog(): Promise<
     admin
       .from("agents")
       .select("id, company_name, market, status")
-      .eq("property_id", propertyId)
       .in("status", ["approved", "demo", "directory"])
       .order("company_name")
       .limit(400),
@@ -1343,7 +1344,6 @@ export async function fetchCalendarAgentsUnits(): Promise<
     admin
       .from("agents")
       .select("id, company_name")
-      .eq("property_id", propertyId)
       .order("company_name")
       .limit(300),
     admin

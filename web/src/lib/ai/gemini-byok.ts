@@ -1,5 +1,6 @@
 import "server-only";
 
+import { deskGeminiModels, liveGeminiModel } from "@/lib/ai/gemini-models";
 import { decryptSecret } from "@/lib/ai/secret-crypto";
 import type { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -23,8 +24,7 @@ export async function loadGeminiByok(
     .maybeSingle();
 
   const apiKey = decryptSecret(data?.gemini_api_key_enc as string | null);
-  const model =
-    (data?.gemini_model as string | null)?.trim() || "gemini-2.0-flash";
+  const model = liveGeminiModel(data?.gemini_model as string | null);
   const enabled = Boolean(data?.enabled) && Boolean(apiKey);
   return {
     enabled,
@@ -119,8 +119,10 @@ export async function generateGeminiJson(input: {
   system: string;
   user: string;
 }): Promise<GeminiJsonResult> {
-  const first = input.model.trim() || "gemini-2.5-flash";
-  const models = [first, ...GEMINI_MODEL_FALLBACKS.filter((model) => model !== first)];
+  const preferred = deskGeminiModels(input.model);
+  const models = preferred.concat(
+    GEMINI_MODEL_FALLBACKS.filter((model) => !preferred.includes(model)),
+  );
   let last: GeminiJsonResult = { ok: false, error: "Gemini request failed." };
   for (const model of models) {
     last = await generateGeminiJsonOnce({ ...input, model });
@@ -130,16 +132,15 @@ export async function generateGeminiJson(input: {
   return last;
 }
 
-const FAST_MODELS = ["gemini-2.5-flash-lite", "gemini-2.0-flash"];
-
-/** Short JSON call for the desk chat. One model, then one fallback on 404. */
+/** Short JSON call for the desk chat. One live model, then one fallback on 404. */
 export async function generateGeminiJsonFast(input: {
   apiKey: string;
+  model?: string | null;
   system: string;
   user: string;
 }): Promise<GeminiJsonResult> {
   let last: GeminiJsonResult = { ok: false, error: "Gemini request failed." };
-  for (const model of FAST_MODELS) {
+  for (const model of deskGeminiModels(input.model)) {
     last = await generateGeminiJsonOnce({
       ...input,
       model,

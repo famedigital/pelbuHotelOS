@@ -934,7 +934,12 @@ export default async function FiscalInvoicePrintPage({
           <p className="mb-2 hidden text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase lg:block">
             Paper
           </p>
-          <DocPrintControls stacked defaultSize="a4" printLabel="Print / PDF" />
+          <DocPrintControls
+            stacked
+            defaultSize="a4"
+            allowThermal={bill === "fnb"}
+            printLabel="Print / PDF"
+          />
         </div>
 
         {folioId && showBillSwitch ? (

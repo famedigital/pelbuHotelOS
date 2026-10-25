@@ -91,7 +91,6 @@ export function SettingsAiAssistPanel({
             >
               <option value="gemini-3.8-flash">gemini-3.8-flash</option>
               <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-              <option value="gemini-2.0-flash">gemini-2.0-flash</option>
             </select>
           </div>
           <div className="flex min-h-11 items-start gap-3 rounded-lg border px-4 py-3">

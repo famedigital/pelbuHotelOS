@@ -22,6 +22,7 @@ import { DeskThemeScope } from "@/components/erp/DeskThemeScope";
 import { parseDeskTheme, type DeskTheme } from "@/lib/desk-theme";
 import { Badge } from "@/components/ui/badge";
 import type { DeskRole } from "@/lib/desk-auth";
+import type { DeskActor } from "@/lib/erp/desk-actor";
 import type { PropertySwitcherOption } from "@/lib/property-types";
 import { Suspense, type ReactNode } from "react";
 
@@ -43,6 +44,7 @@ export function DeskShell({
   homeDashboardView: _homeDashboardView,
   productPack: _productPack = "hotel",
   deskTheme = "dzong",
+  actor = null,
   children,
 }: {
   title?: string;
@@ -57,12 +59,13 @@ export function DeskShell({
   homeDashboardView?: import("@/lib/erp/role-dashboard").DashboardView;
   productPack?: "hotel" | "restaurant";
   deskTheme?: DeskTheme;
+  actor?: DeskActor | null;
   children: ReactNode;
 }) {
   const theme = parseDeskTheme(deskTheme);
   return (
     <div
-      className="erp flex h-svh max-h-svh flex-col overflow-hidden"
+      className="desk-print-flow erp flex h-svh max-h-svh flex-col overflow-hidden"
       data-desk-root=""
       {...(theme === "dzong" ? {} : { "data-desk-theme": theme })}
     >
@@ -90,8 +93,9 @@ export function DeskShell({
               properties={properties}
               activePropertyId={activePropertyId}
               allowedModuleKeys={allowedModuleKeys}
+              actor={actor}
             />
-            <div className="flex min-h-0 min-w-0 flex-1">
+            <div className="desk-print-flow flex min-h-0 min-w-0 flex-1">
               <Suspense
                 fallback={
                   <div className="hidden w-52 shrink-0 border-r border-border md:block" />
@@ -101,7 +105,7 @@ export function DeskShell({
               </Suspense>
               <div
                 data-desk-main
-                className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0 print:overflow-visible print:pb-0"
+                className="desk-print-flow flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0 print:overflow-visible print:pb-0"
               >
                 <Suspense fallback={<DeskMainSkeleton />}>
                   <FoCommandScope>{children}</FoCommandScope>
@@ -114,7 +118,7 @@ export function DeskShell({
             <InnoraChatBubble key={activePropertyId} propertyId={activePropertyId} />
           ) : null}
           <div className="shrink-0 print:hidden md:hidden">
-            <DeskMobileNav allowedModuleKeys={allowedModuleKeys} />
+            <DeskMobileNav allowedModuleKeys={allowedModuleKeys} actor={actor} />
           </div>
         </StayHubShell>
       </DeskWorkspaceProvider>

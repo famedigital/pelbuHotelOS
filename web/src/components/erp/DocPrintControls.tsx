@@ -14,14 +14,19 @@ export function DocPrintControls({
   printLabel = "Print",
   onSizeChange,
   stacked = false,
+  allowThermal = false,
 }: {
   defaultSize?: DocumentPaperSize;
   printLabel?: string;
   onSizeChange?: (size: DocumentPaperSize) => void;
   /** Full-width paper toggle and print button, for a narrow options rail. */
   stacked?: boolean;
+  /** 80mm is only for the food bill, KOT, and POS receipt. */
+  allowThermal?: boolean;
 }) {
-  const [size, setSize] = useState<DocumentPaperSize>(defaultSize);
+  const [size, setSize] = useState<DocumentPaperSize>(
+    allowThermal && defaultSize === "thermal" ? "thermal" : "a4",
+  );
 
   useEffect(() => {
     const root = document.documentElement;
@@ -41,6 +46,7 @@ export function DocPrintControls({
           : "flex flex-wrap items-center gap-2",
       )}
     >
+      {allowThermal ? (
       <div
         className={cn(
           "inline-flex rounded-md border bg-card p-0.5",
@@ -83,6 +89,7 @@ export function DocPrintControls({
           )}
         </button>
       </div>
+      ) : null}
       <Button
         type="button"
         variant="default"
@@ -93,15 +100,17 @@ export function DocPrintControls({
         onClick={() => window.print()}
       >
         {printLabel}
-        {stacked ? (
-          <span className="max-lg:sr-only">
-            {size === "thermal" ? " (80mm)" : " (A4)"}
-          </span>
-        ) : size === "thermal" ? (
-          " (80mm)"
-        ) : (
-          " (A4)"
-        )}
+        {allowThermal ? (
+          stacked ? (
+            <span className="max-lg:sr-only">
+              {size === "thermal" ? " (80mm)" : " (A4)"}
+            </span>
+          ) : size === "thermal" ? (
+            " (80mm)"
+          ) : (
+            " (A4)"
+          )
+        ) : null}
       </Button>
     </div>
   );

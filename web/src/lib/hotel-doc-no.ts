@@ -1,6 +1,14 @@
-/** Staff-facing numbers: PSFN-2026-00160 folio, PSBK-2026-00088 booking, PSBN-2026-00041 master bill. */
+/** Staff-facing numbers: PSFN folio, PSRM room folio, PSFF food folio, PSBK booking, PSBN master bill. */
 
 export type HotelDocKind = "FN" | "BK" | "BN";
+
+export type PaperDocKind = "room" | "fnb" | "master";
+
+const PAPER_KIND: Record<PaperDocKind, "RM" | "FF" | "BN"> = {
+  room: "RM",
+  fnb: "FF",
+  master: "BN",
+};
 
 export function hotelDocPrefix(name: string | null | undefined): string {
   const raw = (name ?? "").trim();
@@ -30,15 +38,49 @@ export function formatHotelDocNo(
 }
 
 /**
+ * Printed number for one paper. Same serial as the folio.
+ * PSFN-2026-00006 → PSRM room, PSFF food, PSBN master bill.
+ */
+export function paperDocNo(
+  folioNo: string | null | undefined,
+  paper: PaperDocKind,
+): string {
+  const t = (folioNo ?? "").trim();
+  if (!t || t === "—") return t || "—";
+  const kind = PAPER_KIND[paper];
+  if (/[A-Za-z]{2,}(FN|RM|FF|BN)-\d{4}-\d+$/i.test(t)) {
+    return t.replace(/(FN|RM|FF|BN)(?=-\d{4}-)/i, kind).toUpperCase();
+  }
+  return t;
+}
+
+/** PDF name: the paper’s number, the agent, then the group or the guest. */
+export function folioPrintFileName(input: {
+  pack?: boolean;
+  bill: PaperDocKind;
+  folioNo: string;
+  agentName?: string | null;
+  guestName?: string | null;
+  groupName?: string | null;
+}): string {
+  const paper: PaperDocKind = input.pack || input.bill === "master" ? "master" : input.bill;
+  const party = (input.groupName ?? "").trim() || (input.guestName ?? "").trim();
+  const raw = [paperDocNo(input.folioNo, paper), (input.agentName ?? "").trim(), party]
+    .filter(Boolean)
+    .join(" ");
+  return raw.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 140);
+}
+
+/**
  * Room bill folio number. PS-2026-00160 is the booking code; the folio is
- * PSFN-2026-00160. A stored PSFN / PSBK / PSBN number is left as written.
+ * PSFN-2026-00160. A stored PSFN / PSBK / PSBN / PSRM / PSFF number is left as written.
  */
 export function folioNoFromConfirmation(
   code: string | null | undefined,
 ): string | null {
   const t = (code ?? "").trim();
   if (!t) return null;
-  if (/^[A-Za-z]{2,}(FN|BK|BN)-/i.test(t)) return t.toUpperCase();
+  if (/^[A-Za-z]{2,}(FN|BK|BN|RM|FF)-/i.test(t)) return t.toUpperCase();
   const match = t.match(/^([A-Za-z]{2,})-(\d{4})-(\d+)$/);
   if (!match) return t;
   return `${match[1].toUpperCase()}FN-${match[2]}-${match[3]}`;
@@ -57,6 +99,6 @@ export function looksLikeHotelDocQuery(q: string): boolean {
     return true;
   }
   if (/^PS\d{4}\d{1,6}$/.test(t)) return true;
-  if (/^[A-Z]{2,}(FN|BK|BN)-\d{4}-\d+$/.test(t)) return true;
-  return /^[A-Z]{2,}(FN|BK|BN)\d+$/.test(t);
+  if (/^[A-Z]{2,}(FN|BK|BN|RM|FF)-\d{4}-\d+$/.test(t)) return true;
+  return /^[A-Z]{2,}(FN|BK|BN|RM|FF)\d+$/.test(t);
 }

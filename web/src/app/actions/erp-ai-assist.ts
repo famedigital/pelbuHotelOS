@@ -8,6 +8,7 @@ import {
   generateGeminiJson,
   loadGeminiByok,
 } from "@/lib/ai/gemini-byok";
+import { liveGeminiModel } from "@/lib/ai/gemini-models";
 import {
   decryptSecret,
   encryptSecret,
@@ -68,7 +69,7 @@ export async function getPropertyAiAssistStatus(
   return {
     configured: Boolean(plain),
     enabled: Boolean(data?.enabled) && Boolean(plain),
-    model: (data?.gemini_model as string | null)?.trim() || "gemini-2.0-flash",
+    model: liveGeminiModel(data?.gemini_model as string | null),
     maskedKey: maskApiKey(plain),
   };
 }
@@ -88,8 +89,7 @@ export async function savePropertyGeminiByok(
       "Property",
     );
 
-    const model =
-      String(formData.get("gemini_model") ?? "").trim() || "gemini-2.0-flash";
+    const model = liveGeminiModel(String(formData.get("gemini_model") ?? ""));
     const enabled = formData.get("enabled") === "on";
     const clearKey = formData.get("clear_key") === "on";
     const newKey = String(formData.get("gemini_api_key") ?? "").trim();

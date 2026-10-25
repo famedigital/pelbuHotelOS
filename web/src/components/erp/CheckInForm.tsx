@@ -8,20 +8,22 @@ import {
 } from "@/app/actions/erp-checkin";
 import { AgentNameLink } from "@/components/erp/AgentNameLink";
 import { useDeskWorkspace } from "@/components/erp/DeskWorkspaceProvider";
-import { AiAssistPanel } from "@/components/erp/AiAssistPanel";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  parseAssistDraft,
-  parseCheckInDraft,
-} from "@/lib/ai/assist-draft-schemas";
-import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { CloudinaryDocField } from "@/components/erp/CloudinaryDocField";
 import { CloudinaryPicker } from "@/components/erp/CloudinaryPicker";
 import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
   guideRequired,
@@ -55,27 +57,9 @@ import {
   type KeyboardEvent,
 } from "react";
 
-/** Dense inputs inside the guest docs grid — must shrink, never force scroll. */
+/** Borderless cell control so the guest list reads as a data table. */
 const CELL_INPUT =
-  "h-8 w-full min-w-0 rounded-md border-border/70 bg-background px-2 text-sm shadow-none font-mono";
-
-/**
- * Shared column template for the guest docs grid so the header and rows stay
- * in sync. Below `xl` rows stack into a compact labelled card; from `xl` they
- * read as table columns. One set of inputs either way — a CSS-hidden duplicate
- * layout would post every guest field twice.
- */
-function guestGridClass(origin: GuestOrigin): string {
-  if (sdfRequired(origin)) {
-    // # · name · nationality · ID · SDF · photo · SDF doc · sleeps · remove
-    return "xl:grid-cols-[2rem_minmax(7rem,1.3fr)_minmax(5.5rem,0.9fr)_minmax(6.5rem,1fr)_minmax(5.5rem,0.85fr)_minmax(7.5rem,1.1fr)_minmax(7.5rem,1.1fr)_minmax(4.5rem,0.8fr)_2rem]";
-  }
-  // local / official: # · name · ID · photo · sleeps · remove
-  return "xl:grid-cols-[2rem_minmax(8rem,1.5fr)_minmax(7rem,1.1fr)_minmax(8rem,1.2fr)_minmax(5rem,0.9fr)_2rem]";
-}
-
-/** Stacked label that collapses to the column header from `xl` up. */
-const CELL_LABEL = "text-[10px] font-normal text-muted-foreground xl:sr-only";
+  "h-8 w-full min-w-0 rounded-none border-0 bg-transparent px-1 text-sm shadow-none focus-visible:ring-1";
 const FIELD_LABEL = "text-[10px] font-normal text-muted-foreground";
 const DENSE_INPUT = "h-8 text-sm";
 const SECTION =
@@ -215,7 +199,6 @@ export function CheckInForm({
   embedded = false,
   /** StayHub tabs: hide non-active sections without unmounting (preserves values). */
   pane = "all",
-  propertyId = null,
   onCheckedIn,
 }: {
   booking: CheckInBooking;
@@ -270,18 +253,12 @@ export function CheckInForm({
     hasDriverBeds ||
     origin === "international" ||
     origin === "regional";
-  const guestGrid = guestGridClass(origin);
   const paxAdults = Math.max(1, booking.adults || 1);
   const paxChildren = Math.max(0, booking.children ?? 0);
   const paxExtraBeds = Math.max(0, booking.extra_beds ?? 0);
 
   const countryOptions = useMemo(() => countryComboboxOptions(), []);
 
-  const [guidePick, setGuidePick] = useState<PartnerOption | null>(
-    booking.guide_id
-      ? (guides.find((g) => g.id === booking.guide_id) ?? null)
-      : null,
-  );
   const [guideNumber, setGuideNumber] = useState(booking.guide_number ?? "");
   const [paymentMode, setPaymentMode] = useState(booking.payment_mode ?? "cash");
   const [roomCapOverride, setRoomCapOverride] = useState(false);
@@ -390,6 +367,18 @@ export function CheckInForm({
     [slotUnits],
   );
 
+  const guestRoomChoices = useMemo(() => {
+    const assigned = new Set(
+      slots.map((slot) => slot.assignedUnitId).filter(Boolean) as string[],
+    );
+    for (const id of selectedUnitIds) assigned.add(id);
+    return units.filter((unit) => {
+      if (unit.inventoryKind !== "sellable_guest") return false;
+      if (assigned.has(unit.id)) return true;
+      return !unit.blocked && unit.reason !== "Occupied";
+    });
+  }, [units, slots, selectedUnitIds]);
+
   const unitsByType = useMemo(() => {
     const map = new Map<string, CheckInRoomUnit[]>();
     for (const unit of units) {
@@ -496,36 +485,6 @@ export function CheckInForm({
         value={roomCapOverride ? "on" : "off"}
       />
       <input type="hidden" name="agent_room_cap_note" value={roomCapNote} />
-      {propertyId && showGuest ? (
-        <AiAssistPanel
-          propertyId={propertyId}
-          bookingId={booking.id}
-          mode="check_in"
-          compact
-          title="Check-in draft"
-          onApplyDraft={(raw) => {
-            const parsed = parseAssistDraft(parseCheckInDraft, raw);
-            if (!parsed.ok) {
-              toast.error(parsed.error);
-              return;
-            }
-            const d = parsed.data;
-            if (d.guideNumber) setGuideNumber(d.guideNumber);
-            if (d.nationality) {
-              setGuests((prev) => {
-                if (prev.length === 0) return prev;
-                const copy = [...prev];
-                copy[0] = { ...copy[0], nationality: d.nationality ?? "" };
-                return copy;
-              });
-            }
-            toast.success(
-              "Check-in fields filled — Confirm check-in still required",
-              { description: d.summary ?? undefined },
-            );
-          }}
-        />
-      ) : null}
       {state.error ? (
         <Alert variant="destructive" className={cn(!showSummary && "hidden")}>
           <TriangleAlertIcon />
@@ -721,286 +680,213 @@ export function CheckInForm({
             Allow dirty / inspect rooms
           </Label>
         ) : null}
-        <div
-          className={cn(
-            "min-w-0 overflow-x-auto rounded-md border border-border/70",
-            docsDeferred && "hidden",
-          )}
-        >
-          <div
-            className={cn(
-              "hidden bg-muted/40 px-2 py-1.5 text-[10px] font-medium text-muted-foreground xl:grid xl:items-center xl:gap-1.5",
-              guestGrid,
-            )}
-            aria-hidden
-          >
-            <span className="text-center">#</span>
-            <span>
-              Full name <span className="text-destructive">*</span>
-            </span>
-            {showNationality ? <span>Nationality</span> : null}
-            <span>
-              {idLabel(origin)} <span className="text-destructive">*</span>
-            </span>
-            {showSdfFields ? (
-              <span>
-                SDF ref
-                <span className="text-destructive"> *</span>
-              </span>
-            ) : null}
-            <span>ID photo</span>
-            {showSdfFields ? <span>SDF doc</span> : null}
-            <span>Sleeps in</span>
-            <span />
-          </div>
-
-          <ul className="divide-y divide-border/70">
-            {guests.map((guest, index) => (
-              <li
-                key={`guest-${index}`}
-                className={cn(
-                  "grid gap-2 p-2 sm:grid-cols-2 xl:items-center xl:gap-1.5 xl:p-1.5",
-                  guestGrid,
-                )}
-              >
-                <div className="flex items-center justify-between gap-2 sm:col-span-2 xl:hidden">
-                  <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-                    Guest {index + 1}
-                  </span>
-                  {guests.length > 1 ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="-mr-1 h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
-                      onClick={() =>
-                        setGuests((prev) => prev.filter((_, i) => i !== index))
-                      }
-                    >
-                      <Trash2Icon className="size-3.5" />
-                      Remove
-                    </Button>
-                  ) : null}
-                </div>
-
-                <span className="hidden text-center text-[11px] text-muted-foreground tabular-nums xl:block">
-                  {index + 1}
-                </span>
-
-                <div className="min-w-0 space-y-0.5 xl:space-y-0">
-                  <Label className={CELL_LABEL} htmlFor={`guest_name_${index}`}>
-                    Full name <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id={`guest_name_${index}`}
-                    name="guest_name"
-                    required={showGuest && !docsDeferred}
-                    value={guest.fullName}
-                    onKeyDown={blockEnterSubmit}
-                    onChange={(e) =>
-                      updateGuest(index, { fullName: e.target.value })
-                    }
-                    className={cn(CELL_INPUT, "font-sans")}
-                  />
-                </div>
-
+        <div className="rounded-md border border-border/70">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="h-8 w-8 px-2 text-[11px]">#</TableHead>
+                <TableHead className="h-8 px-2 text-[11px]">
+                  Name <span className="text-destructive">*</span>
+                </TableHead>
                 {showNationality ? (
-                  <div className="min-w-0 space-y-0.5 xl:space-y-0">
-                    <Label
-                      className={CELL_LABEL}
-                      htmlFor={`guest_nat_${index}`}
-                    >
-                      Nationality
-                      {nationalityRequired(origin) ? (
-                        <span className="text-destructive"> *</span>
-                      ) : null}
-                    </Label>
-                    <Combobox
-                      options={countryOptions}
-                      value={guest.nationality || null}
-                      onValueChange={(value) =>
-                        updateGuest(index, { nationality: value })
+                  <TableHead className="h-8 px-2 text-[11px]">
+                    Nationality
+                    {nationalityRequired(origin) ? (
+                      <span className="text-destructive"> *</span>
+                    ) : null}
+                  </TableHead>
+                ) : null}
+                <TableHead className="h-8 px-2 text-[11px]">
+                  {idLabel(origin)} <span className="text-destructive">*</span>
+                </TableHead>
+                {showSdfFields ? (
+                  <TableHead className="h-8 px-2 text-[11px]">
+                    SDF <span className="text-destructive">*</span>
+                  </TableHead>
+                ) : null}
+                <TableHead className="h-8 px-2 text-[11px]">ID photo</TableHead>
+                {showSdfFields ? (
+                  <TableHead className="h-8 px-2 text-[11px]">SDF doc</TableHead>
+                ) : null}
+                <TableHead className="h-8 px-2 text-[11px]">Room</TableHead>
+                <TableHead className="h-8 w-8 px-1" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {guests.map((guest, index) => (
+                <TableRow key={`guest-${index}`}>
+                  <TableCell className="px-2 py-1 text-center text-xs tabular-nums text-muted-foreground">
+                    {index + 1}
+                  </TableCell>
+                  <TableCell className="px-1 py-1">
+                    <Input
+                      id={`guest_name_${index}`}
+                      name="guest_name"
+                      required={showGuest && !docsDeferred}
+                      value={guest.fullName}
+                      onKeyDown={blockEnterSubmit}
+                      onChange={(e) =>
+                        updateGuest(index, { fullName: e.target.value })
                       }
-                      placeholder="Country…"
-                      searchPlaceholder="Search countries…"
-                      className={CELL_INPUT}
+                      className={cn(CELL_INPUT, "font-sans")}
+                      aria-label={`Guest ${index + 1} name`}
+                    />
+                    {showNationality ? null : (
+                      <input
+                        type="hidden"
+                        name="guest_nationality"
+                        value={guest.nationality}
+                      />
+                    )}
+                    {showSdfFields ? null : (
+                      <>
+                        <input type="hidden" name="guest_sdf_ref" value={guest.sdfRef} />
+                        <input
+                          type="hidden"
+                          name="guest_sdf_doc_url"
+                          value={guest.sdfDocUrl}
+                        />
+                      </>
+                    )}
+                  </TableCell>
+                  {showNationality ? (
+                    <TableCell className="min-w-[9rem] px-1 py-1">
+                      <Combobox
+                        options={countryOptions}
+                        value={guest.nationality || null}
+                        onValueChange={(value) =>
+                          updateGuest(index, { nationality: value })
+                        }
+                        placeholder="Country"
+                        searchPlaceholder="Search countries…"
+                        className={CELL_INPUT}
+                      />
+                      <input
+                        type="hidden"
+                        name="guest_nationality"
+                        value={guest.nationality}
+                      />
+                    </TableCell>
+                  ) : null}
+                  <TableCell className="px-1 py-1">
+                    <Input
+                      id={`guest_id_${index}`}
+                      name="guest_passport_or_cid"
+                      required={showGuest && !docsDeferred}
+                      inputMode={origin === "local" ? "numeric" : undefined}
+                      pattern={
+                        showGuest && origin === "local" ? "[0-9]{11}" : undefined
+                      }
+                      minLength={showGuest && origin === "local" ? 11 : undefined}
+                      maxLength={origin === "local" ? 11 : undefined}
+                      value={guest.passportOrCid}
+                      onKeyDown={blockEnterSubmit}
+                      onChange={(e) => {
+                        const value =
+                          origin === "local"
+                            ? e.target.value.replace(/\D/g, "").slice(0, 11)
+                            : e.target.value;
+                        updateGuest(index, { passportOrCid: value });
+                      }}
+                      className={cn(CELL_INPUT, "font-mono tabular-nums")}
+                      aria-label={`${idLabel(origin)} for guest ${index + 1}`}
+                      title={
+                        origin === "local"
+                          ? "Bhutan CID must be exactly 11 digits"
+                          : undefined
+                      }
+                    />
+                  </TableCell>
+                  {showSdfFields ? (
+                    <TableCell className="px-1 py-1">
+                      <Input
+                        id={`guest_sdf_${index}`}
+                        name="guest_sdf_ref"
+                        required={showGuest && showSdfFields && !docsDeferred}
+                        value={guest.sdfRef}
+                        onKeyDown={blockEnterSubmit}
+                        onChange={(e) =>
+                          updateGuest(index, { sdfRef: e.target.value })
+                        }
+                        className={CELL_INPUT}
+                        aria-label={`SDF for guest ${index + 1}`}
+                      />
+                    </TableCell>
+                  ) : null}
+                  <TableCell className="px-1 py-1">
+                    <span id={`guest_id_photo_label_${index}`} className="sr-only">
+                      Passport or CID photo
+                    </span>
+                    <CloudinaryDocField
+                      name="guest_id_photo_url"
+                      value={guest.idPhotoUrl}
+                      describedBy={`guest_id_photo_label_${index}`}
+                      onPick={(intent) => openDocPicker(index, intent, "id_photo")}
+                      onClear={() => updateGuest(index, { idPhotoUrl: "" })}
+                    />
+                  </TableCell>
+                  {showSdfFields ? (
+                    <TableCell className="px-1 py-1">
+                      <span id={`guest_doc_label_${index}`} className="sr-only">
+                        SDF document
+                      </span>
+                      <CloudinaryDocField
+                        name="guest_sdf_doc_url"
+                        value={guest.sdfDocUrl}
+                        describedBy={`guest_doc_label_${index}`}
+                        onPick={(intent) => openDocPicker(index, intent, "sdf")}
+                        onClear={() => updateGuest(index, { sdfDocUrl: "" })}
+                      />
+                    </TableCell>
+                  ) : null}
+                  <TableCell className="min-w-[8.5rem] px-1 py-1">
+                    <Combobox
+                      options={guestRoomChoices.map((unit) => ({
+                        value: unit.id,
+                        label: unit.label,
+                        hint: [unit.floorLabel, unit.hkStatus, unit.reason]
+                          .filter(Boolean)
+                          .join(" · "),
+                      }))}
+                      value={guest.roomUnitId || null}
+                      onValueChange={(value) =>
+                        updateGuest(index, { roomUnitId: value })
+                      }
+                      placeholder="Room"
+                      searchPlaceholder="Search rooms…"
+                      emptyText="No free room."
+                      allowClear
+                      clearLabel="Auto"
+                      className={cn(CELL_INPUT, "font-sans")}
                     />
                     <input
                       type="hidden"
-                      name="guest_nationality"
-                      value={guest.nationality}
+                      name="guest_room_unit_id"
+                      value={guest.roomUnitId}
                     />
-                  </div>
-                ) : (
-                  <input
-                    type="hidden"
-                    name="guest_nationality"
-                    value={guest.nationality}
-                  />
-                )}
-
-                <div className="min-w-0 space-y-0.5 xl:space-y-0">
-                  <Label className={CELL_LABEL} htmlFor={`guest_id_${index}`}>
-                    {idLabel(origin)}{" "}
-                    <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id={`guest_id_${index}`}
-                    name="guest_passport_or_cid"
-                    required={showGuest && !docsDeferred}
-                    inputMode={origin === "local" ? "numeric" : undefined}
-                    pattern={
-                      showGuest && origin === "local" ? "[0-9]{11}" : undefined
-                    }
-                    minLength={
-                      showGuest && origin === "local" ? 11 : undefined
-                    }
-                    maxLength={origin === "local" ? 11 : undefined}
-                    value={guest.passportOrCid}
-                    onKeyDown={blockEnterSubmit}
-                    onChange={(e) => {
-                      const value =
-                        origin === "local"
-                          ? e.target.value.replace(/\D/g, "").slice(0, 11)
-                          : e.target.value;
-                      updateGuest(index, { passportOrCid: value });
-                    }}
-                    className={cn(CELL_INPUT, "tabular-nums")}
-                    title={
-                      origin === "local"
-                        ? "Bhutan CID must be exactly 11 digits"
-                        : undefined
-                    }
-                  />
-                </div>
-
-                {showSdfFields ? (
-                  <div className="min-w-0 space-y-0.5 xl:space-y-0">
-                    <Label
-                      className={CELL_LABEL}
-                      htmlFor={`guest_sdf_${index}`}
-                    >
-                      SDF ref
-                      <span className="text-destructive"> *</span>
-                    </Label>
-                    <Input
-                      id={`guest_sdf_${index}`}
-                      name="guest_sdf_ref"
-                      required={showGuest && showSdfFields && !docsDeferred}
-                      value={guest.sdfRef}
-                      onKeyDown={blockEnterSubmit}
-                      onChange={(e) =>
-                        updateGuest(index, { sdfRef: e.target.value })
-                      }
-                      className={CELL_INPUT}
-                    />
-                  </div>
-                ) : (
-                  <input
-                    type="hidden"
-                    name="guest_sdf_ref"
-                    value={guest.sdfRef}
-                  />
-                )}
-
-                <div className="min-w-0 space-y-0.5 xl:space-y-0">
-                  <span
-                    id={`guest_id_photo_label_${index}`}
-                    className={CELL_LABEL}
-                  >
-                    Passport / CID photo
-                  </span>
-                  <CloudinaryDocField
-                    name="guest_id_photo_url"
-                    value={guest.idPhotoUrl}
-                    describedBy={`guest_id_photo_label_${index}`}
-                    onPick={(intent) =>
-                      openDocPicker(index, intent, "id_photo")
-                    }
-                    onClear={() => updateGuest(index, { idPhotoUrl: "" })}
-                  />
-                </div>
-
-                {showSdfFields ? (
-                  <div className="min-w-0 space-y-0.5 xl:space-y-0">
-                    <span
-                      id={`guest_doc_label_${index}`}
-                      className={CELL_LABEL}
-                    >
-                      SDF document
-                    </span>
-                    <CloudinaryDocField
-                      name="guest_sdf_doc_url"
-                      value={guest.sdfDocUrl}
-                      describedBy={`guest_doc_label_${index}`}
-                      onPick={(intent) => openDocPicker(index, intent, "sdf")}
-                      onClear={() => updateGuest(index, { sdfDocUrl: "" })}
-                    />
-                  </div>
-                ) : (
-                  <input
-                    type="hidden"
-                    name="guest_sdf_doc_url"
-                    value={guest.sdfDocUrl}
-                  />
-                )}
-
-                <div className="min-w-0 space-y-0.5 xl:space-y-0">
-                  <Label
-                    className={CELL_LABEL}
-                    htmlFor={`guest_room_${index}`}
-                  >
-                    Sleeps in
-                  </Label>
-                  <select
-                    id={`guest_room_${index}`}
-                    name="guest_room_unit_id"
-                    value={guest.roomUnitId}
-                    onKeyDown={blockEnterSubmit}
-                    onChange={(e) =>
-                      updateGuest(index, { roomUnitId: e.target.value })
-                    }
-                    className={cn(
-                      CELL_INPUT,
-                      "flex border border-input font-sans",
-                    )}
-                  >
-                    <option value="">Auto</option>
-                    {selectedUnitIds.map((id) => {
-                      const unit = units.find((u) => u.id === id);
-                      if (!unit || unit.inventoryKind !== "sellable_guest") {
-                        return null;
-                      }
-                      return (
-                        <option key={id} value={id}>
-                          {unit.label}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-
-                <div className="hidden xl:block">
-                  {guests.length > 1 ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-7 text-muted-foreground hover:text-destructive"
-                      aria-label={`Remove guest ${index + 1}`}
-                      onClick={() =>
-                        setGuests((prev) => prev.filter((_, i) => i !== index))
-                      }
-                    >
-                      <Trash2Icon className="size-3.5" />
-                    </Button>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ul>
+                  </TableCell>
+                  <TableCell className="px-1 py-1">
+                    {guests.length > 1 ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 text-muted-foreground hover:text-destructive"
+                        aria-label={`Remove guest ${index + 1}`}
+                        onClick={() =>
+                          setGuests((prev) => prev.filter((_, i) => i !== index))
+                        }
+                      >
+                        <Trash2Icon className="size-3.5" />
+                      </Button>
+                    ) : null}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
-        <div className={cn("flex justify-end", docsDeferred && "hidden")}>
+        <div className="flex justify-end">
             <Button
               type="button"
               variant="outline"
@@ -1038,37 +924,58 @@ export function CheckInForm({
         </legend>
         {showGuide ? (
           <>
-            <PartnersPicker
-              kind="guide"
-              partners={guides}
-              selectedId={guidePick?.id ?? null}
-              onPick={(p) => {
-                setGuidePick(p);
-                if (p?.fill?.guide_number) setGuideNumber(p.fill.guide_number);
+            <Label htmlFor="guide_lookup" className={FIELD_LABEL}>
+              Guide
+            </Label>
+            <Combobox
+              options={[
+                ...guides
+                  .map((guide) => ({
+                    value: guide.fill?.guide_number || guide.id,
+                    label: guide.label,
+                    hint: guide.sublabel,
+                  }))
+                  .filter((option) => option.value),
+                ...(guideNumber &&
+                !guides.some((guide) => guide.fill?.guide_number === guideNumber)
+                  ? [
+                      {
+                        value: guideNumber,
+                        label: guideNumber,
+                        hint: "New — saved on the national list at check-in",
+                      },
+                    ]
+                  : []),
+              ]}
+              value={guideNumber || null}
+              onValueChange={(value) => {
+                setGuideNumber(value);
+              }}
+              placeholder="Type guide name or number"
+              searchPlaceholder="Name or license…"
+              emptyText="No guide on the national list."
+              emptyContent={({ query, close }) => {
+                const typed = query.trim();
+                if (!typed) return "Type a name or license number.";
+                return (
+                  <button
+                    type="button"
+                    className="w-full px-2 py-1.5 text-left text-sm"
+                    onClick={() => {
+                      setGuideNumber(typed);
+                      close();
+                    }}
+                  >
+                    Add {typed} to the national guide list
+                  </button>
+                );
               }}
             />
-            <input type="hidden" name="guide_id" value={guidePick?.id ?? ""} />
-            <div className="space-y-0.5">
-              <Label htmlFor="guide_number" className={FIELD_LABEL}>
-                Guide number
-              </Label>
-              <Input
-                id="guide_number"
-                type="text"
-                name="guide_number"
-                value={guideNumber}
-                onChange={(e) => {
-                  setGuideNumber(e.target.value);
-                  if (guidePick) setGuidePick(null);
-                }}
-                className={cn(DENSE_INPUT, "font-mono")}
-                aria-required={showGuest}
-                required={showGuest}
-              />
-              <p className="text-[10px] text-muted-foreground">
-                Required for international tourists.
-              </p>
-            </div>
+            <input type="hidden" name="guide_id" value="" />
+            <input type="hidden" name="guide_number" value={guideNumber} />
+            <p className="text-[10px] text-muted-foreground">
+              Shared across hotels. A new number is added for Innora to verify.
+            </p>
           </>
         ) : (
           <>

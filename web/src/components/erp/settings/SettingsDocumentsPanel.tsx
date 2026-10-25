@@ -329,22 +329,7 @@ function DocumentSection({
               <option value="branded">Branded</option>
             </select>
           </div>
-          {docKind === "receipt" ? (
-            <div className="space-y-1.5">
-              <Label htmlFor={`${docKind}-paper`}>Paper size</Label>
-              <select
-                id={`${docKind}-paper`}
-                name="paper_size"
-                defaultValue={design.paper_size}
-                className={fieldClass}
-              >
-                <option value="a4">A4</option>
-                <option value="thermal">Thermal / narrow</option>
-              </select>
-            </div>
-          ) : (
-            <input type="hidden" name="paper_size" value="a4" />
-          )}
+          <input type="hidden" name="paper_size" value="a4" />
           <div className="space-y-1.5">
             <Label htmlFor={`${docKind}-title`}>Document title</Label>
             <Input

@@ -3,6 +3,12 @@
 import { writeAuditEvent } from "@/lib/audit";
 import { thimphuToday } from "@/lib/erp-lists";
 import { deductRoomAmenityStock } from "@/lib/hk/amenity-stock";
+import {
+  bulkChoiceIsEmpty,
+  hkBulkInsert,
+  hkBulkPatch,
+  parseBulkHkChoice,
+} from "@/lib/hk/bulk-update";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { resolveActivePropertyId } from "@/lib/property-context";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -90,6 +96,216 @@ export async function bulkRequestRoomService(
     return {
       ok: true,
       message: `Service requested for ${unitIds.length} room(s)${created ? ` · ${created} new assignment(s)` : ""}.`,
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+/**
+ * One staff, status, or note change for every selected housekeeping task.
+ * Pending rooms (needs assign) get an assignment. Existing tasks are patched.
+ * Task type (dirty, check-in, stayover, due out, service) does not matter.
+ */
+export async function bulkUpdateHkTasks(
+  _prev: OpsState,
+  formData: FormData,
+): Promise<OpsState> {
+  try {
+    await requireDesk();
+    const admin = createSupabaseAdminClient();
+    const propertyId = await resolveActivePropertyId(admin);
+    const businessDate = trimRequired(formData.get("business_date"), "Date");
+    const keys = [
+      ...new Set(
+        formData
+          .getAll("task_key")
+          .map((value) => String(value).trim())
+          .filter(Boolean),
+      ),
+    ];
+    if (keys.length === 0) throw new Error("Select at least one task.");
+
+    const choice = parseBulkHkChoice({
+      staffChoice: String(formData.get("staff_choice") ?? "keep"),
+      statusChoice: String(formData.get("status_choice") ?? "keep"),
+      notes: String(formData.get("notes") ?? ""),
+    });
+    if (bulkChoiceIsEmpty(choice)) {
+      throw new Error("Choose a staff member, status, or note to apply.");
+    }
+
+    if (typeof choice.staff === "object") {
+      const { data: staff } = await admin
+        .from("staff_members")
+        .select("id")
+        .eq("id", choice.staff.id)
+        .eq("property_id", propertyId)
+        .eq("status", "active")
+        .maybeSingle();
+      if (!staff) throw new Error("Staff member not found.");
+    }
+
+    const pendingRoomIds: string[] = [];
+    const assignmentIds: string[] = [];
+    for (const key of keys) {
+      if (key.startsWith("pending:")) {
+        const roomId = key.slice("pending:".length).trim();
+        if (!roomId) throw new Error("Invalid task.");
+        pendingRoomIds.push(roomId);
+      } else {
+        assignmentIds.push(key);
+      }
+    }
+
+    if (pendingRoomIds.length > 0) {
+      const { data: rooms, error } = await admin
+        .from("room_units")
+        .select("id")
+        .eq("property_id", propertyId)
+        .in("id", pendingRoomIds);
+      if (error) throw new Error(error.message);
+      const found = new Set((rooms ?? []).map((room) => room.id as string));
+      if (pendingRoomIds.some((id) => !found.has(id))) {
+        throw new Error("One or more rooms are not on this property.");
+      }
+    }
+
+    type TaskRef = { id: string; status: string; room_unit_id: string };
+    const toUpdate: TaskRef[] = [];
+    const toInsert: string[] = [];
+
+    if (pendingRoomIds.length > 0) {
+      const { data, error } = await admin
+        .from("hk_assignments")
+        .select("id, status, room_unit_id")
+        .eq("property_id", propertyId)
+        .eq("business_date", businessDate)
+        .in("room_unit_id", pendingRoomIds)
+        .in("status", ["open", "in_progress", "skipped"]);
+      if (error) throw new Error(error.message);
+      const existingByRoom = new Map<string, TaskRef>();
+      for (const row of data ?? []) {
+        existingByRoom.set(row.room_unit_id as string, {
+          id: row.id as string,
+          status: row.status as string,
+          room_unit_id: row.room_unit_id as string,
+        });
+      }
+      for (const roomId of pendingRoomIds) {
+        const existing = existingByRoom.get(roomId);
+        if (existing) toUpdate.push(existing);
+        else toInsert.push(roomId);
+      }
+    }
+
+    if (assignmentIds.length > 0) {
+      const { data, error } = await admin
+        .from("hk_assignments")
+        .select("id, status, room_unit_id")
+        .eq("property_id", propertyId)
+        .in("id", assignmentIds);
+      if (error) throw new Error(error.message);
+      const found = new Map(
+        (data ?? []).map((row) => [row.id as string, row]),
+      );
+      if (assignmentIds.some((id) => !found.has(id))) {
+        throw new Error("One or more tasks were not found.");
+      }
+      for (const id of assignmentIds) {
+        const row = found.get(id)!;
+        toUpdate.push({
+          id,
+          status: row.status as string,
+          room_unit_id: row.room_unit_id as string,
+        });
+      }
+    }
+
+    const seen = new Set<string>();
+    const updates = toUpdate.filter((row) => {
+      if (seen.has(row.id)) return false;
+      seen.add(row.id);
+      return true;
+    });
+
+    const now = new Date().toISOString();
+    const cleanRoomIds = new Set<string>();
+
+    if (toInsert.length > 0) {
+      const rows = toInsert.map((roomId) => {
+        const draft = hkBulkInsert(choice);
+        if (draft.markComplete) cleanRoomIds.add(roomId);
+        return {
+          property_id: propertyId,
+          room_unit_id: roomId,
+          staff_id: draft.staff_id ?? null,
+          business_date: businessDate,
+          status: draft.status,
+          notes: draft.notes,
+          completed_at: draft.markComplete ? now : null,
+        };
+      });
+      const { error } = await admin.from("hk_assignments").insert(rows);
+      if (error) throw new Error(error.message);
+    }
+
+    for (const row of updates) {
+      const patch = hkBulkPatch(row.status, choice);
+      if (!patch) continue;
+      const dbPatch: Record<string, unknown> = {};
+      if ("staff_id" in patch) dbPatch.staff_id = patch.staff_id;
+      if (patch.status) dbPatch.status = patch.status;
+      if ("notes" in patch) dbPatch.notes = patch.notes;
+      if (patch.markComplete) {
+        dbPatch.status = "done";
+        dbPatch.completed_at = now;
+        cleanRoomIds.add(row.room_unit_id);
+      }
+      const { error } = await admin
+        .from("hk_assignments")
+        .update(dbPatch)
+        .eq("id", row.id)
+        .eq("property_id", propertyId);
+      if (error) throw new Error(error.message);
+    }
+
+    if (cleanRoomIds.size > 0) {
+      const { error } = await admin
+        .from("room_units")
+        .update({
+          hk_status: "clean",
+          service_requested_at: null,
+          updated_at: now,
+        })
+        .eq("property_id", propertyId)
+        .in("id", [...cleanRoomIds]);
+      if (error) throw new Error(error.message);
+    }
+
+    const count = toInsert.length + updates.length;
+    await writeAuditEvent(admin, {
+      propertyId,
+      action: "hk.tasks.bulk_update",
+      entityType: "hk_assignments",
+      entityId: updates[0]?.id ?? null,
+      summary: `Bulk updated ${count} housekeeping task(s)`,
+      meta: {
+        count,
+        created: toInsert.length,
+        updated: updates.length,
+        staff: choice.staff === "keep" || choice.staff === "clear" ? choice.staff : "set",
+        status: choice.status,
+        rooms_marked_clean: cleanRoomIds.size,
+      },
+    });
+
+    revalidateHk();
+    const cleanNote =
+      choice.status === "done" ? " Rooms marked clean." : "";
+    return {
+      ok: true,
+      message: `Updated ${count} task${count === 1 ? "" : "s"}.${cleanNote}`,
     };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };

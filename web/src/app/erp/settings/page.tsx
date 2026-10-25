@@ -30,6 +30,7 @@ import { SettingsIdentityPanel } from "@/components/erp/settings/SettingsIdentit
 import { SettingsSection } from "@/components/erp/settings/SettingsSection";
 import { SettingsShell } from "@/components/erp/settings/SettingsShell";
 import { SettingsRrcoInvoicePanel } from "@/components/erp/settings/SettingsRrcoInvoicePanel";
+import { SettingsSignaturesPanel } from "@/components/erp/settings/SettingsSignaturesPanel";
 import { SettingsTaxPanel } from "@/components/erp/settings/SettingsTaxPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -145,7 +146,7 @@ export default async function ErpSettingsPage({
   const aiAssist = await getPropertyAiAssistStatus(propertyId).catch(() => ({
     configured: false,
     enabled: false,
-    model: "gemini-2.0-flash",
+    model: "gemini-3.8-flash",
     maskedKey: null as string | null,
   }));
 
@@ -356,6 +357,24 @@ export default async function ErpSettingsPage({
     };
   });
 
+  const { data: signRows } = await admin
+    .from("staff_members")
+    .select("id, full_name, desk_role, access_level")
+    .eq("property_id", property.id)
+    .eq("status", "active")
+    .order("full_name");
+  const { data: signFiles } = await admin.storage.from("hr-private").list("signatures");
+  const savedSignatures = new Set((signFiles ?? []).map((file) => file.name));
+  const signatureStaff = (signRows ?? []).map((row) => ({
+    id: row.id as string,
+    fullName: row.full_name as string,
+    deskRole: (row.desk_role as string | null) ?? null,
+    accessLevel: (row.access_level as string | null) ?? null,
+    hasSignature: savedSignatures.has(`${row.id}.png`),
+  }));
+  const nameFile = await admin.storage.from("hr-private").download("signatures/authorized-name.txt");
+  const signatoryName = nameFile.data ? (await nameFile.data.text()).trim() || "Choki" : "Choki";
+
   const readiness = buildSettingsReadiness({
     setup_completed_at: property.setup_completed_at,
     logo_public_id: property.logo_public_id,
@@ -397,11 +416,14 @@ export default async function ErpSettingsPage({
       }
     >
       {activeTab === "overview" ? (
-        <SettingsHub
-          propertyId={property.id}
-          readiness={readiness}
-          isOwner={isOwner}
-        />
+        <div className="space-y-6">
+          <SettingsSignaturesPanel staff={signatureStaff} signatoryName={signatoryName} />
+          <SettingsHub
+            propertyId={property.id}
+            readiness={readiness}
+            isOwner={isOwner}
+          />
+        </div>
       ) : null}
 
       {activeTab === "identity" ? (

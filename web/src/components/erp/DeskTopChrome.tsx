@@ -2,12 +2,21 @@
 
 import { deskLogout } from "@/app/actions/desk";
 import { deskShiftChange } from "@/app/actions/staff-auth";
+import type { DeskActor } from "@/lib/erp/desk-actor";
 import { FrontDeskLiveRefresh } from "@/components/erp/FrontDeskLiveRefresh";
 import { DeskSearchHint } from "@/components/erp/DeskSearchHint";
 import { openErpCommandPalette } from "@/components/erp/ErpCommandPalette";
 import { PropertySwitcher } from "@/components/erp/PropertySwitcher";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetClose,
@@ -36,6 +45,7 @@ import type { PropertySwitcherOption } from "@/lib/property-types";
 import { SITE_NAME } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import {
+  ChevronDownIcon,
   MenuIcon,
   SearchIcon,
   type LucideIcon,
@@ -200,6 +210,7 @@ export function DeskTopChrome({
   properties,
   activePropertyId,
   allowedModuleKeys,
+  actor,
 }: {
   brandName?: string;
   logoSrc?: string | null;
@@ -207,6 +218,7 @@ export function DeskTopChrome({
   properties?: PropertySwitcherOption[];
   activePropertyId?: string;
   allowedModuleKeys?: readonly string[];
+  actor?: DeskActor | null;
 }) {
   const pathname = usePathname();
   const search = useSearchParams().toString();
@@ -394,27 +406,40 @@ export function DeskTopChrome({
               activePropertyId={activePropertyId}
             />
           ) : null}
-          <form action={deskShiftChange}>
-            <Button
-              type="submit"
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              title="End shift for next login"
-            >
-              Login +
-            </Button>
-          </form>
-          <form action={deskLogout}>
-            <Button
-              type="submit"
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs"
-            >
-              Log out
-            </Button>
-          </form>
+          <form id="desk-shift-change" action={deskShiftChange} />
+          <form id="desk-logout" action={deskLogout} />
+          <DropdownMenu>
+            <DropdownMenuTrigger className="inline-flex h-7 max-w-[11rem] items-center gap-1 rounded-md px-2 text-xs font-medium hover:bg-muted">
+              <span className="truncate">{actor?.name || "Account"}</span>
+              <ChevronDownIcon className="size-3 shrink-0 opacity-70" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>
+                <span className="block truncate">{actor?.name || "Account"}</span>
+                <span className="block text-xs font-normal text-muted-foreground">
+                  {[actor?.role, actor?.code].filter(Boolean).join(" · ") || "Signed in"}
+                </span>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <a href="/erp/settings">Hotel settings</a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a href="/erp/hr">Staff</a>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <button type="submit" form="desk-shift-change" className="w-full">
+                  Next login
+                </button>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <button type="submit" form="desk-logout" className="w-full">
+                  Log out
+                </button>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -456,7 +481,8 @@ export function DeskSideNav() {
   if (!activeGroup) return null;
 
   const title = MENU_TITLE[activeGroup.id] ?? activeGroup.label;
-  const topLinks = railTopLinks();
+  const inGroup = new Set(activeGroup.items.map((item) => item.href));
+  const topLinks = railTopLinks().filter((item) => !inGroup.has(item.href));
 
   return (
     <nav
@@ -464,19 +490,21 @@ export function DeskSideNav() {
       data-slot="desk-side-nav"
       className="hidden w-52 shrink-0 flex-col overflow-y-auto border-r border-border bg-background px-2 py-2 md:flex print:hidden"
     >
-      <div className="flex flex-col gap-1">
-        {topLinks.map((item) => (
-          <SideLink
-            key={item.href}
-            href={item.href}
-            label={item.label}
-            icon={item.icon}
-            active={menuItemActive(pathname, search, item.href)}
-            onClick={() => pushErpRecent({ href: item.href, title: item.label })}
-          />
-        ))}
-      </div>
-      <div className="mt-1 flex flex-col gap-0.5">
+      {topLinks.length ? (
+        <div className="mb-1 flex flex-col gap-1">
+          {topLinks.map((item) => (
+            <SideLink
+              key={item.href}
+              href={item.href}
+              label={item.label}
+              icon={item.icon}
+              active={menuItemActive(pathname, search, item.href)}
+              onClick={() => pushErpRecent({ href: item.href, title: item.label })}
+            />
+          ))}
+        </div>
+      ) : null}
+      <div className="flex flex-col gap-0.5">
         {activeGroup.items.map((item) => (
           <SideLink
             key={item.href}
@@ -490,6 +518,31 @@ export function DeskSideNav() {
       </div>
     </nav>
   );
+}
+
+function sideIconTone(href: string): string {
+  const tones: Array<[string, string]> = [
+    ["/erp/day", "text-amber-600"],
+    ["/erp/reservations", "text-sky-600"],
+    ["/erp/calendar", "text-emerald-600"],
+    ["/erp/housekeeping", "text-teal-600"],
+    ["/erp/laundry", "text-cyan-600"],
+    ["/erp/maintenance", "text-orange-600"],
+    ["/erp/lost-found", "text-rose-600"],
+    ["/erp/rooms", "text-emerald-700"],
+    ["/erp/finance", "text-violet-700"],
+    ["/erp/payments", "text-emerald-700"],
+    ["/erp/pos", "text-orange-600"],
+    ["/erp/kitchen", "text-red-600"],
+    ["/erp/menu", "text-amber-700"],
+    ["/erp/night-audit", "text-indigo-600"],
+    ["/erp/settings", "text-stone-600"],
+    ["/erp/hr", "text-sky-700"],
+    ["/erp/agents", "text-fuchsia-700"],
+    ["/erp/reports", "text-indigo-700"],
+    ["/erp/inventory", "text-lime-700"],
+  ];
+  return tones.find(([prefix]) => href === prefix || href.startsWith(`${prefix}/`))?.[1] ?? "text-sky-700";
 }
 
 function SideLink({
@@ -522,7 +575,7 @@ function SideLink({
           active && "bg-[var(--gold)]",
         )}
       />
-      <Icon className="size-4 shrink-0" />
+      <Icon className={cn("size-4 shrink-0", sideIconTone(href))} />
       <span className="whitespace-nowrap">{label}</span>
     </Link>
   );

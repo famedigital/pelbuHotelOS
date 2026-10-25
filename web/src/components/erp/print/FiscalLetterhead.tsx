@@ -41,6 +41,7 @@ export function FiscalLetterhead({
   kind,
   title,
   meta,
+  compact = false,
 }: {
   property: FiscalPropertyChrome;
   /** e.g. Tax invoice / Proforma / Folio */
@@ -48,6 +49,8 @@ export function FiscalLetterhead({
   /** e.g. INVOICE / BILL / PROFORMA / FOLIO */
   title: string;
   meta: FiscalMetaRow[];
+  /** Shorter logo and type so the charge table starts higher on the page. */
+  compact?: boolean;
 }) {
   const hotelName = property.name?.trim() || "Hotel";
   const legal = property.legal_name?.trim();
@@ -66,27 +69,44 @@ export function FiscalLetterhead({
     (legal && legal !== hotelName ? legal : null);
 
   return (
-    <header className="fiscal-lh flex items-start justify-between gap-3 border-b-2 border-[#1a1410] pb-2">
-      <div className="flex min-w-0 items-start gap-3">
+    <header
+      className={`fiscal-lh flex items-start justify-between border-[#1a1410] ${compact ? "gap-2 border-b pb-1" : "gap-3 border-b-2 pb-2"}`}
+    >
+      <div className={`flex min-w-0 items-start ${compact ? "gap-2" : "gap-3"}`}>
         {logoSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={logoSrc}
             alt=""
-            className="h-[52px] w-[52px] shrink-0 object-contain"
+            className={`shrink-0 object-contain ${compact ? "h-9 w-9" : "h-[52px] w-[52px]"}`}
           />
         ) : null}
         <div className="min-w-0">
-          <p className="text-[20px] leading-tight font-bold tracking-wide text-[#1a1410]">
+          <p
+            className={`font-bold tracking-wide text-[#1a1410] ${compact ? "text-[16px] leading-none" : "text-[20px] leading-tight"}`}
+          >
             {hotelName.toUpperCase()}
           </p>
           {tagline ? (
-            <p className="mt-0.5 text-[10px] font-bold tracking-[0.16em] text-[#6e2c2c] uppercase">
+            <p
+              className={`mt-0.5 text-[10px] font-bold text-[#6e2c2c] uppercase ${compact ? "leading-none tracking-[0.14em]" : "tracking-[0.16em]"}`}
+            >
               {tagline}
             </p>
           ) : null}
-          <address className="mt-1 text-[11px] leading-snug not-italic text-[#3a322c]">
-            {property.address ? <span className="block">{property.address}</span> : null}
+          <address
+            className={`not-italic text-[#3a322c] ${compact ? "mt-0.5 text-[10px] leading-tight" : "mt-1 text-[11px] leading-snug"}`}
+          >
+            {property.address || property.tax_id ? (
+              <span className="block">
+                {[
+                  property.address?.trim() || null,
+                  property.tax_id?.trim() ? `TPN ${property.tax_id.trim()}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+            ) : null}
             <span className="block">
               {[
                 property.phone ? `T ${property.phone}` : null,
@@ -99,7 +119,6 @@ export function FiscalLetterhead({
                 !`${property.address ?? ""}`.includes(property.website)
                   ? property.website
                   : null,
-                property.tax_id ? `TPN ${property.tax_id}` : null,
               ]
                 .filter(Boolean)
                 .join(" · ")}
@@ -108,13 +127,17 @@ export function FiscalLetterhead({
         </div>
       </div>
       <div className="shrink-0 text-right">
-        <p className="text-[11px] font-bold tracking-[0.22em] text-[#6e2c2c] uppercase">
+        <p
+          className={`font-bold tracking-[0.18em] text-[#6e2c2c] uppercase ${compact ? "text-[10px]" : "text-[11px] tracking-[0.22em]"}`}
+        >
           {kind}
         </p>
-        <h2 className="mt-0.5 text-[18px] font-semibold tracking-wide text-[#1a1410]">
+        <h2
+          className={`font-semibold tracking-wide text-[#1a1410] ${compact ? "text-[15px] leading-tight" : "mt-0.5 text-[18px]"}`}
+        >
           {title}
         </h2>
-        <table className="ml-auto mt-1 border-collapse text-[12px]">
+        <table className={`ml-auto border-collapse ${compact ? "mt-0.5 text-[11px]" : "mt-1 text-[12px]"}`}>
           <tbody>
             {meta.map((row) => (
               <tr key={row.label}>

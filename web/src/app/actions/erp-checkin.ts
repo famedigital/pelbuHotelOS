@@ -548,35 +548,18 @@ export async function confirmCheckIn(
     }
 
     const todayIso = new Date().toISOString().slice(0, 10);
-    let resolvedGuideId: string | null = guideIdRaw || null;
+    let resolvedGuideId: string | null = null;
     let resolvedDriverId: string | null = driverIdRaw || null;
 
-    if (
-      !resolvedGuideId &&
-      effectiveGuideNumber &&
-      effectiveGuideNumber !== "DEFERRED"
-    ) {
-      const { data: newGuide, error: gErr } = await admin
-        .from("guides")
-        .insert({
-          property_id,
-          guide_number: effectiveGuideNumber,
-          visit_count: 1,
-          last_seen_at: todayIso,
-        })
-        .select("id")
-        .maybeSingle();
-      if (gErr?.code === "23505") {
-        const { data: existing } = await admin
-          .from("guides")
-          .select("id")
-          .eq("property_id", property_id)
-          .eq("guide_number", effectiveGuideNumber)
-          .maybeSingle();
-        resolvedGuideId = (existing?.id as string | null) ?? null;
-      } else {
-        resolvedGuideId = (newGuide?.id as string | null) ?? null;
-      }
+    if (effectiveGuideNumber && effectiveGuideNumber !== "DEFERRED") {
+      const { ensureCentralGuide } = await import(
+        "@/lib/partners/central-guide"
+      );
+      const linked = await ensureCentralGuide(admin, {
+        propertyId: property_id,
+        licenseNo: effectiveGuideNumber,
+      });
+      resolvedGuideId = (linked.localId ?? guideIdRaw) || null;
     }
 
     if (!resolvedDriverId && (driverPhone || driverName)) {

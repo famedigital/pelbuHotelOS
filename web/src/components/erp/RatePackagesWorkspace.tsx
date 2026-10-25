@@ -77,6 +77,7 @@ export function RatePackagesWorkspace({
   defaultMealPlanCode,
   ratesInclusiveOfGstSc = false,
   gstCharged = false,
+  only,
 }: {
   rows: RatesWorkspaceRateRow[];
   roomTypes: RatesWorkspaceRoom[];
@@ -85,6 +86,8 @@ export function RatePackagesWorkspace({
   defaultMealPlanCode: string;
   ratesInclusiveOfGstSc?: boolean;
   gstCharged?: boolean;
+  /** Render one pane when the rates desk owns the rest of the layout. */
+  only?: "packages" | "meals";
 }) {
   const guestRooms = useMemo(
     () => roomTypes.filter((r) => r.inventory_kind === "sellable_guest"),
@@ -141,8 +144,7 @@ export function RatePackagesWorkspace({
     }),
   );
 
-  return (
-    <div className="space-y-8">
+  const packages = (
       <section className="space-y-3">
         <header className="space-y-1">
           <h2 className="text-lg font-semibold tracking-tight">
@@ -150,8 +152,8 @@ export function RatePackagesWorkspace({
           </h2>
           <p className="max-w-3xl text-sm text-muted-foreground">
             Same package card used for desk quotes: room only plus meal
-            packages at double occupancy (room + adult meal × 2). Edit public
-            room Nu below to change these figures.
+            packages at double occupancy (room + adult meal × 2). Public
+            room Nu on the rate book changes these figures.
           </p>
         </header>
         <div className="rounded-xl border bg-card p-4 md:p-5">
@@ -161,10 +163,43 @@ export function RatePackagesWorkspace({
             currentSeasonKind={currentSeasonKind}
             mode="desk-preview"
             taxInclusive={ratesInclusiveOfGstSc}
-            emptyMessage="Add public tier Nu in the sheet below to populate packages."
+            emptyMessage="Add public tier Nu on the rate book to populate packages."
           />
         </div>
       </section>
+  );
+
+  const meals = (
+      <section className="space-y-3">
+        <header className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold tracking-tight">Meal plans</h2>
+            <p className="max-w-2xl text-sm text-muted-foreground">
+              Adult Nu feeds package columns (×2 for double occupancy).
+              Child 6–12 meal is half the adult meal portion only.
+            </p>
+          </div>
+          <Link
+            href="/erp/settings?tab=commercial"
+            className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          >
+            Edit in Settings →
+          </Link>
+        </header>
+        <MealPlansRatesSummary
+          mealPlans={mealPlans}
+          defaultMealPlanCode={defaultMealPlanCode}
+          compact
+        />
+      </section>
+  );
+
+  if (only === "packages") return packages;
+  if (only === "meals") return meals;
+
+  return (
+    <div className="space-y-8">
+      {packages}
 
       <section className="space-y-3">
         <header className="space-y-1">
@@ -201,28 +236,7 @@ export function RatePackagesWorkspace({
         />
       </section>
 
-      <section className="space-y-3">
-        <header className="flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-1">
-            <h2 className="text-lg font-semibold tracking-tight">Meal plans</h2>
-            <p className="max-w-2xl text-sm text-muted-foreground">
-              Adult Nu feeds package columns above (×2 for double occupancy).
-              Child 6–12 meal is half the adult meal portion only.
-            </p>
-          </div>
-          <Link
-            href="/erp/settings?tab=commercial"
-            className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-          >
-            Edit in Settings →
-          </Link>
-        </header>
-        <MealPlansRatesSummary
-          mealPlans={mealPlans}
-          defaultMealPlanCode={defaultMealPlanCode}
-          compact
-        />
-      </section>
+      {meals}
     </div>
   );
 }

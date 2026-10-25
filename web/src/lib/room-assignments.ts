@@ -32,6 +32,39 @@ export type CheckInAssignmentSlot = {
   assignedLabel: string | null;
 };
 
+/** Calendar YYYY-MM-DD plus days. Date-only, no timezone shift. */
+function isoAddDays(iso: string, days: number): string {
+  const [year, month, day] = iso.slice(0, 10).split("-").map(Number);
+  const date = new Date(Date.UTC(year, (month ?? 1) - 1, day ?? 1));
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Reservation may place a physical room from the night before arrival onward.
+ * Earlier than that the room stays unassigned so housekeeping can still turn it.
+ */
+async function assertRoomAssignWindow(
+  admin: Admin,
+  propertyId: string,
+  checkIn: string,
+): Promise<void> {
+  const arrival = checkIn.slice(0, 10);
+  const { data: property } = await admin
+    .from("properties")
+    .select("current_business_date")
+    .eq("id", propertyId)
+    .maybeSingle();
+  const open =
+    (property?.current_business_date as string | null)?.slice(0, 10) ?? arrival;
+  const previousNight = isoAddDays(arrival, -1);
+  if (open < previousNight) {
+    throw new Error(
+      `Rooms can be assigned from the night before arrival (${previousNight}). This stay arrives ${arrival}.`,
+    );
+  }
+}
+
 function rangesOverlap(
   aFrom: string,
   aTo: string,
@@ -143,6 +176,8 @@ export async function assignRoomsForBooking(
   if (!checkIn || !checkOut || checkOut <= checkIn) {
     return { assigned: 0, shortfall: 0 };
   }
+
+  await assertRoomAssignWindow(admin, propertyId, checkIn);
 
   const demandByType = new Map<string, number>();
   for (const line of args.lines) {

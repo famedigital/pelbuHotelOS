@@ -106,9 +106,7 @@ export default async function OrderSlipPage({ params }: Props) {
   const confirmed = Boolean(data.confirmedAt);
   const paid = Boolean(data.paymentRecordedAt);
 
-  const designPaper = property.doc_receipt.paper_size;
-  const paper: DocumentPaperSize =
-    designPaper === "a4" ? "a4" : "thermal";
+  const paper: DocumentPaperSize = "a4";
 
   return (
     <div className="erp mx-auto w-full max-w-[520px] space-y-5 p-4 md:p-6 print:max-w-none print:p-0">

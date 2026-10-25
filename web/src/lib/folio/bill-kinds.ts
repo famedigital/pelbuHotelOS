@@ -7,7 +7,7 @@ import { isGuestRateAdjDescription } from "@/lib/pricing";
 
 export type BillKind = "master" | "room" | "fnb";
 
-export type BillLineGroup = "room" | "fnb" | "hotel_adj" | "other";
+export type BillLineGroup = "room" | "fnb" | "services" | "hotel_adj" | "other";
 
 export const BILL_KIND_LABELS: Record<BillKind, string> = {
   master: "Master bill",
@@ -50,7 +50,9 @@ export function classifyBillLine(line: {
   const st = (line.source_type ?? "").toLowerCase();
   if (["room", "extra_bed"].includes(st)) return "room";
   // Package meals (CP breakfast, MAP breakfast and dinner) are the food bill.
-  if (["meal_plan", "order", "pos", "laundry"].includes(st)) return "fnb";
+  if (["meal_plan", "order", "pos"].includes(st)) return "fnb";
+  // Laundry and minibar/amenity sit on the master bill, not the food bill.
+  if (["laundry", "service"].includes(st)) return "services";
   if (st === "comp" || st === "adjustment") return "hotel_adj";
   return "other";
 }

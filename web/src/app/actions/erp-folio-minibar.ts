@@ -14,6 +14,7 @@ export type FolioMinibarState = {
   ok: boolean;
   error?: string;
   message?: string;
+  at?: number;
 };
 
 /** Quick minibar / amenity charge without a POS ticket. */
@@ -118,6 +119,7 @@ export async function postMinibarCharge(
     revalidatePath(`/erp/folios/${folioId}`);
     return {
       ok: true,
+      at: Date.now(),
       message: `Posted ${item.label} × ${qty} — Nu ${totalBtn}.`,
     };
   } catch (e) {

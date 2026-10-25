@@ -48,9 +48,10 @@ export function billStreams(
     status?: string | null;
     reverses_line_id?: string | null;
   }>,
-): { room: number; food: number; master: number } {
+): { room: number; food: number; services: number; master: number } {
   let room = 0;
   let food = 0;
+  let services = 0;
   for (const line of lines) {
     if ((line.status ?? "posted") !== "posted") continue;
     if (line.reverses_line_id) continue;
@@ -58,11 +59,13 @@ export function billStreams(
     const total = Number(line.total_btn) || 0;
     if (group === "room") room += total;
     if (group === "fnb") food += total;
+    if (group === "services") services += total;
   }
   const round = (n: number) => Math.round(n * 100) / 100;
   room = round(room);
   food = round(food);
-  return { room, food, master: round(room + food) };
+  services = round(services);
+  return { room, food, services, master: round(room + food + services) };
 }
 
 export function departureBillBlocks(input: {

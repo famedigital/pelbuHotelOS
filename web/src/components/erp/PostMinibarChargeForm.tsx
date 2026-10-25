@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { formatBtn } from "@/lib/pricing";
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 
 const initial: FolioMinibarState = { ok: false };
 
@@ -26,14 +26,25 @@ export function PostMinibarChargeForm({
   folioId,
   items,
   embedded = false,
+  onPosted,
 }: {
   folioId: string;
   items: MinibarPickerItem[];
   embedded?: boolean;
+  onPosted?: () => void;
 }) {
   const [state, action, pending] = useActionState(postMinibarCharge, initial);
   useActionToast(state, { successMessage: "Minibar / amenity posted" });
   const [selectedId, setSelectedId] = useState<string>("");
+  const onPostedRef = useRef(onPosted);
+  onPostedRef.current = onPosted;
+  const seen = useRef(0);
+
+  useEffect(() => {
+    if (!state.ok || !state.at || seen.current === state.at) return;
+    seen.current = state.at;
+    onPostedRef.current?.();
+  }, [state.ok, state.at]);
 
   const options = useMemo(
     () =>

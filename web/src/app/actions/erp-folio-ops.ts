@@ -30,6 +30,7 @@ import {
 } from "@/lib/payments/claim-link";
 import { roundBtn } from "@/lib/pricing";
 import { loadProperty, resolveActivePropertyId } from "@/lib/property-context";
+import { effectiveGstRate } from "@/lib/property-settings";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { optionalTrim, trimRequired } from "@/lib/validation";
 import { createHash, randomBytes } from "crypto";
@@ -175,7 +176,6 @@ export async function correctFolioLine(
       throw new Error("Rate must be zero or more.");
     }
     const scOn = formData.get("sc_on") === "on";
-    const gstOn = formData.get("gst_on") === "on";
     const reason = optionalTrim(formData.get("void_reason")) || "Correction";
 
     const { data: line, error } = await admin
@@ -210,7 +210,8 @@ export async function correctFolioLine(
 
     const property = await loadProperty(admin, pid);
     const scRate = scOn ? Number(property?.service_charge_rate ?? 0) : 0;
-    const gstRate = gstOn ? Number(property?.gst_rate ?? 0) : 0;
+    const gstRate = effectiveGstRate(property);
+    const gstOn = gstRate > 0;
     const amount = roundBtn(qty * rate);
     const serviceCharge = roundBtn(amount * (scRate > 1 ? scRate / 100 : scRate));
     const gst = roundBtn((amount + serviceCharge) * (gstRate > 1 ? gstRate / 100 : gstRate));
@@ -1156,7 +1157,7 @@ export async function supersedeAndReissueFolioInvoice(
   }
 }
 
-/** Open the master bill. Issues the tax invoice first when the folio has none. */
+/** Open the folio. A room tax invoice is not created here. */
 export async function openMasterBillPrint(
   folioId: string,
 ): Promise<
@@ -1168,39 +1169,17 @@ export async function openMasterBillPrint(
     if (!id) return { ok: false, error: "Folio is required." };
     const admin = createSupabaseAdminClient();
     const pid = await propertyId(admin);
-    const { data: existing } = await admin
-      .from("fiscal_documents")
-      .select("id")
-      .eq("property_id", pid)
-      .eq("folio_id", id)
-      .eq("doc_kind", "invoice")
-      .eq("status", "issued")
+    const { data: folio } = await admin
+      .from("folios")
+      .select("id, property_id")
+      .eq("id", id)
       .maybeSingle();
-    if (existing?.id) {
-      return {
-        ok: true,
-        href: `/erp/folios/${id}/bill?bill=master`,
-        docNo: null,
-      };
-    }
-    const doc = await issueFiscalDocument(admin, pid, {
-      docKind: "invoice",
-      folioId: id,
-      issuedBy: "desk",
-    });
-    await writeAuditEvent(admin, {
-      propertyId: pid,
-      action: "fiscal.invoice.issue",
-      entityType: "fiscal_documents",
-      entityId: doc.id,
-      summary: `Issued tax invoice ${doc.docNo}`,
-      meta: { folioId: id, docNo: doc.docNo },
-    });
-    revalidateFolio(id);
+    if (!folio) return { ok: false, error: "Folio not found." };
+    assertDeskProperty(pid, folio.property_id as string, "Folio");
     return {
       ok: true,
-      href: `/erp/folios/${id}/bill?bill=master`,
-      docNo: doc.docNo,
+      href: `/erp/folios/${id}/bill`,
+      docNo: null,
     };
   } catch (e) {
     const { deskErrorText } = await import("@/lib/folio/bill-block");
@@ -1208,6 +1187,168 @@ export async function openMasterBillPrint(
       ok: false,
       error: deskErrorText(e),
     };
+  }
+}
+
+/**
+ * After the master-bill total is received, issue the room tax invoice and the
+ * receipt together. A number that already exists is kept.
+ */
+export async function issueRoomTaxInvoiceAndReceipt(
+  folioId: string,
+): Promise<
+  | { ok: true; href: string; invoiceNo: string; receiptNo: string }
+  | { ok: false; error: string }
+> {
+  try {
+    await requireMoney();
+    const id = folioId.trim();
+    if (!id) return { ok: false, error: "Folio is required." };
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const { actor } = await resolveDeskActor();
+
+    const { data: folio } = await admin
+      .from("folios")
+      .select(
+        "id, property_id, folio_lines(id, total_btn, status, source_type, reverses_line_id)",
+      )
+      .eq("id", id)
+      .eq("property_id", pid)
+      .maybeSingle();
+    if (!folio) return { ok: false, error: "Folio not found." };
+    assertDeskProperty(pid, folio.property_id as string, "Folio");
+
+    const { guestVisibleBalanceLines } = await import("@/lib/folio/balance");
+    const { receivedCoversMasterBill } = await import("@/lib/folio/room-tax-invoice");
+    const lines = guestVisibleBalanceLines(
+      ((folio.folio_lines as Array<{
+        id: string;
+        total_btn: number;
+        status: string;
+        source_type?: string | null;
+        reverses_line_id?: string | null;
+      }> | null) ?? []).map((line) => ({
+        id: line.id,
+        total_btn: Number(line.total_btn),
+        status: line.status,
+        reverses_line_id: line.reverses_line_id ?? null,
+        source_type: line.source_type,
+      })),
+    );
+    const masterTotal = lines
+      .filter((line) => {
+        const source = (line.source_type ?? "").toLowerCase();
+        return source !== "payment" && source !== "deposit";
+      })
+      .reduce((sum, line) => sum + Number(line.total_btn), 0);
+    const receivedOnLines = lines
+      .filter((line) => {
+        const source = (line.source_type ?? "").toLowerCase();
+        return source === "payment" || source === "deposit";
+      })
+      .reduce((sum, line) => sum + Math.abs(Number(line.total_btn)), 0);
+
+    const [{ data: payments }, { data: docs }] = await Promise.all([
+      admin
+        .from("payments")
+        .select("id, amount_btn, confirmation_status, created_at")
+        .eq("property_id", pid)
+        .eq("folio_id", id)
+        .order("created_at", { ascending: false }),
+      admin
+        .from("fiscal_documents")
+        .select("id, doc_no, doc_kind, status, payment_id")
+        .eq("property_id", pid)
+        .eq("folio_id", id)
+        .eq("status", "issued")
+        .in("doc_kind", ["invoice", "receipt"]),
+    ]);
+    const confirmed = (payments ?? []).filter((row) => {
+      const status = (row.confirmation_status as string | null) ?? "confirmed";
+      return status !== "pending_bank" && status !== "rejected" && status !== "void";
+    });
+    const receivedOnPayments = confirmed.reduce(
+      (sum, row) => sum + Number(row.amount_btn ?? 0),
+      0,
+    );
+    const received = Math.max(receivedOnPayments, receivedOnLines);
+    if (!receivedCoversMasterBill(masterTotal, received)) {
+      return {
+        ok: false,
+        error: `Master bill is Nu ${roundBtn(masterTotal)}. Received Nu ${roundBtn(received)}. The room tax invoice waits until that total is in.`,
+      };
+    }
+
+    const issued = docs ?? [];
+    let invoice = issued.find((row) => row.doc_kind === "invoice") ?? null;
+    if (!invoice) {
+      const doc = await issueFiscalDocument(admin, pid, {
+        docKind: "invoice",
+        folioId: id,
+        issuedBy: actor,
+      });
+      invoice = {
+        id: doc.id,
+        doc_no: doc.docNo,
+        doc_kind: "invoice",
+        status: "issued",
+        payment_id: null,
+      };
+      await writeAuditEvent(admin, {
+        propertyId: pid,
+        action: "fiscal.invoice.issue",
+        entityType: "fiscal_documents",
+        entityId: doc.id,
+        summary: `Issued room tax invoice ${doc.docNo} with the receipt`,
+        meta: { folioId: id, docNo: doc.docNo, masterTotal, received },
+      });
+    }
+
+    let receipt = issued.find((row) => row.doc_kind === "receipt") ?? null;
+    if (!receipt) {
+      const used = new Set(
+        issued
+          .filter((row) => row.doc_kind === "receipt" && row.payment_id)
+          .map((row) => row.payment_id as string),
+      );
+      const payment = confirmed.find((row) => !used.has(row.id as string));
+      const doc = await issueFiscalDocument(admin, pid, {
+        docKind: "receipt",
+        folioId: id,
+        paymentId: (payment?.id as string | undefined) ?? null,
+        issuedBy: actor,
+      });
+      receipt = {
+        id: doc.id,
+        doc_no: doc.docNo,
+        doc_kind: "receipt",
+        status: "issued",
+        payment_id: payment?.id ?? null,
+      };
+      await writeAuditEvent(admin, {
+        propertyId: pid,
+        action: "fiscal.receipt.issue",
+        entityType: "fiscal_documents",
+        entityId: doc.id,
+        summary: `Issued receipt ${doc.docNo} with room tax invoice ${invoice.doc_no as string}`,
+        meta: { folioId: id, docNo: doc.docNo, invoiceNo: invoice.doc_no },
+      });
+    }
+
+    revalidateFolio(id);
+    revalidatePath(`/erp/folios/${id}/bill`);
+    revalidatePath(`/erp/folios/${id}/tax-invoice`);
+    revalidatePath(`/erp/folios/${id}/receipt`);
+    return {
+      ok: true,
+      href: `/erp/folios/${id}/tax-invoice`,
+      invoiceNo: invoice.doc_no as string,
+      receiptNo: receipt.doc_no as string,
+    };
+  } catch (e) {
+    const { deskErrorText } = await import("@/lib/folio/bill-block");
+    return { ok: false, error: deskErrorText(e) };
   }
 }
 

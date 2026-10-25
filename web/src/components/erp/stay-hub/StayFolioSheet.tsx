@@ -3,7 +3,7 @@
 import { saveStayNightMeals, loadStayNightMeals } from "@/app/actions/erp-night-meals";
 import { applyStayRate, loadStayRateOffers } from "@/app/actions/erp-stay-rate";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -12,20 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import type { ColumnDef } from "@tanstack/react-table";
 import { formatRoomBillDate, stayNightDates, stayNights } from "@/lib/folio/room-bill";
 import { folioNoFromConfirmation } from "@/lib/hotel-doc-no";
 import { formatGuestBtn } from "@/lib/pricing";
 import { offerListLabel, type RateOfferView } from "@/lib/rates/rate-offer-label";
-import { useActionState, useEffect, useState, type ReactNode } from "react";
+import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 
 export function StayFolioSheet({
   bookingId,
@@ -85,82 +77,61 @@ export function StayFolioSheet({
   const total = rows.reduce((sum, row) => sum + (row.amount ?? 0), 0);
   const hasAmount = rows.some((row) => row.amount != null);
 
+  const folio = folioDocNo || folioNoFromConfirmation(confirmationCode) || "Room bill";
+  const guestWord = guests === 1 ? "guest" : "guests";
+
   return (
-    <Card className="gap-3 py-3 shadow-none">
-      <CardContent className="space-y-3 px-3">
-        <p className="text-xs text-muted-foreground">
-          {folioDocNo || folioNoFromConfirmation(confirmationCode) || "Room bill"}
-        </p>
-        <div className="hidden md:block">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Room</TableHead>
-                <TableHead>In</TableHead>
-                <TableHead>Out</TableHead>
-                <TableHead>Nights</TableHead>
-                <TableHead>Guests</TableHead>
-                <TableHead>Rate</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row, index) => (
-                <TableRow key={`${row.room}-${index}`}>
-                  <TableCell>{row.room}</TableCell>
-                  <TableCell className="tabular-nums">{checkIn.slice(5)}</TableCell>
-                  <TableCell className="tabular-nums">{checkOut.slice(5)}</TableCell>
-                  <TableCell className="tabular-nums">{nights}</TableCell>
-                  <TableCell className="tabular-nums">{guests}</TableCell>
-                  <TableCell className="tabular-nums">
-                    {row.rate != null ? formatGuestBtn(row.rate) : "—"}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {row.amount != null ? formatGuestBtn(row.amount) : "—"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-            <TableFooter>
-              <TableRow>
-                <TableCell colSpan={6}>Total</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {hasAmount ? formatGuestBtn(total) : "—"}
-                </TableCell>
-              </TableRow>
-            </TableFooter>
-          </Table>
+    <div className="overflow-hidden rounded-lg border border-[var(--brass-hairline)] bg-[var(--ivory-soft)]">
+      <div className="flex items-end justify-between gap-3 border-b border-[var(--brass-hairline)] bg-[var(--ivory-deep)] px-3 py-2">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold tracking-[0.14em] text-[var(--brass)] uppercase">Folio</p>
+          <p className="truncate text-sm font-semibold text-[var(--espresso)]">{folio}</p>
         </div>
-        <ul className="space-y-2 md:hidden">
-          {rows.map((row, index) => (
-            <li key={`${row.room}-${index}`}>
-              <Card className="gap-1 py-3 shadow-none">
-                <CardContent className="space-y-1 px-3 text-sm">
-                  <p className="font-medium">{row.room}</p>
-                  <p className="text-muted-foreground">
-                    {checkIn.slice(5)} → {checkOut.slice(5)} · {nights} nights · {guests} guests
-                  </p>
-                  <p className="tabular-nums">
-                    {row.rate != null ? formatGuestBtn(row.rate) : "Rate —"}
-                    {row.amount != null ? ` · ${formatGuestBtn(row.amount)}` : ""}
-                  </p>
-                </CardContent>
-              </Card>
-            </li>
-          ))}
-        </ul>
+        <p className="shrink-0 text-right text-base font-semibold tabular-nums text-[var(--espresso)]">
+          {hasAmount ? formatGuestBtn(total) : "—"}
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-1.5 px-3 py-2">
+        <Fact tone="ink">{checkIn.slice(5)} → {checkOut.slice(5)}</Fact>
+        <Fact tone="brass">{nights} {nights === 1 ? "night" : "nights"}</Fact>
+        <Fact tone="ink">{guests} {guestWord}</Fact>
+        {mealPlanCode ? <Fact tone="gold">{mealPlanCode}</Fact> : null}
+      </div>
+      <div className="space-y-2 px-3 pb-3">
         <NightMealEditor
           bookingId={bookingId}
           checkIn={checkIn}
           checkOut={checkOut}
           defaultMeal={mealPlanCode}
           mealPlans={mealPlans ?? []}
+          stayLabel={rows[0]?.room || "Room"}
+          stayRate={rows[0]?.rate ?? agreedNightlyRateBtn}
           onSaved={onSaved}
         />
         <FolioRatePicker bookingId={bookingId} />
         {footer}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
+  );
+}
+
+function Fact({
+  children,
+  tone,
+}: {
+  children: ReactNode;
+  tone: "ink" | "brass" | "gold";
+}) {
+  const toneClass =
+    tone === "brass"
+      ? "bg-[var(--brass)] text-[var(--ivory)]"
+      : tone === "gold"
+        ? "bg-[var(--gold-soft)] text-[var(--espresso)]"
+        : "bg-white text-[var(--espresso)]";
+  return (
+    <span className={`inline-flex h-6 items-center rounded-full border border-[var(--brass-hairline)] px-2 text-[11px] font-medium tabular-nums ${toneClass}`}>
+      {children}
+    </span>
   );
 }
 
@@ -239,6 +210,8 @@ function NightMealEditor({
   checkOut,
   defaultMeal,
   mealPlans,
+  stayLabel,
+  stayRate,
   onSaved,
 }: {
   bookingId: string;
@@ -246,6 +219,8 @@ function NightMealEditor({
   checkOut: string;
   defaultMeal?: string | null;
   mealPlans: Array<{ code: string; name: string }>;
+  stayLabel: string;
+  stayRate: number | null;
   onSaved?: () => void;
 }) {
   const dates = stayNightDates(checkIn, checkOut);
@@ -256,12 +231,17 @@ function NightMealEditor({
     Record<string, Array<{ roomUnitId: string; label: string; rateBtn: number | null }>>
   >({});
   const [rates, setRates] = useState<Record<string, string>>({});
-  const [pending, startSave] = useState(false);
+  const [pending, setPending] = useState(false);
   const [state, setState] = useState<{ ok: boolean; error?: string; message?: string }>({
     ok: false,
   });
+  const ready = useRef(false);
+  const pinRef = useRef<HTMLInputElement>(null);
+  const latest = useRef({ meals, rates, rooms });
+  latest.current = { meals, rates, rooms };
 
   useEffect(() => {
+    ready.current = false;
     const nights = stayNightDates(checkIn, checkOut);
     let cancelled = false;
     void loadStayNightMeals(bookingId).then((result) => {
@@ -285,124 +265,178 @@ function NightMealEditor({
       setMeals(nextMeals);
       setRooms(nextRooms);
       setRates(nextRates);
+      ready.current = true;
     });
     return () => {
       cancelled = true;
     };
   }, [bookingId, checkIn, checkOut, fallback]);
 
+  function queueSave() {
+    if (!ready.current) return;
+    window.setTimeout(() => {
+      if (!ready.current) return;
+      const snap = latest.current;
+      const body = new FormData();
+      body.set("booking_id", bookingId);
+      body.set("manager_pin", pinRef.current?.value ?? "");
+      body.set(
+        "nights_json",
+        JSON.stringify(
+          dates.map((date) => ({
+            date,
+            mealPlanCode: snap.meals[date] || fallback,
+            rooms: (snap.rooms[date] ?? []).map((room) => ({
+              roomUnitId: room.roomUnitId,
+              rateBtn: snap.rates[`${date}:${room.roomUnitId}`] ?? "",
+            })),
+          })),
+        ),
+      );
+      setPending(true);
+      void saveStayNightMeals({ ok: false }, body)
+        .then((result) => {
+          setState(result);
+          if (result.ok) onSaved?.();
+        })
+        .catch((err: unknown) => {
+          setState({
+            ok: false,
+            error: err instanceof Error ? err.message : "Could not save.",
+          });
+        })
+        .finally(() => setPending(false));
+    }, 300);
+  }
+
   if (dates.length === 0) return null;
-  const chosen = dates.map((date) => ({
-    date,
-    mealPlanCode: meals[date] || fallback,
-    rooms: (rooms[date] ?? []).map((room) => ({
-      roomUnitId: room.roomUnitId,
-      rateBtn: rates[`${date}:${room.roomUnitId}`] ?? "",
-    })),
-  }));
+  const mealName = (code: string) => {
+    const plan = options.find((item) => item.code === code);
+    if (!plan) return code;
+    if (plan.name && !plan.name.toUpperCase().startsWith(plan.code)) return plan.name;
+    return plan.name || plan.code;
+  };
+  const nightLabel = (date: string) => formatRoomBillDate(date).replace(/ \d{4}$/, "");
+  const lines: Array<{ key: string; roomUnitId: string; label: string; date: string; editable: boolean }> = [];
+  const seen = new Map<string, string>();
+  for (const date of dates) {
+    for (const room of rooms[date] ?? []) {
+      if (!seen.has(room.roomUnitId)) seen.set(room.roomUnitId, room.label);
+    }
+  }
+  if (seen.size === 0) {
+    for (const date of dates) {
+      lines.push({ key: `stay:${date}`, roomUnitId: "", label: stayLabel, date, editable: false });
+    }
+  } else {
+    for (const [roomUnitId, label] of seen) {
+      for (const date of dates) {
+        if (!(rooms[date] ?? []).some((room) => room.roomUnitId === roomUnitId)) continue;
+        lines.push({ key: `${date}:${roomUnitId}`, roomUnitId, label, date, editable: true });
+      }
+    }
+  }
+
+  const columns: ColumnDef<(typeof lines)[number]>[] = [
+    {
+      id: "room",
+      accessorFn: (row) => row.label,
+      header: "Room",
+      meta: { className: "w-16 font-semibold tabular-nums text-[var(--espresso)]" },
+      cell: ({ row }) => row.original.label,
+    },
+    {
+      id: "night",
+      accessorFn: (row) => row.date,
+      header: "Night",
+      cell: ({ row }) => nightLabel(row.original.date),
+    },
+    {
+      id: "meal",
+      accessorFn: (row) => meals[row.date] || fallback,
+      header: "Meal",
+      cell: ({ row }) => {
+        const firstOfNight = lines.find((line) => line.date === row.original.date)?.key === row.original.key;
+        if (!firstOfNight) {
+          return <span className="text-xs text-[var(--espresso-mute)]">{mealName(meals[row.original.date] || fallback)}</span>;
+        }
+        return (
+          <Select
+            value={meals[row.original.date] || fallback}
+            onValueChange={(code) => {
+              setMeals((current) => ({ ...current, [row.original.date]: code }));
+              queueSave();
+            }}
+          >
+            <SelectTrigger className="h-8 w-[9.5rem] border-[var(--brass-hairline)] bg-white text-xs" aria-label={`Meal on ${row.original.date}`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {options.map((plan) => (
+                <SelectItem key={plan.code} value={plan.code}>
+                  {mealName(plan.code)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      },
+    },
+    {
+      id: "rate",
+      accessorFn: (row) => rates[`${row.date}:${row.roomUnitId}`] ?? "",
+      header: "Rate",
+      meta: { className: "w-28 text-right", headerClassName: "text-right" },
+      cell: ({ row }) =>
+        row.original.editable ? (
+          <Input
+            inputMode="decimal"
+            className="h-8 border-[var(--brass-hairline)] bg-[var(--ivory-soft)] text-right text-sm tabular-nums text-[var(--espresso)]"
+            aria-label={`Rate for room ${row.original.label} on ${row.original.date}`}
+            value={rates[`${row.original.date}:${row.original.roomUnitId}`] ?? ""}
+            onChange={(event) =>
+              setRates((current) => ({
+                ...current,
+                [`${row.original.date}:${row.original.roomUnitId}`]: event.target.value,
+              }))
+            }
+            onBlur={queueSave}
+          />
+        ) : (
+          <span className="font-medium tabular-nums text-[var(--brass)]">
+            {stayRate != null ? formatGuestBtn(stayRate) : "—"}
+          </span>
+        ),
+    },
+  ];
 
   return (
-    <form
-      className="space-y-2 border-t pt-3"
-      onSubmit={(event) => {
-        event.preventDefault();
-        const body = new FormData(event.currentTarget);
-        startSave(true);
-        void saveStayNightMeals({ ok: false }, body)
-          .then((result) => {
-            setState(result);
-            if (result.ok) onSaved?.();
-          })
-          .catch((err: unknown) => {
-            setState({
-              ok: false,
-              error: err instanceof Error ? err.message : "Could not save.",
-            });
-          })
-          .finally(() => startSave(false));
-      }}
-    >
-      <input type="hidden" name="booking_id" value={bookingId} />
-      <input type="hidden" name="nights_json" value={JSON.stringify(chosen)} />
-      <p className="text-xs text-muted-foreground">Each night</p>
-      <ul className="space-y-2">
-        {dates.map((date) => {
-          const nightRooms = rooms[date] ?? [];
-          return (
-            <li key={date} className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="w-16 shrink-0 text-sm tabular-nums">
-                  {formatRoomBillDate(date).replace(/ \d{4}$/, "")}
-                </span>
-                <Select
-                  value={meals[date] || fallback}
-                  onValueChange={(code) =>
-                    setMeals((current) => ({ ...current, [date]: code }))
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {options.map((plan) => (
-                      <SelectItem key={plan.code} value={plan.code}>
-                        {plan.code} · {plan.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {nightRooms.length === 0 ? (
-                <p className="pl-16 text-xs text-muted-foreground">No room on this night.</p>
-              ) : (
-                nightRooms.map((room) => (
-                  <label
-                    key={room.roomUnitId}
-                    className="flex items-center gap-2 pl-16"
-                  >
-                    <span className="w-12 shrink-0 text-sm tabular-nums">
-                      {room.label}
-                    </span>
-                    <Input
-                      inputMode="decimal"
-                      className="text-base tabular-nums"
-                      aria-label={`Rate for room ${room.label} on ${date}`}
-                      value={rates[`${date}:${room.roomUnitId}`] ?? ""}
-                      onChange={(event) =>
-                        setRates((current) => ({
-                          ...current,
-                          [`${date}:${room.roomUnitId}`]: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                ))
-              )}
-            </li>
-          );
-        })}
-      </ul>
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="w-28 space-y-1">
-          <p className="text-xs text-muted-foreground">Manager PIN</p>
+    <DataTable
+      columns={columns}
+      data={lines}
+      pageSize={40}
+      searchable
+      searchPlaceholder="Room"
+      emptyMessage="No nights on this stay."
+      caption="Night rates"
+      mobileCards={false}
+      className="space-y-2"
+      toolbar={
+        <div className="mr-auto flex min-w-0 items-center gap-2">
           <Input
-            name="manager_pin"
+            ref={pinRef}
             type="password"
             inputMode="numeric"
             autoComplete="off"
-            className="text-base"
-            placeholder="If asked"
+            className="h-8 w-28 border-[var(--brass-hairline)] bg-white text-sm"
+            placeholder="PIN if asked"
+            aria-label="Manager PIN"
           />
+          <p className={state.error && !pending ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>
+            {pending ? "Saving…" : state.error ? state.error : state.ok ? "Saved" : "Leave a rate to save"}
+          </p>
         </div>
-        <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : "Save nights"}
-        </Button>
-      </div>
-      {state.error ? (
-        <p className="text-xs text-destructive">{state.error}</p>
-      ) : state.message ? (
-        <p className="text-xs text-muted-foreground">{state.message}</p>
-      ) : null}
-    </form>
+      }
+    />
   );
 }

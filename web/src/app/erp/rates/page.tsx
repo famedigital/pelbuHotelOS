@@ -1,9 +1,6 @@
-import { AgentRateAssist } from "@/components/erp/AgentRateAssist";
-import { NamedRateOfferForm } from "@/components/erp/NamedRateOfferForm";
 import { ErpBreadcrumb } from "@/components/erp/ErpBreadcrumb";
-import { RatePackagesWorkspace } from "@/components/erp/RatePackagesWorkspace";
-import { SeasonsDateEditor } from "@/components/erp/SeasonsDateEditor";
 import { DeskListShell } from "@/components/erp/DeskListShell";
+import { RatesDesk } from "@/components/erp/rates/RatesDesk";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
 import { requireDeskPropertyId } from "@/lib/desk-property";
 import {
@@ -13,7 +10,6 @@ import {
 import { loadRoomRatesMatrix } from "@/lib/room-rates-data";
 import { listNamedRateOffers } from "@/lib/rates/rate-offers";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata = {
@@ -28,28 +24,35 @@ export default async function RoomRatesPage() {
   const admin = createSupabaseAdminClient();
   const propertyId = await requireDeskPropertyId();
 
-  const [{ rows, roomTypes, seasons }, mealPlans, defaultMealPlanCode, policyResult, propertyTax, agentsResult, namedOffers] =
-    await Promise.all([
-      loadRoomRatesMatrix(admin, propertyId),
-      loadActiveMealPlans(admin, propertyId),
-      loadPropertyDefaultMealPlanCode(admin, propertyId),
-      admin
-        .from("property_policies")
-        .select("rates_inclusive_of_gst_sc")
-        .eq("property_id", propertyId)
-        .maybeSingle(),
-      admin
-        .from("properties")
-        .select("gst_enabled, gst_rate")
-        .eq("id", propertyId)
-        .maybeSingle(),
-      admin
-        .from("agents")
-        .select("id, company_name")
-        .order("company_name")
-        .limit(200),
-      listNamedRateOffers(admin, propertyId).catch(() => []),
-    ]);
+  const [
+    { rows, roomTypes, seasons },
+    mealPlans,
+    defaultMealPlanCode,
+    policyResult,
+    propertyTax,
+    agentsResult,
+    namedOffers,
+  ] = await Promise.all([
+    loadRoomRatesMatrix(admin, propertyId),
+    loadActiveMealPlans(admin, propertyId),
+    loadPropertyDefaultMealPlanCode(admin, propertyId),
+    admin
+      .from("property_policies")
+      .select("rates_inclusive_of_gst_sc")
+      .eq("property_id", propertyId)
+      .maybeSingle(),
+    admin
+      .from("properties")
+      .select("gst_enabled, gst_rate")
+      .eq("id", propertyId)
+      .maybeSingle(),
+    admin
+      .from("agents")
+      .select("id, company_name")
+      .order("company_name")
+      .limit(200),
+    listNamedRateOffers(admin, propertyId).catch(() => []),
+  ]);
 
   const ratesInclusiveOfGstSc = Boolean(
     policyResult.data?.rates_inclusive_of_gst_sc,
@@ -58,183 +61,62 @@ export default async function RoomRatesPage() {
     propertyTax.data?.gst_enabled !== false &&
     Number(propertyTax.data?.gst_rate ?? 0) > 0;
 
+  const taxBasis = ratesInclusiveOfGstSc
+    ? gstCharged
+      ? "Sheet amounts are guest all-in. The folio splits base, service charge, and GST"
+      : "Sheet amounts are guest all-in. The folio splits base and service charge. GST is not charged"
+    : gstCharged
+      ? "Sheet amounts are room only. The folio adds service charge, then GST"
+      : "Sheet amounts are room only. The folio adds service charge. GST is not charged";
+
   const seasonRows = seasons
-    .filter((s) => Boolean(s.id))
-    .map((s) => ({
-      id: s.id as string,
-      kind: s.kind,
-      starts_on: s.starts_on,
-      ends_on: s.ends_on,
+    .filter((season) => Boolean(season.id))
+    .map((season) => ({
+      id: season.id as string,
+      kind: season.kind,
+      starts_on: season.starts_on,
+      ends_on: season.ends_on,
     }));
 
   return (
     <DeskListShell
+      wide
       eyebrow="Hotel"
-      heading="Room rates & meal packages"
-      blurb="Component sheet: room night + breakfast + dinner + mattress + extra person meal. StayHub, Reserve, folio, and INV share the same quote engine."
+      heading="Room rates"
+      subtitle="One book for markets, packages, named prices, and seasons."
       filters={
-        <div className="flex w-full min-w-0 flex-col gap-2">
-          <ErpBreadcrumb
-            items={[
-              { label: "Desk", href: "/erp/stayview" },
-              { label: "Rates" },
-            ]}
-          />
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/erp/rate-plans"
-              className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
-            >
-              Named rate plans →
-            </Link>
-            <Link
-              href="/erp/agents"
-              className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
-            >
-              Agent partners →
-            </Link>
-            <a
-              href="/rates"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-muted"
-            >
-              Public rate card →
-            </a>
-          </div>
-        </div>
+        <ErpBreadcrumb
+          items={[
+            { label: "Desk", href: "/erp/stayview" },
+            { label: "Rates" },
+          ]}
+        />
       }
     >
-      <section className="rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-        <p className="font-medium text-foreground">Component breakdown</p>
-        <p className="mt-1">
-          CP/BB → breakfast only · MAP → breakfast + dinner · AP → BF/L/D ·
-          Extra mattress from property policy · Child meal = extra person meal.
-          Edit meal Nu under meal plans below; room Nu in the season matrix.
-        </p>
-        <ul className="mt-2 flex flex-wrap gap-2">
-          {mealPlans.map((m) => (
-            <li
-              key={m.code}
-              className="rounded border bg-background px-2 py-1 tabular-nums"
-            >
-              <span className="font-semibold text-foreground">{m.code}</span>{" "}
-              {m.amount_btn_per_adult_night != null
-                ? `Nu ${m.amount_btn_per_adult_night}/adult/night`
-                : "label only"}
-            </li>
-          ))}
-        </ul>
-      </section>
-      <section className="rounded-xl border bg-card p-5">
-        <SeasonsDateEditor seasons={seasonRows} />
-      </section>
-
-      <AgentRateAssist propertyId={propertyId} />
-
-      <section className="rounded-xl border bg-card p-5">
-        <h2 className="text-sm font-semibold">Named rates</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          One agent or guest can hold several prices. Contract is the usual rate.
-          Fill-up is the lower price when the alternative is an empty room.
-        </p>
-        {namedOffers.length > 0 ? (
-          <ul className="mt-3 space-y-1 text-sm">
-            {namedOffers.slice(0, 12).map((offer) => (
-              <li key={offer.id} className="flex justify-between gap-3">
-                <span>
-                  {offer.agentName || offer.guestLabel || offer.rateTier} · {offer.label} ·{" "}
-                  {offer.roomTypeName} · {offer.seasonKind}
-                </span>
-                <span className="tabular-nums">Nu {offer.amountBtn.toLocaleString()}</span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        <div className="mt-4">
-          <NamedRateOfferForm
-            roomTypes={roomTypes.map((room) => ({ id: room.id, name: room.name }))}
-            agents={(agentsResult.data ?? []) as { id: string; company_name: string }[]}
-          />
-        </div>
-      </section>
-
-      <RatePackagesWorkspace
+      <RatesDesk
+        propertyId={propertyId}
         rows={rows}
         roomTypes={roomTypes}
         seasons={seasons}
+        seasonRows={seasonRows}
         mealPlans={mealPlans}
         defaultMealPlanCode={defaultMealPlanCode}
         ratesInclusiveOfGstSc={ratesInclusiveOfGstSc}
         gstCharged={gstCharged}
+        taxBasis={taxBasis}
+        namedOffers={namedOffers.map((offer) => ({
+          id: offer.id,
+          label: offer.label,
+          rateTier: offer.rateTier,
+          agentName: offer.agentName,
+          guestLabel: offer.guestLabel,
+          roomTypeName: offer.roomTypeName,
+          seasonKind: offer.seasonKind,
+          amountBtn: offer.amountBtn,
+          amountSingleBtn: offer.amountSingleBtn,
+        }))}
+        agents={(agentsResult.data ?? []) as { id: string; company_name: string }[]}
       />
-
-      <section className="rounded-lg border border-dashed bg-muted/30 px-4 py-4 text-sm text-muted-foreground">
-        <p className="font-medium text-foreground">How quoting works</p>
-        <ul className="mt-2 list-inside list-disc space-y-1">
-          <li>
-            <strong className="font-medium text-foreground">Packages</strong> —
-            website and desk package card = public room night + (adult meal Nu
-            × 2) for each priced plan (BB, MAP, …). EP stays room only.
-          </li>
-          <li>
-            <strong className="font-medium text-foreground">Tax basis</strong>{" "}
-            —{" "}
-            {ratesInclusiveOfGstSc ? (
-              gstCharged ? (
-                <>
-                  sheet = guest all-in (GST and service charge); folio splits
-                  base, service charge, and GST
-                </>
-              ) : (
-                <>
-                  sheet = guest all-in (service charge included, GST not
-                  charged); folio splits base and 10% service charge
-                </>
-              )
-            ) : gstCharged ? (
-              <>
-                sheet = room amount; folio adds service charge, then GST
-              </>
-            ) : (
-              <>
-                sheet = room amount; folio adds service charge. GST is not
-                charged
-              </>
-            )}
-          </li>
-          <li>
-            <strong className="font-medium text-foreground">Public site</strong>{" "}
-            — <code className="font-mono text-xs">public</code> tier +
-            check-in season from <code className="font-mono text-xs">seasons</code>
-          </li>
-          <li>
-            <strong className="font-medium text-foreground">Agent book</strong> —
-            agent&apos;s <code className="font-mono text-xs">rate_tier</code>{" "}
-            (usually agents or mou_agents) for room only; meals still add on at
-            booking
-          </li>
-          <li>
-            <strong className="font-medium text-foreground">Desk flows</strong> —
-            fast book / calendar use public unless an agent is attached
-          </li>
-          <li>
-            <strong className="font-medium text-foreground">Child package</strong>{" "}
-            — ages 0–6 free; ages 6–12 = 50% of adult meal portion (and of adult
-            room when charging per child on room). Count ages 6–12 only in
-            booking children.
-          </li>
-          <li>
-            <strong className="font-medium text-foreground">Meals</strong> —
-            adult rate × adults × nights + child package × children (6–12) ×
-            nights (blank child meal in Settings = auto 50% of adult meal rate)
-          </li>
-          <li>
-            <strong className="font-medium text-foreground">Extra beds</strong> —
-            property sell rate × qty × nights (enable in Rates &amp; meals)
-          </li>
-        </ul>
-      </section>
     </DeskListShell>
   );
 }

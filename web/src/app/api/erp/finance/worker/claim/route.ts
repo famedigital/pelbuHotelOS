@@ -1,3 +1,4 @@
+import { liveGeminiModel } from "@/lib/ai/gemini-models";
 import { requireWorkerAuth, jsonError } from "@/lib/finance-import/api-auth";
 import {
   createFinanceSignedPreview,
@@ -138,8 +139,9 @@ export async function POST(request: NextRequest) {
       source_mime: batch.source_mime,
       source_sha256: batch.source_sha256,
       source_storage_path: batch.source_storage_path,
-      gemini_model:
-        batch.gemini_model || process.env.GEMINI_MODEL || "gemini-2.0-flash",
+      gemini_model: liveGeminiModel(
+        batch.gemini_model || process.env.GEMINI_MODEL,
+      ),
       attempt_count: batch.attempt_count,
       parser_label: batch.parser_label,
       parser_sha256: batch.parser_sha256,

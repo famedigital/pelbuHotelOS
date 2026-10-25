@@ -551,9 +551,9 @@ export default async function ReservationsPage({
   }
 
   const views = [
-    ["in_house", "In house", "/erp/reservations"],
-    ["departures", "Departures", "/erp/reservations?view=departures"],
     ["arrivals", "Arrivals", "/erp/reservations?view=arrivals"],
+    ["departures", "Departures", "/erp/reservations?view=departures"],
+    ["in_house", "In house", "/erp/reservations"],
     ["upcoming", "Upcoming", "/erp/reservations?view=upcoming"],
     ["all", "All", "/erp/reservations?view=all"],
   ] as const;
@@ -575,6 +575,9 @@ export default async function ReservationsPage({
             {label}
           </a>
         ))}
+        <a href="/erp/day#bills" className="inline-flex h-8 items-center rounded-md border px-2.5 text-sm font-medium">
+          Bills to print
+        </a>
         <a href={exportHref} className="inline-flex h-8 items-center rounded-md border px-2.5 text-sm">
           Export
         </a>

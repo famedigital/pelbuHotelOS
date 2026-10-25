@@ -2,6 +2,7 @@
 
 import { deskLogout } from "@/app/actions/desk";
 import { deskShiftChange } from "@/app/actions/staff-auth";
+import type { DeskActor } from "@/lib/erp/desk-actor";
 import { openErpCommandPalette } from "@/components/erp/ErpCommandPalette";
 import { ERP_MODULES } from "@/lib/erp-nav";
 import {
@@ -60,8 +61,10 @@ function isActive(pathname: string, href: string): boolean {
 
 export function DeskMobileNav({
   allowedModuleKeys,
+  actor = null,
 }: {
   allowedModuleKeys?: readonly string[];
+  actor?: DeskActor | null;
 } = {}) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -173,8 +176,10 @@ export function DeskMobileNav({
             className="max-h-[88dvh] rounded-t-2xl pb-[env(safe-area-inset-bottom)]"
           >
             <SheetHeader className="text-left">
-              <SheetTitle>Desk</SheetTitle>
-              <SheetDescription>All tools for your role</SheetDescription>
+              <SheetTitle>{actor?.name || "Desk"}</SheetTitle>
+              <SheetDescription>
+                {[actor?.role, actor?.code].filter(Boolean).join(" · ") || "All tools for your role"}
+              </SheetDescription>
             </SheetHeader>
             <div className="overflow-y-auto px-3 pb-4">
               <div className="mb-3 space-y-2">

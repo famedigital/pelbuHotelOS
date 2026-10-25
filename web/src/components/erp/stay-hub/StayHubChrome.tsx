@@ -10,10 +10,7 @@ import {
   statusLabel,
   stayMetaLine,
 } from "@/lib/folio/stay-hub-format";
-import {
-  buildStayStoryLine,
-  foPaymentModeShort,
-} from "@/lib/folio/fo-settlement";
+import { foPaymentModeShort } from "@/lib/folio/fo-settlement";
 import {
   type StayHubStep,
   type StayHubStepId,
@@ -58,6 +55,8 @@ export type StayHubIdentityProps = {
   onBack?: () => void;
   dueChipBtn?: number | null;
   hkStatus?: string | null;
+  /** In-house move onto a free door (view side, upgrade, or same category). */
+  roomAction?: ReactNode;
 };
 
 /** Fixed left-rail amount foot (Desk Book parity) — editable nightly. */
@@ -141,6 +140,7 @@ export function StayHubHeader(props: StayHubIdentityProps) {
     onBack,
     dueChipBtn,
     hkStatus,
+    roomAction,
   } = props;
 
   const showDueChip =
@@ -155,7 +155,7 @@ export function StayHubHeader(props: StayHubIdentityProps) {
   const noticeAlerts = alerts.filter((a) => a.key !== "dues").slice(0, 2);
 
   return (
-    <Card className="shrink-0 gap-0 rounded-none border-x-0 border-t-0 px-3 py-2 pr-10 shadow-none">
+    <Card className="shrink-0 gap-0 rounded-none border-x-0 border-t-0 px-3 py-1.5 pr-10 shadow-none md:hidden">
       {backLabel && onBack ? (
         <Button
           type="button"
@@ -188,6 +188,7 @@ export function StayHubHeader(props: StayHubIdentityProps) {
           </Badge>
         ) : null}
         <HkStatusChip status={hkStatus} />
+        {roomAction}
       </div>
       <p className="mt-1 truncate text-xs text-muted-foreground">
         {[
@@ -210,7 +211,7 @@ export function StayHubHeader(props: StayHubIdentityProps) {
         <Alert
           key={alert.key}
           variant={alert.tone === "danger" ? "destructive" : "warning"}
-          className="mt-2 px-3 py-2"
+          className="mt-1 px-2 py-1"
         >
           <AlertDescription className="text-xs">{alert.label}</AlertDescription>
         </Alert>
@@ -290,6 +291,7 @@ export function StayHubLeftRail({
     onBack,
     dueChipBtn,
     hkStatus,
+    roomAction,
   } = identity;
 
   const showDue =
@@ -393,14 +395,14 @@ export function StayHubLeftRail({
               <PencilIcon className="size-3 shrink-0 text-muted-foreground" />
             ) : null}
           </div>
-          <p className="mt-0.5 text-base font-semibold tracking-tight tabular-nums">
+          <p className="mt-0.5 text-lg font-semibold tracking-tight tabular-nums">
             {nightly != null && Number.isFinite(nightly)
               ? formatGuestBtn(nightly)
               : amount.pending
                 ? "…"
                 : "—"}
           </p>
-          <div className="mt-1 space-y-px border-t border-border/50 pt-1 text-[10px] tabular-nums text-muted-foreground">
+          <div className="mt-1 space-y-px border-t border-border/50 pt-1 text-xs tabular-nums text-muted-foreground">
             <div className="flex justify-between gap-2">
               <span>{staySpanLabel}</span>
               <span className="font-medium text-foreground">
@@ -408,7 +410,7 @@ export function StayHubLeftRail({
               </span>
             </div>
           </div>
-          <p className="mt-1 truncate text-[10px] text-muted-foreground">
+          <p className="mt-1 truncate text-xs text-muted-foreground">
             {amount.rateLabel ? `${amount.rateLabel} · ` : ""}
             {amount.mealPlanCode ? `${amount.mealPlanCode} · ` : ""}
             {stayRooms} rm
@@ -431,11 +433,11 @@ export function StayHubLeftRail({
   return (
     <aside
       className={cn(
-        "hidden min-h-0 w-[13.5rem] shrink-0 flex-col border-r bg-muted/20 lg:w-60 md:flex",
+        "hidden min-h-0 w-64 shrink-0 flex-col border-r bg-[#f6f1ea] md:flex",
         className,
       )}
     >
-      <div className="shrink-0 space-y-1.5 border-b px-2.5 py-2">
+      <div className="shrink-0 space-y-2 border-b border-border/70 px-3 py-3">
         {backLabel && onBack ? (
           <button
             type="button"
@@ -451,55 +453,49 @@ export function StayHubLeftRail({
           </p>
         )}
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          <h2 className="min-w-0 flex-1 text-base font-semibold leading-snug tracking-tight text-foreground">
+        <div className="space-y-0.5">
+          <h2 className="text-[15px] font-semibold leading-snug tracking-tight text-foreground">
             {(guestName ?? "").trim() || "Walk-in guest"}
           </h2>
-          {roomLabel ? (
-            <Badge variant="sky" className="shrink-0 text-[11px]">
-              {roomLabel}
+          <p className="text-[13px] text-foreground/80">
+            {roomLabel ? `Room ${roomLabel}` : "No room"}
+            {roomTypeName?.trim() ? ` · ${roomTypeName.trim()}` : ""}
+          </p>
+          {roomAction ? <div className="pt-1">{roomAction}</div> : null}
+        </div>
+
+        <p className="text-xs leading-snug text-muted-foreground">
+          {checkIn && checkOut
+            ? [
+                stayMetaLine({
+                  checkIn,
+                  checkOut,
+                  bookingId: conf ? null : bookingId,
+                  confirmationCode: conf,
+                })
+                  .split(" · ")
+                  .filter((part) => part !== "Unassigned")
+                  .join(" · "),
+              ].join("")
+            : "Dates loading"}
+        </p>
+
+        <div className="flex flex-wrap items-center gap-1">
+          {showDue ? (
+            <Badge variant="citrus" className="text-[11px] tabular-nums">
+              Due {formatGuestBtn(dueChipBtn)}
             </Badge>
-          ) : (
-            <Badge variant="maroon" className="shrink-0 text-[11px]">
-              No room
-            </Badge>
-          )}
+          ) : null}
           {status ? (
             <Badge
               variant={statusBadgeVariant(status)}
-              className="shrink-0 text-[11px] capitalize"
+              className="text-[11px] capitalize"
             >
               {statusLabel(status)}
             </Badge>
           ) : null}
           <HkStatusChip status={hkStatus} />
         </div>
-
-        {checkIn && checkOut ? (
-          <p className="text-[10px] leading-snug text-muted-foreground">
-            {stayMetaLine({
-              roomLabel,
-              roomTypeName,
-              checkIn,
-              checkOut,
-              bookingId: conf ? null : bookingId,
-              confirmationCode: conf,
-            })}
-          </p>
-        ) : (
-          <p className="text-[10px] text-muted-foreground">Loading…</p>
-        )}
-
-        <p className="text-[11px] leading-snug text-foreground/90">
-          {buildStayStoryLine({
-            status,
-            roomLabel,
-            hkStatus,
-            dueBtn: dueChipBtn,
-            paymentMode,
-            agentName,
-          })}
-        </p>
 
         {agentName?.trim() ? (
           <div className="rounded-md border bg-background/80 px-2 py-1">
@@ -528,52 +524,11 @@ export function StayHubLeftRail({
           </p>
         ) : null}
 
-        {alerts.filter((a) => a.key !== "dues").length > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            {alerts
-              .filter((a) => a.key !== "dues")
-              .map((a) => (
-                <Badge
-                  key={a.key}
-                  variant={
-                    a.tone === "danger"
-                      ? "destructive"
-                      : a.tone === "warn"
-                        ? "maroon"
-                        : "secondary"
-                  }
-                  className="max-w-full truncate text-[11px]"
-                  title={a.label}
-                >
-                  {a.label}
-                </Badge>
-              ))}
-          </div>
-        ) : null}
-
-        {lockHint ? (
-          <div className="space-y-1">
-            <p className="text-[10px] leading-snug text-amber-800 dark:text-amber-200">
-              {lockHint}
-            </p>
-            {onForceLock ? (
-              <button
-                type="button"
-                onClick={onForceLock}
-                className="text-[10px] font-medium text-amber-900 underline-offset-2 hover:underline dark:text-amber-100"
-              >
-                Take over this stay
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-
         {saveStatus && saveStatus !== "idle" ? (
           <p
             className={cn(
-              "text-[10px] font-medium",
-              saveStatus === "saved" &&
-                "text-emerald-700 dark:text-emerald-400",
+              "text-xs font-medium",
+              saveStatus === "saved" && "text-emerald-700 dark:text-emerald-400",
               saveStatus === "error" && "text-destructive",
               saveStatus === "saving" && "text-muted-foreground",
             )}
@@ -585,16 +540,48 @@ export function StayHubLeftRail({
                 : "Save failed"}
           </p>
         ) : null}
+
+        {alerts
+          .filter((a) => a.key !== "dues")
+          .map((a) => (
+            <p
+              key={a.key}
+              className={cn(
+                "text-xs leading-snug",
+                a.tone === "danger" && "text-destructive",
+                a.tone === "warn" && "text-amber-900 dark:text-amber-100",
+                a.tone === "info" && "text-muted-foreground",
+              )}
+            >
+              {a.label}
+            </p>
+          ))}
+
+        {lockHint ? (
+          <div className="space-y-1">
+            <p className="text-xs leading-snug text-amber-950 dark:text-amber-100">
+              {lockHint}
+            </p>
+            {onForceLock ? (
+              <button
+                type="button"
+                onClick={onForceLock}
+                className="text-xs font-medium text-foreground underline-offset-2 hover:underline"
+              >
+                Take over
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       {/* Steps fill middle; amount stays pinned bottom */}
-      <div className="min-h-0 flex-1 overflow-hidden px-1 py-1.5">
-        <p className="mb-0.5 px-2 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+        <p className="mb-1 px-1 text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
           Steps
         </p>
         <StayProgressStrip
           orientation="vertical"
-          dense
           steps={steps}
           activePanel={panel}
           terminal={terminal}
@@ -663,7 +650,7 @@ export function StayHubMobileSteps({
   if (steps.length === 0) return null;
   const active = steps.some((step) => step.id === panel) ? panel : steps[0].id;
   return (
-    <div className="shrink-0 border-b px-3 py-2">
+    <div className="shrink-0 border-b px-3 py-2 md:hidden">
       <Tabs
         value={active}
         onValueChange={(id) => {
@@ -675,17 +662,12 @@ export function StayHubMobileSteps({
           onStepClick(step.id, !allowed, step.lockReason);
         }}
       >
-        <TabsList
-          className="grid h-auto w-full"
-          style={{
-            gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))`,
-          }}
-        >
+        <TabsList className="inline-flex h-auto w-auto max-w-full justify-start gap-1 overflow-x-auto bg-transparent p-0">
           {steps.map((step) => (
             <TabsTrigger
               key={step.id}
               value={step.id}
-              className="min-h-11 px-1 text-xs sm:text-sm"
+              className="h-9 shrink-0 px-3 text-sm"
             >
               {step.label}
             </TabsTrigger>
@@ -791,17 +773,26 @@ export function StayHubWorkFrame({
   );
 }
 
+export type StayHubMoreGroup = "papers" | "account" | "stay";
+
 export type StayHubMoreAction = {
   key: string;
   label: string;
+  hint?: string;
+  group?: StayHubMoreGroup;
   onSelect: () => void;
   disabled?: boolean;
   destructive?: boolean;
 };
 
+const MORE_GROUPS: { id: StayHubMoreGroup; label: string }[] = [
+  { id: "papers", label: "Papers" },
+  { id: "account", label: "Account" },
+  { id: "stay", label: "Stay" },
+];
+
 /** Footer: price on its own row, then Close · ··· · primary CTA. */
 export function StayHubFooterBar({
-  panelLabel,
   primaryCta,
   onClose,
   moreActions,
@@ -821,15 +812,11 @@ export function StayHubFooterBar({
   const editable = Boolean(amount?.editable !== false && amount?.onEdit);
 
   return (
-    <div className="flex shrink-0 flex-col gap-2 border-t bg-background px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:px-4">
-      <div className="min-w-0 space-y-0.5">
+    <div className="flex shrink-0 flex-row flex-wrap items-center gap-2 border-t bg-background px-3 py-1.5 pb-[max(0.35rem,env(safe-area-inset-bottom))] md:px-4">
+        <div className="min-w-0 flex-1 space-y-0.5 md:hidden">
         {identityLine ? (
           <p className="truncate text-[11px] text-muted-foreground">
             {identityLine}
-          </p>
-        ) : panelLabel ? (
-          <p className="hidden text-xs font-medium text-muted-foreground sm:block">
-            {panelLabel}
           </p>
         ) : null}
         {amount ? (
@@ -870,11 +857,11 @@ export function StayHubFooterBar({
           </div>
         ) : null}
       </div>
-      <div className="flex w-full flex-wrap items-center justify-end gap-2">
+      <div className="flex w-full flex-wrap items-center justify-end gap-2 md:ml-auto md:w-auto">
         <button
           type="button"
           onClick={onClose}
-          className="inline-flex min-h-11 items-center justify-center rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="inline-flex h-8 items-center justify-center rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           Close
         </button>
@@ -883,25 +870,52 @@ export function StayHubFooterBar({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="inline-flex size-8 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 aria-label="More actions"
               >
                 <MoreHorizontalIcon className="size-4" aria-hidden />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-44">
-              {moreActions.map((a) => (
-                <DropdownMenuItem
-                  key={a.key}
-                  disabled={a.disabled}
-                  className={cn(
-                    a.destructive && "text-destructive focus:text-destructive",
-                  )}
-                  onSelect={() => a.onSelect()}
-                >
-                  {a.label}
-                </DropdownMenuItem>
-              ))}
+            <DropdownMenuContent
+              align="end"
+              className="z-[80] w-[min(36rem,calc(100vw-1.5rem))] p-3"
+            >
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                {MORE_GROUPS.map((group) => {
+                  const items = moreActions.filter(
+                    (action) => (action.group ?? "stay") === group.id,
+                  );
+                  if (items.length === 0) return null;
+                  return (
+                    <div key={group.id} className="min-w-0">
+                      <p className="px-2 pb-1 text-[10px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+                        {group.label}
+                      </p>
+                      <div className="flex flex-col">
+                        {items.map((action) => (
+                          <DropdownMenuItem
+                            key={action.key}
+                            disabled={action.disabled}
+                            className={cn(
+                              "flex h-9 flex-col items-start justify-center gap-0 px-2",
+                              action.destructive &&
+                                "text-destructive focus:text-destructive",
+                            )}
+                            onSelect={() => action.onSelect()}
+                          >
+                            <span className="text-sm">{action.label}</span>
+                            {action.hint ? (
+                              <span className="text-[10px] font-normal text-muted-foreground">
+                                {action.hint}
+                              </span>
+                            ) : null}
+                          </DropdownMenuItem>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}
