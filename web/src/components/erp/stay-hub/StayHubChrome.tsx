@@ -447,11 +447,7 @@ export function StayHubLeftRail({
             <ChevronLeftIcon className="size-3.5 shrink-0" aria-hidden />
             <span className="truncate">{backLabel}</span>
           </button>
-        ) : (
-          <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-            Guest stay
-          </p>
-        )}
+        ) : null}
 
         <div className="space-y-0.5">
           <h2 className="text-[15px] font-semibold leading-snug tracking-tight text-foreground">
@@ -481,11 +477,6 @@ export function StayHubLeftRail({
         </p>
 
         <div className="flex flex-wrap items-center gap-1">
-          {showDue ? (
-            <Badge variant="citrus" className="text-[11px] tabular-nums">
-              Due {formatGuestBtn(dueChipBtn)}
-            </Badge>
-          ) : null}
           {status ? (
             <Badge
               variant={statusBadgeVariant(status)}
@@ -577,9 +568,6 @@ export function StayHubLeftRail({
 
       {/* Steps fill middle; amount stays pinned bottom */}
       <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
-        <p className="mb-1 px-1 text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-          Steps
-        </p>
         <StayProgressStrip
           orientation="vertical"
           steps={steps}

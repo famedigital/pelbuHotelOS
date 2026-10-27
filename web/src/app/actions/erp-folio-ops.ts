@@ -13,6 +13,7 @@ import {
   maybeSettleZeroBalanceFolio,
   postFolioPaymentRecord,
 } from "@/lib/folio/post-payment";
+import { planCollectionMaster } from "@/lib/folio/combine-master";
 import { postOpenFolioGuestRateRoundAdj } from "@/lib/folio/rate-adj";
 import {
   postRoomNightsForBooking,
@@ -1525,6 +1526,136 @@ export async function promoteFolioToMaster(
     revalidateFolio(folioId);
     revalidatePath("/erp/folios");
     return { ok: true, message: "Folio is now a master (city ledger)." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+export type CombineMasterBillResult =
+  | { ok: true; masterFolioId: string; message: string }
+  | { ok: false; error: string };
+
+function oneRow<T>(raw: T | T[] | null | undefined): T | null {
+  if (raw == null) return null;
+  return Array.isArray(raw) ? (raw[0] ?? null) : raw;
+}
+
+/**
+ * Link selected stay folios under one master bill and leave each folio's charges where they are.
+ * Checked-out collection folios are closed, so this does not use attachFolioToMaster (open only).
+ * The printed PSBN is the master's folio number. The bill lists every linked folio.
+ */
+export async function combineFoliosOnMasterBill(
+  folioIds: string[],
+): Promise<CombineMasterBillResult> {
+  try {
+    await requireMoney();
+    const admin = createSupabaseAdminClient();
+    const pid = await propertyId(admin);
+    const ids = [...new Set(folioIds.map((id) => id.trim()).filter(Boolean))];
+    if (ids.length === 0) return { ok: false, error: "Choose at least one stay." };
+    if (ids.length > 80) {
+      return { ok: false, error: "Choose 80 stays or fewer for one master bill." };
+    }
+
+    const { data: rows, error: loadError } = await admin
+      .from("folios")
+      .select(
+        "id, status, folio_type, property_id, master_folio_id, booking_id, bookings(agent_id)",
+      )
+      .eq("property_id", pid)
+      .in("id", ids);
+    if (loadError) throw new Error("Could not load the stays.");
+
+    const byId = new Map((rows ?? []).map((row) => [row.id as string, row]));
+    const ordered = ids.map((id) => byId.get(id));
+    if (ordered.some((row) => !row)) return { ok: false, error: "Folio not found." };
+
+    const agentIds: Array<string | null> = [];
+    for (const row of ordered) {
+      if (!row) continue;
+      assertDeskProperty(pid, row.property_id as string, "Folio");
+      const status = row.status as string;
+      if (status !== "open" && status !== "closed") {
+        return {
+          ok: false,
+          error: "Only open or checked-out folios can join one master bill.",
+        };
+      }
+      const folioType = (row.folio_type as string | null) ?? "guest";
+      if (folioType === "walk_in") {
+        return {
+          ok: false,
+          error: "A walk-in ticket cannot join a stay master bill.",
+        };
+      }
+      const booking = oneRow(
+        row.bookings as { agent_id?: string | null } | { agent_id?: string | null }[] | null,
+      );
+      agentIds.push(booking?.agent_id ?? null);
+    }
+    const agentId = agentIds[0] ?? null;
+    if (agentIds.some((id) => id !== agentId)) {
+      return { ok: false, error: "Choose stays for one travel agent." };
+    }
+
+    const plan = planCollectionMaster(
+      ordered.flatMap((row) =>
+        row
+          ? [
+              {
+                id: row.id as string,
+                folioType: (row.folio_type as string | null) ?? null,
+                masterFolioId: (row.master_folio_id as string | null) ?? null,
+              },
+            ]
+          : [],
+      ),
+    );
+    if (!plan.ok) return plan;
+
+    if (plan.attachIds.length === 0) {
+      return {
+        ok: true,
+        masterFolioId: plan.masterId,
+        message: "Master bill is ready.",
+      };
+    }
+
+    const { error: masterError } = await admin
+      .from("folios")
+      .update({ folio_type: "master", master_folio_id: null })
+      .eq("id", plan.masterId)
+      .eq("property_id", pid);
+    if (masterError) throw new Error("Could not set the master bill.");
+
+    if (plan.attachIds.length > 0) {
+      const { error: attachError } = await admin
+        .from("folios")
+        .update({ master_folio_id: plan.masterId, folio_type: "guest" })
+        .eq("property_id", pid)
+        .in("id", plan.attachIds);
+      if (attachError) throw new Error("Could not attach stays to the master bill.");
+    }
+
+    await writeAuditEvent(admin, {
+      propertyId: pid,
+      action: "folio.group",
+      entityType: "folios",
+      entityId: plan.masterId,
+      summary: `Combined ${ids.length} stay${ids.length === 1 ? "" : "s"} onto one master bill`,
+      meta: { master_folio_id: plan.masterId, folio_ids: ids },
+    });
+
+    revalidateFolio(plan.masterId);
+    for (const id of plan.attachIds) revalidateFolio(id);
+    revalidatePath("/erp/folios");
+    revalidatePath(`/erp/folios/${plan.masterId}/bill`);
+    return {
+      ok: true,
+      masterFolioId: plan.masterId,
+      message: "Master bill is ready.",
+    };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
   }

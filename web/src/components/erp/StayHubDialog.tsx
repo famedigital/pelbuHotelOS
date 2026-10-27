@@ -3906,6 +3906,7 @@ export function StayHubDialog({
                             guideSignStatus: summary.guideSignStatus,
                           }) ? (
                             <CheckOutForm
+                              compact
                               bookingId={summary.bookingId}
                               rooms={money?.roomLabels ?? []}
                               folioBalance={dues}

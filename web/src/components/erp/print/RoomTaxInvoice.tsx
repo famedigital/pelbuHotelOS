@@ -1,6 +1,7 @@
 import type { TaxInvoiceTotals } from "@/lib/folio/room-tax-invoice";
 
-const HEADS = ["Folio", "Description", "Arrv. Date", "Dept. Date", "Nights", "Rate", "Amount"] as const;
+const PAPER_HEADS = ["Folio", "Description", "Arrv. Date", "Dept. Date", "Nights", "Rate", "Amount"] as const;
+const MASTER_HEADS = ["Description", "Check-in", "Check-out", "Nights", "Rate", "Total"] as const;
 
 /** Exact RRCO figure. Up to 4 decimals, no whole-Nu rounding. */
 export function formatExactAmount(amount: number): string {
@@ -15,24 +16,30 @@ export function RoomTaxInvoiceTable({
   bill,
   serviceChargeRate,
   gstRate,
+  layout = "paper",
 }: {
   bill: TaxInvoiceTotals;
   serviceChargeRate: number;
   gstRate: number;
+  /** Master bill is one package line. Room and food papers keep the folio column. */
+  layout?: "paper" | "master";
 }) {
+  const master = layout === "master";
+  const heads = master ? MASTER_HEADS : PAPER_HEADS;
   const cell = "border border-[#1a1410] px-1 py-1 align-top";
   const scLabel = `Service Charge(${percent(serviceChargeRate)}%)`;
   const gstLabel = `GST(${percent(gstRate)}%)`;
+  const labelSpan = heads.length - 1;
+  const figure = (label: string) =>
+    label === "Nights" || label === "Rate" || label === "Amount" || label === "Total";
   return (
     <table className="mt-2 w-full border-collapse border border-[#1a1410] text-[12px]">
       <thead>
         <tr className="text-left text-[11px]">
-          {HEADS.map((label) => (
+          {heads.map((label) => (
             <th
               key={label}
-              className={`${cell} font-semibold ${
-                label === "Nights" || label === "Rate" || label === "Amount" ? "text-right" : ""
-              }`}
+              className={`${cell} font-semibold ${figure(label) ? "text-right" : ""}`}
             >
               {label}
             </th>
@@ -42,7 +49,9 @@ export function RoomTaxInvoiceTable({
       <tbody>
         {bill.rows.map((row) => (
           <tr key={row.id}>
-            <td className={`${cell} whitespace-nowrap`}>{row.folioNo || "—"}</td>
+            {master ? null : (
+              <td className={`${cell} whitespace-nowrap`}>{row.folioNo || "—"}</td>
+            )}
             <td className={cell}>{row.description}</td>
             <td className={`${cell} whitespace-nowrap tabular-nums`}>{row.arrival || "—"}</td>
             <td className={`${cell} whitespace-nowrap tabular-nums`}>{row.departure || "—"}</td>
@@ -53,12 +62,12 @@ export function RoomTaxInvoiceTable({
         ))}
       </tbody>
       <tfoot>
-        <Total label="Total" value={bill.total} strong />
-        <Total label={scLabel} value={bill.serviceCharge} />
-        <Total label="Discount (0.00%)" value={bill.discount} />
-        <Total label="Amt. After Discount" value={bill.afterDiscount} />
-        <Total label={gstLabel} value={bill.gst} />
-        <Total label="Net Amount Payable" value={bill.net} strong />
+        <Total label="Total" value={bill.total} strong span={labelSpan} />
+        <Total label={scLabel} value={bill.serviceCharge} span={labelSpan} />
+        <Total label="Discount (0.00%)" value={bill.discount} span={labelSpan} />
+        <Total label="Amt. After Discount" value={bill.afterDiscount} span={labelSpan} />
+        {gstRate > 0 ? <Total label={gstLabel} value={bill.gst} span={labelSpan} /> : null}
+        <Total label="Net Amount Payable" value={bill.net} strong span={labelSpan} />
       </tfoot>
     </table>
   );
@@ -68,14 +77,16 @@ function Total({
   label,
   value,
   strong,
+  span,
 }: {
   label: string;
   value: number;
   strong?: boolean;
+  span: number;
 }) {
   return (
     <tr>
-      <td colSpan={6} className="border border-[#1a1410] px-1 py-0.5 text-right text-[12px]">
+      <td colSpan={span} className="border border-[#1a1410] px-1 py-0.5 text-right text-[12px]">
         {label}
       </td>
       <td

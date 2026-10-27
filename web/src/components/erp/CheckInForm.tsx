@@ -494,11 +494,11 @@ export function CheckInForm({
 
       <div
         className={cn(
-          embedded ? "space-y-1.5" : "flex flex-wrap items-center gap-x-2 gap-y-1",
+          embedded ? "hidden" : "flex flex-wrap items-center gap-x-2 gap-y-1",
           "text-xs text-muted-foreground",
           !showSummary && "hidden",
         )}
-        aria-hidden={!showSummary}
+        aria-hidden={embedded || !showSummary}
       >
         <p className="text-sm font-medium text-foreground">
           {booking.contact_name ?? "Guest"}
@@ -1300,6 +1300,7 @@ export function CheckOutForm({
   earlyFeeDefaultBtn = null,
   lateFeeDefaultBtn = null,
   onCheckedOut,
+  compact = false,
 }: {
   bookingId: string;
   rooms?: string[];
@@ -1309,6 +1310,8 @@ export function CheckOutForm({
   lateFeeDefaultBtn?: number | null;
   /** StayHub: paint checked_out immediately when server confirms */
   onCheckedOut?: () => void;
+  /** Stay dock already shows the guest, room, and balance. */
+  compact?: boolean;
 }) {
   const [state, action, pending] = useActionState(confirmCheckOut, checkOutInitial);
   useActionToast(state, { successMessage: "Guest checked out" });
@@ -1365,7 +1368,10 @@ export function CheckOutForm({
     <form
       id="stay-hub-checkout-form"
       action={action}
-      className="erp space-y-4 rounded-lg border bg-card p-6"
+      className={cn(
+        "erp space-y-3 rounded-lg border bg-card",
+        compact ? "p-3" : "space-y-4 p-6",
+      )}
     >
       <input type="hidden" name="booking_id" value={bookingId} />
       {state.error ? (
@@ -1374,10 +1380,12 @@ export function CheckOutForm({
           <AlertDescription>{state.error}</AlertDescription>
         </Alert>
       ) : null}
-      <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
-        Check out
-      </p>
-      {rooms.length > 0 ? (
+      {compact ? null : (
+        <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
+          Check out
+        </p>
+      )}
+      {!compact && rooms.length > 0 ? (
         <p className="text-sm text-muted-foreground">
           Rooms: {rooms.join(", ")} → dirty on confirm
         </p>

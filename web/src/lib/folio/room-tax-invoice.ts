@@ -147,13 +147,66 @@ type Draft = {
   description: string;
   room: string;
   rate: number;
+  /** Net before service charge and GST. Package rows keep this so food can be added. */
+  net: number;
   nights: number;
   start: string | null;
   end: string | null;
   serviceCharge: number;
   gst: number;
   folioNo: string;
+  fold: "package" | "meal" | "keep";
+  single: boolean;
+  category: string;
 };
+
+function masterPackageLabel(input: {
+  category: string;
+  single: boolean;
+  room: string;
+  mealCode: string | null;
+}): string {
+  const meal = (input.mealCode ?? "").trim().toUpperCase();
+  const withMeal = meal !== "" && meal !== "EP" && meal !== "RO" && meal !== "EPAI";
+  const base = input.category.trim() || (input.single ? "Single" : "Room");
+  if (input.room && withMeal) return `${base} ${meal}-${input.room}`;
+  if (input.room) return `${base}-${input.room}`.replace(/\s+-/g, "-");
+  return withMeal ? `${base} ${meal}` : base;
+}
+
+function splitWeighted(total: number, weights: number[]): number[] {
+  if (weights.length === 0) return [];
+  const sum = weights.reduce((acc, weight) => acc + weight, 0) || 1;
+  const shares = weights.map((weight) => exact4(total * (weight / sum)));
+  if (shares.length === 1) return [exact4(total)];
+  const used = exact4(shares.slice(0, -1).reduce((acc, share) => acc + share, 0));
+  shares[shares.length - 1] = exact4(total - used);
+  return shares;
+}
+
+/** One room line: category, room number, and the meal code when food is inside the rate. */
+function foldMasterMeals(drafts: Draft[], mealCode: string): Draft[] {
+  const meals = drafts.filter((row) => row.fold === "meal");
+  if (meals.length === 0) return drafts;
+  const packages = drafts.filter((row) => row.fold === "package");
+  if (packages.length === 0) return drafts;
+  const mealNet = exact4(meals.reduce((sum, row) => sum + row.net, 0));
+  const shares = splitWeighted(
+    mealNet,
+    packages.map((row) => row.nights),
+  );
+  packages.forEach((row, index) => {
+    row.net = exact4(row.net + (shares[index] ?? 0));
+    row.rate = row.nights > 0 ? exact4(row.net / row.nights) : row.net;
+    row.description = masterPackageLabel({
+      category: row.category,
+      single: row.single,
+      room: row.room,
+      mealCode,
+    });
+  });
+  return drafts.filter((row) => row.fold !== "meal");
+}
 
 function linePaperNo(folioNo: string, bill: PaperDocKind, source: string): string {
   if (!folioNo || folioNo === "—") return folioNo || "—";
@@ -230,6 +283,26 @@ export function buildRoomTaxInvoice(
     gst = exact4(gst + lineGst);
 
     if (source === "meal_plan") {
+      const nights = packageNights || 1;
+      if (bill === "master") {
+        drafts.push({
+          id: line.id,
+          description: "Meal",
+          room: "",
+          rate: exact4(net / nights),
+          net,
+          nights,
+          start: packageStart || night,
+          end: packageEnd || (packageStart || night ? addDay((packageStart || night) as string) : null),
+          serviceCharge: sc,
+          gst: lineGst,
+          folioNo: linePaperNo(folioNo, bill, source),
+          fold: "meal",
+          single: false,
+          category: "",
+        });
+        continue;
+      }
       const included = mealPlanInclusions(meal);
       const labels = [
         included.breakfast ? MEAL_LABEL.breakfast : null,
@@ -237,7 +310,6 @@ export function buildRoomTaxInvoice(
         included.dinner ? MEAL_LABEL.dinner : null,
       ].filter((label): label is "Breakfast" | "Lunch" | "Dinner" => label != null);
       const mealRows = labels.length ? labels : ["Meal"];
-      const nights = packageNights || 1;
       const shares = splitExact(net, mealRows.length);
       mealRows.forEach((label, index) => {
         const share = shares[index] ?? 0;
@@ -246,12 +318,16 @@ export function buildRoomTaxInvoice(
           description: label,
           room: "",
           rate: exact4(share / nights),
+          net: share,
           nights,
           start: packageStart || night,
           end: packageEnd || (packageStart || night ? addDay((packageStart || night) as string) : null),
           serviceCharge: 0,
           gst: 0,
           folioNo: linePaperNo(folioNo, bill, source),
+          fold: "keep",
+          single: false,
+          category: "",
         });
       });
       continue;
@@ -268,36 +344,57 @@ export function buildRoomTaxInvoice(
       : undefined;
     if (nightly && night && previous) {
       previous.nights += 1;
+      previous.net = exact4(previous.net + net);
       previous.end = addDay(night);
       previous.serviceCharge = exact4(previous.serviceCharge + sc);
       previous.gst = exact4(previous.gst + lineGst);
       continue;
     }
 
+    const packageRoom = nightly && source === "room";
     drafts.push({
       id: line.id,
       description,
       room,
       rate,
+      net: packageRoom ? net : exact4(rate * factor),
       nights: factor,
       start: night,
       end: night ? (nightly ? addDay(night) : night) : null,
       serviceCharge: sc,
       gst: lineGst,
       folioNo: linePaperNo(folioNo, bill, source),
+      fold: packageRoom ? "package" : "keep",
+      single: /\bsingle\b/i.test(line.description ?? ""),
+      category: room ? roomNames[room]?.trim() ?? "" : "",
     });
   }
 
-  const rows: TaxInvoiceRow[] = drafts.map((row) => ({
-    id: row.id,
-    folioNo: row.folioNo,
-    description: row.description,
-    arrival: slashDate(row.start),
-    departure: slashDate(row.end),
-    nights: row.nights,
-    rate: row.rate,
-    amount: exact4(row.nights * row.rate),
-  }));
+  const folded = bill === "master" ? foldMasterMeals(drafts, meal) : drafts;
+  if (bill === "master" && packageStart && packageEnd) {
+    for (const row of folded) {
+      if (row.fold !== "package") continue;
+      row.start = packageStart;
+      row.end = packageEnd;
+    }
+  }
+
+  const rows: TaxInvoiceRow[] = folded.map((row) => {
+    const amount =
+      row.fold === "package" ? row.net : exact4(row.nights * row.rate);
+    const rate =
+      row.fold === "package" && row.nights > 0 ? exact4(row.net / row.nights) : row.rate;
+    return {
+      id: row.id,
+      folioNo: row.folioNo,
+      description: row.description,
+      arrival: slashDate(row.start),
+      departure: slashDate(row.end),
+      nights: row.nights,
+      rate,
+      amount,
+    };
+  });
 
   const total = exact4(rows.reduce((sum, row) => sum + row.amount, 0));
   const discount = 0;

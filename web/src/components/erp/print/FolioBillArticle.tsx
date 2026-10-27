@@ -73,6 +73,7 @@ export function FolioBillArticle({
           bill={view.invoice}
           serviceChargeRate={view.serviceChargeRate}
           gstRate={view.gstRate}
+          layout={paper === "folio" && view.bill === "master" ? "master" : "paper"}
         />
       ) : (
         <p className="mt-4 text-sm">No lines on this folio yet.</p>

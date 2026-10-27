@@ -264,15 +264,13 @@ describe("room tax invoice", () => {
     });
     assert.equal(room.rows[0]?.folioNo, "PSRM-2026-00006");
     assert.equal(food.rows[0]?.folioNo, "PSFF-2026-00006");
-    assert.equal(master.rows.length, 2);
-    assert.equal(
-      master.rows.find((row) => row.description.startsWith("Single"))?.folioNo,
-      "PSRM-2026-00006",
-    );
-    assert.equal(
-      master.rows.find((row) => row.description === "Breakfast")?.folioNo,
-      "PSFF-2026-00006",
-    );
+    assert.equal(master.rows.length, 1);
+    assert.equal(master.rows[0]?.description, "Single BB-207");
+    assert.equal(master.rows[0]?.arrival, "22/10/2026");
+    assert.equal(master.rows[0]?.departure, "25/10/2026");
+    assert.equal(master.rows[0]?.nights, 3);
+    assert.equal(master.rows[0]?.rate, exact((2753.24 * 3 + 1090.92) / 3));
+    assert.equal(master.rows[0]?.amount, exact(2753.24 * 3 + 1090.92));
     assert.equal(master.gst, 0);
     assert.equal(master.net, 10285.71);
     assert.equal(

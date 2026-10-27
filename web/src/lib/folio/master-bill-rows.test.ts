@@ -27,7 +27,7 @@ describe("master bill rows", () => {
     assert.equal(rows[0]?.guest, "Stephanie Yu");
     assert.equal(rows[0]?.room, "505");
     assert.match(rows[0]?.stay ?? "", /3 nights/);
-    assert.equal(rows[0]?.description, "Room, Breakfast and dinner, Laundry");
+    assert.equal(rows[0]?.description, "Room-505");
     assert.equal(rows[0]?.nights, 3);
     assert.equal(rows[0]?.rate, 8000);
     assert.equal(rows[0]?.qty, 1);
@@ -64,11 +64,11 @@ describe("master bill rows", () => {
       rows.map((row) => row.folio),
       ["PSFN-2026-00001", "PSFN-2026-00002"],
     );
-    assert.equal(rows[0]?.description, "Room, Breakfast");
+    assert.equal(rows[0]?.description, "Room CP-201");
     assert.equal(rows[0]?.nights, 2);
     assert.equal(rows[0]?.rate, 2500);
     assert.equal(rows[0]?.qty, 1);
-    assert.equal(rows[1]?.description, "Room");
+    assert.equal(rows[1]?.description, "Room-506");
     assert.equal(rows[1]?.nights, 2);
     assert.equal(rows[1]?.rate, 2000);
     assert.equal(rows[1]?.qty, null);

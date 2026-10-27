@@ -19,6 +19,8 @@ export type MasterBillFolioInput = {
   arrival: string | null;
   departure: string | null;
   mealPlanCode?: string | null;
+  /** Room category, when the stay has one. */
+  roomType?: string | null;
   lines: MasterBillLine[];
 };
 
@@ -37,42 +39,23 @@ export type MasterBillRow = {
   amount: number;
 };
 
-function mealPhrase(code: string | null | undefined): string | null {
+function mealCode(code: string | null | undefined): string | null {
   const plan = (code ?? "").trim().toUpperCase();
-  if (plan === "MAP" || plan === "MAPAI") return "Breakfast and dinner";
-  if (plan === "CP" || plan === "BB" || plan === "CPAI") return "Breakfast";
-  if (plan === "AP" || plan === "APAI") return "Breakfast, lunch and dinner";
-  if (plan === "EP" || plan === "EPAI" || plan === "RO") return "Room only";
-  return null;
+  if (!plan || plan === "EP" || plan === "RO" || plan === "EPAI") return null;
+  return plan;
 }
 
-function coverDescription(folio: MasterBillFolioInput): string {
-  let room = false;
-  let fnb = false;
-  let laundry = false;
-  let services = false;
-  let other = false;
-  for (const line of folio.lines) {
-    const source = (line.source_type ?? "").toLowerCase();
-    const group = classifyBillLine({
-      source_type: source,
-      description: line.description,
-    });
-    if (source === "laundry") laundry = true;
-    else if (group === "services") services = true;
-    else if (group === "room") room = true;
-    else if (group === "fnb") fnb = true;
-    else other = true;
-  }
-  const parts: string[] = [];
-  if (room) parts.push("Room");
-  const meal = mealPhrase(folio.mealPlanCode);
-  if (fnb) parts.push(meal ?? "Meals");
-  else if (meal && meal !== "Room only") parts.push(meal);
-  if (laundry) parts.push("Laundry");
-  if (services) parts.push("Services");
-  if (other) parts.push("Other");
-  return parts.join(", ") || "Folio";
+/** Category, meal code, and room number. Extras stay out of this label. */
+function packageDescription(folio: MasterBillFolioInput): string {
+  const category = folio.roomType?.trim() || "Room";
+  const room = folio.room.trim();
+  const plan = mealCode(folio.mealPlanCode);
+  const foodInside =
+    Boolean(plan) &&
+    folio.lines.some((line) => (line.source_type ?? "").toLowerCase() === "meal_plan");
+  if (room && foodInside && plan) return `${category} ${plan}-${room}`;
+  if (room) return `${category}-${room}`.replace(/\s+-/g, "-");
+  return category;
 }
 
 function stayLabel(arrival: string | null, departure: string | null): string {
@@ -109,8 +92,13 @@ function folioFacts(folio: MasterBillFolioInput): {
       ? stayNights(folio.arrival, folio.departure)
       : null;
   const roomLines = folio.lines.filter(isRoom);
+  const mealAmount = roundBtn(
+    folio.lines
+      .filter((line) => (line.source_type ?? "").toLowerCase() === "meal_plan")
+      .reduce((sum, line) => sum + Number(line.total_btn || 0), 0),
+  );
   const roomAmount = roundBtn(
-    roomLines.reduce((sum, line) => sum + Number(line.total_btn || 0), 0),
+    roomLines.reduce((sum, line) => sum + Number(line.total_btn || 0), 0) + mealAmount,
   );
   const roomCount = Math.max(
     1,
@@ -123,10 +111,12 @@ function folioFacts(folio: MasterBillFolioInput): {
   const sameRate = totals.length > 0 && totals.every((total) => total === totals[0]);
   let rate: number | null = null;
   if (sameRate && nights) {
-    rate =
+    const roomNight =
       totals.length === 1 && nights > 1 && roomCount === 1
         ? roundBtn(totals[0] / nights)
         : totals[0];
+    const mealPerNight = roundBtn(mealAmount / (nights * roomCount));
+    rate = roundBtn(roomNight + mealPerNight);
   } else if (nights && roomAmount) {
     rate = roundBtn(roomAmount / (nights * roomCount));
   }
@@ -158,7 +148,7 @@ export function buildMasterBillRows(
         nights: facts.nights,
         qty: facts.qty,
         rate: facts.rate,
-        description: coverDescription(folio),
+        description: packageDescription(folio),
         amount: roundBtn(
           folio.lines.reduce((sum, line) => sum + Number(line.total_btn || 0), 0),
         ),
