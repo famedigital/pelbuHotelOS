@@ -39,9 +39,9 @@ export function StaffMobileNav({ canViewTeam }: { canViewTeam: boolean }) {
   return (
     <nav
       aria-label="Staff navigation"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-background pb-[env(safe-area-inset-bottom)] md:hidden"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-50 md:hidden"
     >
-      <div className="mx-auto grid h-16 max-w-md grid-cols-5">
+      <div className="glass-dock-mobile pointer-events-auto">
         {ITEMS.map((item) => {
           const active = activePath(pathname, item.href);
           const Icon = item.icon;
@@ -51,12 +51,18 @@ export function StaffMobileNav({ canViewTeam }: { canViewTeam: boolean }) {
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "relative flex min-h-11 flex-col items-center justify-center gap-1 text-[11px] font-medium text-muted-foreground",
+                "touch-press relative flex min-h-11 min-w-11 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-muted-foreground",
                 active && "text-primary",
               )}
             >
               <Icon className="size-5" strokeWidth={active ? 2.4 : 1.8} />
-              <span>{item.title}</span>
+              <span className="max-w-[4.5rem] truncate">{item.title}</span>
+              {active ? (
+                <span
+                  aria-hidden
+                  className="absolute inset-x-[28%] bottom-0.5 h-0.5 rounded-full bg-primary"
+                />
+              ) : null}
             </Link>
           );
         })}
@@ -64,7 +70,7 @@ export function StaffMobileNav({ canViewTeam }: { canViewTeam: boolean }) {
           <SheetTrigger asChild>
             <button
               type="button"
-              className="flex min-h-11 flex-col items-center justify-center gap-1 text-[11px] font-medium text-muted-foreground"
+              className="touch-press flex min-h-11 min-w-11 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-muted-foreground"
             >
               <EllipsisIcon className="size-5" />
               <span>More</span>
@@ -82,7 +88,7 @@ export function StaffMobileNav({ canViewTeam }: { canViewTeam: boolean }) {
                 <SheetClose asChild>
                   <Link
                     href="/staff/leave/team"
-                    className="flex min-h-12 items-center gap-3 rounded-xl border border-border px-4 text-sm"
+                    className="touch-press flex min-h-12 items-center gap-3 rounded-xl border border-border px-4 text-sm"
                   >
                     <UsersIcon className="size-4" />
                     Team leave
@@ -92,7 +98,7 @@ export function StaffMobileNav({ canViewTeam }: { canViewTeam: boolean }) {
               <form action={staffLogout}>
                 <button
                   type="submit"
-                  className="min-h-12 w-full rounded-xl border border-border px-4 text-sm font-medium"
+                  className="touch-press min-h-12 w-full rounded-xl border border-border px-4 text-sm font-medium"
                 >
                   Sign out
                 </button>

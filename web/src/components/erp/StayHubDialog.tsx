@@ -2794,6 +2794,29 @@ export function StayHubDialog({
           title={`Guest stay · ${titleName}`}
           onClose={closePanel}
           boardDock={boardDock}
+          balanceBtn={balanceOpen ? dues : money?.guestVisibleBalanceBtn ?? null}
+          stickyActions={
+            summary?.status === "checked_in" ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="touch-press h-11 min-h-11 flex-1 text-sm"
+                  onClick={openCollect}
+                >
+                  Charge incidentals
+                </Button>
+                <Button
+                  type="button"
+                  variant="default"
+                  className="touch-press h-11 min-h-11 flex-1 text-sm"
+                  onClick={() => goPanel("check_out")}
+                >
+                  Check out guest
+                </Button>
+              </>
+            ) : null
+          }
           onPrint={
             money?.folioId
               ? () => {

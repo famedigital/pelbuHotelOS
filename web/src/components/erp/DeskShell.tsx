@@ -105,7 +105,7 @@ export function DeskShell({
               </Suspense>
               <div
                 data-desk-main
-                className="desk-print-flow flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0 print:overflow-visible print:pb-0"
+                className="desk-print-flow flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pb-safe-dock md:pb-0 print:overflow-visible print:pb-0"
               >
                 <Suspense fallback={<DeskMainSkeleton />}>
                   <FoCommandScope>{children}</FoCommandScope>

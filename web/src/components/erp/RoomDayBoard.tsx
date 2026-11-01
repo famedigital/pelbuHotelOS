@@ -89,7 +89,7 @@ function statusForUnit(
 const STATUS_STYLES: Record<RoomRowStatus, string> = {
   vacant: "bg-muted text-muted-foreground",
   arrival: "bg-sky-500/15 text-sky-800 dark:text-sky-200",
-  stay: "bg-citrus/15 text-citrus",
+  stay: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200",
   depart: "bg-amber-500/15 text-amber-900 dark:text-amber-200",
   ooo: "bg-maroon/15 text-maroon",
   dirty: "bg-rose-500/15 text-rose-800 dark:text-rose-200",
@@ -99,14 +99,13 @@ const STATUS_LABEL: Record<RoomRowStatus, string> = {
   vacant: "Vacant",
   arrival: "Arrival",
   stay: "In-house",
-  depart: "Depart",
+  depart: "Due out",
   ooo: "OOO",
   dirty: "Dirty",
 };
 
 /**
- * Phone-first calendar surface: one date × rooms list (not a 30-day Gantt).
- * Compact chrome so short phones still show the room list.
+ * Phone Day Sheet Agenda (<768): 7-day strip (today −3…+3) + category cards.
  */
 export function RoomDayBoard({
   units,
@@ -158,10 +157,10 @@ export function RoomDayBoard({
     return [...byType.values()];
   }, [units]);
 
-  /** ±3 days strip for quick jump without opening a huge window */
+  /** Spec: Today −3 … +3 horizontal date bar */
   const weekStrip = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => addDays(selectedDate, i - 3)),
-    [selectedDate],
+    () => Array.from({ length: 7 }, (_, i) => addDays(today, i - 3)),
+    [today],
   );
 
   const q = query.trim().toLowerCase();
@@ -178,7 +177,7 @@ export function RoomDayBoard({
             type="button"
             variant="outline"
             size="icon"
-            className="size-10 shrink-0"
+            className="touch-press size-11 shrink-0"
             aria-label="Previous day"
             onClick={() => onDateChange(addDays(selectedDate, -1))}
           >
@@ -191,20 +190,20 @@ export function RoomDayBoard({
             {selectedDate !== today ? (
               <button
                 type="button"
-                className="text-[11px] text-accent underline-offset-2 hover:underline"
+                className="touch-press text-[11px] text-accent underline-offset-2 hover:underline"
                 onClick={() => onDateChange(today)}
               >
                 Today
               </button>
             ) : (
-              <p className="text-[10px] text-muted-foreground">Today</p>
+              <p className="text-[10px] text-muted-foreground">Agenda · Today</p>
             )}
           </div>
           <Button
             type="button"
             variant="outline"
             size="icon"
-            className="size-10 shrink-0"
+            className="touch-press size-11 shrink-0"
             aria-label="Next day"
             onClick={() => onDateChange(addDays(selectedDate, 1))}
           >
@@ -216,7 +215,7 @@ export function RoomDayBoard({
                 type="button"
                 variant="outline"
                 size="icon"
-                className="size-10 shrink-0"
+                className="touch-press size-11 shrink-0"
                 aria-label="Go to date"
               >
                 <CalendarRangeIcon className="size-4" />
@@ -241,7 +240,7 @@ export function RoomDayBoard({
             type="button"
             variant={showSearch || q ? "secondary" : "outline"}
             size="icon"
-            className="size-10 shrink-0"
+            className="touch-press size-11 shrink-0"
             aria-label="Search"
             aria-pressed={showSearch}
             onClick={() => setShowSearch((v) => !v)}
@@ -250,8 +249,10 @@ export function RoomDayBoard({
           </Button>
         </div>
 
-        {/* Horizontal day chips — fits phones without a Gantt */}
-        <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5">
+        <div
+          className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
           {weekStrip.map((d) => {
             const active = d === selectedDate;
             const isToday = d === today;
@@ -266,7 +267,7 @@ export function RoomDayBoard({
                 type="button"
                 onClick={() => onDateChange(d)}
                 className={cn(
-                  "flex h-9 min-w-10 shrink-0 flex-col items-center justify-center rounded-md border px-1.5 text-[10px] leading-none",
+                  "touch-press flex h-11 min-w-11 shrink-0 flex-col items-center justify-center rounded-xl border px-2 text-[10px] leading-none select-none",
                   active
                     ? "border-accent bg-accent/15 font-semibold text-accent"
                     : "bg-card text-muted-foreground",
@@ -294,7 +295,7 @@ export function RoomDayBoard({
               type="button"
               onClick={() => setFilter(key)}
               className={cn(
-                "h-8 shrink-0 rounded-md border px-2.5 text-xs font-medium",
+                "touch-press h-11 shrink-0 rounded-lg border px-3 text-xs font-medium select-none",
                 filter === key
                   ? "border-accent bg-accent/10 text-accent"
                   : "bg-card text-muted-foreground",
@@ -307,7 +308,7 @@ export function RoomDayBoard({
             <button
               type="button"
               onClick={onOpenTimeline}
-              className="ml-auto inline-flex h-8 shrink-0 items-center gap-1 rounded-md border border-accent/40 bg-accent/10 px-2.5 text-xs font-medium text-accent"
+              className="touch-press ml-auto inline-flex h-11 shrink-0 items-center gap-1 rounded-lg border border-accent/40 bg-accent/10 px-3 text-xs font-medium text-accent select-none"
             >
               <CalendarRangeIcon className="size-3.5" aria-hidden />
               Timeline
@@ -320,15 +321,15 @@ export function RoomDayBoard({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Guest, phone, room…"
-            className="h-9"
+            className="h-11 text-base"
             autoFocus={showSearch}
           />
         ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2 pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2 pb-safe-dock">
         {needsRoom.length > 0 ? (
-          <section className="mb-3 rounded-lg border border-amber-500/30 bg-amber-50/40 p-2.5 dark:bg-amber-950/20">
+          <section className="mb-3 rounded-2xl border border-amber-500/30 bg-amber-50/40 p-2.5 dark:bg-amber-950/20">
             <h2 className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
               Needs room ({needsRoom.length})
             </h2>
@@ -338,7 +339,7 @@ export function RoomDayBoard({
                   <button
                     type="button"
                     onClick={() => onAssignUnassigned(u)}
-                    className="w-full rounded-md border bg-background px-3 py-2 text-left text-sm active:bg-muted/50"
+                    className="touch-press w-full rounded-xl border bg-background px-3 py-2.5 text-left text-sm active:bg-muted/50"
                   >
                     <p className="font-medium">{u.contact_name}</p>
                     <p className="text-xs text-muted-foreground">
@@ -383,12 +384,33 @@ export function RoomDayBoard({
 
           if (rows.length === 0) return null;
 
+          const occupied = rows.filter(
+            (r) =>
+              r.status === "stay" ||
+              r.status === "arrival" ||
+              r.status === "depart",
+          ).length;
+          const dueOut = rows.filter((r) => r.status === "depart").length;
+          const dirty = rows.filter((r) => r.status === "dirty").length;
+
           return (
             <section key={group.name} className="mb-3">
-              <h2 className="sticky top-0 z-[1] bg-background py-1 text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-                {group.name}
-              </h2>
-              <ul className="space-y-1">
+              <div className="glass-card mb-2 px-3 py-2.5">
+                <h2 className="text-sm font-semibold tracking-tight text-foreground">
+                  {group.name}
+                </h2>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  {[
+                    occupied > 0 ? `${occupied} occupied` : null,
+                    dueOut > 0 ? `${dueOut} due out` : null,
+                    dirty > 0 ? `${dirty} dirty` : null,
+                    `${rows.length} rooms`,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              </div>
+              <ul className="space-y-1.5">
                 {rows.map(({ unit, status, stay }) => (
                   <li key={unit.id}>
                     <button
@@ -398,15 +420,17 @@ export function RoomDayBoard({
                         else if (status === "vacant" || status === "dirty")
                           onBookVacant(unit, selectedDate);
                       }}
-                      className="flex min-h-12 w-full items-center gap-2.5 rounded-lg border bg-card px-2.5 py-2 text-left active:bg-muted/40"
+                      className="touch-press flex min-h-12 w-full items-center gap-2.5 rounded-xl border bg-card px-2.5 py-2.5 text-left select-none active:bg-muted/40"
                     >
                       <span className="w-11 shrink-0 text-base font-semibold tabular-nums">
                         {unit.label}
                       </span>
                       <span
                         className={cn(
-                          "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase",
+                          "shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase",
                           STATUS_STYLES[status],
+                          status === "dirty" && "glass-badge-dirty",
+                          status === "stay" && "glass-badge-clean",
                         )}
                       >
                         {STATUS_LABEL[status]}
@@ -446,7 +470,7 @@ export function RoomDayBoard({
         type="button"
         variant="default"
         size="icon"
-        className="fixed right-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 size-12 rounded-full shadow-lg md:hidden"
+        className="touch-press fixed right-3 bottom-[calc(var(--mobile-dock-height)+1.75rem+env(safe-area-inset-bottom))] z-20 size-12 rounded-full shadow-lg md:hidden"
         aria-label="Book stay"
         onClick={onBookFab}
       >

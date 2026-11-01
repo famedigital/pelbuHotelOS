@@ -71,7 +71,7 @@ export function StaffAppShell({
           ) : null}
         </nav>
       </header>
-      <main className="mx-auto w-full max-w-3xl px-4 py-5 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-6">
+      <main className="mx-auto w-full max-w-3xl px-4 py-5 pb-safe-dock md:pb-6">
         {children}
       </main>
       <StaffMobileNav

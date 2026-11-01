@@ -122,14 +122,9 @@ export function DeskMobileNav({
     <nav
       aria-label="Desk navigation"
       data-slot="desk-mobile-nav"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm md:hidden"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-50 md:hidden"
     >
-      <div
-        className="grid h-14"
-        style={{
-          gridTemplateColumns: `repeat(${Math.max(primary.length + 1, 2)}, minmax(0, 1fr))`,
-        }}
-      >
+      <div className="glass-dock-mobile pointer-events-auto">
         {primary.map((item) => {
           const active = isActive(pathname, item.href);
           const Icon = item.icon;
@@ -139,16 +134,16 @@ export function DeskMobileNav({
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "relative flex min-h-11 flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-muted-foreground",
+                "touch-press relative flex min-h-11 min-w-11 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-muted-foreground",
                 active && "text-primary",
               )}
             >
               <Icon className="size-5" strokeWidth={active ? 2.4 : 1.8} />
-              <span>{item.title}</span>
+              <span className="max-w-[4.5rem] truncate">{item.title}</span>
               {active ? (
                 <span
                   aria-hidden
-                  className="absolute inset-x-6 bottom-0 h-0.5 rounded-full bg-primary"
+                  className="absolute inset-x-[28%] bottom-0.5 h-0.5 rounded-full bg-primary"
                 />
               ) : null}
             </Link>
@@ -165,7 +160,7 @@ export function DeskMobileNav({
           <SheetTrigger asChild>
             <button
               type="button"
-              className="flex min-h-11 flex-col items-center justify-center gap-1 text-[11px] font-medium text-muted-foreground"
+              className="touch-press flex min-h-11 min-w-11 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-muted-foreground"
             >
               <EllipsisIcon className="size-5" />
               <span>More</span>
@@ -178,7 +173,8 @@ export function DeskMobileNav({
             <SheetHeader className="text-left">
               <SheetTitle>{actor?.name || "Desk"}</SheetTitle>
               <SheetDescription>
-                {[actor?.role, actor?.code].filter(Boolean).join(" · ") || "All tools for your role"}
+                {[actor?.role, actor?.code].filter(Boolean).join(" · ") ||
+                  "All tools for your role"}
               </SheetDescription>
             </SheetHeader>
             <div className="overflow-y-auto px-3 pb-4">
@@ -207,7 +203,7 @@ export function DeskMobileNav({
                 <SheetClose asChild>
                   <button
                     type="button"
-                    className="flex min-h-11 w-full items-center gap-3 rounded-lg border border-border bg-card px-3 text-sm font-medium"
+                    className="touch-press flex min-h-11 w-full items-center gap-3 rounded-lg border border-border bg-card px-3 text-sm font-medium"
                     onClick={() => openErpCommandPalette()}
                   >
                     <SearchIcon className="size-4 shrink-0" />
@@ -241,7 +237,7 @@ export function DeskMobileNav({
                                 })
                               }
                               className={cn(
-                                "flex min-h-12 items-center gap-2.5 rounded-lg border border-border bg-card px-2.5 text-sm",
+                                "touch-press flex min-h-12 items-center gap-2.5 rounded-lg border border-border bg-card px-2.5 text-sm",
                                 active &&
                                   "border-primary/50 bg-primary/5 text-primary",
                               )}
@@ -260,7 +256,7 @@ export function DeskMobileNav({
                 <form action={deskShiftChange}>
                   <button
                     type="submit"
-                    className="min-h-11 w-full rounded-lg border border-border px-4 text-sm font-medium"
+                    className="touch-press min-h-11 w-full rounded-lg border border-border px-4 text-sm font-medium"
                   >
                     Login + · next shift
                   </button>
@@ -268,7 +264,7 @@ export function DeskMobileNav({
                 <form action={deskLogout}>
                   <button
                     type="submit"
-                    className="min-h-11 w-full rounded-lg border border-border px-4 text-sm font-medium"
+                    className="touch-press min-h-11 w-full rounded-lg border border-border px-4 text-sm font-medium"
                   >
                     Log out
                   </button>

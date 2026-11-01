@@ -1019,10 +1019,10 @@ export function RoomRackGrid({
   const isMdUp = useMediaQuery("(min-width: 768px)");
   const isLandscape = useMediaQuery("(orientation: landscape)");
   const isShort = useMediaQuery("(max-height: 640px)");
-  /** Portrait default is the multi-day rack; day list is opt-in. */
-  const [preferDayList, setPreferDayList] = useState(false);
+  /** Phone portrait: 7-day Agenda is default; multi-day timeline is opt-in. */
+  const [preferTimeline, setPreferTimeline] = useState(false);
   const [startPickerOpen, setStartPickerOpen] = useState(false);
-  const useDayBoard = !isMdUp && !isLandscape && preferDayList;
+  const useDayBoard = !isMdUp && !isLandscape && !preferTimeline;
   const compactRack = !useDayBoard && (!isMdUp || isShort);
   const stayHub = useStayHubOptional();
   const leftWidth = useLeftPaneWidth();
@@ -1078,9 +1078,9 @@ export function RoomRackGrid({
   }, [compactRack]);
 
   useEffect(() => {
-    // Landscape already uses the rack; clear stale day-list preference.
-    if (isLandscape && preferDayList) setPreferDayList(false);
-  }, [isLandscape, preferDayList]);
+    // Landscape already uses the rack; clear stale timeline preference.
+    if (isLandscape && preferTimeline) setPreferTimeline(false);
+  }, [isLandscape, preferTimeline]);
 
   const deskRoomTypes: FastBookRoomType[] = useMemo(() => {
     const map = new Map<string, FastBookRoomType>();
@@ -1943,7 +1943,7 @@ export function RoomRackGrid({
           onAssignUnassigned={(item) =>
             setAssignGuide({ kind: "single", item })
           }
-          onOpenTimeline={() => setPreferDayList(false)}
+          onOpenTimeline={() => setPreferTimeline(true)}
           onBookFab={() => {
             setSelection({
               checkIn: dayBoardDate,
@@ -2016,11 +2016,11 @@ export function RoomRackGrid({
             type="button"
             variant="ghost"
             size="sm"
-            className="h-8 shrink-0 gap-1 px-2 text-xs"
-            onClick={() => setPreferDayList(true)}
+            className="touch-press h-11 shrink-0 gap-1 px-2 text-xs"
+            onClick={() => setPreferTimeline(false)}
           >
             <ListIcon className="size-3.5" aria-hidden />
-            Day list
+            Agenda
           </Button>
         ) : null}
         <div

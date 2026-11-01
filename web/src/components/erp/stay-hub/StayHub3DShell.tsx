@@ -1,5 +1,7 @@
 "use client";
 
+import { StayHubMobileDrawer } from "@/components/erp/stay-hub/StayHubMobileDrawer";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import { XIcon } from "lucide-react";
 import {
@@ -10,6 +12,7 @@ import {
 
 /**
  * StayHub modal/aside shell — `.glass-elevated` chrome, Esc / Ctrl+P shortcuts.
+ * Mobile/tablet (<768): bottom sheet via StayHubMobileDrawer.
  * Inner ledger grids stay opaque (enterprise dual-tier rule).
  */
 export function StayHub3DShell({
@@ -18,6 +21,8 @@ export function StayHub3DShell({
   onClose,
   onPrint,
   boardDock = false,
+  balanceBtn = null,
+  stickyActions = null,
   children,
   className,
 }: {
@@ -26,9 +31,13 @@ export function StayHub3DShell({
   onClose: () => void;
   onPrint?: () => void;
   boardDock?: boolean;
+  balanceBtn?: number | null;
+  stickyActions?: ReactNode;
   children: ReactNode;
   className?: string;
 }) {
+  const isMdUp = useMediaQuery("(min-width: 768px)");
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -47,6 +56,21 @@ export function StayHub3DShell({
   }, [open, onClose, onPrint]);
 
   if (!open) return null;
+
+  if (!boardDock && !isMdUp) {
+    return (
+      <StayHubMobileDrawer
+        open={open}
+        title={title}
+        balanceBtn={balanceBtn}
+        onClose={onClose}
+        stickyActions={stickyActions}
+        className={className}
+      >
+        {children}
+      </StayHubMobileDrawer>
+    );
+  }
 
   return (
     <>
@@ -80,6 +104,11 @@ export function StayHub3DShell({
           <XIcon className="size-4" aria-hidden />
         </button>
         {children}
+        {stickyActions ? (
+          <div className="hidden shrink-0 border-t px-3 py-2 md:block">
+            <div className="flex gap-2">{stickyActions}</div>
+          </div>
+        ) : null}
       </aside>
     </>
   );

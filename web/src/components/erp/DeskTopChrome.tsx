@@ -229,7 +229,7 @@ export function DeskTopChrome({
   return (
     <div
       data-slot="desk-top-chrome"
-      className="z-30 shrink-0 border-b border-border bg-background print:hidden"
+      className="erp-cold-glass z-30 shrink-0 border-b border-border/60 print:hidden"
     >
       <div className="flex h-10 min-w-0 items-center gap-1 px-2 sm:px-3">
         <Link
@@ -488,7 +488,7 @@ export function DeskSideNav() {
     <nav
       aria-label={title}
       data-slot="desk-side-nav"
-      className="hidden w-52 shrink-0 flex-col overflow-y-auto border-r border-border bg-background px-2 py-2 md:flex print:hidden"
+      className="erp-cold-glass hidden w-52 shrink-0 flex-col overflow-y-auto border-r border-border/60 px-2 py-2 md:flex print:hidden"
     >
       {topLinks.length ? (
         <div className="mb-1 flex flex-col gap-1">
