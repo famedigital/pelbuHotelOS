@@ -1,0 +1,38 @@
+---
+description: Mandatory Zero-Superficial Code and Code 0 Engineering Standards for Cursor.
+globs: **/*
+alwaysApply: true
+---
+
+# MANDATE: Zero-Superficial Code & Code 0 First-Principles
+
+Cursor must NEVER write superficial code, dummy placeholders, or half-baked stubs. Every implementation must be production-ready and fully wired from database to UI.
+
+Reference Document: `docs/architecture/ZERO-SUPERFICIAL-CODE.md`
+
+---
+
+## 1. Absolute Prohibitions (Instant Rejection)
+1. **NO Placeholder Comments:** Strictly forbid `// TODO: implement later`, `// add your logic`, or mock fallback functions. If an external service is pending, return an explicit typed error.
+2. **NO Hardcoded Mock Arrays in Production Views:** Connect directly to Supabase queries/actions and provide an `<EmptyState />` component when data is empty.
+3. **NO Silent Error Swallowing:** Never use empty `catch {}` blocks. Every error must be logged with context and returned as a typed error object to the user.
+4. **NO Hallucinated Database Schema:** Never invent table names or columns. Check `supabase/migrations/` first.
+5. **NO Unbounded `any` Types:** Use strict TypeScript types and Zod schemas for all server inputs and outputs.
+6. **NO Loose Multi-Step Mutations:** Financial, folio, inventory, and stay updates MUST be enclosed in atomic PostgreSQL PL/pgSQL functions with row-level locks (`SELECT ... FOR UPDATE`).
+
+---
+
+## 2. Required 4-Tier Completion Standard
+Whenever writing a feature, implement all 4 tiers in full:
+1. **Database:** Migrations, RLS policies, atomic functions, and performance indexes.
+2. **Validation:** Zod schemas and UUID `idempotencyKey` checks.
+3. **Server Action:** Session authentication, strict `property_id` tenant isolation, structured error handling.
+4. **UI Component:** `useTransition`, loading skeletons, error toasts via Sonner, and complete rollback on failure.
+
+---
+
+## 3. Self-Verification Before Declaring "Done"
+Before completing any prompt, run mental or CLI verification:
+- Did you write any `TODO`s? If yes, finish them.
+- Did you cast to `any`? If yes, write the proper type.
+- Does this work under real production edge cases (empty data, network failure, double click)?

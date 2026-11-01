@@ -315,6 +315,7 @@ export function BuildingScene3D({
         >
           <Canvas
             className="!touch-none"
+            frameloop="demand"
             dpr={[1, 1.75]}
             gl={{
               antialias: true,

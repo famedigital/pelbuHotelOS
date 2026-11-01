@@ -1,0 +1,54 @@
+---
+description: Enterprise core engineering standards, financial safety, tenant isolation, and zero-defect guardrails for Hotel OS.
+alwaysApply: true
+---
+
+# Hotel OS — Enterprise Engineering & Zero-Defect Standards
+
+You are building a mission-critical, multi-tenant Hotel Operating System & ERP (Next.js 16, React 19, Supabase Postgres). Hoteliers rely on this system for real money, tax legal compliance, and daily operations. You must adhere strictly to these non-negotiable rules to eliminate bugs, data loss, and architectural drift.
+
+---
+
+## 1. Project Vision & Objectives (The North Star)
+- **Primary Goal:** Sovereign, multi-tenant hospitality ERP tailored for Bhutan and luxury Himalayan boutique properties (Pelbu Suites is a tenant/seed, never hardcode it).
+- **Core Pillars:**
+  1. **Autonomous Zero-Admin Desk:** Sub-20s check-ins, automated night audit, gapless fiscal invoicing.
+  2. **Bhutan & Himalayan Compliance:** Native DRC e-invoicing, SDF handling, Tour Operator (TCB) vouchers, RMA QR.
+  3. **Dual-Layer UI:** Immersive 3D glassmorphism on public booking (`/book`, `/`) + high-contrast, zero-lag 60fps "Cold Glass" on operational ERP (`/erp`, `/staff`).
+
+---
+
+## 2. Non-Negotiable Financial & Ledger Safety (P0)
+- **Atomic Transactions Only:** NEVER perform multi-step financial or booking updates across separate server action queries. If a process alters room inventory, posts folio charges, settles payments, or records double-entry journals, encapsulate it inside an atomic Postgres PL/pgSQL function or transaction with `SELECT ... FOR UPDATE` locking.
+- **Idempotency Required:** Every server action and API endpoint handling charges, payments, folio adjustments, or checkouts MUST require and validate a client-supplied `idempotency_key` (UUID v4) to prevent double-billing on network retry or double-click.
+- **Gapless Fiscal Sequences:** Never calculate sequence numbers (`INV-YYYY-####`) purely in memory. Rely on PostgreSQL transactional sequences (`property_sequences`) to prevent illegal gaps under concurrent volume.
+- **No In-Place Mutating of Posted Transactions:** Folio line items and journal postings are append-only. Adjustments MUST be made via dedicated reversal/credit notes (`voidFolioLineWithReversal`).
+
+---
+
+## 3. Multi-Tenancy & Zero Data Leakage (P0)
+- **RLS by Default:** Every table MUST have Row Level Security (RLS) enabled.
+- **No Service-Role Overuse:** NEVER use `createAdminClient()` / service-role Supabase clients simply to bypass permission errors. Operations must run in the context of the authenticated user's session with strict `property_id` evaluation.
+- **Allowed service-role exceptions:** droplet cron, payment webhooks, and thin wrappers that only call `SECURITY DEFINER` money RPCs / `next_property_sequence` after desk auth + `property_id` assert. Do not use admin for ordinary reads that a staff-scoped client can do.
+- **Property Scoping:** Every SQL query and server action MUST explicitly assert and verify `property_id`. Never trust unverified client-provided tenant IDs.
+
+---
+
+## 4. UI Architecture & 3D Glassmorphism Guardrails
+- **Desk ERP Performance (`/erp`, `/staff`):**
+  - NEVER apply heavy `backdrop-filter: blur(...)` to large virtualized grids, calendars (`/erp/calendar`), POS touch grids, or high-frequency data tables. This drops framerates and causes severe input latency on front-desk hardware.
+  - Limit glassmorphism in the ERP to elevated floating toolbars, dialogs/sheets, and sidebar overlays.
+  - All text on translucent surfaces MUST pass WCAG 2.1 AA (minimum 4.5:1 contrast).
+- **Public Surfaces (`/book`, `/`):**
+  - Three.js / React Three Fiber (`@react-three/fiber`) scenes MUST be dynamically imported with `ssr: false` and set to `frameloop="demand"` (never continuous render loops that drain battery).
+  - Respect `@media (prefers-reduced-motion)` and `@media (prefers-reduced-transparency)`.
+
+---
+
+## 5. Coding & Implementation Discipline
+- **No Stubs or Mocking in Production Paths:** Do not commit `// TODO: implement later` or dummy return values for core money, inventory, or auth paths. If an integration (e.g. DRC API) is staged, provide explicit error handling and status flagging.
+- **Strict TypeScript:** No `any`. Explicitly type server action inputs, outputs, and database row schemas.
+- **Clean Error Handling:** Never swallow errors with empty `catch {}` blocks. Log structured errors and surface actionable messages to desk staff.
+- **Pre-Completion Verification:**
+  - Before marking any task complete, run `pnpm --dir web run typecheck` or ensure zero TypeScript diagnostics exist on modified files.
+  - Ensure zero regressions in existing Playwright tests (`pnpm --dir web run test:e2e:smoke`).

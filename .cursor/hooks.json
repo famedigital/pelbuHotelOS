@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeSubmitPrompt": [
+      {
+        "command": "node .cursor/hooks/memory-hook.mjs recall",
+        "timeout": 8
+      }
+    ],
+    "afterAgentResponse": [
+      {
+        "command": "node .cursor/hooks/memory-hook.mjs note",
+        "timeout": 8
+      }
+    ],
+    "stop": [
+      {
+        "command": "node .cursor/hooks/memory-hook.mjs commit",
+        "timeout": 8
+      }
+    ],
+    "sessionEnd": [
+      {
+        "command": "node .cursor/hooks/memory-hook.mjs commit",
+        "timeout": 8
+      }
+    ]
+  }
+}

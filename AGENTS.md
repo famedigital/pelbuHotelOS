@@ -72,9 +72,34 @@ Slash commands in `.cursor/commands/`:
 
 ## Rules / skills
 
+**Always-on rules**
+
+- [`.cursor/rules/enterprise-core.mdc`](.cursor/rules/enterprise-core.mdc) — money atomics, tenant scope, verify-before-done
+- [`.cursor/rules/3d-glassmorphism.mdc`](.cursor/rules/3d-glassmorphism.mdc) — dual-tier glass (opaque rack cells; glass chrome)
+
+**Architecture (Code 0 + stack)**
+
+- [`docs/architecture/ZERO-SUPERFICIAL-CODE.md`](docs/architecture/ZERO-SUPERFICIAL-CODE.md) — no stubs/mocks/phantom schema
+- [`docs/architecture/TECH-STACK-UPGRADES.md`](docs/architecture/TECH-STACK-UPGRADES.md) — LRU middleware, Next opts, indexes
+- [`docs/architecture/3D-GLASSMORPHISM-DESIGN-SYSTEM.md`](docs/architecture/3D-GLASSMORPHISM-DESIGN-SYSTEM.md)
+
+**Phase order:** money integrity → RLS/audit → desk glass chrome → public 3D explorer. Do not mix money RPCs and full UI redesign in one unbounded prompt.
+
+**Invoke skills by domain**
+
+| Work | Skill |
+|------|--------|
+| Folio / checkout / payments | `.cursor/skills/atomic-ledger-safety` + `.cursor/skills/pelbu-hotel-ops` |
+| Desk UI chrome / glass / R3F | `.cursor/skills/high-perf-glassmorphism` + `.cursor/skills/pelbu-design-system` |
+
+Also:
+
+- `.cursor/rules/desk-ops-invariants.mdc` — StayHub-only editor, offline money ban, PIN
 - `.cursor/rules/zai-implementer.mdc` — attach in every z.ai chat
 - Keyword memory: `.cursor/memory/KEYWORDS.md` (hook injects matches; do not load the file whole)
 - `.cursor/skills/pelbu-zai-handoff` — how Cursor should brief and review
+
+**Schema reality:** examples saying `stays` / `folio_charges` mean `bookings` / `folio_lines`.
 
 ## Subagents
 

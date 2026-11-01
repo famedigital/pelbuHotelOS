@@ -41,6 +41,10 @@ import { StayHubTasksPanel } from "@/components/erp/stay-hub/StayHubTasksPanel";
 import { useStayHubOptional } from "@/components/erp/StayHubContext";
 import { StayHubPrintHost } from "@/components/erp/stay-hub/StayHubPrintHost";
 import { StayHubCashierStrip } from "@/components/erp/stay-hub/StayHubCashierStrip";
+import { StayHubCashierDock } from "@/components/erp/stay-hub/StayHubCashierDock";
+import { StayHub3DShell } from "@/components/erp/stay-hub/StayHub3DShell";
+import { StayHubHeaderBar } from "@/components/erp/stay-hub/StayHubHeaderBar";
+import { StayHubDualLedger } from "@/components/erp/stay-hub/StayHubDualLedger";
 import { StayFolioSheet } from "@/components/erp/stay-hub/StayFolioSheet";
 import {
   defaultCheckInToolTab,
@@ -92,7 +96,6 @@ import type { RackStay, RackUnit } from "@/components/erp/RoomRackGrid";
 import type { PropertyRegistrationDesign } from "@/lib/property-settings";
 import {
   StayHubFooterBar,
-  StayHubHeader,
   StayHubLeftRail,
   StayHubMobileSteps,
   StayHubToolTabs,
@@ -157,7 +160,7 @@ import { printDeskSheet } from "@/lib/desk-print";
 import { thimphuToday } from "@/lib/erp-lists";
 import { nightsBetween } from "@/lib/stay-dates";
 import { cn } from "@/lib/utils";
-import { LockIcon, UnlockIcon, XIcon } from "lucide-react";
+import { LockIcon, UnlockIcon } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import {
@@ -2786,51 +2789,42 @@ export function StayHubDialog({
   const dock = (
     <>
       {open ? (
-        <>
-          {boardDock ? null : (
-            <button
-              type="button"
-              aria-label="Close stay"
-              className="fixed inset-0 z-[79] hidden bg-black/40 md:block"
-              onClick={closePanel}
-            />
-          )}
-          <aside
-            role="dialog"
-            aria-modal={boardDock ? false : true}
-            aria-label={`Guest stay · ${titleName}`}
-            className={cn(
-              "stay-hub-card stay-hub-dock erp fixed inset-y-0 right-0 z-[80] flex h-svh flex-col gap-0 overflow-hidden border-l bg-background p-0 shadow-xl",
-              "pt-[env(safe-area-inset-top)]",
-            )}
-          >
-            <button
-              type="button"
-              onClick={closePanel}
-              aria-label="Back to desk"
-              className="absolute top-2 right-2 z-10 inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              <XIcon className="size-4" aria-hidden />
-            </button>
-
+        <StayHub3DShell
+          open={open}
+          title={`Guest stay · ${titleName}`}
+          onClose={closePanel}
+          boardDock={boardDock}
+          onPrint={
+            money?.folioId
+              ? () => {
+                  void openMasterBillPrint(money.folioId!).then((r) => {
+                    if (r.ok) window.open(r.href, "_blank", "noopener,noreferrer");
+                    else toast.error(r.error);
+                  });
+                }
+              : undefined
+          }
+        >
           {/* Mobile compact identity — desktop lives in left rail */}
-          <StayHubHeader
-            guestName={titleName}
-            status={summary?.status}
-            roomLabel={summary?.roomLabel}
-            roomTypeName={summary?.roomTypeName}
-            checkIn={summary?.checkIn}
-            checkOut={summary?.checkOut}
-            bookingId={summary?.bookingId}
-            confirmationCode={summary?.confirmationCode}
-            agentName={summary?.agentName}
-            paymentMode={summary?.paymentMode}
-            alerts={headerAlerts}
-            terminal={terminal}
-            saveStatus={saveStatus}
-            lockHint={railLockHint}
-            onForceLock={
-              railLockHint
+          <StayHubHeaderBar
+            vip={Boolean(summary?.agentName)}
+            balanceBtn={balanceOpen ? dues : money?.guestVisibleBalanceBtn ?? null}
+            identity={{
+              guestName: titleName,
+              status: summary?.status,
+              roomLabel: summary?.roomLabel,
+              roomTypeName: summary?.roomTypeName,
+              checkIn: summary?.checkIn,
+              checkOut: summary?.checkOut,
+              bookingId: summary?.bookingId,
+              confirmationCode: summary?.confirmationCode,
+              agentName: summary?.agentName,
+              paymentMode: summary?.paymentMode,
+              alerts: headerAlerts,
+              terminal,
+              saveStatus,
+              lockHint: railLockHint,
+              onForceLock: railLockHint
                 ? () => {
                     void forceTakeover(
                       "Manager forced stay lease from StayHub",
@@ -2839,13 +2833,13 @@ export function StayHubDialog({
                       else toast.error(r.error ?? "Take-over failed");
                     });
                   }
-                : undefined
-            }
-            backLabel={backLabel}
-            onBack={backTarget ? handleBack : undefined}
-            dueChipBtn={balanceOpen ? dues : null}
-            hkStatus={summary?.roomHkStatus}
-            roomAction={roomAction}
+                : undefined,
+              backLabel,
+              onBack: backTarget ? handleBack : undefined,
+              dueChipBtn: balanceOpen ? dues : null,
+              hkStatus: summary?.roomHkStatus,
+              roomAction,
+            }}
           />
           <StayHubMobileSteps {...navProps} />
 
@@ -3670,7 +3664,7 @@ export function StayHubDialog({
                       </div>
                     ) : null}
 
-                    {/* Folio — Folio | Collect; Advanced under More */}
+                    {/* Folio — dual-stream ledger + cold-glass cashier dock */}
                     {panel === "stay_money" ? (
                       <Tabs
                         value={folioTool === "bill" ? "bill" : "collect"}
@@ -3701,28 +3695,38 @@ export function StayHubDialog({
                               onMoneyChanged();
                             }}
                             footer={
-                              <StayHubCashierStrip
+                              <StayHubCashierDock
                                 status={summary.status}
-                                hasDoor={Boolean(
-                                  summary.hasRoomAssigned && summary.roomLabel,
-                                )}
-                                money={money}
+                                propertyId={summary.propertyId}
                                 bookingId={summary.bookingId}
                                 guestName={summary.contactName}
                                 roomUnitId={summary.roomUnitId}
                                 roomLabel={summary.roomLabel}
-                                onPrinted={onMoneyChanged}
+                                money={money}
+                                onMoneyChanged={onMoneyChanged}
+                                onCheckedOut={() => {
+                                  void refreshSummary();
+                                  markStayChanged();
+                                }}
                               />
                             }
                           />
                         </TabsContent>
-                        <TabsContent value="collect" className="space-y-3">
+                        <TabsContent value="collect" className="space-y-3 pb-28">
                           {summary.rooms > 1 ? (
                             <Callout tone="muted" title="Multi-room / group">
                               Check in each room from Reservations party board if
                               needed. Master attach is on the folio advanced
                               page.
                             </Callout>
+                          ) : null}
+                          {money ? (
+                            <StayHubDualLedger
+                              money={money}
+                              summary={money.ledgerSummary}
+                              onChanged={onMoneyChanged}
+                              onOptimisticVoid={onOptimisticVoidLine}
+                            />
                           ) : null}
                           <DeskSettlePanel
                             key={`settle-${summary.bookingId}`}
@@ -3743,6 +3747,20 @@ export function StayHubDialog({
                             advancedExtra={advancedExtra}
                             onMoneyChanged={onMoneyChanged}
                             onOptimisticVoidLine={onOptimisticVoidLine}
+                          />
+                          <StayHubCashierDock
+                            status={summary.status}
+                            propertyId={summary.propertyId}
+                            bookingId={summary.bookingId}
+                            guestName={summary.contactName}
+                            roomUnitId={summary.roomUnitId}
+                            roomLabel={summary.roomLabel}
+                            money={money}
+                            onMoneyChanged={onMoneyChanged}
+                            onCheckedOut={() => {
+                              void refreshSummary();
+                              markStayChanged();
+                            }}
                           />
                         </TabsContent>
                       </Tabs>
@@ -4009,8 +4027,7 @@ export function StayHubDialog({
                 : null
             }
           />
-            </aside>
-        </>
+        </StayHub3DShell>
       ) : null}
 
       {open && summary ? (

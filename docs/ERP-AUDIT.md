@@ -84,7 +84,21 @@ Honest module-level status — **Shipped** = desk can run a shift; **Partial** =
 | AC-01 | **P0** — **Shipped** | Not every folio charge/payment is proven to create a **balanced** journal with a posting event. | **Shipped 2026-08-01:** `postFolioCharge` / `postFolioPaymentRecord` (§5 Phase B) | Keep gateways; forbid raw `folio_lines` inserts |
 | AC-02 | **P0** — **Shipped** | Posted folio lines may be mutable / deletable without a reversing entry pattern. | **Shipped 2026-08-01:** `voidFolioLineWithReversal` (§5 Phase A) | Status machine: `posted` → only `voided` via reversing line |
 | AC-03 | **P1** | Invoice / receipt / journal sequence gapless-ness and concurrency not guaranteed. | Sequence helpers / DB sequences | **Shipped 2026-08-01/02:** `property_sequences` + `next_property_sequence` RPC; `allocateJournalNo` / `allocateFiscalDocNo` use row-locked upsert; fiscal **CN** issue + print. **Still open:** journal numbers gapless but not legally immutable; live Bhutan e-invoice API |
-| AC-04 | **P1** | Idempotency: double-click payment / webhook replay can double-post. | Payment actions / webhooks | **Shipped 2026-08-01:** `payments (property_id, idempotency_key)` unique partial index; gateway webhook + deposit link + folio desk + POS tender + agent credit keys; desk deposit link `open→processing` claim |
+| AC-04 | **P1** — **Shipped+** | Idempotency: double-click payment / webhook replay can double-post. | Payment actions / webhooks | **Shipped 2026-08-01:** `payments` unique partial index + keys. **2026-11-02:** `money_idempotency` + `post_folio_charge_atomic` / `check_in_guest_atomic` / `settle_checkout_atomic` (`FOR UPDATE`); `postFolioCharge` uses charge RPC. **Residual:** GL journal still TS after line insert; pg-boss deferred; full staff-scoped client = Phase 2 |
+
+### Execution Brief residuals (2026-11-02)
+
+| Item | Status |
+|------|--------|
+| Next `optimizePackageImports` + `removeConsole` | Shipped (`web/next.config.ts`) |
+| Middleware host → property LRU (15m) | Shipped (`web/src/middleware.ts` + `lru-cache`) |
+| `.contain-calendar-grid` / glass utilities / `frameloop="demand"` | Shipped |
+| Perf indexes on `bookings` / `folio_lines` / `room_units` | Migration `20261102120000_enterprise_perf_indexes.sql` |
+| Atomic money RPCs | Migration `20261102130000_money_atomic_rpcs.sql` |
+| TECH-STACK latency SLAs | Aspirational until measured on droplet |
+| pg-boss night audit queue | Deferred (keep `droplet-desk-cron.sh`) |
+| Phase 2 RLS / audit_logs / admin purge | Open |
+| Phase 3–4 full glass + public 3D explorer | Open |
 | AC-05 | **P2** | GST inclusive vs exclusive + rounding (`roundBtn`) must be one documented rule. | `lib/pricing` | **Documented 2026-08-01:** see §5.1 — exclusive-add GST, `roundBtn` on every BTN total; property `gst_rate` from seed |
 
 ### 3.4 POS / F&B

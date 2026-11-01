@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { chargeAgentCredit } from "@/app/actions/erp-agents";
 import { writeAuditEvent } from "@/lib/audit";
 import { postExtraBedFolioLine } from "@/lib/folio/extra-bed";
@@ -619,6 +620,34 @@ export async function confirmCheckIn(
     }
 
     const primaryGuest = guestsForCi[0];
+    const checkInIdempotencyKey =
+      optionalTrim(formData.get("idempotency_key")) || randomUUID();
+    const firstRoomUnitId =
+      guestsForCi.find((g) => g.roomUnitId)?.roomUnitId ?? null;
+    const { data: checkInRpc, error: checkInRpcError } = await admin.rpc(
+      "check_in_guest_atomic",
+      {
+        p_property_id: property_id,
+        p_booking_id: bookingId,
+        p_idempotency_key: checkInIdempotencyKey,
+        p_room_unit_id: firstRoomUnitId,
+      },
+    );
+    if (checkInRpcError) {
+      console.error("[confirmCheckIn] check_in_guest_atomic failed", {
+        bookingId,
+        error: checkInRpcError,
+      });
+      throw new Error(
+        checkInRpcError.message
+          ? `Could not update booking status. ${checkInRpcError.message}`
+          : "Could not update booking status.",
+      );
+    }
+    if (!(checkInRpc as { ok?: boolean } | null)?.ok) {
+      throw new Error("Could not update booking status.");
+    }
+
     const { error: bookingPatchError } = await admin
       .from("bookings")
       .update({
@@ -627,7 +656,6 @@ export async function confirmCheckIn(
         guide_id: resolvedGuideId,
         driver_id: resolvedDriverId,
         payment_mode: paymentMode,
-        status: "checked_in",
         checked_in_at: new Date().toISOString(),
         contact_name: primaryGuest.fullName.trim(),
         docs_deferred: docsDeferred,
@@ -1055,6 +1083,7 @@ export async function confirmCheckOut(
         gst_applicable: gstBtn > 0,
         gst_btn: gstBtn,
         total_btn: roundBtn(amountBtn + gstBtn),
+        idempotency_key: randomUUID(),
       });
     }
 
@@ -1083,6 +1112,7 @@ export async function confirmCheckOut(
         gst_applicable: gstBtn > 0,
         gst_btn: gstBtn,
         total_btn: roundBtn(amountBtn + gstBtn),
+        idempotency_key: randomUUID(),
       });
     }
 
@@ -1165,30 +1195,32 @@ export async function confirmCheckOut(
       }
     }
 
-    const { error: releaseError } = await admin.rpc(
-      "desk_release_check_out_rooms",
+    // Desk already validated balance / allow_balance / agent residual above.
+    // Atomic RPC locks booking+folio, dirties rooms, and marks checked_out.
+    const checkoutKey =
+      optionalTrim(formData.get("idempotency_key")) || randomUUID();
+    const { data: checkoutRpc, error: checkoutError } = await admin.rpc(
+      "settle_checkout_atomic",
       {
         p_property_id: property_id,
         p_booking_id: bookingId,
+        p_idempotency_key: checkoutKey,
+        p_allow_balance: true,
       },
     );
-    if (releaseError) {
-      console.error("desk_release_check_out_rooms failed", releaseError);
-      throw new Error("Could not release rooms for housekeeping.");
+    if (checkoutError) {
+      console.error("[confirmCheckOut] settle_checkout_atomic failed", {
+        bookingId,
+        error: checkoutError,
+      });
+      throw new Error(
+        checkoutError.message || "Could not check out booking.",
+      );
     }
-    await markAssignedRoomsDirty(admin, property_id, bookingId);
-
-    const { error: patchError } = await admin
-      .from("bookings")
-      .update({
-        status: "checked_out",
-        checked_out_at: new Date().toISOString(),
-      })
-      .eq("id", bookingId);
-
-    if (patchError) {
+    if (!(checkoutRpc as { ok?: boolean } | null)?.ok) {
       throw new Error("Could not check out booking.");
     }
+    await markAssignedRoomsDirty(admin, property_id, bookingId);
 
     await writeAuditEvent(admin, {
       propertyId: property_id,

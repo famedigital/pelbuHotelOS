@@ -1,0 +1,16 @@
+---
+description: Front-desk StayHub and money ops invariants (StayHub-only editor, offline bans, PIN, master bill).
+globs: web/src/components/erp/**/*.{ts,tsx},web/src/app/actions/erp-*.ts,web/src/app/actions/stay-hub.ts,web/src/lib/folio/**/*.ts
+alwaysApply: false
+---
+
+# Desk ops invariants
+
+Complement [enterprise-core.mdc](enterprise-core.mdc) and [pelbu-hotel-ops](../skills/pelbu-hotel-ops/SKILL.md). Do not restate money atomics here.
+
+- **StayHub is the only stay editor.** Rack, Today, book modal, check-in, POS, and laundry open that card. Lists are not a second editor.
+- **Offline must not park** a folio charge, payment, night audit, or kitchen fire. Drafts for book/POS tickets only.
+- **Agent checkout** needs guide evidence before leave; open-room caps may block.
+- **Manager PIN** for agent AR / void / comp / agreed-rate thresholds; open-folio edits use the folio-edit cookie after PIN.
+- **Zero balance** must not settle the folio until the master bill (fiscal invoice) exists when the desk flow requires it.
+- Confirmation `PS-…` is not the fiscal `INV-` print — issue INV only when the desk asks.

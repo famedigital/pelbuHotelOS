@@ -1,0 +1,12 @@
+---
+description: Keyword memory for every Hotel OS chat. Use matching lines only.
+alwaysApply: true
+---
+
+# Keyword memory
+
+Past chats are one line each in `.cursor/memory/KEYWORDS.md`: `keywords | date | fact | chat`.
+When `<mem>` is already in the prompt, use those lines and do not open the file.
+When it is absent, grep that file for 2–4 rare words from the question and use only the matching lines.
+Do not open agent transcripts or read the memory file from top to bottom.
+Hooks record each turn. Rewrite a line only when asked to correct a fact.

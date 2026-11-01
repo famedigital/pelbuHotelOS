@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "crypto";
 import type { PeriodGuardOptions } from "@/lib/accounting/period-guard";
 import { assertOpenPeriodForDate } from "@/lib/accounting/period-guard";
 import {
@@ -52,6 +53,11 @@ export type FolioChargeInput = {
    * Default: auto-adj on positive fractional charges.
    */
   skip_guest_rate_adj?: boolean;
+  /**
+   * Client- or job-supplied UUID. Required for desk double-click safety;
+   * when omitted, a new UUID is generated (system jobs should pass a stable key).
+   */
+  idempotency_key?: string | null;
 };
 
 /** Default payor for a charge source when caller does not set bill_to. */
@@ -126,39 +132,79 @@ export async function postFolioCharge(
     billTo = defaultBillTo(input.source_type, { hasAgent, paymentMode });
   }
 
-  const { data: line, error } = await admin
-    .from("folio_lines")
-    .insert({
-      folio_id: input.folio_id,
-      booking_id: input.booking_id ?? null,
-      source_type: input.source_type,
-      source_id: input.source_id ?? null,
-      description: input.description,
-      qty: input.qty ?? 1,
-      unit_price_btn: input.unit_price_btn,
-      amount_btn: input.amount_btn,
-      service_charge_rate: input.service_charge_rate ?? 0,
-      service_charge_btn: input.service_charge_btn ?? 0,
-      service_charge_applied: input.service_charge_applied ?? false,
-      service_charge_reason: input.service_charge_reason ?? null,
-      gst_applicable: input.gst_applicable ?? Number(input.gst_btn ?? 0) > 0,
-      gst_btn: input.gst_btn ?? 0,
-      total_btn: input.total_btn,
-      status: "posted",
-      is_comp: input.is_comp ?? false,
-      business_date: input.business_date ?? null,
-      room_unit_id: input.room_unit_id ?? null,
-      bill_to: billTo,
-      tax_treatment: input.tax_treatment ?? null,
-    })
-    .select("id, source_type, description, total_btn, gst_btn, created_at")
-    .single();
+  const idempotencyKey =
+    (input.idempotency_key?.trim() || randomUUID()).toLowerCase();
 
-  if (error || !line) {
-    const code = error?.code ? ` [${error.code}]` : "";
+  const { data: rpcRaw, error: rpcError } = await admin.rpc(
+    "post_folio_charge_atomic",
+    {
+      p_property_id: propertyId,
+      p_folio_id: input.folio_id,
+      p_idempotency_key: idempotencyKey,
+      p_booking_id: input.booking_id ?? null,
+      p_source_type: input.source_type,
+      p_source_id: input.source_id ?? null,
+      p_description: input.description,
+      p_qty: input.qty ?? 1,
+      p_unit_price_btn: input.unit_price_btn,
+      p_amount_btn: input.amount_btn,
+      p_gst_applicable: input.gst_applicable ?? Number(input.gst_btn ?? 0) > 0,
+      p_gst_btn: input.gst_btn ?? 0,
+      p_total_btn: input.total_btn,
+      p_is_comp: input.is_comp ?? false,
+      p_business_date: input.business_date ?? null,
+      p_room_unit_id: input.room_unit_id ?? null,
+      p_bill_to: billTo,
+      p_tax_treatment: input.tax_treatment ?? null,
+      p_service_charge_rate: input.service_charge_rate ?? 0,
+      p_service_charge_btn: input.service_charge_btn ?? 0,
+      p_service_charge_applied: input.service_charge_applied ?? false,
+      p_service_charge_reason: input.service_charge_reason ?? null,
+    },
+  );
+
+  if (rpcError) {
+    const code = rpcError.code ? ` [${rpcError.code}]` : "";
     throw new Error(
-      `${error?.message ?? "Could not post folio charge."}${code}`,
+      `${rpcError.message ?? "Could not post folio charge."}${code}`,
     );
+  }
+
+  const rpc = (rpcRaw ?? {}) as {
+    ok?: boolean;
+    line_id?: string;
+    source_type?: string;
+    description?: string | null;
+    total_btn?: number;
+    gst_btn?: number;
+    created_at?: string;
+    already_exists?: boolean;
+  };
+
+  if (!rpc.line_id) {
+    throw new Error("Could not post folio charge (empty RPC result).");
+  }
+
+  const line = {
+    id: rpc.line_id,
+    source_type: rpc.source_type ?? input.source_type,
+    description: rpc.description ?? input.description,
+    total_btn: Number(rpc.total_btn ?? input.total_btn),
+    gst_btn: Number(rpc.gst_btn ?? input.gst_btn ?? 0),
+    created_at: rpc.created_at ?? new Date().toISOString(),
+  };
+
+  // Replay: line already journaled on first success — skip GL.
+  if (rpc.already_exists) {
+    return {
+      ok: true,
+      lineId: line.id,
+      source_type: line.source_type,
+      description: line.description,
+      total_btn: Number(line.total_btn),
+      gst_btn: Number(line.gst_btn),
+      created_at: line.created_at,
+    };
   }
 
   let gl: PostingResult;

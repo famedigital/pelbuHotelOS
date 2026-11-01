@@ -11,3 +11,4 @@ alwaysApply: false
 - Money, auth, and RLS paths: no silent catch — log and rethrow or return typed errors.
 - Do not hardcode property IDs, rates, or menus in UI — load from CMS/ERP/DB.
 - Ops boards (KOT, POS, room status): prefer Supabase Realtime over polling.
+- Money / tenant / verify: follow [enterprise-core.mdc](enterprise-core.mdc) and `docs/architecture/ZERO-SUPERFICIAL-CODE.md`.

@@ -1,0 +1,40 @@
+---
+description: 3D Glassmorphism & Colorful Enterprise Design System enforcement for Hotel OS.
+globs: **/*.{tsx,jsx,css,ts}
+alwaysApply: true
+---
+
+# MANDATE: 3D Glassmorphism & Colorful Enterprise Design System
+
+Whenever writing or editing UI components, pages, or styling across Hotel OS, adhere strictly to the 3D Glassmorphism Design System.
+
+Reference Specification: `docs/architecture/3D-GLASSMORPHISM-DESIGN-SYSTEM.md`
+
+---
+
+## 1. Visual Requirements (VisionOS × Himalayan Modern)
+1. **Depth & Specular Rims:**
+   - Every card and modal must feature high-performance frosted glass (`backdrop-filter: blur(16px)`), a 1px refraction border (`border-white/12`), and an inset specular rim light (`box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15)`).
+   - Use the `.glass-card` and `.glass-elevated` utility classes.
+2. **Vibrant Himalayan Enterprise Colors:**
+   - Avoid dull washed-out grays. Infuse saturated accents:
+     - **Sovereign Gold / Amber:** VIP tags, primary CTA highlights, agreed rates (`#F59E0B`).
+     - **Emerald Pine:** Clean rooms, settled folios, positive revenue (`#10B981`).
+     - **Himalayan Lapis:** Stays in-house, system metrics, brand highlights (`#3B82F6`).
+     - **Punakha Ruby:** Dirty rooms, unpaid folios, urgent alerts (`#EF4444`).
+   - Use glowing badges: `.glass-badge-clean`, `.glass-badge-dirty`, `.glass-badge-vip`.
+3. **Micro-3D Parallax & Spatial Cards:**
+   - Use `<GlassTiltCard glowColor="brand" />` on booking cards, dashboard KPIs, and marketing room previews for interactive 3D perspective tilt.
+
+---
+
+## 2. Enterprise Performance & Usability Guardrails
+1. **High-Density Data Grids (`/erp/calendar`, `/erp/invoices`):**
+   - The outer shell, headers, and floating pills are 3D glass.
+   - The inner table cells, folio rows, and calendar room dates **must remain opaque with high text contrast** so front-desk staff can read numbers instantly during busy shifts without eye strain.
+2. **Hardware Acceleration:**
+   - Always include `transform: translateZ(0)` on glass surfaces to ensure the GPU handles compositing without CPU lag.
+3. **Accessibility:**
+   - Respect `@media (prefers-reduced-motion)` (disable tilt).
+   - Respect `@media (prefers-reduced-transparency)` (fall back to solid opaque backgrounds).
+   - All text on glass surfaces must meet WCAG 2.1 AA (minimum 4.5:1 contrast).

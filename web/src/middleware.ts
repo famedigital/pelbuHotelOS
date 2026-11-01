@@ -9,6 +9,7 @@ import {
   shouldApplyMiddlewareAuthCookies,
 } from "@/lib/middleware-session-gate";
 import { hasSupabaseAuthSessionCookie } from "@/lib/supabase-auth-cookies";
+import { LRUCache } from "lru-cache";
 import { NextResponse, type NextRequest } from "next/server";
 
 /** Mirrors DESK_COOKIE_NAME in lib/desk-auth (that module imports next/headers). */
@@ -16,6 +17,22 @@ const DESK_COOKIE = "hotelos_desk_session";
 
 /** Keep well under Vercel middleware 25s invokation budget. */
 const MIDDLEWARE_NET_MS = 2_000;
+
+type CachedTenant = {
+  propertyId: string;
+  slug: string;
+  via: "host" | "flagship";
+};
+
+/** In-memory host → property cache (survives across requests in the runtime). */
+const tenantResolutionCache = new LRUCache<string, CachedTenant>({
+  max: 500,
+  ttl: 1000 * 60 * 15,
+});
+
+function normalizeHost(hostHeader: string): string {
+  return hostHeader.split(":")[0]?.trim().toLowerCase() ?? "";
+}
 
 function hasValidDeskPinCookie(request: NextRequest): boolean {
   const pin = process.env.DESK_PIN?.trim();
@@ -113,17 +130,34 @@ export async function middleware(request: NextRequest) {
           requestHeaders.set("x-tenant-via", "flagship-env");
         }
       } else if (!host.includes("localhost") && !host.endsWith(".vercel.app")) {
-        const { resolvePropertyIdFromHost } = await import(
-          "@/lib/tenant/resolve-host"
-        );
-        const resolved = await withDeadline(
-          resolvePropertyIdFromHost(host),
-          MIDDLEWARE_NET_MS,
-        );
-        if (resolved.ok) {
-          requestHeaders.set("x-property-id", resolved.value.propertyId);
-          requestHeaders.set("x-property-slug", resolved.value.slug);
-          requestHeaders.set("x-tenant-via", resolved.value.via);
+        const cacheKey = normalizeHost(host);
+        const cached = cacheKey
+          ? tenantResolutionCache.get(cacheKey)
+          : undefined;
+        if (cached) {
+          requestHeaders.set("x-property-id", cached.propertyId);
+          requestHeaders.set("x-property-slug", cached.slug);
+          requestHeaders.set("x-tenant-via", cached.via);
+        } else {
+          const { resolvePropertyIdFromHost } = await import(
+            "@/lib/tenant/resolve-host"
+          );
+          const resolved = await withDeadline(
+            resolvePropertyIdFromHost(host),
+            MIDDLEWARE_NET_MS,
+          );
+          if (resolved.ok) {
+            requestHeaders.set("x-property-id", resolved.value.propertyId);
+            requestHeaders.set("x-property-slug", resolved.value.slug);
+            requestHeaders.set("x-tenant-via", resolved.value.via);
+            if (cacheKey) {
+              tenantResolutionCache.set(cacheKey, {
+                propertyId: resolved.value.propertyId,
+                slug: resolved.value.slug,
+                via: resolved.value.via,
+              });
+            }
+          }
         }
       }
     }

@@ -1997,7 +1997,7 @@ export function RoomRackGrid({
   return (
     <div
       className={cn(
-        "erp flex h-full min-h-0 min-w-0 flex-col overflow-hidden",
+        "erp contain-calendar-grid flex h-full min-h-0 min-w-0 flex-col overflow-hidden",
         compactRack &&
           isLandscape &&
           "fixed inset-0 z-[45] bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",

@@ -7,7 +7,8 @@ alwaysApply: false
 # Supabase migrations / RLS
 
 - Every new table in exposed schemas needs RLS enabled and explicit policies.
-- Prefer `security_invoker` views; avoid broad `security definer` in `public`.
+- Prefer `security_invoker` views; avoid broad `security definer` in `public` unless money RPCs with `SET search_path` + `REVOKE FROM public` + `GRANT TO service_role` (see enterprise-core).
 - Never put secrets or service-role keys in migration SQL.
 - On this droplet, apply migrations to **self-hosted** Postgres via CLI/`psql` — cloud Supabase MCP cannot reach local Docker DB.
 - Do not drop/wipe Hotel OS volumes to fix a migration without explicit user OK.
+- Follow [enterprise-core.mdc](enterprise-core.mdc) for tenant isolation; never invent tables like `stays` / `folio_charges` — use `bookings` / `folio_lines`.
