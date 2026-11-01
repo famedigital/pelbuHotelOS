@@ -10,7 +10,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY web/ ./
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_OPTIONS=--max-old-space-size=3072
+# Cap heap so BuildKit + Supabase stack on the 8Gi droplet do not thrash swap.
+ENV NODE_OPTIONS=--max-old-space-size=2048
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 ARG NEXT_PUBLIC_SITE_URL

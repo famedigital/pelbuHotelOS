@@ -1,7 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Droplet builds share ~8Gi with Supabase; multi-worker tsc OOMs/swaps.
+  // Typecheck locally / in CI; keep docker `next build` single-worker.
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   experimental: {
+    cpus: 1,
     optimizePackageImports: [
       "lucide-react",
       "date-fns",
