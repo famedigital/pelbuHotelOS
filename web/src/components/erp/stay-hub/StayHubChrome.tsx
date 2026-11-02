@@ -155,7 +155,10 @@ export function StayHubHeader(props: StayHubIdentityProps) {
   const noticeAlerts = alerts.filter((a) => a.key !== "dues").slice(0, 2);
 
   return (
-    <Card className="shrink-0 gap-0 rounded-none border-x-0 border-t-0 px-3 py-1.5 pr-10 shadow-none md:hidden">
+    <Card
+      data-neo="off"
+      className="shrink-0 gap-0 rounded-none border-x-0 border-t-0 px-3 py-1.5 pr-10 shadow-none md:hidden"
+    >
       {backLabel && onBack ? (
         <Button
           type="button"
@@ -348,7 +351,7 @@ export function StayHubLeftRail({
           ) : null}
         </div>
       ) : balanceClear ? (
-        <div className="rounded-md border bg-background/80 px-2 py-1">
+        <div className="rounded-md border bg-background px-2 py-1">
           <div className="flex items-baseline justify-between gap-2">
             <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
               Balance
@@ -433,7 +436,7 @@ export function StayHubLeftRail({
   return (
     <aside
       className={cn(
-        "hidden min-h-0 w-60 shrink-0 flex-col border-r bg-[#f6f1ea] md:flex",
+        "hidden min-h-0 w-60 shrink-0 flex-col border-r bg-secondary md:flex",
         className,
       )}
     >
@@ -489,7 +492,7 @@ export function StayHubLeftRail({
         </div>
 
         {agentName?.trim() ? (
-          <div className="rounded-md border bg-background/80 px-2 py-1">
+          <div className="rounded-md border bg-background px-2 py-1">
             <div className="flex flex-wrap items-center gap-1">
               <p className="min-w-0 flex-1 truncate text-[11px] font-medium text-foreground">
                 {agentName.trim()}
@@ -606,7 +609,7 @@ export function StayHubSideRail({
   return (
     <aside
       className={cn(
-        "hidden w-28 shrink-0 border-r bg-muted/25 px-1.5 py-2 md:flex md:flex-col md:w-32",
+        "hidden w-28 shrink-0 border-r bg-secondary px-1.5 py-2 md:flex md:flex-col md:w-32",
         className,
       )}
     >

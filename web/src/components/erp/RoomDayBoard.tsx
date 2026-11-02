@@ -395,7 +395,7 @@ export function RoomDayBoard({
 
           return (
             <section key={group.name} className="mb-3">
-              <div className="glass-card mb-2 px-3 py-2.5">
+              <div className="glass-card neo-card mb-2 px-3 py-2.5">
                 <h2 className="text-sm font-semibold tracking-tight text-foreground">
                   {group.name}
                 </h2>

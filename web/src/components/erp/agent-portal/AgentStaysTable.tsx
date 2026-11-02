@@ -6,232 +6,321 @@ import {
   bookingStatusTone,
 } from "@/components/erp/agent-portal/AgentPortalChrome";
 import { Button } from "@/components/ui/button";
-import { DataTable, SortableHeader } from "@/components/ui/data-table";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import type { AgentStayRow } from "@/lib/agent-portal-stays";
 import { formatBtn } from "@/lib/pricing";
-import type { ColumnDef, FilterFn } from "@tanstack/react-table";
+import { cn } from "@/lib/utils";
 import {
   ExternalLinkIcon,
-  FileTextIcon,
   PrinterIcon,
   UploadIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 
-const staySearch: FilterFn<AgentStayRow> = (row, _columnId, filterValue) => {
-  const q = String(filterValue ?? "")
-    .trim()
-    .toLowerCase();
-  if (!q) return true;
-  const r = row.original;
-  const hay = [
-    r.confirmationLabel,
-    r.guestName,
-    r.status,
-    r.guideNumber,
-    r.roomLabel,
-    r.checkIn,
-    r.checkOut,
-    ...r.invoices.map((i) => i.docNo),
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-  return hay.includes(q);
-};
+function paymentPill(status: AgentStayRow["paymentStatus"]) {
+  if (status === "paid") {
+    return (
+      <span className="glass-badge-clean inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+        Paid
+      </span>
+    );
+  }
+  if (status === "partial") {
+    return (
+      <span className="glass-badge-vip inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+        Partial
+      </span>
+    );
+  }
+  if (status === "hold") {
+    return (
+      <AgentStatusPill tone={bookingStatusTone("held")}>Hold</AgentStatusPill>
+    );
+  }
+  return (
+    <span className="glass-badge-dirty inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+      Due
+    </span>
+  );
+}
 
 export function AgentStaysTable({
   rows,
-  compact = false,
+  search = "",
+  pendingOnly = false,
 }: {
   rows: AgentStayRow[];
-  compact?: boolean;
+  search?: string;
+  pendingOnly?: boolean;
 }) {
-  const columns = useMemo<ColumnDef<AgentStayRow>[]>(
-    () => [
-      {
-        accessorKey: "confirmationLabel",
-        header: () => <SortableHeader label="Ref" />,
-        cell: ({ row }) => (
-          <div className="min-w-[7rem]">
-            <Link
-              href={`/agents/app/stays/${row.original.id}`}
-              className="font-mono text-sm font-semibold text-sky-800 underline-offset-4 hover:underline"
-            >
-              {row.original.confirmationLabel}
-            </Link>
-            {row.original.guestName ? (
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {row.original.guestName}
-              </p>
-            ) : null}
-          </div>
-        ),
+  const filtered = useMemo(() => {
+    let list = rows;
+    if (pendingOnly) {
+      list = list.filter(
+        (r) => r.paymentStatus === "unpaid" || r.paymentStatus === "partial",
+      );
+    }
+    const q = search.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((r) => {
+      const hay = [
+        r.confirmationLabel,
+        r.guestName,
+        r.guideNumber,
+        r.nationality,
+        r.mealPlanCode,
+        r.checkIn,
+        r.checkOut,
+        ...r.invoices.map((i) => i.docNo),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [rows, search, pendingOnly]);
+
+  const totals = useMemo(() => {
+    return filtered.reduce(
+      (acc, r) => {
+        acc.nights += r.nights * Math.max(1, r.roomsCount);
+        acc.amount += r.grandTotalBtn;
+        acc.paid += r.paidBtn;
+        acc.dues += Math.abs(r.dueBtn) > 0.5 ? r.dueBtn : 0;
+        return acc;
       },
-      {
-        accessorKey: "checkIn",
-        header: () => <SortableHeader label="Dates" />,
-        cell: ({ row }) => (
-          <div className="text-sm">
-            <p className="font-medium tabular-nums">
-              {row.original.checkIn} → {row.original.checkOut}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {row.original.nights}n · {row.original.rooms} rm
-              {row.original.roomLabel
-                ? ` · ${row.original.roomLabel}`
-                : ""}
-            </p>
-          </div>
-        ),
-      },
-      {
-        accessorKey: "status",
-        header: () => <SortableHeader label="Status" />,
-        cell: ({ row }) => (
-          <div className="space-y-1">
-            <AgentStatusPill tone={bookingStatusTone(row.original.status)}>
-              {row.original.status.replace(/_/g, " ")}
-            </AgentStatusPill>
-            {row.original.status === "held" && row.original.holdExpiresAt ? (
-              <div className="text-[11px]">
-                <HoldCountdown
-                  expiresAt={row.original.holdExpiresAt}
-                  className="font-mono font-semibold text-amber-800"
-                />
-              </div>
-            ) : null}
-          </div>
-        ),
-      },
-      {
-        accessorKey: "quotedBtn",
-        header: () => <SortableHeader label="Quoted" />,
-        cell: ({ row }) => (
-          <span className="tabular-nums text-sm font-medium">
-            {row.original.quotedBtn == null
-              ? "—"
-              : formatBtn(row.original.quotedBtn)}
-          </span>
-        ),
-        meta: { className: "text-right", headerClassName: "text-right" },
-      },
-      {
-        accessorKey: "paidBtn",
-        header: () => <SortableHeader label="Paid" />,
-        cell: ({ row }) => (
-          <span className="tabular-nums text-sm">
-            {formatBtn(row.original.paidBtn)}
-          </span>
-        ),
-        meta: { className: "text-right", headerClassName: "text-right" },
-      },
-      {
-        accessorKey: "dueBtn",
-        header: () => <SortableHeader label="Due" />,
-        cell: ({ row }) => {
-          const due = row.original.dueBtn;
-          return (
-            <span
-              className={`tabular-nums text-sm font-semibold ${
-                Math.abs(due) > 0.5 ? "text-destructive" : "text-foreground"
-              }`}
-            >
-              {formatBtn(due)}
-            </span>
-          );
-        },
-        meta: { className: "text-right", headerClassName: "text-right" },
-      },
-      {
-        id: "docs",
-        header: "Docs",
-        cell: ({ row }) => {
-          const inv = row.original.invoices.filter(
-            (i) => i.docKind === "invoice",
-          );
-          return (
-            <div className="flex flex-col gap-0.5 text-xs">
-              {inv.length === 0 ? (
-                <span className="text-muted-foreground">No INV</span>
-              ) : (
-                inv.slice(0, 2).map((i) => (
-                  <Link
-                    key={i.id}
-                    href={`/agents/app/invoices/${i.id}`}
-                    className="font-mono text-sky-800 underline-offset-2 hover:underline"
-                  >
-                    {i.docNo}
-                  </Link>
-                ))
-              )}
-              {row.original.proofCount > 0 ? (
-                <span className="text-muted-foreground">
-                  {row.original.proofCount} proof
-                  {row.original.proofCount === 1 ? "" : "s"}
-                </span>
-              ) : null}
-            </div>
-          );
-        },
-      },
-      {
-        id: "actions",
-        header: "",
-        cell: ({ row }) => {
-          const id = row.original.id;
-          return (
-            <div className="flex flex-wrap justify-end gap-1">
-              <Button asChild size="sm" variant="default" className="h-8">
-                <Link href={`/agents/app/stays/${id}`}>
-                  <ExternalLinkIcon className="size-3.5" />
-                  Open
-                </Link>
-              </Button>
-              <Button asChild size="sm" variant="outline" className="h-8">
-                <Link href={`/agents/app/stays/${id}/voucher`} target="_blank">
-                  <PrinterIcon className="size-3.5" />
-                  Print
-                </Link>
-              </Button>
-              <Button asChild size="sm" variant="outline" className="h-8">
-                <Link href={`/agents/app/stays/${id}#payment-proof`}>
-                  <UploadIcon className="size-3.5" />
-                  Proof
-                </Link>
-              </Button>
-              {row.original.invoices[0] ? (
-                <Button asChild size="sm" variant="ghost" className="h-8">
-                  <Link
-                    href={`/agents/app/invoices/${row.original.invoices[0].id}`}
-                  >
-                    <FileTextIcon className="size-3.5" />
-                    INV
-                  </Link>
-                </Button>
-              ) : null}
-            </div>
-          );
-        },
-        meta: { className: "text-right" },
-      },
-    ],
-    [],
-  );
+      { nights: 0, amount: 0, paid: 0, dues: 0 },
+    );
+  }, [filtered]);
 
   return (
-    <DataTable
-      columns={columns}
-      data={rows}
-      searchable
-      searchPlaceholder="Search ref, guest, INV, dates…"
-      emptyMessage="No stays yet — Hold rooms to create a timed booking."
-      caption="Your stays"
-      pageSize={compact ? 8 : 25}
-      getRowHref={(r) => `/agents/app/stays/${r.id}`}
-      globalFilterFn={staySearch}
-      className="rounded-2xl border border-border/80 bg-card p-3 sm:p-4"
-    />
+    <div className="glass-happy-table-container flex flex-col overflow-hidden">
+      <div className="max-h-[min(70vh,52rem)] overflow-auto">
+        <table className="w-full min-w-[1100px] border-collapse text-sm">
+          <thead className="sticky top-0 z-20 border-b bg-white/95 backdrop-blur-md">
+            <tr className="text-left text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+              <th className="sticky left-0 z-30 bg-white/95 px-2 py-2.5 backdrop-blur-md">
+                #
+              </th>
+              <th className="px-2 py-2.5">Ref</th>
+              <th className="sticky left-8 z-30 bg-white/95 px-2 py-2.5 backdrop-blur-md sm:left-10">
+                Guest
+              </th>
+              <th className="px-2 py-2.5">Nationality</th>
+              <th className="px-2 py-2.5">Guide</th>
+              <th className="px-2 py-2.5">Dates</th>
+              <th className="px-2 py-2.5 text-right">Nights</th>
+              <th className="px-2 py-2.5">Rooms & meal</th>
+              <th className="px-2 py-2.5 text-right">Rate</th>
+              <th className="px-2 py-2.5 text-right">Total</th>
+              <th className="px-2 py-2.5 text-right">GST</th>
+              <th className="px-2 py-2.5 text-right">S.C</th>
+              <th className="px-2 py-2.5 text-right">G.total</th>
+              <th className="px-2 py-2.5">Payment</th>
+              <th className="px-2 py-2.5 text-right"> </th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={15}
+                  className="px-3 py-10 text-center text-sm text-muted-foreground"
+                >
+                  No stays in this range — adjust the filter or hold rooms.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((row, idx) => {
+                const inHouse = row.status === "checked_in";
+                const dueHot = Math.abs(row.dueBtn) > 0.5;
+                return (
+                  <tr
+                    key={row.id}
+                    className={cn(
+                      "border-b border-border/60 bg-white transition-transform duration-150 hover:translate-x-1",
+                      dueHot
+                        ? "hover:bg-rose-50/80"
+                        : row.paymentStatus === "paid"
+                          ? "hover:bg-emerald-50/70"
+                          : "hover:bg-sky-50/60",
+                      inHouse && "shadow-[inset_3px_0_0_0_rgba(2,132,199,0.55)]",
+                    )}
+                  >
+                    <td className="sticky left-0 z-10 bg-inherit px-2 py-2 font-mono text-xs text-muted-foreground">
+                      {idx + 1}
+                    </td>
+                    <td className="px-2 py-2">
+                      <Link
+                        href={`/agents/app/stays/${row.id}`}
+                        className="font-mono text-xs font-semibold text-sky-800 underline-offset-2 hover:underline"
+                      >
+                        {row.confirmationLabel}
+                      </Link>
+                    </td>
+                    <td className="sticky left-8 z-10 bg-inherit px-2 py-2 sm:left-10">
+                      <Link
+                        href={`/agents/app/stays/${row.id}`}
+                        className="font-semibold text-foreground hover:underline"
+                      >
+                        {row.guestName?.trim() || "—"}
+                      </Link>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        <span className="rounded-full bg-secondary px-1.5 py-px font-medium tabular-nums">
+                          {row.paxCount} pax
+                        </span>
+                      </p>
+                    </td>
+                    <td className="px-2 py-2">
+                      {row.nationality ? (
+                        <span className="rounded-full border bg-secondary px-2 py-0.5 text-[11px] font-medium">
+                          {row.nationality}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-2 py-2 font-mono text-xs text-muted-foreground">
+                      {row.guideNumber?.trim() || "—"}
+                    </td>
+                    <td className="px-2 py-2">
+                      <p
+                        className={cn(
+                          "tabular-nums text-xs font-medium",
+                          inHouse && "text-sky-800",
+                        )}
+                      >
+                        {row.checkIn} → {row.checkOut}
+                      </p>
+                      {row.status === "held" && row.holdExpiresAt ? (
+                        <HoldCountdown
+                          expiresAt={row.holdExpiresAt}
+                          className="mt-0.5 font-mono text-[10px] font-semibold text-amber-800"
+                        />
+                      ) : null}
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums font-medium">
+                      {row.nights}
+                    </td>
+                    <td className="px-2 py-2">
+                      {row.roomDetails.length > 1 ? (
+                        <Popover>
+                          <PopoverTrigger className="rounded-md border bg-secondary px-2 py-1 text-left text-xs hover:bg-muted">
+                            {row.roomsCount} rm · {row.mealPlanCode}
+                          </PopoverTrigger>
+                          <PopoverContent className="w-56 p-2 text-xs" align="start">
+                            <ul className="space-y-1">
+                              {row.roomDetails.map((d, i) => (
+                                <li key={`${d.categoryName}-${i}`}>
+                                  {d.count}× {d.categoryName} · {d.mealPlan}
+                                </li>
+                              ))}
+                            </ul>
+                          </PopoverContent>
+                        </Popover>
+                      ) : (
+                        <span className="text-xs">
+                          {row.roomLabel ?? `${row.roomsCount} rm`} ·{" "}
+                          <span className="font-medium">{row.mealPlanCode}</span>
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums text-xs">
+                      {formatBtn(row.rateBtn)}
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums text-xs">
+                      {formatBtn(row.subtotalBtn)}
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums text-xs">
+                      {formatBtn(row.gstBtn)}
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums text-xs">
+                      {formatBtn(row.serviceChargeBtn)}
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums text-sm font-semibold">
+                      {formatBtn(row.grandTotalBtn)}
+                    </td>
+                    <td className="px-2 py-2">{paymentPill(row.paymentStatus)}</td>
+                    <td className="px-2 py-2">
+                      <div className="flex justify-end gap-1">
+                        <Button asChild size="sm" variant="ghost" className="h-7 px-2">
+                          <Link href={`/agents/app/stays/${row.id}`}>
+                            <ExternalLinkIcon className="size-3.5" />
+                          </Link>
+                        </Button>
+                        <Button asChild size="sm" variant="ghost" className="h-7 px-2">
+                          <Link
+                            href={`/agents/app/stays/${row.id}/voucher`}
+                            target="_blank"
+                          >
+                            <PrinterIcon className="size-3.5" />
+                          </Link>
+                        </Button>
+                        <Button asChild size="sm" variant="ghost" className="h-7 px-2">
+                          <Link href={`/agents/app/stays/${row.id}#payment-proof`}>
+                            <UploadIcon className="size-3.5" />
+                          </Link>
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="sticky bottom-0 z-20 flex flex-wrap items-center gap-3 border-t bg-white px-3 py-2.5 shadow-[0_-8px_24px_rgba(15,23,42,0.06)]">
+        <p className="text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground">{filtered.length}</span>{" "}
+          stays
+        </p>
+        <p className="text-xs">
+          Nights{" "}
+          <span className="font-semibold tabular-nums">{totals.nights}</span>
+        </p>
+        <p className="text-xs">
+          Amount{" "}
+          <span className="font-semibold tabular-nums">
+            {formatBtn(totals.amount)}
+          </span>
+        </p>
+        <p className="text-xs">
+          Paid{" "}
+          <span className="font-semibold tabular-nums text-emerald-700">
+            {formatBtn(totals.paid)}
+          </span>
+        </p>
+        <p className="text-xs">
+          Dues{" "}
+          <span
+            className={cn(
+              "font-semibold tabular-nums",
+              totals.dues > 0.5 ? "text-amber-700" : "text-foreground",
+            )}
+          >
+            {formatBtn(totals.dues)}
+          </span>
+        </p>
+        {totals.dues > 0.5 ? (
+          <div className="ml-auto flex flex-wrap gap-1.5">
+            <Button asChild size="sm" variant="outline" className="h-8 text-xs">
+              <Link href="/agents/app/money">Pay / RMA QR</Link>
+            </Button>
+            <Button asChild size="sm" className="h-8 text-xs">
+              <Link href="/agents/app/stays?tab=bookings#payment-proof">
+                Upload bank advice
+              </Link>
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }

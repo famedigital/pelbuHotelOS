@@ -60,9 +60,12 @@ export function FoMetricCard({
         ) : null}
       </div>
       {percent != null ? (
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-800">
+        <div className="neo-well mt-3 h-1.5">
           <div
-            className={cn("h-full rounded-full bg-sky-500", barClassName)}
+            className={cn(
+              "h-full rounded-full",
+              barClassName ?? "track-gradient-mint",
+            )}
             style={{ width: `${percent}%` }}
           />
         </div>
@@ -112,7 +115,7 @@ export function FoStayMetrics({
         value={occBase ? `${pct(occCount, occBase)}%` : "—"}
         hint={occBase ? `${occCount} / ${occBase} rooms` : "No sellable rooms"}
         percent={pct(occCount, occBase)}
-        barClassName="bg-emerald-500"
+        barClassName="track-gradient-mint"
         onClick={() => onOpen("inhouse")}
       />
       <FoMetricCard
@@ -124,7 +127,7 @@ export function FoStayMetrics({
             : "Ready for assignment"
         }
         percent={pct(pulse.roomsClean, Math.max(pulse.roomsTotal, 1))}
-        barClassName="bg-amber-400"
+        barClassName="track-gradient-mint"
         onClick={() => onOpen("empty")}
       />
       <FoMetricCard
@@ -132,7 +135,7 @@ export function FoStayMetrics({
         value={String(departures)}
         hint="Still on the board"
         percent={pct(departures, house)}
-        barClassName="bg-amber-500"
+        barClassName="track-gradient-coral"
         onClick={() => onOpen("checkout")}
       />
       <FoMetricCard
@@ -140,7 +143,7 @@ export function FoStayMetrics({
         value={String(snap.tomorrowDepartureRows?.length ?? 0)}
         hint="Print the bills for the guide"
         percent={pct(snap.tomorrowDepartureRows?.length ?? 0, house)}
-        barClassName="bg-amber-500"
+        barClassName="track-gradient-coral"
         onClick={() => onOpen("tomorrow")}
       />
     </div>

@@ -81,10 +81,20 @@ export function StayHubCashierDock({
   return (
     <div
       className={cn(
-        "erp-cold-glass glass-happy-card sticky bottom-0 z-20 space-y-2 border-t px-3 py-2.5",
+        "erp-cold-glass glass-happy-card neo-card sticky bottom-0 z-20 space-y-2 border-t px-3 py-2.5",
         className,
       )}
     >
+      <div className="neo-well h-1.5" aria-hidden>
+        <div
+          className={cn(
+            "h-full rounded-full",
+            clear ? "track-gradient-mint" : "track-gradient-coral",
+          )}
+          style={{ width: clear ? "100%" : "100%" }}
+        />
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
           Guest stream{" "}

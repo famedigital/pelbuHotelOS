@@ -398,7 +398,13 @@ export function DeskTopChrome({
           </Button>
         </div>
 
-        <div className="ml-auto hidden items-center gap-1 md:flex">
+        <div
+          data-slot="erp-header-innora"
+          className="ml-auto flex items-center md:ml-0"
+        />
+
+        <div className="flex items-center gap-1 md:ml-auto">
+          <div className="hidden items-center gap-1 md:flex">
           <DeskSearchHint />
           {properties && properties.length > 0 && activePropertyId ? (
             <PropertySwitcher
@@ -440,6 +446,7 @@ export function DeskTopChrome({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         </div>
       </div>
 

@@ -36,7 +36,7 @@ import {
   WalletIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 type NavItem = {
   href: string;
@@ -56,7 +56,11 @@ const DASH_NAV: NavItem[] = [
 
 const WORK_NAV: NavItem[] = [
   { href: "/agents/app/stays", label: "Stays", icon: BedDoubleIcon },
-  { href: "/agents/app/book", label: "Book / hold", icon: PlusCircleIcon },
+  {
+    href: "/agents/app/stays?tab=new",
+    label: "Book / hold",
+    icon: PlusCircleIcon,
+  },
   {
     href: "/agents/app/calendar",
     label: "Availability",
@@ -85,20 +89,36 @@ const MONEY_NAV: NavItem[] = [
   },
 ];
 
-function isActive(pathname: string, href: string, exact?: boolean): boolean {
-  if (exact) return pathname === href;
-  return pathname === href || pathname.startsWith(`${href}/`);
+function isActive(
+  pathname: string,
+  search: string,
+  href: string,
+  exact?: boolean,
+): boolean {
+  const [path, query] = href.split("?");
+  if (query) {
+    return pathname === path && search.includes(query);
+  }
+  if (path === "/agents/app/stays") {
+    const onStays =
+      pathname === path || pathname.startsWith(`${path}/`);
+    return onStays && !search.includes("tab=new");
+  }
+  if (exact) return pathname === path;
+  return pathname === path || pathname.startsWith(`${path}/`);
 }
 
 function NavGroup({
   label,
   items,
   pathname,
+  search,
   onNavigate,
 }: {
   label: string;
   items: NavItem[];
   pathname: string;
+  search: string;
   onNavigate?: () => void;
 }) {
   return (
@@ -107,7 +127,7 @@ function NavGroup({
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => {
-            const active = isActive(pathname, item.href, item.exact);
+            const active = isActive(pathname, search, item.href, item.exact);
             const Icon = item.icon;
             return (
               <SidebarMenuItem key={`${item.href}-${item.label}`}>
@@ -145,6 +165,8 @@ export function AgentAppSidebar({
   activePropertyName?: string | null;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const search = searchParams.toString();
   const { isMobile, setOpenMobile } = useSidebar();
   const closeMobile = () => {
     if (isMobile) setOpenMobile(false);
@@ -183,18 +205,21 @@ export function AgentAppSidebar({
           label="Dashboard"
           items={DASH_NAV}
           pathname={pathname}
+          search={search}
           onNavigate={closeMobile}
         />
         <NavGroup
           label="Operations"
           items={WORK_NAV}
           pathname={pathname}
+          search={search}
           onNavigate={closeMobile}
         />
         <NavGroup
           label="Money"
           items={MONEY_NAV}
           pathname={pathname}
+          search={search}
           onNavigate={closeMobile}
         />
 

@@ -220,69 +220,70 @@
    brass | dusk | cedar override the six roles. Status colors stay here.
    ========================================================================= */
 .erp {
-  --ivory: #f6f4f1;
-  --ivory-soft: #f6f4f1;
-  --ivory-deep: #e7e2da;
-  --espresso: #1a1816;
-  --espresso-soft: #2a2623;
-  --espresso-mute: #5c564e;
-  --maroon: #8e2f2b;
-  --gold: #c5a059;
-  --gold-soft: #d4b57a;
-  --brass: #c5a059;
+  /* Crystal Clean porcelain / slate — no muddy beige or coffee brown */
+  --ivory: #F8FAFC;
+  --ivory-soft: #F8FAFC;
+  --ivory-deep: #E2E8F0;
+  --espresso: #0F172A;
+  --espresso-soft: #1E293B;
+  --espresso-mute: #64748B;
+  --maroon: #0284C7;
+  --gold: #D97706;
+  --gold-soft: #F59E0B;
+  --brass: #D97706;
 
-  --background: #f6f4f1;
-  --foreground: #1a1816;
+  --background: #F8FAFC;
+  --foreground: #0F172A;
 
   --card: #ffffff;
-  --card-foreground: #1a1816;
+  --card-foreground: #0F172A;
 
   --popover: #ffffff;
-  --popover-foreground: #1a1816;
+  --popover-foreground: #0F172A;
 
-  --primary: #8e2f2b;
-  --primary-foreground: #fffdf8;
+  --primary: #0284C7;
+  --primary-foreground: #ffffff;
 
-  --secondary: #e7e2da;
-  --secondary-foreground: #1a1816;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
 
-  --muted-shadcn: #efebe6;
-  --muted-foreground: #5c564e;
+  --muted-shadcn: #F1F5F9;
+  --muted-foreground: #64748B;
 
-  --accent: #c5a059;
-  --accent-foreground: #1a1816;
+  --accent: #D97706;
+  --accent-foreground: #0F172A;
 
-  --destructive: #9a3535;
-  --destructive-foreground: #fffdf8;
+  --destructive: #EF4444;
+  --destructive-foreground: #ffffff;
 
-  --border: rgba(26, 24, 22, 0.12);
-  --input: rgba(26, 24, 22, 0.16);
-  --ring: #c5a059;
+  --border: rgba(226, 232, 240, 0.8);
+  --input: rgba(148, 163, 184, 0.35);
+  --ring: #0284C7;
 
-  --chart-1: #8e2f2b;
-  --chart-2: #c5a059;
-  --chart-3: #2f6f4e;
-  --chart-4: #5c564e;
-  --chart-5: #9a3535;
+  --chart-1: #0284C7;
+  --chart-2: #D97706;
+  --chart-3: #10B981;
+  --chart-4: #64748B;
+  --chart-5: #EF4444;
 
-  --sidebar: #1a1816;
-  --sidebar-foreground: #f6f4f1;
-  --sidebar-primary: #c5a059;
-  --sidebar-primary-foreground: #1a1816;
-  --sidebar-accent: #2a2623;
-  --sidebar-accent-foreground: #f6f4f1;
-  --sidebar-border: rgba(197, 160, 89, 0.35);
-  --sidebar-ring: #c5a059;
+  --sidebar: #0F172A;
+  --sidebar-foreground: #F8FAFC;
+  --sidebar-primary: #0284C7;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1E293B;
+  --sidebar-accent-foreground: #F8FAFC;
+  --sidebar-border: rgba(148, 163, 184, 0.25);
+  --sidebar-ring: #0284C7;
 
-  --citrus: #c5a059;
-  --citrus-soft: #d4b57a;
-  --citrus-tint: rgba(197, 160, 89, 0.16);
+  --citrus: #D97706;
+  --citrus-soft: #F59E0B;
+  --citrus-tint: rgba(217, 119, 6, 0.14);
 
-  --status-arrival: #2f6f4e;
-  --status-in-house: #1a1816;
-  --status-due: #9a3535;
-  --status-unpaid: #c5a059;
-  --status-blocked: #9a3535;
+  --status-arrival: #10B981;
+  --status-in-house: #0284C7;
+  --status-due: #EF4444;
+  --status-unpaid: #D97706;
+  --status-blocked: #EF4444;
 
   /* Density */
   --desk-pad: 0.5rem;
@@ -300,134 +301,137 @@
 /* Portaled dialogs sit outside the shell, so the attribute also lives on html. */
 .erp[data-desk-theme="brass"],
 html[data-desk-theme="brass"] .erp {
-  --ivory: #f7f3ec;
-  --ivory-soft: #f7f3ec;
-  --ivory-deep: #efe7d8;
-  --espresso: #1c1612;
-  --espresso-soft: #2a221c;
-  --espresso-mute: #6b5e52;
-  --maroon: #8c6d3b;
-  --gold: #b8892c;
-  --gold-soft: #d4a852;
-  --brass: #8c6d3b;
-  --background: #f7f3ec;
-  --foreground: #1c1612;
-  --card: #fffdf8;
-  --card-foreground: #1c1612;
-  --popover: #fffdf8;
-  --popover-foreground: #1c1612;
-  --primary: #8c6d3b;
-  --primary-foreground: #fffdf8;
-  --secondary: #efe7d8;
-  --secondary-foreground: #1c1612;
-  --muted-shadcn: #f7f3ec;
-  --muted-foreground: #6b5e52;
-  --accent: #b8892c;
-  --accent-foreground: #1c1612;
-  --border: rgba(140, 109, 59, 0.35);
-  --input: rgba(140, 109, 59, 0.28);
-  --ring: #b8892c;
-  --chart-1: #8c6d3b;
-  --chart-2: #b8892c;
-  --sidebar: #1c1612;
-  --sidebar-foreground: #f7f3ec;
-  --sidebar-primary: #b8892c;
-  --sidebar-primary-foreground: #1c1612;
-  --sidebar-accent: #2a221c;
-  --sidebar-accent-foreground: #f7f3ec;
-  --sidebar-border: rgba(184, 137, 44, 0.35);
-  --sidebar-ring: #b8892c;
-  --citrus: #b8892c;
-  --citrus-soft: #d4a852;
-  --citrus-tint: rgba(184, 137, 44, 0.16);
+  /* Crystal porcelain + sovereign gold accents (no coffee beige canvas) */
+  --ivory: #F8FAFC;
+  --ivory-soft: #F8FAFC;
+  --ivory-deep: #E2E8F0;
+  --espresso: #0F172A;
+  --espresso-soft: #1E293B;
+  --espresso-mute: #64748B;
+  --maroon: #D97706;
+  --gold: #D97706;
+  --gold-soft: #F59E0B;
+  --brass: #B45309;
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --card: #ffffff;
+  --card-foreground: #0F172A;
+  --popover: #ffffff;
+  --popover-foreground: #0F172A;
+  --primary: #D97706;
+  --primary-foreground: #ffffff;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
+  --muted-shadcn: #F1F5F9;
+  --muted-foreground: #64748B;
+  --accent: #F59E0B;
+  --accent-foreground: #0F172A;
+  --border: rgba(226, 232, 240, 0.9);
+  --input: rgba(148, 163, 184, 0.35);
+  --ring: #D97706;
+  --chart-1: #D97706;
+  --chart-2: #0284C7;
+  --sidebar: #0F172A;
+  --sidebar-foreground: #F8FAFC;
+  --sidebar-primary: #D97706;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1E293B;
+  --sidebar-accent-foreground: #F8FAFC;
+  --sidebar-border: rgba(217, 119, 6, 0.28);
+  --sidebar-ring: #D97706;
+  --citrus: #D97706;
+  --citrus-soft: #F59E0B;
+  --citrus-tint: rgba(217, 119, 6, 0.14);
 }
 
 .erp[data-desk-theme="dusk"],
 html[data-desk-theme="dusk"] .erp {
-  --ivory: #f4efe6;
-  --ivory-soft: #1c2330;
-  --ivory-deep: #141820;
-  --espresso: #0e1218;
-  --espresso-soft: #1c2330;
-  --espresso-mute: #a89b8c;
-  --maroon: #c5a059;
-  --gold: #7ba3c9;
-  --gold-soft: #a9c4de;
-  --brass: #c5a059;
-  --background: #141820;
-  --foreground: #f4efe6;
-  --card: #1c2330;
-  --card-foreground: #f4efe6;
-  --popover: #1c2330;
-  --popover-foreground: #f4efe6;
-  --primary: #c5a059;
-  --primary-foreground: #141820;
-  --secondary: #243044;
-  --secondary-foreground: #f4efe6;
-  --muted-shadcn: #1c2330;
-  --muted-foreground: #a89b8c;
-  --accent: #7ba3c9;
-  --accent-foreground: #141820;
-  --border: rgba(197, 160, 89, 0.28);
-  --input: rgba(244, 239, 230, 0.16);
-  --ring: #7ba3c9;
-  --chart-1: #c5a059;
-  --chart-2: #7ba3c9;
-  --sidebar: #0e1218;
-  --sidebar-foreground: #f4efe6;
-  --sidebar-primary: #c5a059;
-  --sidebar-primary-foreground: #141820;
-  --sidebar-accent: #1c2330;
-  --sidebar-accent-foreground: #f4efe6;
-  --sidebar-border: rgba(197, 160, 89, 0.28);
-  --sidebar-ring: #7ba3c9;
-  --citrus: #7ba3c9;
-  --citrus-soft: #a9c4de;
-  --citrus-tint: rgba(123, 163, 201, 0.18);
+  /* Night slate — cool ice text, no beige mute */
+  --ivory: #F1F5F9;
+  --ivory-soft: #1E293B;
+  --ivory-deep: #0F172A;
+  --espresso: #020617;
+  --espresso-soft: #1E293B;
+  --espresso-mute: #94A3B8;
+  --maroon: #38BDF8;
+  --gold: #F59E0B;
+  --gold-soft: #FBBF24;
+  --brass: #F59E0B;
+  --background: #0F172A;
+  --foreground: #F8FAFC;
+  --card: #1E293B;
+  --card-foreground: #F8FAFC;
+  --popover: #1E293B;
+  --popover-foreground: #F8FAFC;
+  --primary: #38BDF8;
+  --primary-foreground: #0F172A;
+  --secondary: #334155;
+  --secondary-foreground: #F8FAFC;
+  --muted-shadcn: #1E293B;
+  --muted-foreground: #94A3B8;
+  --accent: #F59E0B;
+  --accent-foreground: #0F172A;
+  --border: rgba(148, 163, 184, 0.22);
+  --input: rgba(148, 163, 184, 0.28);
+  --ring: #38BDF8;
+  --chart-1: #38BDF8;
+  --chart-2: #F59E0B;
+  --sidebar: #020617;
+  --sidebar-foreground: #F8FAFC;
+  --sidebar-primary: #38BDF8;
+  --sidebar-primary-foreground: #0F172A;
+  --sidebar-accent: #1E293B;
+  --sidebar-accent-foreground: #F8FAFC;
+  --sidebar-border: rgba(148, 163, 184, 0.2);
+  --sidebar-ring: #38BDF8;
+  --citrus: #F59E0B;
+  --citrus-soft: #FBBF24;
+  --citrus-tint: rgba(245, 158, 11, 0.18);
 }
 
 .erp[data-desk-theme="cedar"],
 html[data-desk-theme="cedar"] .erp {
-  --ivory: #f3f1ea;
-  --ivory-soft: #f3f1ea;
-  --ivory-deep: #e3e6dc;
-  --espresso: #1b241c;
-  --espresso-soft: #243028;
-  --espresso-mute: #5a655c;
-  --maroon: #1f4d3a;
-  --gold: #c47b2b;
-  --gold-soft: #d9a15f;
-  --brass: #1f4d3a;
-  --background: #f3f1ea;
-  --foreground: #1b241c;
-  --card: #fbfaf6;
-  --card-foreground: #1b241c;
-  --popover: #fbfaf6;
-  --popover-foreground: #1b241c;
-  --primary: #1f4d3a;
-  --primary-foreground: #fbfaf6;
-  --secondary: #e3e6dc;
-  --secondary-foreground: #1b241c;
-  --muted-shadcn: #f3f1ea;
-  --muted-foreground: #5a655c;
-  --accent: #c47b2b;
-  --accent-foreground: #1b241c;
-  --border: rgba(31, 77, 58, 0.22);
-  --input: rgba(31, 77, 58, 0.2);
-  --ring: #c47b2b;
-  --chart-1: #1f4d3a;
-  --chart-2: #c47b2b;
-  --sidebar: #14241c;
-  --sidebar-foreground: #f3f1ea;
-  --sidebar-primary: #c47b2b;
-  --sidebar-primary-foreground: #14241c;
-  --sidebar-accent: #243028;
-  --sidebar-accent-foreground: #f3f1ea;
-  --sidebar-border: rgba(196, 123, 43, 0.35);
-  --sidebar-ring: #c47b2b;
-  --citrus: #c47b2b;
-  --citrus-soft: #d9a15f;
-  --citrus-tint: rgba(196, 123, 43, 0.16);
+  /* Crystal porcelain + emerald pine primary (no olive-beige mud) */
+  --ivory: #F8FAFC;
+  --ivory-soft: #F8FAFC;
+  --ivory-deep: #E2E8F0;
+  --espresso: #0F172A;
+  --espresso-soft: #1E293B;
+  --espresso-mute: #64748B;
+  --maroon: #059669;
+  --gold: #D97706;
+  --gold-soft: #F59E0B;
+  --brass: #059669;
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --card: #ffffff;
+  --card-foreground: #0F172A;
+  --popover: #ffffff;
+  --popover-foreground: #0F172A;
+  --primary: #059669;
+  --primary-foreground: #ffffff;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
+  --muted-shadcn: #F1F5F9;
+  --muted-foreground: #64748B;
+  --accent: #D97706;
+  --accent-foreground: #0F172A;
+  --border: rgba(226, 232, 240, 0.9);
+  --input: rgba(148, 163, 184, 0.35);
+  --ring: #059669;
+  --chart-1: #059669;
+  --chart-2: #D97706;
+  --sidebar: #0F172A;
+  --sidebar-foreground: #F8FAFC;
+  --sidebar-primary: #059669;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1E293B;
+  --sidebar-accent-foreground: #F8FAFC;
+  --sidebar-border: rgba(5, 150, 105, 0.28);
+  --sidebar-ring: #059669;
+  --citrus: #D97706;
+  --citrus-soft: #F59E0B;
+  --citrus-tint: rgba(217, 119, 6, 0.14);
 }
 
 /* Front-office command skin — StayView, arrivals, in-house, checkout, rack.
@@ -459,34 +463,77 @@ html .fo-command .erp {
   background: var(--espresso);
 }
 
-/* StayHub chrome is frosted glass — do NOT paint opaque ivory over .glass-elevated */
+/*
+ * StayHub shell must be CRYSTAL OPAQUE — rack/calendar must never bleed through.
+ * Specular rim + soft slate shadow only; no frosted see-through fills.
+ */
 .stay-hub-card {
-  color: var(--espresso);
-  border-color: rgba(193, 149, 72, 0.45);
-  background: rgba(246, 244, 241, 0.72);
-  box-shadow: var(--glass-specular), var(--glass-shadow);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  color: var(--foreground, #0f172a);
+  border-color: rgba(226, 232, 240, 0.95);
+  background: #ffffff;
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 1),
+    0 10px 25px -5px rgba(15, 23, 42, 0.08),
+    0 4px 10px -2px rgba(15, 23, 42, 0.04);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   transform: translateZ(0);
 }
 
 .stay-hub-card.erp,
 .fo-command .stay-hub-card.erp {
-  --background: transparent;
-  --foreground: var(--espresso);
-  --card: rgba(255, 253, 248, 0.92);
-  --card-foreground: var(--espresso);
-  --popover: #fffdf8;
-  --popover-foreground: var(--espresso);
-  --primary: var(--maroon);
-  --primary-foreground: #fffdf8;
-  --accent: var(--gold);
-  --accent-foreground: var(--espresso);
-  --muted-foreground: var(--espresso-mute);
-  --border: rgba(193, 149, 72, 0.45);
-  --ring: var(--gold);
-  color: var(--espresso);
-  background: rgba(246, 244, 241, 0.72);
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #0284c7;
+  --primary-foreground: #ffffff;
+  --accent: #d97706;
+  --accent-foreground: #0f172a;
+  --muted-shadcn: #f1f5f9;
+  --muted-foreground: #64748b;
+  --border: rgba(226, 232, 240, 0.95);
+  --ring: #0284c7;
+  color: #0f172a;
+  background: #ffffff;
+}
+
+/* Beat translucent glass-happy-modal / glass-elevated / neo-card on the same node */
+.stay-hub-card.glass-happy-modal,
+.stay-hub-card.glass-elevated,
+.stay-hub-card.neo-card,
+.stay-hub-card.erp-cold-glass {
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  color: #0f172a;
+}
+
+.stay-hub-card .glass-happy-card,
+.stay-hub-card .glass-happy-table-container,
+.stay-hub-card .neo-card,
+.stay-hub-card .erp-cold-glass {
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.erp[data-desk-theme="dusk"] .stay-hub-card,
+.erp[data-desk-theme="dusk"] .stay-hub-card.erp,
+.dark .stay-hub-card {
+  background: #1e293b;
+  color: #f8fafc;
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+.erp[data-desk-theme="dusk"] .stay-hub-card.glass-happy-modal,
+.erp[data-desk-theme="dusk"] .stay-hub-card.glass-elevated,
+.dark .stay-hub-card.glass-happy-modal,
+.dark .stay-hub-card.glass-elevated {
+  background: #1e293b !important;
+  color: #f8fafc;
 }
 
 /* Desk ambient canvas — glass needs depth behind it or frost reads as flat white */
@@ -1677,11 +1724,13 @@ html[data-desk-print] #desk-print-mount {
 
 /* --- Ambient chromatic mesh (cheerful desk / booking canvas) --- */
 .bg-happy-mesh {
+  /* Cool ice chromatics only — no warm muddy beige wash */
   background:
-    radial-gradient(circle at 10% 20%, rgba(56, 189, 248, 0.12) 0%, transparent 40%),
-    radial-gradient(circle at 90% 10%, rgba(245, 158, 11, 0.12) 0%, transparent 45%),
-    radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 40%),
-    radial-gradient(circle at 20% 90%, rgba(16, 185, 129, 0.1) 0%, transparent 45%);
+    radial-gradient(circle at 12% 18%, rgba(14, 165, 233, 0.08) 0%, transparent 42%),
+    radial-gradient(circle at 88% 12%, rgba(2, 132, 199, 0.06) 0%, transparent 45%),
+    radial-gradient(circle at 78% 82%, rgba(16, 185, 129, 0.06) 0%, transparent 42%),
+    radial-gradient(circle at 18% 88%, rgba(99, 102, 241, 0.05) 0%, transparent 40%),
+    #F8FAFC;
 }
 
 /* Master lively 3D glass card */
@@ -1730,40 +1779,40 @@ html[data-desk-print] #desk-print-mount {
 }
 
 .glass-happy-modal {
-  background: rgba(255, 255, 255, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.95);
   box-shadow:
     inset 0 1px 1px 0 rgba(255, 255, 255, 1),
-    0 30px 60px -15px rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(24px) saturate(200%);
-  -webkit-backdrop-filter: blur(24px) saturate(200%);
+    0 30px 60px -15px rgba(15, 23, 42, 0.18);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border-radius: 1.5rem;
   transform: translateZ(0);
 }
 
 .dark .glass-happy-modal {
-  background: rgba(15, 23, 42, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow:
     inset 0 1px 1px 0 rgba(255, 255, 255, 0.3),
     0 35px 70px -15px rgba(0, 0, 0, 0.7);
 }
 
 .glass-happy-table-container {
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.95);
   box-shadow:
     inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
-    0 15px 35px -10px rgba(0, 0, 0, 0.08);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
+    0 15px 35px -10px rgba(15, 23, 42, 0.06);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border-radius: 1.25rem;
   overflow: hidden;
   transform: translateZ(0);
 }
 
 .dark .glass-happy-table-container {
-  background: rgba(15, 23, 42, 0.65);
+  background: #1e293b;
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow:
     inset 0 1px 1px 0 rgba(255, 255, 255, 0.2),
@@ -1812,6 +1861,125 @@ html[data-desk-print] #desk-print-mount {
   box-shadow: inset 3px 0 0 0 var(--color-violet);
 }
 
+/* --- Desk Neo-Glass (crystal clean — luminous slate shadows, no coffee brown) --- */
+.erp {
+  --neo-fill: rgba(255, 255, 255, 0.85);
+  --neo-rim: rgba(255, 255, 255, 0.95);
+  --neo-text: #0F172A;
+  --neo-shadow-out:
+    0 10px 25px -5px rgba(15, 23, 42, 0.06),
+    0 4px 10px -2px rgba(15, 23, 42, 0.03),
+    0 0 0 1px rgba(255, 255, 255, 0.8);
+  --neo-shadow-in:
+    inset 2px 2px 5px rgba(15, 23, 42, 0.08),
+    inset -2px -2px 5px rgba(255, 255, 255, 0.9);
+  --neo-specular: inset 0 1px 1px 0 rgba(255, 255, 255, 1);
+  --neo-blur: 16px;
+}
+
+.dark .erp,
+.erp.dark {
+  --neo-fill: rgba(18, 22, 28, 0.78);
+  --neo-rim: rgba(255, 255, 255, 0.12);
+  --neo-shadow-out:
+    6px 6px 16px rgba(0, 0, 0, 0.45),
+    -3px -3px 10px rgba(255, 255, 255, 0.04);
+  --neo-shadow-in:
+    inset 4px 4px 12px rgba(0, 0, 0, 0.55),
+    inset -2px -2px 8px rgba(255, 255, 255, 0.06);
+  --neo-specular: inset 0 1px 1px rgba(255, 255, 255, 0.18);
+}
+
+.erp[data-desk-theme="dusk"],
+.fo-command {
+  --neo-fill: rgba(18, 22, 28, 0.78);
+  --neo-rim: rgba(255, 255, 255, 0.12);
+  --neo-text: var(--foreground);
+  --neo-shadow-out:
+    6px 6px 16px rgba(0, 0, 0, 0.45),
+    -3px -3px 10px rgba(255, 255, 255, 0.04);
+  --neo-shadow-in:
+    inset 4px 4px 12px rgba(0, 0, 0, 0.55),
+    inset -2px -2px 8px rgba(255, 255, 255, 0.06);
+  --neo-specular: inset 0 1px 1px rgba(255, 255, 255, 0.18);
+}
+
+.neo-card {
+  background: var(--neo-fill);
+  color: var(--neo-text);
+  border: 1px solid var(--neo-rim);
+  border-radius: 1.125rem;
+  box-shadow: var(--neo-specular), var(--neo-shadow-out);
+  backdrop-filter: blur(var(--neo-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--neo-blur)) saturate(160%);
+  transform: translateZ(0);
+  font-weight: 500;
+}
+
+.neo-btn {
+  box-shadow: var(--neo-specular), var(--neo-shadow-out);
+  border-color: color-mix(in oklab, var(--neo-rim) 80%, transparent);
+  transform: translateZ(0);
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.neo-btn:active,
+.neo-btn[data-pressed="true"] {
+  box-shadow: var(--neo-shadow-in);
+  transform: translateY(1px) translateZ(0);
+}
+
+.neo-well {
+  overflow: hidden;
+  border-radius: 9999px;
+  background: color-mix(in oklab, var(--neo-fill) 55%, rgba(15, 23, 42, 0.06));
+  box-shadow: var(--neo-shadow-in);
+  transform: translateZ(0);
+}
+
+.neo-well.neo-well-flush {
+  border-radius: 0;
+}
+
+.track-gradient-coral {
+  background: linear-gradient(90deg, #fb7185 0%, #ef4444 55%, #f59e0b 100%);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.35);
+}
+
+.track-gradient-mint {
+  background: linear-gradient(90deg, #34d399 0%, #10b981 55%, #2dd4bf 100%);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
+}
+
+.track-gradient-violet {
+  background: linear-gradient(90deg, #a78bfa 0%, #8b5cf6 50%, #6366f1 100%);
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.35);
+}
+
+/*
+ * Opt-in Neo-Glass only — no blanket remap on every card/button.
+ * Elevated panels: add `.neo-card` (or glass-happy / glass-card).
+ * Primary / money CTAs only get extruded depth.
+ */
+.erp [data-slot="button"][data-variant="default"]:not([data-neo="off"]),
+.erp [data-slot="button"][data-variant="citrus"]:not([data-neo="off"]) {
+  box-shadow: var(--neo-specular), var(--neo-shadow-out);
+  transform: translateZ(0);
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.12s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.erp [data-slot="button"][data-variant="default"]:not([data-neo="off"]):active,
+.erp [data-slot="button"][data-variant="citrus"]:not([data-neo="off"]):active {
+  box-shadow: var(--neo-shadow-in);
+  transform: translateY(1px) translateZ(0);
+}
+
 /* Floating 3D glass bottom dock — thumb zone (phone / small tablet) */
 .glass-dock-mobile {
   position: fixed;
@@ -1825,8 +1993,8 @@ html[data-desk-print] #desk-print-mount {
   border: 1px solid rgba(255, 255, 255, 0.55);
   box-shadow:
     inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
-    0 18px 40px -8px rgba(26, 24, 22, 0.22),
-    0 0 0 1px rgba(197, 160, 89, 0.18);
+    0 18px 40px -8px rgba(15, 23, 42, 0.12),
+    0 0 0 1px rgba(2, 132, 199, 0.16);
   backdrop-filter: blur(22px) saturate(1.35);
   -webkit-backdrop-filter: blur(22px) saturate(1.35);
   border-radius: 9999px;
@@ -1858,10 +2026,13 @@ html[data-desk-print] #desk-print-mount {
   opacity: 0.85;
 }
 
-.pb-safe-dock {
-  padding-bottom: calc(
-    var(--mobile-dock-height) + 1.5rem + env(safe-area-inset-bottom, 0px)
-  );
+/* Mobile dock clearance only — scoped so it cannot override md:pb-* utilities. */
+@media (max-width: 767px) {
+  .pb-safe-dock {
+    padding-bottom: calc(
+      var(--mobile-dock-height) + 1.5rem + env(safe-area-inset-bottom, 0px)
+    );
+  }
 }
 
 /* Rack OCC footer clearance on mobile */
@@ -1895,6 +2066,29 @@ html[data-desk-print] #desk-print-mount {
   .dark .glass-happy-table-container {
     background: var(--paper-0, #0f172a) !important;
   }
+
+  .neo-card,
+  .glass-happy-card,
+  .glass-card {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: var(--paper-0, #F8FAFC) !important;
+  }
+
+  .erp[data-desk-theme="dusk"] .neo-card,
+  .dark .neo-card,
+  .fo-command .neo-card {
+    background: var(--paper-0, #0f172a) !important;
+  }
+}
+
+@media print {
+  .neo-card {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1908,6 +2102,17 @@ html[data-desk-print] #desk-print-mount {
   .touch-press,
   .touch-press:active {
     transition: none !important;
+    transform: none !important;
+  }
+
+  .neo-btn,
+  .erp [data-slot="button"][data-variant="default"],
+  .erp [data-slot="button"][data-variant="citrus"] {
+    transition: none !important;
+  }
+  .neo-btn:active,
+  .erp [data-slot="button"][data-variant="default"]:active,
+  .erp [data-slot="button"][data-variant="citrus"]:active {
     transform: none !important;
   }
 }

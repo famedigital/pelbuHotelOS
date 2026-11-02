@@ -697,7 +697,7 @@ export function DayDesk({
             caption="Guides to call"
             className="space-y-2"
             toolbar={
-              <div className="mr-auto flex items-center gap-1 rounded-md border bg-[#f6f1ea] p-0.5">
+              <div className="mr-auto flex items-center gap-1 rounded-md border bg-secondary p-0.5">
                 {(["arrival", "departure"] as const).map((move) => {
                   const count = guides.filter((row) => row.movement === move).length;
                   const on = guideMove === move;
@@ -708,7 +708,7 @@ export function DayDesk({
                       onClick={() => setGuideMove(move)}
                       className={cn(
                         "h-7 rounded px-3 text-xs",
-                        on ? "bg-[#1a1410] font-semibold text-[#f6f1ea]" : "text-muted-foreground",
+                        on ? "bg-foreground font-semibold text-background" : "text-muted-foreground",
                       )}
                     >
                       {move === "arrival" ? "Arrival" : "Departure"}
@@ -721,7 +721,10 @@ export function DayDesk({
           />
         ) : null}
       </div>
-      <nav className="print-hide flex shrink-0 items-end gap-0.5 overflow-x-auto border-t bg-[#e7e0d6] px-2 pt-1" aria-label="Day sheets">
+      <nav
+        className="print-hide sticky bottom-0 z-20 mt-auto flex shrink-0 items-end gap-0.5 overflow-x-auto border-t bg-secondary px-2 pt-1 pb-[env(safe-area-inset-bottom,0px)]"
+        aria-label="Day sheets"
+      >
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -731,7 +734,7 @@ export function DayDesk({
               "h-8 shrink-0 rounded-t-md border border-b-0 px-3 text-xs",
               sheet === tab.id
                 ? "bg-background font-semibold text-foreground"
-                : "bg-[#f6f1ea]/70 text-muted-foreground hover:bg-background/80",
+                : "bg-muted/70 text-muted-foreground hover:bg-background/80",
             )}
           >
             {tab.label}

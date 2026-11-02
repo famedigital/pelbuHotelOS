@@ -2204,9 +2204,16 @@ export function RoomRackGrid({
                       <span>B {stat.booked}</span>
                       <span>E {stat.empty}</span>
                     </div>
-                    <div className="absolute inset-x-0 bottom-0 h-0.5 bg-black/5">
+                    <div className="neo-well neo-well-flush absolute inset-x-0 bottom-0 h-0.5">
                       <div
-                        className={cn("h-full", tone.bar)}
+                        className={cn(
+                          "h-full",
+                          stat.percent >= 80
+                            ? "track-gradient-coral"
+                            : stat.percent >= 50
+                              ? "track-gradient-violet"
+                              : "track-gradient-mint",
+                        )}
                         style={{ width: `${stat.percent}%` }}
                       />
                     </div>

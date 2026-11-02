@@ -990,3 +990,19 @@ glassmorphism hard-refresh production still needs deploy | 2026-11-02 | Ask: why
 commit deploy hard-refresh desk pick glass | 2026-11-02 | Ask: commit and deploy / Did: Hard-refresh the desk to pick up the glass dock / StayHub sheet / Agenda changes. | live
 principal hotel architect senior systems engineer | 2026-11-02 | Ask: You are a Principal Hotel PMS Architect & Senior UI Systems Engineer working on Hotel OS… / Did: Say if you want this committed and Coolify-deployed. | live
 first smoke failed because port 3000 | 2026-11-02 | Did: First smoke run failed because port 3000 was hung; after clearing it, the re-run passed: **13 passed, 83 skipped**. | live
+commit coolify live 6f7f3ee deploy_ok login | 2026-11-02 | Ask: commit and coolify it / Did: Live on **`6f7f3ee`** — `DEPLOY_OK`, `/erp/login` returns 200. Hard-refresh to see the glass tokens. | live
+browse browser delete last footer thing | 2026-11-02 | Ask: can u browse via the dev browser and delete this last footer thing, its so ugly n… / Did: Innora stays in the header sparkles control, not as a bottom FAB. | live
+already resolved sheets flush bottom innora | 2026-11-02 | Did: That’s already resolved: sheets sit flush at the bottom, and Innora is in the header. | live
+redesign cards buttons status trackers neo-glass | 2026-11-02 | Ask: *"Redesign our cards, buttons, and status trackers using the Neo-Glass (Tactile… / Did: **Tokens + primitives only** — ship the CSS + wire `Card`/`Button`/`Progress`, then roll out page-by-page I’d recommend… | live
+approve write short desk neo-glass spec | 2026-11-02 | Ask: 1 / Did: Approve that and I’ll write the short desk Neo-Glass spec (tokens, surfaces in/out of scope, a11y) for your review… | live
+approve write docs superpowers specs 2026-11-02-desk-neo-glass | 2026-11-02 | Ask: A / Did: Approve this and I’ll write `docs/superpowers/specs/2026-11-02-desk-neo-glass-design.md` for your review before… | live
+approve review file approved note edits | 2026-11-02 | Ask: approve / Did: Review that file and say **approved** (or note edits) — then I’ll write the implementation plan. | live
+approved inline execution tasks session checkpoints | 2026-11-02 | Ask: approved / Did: Inline Execution** — run tasks in this session with checkpoints Which approach? | live
+quick look confirms ghost toolbar buttons | 2026-11-02 | Did: quick look at `/erp/day` confirms ghost toolbar buttons stay flat while primary CTAs keep the raised neo shadow. | live
+merge main locally commit first push | 2026-11-02 | Ask: 1 / Did: **1.** Merge to `main` locally (commit first if you want) **2.** Push and open a PR **3.** Keep the branch as-is **4.**… | live
+pnpm symlink error installing next likely | 2026-11-02 | Did: pnpm hit a symlink error installing `next` (likely the running dev server locking `node_modules`); typecheck still ran… | live
+mission eliminate muddy colors polish crisp | 2026-11-02 | Ask: # MISSION: Eliminate Muddy Colors & Polish the UI to Crisp "Crystal Clean" Luxury The… / Did: Live tokens on `/erp/day`: `bg #f8fafc`, `fg #0f172a`. | live
+those transparents stuff shell modal tables | 2026-11-02 | Ask: fix those transparents stuff, / Did: Shell, modal, tables, and rail are opaque crystal panels with blur off. | live
+agent portal login- dashboards select hotel- | 2026-11-02 | Ask: agent portal login->dashboards select hotel-> see all the bookings details (tab) , new… | live
+prepare soultrip pelbu suites olakha added | 2026-11-02 | Ask: have to prepare for soultrip in pelbu suites olakha / Did: Added prep/acceptance: - MoU + portal login for that hotel - Ledger default range = their first → last stay at Olakha -… | live
+implement plan specified attached reference edit | 2026-11-02 | Ask: Implement the plan as specified, it is attached for your reference. Do NOT edit the plan… / Did: **Verified** — `typecheck` clean; SOULTRIPS MoU on Olakha (credit 200k); 6 scoped bookings; folio-backed totals (~BTN… | live

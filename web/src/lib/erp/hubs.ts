@@ -91,12 +91,16 @@ export function hubTabIdFromPath(
   tabs: readonly HubTab[],
 ): string {
   const matches = tabs
-    .filter(
-      (t) =>
-        t.href &&
-        (pathname === t.href || pathname.startsWith(`${t.href}/`)),
-    )
-    .sort((a, b) => (b.href?.length ?? 0) - (a.href?.length ?? 0));
+    .filter((t) => {
+      if (!t.href) return false;
+      const path = t.href.split("?")[0] ?? t.href;
+      return pathname === path || pathname.startsWith(`${path}/`);
+    })
+    .sort(
+      (a, b) =>
+        (b.href?.split("?")[0]?.length ?? 0) -
+        (a.href?.split("?")[0]?.length ?? 0),
+    );
   return matches[0]?.id ?? tabs[0]?.id ?? "";
 }
 
@@ -290,7 +294,7 @@ export const AGENTS_TABS: HubTab[] = [
     id: "book",
     label: "Book",
     description: "Hold or confirm rooms",
-    href: "/agents/app/book",
+    href: "/agents/app/stays?tab=new",
   },
   {
     id: "money",

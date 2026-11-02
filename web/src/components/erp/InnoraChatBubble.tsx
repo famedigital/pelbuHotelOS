@@ -25,6 +25,7 @@ import {
 import { ArrowUpIcon, HistoryIcon, SquarePenIcon, SparklesIcon, XIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 type BubbleMessage = InnoraChatTurn & {
   id: string;
@@ -216,12 +217,35 @@ export function InnoraChatBubble({ propertyId }: { propertyId: string }) {
     if (result.href) router.push(result.href);
   }
 
+  const [headerSlot, setHeaderSlot] = useState<Element | null>(null);
+  useEffect(() => {
+    const find = () =>
+      setHeaderSlot(document.querySelector("[data-slot='erp-header-innora']"));
+    find();
+    const t = window.setTimeout(find, 0);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  const launcher = (
+    <button
+      type="button"
+      className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+      aria-expanded={open}
+      aria-label="Innora"
+      title="Innora"
+      onClick={() => setOpen((value) => !value)}
+    >
+      <SparklesIcon className="size-4" />
+    </button>
+  );
+
   return (
-    <div className="pointer-events-none fixed right-3 bottom-[calc(4rem+env(safe-area-inset-bottom,0px)+0.5rem)] z-50 flex flex-col items-end gap-2 md:right-4 md:bottom-4 print:hidden">
+    <div className="print:hidden">
+      {headerSlot ? createPortal(launcher, headerSlot) : null}
       {open ? (
         <section
           data-property-id={propertyId}
-          className="pointer-events-auto flex h-[min(32rem,70vh)] w-[min(100vw-1.5rem,22rem)] flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-lg"
+          className="fixed top-12 right-3 z-50 flex h-[min(32rem,70vh)] w-[min(100vw-1.5rem,22rem)] flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-lg md:right-4"
           aria-label="Innora"
         >
           <header className="flex items-center gap-1 border-b px-2 py-1.5">
@@ -366,15 +390,9 @@ export function InnoraChatBubble({ propertyId }: { propertyId: string }) {
           </form>
         </section>
       ) : null}
-      <button
-        type="button"
-        className="pointer-events-auto flex h-12 items-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-lg"
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
-      >
-        <SparklesIcon className="size-4" />
-        Innora
-      </button>
+      {!headerSlot ? (
+        <div className="fixed top-3 right-3 z-50 md:right-4">{launcher}</div>
+      ) : null}
     </div>
   );
 }

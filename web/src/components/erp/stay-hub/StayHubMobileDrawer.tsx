@@ -107,7 +107,7 @@ export function StayHubMobileDrawer({
         </div>
 
         {stickyActions ? (
-          <div className="shrink-0 border-t border-border/50 bg-background/95 px-3 py-2 backdrop-blur-sm">
+          <div className="shrink-0 border-t border-border bg-background px-3 py-2">
             <div className="flex min-h-12 items-stretch gap-2">{stickyActions}</div>
           </div>
         ) : null}

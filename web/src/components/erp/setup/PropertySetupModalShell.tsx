@@ -78,7 +78,7 @@ export function PropertySetupModalShell({
 
           {/* Track */}
           <div
-            className="mb-3 h-1.5 overflow-hidden rounded-full bg-muted"
+            className="neo-well mb-3 h-1.5"
             role="progressbar"
             aria-valuenow={pct}
             aria-valuemin={0}
@@ -86,7 +86,7 @@ export function PropertySetupModalShell({
             aria-label={`Setup ${pct}% complete`}
           >
             <div
-              className="h-full rounded-full bg-foreground transition-[width] duration-300 ease-out"
+              className="h-full rounded-full track-gradient-violet transition-[width] duration-300 ease-out"
               style={{ width: `${pct}%` }}
             />
           </div>

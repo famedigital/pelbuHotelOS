@@ -181,9 +181,12 @@ export function AgentCockpitBoard({
             </p>
             <p className="mt-1 text-xs text-muted-foreground">{figure.hint}</p>
             {figure.bar != null ? (
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-secondary">
+              <div className="neo-well mt-2 h-1.5">
                 <div
-                  className={cn("h-full rounded-full", figure.warn ? "bg-destructive" : "bg-primary")}
+                  className={cn(
+                    "h-full rounded-full",
+                    figure.warn ? "track-gradient-coral" : "track-gradient-mint",
+                  )}
                   style={{ width: `${figure.bar}%` }}
                 />
               </div>
