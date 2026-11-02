@@ -1006,3 +1006,9 @@ those transparents stuff shell modal tables | 2026-11-02 | Ask: fix those transp
 agent portal login- dashboards select hotel- | 2026-11-02 | Ask: agent portal login->dashboards select hotel-> see all the bookings details (tab) , new… | live
 prepare soultrip pelbu suites olakha added | 2026-11-02 | Ask: have to prepare for soultrip in pelbu suites olakha / Did: Added prep/acceptance: - MoU + portal login for that hotel - Ledger default range = their first → last stay at Olakha -… | live
 implement plan specified attached reference edit | 2026-11-02 | Ask: Implement the plan as specified, it is attached for your reference. Do NOT edit the plan… / Did: **Verified** — `typecheck` clean; SOULTRIPS MoU on Olakha (credit 200k); 6 scoped bookings; folio-backed totals (~BTN… | live
+commit deploy changes reset desk agent | 2026-11-02 | Ask: commit and deploy all changes / Did: Reset it from the desk agent card (enable / set portal PIN), or tell me a new PIN and I can set it. | live
+1987 sign agents login code soultrips | 2026-11-02 | Ask: make it 1987 / Did: Set. Sign in at `/agents/login` with: - **Code:** `SOULTRIPS` - **PIN:** `198787` | live
+soul trips already soultrips 198787 | 2026-11-02 | Did: Soul Trips is already on **`SOULTRIPS` / `198787`**. | live
+geting signin deploy still finishing ledger | 2026-11-02 | Ask: not geting signin / Did: Deploy is still finishing the new ledger UI; hard-refresh after it completes. | live
+sept till check soultrip bookings date | 2026-11-02 | Ask: ok so far from sept till oct, check all soultrip bookings, till date make it checkout and… / Did: Hard-refresh `/agents/app/stays` as **SOULTRIPS** / **198787** (deploy `5d4ece0` is live). | live
+hard-refresh desk agent portal pick | 2026-11-02 | Did: Hard-refresh the desk / agent portal to pick it up. | live
