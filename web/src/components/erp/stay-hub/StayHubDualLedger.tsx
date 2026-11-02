@@ -167,7 +167,7 @@ export function StayHubDualLedger({
         </div>
 
         <TabsContent value="agent" className="mt-2">
-          <div className="rounded-md border border-border/80 bg-card">
+          <div className="glass-happy-table-container">
             <StayHubFolioLedgerTable
               lines={activeLines}
               summary={summary}
@@ -182,7 +182,7 @@ export function StayHubDualLedger({
           </div>
         </TabsContent>
         <TabsContent value="guest" className="mt-2">
-          <div className="rounded-md border border-border/80 bg-card">
+          <div className="glass-happy-table-container">
             <StayHubFolioLedgerTable
               lines={activeLines}
               summary={summary}

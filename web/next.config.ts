@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
     cpus: 1,
     optimizePackageImports: [
       "lucide-react",
+      "@radix-ui/react-icons",
       "date-fns",
       "recharts",
       "@tanstack/react-table",

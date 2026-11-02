@@ -82,16 +82,15 @@ export function DeskListShell({
   return (
     <div
       className={cn(
-        "erp mx-auto flex w-full min-w-0 flex-col",
+        "erp bg-happy-mesh mx-auto flex w-full min-w-0 flex-col",
         wide ? "max-w-none" : "max-w-[1200px]",
-        // Clear DeskMobileNav when pages end with sticky action bars
-        "pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-0",
+        "pb-safe-dock md:pb-0",
         className,
       )}
     >
       {hideHeading ? null : (
       <DeskBlurFade>
-      <div className="border-b border-border bg-background px-3 py-2 md:px-4 md:py-2.5">
+      <div className="erp-cold-glass border-b border-border/50 px-3 py-2 md:px-4 md:py-2.5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex-1 space-y-0.5">
             {eyebrow ? (
@@ -132,7 +131,7 @@ export function DeskListShell({
       {filters ? (
         <div
           className={cn(
-            "z-20 border-b border-border bg-background px-3 py-1.5 md:px-4",
+            "erp-cold-glass z-20 border-b border-border/50 px-3 py-1.5 md:px-4",
             "md:sticky md:top-0",
             filtersClassName,
           )}
@@ -214,7 +213,7 @@ export function DeskTable({
   empty?: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border bg-card">
+    <div className="overflow-hidden">
       <Table className="min-w-[640px]">
         <caption className="sr-only">{caption}</caption>
         <TableHeader>

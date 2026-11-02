@@ -21,13 +21,14 @@ const MIDDLEWARE_NET_MS = 2_000;
 type CachedTenant = {
   propertyId: string;
   slug: string;
-  via: "host" | "flagship";
+  isFlagship: boolean;
+  via: "host" | "flagship" | "flagship-env";
 };
 
 /** In-memory host → property cache (survives across requests in the runtime). */
 const tenantResolutionCache = new LRUCache<string, CachedTenant>({
   max: 500,
-  ttl: 1000 * 60 * 15,
+  ttl: 1000 * 60 * 15, // 15 minutes
 });
 
 function normalizeHost(hostHeader: string): string {
@@ -154,6 +155,7 @@ export async function middleware(request: NextRequest) {
               tenantResolutionCache.set(cacheKey, {
                 propertyId: resolved.value.propertyId,
                 slug: resolved.value.slug,
+                isFlagship: resolved.value.via === "flagship",
                 via: resolved.value.via,
               });
             }

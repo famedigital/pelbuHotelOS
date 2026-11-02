@@ -7,9 +7,16 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme="light"
       className="toaster group"
+      toastOptions={{
+        classNames: {
+          toast: "glass-happy-card border-border/60",
+          success: "border-emerald-500/35 text-emerald-800",
+          error: "border-rose-500/35 text-rose-800",
+        },
+      }}
       style={
         {
-          "--normal-bg": "var(--popover)",
+          "--normal-bg": "transparent",
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
         } as React.CSSProperties

@@ -217,7 +217,7 @@ export function InnoraChatBubble({ propertyId }: { propertyId: string }) {
   }
 
   return (
-    <div className="pointer-events-none fixed right-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-50 flex flex-col items-end gap-2 md:right-4 md:bottom-4 print:hidden">
+    <div className="pointer-events-none fixed right-3 bottom-[calc(4rem+env(safe-area-inset-bottom,0px)+0.5rem)] z-50 flex flex-col items-end gap-2 md:right-4 md:bottom-4 print:hidden">
       {open ? (
         <section
           data-property-id={propertyId}

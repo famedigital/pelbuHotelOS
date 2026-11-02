@@ -1040,7 +1040,11 @@ export function StayHubDialog({
       if (payload.roomChargeError) {
         setFolioTool("bill");
       } else {
-        toast.success("Checked in — print registration, then upload signed card");
+        toast.success("Guest checked in successfully!", {
+          description:
+            "Keys ready · Print registration, then upload the signed card. Welcome drink dispatched.",
+          className: "glass-happy-card border-emerald-500/30",
+        });
       }
 
       startCheckInFollowTransition(async () => {

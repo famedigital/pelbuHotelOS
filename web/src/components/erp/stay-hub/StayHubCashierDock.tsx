@@ -67,11 +67,12 @@ export function StayHubCashierDock({
         toast.error(res.error);
         return;
       }
-      toast.success(
-        res.invoiceNumber
-          ? `Checked out · ${res.invoiceNumber}`
-          : "Checked out",
-      );
+      toast.success("Guest checked out successfully!", {
+        description: res.invoiceNumber
+          ? `${res.invoiceNumber} · Room marked dirty · Safe travels from the Himalayas.`
+          : "Room marked dirty · Safe travels from the Himalayas.",
+        className: "glass-happy-card border-emerald-500/30",
+      });
       onMoneyChanged();
       onCheckedOut?.();
     });
@@ -80,7 +81,7 @@ export function StayHubCashierDock({
   return (
     <div
       className={cn(
-        "erp-cold-glass sticky bottom-0 z-20 space-y-2 border-t px-3 py-2.5",
+        "erp-cold-glass glass-happy-card sticky bottom-0 z-20 space-y-2 border-t px-3 py-2.5",
         className,
       )}
     >
@@ -89,8 +90,10 @@ export function StayHubCashierDock({
           Guest stream{" "}
           <span
             className={cn(
-              "font-semibold tabular-nums text-foreground",
-              !clear && "text-maroon",
+              "font-semibold tabular-nums",
+              clear
+                ? "text-[color:var(--color-mint)]"
+                : "text-[color:var(--color-coral)]",
             )}
           >
             {clear ? "clear" : formatGuestBtn(guestDue)}
@@ -99,7 +102,7 @@ export function StayHubCashierDock({
         <Button
           type="button"
           size="sm"
-          className="h-8"
+          className="h-11 min-h-11"
           disabled={pending || !canCheckout}
           onClick={settleCheckout}
         >

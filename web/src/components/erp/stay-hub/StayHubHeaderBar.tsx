@@ -30,23 +30,27 @@ export function StayHubHeaderBar({
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_100%_0%,rgba(245,158,11,0.08),transparent_55%)]" />
       <div className="relative flex flex-wrap items-center gap-2 px-3 pt-2 md:px-4">
         {inHouse ? (
-          <span className="inline-flex items-center rounded-md border border-blue-500/40 bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-blue-700 uppercase dark:text-blue-200">
-            In-house
+          <span className="inline-flex items-center rounded-full border border-[color:var(--color-lapis)]/40 bg-[color:var(--color-lapis)]/10 px-2.5 py-0.5 text-[10px] font-semibold tracking-wide text-[color:var(--color-lapis)] uppercase">
+            {identity.roomLabel
+              ? `Room ${identity.roomLabel}`
+              : "In-house"}
           </span>
         ) : null}
         {vip || identity.agentName ? (
-          <span className="glass-badge-vip inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+          <span className="glass-badge-vip inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
             {vip ? "VIP" : "Agent"}
           </span>
         ) : null}
         {balanceBtn != null ? (
           <span
             className={cn(
-              "ml-auto text-sm font-semibold tabular-nums",
-              !clear && "text-maroon",
+              "ml-auto rounded-full px-2.5 py-0.5 text-sm font-semibold tabular-nums",
+              clear
+                ? "glass-badge-clean"
+                : "border border-[color:var(--color-coral)]/45 bg-[color:var(--color-coral)]/12 text-[color:var(--color-coral)]",
             )}
           >
-            Balance: {clear ? "BTN 0.00" : formatGuestBtn(balanceBtn)}
+            {clear ? "BTN 0.00" : formatGuestBtn(balanceBtn)}
           </span>
         ) : null}
       </div>

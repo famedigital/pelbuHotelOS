@@ -987,3 +987,6 @@ commit changes deploy coolify applied 20261102 | 2026-11-02 | Ask: commit all ch
 nothing production still 93fdec0 deploy_ok money | 2026-11-02 | Did: Nothing new to act on: production is still on **`93fdec0`** with `DEPLOY_OK` and the money RPCs already applied. | live
 execute mobile tablet redesign defined calendar | 2026-11-02 | Ask: "Execute the mobile and tablet UI redesign defined in… / Did: - **Calendar:** Phone portrait defaults to the 7-day Agenda (`today−3…+3` strip + category summary cards); Timeline… | live
 glassmorphism hard-refresh production still needs deploy | 2026-11-02 | Ask: why ui is not 3d glassmorphism?? / Did: Hard-refresh `/erp` to see it; production still needs a deploy if you’re checking the live site. | live
+commit deploy hard-refresh desk pick glass | 2026-11-02 | Ask: commit and deploy / Did: Hard-refresh the desk to pick up the glass dock / StayHub sheet / Agenda changes. | live
+principal hotel architect senior systems engineer | 2026-11-02 | Ask: You are a Principal Hotel PMS Architect & Senior UI Systems Engineer working on Hotel OS… / Did: Say if you want this committed and Coolify-deployed. | live
+first smoke failed because port 3000 | 2026-11-02 | Did: First smoke run failed because port 3000 was hung; after clearing it, the re-run passed: **13 passed, 83 skipped**. | live

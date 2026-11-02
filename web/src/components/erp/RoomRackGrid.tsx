@@ -2005,7 +2005,7 @@ export function RoomRackGrid({
     >
       <div
         className={cn(
-          "flex shrink-0 items-center border-b border-border/50 bg-background",
+          "erp-cold-glass flex shrink-0 items-center border-b border-border/50",
           compactRack
             ? "h-11 gap-2 overflow-x-auto px-2"
             : "h-12 gap-3 px-4",
@@ -2544,7 +2544,7 @@ export function RoomRackGrid({
           .
         </p>
       ) : (
-        <div ref={scrollRef} className="min-h-0 min-w-0 flex-1 overflow-auto bg-card">
+        <div ref={scrollRef} className="min-h-0 min-w-0 flex-1 overflow-auto bg-card rack-scroll-clearance">
           <div style={{ width: gridWidth, minWidth: "100%" }}>
             <div
               className="sticky top-0 z-30 flex border-b bg-card"
@@ -3185,7 +3185,7 @@ export function RoomRackGrid({
             ) : null}
 
             <div
-              className="sticky bottom-0 z-30 flex border-t bg-card"
+              className="sticky bottom-0 z-30 flex border-t bg-card md:bottom-0"
               style={{ height: FOOTER_H }}
             >
               <div

@@ -87,7 +87,7 @@ export function StayHub3DShell({
         aria-modal={boardDock ? false : true}
         aria-label={title}
         className={cn(
-          "stay-hub-card stay-hub-dock erp glass-elevated fixed inset-y-0 right-0 z-[80] flex h-svh flex-col gap-0 overflow-hidden border-l p-0 shadow-xl",
+          "stay-hub-card stay-hub-dock erp glass-elevated glass-happy-modal fixed inset-y-0 right-0 z-[80] flex h-svh flex-col gap-0 overflow-hidden border-l p-0 shadow-xl",
           "pt-[env(safe-area-inset-top)]",
           className,
         )}

@@ -236,8 +236,8 @@ export function DataTable<TData, TValue>({
               <article
                 key={row.id}
                 className={cn(
-                  "rounded-xl border border-border bg-card p-4 shadow-xs min-h-11",
-                  clickable && "cursor-pointer active:bg-muted/40",
+                  "glass-happy-card glass-glow-turquoise touch-press stripe-lapis min-h-11 p-4",
+                  clickable && "cursor-pointer",
                 )}
                 role={clickable ? "button" : undefined}
                 tabIndex={clickable ? 0 : undefined}
@@ -296,7 +296,7 @@ export function DataTable<TData, TValue>({
               );
             })
           ) : (
-            <p className="rounded-xl border border-border bg-card px-4 py-6 text-sm text-muted-foreground">
+            <p className="glass-happy-card px-4 py-6 text-sm text-muted-foreground">
               {emptyMessage}
             </p>
           )}
@@ -305,7 +305,7 @@ export function DataTable<TData, TValue>({
 
       <div
         className={cn(
-          "w-full min-w-0 max-w-full rounded-lg border bg-card",
+          "w-full min-w-0 max-w-full overflow-hidden",
           mobileCards && "hidden md:block",
         )}
       >

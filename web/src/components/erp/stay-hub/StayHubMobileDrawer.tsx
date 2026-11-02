@@ -67,7 +67,7 @@ export function StayHubMobileDrawer({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "stay-hub-card erp glass-elevated fixed inset-x-0 bottom-0 z-[80] flex max-h-[92dvh] flex-col overflow-hidden rounded-t-3xl border-t md:hidden",
+          "stay-hub-card erp glass-elevated glass-happy-modal fixed inset-x-0 bottom-0 z-[80] flex max-h-[92dvh] flex-col overflow-hidden rounded-t-3xl border-t md:hidden",
           "pb-[env(safe-area-inset-bottom)]",
           className,
         )}
