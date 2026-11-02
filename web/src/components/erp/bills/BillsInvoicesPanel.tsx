@@ -28,7 +28,7 @@ export async function BillsInvoicesPanel({
          bookings(
            contact_name, meal_plan_code, guide_number,
            agents(company_name),
-           room_assignments(rooms(code))
+           room_assignments(room_units(label))
          )
        )`,
     )
@@ -60,7 +60,12 @@ export async function BillsInvoicesPanel({
             guide_number?: string | null;
             agents?: { company_name?: string } | { company_name?: string }[] | null;
             room_assignments?:
-              | { rooms?: { code?: string } | { code?: string }[] | null }[]
+              | {
+                  room_units?:
+                    | { label?: string }
+                    | { label?: string }[]
+                    | null;
+                }[]
               | null;
           }
         | {
@@ -69,7 +74,12 @@ export async function BillsInvoicesPanel({
             guide_number?: string | null;
             agents?: { company_name?: string } | { company_name?: string }[] | null;
             room_assignments?:
-              | { rooms?: { code?: string } | { code?: string }[] | null }[]
+              | {
+                  room_units?:
+                    | { label?: string }
+                    | { label?: string }[]
+                    | null;
+                }[]
               | null;
           }[]
         | null;
@@ -81,9 +91,9 @@ export async function BillsInvoicesPanel({
     const agent = Array.isArray(agentRaw) ? agentRaw[0] : agentRaw;
     const rooms = (booking?.room_assignments ?? [])
       .map((a) => {
-        const r = a.rooms;
+        const r = a.room_units;
         const room = Array.isArray(r) ? r[0] : r;
-        return room?.code;
+        return room?.label;
       })
       .filter(Boolean)
       .join(", ");
