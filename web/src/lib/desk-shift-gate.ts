@@ -84,7 +84,7 @@ export function anyShiftCoversLocalNow(
   now: Date = new Date(),
   timeZone: string = TZ,
 ): boolean {
-  const localDate = todayInTimezone(timeZone);
+  const localDate = todayInTimezone(timeZone, now);
   const hm = localHmInTimezone(now, timeZone);
   const localMinutes = hmToMinutes(hm);
   return shifts.some((s) => shiftCoversLocalNow(s, localDate, localMinutes));

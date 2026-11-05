@@ -50,45 +50,45 @@ export function OccupancyRange({
             <input key={key} type="hidden" name={key} value={value} />
           ))
         : null}
-      <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
         From
         <input
           type="date"
           name="occ_from"
           defaultValue={from}
           aria-label="From date"
-          className="h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+          className="h-8 rounded-xl border border-border/60 bg-background px-2 text-xs font-mono font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
         />
       </label>
-      <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
         To
         <input
           type="date"
           name="occ_to"
           defaultValue={to}
           aria-label="To date"
-          className="h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+          className="h-8 rounded-xl border border-border/60 bg-background px-2 text-xs font-mono font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
         />
       </label>
-      <button type="submit" className="h-8 rounded-md border px-2.5 text-sm hover:bg-muted">
+      <button type="submit" className="h-8 rounded-xl border border-border/60 bg-background px-3 text-xs font-bold hover:bg-muted shadow-sm transition-all">
         Apply
       </button>
     </form>
   );
 
   return (
-    <div className="flex shrink-0 flex-nowrap items-center gap-2">
+    <div className="flex shrink-0 flex-nowrap items-center gap-2 py-1">
       {dates === "bar" ? rangeForm : null}
       <button
         type="button"
-        className="h-8 rounded-md border border-foreground px-2.5 text-sm font-medium hover:bg-muted"
+        className="h-8 rounded-xl border border-primary/30 bg-primary/10 text-primary px-3 text-xs font-bold hover:bg-primary/20 shadow-sm transition-all"
         onClick={() => {
           const marked = focusDate && nights.some((night) => night.date === focusDate) ? focusDate : nights[0]?.date ?? "";
           setPickedDate(marked);
           setOpen(true);
         }}
       >
-        Room report
+        Room Occupancy Report
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="flex max-h-[85vh] flex-col gap-3 sm:max-w-4xl">

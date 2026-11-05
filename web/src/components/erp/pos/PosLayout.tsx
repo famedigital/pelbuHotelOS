@@ -32,6 +32,8 @@ import { PosSearch } from "@/components/erp/pos/PosSearch";
 import { PosStockPanel } from "@/components/erp/pos/PosStockPanel";
 import { PosAssistStrip } from "@/components/erp/pos/PosAssistStrip";
 import { SettlePanel } from "@/components/erp/pos/SettlePanel";
+import { QuickRoomChargeModal } from "@/components/erp/pos/QuickRoomChargeModal";
+import { QuickBhutanQrModal } from "@/components/erp/pos/QuickBhutanQrModal";
 import { TicketHeader } from "@/components/erp/pos/TicketHeader";
 import { VoidReasonDialog } from "@/components/erp/pos/VoidReasonDialog";
 import { resolvePosBarcode } from "@/app/actions/pos-barcode";
@@ -230,6 +232,8 @@ export function PosLayout({
   const [cartBump, setCartBump] = useState(0);
   const [ticketsOpen, setTicketsOpen] = useState(false);
   const [settleTarget, setSettleTarget] = useState<string | null>(null);
+  const [quickRoomChargeTicket, setQuickRoomChargeTicket] = useState<{ id: string; totalBtn: number } | null>(null);
+  const [quickQrTicket, setQuickQrTicket] = useState<{ id: string; totalBtn: number } | null>(null);
   const [voidTarget, setVoidTarget] = useState<string | null>(null);
   const [voidItemId, setVoidItemId] = useState<string | null>(null);
   /** Remount VoidReasonDialog so useActionState does not keep ok=true after a void. */
@@ -1104,6 +1108,14 @@ export function PosLayout({
         onSettle={(id) => {
           setTicketsOpen(false);
           setSettleTarget(id);
+        }}
+        onQuickRoomCharge={(id, total) => {
+          setTicketsOpen(false);
+          setQuickRoomChargeTicket({ id, totalBtn: total });
+        }}
+        onQuickQr={(id, total) => {
+          setTicketsOpen(false);
+          setQuickQrTicket({ id, totalBtn: total });
         }}
         onAddItems={(id) => {
           const ticket = openTickets.find((t) => t.id === id);

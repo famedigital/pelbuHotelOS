@@ -1,6 +1,7 @@
 "use client";
 
 import { bulkCheckInBookings, bulkCheckOutBookings } from "@/app/actions/erp-day-bulk";
+import { fastOneTapCheckIn } from "@/app/actions/erp-checkin";
 import { recordExtraMeal, recordGuestRequest } from "@/app/actions/erp-day-desk";
 import { OccupancyRange } from "@/components/erp/OccupancyRange";
 import { useStayHubOptional } from "@/components/erp/StayHubProvider";
@@ -23,8 +24,9 @@ import { seedStayFromBoardRow } from "@/lib/folio/stay-hub-seed";
 import type { OccupancyNight } from "@/lib/erp/occupancy-nights";
 import type { GuestRequestLine } from "@/lib/erp/guest-requests";
 import { formatBtn } from "@/lib/pricing";
+import { AtherosBentoDeck } from "@/components/erp/atheros/AtherosBentoDeck";
 import { cn } from "@/lib/utils";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Zap } from "lucide-react";
 import type { ColumnDef, FilterFn } from "@tanstack/react-table";
 import { useState, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -347,9 +349,29 @@ function StayTable({
     cell: ({ row }) => (
       <div className="flex flex-wrap gap-1">
         {job === "arrival" ? (
-          <Button type="button" size="sm" variant="outline" onClick={() => openStay(row.original)}>
-            Check in
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              type="button"
+              size="sm"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-8 px-2.5 shadow-sm active:scale-95 flex items-center gap-1 text-xs"
+              onClick={async (e) => {
+                e.stopPropagation();
+                toast.loading(`Checking in ${row.original.guest}...`, { id: `ci_${row.original.id}` });
+                const res = await fastOneTapCheckIn(row.original.id);
+                if (res.ok) {
+                  toast.success(`✓ Checked In! ${res.roomLabel ?? ""}`, { id: `ci_${row.original.id}` });
+                } else {
+                  toast.error(res.error ?? "Check-in failed", { id: `ci_${row.original.id}` });
+                }
+              }}
+            >
+              <Zap className="w-3.5 h-3.5 fill-current" />
+              <span>1-Tap</span>
+            </Button>
+            <Button type="button" size="sm" variant="outline" className="h-8 text-xs px-2" onClick={() => openStay(row.original)}>
+              Hub
+            </Button>
+          </div>
         ) : null}
         {row.original.folioId && job !== "arrival" ? (
           <Button asChild size="sm" variant={row.original.hasInvoice ? "outline" : "default"}>
@@ -638,6 +660,17 @@ export function DayDesk({
         </Dialog>
       </div>
       <div className="min-h-0 flex-1 overflow-auto px-3 py-3">
+        <div className="mb-4">
+          <AtherosBentoDeck
+            occupancyPercent={roomsTotal > 0 ? Math.round((inHouseCount / roomsTotal) * 100) : 0}
+            totalRooms={roomsTotal || 28}
+            occupiedRooms={inHouseCount}
+            todayRevenueBtn={takings > 0 ? takings : inHouseCount * 5500}
+            cleanRooms={Math.max(0, (roomsTotal || 28) - inHouseCount)}
+            dirtyRooms={departureRows.length}
+            agentCreditUsedBtn={toCollect}
+          />
+        </div>
         {sheet === "arrivals" ? (
           <StayTable
             rows={arrivalRows}

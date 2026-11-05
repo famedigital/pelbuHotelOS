@@ -93,17 +93,17 @@ export function HubShell({
             <nav
               aria-label={`${heading} sections`}
               className={cn(
-                "flex max-w-full items-center gap-0.5 overflow-x-auto rounded-md border border-border bg-muted/40 p-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+                "relative flex max-w-full items-center gap-1 overflow-x-auto rounded-xl p-1 bg-muted/50 dark:bg-zinc-900/60 backdrop-blur-xl border border-border/60 shadow-[inset_0_1px_1px_rgba(0,0,0,0.05)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
                 tabsClassName,
               )}
             >
               {tabs.map((tab) => {
                 const isActive = tab.id === active?.id;
-                const className = cn(
-                  "inline-flex h-8 shrink-0 items-center rounded-[5px] px-2.5 text-xs font-medium whitespace-nowrap transition-colors",
+                const tabItemClass = cn(
+                  "relative inline-flex h-8 shrink-0 items-center rounded-lg px-3.5 text-xs font-bold whitespace-nowrap select-none transition-all duration-200 cursor-pointer active:scale-95",
                   isActive
-                    ? "bg-accent text-accent-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-background/80 hover:text-foreground",
+                    ? "bg-white dark:bg-zinc-800 text-foreground border border-black/5 dark:border-white/15 shadow-[0_4px_14px_-2px_rgba(0,0,0,0.1),inset_0_1px_1px_#fff] dark:shadow-[0_4px_18px_-2px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.15)] font-black scale-[1.02]"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
                 );
                 if (linkMode && tab.href) {
                   return (
@@ -111,8 +111,11 @@ export function HubShell({
                       key={tab.id}
                       href={tab.href}
                       aria-current={isActive ? "page" : undefined}
-                      className={className}
+                      className={tabItemClass}
                     >
+                      {isActive && (
+                        <span className="pointer-events-none absolute inset-x-2 top-0 h-px bg-gradient-to-r from-transparent via-primary/80 to-transparent" />
+                      )}
                       {tab.label}
                     </Link>
                   );
@@ -122,9 +125,12 @@ export function HubShell({
                     key={tab.id}
                     type="button"
                     aria-current={isActive ? "page" : undefined}
-                    className={className}
+                    className={tabItemClass}
                     onClick={() => setTab(tab.id)}
                   >
+                    {isActive && (
+                      <span className="pointer-events-none absolute inset-x-2 top-0 h-px bg-gradient-to-r from-transparent via-primary/80 to-transparent" />
+                    )}
                     {tab.label}
                   </button>
                 );

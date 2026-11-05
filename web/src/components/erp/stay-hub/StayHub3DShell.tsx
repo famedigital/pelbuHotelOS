@@ -74,20 +74,18 @@ export function StayHub3DShell({
 
   return (
     <>
-      {boardDock ? null : (
-        <button
-          type="button"
-          aria-label="Close stay"
-          className="fixed inset-0 z-[79] hidden bg-black/40 md:block"
-          onClick={onClose}
-        />
-      )}
+      <button
+        type="button"
+        aria-label="Close stay"
+        className="fixed inset-0 z-[79] hidden bg-black/45 backdrop-blur-md md:block animate-in fade-in duration-200 cursor-pointer"
+        onClick={onClose}
+      />
       <aside
         role="dialog"
-        aria-modal={boardDock ? false : true}
+        aria-modal="true"
         aria-label={title}
         className={cn(
-          "stay-hub-card stay-hub-dock erp glass-elevated glass-happy-modal fixed inset-y-0 right-0 z-[80] flex h-svh flex-col gap-0 overflow-hidden border-l p-0 shadow-xl",
+          "stay-hub-card stay-hub-dock erp glass-elevated glass-happy-modal fixed inset-y-0 right-0 z-[80] flex h-svh flex-col gap-0 overflow-hidden border-l p-0 shadow-2xl",
           "pt-[env(safe-area-inset-top)]",
           className,
         )}
@@ -99,7 +97,7 @@ export function StayHub3DShell({
           type="button"
           onClick={onClose}
           aria-label="Back to desk"
-          className="absolute top-2 right-2 z-10 inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="absolute top-3 right-3 z-30 inline-flex size-8 items-center justify-center rounded-xl bg-background/85 hover:bg-muted border border-border/60 text-muted-foreground hover:text-foreground transition-all active:scale-95 shadow-sm"
         >
           <XIcon className="size-4" aria-hidden />
         </button>

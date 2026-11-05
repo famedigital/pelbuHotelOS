@@ -54,12 +54,11 @@ export function NewReservationLauncher({
     <>
       <Button
         type="button"
-        variant="default"
-        className="h-11 min-h-11 gap-1.5"
+        className="h-10 px-4 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/25 active:scale-95 transition-all"
         onClick={() => handleOpenChange(true)}
       >
-        <PlusIcon className="size-4" aria-hidden />
-        New reservation
+        <PlusIcon className="w-4 h-4" aria-hidden />
+        <span>New Reservation</span>
       </Button>
       <FastBookDialog
         open={open}

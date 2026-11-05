@@ -455,3 +455,45 @@ export async function updateLostFoundStatus(
     return { ok: false, error: e instanceof Error ? e.message : "Failed." };
   }
 }
+
+
+/** 1-Tap instant room clean action for glanceable wallboards and mobile HK */
+export async function quickMarkRoomClean(roomId: string): Promise<OpsState> {
+  try {
+    await requireDesk();
+    const admin = createSupabaseAdminClient();
+    const propertyId = await resolveActivePropertyId(admin);
+    const now = new Date().toISOString();
+    const today = thimphuToday();
+
+    // 1. Update room unit
+    const { error: roomError } = await admin
+      .from("room_units")
+      .update({
+        hk_status: "clean",
+        service_requested_at: null,
+        updated_at: now,
+      })
+      .eq("id", roomId)
+      .eq("property_id", propertyId);
+
+    if (roomError) throw new Error(roomError.message);
+
+    // 2. Mark any open assignment complete
+    await admin
+      .from("hk_assignments")
+      .update({
+        status: "done",
+        completed_at: now,
+      })
+      .eq("property_id", propertyId)
+      .eq("room_unit_id", roomId)
+      .eq("business_date", today)
+      .in("status", ["open", "in_progress"]);
+
+    revalidateHk();
+    return { ok: true, message: "Room marked clean." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed to mark room clean." };
+  }
+}

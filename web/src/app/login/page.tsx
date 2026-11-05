@@ -1,89 +1,58 @@
 import { getAgentSession } from "@/lib/agent-auth";
 import { isDeskAuthenticated } from "@/lib/desk-auth";
-import { BRAND_ICONS } from "@/lib/brand";
 import { getStaffSession } from "@/lib/staff-auth";
 import { SITE_NAME } from "@/lib/site";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { UnifiedLoginHub } from "@/components/auth/UnifiedLoginHub";
 
 export const metadata: Metadata = {
-  title: "Login",
-  description: "Choose hotel desk or travel agent portal.",
+  title: `Unified Sign In · ${SITE_NAME}`,
+  description: "Select hotel front desk, restaurant till POS, travel agent portal, or staff HR.",
   robots: { index: false, follow: false },
 };
 
-/** Chooser: hotel desk (eZee) vs travel agents. */
-export default async function LoginHubPage() {
-  if (await isDeskAuthenticated()) redirect("/erp");
+export default async function LoginHubPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ switch?: string; role?: string }>;
+}) {
+  const params = searchParams ? await searchParams : {};
+  const isSwitchMode = params.switch === "1";
+
+  const isDesk = await isDeskAuthenticated();
   const staff = await getStaffSession();
-  if (staff) redirect(staff.canAccessDesk ? "/erp" : "/staff");
-  if (await getAgentSession()) redirect("/agents/app");
+  const agent = await getAgentSession();
+
+  // If a role is requested directly via query param, jump straight to it
+  if (params.role === "desk") redirect("/erp/login");
+  if (params.role === "pos") redirect("/erp/pos/login");
+  if (params.role === "agent") redirect("/agents/login");
+  if (params.role === "staff") redirect("/staff/login");
+  if (params.role === "admin") redirect("/admin/login");
+
+  // If already authenticated and not in switch mode, allow resuming or redirect
+  // If user explicitly asked to switch, show the Hub with the active session banner
+  if (!isSwitchMode) {
+    // If only one session exists and no explicit switch intent, seamless redirect can still happen,
+    // but presenting the unified hub gives instant flexibility. Let's make it intuitive:
+    // If you're on desk, redirect to /erp only if no query params at all.
+    // However, if the user explicitly typed /login, showing the Hub with "Resume Workspace" is 10x better UX!
+  }
+
+  const activeSessionSummary = {
+    isDesk,
+    staffName: staff?.fullName ?? null,
+    department: staff?.department ?? null,
+    canAccessDesk: staff?.canAccessDesk ?? false,
+    agentName: agent?.companyName ?? null,
+    agentCode: agent?.loginCode ?? null,
+  };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-6 py-16">
-      <div className="w-full max-w-md space-y-8">
-        <div className="space-y-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={BRAND_ICONS.mark}
-            alt={SITE_NAME}
-            className="h-12 w-12 object-contain"
-            width={48}
-            height={48}
-          />
-          <p className="text-xs font-semibold tracking-[0.2em] text-accent uppercase">
-            {SITE_NAME}
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
-          <p className="text-sm text-muted-foreground">
-            Hotel staff and travel agents use different portals.
-          </p>
-        </div>
-
-        <div className="grid gap-3">
-          <Link
-            href="/erp/pos/login"
-            className="rounded-xl border border-border bg-card px-5 py-4 transition hover:border-primary/40 hover:bg-muted/40"
-          >
-            <p className="font-semibold text-foreground">POS</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              User ID and password open the register. Install it on the till.
-            </p>
-          </Link>
-          <Link
-            href="/erp/login"
-            className="rounded-xl border border-border bg-card px-5 py-4 transition hover:border-primary/40 hover:bg-muted/40"
-          >
-            <p className="font-semibold text-foreground">Hotel desk</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Hotel code and password, then your name and your own PIN
-            </p>
-          </Link>
-          <Link
-            href="/agents/login"
-            className="rounded-xl border border-border bg-card px-5 py-4 transition hover:border-primary/40 hover:bg-muted/40"
-          >
-            <p className="font-semibold text-foreground">Travel agent</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Agent code + PIN — one login for every hotel that linked you
-            </p>
-          </Link>
-          <Link
-            href="/staff/login"
-            className="rounded-xl border border-dashed border-border px-5 py-3 text-sm text-muted-foreground transition hover:text-foreground"
-          >
-            Staff HR portal →
-          </Link>
-        </div>
-
-        <Link
-          href="/"
-          className="block text-center text-sm text-muted-foreground underline-offset-4 hover:underline"
-        >
-          ← Back to {SITE_NAME}
-        </Link>
-      </div>
-    </main>
+    <UnifiedLoginHub
+      activeSession={activeSessionSummary}
+      isSwitchMode={isSwitchMode}
+    />
   );
 }

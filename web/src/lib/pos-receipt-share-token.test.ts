@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import {
   createPosReceiptShareToken,
   parsePosReceiptShareToken,
@@ -16,9 +17,9 @@ describe("pos receipt share token", () => {
       secret,
     );
     const parsed = parsePosReceiptShareToken(token, Date.now(), secret);
-    expect(parsed?.orderId).toBe("order-uuid-1");
-    expect(parsed?.propertyId).toBe("prop-uuid-1");
-    expect(parsed?.exp).toBeGreaterThan(Date.now());
+    assert.equal(parsed?.orderId, "order-uuid-1");
+    assert.equal(parsed?.propertyId, "prop-uuid-1");
+    assert.ok((parsed?.exp ?? 0) > Date.now());
   });
 
   it("rejects tampered tokens", () => {
@@ -28,7 +29,7 @@ describe("pos receipt share token", () => {
       Date.now(),
       secret,
     );
-    expect(parsePosReceiptShareToken(`${token}x`, Date.now(), secret)).toBeNull();
+    assert.equal(parsePosReceiptShareToken(`${token}x`, Date.now(), secret), null);
   });
 
   it("rejects expired tokens", () => {
@@ -42,8 +43,9 @@ describe("pos receipt share token", () => {
       .toString("base64url")
       .replace(/=+$/, "");
     const sig = createHmac("sha256", secret).update(payload).digest("base64url");
-    expect(
+    assert.equal(
       parsePosReceiptShareToken(`${payload}.${sig}`, now, secret),
-    ).toBeNull();
+      null,
+    );
   });
 });

@@ -1,3 +1,5 @@
+import { cn } from "@/lib/utils";
+import { Calendar, Download, Printer, Receipt, Users } from "lucide-react";
 import type { BookingRow } from "@/components/erp/BookingsTable";
 import { NewReservationLauncher } from "@/components/erp/NewReservationLauncher";
 import { ReservationsListCacheBridge } from "@/components/erp/ReservationsListCacheBridge";
@@ -184,7 +186,7 @@ export default async function ReservationsPage({
     property
       ? admin
           .from("room_units")
-          .select("id, label, room_type_id, hk_status")
+          .select("id, label, room_type_id, hk_status, room_types(inventory_kind)")
           .eq("property_id", property.id)
           .in("hk_status", ["clean", "inspect", "dirty", "occupied"])
           .order("label")
@@ -458,12 +460,17 @@ export default async function ReservationsPage({
       employee_code: (s.employee_code as string | null) ?? null,
       role_label: (s.role_label as string | null) ?? null,
     })),
-    cleanUnits: (cleanUnits ?? []).map((u) => ({
-      id: u.id as string,
-      label: (u.label as string) || "—",
-      roomTypeId: u.room_type_id as string,
-      hkStatus: (u.hk_status as string) || "clean",
-    })),
+    cleanUnits: (cleanUnits ?? [])
+      .filter((u) => {
+        const rt = Array.isArray(u.room_types) ? u.room_types[0] : u.room_types;
+        return (rt?.inventory_kind ?? "sellable_guest") === "sellable_guest";
+      })
+      .map((u) => ({
+        id: u.id as string,
+        label: (u.label as string) || "—",
+        roomTypeId: u.room_type_id as string,
+        hkStatus: (u.hk_status as string) || "clean",
+      })),
     defaultSoldByStaffId:
       staffSession && staffSession.propertyId === propertyId
         ? staffSession.staffId
@@ -560,33 +567,88 @@ export default async function ReservationsPage({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-wrap items-center gap-2 border-b px-3 py-1.5">
-        <h1 className="text-sm font-semibold">Reservations</h1>
-        {views.map(([id, label, href]) => (
+      {/* 3D GLASS SPECULAR CANOPY HEADER */}
+      <div className="p-3 sm:p-4 border-b border-border/40 bg-gradient-to-b from-card/80 to-card/40 backdrop-blur-2xl flex flex-col xl:flex-row xl:items-center justify-between gap-3 shadow-sm">
+        {/* LEFT: TITLE & LIVE BADGE */}
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-xl bg-primary/10 text-primary border border-primary/20 shadow-inner">
+            <Calendar className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-base font-black tracking-tight text-foreground flex items-center gap-2">
+              <span>Reservations Desk</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-muted text-muted-foreground border border-border/50">
+                {deskRows.length} Stays
+              </span>
+            </h1>
+            <p className="text-[11px] text-muted-foreground">
+              Master arrivals, departures, in-house stays, and tour operator allocations.
+            </p>
+          </div>
+        </div>
+
+        {/* MIDDLE: 3D GLASS SEGMENT NAVIGATION CHANNEL */}
+        <div
+          className="flex items-center gap-1 p-1 rounded-2xl bg-muted/40 border border-white/10 shadow-inner overflow-x-auto no-scrollbar"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+        >
+          {views.map(([id, label, href]) => {
+            const isActive = view === id;
+            return (
+              <a
+                key={id}
+                href={href}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap",
+                  isActive
+                    ? "bg-background text-foreground shadow-sm shadow-black/10 border border-border/60"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                )}
+              >
+                {id === "in_house" && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
+                {id === "arrivals" && <span className="w-2 h-2 rounded-full bg-sky-500" />}
+                {id === "departures" && <span className="w-2 h-2 rounded-full bg-amber-500" />}
+                <span>{label}</span>
+              </a>
+            );
+          })}
+        </div>
+
+        {/* RIGHT: TACTILE TOOLS & 3D LAUNCH BUTTON */}
+        <div className="flex items-center gap-2 shrink-0">
           <a
-            key={id}
-            href={href}
-            className={
-              view === id
-                ? "inline-flex h-8 items-center rounded-md bg-primary px-2.5 text-sm text-primary-foreground"
-                : "inline-flex h-8 items-center rounded-md px-2.5 text-sm text-muted-foreground hover:bg-muted"
-            }
+            href="/erp/day#bills"
+            className="h-10 px-3 rounded-xl border border-border/60 bg-background text-xs font-bold text-foreground hover:bg-muted flex items-center gap-1.5 shadow-sm transition-all"
+            title="Bills to print"
           >
-            {label}
+            <Receipt className="w-3.5 h-3.5 text-indigo-500" />
+            <span className="hidden sm:inline">Bills to Print</span>
           </a>
-        ))}
-        <a href="/erp/day#bills" className="inline-flex h-8 items-center rounded-md border px-2.5 text-sm font-medium">
-          Bills to print
-        </a>
-        <a href={exportHref} className="inline-flex h-8 items-center rounded-md border px-2.5 text-sm">
-          Export
-        </a>
-        <a href={printHref} target="_blank" rel="noreferrer" className="inline-flex h-8 items-center rounded-md border px-2.5 text-sm">
-          Print
-        </a>
-        <Suspense fallback={null}>
-          <NewReservationLauncher form={fastBookForm} />
-        </Suspense>
+
+          <a
+            href={exportHref}
+            className="h-10 px-3 rounded-xl border border-border/60 bg-background text-xs font-bold text-foreground hover:bg-muted flex items-center gap-1.5 shadow-sm transition-all"
+            title="Export CSV"
+          >
+            <Download className="w-3.5 h-3.5 text-blue-500" />
+            <span className="hidden sm:inline">Export</span>
+          </a>
+
+          <a
+            href={printHref}
+            target="_blank"
+            rel="noreferrer"
+            className="h-10 px-3 rounded-xl border border-border/60 bg-background text-xs font-bold text-foreground hover:bg-muted flex items-center gap-1.5 shadow-sm transition-all"
+            title="Print Schedule"
+          >
+            <Printer className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="hidden sm:inline">Print</span>
+          </a>
+
+          <Suspense fallback={null}>
+            <NewReservationLauncher form={fastBookForm} />
+          </Suspense>
+        </div>
       </div>
       <div className="border-b px-3 py-1">
         <OccupancyRange

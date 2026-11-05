@@ -24,6 +24,7 @@ import {
   TagsIcon,
   MessageSquareIcon,
   ZapIcon,
+  Building2Icon,
   type LucideIcon,
 } from "lucide-react";
 
@@ -143,6 +144,7 @@ export const ERP_NAV_KEYWORDS: Record<string, string[]> = {
     "agent frequency",
     "ta production",
   ],
+  "/erp/agents/dossier": ["dossier", "agent dossier", "agent statement", "credit limit", "ledger"],
   "/erp/agents": ["agent", "dmc", "tour operator", "b2b"],
   "/erp/agents/confirmed": ["confirmed", "call list", "phone list"],
   "/erp/agents/call-tasks": ["call task", "callback", "phone task"],
@@ -374,7 +376,8 @@ export const ERP_MODULES: ErpModule[] = [
     icon: TruckIcon,
     href: "/erp/agents",
     tabs: [
-      leaf("Agents", "/erp/agents", UsersIcon),
+      leaf("Universal Dossier", "/erp/agents/dossier", Building2Icon, ["dossier", "b2b", "ledger"], "daily"),
+      leaf("Agents Directory", "/erp/agents", UsersIcon),
       leaf("Confirmed call list", "/erp/agents/confirmed", PhoneIcon),
       leaf("Agent call tasks", "/erp/agents/call-tasks", PhoneIcon),
       leaf("Rate downloads", "/erp/agents/rate-downloads", ReceiptTextIcon),

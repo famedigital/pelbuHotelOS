@@ -2,7 +2,7 @@
  *  Do not import next/headers or Supabase admin here. */
 
 /** Business date YYYY-MM-DD in an IANA timezone (falls back to Asia/Thimphu). */
-export function todayInTimezone(timeZone?: string | null): string {
+export function todayInTimezone(timeZone?: string | null, date: Date = new Date()): string {
   const tz = timeZone?.trim() || "Asia/Thimphu";
   try {
     return new Intl.DateTimeFormat("en-CA", {
@@ -10,14 +10,14 @@ export function todayInTimezone(timeZone?: string | null): string {
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
-    }).format(new Date());
+    }).format(date);
   } catch {
     return new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Thimphu",
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
-    }).format(new Date());
+    }).format(date);
   }
 }
 

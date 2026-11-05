@@ -50,9 +50,12 @@ export async function startFolioEditSession(input: {
   const pin = (input.pin ?? "").trim();
   let actor = role ? `desk:${role}` : "desk";
 
-  if (isManagerDeskRole(role) && !pin) {
+  if (isManagerDeskRole(role)) {
     actor = `desk:${role}`;
   } else {
+    if (!pin) {
+      return { ok: false, error: "Manager PIN is required for front desk adjustments." };
+    }
     const verified = await verifyManagerPinForProperty(
       input.admin,
       input.propertyId,

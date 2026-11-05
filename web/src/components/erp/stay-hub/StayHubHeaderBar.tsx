@@ -50,7 +50,7 @@ export function StayHubHeaderBar({
                 : "border border-[color:var(--color-coral)]/45 bg-[color:var(--color-coral)]/12 text-[color:var(--color-coral)]",
             )}
           >
-            {clear ? "BTN 0.00" : formatGuestBtn(balanceBtn)}
+            {clear ? "Nu. 0.00" : `Nu. ${formatGuestBtn(balanceBtn)}`}
           </span>
         ) : null}
       </div>

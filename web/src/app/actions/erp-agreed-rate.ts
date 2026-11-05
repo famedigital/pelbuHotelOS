@@ -32,14 +32,30 @@ export async function setAgreedNightlyRate(
     const admin = createSupabaseAdminClient();
     const propertyId = await requireDeskPropertyId();
     const bookingId = trimRequired(formData.get("booking_id"), "Booking");
-    const pin = trimRequired(formData.get("manager_pin"), "Manager PIN");
     const clear = formData.get("clear") === "1";
     const reason = optionalTrim(formData.get("reason"));
     const adjustPosted = formData.get("adjust_posted") !== "0";
 
-    const verified = await verifyManagerPinForProperty(admin, propertyId, pin);
-    if (!verified.ok) {
-      return { ok: false, error: verified.error };
+    const { getDeskRole } = await import("@/lib/desk-auth");
+    const { isManagerDeskRole } = await import("@/lib/manager-pin-core");
+    const sessionRole = await getDeskRole();
+    const isManager = isManagerDeskRole(sessionRole);
+
+    let approvedBy = isManager ? `desk:${sessionRole ?? "gm"}` : "env_manager_pin";
+
+    if (!isManager) {
+      const pin = optionalTrim(formData.get("manager_pin"));
+      if (!pin) {
+        return { ok: false, error: "Manager PIN is required for front desk adjustments." };
+      }
+      const verified = await verifyManagerPinForProperty(admin, propertyId, pin);
+      if (!verified.ok) {
+        return { ok: false, error: verified.error };
+      }
+      approvedBy =
+        verified.source === "staff"
+          ? `staff:${verified.staffId}:${verified.fullName}`
+          : "env_manager_pin";
     }
 
     const { data: booking, error: loadErr } = await admin
@@ -73,10 +89,7 @@ export async function setAgreedNightlyRate(
       }
     }
 
-    const approvedBy =
-      verified.source === "staff"
-        ? `staff:${verified.staffId}:${verified.fullName}`
-        : "env_manager_pin";
+    // approvedBy already set above based on admin/manager vs PIN verification
 
     const taxModeRaw = optionalTrim(formData.get("rate_tax_mode"));
     const taxMode =

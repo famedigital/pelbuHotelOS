@@ -51,22 +51,25 @@ function boardFor(view: ReservationView) {
 
 function StatusPill({ value }: { value: string | null }) {
   if (!value) return null;
-  const tone =
-    value === "checked_in"
-      ? "border-mint-500/30 bg-mint-100 text-mint-600"
-      : value === "confirmed"
-        ? "border-sky-300 bg-sky-100 text-sky-700"
-        : value === "held" || value === "pending"
-          ? "border-citrus/40 bg-citrus-tint text-citrus-600"
-          : "border-border bg-muted text-muted-foreground";
+  const isCheckedIn = value === "checked_in";
+  const isConfirmed = value === "confirmed";
+  const isPending = value === "held" || value === "pending";
+
   return (
     <span
       className={cn(
-        "inline-flex rounded-md border px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap",
-        tone,
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider border shadow-sm whitespace-nowrap",
+        isCheckedIn
+          ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 shadow-emerald-500/10"
+          : isConfirmed
+          ? "bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30 shadow-sky-500/10"
+          : isPending
+          ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 shadow-amber-500/10"
+          : "bg-zinc-500/15 text-zinc-700 dark:text-zinc-300 border-zinc-500/30"
       )}
     >
-      {value.replace(/_/g, " ")}
+      {isCheckedIn && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+      <span>{value.replace(/_/g, " ")}</span>
     </span>
   );
 }

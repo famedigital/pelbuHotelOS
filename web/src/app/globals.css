@@ -612,8 +612,27 @@ html .fo-command .erp {
 @media (min-width: 768px) {
   .stay-hub-dock {
     left: auto;
-    width: var(--stay-dock-width, 48rem);
+    width: var(--stay-dock-width, 64rem);
+    max-width: 96vw;
   }
+}
+
+@media (min-width: 1280px) {
+  .stay-hub-dock {
+    width: var(--stay-dock-width, 74rem);
+  }
+}
+
+@media (min-width: 1536px) {
+  .stay-hub-dock {
+    width: var(--stay-dock-width, 82rem);
+  }
+}
+
+.stay-hub-dock.stay-hub-expanded,
+.stay-hub-dock[data-expanded="true"] {
+  width: 95vw !important;
+  max-width: 1400px !important;
 }
 
 @media (max-width: 767px) {
@@ -2115,4 +2134,222 @@ html[data-desk-print] #desk-print-mount {
   .erp [data-slot="button"][data-variant="citrus"]:active {
     transform: none !important;
   }
+}
+
+
+/* =========================================================================
+   SOVEREIGN GLASS & 0-LATENCY MASTER SYSTEM (ECCD & Atheros Benchmark)
+   Authoritative Reference: C:\GitHub\POS\docs\MASTER-DESIGN-SYSTEM.md
+   ========================================================================= */
+
+:root {
+  /* Bhutan Sovereign Jewel Palette */
+  --sovereign-pine: #1a4332;
+  --sovereign-pine-light: #2d6a4f;
+  --sovereign-saffron: #d97706;
+  --sovereign-saffron-light: #f59e0b;
+
+  /* Specular Glass Values (Light: Frosted Ceramic) */
+  --sovereign-glass-bg: rgba(255, 255, 255, 0.78);
+  --sovereign-glass-blur: 24px;
+  --sovereign-specular-t: rgba(255, 255, 255, 0.90);
+  --sovereign-specular-b: rgba(0, 0, 0, 0.08);
+  --sovereign-specular-side: rgba(255, 255, 255, 0.60);
+  --sovereign-shadow: 0 12px 40px rgba(0, 0, 0, 0.06), inset 0 1px 1px #ffffff;
+}
+
+.dark,
+[data-theme="dark"] {
+  /* Specular Glass Values (Dark: Smoked Obsidian) */
+  --sovereign-glass-bg: rgba(9, 9, 11, 0.75);
+  --sovereign-specular-t: rgba(255, 255, 255, 0.22);
+  --sovereign-specular-b: rgba(0, 0, 0, 0.35);
+  --sovereign-specular-side: rgba(255, 255, 255, 0.08);
+  --sovereign-shadow: 0 16px 50px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+}
+
+/* Master Sovereign Specular Glass Card */
+.sovereign-glass {
+  background: var(--sovereign-glass-bg);
+  backdrop-filter: blur(var(--sovereign-glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--sovereign-glass-blur)) saturate(180%);
+  border-top: 1px solid var(--sovereign-specular-t);
+  border-bottom: 1px solid var(--sovereign-specular-b);
+  border-left: 1px solid var(--sovereign-specular-side);
+  border-right: 1px solid var(--sovereign-specular-side);
+  box-shadow: var(--sovereign-shadow);
+  border-radius: 1.25rem;
+  transform: translateZ(0);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+}
+
+.sovereign-glass:hover {
+  transform: translateY(-2px) translateZ(0);
+}
+
+/* Dense Pine Spreadsheet Row Standards */
+.sovereign-table-row {
+  transition: background-color 0.12s ease, transform 0.12s ease;
+}
+.sovereign-table-row:hover {
+  background: rgba(26, 67, 50, 0.04);
+}
+.dark .sovereign-table-row:hover {
+  background: rgba(45, 106, 79, 0.12);
+}
+
+/* Tabular Numerals Guarantee (Linear & Stripe Standard) */
+.tabular-stat {
+  font-family: var(--font-mono, monospace);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+
+/* ─── Sovereign Glass Toast System (Atheros 3D + DesignMotion) ─── */
+.sovereign-toast {
+  box-shadow:
+    0 20px 45px -12px rgba(0, 0, 0, 0.18),
+    inset 0 1px 1px rgba(255, 255, 255, 0.85),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.05);
+}
+
+.dark .sovereign-toast,
+[data-theme="dark"] .sovereign-toast {
+  box-shadow:
+    0 24px 55px -12px rgba(0, 0, 0, 0.75),
+    inset 0 1px 1px rgba(255, 255, 255, 0.18),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.4);
+}
+
+/* 1px Specular Top Edge */
+.sovereign-toast::before {
+  content: "";
+  position: absolute;
+  inset-x: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95) 50%, transparent);
+  pointer-events: none;
+}
+
+.dark .sovereign-toast::before,
+[data-theme="dark"] .sovereign-toast::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3) 50%, transparent);
+}
+
+/* Micro-sheen reflection animation on entry */
+@keyframes toast-sheen {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.sovereign-toast::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    transparent 40%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 60%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: toast-sheen 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: none;
+}
+
+
+/* ─── 3D Atheros Specular Top Chrome ─────────────────────────────── */
+.glass-top-chrome {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.04);
+}
+
+.dark .glass-top-chrome,
+[data-theme="dark"] .glass-top-chrome {
+  background: rgba(9, 9, 11, 0.82);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+}
+
+/* ─── 3D Atheros Specular Side Rail ─────────────────────────────── */
+.glass-side-rail {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border-right: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 4px 0 30px rgba(0, 0, 0, 0.03);
+}
+
+.dark .glass-side-rail,
+[data-theme="dark"] .glass-side-rail {
+  background: rgba(9, 9, 11, 0.75);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 4px 0 30px rgba(0, 0, 0, 0.5);
+}
+
+/* ─── 3D Floating Glass Nav Pill ────────────────────────────────── */
+.glass-nav-pill {
+  position: relative;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 4px 14px -2px rgba(0, 0, 0, 0.08),
+    inset 0 1px 1px #fff;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark .glass-nav-pill,
+[data-theme="dark"] .glass-nav-pill {
+  background: rgba(24, 24, 27, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 4px 18px -2px rgba(0, 0, 0, 0.6),
+    inset 0 1px 1px rgba(255, 255, 255, 0.12);
+}
+
+/* ─── Enterprise 3D Glass Table Container ────────────────────────── */
+.glass-happy-table-container {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 1.25rem;
+  box-shadow:
+    0 16px 40px -12px rgba(0, 0, 0, 0.08),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9);
+}
+
+.dark .glass-happy-table-container,
+[data-theme="dark"] .glass-happy-table-container {
+  background: rgba(9, 9, 11, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 20px 50px -12px rgba(0, 0, 0, 0.6),
+    inset 0 1px 1px rgba(255, 255, 255, 0.12);
+}
+
+
+/* ─── No Scrollbar Utility ────────────────────────────────────────── */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
 }

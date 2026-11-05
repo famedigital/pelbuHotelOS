@@ -59,7 +59,7 @@ export function StayHubMobileDrawer({
       <button
         type="button"
         aria-label="Close stay"
-        className="fixed inset-0 z-[79] bg-black/45 md:hidden"
+        className="fixed inset-0 z-[79] bg-black/45 backdrop-blur-md md:hidden animate-in fade-in duration-200"
         onClick={onClose}
       />
       <aside

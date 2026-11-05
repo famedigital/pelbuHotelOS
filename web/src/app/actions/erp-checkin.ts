@@ -497,6 +497,53 @@ export async function confirmCheckIn(
       }
     }
 
+    // Safety check: ensure booking_rooms has demand lines for every unit in roomUnitIds
+    // so desk_apply_check_in_rooms never throws 'Too many rooms of type'
+    const { data: unitsToAssign } = await admin
+      .from("room_units")
+      .select("id, room_type_id, room_types(inventory_kind)")
+      .in("id", roomUnitIds);
+
+    const { data: currentBookingRooms } = await admin
+      .from("booking_rooms")
+      .select("id, room_type_id, inventory_kind, qty")
+      .eq("booking_id", bookingId);
+
+    const demandMap = new Map<string, number>();
+    for (const r of currentBookingRooms ?? []) {
+      const key = `${r.room_type_id}:${r.inventory_kind}`;
+      demandMap.set(key, (demandMap.get(key) ?? 0) + Number(r.qty ?? 0));
+    }
+
+    for (const u of unitsToAssign ?? []) {
+      const rt = Array.isArray(u.room_types) ? u.room_types[0] : u.room_types;
+      const kind = (rt?.inventory_kind as string) ?? "sellable_guest";
+      const key = `${u.room_type_id}:${kind}`;
+      const needed = demandMap.get(key) ?? 0;
+      if (needed <= 0) {
+        // If there's an unmatched guest line, adapt it to this room_type_id
+        const guestLine = (currentBookingRooms ?? []).find(
+          (r) => r.inventory_kind === "sellable_guest"
+        );
+        if (guestLine && kind === "sellable_guest") {
+          await admin
+            .from("booking_rooms")
+            .update({ room_type_id: u.room_type_id })
+            .eq("id", guestLine.id);
+          demandMap.set(key, 1);
+        } else {
+          // Insert a line so the RPC demand is satisfied
+          await admin.from("booking_rooms").insert({
+            booking_id: bookingId,
+            room_type_id: u.room_type_id,
+            inventory_kind: kind,
+            qty: 1,
+          });
+          demandMap.set(key, 1);
+        }
+      }
+    }
+
     const { error: roomsError } = await admin.rpc("desk_apply_check_in_rooms", {
       p_property_id: property_id,
       p_booking_id: bookingId,
@@ -1391,5 +1438,156 @@ export async function saveSignedRegCard(
       error:
         err instanceof Error ? err.message : "Could not save registration scan.",
     };
+  }
+}
+
+
+/** 1-Tap Instant Check-In for Front Desk arrivals */
+export async function fastOneTapCheckIn(
+  bookingId: string
+): Promise<{ ok: boolean; roomLabel?: string; error?: string }> {
+  try {
+    await requireDesk();
+    const admin = createSupabaseAdminClient();
+    const property_id = await propertyId(admin);
+
+    // 1. Fetch booking with room assignments
+    const { data: booking, error: bErr } = await admin
+      .from("bookings")
+      .select(`
+        id, status, contact_name, payment_mode, guide_number, check_in, check_out,
+        booking_rooms (id, room_type_id, inventory_kind, qty),
+        room_assignments (
+          id,
+          room_unit_id,
+          room_units (id, label, room_type_id, room_types (name, code, inventory_kind))
+        )
+      `)
+      .eq("id", bookingId)
+      .eq("property_id", property_id)
+      .single();
+
+    if (bErr || !booking) throw new Error("Booking not found.");
+    if (booking.status === "checked_in") return { ok: true, roomLabel: "Already Checked In" };
+
+    const checkIn = String(booking.check_in ?? "").slice(0, 10);
+    const checkOut = String(booking.check_out ?? "").slice(0, 10);
+
+    const bookingRooms = (booking.booking_rooms as Array<{
+      id: string;
+      room_type_id: string;
+      inventory_kind: string;
+      qty: number;
+    }>) ?? [];
+
+    const bookedTypeId = bookingRooms.find((r) => r.inventory_kind === "sellable_guest")?.room_type_id;
+
+    // 2. Check or auto-assign room
+    let assignedRoomId: string | undefined;
+    let assignedRoomLabel = "Room Assigned";
+
+    const assignments = booking.room_assignments as Array<{
+      id: string;
+      room_unit_id?: string | null;
+      room_units?: {
+        id?: string;
+        label?: string;
+        room_type_id?: string;
+        room_types?: { name?: string; code?: string; inventory_kind?: string } | Array<{ name?: string; code?: string; inventory_kind?: string }> | null;
+      } | null;
+    }> | null;
+
+    const currentAssign = assignments?.[0];
+    const rawUnit = currentAssign?.room_units;
+    const currentUnit = Array.isArray(rawUnit) ? rawUnit[0] : rawUnit;
+    const rawRt = currentUnit?.room_types;
+    const currentRt = Array.isArray(rawRt) ? rawRt[0] : rawRt;
+    const currentKind = currentRt?.inventory_kind ?? "sellable_guest";
+
+    // If assigned unit is guide_comp or driver_comp for a guest booking, it's invalid!
+    const isCompRoom = currentKind === "guide_comp" || currentKind === "driver_comp";
+    const currentUnitValid = Boolean(currentAssign?.room_unit_id && !isCompRoom);
+
+    if (currentUnitValid && currentAssign?.room_unit_id) {
+      assignedRoomId = currentAssign.room_unit_id;
+      if (currentUnit?.label) assignedRoomLabel = `Room ${currentUnit.label}`;
+    } else {
+      // Pick first clean available SELLABLE GUEST room
+      const { data: busy } = await admin
+        .from("room_assignments")
+        .select("room_unit_id")
+        .eq("property_id", property_id)
+        .neq("booking_id", bookingId)
+        .lt("from_date", checkOut)
+        .gt("to_date", checkIn);
+
+      const busySet = new Set((busy ?? []).map((b) => b.room_unit_id));
+
+      const { data: availableUnits } = await admin
+        .from("room_units")
+        .select("id, label, hk_status, room_type_id, room_types(inventory_kind)")
+        .eq("property_id", property_id)
+        .order("label");
+
+      const guestUnits = (availableUnits ?? []).filter((u) => {
+        const rt = Array.isArray(u.room_types) ? u.room_types[0] : u.room_types;
+        return (rt?.inventory_kind ?? "sellable_guest") === "sellable_guest" && !busySet.has(u.id);
+      });
+
+      const matchingClean = guestUnits.find((u) => u.room_type_id === bookedTypeId && (u.hk_status === "clean" || u.hk_status === "inspect"));
+      const matchingAny = guestUnits.find((u) => u.room_type_id === bookedTypeId);
+      const cleanAny = guestUnits.find((u) => u.hk_status === "clean" || u.hk_status === "inspect");
+      const chosenUnit = matchingClean || matchingAny || cleanAny || guestUnits[0];
+
+      if (chosenUnit) {
+        assignedRoomId = chosenUnit.id;
+        assignedRoomLabel = `Room ${chosenUnit.label}`;
+
+        if (currentAssign?.id) {
+          await admin
+            .from("room_assignments")
+            .update({ room_unit_id: assignedRoomId, from_date: checkIn, to_date: checkOut })
+            .eq("id", currentAssign.id);
+        } else {
+          await admin.from("room_assignments").insert({
+            booking_id: bookingId,
+            property_id: property_id,
+            room_unit_id: assignedRoomId,
+            from_date: checkIn,
+            to_date: checkOut,
+          });
+        }
+      } else if (currentAssign?.room_unit_id) {
+        // Fallback: keep current unit
+        assignedRoomId = currentAssign.room_unit_id;
+        if (currentUnit?.label) assignedRoomLabel = `Room ${currentUnit.label}`;
+      } else {
+        throw new Error("No rooms available to assign.");
+      }
+    }
+
+    // 3. Confirm check-in
+    const form = new FormData();
+    form.set("booking_id", bookingId);
+    const mode = String(booking.payment_mode ?? "cash");
+    form.set("payment_mode", PAYMENT_MODES.has(mode) ? mode : "cash");
+    form.set("guide_number", (booking.guide_number as string | null)?.trim() || "DEFERRED");
+    form.set("docs_deferred", "true");
+    form.set("allow_dirty_rooms", "on");
+    form.set("guest_name", (booking.contact_name as string | null)?.trim() || "Guest");
+    form.set("guest_passport_or_cid", "DEFERRED");
+    form.set("guest_nationality", "Deferred");
+    if (!assignedRoomId) throw new Error("No room unit assigned.");
+    form.append("room_unit_id", assignedRoomId);
+
+    const result = await confirmCheckIn({ ok: false }, form);
+    if (!result.ok) {
+      throw new Error(result.error || "Check-in failed.");
+    }
+
+    revalidateCheckIn(result.folioId);
+    return { ok: true, roomLabel: assignedRoomLabel };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed to 1-tap check in." };
   }
 }

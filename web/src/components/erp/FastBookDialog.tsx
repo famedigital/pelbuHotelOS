@@ -13,6 +13,7 @@ import type { DeskBookIntent } from "@/app/actions/fast-book";
 import { invalidateDeskCachesAfterBooking } from "@/lib/desk/desk-read-cache";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
+import { SmartFastBookingModal } from "@/components/erp/reservations/SmartFastBookingModal";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -96,6 +97,27 @@ export function FastBookDialog({
       router.refresh();
     }
   };
+
+  const [useAdvanced, setUseAdvanced] = useState(false);
+
+  if (!useAdvanced) {
+    return (
+      <SmartFastBookingModal
+        open={open}
+        onOpenChange={onOpenChange}
+        roomTypes={formProps.roomTypes}
+        agents={formProps.agents}
+        cleanUnits={formProps.cleanUnits}
+        mealPlans={formProps.mealPlans}
+        property={formProps.property}
+        defaults={formProps.defaults}
+        onSuccess={(bookingId, intent) => {
+          openStayHub(bookingId, intent);
+        }}
+        onSwitchToAdvanced={() => setUseAdvanced(true)}
+      />
+    );
+  }
 
   return (
     <Dialog

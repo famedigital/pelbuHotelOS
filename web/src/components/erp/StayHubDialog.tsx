@@ -45,6 +45,7 @@ import { StayHubCashierDock } from "@/components/erp/stay-hub/StayHubCashierDock
 import { StayHub3DShell } from "@/components/erp/stay-hub/StayHub3DShell";
 import { StayHubHeaderBar } from "@/components/erp/stay-hub/StayHubHeaderBar";
 import { StayHubDualLedger } from "@/components/erp/stay-hub/StayHubDualLedger";
+import { SmartStayHubPanel } from "@/components/erp/stay-hub/SmartStayHubPanel";
 import { StayFolioSheet } from "@/components/erp/stay-hub/StayFolioSheet";
 import {
   defaultCheckInToolTab,
@@ -601,6 +602,8 @@ export function StayHubDialog({
   const [splitUnitId, setSplitUnitId] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [panel, setPanel] = useState<StayHubStepId>("reserve");
+  const [useSmartMode, setUseSmartMode] = useState(true);
+  const [isStayHubExpanded, setIsStayHubExpanded] = useState(false);
   const [cancelReservationOpen, setCancelReservationOpen] = useState(false);
   const [folioTool, setFolioTool] = useState<FolioToolTab>("bill");
   const [detailsTool, setDetailsTool] = useState<DetailsToolTab>("guest");
@@ -2798,6 +2801,7 @@ export function StayHubDialog({
           title={`Guest stay · ${titleName}`}
           onClose={closePanel}
           boardDock={boardDock}
+          className={cn(isStayHubExpanded && "stay-hub-expanded")}
           balanceBtn={balanceOpen ? dues : money?.guestVisibleBalanceBtn ?? null}
           stickyActions={
             summary?.status === "checked_in" ? (
@@ -2832,43 +2836,59 @@ export function StayHubDialog({
               : undefined
           }
         >
-          {/* Mobile compact identity — desktop lives in left rail */}
-          <StayHubHeaderBar
-            vip={Boolean(summary?.agentName)}
-            balanceBtn={balanceOpen ? dues : money?.guestVisibleBalanceBtn ?? null}
-            identity={{
-              guestName: titleName,
-              status: summary?.status,
-              roomLabel: summary?.roomLabel,
-              roomTypeName: summary?.roomTypeName,
-              checkIn: summary?.checkIn,
-              checkOut: summary?.checkOut,
-              bookingId: summary?.bookingId,
-              confirmationCode: summary?.confirmationCode,
-              agentName: summary?.agentName,
-              paymentMode: summary?.paymentMode,
-              alerts: headerAlerts,
-              terminal,
-              saveStatus,
-              lockHint: railLockHint,
-              onForceLock: railLockHint
-                ? () => {
-                    void forceTakeover(
-                      "Manager forced stay lease from StayHub",
-                    ).then((r) => {
-                      if (r.ok) toast.success(r.message ?? "Stay taken over");
-                      else toast.error(r.error ?? "Take-over failed");
-                    });
-                  }
-                : undefined,
-              backLabel,
-              onBack: backTarget ? handleBack : undefined,
-              dueChipBtn: balanceOpen ? dues : null,
-              hkStatus: summary?.roomHkStatus,
-              roomAction,
-            }}
-          />
-          <StayHubMobileSteps {...navProps} />
+          {useSmartMode && summary ? (
+            <SmartStayHubPanel
+              summary={summary}
+              money={money}
+              propertyId={summary.propertyId}
+              isExpanded={isStayHubExpanded}
+              onToggleExpand={() => setIsStayHubExpanded((prev) => !prev)}
+              onRefresh={() => {
+                if (bookingId) {
+                  void fetchStayHubSummary(bookingId).then((r) => r.ok && setSummary(r.data));
+                  void fetchStayHubMoney(bookingId).then((r) => r.ok && setMoney(r.data));
+                }
+              }}
+              onClose={closePanel}
+            />
+          ) : (
+            <>
+              <StayHubHeaderBar
+                vip={Boolean(summary?.agentName)}
+                balanceBtn={balanceOpen ? dues : money?.guestVisibleBalanceBtn ?? null}
+                identity={{
+                  guestName: titleName,
+                  status: summary?.status,
+                  roomLabel: summary?.roomLabel,
+                  roomTypeName: summary?.roomTypeName,
+                  checkIn: summary?.checkIn,
+                  checkOut: summary?.checkOut,
+                  bookingId: summary?.bookingId,
+                  confirmationCode: summary?.confirmationCode,
+                  agentName: summary?.agentName,
+                  paymentMode: summary?.paymentMode,
+                  alerts: headerAlerts,
+                  terminal,
+                  saveStatus,
+                  lockHint: railLockHint,
+                  onForceLock: railLockHint
+                    ? () => {
+                        void forceTakeover(
+                          "Manager forced stay lease from StayHub",
+                        ).then((r) => {
+                          if (r.ok) toast.success(r.message ?? "Stay taken over");
+                          else toast.error(r.error ?? "Take-over failed");
+                        });
+                      }
+                    : undefined,
+                  backLabel,
+                  onBack: backTarget ? handleBack : undefined,
+                  dueChipBtn: balanceOpen ? dues : null,
+                  hkStatus: summary?.roomHkStatus,
+                  roomAction,
+                }}
+              />
+              <StayHubMobileSteps {...navProps} />
 
           <div className="flex min-h-0 flex-1 overflow-hidden">
             <StayHubLeftRail
@@ -4054,6 +4074,8 @@ export function StayHubDialog({
                 : null
             }
           />
+            </>
+          )}
         </StayHub3DShell>
       ) : null}
 

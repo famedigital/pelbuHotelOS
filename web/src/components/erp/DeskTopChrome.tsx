@@ -229,8 +229,9 @@ export function DeskTopChrome({
   return (
     <div
       data-slot="desk-top-chrome"
-      className="erp-cold-glass z-30 shrink-0 border-b border-border/60 print:hidden"
+      className="glass-top-chrome relative z-30 shrink-0 border-b border-white/10 dark:border-white/5 bg-background/85 dark:bg-zinc-950/85 backdrop-blur-2xl backdrop-saturate-150 shadow-[0_4px_30px_rgba(0,0,0,0.05)] print:hidden"
     >
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 dark:via-white/20 to-transparent" />
       <div className="flex h-10 min-w-0 items-center gap-1 px-2 sm:px-3">
         <Link
           href="/erp/day"
@@ -277,23 +278,29 @@ export function DeskTopChrome({
 
         <nav
           aria-label="Desk menus"
-          className="ml-1 hidden min-w-0 items-center gap-0.5 md:flex"
+          className="ml-2 hidden min-w-0 items-center gap-1 md:flex"
         >
-          {groups.map((group) => (
-            <button
-              key={group.id}
-              type="button"
-              onClick={() => setPickedMenu(group.id)}
-              className={cn(
-                "h-8 shrink-0 rounded-md px-2.5 text-[13px]",
-                activeMenuId === group.id
-                  ? "bg-muted font-semibold text-foreground"
-                  : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
-              )}
-            >
-              {MENU_TITLE[group.id] ?? group.label}
-            </button>
-          ))}
+          {groups.map((group) => {
+            const isActive = activeMenuId === group.id;
+            return (
+              <button
+                key={group.id}
+                type="button"
+                onClick={() => setPickedMenu(group.id)}
+                className={cn(
+                  "relative h-8 shrink-0 rounded-xl px-3 text-xs font-bold transition-all duration-200 select-none",
+                  isActive
+                    ? "bg-white/95 dark:bg-zinc-800/90 text-foreground border border-black/10 dark:border-white/15 shadow-[0_3px_12px_-1px_rgba(0,0,0,0.08),inset_0_1px_1px_#fff] dark:shadow-[0_4px_16px_-2px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.12)] font-black scale-[1.02]"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-transparent",
+                )}
+              >
+                {isActive && (
+                  <span className="pointer-events-none absolute inset-x-2 top-0 h-px bg-gradient-to-r from-transparent via-primary/80 to-transparent" />
+                )}
+                <span>{MENU_TITLE[group.id] ?? group.label}</span>
+              </button>
+            );
+          })}
         </nav>
 
         {/* Phone Menu */}
@@ -495,10 +502,17 @@ export function DeskSideNav() {
     <nav
       aria-label={title}
       data-slot="desk-side-nav"
-      className="erp-cold-glass hidden w-52 shrink-0 flex-col overflow-y-auto border-r border-border/60 px-2 py-2 md:flex print:hidden"
+      className="glass-side-rail relative hidden w-56 lg:w-60 shrink-0 flex-col overflow-y-auto border-r border-border/60 bg-background/70 dark:bg-zinc-950/70 backdrop-blur-2xl px-2.5 py-3 md:flex print:hidden shadow-[4px_0_30px_rgba(0,0,0,0.03)]"
     >
+      <div className="px-2 mb-2 pb-1 border-b border-border/40 flex items-center justify-between">
+        <span className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">
+          {title}
+        </span>
+        <span className="size-1.5 rounded-full bg-primary/40" />
+      </div>
+
       {topLinks.length ? (
-        <div className="mb-1 flex flex-col gap-1">
+        <div className="mb-2 flex flex-col gap-1">
           {topLinks.map((item) => (
             <SideLink
               key={item.href}
@@ -509,9 +523,10 @@ export function DeskSideNav() {
               onClick={() => pushErpRecent({ href: item.href, title: item.label })}
             />
           ))}
+          <div className="my-1.5 h-px bg-border/40" />
         </div>
       ) : null}
-      <div className="flex flex-col gap-0.5">
+      <div className="flex flex-col gap-1">
         {activeGroup.items.map((item) => (
           <SideLink
             key={item.href}
@@ -571,19 +586,29 @@ function SideLink({
       onClick={onClick}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "relative flex h-8 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground transition-colors duration-150 hover:bg-muted/80 hover:text-foreground",
-        active && "bg-muted font-medium text-foreground",
+        "group relative flex h-9 items-center gap-2.5 rounded-xl px-2.5 text-xs font-semibold transition-all duration-200 select-none",
+        active
+          ? "bg-white/95 dark:bg-zinc-900/90 text-foreground font-black border border-black/10 dark:border-white/15 shadow-[0_4px_14px_-2px_rgba(0,0,0,0.08),inset_0_1px_1px_#fff] dark:shadow-[0_4px_18px_-2px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.12)] translate-x-0.5"
+          : "text-muted-foreground hover:text-foreground hover:bg-muted/60 hover:translate-x-1",
       )}
     >
-      <span
-        aria-hidden
+      {active && (
+        <span
+          aria-hidden
+          className="absolute left-1 top-2 bottom-2 w-1 rounded-full bg-gradient-to-b from-amber-400 to-amber-600 shadow-[0_0_8px_rgba(245,158,11,0.6)]"
+        />
+      )}
+      <div
         className={cn(
-          "absolute top-1.5 bottom-1.5 left-0 w-0.5 rounded-full bg-transparent",
-          active && "bg-[var(--gold)]",
+          "flex size-6 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-110",
+          active
+            ? "bg-primary/10 text-primary dark:bg-primary/20 shadow-sm"
+            : "bg-muted/40 text-muted-foreground group-hover:bg-muted/80",
         )}
-      />
-      <Icon className={cn("size-4 shrink-0", sideIconTone(href))} />
-      <span className="whitespace-nowrap">{label}</span>
+      >
+        <Icon className={cn("size-3.5 shrink-0", active ? "text-primary" : sideIconTone(href))} />
+      </div>
+      <span className="truncate">{label}</span>
     </Link>
   );
 }

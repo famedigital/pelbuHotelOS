@@ -113,3 +113,15 @@ export async function deskLogout(): Promise<void> {
 
   redirect("/erp/login");
 }
+
+
+export async function checkIsDeskAdminOrManager(): Promise<boolean> {
+  try {
+    const { getDeskRole } = await import("@/lib/desk-auth");
+    const { isManagerDeskRole } = await import("@/lib/manager-pin-core");
+    const role = await getDeskRole().catch(() => null);
+    return isManagerDeskRole(role);
+  } catch {
+    return false;
+  }
+}

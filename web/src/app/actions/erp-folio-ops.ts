@@ -930,14 +930,28 @@ export async function changeStayMealPlanWithPin(
     const folioId = trimRequired(formData.get("folio_id"), "Folio");
     const mealPlanCode = trimRequired(formData.get("meal_plan_code"), "Meal plan");
     const reason = trimRequired(formData.get("reason"), "Reason");
-    const managerPin = trimRequired(formData.get("manager_pin"), "Manager PIN");
     const reissue =
       formData.get("reissue_invoice") === "1" ||
       formData.get("reissue_invoice") === "on";
 
-    const { verifyManagerPinForProperty } = await import("@/lib/manager-pin");
-    const pin = await verifyManagerPinForProperty(admin, pid, managerPin);
-    if (!pin.ok) throw new Error(pin.error);
+    const { getDeskRole } = await import("@/lib/desk-auth");
+    const { isManagerDeskRole } = await import("@/lib/manager-pin-core");
+    const sessionRole = await getDeskRole();
+    const isManager = isManagerDeskRole(sessionRole);
+
+    let approvedByStaffName: string | null = null;
+    if (!isManager) {
+      const managerPin = optionalTrim(formData.get("manager_pin"));
+      if (!managerPin) {
+        throw new Error("Manager PIN is required for front desk adjustments.");
+      }
+      const { verifyManagerPinForProperty } = await import("@/lib/manager-pin");
+      const pin = await verifyManagerPinForProperty(admin, pid, managerPin);
+      if (!pin.ok) throw new Error(pin.error);
+      if (pin.source === "staff") {
+        approvedByStaffName = pin.fullName;
+      }
+    }
 
     const { data: folio } = await admin
       .from("folios")
@@ -987,9 +1001,10 @@ export async function changeStayMealPlanWithPin(
     const mealResolved = await resolveMealPlanForBook(admin, pid, toCode);
 
     const { actor } = await resolveDeskActor();
-    const approvedBy =
-      pin.source === "staff"
-        ? `${pin.fullName} (PIN)`
+    const approvedBy = isManager
+      ? `${actor} (Admin)`
+      : approvedByStaffName
+        ? `${approvedByStaffName} (PIN)`
         : `${actor} (manager PIN)`;
 
     const { error: upErr } = await admin

@@ -90,7 +90,7 @@ export function ReservationsStatusChrome({
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <nav
             aria-label="Reservation status"
-            className="bg-muted inline-flex h-8 items-center gap-0.5 rounded-lg p-0.5"
+            className="relative inline-flex h-9 items-center gap-1 rounded-xl p-1 bg-muted/50 dark:bg-zinc-900/60 backdrop-blur-xl border border-border/60 shadow-[inset_0_1px_1px_rgba(0,0,0,0.05)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]"
           >
             {chips.map((c) => {
               const on = !depositOn && bucket === c.id;
@@ -99,10 +99,10 @@ export function ReservationsStatusChrome({
                   key={c.id}
                   href={bucketHref(queryBase, c.id)}
                   data-state={on ? "active" : "inactive"}
-                  className="inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+                  className="inline-flex h-7 items-center gap-1.5 rounded-lg px-3 text-xs font-bold transition-all duration-200 select-none text-muted-foreground hover:text-foreground data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-800 data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-black/5 dark:data-[state=active]:border-white/15 data-[state=active]:shadow-[0_4px_12px_-2px_rgba(0,0,0,0.1),inset_0_1px_1px_#fff] dark:data-[state=active]:shadow-[0_4px_16px_-2px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.12)] data-[state=active]:scale-[1.02] active:scale-95"
                 >
                   {c.label}
-                  <span className="tabular-nums opacity-80">{c.count}</span>
+                  <span className="tabular-nums font-mono opacity-80">{c.count}</span>
                 </Link>
               );
             })}
@@ -110,10 +110,10 @@ export function ReservationsStatusChrome({
           <Link
             href={depositHref}
             data-state={depositOn ? "active" : "inactive"}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-destructive/50 px-2.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 data-[state=active]:bg-destructive data-[state=active]:text-white"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-rose-500/35 bg-rose-500/10 px-3 text-xs font-bold text-rose-600 dark:text-rose-400 transition-all hover:bg-rose-500/20 data-[state=active]:bg-rose-600 data-[state=active]:text-white shadow-[0_2px_10px_rgba(244,63,94,0.15)] active:scale-95"
           >
-            Deposit due
-            <span className="tabular-nums">{counts.deposit_due}</span>
+            <span>Deposit due</span>
+            <span className="tabular-nums font-mono font-black">{counts.deposit_due}</span>
           </Link>
         </div>
 

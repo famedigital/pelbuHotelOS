@@ -217,6 +217,8 @@ type Props = {
   bookings?: PosBookingOption[];
   tables: DiningTable[];
   onSettle: (orderId: string) => void;
+  onQuickRoomCharge?: (orderId: string, totalBtn: number) => void;
+  onQuickQr?: (orderId: string, totalBtn: number) => void;
   onVoid: (orderId: string) => void;
   /** Resume an unpaid ticket on the menu to send another course. */
   onAddItems?: (orderId: string) => void;
@@ -234,6 +236,8 @@ export function OpenTicketsDrawer({
   bookings = [],
   tables,
   onSettle,
+  onQuickRoomCharge,
+  onQuickQr,
   onVoid,
   onAddItems,
   canFireKot = true,

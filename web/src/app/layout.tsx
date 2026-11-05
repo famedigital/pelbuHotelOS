@@ -96,7 +96,7 @@ export default function RootLayout({
       >
         {children}
         <DeskShellRecovery />
-        <Toaster position="top-right" richColors closeButton />
+        <Toaster position="top-right" closeButton />
       </body>
     </html>
   );
