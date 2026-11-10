@@ -75,7 +75,13 @@ export async function registerAuthHotelEmailRoutes(app: FastifyInstance) {
         `SELECT id, slug, name, organization_id
          FROM v2.properties
          WHERE organization_id = ${sqlLiteral(member.organization_id)}
-         ORDER BY name`,
+         ORDER BY
+           CASE
+             WHEN lower(name) IN ('demo', 'demo hotel') THEN 2
+             WHEN slug LIKE '%seed%' OR name ILIKE '%seed archive%' THEN 1
+             ELSE 0
+           END,
+           name`,
       )) as PropertyRow[];
       if (!properties?.length) {
         return reply.code(404).send({ ok: false, error: "No properties for this organization" });

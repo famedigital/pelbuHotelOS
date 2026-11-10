@@ -72,6 +72,19 @@ export async function registerAuthPortalEmailRoutes(app: FastifyInstance) {
         )) as AgentRow[];
         const agent = agents?.[0];
         if (!agent) {
+          const hotelMembers = (await queryRaw(
+            `SELECT 1
+             FROM v2.org_members
+             WHERE auth_user_id = ${sqlLiteral(auth.user.id)}::uuid
+                OR lower(email) = ${sqlLiteral(email)}
+             LIMIT 1`,
+          )) as unknown[];
+          if (hotelMembers?.length) {
+            return reply.code(403).send({
+              ok: false,
+              error: "This email is a hotel desk account. Open Hotel desk sign-in (not Partner).",
+            });
+          }
           return reply.code(403).send({
             ok: false,
             error: "No tour-operator portal for this email",

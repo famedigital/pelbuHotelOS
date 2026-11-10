@@ -139,6 +139,28 @@ async function readJson(res: Response): Promise<Record<string, unknown>> {
   }
 }
 
+/** Map machine auth codes to desk-safe copy (never show DATABASE_REQUIRED raw). */
+export function humanizeAuthError(error: string): string {
+  const e = error.trim();
+  const key = e.toUpperCase();
+  if (key === "DATABASE_REQUIRED" || key.includes("DATABASE_REQUIRED")) {
+    return "Desk cannot reach the hotel database. Retry in a moment, or sign in via Hotel desk.";
+  }
+  if (key === "SUPABASE_ANON_KEY NOT CONFIGURED" || e.includes("SUPABASE_ANON_KEY")) {
+    return "Sign-in service is not configured on this server.";
+  }
+  if (/auth unreachable/i.test(e)) {
+    return "Sign-in service is temporarily unreachable. Retry in a moment.";
+  }
+  if (/failed to fetch|networkerror|load failed/i.test(e)) {
+    return "Cannot reach the desk API. Check your connection and retry.";
+  }
+  if (/incorrect email or password/i.test(e)) {
+    return "Incorrect email or password. Hotel staff use Hotel desk — Partner is for tour operators only.";
+  }
+  return e;
+}
+
 /** Org member email/password → owner JWT for staff PIN pad. */
 export async function loginHotelEmail(input: {
   email: string;
@@ -176,7 +198,7 @@ export async function loginHotelEmail(input: {
           properties: [LOCAL_DEMO_PROPERTY],
         };
       }
-      return { ok: false, error: err };
+      return { ok: false, error: humanizeAuthError(err) };
     }
     return {
       ok: true,
@@ -232,7 +254,10 @@ export async function portalEmailLogin(input: {
     });
     const data = await readJson(res);
     if (!res.ok || data.ok === false) {
-      return { ok: false, error: String(data.error ?? data.message ?? "Sign-in failed") };
+      return {
+        ok: false,
+        error: humanizeAuthError(String(data.error ?? data.message ?? "Sign-in failed")),
+      };
     }
     return {
       ok: true,
@@ -251,7 +276,10 @@ export async function portalEmailLogin(input: {
       ],
     };
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Sign-in failed" };
+    return {
+      ok: false,
+      error: humanizeAuthError(err instanceof Error ? err.message : "Sign-in failed"),
+    };
   }
 }
 

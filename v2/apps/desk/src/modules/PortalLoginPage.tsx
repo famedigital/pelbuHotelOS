@@ -1,6 +1,6 @@
 import { useState, useTransition } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { portalEmailLogin, type AuthProperty } from "../lib/pin-auth-api";
+import { humanizeAuthError, portalEmailLogin, type AuthProperty } from "../lib/pin-auth-api";
 import { writePortalSession } from "../lib/auth-session";
 import { AuthGateShell } from "./AuthGateShell";
 
@@ -84,7 +84,9 @@ export function PortalLoginPage() {
       lead={
         properties
           ? "This account is linked to more than one hotel."
-          : meta.lead
+          : role === "agent"
+            ? "Tour-operator email only. Hotel owners: use Hotel desk — not this Partner screen."
+            : meta.lead
       }
       photoSrc={meta.photo}
       footer={
@@ -165,7 +167,7 @@ export function PortalLoginPage() {
                 propertyId,
               }).then((r) => {
                 if (!r.ok) {
-                  setError(r.error);
+                  setError(humanizeAuthError(r.error));
                   return;
                 }
                 enter(r.token, r.property, {
@@ -180,7 +182,7 @@ export function PortalLoginPage() {
 
             void portalEmailLogin({ role, email, password }).then((r) => {
               if (!r.ok) {
-                setError(r.error);
+                setError(humanizeAuthError(r.error));
                 return;
               }
               const account = {

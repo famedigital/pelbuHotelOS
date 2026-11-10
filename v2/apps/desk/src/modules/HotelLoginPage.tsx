@@ -1,6 +1,6 @@
 import { useState, useTransition } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { loginHotelEmail, type AuthProperty } from "../lib/pin-auth-api";
+import { humanizeAuthError, loginHotelEmail, type AuthProperty } from "../lib/pin-auth-api";
 import { writeHotelGate } from "../lib/auth-session";
 import { AuthGateShell } from "./AuthGateShell";
 
@@ -114,7 +114,7 @@ export function HotelLoginPage() {
                 propertyId: chosen.id,
               }).then((r) => {
                 if (!r.ok) {
-                  setError(r.error);
+                  setError(humanizeAuthError(r.error));
                   return;
                 }
                 enterPin(r.token, r.property);
@@ -124,7 +124,7 @@ export function HotelLoginPage() {
 
             void loginHotelEmail({ email, password }).then((r) => {
               if (!r.ok) {
-                setError(r.error);
+                setError(humanizeAuthError(r.error));
                 return;
               }
               if (r.properties.length > 1) {
